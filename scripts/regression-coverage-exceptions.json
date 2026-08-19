@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "maximumActiveScripts": 347,
-  "minimumAssertionCount": 18977,
+  "minimumAssertionCount": 18984,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,
@@ -4836,6 +4836,41 @@
       ],
       "legacy": false,
       "runMode": "static"
+    }
+  ],
+  "retiredAssertions": [
+    {
+      "sourceRegression": "views.current-static-contracts",
+      "retiredInVersion": "0.33.33.30.1",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 15,
+      "rationale": "Fifteen assertions pinned archived planning history rather than a live contract: six required a CHANGELOG heading for a release shipped between 0.33.5.15.1 and 0.33.5.18.10.8.5, two required archived changelog prose, and five required that long-archived roadmap sections stay absent from the live roadmap, which they can never re-enter.",
+      "assertionDisposition": "No behavior lost coverage. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and legacy.bump.version owns the one current CHANGELOG heading check. Every source, documentation, and descriptor assertion in the eight modules is unchanged.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/regression-contracts/views/markdown-platform.contract.mjs",
+        "scripts/regression-contracts/views/markdown-renderer-service.contract.mjs",
+        "scripts/regression-contracts/views/modal-action-standardization.contract.mjs",
+        "scripts/regression-contracts/views/view-builder-converted-surface-guardrails.contract.mjs",
+        "scripts/regression-contracts/views/view-builder.contract.mjs",
+        "scripts/regression-contracts/views/view-descriptor-declarative-guardrails.contract.mjs",
+        "scripts/regression-contracts/views/view-renderer-data-binding.contract.mjs",
+        "scripts/regression-contracts/views/view-renderer-shell.contract.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "release.historical-evidence-retirement",
+        "legacy.bump.version",
+        "views.current-static-contracts"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
     }
   ]
 }

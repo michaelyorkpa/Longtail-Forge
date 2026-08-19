@@ -124,7 +124,9 @@ for (const params of mediaParams) {
 
 for (const [params, count] of legacyCounts) {
   assert.ok(
-    count <= FROZEN_LEGACY_MEDIA_PARAMS.get(params),
+    // Every key in legacyCounts passed the FROZEN_LEGACY_MEDIA_PARAMS.has(params)
+    // admission above, so the allowance lookup is always present here.
+    count <= /** @type {number} */ (FROZEN_LEGACY_MEDIA_PARAMS.get(params)),
     `framework CSS uses the frozen legacy media query ${params} ${count} times; the frozen allowance is ${FROZEN_LEGACY_MEDIA_PARAMS.get(params)} and may only shrink`,
   );
 }
@@ -132,6 +134,7 @@ checks += mediaParams.length;
 
 console.log(`Mobile foundation regression passed ${checks} checks across ${viewFiles.length} views and ${mediaParams.length} media queries.`);
 
+/** @param {string} directory @returns {Promise<string[]>} */
 async function listHtmlFiles(directory) {
   const entries = await fs.readdir(directory, { withFileTypes: true });
 
@@ -140,6 +143,7 @@ async function listHtmlFiles(directory) {
     .map((entry) => path.join(directory, entry.name));
 }
 
+/** @param {string} rawParams @returns {string} */
 function normalizeMediaParams(rawParams) {
   return rawParams.replace(/\s+/g, " ").trim();
 }

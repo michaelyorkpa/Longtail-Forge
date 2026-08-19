@@ -8,6 +8,9 @@ const MANIFEST_SCHEMA_VERSION = 5;
 const MANIFEST_GENERATOR = "node scripts/generate-regression-manifest.mjs";
 const POLICY_SOURCE = "scripts/regression-coverage-exceptions.json";
 const CONTRACT_MODULE_ROOT = "scripts/regression-contracts";
+// Assertion retirements that delete deadweight from a still-active owner rather
+// than moving it. Historical planning pins are the only recorded kind today.
+const RETIRED_ASSERTION_TYPES = new Set(["historical-planning-pin"]);
 /** @typedef {{ modulePath: string, retainedOwner: string }} ContractMovement */
 /** @typedef {{ area: string, description: string, id: string, legacy?: boolean, path: string, runMode: string, tags: readonly string[], tier: string }} RegressionOwner */
 /** @typedef {{ assertionCount: number, path: string }} ContractAssertionModule */
@@ -16,8 +19,9 @@ const CONTRACT_MODULE_ROOT = "scripts/regression-contracts";
 /** @typedef {{ creditedAssertionReduction: number, ownerPaths: readonly string[], sourceAssertionCount: number }} RetirementAssertionInventory */
 /** @typedef {{ [key: string]: unknown, area: string, assertionInventory?: RetirementAssertionInventory, floorCredit: boolean, id: string, integrationCoverageOwners?: readonly string[], retainedCoverageOwners: readonly string[], retirementType: string, script: string, tags?: readonly string[], tier: string, vitestOwner: string }} RetiredScript */
 /** @typedef {{ [key: string]: unknown, assertionCount: number, movedTo: string, movementType: string, retainedIntegrationOwner: string, sourceInventory?: string, sourceRegression: string, verificationPerformed?: readonly string[] }} AssertionMovement */
+/** @typedef {{ [key: string]: unknown, assertionCount: number, assertionDisposition: string, rationale: string, retainedCoverageOwners: readonly string[], retiredEvidence: readonly string[], retiredInVersion: string, retirementType: string, sourcePaths: readonly string[], sourceRegression: string, verificationPerformed: readonly string[] }} RetiredAssertionRecord */
 /** @typedef {{ maximumScripts: number, rationale: string, snapshotPath: string }} LegacyMetadataException */
-/** @typedef {{ assertionMovements: readonly AssertionMovement[], coverageFamilies: readonly CoverageFamilyPolicy[], legacyMetadataException: LegacyMetadataException, maximumActiveScripts: number, minimumAreaScripts: Record<string, number>, minimumAssertionCount: number, minimumReleaseGateScripts: number, protectedAreas: readonly string[], requiredReleaseGateIds: readonly string[], retiredScripts: readonly RetiredScript[], schemaVersion: number }} CoveragePolicy */
+/** @typedef {{ assertionMovements: readonly AssertionMovement[], coverageFamilies: readonly CoverageFamilyPolicy[], legacyMetadataException: LegacyMetadataException, maximumActiveScripts: number, minimumAreaScripts: Record<string, number>, minimumAssertionCount: number, minimumReleaseGateScripts: number, protectedAreas: readonly string[], requiredReleaseGateIds: readonly string[], retiredAssertions: readonly RetiredAssertionRecord[], retiredScripts: readonly RetiredScript[], schemaVersion: number }} CoveragePolicy */
 /** @typedef {{ entries: readonly RegressionOwner[], policy: CoveragePolicy, readSource?: SourceReader }} CoverageComputationOptions */
 /** @typedef {{ contractMovements?: readonly ContractMovement[], entries: readonly RegressionOwner[], policy: CoveragePolicy, readSource?: SourceReader }} AssertionInventoryOptions */
 /** @typedef {{ id: string, minimumActiveScripts: number }} CoverageFamilyFloorTarget */
@@ -50,6 +54,9 @@ function buildRegressionManifest({ entries, policy, readSource = readUtf8Source 
   const assertionMovements = [...(policy.assertionMovements || [])]
     .map((entry) => cloneJson(entry))
     .sort((left, right) => left.sourceRegression.localeCompare(right.sourceRegression));
+  const retiredAssertions = [...(policy.retiredAssertions || [])]
+    .map((entry) => cloneJson(entry))
+    .sort((left, right) => left.sourceRegression.localeCompare(right.sourceRegression));
 
   const assertionInventory = buildAssertionInventory({ entries, policy, readSource });
 
@@ -62,6 +69,7 @@ function buildRegressionManifest({ entries, policy, readSource = readUtf8Source 
     assertionInventory,
     assertionMovements,
     legacyMetadataException: cloneJson(policy.legacyMetadataException),
+    retiredAssertions,
     regressions,
     retiredRegressions,
   });
@@ -131,6 +139,9 @@ function collectRegressionCoverageErrors({ entries, manifest, packageScripts = r
   }
   for (const movement of assertionMovements) {
     validateAssertionMovement({ activePaths, errors, movement });
+  }
+  for (const record of Array.isArray(policy?.retiredAssertions) ? policy.retiredAssertions : []) {
+    validateRetiredAssertionRecord({ activeIds, activePaths, errors, readSource, record });
   }
 
   if (Number.isInteger(policy?.maximumActiveScripts) && activeEntries.length > policy.maximumActiveScripts) {
@@ -426,6 +437,8 @@ function buildAssertionInventory({ entries, policy, readSource = readUtf8Source 
   const creditedAssertionReduction = (policy?.retiredScripts || [])
     .filter((entry) => entry?.floorCredit === true)
     .reduce((total, entry) => total + (entry?.assertionInventory?.creditedAssertionReduction || 0), 0);
+  const retiredAssertionCredit = (policy?.retiredAssertions || [])
+    .reduce((total, entry) => total + (Number.isInteger(entry?.assertionCount) ? entry.assertionCount : 0), 0);
   const activeAssertionCount = sumAssertions(active);
   const vitestAssertionCount = sumAssertions(vitest);
   const directOwnerAssertionCount = sumAssertions(directOwners);
@@ -437,7 +450,9 @@ function buildAssertionInventory({ entries, policy, readSource = readUtf8Source 
     effectiveAssertionCount: activeAssertionCount
       + vitestAssertionCount
       + directOwnerAssertionCount
-      + creditedAssertionReduction,
+      + creditedAssertionReduction
+      + retiredAssertionCredit,
+    retiredAssertionCredit,
     vitest,
     vitestAssertionCount,
   });
@@ -641,6 +656,9 @@ function validatePolicyShape(errors, policy) {
   if (!Array.isArray(policy.assertionMovements)) {
     errors.push("assertionMovements should be an array");
   }
+  if (!Array.isArray(policy.retiredAssertions)) {
+    errors.push("retiredAssertions should be an array");
+  }
 }
 
 /**
@@ -761,6 +779,69 @@ function validateRetirementEntry({ activeIds, activePaths, errors, packageScript
     }
     if (!vitestRunsInCheckFast(packageScripts)) {
       errors.push(`${label} pure-contract retirement requires check:fast to run test:unit before regressions`);
+    }
+  }
+}
+
+/**
+ * Validate one retired-assertion record. Unlike a retired script, nothing
+ * leaves discovery here: assertions were deleted from files that stay active,
+ * so the record credits only the assertion floor and never an area, tier,
+ * family, or bucket floor. The record is self-proving: every named source
+ * file must still exist and must no longer contain the retired evidence, so a
+ * reinstated pin fails this check instead of silently keeping its credit.
+ * @param {{ activeIds: ReadonlySet<string>, activePaths: ReadonlySet<string>, errors: string[], readSource: SourceReader, record: RetiredAssertionRecord }} options
+ */
+function validateRetiredAssertionRecord({ activeIds, activePaths, errors, readSource, record }) {
+  if (!record || typeof record !== "object") {
+    errors.push("retired assertion record should be an object");
+    return;
+  }
+  const label = record.sourceRegression || "retired assertion record";
+  for (const field of ["sourceRegression", "retiredInVersion", "retirementType", "rationale", "assertionDisposition"]) {
+    if (typeof record[field] !== "string" || !String(record[field]).trim()) {
+      errors.push(`${label} retired assertions should include ${field}`);
+    }
+  }
+  if (!RETIRED_ASSERTION_TYPES.has(record.retirementType)) {
+    errors.push(`${label} retirementType should be one of ${[...RETIRED_ASSERTION_TYPES].join(", ")}`);
+  }
+  if (!Number.isInteger(record.assertionCount) || record.assertionCount < 1) {
+    errors.push(`${label} retired assertions should include a positive assertionCount`);
+  }
+  if (!activeIds.has(record.sourceRegression) && !activePaths.has(record.sourceRegression)) {
+    errors.push(`${label} retired assertions should name an active source regression`);
+  }
+  if (!Array.isArray(record.verificationPerformed) || record.verificationPerformed.length === 0) {
+    errors.push(`${label} retired assertions should include verificationPerformed`);
+  }
+  if (!Array.isArray(record.retainedCoverageOwners) || record.retainedCoverageOwners.length === 0) {
+    errors.push(`${label} retired assertions should include retainedCoverageOwners`);
+  } else {
+    for (const owner of record.retainedCoverageOwners) {
+      if (!activePaths.has(owner) && !activeIds.has(owner)) {
+        errors.push(`${label} retained coverage owner ${owner} should be active`);
+      }
+    }
+  }
+  if (!Array.isArray(record.retiredEvidence) || record.retiredEvidence.length === 0) {
+    errors.push(`${label} retired assertions should name the retiredEvidence they removed`);
+    return;
+  }
+  if (!Array.isArray(record.sourcePaths) || record.sourcePaths.length === 0) {
+    errors.push(`${label} retired assertions should include sourcePaths`);
+    return;
+  }
+  for (const sourcePath of record.sourcePaths) {
+    if (!existsSync(sourcePath)) {
+      errors.push(`${label} retired assertion source ${sourcePath} should exist`);
+      continue;
+    }
+    const source = readSource(sourcePath, "utf8");
+    for (const evidence of record.retiredEvidence) {
+      if (source.includes(evidence)) {
+        errors.push(`${label} retired assertion source ${sourcePath} still references retired evidence ${evidence}`);
+      }
     }
   }
 }

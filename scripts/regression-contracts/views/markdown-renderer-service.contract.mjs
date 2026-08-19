@@ -6,8 +6,6 @@ import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readTextAsync: readText } = createProjectTextReader();
 
 const packageJson = JSON.parse(await readText("package.json"));
-const roadmap = await readText("ROADMAP.md");
-const changelog = await readText("CHANGELOG.md");
 const contract = await readText("docs/markdown-platform-contract.md");
 const serviceSource = await readText("src/core/markdown/markdown.service.js");
 
@@ -123,11 +121,6 @@ for (const expected of ["Heading", "strong", "emphasis", "underlined text", "saf
 assert.doesNotMatch(plain, /[#*_`|]|\+\+|\[x\]|\[ \]/, "plain text should not expose Markdown control syntax");
 assert.equal(createMarkdownExcerpt(markdown, 30), "Heading Paragraph with strong...", "excerpts should come from the parser-backed plain text path");
 
-assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.17\.2 - Shared Server-Side Markdown Renderer/, "completed Markdown renderer roadmap slice should be archived out of the live roadmap");
-assert.doesNotMatch(roadmap, /### Version 0\.33\.30\.5 - Markdown-it 15 runtime baseline/, "completed Markdown-it 15 roadmap slice should be archived out of the live roadmap");
-
-assert.match(changelog, /## Version 0\.33\.5\.17\.2 - /, "changelog should include the renderer service slice");
-assert.match(changelog, /## Version 0\.33\.30\.5 - /, "changelog should include the Markdown-it 15 baseline slice");
 assert.match(contract, /0\.33\.5\.17\.2 adds the dependency and service/, "contract should note the renderer service implementation");
 assert.match(contract, /As of 0\.33\.30\.5, the reviewed runtime baseline is `markdown-it` 15\.0/, "contract should record the reviewed Markdown-it 15 baseline");
 

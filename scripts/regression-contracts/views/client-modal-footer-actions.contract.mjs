@@ -84,6 +84,7 @@ assert.match(workbenchScript, /src: "js\/clients-projects\.js"/);
 
 console.log("Client modal footer actions regression passed.");
 
+/** @param {string} source @param {string} functionName @returns {string} */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);
