@@ -2995,7 +2995,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 6579,
+      "errorCount": 6370,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -7485,32 +7485,6 @@
             "count": 53
           }
         ],
-        "scripts/seed-scale.mjs": [
-          {
-            "code": 2339,
-            "count": 9
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 167
-          },
-          {
-            "code": 7031,
-            "count": 23
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 8
-          }
-        ],
         "scripts/separate-worker-end-to-end-regression.mjs": [
           {
             "code": 18047,
@@ -8294,7 +8268,7 @@
   },
   "totals": {
     "files": 1037,
-    "errors": 17713,
+    "errors": 17504,
     "explicitAny": 7
   },
   "explicitAnyByFile": {
