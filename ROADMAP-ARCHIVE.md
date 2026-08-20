@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.31.5 - Type Files preview and download egress owners
+
+**Model: High Effort** - Egress decides what leaves the system and under what headers.
+
+Fifth child of the `0.33.33.31` rollup, measured at 161 diagnostics across 3 files and 1,622 lines. Six children remain.
+
+- [x] Closed all 161 diagnostics across `files-preview-availability-route`, `files-preview-content-route`, and `file-streamed-validation-download-metadata`. The scripts program falls from 4,240 to 4,079 diagnostics, explicit `any` holds at 7, and all three owners are pinned strict-clean through `framework.full-strict-governance`.
+- [x] Applied the `0.33.33.31.4` correction to this cohort: the 65 response-envelope reads in the two preview owners arrived through `JSON.parse` and were therefore unchecked. Their bodies are now `unknown` and every read crosses that boundary through the shared narrowing published last checkpoint.
+- [x] Derived the envelopes from what production publishes — `readAttachmentPreviewDescriptor` for the availability route, and the `FilePreviewTextResponse` and `FilePreviewMarkdownResponse` branches of `FilePreviewContentResponse` for the JSON content route, which are the only branches that route answers with. Renaming `contentAvailable` on `FilePreviewDescriptor` breaks compilation in both owners, nine diagnostics in total.
+- [x] Retired the historical pins in `file-streamed-validation-download-metadata`, which carried more than any owner in the rollup so far. Two `assertRoadmapCursorAtLeast("0.33.8", ...)` calls, identical in floor and differing only in message, against a live cursor of `0.33.33`. A `CHANGELOG.md` match asserting the shipped `0.33.5.25.3` streamed-validation history. Three docs matches that anchored a live behavior claim to the `0.33.5.25.3` version string — the behavior assertions are kept and only the version anchors are gone. Five file reads that existed only to feed those assertions, three of them bound to underscore-prefixed names nothing read.
+- [x] Removed the owner from both lists in `scripts/planning-document-pin-baseline.json` in the same change, as that baseline's shrink-only rule requires. It was this cohort's only planning-document reader.
+- [x] Made the streamed owner's fixture session state the whole published `WorkspaceRequestSession` contract instead of a subset, which meant dropping a `role` field the fixture had invented. No production code reads `session.role`, so nothing under test changed.
+- [x] Proved the preserved contracts with negative controls: disabling the unsupported-type preview availability rule, the preview content availability refusal, the preview content-type header, and the missing-storage-object precheck each makes the owning regression fail, and every perturbed source restores byte-identical by SHA-256. Removing the storage precheck replaces the clean 404 with a destroyed connection, which is exactly what that guard exists to prevent.
+- [x] Recorded one coverage gap rather than papering over it. Inline content disposition is proved for the download path by the `0.33.33.31.4` lifecycle owner, confirmed by inverting it there. The preview content route's own inline disposition is asserted by no owner in the estate, so no control for it is claimed.
+- [x] Changed no production behavior. No explicit `any`, `@ts-ignore`, `@ts-nocheck`, or file exclusion was introduced.
+
 ## Version 0.33.33.31.4 - Type Files upload, multipart, and API lifecycle owners
 
 **Model: High Effort** - Upload ingress is the largest untyped surface in the Files estate.
