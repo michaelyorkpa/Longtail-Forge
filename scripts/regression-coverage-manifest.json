@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18403,
+    "activeAssertionCount": 18410,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19087,
+    "effectiveAssertionCount": 19094,
     "retiredAssertionCredit": 15,
     "vitest": [
       {
@@ -797,11 +797,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 42,
+      "assertionCount": 44,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy database conflict identity seam contract.",
-      "entryPointAssertionCount": 42,
+      "entryPointAssertionCount": 44,
       "id": "legacy.database.conflict.identity.seam",
       "legacy": true,
       "path": "scripts/database-conflict-identity-seam-regression.mjs",
@@ -2778,11 +2778,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 31,
+      "assertionCount": 32,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves better-sqlite3 13.0.3 preserves fresh migration identity, SQLite runtime PRAGMAs, transactions, deferred foreign keys, WAL concurrency/reopen behavior, bindings, results, BLOBs, FTS5, and integrity.",
-      "entryPointAssertionCount": 31,
+      "entryPointAssertionCount": 32,
       "id": "database.better-sqlite3-13-data-compatibility",
       "legacy": false,
       "path": "scripts/regressions/database/better-sqlite3-13-data-compatibility.regression.mjs",
@@ -3107,11 +3107,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 19,
+      "assertionCount": 21,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves only a runner-attested copied baseline can bypass the full migration chain and that absent, direct, existing-target, forged, stale, and tampered cases fall back or fail closed.",
-      "entryPointAssertionCount": 19,
+      "entryPointAssertionCount": 21,
       "id": "database.verified-regression-baseline-fast-path",
       "legacy": false,
       "path": "scripts/regressions/database/verified-regression-baseline-fast-path.regression.mjs",
@@ -3583,11 +3583,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 111,
+      "assertionCount": 113,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 111,
+      "entryPointAssertionCount": 113,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",

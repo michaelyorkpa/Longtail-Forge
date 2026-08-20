@@ -63,7 +63,7 @@ try {
 
   const health = await initializeSqliteRuntime();
   assert.equal(health.provider, "sqlite");
-  assert.equal(path.resolve(health.databaseFile), path.resolve(process.env.LONGTAIL_DATABASE_FILE));
+  assert.equal(path.resolve(/** @type {string} */ (health.databaseFile)), path.resolve(process.env.LONGTAIL_DATABASE_FILE));
   assert.equal(health.databaseFileWritable, true);
   assert.equal(health.foreignKeysEnabled, true);
   assert.equal(health.journalMode, "wal");
@@ -286,7 +286,7 @@ function readDefaultProvider() {
   return child.stdout.trim();
 }
 
-function assertConfigFails(overrides, pattern) {
+function assertConfigFails(/** @type {Record<string, unknown>} */ overrides, /** @type {RegExp} */ pattern) {
   const child = spawnSync(process.execPath, ["--input-type=module", "--eval", `
     import "./src/config.js";
   `], {

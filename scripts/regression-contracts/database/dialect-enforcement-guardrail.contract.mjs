@@ -212,7 +212,7 @@ function assertDocumentationContract() {
   assert.match(moduleContractDocs, /As of 0\.33\.5\.27\.32[\s\S]*must not hardcode raw seam-backed SQLite dialect[\s\S]*`db\.dialect` seams/, "module contract should tell future modules to use the agnostic dialect contract");
   }
 
-function findDialectViolations(entries) {
+function findDialectViolations(/** @type {Array<{ file: string, source: string }>} */ entries) {
   const violations = [];
 
   for (const entry of entries) {

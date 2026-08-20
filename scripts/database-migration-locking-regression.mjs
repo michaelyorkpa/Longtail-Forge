@@ -111,17 +111,16 @@ async function assertSecondStartupFailsClearlyWhileLockHeld() {
     });
   `], {
     cwd: root,
-    encoding: "utf8",
     env: cleanEnv(),
     stdio: ["ignore", "pipe", "pipe"],
   });
 
   let holderOutput = "";
   let holderError = "";
-  holder.stdout.on("data", (chunk) => {
+  holder.stdout.on("data", (/** @type {Buffer} */ chunk) => {
     holderOutput += chunk.toString();
   });
-  holder.stderr.on("data", (chunk) => {
+  holder.stderr.on("data", (/** @type {Buffer} */ chunk) => {
     holderError += chunk.toString();
   });
   const holderExitPromise = waitForExit(holder);
@@ -129,7 +128,7 @@ async function assertSecondStartupFailsClearlyWhileLockHeld() {
   await waitForOutput(holder, () => holderOutput.includes("lock-ready"));
   const lockPath = path.join(path.dirname(lockedDatabaseFile), ".longtail-forge-migrations.lock");
   const lockMetadata = JSON.parse(await fs.readFile(lockPath, "utf8"));
-  assertUuidVersion(lockMetadata.ownerId, 4, "SQLite migration-lock owner identity");
+  assertUuidVersion(/** @type {string} */ (lockMetadata.ownerId), "4", "SQLite migration-lock owner identity");
 
   const contender = spawnSync(process.execPath, ["--input-type=module", "--eval", `
     process.env.LONGTAIL_DATABASE_FILE = ${JSON.stringify(lockedDatabaseFile)};
@@ -147,7 +146,6 @@ async function assertSecondStartupFailsClearlyWhileLockHeld() {
     }
   `], {
     cwd: root,
-    encoding: "utf8",
     env: cleanEnv(),
   });
 
@@ -168,7 +166,7 @@ async function assertSecondStartupFailsClearlyWhileLockHeld() {
   );
 }
 
-function waitForOutput(child, isReady) {
+function waitForOutput(/** @type {import("node:child_process").ChildProcess} */ child, /** @type {() => boolean} */ isReady) {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error("Timed out waiting for migration lock holder."));
@@ -176,31 +174,31 @@ function waitForOutput(child, isReady) {
 
     function cleanup() {
       clearTimeout(timeout);
-      child.stdout.off("data", onData);
+      child.stdout?.off("data", onData);
       child.off("exit", onExit);
     }
 
     function onData() {
       if (isReady()) {
         cleanup();
-        resolve();
+        resolve(undefined);
       }
     }
 
-    function onExit(code) {
+    function onExit(/** @type {string} */ code) {
       cleanup();
       reject(new Error(`Migration lock holder exited before becoming ready (${code}).`));
     }
 
-    child.stdout.on("data", onData);
+    child.stdout?.on("data", onData);
     child.on("exit", onExit);
     onData();
   });
 }
 
-function waitForExit(child) {
+function waitForExit(/** @type {import("node:child_process").ChildProcess} */ child) {
   return new Promise((resolve) => {
-    child.once("exit", (code, signal) => {
+    child.once("exit", (/** @type {string} */ code, /** @type {NodeJS.Signals} */ signal) => {
       resolve({ code, signal });
     });
   });
@@ -230,7 +228,7 @@ function cleanEnv(overrides = {}) {
   return { ...env, ...overrides };
 }
 
-function assertUuidVersion(value, expectedVersion, label) {
+function assertUuidVersion(/** @type {unknown} */ value, /** @type {string} */ expectedVersion, /** @type {string} */ label) {
   assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
   assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }

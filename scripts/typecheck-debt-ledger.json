@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkpoint": "0.33.33.30",
+  "checkpoint": "0.33.33.31",
   "programs": {
     "server-tests": {
       "config": "tsconfig.json",
@@ -2953,6 +2953,7 @@
         "scripts/tasks-view-selector-query-contract-regression.mjs",
         "scripts/test-support/canonical-workspace-inventory.mjs",
         "scripts/test-support/database-fixture.mjs",
+        "scripts/test-support/database-row-assertions.mjs",
         "scripts/test-support/disposable-database.mjs",
         "scripts/test-support/fake-dom.mjs",
         "scripts/test-support/http-fixture-contracts.mjs",
@@ -3000,7 +3001,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 4908,
+      "errorCount": 4691,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3121,12 +3122,6 @@
           },
           {
             "code": 7019,
-            "count": 1
-          }
-        ],
-        "scripts/better-sqlite3-helper-core-regression.mjs": [
-          {
-            "code": 2345,
             "count": 1
           }
         ],
@@ -3269,176 +3264,6 @@
           },
           {
             "code": 7023,
-            "count": 1
-          }
-        ],
-        "scripts/database-adapter-contract-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 7
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/database-boolean-time-seam-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 3
-          },
-          {
-            "code": 2345,
-            "count": 7
-          },
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
-        "scripts/database-case-insensitive-seam-regression.mjs": [
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "scripts/database-conflict-identity-seam-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 5
-          },
-          {
-            "code": 2322,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/database-dialect-seam-scaffold-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 4
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "scripts/database-introspection-boundary-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 8
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/database-migration-locking-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 11
-          }
-        ],
-        "scripts/database-parameterized-query-pilot-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 11
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
-        "scripts/database-result-fidelity-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18047,
-            "count": 10
-          }
-        ],
-        "scripts/database-transaction-helper-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 5
-          },
-          {
-            "code": 2722,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 7
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/event-bus-regression.mjs": [
-          {
-            "code": 7005,
-            "count": 8
-          },
-          {
-            "code": 7006,
-            "count": 2
-          },
-          {
-            "code": 7034,
             "count": 1
           }
         ],
@@ -4450,20 +4275,6 @@
             "count": 1
           }
         ],
-        "scripts/migration-compatibility-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 4
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
         "scripts/module-actions-regression.mjs": [
           {
             "code": 7006,
@@ -4842,26 +4653,6 @@
             "count": 2
           }
         ],
-        "scripts/parameter-binding-conversion-wave-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 5
-          }
-        ],
-        "scripts/parameter-binding-layer-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 2
-          },
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 2
-          }
-        ],
         "scripts/performance-regression.mjs": [
           {
             "code": 7006,
@@ -4926,24 +4717,6 @@
           {
             "code": 7006,
             "count": 2
-          }
-        ],
-        "scripts/regression-contracts/database/dialect-enforcement-guardrail.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "scripts/regression-contracts/database/interpolation-enforcement-guardrail.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "scripts/regression-contracts/database/parameter-binding-audit.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 1
           }
         ],
         "scripts/regression-contracts/files/files-attachment-panel-shell.contract.mjs": [
@@ -5278,34 +5051,6 @@
             "count": 15
           }
         ],
-        "scripts/regressions/database/better-sqlite3-13-data-compatibility.regression.mjs": [
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/database/database-dialect-binding-types.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/database/database-repository-signature-types.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/database/database-transaction-client-types.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
         "scripts/regressions/database/demo-data-host-operation.regression.mjs": [
           {
             "code": 2322,
@@ -5354,30 +5099,6 @@
             "count": 3
           }
         ],
-        "scripts/regressions/database/migration-schema-workflow.regression.mjs": [
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 3
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/database/module-context-read-lifecycle.regression.mjs": [
-          {
-            "code": 18046,
-            "count": 2
-          },
-          {
-            "code": 18047,
-            "count": 4
-          }
-        ],
         "scripts/regressions/database/public-demo-baseline-candidate.regression.mjs": [
           {
             "code": 2339,
@@ -5418,16 +5139,6 @@
             "count": 3
           }
         ],
-        "scripts/regressions/database/sqlite-statement-cache-adapter.regression.mjs": [
-          {
-            "code": 18047,
-            "count": 6
-          },
-          {
-            "code": 2769,
-            "count": 2
-          }
-        ],
         "scripts/regressions/database/startup-maintenance-lifecycle.regression.mjs": [
           {
             "code": 18047,
@@ -5448,32 +5159,6 @@
           {
             "code": 7034,
             "count": 5
-          }
-        ],
-        "scripts/regressions/database/verified-regression-baseline-fast-path.regression.mjs": [
-          {
-            "code": 18047,
-            "count": 4
-          },
-          {
-            "code": 18049,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 1
-          },
-          {
-            "code": 7034,
-            "count": 1
           }
         ],
         "scripts/regressions/database/workspace-cleanup-isolation.regression.mjs": [
@@ -6192,44 +5877,6 @@
             "count": 1
           }
         ],
-        "scripts/sqlite-connection-hardening-regression.mjs": [
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/sqlite-small-office-performance-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "scripts/startup-maintenance-compatibility-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 9
-          },
-          {
-            "code": 2345,
-            "count": 6
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
         "scripts/tag-bulk-assignment-regression.mjs": [
           {
             "code": 7006,
@@ -6942,8 +6589,8 @@
     }
   },
   "totals": {
-    "files": 1042,
-    "errors": 16042,
+    "files": 1043,
+    "errors": 15825,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

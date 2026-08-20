@@ -6,6 +6,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-startup-maintenance-compatibility-"));
@@ -74,23 +75,24 @@ WHERE module_id = :moduleId;
 `, { moduleId: "framework" });
   assert.deepEqual(frameworkModule, { module_id: "framework", version: appVersion }, "framework module startup upsert should preserve the current app version");
 
-  const workspace = await db.get(`
+  /** @type {{ owner_user_id: string, workspace_id: string, workspace_type: string }} */
+  const workspace = requireRow(await db.get(`
 SELECT workspace_id, workspace_type, owner_user_id
 FROM workspaces
 ORDER BY created_at
 LIMIT 1;
-`);
+`), "workspace");
   assert.ok(workspace?.workspace_id, "startup should create or preserve a default workspace");
   assert.equal(workspace.workspace_type, "business", "startup should preserve the default business workspace type");
   assert.ok(workspace.owner_user_id, "startup should repair workspace owner from protected users");
 
-  const settings = await db.get(`
+  const settings = requireRow(await db.get(`
 SELECT workspace_id, audit_logging_enabled
 FROM workspace_settings
 WHERE workspace_id = :workspaceId;
-`, { workspaceId: workspace.workspace_id });
+`, { workspaceId: workspace.workspace_id }), "settings");
   assert.equal(settings.workspace_id, workspace.workspace_id, "startup should create workspace settings with bound params");
-  assert.equal([0, 1].includes(settings.audit_logging_enabled), true, "startup should store framework boolean settings using SQLite boolean storage");
+  assert.equal([0, 1].includes(Number(settings.audit_logging_enabled)), true, "startup should store framework boolean settings using SQLite boolean storage");
 
   const membership = await db.get(`
 SELECT status
@@ -117,7 +119,8 @@ WHERE workspace_id = :workspaceId
 }
 
 async function assertPendingRedactedSeedRepair() {
-  const workspace = await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
+  /** @type {{ workspace_id: string }} */
+  const workspace = requireRow(await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"), "workspace");
   const userId = `redacted-user-${randomUUID()}`;
   const sessionId = `redacted-session-${randomUUID()}`;
   const now = new Date().toISOString();
@@ -201,12 +204,12 @@ VALUES (
 
   await initializeDatabase();
 
-  const repairedUser = await db.get(`
+  const repairedUser = requireRow(await db.get(`
 SELECT username, display_name, user_status, protected_user
 FROM users
 WHERE user_id = :userId;
-`, { userId });
-  assert.match(repairedUser.username, /^retired-placeholder-1-redacted-user-/, "redacted startup repair should retire placeholder usernames");
+`, { userId }), "repairedUser");
+  assert.match(/** @type {string} */ (repairedUser.username), /^retired-placeholder-1-redacted-user-/, "redacted startup repair should retire placeholder usernames");
   assert.equal(repairedUser.display_name, "Retired Placeholder User", "redacted startup repair should rename the placeholder user");
   assert.equal(repairedUser.user_status, "inactive", "redacted startup repair should deactivate the placeholder user");
   assert.equal(repairedUser.protected_user, "no", "redacted startup repair should not leave the placeholder protected");
@@ -233,11 +236,11 @@ LIMIT 1;
 }
 
 async function assertIntegrity() {
-  const row = await db.get("PRAGMA integrity_check;");
+  const row = requireRow(await db.get("PRAGMA integrity_check;"), "row");
   assert.equal(row.integrity_check, "ok", "startup maintenance disposable database should pass integrity_check");
 }
 
-function assertNoLiteralHelperCalls(label, source) {
+function assertNoLiteralHelperCalls(/** @type {string} */ label, /** @type {string} */ source) {
   const helperCallPattern = /\bsql(?:Text|Integer|NullableText|NullableInteger)\s*\(/g;
   const helperCalls = [...source.matchAll(helperCallPattern)]
     .filter((match) => !/function\s+$/.test(source.slice(Math.max(0, match.index - 16), match.index)))

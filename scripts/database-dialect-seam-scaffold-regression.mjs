@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const dialectContractVersion = "0.33.6.14a";
@@ -84,7 +85,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
-async function assertConflictAndReturningSeams(dialect) {
+async function assertConflictAndReturningSeams(/** @type {import("../src/types/database-contracts.js").DatabaseDialect} */ dialect) {
   await db.run(`
 CREATE TABLE dialect_seam_records (
   id TEXT PRIMARY KEY,
@@ -144,7 +145,7 @@ ${dialect.returning.columns(["id", "label"])};
   }, "RETURNING seam should read the SQLite upsert result row");
 }
 
-async function assertCaseInsensitiveBooleanAndTimeSeams(dialect) {
+async function assertCaseInsensitiveBooleanAndTimeSeams(/** @type {import("../src/types/database-contracts.js").DatabaseDialect} */ dialect) {
   await db.run(`
 INSERT INTO dialect_seam_records (id, label, flag, created_at)
 VALUES
@@ -189,14 +190,14 @@ ORDER BY ${dialect.comparison.orderByNoCase("label", "ASC")}, id;
 `);
   assert.deepEqual(orderedRows.map((row) => row.label), ["alpha", "Beta", "gamma"], "case-insensitive ordering seam should preserve SQLite NOCASE ordering");
 
-  const timeRow = await db.get(`
+  const timeRow = requireRow(await db.get(`
 SELECT
   ${dialect.time.secondsBetween(":later", ":earlier")} AS elapsed_seconds,
   ${dialect.time.nonNegativeSecondsBetween(":earlier", ":later")} AS clamped_seconds;
 `, {
     earlier: "2026-07-05T12:00:00.000Z",
     later: "2026-07-05T13:00:00.000Z",
-  });
+  }), "timeRow");
   assert.ok(
     Number(timeRow.elapsed_seconds) >= 3599 && Number(timeRow.elapsed_seconds) <= 3600,
     "timestamp seam should lower to SQLite julianday interval math",
@@ -204,7 +205,7 @@ SELECT
   assert.equal(Number(timeRow.clamped_seconds), 0, "non-negative timestamp seam should clamp negative intervals");
 }
 
-async function assertSearchIdentityAndIntrospectionSeams(dialect) {
+async function assertSearchIdentityAndIntrospectionSeams(/** @type {import("../src/types/database-contracts.js").DatabaseDialect} */ dialect) {
   await db.run(`
 CREATE TABLE dialect_identity_records (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -278,24 +279,24 @@ ORDER BY ${dialect.search.rank("dialect_seam_fts")}, ${dialect.identity.rowId()}
     ["id", "label", "flag", "created_at"],
     "introspection seam should lower to SQLite PRAGMA table_info",
   );
-  const foreignKeys = await db.get(dialect.introspection.foreignKeys());
+  const foreignKeys = requireRow(await db.get(dialect.introspection.foreignKeys()), "foreignKeys");
   assert.ok(Object.hasOwn(foreignKeys, "foreign_keys"), "introspection seam should lower to SQLite PRAGMA foreign_keys");
 }
 
 async function assertTransactionClientExposesDialect() {
   await db.transaction(async (transaction) => {
     assert.equal(transaction.dialect, db.dialect, "transaction client should expose the same dialect seam object");
-    const row = await transaction.get(`
+    const row = requireRow(await transaction.get(`
 SELECT ${transaction.dialect.comparison.collateNoCase(":value")} AS value;
-`, { value: "Transaction dialect" });
+`, { value: "Transaction dialect" }), "row");
     assert.equal(row.value, "Transaction dialect", "transaction client should execute SQL built with the dialect seam");
   });
 }
 
-function assertJsonAndValidationSeams(dialect) {
+function assertJsonAndValidationSeams(/** @type {import("../src/types/database-contracts.js").DatabaseDialect} */ dialect) {
   assert.equal(dialect.json.supported, false, "JSON SQL access should stay disabled until a runtime need appears");
   assert.throws(
-    () => dialect.json.value("payload_json", "$.id"),
+    () => /** @type {(path: string, pointer: string) => unknown} */ (/** @type {unknown} */ (dialect.json.value))("payload_json", "$.id"),
     /JSON access seam is not implemented/,
     "JSON helper should fail clearly instead of emitting raw SQLite JSON SQL",
   );
@@ -310,7 +311,7 @@ function assertJsonAndValidationSeams(dialect) {
     "fragment helpers should reject statement separators",
   );
   assert.throws(
-    () => dialect.comparison.orderByNoCase("label", "SIDEWAYS"),
+    () => dialect.comparison.orderByNoCase("label", /** @type {never} */ ("SIDEWAYS")),
     /Invalid sort direction/,
     "case-insensitive order helper should allowlist sort directions",
   );

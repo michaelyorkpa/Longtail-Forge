@@ -106,7 +106,7 @@ function emptyBaseline() {
   };
 }
 
-function listSourceMatches(pattern) {
+function listSourceMatches(/** @type {RegExp} */ pattern) {
   const matches = [];
   for (const entry of runtimeSourceEntries) {
     for (const match of entry.source.matchAll(pattern)) {

@@ -262,6 +262,44 @@ for (const httpSecurityOwner of [
   assert.equal(ledger.programs.scripts.diagnostics[httpSecurityOwner], undefined, `${httpSecurityOwner} must stay strict-clean after checkpoint 0.33.33.30.3`);
   assert.equal(ledger.explicitAnyByFile[httpSecurityOwner], undefined, `${httpSecurityOwner} must stay free of explicit any after checkpoint 0.33.33.30.3`);
 }
+// The database seam, adapter, and parameter-binding owners closed at
+// 0.33.33.31.1, together with the shared row-assertion module they resolve
+// their single-row reads through.
+for (const databaseSeamOwner of [
+  "scripts/better-sqlite3-helper-core-regression.mjs",
+  "scripts/database-adapter-contract-regression.mjs",
+  "scripts/database-boolean-time-seam-regression.mjs",
+  "scripts/database-case-insensitive-seam-regression.mjs",
+  "scripts/database-conflict-identity-seam-regression.mjs",
+  "scripts/database-dialect-seam-scaffold-regression.mjs",
+  "scripts/database-introspection-boundary-regression.mjs",
+  "scripts/database-migration-locking-regression.mjs",
+  "scripts/database-parameterized-query-pilot-regression.mjs",
+  "scripts/database-result-fidelity-regression.mjs",
+  "scripts/database-transaction-helper-regression.mjs",
+  "scripts/event-bus-regression.mjs",
+  "scripts/migration-compatibility-regression.mjs",
+  "scripts/parameter-binding-conversion-wave-regression.mjs",
+  "scripts/parameter-binding-layer-regression.mjs",
+  "scripts/regression-contracts/database/dialect-enforcement-guardrail.contract.mjs",
+  "scripts/regression-contracts/database/interpolation-enforcement-guardrail.contract.mjs",
+  "scripts/regression-contracts/database/parameter-binding-audit.contract.mjs",
+  "scripts/regressions/database/better-sqlite3-13-data-compatibility.regression.mjs",
+  "scripts/regressions/database/database-dialect-binding-types.regression.mjs",
+  "scripts/regressions/database/database-repository-signature-types.regression.mjs",
+  "scripts/regressions/database/database-transaction-client-types.regression.mjs",
+  "scripts/regressions/database/migration-schema-workflow.regression.mjs",
+  "scripts/regressions/database/module-context-read-lifecycle.regression.mjs",
+  "scripts/regressions/database/sqlite-statement-cache-adapter.regression.mjs",
+  "scripts/regressions/database/verified-regression-baseline-fast-path.regression.mjs",
+  "scripts/sqlite-connection-hardening-regression.mjs",
+  "scripts/sqlite-small-office-performance-regression.mjs",
+  "scripts/startup-maintenance-compatibility-regression.mjs",
+  "scripts/test-support/database-row-assertions.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[databaseSeamOwner], undefined, `${databaseSeamOwner} must stay strict-clean after checkpoint 0.33.33.31.1`);
+  assert.equal(ledger.explicitAnyByFile[databaseSeamOwner], undefined, `${databaseSeamOwner} must stay free of explicit any after checkpoint 0.33.33.31.1`);
+}
 // The authorization-model owners closed at 0.33.33.30.7.1 and the permission
 // harness itself closed at 0.33.33.30.7.2.2, which completes the
 // 0.33.33.30.7 cohort.

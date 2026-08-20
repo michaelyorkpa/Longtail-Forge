@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 /** @typedef {{ workspace_id: string }} WorkspaceIdProjection */
@@ -102,7 +103,7 @@ async function assertConvertedRepositoriesRuntime() {
     status: "active",
   });
 
-  const readUser = await usersRepository.readByUsername(username);
+  const readUser = requireRow(await usersRepository.readByUsername(username), "readUser");
   assert.equal(readUser.user_id, user.user_id, "usersRepository should read SQL-like usernames through bound params");
 
   await usersRepository.updateProfile(workspace.workspace_id, user.user_id, {
@@ -114,7 +115,7 @@ async function assertConvertedRepositoriesRuntime() {
   await usersRepository.updateThemeMode(workspace.workspace_id, user.user_id, "dark");
   await usersRepository.updateOpenExternalLinksNewTab(workspace.workspace_id, user.user_id, true);
 
-  const membership = await userWorkspacesRepository.readByUserAndWorkspace(user.user_id, workspace.workspace_id);
+  const membership = requireRow(await userWorkspacesRepository.readByUserAndWorkspace(user.user_id, workspace.workspace_id), "membership");
   assert.equal(membership.status, "active", "user workspace reads should stay scoped and bound");
 
   const settings = await settingsRepository.readWorkspaceSettings(workspace.workspace_id);
@@ -139,7 +140,7 @@ async function assertConvertedRepositoriesRuntime() {
     workspaceName: `Owned ${hostileSuffix}`,
     workspaceType: "personal",
   });
-  const ownedWorkspace = await workspacesRepository.readById(createdWorkspace.workspaceId);
+  const ownedWorkspace = requireRow(await workspacesRepository.readById(createdWorkspace.workspaceId), "ownedWorkspace");
   assert.equal(ownedWorkspace.workspace_name, `Owned ${hostileSuffix}`, "workspace creation should preserve SQL-like names");
 
   const defaultCreationPermission = await appSettingsRepository.readWorkspaceCreationPermission(`missing-${hostileSuffix}`);
@@ -159,8 +160,8 @@ async function assertConvertedRepositoriesRuntime() {
   await usersRepository.remove(workspace.workspace_id, removableUser.user_id);
   assert.equal(await usersRepository.readFirstByUserId(removableUser.user_id), null, "home-workspace user cleanup should delete the user record");
 
-  const usersTable = await db.get("SELECT COUNT(1) AS count FROM users;");
-  const workspacesTable = await db.get("SELECT COUNT(1) AS count FROM workspaces;");
+  const usersTable = requireRow(await db.get("SELECT COUNT(1) AS count FROM users;"), "usersTable");
+  const workspacesTable = requireRow(await db.get("SELECT COUNT(1) AS count FROM workspaces;"), "workspacesTable");
   assert.ok(Number(usersTable.count) >= 1, "users table should survive SQL-like bound values");
   assert.ok(Number(workspacesTable.count) >= 1, "workspaces table should survive SQL-like bound values");
 }

@@ -70,11 +70,16 @@ try {
 
 console.log("Verified regression baseline fast-path regression passed.");
 
+/**
+ * @param {{ env: NodeJS.ProcessEnv, verifiedBaselineHandshake?: unknown }} launch
+ * @param {{ sendHandshake?: boolean, usePreloader?: boolean }} [options]
+ */
 async function runProbe(launch, { usePreloader = true, sendHandshake = true } = {}) {
   const handshake = sendHandshake ? launch.verifiedBaselineHandshake : null;
   return new Promise((resolve, reject) => {
     let stdout = "";
     let stderr = "";
+    /** @type {NodeJS.ErrnoException | null} */
     let handshakePipeError = null;
     const child = spawn(process.execPath, usePreloader ? ["--import", PRELOADER, PROBE] : [PROBE], {
       env: launch.env,
@@ -82,18 +87,23 @@ async function runProbe(launch, { usePreloader = true, sendHandshake = true } = 
     });
     if (handshake) {
       const handshakePipe = child.stdio[3];
-      handshakePipe.on("error", (error) => {
+      // stdio[3] is the extra handshake pipe this probe opened, so it is the
+      // writable end whenever a handshake was requested.
+      assert.ok(handshakePipe, "the handshake pipe should be open when a handshake is sent");
+      const handshakeWriter = /** @type {import("node:stream").Writable} */ (handshakePipe);
+      handshakeWriter.on("error", (/** @type {NodeJS.ErrnoException} */ error) => {
         if (error?.code !== "EPIPE" && error?.code !== "ECONNRESET") {
           handshakePipeError = error;
           child.kill();
         }
       });
-      handshakePipe.end(`${JSON.stringify(handshake)}\n`);
+      handshakeWriter.end(`${JSON.stringify(handshake)}\n`);
     }
+    assert.ok(child.stdout && child.stderr, "the probe child should expose piped stdout and stderr");
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => { stdout += chunk; });
-    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.stdout.on("data", (/** @type {Buffer} */ chunk) => { stdout += chunk; });
+    child.stderr.on("data", (/** @type {Buffer} */ chunk) => { stderr += chunk; });
     child.once("error", reject);
     child.on("close", (status) => {
       if (handshakePipeError) {
