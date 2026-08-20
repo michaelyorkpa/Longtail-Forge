@@ -1040,7 +1040,34 @@ async function runTaskMutationTests(api, fixtures) {
     "external client user can read tasks in its scoped client",
     api.get("/api/tasks", { cookie: fixtures.sessions.externalClientUser }),
     200,
-  );
+  ).then((response) => {
+    check("external client user Task reads stay inside its authorized Client scope", () => {
+      // 0.33.33.30.7.2.3 proved this read returns 200. That showed the role
+      // has access without showing what it receives, so a scope regression
+      // that widened the result set would still have passed. These assert the
+      // containment half, and the expectation is taken from the live
+      // implementation rather than a policy this product does not claim: the
+      // role is assigned client_external_user scoped to the alpha Client, and
+      // the endpoint returns only that Client's Tasks.
+      const visible = readPayload(response, ["tasks"]).tasks;
+      const visibleIds = visible.map((task) => task.task_id);
+      assert.ok(
+        visibleIds.includes(readPayload(scopedTask, ["task"]).task.task_id),
+        "the external client user should see the Task in its authorized Client and project",
+      );
+      assert.equal(
+        visibleIds.includes(readPayload(workspaceTask, ["task"]).task.task_id),
+        false,
+        "the workspace-only Task carries no Client and must stay outside the external Client scope",
+      );
+      assert.ok(visible.length > 0, "the scoped read should not be empty, or containment would prove nothing");
+      assert.deepEqual(
+        [...new Set(visible.map((task) => task.client_id))],
+        [fixtures.clients.alpha.id],
+        "every Task the external client user can see must belong to its authorized Client",
+      );
+    });
+  });
   await expectStatus(
     "external client user cannot create tasks",
     api.post("/api/tasks", {
