@@ -101,29 +101,19 @@ The reslice seam is real and internal, not a line range. The harness has one `se
 
 Both children must protect the harness's two distinct and separately enforced coverage inventories, which are not the same number and must not be conflated:
 
-- **352 static `assert` calls**, recorded by the generated regression manifest as `assertionCount` / `entryPointAssertionCount` for `permissions.http-authorization-matrix`. This is a static inventory the manifest generator counts from source.
+- **353 static `assert` calls**, recorded by the generated regression manifest as `assertionCount` / `entryPointAssertionCount` for `permissions.http-authorization-matrix`. This is a static inventory the manifest generator counts from source. It was 352 when this rollup was planned; `0.33.33.30.7.2.1` added one real assertion — that every seeded role resolves a user identity — and the coverage ratchet accepted the increase as strengthening.
 - **At least 409 executed authorization checks**, enforced at runtime by the harness itself at `scripts/permission-regression.mjs:59` (`assert.ok(results.length >= 409, ...)`). This is a dynamic floor counting checks actually executed against the running app.
 
 A change that preserved one while weakening the other would pass half the gate. Both children must leave both intact.
-
-##### 0.33.33.30.7.2.1 - Establish the harness's shared contracts
-
-**Model: High Effort** - Every phase function resolves through these two records; typing them wrong types all eighteen wrong.
-
-- [ ] Close the 113 measured diagnostics in the harness's shared helpers and entry flow, leaving the 18 phase-function bodies for `0.33.33.30.7.2.2`. The file's ledger entry shrinks but does not reach zero in this checkpoint, which the shrink-only ledger permits; the governance pin is added only when the file reaches zero.
-- [ ] Publish the two shared contracts the whole harness resolves through: the seeded fixture record returned by `seedFixtures()`, covering all eight roles and their identities, workspaces, clients, and projects; and the request client returned by `createApi()`, covering its request options and response shapes. Name the eight roles in the fixture contract so a missing role is a compile error rather than a silently skipped row.
-- [ ] Type the shared SQL and seeding helpers — the assignment and workspace insert builders, module settings payload and status-key helpers, and the project, client, API-key, and time-entry seeders — with named parameter contracts.
-- [ ] Consume any type seam `0.33.33.30.7.1` published, by type-only import. If that checkpoint found none, record that this child declares its own contracts and why.
-- [ ] Preserve all eight roles, isolated-database and release-gate run modes, API-key and browser authorization paths, workspace/client/project scoping, module-disablement behavior, ownership rules, and every existing fail-closed expectation. Both coverage inventories must be unchanged: the manifest must still record 352 static assertions and the harness must still enforce its floor of at least 409 executed checks.
 
 ##### 0.33.33.30.7.2.2 - Type the eighteen authorization phase functions
 
 **Model: High Effort** - This is the eight-role matrix itself and the branch's largest single release-gate proof.
 
-- [ ] Close the remaining diagnostics in `scripts/permission-regression.mjs` and return the file to zero. The measured upper bound is 136, and the true figure will be lower: many of the 111 callback parameters over response collections are inferred once `0.33.33.30.7.2.2`'s predecessor types the response bodies they iterate. Re-probe at the start of this checkpoint rather than assuming 136.
+- [ ] Close the remaining 136 diagnostics in `scripts/permission-regression.mjs` and return the file to zero. The figure is now exact rather than an upper bound: `0.33.33.30.7.2.1` closed its 113 and left precisely the 136 phase-body diagnostics the reslice measured. They did not shrink, because that checkpoint deliberately left the response payloads untyped — naming them belongs with the phases that read them, which is this checkpoint.
 - [ ] Type the request matrix rows, expected-status and expected-result maps, and the per-phase response payload reads with named contracts, consuming the shared fixture and client contracts by type-only import. A missing role or an unhandled expected status must be a compile error, not a silently skipped row.
 - [ ] Preserve all eight roles, isolated-database and release-gate run modes, API-key and browser authorization paths, workspace/client/project scoping, module-disablement behavior, ownership rules, and every existing fail-closed expectation.
-- [ ] Leave both coverage inventories intact and prove it: the generated manifest must still record 352 static assertions for `permissions.http-authorization-matrix`, and the harness must still enforce at least 409 executed checks at runtime.
+- [ ] Leave both coverage inventories intact and prove it: the generated manifest must still record at least the 353 static assertions for `permissions.http-authorization-matrix` that `0.33.33.30.7.2.1` left it at, and the harness must still enforce at least 409 executed checks at runtime. The runtime floor currently has no slack — the harness executes exactly 409 — so any check lost there fails the gate immediately.
 - [ ] Prove the matrix still fails closed with a seeded permission-regression negative control: grant a role a permission it must not hold, confirm the harness fails, and restore byte-identically with a verified digest. The control must be shown non-vacuous by inverting it.
 - [ ] `framework.full-strict-governance` pins `scripts/permission-regression.mjs` strict-clean. This child closes the `0.33.33.30.7` planning rollup.
 

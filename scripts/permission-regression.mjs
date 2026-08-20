@@ -34,7 +34,7 @@ try {
   await initializeDatabase();
   const fixtures = await seedFixtures();
   server = await listen(createApp());
-  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`;
   const api = createApi(baseUrl);
 
   await runAccessGuardTests(api);
@@ -67,15 +67,113 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/**
+ * The eight authorization roles this harness proves. Naming them as a closed
+ * key set is what makes a dropped role a compile error rather than a silently
+ * skipped row: every fixture and session record below is keyed by this union.
+ * @typedef {"superAdmin" | "workspaceAdmin" | "clientAdmin" | "projectAdmin" | "clientUser" | "projectUser" | "externalClientUser" | "unscopedUser"} HarnessRole
+ */
+
+/**
+ * A seeded role identity. Seven of the eight roles are generated here and
+ * carry `userId`; the protected super admin is read from the database instead
+ * and carries the row's `user_id`. The seeding SQL relies on exactly that
+ * asymmetry — `Object.values(users).filter((user) => user.userId)` is what
+ * excludes the already-present super admin from the insert set — so both
+ * shapes are declared rather than normalised.
+ * @typedef {{ userId: string, username: string, user_id?: undefined }} SeededRoleUser
+ */
+/** @typedef {{ user_id: string, username: string, userId?: undefined }} ProtectedRoleUser */
+/** @typedef {SeededRoleUser | ProtectedRoleUser} HarnessRoleUser */
+
+/** A seeded Client and Project the scoping probes address. */
+/** @typedef {{ id: string, name: string }} HarnessClient */
+/** @typedef {{ clientId: string, id: string, name: string }} HarnessProject */
+
+/**
+ * The session cookies the harness drives requests with: one per role, plus the
+ * two extra workspace-scoped administrator sessions the personal and family
+ * workspace probes use.
+ * @typedef {Record<HarnessRole, string> & { familyWorkspaceAdmin: string, personalWorkspaceAdmin: string }} HarnessSessions
+ */
+
+/**
+ * Everything `seedFixtures()` resolves. Every one of the eighteen phase
+ * functions receives this record, so its shape is the harness's central
+ * contract.
+ * @typedef {{
+ *   clients: { alpha: HarnessClient, beta: HarnessClient },
+ *   familyWorkspace: { id: string, projectId: string },
+ *   otherWorkspace: { clientId: string, id: string },
+ *   personalWorkspace: { id: string, projectId: string },
+ *   projects: { alpha: HarnessProject, beta: HarnessProject, workspace: HarnessProject },
+ *   sessions: HarnessSessions,
+ *   users: Record<HarnessRole, HarnessRoleUser>,
+ *   workspaceId: string,
+ * }} HarnessFixtures
+ */
+
+/**
+ * One response the harness client resolves, derived from the request helper
+ * rather than restated. `status` and `headers` are the transport shape this
+ * checkpoint owns.
+ *
+ * `body` is deliberately left to the helper s own inference: it is the parsed
+ * JSON when the payload parses and the raw text when it does not, and each of
+ * the eighteen phase functions asserts a different payload. Naming those
+ * payloads belongs with the phases that read them, in 0.33.33.30.7.2.2.
+ * Declaring `any` here to stand in for them would trade a real contract for a
+ * silenced one, and the explicit-any gate correctly refused it.
+ * @typedef {Awaited<ReturnType<typeof request>>} HarnessResponse
+ */
+
+/**
+ * Per-request overrides. The harness proves both browser and API-key
+ * authorization paths, so a request carries either a session cookie or a
+ * bearer key.
+ * @typedef {{ bearer?: string, cookie?: string }} HarnessRequestOptions
+ */
+
+/**
+ * The request client every phase function drives the running app through.
+ * @typedef {{
+ *   delete: (url: string, options?: HarnessRequestOptions) => Promise<HarnessResponse>,
+ *   get: (url: string, options?: HarnessRequestOptions) => Promise<HarnessResponse>,
+ *   post: (url: string, body?: unknown, options?: HarnessRequestOptions) => Promise<HarnessResponse>,
+ *   put: (url: string, body?: unknown, options?: HarnessRequestOptions) => Promise<HarnessResponse>,
+ * }} HarnessApi
+ */
+
+/** One configurable module setting, as a workspace settings read returns it. */
+/** @typedef {{ id: string, moduleStatus?: boolean, readOnly?: boolean, value?: unknown }} HarnessModuleSetting */
+
+/** One module's settings block within a workspace settings payload. */
+/** @typedef {{ moduleId: string, settings?: HarnessModuleSetting[] }} HarnessModuleDefinition */
+
+/** The workspace settings record the module-settings helpers read. */
+/** @typedef {{ audit?: unknown, moduleSettings?: HarnessModuleDefinition[], workspaceName?: string, workspaceType?: string }} HarnessSettings */
+
+/** The settings payload those helpers build, keyed by module then setting. */
+/** @typedef {Record<string, Record<string, unknown>>} HarnessSettingsPayload */
+
+/**
+ * One navigation entry the harness flattens when proving scoped navigation.
+ * The two flatteners walk different child keys - `children` in the settings
+ * navigation and `items` in the shell navigation - so both are declared
+ * rather than normalised into one.
+ * @typedef {{ children?: HarnessNavigationItem[], href?: string, items?: HarnessNavigationItem[] }} HarnessNavigationItem
+ */
+
+/** @returns {Promise<HarnessFixtures>} */
 async function seedFixtures() {
-  const workspaceId = (await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"))[0].workspace_id;
-  const superAdmin = (await querySql(`
+  const workspaceId = /** @type {string} */ ((await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"))[0].workspace_id);
+  const superAdmin = /** @type {ProtectedRoleUser} */ (/** @type {unknown} */ ((await querySql(`
 SELECT user_id, username
 FROM users
 WHERE home_workspace_id = ${sqlText(workspaceId)}
   AND protected_user = 'yes'
 LIMIT 1;
-`))[0];
+`))[0]));
   const now = new Date().toISOString();
   const users = {
     superAdmin,
@@ -145,9 +243,11 @@ ${projectInsertSql(familyWorkspace.id, { id: familyWorkspace.projectId, clientId
 ${assignmentInsertSql(familyWorkspace.id, users.workspaceAdmin.userId, "workspace_admin", "workspace", familyWorkspace.id, now)}
 `);
 
+  /** @type {Record<string, string>} */
   const sessions = {};
   for (const [key, user] of Object.entries(users)) {
     const userId = user.userId || user.user_id;
+    assert.ok(userId, `harness role ${key} should resolve a user identity`);
     const username = user.username;
     sessions[key] = await createSession(workspaceId, userId, username);
   }
@@ -163,7 +263,7 @@ ${assignmentInsertSql(familyWorkspace.id, users.workspaceAdmin.userId, "workspac
     users.workspaceAdmin.username,
   );
 
-  return {
+  return /** @type {HarnessFixtures} */ (/** @type {unknown} */ ({
     workspaceId,
     users,
     sessions,
@@ -172,7 +272,7 @@ ${assignmentInsertSql(familyWorkspace.id, users.workspaceAdmin.userId, "workspac
     otherWorkspace,
     personalWorkspace,
     familyWorkspace,
-  };
+  }));
 }
 
 async function runAccessGuardTests(api) {
@@ -1707,6 +1807,7 @@ WHERE users.user_id = ${sqlText(selfUserId)};
   );
 }
 
+/** @param {string} workspaceId @param {string} userId */
 async function seedUserAttribution(workspaceId, userId) {
   const now = new Date().toISOString();
   const taskId = `retained-task-${randomUUID()}`;
@@ -3105,6 +3206,7 @@ async function runDisabledModuleTests(api, fixtures) {
   }, { cookie: fixtures.sessions.workspaceAdmin }), 400);
 }
 
+/** @param {HarnessSettings} settings @returns {HarnessSettings} */
 function workspaceSettingsSavePayload(settings) {
   return {
     workspaceName: settings.workspaceName,
@@ -3113,7 +3215,9 @@ function workspaceSettingsSavePayload(settings) {
   };
 }
 
+/** @param {HarnessSettings} settings @param {HarnessSettingsPayload} [overrides] @returns {HarnessSettingsPayload} */
 function moduleSettingsPayload(settings, overrides = {}) {
+  /** @type {HarnessSettingsPayload} */
   const payload = {};
 
   for (const moduleDefinition of settings.moduleSettings || []) {
@@ -3142,6 +3246,13 @@ function moduleSettingsPayload(settings, overrides = {}) {
   return payload;
 }
 
+/**
+ * Despite the parameter name this receives a workspace settings record, not a
+ * workspace type string; it reads `moduleSettings` straight off it.
+ * @param {HarnessSettings} workspaceType
+ * @param {HarnessSettingsPayload} [overrides]
+ * @returns {HarnessSettingsPayload}
+ */
 function createWorkspaceModuleSettingsPayload(workspaceType, overrides = {}) {
   const payload = moduleSettingsPayload({
     moduleSettings: workspaceType.moduleSettings || [],
@@ -3156,6 +3267,7 @@ function createWorkspaceModuleSettingsPayload(workspaceType, overrides = {}) {
   return payload;
 }
 
+/** @param {string} workspaceId */
 async function readWorkspaceModuleStatuses(workspaceId) {
   const rows = await querySql(`
 SELECT module_id, status
@@ -3166,6 +3278,7 @@ WHERE workspace_id = ${sqlText(workspaceId)};
   return new Map(rows.map((row) => [row.module_id, row.status]));
 }
 
+/** @param {HarnessModuleDefinition[]} moduleSettings @returns {string[]} */
 function moduleStatusSettingKeys(moduleSettings) {
   return (moduleSettings || []).flatMap((moduleDefinition) => (
     (moduleDefinition.settings || [])
@@ -3174,11 +3287,12 @@ function moduleStatusSettingKeys(moduleSettings) {
   )).sort();
 }
 
+/** @param {HarnessNavigationItem[]} navigation @returns {string[]} */
 function flattenNavigationHrefs(navigation) {
   return (navigation || []).flatMap((item) => [
     item.href,
     ...flattenNavigationHrefs(item.children || []),
-  ]).filter(Boolean);
+  ]).filter((href) => typeof href === "string");
 }
 
 async function runReportingPermissionTests(api, fixtures) {
@@ -3207,30 +3321,35 @@ async function runReportingPermissionTests(api, fixtures) {
   );
 }
 
+/** @param {HarnessApi} api @param {string} cookie @param {string[]} scopes */
 async function createApiKey(api, cookie, scopes) {
   const response = await api.post("/api/api-keys", { name: `Harness key ${randomUUID()}`, scopes }, { cookie });
   await expectStatus(`created API key with scopes ${scopes.join(",")}`, response, 201);
   return response.body;
 }
 
+/** @param {HarnessApi} api @param {string} cookie @param {string} name @param {Record<string, unknown>} [extra] */
 async function createClient(api, cookie, name, extra = {}) {
   const response = await api.post("/api/clients", { name, ...extra }, { cookie });
   await expectStatus(`created client ${name}`, response, 201);
   return response.body.client;
 }
 
+/** @param {HarnessApi} api @param {string} cookie @param {string} clientId @param {string} name @param {Record<string, unknown>} [extra] */
 async function createProject(api, cookie, clientId, name, extra = {}) {
   const response = await api.post(`/api/clients/${encodeURIComponent(clientId)}/projects`, { name, ...extra }, { cookie });
   await expectStatus(`created project ${name}`, response, 201);
   return response.body.project;
 }
 
+/** @param {HarnessApi} api @param {string} cookie @param {string} projectId */
 async function createTimeEntry(api, cookie, projectId) {
   const response = await api.post("/api/time-entries", timeEntryPayload(projectId), { cookie });
   await expectStatus(`created time entry for ${projectId}`, response, 201);
   return response.body;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} name @returns {Promise<{ name: string, tagId: string }>} */
 async function createTag(workspaceId, userId, name) {
   const tagId = `tag-${randomUUID()}`;
   const now = new Date().toISOString();
@@ -3265,6 +3384,7 @@ VALUES (
   return { name, tagId };
 }
 
+/** @param {string} workspaceId @param {Record<string, unknown>} [options] */
 async function insertTimeEntry(workspaceId, options = {}) {
   const now = new Date().toISOString();
 
@@ -3310,6 +3430,7 @@ VALUES (
 `);
 }
 
+/** @param {{ expected: Record<string, unknown>, label: string, userId: string, workspaceId: string }} probe @returns {Promise<void>} */
 async function assertUnifiedTimerState({ label, workspaceId, userId, expected }) {
   const filters = [
     `workspace_id = ${sqlText(workspaceId)}`,
@@ -3345,6 +3466,7 @@ LIMIT 1;
   });
 }
 
+/** @param {{ label: string, sourceId: string, userId: string, workspaceId: string }} probe @returns {Promise<void>} */
 async function assertNoUnifiedTimerState({ label, workspaceId, userId, sourceId }) {
   const rows = await querySql(`
 SELECT active_timer_id
@@ -3362,15 +3484,21 @@ LIMIT 1;
   });
 }
 
+/** @param {string} baseUrl @returns {HarnessApi} */
 function createApi(baseUrl) {
   return {
+    /** @param {string} url @param {HarnessRequestOptions} [options] */
     get: (url, options = {}) => request(baseUrl, "GET", url, null, options),
+    /** @param {string} url @param {unknown} [body] @param {HarnessRequestOptions} [options] */
     post: (url, body, options = {}) => request(baseUrl, "POST", url, body, options),
+    /** @param {string} url @param {unknown} [body] @param {HarnessRequestOptions} [options] */
     put: (url, body, options = {}) => request(baseUrl, "PUT", url, body, options),
+    /** @param {string} url @param {HarnessRequestOptions} [options] */
     delete: (url, options = {}) => request(baseUrl, "DELETE", url, null, options),
   };
 }
 
+/** @param {Headers} headers @returns {string} */
 function extractSessionCookie(headers) {
   const setCookie = headers.get("set-cookie") || "";
   const match = setCookie.match(/(?:^|,\s*)longtail_forge_session=([^;,]+)/);
@@ -3379,7 +3507,15 @@ function extractSessionCookie(headers) {
   return match[1];
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {unknown} [body]
+ * @param {HarnessRequestOptions} [options]
+ */
 async function request(baseUrl, method, url, body = null, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {};
 
   if (body !== null) {
@@ -3416,11 +3552,21 @@ async function request(baseUrl, method, url, body = null, options = {}) {
   };
 }
 
+/** @param {string} name @param {() => void} assertion @returns {void} */
 function check(name, assertion) {
   assertion();
   results.push(name);
 }
 
+/**
+ * Record one status expectation. Most callers pass the in-flight request;
+ * the seeding helpers pass a response they already awaited, so both a promise
+ * and a settled record are accepted.
+ * @param {string} name
+ * @param {HarnessResponse | Promise<HarnessResponse>} responsePromise
+ * @param {number} expectedStatus
+ * @returns {Promise<HarnessResponse>}
+ */
 async function expectStatus(name, responsePromise, expectedStatus) {
   const response = await responsePromise;
   check(name, () => {
@@ -3429,6 +3575,7 @@ async function expectStatus(name, responsePromise, expectedStatus) {
   return response;
 }
 
+/** @param {string} projectId @param {Record<string, unknown>} [overrides] @returns {Record<string, unknown>} */
 function timeEntryPayload(projectId, overrides = {}) {
   return {
     project_id: projectId,
@@ -3443,6 +3590,7 @@ function timeEntryPayload(projectId, overrides = {}) {
   };
 }
 
+/** @param {string} projectId @param {Record<string, unknown>} [overrides] @returns {Record<string, unknown>} */
 function timerPayload(projectId, overrides = {}) {
   return {
     project_id: projectId,
@@ -3453,6 +3601,7 @@ function timerPayload(projectId, overrides = {}) {
   };
 }
 
+/** @param {string} label @returns {SeededRoleUser} */
 function userFixture(label) {
   return {
     userId: `${label}-${randomUUID()}`,
@@ -3460,10 +3609,12 @@ function userFixture(label) {
   };
 }
 
+/** @param {string} label @returns {string} */
 function uniqueEmail(label) {
   return `${label}-${randomUUID()}@example.test`;
 }
 
+/** @param {string} workspaceId @param {HarnessRoleUser} user @returns {string} */
 function userInsertSql(workspaceId, user) {
   return `
 INSERT INTO users (
@@ -3494,6 +3645,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {HarnessRoleUser} user @param {string} now @returns {string} */
 function membershipInsertSql(workspaceId, user, now) {
   return `
 INSERT INTO user_workspaces (
@@ -3514,12 +3666,14 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {string} name @param {string} workspaceType @param {string} ownerUserId @param {string} now @returns {string} */
 function workspaceInsertSql(workspaceId, name, workspaceType, ownerUserId, now) {
   return `
 INSERT INTO workspaces (workspace_id, name, status, workspace_type, owner_user_id, created_at, updated_at)
 VALUES (${sqlText(workspaceId)}, ${sqlText(name)}, 'Active', ${sqlText(workspaceType)}, ${sqlText(ownerUserId)}, ${sqlText(now)}, ${sqlText(now)});`;
 }
 
+/** @param {string} workspaceId @param {string} now @returns {string} */
 function workspaceSettingsInsertSql(workspaceId, now) {
   return `
 INSERT INTO workspace_settings (
@@ -3538,6 +3692,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {string} moduleId @param {string} now @returns {string} */
 function workspaceModuleInsertSql(workspaceId, moduleId, now) {
   return `
 INSERT OR IGNORE INTO workspace_modules (
@@ -3558,6 +3713,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} roleId @param {string} scopeType @param {string} scopeId @param {string} now @returns {string} */
 function assignmentInsertSql(workspaceId, userId, roleId, scopeType, scopeId, now) {
   const scopedClientId = scopeType === "client" ? scopeId : null;
   const scopedProjectId = scopeType === "project" ? scopeId : null;
@@ -3591,6 +3747,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {HarnessClient} client @param {string} now @returns {string} */
 function clientInsertSql(workspaceId, client, now) {
   return `
 INSERT INTO clients (
@@ -3645,6 +3802,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {HarnessProject} project @param {string} now @returns {string} */
 function projectInsertSql(workspaceId, project, now) {
   return `
 INSERT INTO projects (
@@ -3679,6 +3837,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} username @returns {Promise<string>} */
 async function createSession(workspaceId, userId, username) {
   const sessionId = randomUUID();
   const now = new Date().toISOString();
@@ -3711,6 +3870,7 @@ VALUES (
   return sessionId;
 }
 
+/** @param {string} workspaceId @param {string} templateId @param {string} instanceDate */
 async function readRecurrenceInstance(workspaceId, templateId, instanceDate) {
   const rows = await querySql(`
 SELECT task_id, due_date, recurrence_template_id, recurrence_instance_date
@@ -3725,6 +3885,7 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {string} workspaceId @param {string} templateId @param {string} instanceDate @returns {Promise<number>} */
 async function countRecurrenceInstances(workspaceId, templateId, instanceDate) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -3768,8 +3929,11 @@ function localDateOffset(days = 0, timeZone = "America/New_York") {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+/** @param {HarnessNavigationItem[]} [items] @returns {Set<string>} */
 function navigationHrefs(items = []) {
+  /** @type {Set<string>} */
   const hrefs = new Set();
+  /** @param {HarnessNavigationItem[] | undefined} entries */
   const visit = (entries) => {
     for (const item of Array.isArray(entries) ? entries : []) {
       if (item?.href) {
@@ -3783,9 +3947,13 @@ function navigationHrefs(items = []) {
   return hrefs;
 }
 
+/**
+ * @param {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} app
+ * @returns {Promise<import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
@@ -3811,6 +3979,10 @@ async function drainQueuedSearchJobs() {
   throw new Error("Queued permission-regression search jobs did not drain.");
 }
 
+/**
+ * @param {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} nextServer
+ * @returns {Promise<void>}
+ */
 function closeServer(nextServer) {
   return new Promise((resolve, reject) => {
     nextServer.close((error) => {

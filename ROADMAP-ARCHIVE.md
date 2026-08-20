@@ -1,5 +1,18 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.30.7.2.1 - Establish the harness's shared contracts
+
+**Model: High Effort** - Every phase function resolves through these two records; typing them wrong types all eighteen wrong.
+
+First child of the `0.33.33.30.7.2` rollup.
+
+- [x] Closed all 113 diagnostics in the harness's shared helpers and entry flow, leaving `scripts/permission-regression.mjs` at exactly the 136 phase-body diagnostics the reslice measured. The file shrinks from 249 without reaching zero, which the shrink-only ledger permits; the governance pin is deliberately withheld until `0.33.33.30.7.2.2` closes the file.
+- [x] Published the two contracts the whole harness resolves through. `HarnessFixtures` names the eight roles as a closed key union, so a dropped role is a compile error rather than a silently skipped row, and it declares the real asymmetry the seeding SQL depends on: seven roles are generated and carry `userId`, while the protected super admin is read from the database and carries `user_id`, which is exactly what `Object.values(users).filter((user) => user.userId)` uses to exclude it from the insert set. `HarnessApi` names the request client, its cookie-or-bearer options, and the response record.
+- [x] Refused to declare the response body as `any`, and the explicit-any gate is what caught the first attempt. `HarnessResponse` is now derived from the request helper's own inference, so `status` and `headers` are named while the payload stays inferred. Each of the eighteen phases asserts a different payload; naming those belongs with the phases that read them, and standing `any` in for them would have traded a real contract for a silenced one. Explicit `any` stays at 7.
+- [x] Typed the shared SQL builders, seeding helpers, settings and navigation helpers, payload builders, and the server lifecycle. Several first-pass signatures were wrong and the compiler caught each one: `createWorkspaceModuleSettingsPayload` receives a settings record rather than the workspace-type string its parameter name suggests, `createTag` returns an identity pair rather than an id, the two navigation flatteners walk different child keys, and the seeding helpers hand `expectStatus` a response they already awaited rather than the in-flight promise its other callers pass. Each signature now records what the source actually does.
+- [x] Added one real assertion rather than casting around a union: every seeded role must resolve a user identity before its session is created, which a malformed fixture would otherwise have seeded as `undefined`. The static inventory therefore moves from 352 to 353 and the coverage ratchet accepted it as strengthening; the successor checkpoint's scope text was corrected to the new figure so it is not held to a stale number.
+- [x] Preserved all eight roles, isolated-database and release-gate run modes, API-key and browser authorization paths, workspace/client/project scoping, module-disablement behavior, ownership rules, and every fail-closed expectation. The harness passes 409 checks, exactly its runtime floor. The scripts program falls from 5,157 to 5,044 diagnostics and combined strict debt from 16,291 to 16,178.
+- [x] Recorded the measured 172-line full-strict typing cost against the `0.33.33.11` active-owner line ceiling, the sixth such entry and 1,421 cumulative. `0.33.33.30.8` retires the mechanism.
 ## Version 0.33.33.30.7.1 - Type authorization-model owners
 
 **Model: High Effort** - The business-only client boundary and billable-membership rules are authorization semantics, not fixtures.
