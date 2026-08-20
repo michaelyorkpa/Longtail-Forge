@@ -14,8 +14,10 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { redactDemoError, seedCandidate } from "../../lib/demo-data-operation.mjs";
+
+/** @typedef {Awaited<ReturnType<typeof runPublicDemoCandidateOperation>>} PublicDemoCandidateOutcome */
+/** @typedef {Exclude<PublicDemoCandidateOutcome, { status: "candidate-dry-run-ready" }>} PublicDemoCandidateBuild */
 import {
   PUBLIC_DEMO_CANDIDATE_BUILD_PREFIX,
   PUBLIC_DEMO_CANDIDATE_CONTRACT,
@@ -124,8 +126,12 @@ try {
   assert.equal((await fs.readdir(dataRoot)).some((entry) => entry.startsWith(PUBLIC_DEMO_CANDIDATE_BUILD_PREFIX)), false);
   assert.equal(await activeStateDigest(dataRoot), activeBefore, "dry run must not touch the active database or Files");
 
+  /**
+   * @param {string} operationId
+   * @returns {Promise<PublicDemoCandidateBuild>}
+   */
   async function buildCandidate(operationId) {
-    return await runPublicDemoCandidateOperation({
+    const built = await runPublicDemoCandidateOperation({
       action: "build",
       anchorDate,
       appVersion,
@@ -140,6 +146,8 @@ try {
         seedCandidate,
       },
     });
+    assert.ok("semanticFingerprint" in built, "a completed candidate build must publish its verification");
+    return built;
   }
 
   const first = await buildCandidate("11111111-1111-4111-a111-111111111111");
@@ -198,6 +206,11 @@ try {
   assert.deepEqual(second.counts, first.counts);
   assert.equal(await activeStateDigest(dataRoot), activeBefore, "repeat build must leave the active database and Files unchanged");
 
+  /**
+   * @param {string} name
+   * @param {(candidateRoot: string) => Promise<void>} mutate
+   * @param {RegExp} expectedError
+   */
   async function corruptCandidate(name, mutate, expectedError) {
     const candidateRoot = path.join(root, "corrupt", name);
     await fs.mkdir(path.dirname(candidateRoot), { recursive: true });
@@ -292,7 +305,7 @@ WHERE note_id = (SELECT note_id FROM notes LIMIT 1);
     }, /symbolic link/);
     symlinkProven = true;
   } catch (error) {
-    if (!new Set(["EPERM", "EACCES", "UNKNOWN"]).has(error?.code)) throw error;
+    if (!new Set(["EPERM", "EACCES", "UNKNOWN"]).has(String(/** @type {NodeJS.ErrnoException} */ (error)?.code))) throw error;
   }
 
   await fs.rm(buildContext.paths.candidateRoot, { recursive: true, force: false });
@@ -326,13 +339,12 @@ WHERE note_id = (SELECT note_id FROM notes LIMIT 1);
   }), /not the named demo installation/);
   assert.equal(await activeStateDigest(dataRoot), activeBefore);
 
-  const [candidateSource, cliSource, hostSource, serverSource, workerSource, roadmap] = await Promise.all([
+  const [candidateSource, cliSource, hostSource, serverSource, workerSource] = await Promise.all([
     fs.readFile("scripts/lib/public-demo-baseline-candidate.mjs", "utf8"),
     fs.readFile("scripts/public-demo-baseline-candidate.mjs", "utf8"),
     fs.readFile("scripts/demo-data-host.mjs", "utf8"),
     fs.readFile("server.js", "utf8"),
     fs.readFile("worker.js", "utf8"),
-    fs.readFile("ROADMAP.md", "utf8"),
   ]);
   assert.match(candidateSource, /PUBLIC_DEMO_ROLE_FIXTURE_MODE/);
   assert.match(candidateSource, /listCandidateMigrationFiles/);
@@ -343,7 +355,6 @@ WHERE note_id = (SELECT note_id FROM notes LIMIT 1);
   for (const normalSource of [hostSource, serverSource, workerSource]) {
     assert.doesNotMatch(normalSource, /public-demo-baseline-candidate\.mjs|demo:baseline:candidate/);
   }
-  assertRoadmapCursorAtLeast("0.33.31.7", "public-demo candidate closeout", roadmap);
   assert.ok(symlinkProven || candidateSource.includes("isSymbolicLink"));
   assert.equal(
     redactDemoError(new Error(`${privateOperatorPassword} ${dataRoot}`), [privateOperatorPassword, dataRoot]),
@@ -355,6 +366,14 @@ WHERE note_id = (SELECT note_id FROM notes LIMIT 1);
   await fs.rm(root, { recursive: true, force: true });
 }
 
+/**
+ * Open the candidate database for one mutation, keeping whatever the caller's
+ * callback resolves rather than erasing it at the helper boundary.
+ * @template CandidateReadResult
+ * @param {string} candidateRoot
+ * @param {(database: InstanceType<typeof Database>) => CandidateReadResult} callback
+ * @returns {Promise<Awaited<CandidateReadResult>>}
+ */
 async function withDatabase(candidateRoot, callback) {
   const database = new Database(path.join(candidateRoot, "longtail-forge.db"));
   try {
@@ -364,6 +383,7 @@ async function withDatabase(candidateRoot, callback) {
   }
 }
 
+/** @param {string} dataRoot */
 async function activeStateDigest(dataRoot) {
   const hash = createHash("sha256");
   for (const relative of ["longtail-forge.db", "files/active-file.txt"]) {
@@ -373,6 +393,7 @@ async function activeStateDigest(dataRoot) {
   return hash.digest("hex");
 }
 
+/** @param {string} file */
 async function exists(file) {
   try {
     await fs.access(file);

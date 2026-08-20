@@ -25,6 +25,10 @@ import {
   ROLE_CREDENTIALS_FILE_ENV,
   SANITIZED_DEMO_ROLE_FIXTURES,
 } from "../../lib/sanitized-demo-role-fixtures.mjs";
+import { requireRow } from "../../test-support/database-row-assertions.mjs";
+
+/** @typedef {typeof import("../../../src/db/index.js")} DatabaseModule */
+/** @typedef {{ user_id: string, workspace_id: string }} SeededSession */
 
 if (process.argv.includes("--exercise-seeded-task-timers")) {
   await exerciseSeededTaskTimers();
@@ -225,6 +229,7 @@ try {
     mode: LOCAL_ROLE_FIXTURE_MODE,
     target: { profile: "development" },
   });
+  assert.ok(developmentFixtures, "the local sanitized-demo mode should resolve its role fixtures");
   assert.equal(developmentFixtures.usesBootstrapSuperAdmin, false);
   await assert.rejects(
     loadSanitizedDemoRoleFixtures({
@@ -343,20 +348,24 @@ try {
   await fs.rm(root, { recursive: true, force: true });
 }
 
+/** @param {InstanceType<typeof Database>} database @param {{ workspace_id: string }} earliestWorkspace @param {{ username: string }} operator */
 function assertSeedIdentifierCompatibility(database, earliestWorkspace, operator) {
   assertUuidVersion(earliestWorkspace.workspace_id, 7, "fresh bootstrap workspace");
-  const operatorId = database.prepare("SELECT user_id FROM users WHERE username = ?").get(operator.username).user_id;
+  const operatorId = requireRow(database.prepare("SELECT user_id FROM users WHERE username = ?").get(operator.username), "seeded operator").user_id;
   assertUuidVersion(operatorId, 7, "fresh bootstrap operator");
 
-  const client = database.prepare("SELECT id, workspace_id FROM clients ORDER BY name LIMIT 1").get();
-  const project = database.prepare("SELECT id, client_id FROM projects WHERE client_id = ? ORDER BY name LIMIT 1").get(client.id);
-  const taskId = database.prepare("SELECT task_id FROM tasks ORDER BY title LIMIT 1").get().task_id;
+  /** @type {{ id: string, workspace_id: string }} */
+  const client = requireRow(database.prepare("SELECT id, workspace_id FROM clients ORDER BY name LIMIT 1").get(), "seeded client");
+  /** @type {{ client_id: string, id: string }} */
+  const project = requireRow(database.prepare("SELECT id, client_id FROM projects WHERE client_id = ? ORDER BY name LIMIT 1").get(client.id), "seeded project");
+  const taskId = requireRow(database.prepare("SELECT task_id FROM tasks ORDER BY title LIMIT 1").get(), "seeded task").task_id;
+  /** @type {Array<[unknown, string]>} */
   const representativeIds = [
     [client.id, "deterministic development Client"],
     [project.id, "deterministic development Project"],
     [taskId, "deterministic development Task"],
-    [database.prepare("SELECT note_id FROM notes ORDER BY title LIMIT 1").get().note_id, "deterministic development Note"],
-    [database.prepare("SELECT list_id FROM lists ORDER BY title LIMIT 1").get().list_id, "deterministic development List"],
+    [requireRow(database.prepare("SELECT note_id FROM notes ORDER BY title LIMIT 1").get(), "seeded note").note_id, "deterministic development Note"],
+    [requireRow(database.prepare("SELECT list_id FROM lists ORDER BY title LIMIT 1").get(), "seeded list").list_id, "deterministic development List"],
   ];
   representativeIds.forEach(([value, label]) => assertUuidVersion(value, 4, label));
   assert.equal(project.client_id, client.id, "deterministic UUIDv4 seed relationships must remain intact beneath a UUIDv7 bootstrap workspace");
@@ -364,20 +373,24 @@ function assertSeedIdentifierCompatibility(database, earliestWorkspace, operator
   assert.deepEqual(indexedTask, { record_id: taskId }, "Search must retain the deterministic seed Task UUIDv4 byte-for-byte");
 }
 
+/** @param {unknown} value @param {number} version @param {string} label */
 function assertUuidVersion(value, version, label) {
   assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
   assert.equal(String(value)[14], String(version), `${label} should use UUIDv${version}`);
 }
 
+/** @param {string} dataDir @param {string} operatorPassword @param {string} [profile] @param {string} [username] @param {string} [credentialsFile] */
 function runSeed(dataDir, operatorPassword, profile = "development", username = operatorUsername, credentialsFile) {
   const args = ["seed", "--profile", profile, "--environment", "development", "--data-dir", dataDir];
   args.push("--role-fixtures", LOCAL_ROLE_FIXTURE_MODE);
   const result = spawnCli(args, operatorPassword, username, credentialsFile);
-  assert.equal(result.status, 0, result.stderr || result.stdout || result.error);
+  assert.equal(result.status, 0, String(result.stderr || result.stdout || result.error));
   return JSON.parse(result.stdout.slice(result.stdout.indexOf("{")));
 }
 
+/** @param {string[]} args @param {string} operatorPassword @param {string} [username] @param {string} [credentialsFile] */
 function spawnCli(args, operatorPassword, username = operatorUsername, credentialsFile) {
+  /** @type {NodeJS.ProcessEnv} */
   const env = {
     ...process.env,
     LONGTAIL_ENV: "development",
@@ -398,6 +411,7 @@ function spawnCli(args, operatorPassword, username = operatorUsername, credentia
   });
 }
 
+/** @param {string} file @param {string} prefix @param {Record<string, string>} [overrides] */
 async function writeRoleCredentials(file, prefix, overrides = {}) {
   const passwords = Object.fromEntries(SANITIZED_DEMO_ROLE_FIXTURES.map((fixture, index) => [
     fixture.roleId,
@@ -406,20 +420,24 @@ async function writeRoleCredentials(file, prefix, overrides = {}) {
   await fs.writeFile(file, `${JSON.stringify({ version: 1, passwords }, null, 2)}\n`, "utf8");
 }
 
+/** @param {string} prefix @param {number} index */
 function rolePassword(prefix, index) {
   return `Q${index}a!${prefix}-Private-92746zZ`;
 }
 
+/** @param {string} dataDir @param {string} credentialsFile @param {string[]} [expectedExtraActiveUsernames] */
 async function verifyRoleFixtureDatabase(dataDir, credentialsFile, expectedExtraActiveUsernames = []) {
   const credentialDocument = JSON.parse(await fs.readFile(credentialsFile, "utf8"));
   const database = new Database(path.join(dataDir, "longtail-forge.db"), { readonly: true });
   try {
-    const activeUsers = database.prepare(`
+    // The columns are named by the SELECT directly above, so the row shape is
+    // read off the query rather than assumed.
+    const activeUsers = /** @type {Array<{ password: string, protected_user: string, user_id: string, username: string }>} */ (database.prepare(`
 SELECT user_id, username, password, protected_user
 FROM users
 WHERE user_status = 'active'
 ORDER BY username;
-`).all();
+`).all());
     assert.equal(activeUsers.length, SANITIZED_DEMO_ROLE_FIXTURES.length + expectedExtraActiveUsernames.length);
     assert.deepEqual(
       activeUsers.filter((row) => !expectedExtraActiveUsernames.includes(row.username)).map((row) => row.username),
@@ -508,7 +526,9 @@ WHERE protected_user = 'no'
   }
 }
 
+/** @param {string} dataDir @param {string} operatorPassword */
 function runSeededTimerLifecycle(dataDir, operatorPassword) {
+  /** @type {NodeJS.ProcessEnv} */
   const childEnv = {
     ...process.env,
     LONGTAIL_DATA_DIR: dataDir,
@@ -524,7 +544,7 @@ function runSeededTimerLifecycle(dataDir, operatorPassword) {
     encoding: "utf8",
     env: childEnv,
   });
-  assert.equal(result.status, 0, result.stderr || result.stdout || result.error);
+  assert.equal(result.status, 0, String(result.stderr || result.stdout || result.error));
 }
 
 async function exerciseSeededTaskTimers() {
@@ -647,6 +667,12 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   }
 }
 
+/**
+ * @param {DatabaseModule["querySql"]} querySql
+ * @param {DatabaseModule["sqlText"]} sqlText
+ * @param {SeededSession} session
+ * @param {string} taskId
+ */
 async function readSeededSourceTimerCount(querySql, sqlText, session, taskId) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count

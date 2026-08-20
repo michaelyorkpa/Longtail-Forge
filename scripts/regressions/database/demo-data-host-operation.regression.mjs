@@ -13,6 +13,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { requireRow } from "../../test-support/database-row-assertions.mjs";
 import {
   DEMO_DATA_CONTRACT,
   PREFLIGHT_CONFIRMATION,
@@ -33,6 +34,21 @@ import {
   runDemoDataOperation,
   verifyDemoSeedCandidate,
 } from "../../lib/demo-data-operation.mjs";
+
+/** @typedef {import("../../lib/demo-data-operation.mjs").DemoHostDependencies} DemoHostDependencies */
+/** @typedef {import("../../lib/sanitized-demo-role-fixtures.mjs").RoleFixtureCredentialBinding} RoleFixtureCredentialBinding */
+
+/** The demo ownership marker fields this owner asserts on. */
+/**
+ * @typedef {{
+ *   anchorDate: string,
+ *   contract: string,
+ *   publicVisitorUserIds: string[],
+ *   roleFixtureCount: number,
+ *   semanticFingerprint: string,
+ *   target: string,
+ * }} DemoHostMarker
+ */
 import {
   PUBLIC_DEMO_ROLE_FIXTURE_MODE,
   PUBLIC_DEMO_VISITOR_PASSWORDS,
@@ -126,7 +142,7 @@ try {
     await assert.rejects(assertProtectedFile(symlinkPath, { label: "test environment", requireRoot: false }), /non-symbolic-link/);
     symlinkProven = true;
   } catch (error) {
-    if (!new Set(["EPERM", "EACCES", "UNKNOWN"]).has(error?.code)) throw error;
+    if (!new Set(["EPERM", "EACCES", "UNKNOWN"]).has(String(/** @type {NodeJS.ErrnoException} */ (error)?.code))) throw error;
   }
 
   await fs.mkdir(paths.backupRoot, { recursive: true });
@@ -135,6 +151,7 @@ try {
   await fs.symlink(fixtureRelease, path.join(paths.appRoot, "current"), process.platform === "win32" ? "junction" : "dir");
   await seedDevelopmentData(paths.dataRoot, "2026-07-19", "Regression-Only-Original-Demo-State-42!", originalRoleCredentialsFile);
   await fs.rm(path.join(paths.dataRoot, ".longtail-development-data.json"));
+  /** @type {string[]} */
   const credentialReadEvents = [];
   await assert.rejects(prepareDemoHostContext({
     action: "provision",
@@ -263,6 +280,7 @@ try {
   }), /does not match the named demo installation/);
   await fs.writeFile(path.join(paths.dataRoot, "original-state.txt"), "preserve me", "utf8");
 
+  /** @type {string[]} */
   const events = [];
   const hostDependencies = createHostDependencies();
   const successDependencies = makeDependencies(hostDependencies, events, {
@@ -286,6 +304,8 @@ try {
     dependencies: successDependencies,
   });
   assert.equal(result.status, "provisioned");
+  assert.ok("semanticFingerprint" in result, "a completed provision must publish its semantic fingerprint");
+  const provisionedFingerprint = result.semanticFingerprint;
   assert.equal(result.target, "rt-ltf-demo");
   assert.equal(result.counts.workspaces, 5);
   assert.equal(result.counts.users, 24);
@@ -295,7 +315,7 @@ try {
   assert.doesNotMatch(JSON.stringify(result), new RegExp(operatorPassword));
   assert.deepEqual(events.slice(0, 7), ["capture", "stop", "stopped", "backup", "inspect", "seed", "repair"]);
   assert.deepEqual(events.slice(-2), ["start", "verify"]);
-  const liveMarker = JSON.parse(await fs.readFile(path.join(paths.dataRoot, ".longtail-demo-data.json"), "utf8"));
+  const liveMarker = /** @type {DemoHostMarker} */ (JSON.parse(await fs.readFile(path.join(paths.dataRoot, ".longtail-demo-data.json"), "utf8")));
   assert.equal(liveMarker.contract, DEMO_DATA_CONTRACT);
   assert.equal(liveMarker.target, "rt-ltf-demo");
   assert.equal(liveMarker.anchorDate, "2026-07-20");
@@ -306,8 +326,9 @@ try {
   assert.ok(liveMarker.publicVisitorUserIds.every((userId) => /^[0-9a-f-]{36}$/i.test(userId)));
   const liveDatabase = new Database(paths.databaseFile, { readonly: true });
   try {
-    const privateOperator = liveDatabase.prepare("SELECT user_id FROM users WHERE protected_user = 'yes'").get();
-    assert.ok(privateOperator?.user_id);
+    /** @type {{ user_id: string }} */
+    const privateOperator = requireRow(liveDatabase.prepare("SELECT user_id FROM users WHERE protected_user = 'yes'").get(), "private operator");
+    assert.ok(privateOperator.user_id);
     assert.equal(liveMarker.publicVisitorUserIds.includes(privateOperator.user_id), false, "the private operator must never be marked public");
   } finally {
     liveDatabase.close();
@@ -344,6 +365,11 @@ try {
   assert.equal(await fs.readFile(path.join(paths.filesRoot, "seed", "checkout-findings.md"), "utf8"), "# Checkout findings\n\nFake fixture only. The header overlapped the cart button below 380px.\n");
   assert.ok(await exists(path.join(paths.backupRoot, result.backup.file)));
   assert.ok(await exists(`${path.join(paths.backupRoot, result.backup.file)}.sha256`));
+  /**
+   * @param {string} name
+   * @param {(database: InstanceType<typeof Database>, candidateRoot: string) => void | Promise<void>} mutate
+   * @param {RegExp} expectedError
+   */
   async function assertCorruptCandidateRejected(name, mutate, expectedError) {
     const candidateRoot = path.join(root, "candidate-corruption", name, "sanitized-demo");
     await fs.mkdir(path.dirname(candidateRoot), { recursive: true });
@@ -358,7 +384,7 @@ try {
       databaseFile: path.join(candidateRoot, "longtail-forge.db"),
       filesRoot: path.join(candidateRoot, "files"),
       expectedAnchorDate: "2026-07-20",
-      expectedFingerprint: result.semanticFingerprint,
+      expectedFingerprint: provisionedFingerprint,
     }), expectedError);
   }
   await assert.rejects(verifyDemoSeedCandidate({
@@ -446,6 +472,7 @@ WHERE note_id = (SELECT note_id FROM notes LIMIT 1);
     filesRoot: path.join(failureDataRoot, "files"),
     markerFile: path.join(failureDataRoot, ".longtail-demo-data.json"),
   });
+  /** @type {string[]} */
   const failureEvents = [];
   const failureDependencies = makeDependencies(hostDependencies, failureEvents, {
     operationId: "22222222-2222-4222-a222-222222222222",
@@ -525,6 +552,14 @@ WHERE note_id = (SELECT note_id FROM notes LIMIT 1);
   await fs.rm(root, { recursive: true, force: true });
 }
 
+/**
+ * Wrap the real host dependencies so the operation's call order is observable
+ * while the injected contract stays exactly the one the operation consumes.
+ * @param {DemoHostDependencies} hostDependencies
+ * @param {string[]} events
+ * @param {{ operationId: string, timestamp: string, verifyRunning: DemoHostDependencies["verifyRunning"] }} overrides
+ * @returns {DemoHostDependencies}
+ */
 function makeDependencies(hostDependencies, events, overrides) {
   return {
     operationId: () => overrides.operationId,
@@ -541,11 +576,13 @@ function makeDependencies(hostDependencies, events, overrides) {
   };
 }
 
+/** @param {unknown} value @param {number} expectedVersion @param {string} label */
 function assertUuidVersion(value, expectedVersion, label) {
   assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
   assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }
 
+/** @param {string} dataDir @param {string} anchorDate @param {string} password @param {string} roleCredentialsFile */
 async function seedDevelopmentData(dataDir, anchorDate, password, roleCredentialsFile) {
   const result = spawnSync(process.execPath, [
     "scripts/development-data.mjs",
@@ -567,9 +604,10 @@ async function seedDevelopmentData(dataDir, anchorDate, password, roleCredential
       SUPER_ADMIN_DISPLAY_NAME: "Original Demo Operator",
     },
   });
-  assert.equal(result.status, 0, result.stderr || result.stdout || result.error);
+  assert.equal(result.status, 0, String(result.stderr || result.stdout || result.error));
 }
 
+/** @param {string} filePath */
 async function exists(filePath) {
   try {
     await fs.access(filePath);
@@ -579,6 +617,13 @@ async function exists(filePath) {
   }
 }
 
+/**
+ * The binding is deliberately widened to the published contract rather than the
+ * frozen default, because the refusal probes hand it a mismatched target.
+ * @param {string} file
+ * @param {Record<string, string>} passwords
+ * @param {Partial<RoleFixtureCredentialBinding>} [binding]
+ */
 async function writeHostRoleCredentials(file, passwords, binding = RT_LTF_DEMO_ROLE_FIXTURE_BINDING) {
   await fs.writeFile(file, `${JSON.stringify({
     binding,
@@ -587,6 +632,7 @@ async function writeHostRoleCredentials(file, passwords, binding = RT_LTF_DEMO_R
   }, null, 2)}\n`, "utf8");
 }
 
+/** @param {string} source @param {string} functionName */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}(`);
   assert.notEqual(start, -1, `Expected function ${functionName}`);

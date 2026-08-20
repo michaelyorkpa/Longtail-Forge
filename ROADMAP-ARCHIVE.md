@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.31.3 - Type demo, development-data, and startup-maintenance owners
+
+**Model: High Effort** - Seeded estates and startup repair run before anything else can be trusted.
+
+Third child of the `0.33.33.31` rollup, measured at 145 diagnostics across 4 files and 2,065 lines. Eight children remain.
+
+- [x] Closed all 145 diagnostics across `demo-data-host-operation`, `public-demo-baseline-candidate`, `development-data-seed`, and `startup-maintenance-lifecycle`. The scripts program falls from 4,595 to 4,450 diagnostics, explicit `any` holds at 7, and all four owners are pinned strict-clean through `framework.full-strict-governance`.
+- [x] Consumed the contracts the libraries under test already publish rather than restating them: `DemoHostDependencies` for the injected host effects, `RoleFixtureCredentialBinding` for the deliberately mismatched binding the refusal probes write, and `DatabaseStartupAction` and `DatabaseStartupPhaseEvent` for the coordinator's actions and phase reports.
+- [x] Narrowed the operation-result unions by explicit assertion instead of assuming a branch. The demo host owner captures the proven semantic fingerprint at the point it is proven, because the corruption probes run inside a hoisted closure that the outer narrowing does not reach — a real limit found by compiling, not guessed.
+- [x] Kept two helper contracts honest rather than convenient: `withDatabase` is generic over its callback result so it does not repeat the erasure corrected at `0.33.33.31.1.1`, and the bootstrap probe's JSON result line is asserted to exist rather than parsed out of a possibly-absent value.
+- [x] Planning-document disposition recorded and acted on. `public-demo-baseline-candidate` asserted the live roadmap cursor was at least `0.33.31.7`; that floor sits two rollups behind the live `0.33.33` cursor and can no longer fail, and the `ROADMAP.md` source the owner read was passed into the options parameter, so it was never consumed. The pin, its file read, and its import are removed, and the id is deleted from `scripts/planning-document-pin-baseline.json` in the same change, as that baseline's shrink-only rule requires. It was this cohort's only planning-document read.
+- [x] Proved each preserved contract with its own negative control: disabling the exact-host demo boundary, the candidate migration identity check, the startup fail-fast ordering, and the seeded active-persona guard each makes the owning regression fail. Every perturbed source restores byte-identical by SHA-256, leaving the stripped pin behind in the baseline fails `release.historical-evidence-retirement`, and the four new governance pins fail by name when a diagnostic is seeded against them.
+- [x] Changed no production behavior. No explicit `any`, `@ts-ignore`, `@ts-nocheck`, or file exclusion was introduced.
+
 ## Version 0.33.33.31.2 - Type workspace lifecycle and role-seed database owners
 
 **Model: High Effort** - Deletion, purge, and isolation are destructive paths that must stay fail-closed.
