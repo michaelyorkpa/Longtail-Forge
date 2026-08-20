@@ -152,8 +152,13 @@ function walk(/** @type {string} */ currentPath, /** @type {string[]} */ results
     return;
   }
 
-  if (stat && /** @type {import("node:fs").Stats} */ (stat).isDirectory()) {
-    for (const entry of readDir(currentPath) || []) {
+  if (stat.isDirectory()) {
+    const entries = readDir(currentPath);
+    if (!entries) {
+      return;
+    }
+
+    for (const entry of entries) {
       walk(path.join(currentPath, entry), results);
     }
     return;
@@ -172,7 +177,17 @@ function readStat(/** @type {string} */ filePath) {
   return readFileSystem(() => fsSync.statSync(filePath));
 }
 
-function readFileSystem(/** @type {() => void} */ callback) {
+/**
+ * Read the filesystem, resolving null when the read fails.
+ *
+ * Generic so the caller keeps what it already knows: `readdirSync` resolves
+ * directory entries and `statSync` resolves `fs.Stats`, and both survive the
+ * boundary instead of being flattened away and recovered downstream.
+ * @template ReadResult
+ * @param {() => ReadResult} callback
+ * @returns {ReadResult | null}
+ */
+function readFileSystem(callback) {
   try {
     return callback();
   } catch {
