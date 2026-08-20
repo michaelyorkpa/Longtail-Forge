@@ -40,6 +40,18 @@ try {
   await fixture.cleanup();
 }
 
+/**
+ * The Client and Project records and the workspace-scoped session this owner
+ * drives the service with, reused from the published module contracts rather
+ * than redeclared. `ClientProjectSession` is the service own session type.
+ * @typedef {import("../../../src/types/client-project-contracts.js").ClientProjectSession} BoundarySession
+ */
+/** @typedef {import("../../../src/types/client-project-contracts.js").ClientRecord} BoundaryClient */
+/** @typedef {import("../../../src/types/client-project-contracts.js").ProjectRecord} BoundaryProject */
+
+/** The framework denial the Business-only boundary rejects with. */
+/** @typedef {{ message?: string, statusCode?: number }} BoundaryDenial */
+
 async function assertStaticContracts() {
   const browserSource = await readText("public/js/clients-projects.js");
   const moduleSource = await readText("src/modules/client-projects/module.js");
@@ -56,6 +68,7 @@ async function assertStaticContracts() {
   assert.match(serviceSource, /function listProjects[\s\S]*workspaceType === "business"[\s\S]*filter\(\(project\) => !project\.client_id\)[\s\S]*map\(stripProjectClientContext\)/, "Personal and Family Project list reads should stay project-only and strip Client context");
 }
 
+/** @param {BoundarySession} session @param {BoundaryClient} client @param {BoundaryProject} clientProject @param {BoundaryProject} workspaceProject */
 async function assertBusinessBoundary(session, client, clientProject, workspaceProject) {
   await setWorkspaceType(session.workspace_id, "business");
   const workspaceSession = { ...session };
@@ -71,6 +84,7 @@ async function assertBusinessBoundary(session, client, clientProject, workspaceP
   assert.equal(detail.project.client_name, client.name, "Business Project detail should retain readable Client context");
 }
 
+/** @param {BoundarySession} session @param {string} workspaceType @param {BoundaryClient} client @param {BoundaryProject} clientProject @param {BoundaryProject} workspaceProject */
 async function assertProjectOnlyBoundary(session, workspaceType, client, clientProject, workspaceProject) {
   await setWorkspaceType(session.workspace_id, workspaceType);
   const workspaceSession = { ...session };
@@ -112,18 +126,21 @@ async function assertProjectOnlyBoundary(session, workspaceType, client, clientP
   assert.equal(projectOnly.client_id, "", `${workspaceType} blank Client payloads should remain valid project-only writes`);
 }
 
+/** @param {() => Promise<unknown>} operation @param {string} message @returns {Promise<void>} */
 async function assertClientAssignmentRejected(operation, message) {
   await assert.rejects(
     operation,
-    (error) => error?.statusCode === 403 && /Clients are only available in Business workspaces/.test(error.message),
+    (error) => /** @type {BoundaryDenial} */ (error)?.statusCode === 403 && /Clients are only available in Business workspaces/.test(String(/** @type {BoundaryDenial} */ (error).message)),
     message,
   );
 }
 
+/** @param {string} workspaceId @param {string} workspaceType @returns {Promise<void>} */
 async function setWorkspaceType(workspaceId, workspaceType) {
   await runSql(`UPDATE workspaces SET workspace_type = ${sqlText(workspaceType)} WHERE workspace_id = ${sqlText(workspaceId)};`);
 }
 
+/** @returns {Promise<BoundarySession>} */
 async function readProtectedSession() {
   const rows = await querySql(`
 SELECT user_id, username, display_name, home_workspace_id, active_workspace_id, timezone
@@ -135,7 +152,7 @@ LIMIT 1;
   const user = rows[0];
   assert.ok(user?.user_id, "protected user fixture is required");
 
-  return {
+  return /** @type {BoundarySession} */ (/** @type {unknown} */ ({
     active_workspace_id: user.active_workspace_id || user.home_workspace_id,
     display_name: user.display_name || user.username,
     home_workspace_id: user.home_workspace_id,
@@ -144,7 +161,7 @@ LIMIT 1;
     user_id: user.user_id,
     username: user.username,
     workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  }));
 }
 
 async function assertIntegrity() {

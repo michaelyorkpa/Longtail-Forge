@@ -1,5 +1,17 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.30.7.1 - Type authorization-model owners
+
+**Model: High Effort** - The business-only client boundary and billable-membership rules are authorization semantics, not fixtures.
+
+First child of the `0.33.33.30.7` rollup.
+
+- [x] Closed all 31 diagnostics across `permissions/client-project-business-boundary` (15), `permissions/workspace-membership-billable` (9), `permissions/permission-resource-types` (3), `permissions/permission-resource-catalog` (2), and the folded `permissions/icon-accessibility-contract` (2). `permissions/current-static-contracts` and the folded `permissions/client-child-create-scope` measured zero and took a disposition only, as the reslice planned.
+- [x] Reused published contracts by type-only import rather than redeclaring shapes. The client/project owner resolves its session, Client, and Project records through `ClientProjectSession`, `ClientRecord`, and `ProjectRecord` from `src/types/client-project-contracts.d.ts`; `ClientProjectSession` is itself the published `WorkspaceRequestSession`, which the membership owner reuses directly for the six services it drives. Only two shapes had no published equivalent and were named locally: the seeded member status record and the compile-probe result.
+- [x] Recorded the type-seam finding the reslice required, and added nothing. The two behavioural owners do duplicate an identical `readProtectedSession()` and `setWorkspaceType()` helper, so a seam exists inside this cohort; but `scripts/permission-regression.mjs` imports only Node built-ins and `src/`, builds its own `seedFixtures()`, and shares no shape with these owners. There is therefore no seam the permission harness would consume, and both owners' sessions were already fully described by published contracts, so publishing a new abstraction would have added an indirection nothing reuses. `0.33.33.30.7.2` declares its own harness contracts.
+- [x] Preserved the business-only Client boundary, workspace-membership and billable semantics, permission-resource catalog behavior, folded contract ownership and its retained-owner reconciliation, every owner's recorded run mode, assertion ownership as the generated manifest records it, and all fail-closed behavior. Two null-narrowings became explicit assertions on rows the probes already required. No runtime behavior changed and all owners pass.
+- [x] `framework.full-strict-governance` pins the five authorization-model owners and both folded permission contract modules strict-clean, and deliberately omits `scripts/permission-regression.mjs`, which stays open across the `0.33.33.30.7.2` children. The scripts program falls from 5,188 to 5,157 diagnostics and combined strict debt from 16,322 to 16,291, with explicit `any` held at 7.
+- [x] Recorded the measured 52-line full-strict typing cost against the `0.33.33.11` active-owner line ceiling, the fifth such entry and 1,249 cumulative. The figure is 52 rather than the 37 the owners alone cost, because the ceiling also counts the governance pin that keeps those owners clean — a small but exact illustration of why `0.33.33.30.8` retires this gate. `0.33.33.30.8` retires the mechanism.
 ## Version 0.33.33.30.6 - Type session lifecycle and Support View enforcement owners
 
 **Model: High Effort** - Support View separates actor identity from effective identity across a durable gated session.

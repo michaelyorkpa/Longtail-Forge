@@ -113,6 +113,7 @@ void apiKey;
 
 console.log("Permission resource, active API-key, and route-construction regression passed.");
 
+/** @param {string} probePath @returns {{ output: string, status: number | null }} */
 function compileProbe(probePath) {
   const result = spawnSync(process.execPath, [
     "node_modules/typescript/bin/tsc",
@@ -140,6 +141,7 @@ function compileProbe(probePath) {
   };
 }
 
+/** @param {string} source @param {string} interfaceName @returns {string} */
 function readInterface(source, interfaceName) {
   const declaration = source.match(new RegExp(`export interface ${interfaceName} \\{([\\s\\S]*?)\\n\\}`));
   assert.ok(declaration, `${interfaceName} must remain an exported interface`);

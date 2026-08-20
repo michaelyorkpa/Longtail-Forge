@@ -2998,7 +2998,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 5188,
+      "errorCount": 5157,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -5070,12 +5070,6 @@
             "count": 2
           }
         ],
-        "scripts/regression-contracts/permissions/icon-accessibility-contract.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
         "scripts/regression-contracts/tags/tag-record-workflow.contract.mjs": [
           {
             "code": 7006,
@@ -5658,46 +5652,6 @@
           {
             "code": 7006,
             "count": 23
-          }
-        ],
-        "scripts/regressions/permissions/client-project-business-boundary.regression.mjs": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 13
-          }
-        ],
-        "scripts/regressions/permissions/permission-resource-catalog.regression.mjs": [
-          {
-            "code": 18048,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/permissions/permission-resource-types.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "scripts/regressions/permissions/workspace-membership-billable.regression.mjs": [
-          {
-            "code": 2531,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 6
-          },
-          {
-            "code": 7031,
-            "count": 2
           }
         ],
         "scripts/regressions/tasks/dashboard-summary-budgets.regression.mjs": [
@@ -7017,7 +6971,7 @@
   },
   "totals": {
     "files": 1040,
-    "errors": 16322,
+    "errors": 16291,
     "explicitAny": 7
   },
   "explicitAnyByFile": {
