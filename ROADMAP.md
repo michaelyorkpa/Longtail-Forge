@@ -76,16 +76,6 @@ Every child lands in the 96-to-217 band, against a proven range of 85 to 205 acr
 
 Requirements shared by every child: preserve real child-process and database isolation and do not merge processes merely to satisfy a target; type temporary paths, database handles, child results, attestations, provider mocks, and cleanup state explicitly rather than casting them away; strip historical roadmap, changelog, and version-history pins from the owners the child touches, recording each disposition, and require any surviving planning-document read to assert a current live contract; reuse published `src/types/` contracts by type-only import wherever one already describes a shape; introduce no explicit `any`, `@ts-ignore`, `@ts-nocheck`, or file exclusion; and pin each closed owner strict-clean through `framework.full-strict-governance`.
 
-#### 0.33.33.31.2 - Type workspace lifecycle and role-seed database owners
-
-**Model: High Effort - Deletion, purge, and isolation are destructive paths that must stay fail-closed.**
-
-Measured at 96 diagnostics across 4 files and 1,336 lines.
-
-- [ ] Close the 96 diagnostics across `workspace-final-purge`, `workspace-cleanup-isolation`, `workspace-deletion-lifecycle`, and `role-seed-scope-convergence`.
-- [ ] Type deletion lifecycle state, purge descriptors, isolation fixtures, and role-seed convergence records with named contracts.
-- [ ] Preserve deletion gating, purge irreversibility, cross-workspace isolation, and the source-to-table role convergence contract this owner holds sole ownership of; prove the destructive paths still fail closed with a negative control.
-
 #### 0.33.33.31.3 - Type demo, development-data, and startup-maintenance owners
 
 **Model: High Effort - Seeded estates and startup repair run before anything else can be trusted.**
