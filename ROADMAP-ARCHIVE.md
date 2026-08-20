@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.31.4 - Type Files upload, multipart, and API lifecycle owners
+
+**Model: High Effort** - Upload ingress is the largest untyped surface in the Files estate.
+
+Fourth child of the `0.33.33.31` rollup, measured at 210 diagnostics across 4 files and 2,150 lines. Seven children remain.
+
+- [x] Closed all 210 diagnostics across `file-upload-compatibility-error-hardening`, `file-multipart-upload-route`, `file-multipart-batch-upload-helper`, and `file-api-lifecycle`. The scripts program falls from 4,450 to 4,240 diagnostics, explicit `any` holds at 7, and all four owners are pinned strict-clean through `framework.full-strict-governance`.
+- [x] Found and fixed the larger, unmeasured half of the problem. Every response body in these owners arrived through `JSON.parse`, so it was already `any`, and each of the 87 envelope reads was a claim TypeScript never checked — the same defect corrected for the permission harness at `0.33.33.30.7.2.3`. The fixture responses now publish `body` as `unknown`, and every read crosses that boundary through a new shared narrowing in `scripts/test-support/http-payload-assertions.mjs`, which proves the body is a JSON object and proves the named envelopes are present before anything reads them.
+- [x] Derived the envelopes from the services that publish them rather than restating them, because the Files routes return service results unchanged: `uploadAndAttach`, `uploadBatchAndAttach`, `listAttachments`, `deleteFile`, `readFileForSession`, and the routes' own `MultipartBatchResult` and `MultipartBatchEntry`.
+- [x] Carried two truths the derivation exposed. The file record is nullable because a refused upload produces none, so reads through it resolve via `requireFile`. The batch entry is a union discriminated on `ok`, so an accepted entry is narrowed before its file is read and a refused entry before its error is read.
+- [x] Proved the boundary is real rather than decorative. Renaming `originalFilename` in the service's `shapeFile` breaks compilation in all four owners, six diagnostics in total, and dropping the `attachment` envelope from `POST /api/files` fails at the narrowing with the key it dropped — `payload should carry attachment: ["file"]` — instead of comparing `undefined` somewhere further down.
+- [x] Proved each preserved contract with its own negative control: disabling the multipart metadata-before-file ordering guard, the streamed upload size refusal, the batch partial-failure status, and the report-to-quarantine lifecycle transition each makes the owning regression fail. Every perturbed source restores byte-identical by SHA-256, and the four new governance pins fail by name when a diagnostic is seeded against them.
+- [x] Kept the pin set free of duplicates: the shared narrowing needed no entry of its own because the test-support pin from `0.33.33.27` already covers `scripts/test-support/`, which the seeding probe confirmed by failing under that older pin's message.
+- [x] Changed no production behavior. No explicit `any`, `@ts-ignore`, `@ts-nocheck`, or file exclusion was introduced, and none of the four owners reads a planning document.
+
 ## Version 0.33.33.31.3 - Type demo, development-data, and startup-maintenance owners
 
 **Model: High Effort** - Seeded estates and startup repair run before anything else can be trusted.
