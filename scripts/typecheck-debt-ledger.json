@@ -3002,7 +3002,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 4240,
+      "errorCount": 4079,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3538,36 +3538,6 @@
             "count": 1
           }
         ],
-        "scripts/file-streamed-validation-download-metadata-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 2
-          },
-          {
-            "code": 18047,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 8
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 27
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
         "scripts/files-attachable-target-options-regression.mjs": [
           {
             "code": 2322,
@@ -3720,46 +3690,6 @@
           {
             "code": 7006,
             "count": 10
-          }
-        ],
-        "scripts/files-preview-availability-route-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2538,
-            "count": 1
-          },
-          {
-            "code": 2769,
-            "count": 4
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 60
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "scripts/files-preview-content-route-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 42
           }
         ],
         "scripts/files-time-tracking-qol-closeout-regression.mjs": [
@@ -6327,7 +6257,7 @@
   },
   "totals": {
     "files": 1044,
-    "errors": 15374,
+    "errors": 15213,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

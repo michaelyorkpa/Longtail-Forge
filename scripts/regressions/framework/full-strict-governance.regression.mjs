@@ -336,6 +336,16 @@ for (const filesIngressOwner of [
   assert.equal(ledger.programs.scripts.diagnostics[filesIngressOwner], undefined, `${filesIngressOwner} must stay strict-clean after checkpoint 0.33.33.31.4`);
   assert.equal(ledger.explicitAnyByFile[filesIngressOwner], undefined, `${filesIngressOwner} must stay free of explicit any after checkpoint 0.33.33.31.4`);
 }
+// The Files egress owners closed at 0.33.33.31.5: preview availability,
+// preview content, and streamed validation with download metadata.
+for (const filesEgressOwner of [
+  "scripts/file-streamed-validation-download-metadata-regression.mjs",
+  "scripts/files-preview-availability-route-regression.mjs",
+  "scripts/files-preview-content-route-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[filesEgressOwner], undefined, `${filesEgressOwner} must stay strict-clean after checkpoint 0.33.33.31.5`);
+  assert.equal(ledger.explicitAnyByFile[filesEgressOwner], undefined, `${filesEgressOwner} must stay free of explicit any after checkpoint 0.33.33.31.5`);
+}
 // The authorization-model owners closed at 0.33.33.30.7.1 and the permission
 // harness itself closed at 0.33.33.30.7.2.2, which completes the
 // 0.33.33.30.7 cohort.

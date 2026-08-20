@@ -76,16 +76,6 @@ Every child lands in the 96-to-217 band, against a proven range of 85 to 205 acr
 
 Requirements shared by every child: preserve real child-process and database isolation and do not merge processes merely to satisfy a target; type temporary paths, database handles, child results, attestations, provider mocks, and cleanup state explicitly rather than casting them away; strip historical roadmap, changelog, and version-history pins from the owners the child touches, recording each disposition, and require any surviving planning-document read to assert a current live contract; reuse published `src/types/` contracts by type-only import wherever one already describes a shape; introduce no explicit `any`, `@ts-ignore`, `@ts-nocheck`, or file exclusion; and pin each closed owner strict-clean through `framework.full-strict-governance`.
 
-#### 0.33.33.31.5 - Type Files preview and download egress owners
-
-**Model: High Effort - Egress decides what leaves the system and under what headers.**
-
-Measured at 161 diagnostics across 3 files and 1,622 lines.
-
-- [ ] Close the 161 diagnostics across `files-preview-availability-route`, `files-preview-content-route`, and `file-streamed-validation-download-metadata`.
-- [ ] Type preview availability and content descriptors, streamed validation state, and download metadata with named contracts.
-- [ ] Preserve preview availability rules, content-type and disposition handling, streamed validation, and download metadata exactly.
-
 #### 0.33.33.31.6 - Type Files attachment target and context read owners
 
 **Model: High Effort - Attachment targets are a cross-module authorization surface.**

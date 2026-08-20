@@ -6,6 +6,54 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} PreviewClientOptions */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+
+/**
+ * One fixture response. The body stays `unknown` on purpose: JSON.parse would
+ * hand back `any`, and every envelope read below would then be a claim the
+ * compiler never checks.
+ * @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown> & { text: string }} PreviewResponse
+ */
+
+/** @typedef {{ buffer: Buffer, headers: Headers, status: number, text: string }} PreviewRawResponse */
+
+/**
+ * @typedef {{
+ *   get: (url: string, options?: PreviewClientOptions) => Promise<PreviewResponse>,
+ *   getRaw: (url: string, options?: PreviewClientOptions) => Promise<PreviewRawResponse>,
+ *   post: (url: string, body?: unknown, options?: PreviewClientOptions) => Promise<PreviewResponse>,
+ * }} PreviewApiClient
+ */
+
+/** The preview routes publish the descriptor and content shapes the Files service builds. */
+/** @typedef {typeof import("../src/services/files.service.js").filesService} FilesService */
+/** @typedef {Awaited<ReturnType<FilesService["readAttachmentPreviewDescriptor"]>>} PreviewDescriptorEnvelope */
+/** @typedef {Awaited<ReturnType<FilesService["uploadAndAttach"]>>} FileUploadEnvelope */
+
+/**
+ * Narrow an upload envelope to the file record it must be carrying.
+ *
+ * The service publishes `file` as nullable because a refused upload produces
+ * none, so every read through it here is a claim the route accepted the work.
+ * @template {{ file: unknown }} Envelope
+ * @param {Envelope} envelope
+ * @param {string} label
+ * @returns {NonNullable<Envelope["file"]>}
+ */
+function requireFile(envelope, label) {
+  assert.ok(envelope.file, `${label} should carry its file record`);
+  return envelope.file;
+}
+
+/** The JSON content route answers only the non-streaming branches of the union. */
+/** @typedef {import("../src/types/files-preview-contracts.js").FilePreviewTextResponse} PreviewTextEnvelope */
+/** @typedef {import("../src/types/files-preview-contracts.js").FilePreviewMarkdownResponse} PreviewMarkdownEnvelope */
+
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-files-preview-content-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -34,6 +82,7 @@ const { runJobWorkerOnce, stopJobWorker } = await import("../src/core/jobs/index
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { createSession } = await import("../src/security/sessions.js");
 
+/** @type {string[]} */
 const results = [];
 let server;
 
@@ -42,7 +91,7 @@ try {
   await initializeDatabase();
   const fixtures = await seedFixtures();
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   const textUpload = await uploadPreviewFile(api, fixtures, {
     bytes: Buffer.from(TEXT_PREVIEW, "utf8"),
@@ -84,28 +133,32 @@ try {
 UPDATE files
 SET scan_status = 'failed'
 WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
-  AND file_id = ${sqlText(failedScanUpload.file.fileId)};
+  AND file_id = ${sqlText(requireFile(failedScanUpload, "failed-scan upload").fileId)};
 `);
-  const quarantineReviewUpload = await api.post(`/api/files/${reviewUpload.file.fileId}/quarantine`, { reason: "manual_quarantine" }, {
+  const quarantineReviewUpload = await api.post(`/api/files/${requireFile(reviewUpload, "quarantine review upload").fileId}/quarantine`, { reason: "manual_quarantine" }, {
     cookie: fixtures.adminSessionId,
   });
   assert.equal(quarantineReviewUpload.status, 200);
 
   await checkAsync("preview descriptors expose content URLs only for previewable files", async () => {
-    for (const [upload, kind] of [
+    /** @type {Array<[FileUploadEnvelope, string]>} */
+    const previewableUploads = [
       [textUpload, "text"],
       [markdownUpload, "markdown"],
       [imageUpload, "image"],
-    ]) {
+    ];
+    for (const [upload, kind] of previewableUploads) {
       const response = await api.get(`/api/files/attachments/${upload.attachment.fileAttachmentId}/preview`, {
         cookie: fixtures.adminSessionId,
       });
 
       assert.equal(response.status, 200);
-      assert.equal(response.body.preview.state, "previewable");
-      assert.equal(response.body.preview.kind, kind);
-      assert.equal(response.body.preview.contentAvailable, true);
-      assert.equal(response.body.preview.contentUrl, `/api/files/attachments/${upload.attachment.fileAttachmentId}/preview/content`);
+      /** @type {PreviewDescriptorEnvelope} */
+      const descriptor = readPayload(response, ["preview"], "GET /api/files/attachments/:fileAttachmentId/preview");
+      assert.equal(descriptor.preview.state, "previewable");
+      assert.equal(descriptor.preview.kind, kind);
+      assert.equal(descriptor.preview.contentAvailable, true);
+      assert.equal(descriptor.preview.contentUrl, `/api/files/attachments/${upload.attachment.fileAttachmentId}/preview/content`);
       assertNoUnsafeStorageLeak([response.body]);
     }
 
@@ -113,9 +166,11 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
       cookie: fixtures.adminSessionId,
     });
     assert.equal(unsupported.status, 200);
-    assert.equal(unsupported.body.preview.state, "download_only");
-    assert.equal(unsupported.body.preview.contentAvailable, false);
-    assert.equal(Object.hasOwn(unsupported.body.preview, "contentUrl"), false);
+    /** @type {PreviewDescriptorEnvelope} */
+    const unsupportedDescriptor = readPayload(unsupported, ["preview"], "GET /api/files/attachments/:fileAttachmentId/preview");
+    assert.equal(unsupportedDescriptor.preview.state, "download_only");
+    assert.equal(unsupportedDescriptor.preview.contentAvailable, false);
+    assert.equal(Object.hasOwn(unsupportedDescriptor.preview, "contentUrl"), false);
     assertNoUnsafeStorageLeak([unsupported.body]);
   });
 
@@ -138,11 +193,13 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
     });
 
     assert.equal(response.status, 200);
-    assert.equal(response.body.preview.kind, "text");
-    assert.equal(response.body.preview.state, "previewable");
-    assert.equal(response.body.content.kind, "text");
-    assert.equal(response.body.content.encoding, "utf-8");
-    assert.equal(response.body.content.text, TEXT_PREVIEW);
+    /** @type {PreviewTextEnvelope} */
+    const textContent = readPayload(response, ["content", "preview"], "GET /api/files/attachments/:fileAttachmentId/preview/content");
+    assert.equal(textContent.preview.kind, "text");
+    assert.equal(textContent.preview.state, "previewable");
+    assert.equal(textContent.content.kind, "text");
+    assert.equal(textContent.content.encoding, "utf-8");
+    assert.equal(textContent.content.text, TEXT_PREVIEW);
     assertNoUnsafeStorageLeak([response.body]);
   });
 
@@ -152,15 +209,17 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
     });
 
     assert.equal(response.status, 200);
-    assert.equal(response.body.preview.kind, "markdown");
-    assert.equal(response.body.content.kind, "markdown");
-    assert.equal(response.body.content.bodyFormat, "markdown");
-    assert.equal(response.body.content.bodyHtmlFormat, "html");
-    assert.equal(response.body.content.bodyMarkdown, MARKDOWN_PREVIEW);
-    assert.match(response.body.content.bodyHtml, /<h1>Preview Heading<\/h1>/);
-    assert.match(response.body.content.bodyHtml, /<u>Underlined<\/u>/);
-    assert.match(response.body.content.bodyHtml, /markdown-task-list-checkbox/);
-    assert.doesNotMatch(response.body.content.bodyHtml, /<script|javascript:|<img|onerror|data:/i);
+    /** @type {PreviewMarkdownEnvelope} */
+    const markdownContent = readPayload(response, ["content", "preview"], "GET /api/files/attachments/:fileAttachmentId/preview/content");
+    assert.equal(markdownContent.preview.kind, "markdown");
+    assert.equal(markdownContent.content.kind, "markdown");
+    assert.equal(markdownContent.content.bodyFormat, "markdown");
+    assert.equal(markdownContent.content.bodyHtmlFormat, "html");
+    assert.equal(markdownContent.content.bodyMarkdown, MARKDOWN_PREVIEW);
+    assert.match(markdownContent.content.bodyHtml, /<h1>Preview Heading<\/h1>/);
+    assert.match(markdownContent.content.bodyHtml, /<u>Underlined<\/u>/);
+    assert.match(markdownContent.content.bodyHtml, /markdown-task-list-checkbox/);
+    assert.doesNotMatch(markdownContent.content.bodyHtml, /<script|javascript:|<img|onerror|data:/i);
     assertNoUnsafeStorageLeak([response.body]);
   });
 
@@ -170,18 +229,22 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
     });
 
     assert.equal(descriptor.status, 200);
-    assert.equal(descriptor.body.preview.state, "previewable");
-    assert.equal(descriptor.body.preview.contentAvailable, true);
-    assert.equal(descriptor.body.preview.contentUrl, `/api/files/attachments/${reviewUpload.attachment.fileAttachmentId}/preview/content`);
+    /** @type {PreviewDescriptorEnvelope} */
+    const reviewDescriptor = readPayload(descriptor, ["preview"], "GET /api/files/attachments/:fileAttachmentId/preview");
+    assert.equal(reviewDescriptor.preview.state, "previewable");
+    assert.equal(reviewDescriptor.preview.contentAvailable, true);
+    assert.equal(reviewDescriptor.preview.contentUrl, `/api/files/attachments/${reviewUpload.attachment.fileAttachmentId}/preview/content`);
 
     const content = await api.get(`/api/files/attachments/${reviewUpload.attachment.fileAttachmentId}/preview/content`, {
       cookie: fixtures.adminSessionId,
     });
 
     assert.equal(content.status, 200);
-    assert.equal(content.body.preview.state, "previewable");
-    assert.equal(content.body.content.kind, "text");
-    assert.equal(content.body.content.text, "in review preview");
+    /** @type {PreviewTextEnvelope} */
+    const reviewContent = readPayload(content, ["content", "preview"], "GET /api/files/attachments/:fileAttachmentId/preview/content");
+    assert.equal(reviewContent.preview.state, "previewable");
+    assert.equal(reviewContent.content.kind, "text");
+    assert.equal(reviewContent.content.text, "in review preview");
     assertNoUnsafeStorageLeak([descriptor.body, content.body]);
   });
 
@@ -238,8 +301,8 @@ WHERE protected_user = 'yes'
 ORDER BY username
 LIMIT 1;
 `);
-  const admin = users[0];
-  assert.ok(admin, "protected admin should exist");
+  /** @type {{ active_workspace_id: string, display_name: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireFirstRow(users, "protected admin");
 
   const workspaceId = admin.active_workspace_id || admin.home_workspace_id;
   const now = new Date().toISOString();
@@ -282,7 +345,13 @@ ${insertAssignmentSql(workspaceId, noDownloadUserId, "preview_reader", "workspac
   };
 }
 
-async function uploadPreviewFile(api, fixtures, options = {}) {
+/**
+ * @param {PreviewApiClient} api
+ * @param {{ adminSessionId: string, taskId: string }} fixtures
+ * @param {{ bytes: Buffer, filename: string, mimeType: string }} options
+ * @returns {Promise<FileUploadEnvelope>}
+ */
+async function uploadPreviewFile(api, fixtures, options) {
   const response = await api.post("/api/files", {
     contentBase64: options.bytes.toString("base64"),
     displayName: options.filename,
@@ -297,9 +366,11 @@ async function uploadPreviewFile(api, fixtures, options = {}) {
   });
 
   assert.equal(response.status, 201, response.text);
-  assert.ok(response.body.file.fileId, "upload should return a file id");
-  assert.ok(response.body.attachment.fileAttachmentId, "upload should return an attachment id");
-  return response.body;
+  /** @type {FileUploadEnvelope} */
+  const uploaded = readPayload(response, ["attachment", "file"], "POST /api/files");
+  assert.ok(uploaded.file?.fileId, "upload should return a file id");
+  assert.ok(uploaded.attachment.fileAttachmentId, "upload should return an attachment id");
+  return uploaded;
 }
 
 async function processQueuedJobs() {
@@ -310,6 +381,7 @@ async function processQueuedJobs() {
   });
 }
 
+/** @param {string} workspaceId @param {string} taskId @param {string} title @param {string} userId @param {string} now */
 function insertTaskSql(workspaceId, taskId, title, userId, now) {
   return `
 INSERT INTO tasks (
@@ -343,6 +415,7 @@ VALUES (
 `;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} username @param {string} displayName */
 function insertUserSql(workspaceId, userId, username, displayName) {
   return `
 INSERT INTO users (
@@ -372,6 +445,7 @@ VALUES (
 `;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} now */
 function insertMembershipSql(workspaceId, userId, now) {
   return `
 INSERT INTO user_workspaces (user_workspace_id, user_id, workspace_id, status, created_at, updated_at)
@@ -379,6 +453,7 @@ VALUES (${sqlText(randomUUID())}, ${sqlText(userId)}, ${sqlText(workspaceId)}, '
 `;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} roleId @param {string} scopeType @param {string} scopeId @param {string} now */
 function insertAssignmentSql(workspaceId, userId, roleId, scopeType, scopeId, now) {
   return `
 INSERT INTO user_role_assignments (
@@ -410,6 +485,7 @@ VALUES (
 `;
 }
 
+/** @param {string} baseUrl @returns {PreviewApiClient} */
 function createApi(baseUrl) {
   return {
     get: (url, options = {}) => requestJson(baseUrl, "GET", url, null, options),
@@ -418,6 +494,14 @@ function createApi(baseUrl) {
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {unknown} [body]
+ * @param {PreviewClientOptions} [options]
+ * @returns {Promise<PreviewResponse>}
+ */
 async function requestJson(baseUrl, method, url, body = null, options = {}) {
   const response = await requestResponse(baseUrl, method, url, body, options);
   const text = await response.text();
@@ -437,6 +521,13 @@ async function requestJson(baseUrl, method, url, body = null, options = {}) {
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {PreviewClientOptions} [options]
+ * @returns {Promise<PreviewRawResponse>}
+ */
 async function requestRaw(baseUrl, method, url, options = {}) {
   const response = await requestResponse(baseUrl, method, url, null, options);
   const buffer = Buffer.from(await response.arrayBuffer());
@@ -449,7 +540,16 @@ async function requestRaw(baseUrl, method, url, options = {}) {
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {unknown} [body]
+ * @param {PreviewClientOptions} [options]
+ * @returns {Promise<Response>}
+ */
 async function requestResponse(baseUrl, method, url, body = null, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {};
 
   if (options.cookie) {
@@ -467,6 +567,7 @@ async function requestResponse(baseUrl, method, url, body = null, options = {}) 
   });
 }
 
+/** @param {unknown[]} values */
 function assertNoUnsafeStorageLeak(values) {
   const text = JSON.stringify(values);
 
@@ -499,6 +600,7 @@ async function assertPreviewSourceBoundary() {
   assert.doesNotMatch(`${contentBlock}\n${previewContentBlock}`, /MarkdownIt|marked|showdown|recordFileAudit|emitFileLifecycleEvent/, "Preview content should not add another Markdown parser or preview audit/lifecycle event in this slice");
 }
 
+/** @param {string} source @param {string} name */
 function functionBlock(source, name) {
   const start = source.indexOf(`function ${name}`);
   assert.notEqual(start, -1, `${name} should exist`);
@@ -525,18 +627,21 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok");
 }
 
+/** @param {string} name @param {() => Promise<void>} assertion */
 async function checkAsync(name, assertion) {
   await assertion();
   results.push(name);
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {HttpFixtureServer} nextServer @returns {Promise<void>} */
 function closeServer(nextServer) {
   return new Promise((resolve, reject) => {
     nextServer.close((error) => {
@@ -545,7 +650,7 @@ function closeServer(nextServer) {
         return;
       }
 
-      resolve();
+      resolve(undefined);
     });
   });
 }
