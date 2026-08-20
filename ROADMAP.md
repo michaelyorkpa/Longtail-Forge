@@ -76,16 +76,6 @@ Every child lands in the 96-to-217 band, against a proven range of 85 to 205 acr
 
 Requirements shared by every child: preserve real child-process and database isolation and do not merge processes merely to satisfy a target; type temporary paths, database handles, child results, attestations, provider mocks, and cleanup state explicitly rather than casting them away; strip historical roadmap, changelog, and version-history pins from the owners the child touches, recording each disposition, and require any surviving planning-document read to assert a current live contract; reuse published `src/types/` contracts by type-only import wherever one already describes a shape; introduce no explicit `any`, `@ts-ignore`, `@ts-nocheck`, or file exclusion; and pin each closed owner strict-clean through `framework.full-strict-governance`.
 
-#### 0.33.33.31.4 - Type Files upload, multipart, and API lifecycle owners
-
-**Model: High Effort - Upload ingress is the largest untyped surface in the Files estate.**
-
-Measured at 210 diagnostics across 4 files and 2,150 lines.
-
-- [ ] Close the 210 diagnostics across `file-upload-compatibility-error-hardening`, `file-multipart-upload-route`, `file-multipart-batch-upload-helper`, and `file-api-lifecycle`.
-- [ ] Type multipart parts and boundaries, upload payload descriptors, error-hardening envelopes, and lifecycle state with named contracts.
-- [ ] Preserve multipart boundary handling, compatibility and error-hardening refusals, batch upload semantics, and the API lifecycle transitions exactly.
-
 #### 0.33.33.31.5 - Type Files preview and download egress owners
 
 **Model: High Effort - Egress decides what leaves the system and under what headers.**

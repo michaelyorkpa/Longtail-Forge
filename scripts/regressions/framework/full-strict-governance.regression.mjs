@@ -324,6 +324,18 @@ for (const seededEstateOwner of [
   assert.equal(ledger.programs.scripts.diagnostics[seededEstateOwner], undefined, `${seededEstateOwner} must stay strict-clean after checkpoint 0.33.33.31.3`);
   assert.equal(ledger.explicitAnyByFile[seededEstateOwner], undefined, `${seededEstateOwner} must stay free of explicit any after checkpoint 0.33.33.31.3`);
 }
+// The Files upload ingress owners closed at 0.33.33.31.4. The shared
+// response-payload narrowing they cross the unknown body boundary through is
+// already covered by the test-support pin from checkpoint 0.33.33.27.
+for (const filesIngressOwner of [
+  "scripts/file-api-lifecycle-regression.mjs",
+  "scripts/file-multipart-batch-upload-helper-regression.mjs",
+  "scripts/file-multipart-upload-route-regression.mjs",
+  "scripts/file-upload-compatibility-error-hardening-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[filesIngressOwner], undefined, `${filesIngressOwner} must stay strict-clean after checkpoint 0.33.33.31.4`);
+  assert.equal(ledger.explicitAnyByFile[filesIngressOwner], undefined, `${filesIngressOwner} must stay free of explicit any after checkpoint 0.33.33.31.4`);
+}
 // The authorization-model owners closed at 0.33.33.30.7.1 and the permission
 // harness itself closed at 0.33.33.30.7.2.2, which completes the
 // 0.33.33.30.7 cohort.

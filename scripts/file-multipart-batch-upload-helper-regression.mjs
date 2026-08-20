@@ -9,6 +9,63 @@ import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+
+/** This client sends a form or a JSON string, so it names its own option bag. */
+/** @typedef {{ contentType?: string, cookie?: string }} BatchClientOptions */
+
+/**
+ * One fixture response. The body stays `unknown` on purpose: JSON.parse would
+ * hand back `any`, and every envelope read below would then be a claim the
+ * compiler never checks.
+ * @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown> & { text: string }} BatchResponse
+ */
+
+/**
+ * @typedef {{
+ *   postForm: (url: string, form: FormData, options?: BatchClientOptions) => Promise<BatchResponse>,
+ *   postJson: (url: string, body: unknown, options?: BatchClientOptions) => Promise<BatchResponse>,
+ * }} BatchApiClient
+ */
+
+/** The streamed batch route publishes the result the Files routes assemble; the JSON route publishes the service's. */
+/** @typedef {import("../src/routes/files.routes.js").MultipartBatchResult} MultipartBatchEnvelope */
+/** @typedef {import("../src/routes/files.routes.js").MultipartBatchEntry} MultipartBatchEntry */
+/** @typedef {typeof import("../src/services/files.service.js").filesService} FilesService */
+/** @typedef {Awaited<ReturnType<FilesService["uploadBatchAndAttach"]>>} JsonBatchEnvelope */
+
+/** @typedef {Awaited<ReturnType<typeof seedFixtures>>} BatchFixtures */
+
+/**
+ * Narrow one batch entry to its accepted branch.
+ *
+ * The route publishes a per-file union, so an entry only carries a file record
+ * when that file was actually stored; reading through it otherwise would be a
+ * claim the compiler cannot check.
+ * @param {MultipartBatchEntry} entry
+ * @param {string} label
+ * @returns {Extract<MultipartBatchEntry, { ok: true }>}
+ */
+function requireAcceptedEntry(entry, label) {
+  assert.ok(entry.ok, `${label} should have been accepted: ${JSON.stringify(entry)}`);
+  return entry;
+}
+
+/**
+ * Narrow one batch entry to its refused branch.
+ * @param {MultipartBatchEntry} entry
+ * @param {string} label
+ * @returns {Extract<MultipartBatchEntry, { ok: false }>}
+ */
+function requireRefusedEntry(entry, label) {
+  assert.equal(entry.ok, false, `${label} should have been refused: ${JSON.stringify(entry)}`);
+  return /** @type {Extract<MultipartBatchEntry, { ok: false }>} */ (entry);
+}
+
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-multipart-batch-"));
 
@@ -30,7 +87,7 @@ try {
   await initializeDatabase();
   const fixtures = await seedFixtures();
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   await checkSuccessfulMultiFileUpload(api, fixtures);
   await checkPartialBatchFailure(api, fixtures);
@@ -98,6 +155,7 @@ function assertStaticContracts() {
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
 }
 
+/** @param {BatchApiClient} api @param {BatchFixtures} fixtures */
 async function checkSuccessfulMultiFileUpload(api, fixtures) {
   const response = await api.postForm("/api/files/upload/batch", createBatchForm(fixtures.multiTaskId, [
     { filename: "streamed-alpha.txt", text: "alpha streamed body" },
@@ -105,16 +163,20 @@ async function checkSuccessfulMultiFileUpload(api, fixtures) {
   ]), { cookie: fixtures.adminSessionId });
 
   assert.equal(response.status, 201, "streamed batch upload should accept multiple files");
-  assert.equal(response.body.total, 2);
-  assert.equal(response.body.succeeded, 2);
-  assert.equal(response.body.failed, 0);
-  assert.deepEqual(response.body.results.map((result) => result.ok), [true, true]);
-  assert.deepEqual(response.body.results.map((result) => result.originalFilename), ["streamed-alpha.txt", "streamed-beta.txt"]);
+  /** @type {MultipartBatchEnvelope} */
+  const batch = readPayload(response, ["failed", "results", "succeeded", "total"], "POST /api/files/upload/batch");
+  assert.equal(batch.total, 2);
+  assert.equal(batch.succeeded, 2);
+  assert.equal(batch.failed, 0);
+  assert.deepEqual(batch.results.map((result) => result.ok), [true, true]);
+  assert.deepEqual(batch.results.map((result) => result.originalFilename), ["streamed-alpha.txt", "streamed-beta.txt"]);
 
-  for (const result of response.body.results) {
-    assert.equal(result.file.status, "pending");
-    assert.equal(result.file.scanStatus, "pending");
-    assert.equal(result.file.storageProvider, "local");
+  for (const result of batch.results) {
+    const accepted = requireAcceptedEntry(result, `batch entry ${result.index}`);
+    assert.ok(accepted.file, `batch entry ${result.index} should carry its file record`);
+    assert.equal(accepted.file.status, "pending");
+    assert.equal(accepted.file.scanStatus, "pending");
+    assert.equal(accepted.file.storageProvider, "local");
   }
 
   const attachmentRows = await querySql(`
@@ -127,12 +189,16 @@ WHERE file_attachments.target_id = ${sqlText(fixtures.multiTaskId)}
 ORDER BY files.original_filename;
 `);
   assert.equal(attachmentRows.length, 2);
-  assert.deepEqual(attachmentRows.map((row) => row.original_filename), ["streamed-alpha.txt", "streamed-beta.txt"]);
-  assert.deepEqual(attachmentRows.map((row) => row.status), ["pending", "pending"]);
-  assert.deepEqual(attachmentRows.map((row) => row.scan_status), ["pending", "pending"]);
-  assert.deepEqual(attachmentRows.map((row) => JSON.parse(row.metadata_json).batch_index), [0, 1]);
+  // The columns are named by the SELECT directly above, so the row shape is
+  // read off the query rather than assumed.
+  const attachments = /** @type {Array<{ metadata_json: string, original_filename: string, scan_status: string, status: string, target_id: string }>} */ (attachmentRows);
+  assert.deepEqual(attachments.map((row) => row.original_filename), ["streamed-alpha.txt", "streamed-beta.txt"]);
+  assert.deepEqual(attachments.map((row) => row.status), ["pending", "pending"]);
+  assert.deepEqual(attachments.map((row) => row.scan_status), ["pending", "pending"]);
+  assert.deepEqual(attachments.map((row) => JSON.parse(row.metadata_json).batch_index), [0, 1]);
 }
 
+/** @param {BatchApiClient} api @param {BatchFixtures} fixtures */
 async function checkPartialBatchFailure(api, fixtures) {
   const response = await api.postForm("/api/files/upload/batch", createBatchForm(fixtures.partialTaskId, [
     { filename: "partial-good.txt", text: "partial good body" },
@@ -140,14 +206,16 @@ async function checkPartialBatchFailure(api, fixtures) {
   ]), { cookie: fixtures.adminSessionId });
 
   assert.equal(response.status, 207, "partial streamed batch failure should use multi-status response");
-  assert.equal(response.body.total, 2);
-  assert.equal(response.body.succeeded, 1);
-  assert.equal(response.body.failed, 1);
-  assert.equal(response.body.results[0].ok, true);
-  assert.equal(response.body.results[0].originalFilename, "partial-good.txt");
-  assert.equal(response.body.results[1].ok, false);
-  assert.equal(response.body.results[1].originalFilename, "partial-bad.exe");
-  assert.match(response.body.results[1].error, /extension|file type/i);
+  /** @type {MultipartBatchEnvelope} */
+  const partial = readPayload(response, ["failed", "results", "succeeded", "total"], "POST /api/files/upload/batch");
+  assert.equal(partial.total, 2);
+  assert.equal(partial.succeeded, 1);
+  assert.equal(partial.failed, 1);
+  const partialAccepted = requireAcceptedEntry(partial.results[0], "partial batch entry 0");
+  assert.equal(partialAccepted.originalFilename, "partial-good.txt");
+  const partialRefused = requireRefusedEntry(partial.results[1], "partial batch entry 1");
+  assert.equal(partialRefused.originalFilename, "partial-bad.exe");
+  assert.match(partialRefused.error, /extension|file type/i);
 
   const attachedRows = await querySql(`
 SELECT files.original_filename, files.status, files.scan_status
@@ -171,6 +239,7 @@ WHERE original_filename = 'partial-bad.exe';
   assert.equal(Number(badRows[0].count), 0, "failed streamed batch items should not create file rows");
 }
 
+/** @param {BatchApiClient} api @param {BatchFixtures} fixtures */
 async function checkMalformedFilePartBatchFailure(api, fixtures) {
   const form = new FormData();
   form.append("moduleId", "tasks");
@@ -187,14 +256,16 @@ async function checkMalformedFilePartBatchFailure(api, fixtures) {
   const response = await api.postForm("/api/files/upload/batch", form, { cookie: fixtures.adminSessionId });
 
   assert.equal(response.status, 207, "single malformed streamed batch file should use multi-status response");
-  assert.equal(response.body.total, 2);
-  assert.equal(response.body.succeeded, 1);
-  assert.equal(response.body.failed, 1);
-  assert.equal(response.body.results[0].ok, true);
-  assert.equal(response.body.results[0].originalFilename, "malformed-part-good.txt");
-  assert.equal(response.body.results[1].ok, false);
-  assert.equal(response.body.results[1].originalFilename, "malformed-part-bad.txt");
-  assert.match(response.body.results[1].error, /file fields named 'files'/);
+  /** @type {MultipartBatchEnvelope} */
+  const malformed = readPayload(response, ["failed", "results", "succeeded", "total"], "POST /api/files/upload/batch");
+  assert.equal(malformed.total, 2);
+  assert.equal(malformed.succeeded, 1);
+  assert.equal(malformed.failed, 1);
+  const malformedAccepted = requireAcceptedEntry(malformed.results[0], "malformed batch entry 0");
+  assert.equal(malformedAccepted.originalFilename, "malformed-part-good.txt");
+  const malformedRefused = requireRefusedEntry(malformed.results[1], "malformed batch entry 1");
+  assert.equal(malformedRefused.originalFilename, "malformed-part-bad.txt");
+  assert.match(malformedRefused.error, /file fields named 'files'/);
 
   const attachedRows = await querySql(`
 SELECT files.original_filename, files.status, files.scan_status
@@ -218,6 +289,7 @@ WHERE original_filename = 'malformed-part-bad.txt';
   assert.equal(Number(badRows[0].count), 0, "malformed streamed batch file parts should not create file rows");
 }
 
+/** @param {BatchApiClient} api @param {BatchFixtures} fixtures */
 async function checkUnexpectedBatchFailureIsRedacted(api, fixtures) {
   const originalAdapter = filesService.getFileStorageAdapter("local");
   filesService.registerFileStorageAdapter("local", {
@@ -240,12 +312,16 @@ async function checkUnexpectedBatchFailureIsRedacted(api, fixtures) {
   }
 
   assert.equal(response.status, 207);
-  assert.equal(response.body.failed, 1);
-  assert.equal(response.body.results[0].error, "Uploaded file could not be stored.");
-  assert.equal(response.body.results[0].status, 500);
+  /** @type {MultipartBatchEnvelope} */
+  const redacted = readPayload(response, ["failed", "results"], "POST /api/files/upload/batch");
+  assert.equal(redacted.failed, 1);
+  const redactedRefused = requireRefusedEntry(redacted.results[0], "redacted batch entry 0");
+  assert.equal(redactedRefused.error, "Uploaded file could not be stored.");
+  assert.equal(redactedRefused.status, 500);
   assert.doesNotMatch(JSON.stringify(response.body), /unexpected-provider-secret|storage\/path/i);
 }
 
+/** @param {BatchApiClient} api @param {BatchFixtures} fixtures */
 async function checkJsonBatchRouteCompatibility(api, fixtures) {
   const response = await api.postJson("/api/files/batch", {
     files: [
@@ -261,10 +337,14 @@ async function checkJsonBatchRouteCompatibility(api, fixtures) {
   }, { cookie: fixtures.adminSessionId });
 
   assert.equal(response.status, 201, "legacy JSON batch upload route should remain available");
-  assert.equal(response.body.total, 1);
-  assert.equal(response.body.succeeded, 1);
-  assert.equal(response.body.results[0].file.originalFilename, "legacy-json-batch.txt");
-  assert.equal(response.body.results[0].file.status, "pending");
+  /** @type {JsonBatchEnvelope} */
+  const jsonBatch = readPayload(response, ["results", "succeeded", "total"], "POST /api/files/batch");
+  assert.equal(jsonBatch.total, 1);
+  assert.equal(jsonBatch.succeeded, 1);
+  const jsonEntry = jsonBatch.results[0];
+  assert.ok(jsonEntry.ok && jsonEntry.file, "the legacy JSON batch route should accept and publish its file");
+  assert.equal(jsonEntry.file.originalFilename, "legacy-json-batch.txt");
+  assert.equal(jsonEntry.file.status, "pending");
 }
 
 async function seedFixtures() {
@@ -309,10 +389,13 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "fresh database should seed a protected admin");
-  return rows[0];
+  /** @type {{ active_workspace_id: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireFirstRow(rows, "protected admin");
+  assert.ok(admin.user_id, "fresh database should seed a protected admin");
+  return admin;
 }
 
+/** @param {{ taskId: string, title: string, userId: string, workspaceId: string }} options */
 async function createTask(options) {
   const now = new Date().toISOString();
 
@@ -348,6 +431,7 @@ VALUES (
 `);
 }
 
+/** @param {string} taskId @param {Array<{ filename: string, mimeType?: string, text: string }>} files */
 function createBatchForm(taskId, files) {
   const form = new FormData();
   form.append("moduleId", "tasks");
@@ -364,6 +448,7 @@ function createBatchForm(taskId, files) {
   return form;
 }
 
+/** @param {string} baseUrl @returns {BatchApiClient} */
 function createApi(baseUrl) {
   return {
     async postForm(url, form, options = {}) {
@@ -378,7 +463,16 @@ function createApi(baseUrl) {
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {BodyInit} body
+ * @param {BatchClientOptions} [options]
+ * @returns {Promise<BatchResponse>}
+ */
 async function request(baseUrl, method, url, body, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {};
 
   if (options.cookie) {
@@ -415,13 +509,15 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok");
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {HttpFixtureServer} serverInstance @returns {Promise<void>} */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => {
@@ -434,6 +530,7 @@ function closeServer(serverInstance) {
   });
 }
 
+/** @param {string} source @param {string} functionName */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);

@@ -6,6 +6,60 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} FileApiClientOptions */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+
+/**
+ * One fixture response. The body stays `unknown` on purpose: JSON.parse would
+ * hand back `any`, and every envelope read below would then be a claim the
+ * compiler never checks.
+ * @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown> & { text: string }} FileApiResponse
+ */
+
+/**
+ * @typedef {{
+ *   get: (url: string, options?: FileApiClientOptions) => Promise<FileApiResponse>,
+ *   post: (url: string, body?: unknown, options?: FileApiClientOptions) => Promise<FileApiResponse>,
+ *   put: (url: string, body?: unknown, options?: FileApiClientOptions) => Promise<FileApiResponse>,
+ * }} FileApiClient
+ */
+
+/** The Files routes publish their service results directly, so the envelopes are read off the service. */
+/** @typedef {typeof import("../src/services/files.service.js").filesService} FilesService */
+/** @typedef {Awaited<ReturnType<FilesService["uploadAndAttach"]>>} FileUploadEnvelope */
+/** @typedef {Awaited<ReturnType<FilesService["uploadBatchAndAttach"]>>} FileBatchEnvelope */
+/** @typedef {Awaited<ReturnType<FilesService["listAttachments"]>>} FileAttachmentListEnvelope */
+/** @typedef {Awaited<ReturnType<FilesService["deleteFile"]>>} FileStatusEnvelope */
+/** @typedef {{ file: Awaited<ReturnType<FilesService["readFileForSession"]>> }} FileRecordEnvelope */
+/** @typedef {{ error: import("../src/types/framework-contracts.js").ApiErrorDetails }} FileApiErrorEnvelope */
+
+/**
+ * Narrow an envelope to the file record it must be carrying.
+ *
+ * The service publishes `file` as nullable because a refused upload produces
+ * none, so every read through it here is a claim the route accepted the work.
+ * @template {{ file: unknown }} Envelope
+ * @param {Envelope} envelope
+ * @param {string} label
+ * @returns {NonNullable<Envelope["file"]>}
+ */
+function requireFile(envelope, label) {
+  assert.ok(envelope.file, `${label} should carry its file record`);
+  return envelope.file;
+}
+
+/** The seeded estate, plus the two identities the upload check adds to it. */
+/**
+ * @typedef {Awaited<ReturnType<typeof seedFixtures>> & {
+ *   attachmentId?: string,
+ *   fileId?: string,
+ * }} FileApiFixtures
+ */
+
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-api-lifecycle-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-file-api-lifecycle.db");
@@ -17,17 +71,20 @@ const { runJobWorkerOnce, stopJobWorker } = await import("../src/core/jobs/index
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { createSession } = await import("../src/security/sessions.js");
 
+/** @type {string[]} */
 const results = [];
+/** @type {Array<{ metadata?: Record<string, unknown>, name: string }>} */
 const capturedFileEvents = [];
 let server;
 
 try {
   await initializeDatabase();
+  /** @type {FileApiFixtures} */
   const fixtures = await seedFixtures();
   internalEventBus.reset();
   registerFileEventCapture();
   server = await listen(createApp());
-  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`;
   const api = createApi(baseUrl);
 
   await checkAsync("POST /api/files requires authentication", async () => {
@@ -36,14 +93,18 @@ try {
   });
 
   await checkAsync("object-bound Files routes reject arrays before service policy", async () => {
-    for (const [method, routePath] of [
+    /** @type {Array<["post" | "put", string]>} */
+    const arrayRejectingRoutes = [
       ["put", "/api/files/settings"],
       ["post", "/api/files/unreachable/report"],
       ["post", "/api/files/unreachable/quarantine"],
-    ]) {
+    ];
+    for (const [method, routePath] of arrayRejectingRoutes) {
       const response = await api[method](routePath, [], { cookie: fixtures.adminSessionId });
       assert.equal(response.status, 400, `${routePath} should reject array JSON`);
-      assert.equal(response.body.error.message, "Request body must contain a JSON object.");
+      /** @type {FileApiErrorEnvelope} */
+      const rejected = readPayload(response, ["error"], routePath);
+      assert.equal(rejected.error.message, "Request body must contain a JSON object.");
     }
   });
 
@@ -51,12 +112,15 @@ try {
     const response = await api.post("/api/files", uploadPayload(fixtures.taskId), { cookie: fixtures.adminSessionId });
 
     assert.equal(response.status, 201);
-    assert.equal(response.body.file.originalFilename, "evidence.txt");
-    assert.equal(response.body.file.status, "pending");
-    assert.equal(response.body.file.scanStatus, "pending");
-    assert.equal(response.body.attachment.targetType, "task");
-    fixtures.fileId = response.body.file.fileId;
-    fixtures.attachmentId = response.body.attachment.fileAttachmentId;
+    /** @type {FileUploadEnvelope} */
+    const uploaded = readPayload(response, ["attachment", "file"], "POST /api/files");
+    const uploadedFile = requireFile(uploaded, "POST /api/files");
+    assert.equal(uploadedFile.originalFilename, "evidence.txt");
+    assert.equal(uploadedFile.status, "pending");
+    assert.equal(uploadedFile.scanStatus, "pending");
+    assert.equal(uploaded.attachment.targetType, "task");
+    fixtures.fileId = uploadedFile.fileId;
+    fixtures.attachmentId = uploaded.attachment.fileAttachmentId;
     assertUuidVersion(fixtures.taskId, 4, "the existing Task relationship fixture");
     assertUuidVersion(fixtures.fileId, 7, "new Files record identity");
     assertUuidVersion(fixtures.attachmentId, 7, "new Files attachment identity");
@@ -66,11 +130,13 @@ SELECT storage_key, original_filename, status, scan_status
 FROM files
 WHERE file_id = ${sqlText(fixtures.fileId)};
 `);
-    assert.equal(rows[0].original_filename, "evidence.txt");
-    assert.equal(rows[0].status, "pending");
-    assert.equal(rows[0].scan_status, "pending");
-    assert.ok(!rows[0].storage_key.includes("evidence.txt"));
-    const storageObjectId = rows[0].storage_key.split("/").at(-1);
+    /** @type {{ original_filename: string, scan_status: string, status: string, storage_key: string }} */
+    const storedRow = requireFirstRow(rows, "stored Files row");
+    assert.equal(storedRow.original_filename, "evidence.txt");
+    assert.equal(storedRow.status, "pending");
+    assert.equal(storedRow.scan_status, "pending");
+    assert.ok(!storedRow.storage_key.includes("evidence.txt"));
+    const storageObjectId = storedRow.storage_key.split("/").at(-1);
     assertUuidVersion(storageObjectId, 4, "opaque Files storage object identity");
     assert.notEqual(storageObjectId, fixtures.fileId, "Files record identity must stay independent from its storage object identity");
     const scanJobs = await querySql(`
@@ -113,7 +179,7 @@ WHERE file_id = ${sqlText(fixtures.fileId)};
     assert.equal(response.status, 200);
     assert.equal(response.text, "hello file framework");
     assert.equal(response.headers.get("x-content-type-options"), "nosniff");
-    assert.match(response.headers.get("content-disposition"), /inline/);
+    assert.match(String(response.headers.get("content-disposition")), /inline/);
     assert.ok(capturedFileEvents.some((event) => event.name === "file.downloaded"));
   });
 
@@ -123,7 +189,9 @@ WHERE file_id = ${sqlText(fixtures.fileId)};
     });
 
     assert.equal(response.status, 200);
-    assert.deepEqual(response.body.attachments.map((item) => item.fileId), [fixtures.fileId]);
+    /** @type {FileAttachmentListEnvelope} */
+    const listed = readPayload(response, ["attachments"], "GET /api/files/attachments");
+    assert.deepEqual(listed.attachments.map((item) => item.fileId), [fixtures.fileId]);
   });
 
   await checkAsync("POST /api/files rejects disallowed extension and emits rejection", async () => {
@@ -168,18 +236,22 @@ WHERE file_id = ${sqlText(fixtures.fileId)};
     }, { cookie: fixtures.adminSessionId });
 
     assert.equal(response.status, 207);
-    assert.equal(response.body.total, 2);
-    assert.equal(response.body.succeeded, 1);
-    assert.equal(response.body.failed, 1);
-    assert.equal(response.body.results[0].ok, true);
-    assert.equal(response.body.results[1].ok, false);
+    /** @type {FileBatchEnvelope} */
+    const batch = readPayload(response, ["failed", "results", "succeeded", "total"], "POST /api/files/batch");
+    assert.equal(batch.total, 2);
+    assert.equal(batch.succeeded, 1);
+    assert.equal(batch.failed, 1);
+    assert.equal(batch.results[0].ok, true);
+    assert.equal(batch.results[1].ok, false);
 
     const list = await api.get(`/api/files/attachments?targetType=task&targetId=${fixtures.batchTaskId}&filename=batch-good`, {
       cookie: fixtures.adminSessionId,
     });
     assert.equal(list.status, 200);
-    assert.equal(list.body.attachments.length, 1);
-    assert.equal(list.body.attachments[0].file.originalFilename, "batch-good.txt");
+    /** @type {FileAttachmentListEnvelope} */
+    const batchList = readPayload(list, ["attachments"], "GET /api/files/attachments");
+    assert.equal(batchList.attachments.length, 1);
+    assert.equal(batchList.attachments[0].file.originalFilename, "batch-good.txt");
   });
 
   await checkAsync("non-upload role cannot upload to an otherwise visible record", async () => {
@@ -210,7 +282,9 @@ WHERE file_id = ${sqlText(fixtures.fileId)};
       cookie: fixtures.clientUserSessionId,
     });
     assert.equal(ownedDelete.status, 200);
-    assert.equal(ownedDelete.body.file.status, "deleted");
+    /** @type {FileStatusEnvelope} */
+    const ownedDeleted = readPayload(ownedDelete, ["file"], "POST /api/files/:fileId/delete");
+    assert.equal(requireFile(ownedDeleted, "owner delete").status, "deleted");
 
     const otherDelete = await api.post(`/api/files/${otherFileId}/delete`, {}, {
       cookie: fixtures.clientUserSessionId,
@@ -252,15 +326,20 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
     }), { cookie: fixtures.adminSessionId });
     assert.equal(upload.status, 201);
     await processQueuedJobs();
+    /** @type {FileUploadEnvelope} */
+    const removable = readPayload(upload, ["attachment", "file"], "POST /api/files");
+    const removableFile = requireFile(removable, "POST /api/files");
 
-    const remove = await api.post(`/api/files/attachments/${upload.body.attachment.fileAttachmentId}/remove`, {}, {
+    const remove = await api.post(`/api/files/attachments/${removable.attachment.fileAttachmentId}/remove`, {}, {
       cookie: fixtures.adminSessionId,
     });
     assert.equal(remove.status, 200);
 
-    const file = await api.get(`/api/files/${upload.body.file.fileId}`, { cookie: fixtures.adminSessionId });
+    const file = await api.get(`/api/files/${removableFile.fileId}`, { cookie: fixtures.adminSessionId });
     assert.equal(file.status, 200);
-    assert.equal(file.body.file.status, "available");
+    /** @type {FileRecordEnvelope} */
+    const readBack = readPayload(file, ["file"], "GET /api/files/:fileId");
+    assert.equal(requireFile(readBack, "GET /api/files/:fileId").status, "available");
     assert.ok(capturedFileEvents.some((event) => event.name === "file.attachment.removed"));
   });
 
@@ -269,13 +348,17 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
       cookie: fixtures.adminSessionId,
     });
     assert.equal(report.status, 200);
-    assert.equal(report.body.file.status, "quarantined");
+    /** @type {FileStatusEnvelope} */
+    const reported = readPayload(report, ["file"], "POST /api/files/:fileId/report");
+    assert.equal(requireFile(reported, "file report").status, "quarantined");
 
     const list = await api.get(`/api/files/attachments?targetType=task&targetId=${fixtures.taskId}`, {
       cookie: fixtures.adminSessionId,
     });
     assert.equal(list.status, 200);
-    assert.deepEqual(list.body.attachments, []);
+    /** @type {FileAttachmentListEnvelope} */
+    const hidden = readPayload(list, ["attachments"], "GET /api/files/attachments");
+    assert.deepEqual(hidden.attachments, []);
 
     const download = await api.get(`/api/files/${fixtures.fileId}/download`, { cookie: fixtures.adminSessionId });
     assert.equal(download.status, 403);
@@ -289,7 +372,9 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
       cookie: fixtures.adminSessionId,
     });
     assert.equal(reviewed.status, 200);
-    assert.equal(reviewed.body.file.status, "available");
+    /** @type {FileStatusEnvelope} */
+    const reviewedEnvelope = readPayload(reviewed, ["file"], "POST /api/files/:fileId/restore");
+    assert.equal(requireFile(reviewedEnvelope, "quarantine review").status, "available");
     assert.ok(capturedFileEvents.some((event) => event.name === "file.restored"));
 
     const reviewedRows = await querySql(`
@@ -309,11 +394,16 @@ WHERE file_id = ${sqlText(fixtures.fileId)};
     assert.equal(upload.status, 201);
     await processQueuedJobs();
 
-    const deleted = await api.post(`/api/files/${upload.body.file.fileId}/delete`, {}, {
+    /** @type {FileUploadEnvelope} */
+    const deletable = readPayload(upload, ["attachment", "file"], "POST /api/files");
+    const deletableFile = requireFile(deletable, "POST /api/files");
+    const deleted = await api.post(`/api/files/${deletableFile.fileId}/delete`, {}, {
       cookie: fixtures.adminSessionId,
     });
     assert.equal(deleted.status, 200);
-    assert.equal(deleted.body.file.status, "deleted");
+    /** @type {FileStatusEnvelope} */
+    const deletedEnvelope = readPayload(deleted, ["file"], "POST /api/files/:fileId/delete");
+    assert.equal(requireFile(deletedEnvelope, "file delete").status, "deleted");
     assert.ok(capturedFileEvents.some((event) => event.name === "file.deleted"));
 
     const rows = await querySql(`
@@ -321,7 +411,7 @@ SELECT files.status, files.deleted_at, file_attachments.removed_at
 FROM files
 INNER JOIN file_attachments
   ON file_attachments.file_id = files.file_id
-WHERE files.file_id = ${sqlText(upload.body.file.fileId)};
+WHERE files.file_id = ${sqlText(deletableFile.fileId)};
 `);
     assert.equal(rows[0].status, "deleted");
     assert.ok(rows[0].deleted_at);
@@ -331,17 +421,21 @@ WHERE files.file_id = ${sqlText(upload.body.file.fileId)};
       cookie: fixtures.adminSessionId,
     });
     assert.equal(history.status, 200);
-    assert.equal(history.body.attachments.length, 1);
-    assert.equal(history.body.attachments[0].file.status, "deleted");
+    /** @type {FileAttachmentListEnvelope} */
+    const historyList = readPayload(history, ["attachments"], "GET /api/files/attachments");
+    assert.equal(historyList.attachments.length, 1);
+    assert.equal(historyList.attachments[0].file.status, "deleted");
 
-    const download = await api.get(`/api/files/${upload.body.file.fileId}/download`, { cookie: fixtures.adminSessionId });
+    const download = await api.get(`/api/files/${deletableFile.fileId}/download`, { cookie: fixtures.adminSessionId });
     assert.equal(download.status, 404);
 
-    const restored = await api.post(`/api/files/${upload.body.file.fileId}/restore`, {}, {
+    const restored = await api.post(`/api/files/${deletableFile.fileId}/restore`, {}, {
       cookie: fixtures.adminSessionId,
     });
     assert.equal(restored.status, 200);
-    assert.equal(restored.body.file.status, "available");
+    /** @type {FileStatusEnvelope} */
+    const restoredEnvelope = readPayload(restored, ["file"], "POST /api/files/:fileId/restore");
+    assert.equal(requireFile(restoredEnvelope, "file restore").status, "available");
     assert.ok(capturedFileEvents.some((event) => event.name === "file.restored"));
   });
 
@@ -365,8 +459,8 @@ WHERE protected_user = 'yes'
 ORDER BY username
 LIMIT 1;
 `);
-  const admin = users[0];
-  assert.ok(admin, "protected admin should exist");
+  /** @type {{ active_workspace_id: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireFirstRow(users, "protected admin");
 
   const workspaceId = admin.active_workspace_id || admin.home_workspace_id;
   const now = new Date().toISOString();
@@ -517,7 +611,8 @@ VALUES (
   };
 }
 
-async function seedFileRow(options = {}) {
+/** @param {{ fileId?: string, originalFilename?: string, session: { workspaceId: string }, targetId: string, uploadedByUserId: string }} options */
+async function seedFileRow(options) {
   const fileId = options.fileId || randomUUID();
   const attachmentId = randomUUID();
   const now = new Date().toISOString();
@@ -610,6 +705,7 @@ VALUES (
   return fileId;
 }
 
+/** @param {string} taskId @param {{ displayName?: string, originalFilename?: string, text?: string }} [options] */
 function uploadPayload(taskId, options = {}) {
   return {
     contentBase64: Buffer.from(options.text || "hello file framework").toString("base64"),
@@ -622,6 +718,7 @@ function uploadPayload(taskId, options = {}) {
   };
 }
 
+/** @param {unknown} value @param {number} expectedVersion @param {string} label */
 function assertUuidVersion(value, expectedVersion, label) {
   assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
   assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
@@ -654,6 +751,7 @@ function registerFileEventCapture() {
   }
 }
 
+/** @param {string} baseUrl @returns {FileApiClient} */
 function createApi(baseUrl) {
   return {
     get: (url, options = {}) => request(baseUrl, "GET", url, null, options),
@@ -662,7 +760,16 @@ function createApi(baseUrl) {
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {unknown} body
+ * @param {FileApiClientOptions} [options]
+ * @returns {Promise<FileApiResponse>}
+ */
 async function request(baseUrl, method, url, body, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {};
 
   if (options.cookie) {
@@ -700,6 +807,7 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok");
 }
 
+/** @param {string} name @param {() => Promise<void>} assertion */
 async function checkAsync(name, assertion) {
   await assertion();
   results.push(name);
@@ -713,13 +821,15 @@ async function processQueuedJobs() {
   });
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const server = http.createServer(app);
+    const server = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
     server.listen(0, "127.0.0.1", () => resolve(server));
   });
 }
 
+/** @param {HttpFixtureServer} server @returns {Promise<void>} */
 function closeServer(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => {
@@ -728,7 +838,7 @@ function closeServer(server) {
         return;
       }
 
-      resolve();
+      resolve(undefined);
     });
   });
 }
