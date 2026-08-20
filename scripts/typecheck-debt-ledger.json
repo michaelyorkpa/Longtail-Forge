@@ -2998,7 +2998,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 5157,
+      "errorCount": 5044,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -4868,32 +4868,12 @@
         ],
         "scripts/permission-regression.mjs": [
           {
-            "code": 2339,
-            "count": 7
-          },
-          {
             "code": 2345,
             "count": 2
           },
           {
-            "code": 2551,
-            "count": 1
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
             "code": 7006,
-            "count": 224
-          },
-          {
-            "code": 7031,
-            "count": 8
-          },
-          {
-            "code": 7053,
-            "count": 6
+            "count": 134
           }
         ],
         "scripts/personal-family-workspace-scope-regression.mjs": [
@@ -6971,7 +6951,7 @@
   },
   "totals": {
     "files": 1040,
-    "errors": 16291,
+    "errors": 16178,
     "explicitAny": 7
   },
   "explicitAnyByFile": {
