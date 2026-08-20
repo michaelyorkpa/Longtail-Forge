@@ -76,6 +76,7 @@ function assertStaticContracts() {
   }
 }
 
+/** @param {string} targetDatabase @param {string} targetBackup */
 async function assertDryRunAndApply(targetDatabase, targetBackup) {
   const before = readWorkspaceState(targetDatabase);
   const dryRun = await runNode([
@@ -187,6 +188,7 @@ async function assertRepresentativeDirectRunsPreserveCanonicalInventory() {
   assertCanonicalWorkspaceInventoryUnchanged(before, after);
 }
 
+/** @param {string} targetDatabase */
 async function createFixtureDatabase(targetDatabase) {
   const database = new Database(targetDatabase);
 
@@ -214,6 +216,7 @@ VALUES ('orphan-navigation-workspace', 'tasks', 'enabled', ?, NULL, ?);
   }
 }
 
+/** @param {InstanceType<typeof Database>} database */
 function seedCoreRows(database) {
   database.prepare(`
 INSERT INTO modules (module_id, name, description, category, status, version, created_at, updated_at)
@@ -225,6 +228,7 @@ VALUES ('workspace_admin', 'Workspace Admin', '', 'workspace', 1);
 `).run();
 }
 
+/** @param {InstanceType<typeof Database>} database */
 function seedRetainedRows(database) {
   for (const workspace of [
     ["york-family", "York Family", "family", "michael-user"],
@@ -232,7 +236,7 @@ function seedRetainedRows(database) {
     ["personal-michael", "Personal", "personal", "michael-user"],
     ["raymond-tec", "Raymond Tec", "business", "support-user"],
   ]) {
-    insertWorkspace(database, ...workspace);
+    insertWorkspace(database, ...(/** @type {[string, string, string, string]} */ (workspace)));
   }
   insertUser(database, "michael-user", "michaelyork@raymondtec.com", "raymond-tec");
   insertUser(database, "support-user", "support@raymondtec.com", "raymond-tec");
@@ -250,6 +254,7 @@ VALUES ('retained-role', 'raymond-tec', 'michael-user', 'workspace_admin', 'work
 `).run(now(), now());
 }
 
+/** @param {InstanceType<typeof Database>} database */
 function seedRemovalRows(database) {
   insertWorkspace(database, "fixture-workspace", "Regression Fixture Workspace", "business", "fixture-user");
   insertUser(database, "fixture-user", "fixture@example.test", "fixture-workspace");
@@ -262,6 +267,7 @@ VALUES ('fixture-workspace', 'tasks', 'enabled', ?, NULL, ?);
 `).run(now(), now());
 }
 
+/** @param {InstanceType<typeof Database>} database @param {string} workspaceId @param {string} name @param {string} workspaceType @param {string} ownerUserId */
 function insertWorkspace(database, workspaceId, name, workspaceType, ownerUserId) {
   database.prepare(`
 INSERT INTO workspaces (workspace_id, name, status, workspace_type, owner_user_id, created_at, updated_at)
@@ -269,6 +275,7 @@ VALUES (?, ?, 'Active', ?, ?, ?, ?);
 `).run(workspaceId, name, workspaceType, ownerUserId, now(), now());
 }
 
+/** @param {InstanceType<typeof Database>} database @param {string} userId @param {string} username @param {string} workspaceId */
 function insertUser(database, userId, username, workspaceId) {
   database.prepare(`
 INSERT INTO users (
@@ -279,6 +286,7 @@ VALUES (?, ?, ?, ?, NULL, 'America/New_York', 'fixture-password', 'light', 'acti
 `).run(userId, workspaceId, username, username, workspaceId);
 }
 
+/** @param {InstanceType<typeof Database>} database @param {string} membershipId @param {string} userId @param {string} workspaceId */
 function insertMembership(database, membershipId, userId, workspaceId) {
   database.prepare(`
 INSERT INTO user_workspaces (user_workspace_id, user_id, workspace_id, status, created_at, updated_at)
@@ -286,6 +294,7 @@ VALUES (?, ?, ?, 'active', ?, ?);
 `).run(membershipId, userId, workspaceId, now(), now());
 }
 
+/** @param {string} targetDatabase */
 function readWorkspaceState(targetDatabase) {
   const database = new Database(targetDatabase, { fileMustExist: true, readonly: true });
   try {
@@ -299,6 +308,7 @@ function readWorkspaceState(targetDatabase) {
   }
 }
 
+/** @param {string} targetDatabase */
 function readWorkspaceNames(targetDatabase) {
   const database = new Database(targetDatabase, { fileMustExist: true, readonly: true });
   try {
@@ -308,6 +318,7 @@ function readWorkspaceNames(targetDatabase) {
   }
 }
 
+/** @param {string} targetDatabase */
 function readForeignKeyViolations(targetDatabase) {
   const database = new Database(targetDatabase, { fileMustExist: true, readonly: true });
   try {
@@ -317,6 +328,7 @@ function readForeignKeyViolations(targetDatabase) {
   }
 }
 
+/** @param {string[]} args @param {{ env?: NodeJS.ProcessEnv }} [options] */
 function runNode(args, options = {}) {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, args, {

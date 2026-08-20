@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.31.2 - Type workspace lifecycle and role-seed database owners
+
+**Model: High Effort** - Deletion, purge, and isolation are destructive paths that must stay fail-closed.
+
+Second child of the `0.33.33.31` rollup, measured at 96 diagnostics across 4 files and 1,336 lines. Nine children remain.
+
+- [x] Closed all 96 diagnostics across `workspace-final-purge`, `workspace-cleanup-isolation`, `workspace-deletion-lifecycle`, and `role-seed-scope-convergence`. The scripts program falls from 4,691 to 4,595 diagnostics, explicit `any` holds at 7, and all four owners are pinned strict-clean through `framework.full-strict-governance`.
+- [x] Derived the deletion envelope from the services that publish it rather than restating it: `workspaceDeletionService.read` supplies the deletion state and `settingsService.readWorkspaceBootstrap` supplies the workspace context. The derivation is checked, not decorative — renaming `purgeAfter` in `toLifecycleSummary` fails the owner's compilation in four places.
+- [x] Carried production's real nullability instead of asserting it away. The service publishes `lifecycle` as nullable because a workspace with no pending deletion has none, so the six reads through it now resolve via `requireLifecycle`, which states the claim the request under test is making rather than assuming it.
+- [x] Resolved the single-row database reads in `workspace-final-purge` through the shared `requireRow` narrowing published at `0.33.33.31.1`, naming the selected columns on the receiving binding directly beneath the `SELECT` that produces them. Typed the isolation fixture's workspace seed rows as the fixed four-column tuple they are, and the role-seed database handles as `better-sqlite3` instances after reading the owners' imports rather than guessing from parameter names.
+- [x] Folded a duplicate guard in the role-seed contribution loop: the unknown-role check and the map lookup were separate statements asserting the same fact, so the lookup now carries the assertion and one statement both proves and narrows.
+- [x] Proved the destructive paths still fail closed. Disabling the enqueue grace-period guard, the worker-drain fence, the cancellation-window guard, and the retained-workspace filter each makes the owning regression fail with its own message; the role convergence contract catches both an unknown contributing role and a contribution that drifts from the seeded table. All six perturbed sources restore byte-identical by SHA-256.
+- [x] Proved the new governance pins are non-vacuous by seeding a diagnostic against each of the four owners in the ledger and confirming `framework.full-strict-governance` fails by name for each.
+- [x] Changed no production behavior. No explicit `any`, `@ts-ignore`, `@ts-nocheck`, or file exclusion was introduced, and none of the four owners reads a roadmap, changelog, or version-history document, so there was no historical pin to strip.
+
 ## Version 0.33.33.31.1.1 - Preserve filesystem helper return types
 
 **Model: High Effort** - A helper that erases what its caller already knew makes every caller pay for the loss.
