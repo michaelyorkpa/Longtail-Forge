@@ -36,7 +36,7 @@ Branch delivery contract:
 - [ ] Preserve attested-baseline fail-closed proof, canonical-workspace fingerprinting, backup/restore/purge and migration-chain coverage, parameter-binding and module-import audits, permission/session/auth/Support View proofs, Files quota/scanner/streaming coverage, Playwright accessibility/console/overflow coverage, the four closeout regenerators, exact-SHA Nightly/promotion proof, CodeQL, and dependency review.
 - [ ] Do not split `view-builder.js` factories, `user-admin.js`, task-dialog subsystems, or any browser controller that remains an unwrapped classic script. Decomposition is allowed only at the verified seams named below or when typing exposes equivalent evidence and the roadmap is updated first.
 
-Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, `.28.6`, `.30`, `.30.2`, and `.30.3` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
+Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, `.28.6`, `.30`, `.30.2`, `.30.3`, `.30.7`, and `.30.7.2` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
 
 Release-wide measurable acceptance:
 
@@ -62,13 +62,107 @@ Measured history-pin exposure for the whole cohort is ten references across eigh
 
 ### 0.33.33.30.7 - Type the permission harness and authorization-model owners
 
-**Model: High Effort** - The 352-assertion eight-role matrix is the branch's largest single release-gate proof.
+Planning rollup only; its numbered children below are the protected implementation checkpoints. A fresh read-only probe against the current tree measures this cohort at 280 diagnostics across 6 diagnostic-bearing files and 4,551 lines, unchanged in total from the original estimate but structurally unlike every preceding `0.33.33.30` child: 249 of the 280 sit in the single 3,825-line `scripts/permission-regression.mjs`, and the remaining 31 spread across five small authorization-model owners. No preceding child concentrated 89 percent of its work in one file, and that file is roughly 2.5 times larger than the largest owner typed so far, so the cohort is resliced before implementation rather than after.
 
-- [ ] Close the 280 diagnostics across `scripts/permission-regression.mjs` (249 in one 3,826-line file) and the `permissions` owners `client-project-business-boundary`, `workspace-membership-billable`, `permission-resource-types`, `permission-resource-catalog`, `current-static-contracts`, and its 2 folded contract modules.
-- [ ] Type the role fixture table, request matrix rows, expected-status maps, and resource-catalog entries with named contracts so a missing role or resource is a compile error rather than a silently skipped row.
-- [ ] Preserve all 352 assertions, the eight-role coverage, isolated-database and release-gate run modes, and the business-boundary and billable-membership rules; prove the matrix still fails closed on a seeded permission regression.
-- [ ] If a probe shows this child exceeds one session, split it at the harness's role-matrix phase seam or run the authorization-model owners as a separate pass — the 3,826-line harness cannot be split by file, so do not reslice by adding files.
+Measured cohort, current tree:
 
+| Owner | Diagnostics | Lines | Run mode |
+| --- | --- | --- | --- |
+| `scripts/permission-regression.mjs` | 249 | 3,825 | isolated-database, release-gate |
+| `permissions/client-project-business-boundary` | 15 | 153 | isolated-database |
+| `permissions/workspace-membership-billable` | 9 | 219 | isolated-database |
+| `permissions/permission-resource-types` | 3 | 147 | static |
+| `permissions/permission-resource-catalog` | 2 | 119 | isolated-database |
+| `permissions/icon-accessibility-contract` (folded) | 2 | 88 | folded contract |
+| `permissions/current-static-contracts` | 0 | 10 | static |
+| `permissions/client-child-create-scope` (folded) | 0 | 98 | folded contract |
+
+Cohort boundary: this rollup owns `scripts/permission-regression.mjs`, `scripts/regressions/permissions/`, and `scripts/regression-contracts/permissions/`. The two `public-demo-role-journey` and `sanitized-demo-role-journey` owners under `scripts/regressions/permissions/` were already closed by `0.33.33.30.5` and are not in scope here.
+
+The probe also settled a question the original scope left open: `scripts/permission-regression.mjs` imports only Node built-ins and `src/`, and nothing from the authorization-model owners or their folded contracts. There is therefore **no diagnostic cascade between `0.33.33.30.7.1` and `0.33.33.30.7.2`** — the two children are independent, and `.30.7.1` will not reduce `.30.7.2`'s count. Sequencing `.30.7.1` first is for contract discovery, not for cascade.
+
+#### 0.33.33.30.7.1 - Type authorization-model owners
+
+**Model: High Effort** - The business-only client boundary and billable-membership rules are authorization semantics, not fixtures.
+
+- [ ] Close the 31 measured diagnostics across `permissions/client-project-business-boundary` (15), `permissions/workspace-membership-billable` (9), `permissions/permission-resource-types` (3), `permissions/permission-resource-catalog` (2), and the folded `permissions/icon-accessibility-contract` (2). `permissions/current-static-contracts` and the folded `permissions/client-child-create-scope` measure zero and take a disposition only, recorded rather than silently skipped.
+- [ ] Type permission-resource catalog entries and resource-type records, workspace-membership and billable-status rows, and the client/project business-boundary fixtures with named contracts, reusing published `src/types/` contracts by type-only import wherever one already describes the shape rather than redeclaring it locally.
+- [ ] Preserve the business-only client boundary, workspace-membership and billable semantics, permission-resource catalog behavior, folded contract ownership and its retained-owner reconciliation, every owner's recorded run mode, assertion ownership as the generated manifest records it, and all existing fail-closed behavior. No runtime behavior may change.
+- [ ] Establish a reusable type seam for the permission harness **only if the source supports one**. The probe found no shared import between these owners and the harness, so no abstraction is prescribed here. If typing reveals a genuine shared shape — a permission-resource entry or role-scope record the harness also resolves — publish it for type-only reuse in `0.33.33.30.7.2`; if it does not, record that finding and add nothing.
+- [ ] `framework.full-strict-governance` pins the five diagnostic-bearing owners and both folded contract modules strict-clean.
+
+#### 0.33.33.30.7.2 - Type the HTTP authorization matrix
+
+Planning rollup only; its two children below are the protected implementation checkpoints. A read-only probe measures `scripts/permission-regression.mjs` at 249 diagnostics in 3,825 lines. That is 21 percent above the largest child completed on this branch (`0.33.33.30.6`, 205 diagnostics) and concentrated in one file, so it is resliced at the harness's own internal contract seam rather than run as a single pass.
+
+Measured diagnostic distribution, current tree:
+
+| Source | Count |
+| --- | --- |
+| `TS7006` implicit-any parameters | 224 |
+| `TS7031` implicit-any binding elements | 8 |
+| `TS2339` property does not exist | 7 |
+| `TS7053` implicit-any index access | 6 |
+| `TS2345` / `TS2810` / `TS2551` | 4 |
+
+By structural position: 111 are callback parameters over response collections, 121 are function and helper signatures, and 17 are one-off property or index reads. By inference root, the largest identifiers are `item` (26), `api` (22), `workspaceId` (17), `fixtures` (17), and `role` (11). Fifty-seven distinct functions carry diagnostics and the densest single function carries 28, so the work is broad and shallow rather than concentrated — which is exactly why raw diagnostic count understates how mechanical it is, and why the split below is by contract ownership rather than by count alone.
+
+The reslice seam is real and internal, not a line range. The harness has one `seedFixtures()` producing a single `fixtures` record, one `createApi(baseUrl)` producing a single `api` client, and **18 phase functions that all share the identical `(api, fixtures)` signature**. Diagnostics divide cleanly across that seam: **113 in the shared helpers and entry flow, 136 inside the 18 phase-function bodies**. The harness is not duplicated and no file is added.
+
+Both children must protect the harness's two distinct and separately enforced coverage inventories, which are not the same number and must not be conflated:
+
+- **352 static `assert` calls**, recorded by the generated regression manifest as `assertionCount` / `entryPointAssertionCount` for `permissions.http-authorization-matrix`. This is a static inventory the manifest generator counts from source.
+- **At least 409 executed authorization checks**, enforced at runtime by the harness itself at `scripts/permission-regression.mjs:59` (`assert.ok(results.length >= 409, ...)`). This is a dynamic floor counting checks actually executed against the running app.
+
+A change that preserved one while weakening the other would pass half the gate. Both children must leave both intact.
+
+##### 0.33.33.30.7.2.1 - Establish the harness's shared contracts
+
+**Model: High Effort** - Every phase function resolves through these two records; typing them wrong types all eighteen wrong.
+
+- [ ] Close the 113 measured diagnostics in the harness's shared helpers and entry flow, leaving the 18 phase-function bodies for `0.33.33.30.7.2.2`. The file's ledger entry shrinks but does not reach zero in this checkpoint, which the shrink-only ledger permits; the governance pin is added only when the file reaches zero.
+- [ ] Publish the two shared contracts the whole harness resolves through: the seeded fixture record returned by `seedFixtures()`, covering all eight roles and their identities, workspaces, clients, and projects; and the request client returned by `createApi()`, covering its request options and response shapes. Name the eight roles in the fixture contract so a missing role is a compile error rather than a silently skipped row.
+- [ ] Type the shared SQL and seeding helpers — the assignment and workspace insert builders, module settings payload and status-key helpers, and the project, client, API-key, and time-entry seeders — with named parameter contracts.
+- [ ] Consume any type seam `0.33.33.30.7.1` published, by type-only import. If that checkpoint found none, record that this child declares its own contracts and why.
+- [ ] Preserve all eight roles, isolated-database and release-gate run modes, API-key and browser authorization paths, workspace/client/project scoping, module-disablement behavior, ownership rules, and every existing fail-closed expectation. Both coverage inventories must be unchanged: the manifest must still record 352 static assertions and the harness must still enforce its floor of at least 409 executed checks.
+
+##### 0.33.33.30.7.2.2 - Type the eighteen authorization phase functions
+
+**Model: High Effort** - This is the eight-role matrix itself and the branch's largest single release-gate proof.
+
+- [ ] Close the remaining diagnostics in `scripts/permission-regression.mjs` and return the file to zero. The measured upper bound is 136, and the true figure will be lower: many of the 111 callback parameters over response collections are inferred once `0.33.33.30.7.2.2`'s predecessor types the response bodies they iterate. Re-probe at the start of this checkpoint rather than assuming 136.
+- [ ] Type the request matrix rows, expected-status and expected-result maps, and the per-phase response payload reads with named contracts, consuming the shared fixture and client contracts by type-only import. A missing role or an unhandled expected status must be a compile error, not a silently skipped row.
+- [ ] Preserve all eight roles, isolated-database and release-gate run modes, API-key and browser authorization paths, workspace/client/project scoping, module-disablement behavior, ownership rules, and every existing fail-closed expectation.
+- [ ] Leave both coverage inventories intact and prove it: the generated manifest must still record 352 static assertions for `permissions.http-authorization-matrix`, and the harness must still enforce at least 409 executed checks at runtime.
+- [ ] Prove the matrix still fails closed with a seeded permission-regression negative control: grant a role a permission it must not hold, confirm the harness fails, and restore byte-identically with a verified digest. The control must be shown non-vacuous by inverting it.
+- [ ] `framework.full-strict-governance` pins `scripts/permission-regression.mjs` strict-clean. This child closes the `0.33.33.30.7` planning rollup.
+
+### 0.33.33.30.8 - Correct the obsolete active-owner line metric
+
+**Model: High Effort** - A measurement that punishes type annotations has already moved a test; correcting it is governance work, not cleanup.
+
+Final corrective implementation checkpoint of the `0.33.33.30` family. Its completion closes `0.33.33.30` and hands off to `0.33.33.31`.
+
+`0.33.33.11` legitimately measured a consolidation result: active discovered-regression physical lines fell from **104,568 to 101,621** when 26 source-only owners were consolidated. Those numbers are valid historical evidence and must not be rewritten.
+
+The problem is the later reuse of 101,621 physical lines as a permanent forward shrink-only ceiling during full-strict conversion. As currently written the metric:
+
+- counts physical newline-delimited lines across discovered regression entrypoints, and therefore counts legitimate JSDoc and type-annotation growth as regression;
+- does not represent all verification ownership equally, because 23 Vitest files and 121 folded contract modules carry real verification but sit outside that physical-line universe entirely;
+- now requires per-checkpoint `FULL_STRICT_TYPING_LINES` allowances in `scripts/regression-contracts/data-files-security-static-owner.mjs`;
+- has accumulated **1,197 lines** of such allowances through `0.33.33.30.6` (71 + 504 + 246 + 376), against a current measured 102,818 physical lines;
+- has already influenced test placement: the `0.33.33.30.3.1` Playwright install retry proof was placed in Vitest partly to avoid breaching the discovered-owner line ceiling. A measurement that decides where a test lives has stopped measuring and started steering.
+
+- [ ] Preserve the original `0.33.33.11` physical-line measurements — the 104,568 baseline and the 101,621 post-consolidation figure — unchanged, as historical consolidation evidence.
+- [ ] Retire the physical active-owner line count as a forward shrink-only policy gate, rather than continuing to append typing allowances to it. Remove the `FULL_STRICT_TYPING_LINES` allowance mechanism together with the gate it exists to excuse; leaving the allowances behind without the gate would be dead bookkeeping.
+- [ ] Preserve every other fail-closed ratchet the owner enforces, unchanged: the discovered regression ceiling, the static-owner ceiling, the effective assertion floor, the active history-reader ceiling, the estimated process ceiling, the retained-owner checks, the retirement reconciliation, area-command ownership, and strict-TypeScript governance.
+- [ ] Replace the retired ceiling with deterministic measurement evidence for release closeout, recording at minimum two figures: physical lines across active discovered regression entrypoints, for historical continuity with `0.33.33.11`; and a comment/JSDoc-insensitive token-bearing or non-trivia source measurement that better represents structural verification code.
+- [ ] Implement any comment-insensitive measurement with a lexer or parser that is trustworthy on this codebase — the repository already depends on TypeScript, whose scanner is the preferred mechanism. Naive regular-expression comment stripping is explicitly prohibited: it cannot distinguish a comment from comment-like text inside a string or template literal, and a metric that miscounts is worse than one that is merely coarse.
+- [ ] Treat both line measurements as evidence and reporting metrics only. Neither may become a new global ceiling, and neither may be allowed to dictate where a test lives.
+- [ ] Verify the metric implementation directly, proving that: comment and JSDoc-only growth changes the physical-line figure but not the structural measurement; adding a real statement changes the structural measurement; comment-like text inside strings and template literals is counted as source rather than stripped; and `LF` versus `CRLF` line endings do not change the logical result.
+- [ ] Record the resulting measurements so `0.33.33.48` can report the branch's before and after figures.
+- [ ] This checkpoint is a metric and governance correction only. It must not become a regression-consolidation, test-migration, runtime-behavior, or unrelated architecture slice, and it must not move or rewrite any test to suit the new measurement.
+- [ ] Prove that retiring the physical-line ceiling does not weaken the remaining verification protections: each preserved ratchet must be shown still to fail closed on a seeded violation, so the correction is demonstrably a narrowing of one bad gate rather than a loosening of the estate.
 ### 0.33.33.31 - Type database, Files, and jobs regression owners
 
 **Model: High Effort** - Stateful fixtures, attestation descriptors, workers, and storage providers require exact shapes.
