@@ -36,7 +36,7 @@ Branch delivery contract:
 - [ ] Preserve attested-baseline fail-closed proof, canonical-workspace fingerprinting, backup/restore/purge and migration-chain coverage, parameter-binding and module-import audits, permission/session/auth/Support View proofs, Files quota/scanner/streaming coverage, Playwright accessibility/console/overflow coverage, the four closeout regenerators, exact-SHA Nightly/promotion proof, CodeQL, and dependency review.
 - [ ] Do not split `view-builder.js` factories, `user-admin.js`, task-dialog subsystems, or any browser controller that remains an unwrapped classic script. Decomposition is allowed only at the verified seams named below or when typing exposes equivalent evidence and the roadmap is updated first.
 
-Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, `.28.6`, `.30`, `.30.2`, `.30.3`, `.30.7`, and `.30.7.2` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
+Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, `.28.6`, `.30`, `.30.2`, `.30.3`, `.30.7`, `.30.7.2`, and `.31` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
 
 Release-wide measurable acceptance:
 
@@ -52,12 +52,140 @@ Release-wide measurable acceptance:
 
 **Model: High Effort** - Stateful fixtures, attestation descriptors, workers, and storage providers require exact shapes.
 
-- [ ] Close full-strict debt in database, Files, jobs, migration, recovery, storage, scanner, and worker regressions.
-- [ ] Type temporary paths, database handles, child results, attestations, provider mocks, and cleanup state explicitly.
-- [ ] Preserve real child/database isolation and do not merge processes merely to satisfy a target.
-- [ ] Strip historical roadmap/changelog/version-history pins from these owners while typing them, recording each disposition; any surviving planning-document read must assert a current live contract.
-- [ ] Reduce this scripts-ledger cohort to zero.
+Planning rollup only; its numbered children below are the protected implementation checkpoints. A measured probe against the current tree puts this cohort at **1,758 diagnostics across 90 diagnostic-bearing files and 26,428 lines** — larger than the 1,319 that forced the seven-way `0.33.33.30` reslice and larger than the 1,287 that forced the six-way `0.33.33.28` reslice. It is therefore resliced before implementation rather than after.
 
+Cohort boundary: this rollup owns `scripts/regressions/database/`, `scripts/regressions/jobs/`, `scripts/regression-contracts/database/`, `scripts/regression-contracts/files/`, and the top-level `scripts/*-regression.mjs` owners whose subject is Files, database, jobs, workers, migration, storage, or scanning. Product regressions — Tasks, Notes, Lists, Search, Tags, Help, Clients/Projects, and Time Tracking — stay with `0.33.33.32`, which must be sized with them included.
+
+The reslice follows domain seams the estate already has, not arbitrary counts. Every one of the 90 files is assigned to exactly one child and the children sum to the measured 1,758:
+
+| Child | Subject | Diagnostics | Files | Lines |
+| --- | --- | --- | --- | --- |
+| `.31.1` | Database seams, adapters, parameter binding | 217 | 29 | 6,369 |
+| `.31.2` | Workspace lifecycle and role-seed owners | 96 | 4 | 1,336 |
+| `.31.3` | Demo, development-data, startup maintenance | 145 | 4 | 2,065 |
+| `.31.4` | Files upload, multipart, API lifecycle | 210 | 4 | 2,150 |
+| `.31.5` | Files preview and download egress | 161 | 3 | 1,622 |
+| `.31.6` | Files attachment targets and context reads | 182 | 5 | 2,540 |
+| `.31.7` | Storage providers, S3, quota | 197 | 9 | 2,378 |
+| `.31.8` | Scanner adapters and workers | 206 | 7 | 2,583 |
+| `.31.9` | Job claiming, outbox, retention | 115 | 4 | 1,321 |
+| `.31.10` | Job observability and background work | 125 | 5 | 1,476 |
+| `.31.11` | Files settings, descriptor, folded contract closeout | 104 | 16 | 2,588 |
+
+Every child lands in the 96-to-217 band, against a proven range of 85 to 205 across the completed `0.33.33.30` children. The diagnostic profile is mechanical — 950 `TS7006` implicit-any parameters and 340 `TS2339` property reads of the 1,758 — so the work is roughly linear in files rather than concentrated.
+
+Requirements shared by every child: preserve real child-process and database isolation and do not merge processes merely to satisfy a target; type temporary paths, database handles, child results, attestations, provider mocks, and cleanup state explicitly rather than casting them away; strip historical roadmap, changelog, and version-history pins from the owners the child touches, recording each disposition, and require any surviving planning-document read to assert a current live contract; reuse published `src/types/` contracts by type-only import wherever one already describes a shape; introduce no explicit `any`, `@ts-ignore`, `@ts-nocheck`, or file exclusion; and pin each closed owner strict-clean through `framework.full-strict-governance`.
+
+#### 0.33.33.31.1 - Type database seams, adapters, and parameter binding
+
+**Model: High Effort - The adapter and binding seams every other database owner resolves through.**
+
+Measured at 217 diagnostics across 29 files and 6,369 lines.
+
+- [ ] Close the 217 diagnostics across the top-level `database-*`, `sqlite-*`, `better-sqlite3-*`, and `parameter-binding-*` owners, the `migration-compatibility`, `startup-maintenance-compatibility`, and `event-bus` owners, `scripts/regression-contracts/database/`, and the adapter, dialect, transaction-client, repository-signature, migration-schema, module-context, statement-cache, and verified-baseline owners under `scripts/regressions/database/`.
+- [ ] Type adapter and dialect seams, parameter-binding inputs and normalized values, transaction clients, statement-cache handles, and migration schema descriptors with named contracts, reusing `src/types/database-contracts.d.ts` by type-only import rather than redeclaring rows or parameter shapes.
+- [ ] Preserve dialect and placeholder-style behavior, boolean and time seam conversions, conflict-identity resolution, introspection boundaries, result fidelity, statement caching, and connection hardening exactly.
+
+#### 0.33.33.31.2 - Type workspace lifecycle and role-seed database owners
+
+**Model: High Effort - Deletion, purge, and isolation are destructive paths that must stay fail-closed.**
+
+Measured at 96 diagnostics across 4 files and 1,336 lines.
+
+- [ ] Close the 96 diagnostics across `workspace-final-purge`, `workspace-cleanup-isolation`, `workspace-deletion-lifecycle`, and `role-seed-scope-convergence`.
+- [ ] Type deletion lifecycle state, purge descriptors, isolation fixtures, and role-seed convergence records with named contracts.
+- [ ] Preserve deletion gating, purge irreversibility, cross-workspace isolation, and the source-to-table role convergence contract this owner holds sole ownership of; prove the destructive paths still fail closed with a negative control.
+
+#### 0.33.33.31.3 - Type demo, development-data, and startup-maintenance owners
+
+**Model: High Effort - Seeded estates and startup repair run before anything else can be trusted.**
+
+Measured at 145 diagnostics across 4 files and 2,065 lines.
+
+- [ ] Close the 145 diagnostics across `demo-data-host-operation`, `public-demo-baseline-candidate`, `development-data-seed`, and `startup-maintenance-lifecycle`.
+- [ ] Type host operation descriptors, seeded estate records, baseline candidate rows, and startup maintenance state with named contracts.
+- [ ] Preserve demo host operation boundaries, baseline candidate selection, development seed shape, and startup maintenance ordering exactly.
+
+#### 0.33.33.31.4 - Type Files upload, multipart, and API lifecycle owners
+
+**Model: High Effort - Upload ingress is the largest untyped surface in the Files estate.**
+
+Measured at 210 diagnostics across 4 files and 2,150 lines.
+
+- [ ] Close the 210 diagnostics across `file-upload-compatibility-error-hardening`, `file-multipart-upload-route`, `file-multipart-batch-upload-helper`, and `file-api-lifecycle`.
+- [ ] Type multipart parts and boundaries, upload payload descriptors, error-hardening envelopes, and lifecycle state with named contracts.
+- [ ] Preserve multipart boundary handling, compatibility and error-hardening refusals, batch upload semantics, and the API lifecycle transitions exactly.
+
+#### 0.33.33.31.5 - Type Files preview and download egress owners
+
+**Model: High Effort - Egress decides what leaves the system and under what headers.**
+
+Measured at 161 diagnostics across 3 files and 1,622 lines.
+
+- [ ] Close the 161 diagnostics across `files-preview-availability-route`, `files-preview-content-route`, and `file-streamed-validation-download-metadata`.
+- [ ] Type preview availability and content descriptors, streamed validation state, and download metadata with named contracts.
+- [ ] Preserve preview availability rules, content-type and disposition handling, streamed validation, and download metadata exactly.
+
+#### 0.33.33.31.6 - Type Files attachment target and context read owners
+
+**Model: High Effort - Attachment targets are a cross-module authorization surface.**
+
+Measured at 182 diagnostics across 5 files and 2,540 lines.
+
+- [ ] Close the 182 diagnostics across `files-attachable-target-options`, `files-attachment-context-route`, `files-attachment-readmodel`, `files-browse-attachment-reads-conversion`, and `files-context-targets-conversion`.
+- [ ] Type attachable target options, attachment context rows, and read-model projections with named contracts.
+- [ ] Preserve attachable target scoping, attachment context authorization, and read-model projections exactly.
+
+#### 0.33.33.31.7 - Type storage provider, S3, and quota owners
+
+**Model: High Effort - Provider mocks and quota arithmetic must not be typed into agreement.**
+
+Measured at 197 diagnostics across 9 files and 2,378 lines.
+
+- [ ] Close the 197 diagnostics across the `file-s3-*`, `file-storage-*`, and `workspace-storage` owners.
+- [ ] Type provider configuration, S3 object operations and signed-url boundaries, storage accounting rows, quota state, and streaming contracts with named contracts.
+- [ ] Preserve provider registration, signed-url boundaries, quota enforcement arithmetic, accounting totals, and streaming behavior exactly; prove quota enforcement still fails closed with a negative control.
+
+#### 0.33.33.31.8 - Type scanner adapter and worker owners
+
+**Model: High Effort - Scanner refusals and worker isolation are both fail-closed paths.**
+
+Measured at 206 diagnostics across 7 files and 2,583 lines.
+
+- [ ] Close the 206 diagnostics across the `file-clam*`, `file-scan*`, and `file-scanner-*` owners plus `worker-runner` and `separate-worker-end-to-end`.
+- [ ] Type scanner adapter results, mode resolution, health diagnostics, scan job handoff records, and worker child results with named contracts.
+- [ ] Preserve scanner refusal behavior, mode resolution, health reporting, scan handoff, and real worker process isolation; do not merge worker processes to simplify typing.
+
+#### 0.33.33.31.9 - Type job claiming, outbox, and retention owners
+
+**Model: High Effort - Claiming and idempotency are concurrency proofs.**
+
+Measured at 115 diagnostics across 4 files and 1,321 lines.
+
+- [ ] Close the 115 diagnostics across `job-claiming-locking`, `job-idempotency-at-least-once`, `job-outbox-schema`, and `job-retention-pruning`.
+- [ ] Type job records, claim and lock state, outbox schema rows, and retention windows with named contracts.
+- [ ] Preserve claiming and locking arithmetic, at-least-once idempotency, outbox schema shape, and retention pruning bounds exactly.
+
+#### 0.33.33.31.10 - Type job observability and background work owners
+
+**Model: High Effort - Observability reads are where job payloads leak if typed loosely.**
+
+Measured at 125 diagnostics across 5 files and 1,476 lines.
+
+- [ ] Close the 125 diagnostics across `admin-job-observability`, `background-work-jobs`, `notification-jobs`, `search-index-jobs`, and `scripts/regressions/jobs/`.
+- [ ] Type observability rows, background work payloads, and notification and search index job records with named contracts.
+- [ ] Preserve observability redaction, background work scheduling, and job payload boundaries exactly.
+
+#### 0.33.33.31.11 - Type Files settings, descriptor, and folded contract closeout
+
+**Model: High Effort - The closeout child that returns the Files and database cohort to zero.**
+
+Measured at 104 diagnostics across 16 files and 2,588 lines.
+
+- [ ] Close the 104 diagnostics across `files-lifecycle-settings-quota-conversion`, `file-settings`, `file-framework-contract`, `files-descriptor-host`, `files-time-tracking-qol-closeout`, and `scripts/regression-contracts/files/`.
+- [ ] Type settings payloads, descriptor host records, and the folded Files contract modules with named contracts.
+- [ ] Preserve settings and quota conversion behavior, descriptor host contracts, and folded contract ownership with its retained-owner reconciliation.
+- [ ] Confirm the whole `0.33.33.31` cohort measures zero and record the closing scripts-program figure. This child closes the `0.33.33.31` rollup.
 ### 0.33.33.32 - Type product regressions and close the scripts program
 
 **Model: High Effort** - The remaining legacy and module estate is mechanically large and must retain complete coverage metadata.
