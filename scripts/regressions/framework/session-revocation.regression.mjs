@@ -31,7 +31,7 @@ const { internalEventBus } = await import("../../../src/core/events/event-bus.js
 const { sessionsService } = await import("../../../src/services/sessions.service.js");
 
 await assert.rejects(
-  sessionsService.revokeAllForUserExcept({
+  sessionsService.revokeAllForUserExcept(/** @type {Parameters<typeof sessionsService.revokeAllForUserExcept>[0]} */ (/** @type {unknown} */ ({
     actorSession: null,
     reason: "password_changed",
     targetUser: {
@@ -39,8 +39,8 @@ await assert.rejects(
       user_id: "missing-current-session",
       username: "missing-current-session@example.test",
     },
-  }),
-  (error) => error?.statusCode === 409 && error?.message === "The current session changed. Sign in and try again.",
+  }))),
+  (error) => /** @type {RevocationDenial} */ (error)?.statusCode === 409 && /** @type {RevocationDenial} */ (error)?.message === "The current session changed. Sign in and try again.",
   "exception-scoped revocation must fail safely instead of broadening to all sessions when no preserved session is identified",
 );
 
@@ -50,9 +50,10 @@ let unsubscribe;
 try {
   await initializeDatabase();
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
+  /** @type {SessionRevokedEvent[]} */
   const events = [];
-  unsubscribe = internalEventBus.on("security.session.revoked", (event) => events.push(event), {
+  unsubscribe = internalEventBus.on("security.session.revoked", (event) => events.push(/** @type {SessionRevokedEvent} */ (event)), {
     id: "regression:session-revocation",
   });
 
@@ -108,6 +109,22 @@ try {
   assert.equal(bulkRevocation.status, 200, JSON.stringify(bulkRevocation.body));
   assert.equal(bulkRevocation.body.revokedCount, 1);
   assert.equal((await api.get("/api/session", { cookie: survivingTargetCookie })).status, 401, "workspace bulk revocation should reject the next request");
+
+  // Negative control for revocation scope. Every proof here asserts that a
+  // revoked bearer stops working, so all of them would still pass against an
+  // implementation that revoked every session in the install. Sessions outside
+  // the revoked user must survive the same call, including the second
+  // administrator session no later probe has touched yet.
+  assert.equal(
+    (await api.get("/api/session", { cookie: adminCookieA })).status,
+    200,
+    "revoking one user must not revoke the acting administrator session",
+  );
+  assert.equal(
+    (await api.get("/api/session", { cookie: adminCookieB })).status,
+    200,
+    "revoking one user must not broaden to another live session of a different user",
+  );
 
   const resetLoginA = await login(api, createdTarget.body.user.username, targetPassword);
   const resetLoginB = await login(api, createdTarget.body.user.username, targetPassword);
@@ -198,6 +215,42 @@ ORDER BY created_at;
 
 console.log("Session revocation regression passed.");
 
+/** One listed session row, as User Admin sees it. */
+/** @typedef {{ isCurrent: boolean, sessionReference: string }} ListedSessionRow */
+
+/**
+ * The payload fields this owner reads across login, create, list, and
+ * revocation responses.
+ * @typedef {{
+ *   initialPassword: string,
+ *   revokedCount: number,
+ *   revokedSessions: number,
+ *   sessions: ListedSessionRow[],
+ *   user: { user_id: string, username: string, workspace_id: string },
+ * }} RevocationResponseBody
+ */
+
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<RevocationResponseBody>} RevocationResponse */
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} RevocationClientOptions */
+
+/**
+ * The client this owner builds. It adds `delete` to the shared writing
+ * client method set.
+ * @typedef {{
+ *   delete: (url: string, options?: RevocationClientOptions) => Promise<RevocationResponse>,
+ *   get: (url: string, options?: RevocationClientOptions) => Promise<RevocationResponse>,
+ *   post: (url: string, body?: unknown, options?: RevocationClientOptions) => Promise<RevocationResponse>,
+ *   put: (url: string, body?: unknown, options?: RevocationClientOptions) => Promise<RevocationResponse>,
+ * }} RevocationApiClient
+ */
+
+/** The safe security event each revoked row emits. */
+/** @typedef {import("../../../src/types/framework-contracts.js").InternalEvent & { metadata: { reason: string } }} SessionRevokedEvent */
+
+/** The framework denial the fail-safe revocation guard rejects with. */
+/** @typedef {{ message?: string, statusCode?: number }} RevocationDenial */
+
+/** @param {RevocationApiClient} api @param {string} username @param {string} password @returns {Promise<RevocationResponse>} */
 async function login(api, username, password) {
   const response = await api.post("/api/login", { username, password, rememberMe: true });
   assert.equal(response.status, 200, JSON.stringify(response.body));
@@ -205,8 +258,17 @@ async function login(api, username, password) {
   return response;
 }
 
+/** @param {string} baseUrl @returns {RevocationApiClient} */
 function createApi(baseUrl) {
+  /**
+   * @param {string} method
+   * @param {string} url
+   * @param {unknown} body
+   * @param {RevocationClientOptions} [options]
+   * @returns {Promise<RevocationResponse>}
+   */
   async function request(method, url, body, options = {}) {
+    /** @type {Record<string, string>} */
     const headers = { ...(options.headers || {}) };
     if (body !== undefined) {
       headers["content-type"] = "application/json";
@@ -228,33 +290,46 @@ function createApi(baseUrl) {
   }
 
   return {
+    /** @param {string} url @param {RevocationClientOptions} [options] */
     delete(url, options) {
       return request("DELETE", url, undefined, options);
     },
+    /** @param {string} url @param {RevocationClientOptions} [options] */
     get(url, options) {
       return request("GET", url, undefined, options);
     },
+    /** @param {string} url @param {unknown} [body] @param {RevocationClientOptions} [options] */
     post(url, body, options) {
       return request("POST", url, body, options);
     },
+    /** @param {string} url @param {unknown} [body] @param {RevocationClientOptions} [options] */
     put(url, body, options) {
       return request("PUT", url, body, options);
     },
   };
 }
 
+/** @param {RevocationResponse} response @returns {string} */
 function readSessionCookie(response) {
   const setCookie = response.headers.get("set-cookie") || "";
   return setCookie.match(/longtail_forge_session=([^;,]+)/)?.[1] || "";
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} app
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} serverInstance
+ * @returns {Promise<void>}
+ */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => error ? reject(error) : resolve());

@@ -2998,7 +2998,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 5393,
+      "errorCount": 5188,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -5564,132 +5564,6 @@
             "count": 14
           }
         ],
-        "scripts/regressions/framework/remembered-sessions.regression.mjs": [
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2531,
-            "count": 2
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 19
-          }
-        ],
-        "scripts/regressions/framework/session-auth-warning.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "scripts/regressions/framework/session-revocation.regression.mjs": [
-          {
-            "code": 2339,
-            "count": 5
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 23
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/framework/support-view-request-enforcement.regression.mjs": [
-          {
-            "code": 18047,
-            "count": 31
-          },
-          {
-            "code": 18048,
-            "count": 3
-          },
-          {
-            "code": 2353,
-            "count": 1
-          },
-          {
-            "code": 2531,
-            "count": 2
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 17
-          },
-          {
-            "code": 7023,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/framework/support-view-session-contract.regression.mjs": [
-          {
-            "code": 18047,
-            "count": 38
-          },
-          {
-            "code": 18048,
-            "count": 2
-          },
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 8
-          },
-          {
-            "code": 2345,
-            "count": 10
-          },
-          {
-            "code": 2353,
-            "count": 1
-          },
-          {
-            "code": 2531,
-            "count": 9
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 17
-          }
-        ],
         "scripts/regressions/jobs/job-worker-shutdown-rejection.regression.mjs": [
           {
             "code": 18049,
@@ -7143,7 +7017,7 @@
   },
   "totals": {
     "files": 1040,
-    "errors": 16527,
+    "errors": 16322,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

@@ -51,6 +51,7 @@ context.replacedLocations = [];
 context.window.location = {
   href: "http://longtail.test/tasks.html",
   origin: "http://longtail.test",
+  /** @param {string} path */
   replace(path) {
     /** @type {string[]} */ (context.replacedLocations).push(path);
   },
@@ -127,6 +128,7 @@ assert.equal(
 
 console.log("Framework session/auth warning regression passed.");
 
+/** @param {string} source @param {string} name @returns {string} */
 function extractFunction(source, name) {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1, `Expected ${name} in navigation.js`);

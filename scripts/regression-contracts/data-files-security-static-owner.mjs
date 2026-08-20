@@ -57,6 +57,7 @@ async function runDataFilesSecurityStaticOwner(ownerMeta) {
     "0.33.33.30.3": 71,
     "0.33.33.30.4": 504,
     "0.33.33.30.5": 246,
+    "0.33.33.30.6": 376,
   });
   const typingAllowance = Object.values(FULL_STRICT_TYPING_LINES).reduce((total, lines) => total + lines, 0);
   assert.ok(

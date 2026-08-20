@@ -262,6 +262,16 @@ for (const httpSecurityOwner of [
   assert.equal(ledger.programs.scripts.diagnostics[httpSecurityOwner], undefined, `${httpSecurityOwner} must stay strict-clean after checkpoint 0.33.33.30.3`);
   assert.equal(ledger.explicitAnyByFile[httpSecurityOwner], undefined, `${httpSecurityOwner} must stay free of explicit any after checkpoint 0.33.33.30.3`);
 }
+for (const sessionOwner of [
+  "scripts/regressions/framework/remembered-sessions.regression.mjs",
+  "scripts/regressions/framework/session-auth-warning.regression.mjs",
+  "scripts/regressions/framework/session-revocation.regression.mjs",
+  "scripts/regressions/framework/support-view-request-enforcement.regression.mjs",
+  "scripts/regressions/framework/support-view-session-contract.regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[sessionOwner], undefined, `${sessionOwner} must stay strict-clean after checkpoint 0.33.33.30.6`);
+  assert.equal(ledger.explicitAnyByFile[sessionOwner], undefined, `${sessionOwner} must stay free of explicit any after checkpoint 0.33.33.30.6`);
+}
 for (const publicDemoOwner of [
   "scripts/regressions/framework/public-demo-account-catalog.regression.mjs",
   "scripts/regressions/framework/public-demo-budgets.regression.mjs",

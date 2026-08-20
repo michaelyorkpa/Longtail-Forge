@@ -33,7 +33,7 @@ let server;
 try {
   await initializeDatabase();
   server = await listen(createApp());
-  let api = createApi(`http://127.0.0.1:${server.address().port}`);
+  let api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   const omitted = await api.post("/api/login", { username: USERNAME, password: PASSWORD });
   assert.equal(omitted.status, 200, JSON.stringify(omitted.body));
@@ -63,7 +63,7 @@ try {
   });
   assert.equal(managedSessions.status, 200, JSON.stringify(managedSessions.body));
   const currentManagedSession = managedSessions.body.sessions.find((session) => session.isCurrent);
-  const rememberedRow = await db.get("SELECT expires_at FROM sessions WHERE session_id = :sessionId;", {
+  const rememberedRow = await requireRow("SELECT expires_at FROM sessions WHERE session_id = :sessionId;", {
     sessionId: rememberedCookie,
   });
   assert.equal(
@@ -72,7 +72,7 @@ try {
     "Active Sessions must report the remembered row's exact authoritative expiry",
   );
 
-  const sessionCountBeforeInvalidValues = Number((await db.get("SELECT COUNT(*) AS count FROM sessions;")).count);
+  const sessionCountBeforeInvalidValues = Number((await requireRow("SELECT COUNT(*) AS count FROM sessions;")).count);
   for (const invalidValue of [1, "true", null, {}]) {
     const invalid = await api.post("/api/login", {
       username: USERNAME,
@@ -85,7 +85,7 @@ try {
     assert.match(invalid.body.error.requestId, /^[0-9a-f-]{36}$/i);
   }
   assert.equal(
-    Number((await db.get("SELECT COUNT(*) AS count FROM sessions;")).count),
+    Number((await requireRow("SELECT COUNT(*) AS count FROM sessions;")).count),
     sessionCountBeforeInvalidValues,
     "invalid preference types must not create sessions",
   );
@@ -95,7 +95,7 @@ try {
   await closeDatabase();
   await initializeDatabase();
   server = await listen(createApp());
-  api = createApi(`http://127.0.0.1:${server.address().port}`);
+  api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   assert.equal(
     (await api.get("/api/session", { cookie: rememberedCookie })).status,
@@ -130,13 +130,50 @@ try {
 
 console.log("Remembered sessions regression passed.");
 
+/** One Active Sessions row, as the managed list reports it. */
+/** @typedef {{ expiresAt: string, isCurrent: boolean }} ManagedSessionRow */
+
+/**
+ * The payload fields this owner reads across login, managed-list, and refusal
+ * responses.
+ * @typedef {{
+ *   error: { code: string, message: string, requestId: string },
+ *   sessions: ManagedSessionRow[],
+ *   user: { user_id: string },
+ * }} RememberedResponseBody
+ */
+
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<RememberedResponseBody>} RememberedResponse */
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} RememberedClientOptions */
+
+/**
+ * The client this owner builds; it drives only `get` and `post`.
+ * @typedef {{
+ *   get: (url: string, options?: RememberedClientOptions) => Promise<RememberedResponse>,
+ *   post: (url: string, body?: unknown, options?: RememberedClientOptions) => Promise<RememberedResponse>,
+ * }} RememberedApiClient
+ */
+
+/**
+ * Read a single row a probe requires.
+ * @param {string} sql
+ * @param {import("../../../src/types/database-contracts.js").DatabaseParams} [params]
+ * @returns {Promise<import("../../../src/types/database-contracts.js").DatabaseRow>}
+ */
+async function requireRow(sql, params) {
+  const row = await db.get(sql, params);
+  assert.ok(row, `the probe query should return a row: ${sql}`);
+  return row;
+}
+
+/** @param {RememberedResponse} response @param {number} expectedSeconds @param {string} label @returns {Promise<void>} */
 async function assertLifetime(response, expectedSeconds, label) {
   const sessionId = readSessionCookie(response);
   assert.ok(sessionId, `${label} must set a session bearer`);
   assert.equal(readSessionMaxAge(response), expectedSeconds, `${label} must set the exact cookie Max-Age`);
   const row = await db.get("SELECT expires_at FROM sessions WHERE session_id = :sessionId;", { sessionId });
   assert.ok(row, `${label} must use the canonical sessions table`);
-  const remainingMilliseconds = new Date(row.expires_at).getTime() - Date.now();
+  const remainingMilliseconds = new Date(/** @type {string} */ (row.expires_at)).getTime() - Date.now();
   assert.ok(
     remainingMilliseconds <= expectedSeconds * 1000
       && remainingMilliseconds >= (expectedSeconds - 10) * 1000,
@@ -144,7 +181,15 @@ async function assertLifetime(response, expectedSeconds, label) {
   );
 }
 
+/** @param {string} baseUrl @returns {RememberedApiClient} */
 function createApi(baseUrl) {
+  /**
+   * @param {string} method
+   * @param {string} url
+   * @param {unknown} body
+   * @param {RememberedClientOptions} [options]
+   * @returns {Promise<RememberedResponse>}
+   */
   async function request(method, url, body, options = {}) {
     const headers = {};
     if (body !== undefined) headers["content-type"] = "application/json";
@@ -163,35 +208,48 @@ function createApi(baseUrl) {
   }
 
   return {
+    /** @param {string} url @param {RememberedClientOptions} [options] */
     get(url, options) {
       return request("GET", url, undefined, options);
     },
+    /** @param {string} url @param {unknown} [body] @param {RememberedClientOptions} [options] */
     post(url, body, options) {
       return request("POST", url, body, options);
     },
   };
 }
 
+/** @param {RememberedResponse} response @returns {string} */
 function readSessionSetCookie(response) {
   const setCookie = response.headers.get("set-cookie") || "";
   return setCookie.match(/longtail_forge_session=[^,]*/)?.[0] || "";
 }
 
+/** @param {RememberedResponse} response @returns {string} */
 function readSessionCookie(response) {
   return readSessionSetCookie(response).match(/longtail_forge_session=([^;,]+)/)?.[1] || "";
 }
 
+/** @param {RememberedResponse} response @returns {number | null} */
 function readSessionMaxAge(response) {
   return Number(readSessionSetCookie(response).match(/Max-Age=(\d+)/)?.[1] || -1);
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} app
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} serverInstance
+ * @returns {Promise<void>}
+ */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => error ? reject(error) : resolve());
