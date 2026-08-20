@@ -1,5 +1,17 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.31.1.1 - Preserve filesystem helper return types
+
+**Model: High Effort** - A helper that erases what its caller already knew makes every caller pay for the loss.
+
+Corrective child of `0.33.33.31.1`, added after post-merge review. Archiving it closes `0.33.33.31.1` again and hands off to the already-planned `0.33.33.31.2`. The eleven-child `0.33.33.31` reslice is unchanged.
+
+- [x] Confirmed the reported defect rather than defending the previous checkpoint. `0.33.33.31.1` annotated `readFileSystem`'s callback as `() => void`, which discarded the return type at the helper boundary even though both callers already had precise ones: `fsSync.readdirSync` resolves directory entries and `fsSync.statSync` resolves `fs.Stats`. Runtime behavior was always correct; the defect was in the helper's type contract.
+- [x] Made the helper generic over its callback result, so `readDir` now truthfully resolves the directory-entry collection or `null` and `readStat` resolves `fs.Stats` or `null`, while the existing null-on-filesystem-error behavior is retained exactly.
+- [x] Removed the two downstream workarounds that existed only because of the erasure: the `import("node:fs").Stats` cast on the `isDirectory()` call, and the `|| []` fallback on the directory read. The unreadable directory is now handled by an explicit guard that mirrors the unreadable-stat guard two lines above it, which is the pattern the helper was written for.
+- [x] Proved the inference is real rather than silenced. Seeding a wrong member on each value now fails compilation — `Property 'isNotARealStatsMethod' does not exist on type 'Stats'` and `Property 'notAStringMember' does not exist on type 'string'` — neither of which the `() => void` contract could have caught. No explicit `any`, `@ts-ignore`, `@ts-nocheck`, or exclusion was introduced, and the owner carries no silencing construct at all.
+- [x] Changed no filesystem behavior, traversal order, error handling, source discovery, or assertion. The owner passes, the scripts program stays at 4,691 diagnostics with explicit `any` at 7, and `framework.full-strict-governance` still pins it strict-clean.
+- [x] Held the scope: the source walker was not refactored, no filesystem utility was generalised elsewhere, no unrelated caller was migrated, `requireRow` was not revisited, the seven older private database-row narrowings were not folded, and no `0.33.33.31.2` work was started.
 ## Version 0.33.33.31.1 - Type database seams, adapters, and parameter binding
 
 **Model: High Effort** - The adapter and binding seams every other database owner resolves through.
