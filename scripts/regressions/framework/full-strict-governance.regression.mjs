@@ -300,6 +300,18 @@ for (const databaseSeamOwner of [
   assert.equal(ledger.programs.scripts.diagnostics[databaseSeamOwner], undefined, `${databaseSeamOwner} must stay strict-clean after checkpoint 0.33.33.31.1`);
   assert.equal(ledger.explicitAnyByFile[databaseSeamOwner], undefined, `${databaseSeamOwner} must stay free of explicit any after checkpoint 0.33.33.31.1`);
 }
+// The workspace lifecycle, purge, cleanup-isolation, and role-seed convergence
+// owners closed at 0.33.33.31.2. Each holds a destructive or convergence
+// contract, so the pin keeps their proofs typed rather than merely passing.
+for (const workspaceLifecycleOwner of [
+  "scripts/regressions/database/role-seed-scope-convergence.regression.mjs",
+  "scripts/regressions/database/workspace-cleanup-isolation.regression.mjs",
+  "scripts/regressions/database/workspace-deletion-lifecycle.regression.mjs",
+  "scripts/regressions/database/workspace-final-purge.regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[workspaceLifecycleOwner], undefined, `${workspaceLifecycleOwner} must stay strict-clean after checkpoint 0.33.33.31.2`);
+  assert.equal(ledger.explicitAnyByFile[workspaceLifecycleOwner], undefined, `${workspaceLifecycleOwner} must stay free of explicit any after checkpoint 0.33.33.31.2`);
+}
 // The authorization-model owners closed at 0.33.33.30.7.1 and the permission
 // harness itself closed at 0.33.33.30.7.2.2, which completes the
 // 0.33.33.30.7 cohort.

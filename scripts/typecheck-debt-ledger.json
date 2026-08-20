@@ -3001,7 +3001,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 4691,
+      "errorCount": 4595,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -5113,32 +5113,6 @@
             "count": 28
           }
         ],
-        "scripts/regressions/database/role-seed-scope-convergence.regression.mjs": [
-          {
-            "code": 18046,
-            "count": 2
-          },
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 2532,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 14
-          },
-          {
-            "code": 7031,
-            "count": 3
-          }
-        ],
         "scripts/regressions/database/startup-maintenance-lifecycle.regression.mjs": [
           {
             "code": 18047,
@@ -5159,60 +5133,6 @@
           {
             "code": 7034,
             "count": 5
-          }
-        ],
-        "scripts/regressions/database/workspace-cleanup-isolation.regression.mjs": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 23
-          }
-        ],
-        "scripts/regressions/database/workspace-deletion-lifecycle.regression.mjs": [
-          {
-            "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 14
-          }
-        ],
-        "scripts/regressions/database/workspace-final-purge.regression.mjs": [
-          {
-            "code": 18047,
-            "count": 6
-          },
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2531,
-            "count": 3
-          },
-          {
-            "code": 2538,
-            "count": 1
-          },
-          {
-            "code": 2741,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 14
           }
         ],
         "scripts/regressions/jobs/job-worker-shutdown-rejection.regression.mjs": [
@@ -6590,7 +6510,7 @@
   },
   "totals": {
     "files": 1043,
-    "errors": 15825,
+    "errors": 15729,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

@@ -32,7 +32,7 @@ let server;
 try {
   await initializeDatabase();
   server = await listen(createApp());
-  let api = createApi(`http://127.0.0.1:${server.address().port}`);
+  let api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   const loginResponse = await api.post("/api/login", { username: ADMIN_USERNAME, password: ADMIN_PASSWORD });
   assert.equal(loginResponse.status, 200, JSON.stringify(loginResponse.body));
@@ -58,18 +58,18 @@ try {
   }, { cookie });
   assert.equal(requested.status, 201, JSON.stringify(requested.body));
   assert.equal(requested.body.deletion.pending, true);
-  assert.equal(requested.body.deletion.lifecycle.noCurrentBackupAcknowledged, true);
+  assert.equal(requireLifecycle(requested.body.deletion, "deletion request").noCurrentBackupAcknowledged, true);
   assert.equal(
-    new Date(requested.body.deletion.lifecycle.purgeAfter).getTime()
-      - new Date(requested.body.deletion.lifecycle.requestedAt).getTime(),
+    new Date(requireLifecycle(requested.body.deletion, "deletion request").purgeAfter).getTime()
+      - new Date(requireLifecycle(requested.body.deletion, "deletion request").requestedAt).getTime(),
     30 * 24 * 60 * 60 * 1000,
   );
 
   for (const [label, response] of await Promise.all([
-    api.get("/api/app-shell/bootstrap", { cookie }).then((response) => ["navigation/modules", response]),
-    api.get("/api/files/attachments", { cookie }).then((response) => ["Files", response]),
-    api.get("/api/search?text=grace", { cookie }).then((response) => ["Search", response]),
-    api.get("/api/notifications", { cookie }).then((response) => ["notifications", response]),
+    api.get("/api/app-shell/bootstrap", { cookie }).then((response) => /** @type {[string, DeletionResponse]} */ (["navigation/modules", response])),
+    api.get("/api/files/attachments", { cookie }).then((response) => /** @type {[string, DeletionResponse]} */ (["Files", response])),
+    api.get("/api/search?text=grace", { cookie }).then((response) => /** @type {[string, DeletionResponse]} */ (["Search", response])),
+    api.get("/api/notifications", { cookie }).then((response) => /** @type {[string, DeletionResponse]} */ (["notifications", response])),
   ])) {
     assert.equal(response.status, 200, `${label} should remain operational: ${JSON.stringify(response.body)}`);
   }
@@ -79,12 +79,12 @@ try {
   await closeDatabase();
   await initializeDatabase();
   server = await listen(createApp());
-  api = createApi(`http://127.0.0.1:${server.address().port}`);
+  api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   const afterRestart = await api.get("/api/settings/workspace-deletion", { cookie });
   assert.equal(afterRestart.status, 200, JSON.stringify(afterRestart.body));
-  assert.equal(afterRestart.body.deletion.lifecycle.requestedAt, requested.body.deletion.lifecycle.requestedAt);
-  assert.equal(afterRestart.body.deletion.lifecycle.purgeAfter, requested.body.deletion.lifecycle.purgeAfter);
+  assert.equal(requireLifecycle(afterRestart.body.deletion, "lifecycle after restart").requestedAt, requireLifecycle(requested.body.deletion, "deletion request").requestedAt);
+  assert.equal(requireLifecycle(afterRestart.body.deletion, "lifecycle after restart").purgeAfter, requireLifecycle(requested.body.deletion, "deletion request").purgeAfter);
 
   const canceled = await api.post("/api/settings/workspace-deletion/cancel", {}, { cookie });
   assert.equal(canceled.status, 200, JSON.stringify(canceled.body));
@@ -98,9 +98,9 @@ try {
   assert.equal(secondRequest.status, 201, JSON.stringify(secondRequest.body));
   await assert.rejects(
     workspaceDeletionService.cancel(adminSession, {
-      now: new Date(secondRequest.body.deletion.lifecycle.purgeAfter),
+      now: new Date(requireLifecycle(secondRequest.body.deletion, "second deletion request").purgeAfter),
     }),
-    (error) => error?.statusCode === 409 && /cancellation period has ended/i.test(error.message),
+    (error) => /** @type {DeletionDenial} */ (error)?.statusCode === 409 && /cancellation period has ended/i.test(String(/** @type {DeletionDenial} */ (error).message)),
   );
 
   const integrity = await db.query("PRAGMA integrity_check;");
@@ -112,6 +112,41 @@ try {
   await fixture.cleanup();
 }
 
+/** @param {string} workspaceId */
+/** The payload envelopes this owner reads, taken from the services that publish them. */
+/** @typedef {Awaited<ReturnType<typeof import("../../../src/services/workspace-deletion.service.js").workspaceDeletionService.read>>} WorkspaceDeletionState */
+/** @typedef {Awaited<ReturnType<typeof import("../../../src/services/settings.service.js").settingsService.readWorkspaceBootstrap>>} WorkspaceBootstrapContext */
+/** @typedef {{ deletion: WorkspaceDeletionState, user: { user_id: string, workspaceContext: WorkspaceBootstrapContext, workspace_id: string } }} DeletionResponseBody */
+
+/**
+ * Narrow a deletion envelope to the pending lifecycle it must be carrying.
+ *
+ * The service publishes `lifecycle` as nullable because a workspace with no
+ * pending deletion has none, so every read through it here is a claim that the
+ * request under test left one behind.
+ * @param {WorkspaceDeletionState} deletion
+ * @param {string} label
+ */
+function requireLifecycle(deletion, label) {
+  assert.ok(deletion.lifecycle, `${label} should carry a pending deletion lifecycle`);
+  return deletion.lifecycle;
+}
+
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<DeletionResponseBody>} DeletionResponse */
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} DeletionClientOptions */
+
+/**
+ * The client this owner builds; it drives only `get` and `post`.
+ * @typedef {{
+ *   get: (url: string, options?: DeletionClientOptions) => Promise<DeletionResponse>,
+ *   post: (url: string, body?: unknown, options?: DeletionClientOptions) => Promise<DeletionResponse>,
+ * }} DeletionApiClient
+ */
+
+/** The framework denial the deletion guard rejects with. */
+/** @typedef {{ message?: string, statusCode?: number }} DeletionDenial */
+
+/** @param {string} workspaceId */
 async function snapshotWorkspaceOwnedRows(workspaceId) {
   const tables = await db.query(`
 SELECT name
@@ -137,7 +172,15 @@ WHERE workspace_id = :workspaceId;
   return snapshot;
 }
 
+/** @param {string} baseUrl @returns {DeletionApiClient} */
 function createApi(baseUrl) {
+  /**
+   * @param {string} method
+   * @param {string} url
+   * @param {unknown} body
+   * @param {DeletionClientOptions} [options]
+   * @returns {Promise<DeletionResponse>}
+   */
   async function request(method, url, body, options = {}) {
     const headers = {};
     if (body !== undefined) headers["content-type"] = "application/json";
@@ -157,23 +200,34 @@ function createApi(baseUrl) {
     };
   }
   return {
+    /** @param {string} url @param {DeletionClientOptions} [options] */
     get: (url, options) => request("GET", url, undefined, options),
+    /** @param {string} url @param {unknown} [body] @param {DeletionClientOptions} [options] */
     post: (url, body, options) => request("POST", url, body, options),
   };
 }
 
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<DeletionResponseBody>} response @returns {string} */
 function readSessionCookie(response) {
   return (response.headers.get("set-cookie") || "")
     .match(/longtail_forge_session=([^;,]+)/)?.[1] || "";
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} app
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} serverInstance
+ * @returns {Promise<void>}
+ */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => error ? reject(error) : resolve());

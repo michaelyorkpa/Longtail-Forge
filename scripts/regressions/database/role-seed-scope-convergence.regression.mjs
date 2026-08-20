@@ -223,6 +223,7 @@ function openDatabase() {
   return database;
 }
 
+/** @param {InstanceType<typeof Database>} database @param {Array<{ fileName: string, sql: string }>} selectedMigrations */
 function applyMigrations(database, selectedMigrations) {
   for (const migration of selectedMigrations) {
     const ownsForeignKeyWindow = /migration-foreign-keys:\s*off/i.test(migration.sql);
@@ -235,7 +236,7 @@ function applyMigrations(database, selectedMigrations) {
         assert.deepEqual(database.pragma("foreign_key_check"), [], `${migration.fileName} should preserve foreign-key integrity`);
       }
     } catch (error) {
-      error.message = `${migration.fileName}: ${error.message}`;
+      /** @type {Error} */ (error).message = `${migration.fileName}: ${/** @type {Error} */ (error).message}`;
       throw error;
     } finally {
       if (ownsForeignKeyWindow) {
@@ -245,6 +246,7 @@ function applyMigrations(database, selectedMigrations) {
   }
 }
 
+/** @param {InstanceType<typeof Database>} database @param {string} label */
 function assertRoleContract(database, label) {
   const roles = database.prepare(`
 SELECT role_id, role_name, description, assignable_scope_type, sort_order
@@ -273,6 +275,7 @@ ORDER BY sort_order, role_id;
   );
 }
 
+/** @param {InstanceType<typeof Database>} database @param {string} label */
 function assertDefaultPermissionContract(database, label) {
   const actual = database.prepare(`
 SELECT role_id, permission_id
@@ -290,13 +293,15 @@ ORDER BY role_id, permission_id;
     ["super_admin"],
     "Support View must remain a runtime-catalog default only for the installation Super Admin role",
   );
+  /** @type {Map<string, Set<string>>} */
   const expected = new Map(ROLE_IDS.map((roleId) => [roleId, new Set(FRAMEWORK_SEEDED_DEFAULTS[roleId])]));
 
   for (const mapping of declaredDefaults) {
-    assert.ok(expected.has(mapping.roleId), `default permission contribution names unknown role ${mapping.roleId}`);
+    const roleDefaults = expected.get(mapping.roleId);
+    assert.ok(roleDefaults, `default permission contribution names unknown role ${mapping.roleId}`);
     for (const permissionId of mapping.permissions) {
       if (permissionId === "support_view.enter") continue;
-      expected.get(mapping.roleId).add(permissionId);
+      roleDefaults.add(permissionId);
     }
   }
 
@@ -347,6 +352,7 @@ function assertRuntimeRoleContract() {
   }
 }
 
+/** @param {InstanceType<typeof Database>} database */
 function seedLegacyProjectAdministrator(database) {
   seedWorkspaceAndResources(database);
   database.exec(`
@@ -365,6 +371,7 @@ VALUES (
 `);
 }
 
+/** @param {InstanceType<typeof Database>} database */
 function seedCurrentAssignments(database) {
   seedWorkspaceAndResources(database);
   const scopes = {
@@ -403,6 +410,7 @@ VALUES (?, 'workspace-a', ?, ?, ?, ?, ?, ?, ?, '2026-02-01T00:00:00.000Z', '2026
   }
 }
 
+/** @param {InstanceType<typeof Database>} database */
 function seedWorkspaceAndResources(database) {
   database.exec(`
 INSERT OR IGNORE INTO workspaces (
@@ -437,6 +445,7 @@ VALUES (
 `);
 }
 
+/** @param {InstanceType<typeof Database>} database */
 function readAssignments(database) {
   return database.prepare(`
 SELECT
@@ -456,6 +465,7 @@ ORDER BY assignment_id;
 `).all();
 }
 
+/** @param {{ assignmentId: string, clientId?: string | null, projectId?: string | null, scopeId: string, scopeType: string }} row */
 function assignmentRow({
   assignmentId,
   clientId = null,
@@ -478,6 +488,7 @@ function assignmentRow({
   };
 }
 
+/** @param {InstanceType<typeof Database>} database @param {string} label */
 function assertDatabaseHealth(database, label) {
   assert.equal(database.pragma("integrity_check", { simple: true }), "ok", `${label} should pass SQLite integrity_check`);
   assert.deepEqual(database.pragma("foreign_key_check"), [], `${label} should have zero foreign-key violations`);

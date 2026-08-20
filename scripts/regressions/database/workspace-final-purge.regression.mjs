@@ -13,6 +13,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { requireRow } from "../../test-support/database-row-assertions.mjs";
 
 const fixture = await createDisposableDatabaseFixture("workspace-final-purge");
 process.env.LONGTAIL_LOCAL_STORAGE_ROOT = path.join(fixture.root, "files");
@@ -41,10 +42,12 @@ let targetWorkspaceId = "";
 
 try {
   await initializeDatabase();
-  const admin = await db.get("SELECT user_id, username FROM users WHERE username = :username;", {
+  /** @type {{ user_id: string, username: string }} */
+  const admin = requireRow(await db.get("SELECT user_id, username FROM users WHERE username = :username;", {
     username: process.env.SUPER_ADMIN_USERNAME,
-  });
-  const retainedWorkspace = await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
+  }), "admin");
+  /** @type {{ workspace_id: string }} */
+  const retainedWorkspace = requireRow(await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"), "retainedWorkspace");
   assert.ok(admin?.user_id && retainedWorkspace?.workspace_id);
 
   const target = await workspacesRepository.createWorkspace({
@@ -76,7 +79,7 @@ try {
       now: "2026-08-15T15:59:59.999Z",
       workspaceId: targetWorkspaceId,
     }),
-    (error) => error?.statusCode === 409 && /grace period has not ended/i.test(error.message),
+    (error) => /** @type {{ message?: string, statusCode?: number }} */ (error)?.statusCode === 409 && /grace period has not ended/i.test(String(/** @type {{ message?: string }} */ (error).message)),
   );
 
   const queued = await workspacePurgeService.queueWorkspacePurge({
@@ -86,7 +89,7 @@ try {
   });
   assert.equal(queued.queued, true, "the exact grace deadline should be purge-eligible");
   assert.ok(queued.jobId);
-  assert.equal((await readJob(queued.jobId)).job_type, WORKSPACE_PURGE_JOB_TYPE);
+  assert.equal(requireRow(await readJob(queued.jobId), "queued purge job").job_type, WORKSPACE_PURGE_JOB_TYPE);
 
   await db.run(`
 INSERT INTO jobs (
@@ -106,8 +109,8 @@ VALUES (
     /workers are still draining/i,
     "purge should fence first, then wait for already-running workspace work",
   );
-  assert.equal((await db.get("SELECT status FROM workspaces WHERE workspace_id = :workspaceId;", { workspaceId: targetWorkspaceId })).status, "purging");
-  const fenceIdentity = await db.get(`
+  assert.equal(requireRow(await db.get("SELECT status FROM workspaces WHERE workspace_id = :workspaceId;", { workspaceId: targetWorkspaceId }), "fenced workspace").status, "purging");
+  const fenceIdentity = requireRow(await db.get(`
 SELECT lifecycle.purge_token, tombstone.purge_tombstone_id
 FROM workspace_deletion_lifecycle AS lifecycle
 INNER JOIN workspace_purge_tombstones AS tombstone
@@ -116,7 +119,7 @@ WHERE lifecycle.workspace_id = :workspaceId;
 `, {
     workspaceFingerprint: fingerprintWorkspaceId(targetWorkspaceId),
     workspaceId: targetWorkspaceId,
-  });
+  }), "fenceIdentity");
   assertUuidVersion(fenceIdentity?.purge_token, 4, "workspace purge fence identity");
   assertUuidVersion(fenceIdentity?.purge_tombstone_id, 7, "workspace purge tombstone row identity");
   assert.notEqual(fenceIdentity.purge_token, fenceIdentity.purge_tombstone_id, "purge fencing identity must stay independent from durable tombstone row identity");
@@ -136,7 +139,7 @@ WHERE lifecycle.workspace_id = :workspaceId;
   assert.equal(await fileExists(targetObject.path), false, "Files objects should be gone before database finalization");
   assert.equal(await fileExists(backupArtifact), false, "workspace backup artifacts should be gone before database finalization");
   assert.ok(await db.get("SELECT workspace_id FROM workspaces WHERE workspace_id = :workspaceId;", { workspaceId: targetWorkspaceId }), "an interruption should leave the fenced database scope retryable");
-  assert.equal((await readTombstone()).status, "in_progress");
+  assert.equal(requireRow(await readTombstone(), "tombstone").status, "in_progress");
 
   await closeDatabase();
   await initializeDatabase();
@@ -150,7 +153,7 @@ WHERE lifecycle.workspace_id = :workspaceId;
   assert.deepEqual(await readWorkspaceScopedResidue(), [], "no database table may retain the purged workspace scope");
   assert.equal(await fileExists(targetObject.path), false);
   assert.equal(await fileExists(backupArtifact), false);
-  const retainedIdentity = await db.get("SELECT username, home_workspace_id, active_workspace_id FROM users WHERE user_id = :userId;", { userId: TARGET_USER_ID });
+  const retainedIdentity = requireRow(await db.get("SELECT username, home_workspace_id, active_workspace_id FROM users WHERE user_id = :userId;", { userId: TARGET_USER_ID }), "retainedIdentity");
   assert.equal(retainedIdentity.username, "purge-target-only@example.test");
   assert.equal(retainedIdentity.home_workspace_id, null);
   assert.equal(retainedIdentity.active_workspace_id, null);
@@ -167,7 +170,7 @@ WHERE user_id = :userId;
   assert.equal(await fingerprintWorkspaceRows(retainedWorkspace.workspace_id), retainedBefore, "another workspace's database rows must remain byte-for-byte equivalent");
   assert.deepEqual(await fs.readFile(retainedObject.path), retainedBytesBefore, "another workspace's Files bytes must be unchanged");
 
-  const tombstoneBefore = await readTombstone();
+  const tombstoneBefore = requireRow(await readTombstone(), "tombstoneBefore");
   const repeated = await workspacePurgeService.handleWorkspacePurgeJob({ job, payload }, { now: PURGE_AFTER });
   assert.equal(repeated.alreadyComplete, true);
   assert.deepEqual(await readTombstone(), tombstoneBefore, "a completed purge must be exactly-once and side-effect free on retry");
@@ -183,6 +186,7 @@ WHERE user_id = :userId;
   await fixture.cleanup();
 }
 
+/** @param {string} adminUserId */
 async function seedTargetIdentity(adminUserId) {
   await db.run(`
 INSERT INTO users (
@@ -205,6 +209,7 @@ VALUES ('purge-target-only-membership', :userId, :workspaceId, 'active', :now, :
   assert.ok(adminUserId);
 }
 
+/** @param {string} workspaceId @param {string} uploadedByUserId @param {string} content */
 async function seedFileObject(workspaceId, uploadedByUserId, content) {
   const adapter = filesService.getFileStorageAdapter("local");
   if (typeof adapter.resolveStoragePath !== "function") throw new Error("Local storage adapter should resolve protected paths.");
@@ -235,6 +240,7 @@ VALUES (
   return { path: adapter.resolveStoragePath(stored.storageKey), storageKey: stored.storageKey };
 }
 
+/** @param {string} adminUserId */
 async function seedWorkspaceRecords(adminUserId) {
   await db.run(`
 INSERT INTO notifications (
@@ -267,12 +273,14 @@ VALUES ('purge-session', :workspaceId, :workspaceId, :userId, 'purge-target-only
   assert.ok(adminUserId);
 }
 
+/** @param {string} workspaceId */
 async function fingerprintWorkspaceRows(workspaceId) {
   const tables = await workspaceTables();
+  /** @type {Record<string, unknown>} */
   const snapshot = {};
   for (const tableName of tables) {
     const quoted = quoteIdentifier(tableName);
-    snapshot[tableName] = await db.query(`SELECT * FROM ${quoted} WHERE workspace_id = :workspaceId ORDER BY rowid;`, { workspaceId });
+    snapshot[/** @type {string} */ (tableName)] = await db.query(`SELECT * FROM ${quoted} WHERE workspace_id = :workspaceId ORDER BY rowid;`, { workspaceId });
   }
   return createHash("sha256").update(JSON.stringify(snapshot)).digest("hex");
 }
@@ -289,13 +297,14 @@ async function readWorkspaceScopedResidue() {
 async function workspaceTables() {
   const tables = await db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name;");
   const result = [];
-  for (const { name } of tables) {
+  for (const { name } of /** @type {Array<{ name: string }>} */ (tables)) {
     const columns = await db.query(`PRAGMA table_info(${quoteIdentifier(name)});`);
     if (columns.some((column) => column.name === "workspace_id")) result.push(name);
   }
   return result;
 }
 
+/** @param {string} tableName @param {string} whereClause */
 async function count(tableName, whereClause) {
   const row = await db.get(`SELECT COUNT(1) AS count FROM ${quoteIdentifier(tableName)} WHERE ${whereClause};`, {
     workspaceId: targetWorkspaceId,
@@ -303,6 +312,7 @@ async function count(tableName, whereClause) {
   return Number(row?.count) || 0;
 }
 
+/** @param {string} jobId */
 async function readJob(jobId) {
   return db.get("SELECT * FROM jobs WHERE job_id = :jobId;", { jobId });
 }
@@ -313,6 +323,7 @@ async function readTombstone() {
   });
 }
 
+/** @param {string} filePath */
 async function fileExists(filePath) {
   try {
     await fs.access(filePath);
@@ -322,10 +333,12 @@ async function fileExists(filePath) {
   }
 }
 
+/** @param {string} value @returns {string} */
 function quoteIdentifier(value) {
   return `"${String(value).replaceAll('"', '""')}"`;
 }
 
+/** @param {unknown} value @param {number} expectedVersion @param {string} label */
 function assertUuidVersion(value, expectedVersion, label) {
   assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
   assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
