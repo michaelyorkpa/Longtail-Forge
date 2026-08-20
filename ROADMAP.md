@@ -60,14 +60,6 @@ These requirements apply to every child: type fake-DOM and HTTP fixture boundari
 
 Measured history-pin exposure for the whole cohort is ten references across eight `scripts/regression-contracts/views/` modules, all folding into the single `views.current-static-contracts` entry; every other file in the cohort is already free of planning-document reads, so `0.33.33.30.1` owns the stripping and the remaining children record no-pin dispositions only.
 
-### 0.33.33.30.5 - Type Public Demo perimeter and role-journey owners
-
-**Model: High Effort** - The demo perimeter is the only surface exposed to anonymous internet traffic.
-
-- [ ] Close the 191 diagnostics across `public-demo-budgets`, `public-demo-perimeter`, `public-demo-identity-immutability`, `public-demo-cross-role-content-safety`, `public-demo-account-catalog`, `public-demo-capability-enforcement`, `public-demo-files-ingress`, and the `permissions/public-demo-role-journey` and `permissions/sanitized-demo-role-journey` owners.
-- [ ] Type budget counters, capability matrices, seeded account catalogs, ingress probe results, and role-journey step descriptors with named contracts, reusing `test-support/public-demo-files-ingress-probe.mjs` by type-only import.
-- [ ] Preserve every budget threshold, capability refusal, identity-immutability rule, cross-role content-safety assertion, and sanitized-fixture redaction exactly.
-
 ### 0.33.33.30.6 - Type session lifecycle and Support View enforcement owners
 
 **Model: High Effort** - Support View separates actor identity from effective identity across a durable gated session.
