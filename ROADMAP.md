@@ -48,40 +48,6 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
-### 0.33.33.30 - Type framework, views, and permission regression owners
-
-**Model: High Effort** - These owners cover shared UI, sessions, authentication, authorization, and browser safety.
-
-Planning rollup only; its numbered children below are the protected implementation checkpoints. A measured probe puts this cohort at 1,319 diagnostics across 63 diagnostic-bearing files (92 source files, about 18,100 lines, 52 discovered regression entries) — larger than the 1,287 that forced the six-way `0.33.33.28` reslice, and the highest-security-risk cohort in the branch. Unlike `0.33.33.29`, no free cascade is available: the shared fixtures these owners import (`test-support/disposable-database.mjs`, `session-fixtures.mjs`, `fake-dom.mjs`, `source-scan.mjs`) are already strict-clean from `0.33.33.27`, and 850 of the 1,319 diagnostics are `TS7006` implicit-any parameters in per-file local helpers — 25 of the 26 HTTP-driving owners declare their own `request` helper — so the work is roughly linear in files.
-
-Cohort boundary: this rollup owns `scripts/regressions/{framework,views,permissions}/`, `scripts/regression-contracts/{framework,views,permissions}/`, and the registered `permissions.http-authorization-matrix` harness at `scripts/permission-regression.mjs`. It deliberately does not own the 38 `legacy.*` entries whose manifest `area` is framework, views, or permissions (30 framework, 7 views, 1 permissions; 539 diagnostics, including the top-level `view-*`, `app-shell-navigation`, and `linked-context-*` owners). Those remain with `0.33.33.32`'s remaining-legacy cohort, matching the directory boundary `0.33.33.29` drew; `0.33.33.32` must be sized with them included.
-
-These requirements apply to every child: type fake-DOM and HTTP fixture boundaries without replacing rendered or behavioral proof; reuse the typed `test-support` fixtures through type-only imports rather than redeclaring their shapes; preserve security, accessibility, permission, and module-enablement expectations; preserve every retained assertion ID and failure message, with negative controls proving the typed owner still fails closed; and record a planning-document pin disposition for the child's files. Children are ordered smallest-and-most-contained first so each closes a coherent contract family within one session.
-
-Measured history-pin exposure for the whole cohort is ten references across eight `scripts/regression-contracts/views/` modules, all folding into the single `views.current-static-contracts` entry; every other file in the cohort is already free of planning-document reads, so `0.33.33.30.1` owns the stripping and the remaining children record no-pin dispositions only.
-
-### 0.33.33.30.9 - Strengthen external-client Task read-scope proof
-
-**Model: High Effort** - A successful scoped read must prove both access to authorized records and exclusion of records outside the role's Client boundary.
-
-Final implementation checkpoint of the `0.33.33.30` family. Its completion closes `0.33.33.30` and hands off to `0.33.33.31`.
-
-Post-merge review of `0.33.33.30.7.2.3` found one remaining hardening opportunity. The external-client-user Task coverage that checkpoint added correctly proves the role can make a scoped Task read, that Task creation is refused, and that editing a Task it does not own is refused. The read proof, however, establishes only HTTP `200`: it does not inspect the returned collection, so it proves availability without proving containment.
-
-This is not evidence of a known production defect. Existing permission and scope owners already provide broader authorization coverage; this is a narrow strengthening of the HTTP authorization matrix so the external role's positive read path proves both halves.
-
-- [ ] Strengthen the existing external-client-user Task read in `scripts/permission-regression.mjs` so it inspects the returned Task collection rather than proving status `200` alone.
-- [ ] Use the existing seeded fixtures and existing Task records where possible. Do not build another role or Task harness.
-- [ ] Prove the external client user can see at least one Task belonging to its authorized Client and project scope.
-- [ ] Prove it cannot see a Task outside that Client scope, including an existing Task associated with another Client or a workspace-only Task where the current product contract requires exclusion.
-- [ ] Determine the exact expected visibility from the live permission and scope implementation before writing the assertion. Do not invent a desired policy the product does not currently claim.
-- [ ] Preserve the external-user create and edit denials introduced in `0.33.33.30.7.2.3`.
-- [ ] Keep `response.body` behind the checked `unknown` to `readPayload` boundary established in `0.33.33.30.7.2.3`. Do not reintroduce casts or broad payload contracts.
-- [ ] Add a narrowly targeted non-vacuity control if practical: seed or alter a Task so an out-of-scope record would become visible under an intentionally broadened scope or evaluation path, confirm the containment assertion fails, and restore exactly. Do not mutate unrelated permission policy simply to manufacture a control.
-- [ ] Do not reduce the current 367 static authorization assertions or 412 runtime authorization checks; new proof should increase the relevant inventory.
-- [ ] Keep all eight roles, isolated-database run mode, release-gate ownership, strict-TypeScript cleanliness, and the explicit-`any` policy intact.
-- [ ] This is authorization-test hardening only. Do not change production Task authorization behavior. If the test exposes a genuine defect, stop and record it for a separately scoped correction rather than silently changing application behavior here.
-
 ### 0.33.33.31 - Type database, Files, and jobs regression owners
 
 **Model: High Effort** - Stateful fixtures, attestation descriptors, workers, and storage providers require exact shapes.

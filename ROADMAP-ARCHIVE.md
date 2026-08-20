@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.30.9 - Strengthen external-client Task read-scope proof
+
+**Model: High Effort** - A successful scoped read must prove both access to authorized records and exclusion of records outside the role's Client boundary.
+
+Final child of the `0.33.33.30` family. Archiving it closes `0.33.33.30` and hands off to `0.33.33.31`.
+
+- [x] Determined the expected visibility from the live implementation before writing anything, as the scope required. A temporary read-only probe run inside the harness showed the external client user receives three Tasks at that point, every one carrying the alpha Client and alpha project, with the workspace-only Task absent. The assertions record that observed contract rather than a policy the product does not claim.
+- [x] Strengthened the existing read so it inspects the returned collection instead of proving status `200` alone. It now proves availability — the Task in the role's authorized Client and project is present — and containment: the workspace-only Task, which carries no Client, is absent; the result set is non-empty, so containment is not proved vacuously against nothing; and every Task returned belongs to the authorized Client.
+- [x] Used the existing seeded fixtures and the Tasks already created by earlier probes in this phase. No second role or Task harness was built, and the workspace-only Task served as the existing out-of-scope record rather than a new one seeded for the purpose.
+- [x] Preserved the external-user create and edit denials introduced at `0.33.33.30.7.2.3`, and kept every read behind the checked `unknown` to `readPayload` boundary that checkpoint established. No cast, broad payload contract, or optional chaining that would turn a required proof into a no-op was introduced.
+- [x] Proved the containment assertion non-vacuous with a targeted control. Broadening the external client role from Client scope to workspace scope in `user_role_assignments` inside the running disposable database makes the workspace-only Task visible, and the containment assertion then fails for exactly that reason. The source restored byte-identically against a verified SHA-256 digest. No unrelated permission policy was mutated to manufacture the control.
+- [x] Raised both inventories rather than displacing checks: manifest static authorization assertions rise from 367 to 371 and runtime executed authorization checks from 412 to 413. All eight roles remain a closed union, isolated-database run mode and release-gate ownership are unchanged, `framework.full-strict-governance` still pins `scripts/permission-regression.mjs` strict-clean, and explicit `any` stays at 7.
+- [x] Changed no production Task authorization behavior. The probe found the live scoping already correct, so there was no defect to record for a separate correction.
+
+This checkpoint closes `0.33.33.30`. The rollup opened as a 1,319-diagnostic cohort across 63 diagnostic-bearing files — larger than the 1,287 that forced the six-way `0.33.33.28` reslice — and was resliced into seven children before implementation, then twice more as measurement required: `0.33.33.30.7` into an authorization-model child and a harness rollup, and `0.33.33.30.7.2` into a shared-contract child and a phase child, with two corrective children added after post-merge review. Every diagnostic in the cohort is closed, the scripts program fell from 6,227 to 4,908, and the obsolete line metric that the conversion had outgrown was retired rather than repeatedly excused.
 ## Version 0.33.33.30.8 - Correct the obsolete active-owner line metric
 
 **Model: High Effort** - A measurement that punishes type annotations had already moved a test; correcting it was governance work, not cleanup.
