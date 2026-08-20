@@ -372,6 +372,7 @@
         "tests/unit/notes-effective-security.test.mjs",
         "tests/unit/public-demo-capabilities.test.mjs",
         "tests/unit/public-demo-enforcement.test.mjs",
+        "tests/unit/regression-source-measure.test.mjs",
         "tests/unit/resume-producer-payload.test.mjs",
         "tests/unit/runtime-configuration.test.mjs",
         "tests/unit/slice-verification-plan.test.mjs",
@@ -2539,6 +2540,7 @@
         "scripts/lib/regression-manifest.mjs",
         "scripts/lib/regression-metadata.mjs",
         "scripts/lib/regression-runner-options.mjs",
+        "scripts/lib/regression-source-measure.mjs",
         "scripts/lib/roadmap-cursor.mjs",
         "scripts/lib/sanitized-demo-role-fixtures.mjs",
         "scripts/lib/slice-verification-plan.mjs",
@@ -6940,7 +6942,7 @@
     }
   },
   "totals": {
-    "files": 1040,
+    "files": 1042,
     "errors": 16042,
     "explicitAny": 7
   },

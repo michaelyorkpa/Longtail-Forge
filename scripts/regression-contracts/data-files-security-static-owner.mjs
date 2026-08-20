@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { REGRESSION_ENTRIES } from "../regression-suite.mjs";
 import { createProjectTextReader } from "../test-support/source-scan.mjs";
 import { DATA_FILES_SECURITY_STATIC_CONSOLIDATION as consolidation } from "../data-files-security-static-consolidation.mjs";
+import { measureRegressionEntries } from "../lib/regression-source-measure.mjs";
 
 const { readJson, readText } = createProjectTextReader();
 const historyReaderPattern = /(?:readText|readFile|readFileSync|readMarkdown)[\s\S]*?(?:ROADMAP-ARCHIVE|CHANGELOG)\.md/;
@@ -24,7 +25,6 @@ async function runDataFilesSecurityStaticOwner(ownerMeta) {
   const policy = readJson("scripts/regression-coverage-exceptions.json");
   const staticAudit = readJson("scripts/regression-static-isolation-audit.json");
   const retirements = new Map(policy.retiredScripts.map((/** @type {RetiredScript} */ entry) => [entry.script, entry]));
-  const activeOwnerLines = REGRESSION_ENTRIES.reduce((total, entry) => total + readText(entry.path).split(/\r?\n/).length - 1, 0);
   const activeStaticHistoryReaders = REGRESSION_ENTRIES.filter((entry) => entry.runMode === "static" && historyReaderPattern.test(readText(entry.path))).length;
 
   assert.equal(consolidation.schemaVersion, 1);
@@ -40,33 +40,30 @@ async function runDataFilesSecurityStaticOwner(ownerMeta) {
   assert.ok(policy.minimumAssertionCount >= consolidation.expectedAfter.effectiveAssertions, "the effective assertion floor may not fall below 0.33.33.11");
   assert.ok(activeStaticHistoryReaders <= consolidation.expectedAfter.activeStaticHistoryReaders, "later checkpoints may only reduce active history readers");
   assert.ok(REGRESSION_ENTRIES.length - staticAudit.execution.entries.length <= consolidation.expectedAfter.estimatedNodeProcesses, "later checkpoints may only reduce process estimates");
-  // The 0.33.33.11 line ceiling predates the full-strict mandate, which cannot
-  // type an owner without adding annotation lines to it. The allowance is the
-  // measured cost of that typing, not an open budget: growth beyond the total
-  // still fails, and each entry may only shrink as later checkpoints
-  // consolidate.
+  // The physical active-owner line ceiling was retired at 0.33.33.30.8.
   //
-  // The cost is recorded per checkpoint rather than as one opaque number so the
-  // trajectory stays legible. It is not flattening out: this ceiling measures
-  // total lines across every active owner, so it conflates estate growth, which
-  // consolidation should reduce, with annotation density, which full-strict
-  // necessarily increases. Every remaining typing checkpoint will breach it
-  // again. Separating the two measures is real work and belongs in its own
-  // slice, not smuggled into a checkpoint scoped to typing owners.
-  const FULL_STRICT_TYPING_LINES = Object.freeze({
-    "0.33.33.30.3": 71,
-    "0.33.33.30.4": 504,
-    "0.33.33.30.5": 246,
-    "0.33.33.30.6": 376,
-    "0.33.33.30.7.1": 52,
-    "0.33.33.30.7.2.1": 172,
-    "0.33.33.30.7.2.2": 97,
-    "0.33.33.30.7.2.3": 188,
-  });
-  const typingAllowance = Object.values(FULL_STRICT_TYPING_LINES).reduce((total, lines) => total + lines, 0);
+  // It measured newline-delimited lines across discovered entrypoints, which
+  // conflates estate growth — what consolidation reduces — with annotation
+  // density, which full-strict conversion necessarily increases. It had
+  // reached eight per-checkpoint allowances totalling 1,706 lines, it counted
+  // the governance pin that keeps typed owners clean, and it had begun to
+  // steer test placement rather than measure it. The 0.33.33.11 figures
+  // remain above as historical consolidation evidence.
+  //
+  // Both measurements are now evidence rather than a gate. The structural
+  // figure is what stays meaningful while annotations grow, and the ceiling
+  // that replaced measurement with policy is gone rather than re-tuned.
+  const measurement = measureRegressionEntries(REGRESSION_ENTRIES, readText);
+  const evidence = consolidation.lineMeasurementEvidence;
+  assert.equal(evidence.recordedAtCheckpoint, "0.33.33.30.8");
+  assert.equal(evidence.physicalLines > 0 && evidence.structuralLines > 0, true, "recorded line evidence should carry both measurements");
   assert.ok(
-    activeOwnerLines <= consolidation.expectedAfter.activeOwnerLines + typingAllowance,
-    `later checkpoints may only reduce active-owner lines beyond the recorded full-strict typing allowance (${activeOwnerLines} > ${consolidation.expectedAfter.activeOwnerLines} + ${typingAllowance})`,
+    evidence.structuralLines < evidence.physicalLines,
+    "structural lines must exclude comment-only and blank lines, so they cannot equal or exceed physical lines",
+  );
+  assert.ok(
+    measurement.structuralLines < measurement.physicalLines,
+    "the live estate must measure fewer structural than physical lines",
   );
   assert.equal(consolidation.movements.length, consolidation.selected.sourceOwners);
   assert.equal(consolidation.movements.reduce((total, entry) => total + /** @type {number} */ (entry.assertionCount), 0), consolidation.selected.assertions);

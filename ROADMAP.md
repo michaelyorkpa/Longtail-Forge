@@ -60,32 +60,28 @@ These requirements apply to every child: type fake-DOM and HTTP fixture boundari
 
 Measured history-pin exposure for the whole cohort is ten references across eight `scripts/regression-contracts/views/` modules, all folding into the single `views.current-static-contracts` entry; every other file in the cohort is already free of planning-document reads, so `0.33.33.30.1` owns the stripping and the remaining children record no-pin dispositions only.
 
-### 0.33.33.30.8 - Correct the obsolete active-owner line metric
+### 0.33.33.30.9 - Strengthen external-client Task read-scope proof
 
-**Model: High Effort** - A measurement that punishes type annotations has already moved a test; correcting it is governance work, not cleanup.
+**Model: High Effort** - A successful scoped read must prove both access to authorized records and exclusion of records outside the role's Client boundary.
 
-Final corrective implementation checkpoint of the `0.33.33.30` family. Its completion closes `0.33.33.30` and hands off to `0.33.33.31`.
+Final implementation checkpoint of the `0.33.33.30` family. Its completion closes `0.33.33.30` and hands off to `0.33.33.31`.
 
-`0.33.33.11` legitimately measured a consolidation result: active discovered-regression physical lines fell from **104,568 to 101,621** when 26 source-only owners were consolidated. Those numbers are valid historical evidence and must not be rewritten.
+Post-merge review of `0.33.33.30.7.2.3` found one remaining hardening opportunity. The external-client-user Task coverage that checkpoint added correctly proves the role can make a scoped Task read, that Task creation is refused, and that editing a Task it does not own is refused. The read proof, however, establishes only HTTP `200`: it does not inspect the returned collection, so it proves availability without proving containment.
 
-The problem is the later reuse of 101,621 physical lines as a permanent forward shrink-only ceiling during full-strict conversion. As currently written the metric:
+This is not evidence of a known production defect. Existing permission and scope owners already provide broader authorization coverage; this is a narrow strengthening of the HTTP authorization matrix so the external role's positive read path proves both halves.
 
-- counts physical newline-delimited lines across discovered regression entrypoints, and therefore counts legitimate JSDoc and type-annotation growth as regression;
-- does not represent all verification ownership equally, because 23 Vitest files and 121 folded contract modules carry real verification but sit outside that physical-line universe entirely;
-- now requires per-checkpoint `FULL_STRICT_TYPING_LINES` allowances in `scripts/regression-contracts/data-files-security-static-owner.mjs`;
-- has accumulated **1,197 lines** of such allowances through `0.33.33.30.6` (71 + 504 + 246 + 376), against a current measured 102,818 physical lines;
-- has already influenced test placement: the `0.33.33.30.3.1` Playwright install retry proof was placed in Vitest partly to avoid breaching the discovered-owner line ceiling. A measurement that decides where a test lives has stopped measuring and started steering.
+- [ ] Strengthen the existing external-client-user Task read in `scripts/permission-regression.mjs` so it inspects the returned Task collection rather than proving status `200` alone.
+- [ ] Use the existing seeded fixtures and existing Task records where possible. Do not build another role or Task harness.
+- [ ] Prove the external client user can see at least one Task belonging to its authorized Client and project scope.
+- [ ] Prove it cannot see a Task outside that Client scope, including an existing Task associated with another Client or a workspace-only Task where the current product contract requires exclusion.
+- [ ] Determine the exact expected visibility from the live permission and scope implementation before writing the assertion. Do not invent a desired policy the product does not currently claim.
+- [ ] Preserve the external-user create and edit denials introduced in `0.33.33.30.7.2.3`.
+- [ ] Keep `response.body` behind the checked `unknown` to `readPayload` boundary established in `0.33.33.30.7.2.3`. Do not reintroduce casts or broad payload contracts.
+- [ ] Add a narrowly targeted non-vacuity control if practical: seed or alter a Task so an out-of-scope record would become visible under an intentionally broadened scope or evaluation path, confirm the containment assertion fails, and restore exactly. Do not mutate unrelated permission policy simply to manufacture a control.
+- [ ] Do not reduce the current 367 static authorization assertions or 412 runtime authorization checks; new proof should increase the relevant inventory.
+- [ ] Keep all eight roles, isolated-database run mode, release-gate ownership, strict-TypeScript cleanliness, and the explicit-`any` policy intact.
+- [ ] This is authorization-test hardening only. Do not change production Task authorization behavior. If the test exposes a genuine defect, stop and record it for a separately scoped correction rather than silently changing application behavior here.
 
-- [ ] Preserve the original `0.33.33.11` physical-line measurements — the 104,568 baseline and the 101,621 post-consolidation figure — unchanged, as historical consolidation evidence.
-- [ ] Retire the physical active-owner line count as a forward shrink-only policy gate, rather than continuing to append typing allowances to it. Remove the `FULL_STRICT_TYPING_LINES` allowance mechanism together with the gate it exists to excuse; leaving the allowances behind without the gate would be dead bookkeeping.
-- [ ] Preserve every other fail-closed ratchet the owner enforces, unchanged: the discovered regression ceiling, the static-owner ceiling, the effective assertion floor, the active history-reader ceiling, the estimated process ceiling, the retained-owner checks, the retirement reconciliation, area-command ownership, and strict-TypeScript governance.
-- [ ] Replace the retired ceiling with deterministic measurement evidence for release closeout, recording at minimum two figures: physical lines across active discovered regression entrypoints, for historical continuity with `0.33.33.11`; and a comment/JSDoc-insensitive token-bearing or non-trivia source measurement that better represents structural verification code.
-- [ ] Implement any comment-insensitive measurement with a lexer or parser that is trustworthy on this codebase — the repository already depends on TypeScript, whose scanner is the preferred mechanism. Naive regular-expression comment stripping is explicitly prohibited: it cannot distinguish a comment from comment-like text inside a string or template literal, and a metric that miscounts is worse than one that is merely coarse.
-- [ ] Treat both line measurements as evidence and reporting metrics only. Neither may become a new global ceiling, and neither may be allowed to dictate where a test lives.
-- [ ] Verify the metric implementation directly, proving that: comment and JSDoc-only growth changes the physical-line figure but not the structural measurement; adding a real statement changes the structural measurement; comment-like text inside strings and template literals is counted as source rather than stripped; and `LF` versus `CRLF` line endings do not change the logical result.
-- [ ] Record the resulting measurements so `0.33.33.48` can report the branch's before and after figures.
-- [ ] This checkpoint is a metric and governance correction only. It must not become a regression-consolidation, test-migration, runtime-behavior, or unrelated architecture slice, and it must not move or rewrite any test to suit the new measurement.
-- [ ] Prove that retiring the physical-line ceiling does not weaken the remaining verification protections: each preserved ratchet must be shown still to fail closed on a seeded violation, so the correction is demonstrably a narrowing of one bad gate rather than a loosening of the estate.
 ### 0.33.33.31 - Type database, Files, and jobs regression owners
 
 **Model: High Effort** - Stateful fixtures, attestation descriptors, workers, and storage providers require exact shapes.
