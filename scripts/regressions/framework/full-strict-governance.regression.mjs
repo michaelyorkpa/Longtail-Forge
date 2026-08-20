@@ -262,6 +262,20 @@ for (const httpSecurityOwner of [
   assert.equal(ledger.programs.scripts.diagnostics[httpSecurityOwner], undefined, `${httpSecurityOwner} must stay strict-clean after checkpoint 0.33.33.30.3`);
   assert.equal(ledger.explicitAnyByFile[httpSecurityOwner], undefined, `${httpSecurityOwner} must stay free of explicit any after checkpoint 0.33.33.30.3`);
 }
+for (const publicDemoOwner of [
+  "scripts/regressions/framework/public-demo-account-catalog.regression.mjs",
+  "scripts/regressions/framework/public-demo-budgets.regression.mjs",
+  "scripts/regressions/framework/public-demo-capability-enforcement.regression.mjs",
+  "scripts/regressions/framework/public-demo-cross-role-content-safety.regression.mjs",
+  "scripts/regressions/framework/public-demo-files-ingress.regression.mjs",
+  "scripts/regressions/framework/public-demo-identity-immutability.regression.mjs",
+  "scripts/regressions/framework/public-demo-perimeter.regression.mjs",
+  "scripts/regressions/permissions/public-demo-role-journey.regression.mjs",
+  "scripts/regressions/permissions/sanitized-demo-role-journey.regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[publicDemoOwner], undefined, `${publicDemoOwner} must stay strict-clean after checkpoint 0.33.33.30.5`);
+  assert.equal(ledger.explicitAnyByFile[publicDemoOwner], undefined, `${publicDemoOwner} must stay free of explicit any after checkpoint 0.33.33.30.5`);
+}
 for (const credentialOwner of [
   "account-export-recovery", "authentication-throttle", "password-hashing-modernization",
   "password-reset-hardening", "private-calendar-feed-authentication",

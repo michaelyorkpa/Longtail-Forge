@@ -93,12 +93,17 @@ try {
 
 console.log("Public-demo account catalog regression passed.");
 
+/**
+ * @param {import("../../../src/types/route-contracts.js").RouterContract} router
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>}
+ */
 function serve(router) {
   const app = express();
-  app.use((request, _response, next) => {
-    request.requestContext = { requestId: "catalog-regression-request" };
+  app.use(/** @type {import("../../../src/types/route-contracts.js").AsyncRouteHandler} */ ((request, _response, next) => {
+    /** @type {import("../../../src/types/route-contracts.js").RouteRequest & { requestContext?: { requestId: string } }} */
+    (request).requestContext = { requestId: "catalog-regression-request" };
     next();
-  });
+  }));
   app.use("/api", router);
   app.use(createErrorHandler({ logger: { error() {} } }));
   return new Promise((resolve) => {
@@ -107,6 +112,11 @@ function serve(router) {
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} server
+ * @param {string} requestPath
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureStatusCodeTextResponse>}
+ */
 function request(server, requestPath) {
   return new Promise((resolve, reject) => {
     const outgoing = http.request({
@@ -114,8 +124,9 @@ function request(server, requestPath) {
       host: "127.0.0.1",
       method: "GET",
       path: requestPath,
-      port: server.address().port,
+      port: /** @type {import("node:net").AddressInfo} */ (server.address()).port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.once("error", reject);
@@ -130,6 +141,10 @@ function request(server, requestPath) {
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} server
+ * @returns {Promise<void>}
+ */
 function close(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());

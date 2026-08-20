@@ -48,11 +48,41 @@ const limits = Object.freeze({
   maxSearchTextBytes: 8,
 });
 
+/**
+ * The handler shape this probe app mounts, reusing the repository route
+ * contract rather than an Express namespace this module does not import.
+ * @typedef {import("../../../src/types/route-contracts.js").AsyncRouteHandler} ProbeRouteHandler
+ */
+
+/**
+ * The probe app authenticates from a header rather than a session store, so it
+ * attaches only the two identity fields the budget middleware resolves. The
+ * full request session carries more; completing it would change what the
+ * middleware sees and therefore what the budget proofs mean.
+ * @typedef {import("../../../src/types/http-contracts.js").RequestSession} ProbeSession
+ */
+
+/** One field-level refusal the input ceiling reports. */
+/** @typedef {{ code: string, field: string, hint: string }} BudgetLimitField */
+
+/**
+ * The payload fields this owner reads. The fixture resolves raw text for the
+ * browser documents it probes, which the assertions compare directly; only the
+ * JSON refusals are destructured, so the record describes those.
+ * @typedef {{ error: { code: string, fields: BudgetLimitField[] }, ok: boolean }} BudgetResponseBody
+ */
+
+/** @typedef {{ body: BudgetResponseBody, status: number | undefined }} BudgetResponse */
+
+/** Per-request overrides this fixture's raw `node:http` helper accepts. */
+/** @typedef {{ body?: string, headers?: Record<string, string>, method?: string }} BudgetRequestOptions */
+
 try {
   await initializeDatabase();
   const primaryUser = await db.get("SELECT user_id, active_workspace_id FROM users ORDER BY user_id LIMIT 1");
   assert.ok(primaryUser?.user_id && primaryUser?.active_workspace_id);
-  const workspaceId = primaryUser.active_workspace_id;
+  const workspaceId = /** @type {string} */ (primaryUser.active_workspace_id);
+  const primaryUserId = /** @type {string} */ (primaryUser.user_id);
   const secondUserId = "22222222-2222-4222-a222-222222222222";
   await db.run(`
     INSERT INTO users (
@@ -69,20 +99,20 @@ try {
     workspaceId,
   });
 
-  await proveNormalModeBypass(primaryUser.user_id, workspaceId);
-  await proveBrowserDocumentsBypassApiCatalog(primaryUser.user_id, workspaceId);
-  await proveInputAndQueryCeilings(primaryUser.user_id, workspaceId);
+  await proveNormalModeBypass(primaryUserId, workspaceId);
+  await proveBrowserDocumentsBypassApiCatalog(primaryUserId, workspaceId);
+  await proveInputAndQueryCeilings(primaryUserId, workspaceId);
   await clearUsage();
-  await proveAccountBoundaryAndRestart(primaryUser.user_id, workspaceId);
+  await proveAccountBoundaryAndRestart(primaryUserId, workspaceId);
   await clearUsage();
-  await proveConcurrentAccountBoundary(primaryUser.user_id, workspaceId);
+  await proveConcurrentAccountBoundary(primaryUserId, workspaceId);
   await clearUsage();
-  await proveConcurrentWorkspaceBoundary(primaryUser.user_id, secondUserId, workspaceId);
+  await proveConcurrentWorkspaceBoundary(primaryUserId, secondUserId, workspaceId);
   await clearUsage();
-  await proveFailureRollbackAndBulkAtomicity(primaryUser.user_id, workspaceId);
+  await proveFailureRollbackAndBulkAtomicity(primaryUserId, workspaceId);
   await proveCatalogCompleteness();
 
-  const integrity = await db.get("PRAGMA integrity_check;");
+  const integrity = await requireRow("PRAGMA integrity_check;");
   assert.equal(integrity.integrity_check, "ok");
   console.log("Public-demo budgets regression passed.");
 } finally {
@@ -90,6 +120,7 @@ try {
   await fixture.cleanup();
 }
 
+/** @param {string} userId @param {string} workspaceId */
 async function proveBrowserDocumentsBypassApiCatalog(userId, workspaceId) {
   const app = createProbeApp({ userIds: [userId], workspaceId });
   const server = await listen(app);
@@ -116,6 +147,7 @@ async function proveBrowserDocumentsBypassApiCatalog(userId, workspaceId) {
   }
 }
 
+/** @param {string} userId @param {string} workspaceId */
 async function proveNormalModeBypass(userId, workspaceId) {
   const app = createProbeApp({ enabled: false, userIds: [userId], workspaceId });
   const server = await listen(app);
@@ -131,6 +163,7 @@ async function proveNormalModeBypass(userId, workspaceId) {
   }
 }
 
+/** @param {string} userId @param {string} workspaceId */
 async function proveInputAndQueryCeilings(userId, workspaceId) {
   const app = createProbeApp({ userIds: [userId], workspaceId });
   const server = await listen(app);
@@ -193,6 +226,7 @@ async function proveInputAndQueryCeilings(userId, workspaceId) {
   }
 }
 
+/** @param {string} userId @param {string} workspaceId */
 async function proveAccountBoundaryAndRestart(userId, workspaceId) {
   const firstApp = createProbeApp({ userIds: [userId], workspaceId });
   const firstServer = await listen(firstApp);
@@ -228,6 +262,7 @@ async function proveAccountBoundaryAndRestart(userId, workspaceId) {
   }
 }
 
+/** @param {string} userId @param {string} workspaceId */
 async function proveConcurrentAccountBoundary(userId, workspaceId) {
   const app = createProbeApp({ userIds: [userId], workspaceId });
   const server = await listen(app);
@@ -245,6 +280,7 @@ async function proveConcurrentAccountBoundary(userId, workspaceId) {
   }
 }
 
+/** @param {string} firstUserId @param {string} secondUserId @param {string} workspaceId */
 async function proveConcurrentWorkspaceBoundary(firstUserId, secondUserId, workspaceId) {
   const app = createProbeApp({ userIds: [firstUserId, secondUserId], workspaceId });
   const server = await listen(app);
@@ -258,12 +294,14 @@ async function proveConcurrentWorkspaceBoundary(firstUserId, secondUserId, works
     assert.equal(results.filter((item) => item.status === 201).length, 6);
     assert.equal(results.filter((item) => item.status === 429).length, 2);
     const workspace = await db.get("SELECT SUM(used_units) AS used_units FROM public_demo_budget_usage WHERE workspace_id = :workspaceId", { workspaceId });
+    assert.ok(workspace, "the workspace usage aggregate should return a row");
     assert.equal(Number(workspace.used_units), 6);
   } finally {
     await closeServer(server);
   }
 }
 
+/** @param {string} userId @param {string} workspaceId */
 async function proveFailureRollbackAndBulkAtomicity(userId, workspaceId) {
   let committedRows = 0;
   const app = createProbeApp({ userIds: [userId], workspaceId, onCommit: (count) => { committedRows += count; } });
@@ -313,22 +351,24 @@ function createProbeApp({ enabled = true, onCommit = () => {}, userIds, workspac
   const app = express();
   app.set("query parser", "extended");
   app.use(attachRequestContext);
-  app.use((request, _response, next) => {
-    request.session = {
-      user_id: String(request.get("x-demo-user") || userIds[0]),
+  app.use(/** @type {ProbeRouteHandler} */ ((request, _response, next) => {
+    // The probe app authenticates from a header rather than a session store, so
+    // it attaches the two identity fields the budget middleware resolves.
+    request.session = /** @type {ProbeSession} */ (/** @type {unknown} */ ({
+      user_id: String(request.get?.("x-demo-user") || userIds[0]),
       workspace_id: workspaceId,
-    };
+    }));
     next();
-  });
+  }));
   app.use(createPublicDemoBudgetMiddleware({
     database: db,
     enabled,
     isVisitor: (userId) => userIds.includes(userId),
     limits,
   }));
-  app.get("/api/search", (_request, response) => response.json({ ok: true }));
+  app.get("/api/search", /** @type {ProbeRouteHandler} */ ((_request, response) => response.json({ ok: true })));
   app.post("/api/tasks", asyncHandler(async (request, response) => {
-    const payload = await readJsonBody(request);
+    const payload = /** @type {{ fail?: boolean }} */ (await readJsonBody(request));
     if (payload.fail) {
       response.status(409).json({ error: { code: "probe_failure" } });
       return;
@@ -337,24 +377,24 @@ function createProbeApp({ enabled = true, onCommit = () => {}, userIds, workspac
     response.status(201).json({ ok: true });
   }));
   app.post("/api/tasks/bulk", asyncHandler(async (request, response) => {
-    const payload = await readJsonBody(request);
+    const payload = /** @type {{ tasks: unknown[] }} */ (await readJsonBody(request));
     onCommit(payload.tasks.length);
     response.status(201).json({ ok: true });
   }));
   app.post("/api/lists/:listId/duplicate", asyncHandler(async (request, response) => {
-    const payload = await readJsonBody(request);
+    const payload = /** @type {{ generatedRows: number }} */ (await readJsonBody(request));
     await reserveAdditionalPublicDemoBudgetUnits(payload.generatedRows);
     onCommit(payload.generatedRows + 1);
     response.status(201).json({ ok: true });
   }));
-  app.post("/api/users", (_request, response) => response.status(403).json({
+  app.post("/api/users", /** @type {ProbeRouteHandler} */ ((_request, response) => response.status(403).json({
     error: { code: "public_demo_capability_disabled" },
-  }));
-  app.get("/api/future-read", (_request, response) => response.status(200).json({ ok: true }));
-  app.post("/api/future-write", (_request, response) => response.status(201).json({ ok: true }));
+  })));
+  app.get("/api/future-read", /** @type {ProbeRouteHandler} */ ((_request, response) => response.status(200).json({ ok: true })));
+  app.post("/api/future-write", /** @type {ProbeRouteHandler} */ ((_request, response) => response.status(201).json({ ok: true })));
   app.use("/api", apiRouteBoundary);
-  app.get("/dashboard.html", (_request, response) => response.status(200).type("html").send("dashboard"));
-  app.get("/", (_request, response) => response.status(200).type("html").send("root"));
+  app.get("/dashboard.html", /** @type {ProbeRouteHandler} */ ((_request, response) => response.status(200).type("html").send("dashboard")));
+  app.get("/", /** @type {ProbeRouteHandler} */ ((_request, response) => response.status(200).type("html").send("root")));
   app.use(createErrorHandler({ logger: { error() {} } }));
   return app;
 }
@@ -387,8 +427,10 @@ async function proveCatalogCompleteness() {
   }
 }
 
+/** @param {string} root @returns {Promise<string[]>} */
 async function listRouteFiles(root) {
   const entries = await fs.readdir(root, { withFileTypes: true });
+  /** @type {string[]} */
   const files = [];
   for (const entry of entries) {
     const candidate = path.join(root, entry.name);
@@ -402,29 +444,59 @@ async function clearUsage() {
   await db.run("DELETE FROM public_demo_budget_usage");
 }
 
+/**
+ * Read a single row a probe requires. `db.get` resolves null when nothing
+ * matches, and the caller needs the row to exist for its assertion to mean
+ * anything.
+ * @param {string} sql
+ * @returns {Promise<import("../../../src/types/database-contracts.js").DatabaseRow>}
+ */
+async function requireRow(sql) {
+  const row = await db.get(sql);
+  assert.ok(row, `the probe query should return a row: ${sql}`);
+  return row;
+}
+
+/** @param {string} userId @param {string} workspaceId @returns {Promise<number>} */
 async function usedUnits(userId, workspaceId) {
   const row = await db.get("SELECT used_units FROM public_demo_budget_usage WHERE user_id = :userId AND workspace_id = :workspaceId", { userId, workspaceId });
   return Number(row?.used_units || 0);
 }
 
+/** @param {string} userId @returns {Record<string, string>} */
 function visitorHeaders(userId) {
   return { "Content-Type": "application/json", "X-Demo-User": userId };
 }
 
+/** @param {ProbeRouteHandler} handler @returns {ProbeRouteHandler} */
 function asyncHandler(handler) {
   return (request, response, next) => Promise.resolve(handler(request, response, next)).catch(next);
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} app
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
     const server = app.listen(0, "127.0.0.1", () => resolve(server));
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} server
+ * @returns {Promise<void>}
+ */
 function closeServer(server) {
   return new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} server
+ * @param {string} requestPath
+ * @param {BudgetRequestOptions} [options]
+ * @returns {Promise<BudgetResponse>}
+ */
 function request(server, requestPath, options = {}) {
   return new Promise((resolve, reject) => {
     const body = options.body || "";
@@ -433,8 +505,9 @@ function request(server, requestPath, options = {}) {
       host: "127.0.0.1",
       method: options.method || "GET",
       path: requestPath,
-      port: server.address().port,
+      port: /** @type {import("node:net").AddressInfo} */ (server.address()).port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => {
@@ -451,6 +524,7 @@ function request(server, requestPath, options = {}) {
   });
 }
 
+/** @param {() => Promise<boolean>} predicate @returns {Promise<void>} */
 async function waitFor(predicate) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     if (await predicate()) return;

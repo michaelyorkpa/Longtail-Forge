@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18349,
+    "activeAssertionCount": 18355,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19033,
+    "effectiveAssertionCount": 19039,
     "retiredAssertionCredit": 15,
     "vitest": [
       {
@@ -3583,11 +3583,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 105,
+      "assertionCount": 107,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 105,
+      "entryPointAssertionCount": 107,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -3791,11 +3791,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 47,
+      "assertionCount": 49,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves persistent atomic public-demo growth, input, and query budgets plus protected browser-document access and fail-closed API catalog coverage without changing normal mode.",
-      "entryPointAssertionCount": 47,
+      "entryPointAssertionCount": 49,
       "id": "framework.public-demo-budgets",
       "legacy": false,
       "path": "scripts/regressions/framework/public-demo-budgets.regression.mjs",
@@ -3835,11 +3835,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 35,
+      "assertionCount": 36,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves public-demo editable content stays inert across scoped roles and freezes the reviewed browser HTML-sink inventory.",
-      "entryPointAssertionCount": 35,
+      "entryPointAssertionCount": 36,
       "id": "framework.public-demo-cross-role-content-safety",
       "legacy": false,
       "path": "scripts/regressions/framework/public-demo-cross-role-content-safety.regression.mjs",
@@ -3879,11 +3879,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 26,
+      "assertionCount": 27,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves exact marked public identities can authenticate and log out but cannot be changed, recovered, retired, session-managed, or used for API keys by self or administrators.",
-      "entryPointAssertionCount": 26,
+      "entryPointAssertionCount": 27,
       "id": "framework.public-demo-identity-immutability",
       "legacy": false,
       "path": "scripts/regressions/framework/public-demo-identity-immutability.regression.mjs",

@@ -81,6 +81,7 @@ try {
   await fixture.cleanup();
 }
 
+/** @param {boolean} demoEnabled */
 function runProbe(demoEnabled) {
   const result = spawnSync(process.execPath, [
     "scripts/test-support/public-demo-files-ingress-probe.mjs",
@@ -91,7 +92,7 @@ function runProbe(demoEnabled) {
     env: demoEnabled ? demoEnvironment() : standardEnvironment(),
     timeout: 60_000,
   });
-  assert.equal(result.status, 0, result.stderr || result.stdout || result.error);
+  assert.equal(result.status, 0, result.stderr || result.stdout || String(result.error || ""));
 }
 
 function demoEnvironment() {
@@ -138,6 +139,7 @@ async function readBrowserSources() {
   ].sort((left, right) => left.relativePath.localeCompare(right.relativePath));
 }
 
+/** @param {string} directory @param {string[]} extensions @returns {Promise<Array<{ relativePath: string, source: string }>>} */
 async function readSourceFiles(directory, extensions) {
   const files = await listFiles(directory, extensions);
   return Promise.all(files.map(async (filePath) => ({
@@ -146,8 +148,10 @@ async function readSourceFiles(directory, extensions) {
   })));
 }
 
+/** @param {string} directory @param {string[]} extensions @returns {Promise<string[]>} */
 async function listFiles(directory, extensions) {
   const entries = await fs.readdir(directory, { withFileTypes: true });
+  /** @type {string[]} */
   const files = [];
   for (const entry of entries) {
     const entryPath = path.join(directory, entry.name);

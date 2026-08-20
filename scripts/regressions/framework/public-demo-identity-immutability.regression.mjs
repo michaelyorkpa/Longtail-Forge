@@ -47,15 +47,17 @@ try {
   await initializeDatabase();
   const bootstrapAdmin = await db.get("SELECT user_id, username FROM users WHERE protected_user = 'yes' ORDER BY user_id LIMIT 1;");
   assert.ok(bootstrapAdmin?.user_id);
+  const bootstrapAdminUsername = /** @type {string} */ (bootstrapAdmin.username);
   const initialAdminPassword = fixture.ownsFixture ? ADMIN_PASSWORD : SHARED_BASELINE_PASSWORD;
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
-  const adminLogin = await login(api, bootstrapAdmin.username, initialAdminPassword);
+  const adminLogin = await login(api, bootstrapAdminUsername, initialAdminPassword);
   const adminCookie = readSessionCookie(adminLogin);
   const workspaceId = adminLogin.body.user.workspace_id;
   const adminUserId = adminLogin.body.user.user_id;
 
+  /** @type {DemoVisitor[]} */
   const visitors = [];
   for (let index = 1; index <= 6; index += 1) {
     const created = await api.post("/api/users", {
@@ -163,7 +165,7 @@ VALUES (
 
   await assert.rejects(
     () => accountExportRecoveryService.assertEligible(visitors[1].userId),
-    (error) => error?.code === PUBLIC_DEMO_IDENTITY_DENIAL_CODE && error?.statusCode === 403,
+    (error) => /** @type {IdentityDenial} */ (error)?.code === PUBLIC_DEMO_IDENTITY_DENIAL_CODE && /** @type {IdentityDenial} */ (error)?.statusCode === 403,
   );
 
   const targetStillAuthenticated = await login(api, visitors[1].username, visitors[1].password);
@@ -179,7 +181,7 @@ VALUES (
     newPassword: ADMIN_NEW_PASSWORD,
   }, { cookie: adminCookie });
   assert.equal(privateOperatorPassword.status, 200, JSON.stringify(privateOperatorPassword.body));
-  assert.equal((await login(api, bootstrapAdmin.username, ADMIN_NEW_PASSWORD)).status, 200, "the unmarked private operator retains credential recovery");
+  assert.equal((await login(api, bootstrapAdminUsername, ADMIN_NEW_PASSWORD)).status, 200, "the unmarked private operator retains credential recovery");
 
   await assertPublicDemoRuntimeReady({ dataDir: fixture.root, demo: { enabled: false } });
   const standardReset = await api.put(`/api/users/${visitors[1].userId}/reset-password`, {}, { cookie: adminCookie });
@@ -188,6 +190,7 @@ VALUES (
   assert.equal((await login(api, visitors[1].username, standardReset.body.initialPassword)).status, 200, "ordinary account lifecycle resumes outside demo mode");
 
   const adminRow = await db.get("SELECT protected_user FROM users WHERE user_id = :userId", { userId: adminUserId });
+  assert.ok(adminRow, "the private operator row should exist");
   assert.equal(adminRow.protected_user, "yes");
   assert.equal(visitors.some((visitor) => visitor.userId === adminUserId), false, "the private operator must remain outside the marker set");
 } finally {
@@ -197,8 +200,43 @@ VALUES (
   await fixture.cleanup();
 }
 
+/** One seeded visitor identity the marker set covers. */
+/** @typedef {{ password: string, userId: string, username: string }} DemoVisitor */
+
+/**
+ * The payload fields this owner reads across login, create, key, reset, and
+ * denial responses. Which fields a given response carries is what the
+ * assertions prove.
+ * @typedef {{
+ *   apiKey: { api_key_id: string },
+ *   error: { code: string, message: string },
+ *   initialPassword: string,
+ *   rawKey: string,
+ *   themeMode: string,
+ *   user: { user_id: string, username: string, workspace_id: string },
+ * }} IdentityResponseBody
+ */
+
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<IdentityResponseBody>} IdentityResponse */
+/** @typedef {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} IdentityClientOptions */
+
+/**
+ * The client this owner builds. It adds `delete` to the shared writing
+ * client s method set, so the four methods are named here.
+ * @typedef {{
+ *   delete: (url: string, options?: IdentityClientOptions) => Promise<IdentityResponse>,
+ *   get: (url: string, options?: IdentityClientOptions) => Promise<IdentityResponse>,
+ *   post: (url: string, body?: unknown, options?: IdentityClientOptions) => Promise<IdentityResponse>,
+ *   put: (url: string, body?: unknown, options?: IdentityClientOptions) => Promise<IdentityResponse>,
+ * }} IdentityApiClient
+ */
+
+/** The framework denial the eligibility guard rejects with. */
+/** @typedef {{ code?: string, statusCode?: number }} IdentityDenial */
+
 console.log("Public-demo identity immutability regression passed.");
 
+/** @param {Promise<IdentityResponse>} responsePromise @param {DemoVisitor[]} visitors @returns {Promise<void>} */
 async function assertIdentityDenial(responsePromise, visitors) {
   const response = await responsePromise;
   assert.equal(response.status, 403, JSON.stringify(response.body));
@@ -217,6 +255,7 @@ async function assertIdentityDenial(responsePromise, visitors) {
   }
 }
 
+/** @param {IdentityApiClient} api @param {string} username @param {string} password @returns {Promise<IdentityResponse>} */
 async function login(api, username, password) {
   const response = await api.post("/api/login", { username, password, rememberMe: true });
   assert.equal(response.status, 200, JSON.stringify(response.body));
@@ -224,8 +263,17 @@ async function login(api, username, password) {
   return response;
 }
 
+/** @param {string} baseUrl @returns {IdentityApiClient} */
 function createApi(baseUrl) {
+  /**
+   * @param {string} method
+   * @param {string} url
+   * @param {unknown} body
+   * @param {IdentityClientOptions} [options]
+   * @returns {Promise<IdentityResponse>}
+   */
   async function request(method, url, body, options = {}) {
+    /** @type {Record<string, string>} */
     const headers = { ...(options.headers || {}) };
     if (body !== undefined) headers["content-type"] = "application/json";
     if (options.cookie) headers.cookie = `longtail_forge_session=${options.cookie}`;
@@ -243,25 +291,38 @@ function createApi(baseUrl) {
   }
 
   return {
+    /** @param {string} url @param {IdentityClientOptions} [options] */
     delete: (url, options) => request("DELETE", url, undefined, options),
+    /** @param {string} url @param {IdentityClientOptions} [options] */
     get: (url, options) => request("GET", url, undefined, options),
+    /** @param {string} url @param {unknown} [body] @param {IdentityClientOptions} [options] */
     post: (url, body, options) => request("POST", url, body, options),
+    /** @param {string} url @param {unknown} [body] @param {IdentityClientOptions} [options] */
     put: (url, body, options) => request("PUT", url, body, options),
   };
 }
 
+/** @param {IdentityResponse} response @returns {string} */
 function readSessionCookie(response) {
   const setCookie = response.headers.get("set-cookie") || "";
   return setCookie.match(/longtail_forge_session=([^;,]+)/)?.[1] || "";
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} app
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} serverInstance
+ * @returns {Promise<void>}
+ */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => error ? reject(error) : resolve());

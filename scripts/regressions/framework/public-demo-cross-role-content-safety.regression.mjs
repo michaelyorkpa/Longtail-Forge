@@ -77,6 +77,7 @@ try {
   await proveReflectedAndBudgetBoundaries(server);
 
   const integrity = await db.get("PRAGMA integrity_check;");
+  assert.ok(integrity, "the integrity probe should return a row");
   assert.equal(integrity.integrity_check, "ok");
   console.log("Public-demo cross-role editable-content safety regression passed.");
 } finally {
@@ -85,6 +86,16 @@ try {
   await fixture.cleanup();
 }
 
+/**
+ * The session this fixture builds for each seeded role. It carries the fields
+ * the permission service resolves; the full authorization session carries
+ * more, and completing it would change what the permission checks see.
+ * @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} ProbeAuthorizationSession
+ */
+
+/** @typedef {import("../../../src/types/route-contracts.js").AsyncRouteHandler} ProbeRouteHandler */
+
+/** @param {{ projectId: string, readerSession: ProbeAuthorizationSession, writerSession: ProbeAuthorizationSession }} context */
 async function proveCrossRoleStoredContent({ projectId, readerSession, writerSession }) {
   const plainTextPayload = '<svg onload="stored-plain-secret">Plain text</svg>';
   const noteTitle = '<img src=x onerror="stored-title-secret">';
@@ -176,27 +187,29 @@ async function proveBrowserSinkInventory() {
   assert.match(transportSecurity, /"frame-src 'none'"/);
 }
 
+/** @param {ProbeAuthorizationSession} writerSession @returns {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} */
 function createPreviewProbe(writerSession) {
   const app = express();
   app.use(attachRequestContext);
-  app.use((request, _response, next) => {
-    request.session = writerSession;
+  app.use(/** @type {ProbeRouteHandler} */ ((request, _response, next) => {
+    request.session = /** @type {import("../../../src/types/http-contracts.js").RequestSession} */ (/** @type {unknown} */ (writerSession));
     next();
-  });
+  }));
   app.use(createPublicDemoBudgetMiddleware({
     database: db,
     enabled: true,
     isVisitor: (userId) => userId === writerSession.user_id,
   }));
   app.post("/api/notes/preview", asyncHandler(async (request, response) => {
-    const payload = await readJsonBody(request);
-    response.status(200).json(await notesService.previewMarkdown(payload, request.session));
+    const payload = /** @type {Record<string, unknown>} */ (await readJsonBody(request));
+    response.status(200).json(await notesService.previewMarkdown(payload, /** @type {ProbeAuthorizationSession} */ (request.session)));
   }));
   app.use("/api", apiRouteBoundary);
   app.use(createErrorHandler({ logger: { error() {} } }));
   return app;
 }
 
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} listener @returns {Promise<void>} */
 async function proveReflectedAndBudgetBoundaries(listener) {
   const exact = "a".repeat(PUBLIC_DEMO_BUDGET_LIMITS.maxRichTextBytes);
   const acceptedSnakeCase = await request(listener, { body_markdown: exact });
@@ -227,7 +240,10 @@ async function readAdminSession() {
     LIMIT 1
   `);
   assert.ok(user?.user_id && (user.active_workspace_id || user.home_workspace_id));
-  return toSession(user, user.active_workspace_id || user.home_workspace_id);
+  return toSession(
+    /** @type {{ timezone?: string, user_id: string, username: string }} */ (user),
+    /** @type {string} */ (user.active_workspace_id || user.home_workspace_id),
+  );
 }
 
 /** @param {string} workspaceId @param {{ clientId?: string | null, label: string, projectId?: string | null, roleId: string, scopeId: string, scopeType: string }} scope */
@@ -272,8 +288,13 @@ async function createScopedSession(workspaceId, {
   return toSession({ user_id: userId, username, timezone: "America/New_York" }, workspaceId);
 }
 
+/**
+ * @param {{ timezone?: string, user_id: string, username: string }} user
+ * @param {string} workspaceId
+ * @returns {ProbeAuthorizationSession}
+ */
 function toSession(user, workspaceId) {
-  return {
+  return /** @type {ProbeAuthorizationSession} */ (/** @type {unknown} */ ({
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
     ip: "127.0.0.1",
@@ -281,11 +302,16 @@ function toSession(user, workspaceId) {
     user_id: user.user_id,
     username: user.username,
     workspace_id: workspaceId,
-  };
+  }));
 }
 
+/** The preview payload this probe posts and the response it reads back. */
+/** @typedef {{ body: { bodyMarkdown: string, error: { code: string, message: string } }, status: number | undefined }} PreviewResponse */
+
+/** @param {string} root @returns {Promise<string[]>} */
 async function listJavaScriptFiles(root) {
   const entries = await fs.readdir(root, { withFileTypes: true });
+  /** @type {string[]} */
   const files = [];
   for (const entry of entries) {
     const candidate = path.join(root, entry.name);
@@ -295,20 +321,34 @@ async function listJavaScriptFiles(root) {
   return files;
 }
 
+/** @param {ProbeRouteHandler} handler @returns {ProbeRouteHandler} */
 function asyncHandler(handler) {
   return (request, response, next) => Promise.resolve(handler(request, response, next)).catch(next);
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} app
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
     const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} listener
+ * @returns {Promise<void>}
+ */
 function closeServer(listener) {
   return new Promise((resolve, reject) => listener.close((error) => error ? reject(error) : resolve()));
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} listener
+ * @param {Record<string, unknown>} payload
+ * @returns {Promise<PreviewResponse>}
+ */
 function request(listener, payload) {
   const body = JSON.stringify(payload);
   return new Promise((resolve, reject) => {
@@ -320,8 +360,9 @@ function request(listener, payload) {
       host: "127.0.0.1",
       method: "POST",
       path: "/api/notes/preview",
-      port: listener.address().port,
+      port: /** @type {import("node:net").AddressInfo} */ (listener.address()).port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => {

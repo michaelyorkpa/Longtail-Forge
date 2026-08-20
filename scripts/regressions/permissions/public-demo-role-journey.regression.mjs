@@ -63,7 +63,7 @@ try {
       timeout: 180_000,
     },
   );
-  assert.equal(result.status, 0, result.stderr || result.stdout || result.error);
+  assert.equal(result.status, 0, result.stderr || result.stdout || String(result.error || ""));
 
   for (const password of [operatorPassword, ...Object.values(PUBLIC_DEMO_VISITOR_PASSWORDS)]) {
     assert.doesNotMatch(result.stdout, new RegExp(escapeRegExp(password)));
@@ -108,6 +108,7 @@ try {
   await fs.rm(temporaryDirectory, { force: true, recursive: true });
 }
 
+/** @param {string} file @returns {Record<string, string>} */
 function localEnvironment(file) {
   return {
     LONGTAIL_ENV: "development",
@@ -117,6 +118,7 @@ function localEnvironment(file) {
   };
 }
 
+/** @param {Record<string, string>} passwords @returns {Promise<void>} */
 async function writeCredentials(passwords) {
   await fs.writeFile(credentialsFile, `${JSON.stringify({
     binding: RT_LTF_DEMO_ROLE_FIXTURE_BINDING,

@@ -14,7 +14,17 @@ const REQUEST_BUDGET_STATE = Symbol("public-demo-budget-state");
 const SAFE_METHODS = new Set(["GET", "HEAD"]);
 const RICH_TEXT_FIELDS = new Set(["body", "body_markdown", "bodymarkdown", "content", "description", "html", "markdown", "text"]);
 
-/** @typedef {typeof PUBLIC_DEMO_BUDGET_LIMITS} PublicDemoBudgetLimits */
+/**
+ * The budget limit record: the catalog's keys, each a number.
+ *
+ * This was `typeof PUBLIC_DEMO_BUDGET_LIMITS`, which reads the frozen catalog
+ * literal and so gave every field its default as a literal type. That made
+ * `Partial<PublicDemoBudgetLimits>` below permit only the defaults themselves,
+ * leaving the `limits` override option unable to express any override — the one
+ * thing it exists to do. Naming the keys and widening the values to `number`
+ * keeps the record closed while letting a caller configure it.
+ * @typedef {Record<keyof typeof PUBLIC_DEMO_BUDGET_LIMITS, number>} PublicDemoBudgetLimits
+ */
 /** @typedef {NonNullable<ReturnType<typeof resolvePublicDemoMutation>>} PublicDemoBudgetOperation */
 /** @typedef {import("../types/database-contracts.js").DatabaseAdapter} DatabaseAdapter */
 /** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
