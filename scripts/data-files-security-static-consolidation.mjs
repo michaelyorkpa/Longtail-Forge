@@ -119,6 +119,27 @@ const DATA_FILES_SECURITY_STATIC_CONSOLIDATION = Object.freeze({
     regressionWallSource: "local Windows npm run test:regressions on 2026-08-13",
     wallTimeDisposition: "Recorded for evidence only; the Nightly Linux baseline and local Windows result are not treated as a performance comparison.",
   }),
+  // Measurement evidence recorded when 0.33.33.30.8 retired the physical
+  // active-owner line count as a forward shrink-only gate.
+  //
+  // The 0.33.33.11 baseline and expectedAfter figures above are untouched:
+  // they remain valid historical evidence that consolidating 26 source-only
+  // owners moved the estate from 104,568 to 101,621 physical lines. What was
+  // wrong was reusing 101,621 as a permanent ceiling during full-strict
+  // conversion, which counts JSDoc and annotation growth as regression and
+  // had accumulated eight per-checkpoint allowances totalling 1,706 lines.
+  //
+  // Both figures below are evidence for release reporting. Neither is a gate,
+  // and neither may be allowed to decide where a test lives.
+  lineMeasurementEvidence: Object.freeze({
+    recordedAtCheckpoint: "0.33.33.30.8",
+    discoveredEntries: 347,
+    physicalLines: 103316,
+    structuralLines: 91728,
+    retiredAllowanceTotal: 1706,
+    retiredAllowanceEntries: 8,
+    measurementDisposition: "Physical lines continue the 0.33.33.11 series. Structural lines count only lines bearing a non-trivia token, measured with the espree tokenizer, and are the figure that stays meaningful while annotations grow. Recorded for 0.33.33.48 reporting; not a ceiling.",
+  }),
   movements,
   retainedBehavioralOwners,
   retainedStaticOwners,
