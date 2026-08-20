@@ -60,63 +60,6 @@ These requirements apply to every child: type fake-DOM and HTTP fixture boundari
 
 Measured history-pin exposure for the whole cohort is ten references across eight `scripts/regression-contracts/views/` modules, all folding into the single `views.current-static-contracts` entry; every other file in the cohort is already free of planning-document reads, so `0.33.33.30.1` owns the stripping and the remaining children record no-pin dispositions only.
 
-### 0.33.33.30.7 - Type the permission harness and authorization-model owners
-
-Planning rollup only; its numbered children below are the protected implementation checkpoints. A fresh read-only probe against the current tree measures this cohort at 280 diagnostics across 6 diagnostic-bearing files and 4,551 lines, unchanged in total from the original estimate but structurally unlike every preceding `0.33.33.30` child: 249 of the 280 sit in the single 3,825-line `scripts/permission-regression.mjs`, and the remaining 31 spread across five small authorization-model owners. No preceding child concentrated 89 percent of its work in one file, and that file is roughly 2.5 times larger than the largest owner typed so far, so the cohort is resliced before implementation rather than after.
-
-Measured cohort, current tree:
-
-| Owner | Diagnostics | Lines | Run mode |
-| --- | --- | --- | --- |
-| `scripts/permission-regression.mjs` | 249 | 3,825 | isolated-database, release-gate |
-| `permissions/client-project-business-boundary` | 15 | 153 | isolated-database |
-| `permissions/workspace-membership-billable` | 9 | 219 | isolated-database |
-| `permissions/permission-resource-types` | 3 | 147 | static |
-| `permissions/permission-resource-catalog` | 2 | 119 | isolated-database |
-| `permissions/icon-accessibility-contract` (folded) | 2 | 88 | folded contract |
-| `permissions/current-static-contracts` | 0 | 10 | static |
-| `permissions/client-child-create-scope` (folded) | 0 | 98 | folded contract |
-
-Cohort boundary: this rollup owns `scripts/permission-regression.mjs`, `scripts/regressions/permissions/`, and `scripts/regression-contracts/permissions/`. The two `public-demo-role-journey` and `sanitized-demo-role-journey` owners under `scripts/regressions/permissions/` were already closed by `0.33.33.30.5` and are not in scope here.
-
-The probe also settled a question the original scope left open: `scripts/permission-regression.mjs` imports only Node built-ins and `src/`, and nothing from the authorization-model owners or their folded contracts. There is therefore **no diagnostic cascade between `0.33.33.30.7.1` and `0.33.33.30.7.2`** — the two children are independent, and `.30.7.1` will not reduce `.30.7.2`'s count. Sequencing `.30.7.1` first is for contract discovery, not for cascade.
-
-#### 0.33.33.30.7.2 - Type the HTTP authorization matrix
-
-Planning rollup only; its two children below are the protected implementation checkpoints. A read-only probe measures `scripts/permission-regression.mjs` at 249 diagnostics in 3,825 lines. That is 21 percent above the largest child completed on this branch (`0.33.33.30.6`, 205 diagnostics) and concentrated in one file, so it is resliced at the harness's own internal contract seam rather than run as a single pass.
-
-Measured diagnostic distribution, current tree:
-
-| Source | Count |
-| --- | --- |
-| `TS7006` implicit-any parameters | 224 |
-| `TS7031` implicit-any binding elements | 8 |
-| `TS2339` property does not exist | 7 |
-| `TS7053` implicit-any index access | 6 |
-| `TS2345` / `TS2810` / `TS2551` | 4 |
-
-By structural position: 111 are callback parameters over response collections, 121 are function and helper signatures, and 17 are one-off property or index reads. By inference root, the largest identifiers are `item` (26), `api` (22), `workspaceId` (17), `fixtures` (17), and `role` (11). Fifty-seven distinct functions carry diagnostics and the densest single function carries 28, so the work is broad and shallow rather than concentrated — which is exactly why raw diagnostic count understates how mechanical it is, and why the split below is by contract ownership rather than by count alone.
-
-The reslice seam is real and internal, not a line range. The harness has one `seedFixtures()` producing a single `fixtures` record, one `createApi(baseUrl)` producing a single `api` client, and **18 phase functions that all share the identical `(api, fixtures)` signature**. Diagnostics divide cleanly across that seam: **113 in the shared helpers and entry flow, 136 inside the 18 phase-function bodies**. The harness is not duplicated and no file is added.
-
-Both children must protect the harness's two distinct and separately enforced coverage inventories, which are not the same number and must not be conflated:
-
-- **353 static `assert` calls**, recorded by the generated regression manifest as `assertionCount` / `entryPointAssertionCount` for `permissions.http-authorization-matrix`. This is a static inventory the manifest generator counts from source. It was 352 when this rollup was planned; `0.33.33.30.7.2.1` added one real assertion — that every seeded role resolves a user identity — and the coverage ratchet accepted the increase as strengthening.
-- **At least 409 executed authorization checks**, enforced at runtime by the harness itself at `scripts/permission-regression.mjs:59` (`assert.ok(results.length >= 409, ...)`). This is a dynamic floor counting checks actually executed against the running app.
-
-A change that preserved one while weakening the other would pass half the gate. Both children must leave both intact.
-
-##### 0.33.33.30.7.2.2 - Type the eighteen authorization phase functions
-
-**Model: High Effort** - This is the eight-role matrix itself and the branch's largest single release-gate proof.
-
-- [ ] Close the remaining 136 diagnostics in `scripts/permission-regression.mjs` and return the file to zero. The figure is now exact rather than an upper bound: `0.33.33.30.7.2.1` closed its 113 and left precisely the 136 phase-body diagnostics the reslice measured. They did not shrink, because that checkpoint deliberately left the response payloads untyped — naming them belongs with the phases that read them, which is this checkpoint.
-- [ ] Type the request matrix rows, expected-status and expected-result maps, and the per-phase response payload reads with named contracts, consuming the shared fixture and client contracts by type-only import. A missing role or an unhandled expected status must be a compile error, not a silently skipped row.
-- [ ] Preserve all eight roles, isolated-database and release-gate run modes, API-key and browser authorization paths, workspace/client/project scoping, module-disablement behavior, ownership rules, and every existing fail-closed expectation.
-- [ ] Leave both coverage inventories intact and prove it: the generated manifest must still record at least the 353 static assertions for `permissions.http-authorization-matrix` that `0.33.33.30.7.2.1` left it at, and the harness must still enforce at least 409 executed checks at runtime. The runtime floor currently has no slack — the harness executes exactly 409 — so any check lost there fails the gate immediately.
-- [ ] Prove the matrix still fails closed with a seeded permission-regression negative control: grant a role a permission it must not hold, confirm the harness fails, and restore byte-identically with a verified digest. The control must be shown non-vacuous by inverting it.
-- [ ] `framework.full-strict-governance` pins `scripts/permission-regression.mjs` strict-clean. This child closes the `0.33.33.30.7` planning rollup.
-
 ### 0.33.33.30.8 - Correct the obsolete active-owner line metric
 
 **Model: High Effort** - A measurement that punishes type annotations has already moved a test; correcting it is governance work, not cleanup.
