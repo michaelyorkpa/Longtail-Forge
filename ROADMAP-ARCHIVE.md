@@ -1,5 +1,17 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.30.5 - Type Public Demo perimeter and role-journey owners
+
+**Model: High Effort** - The demo perimeter is the only surface exposed to anonymous internet traffic.
+
+Fifth child of the `0.33.33.30` rollup.
+
+- [x] Closed all 191 diagnostics across the seven `public-demo-*` framework owners and the two `permissions` role-journey owners, with named contracts for budget refusal envelopes and request options, perimeter security events and operational warnings, seeded visitor identities, capability denial envelopes, and preview responses.
+- [x] Fixed a production type defect the typing exposed rather than casting around it. `PublicDemoBudgetLimits` was `typeof PUBLIC_DEMO_BUDGET_LIMITS`, read from a frozen catalog literal, so every field carried its default as a literal type and `Partial<PublicDemoBudgetLimits>` permitted only those defaults themselves. The `limits` override option could not express any override, which is the one thing it exists for. The record now names the catalog keys with `number` values. The change is type-only: the server program stays at zero and no runtime behavior changed. The governance pin makes it self-proving, because reverting the typedef returns a diagnostic to `framework.public-demo-budgets` and fails the gate.
+- [x] Reused the `0.33.33.30.3` shared fixture contract and the repository route contracts by type-only import. `express` is a default import in these owners rather than a namespace, so the probe apps type their handlers through `route-contracts.AsyncRouteHandler` instead of an `express.RequestHandler` namespace the modules never import.
+- [x] Preserved every budget threshold, capability refusal, identity-immutability rule, cross-role content-safety assertion, and sanitized-fixture redaction. The `spawnSync` failure detail in three owners resolves the same way; only the error branch is coerced, and an empty string is falsy, so node still generates its default message when nothing was captured. All nine owners pass.
+- [x] `framework.full-strict-governance` pins the nine owners strict-clean. The scripts program falls from 5,584 to 5,393 diagnostics and combined strict debt from 16,718 to 16,527, with explicit `any` held at 7.
+- [x] Recorded the measured 246-line full-strict typing cost against the `0.33.33.11` active-owner line ceiling, the third such entry. That ceiling conflates estate growth with annotation density and will breach at every remaining typing checkpoint; separating the two measures still belongs in its own slice.
 ## Version 0.33.33.30.4 - Type authentication, credential, and account-recovery owners
 
 **Model: High Effort** - Throttling, hashing, and recovery flows are the credential perimeter.

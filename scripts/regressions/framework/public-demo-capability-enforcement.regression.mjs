@@ -46,11 +46,12 @@ const outboundCapabilityIds = [
 ];
 for (const capabilityId of outboundCapabilityIds) {
   assert.ok(PUBLIC_DEMO_ABSENT_CAPABILITY_IDS.includes(capabilityId));
+  /** @type {{ code?: string } | null} */
   let outboundDenial = null;
   requirePublicDemoCapability(capabilityId, { demoEnabled: true })(/** @type {import("express").Request} */ (/** @type {unknown} */ ({})), {}, (error) => {
-    outboundDenial = error;
+    outboundDenial = /** @type {{ code?: string }} */ (error);
   });
-  assert.equal(outboundDenial?.code, PUBLIC_DEMO_DENIAL_CODE);
+  assert.equal(/** @type {{ code?: string } | null} */ (outboundDenial)?.code, PUBLIC_DEMO_DENIAL_CODE);
 }
 
 const catalogProbe = {
@@ -129,27 +130,30 @@ requirePublicDemoCapability("administration.accounts", { demoEnabled: true })(
   },
 );
 assert.ok(denialError);
+/** @type {{ body: unknown, status: number | null }} */
 const responseState = { body: null, status: null };
 createErrorHandler()(
   denialError,
-  {
+  /** @type {import("../../../src/types/route-contracts.js").RouteRequest} */ (/** @type {unknown} */ ({
     method: "POST",
     path: "/api/users",
     originalUrl: "/api/users",
     requestContext: { requestId: "demo-denial-request" },
     session: { user_id: "public-workspace-admin", workspace_id: "demo-workspace" },
-  },
-  {
+  })),
+  /** @type {import("../../../src/types/route-contracts.js").RouteResponse} */ (/** @type {unknown} */ ({
     headersSent: false,
+    /** @param {number} status */
     status(status) {
       responseState.status = status;
       return this;
     },
+    /** @param {unknown} body */
     json(body) {
       responseState.body = body;
       return this;
     },
-  },
+  })),
   () => {},
 );
 assert.equal(responseState.status, 403);
@@ -228,6 +232,7 @@ await databaseFixture.cleanup();
 
 console.log("Public-demo capability enforcement regression passed.");
 
+/** @param {unknown} value @param {string} pathLabel @returns {void} */
 function assertDeclaredActions(value, pathLabel) {
   if (Array.isArray(value)) {
     value.forEach((item, index) => assertDeclaredActions(item, pathLabel + "[" + index + "]"));

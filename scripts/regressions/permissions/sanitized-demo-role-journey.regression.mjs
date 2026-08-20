@@ -45,7 +45,7 @@ try {
     },
     timeout: 180_000,
   });
-  assert.equal(result.status, 0, result.stderr || result.stdout || result.error);
+  assert.equal(result.status, 0, result.stderr || result.stdout || String(result.error || ""));
   for (const password of Object.values(passwords)) {
     assert.doesNotMatch(result.stdout, new RegExp(escapeRegExp(password)));
     assert.doesNotMatch(result.stderr, new RegExp(escapeRegExp(password)));

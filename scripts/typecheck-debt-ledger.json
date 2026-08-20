@@ -2998,7 +2998,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 5584,
+      "errorCount": 5393,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -5564,172 +5564,6 @@
             "count": 14
           }
         ],
-        "scripts/regressions/framework/public-demo-account-catalog.regression.mjs": [
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 8
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/framework/public-demo-budgets.regression.mjs": [
-          {
-            "code": 18046,
-            "count": 4
-          },
-          {
-            "code": 18047,
-            "count": 2
-          },
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 50
-          },
-          {
-            "code": 7023,
-            "count": 1
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/framework/public-demo-capability-enforcement.regression.mjs": [
-          {
-            "code": 2322,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regressions/framework/public-demo-cross-role-content-safety.regression.mjs": [
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 19
-          },
-          {
-            "code": 7023,
-            "count": 1
-          },
-          {
-            "code": 7031,
-            "count": 3
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/framework/public-demo-files-ingress.regression.mjs": [
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 7
-          },
-          {
-            "code": 7023,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/framework/public-demo-identity-immutability.regression.mjs": [
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 5
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 23
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/framework/public-demo-perimeter.regression.mjs": [
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 10
-          },
-          {
-            "code": 7006,
-            "count": 19
-          },
-          {
-            "code": 7034,
-            "count": 5
-          }
-        ],
         "scripts/regressions/framework/remembered-sessions.regression.mjs": [
           {
             "code": 18047,
@@ -5976,22 +5810,6 @@
           {
             "code": 7006,
             "count": 3
-          }
-        ],
-        "scripts/regressions/permissions/public-demo-role-journey.regression.mjs": [
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regressions/permissions/sanitized-demo-role-journey.regression.mjs": [
-          {
-            "code": 2769,
-            "count": 1
           }
         ],
         "scripts/regressions/permissions/workspace-membership-billable.regression.mjs": [
@@ -7325,7 +7143,7 @@
   },
   "totals": {
     "files": 1040,
-    "errors": 16718,
+    "errors": 16527,
     "explicitAny": 7
   },
   "explicitAnyByFile": {
