@@ -57,7 +57,9 @@ assert.match(accessibilityDocs, /aria-label/, "accessibility docs must require l
 
 console.log("Icon accessibility contract regression passed.");
 
+/** @param {string} source @param {string} functionName @returns {string[]} */
 function findFunctionCallBlocks(source, functionName) {
+  /** @type {string[]} */
   const blocks = [];
   let start = source.indexOf(`${functionName}(`);
 

@@ -40,6 +40,7 @@ try {
   assert.equal(initialKeys.has("knowledge_base"), false, "future modules must not be anticipated by User Admin");
 
   const tasks = initialCatalog.find((resource) => resource.key === "tasks");
+  assert.ok(tasks, "the initial catalog should declare the Tasks resource");
   assert.deepEqual(
     tasks.operations,
     ["read", "create", "update", "delete", "archive", "restore", "assign", "manage"],
@@ -76,7 +77,7 @@ try {
   );
   await assert.rejects(
     usersService.listPermissionResources(unauthorizedSession),
-    (error) => error?.statusCode === 403,
+    (error) => /** @type {{ statusCode?: number }} */ (error)?.statusCode === 403,
     "the User Admin catalog endpoint should retain the users.manage route boundary",
   );
 

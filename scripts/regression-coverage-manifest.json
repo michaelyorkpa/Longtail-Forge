@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18380,
+    "activeAssertionCount": 18384,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19064,
+    "effectiveAssertionCount": 19068,
     "retiredAssertionCredit": 15,
     "vitest": [
       {
@@ -3583,11 +3583,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 109,
+      "assertionCount": 111,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 109,
+      "entryPointAssertionCount": 111,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -4550,11 +4550,11 @@
     },
     {
       "area": "permissions",
-      "assertionCount": 24,
+      "assertionCount": 25,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves User Admin receives enabled-module and permission-filtered resource definitions instead of a browser-owned matrix catalog.",
-      "entryPointAssertionCount": 24,
+      "entryPointAssertionCount": 25,
       "id": "permissions.permission-resource-catalog",
       "legacy": false,
       "path": "scripts/regressions/permissions/permission-resource-catalog.regression.mjs",
@@ -4632,11 +4632,11 @@
     },
     {
       "area": "permissions",
-      "assertionCount": 31,
+      "assertionCount": 32,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves inactive workspace members stay out of people surfaces and Personal/Family work cannot use the Billable flag.",
-      "entryPointAssertionCount": 31,
+      "entryPointAssertionCount": 32,
       "id": "permissions.workspace-membership-billable",
       "legacy": false,
       "path": "scripts/regressions/permissions/workspace-membership-billable.regression.mjs",

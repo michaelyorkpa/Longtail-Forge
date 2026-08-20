@@ -262,6 +262,21 @@ for (const httpSecurityOwner of [
   assert.equal(ledger.programs.scripts.diagnostics[httpSecurityOwner], undefined, `${httpSecurityOwner} must stay strict-clean after checkpoint 0.33.33.30.3`);
   assert.equal(ledger.explicitAnyByFile[httpSecurityOwner], undefined, `${httpSecurityOwner} must stay free of explicit any after checkpoint 0.33.33.30.3`);
 }
+// The authorization-model owners closed at 0.33.33.30.7.1. The permission
+// harness itself is still open and closes across the 0.33.33.30.7.2 children,
+// so scripts/permission-regression.mjs is deliberately absent here.
+for (const authorizationModelOwner of [
+  "scripts/regression-contracts/permissions/client-child-create-scope.contract.mjs",
+  "scripts/regression-contracts/permissions/icon-accessibility-contract.contract.mjs",
+  "scripts/regressions/permissions/client-project-business-boundary.regression.mjs",
+  "scripts/regressions/permissions/current-static-contracts.regression.mjs",
+  "scripts/regressions/permissions/permission-resource-catalog.regression.mjs",
+  "scripts/regressions/permissions/permission-resource-types.regression.mjs",
+  "scripts/regressions/permissions/workspace-membership-billable.regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[authorizationModelOwner], undefined, `${authorizationModelOwner} must stay strict-clean after checkpoint 0.33.33.30.7.1`);
+  assert.equal(ledger.explicitAnyByFile[authorizationModelOwner], undefined, `${authorizationModelOwner} must stay free of explicit any after checkpoint 0.33.33.30.7.1`);
+}
 for (const sessionOwner of [
   "scripts/regressions/framework/remembered-sessions.regression.mjs",
   "scripts/regressions/framework/session-auth-warning.regression.mjs",
