@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18386,
+    "activeAssertionCount": 18399,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19070,
+    "effectiveAssertionCount": 19083,
     "retiredAssertionCredit": 15,
     "vitest": [
       {
@@ -2545,11 +2545,11 @@
     },
     {
       "area": "permissions",
-      "assertionCount": 354,
+      "assertionCount": 367,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Executes the complete eight-role HTTP authorization matrix against one isolated application server and disposable database.",
-      "entryPointAssertionCount": 354,
+      "entryPointAssertionCount": 367,
       "id": "permissions.http-authorization-matrix",
       "legacy": false,
       "path": "scripts/permission-regression.mjs",

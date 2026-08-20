@@ -128,45 +128,36 @@ try {
  * that stops carrying an identity or a scope is a compile error rather than a
  * callback that silently compares `undefined`.
  */
-/** @typedef {{ source_id?: string, source_type?: string, task_id: string }} HarnessTaskRow */
-/** @typedef {{ entry_id: string, task_id?: string }} HarnessTimeEntryRow */
-/** @typedef {{ source_id?: string, source_module_id?: string, source_type?: string, timer_slot?: string }} HarnessTimerRow */
-/** @typedef {{ can_manage?: boolean, client_id?: string, id: string }} HarnessProjectRow */
-/** @typedef {{ id: string }} HarnessClientRow */
-/** @typedef {{ assignment_scope_type?: string, role_id: string, scopes: HarnessScopeRow[] }} HarnessRoleRow */
-/** @typedef {{ label?: string, scopeId?: string }} HarnessScopeRow */
-/** @typedef {{ can_create_child?: boolean, id: string, recordType?: string }} HarnessCandidateRow */
+/** @typedef {{ source_id: string, source_type: string, task_id: string, allDay: boolean, assignee_ids: unknown[], client_id: string, id: string, priority: string, project_id: string, recurrenceDetails: Record<string, unknown>, recurrence_instance_date: string, recurrence_template_id: string, reminderDetails: { effectivePolicy: { offsets: { dateTime: number[] } }, overrideEnabled: boolean }, startDate: string, status: string }} HarnessTaskRow */
+/** @typedef {{ entry_id: string, task_id: string, description: string, duration_seconds: number, tags: HarnessTagRow[], user_id: string }} HarnessTimeEntryRow */
+/** @typedef {{ source_id: string, source_module_id: string, source_type: string, timer_slot: string, task_id: string, timer_status: string }} HarnessTimerRow */
+/** @typedef {{ can_manage: boolean, client_id: string, id: string, name: string }} HarnessProjectRow */
+/** @typedef {{ id: string, can_create_child: boolean, can_create_project: boolean, can_manage: boolean, can_manage_projects: boolean, name: string, parent_client_id: string, projects: HarnessProjectRow[] }} HarnessClientRow */
+/** @typedef {{ assignment_scope_type: string, role_id: string, scopes: HarnessScopeRow[] }} HarnessRoleRow */
+/** @typedef {{ label: string, scopeId: string }} HarnessScopeRow */
+/** @typedef {{ can_create_child: boolean, id: string, recordType: string }} HarnessCandidateRow */
 /** @typedef {{ key: string }} HarnessResourceRow */
-/** @typedef {{ module_id?: string, task_id?: string }} HarnessModuleStatusRow */
-/** @typedef {{ id?: string, workspaceId?: string }} HarnessWorkspaceRow */
+/** @typedef {{ module_id: string, task_id: string }} HarnessModuleStatusRow */
+/** @typedef {{ id: string, workspaceId: string }} HarnessWorkspaceRow */
 /** @typedef {{ tag_id: string }} HarnessTagRow */
-/** @typedef {{ renderer?: string }} HarnessCardRow */
-/** @typedef {{ dataRoute?: string, id?: string, placement?: string, renderer?: string }} HarnessPanelRow */
+/** @typedef {{ renderer: string }} HarnessCardRow */
+/** @typedef {{ dataRoute: string, id: string, placement: string, renderer: string }} HarnessPanelRow */
 /**
- * One row in a listed collection, as the probes address it. Many different
- * endpoints return a list whose rows the harness identifies by id, href,
- * path, entry, task, or nested project; naming those read fields together
- * keeps every callback checked without inventing a separate envelope per
- * endpoint.
- * @typedef {{
- *   entry_id: string,
- *   href: string,
- *   id: string,
- *   items: HarnessListItem[],
- *   path: string,
- *   project: { id: string },
- *   action: { href: string },
- *   dataRoute: string,
- *   placement: string,
- *   renderer: string,
- *   status: string,
- *   task_id: string,
- *   timer_slot: string,
- *   workspaceType: string,
- * }} HarnessListItem
+ * The specific rows each surface returns.
+ *
+ * `0.33.33.30.7.2.2` used one aggregated `HarnessListItem` across navigation,
+ * task and timer, time entry, dashboard, reporting, module metadata, and
+ * workspace payloads. That type claimed fields no individual row guaranteed,
+ * so post-merge review required it split; each row below now carries only what
+ * the endpoint that produces it actually returns.
  */
+/** @typedef {{ action: { href: string }, id: string, reasons: unknown[], status: string, task_id: string }} HarnessAttentionRow */
+/** @typedef {{ project: { id: string }, rawSeconds: number }} HarnessReportingRow */
+/** @typedef {{ dataRoute: string, href: string, id: string, path: string, placement: string, renderer: string }} HarnessModuleSurfaceRow */
+/** @typedef {{ id: string, moduleSettings: HarnessModuleDefinition[], workspaceType: string }} HarnessWorkspaceTypeOption */
+/** @typedef {{ id: string, entriesCount: number, action: Record<string, unknown> }} HarnessRecentTimeRow */
 
-/** @typedef {{ code?: string, message?: string, requestId?: string }} HarnessErrorEnvelope */
+/** @typedef {{ code: string, message: string, requestId: string, status: number }} HarnessErrorEnvelope */
 
 
 /** @typedef {HarnessScopeRow} HarnessAssignmentScope */
@@ -174,17 +165,101 @@ try {
 /** @typedef {HarnessTagRow} HarnessTag */
 
 /**
+ * What each named response envelope carries, built from the fields the
+ * assertions in this file actually read.
+ *
+ * This is a key-to-contract dictionary, never a response shape. It is only
+ * ever consumed through `Pick<>` by `readPayload`, so each call site declares
+ * exactly the envelopes it reads and receives exactly those. No response is
+ * ever claimed to carry all of them, which is what made the single required
+ * `HarnessPayload` attempted at `0.33.33.30.7.2.2` wrong against this
+ * harness's roughly fifty heterogeneous endpoints.
+ * @typedef {{
+ *   accountCreated: boolean,
+ *   actions: { tasks: { href: string }, workbench: { href: string } },
+ *   activeTimers: { count: number, rows: HarnessAttentionRow[] },
+ *   apiKey: { api_key_id: string, scopes?: string[], status?: string },
+ *   apiKeys: Array<{ api_key_id: string, status?: string }>,
+ *   assignmentRevision: string,
+ *   availableScopes: Array<{ scope: string }>,
+ *   rawKey: string,
+ *   assignments: unknown,
+ *   attentionRows: HarnessAttentionRow[],
+ *   backup: { archiveSha256: string, secureNotesKeyIncluded: boolean, workspaceName: string },
+ *   canAddUsers: boolean,
+ *   capabilities: Record<string, boolean>,
+ *   client: HarnessClientRow,
+ *   clients: HarnessClientRow[],
+ *   createdTask: HarnessTaskRow,
+ *   data: HarnessPublicApiRecord,
+ *   deletion: { acknowledgementPhrase: string, backup: { current: boolean }, lifecycle: { backupProtected: boolean, noCurrentBackupAcknowledged: boolean, purgeAfter: string, requestedAt: string, status: string }, pending: boolean },
+ *   enabledModules: string[],
+ *   entries: HarnessTimeEntryRow[],
+ *   entry: HarnessTimeEntryRow,
+ *   entry_id: string,
+ *   error: HarnessErrorEnvelope,
+ *   errors: HarnessErrorEnvelope[],
+ *   extensionPoints: { dashboardPanels: HarnessPanelRow[] },
+ *   initialPassword: string,
+ *   items: Array<HarnessCandidateRow & HarnessTaskRow>,
+ *   match: { activeMembership: unknown, alreadyActive: boolean, assignmentRevision: string, assignments: unknown, userId: string, username: string },
+ *   moduleSettings: HarnessModuleDefinition[],
+ *   modules: HarnessModuleDescriptor[] | Record<string, { enabled: boolean }>,
+ *   navigation: HarnessNavigationItem[],
+ *   permissionHints: Record<string, unknown>,
+ *   project: HarnessProjectRow,
+ *   projects: HarnessProjectRow[],
+ *   recentTime: { entriesCount: number, rows: HarnessRecentTimeRow[], todaySeconds: number, totalSeconds: number },
+ *   recurrenceJob: { queued: boolean },
+ *   registry: { workbenchCards: HarnessCardRow[] },
+ *   resources: HarnessResourceRow[],
+ *   roles: HarnessRoleRow[],
+ *   rows: HarnessReportingRow[],
+ *   task: HarnessTaskRow,
+ *   taskFilter: unknown,
+ *   task_id: string,
+ *   tasks: HarnessTaskRow[],
+ *   timer: HarnessTimerRow,
+ *   timers: HarnessTimerRow[],
+ *   totals: { seconds: number },
+ *   upcomingRows: HarnessAttentionRow[],
+ *   user: { user_id: string, username: string, workspaceContext?: HarnessWorkspaceContext },
+ *   workCandidates: HarnessCandidateRow[],
+ *   workspace: HarnessWorkspaceRow,
+ *   workspaceContext: HarnessWorkspaceContext,
+ *   workspaceCreation: { availableTypes: HarnessWorkspaceTypeOption[] },
+ *   workspaceProjects: HarnessProjectRow[],
+ *   workspaceType: string,
+ *   workspace_id: string,
+ *   workspaces: HarnessWorkspaceRow[],
+ * }} HarnessEnvelopeRegistry
+ */
+
+/** The resolved workspace context a shell or session read returns. */
+/** @typedef {{ permissionIds: string[], workspaceDeletion: { status: string } }} HarnessWorkspaceContext */
+
+/** One record the public API returns under its `data` envelope. */
+/** @typedef {{ client_id: string, enabledModules: string[], moduleSettings: HarnessModuleDefinition[], parent_client_id: string, priority: string, project_id: string, status: string, task_id: string, user_id: string }} HarnessPublicApiRecord */
+
+/** One module descriptor the module registry returns, by surface. */
+/** @typedef {{ dashboard: HarnessModuleSurfaceRow[], id: string, moduleId: string, navigation: HarnessModuleSurfaceRow[], publicApiEndpoints: HarnessModuleSurfaceRow[], settings: HarnessModuleSurfaceRow[], enabled?: boolean }} HarnessModuleDescriptor */
+
+/**
  * One response the harness client resolves, derived from the request helper
  * rather than restated. `status` and `headers` are the transport shape this
  * checkpoint owns.
  *
- * `body` stays the helper s own inference. Naming it was attempted here and
- * abandoned on evidence: this harness drives roughly fifty endpoints, so one
- * required payload record could only be an invented schema, and the first
- * attempt immediately produced over a hundred property mismatches against
- * fields the endpoints really do return. What the probes actually iterate is
- * rows, and those are named above; a fabricated envelope would have documented
- * a guess rather than a contract.
+ * `body` is `unknown`, deliberately. It arrives from `JSON.parse()`, whose
+ * result is `any`, and an `any` here would silently terminate type checking
+ * for every payload read in the file: annotating a callback parameter proves
+ * nothing when the collection it iterates is `any`, because `.find()` on `any`
+ * accepts any callback signature. Post-merge review of `0.33.33.30.7.2.2`
+ * found exactly that, so the boundary is now explicit and each consumer
+ * narrows what it reads through `readPayload` below.
+ *
+ * One required envelope covering every response is still the wrong answer and
+ * was disproven earlier against this harness's roughly fifty heterogeneous
+ * endpoints; the narrowing is per consumer instead.
  * @typedef {Awaited<ReturnType<typeof request>>} HarnessResponse
  */
 
@@ -209,7 +284,7 @@ try {
 /** @typedef {{ id: string, moduleStatus?: boolean, readOnly?: boolean, value?: unknown }} HarnessModuleSetting */
 
 /** One module's settings block within a workspace settings payload. */
-/** @typedef {{ id?: string, moduleId: string, settings?: HarnessModuleSetting[] }} HarnessModuleDefinition */
+/** @typedef {{ id?: string, moduleId: string, settings: HarnessModuleSetting[] }} HarnessModuleDefinition */
 
 /** The workspace settings record the module-settings helpers read. */
 /** @typedef {{ audit?: unknown, moduleSettings?: HarnessModuleDefinition[], workspaceName?: string, workspaceType?: string }} HarnessSettings */
@@ -222,7 +297,7 @@ try {
  * The two flatteners walk different child keys - `children` in the settings
  * navigation and `items` in the shell navigation - so both are declared
  * rather than normalised into one.
- * @typedef {{ children?: HarnessNavigationItem[], href?: string, items?: HarnessNavigationItem[] }} HarnessNavigationItem
+ * @typedef {{ children?: HarnessNavigationItem[], href?: string, id?: string, items?: HarnessNavigationItem[] }} HarnessNavigationItem
  */
 
 /**
@@ -411,7 +486,7 @@ async function runApiKeyTests(api, fixtures) {
     201,
   ).then((response) => {
     check("public API child creation keeps the requested parent", () => {
-      assert.equal(response.body.data.parent_client_id, fixtures.clients.alpha.id);
+      assert.equal(readPayload(response, ["data"]).data.parent_client_id, fixtures.clients.alpha.id);
     });
   });
 
@@ -443,11 +518,11 @@ async function runApiKeyTests(api, fixtures) {
     }, { bearer: taskFullKey.rawKey }),
     201,
   );
-  fixtures.publicApiTaskId = publicTask.body.data.task_id;
+  fixtures.publicApiTaskId = readPayload(publicTask, ["data"]).data.task_id;
   check("public API task create inherits project client context", () => {
-    assert.equal(publicTask.body.data.project_id, fixtures.projects.alpha.id);
-    assert.equal(publicTask.body.data.client_id, fixtures.clients.alpha.id);
-    assert.equal(publicTask.body.workspace_id, fixtures.workspaceId);
+    assert.equal(readPayload(publicTask, ["data"]).data.project_id, fixtures.projects.alpha.id);
+    assert.equal(readPayload(publicTask, ["data"]).data.client_id, fixtures.clients.alpha.id);
+    assert.equal(readPayload(publicTask, ["workspace_id"]).workspace_id, fixtures.workspaceId);
   });
   await expectStatus(
     "public API can read task by id",
@@ -455,7 +530,7 @@ async function runApiKeyTests(api, fixtures) {
     200,
   ).then((response) => {
     check("public API task read returns requested task", () => {
-      assert.equal(response.body.data.task_id, requirePublishedTaskId(fixtures.publicApiTaskId, "publicApiTaskId"));
+      assert.equal(readPayload(response, ["data"]).data.task_id, requirePublishedTaskId(fixtures.publicApiTaskId, "publicApiTaskId"));
     });
   });
   await expectStatus(
@@ -468,8 +543,8 @@ async function runApiKeyTests(api, fixtures) {
     200,
   ).then((response) => {
     check("public API task update persists lifecycle fields", () => {
-      assert.equal(response.body.data.priority, "urgent");
-      assert.equal(response.body.data.status, "in_progress");
+      assert.equal(readPayload(response, ["data"]).data.priority, "urgent");
+      assert.equal(readPayload(response, ["data"]).data.status, "in_progress");
     });
   });
   await expectStatus(
@@ -512,11 +587,11 @@ async function runClientMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("client administrator has no top-level create capability", () => {
-      assert.equal(response.body.capabilities?.can_create_top_level_client, false);
+      assert.equal(readPayload(response, ["capabilities"]).capabilities?.can_create_top_level_client, false);
     });
     check("client administrator can add a child only from an administered Client row", () => {
-      assert.equal(response.body.clients.find((/** @type {HarnessCandidateRow} */ candidate) => candidate.id === fixtures.clients.alpha.id)?.can_create_child, true);
-      assert.equal(response.body.clients.some((/** @type {HarnessCandidateRow} */ candidate) => (
+      assert.equal(readPayload(response, ["clients"]).clients.find((candidate) => candidate.id === fixtures.clients.alpha.id)?.can_create_child, true);
+      assert.equal(readPayload(response, ["clients"]).clients.some((candidate) => (
         candidate.id !== fixtures.clients.alpha.id &&
         candidate.can_create_child === true
       )), false);
@@ -564,9 +639,9 @@ async function runClientMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("workspace administrator create capabilities remain unchanged", () => {
-      assert.equal(response.body.capabilities?.can_create_top_level_client, true);
-      assert.ok(response.body.clients.length > 0);
-      assert.ok(response.body.clients.every((/** @type {HarnessCandidateRow} */ candidate) => candidate.can_create_child === true));
+      assert.equal(readPayload(response, ["capabilities"]).capabilities?.can_create_top_level_client, true);
+      assert.ok(readPayload(response, ["clients"]).clients.length > 0);
+      assert.ok(readPayload(response, ["clients"]).clients.every((candidate) => candidate.can_create_child === true));
     });
   });
   await expectStatus(
@@ -610,9 +685,9 @@ async function runClientMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("personal workspace combined payload has only workspace projects", () => {
-      assert.equal(response.body.capabilities?.can_create_top_level_client, false);
-      assert.equal(response.body.clients.length, 0);
-      assert.ok(response.body.workspaceProjects.some((/** @type {HarnessProjectRow} */ project) => project.id === fixtures.personalWorkspace.projectId));
+      assert.equal(readPayload(response, ["capabilities"]).capabilities?.can_create_top_level_client, false);
+      assert.equal(readPayload(response, ["clients"]).clients.length, 0);
+      assert.ok(readPayload(response, ["workspaceProjects"]).workspaceProjects.some((project) => project.id === fixtures.personalWorkspace.projectId));
     });
   });
   await expectStatus(
@@ -621,8 +696,8 @@ async function runClientMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("personal workspace options payload has only workspace projects", () => {
-      assert.equal(response.body.clients.length, 0);
-      assert.ok(response.body.workspaceProjects.some((/** @type {HarnessProjectRow} */ project) => project.id === fixtures.personalWorkspace.projectId));
+      assert.equal(readPayload(response, ["clients"]).clients.length, 0);
+      assert.ok(readPayload(response, ["workspaceProjects"]).workspaceProjects.some((project) => project.id === fixtures.personalWorkspace.projectId));
     });
   });
 }
@@ -692,14 +767,14 @@ async function runScopedAdminNavigationTests(api, fixtures) {
     api.get("/api/app-shell/bootstrap", { cookie: fixtures.sessions.clientAdmin }),
     200,
   );
-  const clientAdminHrefs = navigationHrefs(clientAdminShell.body.navigation);
+  const clientAdminHrefs = navigationHrefs(readPayload(clientAdminShell, ["navigation"]).navigation);
   check("client administrator receives scoped Client and Project navigation only", () => {
-    assert.equal(clientAdminShell.body.permissionHints?.clientsManage, true);
-    assert.equal(clientAdminShell.body.permissionHints?.projectsManage, true);
-    assert.equal(clientAdminShell.body.permissionHints?.roleAssignmentsDelegate, true);
-    assert.ok(clientAdminShell.body.workspaceContext?.permissionIds?.includes("clients.manage"));
-    assert.ok(clientAdminShell.body.workspaceContext?.permissionIds?.includes("projects.manage"));
-    assert.equal(clientAdminShell.body.workspaceContext?.permissionIds?.includes("workspace_settings.manage"), false);
+    assert.equal(readPayload(clientAdminShell, ["permissionHints"]).permissionHints?.clientsManage, true);
+    assert.equal(readPayload(clientAdminShell, ["permissionHints"]).permissionHints?.projectsManage, true);
+    assert.equal(readPayload(clientAdminShell, ["permissionHints"]).permissionHints?.roleAssignmentsDelegate, true);
+    assert.ok(readPayload(clientAdminShell, ["workspaceContext"]).workspaceContext?.permissionIds?.includes("clients.manage"));
+    assert.ok(readPayload(clientAdminShell, ["workspaceContext"]).workspaceContext?.permissionIds?.includes("projects.manage"));
+    assert.equal(readPayload(clientAdminShell, ["workspaceContext"]).workspaceContext?.permissionIds?.includes("workspace_settings.manage"), false);
     assert.ok(clientAdminHrefs.has("clients.html"));
     assert.ok(clientAdminHrefs.has("projects.html"));
     assert.ok(clientAdminHrefs.has("role-assignments.html"));
@@ -707,10 +782,11 @@ async function runScopedAdminNavigationTests(api, fixtures) {
     assert.equal(clientAdminHrefs.has("workspace-settings.html"), false);
     assert.equal(clientAdminHrefs.has("audit-log.html"), false);
     assert.equal(clientAdminHrefs.has("api-keys.html"), false);
-    assert.equal(clientAdminShell.body.navigation
-      .find((/** @type {HarnessListItem} */ item) => item.id === "settings")?.items
-      .find((/** @type {HarnessListItem} */ item) => item.id === "admin-settings-group")?.items
-      .some((/** @type {HarnessListItem} */ item) => item.id === "module-settings-group"), false);
+    const clientAdminSettingsGroup = readPayload(clientAdminShell, ["navigation"]).navigation
+      .find((item) => item.id === "settings")?.items
+      ?.find((item) => item.id === "admin-settings-group");
+    assert.ok(clientAdminSettingsGroup?.items, "the Client Administrator shell should expose the admin settings group");
+    assert.equal(clientAdminSettingsGroup.items.some((item) => item.id === "module-settings-group"), false);
   });
 
   const projectAdminShell = await expectStatus(
@@ -718,13 +794,13 @@ async function runScopedAdminNavigationTests(api, fixtures) {
     api.get("/api/app-shell/bootstrap", { cookie: fixtures.sessions.projectAdmin }),
     200,
   );
-  const projectAdminHrefs = navigationHrefs(projectAdminShell.body.navigation);
+  const projectAdminHrefs = navigationHrefs(readPayload(projectAdminShell, ["navigation"]).navigation);
   check("project administrator receives Project navigation without Client or workspace administration", () => {
-    assert.equal(projectAdminShell.body.permissionHints?.clientsManage, false);
-    assert.equal(projectAdminShell.body.permissionHints?.projectsManage, true);
-    assert.equal(projectAdminShell.body.permissionHints?.roleAssignmentsDelegate, true);
-    assert.equal(projectAdminShell.body.workspaceContext?.permissionIds?.includes("clients.manage"), false);
-    assert.ok(projectAdminShell.body.workspaceContext?.permissionIds?.includes("projects.manage"));
+    assert.equal(readPayload(projectAdminShell, ["permissionHints"]).permissionHints?.clientsManage, false);
+    assert.equal(readPayload(projectAdminShell, ["permissionHints"]).permissionHints?.projectsManage, true);
+    assert.equal(readPayload(projectAdminShell, ["permissionHints"]).permissionHints?.roleAssignmentsDelegate, true);
+    assert.equal(readPayload(projectAdminShell, ["workspaceContext"]).workspaceContext?.permissionIds?.includes("clients.manage"), false);
+    assert.ok(readPayload(projectAdminShell, ["workspaceContext"]).workspaceContext?.permissionIds?.includes("projects.manage"));
     assert.equal(projectAdminHrefs.has("clients.html"), false);
     assert.ok(projectAdminHrefs.has("projects.html"));
     assert.ok(projectAdminHrefs.has("role-assignments.html"));
@@ -739,13 +815,13 @@ async function runScopedAdminNavigationTests(api, fixtures) {
     api.get("/api/app-shell/bootstrap", { cookie: fixtures.sessions.clientUser }),
     200,
   );
-  const clientUserHrefs = navigationHrefs(clientUserShell.body.navigation);
+  const clientUserHrefs = navigationHrefs(readPayload(clientUserShell, ["navigation"]).navigation);
   check("role without management grants receives no Client or Project Settings links", () => {
-    assert.equal(clientUserShell.body.permissionHints?.clientsManage, false);
-    assert.equal(clientUserShell.body.permissionHints?.projectsManage, false);
-    assert.equal(clientUserShell.body.permissionHints?.roleAssignmentsDelegate, false);
-    assert.equal(clientUserShell.body.workspaceContext?.permissionIds?.includes("clients.manage"), false);
-    assert.equal(clientUserShell.body.workspaceContext?.permissionIds?.includes("projects.manage"), false);
+    assert.equal(readPayload(clientUserShell, ["permissionHints"]).permissionHints?.clientsManage, false);
+    assert.equal(readPayload(clientUserShell, ["permissionHints"]).permissionHints?.projectsManage, false);
+    assert.equal(readPayload(clientUserShell, ["permissionHints"]).permissionHints?.roleAssignmentsDelegate, false);
+    assert.equal(readPayload(clientUserShell, ["workspaceContext"]).workspaceContext?.permissionIds?.includes("clients.manage"), false);
+    assert.equal(readPayload(clientUserShell, ["workspaceContext"]).workspaceContext?.permissionIds?.includes("projects.manage"), false);
     assert.equal(clientUserHrefs.has("clients.html"), false);
     assert.equal(clientUserHrefs.has("projects.html"), false);
     assert.equal(clientUserHrefs.has("role-assignments.html"), false);
@@ -757,7 +833,7 @@ async function runScopedAdminNavigationTests(api, fixtures) {
     200,
   );
   check("session workspace context preserves scoped grants without workspace elevation", () => {
-    const permissionIds = clientAdminSession.body.user?.workspaceContext?.permissionIds || [];
+    const permissionIds = readPayload(clientAdminSession, ["user"]).user?.workspaceContext?.permissionIds || [];
     assert.ok(permissionIds.includes("clients.manage"));
     assert.ok(permissionIds.includes("projects.manage"));
     assert.equal(permissionIds.includes("workspace_settings.manage"), false);
@@ -768,7 +844,7 @@ async function runScopedAdminNavigationTests(api, fixtures) {
     api.get("/api/app-shell/bootstrap", { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   );
-  const workspaceAdminHrefs = navigationHrefs(workspaceAdminShell.body.navigation);
+  const workspaceAdminHrefs = navigationHrefs(readPayload(workspaceAdminShell, ["navigation"]).navigation);
   check("workspace administrator navigation remains complete", () => {
     for (const href of [
       "clients.html",
@@ -850,12 +926,12 @@ async function runScopedAdminNavigationTests(api, fixtures) {
     200,
   );
   check("client administrator project rows are scoped and actionable", () => {
-    assert.equal(clientAdminProjects.body.capabilities?.can_create_workspace_project, false);
-    assert.ok(clientAdminProjects.body.projects.some((/** @type {HarnessProjectRow} */ project) => project.id === fixtures.projects.alpha.id));
-    assert.ok(clientAdminProjects.body.projects.every((/** @type {HarnessProjectRow} */ project) => project.client_id === fixtures.clients.alpha.id));
-    assert.ok(clientAdminProjects.body.projects.every((/** @type {HarnessProjectRow} */ project) => project.can_manage === true));
-    assert.equal(clientAdminProjects.body.projects.some((/** @type {HarnessProjectRow} */ project) => project.id === fixtures.projects.beta.id), false);
-    assert.equal(clientAdminProjects.body.projects.some((/** @type {HarnessProjectRow} */ project) => project.id === fixtures.projects.workspace.id), false);
+    assert.equal(readPayload(clientAdminProjects, ["capabilities"]).capabilities?.can_create_workspace_project, false);
+    assert.ok(readPayload(clientAdminProjects, ["projects"]).projects.some((project) => project.id === fixtures.projects.alpha.id));
+    assert.ok(readPayload(clientAdminProjects, ["projects"]).projects.every((project) => project.client_id === fixtures.clients.alpha.id));
+    assert.ok(readPayload(clientAdminProjects, ["projects"]).projects.every((project) => project.can_manage === true));
+    assert.equal(readPayload(clientAdminProjects, ["projects"]).projects.some((project) => project.id === fixtures.projects.beta.id), false);
+    assert.equal(readPayload(clientAdminProjects, ["projects"]).projects.some((project) => project.id === fixtures.projects.workspace.id), false);
   });
 
   const projectAdminProjects = await expectStatus(
@@ -864,12 +940,12 @@ async function runScopedAdminNavigationTests(api, fixtures) {
     200,
   );
   check("project administrator project row is scoped and actionable without create authority", () => {
-    assert.equal(projectAdminProjects.body.capabilities?.can_create_workspace_project, false);
+    assert.equal(readPayload(projectAdminProjects, ["capabilities"]).capabilities?.can_create_workspace_project, false);
     assert.deepEqual(
-      projectAdminProjects.body.projects.map((/** @type {HarnessProjectRow} */ project) => project.id),
+      readPayload(projectAdminProjects, ["projects"]).projects.map((project) => project.id),
       [fixtures.projects.alpha.id],
     );
-    assert.equal(projectAdminProjects.body.projects[0]?.can_manage, true);
+    assert.equal(readPayload(projectAdminProjects, ["projects"]).projects[0]?.can_manage, true);
   });
 
   const clientAdminData = await expectStatus(
@@ -878,11 +954,11 @@ async function runScopedAdminNavigationTests(api, fixtures) {
     200,
   );
   check("client administrator can create and manage projects only in the administered Client", () => {
-    assert.equal(clientAdminData.body.capabilities?.can_create_workspace_project, false);
-    assert.deepEqual(clientAdminData.body.clients.map((/** @type {HarnessClientRow} */ client) => client.id), [fixtures.clients.alpha.id]);
-    assert.equal(clientAdminData.body.clients[0]?.can_create_project, true);
-    assert.equal(clientAdminData.body.clients[0]?.can_manage_projects, true);
-    assert.equal(clientAdminData.body.clients[0]?.projects[0]?.can_manage, true);
+    assert.equal(readPayload(clientAdminData, ["capabilities"]).capabilities?.can_create_workspace_project, false);
+    assert.deepEqual(readPayload(clientAdminData, ["clients"]).clients.map((client) => client.id), [fixtures.clients.alpha.id]);
+    assert.equal(readPayload(clientAdminData, ["clients"]).clients[0]?.can_create_project, true);
+    assert.equal(readPayload(clientAdminData, ["clients"]).clients[0]?.can_manage_projects, true);
+    assert.equal(readPayload(clientAdminData, ["clients"]).clients[0]?.projects[0]?.can_manage, true);
   });
 
   const projectAdminData = await expectStatus(
@@ -891,12 +967,12 @@ async function runScopedAdminNavigationTests(api, fixtures) {
     200,
   );
   check("project administrator receives no Client or workspace project-create target", () => {
-    assert.equal(projectAdminData.body.capabilities?.can_create_workspace_project, false);
-    assert.deepEqual(projectAdminData.body.clients.map((/** @type {HarnessClientRow} */ client) => client.id), [fixtures.clients.alpha.id]);
-    assert.equal(projectAdminData.body.clients[0]?.can_create_project, false);
-    assert.equal(projectAdminData.body.clients[0]?.can_manage, false);
-    assert.equal(projectAdminData.body.clients[0]?.can_manage_projects, false);
-    assert.equal(projectAdminData.body.clients[0]?.projects[0]?.can_manage, true);
+    assert.equal(readPayload(projectAdminData, ["capabilities"]).capabilities?.can_create_workspace_project, false);
+    assert.deepEqual(readPayload(projectAdminData, ["clients"]).clients.map((client) => client.id), [fixtures.clients.alpha.id]);
+    assert.equal(readPayload(projectAdminData, ["clients"]).clients[0]?.can_create_project, false);
+    assert.equal(readPayload(projectAdminData, ["clients"]).clients[0]?.can_manage, false);
+    assert.equal(readPayload(projectAdminData, ["clients"]).clients[0]?.can_manage_projects, false);
+    assert.equal(readPayload(projectAdminData, ["clients"]).clients[0]?.projects[0]?.can_manage, true);
   });
 }
 
@@ -912,8 +988,8 @@ async function runTaskMutationTests(api, fixtures) {
     201,
   );
   check("workspace-only task has no client or project scope", () => {
-    assert.equal(workspaceTask.body.task.client_id, "");
-    assert.equal(workspaceTask.body.task.project_id, "");
+    assert.equal(readPayload(workspaceTask, ["task"]).task.client_id, "");
+    assert.equal(readPayload(workspaceTask, ["task"]).task.project_id, "");
   });
 
   const scopedTask = await expectStatus(
@@ -926,9 +1002,9 @@ async function runTaskMutationTests(api, fixtures) {
     201,
   );
   check("project task inherits client context from project", () => {
-    assert.equal(scopedTask.body.task.project_id, fixtures.projects.alpha.id);
-    assert.equal(scopedTask.body.task.client_id, fixtures.clients.alpha.id);
-    assert.deepEqual(scopedTask.body.task.assignee_ids, [fixtures.users.projectUser.userId]);
+    assert.equal(readPayload(scopedTask, ["task"]).task.project_id, fixtures.projects.alpha.id);
+    assert.equal(readPayload(scopedTask, ["task"]).task.client_id, fixtures.clients.alpha.id);
+    assert.deepEqual(readPayload(scopedTask, ["task"]).task.assignee_ids, [fixtures.users.projectUser.userId]);
   });
   const timedOverdue = localPastMinuteDue();
   const timedOverdueTask = await expectStatus(
@@ -948,12 +1024,38 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("same-day timed overdue task is attention, not upcoming", () => {
-      const attentionIds = response.body.attentionRows.map((/** @type {HarnessTaskRow} */ task) => task.task_id);
-      const upcomingIds = response.body.upcomingRows.map((/** @type {HarnessTaskRow} */ task) => task.task_id);
-      assert.ok(attentionIds.includes(timedOverdueTask.body.task.task_id));
-      assert.equal(upcomingIds.includes(timedOverdueTask.body.task.task_id), false);
+      const attentionIds = readPayload(response, ["attentionRows"]).attentionRows.map((task) => task.task_id);
+      const upcomingIds = readPayload(response, ["upcomingRows"]).upcomingRows.map((task) => task.task_id);
+      assert.ok(attentionIds.includes(readPayload(timedOverdueTask, ["task"]).task.task_id));
+      assert.equal(upcomingIds.includes(readPayload(timedOverdueTask, ["task"]).task.task_id), false);
     });
   });
+
+  // The Tasks contribution grants client_external_user only tasks.view. The
+  // database role-seed-scope-convergence regression owns the separate contract
+  // that module defaults converge into the persisted role_permissions table;
+  // what these prove is the corresponding behavior over HTTP, which no probe
+  // in this matrix covered before 0.33.33.30.7.2.3.
+  await expectStatus(
+    "external client user can read tasks in its scoped client",
+    api.get("/api/tasks", { cookie: fixtures.sessions.externalClientUser }),
+    200,
+  );
+  await expectStatus(
+    "external client user cannot create tasks",
+    api.post("/api/tasks", {
+      title: "Denied external client task",
+      project_id: fixtures.projects.alpha.id,
+    }, { cookie: fixtures.sessions.externalClientUser }),
+    403,
+  );
+  await expectStatus(
+    "external client user cannot edit tasks it does not own",
+    api.put(`/api/tasks/${encodeURIComponent(readPayload(scopedTask, ["task"]).task.task_id)}`, {
+      title: "Denied external client edit",
+    }, { cookie: fixtures.sessions.externalClientUser }),
+    403,
+  );
 
   await expectStatus(
     "project user cannot create tasks outside assigned project",
@@ -965,22 +1067,22 @@ async function runTaskMutationTests(api, fixtures) {
   );
   await expectStatus(
     "project user can complete own assigned tasks",
-    api.post(`/api/tasks/${encodeURIComponent(scopedTask.body.task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
+    api.post(`/api/tasks/${encodeURIComponent(readPayload(scopedTask, ["task"]).task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
     200,
   );
   await expectStatus(
     "project user cannot archive tasks",
-    api.post(`/api/tasks/${encodeURIComponent(scopedTask.body.task.task_id)}/archive`, {}, { cookie: fixtures.sessions.projectUser }),
+    api.post(`/api/tasks/${encodeURIComponent(readPayload(scopedTask, ["task"]).task.task_id)}/archive`, {}, { cookie: fixtures.sessions.projectUser }),
     403,
   );
   await expectStatus(
     "workspace admin can archive tasks",
-    api.post(`/api/tasks/${encodeURIComponent(scopedTask.body.task.task_id)}/archive`, {}, { cookie: fixtures.sessions.workspaceAdmin }),
+    api.post(`/api/tasks/${encodeURIComponent(readPayload(scopedTask, ["task"]).task.task_id)}/archive`, {}, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   );
   await expectStatus(
     "workspace admin can restore tasks",
-    api.post(`/api/tasks/${encodeURIComponent(scopedTask.body.task.task_id)}/restore`, {}, { cookie: fixtures.sessions.workspaceAdmin }),
+    api.post(`/api/tasks/${encodeURIComponent(readPayload(scopedTask, ["task"]).task.task_id)}/restore`, {}, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   );
   await expectStatus(
@@ -988,13 +1090,13 @@ async function runTaskMutationTests(api, fixtures) {
     api.post("/api/tasks/bulk", {
       action: "priority",
       priority: "urgent",
-      task_ids: [scopedTask.body.task.task_id],
+      task_ids: [readPayload(scopedTask, ["task"]).task.task_id],
     }, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   ).then((response) => {
     check("bulk priority update returns updated task", () => {
-      assert.equal(response.body.tasks[0].priority, "urgent");
-      assert.equal(response.body.errors.length, 0);
+      assert.equal(readPayload(response, ["tasks"]).tasks[0].priority, "urgent");
+      assert.equal(readPayload(response, ["errors"]).errors.length, 0);
     });
   });
   await expectStatus(
@@ -1002,13 +1104,13 @@ async function runTaskMutationTests(api, fixtures) {
     api.post("/api/tasks/bulk", {
       action: "project_assign",
       project_id: fixtures.projects.beta.id,
-      task_ids: [scopedTask.body.task.task_id],
+      task_ids: [readPayload(scopedTask, ["task"]).task.task_id],
     }, { cookie: fixtures.sessions.projectUser }),
     200,
   ).then((response) => {
     check("bulk Project move keeps destination authority server-owned", () => {
-      assert.equal(response.body.tasks.length, 0);
-      assert.equal(response.body.errors[0].status, 403);
+      assert.equal(readPayload(response, ["tasks"]).tasks.length, 0);
+      assert.equal(readPayload(response, ["errors"]).errors[0].status, 403);
     });
   });
   await expectStatus(
@@ -1017,14 +1119,14 @@ async function runTaskMutationTests(api, fixtures) {
       action: "project_assign",
       client_id: fixtures.clients.beta.id,
       project_id: fixtures.projects.beta.id,
-      task_ids: [workspaceTask.body.task.task_id],
+      task_ids: [readPayload(workspaceTask, ["task"]).task.task_id],
     }, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   ).then((response) => {
     check("bulk Project assignment returns canonical destination context", () => {
-      assert.equal(response.body.tasks[0].project_id, fixtures.projects.beta.id);
-      assert.equal(response.body.tasks[0].client_id, fixtures.clients.beta.id);
-      assert.equal(response.body.errors.length, 0);
+      assert.equal(readPayload(response, ["tasks"]).tasks[0].project_id, fixtures.projects.beta.id);
+      assert.equal(readPayload(response, ["tasks"]).tasks[0].client_id, fixtures.clients.beta.id);
+      assert.equal(readPayload(response, ["errors"]).errors.length, 0);
     });
   });
   await expectStatus(
@@ -1032,13 +1134,13 @@ async function runTaskMutationTests(api, fixtures) {
     api.post("/api/tasks/bulk", {
       action: "assignee_replace",
       assignee_ids: [fixtures.users.workspaceAdmin.userId],
-      task_ids: [scopedTask.body.task.task_id],
+      task_ids: [readPayload(scopedTask, ["task"]).task.task_id],
     }, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   ).then((response) => {
     check("bulk assignee replace returns exact assignee list", () => {
-      assert.deepEqual(response.body.tasks[0].assignee_ids, [fixtures.users.workspaceAdmin.userId]);
-      assert.equal(response.body.errors.length, 0);
+      assert.deepEqual(readPayload(response, ["tasks"]).tasks[0].assignee_ids, [fixtures.users.workspaceAdmin.userId]);
+      assert.equal(readPayload(response, ["errors"]).errors.length, 0);
     });
   });
   await expectStatus(
@@ -1046,7 +1148,7 @@ async function runTaskMutationTests(api, fixtures) {
     api.post("/api/tasks/bulk", {
       action: "assignee_replace",
       assignee_ids: [fixtures.users.projectUser.userId],
-      task_ids: [scopedTask.body.task.task_id],
+      task_ids: [readPayload(scopedTask, ["task"]).task.task_id],
     }, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   );
@@ -1054,13 +1156,13 @@ async function runTaskMutationTests(api, fixtures) {
     "project user bulk archive reuses task archive permission",
     api.post("/api/tasks/bulk", {
       action: "archive",
-      task_ids: [scopedTask.body.task.task_id],
+      task_ids: [readPayload(scopedTask, ["task"]).task.task_id],
     }, { cookie: fixtures.sessions.projectUser }),
     200,
   ).then((response) => {
     check("bulk archive reports denied selected task", () => {
-      assert.equal(response.body.tasks.length, 0);
-      assert.equal(response.body.errors[0].status, 403);
+      assert.equal(readPayload(response, ["tasks"]).tasks.length, 0);
+      assert.equal(readPayload(response, ["errors"]).errors[0].status, 403);
     });
   });
   await expectStatus(
@@ -1080,12 +1182,12 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("workspace task reminder defaults are returned from settings save", () => {
-      const taskSettings = response.body.data.moduleSettings
-        .find((/** @type {HarnessModuleDefinition} */ moduleDefinition) => moduleDefinition.moduleId === "tasks")?.settings || [];
-      assert.equal(taskSettings.find((/** @type {HarnessModuleSetting} */ setting) => setting.id === "reminderDateTimeHours1")?.value, 1);
-      assert.equal(taskSettings.find((/** @type {HarnessModuleSetting} */ setting) => setting.id === "reminderDateTimeHours2")?.value, 3);
-      assert.equal(taskSettings.find((/** @type {HarnessModuleSetting} */ setting) => setting.id === "reminderDateOnlyDays1")?.value, 1);
-      assert.equal(taskSettings.find((/** @type {HarnessModuleSetting} */ setting) => setting.id === "reminderDateOnlyDays2")?.value, 2);
+      const taskSettings = readPayload(response, ["data"]).data.moduleSettings
+        .find((moduleDefinition) => moduleDefinition.moduleId === "tasks")?.settings || [];
+      assert.equal(taskSettings.find((setting) => setting.id === "reminderDateTimeHours1")?.value, 1);
+      assert.equal(taskSettings.find((setting) => setting.id === "reminderDateTimeHours2")?.value, 3);
+      assert.equal(taskSettings.find((setting) => setting.id === "reminderDateOnlyDays1")?.value, 1);
+      assert.equal(taskSettings.find((setting) => setting.id === "reminderDateOnlyDays2")?.value, 2);
     });
   });
   await expectStatus(
@@ -1120,7 +1222,7 @@ async function runTaskMutationTests(api, fixtures) {
   );
   await expectStatus(
     "workspace admin can save task reminder overrides",
-    api.put(`/api/tasks/${encodeURIComponent(scopedTask.body.task.task_id)}`, {
+    api.put(`/api/tasks/${encodeURIComponent(readPayload(scopedTask, ["task"]).task.task_id)}`, {
       title: "Project scoped task",
       project_id: fixtures.projects.alpha.id,
       reminderOverrideEnabled: true,
@@ -1132,8 +1234,8 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("task reminder override is returned with effective policy", () => {
-      assert.equal(response.body.task.reminderDetails.overrideEnabled, true);
-      assert.deepEqual(response.body.task.reminderDetails.effectivePolicy.offsets.dateTime, [30, 60]);
+      assert.equal(readPayload(response, ["task"]).task.reminderDetails.overrideEnabled, true);
+      assert.deepEqual(readPayload(response, ["task"]).task.reminderDetails.effectivePolicy.offsets.dateTime, [30, 60]);
     });
   });
   const recurringTask = await expectStatus(
@@ -1153,41 +1255,41 @@ async function runTaskMutationTests(api, fixtures) {
     201,
   );
   check("recurring task returns recurrence details", () => {
-    assert.ok(recurringTask.body.task.recurrence_template_id);
-    assert.equal(recurringTask.body.task.recurrence_instance_date, localDateOffset(0));
-    assert.equal(recurringTask.body.task.recurrenceDetails.frequency, "DAILY");
+    assert.ok(readPayload(recurringTask, ["task"]).task.recurrence_template_id);
+    assert.equal(readPayload(recurringTask, ["task"]).task.recurrence_instance_date, localDateOffset(0));
+    assert.equal(readPayload(recurringTask, ["task"]).task.recurrenceDetails.frequency, "DAILY");
   });
   const completedRecurringTask = await expectStatus(
     "project user can complete own recurring task and create next instance",
-    api.post(`/api/tasks/${encodeURIComponent(recurringTask.body.task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
+    api.post(`/api/tasks/${encodeURIComponent(readPayload(recurringTask, ["task"]).task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
     200,
   );
   await drainQueuedSearchJobs();
   const nextRecurringTask = await readRecurrenceInstance(
     fixtures.workspaceId,
-    recurringTask.body.task.recurrence_template_id,
+    readPayload(recurringTask, ["task"]).task.recurrence_template_id,
     localDateOffset(1),
   );
   check("recurring completion creates next dated task", () => {
-    assert.equal(completedRecurringTask.body.task.status, "complete");
-    assert.equal(completedRecurringTask.body.createdTask, null);
-    assert.equal(completedRecurringTask.body.recurrenceJob.queued, true);
+    assert.equal(readPayload(completedRecurringTask, ["task"]).task.status, "complete");
+    assert.equal(readPayload(completedRecurringTask, ["createdTask"]).createdTask, null);
+    assert.equal(readPayload(completedRecurringTask, ["recurrenceJob"]).recurrenceJob.queued, true);
     assert.equal(nextRecurringTask.due_date, localDateOffset(1));
-    assert.equal(nextRecurringTask.recurrence_template_id, recurringTask.body.task.recurrence_template_id);
+    assert.equal(nextRecurringTask.recurrence_template_id, readPayload(recurringTask, ["task"]).task.recurrence_template_id);
   });
   await expectStatus(
     "recurring completion retry reuses existing next instance",
-    api.post(`/api/tasks/${encodeURIComponent(recurringTask.body.task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
+    api.post(`/api/tasks/${encodeURIComponent(readPayload(recurringTask, ["task"]).task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
     200,
   ).then((response) => {
     return drainQueuedSearchJobs().then(async () => ({ response, nextCount: await countRecurrenceInstances(
       fixtures.workspaceId,
-      recurringTask.body.task.recurrence_template_id,
+      readPayload(recurringTask, ["task"]).task.recurrence_template_id,
       localDateOffset(1),
     ) }));
   }).then(({ response, nextCount }) => {
     check("recurring retry does not duplicate next instance", () => {
-      assert.equal(response.body.createdTask, null);
+      assert.equal(readPayload(response, ["createdTask"]).createdTask, null);
       assert.equal(nextCount, 1);
     });
   });
@@ -1199,11 +1301,12 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("task calendar payload is calendar-ready and scope filtered", () => {
-      const taskIds = response.body.tasks.map((/** @type {HarnessTaskRow} */ task) => task.task_id);
-      assert.ok(!taskIds.includes(recurringTask.body.task.task_id), "completed recurrence instances stay out of the active calendar default");
+      const taskIds = readPayload(response, ["tasks"]).tasks.map((task) => task.task_id);
+      assert.ok(!taskIds.includes(readPayload(recurringTask, ["task"]).task.task_id), "completed recurrence instances stay out of the active calendar default");
       assert.ok(taskIds.includes(nextRecurringTask.task_id));
-      assert.ok(!taskIds.includes(workspaceTask.body.task.task_id));
-      const calendarTask = response.body.tasks.find((/** @type {HarnessTaskRow} */ task) => task.task_id === nextRecurringTask.task_id);
+      assert.ok(!taskIds.includes(readPayload(workspaceTask, ["task"]).task.task_id));
+      const calendarTask = readPayload(response, ["tasks"]).tasks.find((task) => task.task_id === nextRecurringTask.task_id);
+      assert.ok(calendarTask, "the calendar payload should carry the recurring task");
       assert.equal(calendarTask.id, nextRecurringTask.task_id);
       assert.equal(calendarTask.startDate, nextRecurringTask.due_date);
       assert.equal(calendarTask.allDay, true);
@@ -1217,17 +1320,17 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("dashboard task summary respects task scope and exposes Dashboard-safe handoffs", () => {
-      const upcomingIds = response.body.upcomingRows.map((/** @type {HarnessTaskRow} */ task) => task.task_id);
+      const upcomingIds = readPayload(response, ["upcomingRows"]).upcomingRows.map((task) => task.task_id);
       assert.ok(upcomingIds.includes(nextRecurringTask.task_id));
-      assert.ok(!upcomingIds.includes(workspaceTask.body.task.task_id));
-      const firstUpcomingRow = response.body.upcomingRows[0];
+      assert.ok(!upcomingIds.includes(readPayload(workspaceTask, ["task"]).task.task_id));
+      const firstUpcomingRow = readPayload(response, ["upcomingRows"]).upcomingRows[0];
       assert.equal(
         firstUpcomingRow.action.href,
         `workbench.html?taskId=${encodeURIComponent(firstUpcomingRow.task_id)}`,
         "per-task Open Workbench handoffs must deep-link into Task Focus for that row's task",
       );
-      assert.equal(response.body.actions.workbench.href, "workbench.html");
-      assert.equal(response.body.actions.tasks.href, "tasks.html");
+      assert.equal(readPayload(response, ["actions"]).actions.workbench.href, "workbench.html");
+      assert.equal(readPayload(response, ["actions"]).actions.tasks.href, "tasks.html");
     });
   });
   await expectStatus(
@@ -1236,20 +1339,20 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("dashboard task summary contribution is metadata-only and module-routed", () => {
-      assert.ok(!Object.hasOwn(response.body, "tasks"));
-      assert.ok(response.body.extensionPoints.dashboardPanels.some((/** @type {HarnessPanelRow} */ panel) => (
+      assert.ok(!Object.hasOwn(payloadRecord(response), "tasks"));
+      assert.ok(readPayload(response, ["extensionPoints"]).extensionPoints.dashboardPanels.some((panel) => (
         panel.id === "tasks-needs-attention" &&
         panel.renderer === "tasks.needs-attention" &&
         panel.placement === "attention" &&
         panel.dataRoute === "/api/tasks/dashboard-summary"
       )));
-      assert.ok(response.body.extensionPoints.dashboardPanels.some((/** @type {HarnessPanelRow} */ panel) => (
+      assert.ok(readPayload(response, ["extensionPoints"]).extensionPoints.dashboardPanels.some((panel) => (
         panel.id === "tasks-today-upcoming" &&
         panel.renderer === "tasks.today-upcoming" &&
         panel.placement === "today" &&
         panel.dataRoute === "/api/tasks/dashboard-summary"
       )));
-      assert.ok(response.body.extensionPoints.dashboardPanels.some((/** @type {HarnessPanelRow} */ panel) => (
+      assert.ok(readPayload(response, ["extensionPoints"]).extensionPoints.dashboardPanels.some((panel) => (
         panel.id === "task-summary" &&
         panel.renderer === "tasks.pressure" &&
         panel.placement === "main" &&
@@ -1266,7 +1369,7 @@ async function runTaskMutationTests(api, fixtures) {
     }, { cookie: fixtures.sessions.projectUser }),
     201,
   );
-  fixtures.taskTimerTaskId = timerTask.body.task.task_id;
+  fixtures.taskTimerTaskId = readPayload(timerTask, ["task"]).task.task_id;
   const timerGateTask = await expectStatus(
     "project user can create task timer gate test task",
     api.post("/api/tasks", {
@@ -1276,10 +1379,10 @@ async function runTaskMutationTests(api, fixtures) {
     }, { cookie: fixtures.sessions.projectUser }),
     201,
   );
-  fixtures.taskTimerGateTaskId = timerGateTask.body.task.task_id;
+  fixtures.taskTimerGateTaskId = readPayload(timerGateTask, ["task"]).task.task_id;
   await expectStatus(
     "project user can start task timer",
-    api.put(`/api/tasks/${encodeURIComponent(timerTask.body.task.task_id)}/timer`, {
+    api.put(`/api/tasks/${encodeURIComponent(readPayload(timerTask, ["task"]).task.task_id)}/timer`, {
       timer_status: "running",
       accumulated_elapsed_seconds: 5,
       last_active_start_time: new Date().toISOString(),
@@ -1287,8 +1390,8 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("task timer returns active timer state", () => {
-      assert.equal(response.body.timer.task_id, timerTask.body.task.task_id);
-      assert.equal(response.body.timer.timer_status, "running");
+      assert.equal(readPayload(response, ["timer"]).timer.task_id, readPayload(timerTask, ["task"]).task.task_id);
+      assert.equal(readPayload(response, ["timer"]).timer.timer_status, "running");
     });
   });
   await expectStatus(
@@ -1297,7 +1400,7 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("running task timer is a deduped attention signal", () => {
-      const timerRow = response.body.attentionRows.find((/** @type {HarnessListItem} */ row) => row.task_id === timerTask.body.task.task_id);
+      const timerRow = readPayload(response, ["attentionRows"]).attentionRows.find((row) => row.task_id === readPayload(timerTask, ["task"]).task.task_id);
       assert.ok(timerRow);
       assert.ok(timerRow.reasons.includes("Timer running"));
       assert.equal(timerRow.action.href, `workbench.html?taskId=${encodeURIComponent(timerRow.task_id)}`);
@@ -1310,13 +1413,13 @@ async function runTaskMutationTests(api, fixtures) {
     expected: {
       source_module_id: "tasks",
       source_type: "task",
-      source_id: timerTask.body.task.task_id,
+      source_id: readPayload(timerTask, ["task"]).task.task_id,
       timer_status: "running",
     },
   });
   await expectStatus(
     "tasks cannot complete while task timer is active",
-    api.post(`/api/tasks/${encodeURIComponent(timerTask.body.task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
+    api.post(`/api/tasks/${encodeURIComponent(readPayload(timerTask, ["task"]).task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
     400,
   );
   await expectStatus(
@@ -1344,7 +1447,8 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("normal timer start paused task timer", () => {
-      const timer = response.body.timers.find((/** @type {HarnessListItem} */ item) => item.task_id === timerTask.body.task.task_id);
+      const timer = readPayload(response, ["timers"]).timers.find((item) => item.task_id === readPayload(timerTask, ["task"]).task.task_id);
+      assert.ok(timer, "the timers payload should carry the seeded timer");
       assert.equal(timer.timer_status, "paused");
     });
   });
@@ -1354,7 +1458,7 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("paused task timer is a deduped attention signal", () => {
-      const timerRow = response.body.attentionRows.find((/** @type {HarnessListItem} */ row) => row.task_id === timerTask.body.task.task_id);
+      const timerRow = readPayload(response, ["attentionRows"]).attentionRows.find((row) => row.task_id === readPayload(timerTask, ["task"]).task.task_id);
       assert.ok(timerRow);
       assert.ok(timerRow.reasons.includes("Timer paused"));
       assert.equal(timerRow.action.href, `workbench.html?taskId=${encodeURIComponent(timerRow.task_id)}`);
@@ -1367,13 +1471,13 @@ async function runTaskMutationTests(api, fixtures) {
     expected: {
       source_module_id: "tasks",
       source_type: "task",
-      source_id: timerTask.body.task.task_id,
+      source_id: readPayload(timerTask, ["task"]).task.task_id,
       timer_status: "paused",
     },
   });
   await expectStatus(
     "starting task timer pauses normal active timer",
-    api.put(`/api/tasks/${encodeURIComponent(timerTask.body.task.task_id)}/timer`, {
+    api.put(`/api/tasks/${encodeURIComponent(readPayload(timerTask, ["task"]).task.task_id)}/timer`, {
       timer_status: "running",
       accumulated_elapsed_seconds: 8,
       last_active_start_time: new Date().toISOString(),
@@ -1386,7 +1490,8 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("task timer start paused normal timer", () => {
-      const timer = response.body.timers.find((/** @type {HarnessListItem} */ item) => item.timer_slot === "task-mutual");
+      const timer = readPayload(response, ["timers"]).timers.find((item) => item.timer_slot === "task-mutual");
+      assert.ok(timer, "the timers payload should carry the seeded timer");
       assert.equal(timer.timer_status, "paused");
     });
   });
@@ -1396,14 +1501,14 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("Workbench bootstrap returns generic module state and source registry", () => {
-      assert.equal(response.body.modules.tasks.enabled, true);
-      assert.equal(response.body.modules["time-tracking"].enabled, true);
-      assert.equal(Object.hasOwn(response.body.modules, "timeTracking"), false);
-      assert.ok(response.body.registry.workbenchCards.some((/** @type {HarnessCardRow} */ card) => card.renderer === "active-work-timers"));
-      assert.ok(response.body.registry.workbenchCards.some((/** @type {HarnessCardRow} */ card) => card.renderer === "task-workbench-items"));
-      assert.deepEqual(response.body.timers, []);
-      assert.equal(Object.hasOwn(response.body, "taskItems"), false);
-      assert.deepEqual(response.body.workCandidates, [], "bootstrap must not compute focus candidates");
+      assert.equal(asModuleMap(readPayload(response, ["modules"]).modules).tasks.enabled, true);
+      assert.equal(asModuleMap(readPayload(response, ["modules"]).modules)["time-tracking"].enabled, true);
+      assert.equal(Object.hasOwn(asModuleMap(readPayload(response, ["modules"]).modules), "timeTracking"), false);
+      assert.ok(readPayload(response, ["registry"]).registry.workbenchCards.some((card) => card.renderer === "active-work-timers"));
+      assert.ok(readPayload(response, ["registry"]).registry.workbenchCards.some((card) => card.renderer === "task-workbench-items"));
+      assert.deepEqual(readPayload(response, ["timers"]).timers, []);
+      assert.equal(Object.hasOwn(payloadRecord(response), "taskItems"), false);
+      assert.deepEqual(readPayload(response, ["workCandidates"]).workCandidates, [], "bootstrap must not compute focus candidates");
     });
   });
   await expectStatus(
@@ -1412,7 +1517,7 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("Workbench focus candidates include normalized live-timer candidates", () => {
-      assert.ok(response.body.items.some((/** @type {HarnessCandidateRow} */ candidate) => candidate.recordType === "active_work_timer"));
+      assert.ok(readPayload(response, ["items"]).items.some((candidate) => candidate.recordType === "active_work_timer"));
     });
   });
   await expectStatus(
@@ -1421,8 +1526,8 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("Workbench timer source route preserves manual and task timer data", () => {
-      assert.ok(response.body.timers.some((/** @type {HarnessTimerRow} */ timer) => timer.source_type === "manual" && timer.timer_slot === "task-mutual"));
-      assert.ok(response.body.timers.some((/** @type {HarnessTimerRow} */ timer) => timer.source_module_id === "tasks" && timer.source_id === timerTask.body.task.task_id));
+      assert.ok(readPayload(response, ["timers"]).timers.some((timer) => timer.source_type === "manual" && timer.timer_slot === "task-mutual"));
+      assert.ok(readPayload(response, ["timers"]).timers.some((timer) => timer.source_module_id === "tasks" && timer.source_id === readPayload(timerTask, ["task"]).task.task_id));
     });
   });
   await expectStatus(
@@ -1431,27 +1536,27 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("Workbench task source route preserves task item data", () => {
-      assert.ok(response.body.items.some((/** @type {HarnessTaskRow} */ task) => task.source_type === "task" && task.source_id === timerTask.body.task.task_id));
+      assert.ok(readPayload(response, ["items"]).items.some((task) => task.source_type === "task" && task.source_id === readPayload(timerTask, ["task"]).task.task_id));
     });
   });
   await expectStatus(
     "Workbench can pause a sourced task timer without losing source metadata",
-    api.put(`/api/workbench/timers/${encodeURIComponent(`source:tasks:task:${timerTask.body.task.task_id}`)}/status`, {
+    api.put(`/api/workbench/timers/${encodeURIComponent(`source:tasks:task:${readPayload(timerTask, ["task"]).task.task_id}`)}/status`, {
       timer_status: "paused",
       accumulated_elapsed_seconds: 12,
     }, { cookie: fixtures.sessions.projectUser }),
     200,
   ).then((response) => {
     check("Workbench status action preserves task timer source", () => {
-      assert.equal(response.body.timer.source_module_id, "tasks");
-      assert.equal(response.body.timer.source_type, "task");
-      assert.equal(response.body.timer.source_id, timerTask.body.task.task_id);
-      assert.equal(response.body.timer.timer_status, "paused");
+      assert.equal(readPayload(response, ["timer"]).timer.source_module_id, "tasks");
+      assert.equal(readPayload(response, ["timer"]).timer.source_type, "task");
+      assert.equal(readPayload(response, ["timer"]).timer.source_id, readPayload(timerTask, ["task"]).task.task_id);
+      assert.equal(readPayload(response, ["timer"]).timer.timer_status, "paused");
     });
   });
   await expectStatus(
     "project user can restart task timer after Workbench pause",
-    api.put(`/api/tasks/${encodeURIComponent(timerTask.body.task.task_id)}/timer`, {
+    api.put(`/api/tasks/${encodeURIComponent(readPayload(timerTask, ["task"]).task.task_id)}/timer`, {
       timer_status: "running",
       accumulated_elapsed_seconds: 60,
       last_active_start_time: new Date().toISOString(),
@@ -1470,15 +1575,15 @@ async function runTaskMutationTests(api, fixtures) {
   });
   await expectStatus(
     "project user can finalize task timer into time entry",
-    api.post(`/api/tasks/${encodeURIComponent(timerTask.body.task.task_id)}/timer/finalize`, {
+    api.post(`/api/tasks/${encodeURIComponent(readPayload(timerTask, ["task"]).task.task_id)}/timer/finalize`, {
       duration_seconds: 60,
       end_time: new Date().toISOString(),
     }, { cookie: fixtures.sessions.projectUser }),
     201,
   ).then((response) => {
     check("task timer finalize returns time entry id", () => {
-      assert.ok(response.body.entry_id);
-      assert.equal(response.body.task_id, timerTask.body.task.task_id);
+      assert.ok(readPayload(response, ["entry_id"]).entry_id);
+      assert.equal(readPayload(response, ["task_id"]).task_id, readPayload(timerTask, ["task"]).task.task_id);
     });
   });
   await expectStatus(
@@ -1487,18 +1592,18 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("time entries include finalized task timer link", () => {
-      assert.ok(response.body.entries.some((/** @type {HarnessTimeEntryRow} */ entry) => entry.task_id === timerTask.body.task.task_id));
+      assert.ok(readPayload(response, ["entries"]).entries.some((entry) => entry.task_id === readPayload(timerTask, ["task"]).task.task_id));
     });
   });
   await assertNoUnifiedTimerState({
     label: "finalized task timer is removed from unified active timer table",
     workspaceId: fixtures.workspaceId,
     userId: fixtures.users.projectUser.userId,
-    sourceId: timerTask.body.task.task_id,
+    sourceId: readPayload(timerTask, ["task"]).task.task_id,
   });
   await expectStatus(
     "project user can complete task after task timer is finalized",
-    api.post(`/api/tasks/${encodeURIComponent(timerTask.body.task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
+    api.post(`/api/tasks/${encodeURIComponent(readPayload(timerTask, ["task"]).task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
     200,
   );
   await expectStatus(
@@ -1507,8 +1612,8 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("client admin scoped task list includes assigned client task", () => {
-      assert.ok(response.body.tasks.some((/** @type {HarnessTaskRow} */ task) => task.task_id === scopedTask.body.task.task_id));
-      assert.ok(!response.body.tasks.some((/** @type {HarnessTaskRow} */ task) => task.task_id === workspaceTask.body.task.task_id));
+      assert.ok(readPayload(response, ["tasks"]).tasks.some((task) => task.task_id === readPayload(scopedTask, ["task"]).task.task_id));
+      assert.ok(!readPayload(response, ["tasks"]).tasks.some((task) => task.task_id === readPayload(workspaceTask, ["task"]).task.task_id));
     });
   });
   await expectStatus(
@@ -1556,10 +1661,10 @@ async function runTimeEntryMutationTests(api, fixtures) {
     200,
   );
   check("workspace admin correction preserves original time entry owner", () => {
-    assert.equal(adminCorrection.body.entry.user_id, fixtures.users.projectUser.userId);
+    assert.equal(readPayload(adminCorrection, ["entry"]).entry.user_id, fixtures.users.projectUser.userId);
   });
   check("workspace admin correction returns updated manual tag", () => {
-    assert.ok((adminCorrection.body.entry.tags || []).some((/** @type {HarnessTagRow} */ tag) => tag.tag_id === correctionTag.tagId));
+    assert.ok((readPayload(adminCorrection, ["entry"]).entry.tags || []).some((tag) => tag.tag_id === correctionTag.tagId));
   });
   const correctedList = await expectStatus(
     "workspace admin corrected time entry appears in time-entry list",
@@ -1567,10 +1672,10 @@ async function runTimeEntryMutationTests(api, fixtures) {
     200,
   );
   check("time-entry list reflects workspace admin correction fields", () => {
-    const corrected = correctedList.body.entries.find((/** @type {HarnessListItem} */ item) => item.entry_id === entry.entry_id);
+    const corrected = readPayload(correctedList, ["entries"]).entries.find((item) => item.entry_id === entry.entry_id);
     assert.equal(corrected?.description, "Workspace admin corrected entry");
     assert.equal(Number(corrected?.duration_seconds), 5400);
-    assert.ok((corrected?.tags || []).some((/** @type {HarnessTagRow} */ tag) => tag.tag_id === correctionTag.tagId));
+    assert.ok((corrected?.tags || []).some((tag) => tag.tag_id === correctionTag.tagId));
   });
   const recentDashboardEnd = new Date();
   const recentDashboardStart = new Date(recentDashboardEnd.getTime() - 45 * 60 * 1000);
@@ -1591,7 +1696,7 @@ async function runTimeEntryMutationTests(api, fixtures) {
     200,
   );
   check("recent time dashboard payload is compact and Dashboard-safe", () => {
-    const row = scopedDashboardBeforeHidden.body.recentTime.rows.find((/** @type {HarnessListItem} */ item) => item.id === recentDashboardEntry.body.entry_id);
+    const row = readPayload(scopedDashboardBeforeHidden, ["recentTime"]).recentTime.rows.find((item) => item.id === readPayload(recentDashboardEntry, ["entry_id"]).entry_id);
     assert.ok(row);
     assert.equal(row.action.href, "time-entries.html");
     assert.equal(Object.hasOwn(row, "description"), false);
@@ -1617,10 +1722,10 @@ async function runTimeEntryMutationTests(api, fixtures) {
     200,
   );
   check("bounded dashboard aggregation excludes inaccessible recent time from rows and totals", () => {
-    assert.ok(!scopedDashboardAfterHidden.body.recentTime.rows.some((/** @type {HarnessListItem} */ item) => item.id === hiddenDashboardEntry.body.entry_id));
-    assert.equal(scopedDashboardAfterHidden.body.recentTime.entriesCount, scopedDashboardBeforeHidden.body.recentTime.entriesCount);
-    assert.equal(scopedDashboardAfterHidden.body.recentTime.todaySeconds, scopedDashboardBeforeHidden.body.recentTime.todaySeconds);
-    assert.equal(scopedDashboardAfterHidden.body.recentTime.totalSeconds, scopedDashboardBeforeHidden.body.recentTime.totalSeconds);
+    assert.ok(!readPayload(scopedDashboardAfterHidden, ["recentTime"]).recentTime.rows.some((item) => item.id === readPayload(hiddenDashboardEntry, ["entry_id"]).entry_id));
+    assert.equal(readPayload(scopedDashboardAfterHidden, ["recentTime"]).recentTime.entriesCount, readPayload(scopedDashboardBeforeHidden, ["recentTime"]).recentTime.entriesCount);
+    assert.equal(readPayload(scopedDashboardAfterHidden, ["recentTime"]).recentTime.todaySeconds, readPayload(scopedDashboardBeforeHidden, ["recentTime"]).recentTime.todaySeconds);
+    assert.equal(readPayload(scopedDashboardAfterHidden, ["recentTime"]).recentTime.totalSeconds, readPayload(scopedDashboardBeforeHidden, ["recentTime"]).recentTime.totalSeconds);
   });
   const reporting = await expectStatus(
     "reporting reflects workspace admin time entry correction",
@@ -1628,8 +1733,9 @@ async function runTimeEntryMutationTests(api, fixtures) {
     200,
   );
   check("reporting summary includes corrected raw duration", () => {
-    const row = reporting.body.rows.find((/** @type {HarnessListItem} */ item) => item.project.id === fixtures.projects.alpha.id);
-    assert.ok(row?.rawSeconds >= 5400);
+    const row = readPayload(reporting, ["rows"]).rows.find((item) => item.project.id === fixtures.projects.alpha.id);
+    assert.ok(row, "the reporting payload should carry the alpha project row");
+    assert.ok(row.rawSeconds >= 5400);
   });
   const auditRows = await querySql(`
 SELECT metadata_json
@@ -1698,11 +1804,11 @@ async function runActiveTimerMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("active timers dashboard payload is compact and Workbench-routed", () => {
-      assert.ok(response.body.activeTimers.count >= 1);
-      assert.ok(response.body.activeTimers.rows.some((/** @type {HarnessListItem} */ row) =>
+      assert.ok(readPayload(response, ["activeTimers"]).activeTimers.count >= 1);
+      assert.ok(readPayload(response, ["activeTimers"]).activeTimers.rows.some((row) =>
         row.action.href === "workbench.html" &&
         ["Running", "Paused"].includes(row.status)));
-      assert.equal(JSON.stringify(response.body.activeTimers).includes("invoice"), false);
+      assert.equal(JSON.stringify(readPayload(response, ["activeTimers"]).activeTimers).includes("invoice"), false);
     });
   });
   await expectStatus(
@@ -1741,8 +1847,8 @@ async function runActiveTimerMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("manual active timer slots are compact after middle removal", () => {
-      const slots = response.body.timers
-        .map((/** @type {HarnessTimerRow} */ timer) => timer.timer_slot)
+      const slots = readPayload(response, ["timers"]).timers
+        .map((timer) => timer.timer_slot)
         .filter((/** @type {string} */ timerSlot) => /^[1-9]\d*$/.test(timerSlot));
       assert.deepEqual(slots, ["1", "2"]);
     });
@@ -1773,7 +1879,7 @@ async function runUserMutationTests(api, fixtures) {
     timezone: "America/New_York",
   }, { cookie: fixtures.sessions.workspaceAdmin });
   await expectStatus("workspace admin can create users", created, 201);
-  const userId = created.body.user.user_id;
+  const userId = readPayload(created, ["user"]).user.user_id;
 
   await expectStatus(
     "workspace admin can update users",
@@ -1792,7 +1898,7 @@ WHERE users.user_id = ${sqlText(userId)}
 `);
   check("administrator deletion retires access while preserving readable identity", () => {
     assert.deepEqual(retiredAdminTarget, [{
-      username: created.body.user.username,
+      username: readPayload(created, ["user"]).user.username,
       display_name: "Mutation User Updated",
       user_status: "inactive",
       membership_status: "inactive",
@@ -1805,7 +1911,7 @@ WHERE users.user_id = ${sqlText(userId)}
     timezone: "America/New_York",
   }, { cookie: fixtures.sessions.workspaceAdmin });
   await expectStatus("workspace admin can create a self-retirement fixture", selfCreated, 201);
-  const selfUserId = selfCreated.body.user.user_id;
+  const selfUserId = readPayload(selfCreated, ["user"]).user.user_id;
   await runSql(`
 UPDATE users
 SET password_change_required = 0
@@ -1815,8 +1921,8 @@ WHERE user_id = ${sqlText(selfUserId)};
   const selfLogin = await expectStatus(
     "active user can sign in before self-retirement",
     api.post("/api/login", {
-      username: selfCreated.body.user.username,
-      password: selfCreated.body.initialPassword,
+      username: readPayload(selfCreated, ["user"]).user.username,
+      password: readPayload(selfCreated, ["initialPassword"]).initialPassword,
     }),
     200,
   );
@@ -1834,8 +1940,8 @@ WHERE user_id = ${sqlText(selfUserId)};
   const retiredLogin = await expectStatus(
     "retired account receives a non-enumerating login denial",
     api.post("/api/login", {
-      username: selfCreated.body.user.username,
-      password: selfCreated.body.initialPassword,
+      username: readPayload(selfCreated, ["user"]).user.username,
+      password: readPayload(selfCreated, ["initialPassword"]).initialPassword,
     }),
     401,
   );
@@ -1843,17 +1949,17 @@ WHERE user_id = ${sqlText(selfUserId)};
     "unknown account receives the same non-enumerating login denial",
     api.post("/api/login", {
       username: uniqueEmail("unknown-retirement-user"),
-      password: selfCreated.body.initialPassword,
+      password: readPayload(selfCreated, ["initialPassword"]).initialPassword,
     }),
     401,
   );
   check("inactive and unknown login responses are indistinguishable", () => {
-    assert.equal(retiredLogin.body.error.code, unknownLogin.body.error.code);
-    assert.equal(retiredLogin.body.error.message, unknownLogin.body.error.message);
-    assert.equal(retiredLogin.body.error.code, "authentication_required");
-    assert.equal(retiredLogin.body.error.message, "These credentials do not have access to this installation.");
-    assert.match(retiredLogin.body.error.requestId, /^[0-9a-f-]{36}$/i);
-    assert.match(unknownLogin.body.error.requestId, /^[0-9a-f-]{36}$/i);
+    assert.equal(readPayload(retiredLogin, ["error"]).error.code, readPayload(unknownLogin, ["error"]).error.code);
+    assert.equal(readPayload(retiredLogin, ["error"]).error.message, readPayload(unknownLogin, ["error"]).error.message);
+    assert.equal(readPayload(retiredLogin, ["error"]).error.code, "authentication_required");
+    assert.equal(readPayload(retiredLogin, ["error"]).error.message, "These credentials do not have access to this installation.");
+    assert.match(readPayload(retiredLogin, ["error"]).error.requestId, /^[0-9a-f-]{36}$/i);
+    assert.match(readPayload(unknownLogin, ["error"]).error.requestId, /^[0-9a-f-]{36}$/i);
   });
 
   const retainedAttribution = await querySql(`
@@ -1874,7 +1980,7 @@ WHERE users.user_id = ${sqlText(selfUserId)};
 `);
   check("self-retirement preserves readable task, note, file, and list attribution", () => {
     assert.deepEqual(retainedAttribution, [{
-      username: selfCreated.body.user.username,
+      username: readPayload(selfCreated, ["user"]).user.username,
       display_name: "Retained Attribution User",
       user_status: "inactive",
       task_user_id: selfUserId,
@@ -1943,17 +2049,21 @@ async function runAddUserAdministrationTests(api, fixtures) {
     200,
   );
   check("non-super Add User workspace options exclude unrelated business workspaces", () => {
-    const workspaceIds = workspaceAdminOptions.body.workspaces.map((/** @type {HarnessWorkspaceRow} */ workspace) => workspace.workspaceId);
+    const workspaceIds = readPayload(workspaceAdminOptions, ["workspaces"]).workspaces.map((workspace) => workspace.workspaceId);
     assert.ok(workspaceIds.includes(fixtures.workspaceId));
     assert.ok(workspaceIds.includes(fixtures.familyWorkspace.id));
     assert.ok(!workspaceIds.includes(fixtures.otherWorkspace.id));
   });
   check("workspace admin Add User roles include authorized client and project scopes but exclude super admin", () => {
-    const roles = new Map(workspaceAdminOptions.body.roles.map((/** @type {HarnessRoleRow} */ role) => [role.role_id, role]));
-    const clientScopeIds = roles.get("client_user").scopes.map((/** @type {HarnessScopeRow} */ scope) => scope.scopeId);
-    const projectScopeIds = roles.get("project_user").scopes.map((/** @type {HarnessScopeRow} */ scope) => scope.scopeId);
+    const roles = new Map(readPayload(workspaceAdminOptions, ["roles"]).roles.map((role) => [role.role_id, role]));
+    const clientUserRole = roles.get("client_user");
+    const projectUserRole = roles.get("project_user");
+    const projectAdminRole = roles.get("project_admin");
+    assert.ok(clientUserRole && projectUserRole && projectAdminRole, "the workspace admin options should disclose each scoped role");
+    const clientScopeIds = clientUserRole.scopes.map((scope) => scope.scopeId);
+    const projectScopeIds = projectUserRole.scopes.map((scope) => scope.scopeId);
     assert.ok(!roles.has("super_admin"));
-    assert.equal(roles.get("project_admin").assignment_scope_type, "project");
+    assert.equal(projectAdminRole.assignment_scope_type, "project");
     assert.ok(Object.values(fixtures.clients).every((client) => clientScopeIds.includes(client.id)));
     assert.ok(Object.values(fixtures.projects).every((project) => projectScopeIds.includes(project.id)));
     assert.ok(!clientScopeIds.includes(fixtures.otherWorkspace.clientId));
@@ -1984,9 +2094,9 @@ async function runAddUserAdministrationTests(api, fixtures) {
     200,
   );
   check("exact-email lookup discloses only the minimum safe account match", () => {
-    assert.deepEqual(Object.keys(exactLookup.body.match).sort(), ["alreadyActive", "displayName", "username"]);
-    assert.equal(exactLookup.body.match.username, fixtures.users.projectUser.username);
-    assert.equal(exactLookup.body.match.alreadyActive, false);
+    assert.deepEqual(Object.keys(readPayload(exactLookup, ["match"]).match).sort(), ["alreadyActive", "displayName", "username"]);
+    assert.equal(readPayload(exactLookup, ["match"]).match.username, fixtures.users.projectUser.username);
+    assert.equal(readPayload(exactLookup, ["match"]).match.alreadyActive, false);
   });
   const noMatchLookup = await expectStatus(
     "exact-email lookup does not return unrelated account suggestions",
@@ -1997,7 +2107,7 @@ async function runAddUserAdministrationTests(api, fixtures) {
     200,
   );
   check("unmatched account lookup has no directory payload", () => {
-    assert.equal(noMatchLookup.body.match, null);
+    assert.equal(readPayload(noMatchLookup, ["match"]).match, null);
   });
 
   const existingAccount = await expectStatus(
@@ -2014,9 +2124,9 @@ async function runAddUserAdministrationTests(api, fixtures) {
     200,
   );
   check("existing account addition reuses the identity and does not issue a password", () => {
-    assert.equal(existingAccount.body.accountCreated, false);
-    assert.equal(existingAccount.body.user.user_id, fixtures.users.projectUser.userId);
-    assert.equal(existingAccount.body.initialPassword, "");
+    assert.equal(readPayload(existingAccount, ["accountCreated"]).accountCreated, false);
+    assert.equal(readPayload(existingAccount, ["user"]).user.user_id, fixtures.users.projectUser.userId);
+    assert.equal(readPayload(existingAccount, ["initialPassword"]).initialPassword, "");
   });
   const existingMemberships = await querySql(`
 SELECT workspace_id
@@ -2048,8 +2158,8 @@ WHERE user_id = ${sqlText(fixtures.users.projectUser.userId)}
     200,
   );
   check("super admin Add User options include the global super role", () => {
-    assert.ok(superOptions.body.workspaces.some((/** @type {HarnessWorkspaceRow} */ workspace) => workspace.workspaceId === fixtures.otherWorkspace.id));
-    assert.ok(superOptions.body.roles.some((/** @type {HarnessRoleRow} */ role) => role.role_id === "super_admin"));
+    assert.ok(readPayload(superOptions, ["workspaces"]).workspaces.some((workspace) => workspace.workspaceId === fixtures.otherWorkspace.id));
+    assert.ok(readPayload(superOptions, ["roles"]).roles.some((role) => role.role_id === "super_admin"));
   });
 
   const crossWorkspaceEmail = uniqueEmail("cross-workspace-user");
@@ -2074,12 +2184,12 @@ WHERE lower(username) = ${sqlText(crossWorkspaceEmail)};
   const crossWorkspaceAssignments = await querySql(`
 SELECT role_id, scope_type, scope_id
 FROM user_role_assignments
-WHERE user_id = ${sqlText(crossWorkspaceCreated.body.user.user_id)}
+WHERE user_id = ${sqlText(readPayload(crossWorkspaceCreated, ["user"]).user.user_id)}
   AND workspace_id = ${sqlText(fixtures.otherWorkspace.id)};
 `);
   check("new cross-workspace account receives one identity, password, membership, and requested scope", () => {
-    assert.equal(crossWorkspaceCreated.body.accountCreated, true);
-    assert.ok(crossWorkspaceCreated.body.initialPassword);
+    assert.equal(readPayload(crossWorkspaceCreated, ["accountCreated"]).accountCreated, true);
+    assert.ok(readPayload(crossWorkspaceCreated, ["initialPassword"]).initialPassword);
     assert.equal(crossWorkspaceIdentities.length, 1);
     assert.deepEqual(crossWorkspaceAssignments, [{
       role_id: "client_user",
@@ -2116,8 +2226,8 @@ WHERE user_id = ${sqlText(crossWorkspaceCreated.body.user.user_id)}
     200,
   );
   check("family workspace Add User options exclude every client-scoped role", () => {
-    assert.ok(familyOptions.body.roles.some((/** @type {HarnessRoleRow} */ role) => role.role_id === "project_user"));
-    assert.ok(familyOptions.body.roles.every((/** @type {HarnessRoleRow} */ role) => role.assignment_scope_type !== "client"));
+    assert.ok(readPayload(familyOptions, ["roles"]).roles.some((role) => role.role_id === "project_user"));
+    assert.ok(readPayload(familyOptions, ["roles"]).roles.every((role) => role.assignment_scope_type !== "client"));
   });
 
   const personalOptions = await expectStatus(
@@ -2126,8 +2236,8 @@ WHERE user_id = ${sqlText(crossWorkspaceCreated.body.user.user_id)}
     200,
   );
   check("personal workspace never offers Add User or client role scopes", () => {
-    assert.equal(personalOptions.body.canAddUsers, false);
-    assert.ok(personalOptions.body.roles.every((/** @type {HarnessRoleRow} */ role) => role.assignment_scope_type !== "client"));
+    assert.equal(readPayload(personalOptions, ["canAddUsers"]).canAddUsers, false);
+    assert.ok(readPayload(personalOptions, ["roles"]).roles.every((role) => role.assignment_scope_type !== "client"));
   });
   await expectStatus(
     "personal workspace rejects Add User creation",
@@ -2148,11 +2258,11 @@ async function runRoleAssignmentTests(api, fixtures) {
   );
   check("client admin role options disclose only delegable roles and authorized scopes", () => {
     assert.deepEqual(
-      rolesResponse.body.roles.map((/** @type {HarnessRoleRow} */ role) => role.role_id).sort(),
+      readPayload(rolesResponse, ["roles"]).roles.map((role) => role.role_id).sort(),
       ["client_external_user", "client_user", "project_admin", "project_user"],
     );
-    const disclosedScopeIds = rolesResponse.body.roles.flatMap((/** @type {HarnessRoleRow} */ role) => (
-      role.scopes.map((/** @type {HarnessScopeRow} */ scope) => scope.scopeId)
+    const disclosedScopeIds = readPayload(rolesResponse, ["roles"]).roles.flatMap((role) => (
+      role.scopes.map((scope) => scope.scopeId)
     ));
     assert.ok(disclosedScopeIds.includes(fixtures.clients.alpha.id));
     assert.ok(disclosedScopeIds.includes(fixtures.projects.alpha.id));
@@ -2167,9 +2277,9 @@ async function runRoleAssignmentTests(api, fixtures) {
     200,
   );
   check("project admin server-shaped role options contain no broader scope", () => {
-    assert.deepEqual(projectAdminRoles.body.roles.map((/** @type {HarnessRoleRow} */ role) => role.role_id), ["project_user"]);
+    assert.deepEqual(readPayload(projectAdminRoles, ["roles"]).roles.map((role) => role.role_id), ["project_user"]);
     assert.deepEqual(
-      projectAdminRoles.body.roles[0].scopes.map((/** @type {HarnessScopeRow} */ scope) => scope.scopeId),
+      readPayload(projectAdminRoles, ["roles"]).roles[0].scopes.map((scope) => scope.scopeId),
       [fixtures.projects.alpha.id],
     );
   });
@@ -2180,7 +2290,7 @@ async function runRoleAssignmentTests(api, fixtures) {
   );
   check("workspace admin role options retain its six-role ceiling and labeled scopes", () => {
     assert.deepEqual(
-      workspaceAdminRoles.body.roles.map((/** @type {HarnessRoleRow} */ role) => role.role_id).sort(),
+      readPayload(workspaceAdminRoles, ["roles"]).roles.map((role) => role.role_id).sort(),
       [
         "client_admin",
         "client_external_user",
@@ -2190,10 +2300,10 @@ async function runRoleAssignmentTests(api, fixtures) {
         "workspace_admin",
       ],
     );
-    assert.ok(workspaceAdminRoles.body.roles.every((/** @type {HarnessRoleRow} */ role) => (
+    assert.ok(readPayload(workspaceAdminRoles, ["roles"]).roles.every((role) => (
       role.assignment_scope_type
       && role.scopes.length > 0
-      && role.scopes.every((/** @type {HarnessScopeRow} */ scope) => scope.scopeId && scope.label)
+      && role.scopes.every((scope) => scope.scopeId && scope.label)
     )));
   });
   const superAdminRoles = await expectStatus(
@@ -2202,8 +2312,8 @@ async function runRoleAssignmentTests(api, fixtures) {
     200,
   );
   check("only super admin role options include Super Admin", () => {
-    assert.equal(superAdminRoles.body.roles.length, 7);
-    assert.ok(superAdminRoles.body.roles.some((/** @type {HarnessRoleRow} */ role) => role.role_id === "super_admin"));
+    assert.equal(readPayload(superAdminRoles, ["roles"]).roles.length, 7);
+    assert.ok(readPayload(superAdminRoles, ["roles"]).roles.some((role) => role.role_id === "super_admin"));
   });
   await expectStatus(
     "scoped admins cannot enumerate assignments by user ID",
@@ -2321,13 +2431,13 @@ ORDER BY assignment_id;
     200,
   );
   check("exact delegated lookup returns only minimum identity and manageable assignments", () => {
-    assert.equal(initialLookup.body.match.userId, fixtures.users.unscopedUser.userId);
-    assert.equal(initialLookup.body.match.username, fixtures.users.unscopedUser.username);
-    assert.equal(initialLookup.body.match.activeMembership, true);
-    assert.match(initialLookup.body.match.assignmentRevision, /^[a-f0-9]{64}$/);
-    assert.deepEqual(initialLookup.body.match.assignments, []);
+    assert.equal(readPayload(initialLookup, ["match"]).match.userId, fixtures.users.unscopedUser.userId);
+    assert.equal(readPayload(initialLookup, ["match"]).match.username, fixtures.users.unscopedUser.username);
+    assert.equal(readPayload(initialLookup, ["match"]).match.activeMembership, true);
+    assert.match(readPayload(initialLookup, ["match"]).match.assignmentRevision, /^[a-f0-9]{64}$/);
+    assert.deepEqual(readPayload(initialLookup, ["match"]).match.assignments, []);
     assert.deepEqual(
-      Object.keys(initialLookup.body.match).sort(),
+      Object.keys(readPayload(initialLookup, ["match"]).match).sort(),
       ["activeMembership", "assignmentRevision", "assignments", "displayName", "userId", "username"],
     );
   });
@@ -2335,7 +2445,7 @@ ORDER BY assignment_id;
   const delegatedUpdate = await expectStatus(
     "client admin can assign project users in assigned client",
     api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
-      assignmentRevision: initialLookup.body.match.assignmentRevision,
+      assignmentRevision: readPayload(initialLookup, ["match"]).match.assignmentRevision,
       assignments: [{
         role_id: "project_user",
         scope_type: "project",
@@ -2345,15 +2455,15 @@ ORDER BY assignment_id;
     200,
   );
   check("delegated mutation returns only its manageable assignment and a new revision", () => {
-    assert.deepEqual(delegatedUpdate.body.assignments, [{
+    assert.deepEqual(readPayload(delegatedUpdate, ["assignments"]).assignments, [{
       role_id: "project_user",
       scope_id: fixtures.projects.alpha.id,
       scope_type: "project",
     }]);
-    assert.match(delegatedUpdate.body.assignmentRevision, /^[a-f0-9]{64}$/);
+    assert.match(readPayload(delegatedUpdate, ["assignmentRevision"]).assignmentRevision, /^[a-f0-9]{64}$/);
     assert.notEqual(
-      delegatedUpdate.body.assignmentRevision,
-      initialLookup.body.match.assignmentRevision,
+      readPayload(delegatedUpdate, ["assignmentRevision"]).assignmentRevision,
+      readPayload(initialLookup, ["match"]).match.assignmentRevision,
     );
   });
   const hiddenAfter = await querySql(`
@@ -2371,7 +2481,7 @@ ORDER BY assignment_id;
   await expectStatus(
     "scoped mutation cannot name a hidden higher role",
     api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
-      assignmentRevision: delegatedUpdate.body.assignmentRevision,
+      assignmentRevision: readPayload(delegatedUpdate, ["assignmentRevision"]).assignmentRevision,
       assignments: [{
         role_id: "workspace_admin",
         scope_type: "workspace",
@@ -2383,7 +2493,7 @@ ORDER BY assignment_id;
   await expectStatus(
     "scoped mutation cannot set permission overrides",
     api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
-      assignmentRevision: delegatedUpdate.body.assignmentRevision,
+      assignmentRevision: readPayload(delegatedUpdate, ["assignmentRevision"]).assignmentRevision,
       assignments: [{
         role_id: "project_user",
         scope_type: "project",
@@ -2399,7 +2509,7 @@ ORDER BY assignment_id;
   await expectStatus(
     "client admin cannot assign project users outside assigned client",
     api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
-      assignmentRevision: delegatedUpdate.body.assignmentRevision,
+      assignmentRevision: readPayload(delegatedUpdate, ["assignmentRevision"]).assignmentRevision,
       assignments: [{
         role_id: "project_user",
         scope_type: "project",
@@ -2412,7 +2522,7 @@ ORDER BY assignment_id;
   await expectStatus(
     "stale delegated assignment revisions fail closed",
     api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
-      assignmentRevision: initialLookup.body.match.assignmentRevision,
+      assignmentRevision: readPayload(initialLookup, ["match"]).match.assignmentRevision,
       assignments: [{
         role_id: "project_user",
         scope_type: "project",
@@ -2424,8 +2534,8 @@ ORDER BY assignment_id;
   await expectStatus(
     "delegated assignment revisions cannot be reused by another actor",
     api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
-      assignmentRevision: delegatedUpdate.body.assignmentRevision,
-      assignments: delegatedUpdate.body.assignments,
+      assignmentRevision: readPayload(delegatedUpdate, ["assignmentRevision"]).assignmentRevision,
+      assignments: readPayload(delegatedUpdate, ["assignments"]).assignments,
     }, { cookie: fixtures.sessions.projectAdmin }),
     409,
   );
@@ -2438,7 +2548,7 @@ ORDER BY assignment_id;
     200,
   );
   check("project admin lookup does not disclose hidden client assignment data", () => {
-    assert.deepEqual(projectLookup.body.match.assignments, [{
+    assert.deepEqual(readPayload(projectLookup, ["match"]).match.assignments, [{
       role_id: "project_user",
       scope_id: fixtures.projects.alpha.id,
       scope_type: "project",
@@ -2449,8 +2559,8 @@ ORDER BY assignment_id;
   await expectStatus(
     "project admin can preserve project users in its assigned project",
     api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
-      assignmentRevision: projectLookup.body.match.assignmentRevision,
-      assignments: projectLookup.body.match.assignments,
+      assignmentRevision: readPayload(projectLookup, ["match"]).match.assignmentRevision,
+      assignments: readPayload(projectLookup, ["match"]).match.assignments,
     }, { cookie: fixtures.sessions.projectAdmin }),
     200,
   );
@@ -2465,7 +2575,7 @@ ORDER BY assignment_id;
   await expectStatus(
     "delegated role mutation rejects self-assignment",
     api.put(`/api/users/${fixtures.users.clientAdmin.userId}/role-assignments`, {
-      assignmentRevision: selfLookup.body.match.assignmentRevision,
+      assignmentRevision: readPayload(selfLookup, ["match"]).match.assignmentRevision,
       assignments: [],
     }, { cookie: fixtures.sessions.clientAdmin }),
     400,
@@ -2479,13 +2589,13 @@ ORDER BY assignment_id;
     200,
   );
   check("protected exact lookup omits protected state and assignments", () => {
-    assert.deepEqual(protectedLookup.body.match.assignments, []);
-    assert.equal(Object.hasOwn(protectedLookup.body.match, "protectedUser"), false);
+    assert.deepEqual(readPayload(protectedLookup, ["match"]).match.assignments, []);
+    assert.equal(Object.hasOwn(readPayload(protectedLookup, ["match"]).match, "protectedUser"), false);
   });
   await expectStatus(
     "delegated role mutation rejects protected users",
     api.put(`/api/users/${fixtures.users.superAdmin.user_id}/role-assignments`, {
-      assignmentRevision: protectedLookup.body.match.assignmentRevision,
+      assignmentRevision: readPayload(protectedLookup, ["match"]).match.assignmentRevision,
       assignments: [],
     }, { cookie: fixtures.sessions.clientAdmin }),
     400,
@@ -2530,8 +2640,8 @@ WHERE assignment_id = ${sqlText(revokedActorAssignment.assignment_id)};
   await expectStatus(
     "revoked actor authority cannot apply a previously discovered mutation",
     api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
-      assignmentRevision: revokedLookup.body.match.assignmentRevision,
-      assignments: revokedLookup.body.match.assignments,
+      assignmentRevision: readPayload(revokedLookup, ["match"]).match.assignmentRevision,
+      assignments: readPayload(revokedLookup, ["match"]).match.assignments,
     }, { cookie: fixtures.sessions.clientAdmin }),
     403,
   );
@@ -2634,11 +2744,11 @@ async function runSettingsTests(api, fixtures) {
     201,
   );
   check("workspace backup response exposes a checksum without key material or a server path", () => {
-    assert.match(workspaceBackup.body.backup.archiveSha256, /^[a-f0-9]{64}$/);
-    assert.equal(workspaceBackup.body.backup.secureNotesKeyIncluded, false);
-    assert.equal(workspaceBackup.body.backup.workspaceName, "Harness Business Workspace");
-    assert.equal(Object.hasOwn(workspaceBackup.body.backup, "archiveFilename"), false);
-    assert.equal(Object.hasOwn(workspaceBackup.body.backup, "outputPath"), false);
+    assert.match(readPayload(workspaceBackup, ["backup"]).backup.archiveSha256, /^[a-f0-9]{64}$/);
+    assert.equal(readPayload(workspaceBackup, ["backup"]).backup.secureNotesKeyIncluded, false);
+    assert.equal(readPayload(workspaceBackup, ["backup"]).backup.workspaceName, "Harness Business Workspace");
+    assert.equal(Object.hasOwn(readPayload(workspaceBackup, ["backup"]).backup, "archiveFilename"), false);
+    assert.equal(Object.hasOwn(readPayload(workspaceBackup, ["backup"]).backup, "outputPath"), false);
   });
   const latestWorkspaceBackup = await expectStatus(
     "super admin can read the latest workspace backup receipt",
@@ -2646,7 +2756,7 @@ async function runSettingsTests(api, fixtures) {
     200,
   );
   check("latest workspace backup receipt matches the created checksum", () => {
-    assert.equal(latestWorkspaceBackup.body.backup.archiveSha256, workspaceBackup.body.backup.archiveSha256);
+    assert.equal(readPayload(latestWorkspaceBackup, ["backup"]).backup.archiveSha256, readPayload(workspaceBackup, ["backup"]).backup.archiveSha256);
   });
   await expectStatus(
     "project user cannot read workspace deletion state",
@@ -2673,7 +2783,7 @@ SELECT
     201,
   );
   check("workspace deletion response is safe, explicit, and 30-day recoverable", () => {
-    const deletion = deletionRequest.body.deletion;
+    const deletion = readPayload(deletionRequest, ["deletion"]).deletion;
     assert.equal(deletion.pending, true);
     assert.equal(deletion.lifecycle.status, "pending_deletion");
     assert.equal(deletion.lifecycle.backupProtected, true);
@@ -2691,9 +2801,9 @@ SELECT
     200,
   );
   check("app shell exposes the safe pending lifecycle without suppressing modules", () => {
-    assert.equal(pendingShell.body.workspaceContext.workspaceDeletion.status, "pending_deletion");
-    assert.ok(pendingShell.body.enabledModules.includes("tasks"));
-    assert.match(JSON.stringify(pendingShell.body.navigation), /workspace-settings\.html/);
+    assert.equal(readPayload(pendingShell, ["workspaceContext"]).workspaceContext.workspaceDeletion.status, "pending_deletion");
+    assert.ok(readPayload(pendingShell, ["enabledModules"]).enabledModules.includes("tasks"));
+    assert.match(JSON.stringify(readPayload(pendingShell, ["navigation"]).navigation), /workspace-settings\.html/);
   });
   await expectStatus(
     "super admin can cancel deletion during the grace period",
@@ -2714,8 +2824,8 @@ SELECT
     200,
   );
   check("no-backup state requires the exact safe acknowledgement phrase", () => {
-    assert.equal(noBackupState.body.deletion.backup.current, false);
-    assert.equal(noBackupState.body.deletion.acknowledgementPhrase, "DELETE WITHOUT CURRENT BACKUP");
+    assert.equal(readPayload(noBackupState, ["deletion"]).deletion.backup.current, false);
+    assert.equal(readPayload(noBackupState, ["deletion"]).deletion.acknowledgementPhrase, "DELETE WITHOUT CURRENT BACKUP");
   });
   await expectStatus(
     "workspace deletion refuses an incorrect no-backup acknowledgement",
@@ -2734,8 +2844,8 @@ SELECT
     201,
   );
   check("no-backup acknowledgement is recorded without pretending a receipt exists", () => {
-    assert.equal(noBackupRequest.body.deletion.lifecycle.backupProtected, false);
-    assert.equal(noBackupRequest.body.deletion.lifecycle.noCurrentBackupAcknowledged, true);
+    assert.equal(readPayload(noBackupRequest, ["deletion"]).deletion.lifecycle.backupProtected, false);
+    assert.equal(readPayload(noBackupRequest, ["deletion"]).deletion.lifecycle.noCurrentBackupAcknowledged, true);
   });
   await expectStatus(
     "workspace admin can cancel an acknowledged no-backup deletion request",
@@ -2745,18 +2855,18 @@ SELECT
   await expectStatus(
     "workspace admin can update workspace settings",
     api.put("/api/settings", {
-      ...workspaceSettingsSavePayload(settings.body),
+      ...workspaceSettingsSavePayload(readPayload(settings, ["moduleSettings"])),
       workspaceName: "Permission Regression Workspace",
-      moduleSettings: moduleSettingsPayload(settings.body),
+      moduleSettings: moduleSettingsPayload(readPayload(settings, ["moduleSettings"])),
     }, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   );
   await expectStatus(
     "workspace type cannot be changed after creation",
     api.put("/api/settings", {
-      ...workspaceSettingsSavePayload(settings.body),
+      ...workspaceSettingsSavePayload(readPayload(settings, ["moduleSettings"])),
       workspaceType: "personal",
-      moduleSettings: moduleSettingsPayload(settings.body),
+      moduleSettings: moduleSettingsPayload(readPayload(settings, ["moduleSettings"])),
     }, { cookie: fixtures.sessions.workspaceAdmin }),
     400,
   );
@@ -2766,23 +2876,23 @@ SELECT
     200,
   );
   check("rejected direct requests preserve the workspace type", () => {
-    assert.equal(unchangedType.body.workspaceType, "business");
+    assert.equal(readPayload(unchangedType, ["workspaceType"]).workspaceType, "business");
   });
   await expectStatus(
     "super admin can rename a workspace",
     api.put("/api/settings", {
-      ...workspaceSettingsSavePayload(unchangedType.body),
+      ...workspaceSettingsSavePayload(readPayload(unchangedType, ["moduleSettings"])),
       workspaceName: "Super Admin Renamed Workspace",
-      moduleSettings: moduleSettingsPayload(unchangedType.body),
+      moduleSettings: moduleSettingsPayload(readPayload(unchangedType, ["moduleSettings"])),
     }, { cookie: fixtures.sessions.superAdmin }),
     200,
   );
   await expectStatus(
     "project user cannot update workspace settings",
     api.put("/api/settings", {
-      ...workspaceSettingsSavePayload(settings.body),
+      ...workspaceSettingsSavePayload(readPayload(settings, ["moduleSettings"])),
       workspaceName: "Denied Workspace",
-      moduleSettings: moduleSettingsPayload(settings.body),
+      moduleSettings: moduleSettingsPayload(readPayload(settings, ["moduleSettings"])),
     }, { cookie: fixtures.sessions.projectUser }),
     403,
   );
@@ -2798,7 +2908,7 @@ async function runOwnershipScopeTests(api, fixtures) {
     200,
   );
   check("client admin scoped time list includes team entries in assigned client", () => {
-    assert.ok(clientAdminList.body.entries.some((/** @type {HarnessListItem} */ item) => item.entry_id === adminEntry.entry_id));
+    assert.ok(readPayload(clientAdminList, ["entries"]).entries.some((item) => item.entry_id === adminEntry.entry_id));
   });
   const projectAdminList = await expectStatus(
     "project admin can list scoped project time entries from other users",
@@ -2806,7 +2916,7 @@ async function runOwnershipScopeTests(api, fixtures) {
     200,
   );
   check("project admin scoped time list includes team entries in assigned client", () => {
-    assert.ok(projectAdminList.body.entries.some((/** @type {HarnessListItem} */ item) => item.entry_id === adminEntry.entry_id));
+    assert.ok(readPayload(projectAdminList, ["entries"]).entries.some((item) => item.entry_id === adminEntry.entry_id));
   });
   const update = await api.put(
     `/api/time-entries/${encodeURIComponent(entry.entry_id)}`,
@@ -2815,7 +2925,7 @@ async function runOwnershipScopeTests(api, fixtures) {
   );
   await expectStatus("time-entry update accepts valid owner-spoof regression request", update, 200);
   check("time-entry update cannot change user_id", () => {
-    assert.equal(update.body.entry.user_id, fixtures.users.projectUser.userId);
+    assert.equal(readPayload(update, ["entry"]).entry.user_id, fixtures.users.projectUser.userId);
   });
 
   const apiKey = await createApiKey(api, fixtures.sessions.workspaceAdmin, ["time_entries:write"]);
@@ -2825,7 +2935,7 @@ async function runOwnershipScopeTests(api, fixtures) {
   }), { bearer: apiKey.rawKey });
   await expectStatus("public API time-entry create accepts valid owner-spoof regression request", create, 201);
   check("public API time-entry create cannot spoof user_id", () => {
-    assert.equal(create.body.data.user_id, fixtures.users.workspaceAdmin.userId);
+    assert.equal(readPayload(create, ["data"]).data.user_id, fixtures.users.workspaceAdmin.userId);
   });
 }
 
@@ -2916,12 +3026,12 @@ async function runWorkspaceOwnerLifecycleTests(api, fixtures) {
   const transferNow = "2026-01-01T00:00:00.000Z";
 
   await runSql(`
-${userInsertSql(ownedWorkspace.body.workspace.workspaceId, transferAdmin)}
-${membershipInsertSql(ownedWorkspace.body.workspace.workspaceId, transferAdmin, transferNow)}
-${assignmentInsertSql(ownedWorkspace.body.workspace.workspaceId, transferAdmin.userId, "workspace_admin", "workspace", ownedWorkspace.body.workspace.workspaceId, transferNow)}
+${userInsertSql(readPayload(ownedWorkspace, ["workspace"]).workspace.workspaceId, transferAdmin)}
+${membershipInsertSql(readPayload(ownedWorkspace, ["workspace"]).workspace.workspaceId, transferAdmin, transferNow)}
+${assignmentInsertSql(readPayload(ownedWorkspace, ["workspace"]).workspace.workspaceId, transferAdmin.userId, "workspace_admin", "workspace", readPayload(ownedWorkspace, ["workspace"]).workspace.workspaceId, transferNow)}
 `);
   const transferAdminSession = await createSession(
-    ownedWorkspace.body.workspace.workspaceId,
+    readPayload(ownedWorkspace, ["workspace"]).workspace.workspaceId,
     transferAdmin.userId,
     transferAdmin.username,
   );
@@ -2933,7 +3043,7 @@ ${assignmentInsertSql(ownedWorkspace.body.workspace.workspaceId, transferAdmin.u
   const transferredOwner = await querySql(`
 SELECT owner_user_id
 FROM workspaces
-WHERE workspace_id = ${sqlText(ownedWorkspace.body.workspace.workspaceId)}
+WHERE workspace_id = ${sqlText(readPayload(ownedWorkspace, ["workspace"]).workspace.workspaceId)}
 LIMIT 1;
 `);
   check("workspace owner transfer selects the active workspace administrator", () => {
@@ -2950,7 +3060,7 @@ LIMIT 1;
     201,
   );
   const blockedOwnerSession = await createSession(
-    blockedWorkspace.body.workspace.workspaceId,
+    readPayload(blockedWorkspace, ["workspace"]).workspace.workspaceId,
     fixtures.users.workspaceAdmin.userId,
     fixtures.users.workspaceAdmin.username,
   );
@@ -2968,7 +3078,7 @@ LIMIT 1;
   await expectStatus("workspace admin can create a user for no-workspace fallback", unassigned, 201);
   await expectStatus(
     "removing all workspace memberships creates a personal fallback workspace",
-    api.put(`/api/users/${unassigned.body.user.user_id}/update`, {
+    api.put(`/api/users/${readPayload(unassigned, ["user"]).user.user_id}/update`, {
       workspaceMemberships: [],
       timezone: "America/New_York",
     }, { cookie: fixtures.sessions.workspaceAdmin }),
@@ -2979,7 +3089,7 @@ SELECT workspaces.workspace_type, user_workspaces.workspace_id, user_workspaces.
 FROM user_workspaces
 INNER JOIN workspaces ON workspaces.workspace_id = user_workspaces.workspace_id
 INNER JOIN users ON users.user_id = user_workspaces.user_id
-WHERE user_workspaces.user_id = ${sqlText(unassigned.body.user.user_id)}
+WHERE user_workspaces.user_id = ${sqlText(readPayload(unassigned, ["user"]).user.user_id)}
   AND user_workspaces.status = 'active'
 ORDER BY workspaces.created_at DESC;
 `);
@@ -2997,17 +3107,19 @@ async function runWorkspaceCreationModuleSettingTests(api, fixtures) {
     api.get("/api/user/settings", { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   );
-  const businessType = userSettings.body.workspaceCreation.availableTypes.find((/** @type {HarnessListItem} */ type) => type.workspaceType === "business");
+  const businessType = readPayload(userSettings, ["workspaceCreation"]).workspaceCreation.availableTypes.find((type) => type.workspaceType === "business");
+  assert.ok(businessType, "workspace creation should offer the business type");
 
   check("Create Workspace exposes module settings for Business workspaces", () => {
     assert.ok(businessType);
-    assert.ok(businessType.moduleSettings.some((/** @type {HarnessModuleDefinition} */ moduleDefinition) => moduleDefinition.moduleId === "tasks"));
-    assert.ok(businessType.moduleSettings.some((/** @type {HarnessModuleDefinition} */ moduleDefinition) => moduleDefinition.moduleId === "time-tracking"));
+    assert.ok(businessType.moduleSettings.some((moduleDefinition) => moduleDefinition.moduleId === "tasks"));
+    assert.ok(businessType.moduleSettings.some((moduleDefinition) => moduleDefinition.moduleId === "time-tracking"));
   });
   check("required modules appear locked in Create Workspace module controls", () => {
-    const requiredModule = businessType.moduleSettings.find((/** @type {HarnessModuleDefinition} */ moduleDefinition) => moduleDefinition.moduleId === "client-projects");
+    const requiredModule = businessType.moduleSettings.find((moduleDefinition) => moduleDefinition.moduleId === "client-projects");
+    assert.ok(requiredModule?.settings, "the business type should carry required module settings");
     assert.ok(requiredModule);
-    assert.ok(requiredModule.settings.some((/** @type {HarnessModuleSetting} */ setting) => setting.moduleStatus === true && setting.readOnly === true));
+    assert.ok(requiredModule.settings.some((setting) => setting.moduleStatus === true && setting.readOnly === true));
   });
 
   const tasksOffWorkspace = await expectStatus(
@@ -3022,7 +3134,7 @@ async function runWorkspaceCreationModuleSettingTests(api, fixtures) {
     }, { cookie: fixtures.sessions.workspaceAdmin }),
     201,
   );
-  const tasksOffStatuses = await readWorkspaceModuleStatuses(tasksOffWorkspace.body.workspace.workspaceId);
+  const tasksOffStatuses = await readWorkspaceModuleStatuses(readPayload(tasksOffWorkspace, ["workspace"]).workspace.workspaceId);
   check("created workspace stores Tasks off and Time Tracking on", () => {
     assert.equal(tasksOffStatuses.get("tasks"), "disabled");
     assert.equal(tasksOffStatuses.get("time-tracking"), "enabled");
@@ -3033,7 +3145,7 @@ async function runWorkspaceCreationModuleSettingTests(api, fixtures) {
     200,
   );
   check("disabled Tasks do not appear in nav after creation", () => {
-    assert.equal(flattenNavigationHrefs(tasksOffShell.body.navigation).includes("tasks.html"), false);
+    assert.equal(flattenNavigationHrefs(readPayload(tasksOffShell, ["navigation"]).navigation).includes("tasks.html"), false);
   });
 
   const tasksOffSettings = await expectStatus(
@@ -3042,13 +3154,13 @@ async function runWorkspaceCreationModuleSettingTests(api, fixtures) {
     200,
   );
   check("Workspace Settings keeps required module controls locked", () => {
-    const requiredModule = tasksOffSettings.body.moduleSettings.find((/** @type {HarnessModuleDefinition} */ moduleDefinition) => moduleDefinition.moduleId === "client-projects");
+    const requiredModule = readPayload(tasksOffSettings, ["moduleSettings"]).moduleSettings.find((moduleDefinition) => moduleDefinition.moduleId === "client-projects");
     assert.ok(requiredModule);
-    assert.ok(requiredModule.settings.some((/** @type {HarnessModuleSetting} */ setting) => setting.moduleStatus === true && setting.readOnly === true));
+    assert.ok(requiredModule.settings.some((setting) => setting.moduleStatus === true && setting.readOnly === true));
   });
   check("Workspace Settings and Create Workspace expose matching Business module setting IDs", () => {
     assert.deepEqual(
-      moduleStatusSettingKeys(tasksOffSettings.body.moduleSettings),
+      moduleStatusSettingKeys(readPayload(tasksOffSettings, ["moduleSettings"]).moduleSettings),
       moduleStatusSettingKeys(businessType.moduleSettings),
     );
   });
@@ -3065,7 +3177,7 @@ async function runWorkspaceCreationModuleSettingTests(api, fixtures) {
     }, { cookie: fixtures.sessions.workspaceAdmin }),
     201,
   );
-  const timeTrackingOffStatuses = await readWorkspaceModuleStatuses(timeTrackingOffWorkspace.body.workspace.workspaceId);
+  const timeTrackingOffStatuses = await readWorkspaceModuleStatuses(readPayload(timeTrackingOffWorkspace, ["workspace"]).workspace.workspaceId);
   check("created workspace stores Time Tracking off and Tasks on", () => {
     assert.equal(timeTrackingOffStatuses.get("tasks"), "enabled");
     assert.equal(timeTrackingOffStatuses.get("time-tracking"), "disabled");
@@ -3076,7 +3188,7 @@ async function runWorkspaceCreationModuleSettingTests(api, fixtures) {
     200,
   );
   check("disabled Time Tracking does not appear in nav after creation", () => {
-    const hrefs = flattenNavigationHrefs(timeTrackingOffShell.body.navigation);
+    const hrefs = flattenNavigationHrefs(readPayload(timeTrackingOffShell, ["navigation"]).navigation);
     assert.equal(hrefs.includes("time-tracker.html"), false);
     assert.equal(hrefs.includes("manual-entry.html"), false);
     assert.equal(hrefs.includes("edit-entries.html"), false);
@@ -3093,7 +3205,7 @@ async function runDisabledModuleTests(api, fixtures) {
     200,
   );
   check("permission resource catalog contains contributed resources only", () => {
-    const resourceKeys = new Set(permissionResources.body.resources.map((/** @type {HarnessResourceRow} */ resource) => resource.key));
+    const resourceKeys = new Set(readPayload(permissionResources, ["resources"]).resources.map((resource) => resource.key));
     assert.equal(resourceKeys.has("time_entries"), true);
     assert.equal(resourceKeys.has("lists"), true);
     assert.equal(resourceKeys.has("tags"), true);
@@ -3106,63 +3218,63 @@ async function runDisabledModuleTests(api, fixtures) {
     403,
   );
   check("settings expose Time Tracking module metadata", () => {
-    const timeTrackingModule = settings.body.modules.find((/** @type {HarnessModuleDefinition} */ moduleDefinition) => moduleDefinition.id === "time-tracking");
+    const timeTrackingModule = asModuleList(readPayload(settings, ["modules"]).modules).find((moduleDefinition) => moduleDefinition.id === "time-tracking");
     assert.ok(timeTrackingModule);
-    assert.ok(timeTrackingModule.navigation.some((/** @type {HarnessListItem} */ item) => item.href === "time-tracker.html"));
-    assert.ok(timeTrackingModule.dashboard.some((/** @type {HarnessListItem} */ item) =>
+    assert.ok(timeTrackingModule.navigation.some((item) => item.href === "time-tracker.html"));
+    assert.ok(timeTrackingModule.dashboard.some((item) =>
       item.id === "active-timers" &&
       item.renderer === "time-tracking.active-timers" &&
       item.placement === "main" &&
       item.dataRoute === "/api/time-tracking/dashboard/effort-summary"));
-    assert.ok(timeTrackingModule.dashboard.some((/** @type {HarnessListItem} */ item) =>
+    assert.ok(timeTrackingModule.dashboard.some((item) =>
       item.id === "recent-time" &&
       item.renderer === "time-tracking.recent-time" &&
       item.placement === "main" &&
       item.dataRoute === "/api/time-tracking/dashboard/effort-summary"));
-    assert.equal(timeTrackingModule.dashboard.some((/** @type {HarnessListItem} */ item) => item.id === "current-month-billables"), false);
-    assert.equal(timeTrackingModule.dashboard.some((/** @type {HarnessListItem} */ item) => item.id === "hours-billables-chart"), false);
-    assert.ok(timeTrackingModule.publicApiEndpoints.some((/** @type {HarnessListItem} */ item) => item.path === "/api/v1/time-entries"));
-    assert.ok(timeTrackingModule.settings.some((/** @type {HarnessListItem} */ item) => item.id === "timeTrackingEnabled"));
+    assert.equal(timeTrackingModule.dashboard.some((item) => item.id === "current-month-billables"), false);
+    assert.equal(timeTrackingModule.dashboard.some((item) => item.id === "hours-billables-chart"), false);
+    assert.ok(timeTrackingModule.publicApiEndpoints.some((item) => item.path === "/api/v1/time-entries"));
+    assert.ok(timeTrackingModule.settings.some((item) => item.id === "timeTrackingEnabled"));
   });
   check("settings expose Tasks module metadata", () => {
-    const tasksModule = settings.body.modules.find((/** @type {HarnessModuleDefinition} */ moduleDefinition) => moduleDefinition.id === "tasks");
+    const tasksModule = asModuleList(readPayload(settings, ["modules"]).modules).find((moduleDefinition) => moduleDefinition.id === "tasks");
     assert.ok(tasksModule);
-    assert.ok(tasksModule.navigation.some((/** @type {HarnessListItem} */ item) => item.href === "tasks.html"));
-    assert.ok(tasksModule.dashboard.some((/** @type {HarnessListItem} */ item) =>
+    assert.ok(tasksModule.navigation.some((item) => item.href === "tasks.html"));
+    assert.ok(tasksModule.dashboard.some((item) =>
       item.id === "tasks-needs-attention" &&
       item.renderer === "tasks.needs-attention" &&
       item.placement === "attention" &&
       item.dataRoute === "/api/tasks/dashboard-summary"));
-    assert.ok(tasksModule.dashboard.some((/** @type {HarnessListItem} */ item) =>
+    assert.ok(tasksModule.dashboard.some((item) =>
       item.id === "tasks-today-upcoming" &&
       item.renderer === "tasks.today-upcoming" &&
       item.placement === "today" &&
       item.dataRoute === "/api/tasks/dashboard-summary"));
-    assert.ok(tasksModule.dashboard.some((/** @type {HarnessListItem} */ item) =>
+    assert.ok(tasksModule.dashboard.some((item) =>
       item.id === "task-summary" &&
       item.renderer === "tasks.pressure" &&
       item.placement === "main" &&
       item.dataRoute === "/api/tasks/dashboard-summary"));
-    assert.ok(tasksModule.publicApiEndpoints.some((/** @type {HarnessListItem} */ item) => item.path === "/api/v1/tasks"));
-    assert.ok(tasksModule.settings.some((/** @type {HarnessListItem} */ item) => item.id === "tasksEnabled"));
-    assert.ok(tasksModule.settings.some((/** @type {HarnessListItem} */ item) => item.id === "taskTimersEnabled"));
-    assert.equal(settings.body.enabledModules.includes("tasks"), true);
-    assert.equal(Object.hasOwn(settings.body, "tasksEnabled"), false);
-    assert.equal(Object.hasOwn(settings.body, "timeTrackingEnabled"), false);
-    assert.equal(Object.hasOwn(settings.body, "taskTimersEnabled"), false);
+    assert.ok(tasksModule.publicApiEndpoints.some((item) => item.path === "/api/v1/tasks"));
+    assert.ok(tasksModule.settings.some((item) => item.id === "tasksEnabled"));
+    assert.ok(tasksModule.settings.some((item) => item.id === "taskTimersEnabled"));
+    assert.equal(readPayload(settings, ["enabledModules"]).enabledModules.includes("tasks"), true);
+    assert.equal(Object.hasOwn(payloadRecord(settings), "tasksEnabled"), false);
+    assert.equal(Object.hasOwn(payloadRecord(settings), "timeTrackingEnabled"), false);
+    assert.equal(Object.hasOwn(payloadRecord(settings), "taskTimersEnabled"), false);
   });
   const apiKey = await createApiKey(api, fixtures.sessions.workspaceAdmin, ["time_entries:read", "time_entries:write"]);
   const tasksApiKey = await createApiKey(api, fixtures.sessions.workspaceAdmin, ["tasks:read", "tasks:write"]);
   const disabledSettings = await api.put("/api/settings", {
-    ...workspaceSettingsSavePayload(settings.body),
-    moduleSettings: moduleSettingsPayload(settings.body, {
+    ...workspaceSettingsSavePayload(readPayload(settings, ["moduleSettings"])),
+    moduleSettings: moduleSettingsPayload(readPayload(settings, ["moduleSettings"]), {
       "time-tracking": { timeTrackingEnabled: false },
     }),
   }, { cookie: fixtures.sessions.workspaceAdmin });
   await expectStatus("workspace admin can disable Time Tracking", disabledSettings, 200);
   check("disabled Time Tracking is removed from enabled module list", () => {
-    assert.equal(Object.hasOwn(disabledSettings.body.data, "timeTrackingEnabled"), false);
-    assert.equal(disabledSettings.body.data.enabledModules.includes("time-tracking"), false);
+    assert.equal(Object.hasOwn(readPayload(disabledSettings, ["data"]).data, "timeTrackingEnabled"), false);
+    assert.equal(readPayload(disabledSettings, ["data"]).data.enabledModules.includes("time-tracking"), false);
   });
   await expectStatus(
     "disabled Time Tracking drops out of the permission matrix catalog",
@@ -3170,7 +3282,7 @@ async function runDisabledModuleTests(api, fixtures) {
     200,
   ).then((response) => {
     check("disabled Time Tracking contributes no permission resource", () => {
-      assert.equal(response.body.resources.some((/** @type {HarnessResourceRow} */ resource) => resource.key === "time_entries"), false);
+      assert.equal(readPayload(response, ["resources"]).resources.some((resource) => resource.key === "time_entries"), false);
     });
   });
   await expectStatus(
@@ -3179,9 +3291,9 @@ async function runDisabledModuleTests(api, fixtures) {
     200,
   ).then((response) => {
     check("disabled Time Tracking contributes no active or recent time dashboard panels", () => {
-      const panels = response.body.extensionPoints.dashboardPanels || [];
-      assert.equal(panels.some((/** @type {HarnessPanelRow} */ panel) => panel.id === "active-timers"), false);
-      assert.equal(panels.some((/** @type {HarnessPanelRow} */ panel) => panel.id === "recent-time"), false);
+      const panels = readPayload(response, ["extensionPoints"]).extensionPoints.dashboardPanels || [];
+      assert.equal(panels.some((panel) => panel.id === "active-timers"), false);
+      assert.equal(panels.some((panel) => panel.id === "recent-time"), false);
     });
   });
 
@@ -3220,8 +3332,8 @@ async function runDisabledModuleTests(api, fixtures) {
     403,
   );
   await expectStatus("workspace admin can re-enable Time Tracking", api.put("/api/settings", {
-    ...workspaceSettingsSavePayload(settings.body),
-    moduleSettings: moduleSettingsPayload(settings.body, {
+    ...workspaceSettingsSavePayload(readPayload(settings, ["moduleSettings"])),
+    moduleSettings: moduleSettingsPayload(readPayload(settings, ["moduleSettings"]), {
       "time-tracking": { timeTrackingEnabled: true },
     }),
   }, { cookie: fixtures.sessions.workspaceAdmin }), 200);
@@ -3231,12 +3343,12 @@ async function runDisabledModuleTests(api, fixtures) {
     200,
   ).then((response) => {
     check("re-enabled Time Tracking contributes its permission resource", () => {
-      assert.equal(response.body.resources.some((/** @type {HarnessResourceRow} */ resource) => resource.key === "time_entries"), true);
+      assert.equal(readPayload(response, ["resources"]).resources.some((resource) => resource.key === "time_entries"), true);
     });
   });
   await expectStatus("workspace admin can disable Task Timers sub-option", api.put("/api/settings", {
-    ...workspaceSettingsSavePayload(settings.body),
-    moduleSettings: moduleSettingsPayload(settings.body, {
+    ...workspaceSettingsSavePayload(readPayload(settings, ["moduleSettings"])),
+    moduleSettings: moduleSettingsPayload(readPayload(settings, ["moduleSettings"]), {
       tasks: { taskTimersEnabled: false },
     }),
   }, { cookie: fixtures.sessions.workspaceAdmin }), 200);
@@ -3250,21 +3362,21 @@ async function runDisabledModuleTests(api, fixtures) {
     403,
   );
   await expectStatus("workspace admin can re-enable Task Timers sub-option", api.put("/api/settings", {
-    ...workspaceSettingsSavePayload(settings.body),
-    moduleSettings: moduleSettingsPayload(settings.body, {
+    ...workspaceSettingsSavePayload(readPayload(settings, ["moduleSettings"])),
+    moduleSettings: moduleSettingsPayload(readPayload(settings, ["moduleSettings"]), {
       tasks: { taskTimersEnabled: true },
     }),
   }, { cookie: fixtures.sessions.workspaceAdmin }), 200);
   const disabledTasksSettings = await api.put("/api/settings", {
-    ...workspaceSettingsSavePayload(settings.body),
-    moduleSettings: moduleSettingsPayload(settings.body, {
+    ...workspaceSettingsSavePayload(readPayload(settings, ["moduleSettings"])),
+    moduleSettings: moduleSettingsPayload(readPayload(settings, ["moduleSettings"]), {
       tasks: { tasksEnabled: false },
     }),
   }, { cookie: fixtures.sessions.workspaceAdmin });
   await expectStatus("workspace admin can disable Tasks", disabledTasksSettings, 200);
   check("disabled Tasks are removed from enabled module list", () => {
-    assert.equal(Object.hasOwn(disabledTasksSettings.body.data, "tasksEnabled"), false);
-    assert.equal(disabledTasksSettings.body.data.enabledModules.includes("tasks"), false);
+    assert.equal(Object.hasOwn(readPayload(disabledTasksSettings, ["data"]).data, "tasksEnabled"), false);
+    assert.equal(readPayload(disabledTasksSettings, ["data"]).data.enabledModules.includes("tasks"), false);
   });
   await expectStatus(
     "disabled Tasks keep historical task reads available",
@@ -3287,13 +3399,13 @@ async function runDisabledModuleTests(api, fixtures) {
     403,
   );
   await expectStatus("workspace admin can re-enable Tasks", api.put("/api/settings", {
-    ...workspaceSettingsSavePayload(settings.body),
-    moduleSettings: moduleSettingsPayload(settings.body, {
+    ...workspaceSettingsSavePayload(readPayload(settings, ["moduleSettings"])),
+    moduleSettings: moduleSettingsPayload(readPayload(settings, ["moduleSettings"]), {
       tasks: { tasksEnabled: true },
     }),
   }, { cookie: fixtures.sessions.workspaceAdmin }), 200);
   await expectStatus("top-level legacy module settings are rejected", api.put("/api/settings", {
-    ...workspaceSettingsSavePayload(settings.body),
+    ...workspaceSettingsSavePayload(readPayload(settings, ["moduleSettings"])),
     timeTrackingEnabled: false,
   }, { cookie: fixtures.sessions.workspaceAdmin }), 400);
 }
@@ -3400,11 +3512,11 @@ async function runReportingPermissionTests(api, fixtures) {
     200,
   ).then((response) => {
     check("task-linked reporting filter isolates finalized task timer time", () => {
-      assert.deepEqual(response.body.taskFilter, [fixtures.taskTimerTaskId]);
-      assert.equal(response.body.rows.length, 1);
-      assert.equal(response.body.rows[0].project.id, fixtures.projects.alpha.id);
-      assert.equal(response.body.rows[0].rawSeconds, 60);
-      assert.equal(response.body.totals.seconds, 60);
+      assert.deepEqual(readPayload(response, ["taskFilter"]).taskFilter, [fixtures.taskTimerTaskId]);
+      assert.equal(readPayload(response, ["rows"]).rows.length, 1);
+      assert.equal(readPayload(response, ["rows"]).rows[0].project.id, fixtures.projects.alpha.id);
+      assert.equal(readPayload(response, ["rows"]).rows[0].rawSeconds, 60);
+      assert.equal(readPayload(response, ["totals"]).totals.seconds, 60);
     });
   });
   await expectStatus(
@@ -3418,28 +3530,28 @@ async function runReportingPermissionTests(api, fixtures) {
 async function createApiKey(api, cookie, scopes) {
   const response = await api.post("/api/api-keys", { name: `Harness key ${randomUUID()}`, scopes }, { cookie });
   await expectStatus(`created API key with scopes ${scopes.join(",")}`, response, 201);
-  return response.body;
+  return readPayload(response, ["apiKey", "apiKeys", "availableScopes", "rawKey"]);
 }
 
 /** @param {HarnessApi} api @param {string} cookie @param {string} name @param {Record<string, unknown>} [extra] */
 async function createClient(api, cookie, name, extra = {}) {
   const response = await api.post("/api/clients", { name, ...extra }, { cookie });
   await expectStatus(`created client ${name}`, response, 201);
-  return response.body.client;
+  return readPayload(response, ["client"]).client;
 }
 
 /** @param {HarnessApi} api @param {string} cookie @param {string} clientId @param {string} name @param {Record<string, unknown>} [extra] */
 async function createProject(api, cookie, clientId, name, extra = {}) {
   const response = await api.post(`/api/clients/${encodeURIComponent(clientId)}/projects`, { name, ...extra }, { cookie });
   await expectStatus(`created project ${name}`, response, 201);
-  return response.body.project;
+  return readPayload(response, ["project"]).project;
 }
 
 /** @param {HarnessApi} api @param {string} cookie @param {string} projectId */
 async function createTimeEntry(api, cookie, projectId) {
   const response = await api.post("/api/time-entries", timeEntryPayload(projectId), { cookie });
   await expectStatus(`created time entry for ${projectId}`, response, 201);
-  return response.body;
+  return readPayload(response, ["entry", "entry_id"]);
 }
 
 /** @param {string} workspaceId @param {string} userId @param {string} name @returns {Promise<{ name: string, tagId: string }>} */
@@ -3633,6 +3745,7 @@ async function request(baseUrl, method, url, body = null, options = {}) {
     redirect: "manual",
   });
   const text = await response.text();
+  /** @type {unknown} */
   let parsedBody = null;
 
   try {
@@ -3646,6 +3759,64 @@ async function request(baseUrl, method, url, body = null, options = {}) {
     headers: response.headers,
     status: response.status,
   };
+}
+
+/**
+ * Read a response payload as the shape the calling assertions consume.
+ *
+ * This is a checked narrowing, not a cast dressed as one: the payload must be
+ * a JSON object and must carry every key the caller names, so an endpoint that
+ * stops returning one fails here with that key rather than reading `undefined`
+ * further down. The caller supplies the shape through the annotation on the
+ * receiving binding, which keeps each contract small and local to the
+ * endpoint that produced it.
+ * @template {keyof HarnessEnvelopeRegistry} EnvelopeKey
+ * @param {HarnessResponse} response
+ * @param {readonly EnvelopeKey[]} keys
+ * @returns {Pick<HarnessEnvelopeRegistry, EnvelopeKey>}
+ */
+function readPayload(response, keys) {
+  const body = response.body;
+  assert.ok(body && typeof body === "object" && !Array.isArray(body), `response payload should be a JSON object: ${JSON.stringify(body)}`);
+  const record = /** @type {Record<string, unknown>} */ (body);
+  for (const key of keys) {
+    assert.ok(key in record, `response payload should carry ${key}: ${JSON.stringify(Object.keys(record))}`);
+  }
+  return /** @type {Pick<HarnessEnvelopeRegistry, EnvelopeKey>} */ (/** @type {unknown} */ (record));
+}
+
+/**
+ * The `modules` envelope is not one shape: the Workbench bootstrap returns a
+ * record keyed by module id while the settings read returns a searchable
+ * list. These prove which one the endpoint actually returned rather than
+ * assuming it.
+ * @param {HarnessEnvelopeRegistry["modules"]} modules
+ * @returns {HarnessModuleDescriptor[]}
+ */
+function asModuleList(modules) {
+  assert.ok(Array.isArray(modules), "the settings modules envelope should be a list");
+  return modules;
+}
+
+/**
+ * @param {HarnessEnvelopeRegistry["modules"]} modules
+ * @returns {Record<string, { enabled: boolean }>}
+ */
+function asModuleMap(modules) {
+  assert.ok(modules && !Array.isArray(modules), "the Workbench modules envelope should be keyed by module id");
+  return modules;
+}
+
+/**
+ * Read the whole payload as a record, for probes that assert an envelope is
+ * absent rather than reading one.
+ * @param {HarnessResponse} response
+ * @returns {Record<string, unknown>}
+ */
+function payloadRecord(response) {
+  const body = response.body;
+  assert.ok(body && typeof body === "object", `response payload should be a JSON object: ${JSON.stringify(body)}`);
+  return /** @type {Record<string, unknown>} */ (body);
 }
 
 /** @param {string} name @param {() => void} assertion @returns {void} */
@@ -3966,7 +4137,12 @@ VALUES (
   return sessionId;
 }
 
-/** @param {string} workspaceId @param {string} templateId @param {string} instanceDate */
+/**
+ * @param {string} workspaceId
+ * @param {string} templateId
+ * @param {string} instanceDate
+ * @returns {Promise<{ due_date: string, recurrence_instance_date: string, recurrence_template_id: string, task_id: string }>}
+ */
 async function readRecurrenceInstance(workspaceId, templateId, instanceDate) {
   const rows = await querySql(`
 SELECT task_id, due_date, recurrence_template_id, recurrence_instance_date
@@ -3977,8 +4153,9 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 LIMIT 1;
 `);
 
-  assert.ok(rows[0], `expected recurrence instance for ${instanceDate}`);
-  return rows[0];
+  const row = rows[0];
+  assert.ok(row, `expected recurrence instance for ${instanceDate}`);
+  return /** @type {{ due_date: string, recurrence_instance_date: string, recurrence_template_id: string, task_id: string }} */ (/** @type {unknown} */ (row));
 }
 
 /** @param {string} workspaceId @param {string} templateId @param {string} instanceDate @returns {Promise<number>} */
