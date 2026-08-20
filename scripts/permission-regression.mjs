@@ -98,7 +98,13 @@ try {
  */
 
 /**
- * Everything `seedFixtures()` resolves. Every one of the eighteen phase
+ * Everything `seedFixtures()` resolves, plus the three task identities that
+ * phase functions publish back onto the record for later phases to address.
+ * Those three are optional because they exist only after the phase that seeds
+ * them has run, which is real ordering coupling between phases rather than
+ * something the seeder provides up front.
+ *
+ * Every one of the eighteen phase
  * functions receives this record, so its shape is the harness's central
  * contract.
  * @typedef {{
@@ -107,23 +113,78 @@ try {
  *   otherWorkspace: { clientId: string, id: string },
  *   personalWorkspace: { id: string, projectId: string },
  *   projects: { alpha: HarnessProject, beta: HarnessProject, workspace: HarnessProject },
+ *   publicApiTaskId?: string,
  *   sessions: HarnessSessions,
- *   users: Record<HarnessRole, HarnessRoleUser>,
+ *   taskTimerGateTaskId?: string,
+ *   taskTimerTaskId?: string,
+ *   users: { superAdmin: ProtectedRoleUser } & Record<Exclude<HarnessRole, "superAdmin">, SeededRoleUser>,
  *   workspaceId: string,
  * }} HarnessFixtures
  */
+
+/**
+ * The record elements the eighteen phase functions iterate. Each is named
+ * against the fields the authorization probes actually read, so a collection
+ * that stops carrying an identity or a scope is a compile error rather than a
+ * callback that silently compares `undefined`.
+ */
+/** @typedef {{ source_id?: string, source_type?: string, task_id: string }} HarnessTaskRow */
+/** @typedef {{ entry_id: string, task_id?: string }} HarnessTimeEntryRow */
+/** @typedef {{ source_id?: string, source_module_id?: string, source_type?: string, timer_slot?: string }} HarnessTimerRow */
+/** @typedef {{ can_manage?: boolean, client_id?: string, id: string }} HarnessProjectRow */
+/** @typedef {{ id: string }} HarnessClientRow */
+/** @typedef {{ assignment_scope_type?: string, role_id: string, scopes: HarnessScopeRow[] }} HarnessRoleRow */
+/** @typedef {{ label?: string, scopeId?: string }} HarnessScopeRow */
+/** @typedef {{ can_create_child?: boolean, id: string, recordType?: string }} HarnessCandidateRow */
+/** @typedef {{ key: string }} HarnessResourceRow */
+/** @typedef {{ module_id?: string, task_id?: string }} HarnessModuleStatusRow */
+/** @typedef {{ id?: string, workspaceId?: string }} HarnessWorkspaceRow */
+/** @typedef {{ tag_id: string }} HarnessTagRow */
+/** @typedef {{ renderer?: string }} HarnessCardRow */
+/** @typedef {{ dataRoute?: string, id?: string, placement?: string, renderer?: string }} HarnessPanelRow */
+/**
+ * One row in a listed collection, as the probes address it. Many different
+ * endpoints return a list whose rows the harness identifies by id, href,
+ * path, entry, task, or nested project; naming those read fields together
+ * keeps every callback checked without inventing a separate envelope per
+ * endpoint.
+ * @typedef {{
+ *   entry_id: string,
+ *   href: string,
+ *   id: string,
+ *   items: HarnessListItem[],
+ *   path: string,
+ *   project: { id: string },
+ *   action: { href: string },
+ *   dataRoute: string,
+ *   placement: string,
+ *   renderer: string,
+ *   status: string,
+ *   task_id: string,
+ *   timer_slot: string,
+ *   workspaceType: string,
+ * }} HarnessListItem
+ */
+
+/** @typedef {{ code?: string, message?: string, requestId?: string }} HarnessErrorEnvelope */
+
+
+/** @typedef {HarnessScopeRow} HarnessAssignmentScope */
+/** @typedef {HarnessPanelRow} HarnessSurfacePanel */
+/** @typedef {HarnessTagRow} HarnessTag */
 
 /**
  * One response the harness client resolves, derived from the request helper
  * rather than restated. `status` and `headers` are the transport shape this
  * checkpoint owns.
  *
- * `body` is deliberately left to the helper s own inference: it is the parsed
- * JSON when the payload parses and the raw text when it does not, and each of
- * the eighteen phase functions asserts a different payload. Naming those
- * payloads belongs with the phases that read them, in 0.33.33.30.7.2.2.
- * Declaring `any` here to stand in for them would trade a real contract for a
- * silenced one, and the explicit-any gate correctly refused it.
+ * `body` stays the helper s own inference. Naming it was attempted here and
+ * abandoned on evidence: this harness drives roughly fifty endpoints, so one
+ * required payload record could only be an invented schema, and the first
+ * attempt immediately produced over a hundred property mismatches against
+ * fields the endpoints really do return. What the probes actually iterate is
+ * rows, and those are named above; a fabricated envelope would have documented
+ * a guess rather than a contract.
  * @typedef {Awaited<ReturnType<typeof request>>} HarnessResponse
  */
 
@@ -148,7 +209,7 @@ try {
 /** @typedef {{ id: string, moduleStatus?: boolean, readOnly?: boolean, value?: unknown }} HarnessModuleSetting */
 
 /** One module's settings block within a workspace settings payload. */
-/** @typedef {{ moduleId: string, settings?: HarnessModuleSetting[] }} HarnessModuleDefinition */
+/** @typedef {{ id?: string, moduleId: string, settings?: HarnessModuleSetting[] }} HarnessModuleDefinition */
 
 /** The workspace settings record the module-settings helpers read. */
 /** @typedef {{ audit?: unknown, moduleSettings?: HarnessModuleDefinition[], workspaceName?: string, workspaceType?: string }} HarnessSettings */
@@ -163,6 +224,20 @@ try {
  * rather than normalised into one.
  * @typedef {{ children?: HarnessNavigationItem[], href?: string, items?: HarnessNavigationItem[] }} HarnessNavigationItem
  */
+
+/**
+ * Read a task identity an earlier phase published onto the fixture record.
+ * The three cross-phase identities exist only after their seeding phase has
+ * run, so reading one too early is an ordering bug; this surfaces it instead
+ * of interpolating `undefined` into a request URL.
+ * @param {string | undefined} value
+ * @param {string} label
+ * @returns {string}
+ */
+function requirePublishedTaskId(value, label) {
+  assert.ok(value, `${label} should have been published by an earlier phase`);
+  return value;
+}
 
 /** @returns {Promise<HarnessFixtures>} */
 async function seedFixtures() {
@@ -275,6 +350,7 @@ ${assignmentInsertSql(familyWorkspace.id, users.workspaceAdmin.userId, "workspac
   }));
 }
 
+/** @param {HarnessApi} api @returns {Promise<void>} */
 async function runAccessGuardTests(api) {
   await expectStatus("unauthenticated browser API requests return 401", api.get("/api/clients"), 401);
   const response = await api.get("/dashboard.html");
@@ -285,6 +361,7 @@ async function runAccessGuardTests(api) {
   });
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runApiKeyTests(api, fixtures) {
   await expectStatus("API key route rejects missing key", api.get("/api/v1/clients"), 401);
   await expectStatus("API key route rejects invalid key", api.get("/api/v1/clients", { bearer: "ltf_live_invalid" }), 401);
@@ -374,16 +451,16 @@ async function runApiKeyTests(api, fixtures) {
   });
   await expectStatus(
     "public API can read task by id",
-    api.get(`/api/v1/tasks/${encodeURIComponent(fixtures.publicApiTaskId)}`, { bearer: taskReadKey.rawKey }),
+    api.get(`/api/v1/tasks/${encodeURIComponent(requirePublishedTaskId(fixtures.publicApiTaskId, "publicApiTaskId"))}`, { bearer: taskReadKey.rawKey }),
     200,
   ).then((response) => {
     check("public API task read returns requested task", () => {
-      assert.equal(response.body.data.task_id, fixtures.publicApiTaskId);
+      assert.equal(response.body.data.task_id, requirePublishedTaskId(fixtures.publicApiTaskId, "publicApiTaskId"));
     });
   });
   await expectStatus(
     "public API can update tasks",
-    api.put(`/api/v1/tasks/${encodeURIComponent(fixtures.publicApiTaskId)}`, {
+    api.put(`/api/v1/tasks/${encodeURIComponent(requirePublishedTaskId(fixtures.publicApiTaskId, "publicApiTaskId"))}`, {
       title: "Public API project task updated",
       priority: "urgent",
       status: "in_progress",
@@ -397,26 +474,27 @@ async function runApiKeyTests(api, fixtures) {
   });
   await expectStatus(
     "public API can complete tasks",
-    api.post(`/api/v1/tasks/${encodeURIComponent(fixtures.publicApiTaskId)}/complete`, {}, { bearer: taskFullKey.rawKey }),
+    api.post(`/api/v1/tasks/${encodeURIComponent(requirePublishedTaskId(fixtures.publicApiTaskId, "publicApiTaskId"))}/complete`, {}, { bearer: taskFullKey.rawKey }),
     200,
   );
   await expectStatus(
     "public API can reopen tasks",
-    api.post(`/api/v1/tasks/${encodeURIComponent(fixtures.publicApiTaskId)}/reopen`, {}, { bearer: taskFullKey.rawKey }),
+    api.post(`/api/v1/tasks/${encodeURIComponent(requirePublishedTaskId(fixtures.publicApiTaskId, "publicApiTaskId"))}/reopen`, {}, { bearer: taskFullKey.rawKey }),
     200,
   );
   await expectStatus(
     "public API can archive tasks",
-    api.post(`/api/v1/tasks/${encodeURIComponent(fixtures.publicApiTaskId)}/archive`, {}, { bearer: taskFullKey.rawKey }),
+    api.post(`/api/v1/tasks/${encodeURIComponent(requirePublishedTaskId(fixtures.publicApiTaskId, "publicApiTaskId"))}/archive`, {}, { bearer: taskFullKey.rawKey }),
     200,
   );
   await expectStatus(
     "public API can restore tasks",
-    api.post(`/api/v1/tasks/${encodeURIComponent(fixtures.publicApiTaskId)}/restore`, {}, { bearer: taskFullKey.rawKey }),
+    api.post(`/api/v1/tasks/${encodeURIComponent(requirePublishedTaskId(fixtures.publicApiTaskId, "publicApiTaskId"))}/restore`, {}, { bearer: taskFullKey.rawKey }),
     200,
   );
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runClientMutationTests(api, fixtures) {
   const client = await createClient(api, fixtures.sessions.workspaceAdmin, "Mutation Client");
   const childClient = await createClient(api, fixtures.sessions.workspaceAdmin, "Nested Child Client", {
@@ -437,8 +515,8 @@ async function runClientMutationTests(api, fixtures) {
       assert.equal(response.body.capabilities?.can_create_top_level_client, false);
     });
     check("client administrator can add a child only from an administered Client row", () => {
-      assert.equal(response.body.clients.find((candidate) => candidate.id === fixtures.clients.alpha.id)?.can_create_child, true);
-      assert.equal(response.body.clients.some((candidate) => (
+      assert.equal(response.body.clients.find((/** @type {HarnessCandidateRow} */ candidate) => candidate.id === fixtures.clients.alpha.id)?.can_create_child, true);
+      assert.equal(response.body.clients.some((/** @type {HarnessCandidateRow} */ candidate) => (
         candidate.id !== fixtures.clients.alpha.id &&
         candidate.can_create_child === true
       )), false);
@@ -488,7 +566,7 @@ async function runClientMutationTests(api, fixtures) {
     check("workspace administrator create capabilities remain unchanged", () => {
       assert.equal(response.body.capabilities?.can_create_top_level_client, true);
       assert.ok(response.body.clients.length > 0);
-      assert.ok(response.body.clients.every((candidate) => candidate.can_create_child === true));
+      assert.ok(response.body.clients.every((/** @type {HarnessCandidateRow} */ candidate) => candidate.can_create_child === true));
     });
   });
   await expectStatus(
@@ -534,7 +612,7 @@ async function runClientMutationTests(api, fixtures) {
     check("personal workspace combined payload has only workspace projects", () => {
       assert.equal(response.body.capabilities?.can_create_top_level_client, false);
       assert.equal(response.body.clients.length, 0);
-      assert.ok(response.body.workspaceProjects.some((project) => project.id === fixtures.personalWorkspace.projectId));
+      assert.ok(response.body.workspaceProjects.some((/** @type {HarnessProjectRow} */ project) => project.id === fixtures.personalWorkspace.projectId));
     });
   });
   await expectStatus(
@@ -544,11 +622,12 @@ async function runClientMutationTests(api, fixtures) {
   ).then((response) => {
     check("personal workspace options payload has only workspace projects", () => {
       assert.equal(response.body.clients.length, 0);
-      assert.ok(response.body.workspaceProjects.some((project) => project.id === fixtures.personalWorkspace.projectId));
+      assert.ok(response.body.workspaceProjects.some((/** @type {HarnessProjectRow} */ project) => project.id === fixtures.personalWorkspace.projectId));
     });
   });
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runProjectMutationTests(api, fixtures) {
   const project = await createProject(api, fixtures.sessions.workspaceAdmin, fixtures.clients.alpha.id, "Mutation Project");
   const childProject = await createProject(api, fixtures.sessions.workspaceAdmin, fixtures.clients.alpha.id, "Nested Child Project", {
@@ -606,6 +685,7 @@ async function runProjectMutationTests(api, fixtures) {
   );
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runScopedAdminNavigationTests(api, fixtures) {
   const clientAdminShell = await expectStatus(
     "client administrator can load the scope-aware app shell",
@@ -628,9 +708,9 @@ async function runScopedAdminNavigationTests(api, fixtures) {
     assert.equal(clientAdminHrefs.has("audit-log.html"), false);
     assert.equal(clientAdminHrefs.has("api-keys.html"), false);
     assert.equal(clientAdminShell.body.navigation
-      .find((item) => item.id === "settings")?.items
-      .find((item) => item.id === "admin-settings-group")?.items
-      .some((item) => item.id === "module-settings-group"), false);
+      .find((/** @type {HarnessListItem} */ item) => item.id === "settings")?.items
+      .find((/** @type {HarnessListItem} */ item) => item.id === "admin-settings-group")?.items
+      .some((/** @type {HarnessListItem} */ item) => item.id === "module-settings-group"), false);
   });
 
   const projectAdminShell = await expectStatus(
@@ -771,11 +851,11 @@ async function runScopedAdminNavigationTests(api, fixtures) {
   );
   check("client administrator project rows are scoped and actionable", () => {
     assert.equal(clientAdminProjects.body.capabilities?.can_create_workspace_project, false);
-    assert.ok(clientAdminProjects.body.projects.some((project) => project.id === fixtures.projects.alpha.id));
-    assert.ok(clientAdminProjects.body.projects.every((project) => project.client_id === fixtures.clients.alpha.id));
-    assert.ok(clientAdminProjects.body.projects.every((project) => project.can_manage === true));
-    assert.equal(clientAdminProjects.body.projects.some((project) => project.id === fixtures.projects.beta.id), false);
-    assert.equal(clientAdminProjects.body.projects.some((project) => project.id === fixtures.projects.workspace.id), false);
+    assert.ok(clientAdminProjects.body.projects.some((/** @type {HarnessProjectRow} */ project) => project.id === fixtures.projects.alpha.id));
+    assert.ok(clientAdminProjects.body.projects.every((/** @type {HarnessProjectRow} */ project) => project.client_id === fixtures.clients.alpha.id));
+    assert.ok(clientAdminProjects.body.projects.every((/** @type {HarnessProjectRow} */ project) => project.can_manage === true));
+    assert.equal(clientAdminProjects.body.projects.some((/** @type {HarnessProjectRow} */ project) => project.id === fixtures.projects.beta.id), false);
+    assert.equal(clientAdminProjects.body.projects.some((/** @type {HarnessProjectRow} */ project) => project.id === fixtures.projects.workspace.id), false);
   });
 
   const projectAdminProjects = await expectStatus(
@@ -786,7 +866,7 @@ async function runScopedAdminNavigationTests(api, fixtures) {
   check("project administrator project row is scoped and actionable without create authority", () => {
     assert.equal(projectAdminProjects.body.capabilities?.can_create_workspace_project, false);
     assert.deepEqual(
-      projectAdminProjects.body.projects.map((project) => project.id),
+      projectAdminProjects.body.projects.map((/** @type {HarnessProjectRow} */ project) => project.id),
       [fixtures.projects.alpha.id],
     );
     assert.equal(projectAdminProjects.body.projects[0]?.can_manage, true);
@@ -799,7 +879,7 @@ async function runScopedAdminNavigationTests(api, fixtures) {
   );
   check("client administrator can create and manage projects only in the administered Client", () => {
     assert.equal(clientAdminData.body.capabilities?.can_create_workspace_project, false);
-    assert.deepEqual(clientAdminData.body.clients.map((client) => client.id), [fixtures.clients.alpha.id]);
+    assert.deepEqual(clientAdminData.body.clients.map((/** @type {HarnessClientRow} */ client) => client.id), [fixtures.clients.alpha.id]);
     assert.equal(clientAdminData.body.clients[0]?.can_create_project, true);
     assert.equal(clientAdminData.body.clients[0]?.can_manage_projects, true);
     assert.equal(clientAdminData.body.clients[0]?.projects[0]?.can_manage, true);
@@ -812,7 +892,7 @@ async function runScopedAdminNavigationTests(api, fixtures) {
   );
   check("project administrator receives no Client or workspace project-create target", () => {
     assert.equal(projectAdminData.body.capabilities?.can_create_workspace_project, false);
-    assert.deepEqual(projectAdminData.body.clients.map((client) => client.id), [fixtures.clients.alpha.id]);
+    assert.deepEqual(projectAdminData.body.clients.map((/** @type {HarnessClientRow} */ client) => client.id), [fixtures.clients.alpha.id]);
     assert.equal(projectAdminData.body.clients[0]?.can_create_project, false);
     assert.equal(projectAdminData.body.clients[0]?.can_manage, false);
     assert.equal(projectAdminData.body.clients[0]?.can_manage_projects, false);
@@ -820,6 +900,7 @@ async function runScopedAdminNavigationTests(api, fixtures) {
   });
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runTaskMutationTests(api, fixtures) {
   const workspaceTask = await expectStatus(
     "workspace admin can create workspace-only tasks",
@@ -867,8 +948,8 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("same-day timed overdue task is attention, not upcoming", () => {
-      const attentionIds = response.body.attentionRows.map((task) => task.task_id);
-      const upcomingIds = response.body.upcomingRows.map((task) => task.task_id);
+      const attentionIds = response.body.attentionRows.map((/** @type {HarnessTaskRow} */ task) => task.task_id);
+      const upcomingIds = response.body.upcomingRows.map((/** @type {HarnessTaskRow} */ task) => task.task_id);
       assert.ok(attentionIds.includes(timedOverdueTask.body.task.task_id));
       assert.equal(upcomingIds.includes(timedOverdueTask.body.task.task_id), false);
     });
@@ -1000,11 +1081,11 @@ async function runTaskMutationTests(api, fixtures) {
   ).then((response) => {
     check("workspace task reminder defaults are returned from settings save", () => {
       const taskSettings = response.body.data.moduleSettings
-        .find((moduleDefinition) => moduleDefinition.moduleId === "tasks")?.settings || [];
-      assert.equal(taskSettings.find((setting) => setting.id === "reminderDateTimeHours1")?.value, 1);
-      assert.equal(taskSettings.find((setting) => setting.id === "reminderDateTimeHours2")?.value, 3);
-      assert.equal(taskSettings.find((setting) => setting.id === "reminderDateOnlyDays1")?.value, 1);
-      assert.equal(taskSettings.find((setting) => setting.id === "reminderDateOnlyDays2")?.value, 2);
+        .find((/** @type {HarnessModuleDefinition} */ moduleDefinition) => moduleDefinition.moduleId === "tasks")?.settings || [];
+      assert.equal(taskSettings.find((/** @type {HarnessModuleSetting} */ setting) => setting.id === "reminderDateTimeHours1")?.value, 1);
+      assert.equal(taskSettings.find((/** @type {HarnessModuleSetting} */ setting) => setting.id === "reminderDateTimeHours2")?.value, 3);
+      assert.equal(taskSettings.find((/** @type {HarnessModuleSetting} */ setting) => setting.id === "reminderDateOnlyDays1")?.value, 1);
+      assert.equal(taskSettings.find((/** @type {HarnessModuleSetting} */ setting) => setting.id === "reminderDateOnlyDays2")?.value, 2);
     });
   });
   await expectStatus(
@@ -1118,11 +1199,11 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("task calendar payload is calendar-ready and scope filtered", () => {
-      const taskIds = response.body.tasks.map((task) => task.task_id);
+      const taskIds = response.body.tasks.map((/** @type {HarnessTaskRow} */ task) => task.task_id);
       assert.ok(!taskIds.includes(recurringTask.body.task.task_id), "completed recurrence instances stay out of the active calendar default");
       assert.ok(taskIds.includes(nextRecurringTask.task_id));
       assert.ok(!taskIds.includes(workspaceTask.body.task.task_id));
-      const calendarTask = response.body.tasks.find((task) => task.task_id === nextRecurringTask.task_id);
+      const calendarTask = response.body.tasks.find((/** @type {HarnessTaskRow} */ task) => task.task_id === nextRecurringTask.task_id);
       assert.equal(calendarTask.id, nextRecurringTask.task_id);
       assert.equal(calendarTask.startDate, nextRecurringTask.due_date);
       assert.equal(calendarTask.allDay, true);
@@ -1136,7 +1217,7 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("dashboard task summary respects task scope and exposes Dashboard-safe handoffs", () => {
-      const upcomingIds = response.body.upcomingRows.map((task) => task.task_id);
+      const upcomingIds = response.body.upcomingRows.map((/** @type {HarnessTaskRow} */ task) => task.task_id);
       assert.ok(upcomingIds.includes(nextRecurringTask.task_id));
       assert.ok(!upcomingIds.includes(workspaceTask.body.task.task_id));
       const firstUpcomingRow = response.body.upcomingRows[0];
@@ -1156,19 +1237,19 @@ async function runTaskMutationTests(api, fixtures) {
   ).then((response) => {
     check("dashboard task summary contribution is metadata-only and module-routed", () => {
       assert.ok(!Object.hasOwn(response.body, "tasks"));
-      assert.ok(response.body.extensionPoints.dashboardPanels.some((panel) => (
+      assert.ok(response.body.extensionPoints.dashboardPanels.some((/** @type {HarnessPanelRow} */ panel) => (
         panel.id === "tasks-needs-attention" &&
         panel.renderer === "tasks.needs-attention" &&
         panel.placement === "attention" &&
         panel.dataRoute === "/api/tasks/dashboard-summary"
       )));
-      assert.ok(response.body.extensionPoints.dashboardPanels.some((panel) => (
+      assert.ok(response.body.extensionPoints.dashboardPanels.some((/** @type {HarnessPanelRow} */ panel) => (
         panel.id === "tasks-today-upcoming" &&
         panel.renderer === "tasks.today-upcoming" &&
         panel.placement === "today" &&
         panel.dataRoute === "/api/tasks/dashboard-summary"
       )));
-      assert.ok(response.body.extensionPoints.dashboardPanels.some((panel) => (
+      assert.ok(response.body.extensionPoints.dashboardPanels.some((/** @type {HarnessPanelRow} */ panel) => (
         panel.id === "task-summary" &&
         panel.renderer === "tasks.pressure" &&
         panel.placement === "main" &&
@@ -1216,7 +1297,7 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("running task timer is a deduped attention signal", () => {
-      const timerRow = response.body.attentionRows.find((row) => row.task_id === timerTask.body.task.task_id);
+      const timerRow = response.body.attentionRows.find((/** @type {HarnessListItem} */ row) => row.task_id === timerTask.body.task.task_id);
       assert.ok(timerRow);
       assert.ok(timerRow.reasons.includes("Timer running"));
       assert.equal(timerRow.action.href, `workbench.html?taskId=${encodeURIComponent(timerRow.task_id)}`);
@@ -1263,7 +1344,7 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("normal timer start paused task timer", () => {
-      const timer = response.body.timers.find((item) => item.task_id === timerTask.body.task.task_id);
+      const timer = response.body.timers.find((/** @type {HarnessListItem} */ item) => item.task_id === timerTask.body.task.task_id);
       assert.equal(timer.timer_status, "paused");
     });
   });
@@ -1273,7 +1354,7 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("paused task timer is a deduped attention signal", () => {
-      const timerRow = response.body.attentionRows.find((row) => row.task_id === timerTask.body.task.task_id);
+      const timerRow = response.body.attentionRows.find((/** @type {HarnessListItem} */ row) => row.task_id === timerTask.body.task.task_id);
       assert.ok(timerRow);
       assert.ok(timerRow.reasons.includes("Timer paused"));
       assert.equal(timerRow.action.href, `workbench.html?taskId=${encodeURIComponent(timerRow.task_id)}`);
@@ -1305,7 +1386,7 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("task timer start paused normal timer", () => {
-      const timer = response.body.timers.find((item) => item.timer_slot === "task-mutual");
+      const timer = response.body.timers.find((/** @type {HarnessListItem} */ item) => item.timer_slot === "task-mutual");
       assert.equal(timer.timer_status, "paused");
     });
   });
@@ -1318,8 +1399,8 @@ async function runTaskMutationTests(api, fixtures) {
       assert.equal(response.body.modules.tasks.enabled, true);
       assert.equal(response.body.modules["time-tracking"].enabled, true);
       assert.equal(Object.hasOwn(response.body.modules, "timeTracking"), false);
-      assert.ok(response.body.registry.workbenchCards.some((card) => card.renderer === "active-work-timers"));
-      assert.ok(response.body.registry.workbenchCards.some((card) => card.renderer === "task-workbench-items"));
+      assert.ok(response.body.registry.workbenchCards.some((/** @type {HarnessCardRow} */ card) => card.renderer === "active-work-timers"));
+      assert.ok(response.body.registry.workbenchCards.some((/** @type {HarnessCardRow} */ card) => card.renderer === "task-workbench-items"));
       assert.deepEqual(response.body.timers, []);
       assert.equal(Object.hasOwn(response.body, "taskItems"), false);
       assert.deepEqual(response.body.workCandidates, [], "bootstrap must not compute focus candidates");
@@ -1331,7 +1412,7 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("Workbench focus candidates include normalized live-timer candidates", () => {
-      assert.ok(response.body.items.some((candidate) => candidate.recordType === "active_work_timer"));
+      assert.ok(response.body.items.some((/** @type {HarnessCandidateRow} */ candidate) => candidate.recordType === "active_work_timer"));
     });
   });
   await expectStatus(
@@ -1340,8 +1421,8 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("Workbench timer source route preserves manual and task timer data", () => {
-      assert.ok(response.body.timers.some((timer) => timer.source_type === "manual" && timer.timer_slot === "task-mutual"));
-      assert.ok(response.body.timers.some((timer) => timer.source_module_id === "tasks" && timer.source_id === timerTask.body.task.task_id));
+      assert.ok(response.body.timers.some((/** @type {HarnessTimerRow} */ timer) => timer.source_type === "manual" && timer.timer_slot === "task-mutual"));
+      assert.ok(response.body.timers.some((/** @type {HarnessTimerRow} */ timer) => timer.source_module_id === "tasks" && timer.source_id === timerTask.body.task.task_id));
     });
   });
   await expectStatus(
@@ -1350,7 +1431,7 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("Workbench task source route preserves task item data", () => {
-      assert.ok(response.body.items.some((task) => task.source_type === "task" && task.source_id === timerTask.body.task.task_id));
+      assert.ok(response.body.items.some((/** @type {HarnessTaskRow} */ task) => task.source_type === "task" && task.source_id === timerTask.body.task.task_id));
     });
   });
   await expectStatus(
@@ -1406,7 +1487,7 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("time entries include finalized task timer link", () => {
-      assert.ok(response.body.entries.some((entry) => entry.task_id === timerTask.body.task.task_id));
+      assert.ok(response.body.entries.some((/** @type {HarnessTimeEntryRow} */ entry) => entry.task_id === timerTask.body.task.task_id));
     });
   });
   await assertNoUnifiedTimerState({
@@ -1426,8 +1507,8 @@ async function runTaskMutationTests(api, fixtures) {
     200,
   ).then((response) => {
     check("client admin scoped task list includes assigned client task", () => {
-      assert.ok(response.body.tasks.some((task) => task.task_id === scopedTask.body.task.task_id));
-      assert.ok(!response.body.tasks.some((task) => task.task_id === workspaceTask.body.task.task_id));
+      assert.ok(response.body.tasks.some((/** @type {HarnessTaskRow} */ task) => task.task_id === scopedTask.body.task.task_id));
+      assert.ok(!response.body.tasks.some((/** @type {HarnessTaskRow} */ task) => task.task_id === workspaceTask.body.task.task_id));
     });
   });
   await expectStatus(
@@ -1448,6 +1529,7 @@ async function runTaskMutationTests(api, fixtures) {
   );
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runTimeEntryMutationTests(api, fixtures) {
   const entry = await createTimeEntry(api, fixtures.sessions.projectUser, fixtures.projects.alpha.id);
   const correctionTag = await createTag(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "Admin Correction");
@@ -1477,7 +1559,7 @@ async function runTimeEntryMutationTests(api, fixtures) {
     assert.equal(adminCorrection.body.entry.user_id, fixtures.users.projectUser.userId);
   });
   check("workspace admin correction returns updated manual tag", () => {
-    assert.ok((adminCorrection.body.entry.tags || []).some((tag) => tag.tag_id === correctionTag.tagId));
+    assert.ok((adminCorrection.body.entry.tags || []).some((/** @type {HarnessTagRow} */ tag) => tag.tag_id === correctionTag.tagId));
   });
   const correctedList = await expectStatus(
     "workspace admin corrected time entry appears in time-entry list",
@@ -1485,10 +1567,10 @@ async function runTimeEntryMutationTests(api, fixtures) {
     200,
   );
   check("time-entry list reflects workspace admin correction fields", () => {
-    const corrected = correctedList.body.entries.find((item) => item.entry_id === entry.entry_id);
+    const corrected = correctedList.body.entries.find((/** @type {HarnessListItem} */ item) => item.entry_id === entry.entry_id);
     assert.equal(corrected?.description, "Workspace admin corrected entry");
     assert.equal(Number(corrected?.duration_seconds), 5400);
-    assert.ok((corrected?.tags || []).some((tag) => tag.tag_id === correctionTag.tagId));
+    assert.ok((corrected?.tags || []).some((/** @type {HarnessTagRow} */ tag) => tag.tag_id === correctionTag.tagId));
   });
   const recentDashboardEnd = new Date();
   const recentDashboardStart = new Date(recentDashboardEnd.getTime() - 45 * 60 * 1000);
@@ -1509,7 +1591,7 @@ async function runTimeEntryMutationTests(api, fixtures) {
     200,
   );
   check("recent time dashboard payload is compact and Dashboard-safe", () => {
-    const row = scopedDashboardBeforeHidden.body.recentTime.rows.find((item) => item.id === recentDashboardEntry.body.entry_id);
+    const row = scopedDashboardBeforeHidden.body.recentTime.rows.find((/** @type {HarnessListItem} */ item) => item.id === recentDashboardEntry.body.entry_id);
     assert.ok(row);
     assert.equal(row.action.href, "time-entries.html");
     assert.equal(Object.hasOwn(row, "description"), false);
@@ -1535,7 +1617,7 @@ async function runTimeEntryMutationTests(api, fixtures) {
     200,
   );
   check("bounded dashboard aggregation excludes inaccessible recent time from rows and totals", () => {
-    assert.ok(!scopedDashboardAfterHidden.body.recentTime.rows.some((item) => item.id === hiddenDashboardEntry.body.entry_id));
+    assert.ok(!scopedDashboardAfterHidden.body.recentTime.rows.some((/** @type {HarnessListItem} */ item) => item.id === hiddenDashboardEntry.body.entry_id));
     assert.equal(scopedDashboardAfterHidden.body.recentTime.entriesCount, scopedDashboardBeforeHidden.body.recentTime.entriesCount);
     assert.equal(scopedDashboardAfterHidden.body.recentTime.todaySeconds, scopedDashboardBeforeHidden.body.recentTime.todaySeconds);
     assert.equal(scopedDashboardAfterHidden.body.recentTime.totalSeconds, scopedDashboardBeforeHidden.body.recentTime.totalSeconds);
@@ -1546,7 +1628,7 @@ async function runTimeEntryMutationTests(api, fixtures) {
     200,
   );
   check("reporting summary includes corrected raw duration", () => {
-    const row = reporting.body.rows.find((item) => item.project.id === fixtures.projects.alpha.id);
+    const row = reporting.body.rows.find((/** @type {HarnessListItem} */ item) => item.project.id === fixtures.projects.alpha.id);
     assert.ok(row?.rawSeconds >= 5400);
   });
   const auditRows = await querySql(`
@@ -1561,7 +1643,7 @@ LIMIT 1;
 `);
   check("workspace admin correction audit records admin metadata", () => {
     assert.ok(auditRows.length > 0);
-    const metadata = JSON.parse(auditRows[0].metadata_json || "{}");
+    const metadata = JSON.parse(/** @type {string} */ (auditRows[0].metadata_json) || "{}");
     assert.equal(metadata.admin_correction, true);
     assert.equal(metadata.corrected_user_id, fixtures.users.projectUser.userId);
     assert.ok((metadata.sensitive_fields_changed || []).includes("billable"));
@@ -1603,6 +1685,7 @@ LIMIT 1;
   );
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runActiveTimerMutationTests(api, fixtures) {
   await expectStatus(
     "project user can save active timers",
@@ -1616,7 +1699,7 @@ async function runActiveTimerMutationTests(api, fixtures) {
   ).then((response) => {
     check("active timers dashboard payload is compact and Workbench-routed", () => {
       assert.ok(response.body.activeTimers.count >= 1);
-      assert.ok(response.body.activeTimers.rows.some((row) =>
+      assert.ok(response.body.activeTimers.rows.some((/** @type {HarnessListItem} */ row) =>
         row.action.href === "workbench.html" &&
         ["Running", "Paused"].includes(row.status)));
       assert.equal(JSON.stringify(response.body.activeTimers).includes("invoice"), false);
@@ -1659,8 +1742,8 @@ async function runActiveTimerMutationTests(api, fixtures) {
   ).then((response) => {
     check("manual active timer slots are compact after middle removal", () => {
       const slots = response.body.timers
-        .map((timer) => timer.timer_slot)
-        .filter((timerSlot) => /^[1-9]\d*$/.test(timerSlot));
+        .map((/** @type {HarnessTimerRow} */ timer) => timer.timer_slot)
+        .filter((/** @type {string} */ timerSlot) => /^[1-9]\d*$/.test(timerSlot));
       assert.deepEqual(slots, ["1", "2"]);
     });
   });
@@ -1676,6 +1759,7 @@ async function runActiveTimerMutationTests(api, fixtures) {
   );
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runUserMutationTests(api, fixtures) {
   await expectStatus(
     "workspace admin cannot delete the signed-in account through User Administration",
@@ -1851,6 +1935,7 @@ INSERT INTO lists (
   return { fileId, listId, noteId, taskId };
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runAddUserAdministrationTests(api, fixtures) {
   const workspaceAdminOptions = await expectStatus(
     "workspace admin can read server-shaped Add User options",
@@ -1858,15 +1943,15 @@ async function runAddUserAdministrationTests(api, fixtures) {
     200,
   );
   check("non-super Add User workspace options exclude unrelated business workspaces", () => {
-    const workspaceIds = workspaceAdminOptions.body.workspaces.map((workspace) => workspace.workspaceId);
+    const workspaceIds = workspaceAdminOptions.body.workspaces.map((/** @type {HarnessWorkspaceRow} */ workspace) => workspace.workspaceId);
     assert.ok(workspaceIds.includes(fixtures.workspaceId));
     assert.ok(workspaceIds.includes(fixtures.familyWorkspace.id));
     assert.ok(!workspaceIds.includes(fixtures.otherWorkspace.id));
   });
   check("workspace admin Add User roles include authorized client and project scopes but exclude super admin", () => {
-    const roles = new Map(workspaceAdminOptions.body.roles.map((role) => [role.role_id, role]));
-    const clientScopeIds = roles.get("client_user").scopes.map((scope) => scope.scopeId);
-    const projectScopeIds = roles.get("project_user").scopes.map((scope) => scope.scopeId);
+    const roles = new Map(workspaceAdminOptions.body.roles.map((/** @type {HarnessRoleRow} */ role) => [role.role_id, role]));
+    const clientScopeIds = roles.get("client_user").scopes.map((/** @type {HarnessScopeRow} */ scope) => scope.scopeId);
+    const projectScopeIds = roles.get("project_user").scopes.map((/** @type {HarnessScopeRow} */ scope) => scope.scopeId);
     assert.ok(!roles.has("super_admin"));
     assert.equal(roles.get("project_admin").assignment_scope_type, "project");
     assert.ok(Object.values(fixtures.clients).every((client) => clientScopeIds.includes(client.id)));
@@ -1963,8 +2048,8 @@ WHERE user_id = ${sqlText(fixtures.users.projectUser.userId)}
     200,
   );
   check("super admin Add User options include the global super role", () => {
-    assert.ok(superOptions.body.workspaces.some((workspace) => workspace.workspaceId === fixtures.otherWorkspace.id));
-    assert.ok(superOptions.body.roles.some((role) => role.role_id === "super_admin"));
+    assert.ok(superOptions.body.workspaces.some((/** @type {HarnessWorkspaceRow} */ workspace) => workspace.workspaceId === fixtures.otherWorkspace.id));
+    assert.ok(superOptions.body.roles.some((/** @type {HarnessRoleRow} */ role) => role.role_id === "super_admin"));
   });
 
   const crossWorkspaceEmail = uniqueEmail("cross-workspace-user");
@@ -2031,8 +2116,8 @@ WHERE user_id = ${sqlText(crossWorkspaceCreated.body.user.user_id)}
     200,
   );
   check("family workspace Add User options exclude every client-scoped role", () => {
-    assert.ok(familyOptions.body.roles.some((role) => role.role_id === "project_user"));
-    assert.ok(familyOptions.body.roles.every((role) => role.assignment_scope_type !== "client"));
+    assert.ok(familyOptions.body.roles.some((/** @type {HarnessRoleRow} */ role) => role.role_id === "project_user"));
+    assert.ok(familyOptions.body.roles.every((/** @type {HarnessRoleRow} */ role) => role.assignment_scope_type !== "client"));
   });
 
   const personalOptions = await expectStatus(
@@ -2042,7 +2127,7 @@ WHERE user_id = ${sqlText(crossWorkspaceCreated.body.user.user_id)}
   );
   check("personal workspace never offers Add User or client role scopes", () => {
     assert.equal(personalOptions.body.canAddUsers, false);
-    assert.ok(personalOptions.body.roles.every((role) => role.assignment_scope_type !== "client"));
+    assert.ok(personalOptions.body.roles.every((/** @type {HarnessRoleRow} */ role) => role.assignment_scope_type !== "client"));
   });
   await expectStatus(
     "personal workspace rejects Add User creation",
@@ -2054,6 +2139,7 @@ WHERE user_id = ${sqlText(crossWorkspaceCreated.body.user.user_id)}
   );
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runRoleAssignmentTests(api, fixtures) {
   const rolesResponse = await expectStatus(
     "client admin can read role options for scoped assignments",
@@ -2062,11 +2148,11 @@ async function runRoleAssignmentTests(api, fixtures) {
   );
   check("client admin role options disclose only delegable roles and authorized scopes", () => {
     assert.deepEqual(
-      rolesResponse.body.roles.map((role) => role.role_id).sort(),
+      rolesResponse.body.roles.map((/** @type {HarnessRoleRow} */ role) => role.role_id).sort(),
       ["client_external_user", "client_user", "project_admin", "project_user"],
     );
-    const disclosedScopeIds = rolesResponse.body.roles.flatMap((role) => (
-      role.scopes.map((scope) => scope.scopeId)
+    const disclosedScopeIds = rolesResponse.body.roles.flatMap((/** @type {HarnessRoleRow} */ role) => (
+      role.scopes.map((/** @type {HarnessScopeRow} */ scope) => scope.scopeId)
     ));
     assert.ok(disclosedScopeIds.includes(fixtures.clients.alpha.id));
     assert.ok(disclosedScopeIds.includes(fixtures.projects.alpha.id));
@@ -2081,9 +2167,9 @@ async function runRoleAssignmentTests(api, fixtures) {
     200,
   );
   check("project admin server-shaped role options contain no broader scope", () => {
-    assert.deepEqual(projectAdminRoles.body.roles.map((role) => role.role_id), ["project_user"]);
+    assert.deepEqual(projectAdminRoles.body.roles.map((/** @type {HarnessRoleRow} */ role) => role.role_id), ["project_user"]);
     assert.deepEqual(
-      projectAdminRoles.body.roles[0].scopes.map((scope) => scope.scopeId),
+      projectAdminRoles.body.roles[0].scopes.map((/** @type {HarnessScopeRow} */ scope) => scope.scopeId),
       [fixtures.projects.alpha.id],
     );
   });
@@ -2094,7 +2180,7 @@ async function runRoleAssignmentTests(api, fixtures) {
   );
   check("workspace admin role options retain its six-role ceiling and labeled scopes", () => {
     assert.deepEqual(
-      workspaceAdminRoles.body.roles.map((role) => role.role_id).sort(),
+      workspaceAdminRoles.body.roles.map((/** @type {HarnessRoleRow} */ role) => role.role_id).sort(),
       [
         "client_admin",
         "client_external_user",
@@ -2104,10 +2190,10 @@ async function runRoleAssignmentTests(api, fixtures) {
         "workspace_admin",
       ],
     );
-    assert.ok(workspaceAdminRoles.body.roles.every((role) => (
+    assert.ok(workspaceAdminRoles.body.roles.every((/** @type {HarnessRoleRow} */ role) => (
       role.assignment_scope_type
       && role.scopes.length > 0
-      && role.scopes.every((scope) => scope.scopeId && scope.label)
+      && role.scopes.every((/** @type {HarnessScopeRow} */ scope) => scope.scopeId && scope.label)
     )));
   });
   const superAdminRoles = await expectStatus(
@@ -2117,7 +2203,7 @@ async function runRoleAssignmentTests(api, fixtures) {
   );
   check("only super admin role options include Super Admin", () => {
     assert.equal(superAdminRoles.body.roles.length, 7);
-    assert.ok(superAdminRoles.body.roles.some((role) => role.role_id === "super_admin"));
+    assert.ok(superAdminRoles.body.roles.some((/** @type {HarnessRoleRow} */ role) => role.role_id === "super_admin"));
   });
   await expectStatus(
     "scoped admins cannot enumerate assignments by user ID",
@@ -2418,7 +2504,7 @@ LIMIT 1;
     const serializedAudit = JSON.stringify(scopedAudit);
     assert.equal(serializedAudit.includes(fixtures.clients.beta.id), false);
     assert.equal(serializedAudit.includes("permission_overrides"), false);
-    assert.equal(JSON.parse(scopedAudit.metadata_json).delegation_mode, "scoped");
+    assert.equal(JSON.parse(/** @type {string} */ (scopedAudit.metadata_json)).delegation_mode, "scoped");
     assert.equal(scopedAudit.record_url, null);
   });
 
@@ -2528,6 +2614,7 @@ ORDER BY role_id, scope_id;
   );
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runSettingsTests(api, fixtures) {
   const settings = await api.get("/api/settings", { cookie: fixtures.sessions.workspaceAdmin });
   await expectStatus("workspace admin can read workspace settings", settings, 200);
@@ -2701,6 +2788,7 @@ SELECT
   );
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runOwnershipScopeTests(api, fixtures) {
   const entry = await createTimeEntry(api, fixtures.sessions.projectUser, fixtures.projects.alpha.id);
   const adminEntry = await createTimeEntry(api, fixtures.sessions.workspaceAdmin, fixtures.projects.alpha.id);
@@ -2710,7 +2798,7 @@ async function runOwnershipScopeTests(api, fixtures) {
     200,
   );
   check("client admin scoped time list includes team entries in assigned client", () => {
-    assert.ok(clientAdminList.body.entries.some((item) => item.entry_id === adminEntry.entry_id));
+    assert.ok(clientAdminList.body.entries.some((/** @type {HarnessListItem} */ item) => item.entry_id === adminEntry.entry_id));
   });
   const projectAdminList = await expectStatus(
     "project admin can list scoped project time entries from other users",
@@ -2718,7 +2806,7 @@ async function runOwnershipScopeTests(api, fixtures) {
     200,
   );
   check("project admin scoped time list includes team entries in assigned client", () => {
-    assert.ok(projectAdminList.body.entries.some((item) => item.entry_id === adminEntry.entry_id));
+    assert.ok(projectAdminList.body.entries.some((/** @type {HarnessListItem} */ item) => item.entry_id === adminEntry.entry_id));
   });
   const update = await api.put(
     `/api/time-entries/${encodeURIComponent(entry.entry_id)}`,
@@ -2741,6 +2829,7 @@ async function runOwnershipScopeTests(api, fixtures) {
   });
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runClientProjectDomainTests(api, fixtures) {
   const archivedClient = await createClient(api, fixtures.sessions.workspaceAdmin, "Archived Scope Client");
   const archivedProject = await createProject(api, fixtures.sessions.workspaceAdmin, fixtures.clients.alpha.id, "Archived Scope Project");
@@ -2812,6 +2901,7 @@ async function runClientProjectDomainTests(api, fixtures) {
   );
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runWorkspaceOwnerLifecycleTests(api, fixtures) {
   const ownedWorkspace = await expectStatus(
     "workspace admin can create an owned workspace for lifecycle checks",
@@ -2900,23 +2990,24 @@ ORDER BY workspaces.created_at DESC;
   });
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runWorkspaceCreationModuleSettingTests(api, fixtures) {
   const userSettings = await expectStatus(
     "workspace admin can read workspace creation module controls",
     api.get("/api/user/settings", { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   );
-  const businessType = userSettings.body.workspaceCreation.availableTypes.find((type) => type.workspaceType === "business");
+  const businessType = userSettings.body.workspaceCreation.availableTypes.find((/** @type {HarnessListItem} */ type) => type.workspaceType === "business");
 
   check("Create Workspace exposes module settings for Business workspaces", () => {
     assert.ok(businessType);
-    assert.ok(businessType.moduleSettings.some((moduleDefinition) => moduleDefinition.moduleId === "tasks"));
-    assert.ok(businessType.moduleSettings.some((moduleDefinition) => moduleDefinition.moduleId === "time-tracking"));
+    assert.ok(businessType.moduleSettings.some((/** @type {HarnessModuleDefinition} */ moduleDefinition) => moduleDefinition.moduleId === "tasks"));
+    assert.ok(businessType.moduleSettings.some((/** @type {HarnessModuleDefinition} */ moduleDefinition) => moduleDefinition.moduleId === "time-tracking"));
   });
   check("required modules appear locked in Create Workspace module controls", () => {
-    const requiredModule = businessType.moduleSettings.find((moduleDefinition) => moduleDefinition.moduleId === "client-projects");
+    const requiredModule = businessType.moduleSettings.find((/** @type {HarnessModuleDefinition} */ moduleDefinition) => moduleDefinition.moduleId === "client-projects");
     assert.ok(requiredModule);
-    assert.ok(requiredModule.settings.some((setting) => setting.moduleStatus === true && setting.readOnly === true));
+    assert.ok(requiredModule.settings.some((/** @type {HarnessModuleSetting} */ setting) => setting.moduleStatus === true && setting.readOnly === true));
   });
 
   const tasksOffWorkspace = await expectStatus(
@@ -2951,9 +3042,9 @@ async function runWorkspaceCreationModuleSettingTests(api, fixtures) {
     200,
   );
   check("Workspace Settings keeps required module controls locked", () => {
-    const requiredModule = tasksOffSettings.body.moduleSettings.find((moduleDefinition) => moduleDefinition.moduleId === "client-projects");
+    const requiredModule = tasksOffSettings.body.moduleSettings.find((/** @type {HarnessModuleDefinition} */ moduleDefinition) => moduleDefinition.moduleId === "client-projects");
     assert.ok(requiredModule);
-    assert.ok(requiredModule.settings.some((setting) => setting.moduleStatus === true && setting.readOnly === true));
+    assert.ok(requiredModule.settings.some((/** @type {HarnessModuleSetting} */ setting) => setting.moduleStatus === true && setting.readOnly === true));
   });
   check("Workspace Settings and Create Workspace expose matching Business module setting IDs", () => {
     assert.deepEqual(
@@ -2992,6 +3083,7 @@ async function runWorkspaceCreationModuleSettingTests(api, fixtures) {
   });
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runDisabledModuleTests(api, fixtures) {
   const settings = await api.get("/api/settings", { cookie: fixtures.sessions.workspaceAdmin });
   await expectStatus("workspace admin can read settings before disabled-module smoke", settings, 200);
@@ -3001,7 +3093,7 @@ async function runDisabledModuleTests(api, fixtures) {
     200,
   );
   check("permission resource catalog contains contributed resources only", () => {
-    const resourceKeys = new Set(permissionResources.body.resources.map((resource) => resource.key));
+    const resourceKeys = new Set(permissionResources.body.resources.map((/** @type {HarnessResourceRow} */ resource) => resource.key));
     assert.equal(resourceKeys.has("time_entries"), true);
     assert.equal(resourceKeys.has("lists"), true);
     assert.equal(resourceKeys.has("tags"), true);
@@ -3014,46 +3106,46 @@ async function runDisabledModuleTests(api, fixtures) {
     403,
   );
   check("settings expose Time Tracking module metadata", () => {
-    const timeTrackingModule = settings.body.modules.find((moduleDefinition) => moduleDefinition.id === "time-tracking");
+    const timeTrackingModule = settings.body.modules.find((/** @type {HarnessModuleDefinition} */ moduleDefinition) => moduleDefinition.id === "time-tracking");
     assert.ok(timeTrackingModule);
-    assert.ok(timeTrackingModule.navigation.some((item) => item.href === "time-tracker.html"));
-    assert.ok(timeTrackingModule.dashboard.some((item) =>
+    assert.ok(timeTrackingModule.navigation.some((/** @type {HarnessListItem} */ item) => item.href === "time-tracker.html"));
+    assert.ok(timeTrackingModule.dashboard.some((/** @type {HarnessListItem} */ item) =>
       item.id === "active-timers" &&
       item.renderer === "time-tracking.active-timers" &&
       item.placement === "main" &&
       item.dataRoute === "/api/time-tracking/dashboard/effort-summary"));
-    assert.ok(timeTrackingModule.dashboard.some((item) =>
+    assert.ok(timeTrackingModule.dashboard.some((/** @type {HarnessListItem} */ item) =>
       item.id === "recent-time" &&
       item.renderer === "time-tracking.recent-time" &&
       item.placement === "main" &&
       item.dataRoute === "/api/time-tracking/dashboard/effort-summary"));
-    assert.equal(timeTrackingModule.dashboard.some((item) => item.id === "current-month-billables"), false);
-    assert.equal(timeTrackingModule.dashboard.some((item) => item.id === "hours-billables-chart"), false);
-    assert.ok(timeTrackingModule.publicApiEndpoints.some((item) => item.path === "/api/v1/time-entries"));
-    assert.ok(timeTrackingModule.settings.some((item) => item.id === "timeTrackingEnabled"));
+    assert.equal(timeTrackingModule.dashboard.some((/** @type {HarnessListItem} */ item) => item.id === "current-month-billables"), false);
+    assert.equal(timeTrackingModule.dashboard.some((/** @type {HarnessListItem} */ item) => item.id === "hours-billables-chart"), false);
+    assert.ok(timeTrackingModule.publicApiEndpoints.some((/** @type {HarnessListItem} */ item) => item.path === "/api/v1/time-entries"));
+    assert.ok(timeTrackingModule.settings.some((/** @type {HarnessListItem} */ item) => item.id === "timeTrackingEnabled"));
   });
   check("settings expose Tasks module metadata", () => {
-    const tasksModule = settings.body.modules.find((moduleDefinition) => moduleDefinition.id === "tasks");
+    const tasksModule = settings.body.modules.find((/** @type {HarnessModuleDefinition} */ moduleDefinition) => moduleDefinition.id === "tasks");
     assert.ok(tasksModule);
-    assert.ok(tasksModule.navigation.some((item) => item.href === "tasks.html"));
-    assert.ok(tasksModule.dashboard.some((item) =>
+    assert.ok(tasksModule.navigation.some((/** @type {HarnessListItem} */ item) => item.href === "tasks.html"));
+    assert.ok(tasksModule.dashboard.some((/** @type {HarnessListItem} */ item) =>
       item.id === "tasks-needs-attention" &&
       item.renderer === "tasks.needs-attention" &&
       item.placement === "attention" &&
       item.dataRoute === "/api/tasks/dashboard-summary"));
-    assert.ok(tasksModule.dashboard.some((item) =>
+    assert.ok(tasksModule.dashboard.some((/** @type {HarnessListItem} */ item) =>
       item.id === "tasks-today-upcoming" &&
       item.renderer === "tasks.today-upcoming" &&
       item.placement === "today" &&
       item.dataRoute === "/api/tasks/dashboard-summary"));
-    assert.ok(tasksModule.dashboard.some((item) =>
+    assert.ok(tasksModule.dashboard.some((/** @type {HarnessListItem} */ item) =>
       item.id === "task-summary" &&
       item.renderer === "tasks.pressure" &&
       item.placement === "main" &&
       item.dataRoute === "/api/tasks/dashboard-summary"));
-    assert.ok(tasksModule.publicApiEndpoints.some((item) => item.path === "/api/v1/tasks"));
-    assert.ok(tasksModule.settings.some((item) => item.id === "tasksEnabled"));
-    assert.ok(tasksModule.settings.some((item) => item.id === "taskTimersEnabled"));
+    assert.ok(tasksModule.publicApiEndpoints.some((/** @type {HarnessListItem} */ item) => item.path === "/api/v1/tasks"));
+    assert.ok(tasksModule.settings.some((/** @type {HarnessListItem} */ item) => item.id === "tasksEnabled"));
+    assert.ok(tasksModule.settings.some((/** @type {HarnessListItem} */ item) => item.id === "taskTimersEnabled"));
     assert.equal(settings.body.enabledModules.includes("tasks"), true);
     assert.equal(Object.hasOwn(settings.body, "tasksEnabled"), false);
     assert.equal(Object.hasOwn(settings.body, "timeTrackingEnabled"), false);
@@ -3078,7 +3170,7 @@ async function runDisabledModuleTests(api, fixtures) {
     200,
   ).then((response) => {
     check("disabled Time Tracking contributes no permission resource", () => {
-      assert.equal(response.body.resources.some((resource) => resource.key === "time_entries"), false);
+      assert.equal(response.body.resources.some((/** @type {HarnessResourceRow} */ resource) => resource.key === "time_entries"), false);
     });
   });
   await expectStatus(
@@ -3088,8 +3180,8 @@ async function runDisabledModuleTests(api, fixtures) {
   ).then((response) => {
     check("disabled Time Tracking contributes no active or recent time dashboard panels", () => {
       const panels = response.body.extensionPoints.dashboardPanels || [];
-      assert.equal(panels.some((panel) => panel.id === "active-timers"), false);
-      assert.equal(panels.some((panel) => panel.id === "recent-time"), false);
+      assert.equal(panels.some((/** @type {HarnessPanelRow} */ panel) => panel.id === "active-timers"), false);
+      assert.equal(panels.some((/** @type {HarnessPanelRow} */ panel) => panel.id === "recent-time"), false);
     });
   });
 
@@ -3120,7 +3212,7 @@ async function runDisabledModuleTests(api, fixtures) {
   );
   await expectStatus(
     "disabled Time Tracking blocks task timer writes",
-    api.put(`/api/tasks/${encodeURIComponent(fixtures.taskTimerGateTaskId)}/timer`, {
+    api.put(`/api/tasks/${encodeURIComponent(requirePublishedTaskId(fixtures.taskTimerGateTaskId, "taskTimerGateTaskId"))}/timer`, {
       timer_status: "running",
       accumulated_elapsed_seconds: 1,
       last_active_start_time: new Date().toISOString(),
@@ -3139,7 +3231,7 @@ async function runDisabledModuleTests(api, fixtures) {
     200,
   ).then((response) => {
     check("re-enabled Time Tracking contributes its permission resource", () => {
-      assert.equal(response.body.resources.some((resource) => resource.key === "time_entries"), true);
+      assert.equal(response.body.resources.some((/** @type {HarnessResourceRow} */ resource) => resource.key === "time_entries"), true);
     });
   });
   await expectStatus("workspace admin can disable Task Timers sub-option", api.put("/api/settings", {
@@ -3150,7 +3242,7 @@ async function runDisabledModuleTests(api, fixtures) {
   }, { cookie: fixtures.sessions.workspaceAdmin }), 200);
   await expectStatus(
     "disabled Task Timers sub-option blocks task timer writes",
-    api.put(`/api/tasks/${encodeURIComponent(fixtures.taskTimerGateTaskId)}/timer`, {
+    api.put(`/api/tasks/${encodeURIComponent(requirePublishedTaskId(fixtures.taskTimerGateTaskId, "taskTimerGateTaskId"))}/timer`, {
       timer_status: "running",
       accumulated_elapsed_seconds: 1,
       last_active_start_time: new Date().toISOString(),
@@ -3295,6 +3387,7 @@ function flattenNavigationHrefs(navigation) {
   ]).filter((href) => typeof href === "string");
 }
 
+/** @param {HarnessApi} api @param {HarnessFixtures} fixtures @returns {Promise<void>} */
 async function runReportingPermissionTests(api, fixtures) {
   await expectStatus(
     "client user can read scoped reporting bootstrap",
@@ -3303,7 +3396,7 @@ async function runReportingPermissionTests(api, fixtures) {
   );
   await expectStatus(
     "workspace admin can filter reporting summaries by task timer link",
-    api.get(`/api/reporting/project-summary?scopeId=${encodeURIComponent(fixtures.clients.alpha.id)}&taskId=${encodeURIComponent(fixtures.taskTimerTaskId)}`, { cookie: fixtures.sessions.workspaceAdmin }),
+    api.get(`/api/reporting/project-summary?scopeId=${encodeURIComponent(fixtures.clients.alpha.id)}&taskId=${encodeURIComponent(requirePublishedTaskId(fixtures.taskTimerTaskId, "taskTimerTaskId"))}`, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   ).then((response) => {
     check("task-linked reporting filter isolates finalized task timer time", () => {
@@ -3484,7 +3577,10 @@ LIMIT 1;
   });
 }
 
-/** @param {string} baseUrl @returns {HarnessApi} */
+/**
+ * @param {string} baseUrl
+ * @returns {HarnessApi}
+ */
 function createApi(baseUrl) {
   return {
     /** @param {string} url @param {HarnessRequestOptions} [options] */
