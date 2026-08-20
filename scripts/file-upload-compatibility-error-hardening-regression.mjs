@@ -9,6 +9,55 @@ import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+
+/** This client sends a form or a JSON string, so it names its own option bag. */
+/** @typedef {{ contentType?: string, cookie?: string }} HardeningClientOptions */
+
+/**
+ * One fixture response. The body stays `unknown` on purpose: JSON.parse would
+ * hand back `any`, and every envelope read below would then be a claim the
+ * compiler never checks.
+ * @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown> & { text: string }} HardeningResponse
+ */
+
+/** The raw socket probe answers with Node's own header bag and status code. */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureResponseBase & { body: unknown, text: string }} RawHardeningResponse */
+
+/**
+ * @typedef {{
+ *   postForm: (url: string, form: FormData, options?: HardeningClientOptions) => Promise<HardeningResponse>,
+ *   postJson: (url: string, body: unknown, options?: HardeningClientOptions) => Promise<HardeningResponse>,
+ * }} HardeningApiClient
+ */
+
+/** The compatibility routes publish the Files service results unchanged. */
+/** @typedef {typeof import("../src/services/files.service.js").filesService} FilesService */
+/** @typedef {Awaited<ReturnType<FilesService["uploadAndAttach"]>>} FileUploadEnvelope */
+/** @typedef {Awaited<ReturnType<FilesService["uploadBatchAndAttach"]>>} JsonBatchEnvelope */
+/** @typedef {{ error: import("../src/types/framework-contracts.js").ApiErrorDetails }} HardeningErrorEnvelope */
+
+/** @typedef {Awaited<ReturnType<typeof seedFixtures>>} HardeningFixtures */
+
+/**
+ * Narrow an upload envelope to the file record it must be carrying.
+ *
+ * The service publishes `file` as nullable because a refused upload produces
+ * none, so every read through it here is a claim the route accepted the work.
+ * @template {{ file: unknown }} Envelope
+ * @param {Envelope} envelope
+ * @param {string} label
+ * @returns {NonNullable<Envelope["file"]>}
+ */
+function requireFile(envelope, label) {
+  assert.ok(envelope.file, `${label} should carry its file record`);
+  return envelope.file;
+}
+
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-upload-hardening-"));
 
@@ -31,7 +80,7 @@ try {
   await initializeDatabase();
   const fixtures = await seedFixtures();
   server = await listen(createApp());
-  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`;
   const api = createApi(baseUrl);
 
   await checkLegacyJsonCompatibility(api, fixtures);
@@ -73,6 +122,7 @@ function assertStaticContracts() {
     assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   }
 
+/** @param {HardeningApiClient} api @param {HardeningFixtures} fixtures */
 async function checkLegacyJsonCompatibility(api, fixtures) {
   const singleResponse = await api.postJson("/api/files", {
     contentBase64: Buffer.from("legacy single upload body").toString("base64"),
@@ -84,9 +134,12 @@ async function checkLegacyJsonCompatibility(api, fixtures) {
   }, { cookie: fixtures.adminSessionId });
 
   assert.equal(singleResponse.status, 201, "legacy JSON single upload route should remain available");
-  assert.equal(singleResponse.body.file.originalFilename, "legacy-single-still-supported.txt");
-  assert.equal(singleResponse.body.file.status, "pending");
-  assert.equal(singleResponse.body.file.scanStatus, "pending");
+  /** @type {FileUploadEnvelope} */
+  const single = readPayload(singleResponse, ["attachment", "file"], "POST /api/files");
+  const singleFile = requireFile(single, "POST /api/files");
+  assert.equal(singleFile.originalFilename, "legacy-single-still-supported.txt");
+  assert.equal(singleFile.status, "pending");
+  assert.equal(singleFile.scanStatus, "pending");
 
   const batchResponse = await api.postJson("/api/files/batch", {
     files: [
@@ -102,12 +155,17 @@ async function checkLegacyJsonCompatibility(api, fixtures) {
   }, { cookie: fixtures.adminSessionId });
 
   assert.equal(batchResponse.status, 201, "legacy JSON batch upload route should remain available");
-  assert.equal(batchResponse.body.total, 1);
-  assert.equal(batchResponse.body.succeeded, 1);
-  assert.equal(batchResponse.body.results[0].file.originalFilename, "legacy-batch-still-supported.txt");
-  assert.equal(batchResponse.body.results[0].file.status, "pending");
+  /** @type {JsonBatchEnvelope} */
+  const batch = readPayload(batchResponse, ["results", "succeeded", "total"], "POST /api/files/batch");
+  assert.equal(batch.total, 1);
+  assert.equal(batch.succeeded, 1);
+  const batchEntry = batch.results[0];
+  assert.ok(batchEntry.ok && batchEntry.file, "the legacy JSON batch route should accept and publish its file");
+  assert.equal(batchEntry.file.originalFilename, "legacy-batch-still-supported.txt");
+  assert.equal(batchEntry.file.status, "pending");
 }
 
+/** @param {HardeningApiClient} api @param {HardeningFixtures} fixtures */
 async function checkOversizedFailureShapeAndCleanup(api, fixtures) {
   const beforeFiles = await listStoredFiles(config.storage.localRoot);
   const response = await api.postForm("/api/files/upload", createUploadForm(fixtures.oversizedTaskId, {
@@ -116,12 +174,15 @@ async function checkOversizedFailureShapeAndCleanup(api, fixtures) {
   }), { cookie: fixtures.adminSessionId });
 
   assert.equal(response.status, 413, "oversized streamed uploads should use a useful 413 response");
-  assert.match(response.body.error.message, /Uploaded file exceeds the allowed size/i);
+  /** @type {HardeningErrorEnvelope} */
+  const oversized = readPayload(response, ["error"], "POST /api/files/upload");
+  assert.match(oversized.error.message, /Uploaded file exceeds the allowed size/i);
   assert.doesNotMatch(JSON.stringify(response.body), /storageKey|protectedPath|signedUrl|localRoot/i, "failure response should not expose storage internals");
   await eventuallyNoFileOrAttachmentForOriginalFilename("hardening-too-large.txt");
   await eventuallyStoredFilesEqual(beforeFiles, "oversized streamed upload should not leave a partial local file");
 }
 
+/** @param {string} baseUrl @param {HardeningFixtures} fixtures */
 async function checkMalformedMultipartCleanup(baseUrl, fixtures) {
   const beforeFiles = await listStoredFiles(config.storage.localRoot);
   const response = await sendMalformedMultipart(baseUrl, fixtures, {
@@ -130,12 +191,15 @@ async function checkMalformedMultipartCleanup(baseUrl, fixtures) {
   });
 
   assert.equal(response.status, 400, "malformed multipart uploads should fail with a route-safe 400");
-  assert.match(response.body.error.message, /could not be parsed|cancelled|could not be read/i);
+  /** @type {HardeningErrorEnvelope} */
+  const malformed = readPayload(response, ["error"], "POST /api/files/upload");
+  assert.match(malformed.error.message, /could not be parsed|cancelled|could not be read/i);
   assert.doesNotMatch(response.text, /storageKey|protectedPath|signedUrl|localRoot/i, "parse failures should not expose storage internals");
   await eventuallyNoFileOrAttachmentForOriginalFilename("malformed-upload.txt");
   await eventuallyStoredFilesEqual(beforeFiles, "malformed multipart upload should not leave a partial local file");
 }
 
+/** @param {string} baseUrl @param {HardeningFixtures} fixtures */
 async function checkClientAbortCleanup(baseUrl, fixtures) {
   const beforeFiles = await listStoredFiles(config.storage.localRoot);
   await abortMultipartUpload(baseUrl, fixtures, {
@@ -147,6 +211,7 @@ async function checkClientAbortCleanup(baseUrl, fixtures) {
   await eventuallyStoredFilesEqual(beforeFiles, "client-aborted upload should not leave a partial local file");
 }
 
+/** @param {HardeningApiClient} api @param {HardeningFixtures} fixtures */
 async function checkStorageStreamFailureIsBounded(api, fixtures) {
   const originalAdapter = filesService.getFileStorageAdapter("local");
   filesService.registerFileStorageAdapter("local", {
@@ -170,8 +235,10 @@ async function checkStorageStreamFailureIsBounded(api, fixtures) {
   }
 
   assert.equal(response.status, 500, "unexpected storage stream failures should fail the upload");
-  assert.equal(response.body.error.code, "internal_server_error");
-  assert.equal(response.body.error.message, "Internal server error.");
+  /** @type {HardeningErrorEnvelope} */
+  const bounded = readPayload(response, ["error"], "POST /api/files/upload");
+  assert.equal(bounded.error.code, "internal_server_error");
+  assert.equal(bounded.error.message, "Internal server error.");
   assert.doesNotMatch(response.text, /raw provider|secret|storageKey|protectedPath|signedUrl/i, "storage failures should not leak provider internals");
   await eventuallyNoFileOrAttachmentForOriginalFilename("bounded-storage-failure.txt");
 }
@@ -219,10 +286,13 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "fresh database should seed a protected admin");
-  return rows[0];
+  /** @type {{ active_workspace_id: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireFirstRow(rows, "protected admin");
+  assert.ok(admin.user_id, "fresh database should seed a protected admin");
+  return admin;
 }
 
+/** @param {{ taskId: string, title: string, userId: string, workspaceId: string }} options */
 async function createTask(options) {
   const now = new Date().toISOString();
 
@@ -258,6 +328,7 @@ VALUES (
 `);
 }
 
+/** @param {string} taskId @param {{ filename?: string, mimeType?: string, text?: string }} [options] */
 function createUploadForm(taskId, options = {}) {
   const form = new FormData();
   form.append("moduleId", "tasks");
@@ -270,7 +341,8 @@ function createUploadForm(taskId, options = {}) {
   return form;
 }
 
-function sendMalformedMultipart(baseUrl, fixtures, options = {}) {
+/** @param {string} baseUrl @param {HardeningFixtures} fixtures @param {{ filename: string, taskId: string }} options */
+function sendMalformedMultipart(baseUrl, fixtures, options) {
   const boundary = `ltf-hardening-${randomUUID()}`;
   const body = Buffer.from([
     multipartField(boundary, "moduleId", "tasks"),
@@ -295,7 +367,8 @@ function sendMalformedMultipart(baseUrl, fixtures, options = {}) {
   });
 }
 
-function abortMultipartUpload(baseUrl, fixtures, options = {}) {
+/** @param {string} baseUrl @param {HardeningFixtures} fixtures @param {{ filename: string, taskId: string }} options @returns {Promise<void>} */
+function abortMultipartUpload(baseUrl, fixtures, options) {
   const boundary = `ltf-abort-${randomUUID()}`;
   const bodyStart = Buffer.from([
     multipartField(boundary, "moduleId", "tasks"),
@@ -313,7 +386,7 @@ function abortMultipartUpload(baseUrl, fixtures, options = {}) {
     const done = () => {
       if (!resolved) {
         resolved = true;
-        resolve();
+        resolve(undefined);
       }
     };
     const request = http.request({
@@ -337,10 +410,16 @@ function abortMultipartUpload(baseUrl, fixtures, options = {}) {
   });
 }
 
+/** @param {string} boundary @param {string} name @param {string} value */
 function multipartField(boundary, name, value) {
   return `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`;
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {{ body: Buffer, headers: Record<string, string>, method?: string, path: string }} options
+ * @returns {Promise<RawHardeningResponse>}
+ */
 function rawHttpRequest(baseUrl, options) {
   return new Promise((resolve, reject) => {
     const url = new URL(options.path, baseUrl);
@@ -351,6 +430,7 @@ function rawHttpRequest(baseUrl, options) {
       path: url.pathname,
       port: url.port,
     }, (response) => {
+      /** @type {Buffer[]} */
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => {
@@ -375,6 +455,7 @@ function rawHttpRequest(baseUrl, options) {
   });
 }
 
+/** @param {string} baseUrl @returns {HardeningApiClient} */
 function createApi(baseUrl) {
   return {
     async postForm(url, form, options = {}) {
@@ -389,7 +470,16 @@ function createApi(baseUrl) {
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {BodyInit} body
+ * @param {HardeningClientOptions} [options]
+ * @returns {Promise<HardeningResponse>}
+ */
 async function request(baseUrl, method, url, body, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {};
 
   if (options.cookie) {
@@ -421,6 +511,7 @@ async function request(baseUrl, method, url, body, options = {}) {
   };
 }
 
+/** @param {string} originalFilename */
 async function eventuallyNoFileOrAttachmentForOriginalFilename(originalFilename) {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     if (await hasNoFileOrAttachmentForOriginalFilename(originalFilename)) {
@@ -432,6 +523,7 @@ async function eventuallyNoFileOrAttachmentForOriginalFilename(originalFilename)
   assert.equal(await hasNoFileOrAttachmentForOriginalFilename(originalFilename), true, `${originalFilename} should not leave file or attachment rows`);
 }
 
+/** @param {string} originalFilename */
 async function hasNoFileOrAttachmentForOriginalFilename(originalFilename) {
   const fileRows = await querySql(`
 SELECT file_id
@@ -450,10 +542,14 @@ LEFT JOIN files
   AND files.file_id = file_attachments.file_id
 WHERE files.file_id IS NULL;
 `);
-  return Number(orphanRows[0].count) === 0;
+  /** @type {{ count: number }} */
+  const orphanRow = requireFirstRow(orphanRows, "orphaned attachment count");
+  return Number(orphanRow.count) === 0;
 }
 
+/** @param {string[]} expectedFiles @param {string} message */
 async function eventuallyStoredFilesEqual(expectedFiles, message) {
+  /** @type {string[]} */
   let lastFiles = [];
 
   for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -469,15 +565,18 @@ async function eventuallyStoredFilesEqual(expectedFiles, message) {
   assert.deepEqual(lastFiles, expectedFiles, message);
 }
 
+/** @param {string} directory */
 async function listStoredFiles(directory) {
+  /** @type {string[]} */
   const files = [];
 
+  /** @param {string} currentDirectory */
   async function walk(currentDirectory) {
     let entries;
     try {
       entries = await fs.readdir(currentDirectory, { withFileTypes: true });
     } catch (error) {
-      if (error?.code === "ENOENT") {
+      if (/** @type {NodeJS.ErrnoException} */ (error)?.code === "ENOENT") {
         return;
       }
       throw error;
@@ -502,13 +601,15 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok");
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {HttpFixtureServer} serverInstance @returns {Promise<void>} */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => {
@@ -521,6 +622,7 @@ function closeServer(serverInstance) {
   });
 }
 
+/** @param {number} ms @returns {Promise<void>} */
 function delay(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);

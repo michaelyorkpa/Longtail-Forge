@@ -9,6 +9,50 @@ import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} MultipartClientOptions */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+
+/**
+ * One fixture response. The body stays `unknown` on purpose: JSON.parse would
+ * hand back `any`, and every envelope read below would then be a claim the
+ * compiler never checks.
+ * @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown> & { text: string }} MultipartResponse
+ */
+
+/**
+ * @typedef {{
+ *   post: (url: string, body?: unknown, options?: MultipartClientOptions) => Promise<MultipartResponse>,
+ *   postForm: (url: string, form: FormData, options?: MultipartClientOptions) => Promise<MultipartResponse>,
+ * }} MultipartApiClient
+ */
+
+/** The multipart route publishes the streamed upload result the Files service builds. */
+/** @typedef {typeof import("../src/services/files.service.js").filesService} FilesService */
+/** @typedef {Awaited<ReturnType<FilesService["uploadStreamAndAttach"]>>} MultipartUploadEnvelope */
+/** @typedef {Awaited<ReturnType<FilesService["uploadAndAttach"]>>} FileUploadEnvelope */
+/** @typedef {{ error: import("../src/types/framework-contracts.js").ApiErrorDetails }} MultipartErrorEnvelope */
+
+/** @typedef {Awaited<ReturnType<typeof seedFixtures>>} MultipartFixtures */
+
+/**
+ * Narrow an upload envelope to the file record it must be carrying.
+ *
+ * The service publishes `file` as nullable because a refused upload produces
+ * none, so every read through it here is a claim the route accepted the work.
+ * @template {{ file: unknown }} Envelope
+ * @param {Envelope} envelope
+ * @param {string} label
+ * @returns {NonNullable<Envelope["file"]>}
+ */
+function requireFile(envelope, label) {
+  assert.ok(envelope.file, `${label} should carry its file record`);
+  return envelope.file;
+}
+
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-multipart-upload-"));
 
@@ -32,7 +76,7 @@ try {
   await initializeDatabase();
   const fixtures = await seedFixtures();
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   await checkStreamedUploadCreatesPendingFile(api, fixtures);
   await checkJsonUploadContractRemainsAvailable(api, fixtures);
@@ -77,6 +121,7 @@ function assertStaticContracts() {
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
 }
 
+/** @param {MultipartApiClient} api @param {MultipartFixtures} fixtures */
 async function checkStreamedUploadCreatesPendingFile(api, fixtures) {
   const bodyText = "streamed multipart route body";
   const response = await api.postForm("/api/files/upload", createUploadForm(fixtures.streamTaskId, {
@@ -87,63 +132,77 @@ async function checkStreamedUploadCreatesPendingFile(api, fixtures) {
   }), { cookie: fixtures.adminSessionId });
 
   assert.equal(response.status, 201, "multipart upload should create a file attachment");
-  assert.equal(response.body.file.originalFilename, "streamed-evidence.txt");
-  assert.equal(response.body.file.displayName, "Streamed Evidence");
-  assert.equal(response.body.file.status, "pending");
-  assert.equal(response.body.file.scanStatus, "pending");
-  assert.equal(response.body.file.storageProvider, "local");
-  assert.equal(response.body.attachment.targetType, "task");
-  assert.equal(response.body.attachment.targetId, fixtures.streamTaskId);
+  /** @type {MultipartUploadEnvelope} */
+  const uploaded = readPayload(response, ["attachment", "file"], "POST /api/files/upload");
+  const uploadedFile = requireFile(uploaded, "POST /api/files/upload");
+  assert.equal(uploadedFile.originalFilename, "streamed-evidence.txt");
+  assert.equal(uploadedFile.displayName, "Streamed Evidence");
+  assert.equal(uploadedFile.status, "pending");
+  assert.equal(uploadedFile.scanStatus, "pending");
+  assert.equal(uploadedFile.storageProvider, "local");
+  assert.equal(uploaded.attachment.targetType, "task");
+  assert.equal(uploaded.attachment.targetId, fixtures.streamTaskId);
   assert.doesNotMatch(JSON.stringify(response.body), /storageKey|protectedPath|signedUrl/i, "multipart response must not expose storage internals");
 
   const fileRows = await querySql(`
 SELECT storage_provider, storage_key, original_filename, display_name, file_size_bytes, sha256_hash, status, scan_status
 FROM files
-WHERE file_id = ${sqlText(response.body.file.fileId)};
+WHERE file_id = ${sqlText(uploadedFile.fileId)};
 `);
   assert.equal(fileRows.length, 1);
-  assert.equal(fileRows[0].storage_provider, "local");
-  assert.ok(fileRows[0].storage_key, "stored streamed files should keep a storage key in the database");
-  assert.equal(fileRows[0].original_filename, "streamed-evidence.txt");
-  assert.equal(fileRows[0].display_name, "Streamed Evidence");
-  assert.equal(Number(fileRows[0].file_size_bytes), Buffer.byteLength(bodyText));
-  assert.equal(fileRows[0].sha256_hash, createHash("sha256").update(bodyText).digest("hex"));
-  assert.equal(fileRows[0].status, "pending");
-  assert.equal(fileRows[0].scan_status, "pending");
+  /** @type {{ display_name: string, file_size_bytes: number, original_filename: string, scan_status: string, sha256_hash: string, status: string, storage_key: string, storage_provider: string }} */
+  const fileRow = requireFirstRow(fileRows, "stored streamed file");
+  assert.equal(fileRow.storage_provider, "local");
+  assert.ok(fileRow.storage_key, "stored streamed files should keep a storage key in the database");
+  assert.equal(fileRow.original_filename, "streamed-evidence.txt");
+  assert.equal(fileRow.display_name, "Streamed Evidence");
+  assert.equal(Number(fileRow.file_size_bytes), Buffer.byteLength(bodyText));
+  assert.equal(fileRow.sha256_hash, createHash("sha256").update(bodyText).digest("hex"));
+  assert.equal(fileRow.status, "pending");
+  assert.equal(fileRow.scan_status, "pending");
 
   const attachmentRows = await querySql(`
 SELECT metadata_json, target_type, target_id
 FROM file_attachments
-WHERE file_id = ${sqlText(response.body.file.fileId)};
+WHERE file_id = ${sqlText(uploadedFile.fileId)};
 `);
   assert.equal(attachmentRows.length, 1);
-  assert.equal(attachmentRows[0].target_type, "task");
-  assert.equal(attachmentRows[0].target_id, fixtures.streamTaskId);
-  assert.deepEqual(JSON.parse(attachmentRows[0].metadata_json), { source: "multipart-regression" });
+  /** @type {{ metadata_json: string, target_id: string, target_type: string }} */
+  const attachmentRow = requireFirstRow(attachmentRows, "streamed file attachment");
+  assert.equal(attachmentRow.target_type, "task");
+  assert.equal(attachmentRow.target_id, fixtures.streamTaskId);
+  assert.deepEqual(JSON.parse(attachmentRow.metadata_json), { source: "multipart-regression" });
 
   const scanJobs = await querySql(`
 SELECT status, attempt_count, payload_json
 FROM jobs
 WHERE job_type = 'file.scan'
-  AND payload_json LIKE ${sqlText(`%"fileId":"${response.body.file.fileId}"%`)};
+  AND payload_json LIKE ${sqlText(`%"fileId":"${uploadedFile.fileId}"%`)};
 `);
   assert.equal(scanJobs.length, 1);
-  assert.equal(scanJobs[0].status, "pending");
-  assert.equal(Number(scanJobs[0].attempt_count), 0);
-  assert.match(scanJobs[0].payload_json, /"source":"file_upload"/);
+  /** @type {{ attempt_count: number, payload_json: string, status: string }} */
+  const scanJob = requireFirstRow(scanJobs, "queued scan job");
+  assert.equal(scanJob.status, "pending");
+  assert.equal(Number(scanJob.attempt_count), 0);
+  assert.match(scanJob.payload_json, /"source":"file_upload"/);
 }
 
+/** @param {MultipartApiClient} api @param {MultipartFixtures} fixtures */
 async function checkJsonUploadContractRemainsAvailable(api, fixtures) {
   const response = await api.post("/api/files", uploadPayload(fixtures.jsonTaskId), {
     cookie: fixtures.adminSessionId,
   });
 
   assert.equal(response.status, 201, "existing JSON upload route should remain available");
-  assert.equal(response.body.file.originalFilename, "json-still-works.txt");
-  assert.equal(response.body.file.status, "pending");
-  assert.equal(response.body.file.scanStatus, "pending");
+  /** @type {FileUploadEnvelope} */
+  const jsonUpload = readPayload(response, ["attachment", "file"], "POST /api/files");
+  const jsonUploadFile = requireFile(jsonUpload, "POST /api/files");
+  assert.equal(jsonUploadFile.originalFilename, "json-still-works.txt");
+  assert.equal(jsonUploadFile.status, "pending");
+  assert.equal(jsonUploadFile.scanStatus, "pending");
 }
 
+/** @param {MultipartApiClient} api @param {MultipartFixtures} fixtures */
 async function checkOversizedStreamedUploadIsRejected(api, fixtures) {
   const beforeFiles = await listStoredFiles(config.storage.localRoot);
   const response = await api.postForm("/api/files/upload", createUploadForm(fixtures.oversizedTaskId, {
@@ -152,7 +211,9 @@ async function checkOversizedStreamedUploadIsRejected(api, fixtures) {
   }), { cookie: fixtures.adminSessionId });
 
   assert.equal(response.status, 413, "oversized streamed upload should be rejected");
-  assert.match(response.body.error.message, /exceeds the allowed size/i);
+  /** @type {MultipartErrorEnvelope} */
+  const oversized = readPayload(response, ["error"], "POST /api/files/upload");
+  assert.match(oversized.error.message, /exceeds the allowed size/i);
   await assertNoFileOrAttachmentForOriginalFilename("too-large.txt");
   assert.deepEqual(
     await listStoredFiles(config.storage.localRoot),
@@ -161,6 +222,7 @@ async function checkOversizedStreamedUploadIsRejected(api, fixtures) {
   );
 }
 
+/** @param {MultipartApiClient} api @param {MultipartFixtures} fixtures */
 async function checkParseFailureLeavesNoAttachment(api, fixtures) {
   const form = new FormData();
   form.append("moduleId", "tasks");
@@ -170,10 +232,13 @@ async function checkParseFailureLeavesNoAttachment(api, fixtures) {
   const response = await api.postForm("/api/files/upload", form, { cookie: fixtures.adminSessionId });
 
   assert.equal(response.status, 400, "metadata parse failure should reject the upload");
-  assert.match(response.body.error.message, /metadata fields must be sent before the file field/i);
+  /** @type {MultipartErrorEnvelope} */
+  const parseFailure = readPayload(response, ["error"], "POST /api/files/upload");
+  assert.match(parseFailure.error.message, /metadata fields must be sent before the file field/i);
   await assertNoFileOrAttachmentForOriginalFilename("missing-target.txt");
 }
 
+/** @param {MultipartApiClient} api @param {MultipartFixtures} fixtures */
 async function checkStorageFailureLeavesNoAttachment(api, fixtures) {
   const originalAdapter = filesService.getFileStorageAdapter("local");
   filesService.registerFileStorageAdapter("local", {
@@ -186,6 +251,7 @@ async function checkStorageFailureLeavesNoAttachment(api, fixtures) {
     },
   });
 
+  /** @type {MultipartResponse | undefined} */
   let response;
   try {
     response = await api.postForm("/api/files/upload", createUploadForm(fixtures.storageFailureTaskId, {
@@ -196,12 +262,16 @@ async function checkStorageFailureLeavesNoAttachment(api, fixtures) {
     filesService.registerFileStorageAdapter("local", originalAdapter);
   }
 
+  assert.ok(response, "the storage-failure probe should have produced a response");
   assert.equal(response.status, 503, "storage failures should reject the streamed upload");
-  assert.equal(response.body.error.code, "service_unavailable");
-  assert.equal(response.body.error.message, "The service is temporarily unavailable.");
+  /** @type {MultipartErrorEnvelope} */
+  const storageFailure = readPayload(response, ["error"], "POST /api/files/upload");
+  assert.equal(storageFailure.error.code, "service_unavailable");
+  assert.equal(storageFailure.error.message, "The service is temporarily unavailable.");
   await assertNoFileOrAttachmentForOriginalFilename("storage-fails.txt");
 }
 
+/** @param {string} originalFilename */
 async function assertNoFileOrAttachmentForOriginalFilename(originalFilename) {
   const fileRows = await querySql(`
 SELECT file_id
@@ -262,10 +332,13 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "fresh database should seed a protected admin");
-  return rows[0];
+  /** @type {{ active_workspace_id: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireFirstRow(rows, "protected admin");
+  assert.ok(admin.user_id, "fresh database should seed a protected admin");
+  return admin;
 }
 
+/** @param {{ clientId?: string | null, projectId?: string | null, taskId: string, title: string, userId: string, workspaceId: string }} options */
 async function createTask(options) {
   const now = new Date().toISOString();
 
@@ -301,6 +374,7 @@ VALUES (
 `);
 }
 
+/** @param {string} taskId @param {{ attachmentMetadata?: Record<string, unknown>, displayName?: string, filename?: string, mimeType?: string, text?: string }} [options] */
 function createUploadForm(taskId, options = {}) {
   const form = new FormData();
   form.append("moduleId", "tasks");
@@ -321,6 +395,7 @@ function createUploadForm(taskId, options = {}) {
   return form;
 }
 
+/** @param {string} taskId */
 function uploadPayload(taskId) {
   return {
     contentBase64: Buffer.from("json route still works").toString("base64"),
@@ -332,6 +407,7 @@ function uploadPayload(taskId) {
   };
 }
 
+/** @param {string} baseUrl @returns {MultipartApiClient} */
 function createApi(baseUrl) {
   return {
     async post(url, body, options = {}) {
@@ -343,7 +419,16 @@ function createApi(baseUrl) {
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {unknown} body
+ * @param {MultipartClientOptions} [options]
+ * @returns {Promise<MultipartResponse>}
+ */
 async function requestJson(baseUrl, method, url, body, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {
     "Content-Type": "application/json",
   };
@@ -360,7 +445,15 @@ async function requestJson(baseUrl, method, url, body, options = {}) {
   return parseResponse(response);
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} url
+ * @param {FormData} form
+ * @param {MultipartClientOptions} [options]
+ * @returns {Promise<MultipartResponse>}
+ */
 async function requestForm(baseUrl, url, form, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {};
 
   if (options.cookie) {
@@ -375,6 +468,7 @@ async function requestForm(baseUrl, url, form, options = {}) {
   return parseResponse(response);
 }
 
+/** @param {Response} response @returns {Promise<MultipartResponse>} */
 async function parseResponse(response) {
   const text = await response.text();
   let body = null;
@@ -393,15 +487,18 @@ async function parseResponse(response) {
   };
 }
 
+/** @param {string} directory */
 async function listStoredFiles(directory) {
+  /** @type {string[]} */
   const files = [];
 
+  /** @param {string} currentDirectory */
   async function walk(currentDirectory) {
     let entries;
     try {
       entries = await fs.readdir(currentDirectory, { withFileTypes: true });
     } catch (error) {
-      if (error?.code === "ENOENT") {
+      if (/** @type {NodeJS.ErrnoException} */ (error)?.code === "ENOENT") {
         return;
       }
       throw error;
@@ -426,13 +523,15 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok");
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {HttpFixtureServer} serverInstance @returns {Promise<void>} */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => {

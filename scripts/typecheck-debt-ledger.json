@@ -2957,6 +2957,7 @@
         "scripts/test-support/disposable-database.mjs",
         "scripts/test-support/fake-dom.mjs",
         "scripts/test-support/http-fixture-contracts.mjs",
+        "scripts/test-support/http-payload-assertions.mjs",
         "scripts/test-support/isolated-regression-retry.mjs",
         "scripts/test-support/public-demo-files-ingress-probe.mjs",
         "scripts/test-support/regression-bucket-orchestrator.mjs",
@@ -3001,7 +3002,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 4450,
+      "errorCount": 4240,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3267,40 +3268,6 @@
             "count": 1
           }
         ],
-        "scripts/file-api-lifecycle-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 29
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2571,
-            "count": 2
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 12
-          },
-          {
-            "code": 7006,
-            "count": 20
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
         "scripts/file-clamd-adapter-regression.mjs": [
           {
             "code": 18046,
@@ -3361,50 +3328,6 @@
           {
             "code": 7006,
             "count": 4
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/file-multipart-batch-upload-helper-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 29
-          }
-        ],
-        "scripts/file-multipart-upload-route-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 13
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 32
           },
           {
             "code": 7034,
@@ -3643,28 +3566,6 @@
           {
             "code": 7034,
             "count": 1
-          }
-        ],
-        "scripts/file-upload-compatibility-error-hardening-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 12
-          },
-          {
-            "code": 2810,
-            "count": 2
-          },
-          {
-            "code": 7005,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 40
-          },
-          {
-            "code": 7034,
-            "count": 2
           }
         ],
         "scripts/files-attachable-target-options-regression.mjs": [
@@ -6425,8 +6326,8 @@
     }
   },
   "totals": {
-    "files": 1043,
-    "errors": 15584,
+    "files": 1044,
+    "errors": 15374,
     "explicitAny": 7
   },
   "explicitAnyByFile": {
