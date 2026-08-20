@@ -59,11 +59,12 @@ try {
   await initializeDatabase();
   const firstLogin = await loginAdmin();
   const actorSession = await readRequestSession(firstLogin.sessionId);
+  assertWorkspaceRequestSession(actorSession);
   const workspaceId = actorSession.workspace_id;
   const target = await createTargetUser(workspaceId);
 
   server = await listen(createApp());
-  const origin = `http://127.0.0.1:${server.address().port}`;
+  const origin = `http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`;
   const csrfResponse = await globalThis.fetch(`${origin}/api/csrf-token`);
   const csrfPayload = await csrfResponse.json();
   const csrfCookie = (csrfResponse.headers.get("set-cookie") || "").split(";", 1)[0];
@@ -99,7 +100,7 @@ ORDER BY role_id;
   await assertRejectsStatus(() => startSupport(actorSession, firstLogin.sessionId, target.user_id, workspaceId, {
     currentPassword: "Wrong-Support-Password-2!",
   }), 429);
-  assert.equal(Number((await db.get("SELECT COUNT(1) AS count FROM support_sessions;")).count), 0);
+  assert.equal(Number((await requireRow("SELECT COUNT(1) AS count FROM support_sessions;")).count), 0);
   assert.ok(await sessionsRepository.readById(firstLogin.sessionId), "failed reauthentication must not rotate the session");
   await authenticationThrottle.clear();
 
@@ -126,7 +127,7 @@ ORDER BY role_id;
   const validRoutePayload = JSON.parse(validRouteText);
   assert.equal(validRoutePayload.supportView.effectiveUserId, target.user_id);
   const validRouteSessionId = readSessionCookie(validRouteResponse);
-  const validRouteSession = await readRequestSession(validRouteSessionId);
+  const validRouteSession = await readSupportViewSession(validRouteSessionId);
   const validRouteExit = await supportViewService.exit(validRouteSession, validRouteSessionId, requestContext());
   await sessionsRepository.remove(validRouteExit.session.sessionId);
   await closeServer(server);
@@ -138,10 +139,10 @@ ORDER BY role_id;
     reasonReference: "Self target",
     workspaceId,
   }, requestContext()), 400);
-  await assertRejectsStatus(() => supportViewService.start({
+  await assertRejectsStatus(() => supportViewService.start(/** @type {import("../../../src/types/http-contracts.js").RequestSession} */ ({
     ...actorSession,
-    session_mode: "account_export_recovery",
-  }, firstLogin.sessionId, {
+    session_mode: /** @type {import("../../../src/types/http-contracts.js").SessionMode} */ ("account_export_recovery"),
+  }), firstLogin.sessionId, {
     currentPassword: ADMIN_PASSWORD,
     effectiveUserId: target.user_id,
     reasonReference: "Unsupported mode",
@@ -188,6 +189,7 @@ ORDER BY role_id;
     id: firstStart.supportView.supportSessionId,
   });
   const persistedStartEvents = await supportSessionsRepository.listEvents(firstStart.supportView.supportSessionId);
+  assert.ok(persistedSupport, "the started support session should persist");
   assert.equal(persistedSupport.reason_reference, "Regression support reference");
   assert.equal(persistedStartEvents.length, 1);
   assert.equal(persistedStartEvents[0].event_type, "entered");
@@ -201,16 +203,17 @@ ORDER BY role_id;
   const secondLogin = await loginAdmin();
   const secondActorSession = await readRequestSession(secondLogin.sessionId);
   const secondStart = await startSupport(secondActorSession, secondLogin.sessionId, target.user_id, workspaceId);
-  assert.equal(Number((await db.get("SELECT COUNT(1) AS count FROM support_sessions WHERE ended_at IS NULL;")).count), 2, "concurrent browser sessions may hold independent support sessions");
+  assert.equal(Number((await requireRow("SELECT COUNT(1) AS count FROM support_sessions WHERE ended_at IS NULL;")).count), 2, "concurrent browser sessions may hold independent support sessions");
 
   await addRoleAssignment(target.user_id, workspaceId, "workspace_admin", "workspace", workspaceId);
   await db.run("DELETE FROM user_role_assignments WHERE user_id = :userId AND role_id = 'workspace_admin';", {
     userId: target.user_id,
   });
-  const firstStored = await sessionsRepository.readById(firstStart.session.sessionId);
+  const firstStored = await requireStoredSession(firstStart.session.sessionId);
   const roleChangeResolution = await supportViewService.resolveForRequest(firstStored, requestContext());
-  assert.equal(roleChangeResolution.supportSession.effective_user_id, target.user_id, "target role changes must be read live without replacing effective identity");
-  assert.equal(roleChangeResolution.storedSession.session_id, firstStart.session.sessionId);
+  const activeRoleChange = requireActiveResolution(roleChangeResolution);
+  assert.equal(activeRoleChange.supportSession.effective_user_id, target.user_id, "target role changes must be read live without replacing effective identity");
+  assert.equal(activeRoleChange.storedSession.session_id, firstStart.session.sessionId);
 
   const exited = await supportViewService.exit(
     firstSupportSession,
@@ -219,7 +222,7 @@ ORDER BY role_id;
   );
   assert.notEqual(exited.session.sessionId, firstStart.session.sessionId, "exit must rotate the session ID");
   assert.equal((await readRequestSession(exited.session.sessionId)).workspace_id, workspaceId);
-  const exitedRow = await supportSessionsRepository.readById(firstStart.supportView.supportSessionId);
+  const exitedRow = await requireSupportSession(firstStart.supportView.supportSessionId);
   assert.equal(exitedRow.outcome, "exited");
   assert.deepEqual((await supportSessionsRepository.listEvents(firstStart.supportView.supportSessionId)).map((row) => row.event_type), ["entered", "exited"]);
   const exitedRequestSession = await readRequestSession(exited.session.sessionId);
@@ -238,11 +241,26 @@ ORDER BY role_id;
   assert.equal(JSON.stringify(diagnostics).includes("supportSession"), false, "diagnostics must reveal no support-session details");
   assert.equal(JSON.stringify(diagnostics).includes(TARGET_USERNAME), false);
 
-  const secondStored = await sessionsRepository.readById(secondStart.session.sessionId);
+  const secondStored = await requireStoredSession(secondStart.session.sessionId);
   const exactExpiry = new Date(secondStart.supportView.expiresAt);
+
+  // Negative control for the expiry boundary. Every expiry proof below resolves
+  // at or past expiresAt, so all of them would still pass against an
+  // implementation that expired every support session on sight. One second
+  // before its expiry the same session must still resolve active, on the same
+  // browser session row, with no terminal event recorded.
+  const beforeExpiry = new Date(exactExpiry.getTime() - 1000);
+  const stillActive = requireActiveResolution(
+    await supportViewService.resolveForRequest(secondStored, requestContext({ now: beforeExpiry })),
+  );
+  assert.equal(stillActive.storedSession.session_id, secondStart.session.sessionId, "a support session must not expire before its expiry");
+  assert.equal(stillActive.supportSession.support_session_id, secondStart.supportView.supportSessionId);
+  assert.equal((await requireSupportSession(secondStart.supportView.supportSessionId)).outcome, "active", "an unexpired support session must keep its active outcome");
+  assert.equal((await supportSessionsRepository.listEvents(secondStart.supportView.supportSessionId)).length, 1, "an unexpired support session must record no terminal event");
+
   const expiryResolution = await supportViewService.resolveForRequest(secondStored, requestContext({ now: exactExpiry }));
-  assert.ok(expiryResolution.session, "expiry should restore an active actor through a rotated normal session");
-  assert.equal((await supportSessionsRepository.readById(secondStart.supportView.supportSessionId)).outcome, "expired");
+  assert.ok(requireRotatedResolution(expiryResolution).session, "expiry should restore an active actor through a rotated normal session");
+  assert.equal((await requireSupportSession(secondStart.supportView.supportSessionId)).outcome, "expired");
   assert.equal((await supportSessionsRepository.listEvents(secondStart.supportView.supportSessionId))[1].event_type, "expired");
 
   const browserExpiryLogin = await loginAdmin();
@@ -266,15 +284,15 @@ WHERE support_session_id = :supportSessionId;
     supportSessionId: browserExpiryStart.supportView.supportSessionId,
   });
   await sessionsRepository.removeExpired();
-  const expiredBrowserSession = await sessionsRepository.readById(browserExpiryStart.session.sessionId);
+  const expiredBrowserSession = await requireStoredSession(browserExpiryStart.session.sessionId);
   assert.ok(expiredBrowserSession, "generic cleanup must retain linked sessions until their terminal event is recorded");
   const browserExpiryResolution = await supportViewService.resolveForRequest(
     expiredBrowserSession,
     requestContext(),
   );
-  assert.equal(browserExpiryResolution.session, null, "an expired browser session must not rotate into another expired session");
+  assert.equal(requireRotatedResolution(browserExpiryResolution).session, null, "an expired browser session must not rotate into another expired session");
   assert.equal(await sessionsRepository.readById(browserExpiryStart.session.sessionId), null);
-  assert.equal((await supportSessionsRepository.readById(browserExpiryStart.supportView.supportSessionId)).outcome, "expired");
+  assert.equal((await requireSupportSession(browserExpiryStart.supportView.supportSessionId)).outcome, "expired");
   assert.equal((await supportSessionsRepository.listEvents(browserExpiryStart.supportView.supportSessionId))[1].event_type, "expired");
 
   const revokedTargetLogin = await loginAdmin();
@@ -282,11 +300,11 @@ WHERE support_session_id = :supportSessionId;
   const revokedTargetStart = await startSupport(revokedTargetActor, revokedTargetLogin.sessionId, target.user_id, workspaceId);
   await userWorkspacesRepository.updateStatus(target.user_id, workspaceId, "inactive");
   const revokedTargetResolution = await supportViewService.resolveForRequest(
-    await sessionsRepository.readById(revokedTargetStart.session.sessionId),
+    await requireStoredSession(revokedTargetStart.session.sessionId),
     requestContext(),
   );
-  assert.ok(revokedTargetResolution.session, "target revocation should fail closed and restore the still-authorized actor");
-  assert.equal((await supportSessionsRepository.readById(revokedTargetStart.supportView.supportSessionId)).outcome, "revoked");
+  assert.ok(requireRotatedResolution(revokedTargetResolution).session, "target revocation should fail closed and restore the still-authorized actor");
+  assert.equal((await requireSupportSession(revokedTargetStart.supportView.supportSessionId)).outcome, "revoked");
   await userWorkspacesRepository.updateStatus(target.user_id, workspaceId, "active");
 
   const deactivatedTargetLogin = await loginAdmin();
@@ -294,11 +312,11 @@ WHERE support_session_id = :supportSessionId;
   const deactivatedTargetStart = await startSupport(deactivatedTargetActor, deactivatedTargetLogin.sessionId, target.user_id, workspaceId);
   await db.run("UPDATE users SET user_status = 'inactive' WHERE user_id = :userId;", { userId: target.user_id });
   const deactivatedTargetResolution = await supportViewService.resolveForRequest(
-    await sessionsRepository.readById(deactivatedTargetStart.session.sessionId),
+    await requireStoredSession(deactivatedTargetStart.session.sessionId),
     requestContext(),
   );
-  assert.ok(deactivatedTargetResolution.session);
-  assert.equal((await supportSessionsRepository.readById(deactivatedTargetStart.supportView.supportSessionId)).outcome, "revoked");
+  assert.ok(requireRotatedResolution(deactivatedTargetResolution).session);
+  assert.equal((await requireSupportSession(deactivatedTargetStart.supportView.supportSessionId)).outcome, "revoked");
   await db.run("UPDATE users SET user_status = 'active' WHERE user_id = :userId;", { userId: target.user_id });
 
   const routeExpiryLogin = await loginAdmin();
@@ -313,7 +331,7 @@ WHERE support_session_id = :supportSessionId;
     supportSessionId: routeExpiryStart.supportView.supportSessionId,
   });
   server = await listen(createApp());
-  const routeExpiryResponse = await globalThis.fetch(`http://127.0.0.1:${server.address().port}/api/session`, {
+  const routeExpiryResponse = await globalThis.fetch(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}/api/session`, {
     headers: { Cookie: `longtail_forge_session=${routeExpiryStart.session.sessionId}` },
   });
   assert.equal(routeExpiryResponse.status, 200, await routeExpiryResponse.text());
@@ -331,17 +349,17 @@ WHERE support_session_id = :supportSessionId;
   await db.run("UPDATE users SET protected_user = 'no' WHERE user_id = :userId;", { userId: revokedActor.user_id });
   await db.run("DELETE FROM user_role_assignments WHERE user_id = :userId AND role_id = 'super_admin';", { userId: revokedActor.user_id });
   const revokedActorResolution = await supportViewService.resolveForRequest(
-    await sessionsRepository.readById(revokedActorStart.session.sessionId),
+    await requireStoredSession(revokedActorStart.session.sessionId),
     requestContext(),
   );
-  assert.ok(revokedActorResolution.session, "role revocation should end Support View and restore only the actor's ordinary membership context");
-  assert.equal((await supportSessionsRepository.readById(revokedActorStart.supportView.supportSessionId)).outcome, "revoked");
+  assert.ok(requireRotatedResolution(revokedActorResolution).session, "role revocation should end Support View and restore only the actor's ordinary membership context");
+  assert.equal((await requireSupportSession(revokedActorStart.supportView.supportSessionId)).outcome, "revoked");
 
   const supportColumns = await db.query("PRAGMA table_info(support_sessions);");
   const eventColumns = await db.query("PRAGMA table_info(support_view_events);");
   const allColumnNames = [...supportColumns, ...eventColumns].map((column) => column.name).join(" ");
   assert.doesNotMatch(allColumnNames, /password|token|cookie|request_body|response_body|secure_content/);
-  const integrity = await db.get("PRAGMA integrity_check;");
+  const integrity = await requireRow("PRAGMA integrity_check;");
   assert.equal(integrity.integrity_check, "ok");
   console.log("Support View session contract regression passed.");
 } finally {
@@ -349,6 +367,93 @@ WHERE support_session_id = :supportSessionId;
   if (server) await closeServer(server);
   await closeDatabase();
   await fixture.cleanup();
+}
+
+/**
+ * The branches `resolveForRequest` resolves, named against the service's own
+ * published row contracts rather than derived from its inferred return type.
+ * Deriving them with `Extract<Awaited<ReturnType<...>>>` made the aliases
+ * circular, because the service's return type is itself inferred from the
+ * rotation helper that reads these same rows.
+ *
+ * Support View still active: both rows resolve.
+ * @typedef {{ storedSession: import("../../../src/types/support-view-contracts.js").ActiveSupportViewBrowserSessionRow, supportSession: import("../../../src/types/support-view-contracts.js").SupportViewStoredSessionRow }} ActiveSupportViewResolution
+ */
+
+/**
+ * Support View ended and rotated: the replacement cookie and row, or null when
+ * the actor can no longer be represented.
+ * @typedef {{ actorSession: unknown, session: { sessionId: string } | null, storedSession: import("../../../src/types/support-view-contracts.js").SupportViewBrowserSessionRow | null }} RotatedSupportViewResolution
+ */
+
+/** Whatever branch a resolution took, before it is narrowed. */
+/** @typedef {{ storedSession?: unknown, supportSession?: unknown, actorSession?: unknown, session?: unknown }} SupportViewResolution */
+
+/** The browser session row the service reads and rotates. */
+/** @typedef {import("../../../src/types/support-view-contracts.js").ActiveSupportViewBrowserSessionRow} StoredBrowserSession */
+/** @typedef {import("../../../src/types/support-view-contracts.js").SupportViewStoredSessionRow} StoredSupportSession */
+
+/** The framework error the gated operations reject with. */
+/** @typedef {{ statusCode?: number }} GatedDenial */
+
+/**
+ * Read a single row a probe requires.
+ * @param {string} sql
+ * @returns {Promise<import("../../../src/types/database-contracts.js").DatabaseRow>}
+ */
+async function requireRow(sql) {
+  const row = await db.get(sql);
+  assert.ok(row, `the probe query should return a row: ${sql}`);
+  return row;
+}
+
+/**
+ * Read a linked browser session the probe requires. The service accepts only
+ * an existing row, and every caller below needs it to exist for its assertion
+ * to mean anything.
+ * @param {string} sessionId
+ * @returns {Promise<StoredBrowserSession>}
+ */
+async function requireStoredSession(sessionId) {
+  const stored = await sessionsRepository.readById(sessionId);
+  assert.ok(stored, `the linked browser session ${sessionId} should exist`);
+  return /** @type {StoredBrowserSession} */ (/** @type {unknown} */ (stored));
+}
+
+/**
+ * Read a support session row the probe requires.
+ * @param {string} supportSessionId
+ * @returns {Promise<StoredSupportSession>}
+ */
+async function requireSupportSession(supportSessionId) {
+  const supportSession = await supportSessionsRepository.readById(supportSessionId);
+  assert.ok(supportSession, `support session ${supportSessionId} should exist`);
+  return /** @type {StoredSupportSession} */ (/** @type {unknown} */ (supportSession));
+}
+
+/**
+ * Narrow a resolution to the still-active branch. Which branch the service
+ * took is exactly what these probes assert, so the expectation is stated here
+ * rather than assumed by a cast.
+ * @param {SupportViewResolution} resolution
+ * @returns {ActiveSupportViewResolution}
+ */
+function requireActiveResolution(resolution) {
+  assert.ok(
+    "supportSession" in resolution && resolution.supportSession,
+    "the resolution should keep Support View active",
+  );
+  return /** @type {ActiveSupportViewResolution} */ (/** @type {unknown} */ (resolution));
+}
+
+/**
+ * Narrow a resolution to the ended-and-rotated branch.
+ * @param {SupportViewResolution} resolution
+ * @returns {RotatedSupportViewResolution}
+ */
+function requireRotatedResolution(resolution) {
+  assert.ok("actorSession" in resolution, "the resolution should have ended Support View and rotated");
+  return /** @type {RotatedSupportViewResolution} */ (/** @type {unknown} */ (resolution));
 }
 
 async function loginAdmin() {
@@ -359,6 +464,12 @@ async function loginAdmin() {
   return result.session;
 }
 
+/**
+ * Seed the support target. The repository read resolves null for a missing
+ * row, which no probe below can proceed past.
+ * @param {string} workspaceId
+ * @returns {Promise<NonNullable<Awaited<ReturnType<typeof usersRepository.readFirstByUserId>>>>}
+ */
 async function createTargetUser(workspaceId) {
   const created = await usersRepository.create(workspaceId, {
     altEmail: "",
@@ -367,9 +478,12 @@ async function createTargetUser(workspaceId) {
     username: TARGET_USERNAME,
   }, await hashPassword(TARGET_PASSWORD));
   await userWorkspacesRepository.upsert({ userId: created.user_id, workspaceId, status: "active" });
-  return usersRepository.readFirstByUserId(created.user_id);
+  const target = await usersRepository.readFirstByUserId(created.user_id);
+  assert.ok(target, "the seeded support target should exist");
+  return target;
 }
 
+/** @param {string} userId @param {string} workspaceId @param {string} roleId @param {string} scopeType @param {string} scopeId */
 async function addRoleAssignment(userId, workspaceId, roleId, scopeType, scopeId) {
   const now = new Date().toISOString();
   await db.run(`
@@ -392,6 +506,13 @@ VALUES (
   });
 }
 
+/**
+ * @param {import("../../../src/types/http-contracts.js").RequestSession} actorSession
+ * @param {string} currentSessionId
+ * @param {string} effectiveUserId
+ * @param {string} workspaceId
+ * @param {{ currentPassword?: string, effectiveUserId?: string, reasonReference?: string, workspaceId?: string } & Record<string, unknown>} [overrides]
+ */
 async function startSupport(actorSession, currentSessionId, effectiveUserId, workspaceId, overrides = {}) {
   return supportViewService.start(actorSession, currentSessionId, {
     currentPassword: overrides.currentPassword || ADMIN_PASSWORD,
@@ -402,14 +523,41 @@ async function startSupport(actorSession, currentSessionId, effectiveUserId, wor
   }, requestContext());
 }
 
+/**
+ * Read the request session a probe requires. `getRequestSession` resolves
+ * null for an unknown or expired cookie, and every caller below needs the
+ * session to exist for its assertion to mean anything.
+ * @param {string} sessionId
+ * @returns {Promise<import("../../../src/types/http-contracts.js").RequestSession>}
+ */
 async function readRequestSession(sessionId) {
-  return getRequestSession({
+  const session = await getRequestSession(/** @type {import("../../../src/types/route-contracts.js").RouteRequest} */ (/** @type {unknown} */ ({
     cookies: { longtail_forge_session: sessionId },
     headers: {},
     hostname: "localhost",
     protocol: "http",
     socket: { remoteAddress: "127.0.0.1" },
-  });
+  })));
+  assert.ok(session, `request session ${sessionId} should resolve`);
+  return session;
+}
+
+/**
+ * Read a request session and narrow it to the Support View branch.
+ *
+ * The shared contract already discriminates the two identities structurally: a
+ * `SupportViewRequestSession` carries the actor and effective pair as required
+ * fields, while a `NormalRequestSession` declares each of them as `undefined`.
+ * Asserting the branch here is what lets every downstream probe read
+ * `actor_user_id` and `effective_user_id` by name, so the separation is
+ * enforced by the type rather than described in a comment.
+ * @param {string} sessionId
+ * @returns {Promise<import("../../../src/types/http-contracts.js").SupportViewRequestSession>}
+ */
+async function readSupportViewSession(sessionId) {
+  const session = await readRequestSession(sessionId);
+  assert.ok(session.support_view, `session ${sessionId} should be carrying Support View`);
+  return /** @type {import("../../../src/types/http-contracts.js").SupportViewRequestSession} */ (session);
 }
 
 /**
@@ -430,21 +578,31 @@ function requestContext(overrides = {}) {
   };
 }
 
+/** @param {() => Promise<unknown>} operation @param {number} statusCode @returns {Promise<void>} */
 async function assertRejectsStatus(operation, statusCode) {
-  await assert.rejects(operation, (error) => error?.statusCode === statusCode);
+  await assert.rejects(operation, (error) => /** @type {GatedDenial} */ (error)?.statusCode === statusCode);
 }
 
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown>} response @returns {string} */
 function readSessionCookie(response) {
   return (response.headers.get("set-cookie") || "").match(/longtail_forge_session=([^;,]+)/)?.[1] || "";
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} app
+ * @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>}
+ */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/**
+ * @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} serverInstance
+ * @returns {Promise<void>}
+ */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => error ? reject(error) : resolve());

@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18355,
+    "activeAssertionCount": 18380,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19039,
+    "effectiveAssertionCount": 19064,
     "retiredAssertionCredit": 15,
     "vitest": [
       {
@@ -3583,11 +3583,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 107,
+      "assertionCount": 109,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 107,
+      "entryPointAssertionCount": 109,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -3966,11 +3966,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 22,
+      "assertionCount": 23,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves strict remembered-login validation, matched absolute database and cookie lifetimes, restart persistence, expiry, and logout revocation.",
-      "entryPointAssertionCount": 22,
+      "entryPointAssertionCount": 23,
       "id": "framework.remembered-sessions",
       "legacy": false,
       "path": "scripts/regressions/framework/remembered-sessions.regression.mjs",
@@ -4106,11 +4106,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 45,
+      "assertionCount": 47,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves immediate single/bulk revocation, password and deactivation forced logout, safe admin references, workspace boundaries, and security events.",
-      "entryPointAssertionCount": 45,
+      "entryPointAssertionCount": 47,
       "id": "framework.session-revocation",
       "legacy": false,
       "path": "scripts/regressions/framework/session-revocation.regression.mjs",
@@ -4146,11 +4146,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 83,
+      "assertionCount": 90,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves central Support View read declarations, target-scoped authorization, mutation denial, sensitive-read exclusions, secure Notes omission, attributed end/logout lifecycle, and bounded retention/export.",
-      "entryPointAssertionCount": 83,
+      "entryPointAssertionCount": 90,
       "id": "framework.support-view-request-enforcement",
       "legacy": false,
       "path": "scripts/regressions/framework/support-view-request-enforcement.regression.mjs",
@@ -4173,11 +4173,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 65,
+      "assertionCount": 78,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves the gated durable Support View session contract, actor/effective identity separation, rotation, expiry, reauthentication throttling, revocation, and safe event persistence.",
-      "entryPointAssertionCount": 65,
+      "entryPointAssertionCount": 78,
       "id": "framework.support-view-session-contract",
       "legacy": false,
       "path": "scripts/regressions/framework/support-view-session-contract.regression.mjs",
