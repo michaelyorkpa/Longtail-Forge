@@ -6,6 +6,26 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} PreviewClientOptions */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+
+/**
+ * One fixture response. The body stays `unknown` on purpose: JSON.parse would
+ * hand back `any`, and every descriptor read below would then be a claim the
+ * compiler never checks.
+ * @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown> & { text: string }} PreviewResponse
+ */
+
+/** @typedef {{ get: (url: string, options?: PreviewClientOptions) => Promise<PreviewResponse> }} PreviewApiClient */
+
+/** The preview route publishes the descriptor envelope the Files service builds. */
+/** @typedef {typeof import("../src/services/files.service.js").filesService} FilesService */
+/** @typedef {Awaited<ReturnType<FilesService["readAttachmentPreviewDescriptor"]>>} PreviewDescriptorEnvelope */
+
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-files-preview-availability-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-files-preview-availability.db");
@@ -15,6 +35,7 @@ const { createApp } = await import("../src/core/app.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { createSession } = await import("../src/security/sessions.js");
 
+/** @type {string[]} */
 const results = [];
 let server;
 
@@ -23,7 +44,7 @@ try {
   await initializeDatabase();
   const fixtures = await seedFixtures();
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   await checkAsync("preview descriptors are attachment-scoped and readable attachments can be previewable", async () => {
     const allowed = await api.get(`/api/files/attachments/${fixtures.attachments.allowed}/preview`, {
@@ -31,15 +52,17 @@ try {
     });
 
     assert.equal(allowed.status, 200);
-    assert.equal(allowed.body.preview.fileAttachmentId, fixtures.attachments.allowed);
-    assert.equal(allowed.body.preview.fileId, fixtures.files.shared);
-    assert.equal(allowed.body.preview.targetId, fixtures.tasks.alpha);
-    assert.equal(allowed.body.preview.state, "previewable");
-    assert.equal(allowed.body.preview.kind, "text");
-    assert.equal(allowed.body.preview.fileName, "shared-alpha.txt");
-    assert.equal(allowed.body.preview.fileType, "TXT");
-    assert.equal(allowed.body.preview.contentAvailable, true);
-    assert.equal(allowed.body.preview.contentUrl, `/api/files/attachments/${fixtures.attachments.allowed}/preview/content`);
+    /** @type {PreviewDescriptorEnvelope} */
+    const allowedPreview = readPayload(allowed, ["preview"], "GET /api/files/attachments/:fileAttachmentId/preview");
+    assert.equal(allowedPreview.preview.fileAttachmentId, fixtures.attachments.allowed);
+    assert.equal(allowedPreview.preview.fileId, fixtures.files.shared);
+    assert.equal(allowedPreview.preview.targetId, fixtures.tasks.alpha);
+    assert.equal(allowedPreview.preview.state, "previewable");
+    assert.equal(allowedPreview.preview.kind, "text");
+    assert.equal(allowedPreview.preview.fileName, "shared-alpha.txt");
+    assert.equal(allowedPreview.preview.fileType, "TXT");
+    assert.equal(allowedPreview.preview.contentAvailable, true);
+    assert.equal(allowedPreview.preview.contentUrl, `/api/files/attachments/${fixtures.attachments.allowed}/preview/content`);
     assertNoUnsafeStorageLeak([allowed.body]);
 
     const blocked = await api.get(`/api/files/attachments/${fixtures.attachments.blockedSameFile}/preview`, {
@@ -52,11 +75,13 @@ try {
       cookie: fixtures.adminSessionId,
     });
     assert.equal(adminAllowed.status, 200);
-    assert.equal(adminAllowed.body.preview.fileAttachmentId, fixtures.attachments.blockedSameFile);
-    assert.equal(adminAllowed.body.preview.fileId, fixtures.files.shared);
-    assert.equal(adminAllowed.body.preview.targetId, fixtures.tasks.beta);
-    assert.equal(adminAllowed.body.preview.contentAvailable, true);
-    assert.equal(adminAllowed.body.preview.contentUrl, `/api/files/attachments/${fixtures.attachments.blockedSameFile}/preview/content`);
+    /** @type {PreviewDescriptorEnvelope} */
+    const adminAllowedPreview = readPayload(adminAllowed, ["preview"], "GET /api/files/attachments/:fileAttachmentId/preview");
+    assert.equal(adminAllowedPreview.preview.fileAttachmentId, fixtures.attachments.blockedSameFile);
+    assert.equal(adminAllowedPreview.preview.fileId, fixtures.files.shared);
+    assert.equal(adminAllowedPreview.preview.targetId, fixtures.tasks.beta);
+    assert.equal(adminAllowedPreview.preview.contentAvailable, true);
+    assert.equal(adminAllowedPreview.preview.contentUrl, `/api/files/attachments/${fixtures.attachments.blockedSameFile}/preview/content`);
   });
 
   await checkAsync("readable attachments without Files download permission return a safe unauthorized descriptor", async () => {
@@ -65,10 +90,12 @@ try {
     });
 
     assert.equal(response.status, 200);
-    assert.equal(response.body.preview.state, "unauthorized");
-    assert.equal(response.body.preview.kind, "text");
-    assert.equal(response.body.preview.reason, "files_download_permission_required");
-    assert.equal(response.body.preview.contentAvailable, false);
+    /** @type {PreviewDescriptorEnvelope} */
+    const responsePreview = readPayload(response, ["preview"], "GET /api/files/attachments/:fileAttachmentId/preview");
+    assert.equal(responsePreview.preview.state, "unauthorized");
+    assert.equal(responsePreview.preview.kind, "text");
+    assert.equal(responsePreview.preview.reason, "files_download_permission_required");
+    assert.equal(responsePreview.preview.contentAvailable, false);
     assertNoUnsafeStorageLeak([response.body]);
   });
 
@@ -78,28 +105,34 @@ try {
     });
 
     assert.equal(response.status, 200);
-    assert.equal(response.body.preview.state, "download_only");
-    assert.equal(response.body.preview.kind, "unsupported");
-    assert.equal(response.body.preview.reason, "unsupported_file_type");
-    assert.equal(response.body.preview.fileType, "PDF");
-    assert.equal(Object.hasOwn(response.body.preview, "contentUrl"), false);
+    /** @type {PreviewDescriptorEnvelope} */
+    const responsePreview = readPayload(response, ["preview"], "GET /api/files/attachments/:fileAttachmentId/preview");
+    assert.equal(responsePreview.preview.state, "download_only");
+    assert.equal(responsePreview.preview.kind, "unsupported");
+    assert.equal(responsePreview.preview.reason, "unsupported_file_type");
+    assert.equal(responsePreview.preview.fileType, "PDF");
+    assert.equal(Object.hasOwn(responsePreview.preview, "contentUrl"), false);
     assertNoUnsafeStorageLeak([response.body]);
   });
 
   await checkAsync("deleted pending and failed-scan files are unavailable", async () => {
-    for (const [key, reasonPattern] of [
+    /** @type {Array<[keyof typeof fixtures.attachments, RegExp]>} */
+    const unavailableCases = [
       ["deleted", /file_deleted/],
       ["pending", /file_pending/],
       ["failedScan", /scan_failed/],
-    ]) {
+    ];
+    for (const [key, reasonPattern] of unavailableCases) {
       const response = await api.get(`/api/files/attachments/${fixtures.attachments[key]}/preview`, {
         cookie: fixtures.adminSessionId,
       });
 
       assert.equal(response.status, 200, key);
-      assert.equal(response.body.preview.state, "unavailable", key);
-      assert.match(response.body.preview.reason, reasonPattern, key);
-      assert.equal(response.body.preview.contentAvailable, false, key);
+      /** @type {PreviewDescriptorEnvelope} */
+      const responsePreview = readPayload(response, ["preview"], "GET /api/files/attachments/:fileAttachmentId/preview");
+      assert.equal(responsePreview.preview.state, "unavailable", key);
+      assert.match(responsePreview.preview.reason, reasonPattern, key);
+      assert.equal(responsePreview.preview.contentAvailable, false, key);
       assertNoUnsafeStorageLeak([response.body]);
     }
   });
@@ -110,10 +143,12 @@ try {
     });
 
     assert.equal(adminPreview.status, 200);
-    assert.equal(adminPreview.body.preview.state, "previewable");
-    assert.equal(adminPreview.body.preview.reason, "");
-    assert.equal(adminPreview.body.preview.contentAvailable, true);
-    assert.equal(adminPreview.body.preview.contentUrl, `/api/files/attachments/${fixtures.attachments.quarantined}/preview/content`);
+    /** @type {PreviewDescriptorEnvelope} */
+    const adminPreviewPreview = readPayload(adminPreview, ["preview"], "GET /api/files/attachments/:fileAttachmentId/preview");
+    assert.equal(adminPreviewPreview.preview.state, "previewable");
+    assert.equal(adminPreviewPreview.preview.reason, "");
+    assert.equal(adminPreviewPreview.preview.contentAvailable, true);
+    assert.equal(adminPreviewPreview.preview.contentUrl, `/api/files/attachments/${fixtures.attachments.quarantined}/preview/content`);
     assertNoUnsafeStorageLeak([adminPreview.body]);
 
     const nonReviewerPreview = await api.get(`/api/files/attachments/${fixtures.attachments.quarantined}/preview`, {
@@ -121,9 +156,11 @@ try {
     });
 
     assert.equal(nonReviewerPreview.status, 200);
-    assert.equal(nonReviewerPreview.body.preview.state, "unavailable");
-    assert.match(nonReviewerPreview.body.preview.reason, /file_quarantined/);
-    assert.equal(nonReviewerPreview.body.preview.contentAvailable, false);
+    /** @type {PreviewDescriptorEnvelope} */
+    const nonReviewerPreviewPreview = readPayload(nonReviewerPreview, ["preview"], "GET /api/files/attachments/:fileAttachmentId/preview");
+    assert.equal(nonReviewerPreviewPreview.preview.state, "unavailable");
+    assert.match(nonReviewerPreviewPreview.preview.reason, /file_quarantined/);
+    assert.equal(nonReviewerPreviewPreview.preview.contentAvailable, false);
     assertNoUnsafeStorageLeak([nonReviewerPreview.body]);
   });
 
@@ -133,9 +170,11 @@ try {
     });
 
     assert.equal(response.status, 200);
-    assert.equal(response.body.preview.state, "too_large_for_preview");
-    assert.equal(response.body.preview.kind, "text");
-    assert.equal(response.body.preview.reason, "too_large_for_preview");
+    /** @type {PreviewDescriptorEnvelope} */
+    const responsePreview = readPayload(response, ["preview"], "GET /api/files/attachments/:fileAttachmentId/preview");
+    assert.equal(responsePreview.preview.state, "too_large_for_preview");
+    assert.equal(responsePreview.preview.kind, "text");
+    assert.equal(responsePreview.preview.reason, "too_large_for_preview");
     assertNoUnsafeStorageLeak([response.body]);
   });
 
@@ -167,8 +206,8 @@ WHERE protected_user = 'yes'
 ORDER BY username
 LIMIT 1;
 `);
-  const admin = users[0];
-  assert.ok(admin, "protected admin should exist");
+  /** @type {{ active_workspace_id: string, display_name: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireFirstRow(users, "protected admin");
 
   const workspaceId = admin.active_workspace_id || admin.home_workspace_id;
   const now = new Date().toISOString();
@@ -275,6 +314,7 @@ ${insertAttachmentSql(workspaceId, attachments.largeText, files.largeText, tasks
   };
 }
 
+/** @param {string} workspaceId @param {string} clientId @param {string} name @param {string} now */
 function insertClientSql(workspaceId, clientId, name, now) {
   return `
 INSERT INTO clients (
@@ -332,6 +372,7 @@ VALUES (
 `;
 }
 
+/** @param {string} workspaceId @param {string} projectId @param {string} clientId @param {string} name @param {string} now */
 function insertProjectSql(workspaceId, projectId, clientId, name, now) {
   return `
 INSERT INTO projects (
@@ -369,6 +410,7 @@ VALUES (
 `;
 }
 
+/** @param {string} workspaceId @param {string} taskId @param {string | null} clientId @param {string | null} projectId @param {string} title @param {string} userId @param {string} now */
 function insertTaskSql(workspaceId, taskId, clientId, projectId, title, userId, now) {
   return `
 INSERT INTO tasks (
@@ -402,6 +444,7 @@ VALUES (
 `;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} username @param {string} displayName */
 function insertUserSql(workspaceId, userId, username, displayName) {
   return `
 INSERT INTO users (
@@ -431,6 +474,7 @@ VALUES (
 `;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} now */
 function insertMembershipSql(workspaceId, userId, now) {
   return `
 INSERT INTO user_workspaces (user_workspace_id, user_id, workspace_id, status, created_at, updated_at)
@@ -438,6 +482,7 @@ VALUES (${sqlText(randomUUID())}, ${sqlText(userId)}, ${sqlText(workspaceId)}, '
 `;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} roleId @param {string} scopeType @param {string} scopeId @param {string} now */
 function insertAssignmentSql(workspaceId, userId, roleId, scopeType, scopeId, now) {
   const clientId = scopeType === "client" ? scopeId : null;
   const projectId = scopeType === "project" ? scopeId : null;
@@ -472,6 +517,7 @@ VALUES (
 `;
 }
 
+/** @param {string} workspaceId @param {string} fileId @param {string} filename @param {string} extension @param {string} mimeType @param {string} status @param {string} scanStatus @param {number} size @param {string} uploadedByUserId @param {string} now */
 function insertFileSql(workspaceId, fileId, filename, extension, mimeType, status, scanStatus, size, uploadedByUserId, now) {
   return `
 INSERT INTO files (
@@ -521,6 +567,7 @@ VALUES (
 `;
 }
 
+/** @param {string} workspaceId @param {string} attachmentId @param {string} fileId @param {string} targetId @param {string | null} clientId @param {string | null} projectId @param {string} attachedByUserId @param {string} now */
 function insertAttachmentSql(workspaceId, attachmentId, fileId, targetId, clientId, projectId, attachedByUserId, now) {
   return `
 INSERT INTO file_attachments (
@@ -562,13 +609,22 @@ VALUES (
 `;
 }
 
+/** @param {string} baseUrl @returns {PreviewApiClient} */
 function createApi(baseUrl) {
   return {
     get: (url, options = {}) => request(baseUrl, "GET", url, options),
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {PreviewClientOptions} [options]
+ * @returns {Promise<PreviewResponse>}
+ */
 async function request(baseUrl, method, url, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {};
 
   if (options.cookie) {
@@ -597,6 +653,7 @@ async function request(baseUrl, method, url, options = {}) {
   };
 }
 
+/** @param {unknown[]} values */
 function assertNoUnsafeStorageLeak(values) {
   const text = JSON.stringify(values);
 
@@ -625,6 +682,7 @@ function assertPreviewSourceBoundary() {
   });
 }
 
+/** @param {string} source @param {string} name */
 function functionBlock(source, name) {
   const start = source.indexOf(`function ${name}`);
   assert.notEqual(start, -1, `${name} should exist`);
@@ -651,18 +709,21 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok");
 }
 
+/** @param {string} name @param {() => Promise<void>} assertion */
 async function checkAsync(name, assertion) {
   await assertion();
   results.push(name);
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {HttpFixtureServer} nextServer @returns {Promise<void>} */
 function closeServer(nextServer) {
   return new Promise((resolve, reject) => {
     nextServer.close((error) => {
@@ -671,7 +732,7 @@ function closeServer(nextServer) {
         return;
       }
 
-      resolve();
+      resolve(undefined);
     });
   });
 }

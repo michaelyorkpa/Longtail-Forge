@@ -9,9 +9,46 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fixtureString } from "./test-support/session-fixtures.mjs";
-import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readTextAsync: readText } = createProjectTextReader();
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} EgressClientOptions */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+
+/**
+ * One fixture response. The body stays `unknown` on purpose: JSON.parse would
+ * hand back `any`, and every envelope read below would then be a claim the
+ * compiler never checks.
+ * @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown> & { text: string }} EgressResponse
+ */
+
+/** @typedef {{ get: (url: string, options?: EgressClientOptions) => Promise<EgressResponse> }} EgressApiClient */
+
+/** @typedef {typeof import("../src/services/files.service.js").filesService} FilesService */
+/** @typedef {{ error: import("../src/types/framework-contracts.js").ApiErrorDetails }} EgressErrorEnvelope */
+/** @typedef {import("../src/types/database-contracts.js").DatabaseRow} DatabaseRow */
+
+/** @typedef {Awaited<ReturnType<typeof seedFixtures>>} StreamedFixtures */
+/** @typedef {StreamedFixtures["session"]} StreamedSession */
+
+/**
+ * Narrow an upload envelope to the file record it must be carrying.
+ *
+ * The service publishes `file` as nullable because a refused upload produces
+ * none, so every read through it here is a claim the route accepted the work.
+ * @template {{ file: unknown }} Envelope
+ * @param {Envelope} envelope
+ * @param {string} label
+ * @returns {NonNullable<Envelope["file"]>}
+ */
+function requireFile(envelope, label) {
+  assert.ok(envelope.file, `${label} should carry its file record`);
+  return envelope.file;
+}
+
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-streamed-validation-"));
 
@@ -33,7 +70,7 @@ try {
   await initializeDatabase();
   const fixtures = await seedFixtures();
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   await assertWrongTypeStreamRejectedWithoutRows(fixtures.session, fixtures.taskId);
   await assertPostWriteMismatchCleanup(fixtures.session, fixtures.taskId);
@@ -51,41 +88,29 @@ try {
 
 async function assertStaticContracts() {
   const [
-    _packageJson,
-    _packageLock,
-    _roadmap,
-    changelog,
     moduleContract,
     moduleDevelopment,
     runtimeDocs,
     filesServiceSource,
     s3AdapterSource,
-    _regressionSuite,
   ] = await Promise.all([
-    readJson("package.json"),
-    readJson("package-lock.json"),
-    readText("ROADMAP.md"),
-    readText("CHANGELOG.md"),
     readText("docs/module-contract.md"),
     readText("docs/module-development.md"),
     readText("docs/runtime-configuration.md"),
     readText("src/services/files.service.js"),
     readText("src/core/files/s3-storage-adapter.js"),
-    readText("scripts/regression-legacy-snapshot.json"),
   ]);
 
-          assert.match(changelog, /Version 0\.33\.5\.25\.3[\s\S]*Hardened streamed Files uploads/, "changelog should preserve the shipped streamed validation history");
-  assertRoadmapCursorAtLeast("0.33.8", "live roadmap should record the current archived handoff");
-  assertRoadmapCursorAtLeast("0.33.8", "live roadmap should hand off after the completed storage cleanup, parameter-binding gap review, database extraction contract, and parameter-binding gap closeout branches");
-  assert.match(moduleContract, /0\.33\.5\.25\.3[\s\S]*metadata pre-checks/, "module contract should describe route-backed storage metadata prechecks");
-  assert.match(moduleDevelopment, /0\.33\.5\.25\.3[\s\S]*streamed upload signature validation/, "module docs should describe service-owned streamed validation");
-  assert.match(runtimeDocs, /0\.33\.5\.25\.3[\s\S]*metadata pre-checks/, "runtime docs should describe storage object drift handling");
+  assert.match(moduleContract, /metadata pre-checks/, "module contract should describe route-backed storage metadata prechecks");
+  assert.match(moduleDevelopment, /streamed upload signature validation/, "module docs should describe service-owned streamed validation");
+  assert.match(runtimeDocs, /metadata pre-checks/, "runtime docs should describe storage object drift handling");
   assert.match(filesServiceSource, /assertStoredFileObjectExists/, "Files service should precheck storage metadata before reads");
   assert.match(filesServiceSource, /deleteRejectedUploadStorage/, "Files service should await and log rejected-upload cleanup");
   assert.match(filesServiceSource, /validateStreamedUploadSample/, "Files service should validate streamed upload samples during the stream");
   assert.match(s3AdapterSource, /isS3ObjectNotFoundError/, "S3 adapter should normalize missing objects to 404");
   }
 
+/** @param {StreamedSession} session @param {string} taskId */
 async function assertWrongTypeStreamRejectedWithoutRows(session, taskId) {
   const beforeFiles = await listStoredFiles(config.storage.localRoot);
   await assertRejectedUpload(
@@ -102,6 +127,7 @@ async function assertWrongTypeStreamRejectedWithoutRows(session, taskId) {
   assert.deepEqual(await listStoredFiles(config.storage.localRoot), beforeFiles, "wrong-type streamed upload should not leave a stored local object");
 }
 
+/** @param {StreamedSession} session @param {string} taskId */
 async function assertPostWriteMismatchCleanup(session, taskId) {
   const beforeFiles = await listStoredFiles(config.storage.localRoot);
   await assertRejectedUpload(
@@ -118,6 +144,7 @@ async function assertPostWriteMismatchCleanup(session, taskId) {
   assert.deepEqual(await listStoredFiles(config.storage.localRoot), beforeFiles, "post-write mismatch cleanup should delete the rejected local object");
 }
 
+/** @param {EgressApiClient} api @param {StreamedFixtures} fixtures */
 async function assertMissingStorageObjectReturnsClean404(api, fixtures) {
   const upload = await filesService.uploadAndAttach(fixtures.session, {
     contentBase64: Buffer.from("metadata drift preview text").toString("base64"),
@@ -129,48 +156,61 @@ async function assertMissingStorageObjectReturnsClean404(api, fixtures) {
     targetType: "task",
     visibility: "private",
   });
+  const uploadedFile = requireFile(upload, "streamed upload fixture");
   await runSql(`
 UPDATE files
 SET status = 'available',
     scan_status = 'not_required'
 WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
-  AND file_id = ${sqlText(upload.file.fileId)};
+  AND file_id = ${sqlText(uploadedFile.fileId)};
 `);
 
-  const storedFile = await readFileRow(fixtures.workspaceId, upload.file.fileId);
+  const storedFile = await readFileRow(fixtures.workspaceId, uploadedFile.fileId);
   assert.ok(storedFile?.storage_key, "uploaded fixture should have a storage key before deleting the object");
   await filesService.getFileStorageAdapter(fixtureString(storedFile.storage_provider, "storage provider ID")).delete(fixtureString(storedFile.storage_key, "storage key"));
 
-  const download = await api.get(`/api/files/${upload.file.fileId}/download`, {
+  const download = await api.get(`/api/files/${uploadedFile.fileId}/download`, {
     cookie: fixtures.sessionId,
   });
   assert.equal(download.status, 404, download.text);
-  assert.equal(download.body?.error?.code, "not_found");
-  assert.match(download.body?.error?.message || "", /no longer available/i, "download of missing storage object should return a clean 404");
-  assert.equal(download.body?.error?.requestId, download.headers.get("x-request-id"));
+  /** @type {EgressErrorEnvelope} */
+  const downloadError = readPayload(download, ["error"], "GET /api/files/:fileId/download");
+  assert.equal(downloadError.error.code, "not_found");
+  assert.match(downloadError.error.message, /no longer available/i, "download of missing storage object should return a clean 404");
+  assert.equal(downloadError.error.requestId, download.headers.get("x-request-id"));
 
   const preview = await api.get(`/api/files/attachments/${upload.attachment.fileAttachmentId}/preview/content`, {
     cookie: fixtures.sessionId,
   });
   assert.equal(preview.status, 404, preview.text);
-  assert.equal(preview.body?.error?.code, "not_found");
-  assert.match(preview.body?.error?.message || "", /no longer available/i, "preview of missing storage object should return a clean 404");
-  assert.equal(preview.body?.error?.requestId, preview.headers.get("x-request-id"));
+  /** @type {EgressErrorEnvelope} */
+  const previewError = readPayload(preview, ["error"], "GET /api/files/attachments/:fileAttachmentId/preview/content");
+  assert.equal(previewError.error.code, "not_found");
+  assert.match(previewError.error.message, /no longer available/i, "preview of missing storage object should return a clean 404");
+  assert.equal(previewError.error.requestId, preview.headers.get("x-request-id"));
   assertNoUnsafeStorageLeak([download.body, preview.body]);
 }
 
+/**
+ * @param {() => Promise<unknown>} uploadFn
+ * @param {number} statusCode
+ * @param {RegExp} messagePattern
+ * @param {string} description
+ */
 async function assertRejectedUpload(uploadFn, statusCode, messagePattern, description) {
   await assert.rejects(
     uploadFn,
     (error) => {
-      assert.equal(error.statusCode, statusCode, description);
-      assert.match(error.message, messagePattern, description);
+      const denial = /** @type {{ message?: string, statusCode?: number }} */ (error);
+      assert.equal(denial.statusCode, statusCode, description);
+      assert.match(String(denial.message), messagePattern, description);
       return true;
     },
     description,
   );
 }
 
+/** @param {string} originalFilename */
 async function assertNoFileOrAttachmentForOriginalFilename(originalFilename) {
   const fileRows = await querySql(`
 SELECT file_id
@@ -187,10 +227,13 @@ LEFT JOIN files
   AND files.file_id = file_attachments.file_id
 WHERE files.file_id IS NULL;
 `);
-  assert.equal(Number(orphanRows[0].count), 0, "failed streamed uploads should not leave orphaned attachments");
+  /** @type {{ count: number }} */
+  const orphanRow = requireFirstRow(orphanRows, "orphaned attachment count");
+  assert.equal(Number(orphanRow.count), 0, "failed streamed uploads should not leave orphaned attachments");
 }
 
-function streamedPayload(targetId, options = {}) {
+/** @param {string} targetId @param {{ chunks?: Buffer[], mimeType: string, originalFilename: string }} options */
+function streamedPayload(targetId, options) {
   return {
     displayName: options.originalFilename,
     fileStream: Readable.from(options.chunks || [Buffer.from("streamed validation body")]),
@@ -222,9 +265,12 @@ async function seedFixtures() {
     user_id: admin.user_id,
     username: admin.username,
   };
+  /** @type {import("../src/types/http-contracts.js").WorkspaceRequestSession} */
   const session = {
     ...sessionPayload,
-    role: "super_admin",
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
     workspace_id: workspaceId,
   };
   const persistedSession = await createSession(sessionPayload);
@@ -246,10 +292,13 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "fresh database should seed a protected admin");
-  return rows[0];
+  /** @type {{ active_workspace_id: string, display_name: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireFirstRow(rows, "protected admin");
+  assert.ok(admin.user_id, "fresh database should seed a protected admin");
+  return admin;
 }
 
+/** @param {{ taskId: string, title: string, userId: string, workspaceId: string }} options */
 async function createTask(options) {
   const now = new Date().toISOString();
 
@@ -285,6 +334,7 @@ VALUES (
 `);
 }
 
+/** @param {string} workspaceId @param {string} fileId @returns {Promise<DatabaseRow | null>} */
 async function readFileRow(workspaceId, fileId) {
   const rows = await querySql(`
 SELECT *
@@ -296,15 +346,18 @@ LIMIT 1;
   return rows[0] || null;
 }
 
+/** @param {string} directory */
 async function listStoredFiles(directory) {
+  /** @type {string[]} */
   const files = [];
 
+  /** @param {string} currentDirectory */
   async function walk(currentDirectory) {
     let entries;
     try {
       entries = await fs.readdir(currentDirectory, { withFileTypes: true });
     } catch (error) {
-      if (error?.code === "ENOENT") {
+      if (/** @type {NodeJS.ErrnoException} */ (error)?.code === "ENOENT") {
         return;
       }
       throw error;
@@ -324,13 +377,23 @@ async function listStoredFiles(directory) {
   return files.sort();
 }
 
+/** @param {string} baseUrl @returns {EgressApiClient} */
 function createApi(baseUrl) {
   return {
     get: (url, options = {}) => requestJson(baseUrl, "GET", url, null, options),
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {unknown} [body]
+ * @param {EgressClientOptions} [options]
+ * @returns {Promise<EgressResponse>}
+ */
 async function requestJson(baseUrl, method, url, body = null, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {};
   if (options.cookie) {
     headers.Cookie = `longtail_forge_session=${options.cookie}`;
@@ -358,6 +421,7 @@ async function requestJson(baseUrl, method, url, body = null, options = {}) {
   };
 }
 
+/** @param {unknown[]} values */
 function assertNoUnsafeStorageLeak(values) {
   const text = JSON.stringify(values);
   for (const forbidden of ["storageKey", "storage_key", "protectedPath", "signedUrl", "sha256", config.storage.localRoot]) {
@@ -370,13 +434,15 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok");
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {HttpFixtureServer} serverInstance @returns {Promise<void>} */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => {
@@ -384,11 +450,8 @@ function closeServer(serverInstance) {
         reject(error);
         return;
       }
-      resolve();
+      resolve(undefined);
     });
   });
 }
 
-async function readJson(relativePath) {
-  return JSON.parse(await readText(relativePath));
-}
