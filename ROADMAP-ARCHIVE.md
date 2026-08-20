@@ -1,5 +1,18 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.30.6 - Type session lifecycle and Support View enforcement owners
+
+**Model: High Effort** - Support View separates actor identity from effective identity across a durable gated session.
+
+Sixth child of the `0.33.33.30` rollup.
+
+- [x] Closed all 205 diagnostics across `support-view-session-contract` (87), `support-view-request-enforcement` (56), `session-revocation` (33), `remembered-sessions` (26), and `session-auth-warning` (3), with named contracts for stored browser and support session rows, listed and managed session rows, revocation payloads and safe events, and the framework denials each gated operation rejects with.
+- [x] Expressed the actor/effective distinction through the shared contract rather than by comment, as the scope required. `SupportViewRequestSession` already carries the actor and effective pair as required fields while `NormalRequestSession` declares each of them as `undefined`, so the pair is a structural discriminant. Asserting an actor field with `assert.equal` narrows the whole session to the Support View branch, and named `requireSupportViewSession` readers state the expectation where narrowing is not induced. Nothing was redeclared locally.
+- [x] Named the `resolveForRequest` branches against the service published row contracts instead of deriving them. `Extract<Awaited<ReturnType<...>>>` made the aliases circular, because the service return type is itself inferred from the rotation helper that reads those same rows. The comment in the owner records why.
+- [x] Added the two negative controls the scope required, each aimed at a proof the existing assertions could not make. Every expiry probe resolved at or past `expiresAt`, so all of them would still have passed against an implementation that expired every support session on sight; one second before expiry the same session must now resolve active on the same row with no terminal event. Every revocation probe asserted only that a revoked bearer stops working, so all of them would still have passed against an implementation that revoked the whole install; sessions outside the revoked user must now survive the same call. Both were proven non-vacuous by inverting them.
+- [x] Preserved gating, rotation, expiry, reauthentication throttling, revocation propagation, remembered-session persistence, and safe event persistence. Probes that deliberately assert a removed row still read the nullable repository result rather than the require helpers. All five owners pass.
+- [x] `framework.full-strict-governance` pins the five owners strict-clean. The scripts program falls from 5,393 to 5,188 diagnostics and combined strict debt from 16,527 to 16,322, with explicit `any` held at 7.
+- [x] Recorded the measured 376-line full-strict typing cost against the `0.33.33.11` active-owner line ceiling, the fourth such entry and 1,197 cumulative.
 ## Version 0.33.33.30.5 - Type Public Demo perimeter and role-journey owners
 
 **Model: High Effort** - The demo perimeter is the only surface exposed to anonymous internet traffic.

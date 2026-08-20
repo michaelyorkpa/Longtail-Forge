@@ -60,14 +60,6 @@ These requirements apply to every child: type fake-DOM and HTTP fixture boundari
 
 Measured history-pin exposure for the whole cohort is ten references across eight `scripts/regression-contracts/views/` modules, all folding into the single `views.current-static-contracts` entry; every other file in the cohort is already free of planning-document reads, so `0.33.33.30.1` owns the stripping and the remaining children record no-pin dispositions only.
 
-### 0.33.33.30.6 - Type session lifecycle and Support View enforcement owners
-
-**Model: High Effort** - Support View separates actor identity from effective identity across a durable gated session.
-
-- [ ] Close the 205 diagnostics across `support-view-session-contract` (87), `support-view-request-enforcement` (56), `session-revocation`, `remembered-sessions`, and `session-auth-warning`.
-- [ ] Type session and support-session records, actor/effective identity pairs, rotation and expiry state, and reauthentication throttle state with named contracts; the actor/effective distinction must be expressed in the types, not by comment.
-- [ ] Preserve gating, rotation, expiry, reauthentication throttling, revocation propagation, remembered-session persistence, and safe event persistence; prove revocation and expiry still fail closed with negative controls.
-
 ### 0.33.33.30.7 - Type the permission harness and authorization-model owners
 
 **Model: High Effort** - The 352-assertion eight-role matrix is the branch's largest single release-gate proof.
