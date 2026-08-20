@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireRow } from "../../test-support/database-row-assertions.mjs";
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-sqlite-statement-cache-"));
@@ -89,9 +90,9 @@ CREATE TABLE cache_probe (
   assert.equal(await db.get("UPDATE cache_probe SET amount = amount WHERE id = :id", { id: 1 }), null, "db.get on a non-reader statement should return null");
 
   // Cache correctness: a repeated statement must observe fresh data, not stale rows.
-  const before = await db.get("SELECT amount FROM cache_probe WHERE id = :id", { id: 3 });
+  const before = requireRow(await db.get("SELECT amount FROM cache_probe WHERE id = :id", { id: 3 }), "before");
   await db.run("UPDATE cache_probe SET amount = :amount WHERE id = :id", { amount: 4242, id: 3 });
-  const after = await db.get("SELECT amount FROM cache_probe WHERE id = :id", { id: 3 });
+  const after = requireRow(await db.get("SELECT amount FROM cache_probe WHERE id = :id", { id: 3 }), "after");
   assert.equal(before.amount, 30, "pre-update read should see the seeded value");
   assert.equal(after.amount, 4242, "cached statements must observe fresh data after writes");
 
@@ -109,7 +110,7 @@ CREATE TABLE cache_probe (
 
   // Cache eviction under many distinct statements never changes results.
   for (let index = 0; index < 600; index += 1) {
-    const row = await db.get(`SELECT ${index} AS value`);
+    const row = requireRow(await db.get(`SELECT ${index} AS value`), "row");
     assert.equal(row.value, index, "distinct statements should stay correct while older cache entries evict");
   }
   assert.deepEqual(await db.get("SELECT 0 AS value"), { value: 0 }, "an evicted statement should re-prepare with identical results");
@@ -146,26 +147,26 @@ CREATE TABLE cache_probe (
     await tx.run("UPDATE cache_probe SET amount = :amount WHERE id = :id", { amount: 111111, id: 5 });
     throw new Error("force rollback");
   }), /force rollback/);
-  const rolledBack = await db.get("SELECT amount FROM cache_probe WHERE id = :id", { id: 5 });
+  const rolledBack = requireRow(await db.get("SELECT amount FROM cache_probe WHERE id = :id", { id: 5 }), "rolledBack");
   assert.equal(rolledBack.amount, 50, "rolled-back writes must not leak through cached statements");
 
-  const committed = await db.transaction(async (tx) => {
+  const committed = requireRow(await db.transaction(async (tx) => {
     await tx.run("UPDATE cache_probe SET amount = :amount WHERE id = :id", { amount: 555, id: 5 });
     return tx.get("SELECT amount FROM cache_probe WHERE id = :id", { id: 5 });
-  });
+  }), "committed");
   assert.equal(committed.amount, 555, "transaction clients should read their own writes");
 
   // Connection reset: the cache survives close/reopen with identical behavior.
   await closeDatabase();
-  const reopened = await db.get("SELECT amount FROM cache_probe WHERE id = :id", { id: 5 });
+  const reopened = requireRow(await db.get("SELECT amount FROM cache_probe WHERE id = :id", { id: 5 }), "reopened");
   assert.equal(reopened.amount, 555, "queries after connection reset should re-prepare and return identical results");
 
   // Schema changes are observed by previously cached statements.
   const starBefore = await db.get("SELECT * FROM cache_probe WHERE id = :id", { id: 1 });
-  assert.deepEqual(Object.keys(starBefore), ["id", "label", "amount"]);
+  assert.deepEqual(Object.keys(requireRow(starBefore, "starBefore")), ["id", "label", "amount"]);
   await db.run("ALTER TABLE cache_probe ADD COLUMN extra TEXT");
   const starAfter = await db.get("SELECT * FROM cache_probe WHERE id = :id", { id: 1 });
-  assert.deepEqual(Object.keys(starAfter), ["id", "label", "amount", "extra"], "cached statements must observe schema changes");
+  assert.deepEqual(Object.keys(requireRow(starAfter, "starAfter")), ["id", "label", "amount", "extra"], "cached statements must observe schema changes");
 
   const integrity = await db.query("PRAGMA integrity_check;");
   assert.equal(integrity[0]?.integrity_check, "ok", "statement-cache database should pass integrity check");

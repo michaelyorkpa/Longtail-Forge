@@ -47,7 +47,7 @@ try {
 
   const health = await initializeSqliteRuntime();
   assert.equal(health.provider, "sqlite");
-  assert.equal(path.resolve(health.databaseFile), path.resolve(process.env.LONGTAIL_DATABASE_FILE));
+  assert.equal(path.resolve(/** @type {string} */ (health.databaseFile)), path.resolve(process.env.LONGTAIL_DATABASE_FILE));
   assert.equal(health.databaseFileWritable, true);
   assert.equal(health.foreignKeysEnabled, true);
   assert.equal(health.journalMode, "wal");

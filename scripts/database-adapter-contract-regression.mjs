@@ -6,6 +6,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const root = process.cwd();
@@ -70,7 +71,7 @@ try {
   assert.equal(db.capabilities.migrationLocking, true, "SQLite adapter should report migration locking support after the migration locking slice");
   assert.equal(db.capabilities.migrationLockStrategy, "lock-file", "SQLite adapter should report its migration lock strategy");
 
-  const paramRow = await db.get("SELECT :value AS value;", { value: "adapter-contract-bound-value" });
+  const paramRow = requireRow(await db.get("SELECT :value AS value;", { value: "adapter-contract-bound-value" }), "paramRow");
   assert.equal(paramRow.value, "adapter-contract-bound-value", "adapter should execute named bound parameters");
 
   const startupHealth = await initializeDatabase();
@@ -80,14 +81,15 @@ try {
 
   const health = await db.health();
   assert.equal(health.provider, "sqlite");
-  assert.equal(path.resolve(health.databaseFile), path.resolve(process.env.LONGTAIL_DATABASE_FILE));
+  assert.equal(path.resolve(/** @type {string} */ (health.databaseFile)), path.resolve(process.env.LONGTAIL_DATABASE_FILE));
 
   const workspace = await getSql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
   assert.ok(workspace?.workspace_id, "db.get should return the first row after migrations");
   const migrationRows = await db.query("SELECT version, module_id FROM schema_migrations ORDER BY applied_at LIMIT 1;", []);
   assert.equal(migrationRows[0]?.version, "0.33.5.18.6.5.4", "existing migrations should still run on SQLite");
 
-  const coreWorkspace = await coreDatabase.db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
+  /** @type {{ workspace_id: string }} */
+  const coreWorkspace = requireRow(await coreDatabase.db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"), "coreWorkspace");
   assert.equal(coreWorkspace.workspace_id, workspace.workspace_id, "core database facade should share the active provider-neutral db");
   const tasks = await tasksRepository.readAll(String(workspace.workspace_id));
   assert.deepEqual(tasks, [], "first-party module repositories should be able to query through the provider-neutral database path");
@@ -135,7 +137,8 @@ function assertUnsupportedProviderFailsClearly() {
   assert.match(child.stderr || child.stdout, /LONGTAIL_DATABASE_PROVIDER must be sqlite/, "unsupported provider failure should name the supported provider");
 }
 
-function listSourceFiles(directories) {
+function listSourceFiles(/** @type {string[]} */ directories) {
+  /** @type {string[]} */
   const results = [];
   for (const directory of directories) {
     walk(path.join(root, directory), results);
@@ -143,14 +146,14 @@ function listSourceFiles(directories) {
   return results;
 }
 
-function walk(currentPath, results) {
+function walk(/** @type {string} */ currentPath, /** @type {string[]} */ results) {
   const stat = readStat(currentPath);
   if (!stat) {
     return;
   }
 
-  if (stat.isDirectory()) {
-    for (const entry of readDir(currentPath)) {
+  if (stat && /** @type {import("node:fs").Stats} */ (stat).isDirectory()) {
+    for (const entry of readDir(currentPath) || []) {
       walk(path.join(currentPath, entry), results);
     }
     return;
@@ -161,15 +164,15 @@ function walk(currentPath, results) {
   }
 }
 
-function readDir(directory) {
+function readDir(/** @type {string} */ directory) {
   return readFileSystem(() => fsSync.readdirSync(directory));
 }
 
-function readStat(filePath) {
+function readStat(/** @type {string} */ filePath) {
   return readFileSystem(() => fsSync.statSync(filePath));
 }
 
-function readFileSystem(callback) {
+function readFileSystem(/** @type {() => void} */ callback) {
   try {
     return callback();
   } catch {
@@ -201,6 +204,6 @@ function cleanEnv(overrides = {}) {
   return { ...env, ...overrides };
 }
 
-function normalizePath(filePath) {
+function normalizePath(/** @type {string} */ filePath) {
   return path.relative(root, filePath).replaceAll(path.sep, "/");
 }

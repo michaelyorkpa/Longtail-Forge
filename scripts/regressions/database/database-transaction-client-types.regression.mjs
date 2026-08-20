@@ -73,7 +73,7 @@ void openNestedTransaction;
 
 console.log("Database adapter and transaction-client type regression passed.");
 
-function compileProbe(probePath) {
+function compileProbe(/** @type {string} */ probePath) {
   const result = spawnSync(process.execPath, [
     "node_modules/typescript/bin/tsc",
     "--ignoreConfig",
@@ -100,7 +100,7 @@ function compileProbe(probePath) {
   };
 }
 
-function readInterface(source, interfaceName) {
+function readInterface(/** @type {string} */ source, /** @type {string} */ interfaceName) {
   const declaration = source.match(new RegExp(`export interface ${interfaceName} \\{([\\s\\S]*?)\\n\\}`));
   assert.ok(declaration, `${interfaceName} must remain an exported interface`);
   return declaration[1];

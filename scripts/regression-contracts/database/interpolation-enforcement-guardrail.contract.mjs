@@ -26,7 +26,7 @@ assertStaticDocumentation();
 
 console.log("Interpolation enforcement guardrail regression passed.");
 
-function findInterpolationViolations(entries) {
+function findInterpolationViolations(/** @type {Array<{ filePath: string, source: string }>} */ entries) {
   const violations = [];
 
   for (const entry of entries) {
@@ -115,13 +115,13 @@ function assertStaticDocumentation() {
   assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.31 - Interpolation enforcement guardrail[\s\S]*- \[x\] Add a lint\/regression guardrail[\s\S]*- \[x\] Drive the audit ratchet target to zero[\s\S]*- \[x\] Add regressions proving the guardrail rejects/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   }
 
-function formatViolations(violations) {
+function formatViolations(/** @type {Array<{ filePath: string, helper: string, kind: string, line: number }>} */ violations) {
   if (violations.length === 0) {
     return "none";
   }
 
   return violations
-    .map((violation) => `${violation.filePath}:${violation.line} ${violation.kind} ${violation.helper}`)
+    .map((/** @type {{ filePath: string, helper: string, kind: string, line: number }} */ violation) => `${violation.filePath}:${violation.line} ${violation.kind} ${violation.helper}`)
     .join("\n");
 }
 // Consolidated under database.current-static-contracts by 0.33.33.11.

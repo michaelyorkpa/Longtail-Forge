@@ -13,6 +13,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fixtureString, workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+import { requireRow } from "../../test-support/database-row-assertions.mjs";
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-module-context-read-"));
@@ -28,7 +29,7 @@ const { settingsRepository } = await import("../../../src/repositories/settings.
 const { workbenchService } = await import("../../../src/services/workbench.service.js");
 
 async function totalChanges() {
-  const row = await db.get("SELECT total_changes() AS total;");
+  const row = requireRow(await db.get("SELECT total_changes() AS total;"), "row");
   return Number(row.total);
 }
 
@@ -45,13 +46,13 @@ try {
 
   // Fresh install: startup creates the default workspace with its module rows.
   await initializeDatabase();
-  const workspace = await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
+  const workspace = requireRow(await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"), "workspace");
   const workspaceId = fixtureString(workspace.workspace_id, "default workspace ID");
-  const moduleRowCount = await db.get(
+  const moduleRowCount = requireRow(await db.get(
     "SELECT COUNT(*) AS row_count FROM workspace_modules WHERE workspace_id = :workspaceId;",
     { workspaceId },
-  );
-  assert.ok(moduleRowCount.row_count >= modulesService.listModules().length, "fresh install should persist a row per registered module");
+  ), "moduleRowCount");
+  assert.ok(Number(moduleRowCount.row_count) >= modulesService.listModules().length, "fresh install should persist a row per registered module");
   assert.equal(await modulesService.readModuleStatus(workspaceId, "tasks"), "enabled", "default-enabled modules should read enabled on a fresh install");
 
   const user = await db.get("SELECT user_id, username FROM users WHERE protected_user = 'yes' LIMIT 1;");
@@ -116,11 +117,11 @@ WHERE workspace_id = :workspaceId
     workspaceName: "Module Context Created Workspace",
     workspaceType: "personal",
   });
-  const createdRows = await db.get(
+  const createdRows = requireRow(await db.get(
     "SELECT COUNT(*) AS row_count FROM workspace_modules WHERE workspace_id = :workspaceId;",
     { workspaceId: createdWorkspace.workspaceId },
-  );
-  assert.ok(createdRows.row_count > 0, "workspace creation should persist module rows");
+  ), "createdRows");
+  assert.ok(Number(createdRows.row_count) > 0, "workspace creation should persist module rows");
   const createdChangesBefore = await totalChanges();
   await modulesService.readWorkspaceModuleContext(createdWorkspace.workspaceId);
   assert.equal(await totalChanges(), createdChangesBefore, "context reads for a created workspace must not write");

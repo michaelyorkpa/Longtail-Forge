@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const dialectContractVersion = "0.33.6.14a";
@@ -78,7 +79,7 @@ function assertStaticContract() {
   }
 
 async function assertStartupConflictProofPath() {
-  const row = await db.get(`
+  const row = requireRow(await db.get(`
 SELECT COUNT(*) AS total
 FROM role_permissions
 WHERE role_id = :roleId
@@ -86,11 +87,11 @@ WHERE role_id = :roleId
 `, {
     permissionId: "roles.assign",
     roleId: "project_admin",
-  });
+  }), "row");
   assert.equal(Number(row.total), 1, "startup conflict proof path should preserve the project-admin role assignment repair");
 }
 
-async function assertConflictStatementBuilders(dialect) {
+async function assertConflictStatementBuilders(/** @type {import("../src/types/database-contracts.js").DatabaseDialect} */ dialect) {
   await db.run(`
 CREATE TABLE conflict_identity_proof (
   record_id TEXT PRIMARY KEY,
@@ -188,7 +189,7 @@ CREATE TABLE conflict_identity_proof (
   );
 }
 
-async function assertLastInsertIdentitySeam(dialect) {
+async function assertLastInsertIdentitySeam(/** @type {import("../src/types/database-contracts.js").DatabaseDialect} */ dialect) {
   await db.run(`
 CREATE TABLE last_insert_identity_proof (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -212,7 +213,8 @@ WHERE id = ${dialect.identity.lastInsertRowId()};
 }
 
 async function assertDurableJobReturningSeams() {
-  const workspace = await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
+  /** @type {{ workspace_id: string }} */
+  const workspace = requireRow(await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"), "workspace");
   assert.ok(workspace?.workspace_id, "fresh database should have a workspace for durable job proof");
   const now = "2026-07-05T14:10:00.000Z";
 
@@ -226,6 +228,7 @@ async function assertDurableJobReturningSeams() {
     workspaceId: workspace.workspace_id,
   });
   assert.equal(inserted.action, "inserted");
+  assert.ok(inserted.job, "the conflict-identity insert should return its job");
   assert.equal(inserted.job.jobId, "conflict-identity-proof-job");
   assert.equal(inserted.job.status, "pending");
 
@@ -238,6 +241,7 @@ async function assertDurableJobReturningSeams() {
     workspaceId: workspace.workspace_id,
   });
   assert.equal(updated.action, "updated", "deduped pending enqueue should still return the updated job row through the seam");
+  assert.ok(updated.job, "the conflict-identity update should return its job");
   assert.equal(updated.job.jobId, "conflict-identity-proof-job");
   assert.equal(updated.job.priority, 5);
 

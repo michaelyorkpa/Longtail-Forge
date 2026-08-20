@@ -37,6 +37,7 @@ const {
 
 let adapterOpen = false;
 let writerA;
+/** @type {InstanceType<typeof Database> | undefined} */
 let writerB;
 let reopened;
 
@@ -135,6 +136,7 @@ CREATE TABLE adapter_transaction_probe (
 
   writerA = new Database(databaseFile, { fileMustExist: true });
   writerB = new Database(databaseFile, { fileMustExist: true });
+  assert.ok(writerB, "the second native writer should open");
   for (const connection of [writerA, writerB]) {
     connection.pragma("foreign_keys = ON");
     connection.pragma("journal_mode = WAL");
@@ -166,8 +168,9 @@ CREATE VIRTUAL TABLE native_fts USING fts5(title, body);
     "a WAL reader should continue against the committed snapshot while another connection writes",
   );
   const blockedAt = performance.now();
+  const blockedWriter = writerB;
   assert.throws(
-    () => writerB.prepare("INSERT INTO native_concurrency_probe (id, label) VALUES (?, ?);")
+    () => blockedWriter.prepare("INSERT INTO native_concurrency_probe (id, label) VALUES (?, ?);")
       .run(2, "blocked writer"),
     /database is locked/,
     "a competing writer should honor the configured busy timeout and fail without corruption",

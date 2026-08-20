@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-transaction-helper-"));
@@ -108,7 +109,7 @@ CREATE TABLE transaction_probe (
     });
   });
 
-  const committed = await db.get("SELECT COUNT(1) AS count FROM transaction_probe WHERE id LIKE 'commit-%';");
+  const committed = requireRow(await db.get("SELECT COUNT(1) AS count FROM transaction_probe WHERE id LIKE 'commit-%';"), "committed");
   assert.equal(Number(committed.count), 2, "successful transaction should commit all changes");
 
   await assert.rejects(
@@ -122,9 +123,9 @@ CREATE TABLE transaction_probe (
     /intentional transaction rollback/,
   );
 
-  const rolledBack = await db.get("SELECT COUNT(1) AS count FROM transaction_probe WHERE id = :id;", {
+  const rolledBack = requireRow(await db.get("SELECT COUNT(1) AS count FROM transaction_probe WHERE id = :id;", {
     id: "rollback-one",
-  });
+  }), "rolledBack");
   assert.equal(Number(rolledBack.count), 0, "failed transaction should roll back all changes");
 
   await assert.rejects(
@@ -144,8 +145,10 @@ CREATE TABLE transaction_wait_probe (
 );
 `);
 
-  let releaseTransaction;
-  let markTransactionStarted;
+  /** @type {(value?: unknown) => void} */
+  let releaseTransaction = () => {};
+  /** @type {(value?: unknown) => void} */
+  let markTransactionStarted = () => {};
   const releasePromise = new Promise((resolve) => {
     releaseTransaction = resolve;
   });
@@ -178,7 +181,7 @@ CREATE TABLE transaction_wait_probe (
   releaseTransaction();
   await transactionPromise;
 
-  const outsideRead = await outsideReadPromise;
+  const outsideRead = requireRow(await outsideReadPromise, "outsideRead");
   assert.equal(Number(outsideRead.count), 2, "outside database calls should run after the open transaction commits");
 }
 
@@ -190,7 +193,7 @@ async function assertNestedTransactionFailsClearly() {
   );
 }
 
-async function assertTaskAssigneeReplacementCommits(session) {
+async function assertTaskAssigneeReplacementCommits(/** @type {import("../src/types/http-contracts.js").WorkspaceRequestSession} */ session) {
   const task = await tasksRepository.create(session.workspace_id, {
     task_id: `transaction-task-${randomUUID()}`,
     title: "Transaction helper assignee task",
@@ -226,7 +229,7 @@ async function assertTaskAssigneeReplacementCommits(session) {
   assert.deepEqual(reassigned.assignee_ids, [session.user_id], "transactional assignee replacement should commit new assignees");
 }
 
-async function assertNoteCreateWithLinksCommits(session) {
+async function assertNoteCreateWithLinksCommits(/** @type {import("../src/types/http-contracts.js").WorkspaceRequestSession} */ session) {
   const created = await notesService.create({
     body_markdown: "The note and its workspace link should commit together.",
     links: [
@@ -238,7 +241,7 @@ async function assertNoteCreateWithLinksCommits(session) {
     title: `Transaction linked note ${randomUUID()}`,
   }, session);
 
-  const linkCount = await db.get(`
+  const linkCount = requireRow(await db.get(`
 SELECT COUNT(1) AS count
 FROM note_links
 WHERE workspace_id = :workspaceId
@@ -247,12 +250,12 @@ WHERE workspace_id = :workspaceId
 `, {
     noteId: created.note.note_id,
     workspaceId: session.workspace_id,
-  });
+  }), "linkCount");
 
   assert.equal(Number(linkCount.count), 1, "successful note create/link transaction should commit the note link");
 }
 
-async function assertNoteCreateWithDuplicateLinksRollsBack(session) {
+async function assertNoteCreateWithDuplicateLinksRollsBack(/** @type {import("../src/types/http-contracts.js").WorkspaceRequestSession} */ session) {
   const title = `Transaction duplicate link rollback ${randomUUID()}`;
   const duplicateLink = {
     targetId: session.workspace_id,
@@ -280,7 +283,7 @@ LIMIT 1;
   });
   assert.equal(leftoverNote, null, "failed note create/link transaction should not leave the note behind");
 
-  const leftoverLinks = await db.get(`
+  const leftoverLinks = requireRow(await db.get(`
 SELECT COUNT(1) AS count
 FROM note_links
 WHERE workspace_id = :workspaceId
@@ -291,11 +294,11 @@ WHERE workspace_id = :workspaceId
     FROM notes
     WHERE workspace_id = :workspaceId
   );
-`, { workspaceId: session.workspace_id });
+`, { workspaceId: session.workspace_id }), "leftoverLinks");
   assert.equal(Number(leftoverLinks.count), 0, "failed note create/link transaction should not leave orphan links behind");
 }
 
-async function readActiveTaskAssignees(workspaceId, taskId) {
+async function readActiveTaskAssignees(/** @type {string} */ workspaceId, /** @type {string} */ taskId) {
   return db.query(`
 SELECT user_id
 FROM task_assignees
@@ -306,18 +309,20 @@ ORDER BY assigned_at, task_assignee_id;
 `, { taskId, workspaceId });
 }
 
+/** @returns {Promise<import("../src/types/http-contracts.js").WorkspaceRequestSession>} */
 async function readProtectedSession() {
-  const user = await db.get(`
+  /** @type {{ active_workspace_id: string, display_name: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const user = requireRow(await db.get(`
 SELECT user_id, username, display_name, timezone, home_workspace_id, active_workspace_id
 FROM users
 WHERE protected_user = 'yes'
 ORDER BY rowid
 LIMIT 1;
-`);
+`), "user");
 
   assert.ok(user?.user_id, "fresh database should seed a protected super admin");
 
-  return {
+  return /** @type {import("../src/types/http-contracts.js").WorkspaceRequestSession} */ (/** @type {unknown} */ ({
     active_workspace_id: user.active_workspace_id || user.home_workspace_id,
     display_name: user.display_name || user.username,
     home_workspace_id: user.home_workspace_id,
@@ -326,10 +331,10 @@ LIMIT 1;
     user_id: user.user_id,
     username: user.username,
     workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  }));
 }
 
-function functionBlock(source, name) {
+function functionBlock(/** @type {string} */ source, /** @type {string} */ name) {
   const pattern = new RegExp(`(?:async\\s+)?function\\s+${name}\\s*\\([^)]*\\)\\s*\\{`, "m");
   const match = pattern.exec(source);
   assert.ok(match, `Expected function ${name} to exist.`);

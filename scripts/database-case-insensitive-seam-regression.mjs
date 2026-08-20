@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const dialectContractVersion = "0.33.6.14a";
@@ -69,7 +70,7 @@ function assertStaticContract() {
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(caseInsensitiveSliceVersion)} - [\\s\\S]*case-insensitive comparison and ordering seams[\\s\\S]*Files attachable-target option`), "changelog should record the case-insensitive seam slice");
 }
 
-async function assertComparisonHelpers(dialect) {
+async function assertComparisonHelpers(/** @type {import("../src/types/database-contracts.js").DatabaseDialect} */ dialect) {
   await db.run(`
 CREATE TABLE case_insensitive_seam_records (
   id TEXT PRIMARY KEY,
@@ -93,7 +94,7 @@ VALUES
   assert.equal(dialect.comparison.likePattern("Beta", { mode: "exact" }), "Beta");
   assert.equal(dialect.comparison.containsNoCase("label", ":pattern"), "label LIKE :pattern COLLATE NOCASE ESCAPE '\\'");
   assert.throws(
-    () => dialect.comparison.likePattern("alpha", { mode: "unknown" }),
+    () => dialect.comparison.likePattern("alpha", { mode: /** @type {never} */ ("unknown") }),
     /Invalid LIKE pattern mode/,
     "LIKE pattern helper should reject non-allowlisted match modes",
   );
@@ -124,13 +125,14 @@ ORDER BY ${dialect.comparison.orderByNoCase("label", "ASC")}, id;
 }
 
 async function assertAttachableTargetOptionProofPath() {
-  const admin = await db.get(`
+  /** @type {{ active_workspace_id: string, display_name: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireRow(await db.get(`
 SELECT user_id, username, display_name, home_workspace_id, active_workspace_id, timezone
 FROM users
 WHERE protected_user = 'yes'
 ORDER BY username
 LIMIT 1;
-`);
+`), "admin");
   assert.ok(admin, "fresh database should have a protected admin user");
 
   const workspaceId = admin.active_workspace_id || admin.home_workspace_id;
@@ -240,7 +242,7 @@ async function assertIntegrity() {
   assert.equal(row?.integrity_check, "ok", "case-insensitive seam regression database should pass integrity check");
 }
 
-function functionBlock(source, functionName) {
+function functionBlock(/** @type {string} */ source, /** @type {string} */ functionName) {
   const marker = `function ${functionName}`;
   let start = source.indexOf(marker);
   if (start < 0) {

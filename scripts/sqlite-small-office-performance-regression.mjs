@@ -76,7 +76,7 @@ function assertPerformanceSmoke() {
   assert.equal(report.profile, "dev-demo");
   assert.equal(report.provider, "sqlite");
   assert.equal(report.iterations, 1);
-  assert.deepEqual(report.routes.map((route) => route.id), expectedRouteIds);
+  assert.deepEqual(report.routes.map((/** @type {{ id: string }} */ route) => route.id), expectedRouteIds);
 
   for (const route of report.routes) {
     assert.equal(route.statusCode, 200, `${route.id} should return HTTP 200`);
@@ -86,7 +86,8 @@ function assertPerformanceSmoke() {
   }
 }
 
-function cleanEnv(overrides = {}) {
+function cleanEnv(/** @type {Record<string, string | undefined>} */ overrides = {}) {
+  /** @type {Record<string, string | undefined>} */
   const env = { ...process.env, ...overrides };
   delete env.LTF_REGRESSION_BASELINE_DB;
   delete env.LONGTAIL_DATABASE_FILE;

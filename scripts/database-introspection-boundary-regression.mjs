@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const root = process.cwd();
@@ -86,7 +87,7 @@ function assertStaticBoundary() {
   assert.match(changelog, /## Version 0\.33\.5\.27\.7 - [\s\S]*PRAGMA, rowid, and introspection seam boundaries[\s\S]*provider-owned `compileOptions\(\.\.\.\)`[\s\S]*qualified `rowId\(\.\.\.\)`/, "changelog should record the introspection boundary slice");
   }
 
-async function assertIntrospectionAndIdentityHelpers(dialect) {
+async function assertIntrospectionAndIdentityHelpers(/** @type {import("../src/types/database-contracts.js").DatabaseDialect} */ dialect) {
   assert.equal(dialect.introspection.compileOptions(), "PRAGMA compile_options;");
   assert.equal(
     dialect.identity.rowId({ tableAlias: "introspection_boundary_records", alias: "physical_id" }),
@@ -111,14 +112,14 @@ VALUES ('record-1', 'Boundary proof');
   const columns = await db.query(dialect.introspection.tableInfo("introspection_boundary_records"));
   assert.deepEqual(columns.map((column) => column.name), ["record_id", "label"]);
 
-  const row = await db.get(`
+  const row = requireRow(await db.get(`
 SELECT
   ${dialect.identity.rowId({ tableAlias: "introspection_boundary_records", alias: "physical_id" })},
   record_id,
   label
 FROM introspection_boundary_records
 WHERE record_id = :recordId;
-`, { recordId: "record-1" });
+`, { recordId: "record-1" }), "row");
   assert.deepEqual(row, {
     label: "Boundary proof",
     physical_id: 1,
@@ -127,15 +128,15 @@ WHERE record_id = :recordId;
 }
 
 async function assertIntegrity() {
-  const row = await db.get("PRAGMA integrity_check;");
+  const row = requireRow(await db.get("PRAGMA integrity_check;"), "row");
   assert.equal(row.integrity_check, "ok");
 }
 
-function uniqueFiles(matches) {
-  return Array.from(new Set(matches.map((match) => match.file))).sort();
+function uniqueFiles(/** @type {Array<{ file: string }>} */ matches) {
+  return Array.from(new Set(matches.map((/** @type {{ file: string }} */ match) => match.file))).sort();
 }
 
-function listRuntimeSourceMatches(pattern) {
+function listRuntimeSourceMatches(/** @type {RegExp} */ pattern) {
   const matches = [];
 
   for (const relativePath of listRuntimeSourceFiles()) {
@@ -158,10 +159,11 @@ function listRuntimeSourceMatches(pattern) {
 }
 
 function listRuntimeSourceFiles() {
+  /** @type {string[]} */
   const files = [];
   const sourceRoot = path.join(root, "src");
 
-  function walk(directory) {
+  function walk(/** @type {string} */ directory) {
     for (const entry of readdirSync(directory)) {
       const absolutePath = path.join(directory, entry);
       const stat = statSync(absolutePath);
@@ -178,7 +180,7 @@ function listRuntimeSourceFiles() {
   return files.sort();
 }
 
-function functionBlock(source, name) {
+function functionBlock(/** @type {string} */ source, /** @type {string} */ name) {
   const startPattern = new RegExp(`(?:async\\s+)?function ${escapeRegExp(name)}\\s*\\(`);
   const startMatch = source.match(startPattern);
   assert.ok(startMatch, `Expected to find function ${name}`);
@@ -204,6 +206,6 @@ function functionBlock(source, name) {
   throw new Error(`Could not find end of function ${name}`);
 }
 
-function normalizePath(absolutePath) {
+function normalizePath(/** @type {string} */ absolutePath) {
   return path.relative(root, absolutePath).replace(/\\/g, "/");
 }

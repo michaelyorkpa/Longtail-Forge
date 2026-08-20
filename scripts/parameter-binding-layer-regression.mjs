@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-parameter-binding-layer-"));
@@ -191,7 +192,7 @@ WHERE record_id IN (:ids)
   assert.deepEqual(emptyOnly.params, [], "empty arrays should not add driver params");
 
   assert.throws(
-    () => prepareDatabaseBindings("SELECT ? AS nested_value;", [["nested"]]),
+    () => prepareDatabaseBindings("SELECT ? AS nested_value;", /** @type {never} */ ([["nested"]])),
     /Database query parameters must be strings, numbers, booleans, buffers, dates, null, or undefined/,
     "top-level positional params should not treat nested arrays as expansion lists",
   );
@@ -212,12 +213,13 @@ function assertBulkValuesBindingTranslation() {
   ];
   const bulkValues = createBulkValuesBindings(rows, ["id", "label", "optionalNote"], {
     paramPrefix: "bulkProbe",
+    /** @param {Record<string, unknown>} row @param {string} columnName @returns {import("../src/types/database-contracts.js").DatabaseParameterInput} */
     valueForColumn(row, columnName) {
       if (columnName === "optionalNote" && !row.optionalNote) {
         return null;
       }
 
-      return row[columnName];
+      return /** @type {import("../src/types/database-contracts.js").DatabaseParameterInput} */ (/** @type {Record<string, unknown>} */ (row)[columnName]);
     },
   });
   const sql = `
@@ -326,9 +328,9 @@ CREATE TABLE binding_layer_multi_statement (
 INSERT INTO binding_layer_multi_statement (id, label)
 VALUES ('literal-path', 'multi statement compatibility');
 `);
-  const compatibilityRow = await db.get("SELECT label FROM binding_layer_multi_statement WHERE id = :id;", {
+  const compatibilityRow = requireRow(await db.get("SELECT label FROM binding_layer_multi_statement WHERE id = :id;", {
     id: "literal-path",
-  });
+  }), "compatibilityRow");
   assert.equal(compatibilityRow.label, "multi statement compatibility", "no-parameter multi-statement compatibility SQL should still execute");
 
   await assert.rejects(
@@ -466,12 +468,13 @@ CREATE TABLE binding_layer_bulk_records (
     },
   ], ["id", "workspaceId", "label", "optionalNote", "createdAt"], {
     paramPrefix: "bulkRuntime",
+    /** @param {Record<string, unknown>} row @param {string} columnName @returns {import("../src/types/database-contracts.js").DatabaseParameterInput} */
     valueForColumn(row, columnName) {
       if (columnName === "optionalNote" && !row.optionalNote) {
         return null;
       }
 
-      return row[columnName];
+      return /** @type {import("../src/types/database-contracts.js").DatabaseParameterInput} */ (/** @type {Record<string, unknown>} */ (row)[columnName]);
     },
   });
 
@@ -740,6 +743,6 @@ VALUES
     "SQL-like missing target IDs should not broaden tag reads",
   );
 
-  const tagCount = await db.get("SELECT COUNT(1) AS count FROM tags;");
+  const tagCount = requireRow(await db.get("SELECT COUNT(1) AS count FROM tags;"), "tagCount");
   assert.equal(Number(tagCount.count), 3, "tag tables should survive SQL-like bound proof values");
 }

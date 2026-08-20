@@ -11,6 +11,7 @@ let checks = 0;
 
 try {
 
+/** @param {string} name @param {() => void} assertion @returns {void} */
 function check(name, assertion) {
   assertion();
   checks += 1;
@@ -18,6 +19,7 @@ function check(name, assertion) {
 
 internalEventBus.reset();
 
+/** @type {import("../src/types/framework-contracts.js").InternalEvent[]} */
 const receivedEvents = [];
 internalEventBus.on("task.created", async (event) => {
   receivedEvents.push(event);

@@ -88,7 +88,7 @@ void misuseRepositories;
 
 console.log("Database repository signature type regression passed.");
 
-function compileProbe(probePath) {
+function compileProbe(/** @type {string} */ probePath) {
   const result = spawnSync(process.execPath, [
     "node_modules/typescript/bin/tsc",
     "--ignoreConfig",
