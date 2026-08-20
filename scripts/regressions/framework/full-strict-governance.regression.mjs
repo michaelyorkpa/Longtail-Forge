@@ -312,6 +312,18 @@ for (const workspaceLifecycleOwner of [
   assert.equal(ledger.programs.scripts.diagnostics[workspaceLifecycleOwner], undefined, `${workspaceLifecycleOwner} must stay strict-clean after checkpoint 0.33.33.31.2`);
   assert.equal(ledger.explicitAnyByFile[workspaceLifecycleOwner], undefined, `${workspaceLifecycleOwner} must stay free of explicit any after checkpoint 0.33.33.31.2`);
 }
+// The demo host, public-demo candidate, development-seed, and startup
+// maintenance owners closed at 0.33.33.31.3. Each proves a seeded estate or a
+// startup repair that everything downstream trusts.
+for (const seededEstateOwner of [
+  "scripts/regressions/database/demo-data-host-operation.regression.mjs",
+  "scripts/regressions/database/development-data-seed.regression.mjs",
+  "scripts/regressions/database/public-demo-baseline-candidate.regression.mjs",
+  "scripts/regressions/database/startup-maintenance-lifecycle.regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[seededEstateOwner], undefined, `${seededEstateOwner} must stay strict-clean after checkpoint 0.33.33.31.3`);
+  assert.equal(ledger.explicitAnyByFile[seededEstateOwner], undefined, `${seededEstateOwner} must stay free of explicit any after checkpoint 0.33.33.31.3`);
+}
 // The authorization-model owners closed at 0.33.33.30.7.1 and the permission
 // harness itself closed at 0.33.33.30.7.2.2, which completes the
 // 0.33.33.30.7 cohort.

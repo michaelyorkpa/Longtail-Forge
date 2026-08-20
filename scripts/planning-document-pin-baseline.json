@@ -72,7 +72,6 @@
   ],
   "planningDocumentReaders": [
     "database.current-static-contracts",
-    "database.public-demo-baseline-candidate",
     "files.current-static-contracts",
     "legacy.active.timers.repository.conversion",
     "legacy.admin.job.observability",

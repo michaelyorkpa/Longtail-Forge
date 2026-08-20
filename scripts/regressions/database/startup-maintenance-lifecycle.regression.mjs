@@ -15,6 +15,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { requireRow } from "../../test-support/database-row-assertions.mjs";
+
+/** @typedef {import("../../../src/types/database-contracts.js").DatabaseStartupAction} DatabaseStartupAction */
+/** @typedef {import("../../../src/types/database-contracts.js").DatabaseStartupPhaseEvent} DatabaseStartupPhaseEvent */
 
 const scriptPath = fileURLToPath(import.meta.url);
 const rootDir = path.resolve(path.dirname(scriptPath), "..", "..", "..");
@@ -198,6 +202,7 @@ VALUES (
   }
 }
 
+/** @param {string} probeRoot @param {string} [password] @param {string} [username] */
 function runBootstrapProbe(probeRoot, password = "", username = "missing-bootstrap-password@example.test") {
   const databaseFile = path.join(probeRoot, "bootstrap-password-required.db");
   const env = Object.fromEntries(
@@ -230,12 +235,17 @@ function runBootstrapProbe(probeRoot, password = "", username = "missing-bootstr
   });
 }
 
+/** @param {import("node:child_process").SpawnSyncReturns<string>} probe */
 function readProbeResult(probe) {
-  return JSON.parse(probe.stdout.trim().split(/\r?\n/).at(-1));
+  const resultLine = probe.stdout.trim().split(/\r?\n/).at(-1);
+  assert.ok(resultLine, "the bootstrap probe should report a JSON result line");
+  return JSON.parse(resultLine);
 }
 
 async function assertCoordinatorOrderAndFailureBehavior() {
+  /** @type {string[]} */
   const calls = [];
+  /** @type {DatabaseStartupPhaseEvent[]} */
   const reports = [];
   const failure = new Error("planned startup failure");
   const actions = [
@@ -267,7 +277,7 @@ async function assertCoordinatorOrderAndFailureBehavior() {
     ],
     "phase reports should expose stable IDs, order, status, and elapsed milliseconds",
   );
-  assert.equal(reports.at(-1).errorType, "Error");
+  assert.equal(reports.at(-1)?.errorType, "Error");
 }
 
 function assertLifecycleInventory() {
@@ -296,6 +306,7 @@ function assertLifecycleInventory() {
 }
 
 async function assertFreshInstallAndRepeatStartup() {
+  /** @type {DatabaseStartupPhaseEvent[]} */
   const firstReports = [];
   await initializeDatabase({ report: (event) => firstReports.push(event) });
 
@@ -306,13 +317,15 @@ async function assertFreshInstallAndRepeatStartup() {
   );
   assert.ok(completedReports(firstReports).every((event) => Number.isSafeInteger(event.durationMs) && event.durationMs >= 0));
 
-  const workspace = await db.get("SELECT workspace_id, workspace_type FROM workspaces ORDER BY created_at LIMIT 1;");
-  const user = await db.get("SELECT user_id, protected_user FROM users WHERE username = :username;", {
+  /** @type {{ workspace_id: string, workspace_type: string }} */
+  const workspace = requireRow(await db.get("SELECT workspace_id, workspace_type FROM workspaces ORDER BY created_at LIMIT 1;"), "bootstrapped workspace");
+  /** @type {{ protected_user: string, user_id: string }} */
+  const user = requireRow(await db.get("SELECT user_id, protected_user FROM users WHERE username = :username;", {
     username: process.env.SUPER_ADMIN_USERNAME,
-  });
-  assert.ok(workspace?.workspace_id, "fresh startup should create its default workspace");
+  }), "bootstrapped super administrator");
+  assert.ok(workspace.workspace_id, "fresh startup should create its default workspace");
   assert.equal(workspace.workspace_type, "business");
-  assert.ok(user?.user_id, "fresh startup should create its super administrator");
+  assert.ok(user.user_id, "fresh startup should create its super administrator");
   assert.equal(user.protected_user, "yes");
   assert.ok(await db.get(`
 SELECT user_workspace_id
@@ -363,6 +376,7 @@ VALUES (
 );
 `, { userId: user.user_id, workspaceId: workspace.workspace_id });
 
+  /** @type {DatabaseStartupPhaseEvent[]} */
   const secondReports = [];
   await initializeDatabase({ report: (event) => secondReports.push(event) });
   const secondCompleted = completedReports(secondReports);
@@ -376,11 +390,12 @@ VALUES (
     "completed versioned repairs should not repeat on later boots",
   );
 
-  const postRepairRow = await db.get("SELECT start_time FROM time_entries WHERE entry_id = 'post-repair-timestamp-proof';");
+  const postRepairRow = requireRow(await db.get("SELECT start_time FROM time_entries WHERE entry_id = 'post-repair-timestamp-proof';"), "post-repair time entry");
   assert.equal(postRepairRow.start_time, "2026-07-20 09:00:00", "the retired full-table timestamp repair should not rescan on every boot");
 }
 
 async function assertWorkerReadinessInventory() {
+  /** @type {DatabaseStartupPhaseEvent[]} */
   const reports = [];
   await initializeWorkerDatabase({ report: (event) => reports.push(event) });
   assert.deepEqual(
@@ -397,6 +412,7 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok");
 }
 
+/** @param {string} id @param {DatabaseStartupAction["run"]} run @returns {DatabaseStartupAction} */
 function action(id, run) {
   return {
     id,
@@ -406,14 +422,17 @@ function action(id, run) {
   };
 }
 
+/** @param {DatabaseStartupPhaseEvent[]} reports */
 function completedReports(reports) {
   return reports.filter((event) => event.status !== "started");
 }
 
+/** @param {DatabaseStartupAction[]} actions @param {string} id */
 function readLifecycle(actions, id) {
   return actions.find((action) => action.id === id)?.lifecycle;
 }
 
+/** @param {DatabaseStartupPhaseEvent[]} reports @param {string} id */
 function readStatus(reports, id) {
   return reports.find((event) => event.id === id)?.status;
 }

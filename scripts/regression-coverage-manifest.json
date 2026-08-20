@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18413,
+    "activeAssertionCount": 18419,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19097,
+    "effectiveAssertionCount": 19103,
     "retiredAssertionCredit": 15,
     "vitest": [
       {
@@ -2913,11 +2913,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 106,
+      "assertionCount": 107,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves exact-target preflight and six-public-plus-one-private demo-host provision/reset through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
-      "entryPointAssertionCount": 106,
+      "entryPointAssertionCount": 107,
       "id": "database.demo-data-host-operation",
       "legacy": false,
       "path": "scripts/regressions/database/demo-data-host-operation.regression.mjs",
@@ -2936,11 +2936,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 154,
+      "assertionCount": 155,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves deterministic rich development/demo data, safe reset ownership, disabled persona logins, and production/live target refusal.",
-      "entryPointAssertionCount": 154,
+      "entryPointAssertionCount": 155,
       "id": "database.development-data-seed",
       "legacy": false,
       "path": "scripts/regressions/database/development-data-seed.regression.mjs",
@@ -3020,11 +3020,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 56,
+      "assertionCount": 57,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves repeatable dry-run/build/validation and corrupt-state rejection for the non-activating Compose public-demo database-and-Files candidate.",
-      "entryPointAssertionCount": 56,
+      "entryPointAssertionCount": 57,
       "id": "database.public-demo-baseline-candidate",
       "legacy": false,
       "path": "scripts/regressions/database/public-demo-baseline-candidate.regression.mjs",
@@ -3084,11 +3084,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 45,
+      "assertionCount": 46,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves explicit startup lifecycle ownership, fail-fast ordering, timed phase reporting, one-time repair tracking, fresh bootstrap behavior, and worker schema readiness.",
-      "entryPointAssertionCount": 45,
+      "entryPointAssertionCount": 46,
       "id": "database.startup-maintenance-lifecycle",
       "legacy": false,
       "path": "scripts/regressions/database/startup-maintenance-lifecycle.regression.mjs",
@@ -3583,11 +3583,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 115,
+      "assertionCount": 117,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 115,
+      "entryPointAssertionCount": 117,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
