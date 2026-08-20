@@ -81,16 +81,6 @@ Cohort boundary: this rollup owns `scripts/permission-regression.mjs`, `scripts/
 
 The probe also settled a question the original scope left open: `scripts/permission-regression.mjs` imports only Node built-ins and `src/`, and nothing from the authorization-model owners or their folded contracts. There is therefore **no diagnostic cascade between `0.33.33.30.7.1` and `0.33.33.30.7.2`** — the two children are independent, and `.30.7.1` will not reduce `.30.7.2`'s count. Sequencing `.30.7.1` first is for contract discovery, not for cascade.
 
-#### 0.33.33.30.7.1 - Type authorization-model owners
-
-**Model: High Effort** - The business-only client boundary and billable-membership rules are authorization semantics, not fixtures.
-
-- [ ] Close the 31 measured diagnostics across `permissions/client-project-business-boundary` (15), `permissions/workspace-membership-billable` (9), `permissions/permission-resource-types` (3), `permissions/permission-resource-catalog` (2), and the folded `permissions/icon-accessibility-contract` (2). `permissions/current-static-contracts` and the folded `permissions/client-child-create-scope` measure zero and take a disposition only, recorded rather than silently skipped.
-- [ ] Type permission-resource catalog entries and resource-type records, workspace-membership and billable-status rows, and the client/project business-boundary fixtures with named contracts, reusing published `src/types/` contracts by type-only import wherever one already describes the shape rather than redeclaring it locally.
-- [ ] Preserve the business-only client boundary, workspace-membership and billable semantics, permission-resource catalog behavior, folded contract ownership and its retained-owner reconciliation, every owner's recorded run mode, assertion ownership as the generated manifest records it, and all existing fail-closed behavior. No runtime behavior may change.
-- [ ] Establish a reusable type seam for the permission harness **only if the source supports one**. The probe found no shared import between these owners and the harness, so no abstraction is prescribed here. If typing reveals a genuine shared shape — a permission-resource entry or role-scope record the harness also resolves — publish it for type-only reuse in `0.33.33.30.7.2`; if it does not, record that finding and add nothing.
-- [ ] `framework.full-strict-governance` pins the five diagnostic-bearing owners and both folded contract modules strict-clean.
-
 #### 0.33.33.30.7.2 - Type the HTTP authorization matrix
 
 Planning rollup only; its two children below are the protected implementation checkpoints. A read-only probe measures `scripts/permission-regression.mjs` at 249 diagnostics in 3,825 lines. That is 21 percent above the largest child completed on this branch (`0.33.33.30.6`, 205 diagnostics) and concentrated in one file, so it is resliced at the harness's own internal contract seam rather than run as a single pass.
