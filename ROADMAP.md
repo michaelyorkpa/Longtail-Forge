@@ -76,16 +76,6 @@ Every child lands in the 96-to-217 band, against a proven range of 85 to 205 acr
 
 Requirements shared by every child: preserve real child-process and database isolation and do not merge processes merely to satisfy a target; type temporary paths, database handles, child results, attestations, provider mocks, and cleanup state explicitly rather than casting them away; strip historical roadmap, changelog, and version-history pins from the owners the child touches, recording each disposition, and require any surviving planning-document read to assert a current live contract; reuse published `src/types/` contracts by type-only import wherever one already describes a shape; introduce no explicit `any`, `@ts-ignore`, `@ts-nocheck`, or file exclusion; and pin each closed owner strict-clean through `framework.full-strict-governance`.
 
-#### 0.33.33.31.1 - Type database seams, adapters, and parameter binding
-
-**Model: High Effort - The adapter and binding seams every other database owner resolves through.**
-
-Measured at 217 diagnostics across 29 files and 6,369 lines.
-
-- [ ] Close the 217 diagnostics across the top-level `database-*`, `sqlite-*`, `better-sqlite3-*`, and `parameter-binding-*` owners, the `migration-compatibility`, `startup-maintenance-compatibility`, and `event-bus` owners, `scripts/regression-contracts/database/`, and the adapter, dialect, transaction-client, repository-signature, migration-schema, module-context, statement-cache, and verified-baseline owners under `scripts/regressions/database/`.
-- [ ] Type adapter and dialect seams, parameter-binding inputs and normalized values, transaction clients, statement-cache handles, and migration schema descriptors with named contracts, reusing `src/types/database-contracts.d.ts` by type-only import rather than redeclaring rows or parameter shapes.
-- [ ] Preserve dialect and placeholder-style behavior, boolean and time seam conversions, conflict-identity resolution, introspection boundaries, result fidelity, statement caching, and connection hardening exactly.
-
 #### 0.33.33.31.2 - Type workspace lifecycle and role-seed database owners
 
 **Model: High Effort - Deletion, purge, and isolation are destructive paths that must stay fail-closed.**
