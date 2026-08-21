@@ -93,17 +93,6 @@ Helper-contract rule for every remaining child (added at `0.33.33.31.6.1` after 
 
 Pre-closeout boundary probe for `0.33.33.31.7` through `0.33.33.31.11`: before archiving a child, search that child's touched owners for dynamic parsing, deserialization, and helper-level type erasure, and record the disposition in the archive entry as narrowed through a published contract, narrowed locally from `unknown`, intentionally left open with concrete rationale, or not present. A child must not be archived merely because its measured diagnostic count reached zero while a parsing boundary still feeds `any` into an assertion. The probe stays scoped to the child's own owners; it is not a repository-wide audit.
 
-#### 0.33.33.31.9 - Type job claiming, outbox, and retention owners
-
-**Model: High Effort - Claiming and idempotency are concurrency proofs.**
-
-Measured at 115 diagnostics across 4 files and 1,321 lines.
-
-- [ ] Close the 115 diagnostics across `job-claiming-locking`, `job-idempotency-at-least-once`, `job-outbox-schema`, and `job-retention-pruning`.
-- [ ] Type job records, claim and lock state, outbox schema rows, and retention windows with named contracts.
-- [ ] Preserve claiming and locking arithmetic, at-least-once idempotency, outbox schema shape, and retention pruning bounds exactly.
-- [ ] Inspect this child's dynamic boundaries explicitly: job `payload_json`, outbox JSON, claim metadata, and serialized retry or idempotency state. Persisted JSON fields are parsed through `unknown` and narrowed before any assertion reads them.
-
 #### 0.33.33.31.10 - Type job observability and background work owners
 
 **Model: High Effort - Observability reads are where job payloads leak if typed loosely.**
