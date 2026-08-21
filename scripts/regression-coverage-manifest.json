@@ -316,32 +316,163 @@
   },
   "retiredAssertions": [
     {
-      "sourceRegression": "storage.provider-s3-and-quota-owners",
+      "sourceRegression": "legacy.file.s3.diagnostics.signed.url.boundary",
       "retiredInVersion": "0.33.33.31.7",
       "retirementType": "historical-planning-pin",
-      "assertionCount": 11,
-      "rationale": "Eleven assertions across seven storage owners pinned archived planning history rather than a live contract: six required that a 0.33.5.22 completed-work breadcrumb stay absent from the live roadmap, which it can never re-enter against a 0.33.33 cursor; two were duplicate assertRoadmapCursorAtLeast(\"0.33.8\") floors differing only in message; and three required CHANGELOG prose for shipped 0.33.5.25.2 quota enforcement and for the Busboy and streaming-adapter decisions.",
-      "assertionDisposition": "No behavior lost coverage. The Busboy decision is still proven from package.json and package-lock.json, and the saveStream and save adapter contract is still proven from src/core/files/local-storage-adapter.js and the Files service adapter registration. Quota enforcement keeps its executable proof and gains a fail-closed negative control. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and the seven owners are removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.22` completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every source and documentation assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/file-s3-diagnostics-signed-url-boundary-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.file.s3.diagnostics.signed.url.boundary",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/file-s3-diagnostics-signed-url-boundary-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.file.s3.object.operation.proof",
+      "retiredInVersion": "0.33.33.31.7",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.22` completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every source and documentation assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/file-s3-object-operation-proof-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.file.s3.object.operation.proof",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/file-s3-object-operation-proof-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.file.s3.provider.registration",
+      "retiredInVersion": "0.33.33.31.7",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.22` completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every source and documentation assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/file-s3-provider-registration-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.file.s3.provider.registration",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/file-s3-provider-registration-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.file.storage.diagnostics",
+      "retiredInVersion": "0.33.33.31.7",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.22` completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every source and documentation assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/file-storage-diagnostics-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.file.storage.diagnostics",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/file-storage-diagnostics-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.file.storage.provider.configuration",
+      "retiredInVersion": "0.33.33.31.7",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.22` completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every source and documentation assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/file-storage-provider-configuration-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.file.storage.provider.configuration",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/file-storage-provider-configuration-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.file.storage.quota.enforcement",
+      "retiredInVersion": "0.33.33.31.7",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 3,
+      "rationale": "Two assertions were duplicate assertRoadmapCursorAtLeast(\"0.33.8\") cursor floors differing only in message, against a live 0.33.33 cursor that neither could fail. A third required CHANGELOG prose for the shipped 0.33.5.25.2 quota enforcement release.",
+      "assertionDisposition": "No behavior lost coverage. Quota enforcement keeps its full executable proof across buffered and streamed uploads, workspace and per-user scopes, and null limits, and this checkpoint adds a fail-closed negative control that disables the workspace quota ceiling and confirms the owner fails. release.historical-evidence-retirement owns the standing rule against archived history as product evidence, and the owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
       "retiredEvidence": [
         "ROADMAP.md",
         "CHANGELOG.md"
       ],
       "sourcePaths": [
-        "scripts/file-s3-diagnostics-signed-url-boundary-regression.mjs",
-        "scripts/file-s3-object-operation-proof-regression.mjs",
-        "scripts/file-s3-provider-registration-regression.mjs",
-        "scripts/file-storage-diagnostics-regression.mjs",
-        "scripts/file-storage-provider-configuration-regression.mjs",
-        "scripts/file-storage-quota-enforcement-regression.mjs",
-        "scripts/file-storage-streaming-contract-regression.mjs"
+        "scripts/file-storage-quota-enforcement-regression.mjs"
       ],
       "retainedCoverageOwners": [
-        "scripts/file-storage-streaming-contract-regression.mjs",
-        "scripts/file-storage-quota-enforcement-regression.mjs",
-        "scripts/regressions/release/historical-evidence-retirement.regression.mjs"
+        "legacy.file.storage.quota.enforcement",
+        "release.historical-evidence-retirement"
       ],
       "verificationPerformed": [
         "node scripts/file-storage-quota-enforcement-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.file.storage.streaming.contract",
+      "retiredInVersion": "0.33.33.31.7",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 3,
+      "rationale": "One assertion required that a `0.33.5.22` completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail. Two further assertions required CHANGELOG prose recording the Busboy multipart parser decision and the saveStream/save storage adapter contract.",
+      "assertionDisposition": "No behavior lost coverage. The Busboy decision is still proven from package.json and package-lock.json in this same owner, and the saveStream and save adapter contract is still proven from src/core/files/local-storage-adapter.js and the Files service adapter registration. release.historical-evidence-retirement owns the standing rule against archived history as product evidence, and the owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/file-storage-streaming-contract-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.file.storage.streaming.contract",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
         "node scripts/file-storage-streaming-contract-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "npm run verify:slice"
