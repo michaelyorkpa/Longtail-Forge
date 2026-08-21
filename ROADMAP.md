@@ -135,6 +135,7 @@ Measured at 104 diagnostics across 16 files and 2,588 lines.
 - [ ] Close the 104 diagnostics across `files-lifecycle-settings-quota-conversion`, `file-settings`, `file-framework-contract`, `files-descriptor-host`, `files-time-tracking-qol-closeout`, and `scripts/regression-contracts/files/`.
 - [ ] Type settings payloads, descriptor host records, and the folded Files contract modules with named contracts.
 - [ ] Preserve settings and quota conversion behavior, descriptor host contracts, and folded contract ownership with its retained-owner reconciliation.
+- [ ] Remove the unused `readPayloadList` export from `scripts/test-support/http-payload-assertions.mjs`. It was published speculatively at `0.33.33.31.4`, and `0.33.33.31.5.1` confirmed no owner in the estate reads a bare top-level array response body, so no legitimate consumer is coming. If one has appeared by this checkpoint, keep it and record that instead.
 - [ ] Confirm the whole `0.33.33.31` cohort measures zero and record the closing scripts-program figure. This child closes the `0.33.33.31` rollup.
 ### 0.33.33.32 - Type product regressions and close the scripts program
 
