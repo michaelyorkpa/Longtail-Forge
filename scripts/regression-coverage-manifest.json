@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18428,
+    "activeAssertionCount": 18431,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19112,
+    "effectiveAssertionCount": 19115,
     "retiredAssertionCredit": 15,
     "vitest": [
       {
@@ -1301,11 +1301,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 62,
+      "assertionCount": 64,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy files attachable target options contract.",
-      "entryPointAssertionCount": 62,
+      "entryPointAssertionCount": 64,
       "id": "legacy.files.attachable.target.options",
       "legacy": true,
       "path": "scripts/files-attachable-target-options-regression.mjs",
@@ -1319,11 +1319,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 45,
+      "assertionCount": 47,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy files attachment context route contract.",
-      "entryPointAssertionCount": 45,
+      "entryPointAssertionCount": 47,
       "id": "legacy.files.attachment.context.route",
       "legacy": true,
       "path": "scripts/files-attachment-context-route-regression.mjs",
@@ -1337,11 +1337,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 23,
+      "assertionCount": 25,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy files attachment readmodel contract.",
-      "entryPointAssertionCount": 23,
+      "entryPointAssertionCount": 25,
       "id": "legacy.files.attachment.readmodel",
       "legacy": true,
       "path": "scripts/files-attachment-readmodel-regression.mjs",
@@ -1355,11 +1355,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 33,
+      "assertionCount": 31,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy files browse attachment reads conversion contract.",
-      "entryPointAssertionCount": 33,
+      "entryPointAssertionCount": 31,
       "id": "legacy.files.browse.attachment.reads.conversion",
       "legacy": true,
       "path": "scripts/files-browse-attachment-reads-conversion-regression.mjs",
@@ -1373,11 +1373,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 45,
+      "assertionCount": 42,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy files context targets conversion contract.",
-      "entryPointAssertionCount": 45,
+      "entryPointAssertionCount": 42,
       "id": "legacy.files.context.targets.conversion",
       "legacy": true,
       "path": "scripts/files-context-targets-conversion-regression.mjs",
@@ -3583,11 +3583,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 121,
+      "assertionCount": 123,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 121,
+      "entryPointAssertionCount": 123,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",

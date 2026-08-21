@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "maximumActiveScripts": 347,
-  "minimumAssertionCount": 19112,
+  "minimumAssertionCount": 19115,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,

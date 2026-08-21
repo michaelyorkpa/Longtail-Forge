@@ -3002,7 +3002,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 4079,
+      "errorCount": 3897,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3535,140 +3535,6 @@
           },
           {
             "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/files-attachable-target-options-regression.mjs": [
-          {
-            "code": 2322,
-            "count": 10
-          },
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 2531,
-            "count": 1
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 37
-          },
-          {
-            "code": 7023,
-            "count": 1
-          },
-          {
-            "code": 7031,
-            "count": 28
-          }
-        ],
-        "scripts/files-attachment-context-route-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 13
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2531,
-            "count": 1
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 17
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/files-attachment-readmodel-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 2
-          },
-          {
-            "code": 18048,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7005,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 12
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 2
-          }
-        ],
-        "scripts/files-browse-attachment-reads-conversion-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 9
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 11
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "scripts/files-context-targets-conversion-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 2
-          },
-          {
-            "code": 18047,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 10
-          },
-          {
-            "code": 7023,
             "count": 1
           }
         ],
@@ -6257,7 +6123,7 @@
   },
   "totals": {
     "files": 1044,
-    "errors": 15213,
+    "errors": 15031,
     "explicitAny": 7
   },
   "explicitAnyByFile": {
