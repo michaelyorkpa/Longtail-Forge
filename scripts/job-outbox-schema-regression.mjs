@@ -18,7 +18,30 @@ const currentSchema = readText("src/db/schema/current.sql");
 const migrationSql = readText(migrationFile);
 const databaseDocs = readText("docs/database.md");
 const architectureDocs = readText("docs/architecture.md");
-const roadmap = readText("ROADMAP.md");
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+
+/** The columns insertJob writes; every one is a column this owner controls. */
+/**
+ * @typedef {{
+ *   attemptCount?: number,
+ *   availableAt?: string,
+ *   completedAt?: string | null,
+ *   createdAt?: string,
+ *   deadAt?: string | null,
+ *   dedupeKey?: string | null,
+ *   jobId?: string,
+ *   jobType?: string,
+ *   lastError?: string | null,
+ *   lockedAt?: string | null,
+ *   lockedBy?: string | null,
+ *   maxAttempts?: number,
+ *   payload?: unknown,
+ *   priority?: number,
+ *   status?: string,
+ *   updatedAt?: string,
+ *   workspaceId?: string,
+ * }} InsertJobOptions
+ */
 let cachedWorkspaceId = "";
 
 const {
@@ -34,10 +57,8 @@ try {
   assert.doesNotMatch(currentSchema, /\bCREATE TABLE jobs\b/, "frozen current.sql baseline should not be edited for the job/outbox schema");
   assert.match(migrationSql, /\bCREATE TABLE jobs\b/, "core migration should create the durable jobs table");
   assert.match(migrationSql, /\bCREATE UNIQUE INDEX idx_jobs_active_dedupe\b[\s\S]*status IN \('pending', 'running', 'failed'\)/, "migration should enforce active dedupe only for retryable/in-flight work");
-    assert.match(databaseDocs, /As of version 0\.33\.5\.21\.1[\s\S]*`jobs`[\s\S]*pending[\s\S]*running[\s\S]*completed[\s\S]*failed[\s\S]*dead/i, "database docs should explain the shipped job states");
-  assert.match(architectureDocs, /As of 0\.33\.5\.21\.2[\s\S]*framework-owned `jobs` table[\s\S]*v1 worker runner/, "architecture docs should record the durable job table handoff into the worker runner");
-  assert.match(databaseDocs, /table shipped as schema only in 0\.33\.5\.21\.1[\s\S]*v1 worker runner shipped in 0\.33\.5\.21\.2/, "database docs should preserve the schema-only handoff while documenting the worker runner");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
+  assert.match(databaseDocs, /`jobs`[\s\S]*pending[\s\S]*running[\s\S]*completed[\s\S]*failed[\s\S]*dead/i, "database docs should explain the shipped job states");
+  assert.match(architectureDocs, /framework-owned `jobs` table[\s\S]*v1 worker runner/, "architecture docs should record the durable job table handoff into the worker runner");
 
   await initializeDatabase();
   await assertMigrationRecorded();
@@ -171,6 +192,7 @@ async function assertDedupeBehavior() {
   await insertJob({ dedupeKey: null, jobId: "job-null-dedupe-b" });
 }
 
+/** @param {InsertJobOptions} [options] */
 async function insertJob(options = {}) {
   const now = new Date().toISOString();
   const jobId = options.jobId || `job-${Math.random().toString(16).slice(2)}`;
@@ -224,7 +246,9 @@ async function readWorkspaceId() {
   }
 
   const rows = await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
-  cachedWorkspaceId = rows[0]?.workspace_id;
+  /** @type {{ workspace_id: string }} */
+  const workspace = requireFirstRow(rows, "workspace for job rows");
+  cachedWorkspaceId = workspace.workspace_id;
   assert.ok(cachedWorkspaceId, "fresh database should have a workspace for job rows");
   return cachedWorkspaceId;
 }

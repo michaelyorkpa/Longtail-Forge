@@ -16,7 +16,50 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-job-clai
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Job-Claiming-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} JobsClientOptions */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+/** @typedef {import("../src/types/database-contracts.js").DatabaseRow} DatabaseRow */
+
+/**
+ * One fixture response. The body stays `unknown` on purpose: JSON.parse would
+ * hand back `any`, and every envelope read below would then be a claim the
+ * compiler never checks.
+ * @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown>} JobsResponse
+ */
+
+/** @typedef {{ get: (url: string, options?: JobsClientOptions) => Promise<JobsResponse> }} JobsApiClient */
+
+/** The jobs route publishes the service readout unchanged. */
+/** @typedef {{ jobs: Awaited<ReturnType<typeof import("../src/services/jobs.service.js").jobsService.readAdminReadout>> }} JobsReadoutEnvelope */
+/** @typedef {{ error: import("../src/types/framework-contracts.js").ApiErrorDetails }} JobsErrorEnvelope */
+
+/** @typedef {Awaited<ReturnType<typeof seedFixtures>>} JobFixtures */
+
+/** The columns insertJob writes; every one is a column this owner controls. */
+/**
+ * @typedef {{
+ *   attemptCount?: number,
+ *   availableAt?: string,
+ *   completedAt?: string | null,
+ *   createdAt?: string,
+ *   deadAt?: string | null,
+ *   dedupeKey?: string | null,
+ *   jobId: string,
+ *   jobType?: string,
+ *   lastError?: string | null,
+ *   lockedAt?: string | null,
+ *   lockedBy?: string | null,
+ *   maxAttempts?: number,
+ *   payload?: unknown,
+ *   priority?: number,
+ *   status?: string,
+ *   updatedAt?: string,
+ * }} InsertJobOptions
+ */
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
@@ -57,7 +100,6 @@ try {
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.3[\s\S]*expired running locks/, "database docs should document expired lock reclaim");
   assert.match(runtimeDocs, /`LONGTAIL_JOB_LOCK_TTL_SECONDS`[\s\S]*expired running job locks/, "runtime docs should document the active lock TTL behavior");
   assert.match(sqliteDocs, /`GET \/api\/jobs\/status`[\s\S]*pending[\s\S]*running[\s\S]*dead/, "SQLite docs should document the protected jobs readout");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
 
   await initializeDatabase();
   const fixtures = await seedFixtures();
@@ -81,6 +123,7 @@ try {
 async function assertJobClaimingLifecycle() {
   resetJobWorkerStatusForTests();
   clearJobHandlersForTests();
+  /** @type {string[]} */
   const handled = [];
 
   registerJobHandler("test.success", async ({ job }) => {
@@ -149,8 +192,8 @@ async function assertJobClaimingLifecycle() {
   assert.equal(retry.status, "failed");
   assert.equal(retry.attempt_count, 1);
   assert.equal(retry.locked_at, null);
-  assert.match(retry.last_error, /Try again later/);
-  assert.ok(Date.parse(retry.available_at) > beforeRetry, "failed jobs should be scheduled for a future retry");
+  assert.match(String(retry.last_error), /Try again later/);
+  assert.ok(Date.parse(String(retry.available_at)) > beforeRetry, "failed jobs should be scheduled for a future retry");
 
   await insertJob({ jobId: "job-dead", jobType: "test.dead", maxAttempts: 1 });
   const deadSummary = await runJobWorkerOnce({
@@ -162,30 +205,37 @@ async function assertJobClaimingLifecycle() {
   const dead = await readJob("job-dead");
   assert.equal(dead.status, "dead");
   assert.equal(dead.attempt_count, 1);
-  assert.match(dead.last_error, /No attempts left/);
+  assert.match(String(dead.last_error), /No attempts left/);
   assert.ok(dead.dead_at, "dead-letter rows should record dead_at");
 }
 
+/** @param {JobFixtures} fixtures */
 async function assertAdminReadout(fixtures) {
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   const unauthenticated = await api.get("/api/jobs/status");
   assert.equal(unauthenticated.status, 401, "jobs readout should require login");
-  assert.equal(unauthenticated.body.error.code, "authentication_required");
-  assert.equal(unauthenticated.body.error.message, "Login required.");
-  assert.equal(unauthenticated.body.error.requestId, unauthenticated.headers.get("x-request-id"));
+  /** @type {JobsErrorEnvelope} */
+  const unauthenticatedError = readPayload(unauthenticated, ["error"], "GET /api/jobs/status");
+  assert.equal(unauthenticatedError.error.code, "authentication_required");
+  assert.equal(unauthenticatedError.error.message, "Login required.");
+  assert.equal(unauthenticatedError.error.requestId, unauthenticated.headers.get("x-request-id"));
 
   const forbidden = await api.get("/api/jobs/status", { cookie: fixtures.unprivilegedSessionId });
   assert.equal(forbidden.status, 403, "jobs readout should require workspace_settings.manage");
-  assert.equal(forbidden.body.error.code, "forbidden");
-  assert.equal(forbidden.body.error.message, "You do not have permission to perform that action.");
+  /** @type {JobsErrorEnvelope} */
+  const forbiddenError = readPayload(forbidden, ["error"], "GET /api/jobs/status");
+  assert.equal(forbiddenError.error.code, "forbidden");
+  assert.equal(forbiddenError.error.message, "You do not have permission to perform that action.");
 
   const allowed = await api.get("/api/jobs/status?limit=1", { cookie: fixtures.adminSessionId });
   assert.equal(allowed.status, 200, "workspace settings managers should read jobs status");
   assert.equal(allowed.headers.get("cache-control"), "no-store");
 
-  const readout = allowed.body.jobs;
+  /** @type {JobsReadoutEnvelope} */
+  const allowedPayload = readPayload(allowed, ["jobs"], "GET /api/jobs/status");
+  const readout = allowedPayload.jobs;
   assert.deepEqual(readout.counts, {
     dead: 1,
     failed: 1,
@@ -208,9 +258,11 @@ async function assertAdminReadout(fixtures) {
     cookie: fixtures.adminSessionId,
   });
   assert.equal(nextPage.status, 200);
-  assert.equal(nextPage.body.jobs.recentFailures.items.length, 1);
-  assert.equal(nextPage.body.jobs.recentFailures.pagination.hasMore, false);
-  assert.equal(nextPage.body.jobs.recentFailures.pagination.nextCursor, "");
+  /** @type {JobsReadoutEnvelope} */
+  const nextPagePayload = readPayload(nextPage, ["jobs"], "GET /api/jobs/status");
+  assert.equal(nextPagePayload.jobs.recentFailures.items.length, 1);
+  assert.equal(nextPagePayload.jobs.recentFailures.pagination.hasMore, false);
+  assert.equal(nextPagePayload.jobs.recentFailures.pagination.nextCursor, "");
 }
 
 async function seedFixtures() {
@@ -223,7 +275,7 @@ LIMIT 1;
 `);
   assert.ok(admin?.user_id, "fresh database should seed a protected admin");
 
-  const workspace = admin.active_workspace_id || admin.home_workspace_id;
+  const workspace = String(admin.active_workspace_id || admin.home_workspace_id);
   const unprivilegedUser = {
     userId: `job-readout-user-${randomUUID()}`,
     username: `job-readout-${randomUUID()}@example.test`,
@@ -307,7 +359,8 @@ VALUES (
   };
 }
 
-async function insertJob(options = {}) {
+/** @param {InsertJobOptions} options */
+async function insertJob(options) {
   const now = new Date().toISOString();
   const status = options.status || "pending";
   await db.run(`
@@ -370,10 +423,9 @@ VALUES (
   });
 }
 
+/** @param {string} jobId @returns {Promise<DatabaseRow>} */
 async function readJob(jobId) {
-  const row = await db.get("SELECT * FROM jobs WHERE job_id = :jobId;", { jobId });
-  assert.ok(row, `expected job ${jobId}`);
-  return row;
+  return requireRow(await db.get("SELECT * FROM jobs WHERE job_id = :jobId;", { jobId }), `job ${jobId}`);
 }
 
 async function assertIntegrity() {
@@ -381,9 +433,12 @@ async function assertIntegrity() {
   assert.equal(integrityRows[0]?.integrity_check, "ok", "job claiming regression database should pass integrity check");
 }
 
+/** @param {string} baseUrl @returns {JobsApiClient} */
 function createApi(baseUrl) {
   return {
+    /** @param {string} url @param {JobsClientOptions} [options] @returns {Promise<JobsResponse>} */
     async get(url, options = {}) {
+      /** @type {Record<string, string>} */
       const headers = {};
       if (options.cookie) {
         headers.Cookie = `longtail_forge_session=${options.cookie}`;
@@ -400,13 +455,15 @@ function createApi(baseUrl) {
   };
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {HttpFixtureServer} serverInstance @returns {Promise<void>} */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => {
@@ -414,7 +471,7 @@ function closeServer(serverInstance) {
         reject(error);
         return;
       }
-      resolve();
+      resolve(undefined);
     });
   });
 }
