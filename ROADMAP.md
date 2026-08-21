@@ -36,7 +36,7 @@ Branch delivery contract:
 - [ ] Preserve attested-baseline fail-closed proof, canonical-workspace fingerprinting, backup/restore/purge and migration-chain coverage, parameter-binding and module-import audits, permission/session/auth/Support View proofs, Files quota/scanner/streaming coverage, Playwright accessibility/console/overflow coverage, the four closeout regenerators, exact-SHA Nightly/promotion proof, CodeQL, and dependency review.
 - [ ] Do not split `view-builder.js` factories, `user-admin.js`, task-dialog subsystems, or any browser controller that remains an unwrapped classic script. Decomposition is allowed only at the verified seams named below or when typing exposes equivalent evidence and the roadmap is updated first.
 
-Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, `.28.6`, `.30`, `.30.2`, `.30.3`, `.30.7`, `.30.7.2`, and `.31` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
+Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, `.28.6`, `.30`, `.30.2`, `.30.3`, `.30.7`, `.30.7.2`, `.31`, and `.32` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
 
 Release-wide measurable acceptance:
 
@@ -52,17 +52,363 @@ Release-wide measurable acceptance:
 
 **Model: High Effort** - The remaining legacy and module estate is mechanically large and must retain complete coverage metadata.
 
-- [ ] Close full-strict debt in Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, public API, and remaining legacy owners.
-- [ ] Keep the scripts estate free of file-local pragmas; do not add excludes or blanket `any` while closing the ledger.
-- [ ] Enable direct scripts-program `checkJs` and `noImplicitAny`, delete the scripts ledger section at zero, and keep every operational entry directly runnable.
-- [ ] Strip historical roadmap/changelog/version-history pins from these owners while typing them, recording each disposition, and close the release-wide acceptance that no active regression pins historical `ROADMAP-ARCHIVE.md` or `CHANGELOG.md` content and fewer than 40 surviving programs read planning/history documents.
-- [ ] Re-run the assertion/entry-point/process inventory after strict closure.
-- [ ] Measure and reslice this rollup before implementation begins. `0.33.33.31` was measured at 1,758 diagnostics across 90 files and resliced into eleven children before any work started, and it closed on that plan exactly; this rollup inherits the same requirement. The current child boundaries are provisional and must not be treated as assignments until a fresh measurement is taken after `0.33.33.31.11.1` merges.
-- [ ] Carry the earned-zero boundary rules forward from `0.33.33.31.6.1`. Compiler-zero is insufficient when dynamic parsing or deserialization feeds unchecked values into assertions, so every child of this rollup must inventory the dynamic boundaries its own owners touch and record a disposition for each before closeout: narrowed through a published contract, narrowed locally from `unknown`, intentionally left open with concrete rationale, or not present.
+Planning rollup only; its numbered children below are the protected implementation checkpoints. The reslice this rollup owed itself has been taken. A measured probe against the tree at `48ce14df`, immediately after `0.33.33.31.11.1` merged, puts the remaining scripts program at **3,150 diagnostics across 202 diagnostic-bearing files and 56,631 lines** — 1.8 times the 1,758 that forced the eleven-way `0.33.33.31` reslice, 2.4 times the 1,319 that forced the seven-way `0.33.33.30` reslice, and the largest cohort the branch has faced. The figure reconciles exactly with the generated ledger, so the reslice below is authoritative rather than provisional.
+
+Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
+
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files is assigned to exactly one child, and the children sum to the measured 3,150:
+
+| Child | Subject | Diagnostics | Files | Lines |
+| --- | --- | --- | --- | --- |
+| `.32.1` | Tasks query, projection, and payload core | 108 | 9 | 2,341 |
+| `.32.2` | Task checklists, relationships, bulk toolbars | 121 | 8 | 2,281 |
+| `.32.3` | Task recurrence and reminder scheduling | 202 | 9 | 2,477 |
+| `.32.4` | Task calendar windows and feed serialization | 149 | 4 | 1,850 |
+| `.32.5` | Dashboard and hot-endpoint read budgets | 107 | 5 | 1,821 |
+| `.32.6` | Notification delivery, inbox, subscriptions | 138 | 4 | 2,339 |
+| `.32.7` | Time Tracking timers, entries, billing runners | 206 | 9 | 2,539 |
+| `.32.8` | Public API v1 and cross-module scope | 94 | 4 | 985 |
+| `.32.9` | Workbench service seam and work resume state | 126 | 8 | 2,020 |
+| `.32.10` | Workbench focus modes, candidates, task focus | 144 | 7 | 3,001 |
+| `.32.11` | Notes foundation, access, and API service | 121 | 7 | 2,762 |
+| `.32.12` | Notes secure catalog | 95 | 5 | 1,736 |
+| `.32.13` | Notes editor, preview, and Markdown | 57 | 5 | 1,449 |
+| `.32.14` | Notes linking, collections, and context | 82 | 6 | 2,154 |
+| `.32.15` | Lists repositories and service | 144 | 4 | 1,696 |
+| `.32.16` | Lists API, workflow, and admin scale | 132 | 6 | 2,329 |
+| `.32.17` | Tags service, repositories, and propagation | 147 | 8 | 2,653 |
+| `.32.18` | Search contract and API | 126 | 3 | 2,000 |
+| `.32.19` | Search indexing, FTS seam, and rebuild | 119 | 7 | 2,570 |
+| `.32.20` | Help centre surface and content | 94 | 7 | 1,892 |
+| `.32.21` | Clients/Projects read anatomy and descriptor host | 122 | 6 | 1,363 |
+| `.32.22` | Clients/Projects hierarchy, repositories, assignment | 141 | 5 | 2,004 |
+| `.32.23` | Shared linked-context pickers and labels | 75 | 6 | 1,657 |
+| `.32.24` | View descriptor, app shell, module action owners | 124 | 10 | 1,723 |
+| `.32.25` | Workbench and Time Tracking contract modules | 34 | 15 | 2,523 |
+| `.32.26` | Tasks, Notes, Lists, Tags contract modules | 55 | 21 | 1,820 |
+| `.32.27` | Remaining legacy and operational owners | 87 | 14 | 2,646 |
+| `.32.28` | Rollup closeout, boundary audit, ledger retirement | 0 | 0 | 0 |
+
+Sizing evidence: the twenty-seven typing children span 34 to 206 diagnostics against a proven `0.33.33.31` range of 96 to 217, and 985 to 3,001 lines against a proven range of 1,321 to 6,369. Two children sit outside the usual line band for reasons that are recorded rather than hidden. `.32.10` carries 3,001 lines because `work-focus-modes-regression.mjs` alone is 1,467 lines while contributing only 53 diagnostics, so its line count overstates the session cost. `.32.25` and `.32.26` carry 15 and 21 files because declarative contract modules average 120 lines and two diagnostics each; the closest precedent is the 28-file `0.33.33.30.7.2` closeout, which held. If any child's first working probe disagrees with its measured size, reslice that child before starting rather than absorbing the overflow.
+
+The diagnostic profile is mechanical and dominated by the same two shapes as the previous rollup: **1,915 `TS7006`** implicit-any parameters and **518** nullability diagnostics (`TS18047`, `TS18048`, `TS2531`, `TS2532`), with `TS2339` property reads a distant third. That means the work is roughly linear in files, and that the nullability band is where a careless non-null assertion would silently manufacture an inherited zero.
+
+`.32.28` is the only child that closes the scripts program. No earlier child may delete the scripts ledger section, relax `tsconfig.scripts.json`, or claim the release-wide history-document acceptance.
+
+Requirements shared by every child:
+
+- [ ] Introduce no explicit `any`, `@ts-ignore`, `@ts-nocheck`, file pragma, or `tsconfig.scripts.json` exclusion, and keep every operational entry point directly runnable. Pin each closed owner strict-clean through `framework.full-strict-governance` and run one canonical `npm run verify:slice` against the child's final tree.
+- [ ] Reuse published `src/types/` contracts by type-only import wherever one already truthfully describes a shape; do not redeclare rows, payloads, or descriptors that already have a contract.
+- [ ] Inventory the dynamic boundaries the child's own owners touch and record a disposition for each — narrowed through a published contract, narrowed locally from `unknown`, intentionally left open with concrete rationale, or not present. A measured `JSON.parse` count is given per child below as a starting point, not as the whole inventory: database `*_json` columns, child-process output, filesystem reads, environment records, and event payloads count even where no `JSON.parse` appears.
 - [ ] Require `JSON.parse`, parsed response payloads, JSON-bearing database columns, child-process stdout and stderr, filesystem JSON, environment and configuration records, message/event/job payloads, and provider or mock responses to enter as `unknown` unless a published production contract already exists and truthfully describes the value. Never replace an `any` boundary with an unchecked cast that only gives it a more impressive name.
-- [ ] Require runtime proof of nested arrays and objects wherever an assertion depends on their shape. A top-level object guard proves only the top level; an annotation naming a nested property as an array is a claim TypeScript never checks, and `0.33.33.31.11.1` had to correct three places where a same-length string could have satisfied a length or count assertion.
-- [ ] Carry the `0.33.33.31.6.1` helper-contract rule forward: a helper must not reach zero by erasing information its callers already had, and a helper whose annotation makes downstream code add compensating casts, fallbacks, or hand-rebuilt types has the wrong contract.
-- [ ] Perform a rollup-wide dynamic-boundary audit at final closeout, before the scripts ledger section is deleted. The equivalent audit at `0.33.33.31.11` found 21 unchecked parse-then-read boundaries in owners closed before the rule existed, so the audit is a closeout requirement rather than a formality. Correct only concrete unchecked boundaries and type erasure; do not reopen closed owners for stylistic normalization.
+- [ ] Runtime-prove nested arrays and objects wherever an assertion depends on their shape. A top-level object guard proves only the top level, and `0.33.33.31.11.1` had to correct three annotations a same-length string would have satisfied.
+- [ ] Keep helper contracts honest under the `0.33.33.31.6.1` rule: a helper must not reach zero by erasing information its callers already had, and a helper whose annotation forces compensating casts, fallbacks, or hand-rebuilt types downstream has the wrong contract.
+- [ ] Do not resolve a nullability diagnostic with a non-null assertion where the owner can assert the value instead. This band is 518 of the 3,150 and is the likeliest source of a zero that the compiler believes and the runtime does not.
+- [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
+- [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
+
+#### 0.33.33.32.1 - Type Tasks query, projection, and payload core
+
+**Model: High Effort - The canonical task query and selector contracts every other Tasks owner reads through.**
+
+Measured at 108 diagnostics across 9 files and 2,341 lines. No `JSON.parse`; one history-pinned owner.
+
+- [ ] Close the 108 diagnostics across `tasks-view-selector-query-contract`, `task-canonical-query`, `tasks-primary-repository-conversion`, `task-qol-closeout`, `task-options-payload`, `tasks-server-side-list-paging`, `task-activity-metrics`, `task-modal-complete-action`, and `regressions/tasks/task-list-pipeline-projection`.
+- [ ] Type the canonical query descriptor, view-selector inputs, task option payloads, paging cursors, and the list pipeline projection with named contracts rather than per-callback parameter annotations.
+- [ ] Preserve selector-to-query equivalence, paging boundary behaviour, activity metric derivation, and the projection's column set exactly.
+
+#### 0.33.33.32.2 - Type task checklists, relationships, and bulk toolbars
+
+**Model: High Effort - Checklist and relationship writes are ordered, and bulk toolbars apply them across selections.**
+
+Measured at 121 diagnostics across 8 files and 2,281 lines. Two `JSON.parse` sites; two history-pinned owners.
+
+- [ ] Close the 121 diagnostics across `task-checklist`, `tasks-bulk-nondestructive-toolbar`, `task-relationships`, `task-checklists-repository-conversion`, `tasks-bulk-lifecycle-toolbar`, `task-relationships-repository-conversion`, `task-bulk-due-tags`, and `task-recurrence-checklist-propagation`.
+- [ ] Type checklist items and ordering, relationship edges and their direction, and bulk selection and result envelopes with named contracts.
+- [ ] Preserve checklist ordering, relationship cycle refusals, the non-destructive/lifecycle toolbar split, and bulk permission gating exactly.
+
+#### 0.33.33.32.3 - Type task recurrence and reminder scheduling
+
+**Model: High Effort - Recurrence materialization and reminder horizons derive from the same due-date arithmetic.**
+
+Measured at 202 diagnostics across 9 files and 2,477 lines — the largest child in the rollup. One `JSON.parse` site; one history-pinned owner.
+
+- [ ] Close the 202 diagnostics across `task-reminder-notification-delivery`, `task-reminder-scheduling-horizon`, `task-recurrence-completion-continuity`, `regressions/tasks/task-recurrence-materialize-on-touch-permissions`, `regressions/tasks/task-recurrence-skip-to-current`, `task-recurrence-linked-note-propagation`, `task-recurrence-frequency`, `async-recurrence-response-closeout`, and `task-recurrence-reminders-repository-conversion`.
+- [ ] Type recurrence rules and materialization results, scheduling horizon windows, reminder rows, and delivery envelopes with named contracts, sharing one horizon contract between the recurrence and reminder owners rather than annotating each callback.
+- [ ] Preserve materialize-on-touch permission gating, skip-to-current semantics, frequency arithmetic, linked-note propagation, and the asynchronous recurrence response contract exactly.
+- [ ] Disposition the reminder delivery boundary explicitly: delivery envelopes and scheduled-job payloads are the most likely unchecked reads in this cohort.
+
+#### 0.33.33.32.4 - Type task calendar windows and feed serialization
+
+**Model: High Effort - Calendar feeds leave the system as text and are scope-sensitive.**
+
+Measured at 149 diagnostics across 4 files and 1,850 lines. One `JSON.parse` site; no history-pinned owners.
+
+- [ ] Close the 149 diagnostics across `regressions/tasks/task-calendar-window`, `regressions/tasks/private-calendar-feed-scope`, `regressions/tasks/task-calendar-feed-serialization`, and `regressions/tasks/task-estimate-minutes`.
+- [ ] Type calendar window boundaries, feed entries and their serialized fields, private-feed token scope, and estimate-minute values with named contracts.
+- [ ] Preserve window inclusivity at both ends, private feed scope refusals, serialization field order and escaping, and estimate rounding exactly.
+
+#### 0.33.33.32.5 - Type dashboard and hot-endpoint read budgets
+
+**Model: High Effort - These owners share one budget harness; typing them apart would duplicate its contract four ways.**
+
+Measured at 107 diagnostics across 5 files and 1,821 lines. Two `JSON.parse` sites; no history-pinned owners. The `TS7053`, `TS7005`, and `TS7034` band here is the harness's implicitly-typed accumulators, not per-owner debt.
+
+- [ ] Close the 107 diagnostics across `regressions/dashboard/hot-endpoint-budgets`, `regressions/tasks/dashboard-summary-budgets`, `regressions/time-tracking/dashboard-effort-summary-budgets`, `regressions/workbench/hot-endpoint-budgets`, and `dashboard-workbench`.
+- [ ] Give the shared budget harness one named contract covering query counts, timing accumulators, and budget records, and have all four budget owners read through it instead of re-annotating locals.
+- [ ] Preserve every measured budget value and its failure direction; a budget that becomes unenforceable because its accumulator was retyped is a regression, not a cleanup.
+
+#### 0.33.33.32.6 - Type notification delivery, inbox, and subscriptions
+
+**Model: High Effort - Notification fan-out crosses modules and carries user-visible content.**
+
+Measured at 138 diagnostics across 4 files and 2,339 lines. Three `JSON.parse` sites; two history-pinned owners.
+
+- [ ] Close the 138 diagnostics across `notification`, `notes-notification-follow`, `notifications-preferences-subscriptions-conversion`, and `notifications-inbox-lifecycle-conversion`.
+- [ ] Type notification records, subscription and preference rows, inbox lifecycle states, and follow relationships with named contracts.
+- [ ] Preserve fan-out scope, preference suppression, read/unread lifecycle, and follow-driven delivery exactly.
+- [ ] Disposition the notification payload boundary: event metadata and persisted notification payloads must enter as `unknown` unless a published contract already describes them truthfully.
+
+#### 0.33.33.32.7 - Type Time Tracking timers, entries, and billing runners
+
+**Model: High Effort - Timer state is stateful, clock-sensitive, and feeds billing.**
+
+Measured at 206 diagnostics across 9 files and 2,539 lines. Two `JSON.parse` sites; two history-pinned owners.
+
+- [ ] Close the 206 diagnostics across `task-timer-status`, `regressions/time-tracking/timer-task-linking`, `regressions/time-tracking/project-time-billing-runner`, `active-timers-repository-conversion`, `timer-resume-metadata`, `time-entries-repository-conversion`, `timer-timestamp-integrity`, `regressions/time-tracking/billing-dashboard-timezone-boundaries`, and `regressions/time-tracking/sourced-task-timer-bridge`.
+- [ ] Type active timer rows, time entry rows, resume metadata, task-timer links, and billing runner output with named contracts, reusing the published active-timer record rather than rebuilding it per owner.
+- [ ] Preserve accumulated-elapsed arithmetic, timestamp integrity rules, timezone boundary behaviour, source-metadata provenance, and billing totals exactly.
+- [ ] Disposition the `source_metadata_json` boundary explicitly; the equivalent column was one of the 21 unchecked parse-then-read sites the `0.33.33.31.11` audit found.
+
+#### 0.33.33.32.8 - Type the public API v1 surface and cross-module scope
+
+**Model: High Effort - This is the only externally-consumed contract in the estate and its scope rules are authorization.**
+
+Measured at 94 diagnostics across 4 files and 985 lines. Three `JSON.parse` sites; no history-pinned owners. The `TS2353` band is object literals checked against API response contracts, so it is real contract drift rather than annotation noise.
+
+- [ ] Close the 94 diagnostics across `public-api-client-project-write`, `notes-lists-tags-api-scope`, `personal-family-workspace-scope`, and `regressions/time-tracking/public-api-duration-persistence`.
+- [ ] Type public API request and response envelopes, token scope records, and workspace-type scope decisions with named contracts derived from what the API actually publishes.
+- [ ] Preserve token scope refusals, cross-module scope boundaries, personal and family workspace behaviour, and duration persistence fidelity exactly.
+- [ ] Treat every parsed response body as `unknown` and narrow it through the shared payload helper. The 18 `TS2353` diagnostics mean at least one literal currently disagrees with its declared response shape, and the disagreement must be resolved in favour of what the server sends.
+
+#### 0.33.33.32.9 - Type the Workbench service seam and work resume state
+
+**Model: High Effort - Resume state is a service, an API, and a producer chain that must stay consistent.**
+
+Measured at 126 diagnostics across 8 files and 2,020 lines. One `JSON.parse` site; one history-pinned owner.
+
+- [ ] Close the 126 diagnostics across `work-resume-state-api`, `work-resume-state-service`, `work-resume-state-closeout`, `regressions/workbench/workbench-client-fanout`, `work-resume-state-conversion`, `workbench-service-dehardcode`, `work-resume-state-initial-producers`, and `work-resume-state-producer`.
+- [ ] Give resume state one named contract shared by the service, API, and producer owners rather than a per-owner shape, and type the client fan-out result set explicitly.
+- [ ] Preserve producer ordering, initial-producer seeding, resume state invalidation, de-hardcoded service configuration, and fan-out scope exactly.
+- [ ] Note that `src/services/work-resume-state-initial-producers.js` holds four of the seven explicit `any` values in the repository. This child does not own that file, but it must record whether its own contract makes those four removable at `0.33.33.32.28`.
+
+#### 0.33.33.32.10 - Type Workbench focus modes, candidates, and task focus
+
+**Model: High Effort - Focus selection decides what work a user is shown and is permission-filtered.**
+
+Measured at 144 diagnostics across 7 files and 3,001 lines, of which `work-focus-modes` alone is 1,467 lines carrying 53 diagnostics. No `JSON.parse`; one history-pinned owner.
+
+- [ ] Close the 144 diagnostics across `work-focus-modes`, `task-resume-context`, `work-candidate-service`, `workbench-task-focus-related-context`, `regressions/workbench/task-focus-exit-capture`, `regressions/workbench/focus-candidate-pipeline`, and `regressions/workbench/direct-task-completion`.
+- [ ] Type focus mode definitions, candidate records and their ranking inputs, resume context, and exit-capture state with named contracts.
+- [ ] Preserve focus mode filtering, candidate ranking order, related-context scope, exit capture, and direct completion permissions exactly.
+- [ ] Resolve the 15 `TS2353` object-literal mismatches against the candidate and focus-mode contracts rather than widening the contracts to accept the literals.
+
+#### 0.33.33.32.11 - Type Notes foundation, access, and API service
+
+**Model: High Effort - Notes access control is the gate every other Notes owner sits behind.**
+
+Measured at 121 diagnostics across 7 files and 2,762 lines. No `JSON.parse`; two history-pinned owners. Nullability is 61 of the 121 here — the highest proportion in the rollup outside Lists.
+
+- [ ] Close the 121 diagnostics across `notes-integration-closeout`, `notes-foundation`, `notes-api-service`, `notes-access-contract`, `notes-server-side-list-paging`, `notes-records-filters-repository-conversion`, and `notes-writes-revisions-links-collections-repository-conversion`.
+- [ ] Type note records, access decisions, filter descriptors, paging cursors, and revision/link/collection write results with named contracts.
+- [ ] Preserve access-contract refusals, secure/plain separation at the service boundary, filter semantics, paging boundaries, and revision write ordering exactly.
+- [ ] Assert nullable values rather than asserting them away; a note the access contract refuses must stay distinguishable from a note that does not exist.
+
+#### 0.33.33.32.12 - Type the Notes secure catalog
+
+**Model: High Effort - Secure catalog transitions change who can read existing content.**
+
+Measured at 95 diagnostics across 5 files and 1,736 lines. No `JSON.parse`; no history-pinned owners.
+
+- [ ] Close the 95 diagnostics across `regressions/notes/secure-catalog-transitions`, `notes-secure`, `regressions/notes/secure-catalog-consumer-enforcement`, `regressions/notes/secure-catalog-effective-security`, and `regressions/notes/notes-settings-catalog-management`.
+- [ ] Type catalog entries, transition records, effective-security resolutions, and consumer enforcement decisions with named contracts.
+- [ ] Preserve transition legality, effective security resolution, consumer enforcement refusals, and settings-driven catalog management exactly; prove at least one refusal by inverting it.
+
+#### 0.33.33.32.13 - Type the Notes editor, preview, and Markdown owners
+
+**Model: High Effort - Markdown rendering is a safe-output surface.**
+
+Measured at 57 diagnostics across 5 files and 1,449 lines. No `JSON.parse`; no history-pinned owners.
+
+- [ ] Close the 57 diagnostics across `notes-ui-workflow`, `notes-preview-editor`, `notes-external-markdown-links-preference`, `notes-markdown-soft-break`, and `notes-markdown-revision`.
+- [ ] Type editor state, preview render results, Markdown source and rendered output, and external-link preference records with named contracts.
+- [ ] Preserve safe-Markdown escaping, soft-break handling, revision comparison, and external link preference behaviour exactly.
+
+#### 0.33.33.32.14 - Type Notes linking, collections, and context
+
+**Model: High Effort - Linked panels and collections cross module and hierarchy boundaries.**
+
+Measured at 82 diagnostics across 6 files and 2,154 lines. No `JSON.parse`; no history-pinned owners.
+
+- [ ] Close the 82 diagnostics across `notes-search-help`, `notes-files-hierarchy-scope`, `notes-linked-panel`, `notes-collections`, `notes-task-context`, and `notes-primary-context`.
+- [ ] Type collection membership, linked panel entries, primary and task context records, and hierarchy scope decisions with named contracts.
+- [ ] Preserve collection membership rules, linked panel scope, primary-context selection, task context binding, and Files hierarchy scope exactly.
+- [ ] Coordinate with `0.33.33.32.23`: linked-context shapes proved here must not be redeclared there, since `0.33.33.36` consolidates both.
+
+#### 0.33.33.32.15 - Type Lists repositories and service
+
+**Model: High Effort - The densest nullability cohort in the rollup.**
+
+Measured at 144 diagnostics across 4 files and 1,696 lines, of which **115 are `TS18047`** — possibly-null values, not implicit-any parameters. No `JSON.parse`; two history-pinned owners.
+
+- [ ] Close the 144 diagnostics across `lists-records-items-repository-conversion`, `lists-catalog-links-repository-conversion`, `lists-service`, and `lists-foundation`.
+- [ ] Type list records, item rows, catalog links, and service results with named contracts, naming the selected columns beneath the query that produces them as `0.33.33.31.2` established.
+- [ ] Resolve the nullability band by asserting the row exists, not by asserting it away. This child is the rollup's clearest opportunity to manufacture an inherited zero and must be reviewed on that basis.
+- [ ] Preserve list ordering, item membership, catalog link resolution, and service-level filtering exactly.
+
+#### 0.33.33.32.16 - Type the Lists API, workflow, and admin scale owners
+
+**Model: High Effort - Includes the high-volume admin path where enrichment batching is measured.**
+
+Measured at 132 diagnostics across 6 files and 2,329 lines. Three `JSON.parse` sites; two history-pinned owners.
+
+- [ ] Close the 132 diagnostics across `lists-api`, `high-volume-admin-lists`, `lists-ui-workflow`, `batched-list-enrichment`, `lists-closeout`, and `lists-query-suggestions`.
+- [ ] Type API envelopes, enrichment batches, query suggestion results, and admin-scale fixtures with named contracts, reusing the Lists record contracts proved at `0.33.33.32.15`.
+- [ ] Preserve batching boundaries and their measured query counts, suggestion ranking, admin-scale thresholds, and workflow transitions exactly.
+- [ ] Enter every parsed response body as `unknown` and narrow through the shared payload helper.
+
+#### 0.33.33.32.17 - Type Tags service, repositories, and propagation
+
+**Model: High Effort - Tag propagation walks the client/project/task hierarchy and can leak scope if mistyped.**
+
+Measured at 147 diagnostics across 8 files and 2,653 lines. No `JSON.parse`; two history-pinned owners.
+
+- [ ] Close the 147 diagnostics across `tag-propagation-service-conversion`, `tags-repository-conversion`, `tag-propagation-foundation`, `tag-propagation-paths`, `tag-propagation-contract`, `tag-bulk-assignment`, `tag-service`, and `tag-core-records`.
+- [ ] Type tag records, assignment rows, propagation paths, and propagation results with one shared contract across the five propagation owners rather than five local shapes.
+- [ ] Preserve propagation path derivation, propagation stopping rules, bulk assignment permissions, and core record identity exactly.
+
+#### 0.33.33.32.18 - Type the Search contract and API
+
+**Model: High Effort - `search-contract-regression.mjs` is 1,275 lines and is the estate's canonical search description.**
+
+Measured at 126 diagnostics across 3 files and 2,000 lines. One `JSON.parse` site; no history-pinned owners. The 21 `TS2532` and 12 `TS18046` diagnostics concentrate in the contract owner's result walking.
+
+- [ ] Close the 126 diagnostics across `search-contract`, `search-api`, and `search-shell`.
+- [ ] Type search requests, result entries and their per-module variants, facet records, and API envelopes with named contracts.
+- [ ] Preserve result ranking, per-module result shaping, scope filtering, and the shell's query handoff exactly.
+- [ ] Prove nested result arrays at runtime before indexing into them; the `TS2532` band is exactly the place where a length assertion could be satisfied by a value that is not an array.
+
+#### 0.33.33.32.19 - Type Search indexing, the FTS seam, and rebuild
+
+**Model: High Effort - Index rebuild and repair are destructive-adjacent and run against live data.**
+
+Measured at 119 diagnostics across 7 files and 2,570 lines. No `JSON.parse`; two history-pinned owners.
+
+- [ ] Close the 119 diagnostics across `search-workflow`, `search-fts-seam`, `search-lifecycle`, `search-index-sync`, `search-rebuild`, `search-adapter-rebuild-service-conversion`, and `search-fts-repair`.
+- [ ] Type index rows, sync deltas, rebuild progress and results, and FTS seam adapter contracts with named contracts.
+- [ ] Preserve index synchronization semantics, rebuild idempotence, repair refusals, and FTS dialect behaviour exactly.
+- [ ] Type the 13 `TS7031` destructured bindings against the seam contract rather than annotating each destructuring site.
+
+#### 0.33.33.32.20 - Type the Help centre surface and content owners
+
+**Model: High Effort - Help content is filesystem-backed and its navigation contract is user-facing.**
+
+Measured at 94 diagnostics across 7 files and 1,892 lines. Two `JSON.parse` sites; no history-pinned owners.
+
+- [ ] Close the 94 diagnostics across `help-workflow`, `help-search`, `help-center-surface`, `help-markdown-source-layout`, `help-navigation-boundary`, `help-content`, and `help-contract`.
+- [ ] Type help documents, navigation nodes, the source layout tree, and search results with named contracts; the `TS7022`/`TS7023` band is a recursive navigation walk that needs an explicit node type rather than inference.
+- [ ] Preserve navigation boundaries, source layout expectations, content availability rules, and help search ranking exactly.
+- [ ] Treat filesystem-read help content as a dynamic boundary and disposition it.
+
+#### 0.33.33.32.21 - Type Clients and Projects read anatomy and descriptor host
+
+**Model: High Effort - The read anatomy owner is the framework-versus-module boundary proof for this module.**
+
+Measured at 122 diagnostics across 6 files and 1,363 lines. No `JSON.parse`; one history-pinned owner.
+
+- [ ] Close the 122 diagnostics across `clients-projects-framework-read-anatomy`, `clients-projects-read-descriptor-host`, `clients-projects-strict-closeout`, `client-projects-canonical-payload`, `clients-projects-related-regions`, and `clients-projects-bulk-toolbar`.
+- [ ] Type descriptor host inputs, read anatomy regions, canonical payloads, and related-region records with named contracts.
+- [ ] Preserve the framework-owned anatomy versus module-owned data boundary, descriptor host null-and-skip behaviour, canonical payload field set, and bulk toolbar gating exactly.
+- [ ] Do not weaken the anatomy assertions to satisfy the compiler; this owner is the standing proof for the boundary `DECISIONS.md` records.
+
+#### 0.33.33.32.22 - Type Clients and Projects hierarchy, repositories, and assignment
+
+**Model: High Effort - Hierarchy reparenting and default assignment are permission-relevant writes.**
+
+Measured at 141 diagnostics across 5 files and 2,004 lines, of which `client-project-hierarchy-branch-closeout` is 931 lines. Three `JSON.parse` sites; two history-pinned owners.
+
+- [ ] Close the 141 diagnostics across `client-project-hierarchy-branch-closeout`, `project-default-assignee`, `client-projects-repositories-conversion`, `framework-admin-low-count-repositories-conversion`, and `client-projects-bugfix`.
+- [ ] Type hierarchy nodes and reparent results, default assignee resolution, and the low-count admin repository rows with named contracts.
+- [ ] Preserve hierarchy depth and cycle refusals, descendant scope, default assignee fallback order, and the bugfix owner's specific reproductions exactly.
+
+#### 0.33.33.32.23 - Type the shared linked-context pickers and labels
+
+**Model: High Effort - This cohort is what `0.33.33.36` consolidates; its contract must be right before the merge.**
+
+Measured at 75 diagnostics across 6 files and 1,657 lines. No `JSON.parse`; no history-pinned owners. The profile is unusually clean — 65 `TS7006` and 10 `TS2339` only.
+
+- [ ] Close the 75 diagnostics across `linked-context-unavailable-fallback`, `linked-context-note-list-label`, `linked-context-task-label-sort`, `linked-context-client-scope-picker`, `linked-context-client-project-label-sort`, and `linked-context-picker-shell`.
+- [ ] Type picker options, label records, sort keys, and unavailable/hidden states with one contract shared across all six owners, since Notes and Lists currently duplicate the implementation this describes.
+- [ ] Preserve client/project descendant scope, unavailable and hidden label text, sort order, and saved selection behaviour exactly.
+- [ ] Record whether the resulting contract is the right shape for the `0.33.33.36` shared picker, and say so plainly if it is not. This child does not implement that consolidation.
+
+#### 0.33.33.32.24 - Type view descriptor, app shell, and module action owners
+
+**Model: High Effort - These static owners read browser source text and guard the declarative view contract.**
+
+Measured at 124 diagnostics across 10 files and 1,723 lines. No `JSON.parse`; two history-pinned owners.
+
+- [ ] Close the 124 diagnostics across `app-shell-navigation`, `view-renderer-actions`, `view-descriptor-reference`, `view-descriptor-bootstrap`, `view-shared-capabilities`, `module-file-closeout`, `view-conversion-branch-closeout`, `quick-action-opener-rollout`, `quick-action-capture`, and `module-actions`.
+- [ ] Type descriptor references, action definitions, navigation entries, shared capability records, and module action registrations with named contracts, using the shared source reader rather than per-owner file reads.
+- [ ] Preserve descriptor reference resolution, action permission interpolation, navigation ordering, quick-action registration, and module file inventory expectations exactly.
+- [ ] Change no `public/js/` file. These owners inspect browser source; the browser program is typed at `0.33.33.38` through `0.33.33.41`.
+
+#### 0.33.33.32.25 - Type Workbench and Time Tracking contract modules
+
+**Model: High Effort - Fifteen shallow declarative modules; the risk is bookkeeping, not depth.**
+
+Measured at 34 diagnostics across 15 files and 2,523 lines, every diagnostic `TS7006`. No `JSON.parse`. **Twelve of the fifteen carry a historical pin** — the densest history-pin concentration in the rollup.
+
+- [ ] Close the 34 diagnostics across all thirteen modules under `scripts/regression-contracts/workbench/` and both under `scripts/regression-contracts/time-tracking/`.
+- [ ] Type the contract module signature once — descriptor input, assertion collector, and returned contract record — and apply it uniformly; do not invent fifteen local shapes for one repeated pattern.
+- [ ] Strip the twelve historical pins and record a disposition for each, keeping only reads that assert a current live contract.
+- [ ] Preserve each module's contribution to its area aggregator and the discovered-coverage floors exactly; the aggregators must still fold these modules without change.
+
+#### 0.33.33.32.26 - Type Tasks, Notes, Lists, and Tags contract modules
+
+**Model: High Effort - Twenty-one shallow modules across four module areas.**
+
+Measured at 55 diagnostics across 21 files and 1,820 lines, every diagnostic `TS7006`. No `JSON.parse`; two history-pinned owners.
+
+- [ ] Close the 55 diagnostics across the fifteen modules under `scripts/regression-contracts/tasks/`, three under `notes/`, two under `lists/`, and one under `tags/`.
+- [ ] Reuse the contract module signature established at `0.33.33.32.25` rather than defining a second one.
+- [ ] Preserve each module's aggregator contribution and coverage floor exactly.
+
+#### 0.33.33.32.27 - Type remaining legacy and operational owners
+
+**Model: High Effort - Fourteen unrelated owners with the highest parse density in the rollup.**
+
+Measured at 87 diagnostics across 14 files and 2,646 lines, with **15 `JSON.parse` sites** — more than any other child, concentrated in the runtime configuration, environment loading, and version owners.
+
+- [ ] Close the 87 diagnostics across `regression-runner`, `scale-seed-framework`, `runtime-diagnostics-route`, `legacy-cleanup`, `bump-version`, `version-literal-guardrail`, `runtime-env-loading`, `user-theme-auto-mode`, `runtime-configuration-contract`, `audit-extensibility`, `regressions/licensing/licensing-public-release-gates`, `regression-suite-inventory`, `regression-clean-clone-contract`, and `performance`.
+- [ ] Enter every configuration record, environment record, manifest read, and child-process output as `unknown` and narrow it locally, naming only the fields the owner proves. This child's parse density makes it the most likely source of an inherited zero in the rollup.
+- [ ] Preserve runner discovery and routing behaviour, clean-clone refusals, licensing gate refusals, version literal guardrails, and the performance owner's measured thresholds exactly.
+- [ ] Keep every operational entry point directly runnable; `bump-version` and the runner owners are used outside CI.
+
+#### 0.33.33.32.28 - Close the scripts program and retire its ledger
+
+**Model: High Effort - The only child that may change the compiler configuration or delete ledger state.**
+
+No diagnostics of its own; this child runs after `0.33.33.32.27` and closes the rollup, the scripts program, and two release-wide acceptance criteria.
+
+- [ ] Confirm the scripts program is at zero under unqualified `strict: true` with `checkJs: true` and `noImplicitAny: true`, with no file pragma, `@ts-ignore`, `@ts-nocheck`, exclusion, or unjustified `any` anywhere in `scripts/`. `tsconfig.scripts.json` already carries these flags directly, so the remaining work is proof, not configuration change; record that plainly rather than claiming an enablement that already happened.
+- [ ] **Perform the rollup-wide dynamic-boundary audit before deleting anything.** Search every owner closed anywhere in `0.33.33.32` for `JSON.parse` and equivalent inferred-`any` boundaries feeding an assertion, including database `*_json` columns, child-process output, filesystem reads, environment records, and event payloads. The equivalent audit at `0.33.33.31.11` found 21 unchecked boundaries across 10 files in owners closed before the rule existed, so treat a finding of zero as a result that needs evidence, not as the expected outcome. Correct only concrete unchecked boundaries and type erasure; do not reopen closed owners for stylistic normalization.
+- [ ] Sweep every helper this rollup introduced against the `0.33.33.31.6.1` contract rule and remove any helper that reached zero by erasing information its callers already had, or that has no consumer.
+- [ ] Delete the scripts section from `scripts/typecheck-debt-ledger.json` and remove whatever ledger machinery is scripts-specific, leaving the browser section and its gate intact. The ledger itself retires only when all three programs reach zero, which is `0.33.33.41`.
+- [ ] **Close the historical-pin acceptance across the whole estate, not just this rollup's owners.** 75 programs currently read `ROADMAP-ARCHIVE.md` or `CHANGELOG.md`; 41 are inside this rollup and are stripped by their own child, leaving 34 survivors in owners closed by earlier checkpoints and in operational tooling. Disposition each survivor as either a live-contract read that is allowed to remain or a historical pin to strip, and land the result under 40 surviving programs with the criterion's second half — that each survivor owns a current live contract — actually satisfied rather than merely counted. `scripts/lib/roadmap-cursor.mjs`, `scripts/bump-version.mjs`, `scripts/release/checkpoint-commits.mjs`, and `scripts/typecheck-governance.mjs` read the live roadmap by design and are expected survivors; the closeout owners under `scripts/regressions/release/` and the database, Files, and view-builder owners are not automatically.
+- [ ] Record the disposition of the single explicit `any` in `scripts/` — in `scripts/regression-contracts/framework/markdown-checked-core.contract.mjs` — and of the four in `src/services/work-resume-state-initial-producers.js` that `0.33.33.32.9` was asked to assess. Remove them or state concretely why each must remain.
+- [ ] Re-run the assertion, entry-point, and process inventory after strict closure and record before/after figures against the branch baseline, keeping hypotheses separate from enforced contracts.
+- [ ] Add no new regression owner, fixture, or route, and change no production behaviour. This child proves and retires; it does not extend coverage.
 
 ### 0.33.33.33 - Isolate classic browser controllers with IIFEs
 
