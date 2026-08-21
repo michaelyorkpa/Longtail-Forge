@@ -33,6 +33,51 @@ const { createS3FileStorageAdapter } = await import("../src/core/files/s3-storag
 const { runJobWorkerOnce, stopJobWorker } = await import("../src/core/jobs/index.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { createSession } = await import("../src/security/sessions.js");
+const { requireFirstRow } = await import("./test-support/database-row-assertions.mjs");
+const { readPayload } = await import("./test-support/http-payload-assertions.mjs");
+const { requirePackageManifest } = await import("./test-support/package-manifest-assertions.mjs");
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} S3ClientOptions */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+
+/**
+ * One fixture response. The body stays `unknown` on purpose: JSON.parse would
+ * hand back `any`, and every envelope read below would then be a claim the
+ * compiler never checks.
+ * @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown> & { text: string }} S3Response
+ */
+
+/**
+ * @typedef {{
+ *   get: (url: string, options?: S3ClientOptions) => Promise<S3Response>,
+ *   post: (url: string, body?: unknown, options?: S3ClientOptions) => Promise<S3Response>,
+ * }} S3ApiClient
+ */
+
+/** The mock stands in for the client the production adapter consumes, so it is typed against that contract rather than into agreement with this test. */
+/** @typedef {import("../src/core/files/s3-storage-adapter.js").S3Client} S3Client */
+/** @typedef {import("../src/core/files/s3-storage-adapter.js").S3ClientResult} S3ClientResult */
+
+/** The route envelopes this owner reads, from the services that publish them. */
+/** @typedef {typeof import("../src/services/files.service.js").filesService} FilesService */
+/** @typedef {Awaited<ReturnType<FilesService["uploadAndAttach"]>>} FileUploadEnvelope */
+/** @typedef {Awaited<ReturnType<FilesService["readAttachmentPreviewDescriptor"]>>} PreviewDescriptorEnvelope */
+/** @typedef {import("../src/types/files-preview-contracts.js").FilePreviewTextResponse} PreviewTextEnvelope */
+/** @typedef {{ diagnostics: { storage: { health: { available: boolean, status: string }, provider: string, rootLocation: string | null } } }} RuntimeDiagnosticsEnvelope */
+
+/**
+ * Narrow an upload envelope to the file record it must be carrying.
+ * @template {{ file: unknown }} Envelope
+ * @param {Envelope} envelope
+ * @param {string} label
+ * @returns {NonNullable<Envelope["file"]>}
+ */
+function requireFile(envelope, label) {
+  assert.ok(envelope.file, `${label} should carry its file record`);
+  return envelope.file;
+}
+
 const { filesService } = await import("../src/services/files.service.js");
 
 let server;
@@ -50,17 +95,22 @@ try {
   await initializeDatabase();
   const fixtures = await seedFixtures();
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   const diagnosticsResponse = await api.get("/api/runtime-diagnostics", { cookie: fixtures.adminSessionId });
   assert.equal(diagnosticsResponse.status, 200, "workspace settings managers should read S3 runtime diagnostics");
-  assertS3Diagnostics(diagnosticsResponse.body.diagnostics);
+  /** @type {RuntimeDiagnosticsEnvelope} */
+  const diagnostics = readPayload(diagnosticsResponse, ["diagnostics"], "GET /api/runtime-diagnostics");
+  assertS3Diagnostics(diagnostics.diagnostics);
 
   const uploadResponse = await api.post("/api/files", uploadPayload(fixtures.taskId), {
     cookie: fixtures.adminSessionId,
   });
   assert.equal(uploadResponse.status, 201, "S3-backed uploads should still return the normal Files JSON read model");
-  assert.equal(uploadResponse.body.file.storageProvider, "s3", "S3 uploads should expose only the safe provider id");
+  /** @type {FileUploadEnvelope} */
+  const uploaded = readPayload(uploadResponse, ["attachment", "file"], "POST /api/files");
+  const uploadedFile = requireFile(uploaded, "POST /api/files");
+  assert.equal(uploadedFile.storageProvider, "s3", "S3 uploads should expose only the safe provider id");
   assertNoS3Internals(uploadResponse.body, "S3 upload response");
 
   const scanSummary = await runJobWorkerOnce({
@@ -70,7 +120,7 @@ try {
   });
   assert.equal(scanSummary.completed >= 1, true, "S3-backed upload scan handoff should complete before preview/download checks");
 
-  const fileResponse = await api.get(`/api/files/${uploadResponse.body.file.fileId}`, {
+  const fileResponse = await api.get(`/api/files/${uploadedFile.fileId}`, {
     cookie: fixtures.adminSessionId,
   });
   assert.equal(fileResponse.status, 200, "file read route should return the safe S3 read model");
@@ -82,22 +132,26 @@ try {
   assert.equal(attachmentsResponse.status, 200, "attachment list should return safe route-backed rows");
   assertNoS3Internals(attachmentsResponse.body, "S3 attachment list response");
 
-  const attachmentId = uploadResponse.body.attachment.fileAttachmentId || uploadResponse.body.attachment.file_attachment_id;
+  const attachmentId = uploaded.attachment.fileAttachmentId;
   const previewResponse = await api.get(`/api/files/attachments/${encodeURIComponent(attachmentId)}/preview`, {
     cookie: fixtures.adminSessionId,
   });
   assert.equal(previewResponse.status, 200, "preview descriptor should stay route-backed for S3 files");
-  assert.match(previewResponse.body.preview.contentUrl || "", /^\/api\/files\/attachments\/[^/]+\/preview\/content$/, "preview content should use the Longtail Forge route");
+  /** @type {PreviewDescriptorEnvelope} */
+  const previewDescriptor = readPayload(previewResponse, ["preview"], "GET /api/files/attachments/:fileAttachmentId/preview");
+  assert.match(previewDescriptor.preview.contentUrl || "", /^\/api\/files\/attachments\/[^/]+\/preview\/content$/, "preview content should use the Longtail Forge route");
   assertNoS3Internals(previewResponse.body, "S3 preview descriptor response");
 
   const previewContentResponse = await api.get(`/api/files/attachments/${encodeURIComponent(attachmentId)}/preview/content`, {
     cookie: fixtures.adminSessionId,
   });
   assert.equal(previewContentResponse.status, 200, "preview content should read through the Longtail Forge route");
-  assert.equal(previewContentResponse.body.content.text, "S3 diagnostics boundary body", "preview content should stream through the registered S3 adapter");
+  /** @type {PreviewTextEnvelope} */
+  const previewContent = readPayload(previewContentResponse, ["content", "preview"], "GET /api/files/attachments/:fileAttachmentId/preview/content");
+  assert.equal(previewContent.content.text, "S3 diagnostics boundary body", "preview content should stream through the registered S3 adapter");
   assertNoS3Internals(previewContentResponse.body, "S3 preview content response");
 
-  const downloadResponse = await api.get(`/api/files/${encodeURIComponent(uploadResponse.body.file.fileId)}/download`, {
+  const downloadResponse = await api.get(`/api/files/${encodeURIComponent(uploadedFile.fileId)}/download`, {
     cookie: fixtures.adminSessionId,
   });
   assert.equal(downloadResponse.status, 200, "download should stay permission-checked through the Longtail Forge route");
@@ -117,9 +171,6 @@ try {
 async function assertStaticContracts() {
   const [
     packageJson,
-    _packageLock,
-    roadmap,
-    _changelog,
     runtimeDocs,
     sqliteDocs,
     moduleContract,
@@ -129,12 +180,8 @@ async function assertStaticContracts() {
     filesRoutesSource,
     runtimeDiagnosticsSource,
     workspaceSettingsScript,
-    _regressionSuite,
   ] = await Promise.all([
     readJson("package.json"),
-    readJson("package-lock.json"),
-    readText("ROADMAP.md"),
-    readText("CHANGELOG.md"),
     readText("docs/runtime-configuration.md"),
     readText("docs/sqlite-small-office-mode.md"),
     readText("docs/module-contract.md"),
@@ -144,15 +191,12 @@ async function assertStaticContracts() {
     readText("src/routes/files.routes.js"),
     readText("src/services/runtime-diagnostics.service.js"),
     readText("public/js/workspace-settings.js"),
-    readText("scripts/regression-legacy-snapshot.json"),
   ]);
 
-        assert.equal(Object.keys(packageJson.dependencies || {}).some((name) => /aws-sdk|client-s3/i.test(name)), false, "this boundary should not add an S3 SDK dependency");
+  assert.equal(Object.keys(requirePackageManifest(packageJson).dependencies || {}).some((name) => /aws-sdk|client-s3/i.test(name)), false, "this boundary should not add an S3 SDK dependency");
 
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-
-  assert.match(runtimeDocs, /As of 0\.33\.5\.25\.1[\s\S]*S3 bucket names[\s\S]*must not appear in diagnostics/, "runtime docs should record the S3 diagnostics redaction boundary");
-  assert.match(runtimeDocs, /No direct\/presigned S3 upload or download route is implemented in 0\.33\.5\.25\.1/, "runtime docs should keep signed URL implementation out of scope");
+  assert.match(runtimeDocs, /S3 bucket names[\s\S]*must not appear in diagnostics/, "runtime docs should record the S3 diagnostics redaction boundary");
+  assert.match(runtimeDocs, /No direct\/presigned S3 upload or download route is implemented/, "runtime docs should keep signed URL implementation out of scope");
   assert.match(sqliteDocs, /local-vs-S3 deployment guidance/i, "SQLite docs should include local-vs-S3 deployment guidance");
   assert.match(moduleContract, /signed URL exception[\s\S]*permission-checked[\s\S]*expir/, "module contract should describe future signed URL exception rules");
   assert.match(moduleDevelopment, /Normal module payloads[\s\S]*must not expose signed URLs/, "module docs should keep modules behind Files routes");
@@ -167,6 +211,7 @@ async function assertStaticContracts() {
   assert.doesNotMatch(runtimeDocs + sqliteDocs + moduleContract + moduleDevelopment, /private-diagnostics-bucket|private-diagnostics-access-key|private-diagnostics-secret-key|objects\.diagnostics\.private\.invalid/i, "docs should not leak regression S3 config values");
 }
 
+/** @param {RuntimeDiagnosticsEnvelope["diagnostics"]} diagnostics */
 function assertS3Diagnostics(diagnostics) {
   assert.equal(diagnostics.storage.provider, "s3", "S3 diagnostics should expose only the configured provider id");
   assert.equal(diagnostics.storage.health.status, "ok", "mocked S3 health should surface as safe availability");
@@ -205,10 +250,13 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "fresh database should seed a protected admin");
-  return rows[0];
+  /** @type {{ active_workspace_id: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireFirstRow(rows, "protected admin");
+  assert.ok(admin.user_id, "fresh database should seed a protected admin");
+  return admin;
 }
 
+/** @param {{ userId: string, workspaceId: string }} options */
 async function createTask(options) {
   const taskId = randomUUID();
   const now = new Date().toISOString();
@@ -247,6 +295,7 @@ VALUES (
   return taskId;
 }
 
+/** @param {string} taskId */
 function uploadPayload(taskId) {
   return {
     contentBase64: Buffer.from("S3 diagnostics boundary body").toString("base64"),
@@ -257,6 +306,7 @@ function uploadPayload(taskId) {
   };
 }
 
+/** @returns {S3Client} */
 function createMockS3Client() {
   const objects = new Map();
 
@@ -289,7 +339,7 @@ function createMockS3Client() {
         lastModified: new Date("2026-01-01T00:00:00.000Z"),
       };
     },
-    async putObject(payload = {}) {
+    async putObject(payload) {
       objects.set(objectMapKey(payload), await bodyToBuffer(payload.body));
       return {
         bucket: payload.bucket,
@@ -299,10 +349,12 @@ function createMockS3Client() {
   };
 }
 
-function objectMapKey(payload = {}) {
+/** @param {Record<string, unknown>} payload */
+function objectMapKey(payload) {
   return `${payload.bucket}:${payload.key}`;
 }
 
+/** @param {unknown} body @returns {Promise<Buffer>} */
 async function bodyToBuffer(body) {
   if (Buffer.isBuffer(body)) {
     return body;
@@ -313,9 +365,12 @@ async function bodyToBuffer(body) {
   if (typeof body === "string") {
     return Buffer.from(body);
   }
-  if (body && typeof body[Symbol.asyncIterator] === "function") {
+  // The adapter may hand the client a stream, so the mock probes for one
+  // rather than assuming the shape the rest of this test happens to send.
+  if (body && typeof (/** @type {Partial<AsyncIterable<unknown>>} */ (body))[Symbol.asyncIterator] === "function") {
+    /** @type {Buffer[]} */
     const chunks = [];
-    for await (const chunk of body) {
+    for await (const chunk of /** @type {AsyncIterable<Buffer | string>} */ (body)) {
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     }
     return Buffer.concat(chunks);
@@ -323,12 +378,14 @@ async function bodyToBuffer(body) {
   throw new TypeError("Unsupported mock S3 body.");
 }
 
+/** @param {unknown} payload @param {string} label */
 function assertNoS3Internals(payload, label) {
   const serialized = JSON.stringify(payload);
   assert.doesNotMatch(serialized, /private-diagnostics-bucket|private-diagnostics-access-key|private-diagnostics-secret-key|objects\.diagnostics\.private\.invalid/i, `${label} should not expose S3 config values`);
   assert.doesNotMatch(serialized, /LONGTAIL_S3|storageKey|protectedPath|signedUrl|presigned|preSigned|directUpload|directDownload/i, `${label} should not expose storage internals or signed URLs`);
 }
 
+/** @param {string} baseUrl @returns {S3ApiClient} */
 function createApi(baseUrl) {
   return {
     async get(url, options = {}) {
@@ -340,7 +397,16 @@ function createApi(baseUrl) {
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {unknown} body
+ * @param {S3ClientOptions} [options]
+ * @returns {Promise<S3Response>}
+ */
 async function request(baseUrl, method, url, body, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {};
 
   if (body !== undefined) {
@@ -367,14 +433,16 @@ async function request(baseUrl, method, url, body, options = {}) {
   };
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve, reject) => {
-    const server = http.createServer(app);
+    const server = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
     server.on("error", reject);
     server.listen(0, "127.0.0.1", () => resolve(server));
   });
 }
 
+/** @param {HttpFixtureServer} server @returns {Promise<void>} */
 function closeServer(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => {
@@ -382,11 +450,16 @@ function closeServer(server) {
         reject(error);
         return;
       }
-      resolve();
+      resolve(undefined);
     });
   });
 }
 
+/**
+ * Filesystem JSON enters as `unknown`; callers narrow at the point of use.
+ * @param {string} relativePath
+ * @returns {Promise<unknown>}
+ */
 async function readJson(relativePath) {
   return JSON.parse(await readText(relativePath));
 }

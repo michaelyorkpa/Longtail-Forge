@@ -23,6 +23,8 @@ delete process.env.LONGTAIL_S3_SECRET_ACCESS_KEY;
 const { config, createConfig } = await import("../src/config.js");
 const { createS3FileStorageAdapter } = await import("../src/core/files/s3-storage-adapter.js");
 const { filesService } = await import("../src/services/files.service.js");
+const { requirePackageManifest } = await import("./test-support/package-manifest-assertions.mjs");
+
 
 try {
   await assertStaticContracts();
@@ -47,9 +49,6 @@ try {
 async function assertStaticContracts() {
   const [
     packageJson,
-    _packageLock,
-    roadmap,
-    _changelog,
     envExample,
     runtimeDocs,
     sqliteDocs,
@@ -61,9 +60,6 @@ async function assertStaticContracts() {
     _regressionSuite,
   ] = await Promise.all([
     readJson("package.json"),
-    readJson("package-lock.json"),
-    readText("ROADMAP.md"),
-    readText("CHANGELOG.md"),
     readText(".env.example"),
     readText("docs/runtime-configuration.md"),
     readText("docs/sqlite-small-office-mode.md"),
@@ -75,9 +71,8 @@ async function assertStaticContracts() {
     readText("scripts/regression-legacy-snapshot.json"),
   ]);
 
-        assert.equal(Object.keys(packageJson.dependencies || {}).some((name) => /aws-sdk|client-s3/i.test(name)), false, "this slice should not add an S3 SDK dependency");
+  assert.equal(Object.keys(requirePackageManifest(packageJson).dependencies || {}).some((name) => /aws-sdk|client-s3/i.test(name)), false, "this slice should not add an S3 SDK dependency");
 
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
 
   for (const key of [
     "LONGTAIL_S3_BUCKET",
@@ -148,10 +143,11 @@ async function assertS3AdapterContracts() {
   await assert.rejects(
     () => filesService.assertConfiguredFileStorageProviderReady(),
     (error) => {
-      assert.match(error.message, /File storage provider 's3' is not available at startup/);
-      assert.match(error.message, /S3 storage is deferred/);
-      assert.match(error.message, /LONGTAIL_STORAGE_PROVIDER=local/);
-      assert.doesNotMatch(error.message, /File-S3-Provider-Registration-Test|private-bucket|private-secret|LONGTAIL_S3_/i);
+      const message = String(/** @type {{ message?: string }} */ (error).message);
+      assert.match(message, /File storage provider 's3' is not available at startup/);
+      assert.match(message, /S3 storage is deferred/);
+      assert.match(message, /LONGTAIL_STORAGE_PROVIDER=local/);
+      assert.doesNotMatch(message, /File-S3-Provider-Registration-Test|private-bucket|private-secret|LONGTAIL_S3_/i);
       return true;
     },
     "configured S3 should fail startup validation before request handling",
@@ -175,9 +171,10 @@ async function assertS3AdapterContracts() {
   await assert.rejects(
     () => configuredAdapter.save(Buffer.from("body")),
     (error) => {
-      assert.equal(error.statusCode, 500, "configured S3 object operations should fail safely without a provider client");
-      assert.match(error.message, /S3 file storage client is not configured/);
-      assertSafeS3Payload(error.message, "configured S3 operation error");
+      const denial = /** @type {{ message?: string, statusCode?: number }} */ (error);
+      assert.equal(denial.statusCode, 500, "configured S3 object operations should fail safely without a provider client");
+      assert.match(String(denial.message), /S3 file storage client is not configured/);
+      assertSafeS3Payload(denial.message, "configured S3 operation error");
       return true;
     },
     "configured S3 operations should fail safely before a provider client is installed",
@@ -211,6 +208,7 @@ async function assertServerStartupRejectsUnavailableS3Provider() {
   assert.doesNotMatch(output, /File-S3-Provider-Registration-Test|private-bucket|private-secret|LONGTAIL_S3_BUCKET|LONGTAIL_S3_SECRET_ACCESS_KEY/i);
 }
 
+/** @param {string[]} args @param {{ env?: NodeJS.ProcessEnv }} [options] */
 function runNode(args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, args, {
@@ -235,12 +233,18 @@ function runNode(args, options = {}) {
   });
 }
 
+/** @param {unknown} payload @param {string} label */
 function assertSafeS3Payload(payload, label) {
   const serialized = JSON.stringify(payload);
   assert.doesNotMatch(serialized, /private-bucket|objects\.invalid|private-access-key|private-secret/i, `${label} should not expose S3 config values`);
   assert.doesNotMatch(serialized, /storageKey|signedUrl|protectedPath/i, `${label} should not expose storage internals`);
 }
 
+/**
+ * Filesystem JSON enters as `unknown`; callers narrow at the point of use.
+ * @param {string} relativePath
+ * @returns {Promise<unknown>}
+ */
 async function readJson(relativePath) {
   return JSON.parse(await readText(relativePath));
 }

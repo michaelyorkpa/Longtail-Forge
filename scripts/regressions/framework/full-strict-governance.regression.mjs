@@ -359,6 +359,23 @@ for (const attachmentReadOwner of [
   assert.equal(ledger.programs.scripts.diagnostics[attachmentReadOwner], undefined, `${attachmentReadOwner} must stay strict-clean after checkpoint 0.33.33.31.6`);
   assert.equal(ledger.explicitAnyByFile[attachmentReadOwner], undefined, `${attachmentReadOwner} must stay free of explicit any after checkpoint 0.33.33.31.6`);
 }
+// The storage provider, S3, and quota owners closed at 0.33.33.31.7. The
+// shared package-manifest narrowing they cross the filesystem JSON boundary
+// through is already covered by the test-support pin from 0.33.33.27.
+for (const storageProviderOwner of [
+  "scripts/file-s3-diagnostics-signed-url-boundary-regression.mjs",
+  "scripts/file-s3-object-operation-proof-regression.mjs",
+  "scripts/file-s3-provider-registration-regression.mjs",
+  "scripts/file-storage-accounting-regression.mjs",
+  "scripts/file-storage-diagnostics-regression.mjs",
+  "scripts/file-storage-provider-configuration-regression.mjs",
+  "scripts/file-storage-quota-enforcement-regression.mjs",
+  "scripts/file-storage-streaming-contract-regression.mjs",
+  "scripts/workspace-storage-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[storageProviderOwner], undefined, `${storageProviderOwner} must stay strict-clean after checkpoint 0.33.33.31.7`);
+  assert.equal(ledger.explicitAnyByFile[storageProviderOwner], undefined, `${storageProviderOwner} must stay free of explicit any after checkpoint 0.33.33.31.7`);
+}
 // The authorization-model owners closed at 0.33.33.30.7.1 and the permission
 // harness itself closed at 0.33.33.30.7.2.2, which completes the
 // 0.33.33.30.7 cohort.

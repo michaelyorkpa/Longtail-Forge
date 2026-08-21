@@ -2,6 +2,8 @@
 
 import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -32,20 +34,25 @@ try {
   await initializeDatabase();
   const fixtures = await seedFixtures();
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   const diagnosticsResponse = await api.get("/api/runtime-diagnostics", { cookie: fixtures.adminSessionId });
   assert.equal(diagnosticsResponse.status, 200, "workspace settings managers should read runtime diagnostics");
-  assertStorageDiagnostics(diagnosticsResponse.body.diagnostics);
+  /** @type {RuntimeDiagnosticsEnvelope} */
+  const diagnostics = readPayload(diagnosticsResponse, ["diagnostics"], "GET /api/runtime-diagnostics");
+  assertStorageDiagnostics(diagnostics.diagnostics);
 
   const uploadResponse = await api.post("/api/files", uploadPayload(fixtures.taskId), {
     cookie: fixtures.adminSessionId,
   });
   assert.equal(uploadResponse.status, 201, "file upload route should still accept local file writes");
-  assert.equal(uploadResponse.body.file.storageProvider, "local", "file route should expose the safe provider id");
+  /** @type {FileUploadEnvelope} */
+  const uploaded = readPayload(uploadResponse, ["attachment", "file"], "POST /api/files");
+  const uploadedFile = requireFile(uploaded, "POST /api/files");
+  assert.equal(uploadedFile.storageProvider, "local", "file route should expose the safe provider id");
   assertSafeSerializedPayload(uploadResponse.body, "file upload route");
 
-  const fileResponse = await api.get(`/api/files/${uploadResponse.body.file.fileId}`, {
+  const fileResponse = await api.get(`/api/files/${uploadedFile.fileId}`, {
     cookie: fixtures.adminSessionId,
   });
   assert.equal(fileResponse.status, 200, "file read route should return the safe read model");
@@ -60,8 +67,41 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} StorageClientOptions */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+
+/**
+ * One fixture response. The body stays `unknown` on purpose: JSON.parse would
+ * hand back `any`, and every envelope read below would then be a claim the
+ * compiler never checks.
+ * @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown> & { text: string }} StorageResponse
+ */
+
+/**
+ * @typedef {{
+ *   get: (url: string, options?: StorageClientOptions) => Promise<StorageResponse>,
+ *   post: (url: string, body?: unknown, options?: StorageClientOptions) => Promise<StorageResponse>,
+ * }} StorageApiClient
+ */
+
+/** @typedef {typeof import("../src/services/files.service.js").filesService} FilesService */
+/** @typedef {Awaited<ReturnType<FilesService["uploadAndAttach"]>>} FileUploadEnvelope */
+/** @typedef {{ diagnostics: { storage: { health: { available: boolean, status: string }, provider: string, rootLocation: unknown } } }} RuntimeDiagnosticsEnvelope */
+
+/**
+ * Narrow an upload envelope to the file record it must be carrying.
+ * @template {{ file: unknown }} Envelope
+ * @param {Envelope} envelope
+ * @param {string} label
+ * @returns {NonNullable<Envelope["file"]>}
+ */
+function requireFile(envelope, label) {
+  assert.ok(envelope.file, `${label} should carry its file record`);
+  return envelope.file;
+}
+
 function assertStaticContracts() {
-  const roadmap = readText("ROADMAP.md");
   const runtimeDocs = readText("docs/runtime-configuration.md");
   const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
   const runtimeDiagnosticsSource = readText("src/services/runtime-diagnostics.service.js");
@@ -82,9 +122,9 @@ function assertStaticContracts() {
 
   assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*storage provider diagnostics are active/, "runtime docs should mark storage diagnostics active");
   assert.match(sqliteDocs, /safe local storage root label/i, "SQLite small-office docs should mention the safe storage root label");
-    assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   }
 
+/** @param {RuntimeDiagnosticsEnvelope["diagnostics"]} diagnostics */
 function assertStorageDiagnostics(diagnostics) {
   assert.equal(diagnostics.storage.provider, "local");
   assert.equal(diagnostics.storage.health.status, "ok");
@@ -98,6 +138,7 @@ function assertStorageDiagnostics(diagnostics) {
   assertSafeSerializedPayload(diagnostics, "runtime diagnostics route");
 }
 
+/** @param {unknown} payload @param {string} label */
 function assertSafeSerializedPayload(payload, label) {
   const serialized = JSON.stringify(payload);
 
@@ -141,10 +182,13 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "fresh database should seed a protected admin");
-  return rows[0];
+  /** @type {{ active_workspace_id: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireFirstRow(rows, "protected admin");
+  assert.ok(admin.user_id, "fresh database should seed a protected admin");
+  return admin;
 }
 
+/** @param {{ userId: string, workspaceId: string }} options */
 async function createTask(options) {
   const taskId = randomUUID();
   const now = new Date().toISOString();
@@ -183,6 +227,7 @@ VALUES (
   return taskId;
 }
 
+/** @param {string} taskId */
 function uploadPayload(taskId) {
   return {
     contentBase64: Buffer.from("storage diagnostics route body").toString("base64"),
@@ -193,6 +238,7 @@ function uploadPayload(taskId) {
   };
 }
 
+/** @param {string} baseUrl @returns {StorageApiClient} */
 function createApi(baseUrl) {
   return {
     async get(url, options = {}) {
@@ -204,7 +250,16 @@ function createApi(baseUrl) {
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {unknown} body
+ * @param {StorageClientOptions} [options]
+ * @returns {Promise<StorageResponse>}
+ */
 async function requestJson(baseUrl, method, url, body, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {};
 
   if (body !== undefined) {
@@ -230,13 +285,15 @@ async function requestJson(baseUrl, method, url, body, options = {}) {
   };
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {HttpFixtureServer} serverInstance @returns {Promise<void>} */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => {
@@ -244,11 +301,12 @@ function closeServer(serverInstance) {
         reject(error);
         return;
       }
-      resolve();
+      resolve(undefined);
     });
   });
 }
 
+/** @param {unknown} value */
 function normalizePath(value) {
   return String(value || "")
     .replaceAll("\\", "/")

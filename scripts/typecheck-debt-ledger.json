@@ -2959,6 +2959,7 @@
         "scripts/test-support/http-fixture-contracts.mjs",
         "scripts/test-support/http-payload-assertions.mjs",
         "scripts/test-support/isolated-regression-retry.mjs",
+        "scripts/test-support/package-manifest-assertions.mjs",
         "scripts/test-support/public-demo-files-ingress-probe.mjs",
         "scripts/test-support/regression-bucket-orchestrator.mjs",
         "scripts/test-support/regression-child-bootstrap.mjs",
@@ -3002,7 +3003,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 3897,
+      "errorCount": 3700,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3334,60 +3335,6 @@
             "count": 1
           }
         ],
-        "scripts/file-s3-diagnostics-signed-url-boundary-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 18
-          }
-        ],
-        "scripts/file-s3-object-operation-proof-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 2
-          },
-          {
-            "code": 18047,
-            "count": 5
-          },
-          {
-            "code": 2339,
-            "count": 21
-          },
-          {
-            "code": 2345,
-            "count": 5
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 12
-          }
-        ],
-        "scripts/file-s3-provider-registration-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 7
-          },
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
         "scripts/file-scan-job-handoff-regression.mjs": [
           {
             "code": 18047,
@@ -3442,100 +3389,6 @@
           {
             "code": 7006,
             "count": 10
-          }
-        ],
-        "scripts/file-storage-accounting-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 9
-          }
-        ],
-        "scripts/file-storage-diagnostics-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 17
-          }
-        ],
-        "scripts/file-storage-provider-configuration-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 2
-          },
-          {
-            "code": 18047,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 9
-          }
-        ],
-        "scripts/file-storage-quota-enforcement-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 2
-          },
-          {
-            "code": 18047,
-            "count": 6
-          },
-          {
-            "code": 2339,
-            "count": 13
-          },
-          {
-            "code": 7006,
-            "count": 24
-          },
-          {
-            "code": 7022,
-            "count": 1
-          },
-          {
-            "code": 7023,
-            "count": 1
-          },
-          {
-            "code": 7031,
-            "count": 2
-          }
-        ],
-        "scripts/file-storage-streaming-contract-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 6
-          },
-          {
-            "code": 7034,
-            "count": 1
           }
         ],
         "scripts/files-descriptor-host-regression.mjs": [
@@ -6103,27 +5956,13 @@
             "code": 7034,
             "count": 1
           }
-        ],
-        "scripts/workspace-storage-regression.mjs": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
         ]
       }
     }
   },
   "totals": {
-    "files": 1044,
-    "errors": 15031,
+    "files": 1045,
+    "errors": 14834,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

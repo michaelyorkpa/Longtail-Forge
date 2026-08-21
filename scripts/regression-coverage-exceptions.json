@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "maximumActiveScripts": 347,
-  "minimumAssertionCount": 19118,
+  "minimumAssertionCount": 19128,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,
@@ -4869,6 +4869,38 @@
         "node scripts/regressions/views/current-static-contracts.regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "storage.provider-s3-and-quota-owners",
+      "retiredInVersion": "0.33.33.31.7",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 11,
+      "rationale": "Eleven assertions across seven storage owners pinned archived planning history rather than a live contract: six required that a 0.33.5.22 completed-work breadcrumb stay absent from the live roadmap, which it can never re-enter against a 0.33.33 cursor; two were duplicate assertRoadmapCursorAtLeast(\"0.33.8\") floors differing only in message; and three required CHANGELOG prose for shipped 0.33.5.25.2 quota enforcement and for the Busboy and streaming-adapter decisions.",
+      "assertionDisposition": "No behavior lost coverage. The Busboy decision is still proven from package.json and package-lock.json, and the saveStream and save adapter contract is still proven from src/core/files/local-storage-adapter.js and the Files service adapter registration. Quota enforcement keeps its executable proof and gains a fail-closed negative control. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and the seven owners are removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/file-s3-diagnostics-signed-url-boundary-regression.mjs",
+        "scripts/file-s3-object-operation-proof-regression.mjs",
+        "scripts/file-s3-provider-registration-regression.mjs",
+        "scripts/file-storage-diagnostics-regression.mjs",
+        "scripts/file-storage-provider-configuration-regression.mjs",
+        "scripts/file-storage-quota-enforcement-regression.mjs",
+        "scripts/file-storage-streaming-contract-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "scripts/file-storage-streaming-contract-regression.mjs",
+        "scripts/file-storage-quota-enforcement-regression.mjs",
+        "scripts/regressions/release/historical-evidence-retirement.regression.mjs"
+      ],
+      "verificationPerformed": [
+        "node scripts/file-storage-quota-enforcement-regression.mjs",
+        "node scripts/file-storage-streaming-contract-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "npm run verify:slice"
       ]
     }
