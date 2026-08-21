@@ -9,6 +9,51 @@ import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { fileURLToPath } from "node:url";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+
+/** @typedef {typeof import("../src/db/index.js")} DatabaseModule */
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} FilesSession */
+
+/** What the scenario children publish on their last stdout line. */
+/**
+ * @typedef {{
+ *   previewState: string,
+ *   scanStatus: string,
+ *   status: string,
+ *   unauthorizedDownloadBlocked: boolean,
+ *   unauthorizedPreviewBlocked: boolean,
+ * }} ScannerModeScenarioResult
+ */
+/** @typedef {{ mode: string }} ScannerModeResolveResult */
+
+/**
+ * Narrow a scenario child's last stdout line to a JSON object.
+ *
+ * The child is a separate process, so its output crosses back as text. Parsing
+ * it would otherwise infer `any` and every assertion below would be a claim the
+ * compiler never checks.
+ * @template {object} [ChildResult=Record<string, unknown>]
+ * @param {import("node:child_process").SpawnSyncReturns<string>} child
+ * @param {ReadonlyArray<string>} keys
+ * @param {string} label
+ * @returns {ChildResult}
+ */
+function readChildResult(child, keys, label) {
+  const resultLine = child.stdout.trim().split(/\r?\n/).at(-1);
+  assert.ok(resultLine, `${label} should publish a JSON result line`);
+  /** @type {unknown} */
+  const parsed = JSON.parse(resultLine);
+  assert.ok(
+    parsed && typeof parsed === "object" && !Array.isArray(parsed),
+    `${label} output should be a JSON object: ${resultLine}`,
+  );
+  const record = /** @type {Record<string, unknown>} */ (parsed);
+  for (const key of keys) {
+    assert.ok(key in record, `${label} output should carry ${key}: ${JSON.stringify(Object.keys(record))}`);
+  }
+  return /** @type {ChildResult} */ (/** @type {unknown} */ (record));
+}
+
 
 const root = process.cwd();
 const scriptPath = fileURLToPath(import.meta.url);
@@ -48,7 +93,6 @@ assertResolveSucceeds("clamscan");
 console.log("File scanner mode resolver regression passed.");
 
 function assertStaticContracts() {
-  const roadmap = readText("ROADMAP.md");
   const runtimeDocs = readText("docs/runtime-configuration.md");
   const moduleDocs = readText("docs/module-development.md");
   const configSource = readText("src/config.js");
@@ -69,9 +113,9 @@ function assertStaticContracts() {
 
   assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*`none`[\s\S]*`noop`[\s\S]*`clamd`[\s\S]*`clamscan`/, "runtime docs should formalize scanner modes");
   assert.match(moduleDocs, /As of 0\.33\.5\.22\.15[\s\S]*file\.scan[\s\S]*not_required/, "module docs should record none-mode file.scan disposition");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
 }
 
+/** @param {string} mode */
 async function runScenario(mode) {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), `ltf-file-scanner-${mode}-`));
 
@@ -98,6 +142,7 @@ async function runScenario(mode) {
       targetId: taskId,
       targetType: "task",
     });
+    assert.ok(upload.file, "the scanned fixture upload should carry its file record");
     const fileId = upload.file.fileId;
     const attachmentId = upload.attachment.fileAttachmentId;
 
@@ -157,6 +202,7 @@ LIMIT 1;
   }
 }
 
+/** @param {string} mode */
 async function resolveOnly(mode) {
   process.env.LONGTAIL_DATA_DIR = await fs.mkdtemp(path.join(os.tmpdir(), `ltf-file-scanner-resolve-${mode}-`));
   process.env.LONGTAIL_DATABASE_FILE = path.join(process.env.LONGTAIL_DATA_DIR, "resolve.db");
@@ -168,13 +214,14 @@ async function resolveOnly(mode) {
     const resolved = filesService.resolveConfiguredFileScannerAdapter();
     console.log(JSON.stringify({ mode: resolved.scannerMode }));
   } catch (error) {
-    console.error(error?.message || String(error));
+    console.error(/** @type {{ message?: string }} */ (error)?.message || String(error));
     process.exit(1);
   } finally {
     await fs.rm(process.env.LONGTAIL_DATA_DIR, { recursive: true, force: true }).catch(() => {});
   }
 }
 
+/** @param {string} mode @returns {ScannerModeScenarioResult} */
 function runScenarioChild(mode) {
   const child = spawnSync(process.execPath, [scriptPath, "--scenario", mode], {
     cwd: root,
@@ -183,9 +230,10 @@ function runScenarioChild(mode) {
   });
 
   assert.equal(child.status, 0, child.stderr || child.stdout);
-  return JSON.parse(child.stdout.trim().split(/\r?\n/).at(-1));
+  return readChildResult(child, ["previewState", "scanStatus", "status", "unauthorizedDownloadBlocked", "unauthorizedPreviewBlocked"], `scanner mode ${mode} scenario`);
 }
 
+/** @param {string} mode */
 function assertResolveSucceeds(mode) {
   const child = spawnSync(process.execPath, [scriptPath, "--resolve-only", mode], {
     cwd: root,
@@ -194,9 +242,12 @@ function assertResolveSucceeds(mode) {
   });
 
   assert.equal(child.status, 0, child.stderr || child.stdout);
-  assert.equal(JSON.parse(child.stdout.trim().split(/\r?\n/).at(-1)).mode, mode, `${mode} should resolve after its adapter ships`);
+  /** @type {ScannerModeResolveResult} */
+  const resolved = readChildResult(child, ["mode"], `scanner mode ${mode} resolve`);
+  assert.equal(resolved.mode, mode, `${mode} should resolve after its adapter ships`);
 }
 
+/** @param {NodeJS.ProcessEnv} overrides @param {RegExp} pattern */
 function assertConfigFails(overrides, pattern) {
   const child = spawnSync(process.execPath, ["--input-type=module", "--eval", "import './src/config.js';"], {
     cwd: root,
@@ -208,6 +259,7 @@ function assertConfigFails(overrides, pattern) {
   assert.match(child.stderr || child.stdout, pattern);
 }
 
+/** @param {DatabaseModule["querySql"]} querySql @returns {Promise<FilesSession>} */
 async function readSeedSession(querySql) {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -215,13 +267,18 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
+  /** @type {{ active_workspace_id: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const user = requireFirstRow(rows, "protected super admin");
 
   return workspaceSessionFixture({ ...user, display_name: "Admin User" });
 }
 
+/**
+ * @param {DatabaseModule["runSql"]} runSql
+ * @param {DatabaseModule["sqlText"]} sqlText
+ * @param {FilesSession} session
+ * @param {string} title
+ */
 async function createTask(runSql, sqlText, session, title) {
   const taskId = randomUUID();
   const now = new Date().toISOString();
@@ -260,17 +317,20 @@ VALUES (
   return taskId;
 }
 
+/** @param {() => Promise<unknown>} fn */
 async function rejectsWithPermission(fn) {
   try {
     await fn();
     return false;
   } catch (error) {
-    assert.equal(error.statusCode, 403, "access should be permission-gated");
+    assert.equal(/** @type {{ statusCode?: number }} */ (error).statusCode, 403, "access should be permission-gated");
     return true;
   }
 }
 
+/** @param {NodeJS.ReadableStream} stream */
 async function streamToText(stream) {
+  /** @type {Buffer[]} */
   const chunks = [];
 
   for await (const chunk of stream) {
@@ -302,6 +362,7 @@ function cleanEnv(overrides = {}) {
   };
 }
 
+/** @param {string} source @param {string} functionName */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);

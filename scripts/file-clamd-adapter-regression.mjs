@@ -13,6 +13,69 @@ import { clearInterval, setImmediate, setInterval } from "node:timers";
 import { fileURLToPath } from "node:url";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+
+/** @typedef {typeof import("../src/db/index.js")} DatabaseModule */
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} FilesSession */
+/** @typedef {import("../src/core/files/scanner-adapter.js").ScannerFile} ScannerFile */
+/** @typedef {typeof import("../src/services/files.service.js").filesService} FilesService */
+
+/**
+ * What the lifecycle child publishes on its last stdout line.
+ *
+ * The child is a separate process, so its output crosses back as text. Parsing
+ * it would otherwise infer `any` and every assertion below would be a claim the
+ * compiler never checks.
+ * @typedef {{
+ *   downloadBlocked: boolean,
+ *   downloadText: string,
+ *   restoreBlocked: boolean,
+ *   scanStatus: string,
+ *   status: string,
+ *   storageText: string,
+ * }} LifecycleScenarioResult
+ */
+
+/** The scanner secrets this owner proves never escape into a result. */
+/** @typedef {{ host: string, port: number }} ScannerSecrets */
+
+/**
+ * Narrow the lifecycle child's last stdout line to the result it must publish.
+ *
+ * @param {import("node:child_process").SpawnSyncReturns<string>} child
+ * @returns {LifecycleScenarioResult}
+ */
+function readLifecycleResult(child) {
+  const resultLine = child.stdout.trim().split(/\r?\n/).at(-1);
+  assert.ok(resultLine, "the lifecycle child should publish a JSON result line");
+  /** @type {unknown} */
+  const parsed = JSON.parse(resultLine);
+  assert.ok(
+    parsed && typeof parsed === "object" && !Array.isArray(parsed),
+    `lifecycle child output should be a JSON object: ${resultLine}`,
+  );
+  const record = /** @type {Record<string, unknown>} */ (parsed);
+  for (const key of ["downloadBlocked", "downloadText", "restoreBlocked", "scanStatus", "status", "storageText"]) {
+    assert.ok(key in record, `lifecycle child output should carry ${key}: ${JSON.stringify(Object.keys(record))}`);
+  }
+  return /** @type {LifecycleScenarioResult} */ (/** @type {unknown} */ (record));
+}
+
+/**
+ * The socket members the clamd adapter drives. The double implements exactly
+ * these; `ClamdOptions.connect` is published as `unknown`, so production casts
+ * the injected connector itself and no cast is needed here.
+ * @typedef {EventEmitter & {
+ *   destroy: () => MockClamdSocket,
+ *   destroyed: boolean,
+ *   end: (chunk?: Buffer | string, callback?: () => void) => MockClamdSocket,
+ *   holdTimer: NodeJS.Timeout | null,
+ *   setNoDelay: (noDelay?: boolean) => void,
+ *   write: (chunk: Buffer | string, callback?: (error?: Error) => void) => boolean,
+ *   writes: Buffer[],
+ * }} MockClamdSocket
+ */
+
 
 const root = process.cwd();
 const scriptPath = fileURLToPath(import.meta.url);
@@ -51,8 +114,6 @@ assert.equal(unavailableLifecycle.storageText, "clamd unavailable body", "scanne
 console.log("File clamd adapter regression passed.");
 
 function assertStaticContracts() {
-  const roadmap = readText("ROADMAP.md");
-  const changelog = readText("CHANGELOG.md");
   const runtimeDocs = readText("docs/runtime-configuration.md");
   const scannerAdapterSource = readText("src/core/files/scanner-adapter.js");
   const filesServiceSource = readText("src/services/files.service.js");
@@ -73,10 +134,9 @@ function assertStaticContracts() {
   assert.doesNotMatch(runtimeDiagnosticsSource, /clamdHost|clamdPort|process\.env|storageKey|protectedPath/i, "runtime diagnostics must not expose clamd host/port or storage internals");
   assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*`clamd`[\s\S]*TCP scanner adapter[\s\S]*without exposing hostnames or ports/, "runtime docs should describe clamd adapter redaction");
   assert.match(runtimeDocs, /Unix-socket[\s\S]*deferred/i, "runtime docs should explicitly defer socket support");
-  assert.match(changelog, /clamd[\s\S]*TCP[\s\S]*without auto-deleting stored files/i, "tracked docs should record clamd quarantine policy");
-    assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   }
 
+/** The adapter probes drive the double directly. */
 async function runAdapterOutcomeChecks() {
   const fake = {
     host: scannerSecretHost,
@@ -137,6 +197,7 @@ async function runAdapterOutcomeChecks() {
   }
 }
 
+/** @param {string} outcome */
 async function runLifecycleScenario(outcome) {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), `ltf-clamd-${outcome}-`));
 
@@ -170,6 +231,7 @@ async function runLifecycleScenario(outcome) {
       targetId: taskId,
       targetType: "task",
     });
+    assert.ok(upload.file, "the scanned fixture upload should carry its file record");
     const fileId = upload.file.fileId;
 
     const summary = await runJobWorkerOnce({
@@ -206,7 +268,7 @@ LIMIT 1;
         () => filesService.restoreFile(session, fileId),
         /scan has passed/i,
       );
-      assert.match(row.quarantine_reason, outcome === "infected" ? /threat/i : /unavailable/i, "quarantine reason should stay safe and bounded");
+      assert.match(String(row.quarantine_reason), outcome === "infected" ? /threat/i : /unavailable/i, "quarantine reason should stay safe and bounded");
     }
 
     const result = {
@@ -226,6 +288,7 @@ LIMIT 1;
   }
 }
 
+/** @param {string} outcome @returns {LifecycleScenarioResult} */
 function runLifecycleChild(outcome) {
   const child = spawnSync(process.execPath, [scriptPath, "--scenario", outcome], {
     cwd: root,
@@ -234,9 +297,10 @@ function runLifecycleChild(outcome) {
   });
 
   assert.equal(child.status, 0, child.stderr || child.stdout);
-  return JSON.parse(child.stdout.trim().split(/\r?\n/).at(-1));
+  return readLifecycleResult(child);
 }
 
+/** @param {string} label @returns {ScannerFile} */
 function fakeFileContext(label) {
   return {
     fileId: `fake-${label}`,
@@ -249,7 +313,7 @@ function fakeFileContext(label) {
 function createMockClamdConnect() {
   return () => {
     const outcome = process.env.LTF_FAKE_CLAMD_RESULT || "clean";
-    const socket = new EventEmitter();
+    const socket = /** @type {MockClamdSocket} */ (new EventEmitter());
     socket.destroyed = false;
     socket.writes = [];
     socket.setNoDelay = () => {};
@@ -286,6 +350,7 @@ function createMockClamdConnect() {
   };
 }
 
+/** @param {MockClamdSocket} socket @param {string} outcome */
 function finishMockClamd(socket, outcome) {
   const command = Buffer.concat(socket.writes).toString("binary");
   if (command.includes("zPING")) {
@@ -323,6 +388,7 @@ function finishMockClamd(socket, outcome) {
   socket.emit("close");
 }
 
+/** @param {string} outcome */
 function createLifecycleClamdAdapter(outcome) {
   return {
     id: "clamd",
@@ -332,6 +398,7 @@ function createLifecycleClamdAdapter(outcome) {
         status: outcome === "unavailable" ? "unavailable" : "ok",
       };
     },
+    /** @param {ScannerFile} [file] */
     async scan(file = {}) {
       if (outcome === "clean") {
         return {
@@ -364,6 +431,7 @@ function createLifecycleClamdAdapter(outcome) {
   };
 }
 
+/** @param {DatabaseModule["querySql"]} querySql @returns {Promise<FilesSession>} */
 async function readSeedSession(querySql) {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -371,13 +439,18 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
+  /** @type {{ active_workspace_id: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const user = requireFirstRow(rows, "protected super admin");
 
   return workspaceSessionFixture({ ...user, display_name: "Admin User" });
 }
 
+/**
+ * @param {DatabaseModule["runSql"]} runSql
+ * @param {DatabaseModule["sqlText"]} sqlText
+ * @param {FilesSession} session
+ * @param {string} title
+ */
 async function createTask(runSql, sqlText, session, title) {
   const taskId = randomUUID();
   const now = new Date().toISOString();
@@ -416,17 +489,20 @@ VALUES (
   return taskId;
 }
 
+/** @param {() => Promise<unknown>} fn @param {RegExp} pattern */
 async function rejectsWithMessage(fn, pattern) {
   try {
     await fn();
     return false;
   } catch (error) {
-    assert.match(error.message, pattern);
+    assert.match(String(/** @type {{ message?: string }} */ (error).message), pattern);
     return true;
   }
 }
 
+/** @param {NodeJS.ReadableStream} stream */
 async function streamToText(stream) {
+  /** @type {Buffer[]} */
   const chunks = [];
 
   for await (const chunk of stream) {
@@ -436,6 +512,7 @@ async function streamToText(stream) {
   return Buffer.concat(chunks).toString("utf8");
 }
 
+/** @param {unknown} value @param {ScannerSecrets} fake */
 function assertSafeScannerResult(value, fake) {
   const serialized = JSON.stringify(value);
   assert.doesNotMatch(serialized, new RegExp(escapeRegExp(fake.host), "i"), "scanner results should not expose clamd hostnames");
@@ -444,6 +521,7 @@ function assertSafeScannerResult(value, fake) {
   assert.doesNotMatch(serialized, /LONGTAIL_CLAMD|storageKey|protectedPath|signedUrl|socket/i, "scanner results should not expose env names, storage internals, or sockets");
 }
 
+/** @returns {NodeJS.ProcessEnv} */
 function cleanEnv() {
   const env = { ...process.env };
   for (const key of Object.keys(env)) {

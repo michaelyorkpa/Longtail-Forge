@@ -376,6 +376,21 @@ for (const storageProviderOwner of [
   assert.equal(ledger.programs.scripts.diagnostics[storageProviderOwner], undefined, `${storageProviderOwner} must stay strict-clean after checkpoint 0.33.33.31.7`);
   assert.equal(ledger.explicitAnyByFile[storageProviderOwner], undefined, `${storageProviderOwner} must stay free of explicit any after checkpoint 0.33.33.31.7`);
 }
+// The scanner adapter and worker owners closed at 0.33.33.31.8. Each parses
+// output that crosses back from a separate process, so the pin keeps those
+// boundaries narrowed rather than merely passing.
+for (const scannerWorkerOwner of [
+  "scripts/file-clamd-adapter-regression.mjs",
+  "scripts/file-clamscan-adapter-regression.mjs",
+  "scripts/file-scan-job-handoff-regression.mjs",
+  "scripts/file-scanner-health-diagnostics-regression.mjs",
+  "scripts/file-scanner-mode-resolver-regression.mjs",
+  "scripts/separate-worker-end-to-end-regression.mjs",
+  "scripts/worker-runner-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[scannerWorkerOwner], undefined, `${scannerWorkerOwner} must stay strict-clean after checkpoint 0.33.33.31.8`);
+  assert.equal(ledger.explicitAnyByFile[scannerWorkerOwner], undefined, `${scannerWorkerOwner} must stay free of explicit any after checkpoint 0.33.33.31.8`);
+}
 // The authorization-model owners closed at 0.33.33.30.7.1 and the permission
 // harness itself closed at 0.33.33.30.7.2.2, which completes the
 // 0.33.33.30.7 cohort.

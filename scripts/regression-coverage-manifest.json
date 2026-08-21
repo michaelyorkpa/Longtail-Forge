@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18433,
+    "activeAssertionCount": 18442,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19128,
+    "effectiveAssertionCount": 19137,
     "retiredAssertionCredit": 26,
     "vitest": [
       {
@@ -1114,11 +1114,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 58,
+      "assertionCount": 59,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy file clamd adapter contract.",
-      "entryPointAssertionCount": 58,
+      "entryPointAssertionCount": 59,
       "id": "legacy.file.clamd.adapter",
       "legacy": true,
       "path": "scripts/file-clamd-adapter-regression.mjs",
@@ -1262,11 +1262,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 24,
+      "assertionCount": 25,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy file scan job handoff contract.",
-      "entryPointAssertionCount": 24,
+      "entryPointAssertionCount": 25,
       "id": "legacy.file.scan.job.handoff",
       "legacy": true,
       "path": "scripts/file-scan-job-handoff-regression.mjs",
@@ -1281,11 +1281,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 34,
+      "assertionCount": 36,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy file scanner health diagnostics contract.",
-      "entryPointAssertionCount": 34,
+      "entryPointAssertionCount": 36,
       "id": "legacy.file.scanner.health.diagnostics",
       "legacy": true,
       "path": "scripts/file-scanner-health-diagnostics-regression.mjs",
@@ -1300,11 +1300,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 40,
+      "assertionCount": 42,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy file scanner mode resolver contract.",
-      "entryPointAssertionCount": 40,
+      "entryPointAssertionCount": 42,
       "id": "legacy.file.scanner.mode.resolver",
       "legacy": true,
       "path": "scripts/file-scanner-mode-resolver-regression.mjs",
@@ -3746,11 +3746,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 125,
+      "assertionCount": 127,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 125,
+      "entryPointAssertionCount": 127,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -7427,11 +7427,11 @@
     },
     {
       "area": "jobs",
-      "assertionCount": 74,
+      "assertionCount": 75,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy worker runner contract.",
-      "entryPointAssertionCount": 74,
+      "entryPointAssertionCount": 75,
       "id": "legacy.worker.runner",
       "legacy": true,
       "path": "scripts/worker-runner-regression.mjs",
