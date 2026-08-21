@@ -260,25 +260,201 @@ Measured at 104 diagnostics across 16 files and 2,588 lines.
 - [ ] Run the branch-wide full regression, permission, browser, audit, packaging, dependency, and protected CI gates once against the final tree.
 - [ ] Roll up checkpoint trailers into the changelog and durable decisions/docs, bump once to `0.33.33`, archive the completed roadmap section, and prove `/api/app-info` from the exact candidate artifact.
 
-## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
+## Version 0.33.34 - Opt-in Privacy-Preserving Telemetry and Public Demo Measurement
 
-**Model: High Effort** — Cross-domain analytics, consent, retention, and durable interest capture create privacy and security obligations even when the product events are anonymous.
+**Model: High Effort** — This branch creates a framework-wide privacy boundary, pseudonymous identity lifecycle, durable storage/aggregation path, and cross-module instrumentation whose mistakes could collect identifying or user-entered data.
 
 Purpose:
 
-Preserve the October 1, 2026 public-demo launch follow-on (moved from August 31, 2026 to allow additional features and the completed Lean Core branch) for privacy-respecting measurement and interest capture without mixing durable visitor data into the hourly-reset application database.
+Build Longtail Forge's privacy-preserving, explicitly opt-in telemetry substrate and use `demo.longtailforge.com` as its first enabled deployment. Telemetry answers a closed set of product questions with the minimum safe events; it never becomes audit logging, a lead database, or a generic event warehouse. Personally identifiable interest capture remains on Raymond Tec's WordPress/MailPoet boundary and can never be joined to prior telemetry.
 
-Dependencies and planned boundary:
+Governing planning baseline:
 
-- [ ] Build on 0.33.31's explicit demo profile and external-integration capability catalog. Keep analytics and interest capture disabled until this slice selects and documents the independently operated external boundaries.
-- [ ] Before publishing first-party hosted Terms/Privacy or enabling public analytics, feedback, or interest capture, choose and record the review path appropriate to the actual launch scope, including whether professional legal review is warranted. Until that decision is complete, keep the neutral operator templates clearly labeled and all nonessential public data collection disabled; `0.33.25` does not claim legal approval.
-- [ ] Define privacy-respecting analytics for the root marketing domain and demo subdomain, UTM campaign attribution, and anonymous demo-login/role-selection events with no record content, shared credential, stable user profiling, or cross-workspace identifier.
-- [ ] Provide a permanent external mailing-list signup path and reset-surviving feedback channel; neither writes subscriber email, feedback, consent, or analytics data to the demo SQLite database.
-- [ ] Document privacy/cookie notices, consent gating for all nonessential storage or tracking, retention/deletion ownership, IP and reverse-proxy log treatment, cross-domain data flow, and the separation between product analytics and security/audit logging.
+- [ ] Treat completed `0.33.33` Lean Core as authoritative. Reuse its final strict-TypeScript programs, Zod/runtime-boundary conventions, internal event bus and module hook registration, module/contribution catalogs, app-shell contracts, runtime configuration, public-demo enforcement, permissions, and worker activation lifecycle. Do not revive broad untyped payloads, shadow services, per-feature settings stores, speculative manifest fields, or retired regression ownership.
+- [ ] Use [Telemetry planning and privacy contract](docs/telemetry-planning.md) as the question-to-event matrix, exact initial event/property catalog, denylist, identity lifecycle, persistence decision, threat review, reporting decision, hosted-collector recommendation, and interest-capture boundary for this branch. If implementation evidence requires changing that contract, update the planning document and this roadmap before widening collection.
+- [ ] Apply **Collect answers, not data.** No event or sink accepts arbitrary metadata, arbitrary properties, user-entered text, application record IDs, application user/workspace identity, raw URLs, exact viewport/device information, IP/user-agent data, request/audit/security correlation IDs, or per-entity telemetry identity.
+- [ ] Keep telemetry disabled by default. Disabled means no installation/participant/session identity is created, no event is persisted or transmitted, no telemetry maintenance process runs, and no telemetry-only browser storage is written. The public demo enables it only through reviewed deployment configuration after the privacy/legal decision gate passes.
+- [ ] Retain raw pseudonymous events for at most 30 days. Durable daily/monthly outputs contain no participant/session identity. Because long-lived pseudonymous joins are prohibited, retention reporting is limited to D1/D7/D14/D30 and rolling-30-day/cohort aggregates rather than multi-month per-participant history.
+- [ ] Open one version-wide `0.33.34` topic branch after `0.33.33` closes and retain it through `0.33.34.13`. Each numbered child below is a protected implementation checkpoint into `nightly`; the parent is a planning rollup, not a separate implementation pull request. Defer version/changelog rollup, durable owning-doc updates, final runtime identity, and release packaging to `0.33.34.13` under the inherited internal-checkpoint contract.
+
+### 0.33.34.1 - Freeze the Lean Core reuse map and telemetry privacy policy
+
+**Model: High Effort** — The entry contract settles privacy and ownership rules that every later event, sink, report, and deployment must obey.
+
+- **Purpose:** Convert the planning baseline into checked implementation contracts before adding storage or emission.
+- **Expected owners/files:** `docs/telemetry-planning.md`, final `0.33.33` architecture/module/runtime docs, `src/types/`, `src/core/events/`, `src/core/modules/`, `src/core/jobs/`, `src/config.js`, public-demo policy files, and new framework-owned telemetry contract/test owners only.
+- **Architectural seam:** Complete a final post-`0.33.33` compatibility probe and record which strict contracts replace the planning-time snapshots. Telemetry is an intrinsically framework-wide Two-Module Rule exception, but module-specific event meaning remains module-owned.
+- **Dependencies:** `0.33.33.48` merged and its strict programs, event/hook shapes, browser contracts, and module-locality ratchets green.
+- **Behavior unchanged:** No runtime collection, persistence, browser storage, settings UI, public-demo capability change, or audit/security behavior changes in this checkpoint.
+- **Privacy invariants and negative controls:** Freeze the complete forbidden-field vocabulary; forbid arbitrary maps and full `InternalEvent`/audit payloads at the telemetry boundary; require server-owned minute timestamps and no per-record telemetry IDs. Decide the public-demo privacy/legal review path, final participant notice/consent posture, minimum cohort suppression threshold, and exact CTA destination/copy before enablement work may merge.
+- **Verification:** Negative compile fixtures reject unknown event names/properties and forbidden property names; source guardrails reject telemetry imports from audit/security repositories and reject catch-all `Record<string, unknown>`/`any` event payloads. Reconcile all findings against the final Lean Core tree rather than editing Lean Core to fit this plan.
+- **Handoff:** Publish the frozen policy/types vocabulary consumed by `0.33.34.2`; unresolved approval gates remain explicit and block only public-demo enablement, not safe disabled-by-default substrate work.
+
+### 0.33.34.2 - Implement the closed typed telemetry catalog and safe projectors
+
+**Model: High Effort** — A schema mistake here could turn safe domain facts into a durable content or identity leak across every instrumented module.
+
+- **Purpose:** Implement `recordTelemetryEvent(typedEvent)` as a discriminated closed catalog with exact allowlisted properties from `docs/telemetry-planning.md`; do not add `track(name, object)`, generic `metadata`, passthrough schemas, or unknown-key stripping that silently accepts forbidden input.
+- **Expected owners/files:** new framework telemetry contract/schema/projector files, `src/types/` declarations, focused Vitest contract tests, and strict negative compile/runtime fixtures.
+- **Architectural seam:** TypeScript checks trusted internal event/projector shapes; Zod (or the final Lean Core runtime-schema owner) rejects untrusted ingestion/configuration at the edge. Projectors accept the smallest named source facts and construct a new telemetry object; they never forward, clone, spread, or serialize a raw internal event, request, session, audit row, or domain record.
+- **Dependencies:** `0.33.34.1` policy and final Lean Core type conventions.
+- **Behavior unchanged:** Existing internal events, audit records, notification summaries, Search/resume projections, and module mutation responses retain their current shapes and owners.
+- **Privacy invariants and negative controls:** Reject unknown event types, unknown properties, forbidden names at any depth, non-enum values, user text, raw URLs, IDs, exact timestamps, exact viewport values, and event-specific fields attached to the wrong discriminator. Permit only the exact common context and event properties listed in the planning contract.
+- **Verification:** Compile valid fixtures and require seeded invalid fixtures to fail excess-property checking; execute runtime cases for nested forbidden keys, prototype/passthrough attempts, oversized values, arrays where scalars are expected, and catalog-extension attempts without a registered schema/projector/test disposition.
+- **Handoff:** Expose one stable typed event boundary for the no-op policy/sink path in `0.33.34.3`.
+
+### 0.33.34.3 - Add disabled-by-default runtime policy, no-op behavior, and sink interface
+
+**Model: High Effort** — Runtime enablement and failure isolation are install-wide behavior and must remain fail-closed for collection while fail-open for normal product workflows.
+
+- **Purpose:** Add the explicit telemetry policy/configuration seam, a no-op disabled path, bounded non-blocking delivery, and a replaceable sink interface that can later target `telemetry.longtailforge.com` without changing emitters.
+- **Expected owners/files:** `src/config.js`, runtime readiness/diagnostics shaping, new framework telemetry policy/service/sink registry files, app/worker activation, `.env.example`, and focused framework/runtime tests.
+- **Architectural seam:** Runtime configuration owns install-level enablement and destination selection. The telemetry service owns schema validation, bounded queueing, aggregate-only operational counters, and sink dispatch. Emitters know only the typed service; they never import SQLite, JSONL, CSV, HTTP, or demo deployment code.
+- **Dependencies:** typed catalog from `0.33.34.2`.
+- **Behavior unchanged:** `npm start`, ordinary self-host startup, existing worker/job handling, readiness, security logs, audit logs, notifications, and public-demo behavior remain unchanged when telemetry is disabled.
+- **Privacy invariants and negative controls:** Disabled mode creates no IDs/files/storage and performs no network call. Queue overflow, malformed projections, missing/unavailable sinks, and sink exceptions drop only telemetry work and increment bounded content-free counters; they never reject or delay a Task/Note/File/etc. workflow and never become audit/security events. Diagnostics expose only enabled/disabled, sink class, health class, last aggregate/prune status, and drop/error counts - never identities, payloads, protected paths, or collector credentials.
+- **Verification:** Prove no writes/transmission/identity creation under every disabled path; substitute failing, slow, full, and malformed sinks and prove normal workflow success/latency isolation; reject unsupported destinations and secrets in diagnostics.
+- **Handoff:** Provide the stable policy/sink service consumed by the identity/ingestion boundary in `0.33.34.4` and local sink in `0.33.34.5`.
+
+### 0.33.34.4 - Implement installation, participant, and telemetry-session identity plus ingestion
+
+**Model: High Effort** — Persistent pseudonymous browser identity and an ingestion endpoint create privacy, abuse, and anti-correlation risks even without application identity.
+
+- **Purpose:** Implement three independent CSPRNG identities: installation identity generated only on enablement, participant identity in first-party browser storage, and short-lived telemetry session identity in session-scoped browser storage. Add the strict same-origin ingestion boundary for client-originated typed events.
+- **Expected owners/files:** new telemetry identity/service/routes/contracts, browser bootstrap/helper contracts, app-shell safe telemetry bootstrap fields, CSRF/request limits, and focused browser/API tests.
+- **Architectural seam:** The server supplies only enablement and safe catalog/version context. The browser creates random participant/session IDs unrelated to login; the server derives canonical app version, coarse workspace type, coarse role class, optional known public-demo persona, and UTC minute of receipt. Existing responsive breakpoints classify `mobile <=700`, `tablet 701-1024`, `desktop >1024`, or `unknown` locally; width is never sent.
+- **Dependencies:** no-op policy/sink contract from `0.33.34.3`; final strict browser/HTTP contracts from Lean Core.
+- **Behavior unchanged:** Authentication cookies/sessions, remembered-login behavior, logout, workspace switching, public-demo shared accounts, request IDs, trusted-client-IP handling, and app-shell navigation remain authoritative and separate.
+- **Privacy invariants and negative controls:** Never derive/HMAC participant identity from `user_id`; never reconcile devices/tabs; never place telemetry IDs in cookies, URLs, headers reused by audit/security, app session rows, or application logs. Participant storage clearing creates a new participant. Telemetry session rotates on logout, 30 minutes of inactivity, or 24-hour absolute lifetime and remains distinct from the security session. Reject client-supplied timestamps, app/workspace/user/record IDs, role/workspace/version overrides, viewport width, user agent, and unknown catalog values.
+- **Verification:** Prove persistence across ordinary page/session returns as designed, rotation/reset behavior, cross-tab/session separation, same-origin/CSRF/body/rate limits, server-derived context, no identifiers in security/audit rows or normal logs, and no browser storage when disabled.
+- **Handoff:** Deliver validated typed events to any configured sink; `0.33.34.5` supplies the first durable implementation.
+
+### 0.33.34.5 - Add the separate SQLite telemetry sink and schema lifecycle
+
+**Model: High Effort** — This checkpoint introduces durable pseudonymous storage, concurrency, filesystem permissions, and a schema lifecycle outside the hourly-reset application database.
+
+- **Purpose:** Implement the recommended local sink as a separate SQLite database with WAL/foreign keys, atomic inserts, sink-owned schema versions, health/integrity checks, bounded busy handling, and safe export/backup mechanics. Do not add an application-database migration or store telemetry in `longtail-forge.db`.
+- **Expected owners/files:** new telemetry SQLite adapter/store/schema owners, runtime path validation, Compose/runtime artifact membership as needed, storage tests, and operator documentation. The demo-specific second volume is not enabled until `0.33.34.11`.
+- **Architectural seam:** The sink interface owns persistence; the application database adapter and module repositories remain untouched. Store common/enumerated fields in typed columns with event-specific constraints; do not introduce an arbitrary `metadata_json`/properties bag. Any serialized typed payload is produced only after closed-schema validation and has a schema-versioned canonical shape.
+- **Dependencies:** sink and identity contracts from `0.33.34.3-.4`.
+- **Behavior unchanged:** Main database migrations/backups/workspace exports, Files storage, demo baseline promotion, audit retention, and job tables do not include or copy telemetry.
+- **Privacy invariants and negative controls:** Owner-only non-public path; no application record IDs/content; no security/audit join keys; installation/participant/session identities appear only in the raw store; disabled startup does not create the file. Installation reset is an explicit operator action that rotates the random installation ID without changing application identity.
+- **Verification:** Concurrent-write stress, crash/reopen, WAL checkpoint, schema upgrade/rollback refusal, filesystem path/mode, corruption classification, SQLite `PRAGMA integrity_check`, export redaction, and proof that JSONL/CSV code paths do not bypass the chosen sink.
+- **Handoff:** Expose transactional raw reads only to the maintenance/aggregation owner in `0.33.34.6`; normal reporting never queries raw identities.
+
+### 0.33.34.6 - Add 30-day retention, privacy-safe aggregation, and sink-local maintenance
+
+**Model: High Effort** — Pruning and cohort math must be idempotent and correct without retaining a durable participant-level history.
+
+- **Purpose:** Produce durable daily and monthly/rolling aggregate metrics, then prune raw events at the strict 30-day cutoff. Use sink-local leases/checkpoints so maintenance survives app-database resets and cannot double-count after retry.
+- **Expected owners/files:** telemetry aggregation/maintenance service, typed metric catalog, SQLite aggregate repositories, app/worker activation hook, operator status/report contracts, and deterministic clock-driven tests.
+- **Architectural seam:** Reuse Lean Core activation/worker lifecycle for process ownership, but keep telemetry payloads, leases, and maintenance state in the telemetry sink rather than the workspace-scoped application Jobs table. Document this separate-store exception explicitly; do not put participant IDs in `jobs.payload_json`.
+- **Dependencies:** durable SQLite sink and schema from `0.33.34.5`.
+- **Behavior unchanged:** Existing job claims/retries/retention, database startup maintenance, and demo reset scheduling remain unchanged.
+- **Privacy invariants and negative controls:** Aggregates contain no participant/session ID or stable hash. Persist only closed metric IDs/dimensions, counts, numerators/denominators, and periods. Suppress approved small cross-dimensional cohorts in exports. D1/D7/D14/D30 and rolling-30-day metrics are the maximum longitudinal products; no durable multi-month participant token is introduced to simulate longer retention.
+- **Verification:** Clock-boundary, leap/month-end, retry/idempotency, late-arrival, aggregation-before-prune, exact cutoff, empty-period, failure/recovery, cohort/co-occurrence/funnel correctness, small-cell suppression, and database integrity tests. Prove raw rows older than 30 days are absent and every durable table is participant/session-ID free.
+- **Handoff:** Publish aggregate query contracts and typed projector registration consumed by module instrumentation and reporting.
+
+### 0.33.34.7 - Project Tasks, Projects, recurrence, and timers into telemetry-safe events
+
+**Model: High Effort** — These high-volume work mutations carry titles, descriptions, assignments, hierarchy IDs, and precise timestamps in their normal domain/audit paths.
+
+- **Purpose:** Add the first server/domain projectors for `task.created`, `task.completed`, `task.recurrence_changed`, `project.created`, `timer.started`, and `timer.stopped`, using the exact event catalog and safe source/recurrence enums.
+- **Expected owners/files:** Tasks, Clients/Projects, and Time Tracking public module/service seams; framework telemetry projector registration; focused module contracts/regressions. No module reaches into the telemetry sink.
+- **Architectural seam:** Reuse existing successful service mutations/internal events where they contain enough facts; add the smallest module-owned safe lifecycle emission where Clients/Projects lacks one. A domain event may feed audit/security, telemetry-safe, notification, Search, and resume projections independently; telemetry never consumes the audit projection or full event payload.
+- **Dependencies:** aggregate/projector contracts from `0.33.34.2-.6`.
+- **Behavior unchanged:** Task lifecycle/recurrence/permissions/checklists/notifications/Search/resume, Project hierarchy, timer duration/billing/finalization, public API, and audit outputs remain identical.
+- **Privacy invariants and negative controls:** Project only recurrence class, recurrence presence/change, source class, and safe common dimensions. Record an interactive mutation only when a valid telemetry-only browser context exists; never derive a participant from an application user, workspace, API key, security session, job, request, or audit record. Public API calls, scheduled recurrence generation, workers, imports, webhooks, and other background/server-only mutations are outside the initial participant catalog. Reject titles/descriptions/next actions/handoff notes, assignees, client/project/task IDs or names, time-entry values/durations, due/completion times, billable amounts, and raw domain metadata.
+- **Verification:** Existing module behavior plus positive event-count assertions for browser-originated work and explicit no-event assertions for public API/background work without telemetry context; use negative payload snapshots seeded with identifying/content values. Failing/full sinks must not change mutation responses, transactions, recurrence generation, or timer finalization.
+- **Handoff:** Establish the module-owned projector pattern repeated for context/artifact modules in `0.33.34.8`.
+
+### 0.33.34.8 - Project Notes, secure Catalogs, Lists, Tags, and Files safely
+
+**Model: High Effort** — Secure Notes/Catalogs and Files contain the application's most sensitive content and storage metadata, making negative proof more important than event volume.
+
+- **Purpose:** Add server/domain projectors for `note.created`, `note.edited`, `note.accessed`, `list.created`, `list.item_completed`, `tag.assigned`, `file.uploaded`, `file.downloaded`, and `file.previewed`.
+- **Expected owners/files:** Notes/Lists/Tags public service/event seams, framework Files service, telemetry projector registrations, protected-content policy checks, and focused module/Files regressions.
+- **Architectural seam:** Notes owns effective security and Catalog classification; Lists owns operational completion meaning; Tags exposes only a coarse target family/count bucket; Files owns safe file-kind and action facts. Telemetry consumes those owner-produced primitives, never repositories, encrypted/decrypted payloads, full lifecycle events, or attachment/search projections.
+- **Dependencies:** proven projector pattern from `0.33.34.7` and effective-security/Files contracts inherited from Lean Core.
+- **Behavior unchanged:** Secure-note authorization/encryption/exclusion, Catalog transitions, Notes/Lists workflows, tag propagation/values, Files permissions/storage/scanning/quarantine/downloads/previews, Search, resume, notifications, and audit remain unchanged.
+- **Privacy invariants and negative controls:** Only `normal|secure` and `none|standard|secure` classifications survive. Never include note/list/catalog/tag/file IDs or names, titles/bodies/items, tag values, filenames/extensions/MIME strings, file sizes/hashes/paths/storage keys, scanner data, linked-record labels, or exact timestamps. Secure use is measured as a boolean/classification, not entity identity.
+- **Verification:** Seed every forbidden field into source fixtures and require exact telemetry outputs to remain unchanged; cover explicit-secure versus inherited-secure Catalog paths, later secure-note access within the raw window, unsupported file kinds mapping to `other|unknown`, and sink failure isolation for every mutation/read path.
+- **Handoff:** Complete server-originated feature facts; browser-only surface/source events land in `0.33.34.9`.
+
+### 0.33.34.9 - Instrument sessions, surfaces, modules, Workbench, Quick Capture, Search, and demo persona selection
+
+**Model: High Effort** — Cross-page browser instrumentation can duplicate counts, leak URLs/state, or drift from the app-shell and module-action registries if it is not centralized.
+
+- **Purpose:** Record `session.started`, `surface.viewed`, `module.opened`, `quick_capture.opened`, `quick_capture.completed`, `search.performed`, `workflow.outcome`, and `demo.persona_selected` through one typed browser helper.
+- **Expected owners/files:** shared app-shell/bootstrap/navigation/module-action/quick-action helpers, Workbench source attribution, Search result controller, public-demo login chooser, browser telemetry contracts, and focused browser/Playwright owners.
+- **Architectural seam:** Reuse canonical app-shell navigation/view-surface/module-action IDs and existing responsive breakpoints. Record entry/source enums at the shared dispatcher rather than editing every page click handler. Server mutation projectors remain authoritative for completed work; browser completion events describe only the Quick Capture/interaction funnel.
+- **Dependencies:** identity/ingestion boundary from `0.33.34.4` and module/domain projectors from `0.33.34.7-.8`.
+- **Behavior unchanged:** Navigation, focus return, module-action lazy loading, Workbench workflow state, Quick Action availability, Search query/result rendering, login credential fill, and demo permissions remain unchanged.
+- **Privacy invariants and negative controls:** Never send document title, location/referrer, raw URL/query string, search text, form fields, record/action params, DOM text, viewport width, browser/OS/user agent, security session, or application IDs. Surface/module/action values must resolve through closed canonical registries; unknown values map to `unknown` or are rejected, never forwarded. Known first-party automation is excluded or marked only through explicit test/runtime controls, and health/readiness probes never create participants.
+- **Verification:** One-count/no-duplicate navigation and action tests, direct-module versus Workbench/Quick Capture source attribution, search result-count buckets with query absence, persona selection without username/password, device-class boundary tests, disabled/no-storage proof, browser reload/Back/forward behavior, and Playwright payload inspection for forbidden values.
+- **Handoff:** Supply complete raw facts needed for the aggregate/report surface in `0.33.34.10`.
+
+### 0.33.34.10 - Add aggregate-only telemetry reporting and export
+
+**Model: High Effort** — Even an internal report can re-identify rare participants if it exposes raw rows or unrestricted cross-dimensional drill-down.
+
+- **Purpose:** Add the minimum operator-facing CLI/report export needed to answer the documented product questions: sessions/participants, module/surface use, action conversion, feature ranking/co-occurrence, recurrence and secure-feature adoption, completion ratios, safe workspace/role/device/demo-persona distributions, version trends, refusal/failure classes, and D1/D7/D14/D30 retention.
+- **Expected owners/files:** a host/operator CLI or package script, aggregate query service, JSON/CSV aggregate serializers, operator docs, and deterministic report fixtures. No authenticated browser admin page ships in `.34`.
+- **Architectural seam:** Reporting reads only durable aggregate tables through a narrow query service. Raw-store access remains maintenance-owned and is not exposed through routes, runtime diagnostics, Support View, normal backups/exports, or the CLI.
+- **Dependencies:** aggregation outputs from `0.33.34.6` and complete initial event coverage from `0.33.34.7-.9`.
+- **Behavior unchanged:** Framework Reporting module contracts, Dashboard, Workspace Settings, Runtime Diagnostics, audit export, and Support View do not gain telemetry data or links.
+- **Privacy invariants and negative controls:** Enforce the approved small-cohort suppression policy, bounded closed dimensions, no free-form filters, no participant/session/installation IDs, no raw event output, no arbitrary SQL, and no combining dimensions beyond reviewed reports.
+- **Verification:** Product-question-to-report acceptance matrix, seeded known aggregates, suppression/zero-data cases, JSON/CSV schema checks, no-identity scans, path/mode safeguards, and proof the reporter cannot open the application database or raw telemetry rows.
+- **Handoff:** Give public-demo operators a bounded proof/report target before enablement in `0.33.34.11`.
+
+### 0.33.34.11 - Enable telemetry on the public demo with visible privacy and reset isolation
+
+**Model: High Effort** — This is the first real data-collection deployment and changes exact-demo configuration, browser notice, host storage, reset, backup, and operational evidence.
+
+- **Purpose:** Explicitly enable the reviewed local SQLite sink only on `demo.longtailforge.com`, mount a separate owner-only telemetry volume outside the hourly-reset application data volume, and publish plain-language privacy notice/help.
+- **Expected owners/files:** exact-demo config allowlist/profile, Compose/demo host assets, public-demo runtime/capability/readiness rules, reset/deploy/backup helpers, login/footer/privacy surfaces, operator runbook, release candidate checks, and public-demo regressions.
+- **Architectural seam:** Keep `outbound.analytics` disabled because the `.34` sink is local and no hosted collector exists. Add explicit telemetry-local enablement/destination/path names to the exact-demo policy instead of relabeling local persistence as outbound traffic. The reset helper promotes only application database/Files state; telemetry volume and sink schema remain independently verified and untouched.
+- **Dependencies:** Mike-approved legal/privacy/notice decision from `0.33.34.1`, green aggregate report from `0.33.34.10`, and exact demo launch/release gates.
+- **Behavior unchanged:** Hourly application reset, public visitor roles, normal security/system logs, IP-based abuse controls, Caddy/container logs, maintenance curtain, app backups, and normal-mode defaults remain operationally separate. Security logs are not disabled or copied to telemetry.
+- **Privacy invariants and negative controls:** Notice states what is collected (feature use/co-use, broad device class, pseudonymous repeat visits) and never collected (identity, IP/user agent, names/emails, filenames, task/note/catalog/client/project content/names, search queries, user text). No reverse-proxy/access-log IP or user agent enters the telemetry volume. Known health checks and owned automation are excluded/marked without user fingerprinting.
+- **Verification:** Exact-demo startup/allowlist, second-volume ownership/mode, reset-survival across at least two manual reset cycles, app restore isolation, raw 30-day pruning, aggregate continuity, host/public privacy copy, no outbound network, no identity/content in inspected rows, direct/public health/readiness/app-info, immutable artifact identity, and rollback that preserves both application and telemetry boundaries.
+- **Handoff:** Public demo can measure product behavior without owning marketing identity; `0.33.34.12` adds the one-way interest handoff.
+
+### 0.33.34.12 - Add one-way Raymond Tec interest CTAs without telemetry linkage
+
+**Model: High Effort** — Cross-domain marketing handoff can silently deanonymize prior telemetry if identifiers, behavior, or link decoration escape.
+
+- **Purpose:** Add reviewed demo CTAs that navigate to the approved Raymond Tec Longtail Forge pages, where WordPress/MailPoet owns email collection, consent, self-host/SaaS/early-access interest, and product-news subscriptions.
+- **Expected owners/files:** demo/app-shell/footer/login CTA configuration and copy, URL allowlist/safe-link helper, privacy documentation, public-demo egress policy if navigation requires it, and focused link/payload regressions. No WordPress or MailPoet code/config is changed in this repository.
+- **Architectural seam:** The application performs a normal top-level HTTPS navigation to the fixed approved Raymond Tec origin. Only `utm_source=ltf_demo`, `utm_medium=product`, and an approved coarse `utm_campaign` may be sent; WordPress owns all submitted identity and consent after navigation.
+- **Dependencies:** Mike-approved destination URLs/copy/campaign values and enabled notice boundary from `0.33.34.11`.
+- **Behavior unchanged:** `longtailforge.com` continues redirecting to Raymond Tec's current Longtail Forge pages; `demo.longtailforge.com` remains on the Proxmox demo host. No embedded form, feedback body, email address, callback, conversion pixel, or lead storage is added to Longtail Forge.
+- **Privacy invariants and negative controls:** Never include installation/participant/telemetry-session/application-user IDs, event/behavior identifiers, role/persona/workspace/device/version context, referrer payloads, or user-entered values. MailPoet submission cannot call back into Longtail Forge to attach a human to previous behavior.
+- **Verification:** Exact-origin/path/query allowlist; URL inspection from every CTA; seeded telemetry/app IDs and form values remain absent; no local persistence or event after handoff beyond the coarse CTA event if the approved catalog includes one; Content Security Policy and external-navigation behavior remain safe.
+- **Handoff:** Close the branch with an end-to-end privacy/threat audit and future-roadmap handoff.
+
+### 0.33.34.13 - Privacy/security regression closeout and future collector handoff
+
+**Model: High Effort** — Final closeout must prove a negative collection boundary across code, storage, deployment, reports, and marketing handoff before declaring telemetry safe.
+
+- **Purpose:** Run the complete threat review and seeded negative-control suite; reconcile documentation; close the version-wide branch; and leave the hosted collector, full self-host administration, and dedicated marketing site in their explicit post-`0.40` roadmap homes.
+- **Expected owners/files:** telemetry/unit/contract/regression/Playwright owners, docs ownership map and owning architecture/runtime/public-demo/operator docs, `DECISIONS.md`, `CHANGELOG.md`, roadmap/archive/version files, release metadata, and exact runtime proof.
+- **Architectural seam:** Confirm one typed emission boundary, one policy service, one sink interface, one local SQLite sink, one aggregate query service, and module-owned projectors. Reject duplicate event buses, raw-event reporting routes, generic telemetry contribution bags, app-database telemetry tables, and audit/security coupling.
+- **Dependencies:** `0.33.34.1-.12` complete, privacy/legal approvals recorded, and public-demo live evidence available.
+- **Behavior unchanged:** Every telemetry-disabled ordinary/self-host installation behaves as before; public demo application workflows and hourly reset remain independent of telemetry health; marketing identity remains external.
+- **Privacy invariants and negative controls:** Execute the full list in `docs/telemetry-planning.md`, including disabled/no-write, unknown type/property, denylist, user text, IP/user agent/application ID/request-audit ID/viewport absence, identity lifecycle, failure isolation, 30-day prune, no IDs in aggregates, no CTA linkage, reset survival, closed future-module extension, and source scans for raw event/audit spreading.
+- **Verification:** Run `npm run verify:slice` once on the final tree plus required public-demo candidate/live-host proof. Inspect representative raw/aggregate databases and report/CTA payloads independently. Run `PRAGMA integrity_check` on both application and telemetry SQLite stores. Record no-doc-change reasons only where an owning contract genuinely stayed unchanged.
+- **Handoff:** Roll up one `0.33.34` release/version, archive the parent and children, advance the active cursor to `0.34`, and leave `telemetry.longtailforge.com` deferred to the SaaS wrapper after the `0.40` database/integration foundations.
 
 Acceptance criteria:
 
-- The October 1 launch has an explicit privacy and durable-interest-capture decision: any enabled measurement is consent-appropriate and documented, mailing-list/feedback data survives demo resets only in its governed external system, and 0.33.31 remains operable with all nonessential analytics disabled.
+- Telemetry is disabled by default and produces no identity, browser storage, local persistence, or network traffic while disabled.
+- The initial event catalog and every property are closed, typed, runtime-validated, question-linked, and protected by compile/runtime negative controls; the explicit denylist cannot enter raw events, aggregates, diagnostics, reports, logs, or CTA URLs.
+- Random installation/participant/session identities support no more than the intended pseudonymous browser-local longitudinal analysis and are never derived from or mapped to application identity.
+- The replaceable sink boundary has one separate SQLite demo implementation outside hourly reset, with raw data pruned after 30 days and identity-free daily/monthly/rolling aggregates.
+- Domain/application facts may feed independent audit/security, telemetry-safe, notification, Search/resume, and other projections, but telemetry never copies the audit/security payload and telemetry failure never breaks product work.
+- The public demo shows the approved plain-language notice, collects no IP/user-agent/content/direct identity, and hands interest capture one way to Raymond Tec/MailPoet with coarse campaign attribution only.
+- Aggregate-only reporting answers the documented product questions without a `.34` BI/admin UI, raw-event route, long-lived participant history, or entity-level telemetry IDs.
 
 ## Version 0.34 - Support Tickets Module
 
@@ -2262,6 +2438,24 @@ Grounding (re-verify at implementation time - code will have drifted):
 - [ ] Self-hosted release
 - [ ] Expand project management tools
 
+### Privacy & Telemetry administration
+
+**Model: High Effort** — A public self-hosted control surface changes install-wide collection, identity reset, destination disclosure, and privacy expectations.
+
+- [ ] Add **Settings -> Privacy & Telemetry** for self-host administrators after the `0.40` database/integration foundations and before broader self-host release. Default Off remains authoritative; upgrading must never opt an installation in.
+- [ ] Show the exact current event catalog and permitted properties, the complete never-collected categories, raw/aggregate retention, destination/sink health, and the current random anonymous installation identity without exposing participant/session identities or raw events.
+- [ ] Allow an authorized administrator to enable/disable telemetry, reset the anonymous installation identity, and inspect a bounded preview of recent outbound/local typed payload shapes only if the preview can preserve the same denylist and cannot become a raw participant browser. Turning Off stops persistence/transmission immediately; define whether existing raw data is pruned immediately or follows the disclosed retention policy.
+- [ ] Keep telemetry separate from Audit, Security events, Support View, Runtime Diagnostics, and workspace/module settings. Install-level policy belongs to the protected framework/runtime boundary, not a module contribution or workspace scalar.
+- [ ] Show the configured destination (`local`, future hosted collector, or another reviewed sink) and hosted-collector status without revealing credentials, protected paths, request headers, participant/session IDs, or provider internals.
+
+### Dedicated Longtail Forge marketing-site transition
+
+**Model: High Effort** — A dedicated public WordPress installation and remote database introduce infrastructure, security, privacy, migration, and ownership work outside the application runtime.
+
+- [ ] Keep the current architecture until this transition: `longtailforge.com` redirects to Raymond Tec's Longtail Forge pages and `demo.longtailforge.com` remains on the existing Proxmox demo host.
+- [ ] Later move `longtailforge.com` to a dedicated WordPress installation initially hosted on `raytec-nyc3-01`, with its WordPress database on `raytec-nyc3-02`. Do not convert the Raymond Tec WordPress installation to Multisite for this purpose.
+- [ ] Plan content/redirect/SEO/privacy/security/backup migration so existing Raymond Tec Longtail Forge pages become CTA and migration entry points to the dedicated site. This remains marketing infrastructure and must not be implemented through Longtail Forge telemetry or application migrations.
+
 ### Added during 0.30.6 Code Review
 
 - Verify runtime data directory permissions for `data/`, `logs/`, and `archive/`.
@@ -2279,6 +2473,16 @@ This will be a private plugin, only available to me. This layer is the hosted, m
 - [ ] Tenant signup
 - [ ] Billing
 - [ ] Monitoring
+
+### Hosted telemetry collector and SaaS analytics backend
+
+**Model: High Effort** — A multi-install remote collector adds network authentication, abuse resistance, schema negotiation, privacy isolation, and hosted data operations.
+
+- [ ] Add `telemetry.longtailforge.com` after the `0.40` provider/integration foundations when SaaS and explicitly opted-in self-host installations need a shared collector. The local/demo SQLite sink from `0.33.34` remains sufficient before this point and is not rewritten.
+- [ ] Authenticate installations without application-user identity; support batching, bounded retry/backoff, rate limiting and abuse protection, schema/catalog version negotiation, replay/idempotency controls, and sink-level health without accepting arbitrary event/property bags.
+- [ ] Preserve the `0.33.34` random installation/participant/session model, denylist, minute timestamps, 30-day raw retention, identity-free aggregates, failure isolation, and no audit/security/interest-capture linkage across network ingestion.
+- [ ] Add hosted aggregation, multi-install processing, SaaS analytics/reporting, deletion/reset operations, tenant/installation isolation, incident response, and independent privacy/security proof before directing public or self-host traffic to the collector.
+- [ ] Keep the public demo on its local sink unless a later measured operational need and privacy review explicitly approve moving it to the hosted collector.
 
 ## Version 0.70.0 - Integrations and Plugin Readiness
 
