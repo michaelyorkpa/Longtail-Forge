@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.31.6 - Type Files attachment target and context read owners
+
+**Model: High Effort** - Attachment targets are a cross-module authorization surface.
+
+Sixth child of the `0.33.33.31` rollup, measured at 182 diagnostics across 5 files and 2,540 lines. Five children remain.
+
+- [x] Closed all 182 diagnostics across `files-attachable-target-options`, `files-attachment-context-route`, `files-attachment-readmodel`, `files-browse-attachment-reads-conversion`, and `files-context-targets-conversion`. The scripts program falls from 4,079 to 3,897 diagnostics, explicit `any` holds at 7, and all five owners are pinned strict-clean through `framework.full-strict-governance`.
+- [x] Put the 55 response-envelope reads in the two HTTP owners behind the `unknown` boundary and the shared narrowing, deriving the envelopes from what the Files service publishes: `listAttachableTargetOptions`, `uploadAndAttach`, `updateAttachmentContext`, and `attachExistingFile`.
+- [x] Narrowed three production shapes the tests had been presuming rather than proving. The attachable-target filters omit their `options` entirely when a filter is not visible, so a visible Business Client filter is proven to carry them before they are searched. The event bus publishes `metadata` as optional, so the sanitization claims in the read-model and context owners only run once each payload is proven to carry one. A target option's `contextLabel` is optional, so it is proven present before it is matched.
+- [x] Built the three service-backed owners' fixture sessions against the published `WorkspaceRequestSession` contract rather than a hand-picked subset.
+- [x] Retired an identical historical-pin pattern from both conversion owners: the `0.33.5.27.18` and `0.33.5.27.19` burndown figures in the audit and database docs, a `ROADMAP.md` `doesNotMatch` asserting the live roadmap no longer carries those archived slice bodies against a live cursor of `0.33.33`, and a `CHANGELOG.md` match on each slice's shipped burndown entry. Both owners keep the live audit-workflow assertion, the converted-state inventory row, and their full live-source proofs, and both are removed from both lists in `scripts/planning-document-pin-baseline.json` in the same change.
+- [x] Proved one contract per owner with its own negative control: disabling attachable-target authorization on a context move, the duplicate active attachment context refusal, the readable-target scoping in attachment counts, the case-insensitive filename browse ordering seam, and the workspace-type Client filter scoping each makes the owning regression fail. Every perturbed source restores byte-identical by SHA-256, and the five new governance pins fail by name when a diagnostic is seeded against them.
+- [x] Changed no production behavior. No explicit `any`, `@ts-ignore`, `@ts-nocheck`, or file exclusion was introduced.
+
 ## Version 0.33.33.31.5.1 - Pin streamed preview response security headers
 
 **Model: High Effort** - An egress header that nothing asserts is an egress header that can quietly change.
