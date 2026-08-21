@@ -11,6 +11,7 @@ import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 import { readPayload } from "./test-support/http-payload-assertions.mjs";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
 
 /** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
 /** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
@@ -195,7 +196,12 @@ ORDER BY files.original_filename;
   assert.deepEqual(attachments.map((row) => row.original_filename), ["streamed-alpha.txt", "streamed-beta.txt"]);
   assert.deepEqual(attachments.map((row) => row.status), ["pending", "pending"]);
   assert.deepEqual(attachments.map((row) => row.scan_status), ["pending", "pending"]);
-  assert.deepEqual(attachments.map((row) => JSON.parse(row.metadata_json).batch_index), [0, 1]);
+  assert.deepEqual(
+    attachments.map((row) => /** @type {{ batch_index: number }} */ (
+      requireJsonRecord(JSON.parse(row.metadata_json), "attachment metadata_json")
+    ).batch_index),
+    [0, 1],
+  );
 }
 
 /** @param {BatchApiClient} api @param {BatchFixtures} fixtures */

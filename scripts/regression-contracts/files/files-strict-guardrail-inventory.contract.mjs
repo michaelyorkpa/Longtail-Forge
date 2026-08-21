@@ -141,10 +141,12 @@ assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.6[\s\S]*Files strict decla
   "Module contract should document the Files strict enforcement boundary");
 console.log(`Files strict declarative guardrail enforcement passed. Direct DOM construction: files.js=${countMatches(filesScript, /document\.createElement/g)}, file-attachments.js=${countMatches(attachmentHelper, /document\.createElement/g)} centralized fallback.`);
 
+/** @param {string} source @param {RegExp} pattern */
 function countMatches(source, pattern) {
   return [...source.matchAll(pattern)].length;
 }
 
+/** @param {string} source @param {string} functionName */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);

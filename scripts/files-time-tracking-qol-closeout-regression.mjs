@@ -27,6 +27,11 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} FilesSession */
+
+/** @param {FilesSession} session */
 async function assertHelpDocumentsShippedFileBehavior(session) {
   const { article } = await helpService.readArticle(session, "framework.files-attachments");
 
@@ -42,6 +47,7 @@ async function assertHelpDocumentsShippedFileBehavior(session) {
   }
 }
 
+/** @param {FilesSession} session */
 async function assertHelpDocumentsTimeTrackingBehavior(session) {
   const frameworkArticle = (await helpService.readArticle(session, "framework.time-tracking")).article;
   const timerArticle = (await helpService.readArticle(session, "time-tracking.timers")).article;
@@ -99,23 +105,27 @@ async function assertTimerLifecycleEventsRemainRegistered() {
   ]);
 }
 
+/** @returns {Promise<FilesSession>} */
 async function readProtectedSession() {
-  const user = (await querySql(`
+  /** @type {{ active_workspace_id: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const user = requireFirstRow(await querySql(`
 SELECT user_id, username, home_workspace_id, active_workspace_id, timezone
 FROM users
 WHERE protected_user = 'yes'
 ORDER BY username
 LIMIT 1;
-`))[0];
+`), "protected user fixture");
 
-  assert.ok(user, "protected user fixture is required");
-
+  const workspaceId = user.active_workspace_id || user.home_workspace_id;
   return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
+    active_workspace_id: workspaceId,
     home_workspace_id: user.home_workspace_id,
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
     timezone: user.timezone || "America/New_York",
     user_id: user.user_id,
     username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
+    workspace_id: workspaceId,
   };
 }

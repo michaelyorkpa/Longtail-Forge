@@ -114,6 +114,7 @@ assert.match(styles, /\.files-row-actions\s*\{[\s\S]*display:\s*flex[\s\S]*flex-
 
 console.log("Files browse list shell regression passed.");
 
+/** @param {string} source @param {string} functionName */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);

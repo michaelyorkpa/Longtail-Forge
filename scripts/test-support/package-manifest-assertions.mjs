@@ -19,6 +19,7 @@ import assert from "node:assert/strict";
  * @typedef {object} PackageManifest
  * @property {Record<string, string>} [dependencies]
  * @property {Record<string, string>} [devDependencies]
+ * @property {Record<string, string>} [scripts]
  * @property {string} [version]
  */
 

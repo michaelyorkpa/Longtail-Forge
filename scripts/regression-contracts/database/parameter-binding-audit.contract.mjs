@@ -4,10 +4,12 @@ import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { buildParameterBindingBaseline, evaluateParameterBindingBaseline, formatParameterBindingAudit, scanParameterBindings, serializeParameterBindingBaseline } from "../../lib/parameter-binding-audit.mjs";
 import { lineNumber, readRuntimeSourceEntries } from "../../test-support/source-scan.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const root = process.cwd();
-const baseline = JSON.parse(readText("scripts/baselines/parameter-binding-baseline.json"));
+/** @type {import("../../lib/parameter-binding-audit.mjs").ParameterBindingBaseline} */
+const baseline = requireJsonRecord(JSON.parse(readText("scripts/baselines/parameter-binding-baseline.json")), "parameter binding baseline");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const runtimeSourceEntries = readRuntimeSourceEntries({ root });

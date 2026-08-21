@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const root = process.cwd();
@@ -72,7 +73,8 @@ function assertPerformanceSmoke() {
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
-  const report = JSON.parse(result.stdout);
+  /** @type {{ iterations?: unknown, profile?: unknown, provider?: unknown, routes: Array<{ bytes: number, id: string, p95Ms: unknown, samplesMs: unknown[], statusCode: unknown }> }} */
+  const report = requireJsonRecord(JSON.parse(result.stdout), "small-office performance report");
   assert.equal(report.profile, "dev-demo");
   assert.equal(report.provider, "sqlite");
   assert.equal(report.iterations, 1);

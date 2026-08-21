@@ -61,6 +61,7 @@ assert.match(rendererShellRegression, /Escape should close the drawer/, "Shared 
 
 console.log("Files filter sidebar regression passed.");
 
+/** @param {string} source @param {string} functionName */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);
@@ -68,6 +69,7 @@ function functionBlock(source, functionName) {
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
 
+/** @param {string} html @param {string} label */
 function assertNoProtectedAnatomy(html, label) {
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));
 

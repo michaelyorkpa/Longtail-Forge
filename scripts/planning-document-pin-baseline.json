@@ -21,7 +21,6 @@
     "legacy.database.conflict.identity.seam",
     "legacy.database.dialect.seam.scaffold",
     "legacy.database.introspection.boundary",
-    "legacy.files.lifecycle.settings.quota.conversion",
     "legacy.framework.admin.low.count.repositories.conversion",
     "legacy.high.volume.admin.lists",
     "legacy.lists.catalog.links.repository.conversion",
@@ -61,7 +60,6 @@
   ],
   "planningDocumentReaders": [
     "database.current-static-contracts",
-    "files.current-static-contracts",
     "legacy.active.timers.repository.conversion",
     "legacy.batched.list.enrichment",
     "legacy.better.sqlite3.driver.closeout",
@@ -83,7 +81,6 @@
     "legacy.file.multipart.batch.upload.helper",
     "legacy.file.multipart.upload.route",
     "legacy.file.upload.compatibility.error.hardening",
-    "legacy.files.lifecycle.settings.quota.conversion",
     "legacy.framework.admin.low.count.repositories.conversion",
     "legacy.high.volume.admin.lists",
     "legacy.linked.context.picker.shell",

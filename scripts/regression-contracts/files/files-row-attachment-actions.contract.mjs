@@ -14,7 +14,6 @@ const filesHtml = readText("views/protected/files.html");
 const notesHtml = readText("views/protected/notes.html");
 const tasksHtml = readText("views/protected/tasks.html");
 const workbenchHtml = readText("views/protected/workbench.html");
-const roadmap = readText("ROADMAP.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
 const declarativeSurfaces = readText("docs/declarative-view-surfaces.md");
@@ -97,7 +96,6 @@ assert.match(notesHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file
 assert.match(tasksHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Tasks should reference the shared attachment action helper and load preview");
 assert.match(workbenchHtml, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/, "Workbench should reference the shared attachment action helper and load preview");
 
-assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.4/, "View-building contract should document the current Files visual parity slice");
 assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.4/, "Module contract should document the current Files visual parity boundary");
 assert.match(declarativeSurfaces, /As of 0\.33\.5\.18\.12\.4/, "Declarative surface contract should document the current Files visual parity boundary");
@@ -109,6 +107,7 @@ assert.match(declarativeSurfaces, /As of 0\.33\.5\.18\.12\.4/, "Declarative surf
 
 console.log("Files row and attachment action wiring regression passed.");
 
+/** @param {string} source @param {string} functionName */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);

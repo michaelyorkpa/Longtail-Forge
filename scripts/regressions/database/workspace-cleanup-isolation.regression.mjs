@@ -17,6 +17,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import Database from "better-sqlite3";
 import { captureCanonicalWorkspaceInventory, assertCanonicalWorkspaceInventoryUnchanged } from "../../test-support/canonical-workspace-inventory.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -84,7 +85,9 @@ async function assertDryRunAndApply(targetDatabase, targetBackup) {
     "--database",
     targetDatabase,
   ]);
-  const dryRunReport = JSON.parse(dryRun.stdout);
+  /** @type {{ action?: unknown, backup?: { verified?: unknown }, plan?: { blockingForeignKeyViolations: unknown[], foreignKeyViolations: Array<Record<string, unknown>>, orphanWorkspaceScopes?: unknown, removalWorkspaceCount?: unknown, retainedWorkspaceCount?: unknown }, result?: { foreignKeyCheck?: unknown, integrityCheck?: unknown, removedWorkspaceCount?: unknown, repairedDanglingRoleAssignmentCount?: unknown, retainedWorkspaceCount?: unknown } }} */
+  const dryRunReport = requireJsonRecord(JSON.parse(dryRun.stdout), "cleanup dry-run report");
+  assert.ok(dryRunReport.plan, "dryRunReport should publish its plan");
 
   assert.equal(dryRun.exitCode, 0, dryRun.stderr);
   assert.equal(dryRunReport.action, "dry-run");
@@ -128,7 +131,10 @@ async function assertDryRunAndApply(targetDatabase, targetBackup) {
     targetBackup,
     "--repair-dangling-retained-role-assignments",
   ]);
-  const appliedReport = JSON.parse(applied.stdout);
+  /** @type {{ action?: unknown, backup?: { verified?: unknown }, plan?: { blockingForeignKeyViolations: unknown[], foreignKeyViolations: Array<Record<string, unknown>>, orphanWorkspaceScopes?: unknown, removalWorkspaceCount?: unknown, retainedWorkspaceCount?: unknown }, result?: { foreignKeyCheck?: unknown, integrityCheck?: unknown, removedWorkspaceCount?: unknown, repairedDanglingRoleAssignmentCount?: unknown, retainedWorkspaceCount?: unknown } }} */
+  const appliedReport = requireJsonRecord(JSON.parse(applied.stdout), "cleanup applied report");
+  assert.ok(appliedReport.result, "appliedReport should publish its result");
+  assert.ok(appliedReport.backup, "appliedReport should publish its backup");
 
   assert.equal(applied.exitCode, 0, applied.stderr);
   assert.equal(appliedReport.backup.verified, true);
@@ -146,7 +152,9 @@ async function assertDryRunAndApply(targetDatabase, targetBackup) {
     "--database",
     targetDatabase,
   ]);
-  const rerunReport = JSON.parse(rerun.stdout);
+  /** @type {{ action?: unknown, backup?: { verified?: unknown }, plan?: { blockingForeignKeyViolations: unknown[], foreignKeyViolations: Array<Record<string, unknown>>, orphanWorkspaceScopes?: unknown, removalWorkspaceCount?: unknown, retainedWorkspaceCount?: unknown }, result?: { foreignKeyCheck?: unknown, integrityCheck?: unknown, removedWorkspaceCount?: unknown, repairedDanglingRoleAssignmentCount?: unknown, retainedWorkspaceCount?: unknown } }} */
+  const rerunReport = requireJsonRecord(JSON.parse(rerun.stdout), "cleanup rerun report");
+  assert.ok(rerunReport.plan, "rerunReport should publish its plan");
   assert.equal(rerun.exitCode, 0, rerun.stderr);
   assert.equal(rerunReport.plan.removalWorkspaceCount, 0);
   assert.deepEqual(rerunReport.plan.orphanWorkspaceScopes, []);

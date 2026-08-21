@@ -416,6 +416,34 @@ for (const jobObservabilityOwner of [
   assert.equal(ledger.programs.scripts.diagnostics[jobObservabilityOwner], undefined, `${jobObservabilityOwner} must stay strict-clean after checkpoint 0.33.33.31.10`);
   assert.equal(ledger.explicitAnyByFile[jobObservabilityOwner], undefined, `${jobObservabilityOwner} must stay free of explicit any after checkpoint 0.33.33.31.10`);
 }
+
+// The Files settings, descriptor host, and folded Files contract owners closed
+// at 0.33.33.31.11, which completes the 0.33.33.31 rollup. These carry the
+// settings and quota conversion proofs plus the folded contract ownership
+// reconciliation, so the pin keeps their payload reads named rather than
+// merely passing.
+for (const filesClosingOwner of [
+  "scripts/file-framework-contract-regression.mjs",
+  "scripts/file-settings-regression.mjs",
+  "scripts/files-descriptor-host-regression.mjs",
+  "scripts/files-lifecycle-settings-quota-conversion-regression.mjs",
+  "scripts/files-time-tracking-qol-closeout-regression.mjs",
+  "scripts/regression-contracts/files/file-scanner-setup-docs.contract.mjs",
+  "scripts/regression-contracts/files/files-attachment-panel-shell.contract.mjs",
+  "scripts/regression-contracts/files/files-browse-compact-reset.contract.mjs",
+  "scripts/regression-contracts/files/files-browse-list-shell.contract.mjs",
+  "scripts/regression-contracts/files/files-edit-modal-save.contract.mjs",
+  "scripts/regression-contracts/files/files-edit-modal-shell.contract.mjs",
+  "scripts/regression-contracts/files/files-filter-sidebar.contract.mjs",
+  "scripts/regression-contracts/files/files-preview-modal.contract.mjs",
+  "scripts/regression-contracts/files/files-row-attachment-actions.contract.mjs",
+  "scripts/regression-contracts/files/files-strict-guardrail-inventory.contract.mjs",
+  "scripts/regression-contracts/files/files-upload-shell.contract.mjs",
+  "scripts/regression-contracts/files/files-visual-state-control-parity.contract.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[filesClosingOwner], undefined, `${filesClosingOwner} must stay strict-clean after checkpoint 0.33.33.31.11`);
+  assert.equal(ledger.explicitAnyByFile[filesClosingOwner], undefined, `${filesClosingOwner} must stay free of explicit any after checkpoint 0.33.33.31.11`);
+}
 // The authorization-model owners closed at 0.33.33.30.7.1 and the permission
 // harness itself closed at 0.33.33.30.7.2.2, which completes the
 // 0.33.33.30.7 cohort.

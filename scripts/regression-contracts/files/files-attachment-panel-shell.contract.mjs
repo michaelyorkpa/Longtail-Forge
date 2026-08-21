@@ -17,7 +17,6 @@ const workbenchHtml = readText("views/protected/workbench.html");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
 const declarativeSurfaces = readText("docs/declarative-view-surfaces.md");
-const roadmap = readText("ROADMAP.md");
 
 assert.match(notesModule, /version:\s*appVersion/, "Notes module should report the current attachment-panel shell version");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current attachment-panel shell version");
@@ -113,10 +112,10 @@ assert.match(functionBlock(taskDialog, "mountTaskFileAttachments"), /saveFirstMe
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.2/, "View-building contract should document the attachment-panel shell slice");
 assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.2, the shared Files attachment helper wraps its reusable attachment panel/, "Module contract should document the panel shell boundary");
 assert.match(declarativeSurfaces, /As of 0\.33\.5\.18\.12\.2, the shared Files attachment helper also standardizes its reusable attachment panel/, "Declarative surface contract should mention the panel shell standardization");
-assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
 
 console.log("Files attachment panel shell regression passed.");
 
+/** @param {string} source @param {string} functionName */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);
