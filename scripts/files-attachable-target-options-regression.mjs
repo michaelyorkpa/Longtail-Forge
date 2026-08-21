@@ -7,6 +7,27 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { URLSearchParams } from "node:url";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** This client builds its own query string, so it names its own option bag. */
+/** @typedef {{ cookie?: string, query?: Record<string, string> }} TargetClientOptions */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+
+/**
+ * One fixture response. The body stays `unknown` on purpose: JSON.parse would
+ * hand back `any`, and every envelope read below would then be a claim the
+ * compiler never checks.
+ * @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown> & { text: string }} TargetResponse
+ */
+
+/** @typedef {{ get: (url: string, options?: TargetClientOptions) => Promise<TargetResponse> }} TargetApiClient */
+
+/** The attachable-targets route publishes the Files service result unchanged. */
+/** @typedef {typeof import("../src/services/files.service.js").filesService} FilesService */
+/** @typedef {Awaited<ReturnType<FilesService["listAttachableTargetOptions"]>>} AttachableTargetsEnvelope */
+
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-files-attachable-target-options-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-files-attachable-target-options.db");
@@ -16,6 +37,7 @@ const { createApp } = await import("../src/core/app.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { createSession } = await import("../src/security/sessions.js");
 
+/** @type {string[]} */
 const results = [];
 let server;
 
@@ -23,7 +45,7 @@ try {
   await initializeDatabase();
   const fixtures = await seedFixtures();
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   await checkAsync("Business target options expose readable allowed targets and context filters", async () => {
     const result = await api.get("/api/files/attachable-targets", {
@@ -36,9 +58,11 @@ try {
     });
 
     assert.equal(result.status, 200);
-    assert.equal(result.body.workspaceType, "business");
-    assert.equal(result.body.count, 1);
-    const option = result.body.options[0];
+    /** @type {AttachableTargetsEnvelope} */
+    const resultTargets = readPayload(result, ["count", "options"], "GET /api/files/attachable-targets");
+    assert.equal(resultTargets.workspaceType, "business");
+    assert.equal(resultTargets.count, 1);
+    const option = resultTargets.options[0];
     assert.equal(option.label, "Allowed Option Task");
     assert.equal(option.moduleLabel, "Tasks");
     assert.equal(option.targetTypeLabel, "Task");
@@ -48,12 +72,17 @@ try {
     assert.equal(option.clientLabel, "Allowed Option Client");
     assert.equal(option.projectId, fixtures.projectId);
     assert.equal(option.projectLabel, "Allowed Option Project");
+    assert.ok(option.contextLabel, "a business target option should carry a context label");
     assert.match(option.contextLabel, /Allowed Option Client/);
     assert.match(option.contextLabel, /Allowed Option Project/);
-    assert.equal(result.body.filters.client.visible, true);
-    assert.ok(result.body.filters.client.options.some((entry) => entry.value === fixtures.clientId && entry.label === "Allowed Option Client"));
-    assert.ok(result.body.filters.project.options.some((entry) => entry.value === fixtures.projectId && entry.label === "Allowed Option Project"));
-    assert.ok(result.body.targetTypes.some((entry) => entry.moduleId === "tasks" && entry.targetType === "task" && entry.label === "Tasks: Task"));
+    assert.equal(resultTargets.filters.client.visible, true);
+    // The service omits filter options entirely when a filter is not visible,
+    // so a visible business filter has to be proven to carry them.
+    assert.ok(resultTargets.filters.client.options, "a visible Client filter should publish its options");
+    assert.ok(resultTargets.filters.project.options, "a visible Project filter should publish its options");
+    assert.ok(resultTargets.filters.client.options.some((entry) => entry.value === fixtures.clientId && entry.label === "Allowed Option Client"));
+    assert.ok(resultTargets.filters.project.options.some((entry) => entry.value === fixtures.projectId && entry.label === "Allowed Option Project"));
+    assert.ok(resultTargets.targetTypes.some((entry) => entry.moduleId === "tasks" && entry.targetType === "task" && entry.label === "Tasks: Task"));
     assertNoStorageLeak(result.body);
     assertSafeLabels(result.body);
   });
@@ -70,11 +99,13 @@ try {
     });
 
     assert.equal(result.status, 200);
-    assert.ok(result.body.options.some((option) => option.targetId === fixtures.allowedTaskId));
-    assert.ok(result.body.options.some((option) => option.targetId === fixtures.rawLabelTaskId));
-    assert.ok(!result.body.options.some((option) => option.targetId === fixtures.archivedTaskId));
-    assert.ok(result.body.options.every((option) => option.clientId === fixtures.clientId));
-    assert.ok(result.body.options.every((option) => option.projectId === fixtures.projectId));
+    /** @type {AttachableTargetsEnvelope} */
+    const resultTargets = readPayload(result, ["count", "options"], "GET /api/files/attachable-targets");
+    assert.ok(resultTargets.options.some((option) => option.targetId === fixtures.allowedTaskId));
+    assert.ok(resultTargets.options.some((option) => option.targetId === fixtures.rawLabelTaskId));
+    assert.ok(!resultTargets.options.some((option) => option.targetId === fixtures.archivedTaskId));
+    assert.ok(resultTargets.options.every((option) => option.clientId === fixtures.clientId));
+    assert.ok(resultTargets.options.every((option) => option.projectId === fixtures.projectId));
     assertNoStorageLeak(result.body);
     assertSafeLabels(result.body);
   });
@@ -89,10 +120,12 @@ try {
     });
 
     assert.equal(result.status, 200);
-    assert.ok(result.body.options.some((option) => option.moduleId === "tasks" && option.targetType === "task" && option.targetId === fixtures.allowedTaskId));
-    assert.ok(result.body.options.some((option) => option.moduleId === "notes" && option.targetType === "note" && option.targetId === fixtures.allowedNoteId));
-    assert.ok(result.body.targetTypes.some((entry) => entry.moduleId === "tasks" && entry.targetType === "task" && entry.label === "Tasks: Task"));
-    assert.ok(result.body.targetTypes.some((entry) => entry.moduleId === "notes" && entry.targetType === "note" && entry.label === "Notes: Note"));
+    /** @type {AttachableTargetsEnvelope} */
+    const resultTargets = readPayload(result, ["count", "options"], "GET /api/files/attachable-targets");
+    assert.ok(resultTargets.options.some((option) => option.moduleId === "tasks" && option.targetType === "task" && option.targetId === fixtures.allowedTaskId));
+    assert.ok(resultTargets.options.some((option) => option.moduleId === "notes" && option.targetType === "note" && option.targetId === fixtures.allowedNoteId));
+    assert.ok(resultTargets.targetTypes.some((entry) => entry.moduleId === "tasks" && entry.targetType === "task" && entry.label === "Tasks: Task"));
+    assert.ok(resultTargets.targetTypes.some((entry) => entry.moduleId === "notes" && entry.targetType === "note" && entry.label === "Notes: Note"));
     assertNoStorageLeak(result.body);
     assertSafeLabels(result.body);
   });
@@ -110,14 +143,16 @@ try {
     });
 
     assert.equal(result.status, 200);
-    assert.equal(result.body.workspaceType, "family");
-    assert.equal(result.body.filters.client.visible, false);
-    assert.ok(!Object.hasOwn(result.body.filters.client, "options"));
-    assert.ok(result.body.options.some((option) => option.targetId === fixtures.allowedTaskId));
-    assert.ok(result.body.options.every((option) => !Object.hasOwn(option, "clientId")));
-    assert.ok(result.body.options.every((option) => !Object.hasOwn(option, "clientLabel")));
-    assert.ok(result.body.options.every((option) => !Object.hasOwn(option.value, "clientId")));
-    assert.ok(result.body.filters.project.visible);
+    /** @type {AttachableTargetsEnvelope} */
+    const resultTargets = readPayload(result, ["count", "options"], "GET /api/files/attachable-targets");
+    assert.equal(resultTargets.workspaceType, "family");
+    assert.equal(resultTargets.filters.client.visible, false);
+    assert.ok(!Object.hasOwn(resultTargets.filters.client, "options"));
+    assert.ok(resultTargets.options.some((option) => option.targetId === fixtures.allowedTaskId));
+    assert.ok(resultTargets.options.every((option) => !Object.hasOwn(option, "clientId")));
+    assert.ok(resultTargets.options.every((option) => !Object.hasOwn(option, "clientLabel")));
+    assert.ok(resultTargets.options.every((option) => !Object.hasOwn(option.value, "clientId")));
+    assert.ok(resultTargets.filters.project.visible);
     assertNoStorageLeak(result.body);
     assertSafeLabels(result.body);
 
@@ -135,7 +170,9 @@ try {
     });
 
     assert.equal(result.status, 200);
-    assert.equal(result.body.count, 0);
+    /** @type {AttachableTargetsEnvelope} */
+    const resultTargets = readPayload(result, ["count", "options"], "GET /api/files/attachable-targets");
+    assert.equal(resultTargets.count, 0);
     assertNoStorageLeak(result.body);
   });
 
@@ -149,8 +186,10 @@ try {
       },
     });
     assert.equal(disabled.status, 200);
-    assert.equal(disabled.body.count, 0);
-    assert.equal(disabled.body.targetTypes.length, 0);
+    /** @type {AttachableTargetsEnvelope} */
+    const disabledTargets = readPayload(disabled, ["count", "options"], "GET /api/files/attachable-targets");
+    assert.equal(disabledTargets.count, 0);
+    assert.equal(disabledTargets.targetTypes.length, 0);
 
     await setWorkspaceModuleStatus(fixtures.workspaceId, "tasks", "enabled");
     const unsupported = await api.get("/api/files/attachable-targets", {
@@ -161,7 +200,9 @@ try {
       },
     });
     assert.equal(unsupported.status, 200);
-    assert.equal(unsupported.body.count, 0);
+    /** @type {AttachableTargetsEnvelope} */
+    const unsupportedTargets = readPayload(unsupported, ["count", "options"], "GET /api/files/attachable-targets");
+    assert.equal(unsupportedTargets.count, 0);
 
     const secureNote = await api.get("/api/files/attachable-targets", {
       cookie: fixtures.adminSessionId,
@@ -172,7 +213,9 @@ try {
       },
     });
     assert.equal(secureNote.status, 200);
-    assert.ok(!secureNote.body.options.some((option) => option.targetId === fixtures.secureNoteId));
+    /** @type {AttachableTargetsEnvelope} */
+    const secureNoteTargets = readPayload(secureNote, ["count", "options"], "GET /api/files/attachable-targets");
+    assert.ok(!secureNoteTargets.options.some((option) => option.targetId === fixtures.secureNoteId));
 
     const rawLabel = await api.get("/api/files/attachable-targets", {
       cookie: fixtures.adminSessionId,
@@ -183,9 +226,11 @@ try {
       },
     });
     assert.equal(rawLabel.status, 200);
-    assert.equal(rawLabel.body.count, 1);
-    assert.equal(rawLabel.body.options[0].targetId, fixtures.rawLabelTaskId);
-    assert.equal(rawLabel.body.options[0].label, "Untitled Task");
+    /** @type {AttachableTargetsEnvelope} */
+    const rawLabelTargets = readPayload(rawLabel, ["count", "options"], "GET /api/files/attachable-targets");
+    assert.equal(rawLabelTargets.count, 1);
+    assert.equal(rawLabelTargets.options[0].targetId, fixtures.rawLabelTaskId);
+    assert.equal(rawLabelTargets.options[0].label, "Untitled Task");
     assertNoStorageLeak([disabled.body, unsupported.body, secureNote.body, rawLabel.body]);
     assertSafeLabels([disabled.body, unsupported.body, secureNote.body, rawLabel.body]);
   });
@@ -208,8 +253,8 @@ WHERE protected_user = 'yes'
 ORDER BY username
 LIMIT 1;
 `);
-  const admin = users[0];
-  assert.ok(admin, "protected admin should exist");
+  /** @type {{ active_workspace_id: string, display_name: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireFirstRow(users, "protected admin");
 
   const workspaceId = admin.active_workspace_id || admin.home_workspace_id;
   const now = new Date().toISOString();
@@ -315,6 +360,7 @@ VALUES (${sqlText(otherWorkspaceId)}, 'Other Attachable Target Options Workspace
   };
 }
 
+/** @param {{ clientId: string, name: string, now: string, status: string, workspaceId: string }} options */
 async function insertClient({ clientId, name, now, status, workspaceId }) {
   await runSql(`
 INSERT INTO clients (
@@ -372,6 +418,7 @@ VALUES (
 `);
 }
 
+/** @param {{ clientId?: string | null, name: string, now: string, projectId: string, status: string, workspaceId: string }} options */
 async function insertProject({ clientId = null, name, now, projectId, status, workspaceId }) {
   await runSql(`
 INSERT INTO projects (
@@ -409,6 +456,19 @@ VALUES (
 `);
 }
 
+/**
+ * @param {{
+ *   archivedAt?: string | null,
+ *   clientId?: string | null,
+ *   now: string,
+ *   projectId?: string | null,
+ *   status?: string,
+ *   taskId: string,
+ *   title: string,
+ *   userId: string,
+ *   workspaceId: string,
+ * }} options
+ */
 async function insertTask({
   archivedAt = null,
   clientId = null,
@@ -454,6 +514,7 @@ VALUES (
 `);
 }
 
+/** @param {{ clientId?: string | null, noteId: string, now: string, projectId?: string | null, title: string, userId: string, workspaceId: string }} options */
 async function insertNote({ clientId = null, noteId, now, projectId = null, title, userId, workspaceId }) {
   await runSql(`
 INSERT INTO notes (
@@ -505,6 +566,7 @@ VALUES (
 `);
 }
 
+/** @param {{ noteId: string, now: string, title: string, userId: string, workspaceId: string }} options */
 async function insertSecureNote({ noteId, now, title, userId, workspaceId }) {
   await runSql(`
 INSERT INTO notes (
@@ -552,6 +614,7 @@ VALUES (
 `);
 }
 
+/** @param {{ clientUserId: string, now: string, workspaceId: string }} options */
 async function insertClientUser({ clientUserId, now, workspaceId }) {
   await runSql(`
 INSERT INTO users (
@@ -611,6 +674,7 @@ VALUES (
 `);
 }
 
+/** @param {string} workspaceId @param {string} workspaceType */
 async function setWorkspaceType(workspaceId, workspaceType) {
   await runSql(`
 UPDATE workspaces
@@ -619,6 +683,7 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
+/** @param {string} workspaceId @param {string} moduleId @param {string} status */
 async function setWorkspaceModuleStatus(workspaceId, moduleId, status) {
   const now = new Date().toISOString();
   await runSql(`
@@ -639,6 +704,7 @@ ON CONFLICT(workspace_id, module_id) DO UPDATE SET
 `);
 }
 
+/** @param {unknown} value */
 function assertNoStorageLeak(value) {
   const text = JSON.stringify(value);
   assert.doesNotMatch(text, /storage_key/i);
@@ -651,6 +717,7 @@ function assertNoStorageLeak(value) {
   assert.doesNotMatch(text, /encrypted_/i);
 }
 
+/** @param {unknown} value */
 function assertSafeLabels(value) {
   for (const [key, item] of walk(value)) {
     if (!/label$/i.test(key)) {
@@ -660,6 +727,11 @@ function assertSafeLabels(value) {
   }
 }
 
+/**
+ * @param {unknown} value
+ * @param {string} [key]
+ * @returns {Generator<[string, string]>}
+ */
 function* walk(value, key = "") {
   if (Array.isArray(value)) {
     for (const item of value) {
@@ -676,19 +748,30 @@ function* walk(value, key = "") {
   }
 }
 
+/** @param {unknown} value */
 function looksLikeRawIdentifier(value) {
   const text = String(value || "").trim();
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(text) ||
     /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}/i.test(text);
 }
 
+/** @param {string} baseUrl @returns {TargetApiClient} */
 function createApi(baseUrl) {
   return {
     get: (url, options = {}) => request(baseUrl, "GET", url, null, options),
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {unknown} body
+ * @param {TargetClientOptions} [options]
+ * @returns {Promise<TargetResponse>}
+ */
 async function request(baseUrl, method, url, body, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {};
   const query = new URLSearchParams(options.query || {});
   const requestUrl = `${baseUrl}${url}${query.toString() ? `?${query}` : ""}`;
@@ -722,14 +805,16 @@ async function request(baseUrl, method, url, body, options = {}) {
   };
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 async function listen(app) {
-  const serverInstance = http.createServer(app);
+  const serverInstance = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
   await new Promise((resolve) => {
-    serverInstance.listen(0, "127.0.0.1", resolve);
+    serverInstance.listen(0, "127.0.0.1", () => resolve(undefined));
   });
   return serverInstance;
 }
 
+/** @param {HttpFixtureServer} serverInstance */
 async function closeServer(serverInstance) {
   await new Promise((resolve, reject) => {
     serverInstance.close((error) => {
@@ -737,11 +822,12 @@ async function closeServer(serverInstance) {
         reject(error);
         return;
       }
-      resolve();
+      resolve(undefined);
     });
   });
 }
 
+/** @param {string} name @param {() => Promise<void>} fn */
 async function checkAsync(name, fn) {
   await fn();
   results.push(name);

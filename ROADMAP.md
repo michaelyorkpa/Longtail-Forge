@@ -76,16 +76,6 @@ Every child lands in the 96-to-217 band, against a proven range of 85 to 205 acr
 
 Requirements shared by every child: preserve real child-process and database isolation and do not merge processes merely to satisfy a target; type temporary paths, database handles, child results, attestations, provider mocks, and cleanup state explicitly rather than casting them away; strip historical roadmap, changelog, and version-history pins from the owners the child touches, recording each disposition, and require any surviving planning-document read to assert a current live contract; reuse published `src/types/` contracts by type-only import wherever one already describes a shape; introduce no explicit `any`, `@ts-ignore`, `@ts-nocheck`, or file exclusion; and pin each closed owner strict-clean through `framework.full-strict-governance`.
 
-#### 0.33.33.31.6 - Type Files attachment target and context read owners
-
-**Model: High Effort - Attachment targets are a cross-module authorization surface.**
-
-Measured at 182 diagnostics across 5 files and 2,540 lines.
-
-- [ ] Close the 182 diagnostics across `files-attachable-target-options`, `files-attachment-context-route`, `files-attachment-readmodel`, `files-browse-attachment-reads-conversion`, and `files-context-targets-conversion`.
-- [ ] Type attachable target options, attachment context rows, and read-model projections with named contracts.
-- [ ] Preserve attachable target scoping, attachment context authorization, and read-model projections exactly.
-
 #### 0.33.33.31.7 - Type storage provider, S3, and quota owners
 
 **Model: High Effort - Provider mocks and quota arithmetic must not be typed into agreement.**

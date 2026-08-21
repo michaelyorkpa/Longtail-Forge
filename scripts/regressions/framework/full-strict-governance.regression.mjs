@@ -346,6 +346,19 @@ for (const filesEgressOwner of [
   assert.equal(ledger.programs.scripts.diagnostics[filesEgressOwner], undefined, `${filesEgressOwner} must stay strict-clean after checkpoint 0.33.33.31.5`);
   assert.equal(ledger.explicitAnyByFile[filesEgressOwner], undefined, `${filesEgressOwner} must stay free of explicit any after checkpoint 0.33.33.31.5`);
 }
+// The Files attachment target and context read owners closed at
+// 0.33.33.31.6, including the two parameter-binding conversion owners that
+// still hold the converted-state contract.
+for (const attachmentReadOwner of [
+  "scripts/files-attachable-target-options-regression.mjs",
+  "scripts/files-attachment-context-route-regression.mjs",
+  "scripts/files-attachment-readmodel-regression.mjs",
+  "scripts/files-browse-attachment-reads-conversion-regression.mjs",
+  "scripts/files-context-targets-conversion-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[attachmentReadOwner], undefined, `${attachmentReadOwner} must stay strict-clean after checkpoint 0.33.33.31.6`);
+  assert.equal(ledger.explicitAnyByFile[attachmentReadOwner], undefined, `${attachmentReadOwner} must stay free of explicit any after checkpoint 0.33.33.31.6`);
+}
 // The authorization-model owners closed at 0.33.33.30.7.1 and the permission
 // harness itself closed at 0.33.33.30.7.2.2, which completes the
 // 0.33.33.30.7 cohort.

@@ -6,6 +6,56 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} ContextClientOptions */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+
+/**
+ * One fixture response. The body stays `unknown` on purpose: JSON.parse would
+ * hand back `any`, and every envelope read below would then be a claim the
+ * compiler never checks.
+ * @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown> & { text: string }} ContextResponse
+ */
+
+/**
+ * @typedef {{
+ *   patch: (url: string, body?: unknown, options?: ContextClientOptions) => Promise<ContextResponse>,
+ *   post: (url: string, body?: unknown, options?: ContextClientOptions) => Promise<ContextResponse>,
+ * }} ContextApiClient
+ */
+
+/** The seeded estate, plus the two identities the business-context check adds to it. */
+/**
+ * @typedef {Awaited<ReturnType<typeof seedFixtures>> & {
+ *   updatedBusinessAttachmentId?: string,
+ *   updatedBusinessFileId?: string,
+ * }} ContextFixtures
+ */
+
+/** The attachment routes publish the Files service results unchanged. */
+/** @typedef {typeof import("../src/services/files.service.js").filesService} FilesService */
+/** @typedef {Awaited<ReturnType<FilesService["uploadAndAttach"]>>} FileUploadEnvelope */
+/** @typedef {Awaited<ReturnType<FilesService["updateAttachmentContext"]>>} AttachmentContextEnvelope */
+/** @typedef {Awaited<ReturnType<FilesService["attachExistingFile"]>>} AttachExistingEnvelope */
+
+/**
+ * Narrow an upload envelope to the file record it must be carrying.
+ *
+ * The service publishes `file` as nullable because a refused upload produces
+ * none, so every read through it here is a claim the route accepted the work.
+ * @template {{ file: unknown }} Envelope
+ * @param {Envelope} envelope
+ * @param {string} label
+ * @returns {NonNullable<Envelope["file"]>}
+ */
+function requireFile(envelope, label) {
+  assert.ok(envelope.file, `${label} should carry its file record`);
+  return envelope.file;
+}
+
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-files-attachment-context-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-files-attachment-context.db");
@@ -16,17 +66,20 @@ const { createApp } = await import("../src/core/app.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { createSession } = await import("../src/security/sessions.js");
 
+/** @type {string[]} */
 const results = [];
+/** @type {import("../src/types/framework-contracts.js").InternalEvent[]} */
 const capturedFileEvents = [];
 let server;
 
 try {
   await initializeDatabase();
+  /** @type {ContextFixtures} */
   const fixtures = await seedFixtures();
   internalEventBus.reset();
   registerFileEventCapture();
   server = await listen(createApp());
-  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`;
   const api = createApi(baseUrl);
 
   await checkAsync("Business context update derives Client and Project from the selected target", async () => {
@@ -34,11 +87,14 @@ try {
       cookie: fixtures.adminSessionId,
     });
     assert.equal(upload.status, 201);
-    assert.equal(upload.body.attachment.clientId, fixtures.clientId);
-    assert.equal(upload.body.attachment.projectId, fixtures.projectId);
+    /** @type {FileUploadEnvelope} */
+    const uploaded = readPayload(upload, ["attachment", "file"], "POST /api/files");
+    const uploadedFile = requireFile(uploaded, "POST /api/files");
+    assert.equal(uploaded.attachment.clientId, fixtures.clientId);
+    assert.equal(uploaded.attachment.projectId, fixtures.projectId);
 
-    const originalFile = await readFileStorageFields(upload.body.file.fileId);
-    const update = await api.patch(`/api/files/attachments/${upload.body.attachment.fileAttachmentId}/context`, {
+    const originalFile = await readFileStorageFields(uploadedFile.fileId);
+    const update = await api.patch(`/api/files/attachments/${uploaded.attachment.fileAttachmentId}/context`, {
       clientId: fixtures.nextClientId,
       moduleId: "tasks",
       projectId: fixtures.nextProjectId,
@@ -46,17 +102,19 @@ try {
       targetType: "task",
     }, { cookie: fixtures.adminSessionId });
     assert.equal(update.status, 200);
-    assert.equal(update.body.attachment.targetId, fixtures.nextBusinessTaskId);
-    assert.equal(update.body.attachment.clientId, fixtures.nextClientId);
-    assert.equal(update.body.attachment.projectId, fixtures.nextProjectId);
+    /** @type {AttachmentContextEnvelope} */
+    const updated = readPayload(update, ["attachment"], "PATCH /api/files/attachments/:fileAttachmentId/context");
+    assert.equal(updated.attachment.targetId, fixtures.nextBusinessTaskId);
+    assert.equal(updated.attachment.clientId, fixtures.nextClientId);
+    assert.equal(updated.attachment.projectId, fixtures.nextProjectId);
 
-    const updatedFile = await readFileStorageFields(upload.body.file.fileId);
+    const updatedFile = await readFileStorageFields(uploadedFile.fileId);
     assert.deepEqual(updatedFile, originalFile);
 
     const attachmentRows = await querySql(`
 SELECT module_id, target_type, target_id, client_id, project_id
 FROM file_attachments
-WHERE file_attachment_id = ${sqlText(upload.body.attachment.fileAttachmentId)};
+WHERE file_attachment_id = ${sqlText(uploaded.attachment.fileAttachmentId)};
 `);
     assert.deepEqual(attachmentRows[0], {
       client_id: fixtures.nextClientId,
@@ -68,31 +126,39 @@ WHERE file_attachment_id = ${sqlText(upload.body.attachment.fileAttachmentId)};
 
     const contextEvents = capturedFileEvents.filter((event) => (
       event.name === "file.attachment.context_updated" &&
-      event.metadata?.attachment_id === upload.body.attachment.fileAttachmentId
+      event.metadata?.attachment_id === uploaded.attachment.fileAttachmentId
     ));
     assert.equal(contextEvents.length, 2);
-    assert.deepEqual(contextEvents.map((event) => event.metadata.context_scope).sort(), ["next", "previous"]);
-    assert.ok(contextEvents.every((event) => event.metadata.context_update === true));
-    assert.ok(contextEvents.every((event) => event.metadata.previous_target_id === fixtures.businessTaskId));
-    assert.ok(contextEvents.every((event) => event.metadata.next_target_id === fixtures.nextBusinessTaskId));
-    assertNoUnsafeStorageLeak(contextEvents.map((event) => event.metadata));
+    // The bus publishes metadata as optional, so the claims below only mean
+    // something once each payload is proven to carry one.
+    const contextMetadata = contextEvents.map((event) => {
+      assert.ok(event.metadata, "each context update event should carry metadata");
+      return event.metadata;
+    });
+    assert.deepEqual(contextMetadata.map((metadata) => metadata.context_scope).sort(), ["next", "previous"]);
+    assert.ok(contextMetadata.every((metadata) => metadata.context_update === true));
+    assert.ok(contextMetadata.every((metadata) => metadata.previous_target_id === fixtures.businessTaskId));
+    assert.ok(contextMetadata.every((metadata) => metadata.next_target_id === fixtures.nextBusinessTaskId));
+    assertNoUnsafeStorageLeak(contextMetadata);
 
     const auditRows = await querySql(`
 SELECT action, metadata_json
 FROM audit_logs
 WHERE action = 'file.attachment_context_updated'
-  AND record_id = ${sqlText(upload.body.attachment.fileAttachmentId)}
+  AND record_id = ${sqlText(uploaded.attachment.fileAttachmentId)}
 ORDER BY created_at DESC
 LIMIT 1;
 `);
     assert.equal(auditRows.length, 1);
-    const auditMetadata = JSON.parse(auditRows[0].metadata_json || "{}");
+    /** @type {{ metadata_json: string | null }} */
+    const auditRow = requireFirstRow(auditRows, "attachment context audit row");
+    const auditMetadata = JSON.parse(auditRow.metadata_json || "{}");
     assert.equal(auditMetadata.previous_context.target_id, fixtures.businessTaskId);
     assert.equal(auditMetadata.next_context.target_id, fixtures.nextBusinessTaskId);
     assertNoUnsafeStorageLeak([auditMetadata, auditMetadata.previous_context, auditMetadata.next_context]);
 
-    fixtures.updatedBusinessAttachmentId = upload.body.attachment.fileAttachmentId;
-    fixtures.updatedBusinessFileId = upload.body.file.fileId;
+    fixtures.updatedBusinessAttachmentId = uploaded.attachment.fileAttachmentId;
+    fixtures.updatedBusinessFileId = uploadedFile.fileId;
   });
 
   await checkAsync("Personal and Family-style updates keep Client data empty", async () => {
@@ -107,18 +173,22 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)};
       text: "family context update",
     }), { cookie: fixtures.adminSessionId });
     assert.equal(upload.status, 201);
-    assert.equal(upload.body.attachment.clientId, "");
-    assert.equal(upload.body.attachment.projectId, "");
+    /** @type {FileUploadEnvelope} */
+    const familyUpload = readPayload(upload, ["attachment", "file"], "POST /api/files");
+    assert.equal(familyUpload.attachment.clientId, "");
+    assert.equal(familyUpload.attachment.projectId, "");
 
-    const update = await api.patch(`/api/files/attachments/${upload.body.attachment.fileAttachmentId}/context`, {
+    const update = await api.patch(`/api/files/attachments/${familyUpload.attachment.fileAttachmentId}/context`, {
       moduleId: "tasks",
       targetId: fixtures.nextFamilyTaskId,
       targetType: "task",
     }, { cookie: fixtures.adminSessionId });
     assert.equal(update.status, 200);
-    assert.equal(update.body.attachment.targetId, fixtures.nextFamilyTaskId);
-    assert.equal(update.body.attachment.clientId, "");
-    assert.equal(update.body.attachment.projectId, "");
+    /** @type {AttachmentContextEnvelope} */
+    const familyUpdated = readPayload(update, ["attachment"], "PATCH /api/files/attachments/:fileAttachmentId/context");
+    assert.equal(familyUpdated.attachment.targetId, fixtures.nextFamilyTaskId);
+    assert.equal(familyUpdated.attachment.clientId, "");
+    assert.equal(familyUpdated.attachment.projectId, "");
 
     await runSql(`
 UPDATE workspaces
@@ -134,7 +204,9 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)};
     }), { cookie: fixtures.adminSessionId });
     assert.equal(upload.status, 201);
 
-    const denied = await api.patch(`/api/files/attachments/${upload.body.attachment.fileAttachmentId}/context`, {
+    /** @type {FileUploadEnvelope} */
+    const permissionUpload = readPayload(upload, ["attachment"], "POST /api/files");
+    const denied = await api.patch(`/api/files/attachments/${permissionUpload.attachment.fileAttachmentId}/context`, {
       moduleId: "tasks",
       targetId: fixtures.permissionNextTaskId,
       targetType: "task",
@@ -189,17 +261,22 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)};
     }), { cookie: fixtures.adminSessionId });
     assert.equal(first.status, 201);
 
+    /** @type {FileUploadEnvelope} */
+    const firstUpload = readPayload(first, ["attachment", "file"], "POST /api/files");
+    const firstFile = requireFile(firstUpload, "POST /api/files");
     const second = await api.post("/api/files/attachments", {
-      fileId: first.body.file.fileId,
+      fileId: firstFile.fileId,
       moduleId: "tasks",
       targetId: fixtures.duplicateNextTaskId,
       targetType: "task",
       visibility: "private",
     }, { cookie: fixtures.adminSessionId });
     assert.equal(second.status, 201);
-    assert.equal(second.body.file.fileId, first.body.file.fileId);
+    /** @type {AttachExistingEnvelope} */
+    const secondAttachment = readPayload(second, ["attachment", "file"], "POST /api/files/attachments");
+    assert.equal(requireFile(secondAttachment, "POST /api/files/attachments").fileId, firstFile.fileId);
 
-    const duplicate = await api.patch(`/api/files/attachments/${second.body.attachment.fileAttachmentId}/context`, {
+    const duplicate = await api.patch(`/api/files/attachments/${secondAttachment.attachment.fileAttachmentId}/context`, {
       moduleId: "tasks",
       targetId: fixtures.duplicateTaskId,
       targetType: "task",
@@ -493,6 +570,7 @@ VALUES (
   };
 }
 
+/** @param {string} taskId @param {{ displayName?: string, originalFilename?: string, text?: string }} [options] */
 function uploadPayload(taskId, options = {}) {
   return {
     contentBase64: Buffer.from(options.text || "attachment context update").toString("base64"),
@@ -514,6 +592,7 @@ function registerFileEventCapture() {
   });
 }
 
+/** @param {string} fileId */
 async function readFileStorageFields(fileId) {
   const rows = await querySql(`
 SELECT
@@ -533,9 +612,10 @@ WHERE file_id = ${sqlText(fileId)}
 LIMIT 1;
 `);
   assert.equal(rows.length, 1);
-  return rows[0];
+  return requireFirstRow(rows, "stored file fields");
 }
 
+/** @param {unknown} values */
 function assertNoUnsafeStorageLeak(values) {
   const text = JSON.stringify(values);
   assert.doesNotMatch(text, /storage_key/i);
@@ -547,6 +627,7 @@ function assertNoUnsafeStorageLeak(values) {
   assert.doesNotMatch(text, /protected[\\/]/i);
 }
 
+/** @param {string} baseUrl @returns {ContextApiClient} */
 function createApi(baseUrl) {
   return {
     patch: (url, body, options = {}) => request(baseUrl, "PATCH", url, body, options),
@@ -554,7 +635,16 @@ function createApi(baseUrl) {
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {unknown} body
+ * @param {ContextClientOptions} [options]
+ * @returns {Promise<ContextResponse>}
+ */
 async function request(baseUrl, method, url, body, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {};
 
   if (options.cookie) {
@@ -586,14 +676,16 @@ async function request(baseUrl, method, url, body, options = {}) {
   };
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 async function listen(app) {
-  const serverInstance = http.createServer(app);
+  const serverInstance = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
   await new Promise((resolve) => {
-    serverInstance.listen(0, "127.0.0.1", resolve);
+    serverInstance.listen(0, "127.0.0.1", () => resolve(undefined));
   });
   return serverInstance;
 }
 
+/** @param {HttpFixtureServer} serverInstance */
 async function closeServer(serverInstance) {
   await new Promise((resolve, reject) => {
     serverInstance.close((error) => {
@@ -601,11 +693,12 @@ async function closeServer(serverInstance) {
         reject(error);
         return;
       }
-      resolve();
+      resolve(undefined);
     });
   });
 }
 
+/** @param {string} name @param {() => Promise<void>} fn */
 async function checkAsync(name, fn) {
   await fn();
   results.push(name);
@@ -613,5 +706,5 @@ async function checkAsync(name, fn) {
 
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
-  assert.equal(rows[0].integrity_check, "ok");
+  assert.equal(requireFirstRow(rows, "integrity check").integrity_check, "ok");
 }
