@@ -391,6 +391,18 @@ for (const scannerWorkerOwner of [
   assert.equal(ledger.programs.scripts.diagnostics[scannerWorkerOwner], undefined, `${scannerWorkerOwner} must stay strict-clean after checkpoint 0.33.33.31.8`);
   assert.equal(ledger.explicitAnyByFile[scannerWorkerOwner], undefined, `${scannerWorkerOwner} must stay free of explicit any after checkpoint 0.33.33.31.8`);
 }
+// The job claiming, idempotency, outbox schema, and retention owners closed
+// at 0.33.33.31.9. Each holds a concurrency or bounded-window proof, so the
+// pin keeps those assertions typed rather than merely passing.
+for (const jobDurabilityOwner of [
+  "scripts/job-claiming-locking-regression.mjs",
+  "scripts/job-idempotency-at-least-once-regression.mjs",
+  "scripts/job-outbox-schema-regression.mjs",
+  "scripts/job-retention-pruning-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[jobDurabilityOwner], undefined, `${jobDurabilityOwner} must stay strict-clean after checkpoint 0.33.33.31.9`);
+  assert.equal(ledger.explicitAnyByFile[jobDurabilityOwner], undefined, `${jobDurabilityOwner} must stay free of explicit any after checkpoint 0.33.33.31.9`);
+}
 // The authorization-model owners closed at 0.33.33.30.7.1 and the permission
 // harness itself closed at 0.33.33.30.7.2.2, which completes the
 // 0.33.33.30.7 cohort.

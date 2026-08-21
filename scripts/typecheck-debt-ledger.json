@@ -3003,7 +3003,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 3494,
+      "errorCount": 3379,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3463,82 +3463,6 @@
           {
             "code": 7006,
             "count": 25
-          }
-        ],
-        "scripts/job-claiming-locking-regression.mjs": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 22
-          },
-          {
-            "code": 2345,
-            "count": 5
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 7
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/job-idempotency-at-least-once-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 20
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "scripts/job-outbox-schema-regression.mjs": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 24
-          }
-        ],
-        "scripts/job-retention-pruning-regression.mjs": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 17
-          },
-          {
-            "code": 7006,
-            "count": 5
           }
         ],
         "scripts/legacy-cleanup-regression.mjs": [
@@ -5816,7 +5740,7 @@
   },
   "totals": {
     "files": 1045,
-    "errors": 14628,
+    "errors": 14513,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "maximumActiveScripts": 347,
-  "minimumAssertionCount": 19137,
+  "minimumAssertionCount": 19140,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,
@@ -4999,6 +4999,102 @@
       "verificationPerformed": [
         "node scripts/file-storage-streaming-contract-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.job.claiming.locking",
+      "retiredInVersion": "0.33.33.31.9",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.21` durable-jobs completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every executable claiming, idempotency, outbox schema, and retention assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/job-claiming-locking-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.job.claiming.locking",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/job-claiming-locking-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.job.idempotency.at.least.once",
+      "retiredInVersion": "0.33.33.31.9",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.21` durable-jobs completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every executable claiming, idempotency, outbox schema, and retention assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/job-idempotency-at-least-once-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.job.idempotency.at.least.once",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/job-idempotency-at-least-once-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.job.outbox.schema",
+      "retiredInVersion": "0.33.33.31.9",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history rather than a live contract: one required that a `0.33.5.21` durable-jobs completed-work breadcrumb stay absent from the live roadmap, which can never re-enter against a 0.33.33 cursor, and one required a database-docs sentence narrating that the table shipped as schema only in 0.33.5.21.1 before the v1 worker runner shipped in 0.33.5.21.2.",
+      "assertionDisposition": "No behavior lost coverage. The database and architecture docs assertions that describe the live job states and the framework-owned jobs table handoff are kept, with only their released-version anchors removed, and every executable schema, index, and dedupe assertion in this owner is unchanged. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and the owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/job-outbox-schema-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.job.outbox.schema",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/job-outbox-schema-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.job.retention.pruning",
+      "retiredInVersion": "0.33.33.31.9",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.21` durable-jobs completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every executable claiming, idempotency, outbox schema, and retention assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/job-retention-pruning-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.job.retention.pruning",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/job-retention-pruning-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"
       ]
     },

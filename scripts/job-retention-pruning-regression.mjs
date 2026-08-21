@@ -16,7 +16,56 @@ process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Job-Retention-Test-123!";
 
 const envExample = readText(".env.example");
-const roadmap = readText("ROADMAP.md");
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+
+/** The columns insertJob writes; every one is a column this owner controls. */
+/**
+ * @typedef {{
+ *   attemptCount?: number,
+ *   availableAt?: string,
+ *   completedAt?: string | null,
+ *   createdAt?: string,
+ *   deadAt?: string | null,
+ *   dedupeKey?: string | null,
+ *   jobId?: string,
+ *   jobType?: string,
+ *   lastError?: string | null,
+ *   lockedAt?: string | null,
+ *   lockedBy?: string | null,
+ *   maxAttempts?: number,
+ *   payload?: unknown,
+ *   priority?: number,
+ *   status?: string,
+ *   updatedAt?: string,
+ *   workspaceId?: string,
+ * }} InsertJobOptions
+ */
+
+/**
+ * Narrow the config child's stdout to the retention probe it must publish.
+ *
+ * The child is a separate process, so its output crosses back as text.
+ * @param {import("node:child_process").SpawnSyncReturns<string>} child
+ * @returns {RetentionConfigProbe}
+ */
+function readRetentionConfigProbe(child) {
+  const text = child.stdout.trim();
+  assert.ok(text, "the config child should publish a JSON probe");
+  /** @type {unknown} */
+  const parsed = JSON.parse(text);
+  assert.ok(
+    parsed && typeof parsed === "object" && !Array.isArray(parsed),
+    `config child output should be a JSON object: ${text}`,
+  );
+  const record = /** @type {Record<string, unknown>} */ (parsed);
+  for (const key of ["completedRetentionDays", "deadRetentionDays"]) {
+    assert.equal(typeof record[key], "number", `config child output should carry a numeric ${key}`);
+  }
+  return /** @type {RetentionConfigProbe} */ (/** @type {unknown} */ (record));
+}
+
+/** The two retention windows the config child publishes back. */
+/** @typedef {{ completedRetentionDays: number, deadRetentionDays: number }} RetentionConfigProbe */
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
@@ -56,7 +105,6 @@ function assertStaticContract() {
   assert.match(serviceSource, /transaction\.dialect\.returning\.columns\(\["job_id"\]\)/, "pruning should delete by explicit job status and count rows through the returning seam");
   assert.match(appSource, /queueStartupJobRetentionPrune/, "app startup should queue job retention pruning");
   assert.match(workerCliSource, /jobsService\.pruneOldJobs/, "separate worker startup should run job retention pruning");
-    assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
     assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.4[\s\S]*completed[\s\S]*dead-letter[\s\S]*retention/, "database docs should document job retention");
   assert.match(runtimeDocs, /`LONGTAIL_JOB_COMPLETED_RETENTION_DAYS`[\s\S]*`LONGTAIL_JOB_DEAD_RETENTION_DAYS`/, "runtime docs should document job retention settings");
   assert.match(sqliteDocs, /As of 0\.33\.5\.21\.7\.4[\s\S]*job retention/, "SQLite docs should document job retention safety");
@@ -198,6 +246,7 @@ async function assertHistoryDoesNotBlockReplacementJobs() {
   assert.equal(await activeJobCount("retention.replacement"), 2, "replacement jobs should remain active after insertion");
 }
 
+/** @param {InsertJobOptions} [options] */
 async function insertJob(options = {}) {
   const createdAt = options.createdAt || options.updatedAt || now.toISOString();
   const updatedAt = options.updatedAt || createdAt;
@@ -262,15 +311,19 @@ VALUES (
 
 async function readWorkspaceId() {
   const row = await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
-  assert.ok(row?.workspace_id, "fresh database should have a workspace");
-  return row.workspace_id;
+  /** @type {{ workspace_id: string }} */
+  const workspace = requireRow(row, "workspace");
+  assert.ok(workspace.workspace_id, "fresh database should have a workspace");
+  return workspace.workspace_id;
 }
 
+/** @param {string} jobId */
 async function jobExists(jobId) {
   const row = await db.get("SELECT job_id FROM jobs WHERE job_id = :jobId;", { jobId });
   return Boolean(row);
 }
 
+/** @param {string} jobType */
 async function activeJobCount(jobType) {
   const row = await db.get(`
 SELECT COUNT(*) AS count
@@ -291,10 +344,12 @@ async function assertIntegrity() {
   assert.equal(integrityRows[0]?.integrity_check, "ok", "job retention regression database should pass integrity check");
 }
 
+/** @param {number} days */
 function daysAgo(days) {
   return new Date(now.getTime() - (days * 24 * 60 * 60 * 1000)).toISOString();
 }
 
+/** @param {NodeJS.ProcessEnv} [overrides] @returns {RetentionConfigProbe} */
 function readConfig(overrides = {}) {
   const child = spawnSync(process.execPath, ["--input-type=module", "--eval", `
     import { config } from "./src/config.js";
@@ -309,9 +364,10 @@ function readConfig(overrides = {}) {
   });
 
   assert.equal(child.status, 0, child.stderr || child.stdout);
-  return JSON.parse(child.stdout.trim());
+  return readRetentionConfigProbe(child);
 }
 
+/** @param {NodeJS.ProcessEnv} overrides @param {RegExp} pattern */
 function assertConfigFails(overrides, pattern) {
   const child = spawnSync(process.execPath, ["--input-type=module", "--eval", `
     import "./src/config.js";

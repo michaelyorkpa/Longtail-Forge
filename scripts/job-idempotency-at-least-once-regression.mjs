@@ -11,7 +11,9 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-job-idem
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Job-Idempotency-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} JobsSession */
 const databaseDocs = readText("docs/database.md");
 const moduleDocs = readText("docs/module-development.md");
 const taskJobsSource = readText("src/modules/tasks/task-jobs.service.js");
@@ -65,11 +67,11 @@ function assertStaticContract() {
   assert.match(taskJobsSource, /readByRecurrenceInstance/, "recurrence jobs should keep existing-instance idempotency checks");
   assert.match(fileScannerJobsSource, /file\.status !== "pending" \|\| file\.scanStatus !== "pending"/, "file scan jobs should skip already scanned rows");
   assert.match(importJobsSource, /reserved:\s*true[\s\S]*skipped:\s*true/, "future imports should remain a reserved no-op handler");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.3[\s\S]*notification_delivery_key[\s\S]*at-least-once/, "database docs should document durable idempotency behavior");
   assert.match(moduleDocs, /As of 0\.33\.5\.21\.7\.3[\s\S]*at-least-once worker behavior/, "module docs should document current durable job idempotency expectations");
 }
 
+/** @param {JobsSession} session */
 async function assertReminderRetryDoesNotDoubleNotify(session) {
   resetJobWorkerStatusForTests();
   const due = localDateTimeParts(addMinutes(new Date(), 6), session.timezone);
@@ -87,7 +89,7 @@ async function assertReminderRetryDoesNotDoubleNotify(session) {
   }, session)).task;
   const reminderJob = await readReminderJob(session.workspace_id, task.task_id);
 
-  await forceJobDue(reminderJob.job_id);
+  await forceJobDue(String(reminderJob.job_id));
   const firstReminderRun = await runJobWorkerOnce({
     claimLimit: 1,
     mode: "inline",
@@ -97,7 +99,7 @@ async function assertReminderRetryDoesNotDoubleNotify(session) {
   assert.equal(firstReminderRun.completed, 1, "worker should complete the first reminder attempt");
   assert.equal(await dueSoonNotificationJobCount(session.workspace_id, task.task_id), 1, "first reminder attempt should queue one notification event job");
 
-  await forceJobRunningExpired(reminderJob.job_id);
+  await forceJobRunningExpired(String(reminderJob.job_id));
   const reclaimedReminderRun = await runJobWorkerOnce({
     claimLimit: 1,
     lockTtlSeconds: 1,
@@ -109,18 +111,18 @@ async function assertReminderRetryDoesNotDoubleNotify(session) {
   assert.equal(await dueSoonNotificationJobCount(session.workspace_id, task.task_id), 1, "reclaimed reminder should not queue a second active notification event job");
 
   const notificationJob = await readDueSoonNotificationJob(session.workspace_id, task.task_id);
-  await forceJobDue(notificationJob.job_id);
+  await forceJobDue(String(notificationJob.job_id));
   await processDueJobs(8);
-  const completedNotificationJob = await readJobById(notificationJob.job_id);
+  const completedNotificationJob = await readJobById(String(notificationJob.job_id));
 
   assert.equal(completedNotificationJob.status, "completed", "worker should complete the notification fan-out job");
   assert.equal(await dueSoonNotificationCount(session.workspace_id, session.user_id), beforeCount + 1, "reminder fan-out should create one notification");
 
   const notification = await readDueSoonNotification(session.workspace_id, session.user_id, task.task_id);
-  assert.ok(notification.notification_id.startsWith("notification:"), "delivery-key notifications should use deterministic IDs");
-  assert.match(notification.metadata_json, /notification_delivery_key/, "notification metadata should retain the delivery key for audit");
+  assert.ok(String(notification.notification_id).startsWith("notification:"), "delivery-key notifications should use deterministic IDs");
+  assert.match(String(notification.metadata_json), /notification_delivery_key/, "notification metadata should retain the delivery key for audit");
 
-  await forceJobRunningExpired(notificationJob.job_id);
+  await forceJobRunningExpired(String(notificationJob.job_id));
   const reclaimedNotificationRun = await runJobWorkerOnce({
     claimLimit: 1,
     lockTtlSeconds: 1,
@@ -131,7 +133,7 @@ async function assertReminderRetryDoesNotDoubleNotify(session) {
   assert.equal(reclaimedNotificationRun.completed, 1, "expired running notification fan-out should be reclaimable");
   assert.equal(await dueSoonNotificationCount(session.workspace_id, session.user_id), beforeCount + 1, "notification fan-out retry should not create a duplicate notification row");
 
-  await forceJobRunningExpired(reminderJob.job_id);
+  await forceJobRunningExpired(String(reminderJob.job_id));
   const completedReminderRetry = await runJobWorkerOnce({
     claimLimit: 1,
     lockTtlSeconds: 1,
@@ -143,6 +145,7 @@ async function assertReminderRetryDoesNotDoubleNotify(session) {
   assert.equal(await dueSoonNotificationCount(session.workspace_id, session.user_id), beforeCount + 1, "completed notification dedupe should still suppress duplicate reminder delivery");
 }
 
+/** @param {number} maxRuns */
 async function processDueJobs(maxRuns) {
   for (let index = 0; index < maxRuns; index += 1) {
     const summary = await runJobWorkerOnce({
@@ -157,6 +160,7 @@ async function processDueJobs(maxRuns) {
   }
 }
 
+/** @returns {Promise<JobsSession>} */
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -164,20 +168,24 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
+  /** @type {{ active_workspace_id: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const user = requireFirstRow(rows, "protected super admin");
 
-  assert.ok(user, "fresh database should seed a protected super admin");
-
+  const workspaceId = user.active_workspace_id || user.home_workspace_id;
   return {
+    active_workspace_id: workspaceId,
     home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
     timezone: user.timezone || "America/New_York",
     user_id: user.user_id,
     username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
+    workspace_id: workspaceId,
   };
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function readReminderJob(workspaceId, taskId) {
   const rows = await querySql(`
 SELECT *
@@ -194,6 +202,7 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function readDueSoonNotificationJob(workspaceId, taskId) {
   const rows = await querySql(`
 SELECT *
@@ -210,6 +219,7 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {string} jobId */
 async function readJobById(jobId) {
   const rows = await querySql(`
 SELECT *
@@ -222,6 +232,7 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function dueSoonNotificationJobCount(workspaceId, taskId) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -236,6 +247,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   return Number(rows[0]?.count || 0);
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId */
 async function dueSoonNotificationCount(workspaceId, recipientUserId) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -248,6 +260,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   return Number(rows[0]?.count || 0);
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId @param {string} taskId */
 async function readDueSoonNotification(workspaceId, recipientUserId, taskId) {
   const rows = await querySql(`
 SELECT *
@@ -264,6 +277,7 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {string} jobId */
 async function forceJobDue(jobId) {
   await runSql(`
 UPDATE jobs
@@ -272,6 +286,7 @@ WHERE job_id = ${sqlText(jobId)};
 `);
 }
 
+/** @param {string} jobId */
 async function forceJobRunningExpired(jobId) {
   const oldLock = new Date(Date.now() - 120_000).toISOString();
 
@@ -291,10 +306,14 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok", "SQLite integrity check should pass");
 }
 
+/** @param {Date} date @param {number} minutes */
+/** @param {Date} date @param {number} minutes */
 function addMinutes(date, minutes) {
   return new Date(date.getTime() + minutes * 60 * 1000);
 }
 
+/** @param {Date} date @param {string} timeZone */
+/** @param {Date} date @param {string} timeZone */
 function localDateTimeParts(date, timeZone) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     day: "2-digit",
@@ -305,7 +324,7 @@ function localDateTimeParts(date, timeZone) {
     month: "2-digit",
     timeZone,
     year: "numeric",
-  }).formatToParts(date).reduce((map, part) => {
+  }).formatToParts(date).reduce((/** @type {Record<string, string>} */ map, part) => {
     map[part.type] = part.value;
     return map;
   }, {});

@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.31.9 - Type job claiming, outbox, and retention owners
+
+**Model: High Effort** - Claiming and idempotency are concurrency proofs.
+
+Ninth child of the `0.33.33.31` rollup, measured at 115 diagnostics across 4 files and 1,321 lines. Two children remain.
+
+- [x] Closed all 115 diagnostics across `job-claiming-locking`, `job-idempotency-at-least-once`, `job-outbox-schema`, and `job-retention-pruning`. The scripts program falls from 3,494 to 3,379 diagnostics, explicit `any` holds at 7, and all four owners are pinned strict-clean through `framework.full-strict-governance`.
+- [x] **Dynamic-boundary disposition** (required by the `0.33.33.31.6.1` rule): *persisted job JSON* — `payload_json` appears only inside SQL literals and column-shape assertions in these owners; nothing parses it, so nothing needed narrowing, and that is recorded rather than assumed. *Parsed HTTP payloads* — the admin jobs readout is behind `unknown` and narrowed through the shared `readPayload`, with the envelope derived from `jobsService.readAdminReadout`. *Child-process stdout* — the retention owner's config probe enters as `unknown` and proves both retention windows are numbers before either is compared. *Job rows* — claim, lock, and retry columns come back as open row values, so the reads that compare them as text or parse them as dates say so at the point of use rather than assuming a shape the adapter does not publish.
+- [x] Retired five historical pins: four identical assertions that a `0.33.5.21` durable-jobs completed-work breadcrumb stay absent from the live roadmap, which cannot fail against a `0.33.33` cursor, and one database-docs sentence narrating that the jobs table shipped as schema only in `0.33.5.21.1` before the v1 worker runner shipped in `0.33.5.21.2`. Two further docs assertions kept their behavior text with only the released-version anchors removed.
+- [x] Removed all four owners from both lists in `scripts/planning-document-pin-baseline.json`. Discovered coverage fell, so the five retired assertions are recorded as reviewed per-owner retirements in `scripts/regression-coverage-exceptions.json`, each naming its manifest id as `release.regression-manifest-generation` requires.
+- [x] Proved one contract per owner with its own negative control: dropping the lock release on retryable failure, removing the deterministic delivery-key notification identity, widening the active dedupe index to cover completed rows, and detaching the completed retention cutoff from its configured window each make the owning regression fail. Every perturbed source restores byte-identical by SHA-256, and all four governance pins fail by name when a diagnostic is seeded against them.
+- [x] Ran `release.regression-manifest-generation` and `release.historical-evidence-retirement` directly rather than leaving them to changed-file routing.
+- [x] Changed no production behavior. No explicit `any`, `@ts-ignore`, `@ts-nocheck`, or file exclusion was introduced.
+
 ## Version 0.33.33.31.8 - Type scanner adapter and worker owners
 
 **Model: High Effort** - Scanner refusals and worker isolation are both fail-closed paths.
