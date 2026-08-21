@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18451,
+    "activeAssertionCount": 18453,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,8 +106,8 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19155,
-    "retiredAssertionCredit": 35,
+    "effectiveAssertionCount": 19159,
+    "retiredAssertionCredit": 37,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -665,6 +665,32 @@
       ],
       "verificationPerformed": [
         "node scripts/search-index-jobs-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.tasks.primary.repository.conversion",
+      "retiredInVersion": "0.33.33.32.1",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.8 rather than a live contract: one required a CHANGELOG heading recording that release's Tasks conversion burndown, and one required that the completed 0.33.5.27.8 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The live Tasks repository conversion contract is still proven in this same owner by ten source assertions over src/modules/tasks/tasks.repo.js and by three documentation assertions over docs/database-parameter-binding-audit.md and docs/database.md, which carry the same 1,370/221/116 burndown figures the retired changelog assertion restated. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and legacy.bump.version owns the one current CHANGELOG heading check.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/tasks-primary-repository-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.tasks.primary.repository.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/tasks-primary-repository-conversion-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"
@@ -3938,11 +3964,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 133,
+      "assertionCount": 134,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 133,
+      "entryPointAssertionCount": 134,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -6881,11 +6907,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 21,
+      "assertionCount": 20,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy task activity metrics contract.",
-      "entryPointAssertionCount": 21,
+      "entryPointAssertionCount": 20,
       "id": "legacy.task.activity.metrics",
       "legacy": true,
       "path": "scripts/task-activity-metrics-regression.mjs",
@@ -6915,11 +6941,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 44,
+      "assertionCount": 45,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy task canonical query contract.",
-      "entryPointAssertionCount": 44,
+      "entryPointAssertionCount": 45,
       "id": "legacy.task.canonical.query",
       "legacy": true,
       "path": "scripts/task-canonical-query-regression.mjs",
@@ -6966,11 +6992,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 32,
+      "assertionCount": 31,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy task modal complete action contract.",
-      "entryPointAssertionCount": 32,
+      "entryPointAssertionCount": 31,
       "id": "legacy.task.modal.complete.action",
       "legacy": true,
       "path": "scripts/task-modal-complete-action-regression.mjs",
@@ -6981,11 +7007,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 21,
+      "assertionCount": 23,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy task options payload contract.",
-      "entryPointAssertionCount": 21,
+      "entryPointAssertionCount": 23,
       "id": "legacy.task.options.payload",
       "legacy": true,
       "path": "scripts/task-options-payload-regression.mjs",
@@ -6998,11 +7024,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 44,
+      "assertionCount": 48,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy task qol closeout contract.",
-      "entryPointAssertionCount": 44,
+      "entryPointAssertionCount": 48,
       "id": "legacy.task.qol.closeout",
       "legacy": true,
       "path": "scripts/task-qol-closeout-regression.mjs",
@@ -7242,11 +7268,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 30,
+      "assertionCount": 28,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy tasks primary repository conversion contract.",
-      "entryPointAssertionCount": 30,
+      "entryPointAssertionCount": 28,
       "id": "legacy.tasks.primary.repository.conversion",
       "legacy": true,
       "path": "scripts/tasks-primary-repository-conversion-regression.mjs",
@@ -7259,11 +7285,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 27,
+      "assertionCount": 26,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy tasks server side list paging contract.",
-      "entryPointAssertionCount": 27,
+      "entryPointAssertionCount": 26,
       "id": "legacy.tasks.server.side.list.paging",
       "legacy": true,
       "path": "scripts/tasks-server-side-list-paging-regression.mjs",
@@ -7276,11 +7302,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 25,
+      "assertionCount": 24,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy tasks view selector query contract contract.",
-      "entryPointAssertionCount": 25,
+      "entryPointAssertionCount": 24,
       "id": "legacy.tasks.view.selector.query.contract",
       "legacy": true,
       "path": "scripts/tasks-view-selector-query-contract-regression.mjs",

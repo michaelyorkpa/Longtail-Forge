@@ -4,6 +4,10 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
@@ -82,6 +86,7 @@ function assertStaticContract() {
     "Tasks docs should document the modal Complete action contract");
 }
 
+/** @param {TasksSession} session */
 async function assertSaveThenCompleteServiceSequence(session) {
   const task = (await tasksService.create({
     due_date: "2026-11-02",
@@ -108,6 +113,7 @@ async function assertSaveThenCompleteServiceSequence(session) {
   assert.equal(completed.recurrenceJob?.queued, true, "recurring completion should queue recurrence generation");
 }
 
+/** @param {TasksSession} session @param {string} projectId */
 async function assertActiveTimerCompletionGuard(session, projectId) {
   const task = (await tasksService.create({
     assignee_ids: [session.user_id],
@@ -128,6 +134,7 @@ async function assertActiveTimerCompletionGuard(session, projectId) {
   );
 }
 
+/** @param {string} workspaceId */
 async function createProject(workspaceId) {
   const now = new Date().toISOString();
   const projectId = randomUUID();
@@ -183,16 +190,5 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }

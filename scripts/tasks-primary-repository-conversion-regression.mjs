@@ -4,8 +4,14 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+/** @typedef {import("../src/types/task-list-engine-contracts.js").TaskListQuery} TaskListQuery */
+/** @typedef {Awaited<ReturnType<typeof createFixtures>>} PrimaryRepoFixtures */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-tasks-primary-repo-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-tasks-primary-repo.db");
@@ -15,8 +21,6 @@ process.env.SUPER_ADMIN_PASSWORD = "Tasks-Primary-Repository-Test-123!";
 const tasksRepoSource = readText("src/modules/tasks/tasks.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { clientsService } = await import("../src/modules/client-projects/clients.service.js");
@@ -57,10 +61,9 @@ function assertStaticContract() {
   assert.match(auditDocs, /0\.33\.5\.27\.8 Tasks Primary Repository Conversion[\s\S]*`tasks\/tasks\.repo`[\s\S]*1,370 runtime literal-helper invocations[\s\S]*221 direct interpolated SQL operation sites[\s\S]*116 existing bound operation sites/, "audit docs should record the Tasks conversion ratchet");
   assert.match(auditDocs, /\| tasks\/tasks\.repo \| Converted \| 0 \| 0 \| 17 \| 17 \|/, "audit inventory should mark tasks/tasks.repo converted");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.8[\s\S]*`tasks\/tasks\.repo`[\s\S]*1,370 remaining helper invocations/, "database docs should record the Tasks repository conversion");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.8 - Conversion wave: Tasks primary repository[\s\S]*- \[x\] Convert `tasks\/tasks\.repo`[\s\S]*- \[x\] Preserve task list\/detail reads[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.8 - [\s\S]*Tasks primary repository conversion[\s\S]*1,370 helper invocations[\s\S]*221 direct interpolated operation sites[\s\S]*116 bound operation sites/, "changelog should record the Tasks conversion burndown");
-  }
+}
 
+/** @param {TasksSession} session */
 async function createFixtures(session) {
   const client = (await clientsService.createClient({ name: "Tasks Repo Conversion Client" }, session)).client;
   const project = (await clientsService.createProject(client.id, { name: "Tasks Repo Conversion Project" }, session)).project;
@@ -124,6 +127,7 @@ async function createFixtures(session) {
   };
 }
 
+/** @param {TasksSession} session @param {PrimaryRepoFixtures} fixtures */
 async function assertTaskReadsAndFilters(session, fixtures) {
   const detail = (await tasksService.read(fixtures.assigned.task_id, session)).task;
   assert.equal(detail.task_id, fixtures.assigned.task_id, "detail reads should return the converted task");
@@ -159,6 +163,7 @@ async function assertTaskReadsAndFilters(session, fixtures) {
   );
 }
 
+/** @param {TasksSession} session @param {PrimaryRepoFixtures} fixtures */
 async function assertDueReminderAndRecurrenceReads(session, fixtures) {
   const calendar = await tasksService.calendarWindow(session, {
     end: fixtures.inTwoDays,
@@ -173,14 +178,20 @@ async function assertDueReminderAndRecurrenceReads(session, fixtures) {
   assert.ok(candidateIds.has(fixtures.assigned.task_id), "reminder candidate reads should include active due tasks");
   assert.ok(candidateIds.has(fixtures.recurrence.task_id), "reminder candidate reads should include repository-created active due tasks");
 
+  const recurrenceInstanceDate = fixtures.recurrence.recurrence_instance_date;
+  assert.ok(
+    typeof recurrenceInstanceDate === "string" && recurrenceInstanceDate,
+    "repository-created recurrence rows should persist their instance date",
+  );
   const recurrenceRead = await tasksRepository.readByRecurrenceInstance(
     session.workspace_id,
     fixtures.recurrenceTemplateId,
-    fixtures.recurrence.recurrence_instance_date,
+    recurrenceInstanceDate,
   );
   assert.equal(recurrenceRead?.task_id, fixtures.recurrence.task_id, "recurrence instance lookup should stay bound and exact");
 }
 
+/** @param {TasksSession} session @param {string} taskId */
 async function assertLastWorkedUpdate(session, taskId) {
   const before = await tasksRepository.readById(session.workspace_id, taskId);
   assert.ok(before, "task should exist before the repository conversion assertion");
@@ -191,11 +202,13 @@ async function assertLastWorkedUpdate(session, taskId) {
   assert.equal(after.updated_by_user_id, before.updated_by_user_id, "blank updated-by input should preserve the previous updater");
 }
 
+/** @param {TasksSession} session @param {TaskListQuery} query @returns {Promise<string[]>} */
 async function taskIds(session, query) {
   const result = await tasksService.list(session, query);
   return result.tasks.map((task) => task.task_id);
 }
 
+/** @param {readonly string[]} ids @param {string} id @param {string} message */
 function assertIncludes(ids, id, message) {
   assert.ok(ids.includes(id), message);
 }
@@ -208,18 +221,10 @@ WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
 
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireRow(user, "fresh database should seed a protected super admin"));
 }
 
+/** @param {Date} date @param {string} [timezone] @returns {string} */
 function localDateKey(date, timezone = "America/New_York") {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     day: "2-digit",
@@ -231,6 +236,7 @@ function localDateKey(date, timezone = "America/New_York") {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+/** @param {string} dateKey @param {number} days @returns {string} */
 function addCalendarDaysKey(dateKey, days) {
   const [year, month, day] = dateKey.split("-").map((part) => Number.parseInt(part, 10));
   const date = new Date(Date.UTC(year, month - 1, day));

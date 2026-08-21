@@ -4,8 +4,15 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+/** @typedef {import("../src/types/task-list-engine-contracts.js").TaskListQuery} TaskListQuery */
+/** @typedef {import("../src/types/task-recurrence-contracts.js").TaskRecord} TaskRecord */
+/** @typedef {Awaited<ReturnType<typeof createFixtures>>} TaskViewFixtures */
 
 const tasksScript = readText("public/js/tasks.js");
 const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
@@ -49,10 +56,11 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session */
 async function createFixtures(session) {
   const client = (await clientsService.createClient({ name: "Task View Client" }, session)).client;
   const project = (await clientsService.createProject(client.id, { name: "Task View Project" }, session)).project;
-  const tag = await tagsService.create(session, { name: "Task View Tag" });
+  const tag = (await tagsService.create(session, { name: "Task View Tag" })).tag;
   const today = localDateKey(new Date(), session.timezone);
   const yesterday = addCalendarDaysKey(today, -1);
   const currentWeekEnd = currentWeekEndKey(today);
@@ -136,6 +144,7 @@ async function createFixtures(session) {
   };
 }
 
+/** @param {TasksSession} session @param {TaskViewFixtures} fixtures */
 async function assertSavedTaskViews(session, fixtures) {
   const my = await taskIds(session, { task_view: "my", status: "active" });
   assertIncludes(my, fixtures.assigned.task_id, "My Tasks should include active tasks assigned to the current user");
@@ -175,6 +184,7 @@ async function assertSavedTaskViews(session, fixtures) {
   assert.deepEqual(await taskIds(session, { task_view: "archived", status: "all" }), [fixtures.archived.task_id]);
 }
 
+/** @param {TasksSession} session @param {TaskViewFixtures} fixtures */
 async function assertAdvancedFiltersCompose(session, fixtures) {
   assert.deepEqual(
     await taskIds(session, {
@@ -226,10 +236,12 @@ async function assertAdvancedFiltersCompose(session, fixtures) {
   );
 }
 
+/** @param {TasksSession} session @param {Partial<TaskRecord> & { title: string, assignee_ids?: string[], tagIds?: string[] }} payload @returns {Promise<TaskRecord>} */
 async function createTask(session, payload) {
   return (await tasksService.create(payload, session)).task;
 }
 
+/** @param {TasksSession} session @param {TaskListQuery} query @returns {Promise<string[]>} */
 async function taskIds(session, query) {
   const result = await tasksService.list(session, query);
   return result.tasks.map((task) => task.task_id);
@@ -242,28 +254,20 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }
 
+/** @param {readonly string[]} ids @param {string} id @param {string} message */
 function assertIncludes(ids, id, message) {
   assert.ok(ids.includes(id), message);
 }
 
+/** @param {readonly string[]} ids @param {string} id @param {string} message */
 function assertExcludes(ids, id, message) {
   assert.equal(ids.includes(id), false, message);
 }
 
+/** @param {Date} date @param {string} [timezone] @returns {string} */
 function localDateKey(date, timezone = "America/New_York") {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone || "America/New_York",
@@ -275,12 +279,14 @@ function localDateKey(date, timezone = "America/New_York") {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+/** @param {string} dateKey @returns {string} */
 function currentWeekEndKey(dateKey) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   const daysUntilSaturday = (6 - date.getUTCDay() + 7) % 7;
   return addCalendarDaysKey(dateKey, daysUntilSaturday);
 }
 
+/** @param {string} dateKey @param {number} days @returns {string} */
 function addCalendarDaysKey(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);

@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { appVersion } from "../src/core/version.js";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-qol-closeout-"));
@@ -11,10 +13,14 @@ process.env.SUPER_ADMIN_PASSWORD = "Task-QoL-Closeout-Test-Password-123!";
 
 const { internalEventBus } = await import("../src/core/events/event-bus.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+/** @typedef {import("../src/types/framework-contracts.js").InternalEvent} InternalEvent */
+
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { indexTaskRecord } = await import("../src/modules/tasks/search-indexers.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 
+/** @type {InternalEvent[]} */
 const capturedEvents = [];
 const unsubscribe = [
   "task.created",
@@ -45,6 +51,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session @param {TasksSession} noRoleSession */
 async function assertResumeSafeTaskSurface(session, noRoleSession) {
   const parent = (await tasksService.create({
     title: "Closeout parent task",
@@ -91,13 +98,19 @@ async function assertResumeSafeTaskSurface(session, noRoleSession) {
   assert.equal(workItem.relationship_summary.incomplete_blocking_child_count, 1);
 
   const tasksModule = modulesService.getModule("tasks");
+  assert.ok(tasksModule, "the Tasks module should be registered");
   const taskSearchDeclaration = tasksModule.searchableTypes.find((type) => type.recordType === "task");
+  assert.ok(taskSearchDeclaration, "the Tasks module should declare a searchable task record type");
   assert.equal(taskSearchDeclaration.requiredReadPermission, "tasks.view");
 
   const searchDocument = await indexTaskRecord({
     workspaceId: session.workspace_id,
     recordId: parent.task_id,
   });
+  assert.ok(
+    searchDocument && !("documents" in searchDocument),
+    "indexing a single task record should return that record's search document",
+  );
   assert.equal(searchDocument.summary, "Review the closeout evidence.");
   assert.match(searchDocument.body, /Blocked by incomplete child task/);
   assert.match(searchDocument.body, /Collect verification evidence/);
@@ -109,15 +122,19 @@ async function assertResumeSafeTaskSurface(session, noRoleSession) {
   assert.ok(capturedEvents.some((event) =>
     event.name === "task.relationship.created" &&
     event.metadata?.parent_task_id === parent.task_id &&
-    event.metadata?.relationship_summary?.incomplete_blocking_child_count === 1,
+    eventRecord(event.metadata?.relationship_summary)?.incomplete_blocking_child_count === 1,
   ), "relationship event should include parent blocking summary metadata");
 
   const updateEvent = taskEvents.find((event) => event.name === "task.updated" && event.metadata?.resume_context);
   assert.ok(updateEvent, "task update event should include resume-safe metadata");
-  assert.equal(updateEvent.metadata.next_action, "Review the closeout evidence.");
-  assert.equal(updateEvent.metadata.resume_context.active_candidate, true);
-  assert.equal(updateEvent.metadata.checklist_progress.total_count, 1);
-  assert.equal(updateEvent.metadata.relationship_summary.incomplete_blocking_child_count, 1);
+  const updateMetadata = requireEventRecord(updateEvent.metadata, "task update event metadata");
+  const resumeContext = requireEventRecord(updateMetadata.resume_context, "task update resume context");
+  const checklistProgress = requireEventRecord(updateMetadata.checklist_progress, "task update checklist progress");
+  const relationshipSummary = requireEventRecord(updateMetadata.relationship_summary, "task update relationship summary");
+  assert.equal(updateMetadata.next_action, "Review the closeout evidence.");
+  assert.equal(resumeContext.active_candidate, true);
+  assert.equal(checklistProgress.total_count, 1);
+  assert.equal(relationshipSummary.incomplete_blocking_child_count, 1);
 
   await assert.rejects(
     () => tasksService.read(parent.task_id, noRoleSession),
@@ -137,6 +154,7 @@ async function assertResumeSafeTaskSurface(session, noRoleSession) {
 
 async function assertTasksHelpAndDocsAreCurrent() {
   const tasksModule = modulesService.getModule("tasks");
+  assert.ok(tasksModule, "the Tasks module should be registered");
   assert.equal(tasksModule.version, appVersion);
   assert.ok(tasksModule.help?.articles?.some((article) => article.id === "tasks.resume-context"));
   const docs = await fs.readFile(new URL("../docs/tasks-module.md", import.meta.url), "utf8");
@@ -147,6 +165,7 @@ async function assertTasksHelpAndDocsAreCurrent() {
   assert.match(docs, /heading bell follows or unfollows/i);
 }
 
+/** @param {string} workspaceId @returns {Promise<TasksSession>} */
 async function createNoRoleSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -191,14 +210,14 @@ VALUES (
 );
 `);
 
-  return {
+  return workspaceSessionFixture({
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
+    ip_address: "127.0.0.1",
     timezone: "America/New_York",
     user_id: userId,
     username: `task-qol-closeout-${userId}@example.test`,
     workspace_id: workspaceId,
-  };
+  });
 }
 
 async function readSeedSession() {
@@ -208,16 +227,33 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
+}
 
-  assert.ok(user, "fresh database should seed a protected super admin");
+/**
+ * Prove one published event-metadata value really is an object before the
+ * owner names a field on it. `InternalEvent.metadata` is an open record, so a
+ * nested read is otherwise unchecked.
+ * @param {unknown} value
+ * @param {string} label
+ * @returns {Record<string, unknown>}
+ */
+function requireEventRecord(value, label) {
+  assert.ok(
+    value !== null && typeof value === "object" && !Array.isArray(value),
+    `${label} should be an object`,
+  );
+  return /** @type {Record<string, unknown>} */ (value);
+}
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+/**
+ * Non-asserting variant for the boolean predicates inside `Array#some`, where
+ * a non-object metadata value should fail the candidate rather than the run.
+ * @param {unknown} value
+ * @returns {Record<string, unknown> | null}
+ */
+function eventRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? /** @type {Record<string, unknown>} */ (value)
+    : null;
 }
