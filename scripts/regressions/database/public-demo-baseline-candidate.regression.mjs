@@ -15,6 +15,8 @@ import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { redactDemoError, seedCandidate } from "../../lib/demo-data-operation.mjs";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
+import { requirePackageManifest } from "../../test-support/package-manifest-assertions.mjs";
 
 /** @typedef {Awaited<ReturnType<typeof runPublicDemoCandidateOperation>>} PublicDemoCandidateOutcome */
 /** @typedef {Exclude<PublicDemoCandidateOutcome, { status: "candidate-dry-run-ready" }>} PublicDemoCandidateBuild */
@@ -38,7 +40,17 @@ const filesRoot = path.join(dataRoot, "files");
 const roleCredentialsFile = path.join(root, "protected", "demo-role-credentials.json");
 const privateOperatorPassword = "Candidate-Private-Operator-75319zZ!";
 const applicationSecret = "Candidate-App-Secret-94173zZ!";
-const appVersion = JSON.parse(await fs.readFile("package.json", "utf8")).version;
+/**
+ * Narrow the manifest version this owner stamps into candidate artifacts.
+ * @param {unknown} version
+ * @returns {string}
+ */
+function requireAppVersion(version) {
+  assert.equal(typeof version, "string", "package.json should publish the application version");
+  return String(version);
+}
+
+const appVersion = requireAppVersion(requirePackageManifest(JSON.parse(await fs.readFile("package.json", "utf8"))).version);
 const environment = Object.freeze({
   DEMO_MODE: "true",
   LONGTAIL_DEPLOYMENT_MODE: "compose",
@@ -164,7 +176,8 @@ try {
   assert.match(first.migrationIdentitySha256, /^[a-f0-9]{64}$/);
   assert.equal(await activeStateDigest(dataRoot), activeBefore, "candidate build must not touch the active database or Files");
   const markerFile = path.join(buildContext.paths.candidateRoot, ".longtail-demo-data.json");
-  const marker = JSON.parse(await fs.readFile(markerFile, "utf8"));
+  /** @type {{ candidateContract?: unknown, publicVisitorUserIds: unknown[], state?: unknown }} */
+  const marker = requireJsonRecord(JSON.parse(await fs.readFile(markerFile, "utf8")), "candidate ownership marker");
   assert.equal(marker.candidateContract, PUBLIC_DEMO_CANDIDATE_CONTRACT);
   assert.equal(marker.state, "verified-candidate");
   assert.equal(marker.publicVisitorUserIds.length, 6);
@@ -277,19 +290,22 @@ WHERE note_id = (SELECT note_id FROM notes LIMIT 1);
   }, /analytics, feedback, or interest/);
   await corruptCandidate("marker-time", async (candidateRoot) => {
     const file = path.join(candidateRoot, ".longtail-demo-data.json");
-    const value = JSON.parse(await fs.readFile(file, "utf8"));
+    /** @type {{ anchorDate?: unknown, generatedAt?: unknown }} */
+    const value = requireJsonRecord(JSON.parse(await fs.readFile(file, "utf8")), "candidate ownership marker");
     value.generatedAt = "not-a-timestamp";
     await fs.writeFile(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
   }, /ownership marker/);
   await corruptCandidate("marker-anchor", async (candidateRoot) => {
     const file = path.join(candidateRoot, ".longtail-demo-data.json");
-    const value = JSON.parse(await fs.readFile(file, "utf8"));
+    /** @type {Record<string, unknown>} */
+    const value = requireJsonRecord(JSON.parse(await fs.readFile(file, "utf8")), "candidate ownership marker");
     value.anchorDate = "2026-08-06";
     await fs.writeFile(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
   }, /ownership marker/);
   await corruptCandidate("credential", async (candidateRoot) => {
     const file = path.join(candidateRoot, ".longtail-demo-data.json");
-    const value = JSON.parse(await fs.readFile(file, "utf8"));
+    /** @type {Record<string, unknown>} */
+    const value = requireJsonRecord(JSON.parse(await fs.readFile(file, "utf8")), "candidate ownership marker");
     value.generatedAt = privateOperatorPassword;
     await fs.writeFile(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
   }, /protected credential material/);

@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { clearTimeout, setTimeout } from "node:timers";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const root = process.cwd();
@@ -127,7 +128,8 @@ async function assertSecondStartupFailsClearlyWhileLockHeld() {
 
   await waitForOutput(holder, () => holderOutput.includes("lock-ready"));
   const lockPath = path.join(path.dirname(lockedDatabaseFile), ".longtail-forge-migrations.lock");
-  const lockMetadata = JSON.parse(await fs.readFile(lockPath, "utf8"));
+  /** @type {{ ownerId: string }} */
+  const lockMetadata = requireJsonRecord(JSON.parse(await fs.readFile(lockPath, "utf8")), "migration lock metadata");
   assertUuidVersion(/** @type {string} */ (lockMetadata.ownerId), "4", "SQLite migration-lock owner identity");
 
   const contender = spawnSync(process.execPath, ["--input-type=module", "--eval", `

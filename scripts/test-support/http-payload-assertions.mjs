@@ -42,17 +42,4 @@ function readPayload(response, keys, label = "response") {
   return /** @type {PayloadShape} */ (/** @type {unknown} */ (record));
 }
 
-/**
- * Narrow a fixture response body that must be a JSON array.
- * @template {object} [ItemShape=Record<string, unknown>]
- * @param {{ body: unknown }} response
- * @param {string} [label]
- * @returns {ItemShape[]}
- */
-function readPayloadList(response, label = "response") {
-  const body = response.body;
-  assert.ok(Array.isArray(body), `${label} payload should be a JSON array: ${JSON.stringify(body)}`);
-  return /** @type {ItemShape[]} */ (body);
-}
-
-export { readPayload, readPayloadList };
+export { readPayload };

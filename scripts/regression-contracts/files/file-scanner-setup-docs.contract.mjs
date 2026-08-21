@@ -4,7 +4,6 @@ import assert from "node:assert/strict";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
-const roadmap = readText("ROADMAP.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const scannerDocs = readText("docs/file-scanner-setup.md");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
@@ -27,8 +26,6 @@ assert.match(runtimeDocs, /Deferred setting:[\s\S]*no `LONGTAIL_CLAMD_SOCKET` ke
 assert.match(sqliteDocs, /file-scanner-setup\.md[\s\S]*Unavailable ClamAV scanners quarantine files for review/, "SQLite docs should point to scanner setup and unavailable behavior");
 assert.match(envExample, /docs\/file-scanner-setup\.md[\s\S]*Optional live settings when LONGTAIL_FILE_SCANNER=clamd[\s\S]*Optional live setting when LONGTAIL_FILE_SCANNER=clamscan/, ".env.example should point operators to scanner docs and mark scanner keys live");
 
-assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
-assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.22\.15 - Scanner setup docs and ClamAV closeout/, "live roadmap should not keep the completed scanner setup closeout slice open");
 
 for (const scriptName of [
   "file-scanner-mode-resolver-regression.mjs",

@@ -14,6 +14,8 @@ import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { requireRow } from "../../test-support/database-row-assertions.mjs";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
+import { requirePackageManifest } from "../../test-support/package-manifest-assertions.mjs";
 import {
   DEMO_DATA_CONTRACT,
   PREFLIGHT_CONFIRMATION,
@@ -58,7 +60,17 @@ import {
 } from "../../lib/sanitized-demo-role-fixtures.mjs";
 
 const root = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-demo-data-host-regression-"));
-const appVersion = JSON.parse(await fs.readFile("package.json", "utf8").then(String)).version;
+/**
+ * Narrow the manifest version this owner stamps into candidate artifacts.
+ * @param {unknown} version
+ * @returns {string}
+ */
+function requireAppVersion(version) {
+  assert.equal(typeof version, "string", "package.json should publish the application version");
+  return String(version);
+}
+
+const appVersion = requireAppVersion(requirePackageManifest(JSON.parse(await fs.readFile("package.json", "utf8").then(String))).version);
 const operatorPassword = "Regression-Only-Demo-Host-Operator-41!";
 const rolePasswords = Object.fromEntries(SANITIZED_DEMO_ROLE_FIXTURES.map((fixture, index) => [
   fixture.roleId,
@@ -534,7 +546,12 @@ WHERE note_id = (SELECT note_id FROM notes LIMIT 1);
   assert.match(helperSource, /\/opt\/longtail-forge\/current\/scripts\/demo-data-host\.mjs/);
   assert.doesNotMatch(helperSource, /LTF_HELPER_ENV|--config/);
   assert.match(attributes, /^scripts\/release\/longtail-forge-demo-data-host\.example text eol=lf$/m);
-  assert.equal(JSON.parse(packageSource).scripts["demo:data:host"], "node scripts/demo-data-host.mjs");
+  assert.equal(
+    /** @type {{ scripts: Record<string, string> }} */ (
+      requireJsonRecord(JSON.parse(packageSource), "package.json")
+    ).scripts["demo:data:host"],
+    "node scripts/demo-data-host.mjs",
+  );
   for (const normalPathSource of [deployHelperSource, serverSource, workerSource, workflows]) {
     assert.doesNotMatch(normalPathSource, /demo-data-host\.mjs|demo:data:host/, "normal startup/deployment paths must not invoke demo reset tooling");
   }

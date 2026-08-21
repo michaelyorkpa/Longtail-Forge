@@ -26,6 +26,8 @@ import {
   SANITIZED_DEMO_ROLE_FIXTURES,
 } from "../../lib/sanitized-demo-role-fixtures.mjs";
 import { requireRow } from "../../test-support/database-row-assertions.mjs";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
+import { requirePackageManifest } from "../../test-support/package-manifest-assertions.mjs";
 
 /** @typedef {typeof import("../../../src/db/index.js")} DatabaseModule */
 /** @typedef {{ user_id: string, workspace_id: string }} SeededSession */
@@ -164,12 +166,16 @@ try {
       assert.equal(timer.description, timer.task_title);
       assert.equal(timer.source_url, `tasks.html?task=${timer.source_id}`);
       assert.equal(Boolean(timer.last_active_start_time), timer.timer_status === "running");
-      const metadata = JSON.parse(timer.source_metadata_json);
+      /** @type {{ fake?: unknown, taskTimerStatusTransition?: { movedTaskToInProgress?: unknown, previousStatus?: unknown } }} */
+      const metadata = requireJsonRecord(JSON.parse(timer.source_metadata_json), "seeded timer source_metadata_json");
       assert.equal(metadata.fake, true);
       assert.equal(typeof metadata.taskTimerStatusTransition?.movedTaskToInProgress, "boolean");
-      assert.ok(["open", "in_progress"].includes(metadata.taskTimerStatusTransition?.previousStatus));
+      assert.ok(["open", "in_progress"].includes(String(metadata.taskTimerStatusTransition?.previousStatus)));
     }
-    const runningTransition = JSON.parse(/** @type {SeededTaskTimerRow} */ (taskTimers.find((timer) => timer.task_title === "Validate POS receipt layout")).source_metadata_json).taskTimerStatusTransition;
+    const runningTransition = /** @type {{ taskTimerStatusTransition: unknown }} */ (requireJsonRecord(
+      JSON.parse(/** @type {SeededTaskTimerRow} */ (taskTimers.find((timer) => timer.task_title === "Validate POS receipt layout")).source_metadata_json),
+      "running timer source_metadata_json",
+    )).taskTimerStatusTransition;
     assert.deepEqual(runningTransition, {
       movedTaskToInProgress: true,
       movedTaskFromOpen: true,
@@ -177,7 +183,10 @@ try {
       previousBlockedReason: "",
       previousStatus: "open",
     });
-    const pausedTransition = JSON.parse(/** @type {SeededTaskTimerRow} */ (taskTimers.find((timer) => timer.task_title === "Fix mobile checkout overlap")).source_metadata_json).taskTimerStatusTransition;
+    const pausedTransition = /** @type {{ taskTimerStatusTransition: unknown }} */ (requireJsonRecord(
+      JSON.parse(/** @type {SeededTaskTimerRow} */ (taskTimers.find((timer) => timer.task_title === "Fix mobile checkout overlap")).source_metadata_json),
+      "paused timer source_metadata_json",
+    )).taskTimerStatusTransition;
     assert.deepEqual(pausedTransition, {
       movedTaskToInProgress: false,
       movedTaskFromOpen: false,
@@ -211,12 +220,14 @@ try {
   assert.equal(reset.status, 0, reset.stderr || reset.stdout);
   await assert.rejects(fs.access(firstDir));
 
-  const packageJson = JSON.parse(await fs.readFile("package.json", "utf8"));
+  const packageJson = requirePackageManifest(JSON.parse(await fs.readFile("package.json", "utf8")));
+  const packageScripts = packageJson.scripts;
+  assert.ok(packageScripts, "package.json should publish its scripts map");
   for (const command of ["dev:data:seed", "dev:data:reset", "demo:data:seed", "demo:data:reset"]) {
-    assert.ok(packageJson.scripts[command], `${command} should be independently runnable`);
+    assert.ok(packageScripts[command], `${command} should be independently runnable`);
   }
-  assert.match(packageJson.scripts["demo:data:seed"], /sanitized-demo/);
-  assert.match(packageJson.scripts["dev:data:seed"], /--role-fixtures local-sanitized-demo/);
+  assert.match(packageScripts["demo:data:seed"], /sanitized-demo/);
+  assert.match(packageScripts["dev:data:seed"], /--role-fixtures local-sanitized-demo/);
   const demoTarget = resolveSeedTarget({ profile: "sanitized-demo", environment: "development", dataDir: path.join(root, "sanitized-demo", "preview") });
   assert.equal(demoTarget.marker, "sanitized-demo");
   const fixtureEnv = {
@@ -340,7 +351,7 @@ try {
   assert.match(credentialSource, /validatePassword/);
   assert.match(credentialSource, /Every sanitized-demo role password must be unique/);
   assert.match(gitignore, /^\.local\/$/m);
-  assert.match(packageJson.scripts["demo:data:seed"], /--role-fixtures local-sanitized-demo/);
+  assert.match(packageScripts["demo:data:seed"], /--role-fixtures local-sanitized-demo/);
 
   console.log("Development and sanitized demo data regression passed.");
 } finally {
@@ -427,7 +438,8 @@ function rolePassword(prefix, index) {
 
 /** @param {string} dataDir @param {string} credentialsFile @param {string[]} [expectedExtraActiveUsernames] */
 async function verifyRoleFixtureDatabase(dataDir, credentialsFile, expectedExtraActiveUsernames = []) {
-  const credentialDocument = JSON.parse(await fs.readFile(credentialsFile, "utf8"));
+  /** @type {{ passwords: Record<string, string>, version: number }} */
+  const credentialDocument = requireJsonRecord(JSON.parse(await fs.readFile(credentialsFile, "utf8")), "role credentials document");
   const database = new Database(path.join(dataDir, "longtail-forge.db"), { readonly: true });
   try {
     // The columns are named by the SELECT directly above, so the row shape is

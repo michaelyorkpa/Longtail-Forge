@@ -115,6 +115,7 @@ assert.doesNotMatch(regressionSuite, /scripts\/files-detail-summary-regression\.
 
 console.log("Files browse compact reset regression passed.");
 
+/** @param {string} source @param {string} functionName */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);

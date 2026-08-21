@@ -659,6 +659,17 @@ export interface ViewSurfaceDescriptor {
   regions?: ViewRegionDescriptor[];
 }
 
+/**
+ * A view surface after `normalizeViewSurfaceContribution` has resolved it.
+ *
+ * Modules contribute a `ViewSurfaceDescriptor` without a view path; normalization
+ * sets `viewPath` unconditionally from the contributing protected view. Consumers
+ * that read a normalized surface should not have to re-assert that.
+ */
+export interface NormalizedViewSurfaceDescriptor extends ViewSurfaceDescriptor {
+  viewPath: string;
+}
+
 // ---------------------------------------------------------------------------
 // Dashboard / Reporting / Workbench contributions
 // ---------------------------------------------------------------------------

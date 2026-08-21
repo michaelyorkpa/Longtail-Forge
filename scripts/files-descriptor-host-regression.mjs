@@ -53,18 +53,18 @@ try {
   await modulesService.syncModuleRegistry(workspaceId);
 
   const activeSurfaces = await modulesService.listActiveViewSurfaces(workspaceId, protectedSession);
-  assertFilesSurface(activeSurfaces.find((surface) => surface.id === "files.browse"), "modulesService.listActiveViewSurfaces");
+  assertFilesSurface(surfaceList(activeSurfaces, "modulesService.listActiveViewSurfaces").find((surface) => surface.id === "files.browse"), "modulesService.listActiveViewSurfaces");
 
   const allowedShell = await appShellService.bootstrap(protectedSession);
-  assertFilesSurface(allowedShell.viewSurfaces.find((surface) => surface.id === "files.browse"), "appShellService.bootstrap top-level viewSurfaces");
-  assertFilesSurface(allowedShell.workspaceContext.viewSurfaces.find((surface) => surface.id === "files.browse"), "appShellService.bootstrap workspaceContext.viewSurfaces");
+  assertFilesSurface(surfaceList(allowedShell.viewSurfaces, "app shell viewSurfaces").find((surface) => surface.id === "files.browse"), "appShellService.bootstrap top-level viewSurfaces");
+  assertFilesSurface(surfaceList(allowedShell.workspaceContext.viewSurfaces, "app shell workspaceContext.viewSurfaces").find((surface) => surface.id === "files.browse"), "appShellService.bootstrap workspaceContext.viewSurfaces");
 
   const deniedSurfaces = await modulesService.listActiveViewSurfaces(workspaceId, deniedSession);
-  assert.equal(deniedSurfaces.some((surface) => surface.id === "files.browse"), false, "Files descriptor should not be delivered when files.view is denied");
+  assert.equal(surfaceList(deniedSurfaces, "denied listActiveViewSurfaces").some((surface) => surface.id === "files.browse"), false, "Files descriptor should not be delivered when files.view is denied");
 
   const deniedShell = await appShellService.bootstrap(deniedSession);
-  assert.equal(deniedShell.viewSurfaces.some((surface) => surface.id === "files.browse"), false, "Denied app shell should not receive files.browse");
-  assert.equal(deniedShell.workspaceContext.viewSurfaces.some((surface) => surface.id === "files.browse"), false, "Denied workspace context should not cache files.browse");
+  assert.equal(surfaceList(deniedShell.viewSurfaces, "denied app shell viewSurfaces").some((surface) => surface.id === "files.browse"), false, "Denied app shell should not receive files.browse");
+  assert.equal(surfaceList(deniedShell.workspaceContext.viewSurfaces, "denied workspaceContext.viewSurfaces").some((surface) => surface.id === "files.browse"), false, "Denied workspace context should not cache files.browse");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "Database integrity check should pass after Files descriptor regression setup");
@@ -86,6 +86,7 @@ ON CONFLICT(workspace_id) DO NOTHING;
   await ensureUser(deniedUserId, "files-descriptor-denied", "no");
 }
 
+/** @param {string} userId @param {string} username @param {string} protectedUser */
 async function ensureUser(userId, username, protectedUser) {
   const existing = await querySql(`
 SELECT user_id
@@ -147,6 +148,25 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 `);
 }
 
+/** @typedef {import("../src/types/framework-contracts.js").NormalizedViewSurfaceDescriptor} ViewSurfaceDescriptor */
+
+/**
+ * Narrow a published surface list to descriptors.
+ *
+ * The app shell publishes `viewSurfaces` as an open list and
+ * `workspaceContext` as an open record, because modules contribute their own
+ * shapes. This owner only ever asks those lists for `files.browse`, so it names
+ * that one contract at the point of use rather than widening the shell.
+ * @param {unknown} surfaces
+ * @param {string} sourceLabel
+ * @returns {ViewSurfaceDescriptor[]}
+ */
+function surfaceList(surfaces, sourceLabel) {
+  assert.ok(Array.isArray(surfaces), `${sourceLabel} should publish a surface list`);
+  return /** @type {ViewSurfaceDescriptor[]} */ (surfaces);
+}
+
+/** @param {ViewSurfaceDescriptor | undefined} surface @param {string} sourceLabel */
 function assertFilesSurface(surface, sourceLabel) {
   assert.ok(surface, `${sourceLabel} should deliver files.browse`);
   assert.equal(surface.moduleId, "framework", `${sourceLabel} should keep files.browse framework-owned`);
@@ -158,6 +178,7 @@ function assertFilesSurface(surface, sourceLabel) {
   assert.equal(surface.detail?.regions?.[0]?.behavior, "files.browse.results", `${sourceLabel} should mount Files results in the main region`);
 }
 
+/** @param {string} html @param {string} label */
 function assertNoProtectedAnatomy(html, label) {
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));
 
@@ -165,6 +186,7 @@ function assertNoProtectedAnatomy(html, label) {
   assert.doesNotMatch(body, /\b(data-file-filters|data-file-list|data-file-status|files-table)\b/, `${label} should not ship Files browse hooks outside the descriptor host`);
 }
 
+/** @param {string} userId */
 function sessionFor(userId) {
   return workspaceSessionFixture({
     active_workspace_id: workspaceId,

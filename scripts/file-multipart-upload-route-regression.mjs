@@ -11,6 +11,7 @@ import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 import { readPayload } from "./test-support/http-payload-assertions.mjs";
+import { requirePackageManifest } from "./test-support/package-manifest-assertions.mjs";
 
 /** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
 /** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} MultipartClientOptions */
@@ -95,7 +96,7 @@ try {
 }
 
 function assertStaticContracts() {
-  const packageJson = JSON.parse(readText("package.json"));
+  const packageJson = requirePackageManifest(JSON.parse(readText("package.json")));
   const roadmap = readText("ROADMAP.md");
   const moduleDocs = readText("docs/module-development.md");
   const runtimeDocs = readText("docs/runtime-configuration.md");

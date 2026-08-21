@@ -6,6 +6,7 @@ const { readText: read } = createProjectTextReader();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+/** @param {string} source @param {string} name */
 function functionBlock(source, name) {
   const start = source.indexOf(`function ${name}`);
   assert.notEqual(start, -1, `${name} should exist`);

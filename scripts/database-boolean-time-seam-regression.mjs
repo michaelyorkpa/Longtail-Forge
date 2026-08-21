@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 import { requireRow } from "./test-support/database-row-assertions.mjs";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const dialectContractVersion = "0.33.6.14a";
@@ -23,7 +24,8 @@ const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
 const settingsRepoSource = readText("src/repositories/settings.repo.js");
 const activeTimersRepoSource = readText("src/modules/time-tracking/active-timers.repo.js");
-const parameterBindingBaseline = JSON.parse(readText("scripts/baselines/parameter-binding-baseline.json"));
+/** @type {import("./lib/parameter-binding-audit.mjs").ParameterBindingBaseline} */
+const parameterBindingBaseline = requireJsonRecord(JSON.parse(readText("scripts/baselines/parameter-binding-baseline.json")), "parameter binding baseline");
 
 const {
   closeDatabase,

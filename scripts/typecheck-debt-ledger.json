@@ -2959,6 +2959,7 @@
         "scripts/test-support/http-fixture-contracts.mjs",
         "scripts/test-support/http-payload-assertions.mjs",
         "scripts/test-support/isolated-regression-retry.mjs",
+        "scripts/test-support/json-record-assertions.mjs",
         "scripts/test-support/package-manifest-assertions.mjs",
         "scripts/test-support/public-demo-files-ingress-probe.mjs",
         "scripts/test-support/regression-bucket-orchestrator.mjs",
@@ -3003,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 3254,
+      "errorCount": 3150,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3215,60 +3216,6 @@
           {
             "code": 7023,
             "count": 1
-          }
-        ],
-        "scripts/file-framework-contract-regression.mjs": [
-          {
-            "code": 7005,
-            "count": 10
-          },
-          {
-            "code": 7006,
-            "count": 4
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/file-settings-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 5
-          },
-          {
-            "code": 7006,
-            "count": 10
-          }
-        ],
-        "scripts/files-descriptor-host-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 10
-          }
-        ],
-        "scripts/files-lifecycle-settings-quota-conversion-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 20
-          },
-          {
-            "code": 7006,
-            "count": 10
-          }
-        ],
-        "scripts/files-time-tracking-qol-closeout-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 2
           }
         ],
         "scripts/framework-admin-low-count-repositories-conversion-regression.mjs": [
@@ -4028,72 +3975,6 @@
           }
         ],
         "scripts/regression-clean-clone-contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/files/files-attachment-panel-shell.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/files/files-browse-compact-reset.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/files/files-browse-list-shell.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/files/files-edit-modal-save.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/files/files-edit-modal-shell.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/files/files-filter-sidebar.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "scripts/regression-contracts/files/files-preview-modal.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/files/files-row-attachment-actions.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/files/files-strict-guardrail-inventory.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "scripts/regression-contracts/files/files-upload-shell.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/files/files-visual-state-control-parity.contract.mjs": [
           {
             "code": 7006,
             "count": 2
@@ -5633,8 +5514,8 @@
     }
   },
   "totals": {
-    "files": 1045,
-    "errors": 14388,
+    "files": 1046,
+    "errors": 14284,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

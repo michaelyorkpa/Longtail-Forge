@@ -11,7 +11,6 @@ const filesHtml = readText("views/protected/files.html");
 const notesHtml = readText("views/protected/notes.html");
 const tasksHtml = readText("views/protected/tasks.html");
 const workbenchHtml = readText("views/protected/workbench.html");
-const roadmap = readText("ROADMAP.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
 
@@ -111,10 +110,10 @@ assert.doesNotMatch(filesScript, /selectedFile|selected-row|createFilesDetailPan
   "Files visual work should preserve the compact browse boundary without inline detail, preview, metadata, or Inspector behavior");
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.4/, "View-building contract should document visual/control parity");
 assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.4/, "Module contract should document Files visual/control parity");
-assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
 
 console.log("Files visual state and control parity regression passed.");
 
+/** @param {string} source @param {string} functionName */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);

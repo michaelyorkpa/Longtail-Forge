@@ -90,6 +90,7 @@ assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.1/, "View
 
 console.log("Files upload shell regression passed.");
 
+/** @param {string} source @param {string} functionName */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}(`);
   assert.notEqual(start, -1, `${functionName} should exist`);
