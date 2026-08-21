@@ -27,6 +27,54 @@ import { readPayload } from "./test-support/http-payload-assertions.mjs";
  * }} ContextApiClient
  */
 
+/** The audit context fields this owner proves, over the record it actually read. */
+/** @typedef {Record<string, unknown> & { target_id: string }} AuditContextRecord */
+/** @typedef {Record<string, unknown> & { next_context: AuditContextRecord, previous_context: AuditContextRecord }} AttachmentContextAudit */
+
+/**
+ * Narrow persisted audit metadata to the two contexts this owner asserts on.
+ *
+ * The column holds a JSON string, so JSON.parse would otherwise hand back `any`
+ * and the target-id comparisons would be claims the compiler never checks. This
+ * crosses the database-backed JSON boundary the same way the HTTP payload
+ * boundary is crossed: prove the shape at runtime, then narrow the record that
+ * was actually read rather than rebuilding a smaller one, so the storage-leak
+ * scan still sees every field the audit row carries.
+ * @param {string | null} metadataJson
+ * @returns {AttachmentContextAudit}
+ */
+function readAttachmentContextAudit(metadataJson) {
+  /** @type {unknown} */
+  const parsed = JSON.parse(metadataJson || "{}");
+  assert.ok(
+    parsed && typeof parsed === "object" && !Array.isArray(parsed),
+    `attachment context audit metadata should be a JSON object: ${metadataJson}`,
+  );
+  const record = /** @type {Record<string, unknown>} */ (parsed);
+  requireAuditContext(record.previous_context, "previous_context");
+  requireAuditContext(record.next_context, "next_context");
+  return /** @type {AttachmentContextAudit} */ (record);
+}
+
+/**
+ * @param {unknown} value
+ * @param {string} label
+ * @returns {AuditContextRecord}
+ */
+function requireAuditContext(value, label) {
+  assert.ok(
+    value && typeof value === "object" && !Array.isArray(value),
+    `attachment context audit metadata should carry a ${label} object: ${JSON.stringify(value)}`,
+  );
+  const context = /** @type {Record<string, unknown>} */ (value);
+  assert.equal(
+    typeof context.target_id,
+    "string",
+    `attachment context audit ${label} should carry a target_id: ${JSON.stringify(Object.keys(context))}`,
+  );
+  return /** @type {AuditContextRecord} */ (context);
+}
+
 /** The seeded estate, plus the two identities the business-context check adds to it. */
 /**
  * @typedef {Awaited<ReturnType<typeof seedFixtures>> & {
@@ -152,7 +200,7 @@ LIMIT 1;
     assert.equal(auditRows.length, 1);
     /** @type {{ metadata_json: string | null }} */
     const auditRow = requireFirstRow(auditRows, "attachment context audit row");
-    const auditMetadata = JSON.parse(auditRow.metadata_json || "{}");
+    const auditMetadata = readAttachmentContextAudit(auditRow.metadata_json);
     assert.equal(auditMetadata.previous_context.target_id, fixtures.businessTaskId);
     assert.equal(auditMetadata.next_context.target_id, fixtures.nextBusinessTaskId);
     assertNoUnsafeStorageLeak([auditMetadata, auditMetadata.previous_context, auditMetadata.next_context]);

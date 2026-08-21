@@ -76,6 +76,23 @@ Every child lands in the 96-to-217 band, against a proven range of 85 to 205 acr
 
 Requirements shared by every child: preserve real child-process and database isolation and do not merge processes merely to satisfy a target; type temporary paths, database handles, child results, attestations, provider mocks, and cleanup state explicitly rather than casting them away; strip historical roadmap, changelog, and version-history pins from the owners the child touches, recording each disposition, and require any surviving planning-document read to assert a current live contract; reuse published `src/types/` contracts by type-only import wherever one already describes a shape; introduce no explicit `any`, `@ts-ignore`, `@ts-nocheck`, or file exclusion; and pin each closed owner strict-clean through `framework.full-strict-governance`.
 
+Boundary rule for every remaining child (added at `0.33.33.31.6.1` after four post-merge corrections established the pattern): compiler-zero is not sufficient if an unchecked dynamic boundary makes that zero inherited rather than earned. `JSON.parse` and its equivalents infer `any`, so a diagnostic count can reach zero while the assertions downstream of one are claims TypeScript never checks. Before declaring an owner strict-clean, explicitly inventory and disposition the dynamic boundaries that owner touches, at minimum:
+
+- `JSON.parse(...)`;
+- `response.json()` or equivalent parsed HTTP payloads;
+- database columns holding JSON strings, such as `*_json`;
+- child-process stdout or stderr parsed as structured data;
+- environment or configuration values parsed into records;
+- filesystem JSON reads;
+- message, event, or job payload deserialization;
+- provider and mock responses whose runtime shape enters as `unknown`, an open record, or a third-party value.
+
+For each boundary found: prefer an existing published production contract where one truthfully describes the value; otherwise treat the boundary as `unknown`; narrow at the point of consumption with a small contract containing only the fields the owner actually proves; never let dynamic parsing infer `any` into an assertion; never replace an `any` boundary with an unchecked cast that only gives it a more impressive name; publish a shared narrowing only when multiple real consumers justify it; and prove at least one representative boundary non-vacuous by changing or removing a required field and confirming compilation or the regression fails.
+
+Helper-contract rule for every remaining child (added at `0.33.33.31.6.1` after the `0.33.33.31.1.1` filesystem correction): a helper must not reach zero by erasing information its callers already had. Callback helpers must be generic when callers return meaningful values; wrappers must not type value-producing callbacks as `() => void`; collection helpers must not collapse specific element types to `object`, `unknown`, or a broad record unless the runtime boundary genuinely requires it; production optionality and nullability must be carried through rather than hidden behind casts or default values; and a helper contract must not force downstream code to reassert information that was available before the call. If a helper's annotation makes downstream code add compensating casts, fallbacks, or hand-rebuilt types, treat that as evidence the helper contract itself is wrong.
+
+Pre-closeout boundary probe for `0.33.33.31.7` through `0.33.33.31.11`: before archiving a child, search that child's touched owners for dynamic parsing, deserialization, and helper-level type erasure, and record the disposition in the archive entry as narrowed through a published contract, narrowed locally from `unknown`, intentionally left open with concrete rationale, or not present. A child must not be archived merely because its measured diagnostic count reached zero while a parsing boundary still feeds `any` into an assertion. The probe stays scoped to the child's own owners; it is not a repository-wide audit.
+
 #### 0.33.33.31.7 - Type storage provider, S3, and quota owners
 
 **Model: High Effort - Provider mocks and quota arithmetic must not be typed into agreement.**
@@ -85,6 +102,7 @@ Measured at 197 diagnostics across 9 files and 2,378 lines.
 - [ ] Close the 197 diagnostics across the `file-s3-*`, `file-storage-*`, and `workspace-storage` owners.
 - [ ] Type provider configuration, S3 object operations and signed-url boundaries, storage accounting rows, quota state, and streaming contracts with named contracts.
 - [ ] Preserve provider registration, signed-url boundaries, quota enforcement arithmetic, accounting totals, and streaming behavior exactly; prove quota enforcement still fails closed with a negative control.
+- [ ] Inspect this child's dynamic boundaries explicitly: provider mock responses, S3 and API-style result objects, JSON and configuration parsing, quota and accounting records, and health-response payloads. Do not type provider mocks into agreement — third-party and provider values enter as a published provider contract or as `unknown` and are narrowed honestly.
 
 #### 0.33.33.31.8 - Type scanner adapter and worker owners
 
@@ -95,6 +113,7 @@ Measured at 206 diagnostics across 7 files and 2,583 lines.
 - [ ] Close the 206 diagnostics across the `file-clam*`, `file-scan*`, and `file-scanner-*` owners plus `worker-runner` and `separate-worker-end-to-end`.
 - [ ] Type scanner adapter results, mode resolution, health diagnostics, scan job handoff records, and worker child results with named contracts.
 - [ ] Preserve scanner refusal behavior, mode resolution, health reporting, scan handoff, and real worker process isolation; do not merge worker processes to simplify typing.
+- [ ] Inspect this child's dynamic boundaries explicitly: scanner result parsing, worker IPC and message payloads, child stdout and stderr parsing, health diagnostics, and job handoff JSON. Worker and process isolation must stay real, and parsed child output must not enter as `any`.
 
 #### 0.33.33.31.9 - Type job claiming, outbox, and retention owners
 
@@ -105,6 +124,7 @@ Measured at 115 diagnostics across 4 files and 1,321 lines.
 - [ ] Close the 115 diagnostics across `job-claiming-locking`, `job-idempotency-at-least-once`, `job-outbox-schema`, and `job-retention-pruning`.
 - [ ] Type job records, claim and lock state, outbox schema rows, and retention windows with named contracts.
 - [ ] Preserve claiming and locking arithmetic, at-least-once idempotency, outbox schema shape, and retention pruning bounds exactly.
+- [ ] Inspect this child's dynamic boundaries explicitly: job `payload_json`, outbox JSON, claim metadata, and serialized retry or idempotency state. Persisted JSON fields are parsed through `unknown` and narrowed before any assertion reads them.
 
 #### 0.33.33.31.10 - Type job observability and background work owners
 
@@ -115,6 +135,7 @@ Measured at 125 diagnostics across 5 files and 1,476 lines.
 - [ ] Close the 125 diagnostics across `admin-job-observability`, `background-work-jobs`, `notification-jobs`, `search-index-jobs`, and `scripts/regressions/jobs/`.
 - [ ] Type observability rows, background work payloads, and notification and search index job records with named contracts.
 - [ ] Preserve observability redaction, background work scheduling, and job payload boundaries exactly.
+- [ ] Inspect this child's dynamic boundaries explicitly: job payload and result JSON, observability metadata, background-worker messages, and notification or search-index job payloads. This child is the most likely in the rollup to carry dynamic payload records, so compiler-zero must not rest on `JSON.parse` inference.
 
 #### 0.33.33.31.11 - Type Files settings, descriptor, and folded contract closeout
 
@@ -126,6 +147,7 @@ Measured at 104 diagnostics across 16 files and 2,588 lines.
 - [ ] Type settings payloads, descriptor host records, and the folded Files contract modules with named contracts.
 - [ ] Preserve settings and quota conversion behavior, descriptor host contracts, and folded contract ownership with its retained-owner reconciliation.
 - [ ] Remove the unused `readPayloadList` export from `scripts/test-support/http-payload-assertions.mjs`. It was published speculatively at `0.33.33.31.4`, and `0.33.33.31.5.1` confirmed no owner in the estate reads a bare top-level array response body, so no legitimate consumer is coming. If one has appeared by this checkpoint, keep it and record that instead.
+- [ ] Perform the final `0.33.33.31` dynamic-boundary audit across every owner closed in the rollup. Confirm no owner closed during `0.33.33.31` still relies on `JSON.parse` or an equivalent inferred `any` for data it asserts on, and confirm no helper introduced during `0.33.33.31` erases a meaningful caller return type. Record any deliberate surviving dynamic boundary with explicit rationale. Do not reopen already-closed owners for stylistic normalization; correct only concrete unchecked boundaries and type erasure.
 - [ ] Confirm the whole `0.33.33.31` cohort measures zero and record the closing scripts-program figure. This child closes the `0.33.33.31` rollup.
 ### 0.33.33.32 - Type product regressions and close the scripts program
 
