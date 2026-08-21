@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18446,
+    "activeAssertionCount": 18451,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19150,
+    "effectiveAssertionCount": 19155,
     "retiredAssertionCredit": 35,
     "vitest": [
       {
@@ -3375,11 +3375,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 58,
+      "assertionCount": 59,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves repeatable dry-run/build/validation and corrupt-state rejection for the non-activating Compose public-demo database-and-Files candidate.",
-      "entryPointAssertionCount": 58,
+      "entryPointAssertionCount": 59,
       "id": "database.public-demo-baseline-candidate",
       "legacy": false,
       "path": "scripts/regressions/database/public-demo-baseline-candidate.regression.mjs",
@@ -3508,11 +3508,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 47,
+      "assertionCount": 49,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects dry-run-first workspace cleanup, retained-data preservation, and direct/full-suite regression database isolation.",
-      "entryPointAssertionCount": 47,
+      "entryPointAssertionCount": 49,
       "id": "database.workspace-cleanup-isolation",
       "legacy": false,
       "path": "scripts/regressions/database/workspace-cleanup-isolation.regression.mjs",
@@ -6709,11 +6709,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 21,
+      "assertionCount": 23,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy sqlite small office performance contract.",
-      "entryPointAssertionCount": 21,
+      "entryPointAssertionCount": 23,
       "id": "legacy.sqlite.small.office.performance",
       "legacy": true,
       "path": "scripts/sqlite-small-office-performance-regression.mjs",

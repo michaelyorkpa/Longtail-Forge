@@ -438,8 +438,11 @@ function rolePassword(prefix, index) {
 
 /** @param {string} dataDir @param {string} credentialsFile @param {string[]} [expectedExtraActiveUsernames] */
 async function verifyRoleFixtureDatabase(dataDir, credentialsFile, expectedExtraActiveUsernames = []) {
-  /** @type {{ passwords: Record<string, string>, version: number }} */
+  // The passwords map is the only field this owner consumes, and
+  // requireJsonRecord proves only the top level, so the map is proven as well.
+  /** @type {{ passwords?: unknown }} */
   const credentialDocument = requireJsonRecord(JSON.parse(await fs.readFile(credentialsFile, "utf8")), "role credentials document");
+  const rolePasswords = requireJsonRecord(credentialDocument.passwords, "role credentials passwords");
   const database = new Database(path.join(dataDir, "longtail-forge.db"), { readonly: true });
   try {
     // The columns are named by the SELECT directly above, so the row shape is
@@ -463,7 +466,7 @@ ORDER BY username;
       const user = activeUsers.find((row) => row.username === fixture.username);
       assert.ok(user, `${fixture.roleId} fixture user should exist`);
       assert.equal(
-        (await verifyPassword(credentialDocument.passwords[fixture.roleId], user.password)).matches,
+        (await verifyPassword(rolePasswords[fixture.roleId], user.password)).matches,
         true,
       );
       assert.equal(user.protected_user, fixture.roleId === "super_admin" ? "yes" : "no");

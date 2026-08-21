@@ -85,7 +85,7 @@ async function assertDryRunAndApply(targetDatabase, targetBackup) {
     "--database",
     targetDatabase,
   ]);
-  /** @type {{ action?: unknown, backup?: { verified?: unknown }, plan?: { blockingForeignKeyViolations: unknown[], foreignKeyViolations: Array<Record<string, unknown>>, orphanWorkspaceScopes?: unknown, removalWorkspaceCount?: unknown, retainedWorkspaceCount?: unknown }, result?: { foreignKeyCheck?: unknown, integrityCheck?: unknown, removedWorkspaceCount?: unknown, repairedDanglingRoleAssignmentCount?: unknown, retainedWorkspaceCount?: unknown } }} */
+  /** @type {{ action?: unknown, backup?: { verified?: unknown }, plan?: { blockingForeignKeyViolations?: unknown, foreignKeyViolations?: unknown, orphanWorkspaceScopes?: unknown, removalWorkspaceCount?: unknown, retainedWorkspaceCount?: unknown }, result?: { foreignKeyCheck?: unknown, integrityCheck?: unknown, removedWorkspaceCount?: unknown, repairedDanglingRoleAssignmentCount?: unknown, retainedWorkspaceCount?: unknown } }} */
   const dryRunReport = requireJsonRecord(JSON.parse(dryRun.stdout), "cleanup dry-run report");
   assert.ok(dryRunReport.plan, "dryRunReport should publish its plan");
 
@@ -94,8 +94,16 @@ async function assertDryRunAndApply(targetDatabase, targetBackup) {
   assert.equal(dryRunReport.plan.retainedWorkspaceCount, 4);
   assert.equal(dryRunReport.plan.removalWorkspaceCount, 2);
   assert.deepEqual(dryRunReport.plan.orphanWorkspaceScopes, ["orphan-navigation-workspace"]);
-  assert.equal(dryRunReport.plan.blockingForeignKeyViolations.length, 1);
-  assert.equal(dryRunReport.plan.foreignKeyViolations[0].repairableByAuthorizedRoleCleanup, true);
+  // requireJsonRecord proves only that the report itself is an object, so the
+  // plan's two violation lists are proven to be arrays before one is measured
+  // and the other indexed. A one-character string would otherwise satisfy the
+  // blocking-violation count.
+  const blockingViolations = dryRunReport.plan.blockingForeignKeyViolations;
+  assert.ok(Array.isArray(blockingViolations), `dry-run plan should publish blockingForeignKeyViolations as an array: ${JSON.stringify(blockingViolations)}`);
+  assert.equal(blockingViolations.length, 1);
+  const foreignKeyViolations = dryRunReport.plan.foreignKeyViolations;
+  assert.ok(Array.isArray(foreignKeyViolations), `dry-run plan should publish foreignKeyViolations as an array: ${JSON.stringify(foreignKeyViolations)}`);
+  assert.equal(requireJsonRecord(foreignKeyViolations[0], "dry-run first foreign key violation").repairableByAuthorizedRoleCleanup, true);
   assert.deepEqual(readWorkspaceState(targetDatabase), before, "dry-run must not change the database");
 
   const missingBackup = await runNode([
@@ -131,7 +139,7 @@ async function assertDryRunAndApply(targetDatabase, targetBackup) {
     targetBackup,
     "--repair-dangling-retained-role-assignments",
   ]);
-  /** @type {{ action?: unknown, backup?: { verified?: unknown }, plan?: { blockingForeignKeyViolations: unknown[], foreignKeyViolations: Array<Record<string, unknown>>, orphanWorkspaceScopes?: unknown, removalWorkspaceCount?: unknown, retainedWorkspaceCount?: unknown }, result?: { foreignKeyCheck?: unknown, integrityCheck?: unknown, removedWorkspaceCount?: unknown, repairedDanglingRoleAssignmentCount?: unknown, retainedWorkspaceCount?: unknown } }} */
+  /** @type {{ action?: unknown, backup?: { verified?: unknown }, plan?: { blockingForeignKeyViolations?: unknown, foreignKeyViolations?: unknown, orphanWorkspaceScopes?: unknown, removalWorkspaceCount?: unknown, retainedWorkspaceCount?: unknown }, result?: { foreignKeyCheck?: unknown, integrityCheck?: unknown, removedWorkspaceCount?: unknown, repairedDanglingRoleAssignmentCount?: unknown, retainedWorkspaceCount?: unknown } }} */
   const appliedReport = requireJsonRecord(JSON.parse(applied.stdout), "cleanup applied report");
   assert.ok(appliedReport.result, "appliedReport should publish its result");
   assert.ok(appliedReport.backup, "appliedReport should publish its backup");
@@ -152,7 +160,7 @@ async function assertDryRunAndApply(targetDatabase, targetBackup) {
     "--database",
     targetDatabase,
   ]);
-  /** @type {{ action?: unknown, backup?: { verified?: unknown }, plan?: { blockingForeignKeyViolations: unknown[], foreignKeyViolations: Array<Record<string, unknown>>, orphanWorkspaceScopes?: unknown, removalWorkspaceCount?: unknown, retainedWorkspaceCount?: unknown }, result?: { foreignKeyCheck?: unknown, integrityCheck?: unknown, removedWorkspaceCount?: unknown, repairedDanglingRoleAssignmentCount?: unknown, retainedWorkspaceCount?: unknown } }} */
+  /** @type {{ action?: unknown, backup?: { verified?: unknown }, plan?: { blockingForeignKeyViolations?: unknown, foreignKeyViolations?: unknown, orphanWorkspaceScopes?: unknown, removalWorkspaceCount?: unknown, retainedWorkspaceCount?: unknown }, result?: { foreignKeyCheck?: unknown, integrityCheck?: unknown, removedWorkspaceCount?: unknown, repairedDanglingRoleAssignmentCount?: unknown, retainedWorkspaceCount?: unknown } }} */
   const rerunReport = requireJsonRecord(JSON.parse(rerun.stdout), "cleanup rerun report");
   assert.ok(rerunReport.plan, "rerunReport should publish its plan");
   assert.equal(rerun.exitCode, 0, rerun.stderr);

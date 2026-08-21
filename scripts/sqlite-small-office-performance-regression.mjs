@@ -73,18 +73,28 @@ function assertPerformanceSmoke() {
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
-  /** @type {{ iterations?: unknown, profile?: unknown, provider?: unknown, routes: Array<{ bytes: number, id: string, p95Ms: unknown, samplesMs: unknown[], statusCode: unknown }> }} */
+  /** @type {{ iterations?: unknown, profile?: unknown, provider?: unknown, routes?: unknown }} */
   const report = requireJsonRecord(JSON.parse(result.stdout), "small-office performance report");
   assert.equal(report.profile, "dev-demo");
   assert.equal(report.provider, "sqlite");
   assert.equal(report.iterations, 1);
-  assert.deepEqual(report.routes.map((/** @type {{ id: string }} */ route) => route.id), expectedRouteIds);
+  // requireJsonRecord proves only that the report itself is an object. The
+  // route list and each route's sample list are proven to be arrays before
+  // they are iterated or measured, so a one-character string can no longer
+  // satisfy the one-sample claim.
+  const routes = report.routes;
+  assert.ok(Array.isArray(routes), `small-office performance report should publish routes as an array: ${JSON.stringify(routes)}`);
+  assert.deepEqual(routes.map((route) => requireJsonRecord(route, "small-office performance route").id), expectedRouteIds);
 
-  for (const route of report.routes) {
-    assert.equal(route.statusCode, 200, `${route.id} should return HTTP 200`);
-    assert.equal(route.samplesMs.length, 1, `${route.id} should include one smoke sample`);
-    assert.ok(Number.isFinite(route.p95Ms), `${route.id} should include a numeric p95`);
-    assert.ok(route.bytes > 0, `${route.id} should return a response body`);
+  for (const entry of routes) {
+    /** @type {{ bytes: unknown, id: unknown, p95Ms: unknown, samplesMs: unknown, statusCode: unknown }} */
+    const route = requireJsonRecord(entry, "small-office performance route");
+    assert.equal(route.statusCode, 200, `${String(route.id)} should return HTTP 200`);
+    const samplesMs = route.samplesMs;
+    assert.ok(Array.isArray(samplesMs), `${String(route.id)} should publish samplesMs as an array: ${JSON.stringify(samplesMs)}`);
+    assert.equal(samplesMs.length, 1, `${String(route.id)} should include one smoke sample`);
+    assert.ok(Number.isFinite(route.p95Ms), `${String(route.id)} should include a numeric p95`);
+    assert.ok(typeof route.bytes === "number" && route.bytes > 0, `${String(route.id)} should return a response body`);
   }
 }
 

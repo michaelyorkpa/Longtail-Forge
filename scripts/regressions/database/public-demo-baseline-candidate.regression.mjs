@@ -176,12 +176,17 @@ try {
   assert.match(first.migrationIdentitySha256, /^[a-f0-9]{64}$/);
   assert.equal(await activeStateDigest(dataRoot), activeBefore, "candidate build must not touch the active database or Files");
   const markerFile = path.join(buildContext.paths.candidateRoot, ".longtail-demo-data.json");
-  /** @type {{ candidateContract?: unknown, publicVisitorUserIds: unknown[], state?: unknown }} */
+  /** @type {{ candidateContract?: unknown, publicVisitorUserIds?: unknown, state?: unknown }} */
   const marker = requireJsonRecord(JSON.parse(await fs.readFile(markerFile, "utf8")), "candidate ownership marker");
   assert.equal(marker.candidateContract, PUBLIC_DEMO_CANDIDATE_CONTRACT);
   assert.equal(marker.state, "verified-candidate");
-  assert.equal(marker.publicVisitorUserIds.length, 6);
-  assert.equal(new Set(marker.publicVisitorUserIds).size, 6);
+  // requireJsonRecord proves only that the marker itself is an object. A JSON
+  // string of the right length would satisfy both claims below, so the visitor
+  // list is proven to be an array before either one runs.
+  const publicVisitorUserIds = marker.publicVisitorUserIds;
+  assert.ok(Array.isArray(publicVisitorUserIds), `candidate ownership marker should publish publicVisitorUserIds as an array: ${JSON.stringify(publicVisitorUserIds)}`);
+  assert.equal(publicVisitorUserIds.length, 6);
+  assert.equal(new Set(publicVisitorUserIds).size, 6);
   assert.doesNotMatch(JSON.stringify(marker), new RegExp(escapeRegExp(privateOperatorPassword)));
   assert.doesNotMatch(JSON.stringify(first), new RegExp(escapeRegExp(applicationSecret)));
   assert.doesNotMatch(JSON.stringify(first), new RegExp(escapeRegExp(dataRoot)));

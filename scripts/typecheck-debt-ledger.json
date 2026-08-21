@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "checkpoint": "0.33.33.31",
+  "checkpoint": "0.33.33.32",
   "programs": {
     "server-tests": {
       "config": "tsconfig.json",
