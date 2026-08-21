@@ -13,7 +13,11 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notifica
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Notification-Jobs-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} JobsSession */
+
+/** @typedef {Awaited<ReturnType<typeof seedFixtures>>} NotificationFixtures */
 const architectureDocs = readText("docs/architecture.md");
 const databaseDocs = readText("docs/database.md");
 const moduleDocs = readText("docs/module-development.md");
@@ -36,7 +40,6 @@ try {
   assert.match(notificationsSource, /queueNotificationEvent\(event, declaration\)/, "notification event handlers should queue jobs");
   assert.match(notificationsSource, /return createFromEvent\(event, declaration, \{ job \}\)/, "notification jobs should reuse the fan-out path with job retry context");
   assert.match(workerCliSource, /registerNotificationJobHandlers/, "separate worker startup should register notification job handlers");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(architectureDocs, /As of 0\.33\.5\.21\.5[\s\S]*notification\.event/, "architecture docs should document notification fan-out jobs");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.5[\s\S]*Notification fan-out uses the durable job runner/, "database docs should document the notification job handoff");
   assert.match(moduleDocs, /Notification-producing internal events are queued as durable jobs/, "module docs should document queued notification fan-out");
@@ -59,6 +62,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {NotificationFixtures} fixtures */
 async function assertNotificationEventQueuesAndWorkerResolvesRecipients(fixtures) {
   resetJobWorkerStatusForTests();
   const beforeRows = await notificationCountFor(fixtures.workspaceId, fixtures.recipient.userId, "task.assigned");
@@ -71,7 +75,7 @@ async function assertNotificationEventQueuesAndWorkerResolvesRecipients(fixtures
   const queuedRows = await notificationCountFor(fixtures.workspaceId, fixtures.recipient.userId, "task.assigned");
 
   assert.equal(queuedJob.status, "pending");
-  assert.match(queuedJob.payload_json, /"operation":"process_event"/);
+  assert.match(String(queuedJob.payload_json), /"operation":"process_event"/);
   assert.equal(queuedRows, beforeRows, "event emission should only queue notification fan-out");
 
   const summary = await runJobWorkerOnce({
@@ -80,13 +84,14 @@ async function assertNotificationEventQueuesAndWorkerResolvesRecipients(fixtures
     workerId: "notification-jobs-regression",
   });
   const afterRows = await notificationCountFor(fixtures.workspaceId, fixtures.recipient.userId, "task.assigned");
-  const completedJob = await readJobById(queuedJob.job_id);
+  const completedJob = await readJobById(String(queuedJob.job_id));
 
   assert.equal(summary.completed, 1);
   assert.equal(completedJob.status, "completed");
   assert.equal(afterRows, beforeRows + 1, "worker should resolve recipients and create notifications");
 }
 
+/** @param {NotificationFixtures} fixtures */
 async function assertDisabledModulesDoNotFanOutFromWorker(fixtures) {
   resetJobWorkerStatusForTests();
   const beforeRows = await totalNotificationCountFor(fixtures.workspaceId, "note.updated");
@@ -125,13 +130,14 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
     workerId: "notification-jobs-regression",
   });
   const afterRows = await totalNotificationCountFor(fixtures.workspaceId, "note.updated");
-  const completedJob = await readJobById(queuedJob.job_id);
+  const completedJob = await readJobById(String(queuedJob.job_id));
 
   assert.equal(summary.completed, 1);
   assert.equal(completedJob.status, "completed");
   assert.equal(afterRows, beforeRows, "worker should skip fan-out for disabled modules");
 }
 
+/** @param {NotificationFixtures} fixtures */
 async function assertFailedFanoutJobsRetrySafely(fixtures) {
   resetJobWorkerStatusForTests();
   const beforeRows = await totalNotificationCountFor(fixtures.workspaceId, "task.assigned");
@@ -153,11 +159,12 @@ async function assertFailedFanoutJobsRetrySafely(fixtures) {
   assert.equal(summary.failed, 1);
   assert.equal(failedJob.status, "failed");
   assert.equal(failedJob.attempt_count, 1);
-  assert.match(failedJob.last_error, /Notification recipient not found/);
-  assert.ok(Date.parse(failedJob.available_at) > beforeRun, "failed notification jobs should retry later");
+  assert.match(String(failedJob.last_error), /Notification recipient not found/);
+  assert.ok(Date.parse(String(failedJob.available_at)) > beforeRun, "failed notification jobs should retry later");
   assert.equal(afterRows, beforeRows, "failed fan-out should not create partial notification rows");
 }
 
+/** @param {string} eventName @param {NotificationFixtures} fixtures @param {{ assigneeIds?: string[], explicitRecipientIds?: string[], taskId?: string, title?: string }} [options] */
 async function emitTaskEvent(eventName, fixtures, options = {}) {
   await modulesService.emitInternalEvent(eventName, {
     actorUserId: fixtures.admin.userId,
@@ -178,14 +185,17 @@ async function emitTaskEvent(eventName, fixtures, options = {}) {
 }
 
 async function seedFixtures() {
-  const workspaceId = (await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"))[0].workspace_id;
-  const superAdmin = (await querySql(`
+  /** @type {{ workspace_id: string }} */
+  const workspaceRow = requireFirstRow(await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"), "workspace");
+  const workspaceId = workspaceRow.workspace_id;
+  /** @type {{ timezone: string, user_id: string, username: string }} */
+  const superAdmin = requireFirstRow(await querySql(`
 SELECT user_id, username, timezone
 FROM users
 WHERE home_workspace_id = ${sqlText(workspaceId)}
   AND protected_user = 'yes'
 LIMIT 1;
-`))[0];
+`), "protected super admin");
   const now = new Date().toISOString();
   const recipient = {
     displayName: "notification jobs recipient",
@@ -213,6 +223,7 @@ ${assignmentInsertSql(workspaceId, recipient.userId, "project_user", "workspace"
   };
 }
 
+/** @param {string} workspaceId @param {string} payloadNeedle */
 async function readLatestNotificationJob(workspaceId, payloadNeedle) {
   const row = await querySql(`
 SELECT *
@@ -228,6 +239,8 @@ LIMIT 1;
   return row[0];
 }
 
+/** @param {string} jobId */
+/** @param {string} jobId */
 async function readJobById(jobId) {
   const rows = await querySql(`
 SELECT *
@@ -240,6 +253,7 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId @param {string} eventType */
 async function notificationCountFor(workspaceId, recipientUserId, eventType) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -252,6 +266,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   return Number(rows[0]?.count || 0);
 }
 
+/** @param {string} workspaceId @param {string} eventType */
 async function totalNotificationCountFor(workspaceId, eventType) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -268,6 +283,7 @@ async function assertIntegrity() {
   assert.equal(integrityRows[0]?.integrity_check, "ok", "notification jobs regression database should pass integrity check");
 }
 
+/** @param {string} workspaceId @param {{ displayName: string, userId: string, username: string }} user */
 function userInsertSql(workspaceId, user) {
   return `
 INSERT INTO users (
@@ -298,12 +314,14 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {{ userId: string }} user @param {string} now */
 function membershipInsertSql(workspaceId, user, now) {
   return `
 INSERT INTO user_workspaces (user_workspace_id, workspace_id, user_id, status, created_at, updated_at)
 VALUES (${sqlText(randomUUID())}, ${sqlText(workspaceId)}, ${sqlText(user.userId)}, 'active', ${sqlText(now)}, ${sqlText(now)});`;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} roleId @param {string} scopeType @param {string} scopeId @param {string} now */
 function assignmentInsertSql(workspaceId, userId, roleId, scopeType, scopeId, now) {
   const scopedProjectId = scopeType === "project" ? scopeId : null;
 

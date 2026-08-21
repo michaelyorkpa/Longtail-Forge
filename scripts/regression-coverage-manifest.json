@@ -106,8 +106,8 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19140,
-    "retiredAssertionCredit": 31,
+    "effectiveAssertionCount": 19144,
+    "retiredAssertionCredit": 35,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -315,6 +315,54 @@
     "rationale": "The 0.33.6.16.1 legacy suite keeps inferred metadata and explicit run modes through the checked-in migration snapshot until individual scripts move to convention-path metadata."
   },
   "retiredAssertions": [
+    {
+      "sourceRegression": "legacy.admin.job.observability",
+      "retiredInVersion": "0.33.33.31.10",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.21` durable-jobs completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every executable observability, background work, notification fan-out, and search index assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/admin-job-observability-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.admin.job.observability",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/admin-job-observability-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.background.work.jobs",
+      "retiredInVersion": "0.33.33.31.10",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.21` durable-jobs completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every executable observability, background work, notification fan-out, and search index assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/background-work-jobs-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.background.work.jobs",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/background-work-jobs-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
     {
       "sourceRegression": "legacy.file.s3.diagnostics.signed.url.boundary",
       "retiredInVersion": "0.33.33.31.7",
@@ -575,6 +623,54 @@
       ]
     },
     {
+      "sourceRegression": "legacy.notification.jobs",
+      "retiredInVersion": "0.33.33.31.10",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.21` durable-jobs completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every executable observability, background work, notification fan-out, and search index assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/notification-jobs-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.notification.jobs",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/notification-jobs-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.search.index.jobs",
+      "retiredInVersion": "0.33.33.31.10",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.21` durable-jobs completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every executable observability, background work, notification fan-out, and search index assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/search-index-jobs-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.search.index.jobs",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/search-index-jobs-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
       "sourceRegression": "views.current-static-contracts",
       "retiredInVersion": "0.33.33.30.1",
       "retirementType": "historical-planning-pin",
@@ -628,11 +724,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 49,
+      "assertionCount": 48,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy admin job observability contract.",
-      "entryPointAssertionCount": 49,
+      "entryPointAssertionCount": 48,
       "id": "legacy.admin.job.observability",
       "legacy": true,
       "path": "scripts/admin-job-observability-regression.mjs",
@@ -2687,11 +2783,11 @@
     },
     {
       "area": "notifications",
-      "assertionCount": 28,
+      "assertionCount": 27,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notification jobs contract.",
-      "entryPointAssertionCount": 28,
+      "entryPointAssertionCount": 27,
       "id": "legacy.notification.jobs",
       "legacy": true,
       "path": "scripts/notification-jobs-regression.mjs",
@@ -3842,11 +3938,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 129,
+      "assertionCount": 131,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 129,
+      "entryPointAssertionCount": 131,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",

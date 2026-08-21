@@ -3003,7 +3003,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 3379,
+      "errorCount": 3254,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3029,28 +3029,6 @@
           {
             "code": 7006,
             "count": 3
-          }
-        ],
-        "scripts/admin-job-observability-regression.mjs": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 13
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 9
           }
         ],
         "scripts/app-shell-navigation-regression.mjs": [
@@ -3081,36 +3059,6 @@
           {
             "code": 7006,
             "count": 2
-          }
-        ],
-        "scripts/background-work-jobs-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 7005,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 16
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 1
           }
         ],
         "scripts/batched-list-enrichment-regression.mjs": [
@@ -3977,20 +3925,6 @@
             "count": 4
           }
         ],
-        "scripts/notification-jobs-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 2345,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 24
-          }
-        ],
         "scripts/notification-regression.mjs": [
           {
             "code": 2339,
@@ -4429,28 +4363,6 @@
           {
             "code": 7053,
             "count": 15
-          }
-        ],
-        "scripts/regressions/jobs/job-worker-shutdown-rejection.regression.mjs": [
-          {
-            "code": 18049,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 1
-          },
-          {
-            "code": 7034,
-            "count": 2
           }
         ],
         "scripts/regressions/licensing/licensing-public-release-gates.regression.mjs": [
@@ -4973,24 +4885,6 @@
           {
             "code": 7031,
             "count": 8
-          }
-        ],
-        "scripts/search-index-jobs-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 5
-          },
-          {
-            "code": 2345,
-            "count": 6
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 13
           }
         ],
         "scripts/search-index-sync-regression.mjs": [
@@ -5740,7 +5634,7 @@
   },
   "totals": {
     "files": 1045,
-    "errors": 14513,
+    "errors": 14388,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

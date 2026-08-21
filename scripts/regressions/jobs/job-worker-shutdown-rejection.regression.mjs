@@ -37,7 +37,7 @@ const rejectionCases = [
 try {
   await assertPollFailureUsesSafeSummary();
 
-  for (const [label, rejection, expectedSummary] of rejectionCases) {
+  for (const [label, rejection, expectedSummary] of /** @type {Array<[string, unknown, string]>} */ (rejectionCases)) {
     resetJobWorkerStatusForTests();
     await startJobWorker({
       claimLimit: 1,
@@ -52,6 +52,7 @@ try {
       workerId: `shutdown-rejection-${label.replace(/\s+/g, "-")}`,
     });
 
+    /** @type {unknown[]} */
     const warnings = [];
     const stopPromise = stopJobWorker({
       logger: {
@@ -88,6 +89,7 @@ console.log("Job worker shutdown rejection regression passed.");
 
 async function assertPollFailureUsesSafeSummary() {
   resetJobWorkerStatusForTests();
+  /** @type {unknown[]} */
   const warnings = [];
   await startJobWorker({
     claimLimit: 1,
@@ -112,6 +114,7 @@ async function assertPollFailureUsesSafeSummary() {
   assert.equal(stopped.timerActive, false);
 }
 
+/** @param {() => boolean} predicate */
 async function waitFor(predicate) {
   const deadline = Date.now() + 2000;
   while (!predicate()) {

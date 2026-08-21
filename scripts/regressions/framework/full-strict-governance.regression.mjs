@@ -403,6 +403,19 @@ for (const jobDurabilityOwner of [
   assert.equal(ledger.programs.scripts.diagnostics[jobDurabilityOwner], undefined, `${jobDurabilityOwner} must stay strict-clean after checkpoint 0.33.33.31.9`);
   assert.equal(ledger.explicitAnyByFile[jobDurabilityOwner], undefined, `${jobDurabilityOwner} must stay free of explicit any after checkpoint 0.33.33.31.9`);
 }
+// The job observability and background work owners closed at 0.33.33.31.10.
+// These are the readouts that leak job payloads if typed loosely, so the pin
+// keeps their envelope reads checked rather than merely passing.
+for (const jobObservabilityOwner of [
+  "scripts/admin-job-observability-regression.mjs",
+  "scripts/background-work-jobs-regression.mjs",
+  "scripts/notification-jobs-regression.mjs",
+  "scripts/regressions/jobs/job-worker-shutdown-rejection.regression.mjs",
+  "scripts/search-index-jobs-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[jobObservabilityOwner], undefined, `${jobObservabilityOwner} must stay strict-clean after checkpoint 0.33.33.31.10`);
+  assert.equal(ledger.explicitAnyByFile[jobObservabilityOwner], undefined, `${jobObservabilityOwner} must stay free of explicit any after checkpoint 0.33.33.31.10`);
+}
 // The authorization-model owners closed at 0.33.33.30.7.1 and the permission
 // harness itself closed at 0.33.33.30.7.2.2, which completes the
 // 0.33.33.30.7 cohort.

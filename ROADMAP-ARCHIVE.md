@@ -1,5 +1,17 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.31.10 - Type job observability and background work owners
+
+**Model: High Effort** - Observability reads are where job payloads leak if typed loosely.
+
+Tenth child of the `0.33.33.31` rollup, measured at 125 diagnostics across 5 files and 1,476 lines. One child remains.
+
+- [x] Closed all 125 diagnostics across `admin-job-observability`, `background-work-jobs`, `notification-jobs`, `search-index-jobs`, and `scripts/regressions/jobs/`. The scripts program falls from 3,379 to 3,254 diagnostics, explicit `any` holds at 7, and all five owners are pinned strict-clean through `framework.full-strict-governance`.
+- [x] **Dynamic-boundary disposition** (required by the `0.33.33.31.6.1` rule). The rollup plan flagged this child as the most likely to carry dynamic payload records, so the inventory came first. The finding is narrower than expected and is recorded as found: *job payload JSON* — `payload_json` is read in four owners but always matched as text against a regular expression and never deserialized, so nothing needed narrowing and the reads now say they are treating an open row value as text. *Parsed HTTP payloads* — the admin jobs readout, the runtime diagnostics readout, and the manual search rebuild route are behind `unknown` and narrowed through the shared `readPayload`, with the jobs envelope derived from `jobsService.readAdminReadout`. *Observability metadata* — the runtime diagnostics worker status is named from the shape runtime-diagnostics publishes, so the redaction assertions read through a contract. *Background-worker messages* — the shutdown owner collects logger warnings, which are values the worker hands a test logger rather than a parsed payload, so they stay `unknown` and are proven to be bounded strings where that is the claim. *Event payloads* — the internal bus publishes `metadata` as optional, so the reminder fan-out claims run only once the captured event is proven to carry one.
+- [x] Retired four historical pins: identical assertions in four owners that a `0.33.5.21` durable-jobs completed-work breadcrumb stay absent from the live roadmap, which cannot fail against a `0.33.33` cursor. All four owners are removed from both lists in `scripts/planning-document-pin-baseline.json`, and because discovered coverage fell the retirements are recorded as reviewed per-owner entries naming their manifest ids.
+- [x] Proved one contract per owner with its own negative control: exposing `payload_json` in the failure summary, dropping the reminder offset metadata, removing the disabled-module fan-out gate, unbounding the worker error text, and making the empty-index rebuild stop deduping active jobs each make the owning regression fail. Every perturbed source restores byte-identical by SHA-256, and all five governance pins fail by name when a diagnostic is seeded against them.
+- [x] Changed no production behavior. No explicit `any`, `@ts-ignore`, `@ts-nocheck`, or file exclusion was introduced.
+
 ## Version 0.33.33.31.9 - Type job claiming, outbox, and retention owners
 
 **Model: High Effort** - Claiming and idempotency are concurrency proofs.
