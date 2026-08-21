@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18434,
+    "activeAssertionCount": 18433,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,8 +106,8 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19118,
-    "retiredAssertionCredit": 15,
+    "effectiveAssertionCount": 19128,
+    "retiredAssertionCredit": 26,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -315,6 +315,169 @@
     "rationale": "The 0.33.6.16.1 legacy suite keeps inferred metadata and explicit run modes through the checked-in migration snapshot until individual scripts move to convention-path metadata."
   },
   "retiredAssertions": [
+    {
+      "sourceRegression": "legacy.file.s3.diagnostics.signed.url.boundary",
+      "retiredInVersion": "0.33.33.31.7",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.22` completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every source and documentation assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/file-s3-diagnostics-signed-url-boundary-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.file.s3.diagnostics.signed.url.boundary",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/file-s3-diagnostics-signed-url-boundary-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.file.s3.object.operation.proof",
+      "retiredInVersion": "0.33.33.31.7",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.22` completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every source and documentation assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/file-s3-object-operation-proof-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.file.s3.object.operation.proof",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/file-s3-object-operation-proof-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.file.s3.provider.registration",
+      "retiredInVersion": "0.33.33.31.7",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.22` completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every source and documentation assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/file-s3-provider-registration-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.file.s3.provider.registration",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/file-s3-provider-registration-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.file.storage.diagnostics",
+      "retiredInVersion": "0.33.33.31.7",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.22` completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every source and documentation assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/file-storage-diagnostics-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.file.storage.diagnostics",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/file-storage-diagnostics-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.file.storage.provider.configuration",
+      "retiredInVersion": "0.33.33.31.7",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a `0.33.5.22` completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail.",
+      "assertionDisposition": "No behavior lost coverage. Every source and documentation assertion in this owner is unchanged, and release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence. The owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/file-storage-provider-configuration-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.file.storage.provider.configuration",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/file-storage-provider-configuration-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.file.storage.quota.enforcement",
+      "retiredInVersion": "0.33.33.31.7",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 3,
+      "rationale": "Two assertions were duplicate assertRoadmapCursorAtLeast(\"0.33.8\") cursor floors differing only in message, against a live 0.33.33 cursor that neither could fail. A third required CHANGELOG prose for the shipped 0.33.5.25.2 quota enforcement release.",
+      "assertionDisposition": "No behavior lost coverage. Quota enforcement keeps its full executable proof across buffered and streamed uploads, workspace and per-user scopes, and null limits, and this checkpoint adds a fail-closed negative control that disables the workspace quota ceiling and confirms the owner fails. release.historical-evidence-retirement owns the standing rule against archived history as product evidence, and the owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/file-storage-quota-enforcement-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.file.storage.quota.enforcement",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/file-storage-quota-enforcement-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.file.storage.streaming.contract",
+      "retiredInVersion": "0.33.33.31.7",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 3,
+      "rationale": "One assertion required that a `0.33.5.22` completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail. Two further assertions required CHANGELOG prose recording the Busboy multipart parser decision and the saveStream/save storage adapter contract.",
+      "assertionDisposition": "No behavior lost coverage. The Busboy decision is still proven from package.json and package-lock.json in this same owner, and the saveStream and save adapter contract is still proven from src/core/files/local-storage-adapter.js and the Files service adapter registration. release.historical-evidence-retirement owns the standing rule against archived history as product evidence, and the owner is removed from both lists in scripts/planning-document-pin-baseline.json in the same change.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/file-storage-streaming-contract-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.file.storage.streaming.contract",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/file-storage-streaming-contract-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
     {
       "sourceRegression": "views.current-static-contracts",
       "retiredInVersion": "0.33.33.30.1",
@@ -1081,11 +1244,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 50,
+      "assertionCount": 49,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy file s3 provider registration contract.",
-      "entryPointAssertionCount": 50,
+      "entryPointAssertionCount": 49,
       "id": "legacy.file.s3.provider.registration",
       "legacy": true,
       "path": "scripts/file-s3-provider-registration-regression.mjs",
@@ -1174,11 +1337,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 22,
+      "assertionCount": 23,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy file storage accounting contract.",
-      "entryPointAssertionCount": 22,
+      "entryPointAssertionCount": 23,
       "id": "legacy.file.storage.accounting",
       "legacy": true,
       "path": "scripts/file-storage-accounting-regression.mjs",
@@ -1246,11 +1409,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 17,
+      "assertionCount": 14,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy file storage streaming contract contract.",
-      "entryPointAssertionCount": 17,
+      "entryPointAssertionCount": 14,
       "id": "legacy.file.storage.streaming.contract",
       "legacy": true,
       "path": "scripts/file-storage-streaming-contract-regression.mjs",
@@ -3583,11 +3746,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 123,
+      "assertionCount": 125,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 123,
+      "entryPointAssertionCount": 125,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",

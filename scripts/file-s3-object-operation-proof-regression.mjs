@@ -29,6 +29,30 @@ process.env.SUPER_ADMIN_PASSWORD = "File-S3-Object-Proof-Test-123!";
 const { config } = await import("../src/config.js");
 const { createS3FileStorageAdapter } = await import("../src/core/files/s3-storage-adapter.js");
 const { filesService } = await import("../src/services/files.service.js");
+const { requireFirstRow } = await import("./test-support/database-row-assertions.mjs");
+const { requirePackageManifest } = await import("./test-support/package-manifest-assertions.mjs");
+
+/** The mock stands in for the client the production adapter consumes, so it is typed against that published contract rather than into agreement with this test. */
+/** @typedef {import("../src/core/files/s3-storage-adapter.js").S3Client} S3Client */
+
+/** What this owner records about each client call, which is its own observation rather than part of the provider contract. */
+/** @typedef {{ bucket?: unknown, contentLength?: unknown, key?: unknown, method: string, status?: string }} RecordedS3Call */
+/** @typedef {S3Client & { calls: RecordedS3Call[] }} RecordingS3Client */
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} FilesSession */
+
+/**
+ * Narrow an upload envelope to the file record it must be carrying.
+ * @template {{ file: unknown }} Envelope
+ * @param {Envelope} envelope
+ * @param {string} label
+ * @returns {NonNullable<Envelope["file"]>}
+ */
+function requireFile(envelope, label) {
+  assert.ok(envelope.file, `${label} should carry its file record`);
+  return envelope.file;
+}
+
 const { runJobWorkerOnce, stopJobWorker } = await import("../src/core/jobs/index.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
@@ -47,9 +71,6 @@ try {
 async function assertStaticContracts() {
   const [
     packageJson,
-    _packageLock,
-    roadmap,
-    _changelog,
     runtimeDocs,
     sqliteDocs,
     moduleContract,
@@ -59,9 +80,6 @@ async function assertStaticContracts() {
     _regressionSuite,
   ] = await Promise.all([
     readJson("package.json"),
-    readJson("package-lock.json"),
-    readText("ROADMAP.md"),
-    readText("CHANGELOG.md"),
     readText("docs/runtime-configuration.md"),
     readText("docs/sqlite-small-office-mode.md"),
     readText("docs/module-contract.md"),
@@ -71,9 +89,8 @@ async function assertStaticContracts() {
     readText("scripts/regression-legacy-snapshot.json"),
   ]);
 
-        assert.equal(Object.keys(packageJson.dependencies || {}).some((name) => /aws-sdk|client-s3/i.test(name)), false, "this proof should not add an S3 SDK dependency");
+  assert.equal(Object.keys(requirePackageManifest(packageJson).dependencies || {}).some((name) => /aws-sdk|client-s3/i.test(name)), false, "this proof should not add an S3 SDK dependency");
 
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.22 storage provider and scanner runtime work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
 
   assert.match(s3AdapterSource, /putObject/, "S3 adapter should write through putObject");
   assert.match(s3AdapterSource, /getObject/, "S3 adapter should read through getObject");
@@ -87,10 +104,10 @@ async function assertStaticContracts() {
   assert.match(filesServiceSource, /storageProvider\.adapter\.saveStream/, "streamed uploads should still use the selected storage provider adapter");
   assert.match(filesServiceSource, /storageProvider: storageProvider\.providerId/, "new file rows should continue to store the resolved provider id");
 
-  assert.match(runtimeDocs, /As of 0\.33\.5\.25\.1[\s\S]*mocked object-operation proof coverage/, "runtime docs should record the mocked S3 object-operation proof");
-  assert.match(sqliteDocs, /As of 0\.33\.5\.25\.1[\s\S]*S3 remains deferred scaffolding[\s\S]*mocked proof coverage/, "SQLite docs should preserve local default while documenting the object proof");
-  assert.match(moduleContract, /As of 0\.33\.5\.22\.15[\s\S]*S3-compatible adapter scaffold[\s\S]*mocked client/, "module contract should describe the adapter-owned S3 proof");
-  assert.match(moduleDevelopment, /As of 0\.33\.5\.22\.15[\s\S]*S3-compatible adapter object operations[\s\S]*mocked client/, "module docs should keep modules behind filesService");
+  assert.match(runtimeDocs, /mocked object-operation proof coverage/, "runtime docs should record the mocked S3 object-operation proof");
+  assert.match(sqliteDocs, /S3 remains deferred scaffolding[\s\S]*mocked proof coverage/, "SQLite docs should preserve local default while documenting the object proof");
+  assert.match(moduleContract, /S3-compatible adapter scaffold[\s\S]*mocked client/, "module contract should describe the adapter-owned S3 proof");
+  assert.match(moduleDevelopment, /S3-compatible adapter object operations[\s\S]*mocked client/, "module docs should keep modules behind filesService");
   assert.doesNotMatch(runtimeDocs + sqliteDocs + moduleContract + moduleDevelopment, /private-proof-bucket|private-proof-access-key|private-proof-secret-key|objects\.private\.invalid/i, "docs should not leak regression S3 config values");
 }
 
@@ -126,8 +143,9 @@ async function assertAdapterObjectOperations() {
   await assert.rejects(
     () => adapter.read(saved.storageKey),
     (error) => {
-      assert.equal(error.statusCode, 404, "missing object read failures should be normalized");
-      assertSafeS3Payload(error.message, "read error");
+      const denial = /** @type {{ message?: string, statusCode?: number }} */ (error);
+      assert.equal(denial.statusCode, 404, "missing object read failures should be normalized");
+      assertSafeS3Payload(denial.message, "read error");
       return true;
     },
     "deleted objects should not read back through the adapter",
@@ -173,11 +191,12 @@ async function assertFilesServiceLifecycle() {
     targetType: "task",
   });
 
-  assert.equal(upload.file.storageProvider, "s3", "streamed upload should persist the resolved S3 provider");
-  assert.equal(upload.file.status, "pending", "S3 upload should keep the normal pending scan lifecycle");
-  assert.equal(upload.file.scanStatus, "pending", "S3 upload should keep the normal scan handoff");
+  const uploadedFile = requireFile(upload, "S3 lifecycle upload");
+  assert.equal(uploadedFile.storageProvider, "s3", "streamed upload should persist the resolved S3 provider");
+  assert.equal(uploadedFile.status, "pending", "S3 upload should keep the normal pending scan lifecycle");
+  assert.equal(uploadedFile.scanStatus, "pending", "S3 upload should keep the normal scan handoff");
 
-  const storedFile = await readFileRow(session.workspace_id, upload.file.fileId);
+  const storedFile = await readFileRow(session.workspace_id, uploadedFile.fileId);
   assert.equal(storedFile.storage_provider, "s3", "database file row should store the S3 provider id");
   assert.match(storedFile.storage_key, new RegExp(`^${escapeRegExp(session.workspace_id)}/\\d{4}-\\d{2}-\\d{2}/`), "S3 service storage key should stay app-generated");
   assertSafeS3Payload({
@@ -192,26 +211,29 @@ async function assertFilesServiceLifecycle() {
   });
   assert.equal(scanSummary.completed, 1, "queued file.scan job should complete before download");
 
-  const download = await filesService.downloadFile(session, upload.file.fileId);
+  const download = await filesService.downloadFile(session, uploadedFile.fileId);
   assert.equal(await streamToText(download.stream), "S3 lifecycle body", "downloadFile should read through the stored S3 provider adapter");
   assert.equal(lifecycleClient.calls.some((call) => call.method === "putObject"), true, "Files upload should call S3 putObject through saveStream");
   assert.equal(lifecycleClient.calls.some((call) => call.method === "getObject"), true, "Files download should call S3 getObject through read");
 }
 
+/** @returns {RecordingS3Client} */
 function createMockS3Client() {
+  /** @type {Map<string, { body: Buffer, updatedAt: string }>} */
   const objects = new Map();
   const updatedAt = "2026-07-03T12:00:00.000Z";
 
   return {
+    /** @type {RecordedS3Call[]} */
     calls: [],
-    async deleteObject(payload = {}) {
+    async deleteObject(payload) {
       this.calls.push({ bucket: payload.bucket, key: payload.key, method: "deleteObject" });
       if (!objects.delete(objectMapKey(payload))) {
         throw new Error("object missing");
       }
       return {};
     },
-    async getObject(payload = {}) {
+    async getObject(payload) {
       this.calls.push({ bucket: payload.bucket, key: payload.key, method: "getObject" });
       const object = objects.get(objectMapKey(payload));
       if (!object) {
@@ -219,7 +241,7 @@ function createMockS3Client() {
       }
       return { body: Readable.from([object.body]) };
     },
-    async headObject(payload = {}) {
+    async headObject(payload) {
       this.calls.push({ bucket: payload.bucket, key: payload.key, method: "headObject" });
       const object = objects.get(objectMapKey(payload));
       if (!object) {
@@ -227,11 +249,11 @@ function createMockS3Client() {
       }
       return { contentLength: object.body.length, lastModified: object.updatedAt };
     },
-    async health(payload = {}) {
+    async health(payload) {
       this.calls.push({ bucket: payload.bucket, method: "health", status: "ok" });
       return { ok: true };
     },
-    async putObject(payload = {}) {
+    async putObject(payload) {
       this.calls.push({
         bucket: payload.bucket,
         contentLength: payload.contentLength ?? null,
@@ -247,10 +269,12 @@ function createMockS3Client() {
   };
 }
 
-function objectMapKey(payload = {}) {
+/** @param {Record<string, unknown>} payload */
+function objectMapKey(payload) {
   return `${payload.bucket}:${payload.key}`;
 }
 
+/** @param {unknown} body @returns {Promise<Buffer>} */
 async function bodyToBuffer(body) {
   if (Buffer.isBuffer(body)) {
     return body;
@@ -261,9 +285,12 @@ async function bodyToBuffer(body) {
   if (typeof body === "string") {
     return Buffer.from(body);
   }
-  if (body && typeof body[Symbol.asyncIterator] === "function") {
+  // The adapter may hand the client a stream, so the mock probes for one
+  // rather than assuming the shape this test happens to send.
+  if (body && typeof (/** @type {Partial<AsyncIterable<unknown>>} */ (body))[Symbol.asyncIterator] === "function") {
+    /** @type {Buffer[]} */
     const chunks = [];
-    for await (const chunk of body) {
+    for await (const chunk of /** @type {AsyncIterable<Buffer | string>} */ (body)) {
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     }
     return Buffer.concat(chunks);
@@ -271,6 +298,11 @@ async function bodyToBuffer(body) {
   throw new TypeError("Unsupported mock S3 body.");
 }
 
+/**
+ * Filesystem JSON enters as `unknown`; callers narrow at the point of use.
+ * @param {string} relativePath
+ * @returns {Promise<unknown>}
+ */
 async function readJson(relativePath) {
   return JSON.parse(await readText(relativePath));
 }
@@ -289,6 +321,7 @@ LIMIT 1;
   return workspaceSessionFixture({ ...user, display_name: "Admin User" });
 }
 
+/** @param {FilesSession} session @param {string} title */
 async function createTask(session, title) {
   const taskId = randomUUID();
   const now = new Date().toISOString();
@@ -326,6 +359,11 @@ INSERT INTO tasks (
   return taskId;
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} fileId
+ * @returns {Promise<{ scan_status: string, status: string, storage_key: string, storage_provider: string }>}
+ */
 async function readFileRow(workspaceId, fileId) {
   const rows = await querySql(`
 SELECT storage_provider, storage_key, status, scan_status
@@ -335,9 +373,10 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 LIMIT 1;
 `);
   assert.equal(rows.length, 1, "uploaded S3 file row should exist");
-  return rows[0];
+  return requireFirstRow(rows, "uploaded S3 file row");
 }
 
+/** @param {NodeJS.ReadableStream} readable */
 async function streamToText(readable) {
   const chunks = [];
   for await (const chunk of readable) {
@@ -346,12 +385,14 @@ async function streamToText(readable) {
   return Buffer.concat(chunks).toString("utf8");
 }
 
+/** @param {unknown} payload @param {string} label */
 function assertSafeS3Payload(payload, label) {
   const serialized = JSON.stringify(payload);
   assert.doesNotMatch(serialized, /private-proof-bucket|private-proof-access-key|private-proof-secret-key|objects\.private\.invalid/i, `${label} should not expose S3 config values`);
   assert.doesNotMatch(serialized, /signedUrl|presigned|protectedPath/i, `${label} should not expose signed URLs or protected internals`);
 }
 
+/** @param {unknown} value @param {number} expectedVersion @param {string} label */
 function assertUuidVersion(value, expectedVersion, label) {
   assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
   assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);

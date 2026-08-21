@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -30,6 +31,23 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} FilesSession */
+
+/**
+ * Narrow an upload envelope to the file record it must be carrying.
+ *
+ * The service publishes `file` as nullable because a refused upload produces
+ * none, so every read through it here is a claim the upload was accepted.
+ * @template {{ file: unknown }} Envelope
+ * @param {Envelope} envelope
+ * @param {string} label
+ * @returns {NonNullable<Envelope["file"]>}
+ */
+function requireFile(envelope, label) {
+  assert.ok(envelope.file, `${label} should carry its file record`);
+  return envelope.file;
+}
+
 async function assertSchema() {
   const fileColumns = await querySql("PRAGMA table_info(files);");
   for (const columnName of [
@@ -51,11 +69,13 @@ WHERE type = 'table'
   assert.equal(tables.length, 1, "file_storage_accounting table should exist");
 }
 
+/** @param {FilesSession} session @param {string} taskId */
 async function assertInternalAccounting(session, taskId) {
   const upload = await filesService.uploadAndAttach(session, uploadPayload(taskId, {
     originalFilename: "storage-accounting.txt",
     text: "internal bytes for accounting",
   }));
+  const uploadedFile = requireFile(upload, "storage accounting upload");
   let accounting = await filesService.readStorageAccounting(session);
 
   assert.equal(accounting.totals.internalBytes, Buffer.byteLength("internal bytes for accounting"));
@@ -67,7 +87,7 @@ async function assertInternalAccounting(session, taskId) {
 
   await handleFileScanJob({
     payload: {
-      fileId: upload.file.fileId,
+      fileId: uploadedFile.fileId,
       requestedByUserId: session.user_id,
       workspaceId: session.workspace_id,
     },
@@ -75,17 +95,18 @@ async function assertInternalAccounting(session, taskId) {
   accounting = await filesService.readStorageAccounting(session);
   assert.equal(accounting.entries.some((entry) => entry.storageKind === "internal" && entry.availabilityStatus === "available"), true);
 
-  await filesService.deleteFile(session, upload.file.fileId);
+  await filesService.deleteFile(session, uploadedFile.fileId);
   accounting = await filesService.readStorageAccounting(session);
   assert.equal(accounting.totals.internalBytes, Buffer.byteLength("internal bytes for accounting"));
   assert.equal(accounting.entries.some((entry) => entry.storageKind === "internal" && entry.availabilityStatus === "deleted"), true);
 
-  await filesService.restoreFile(session, upload.file.fileId);
+  await filesService.restoreFile(session, uploadedFile.fileId);
   accounting = await filesService.readStorageAccounting(session);
   assert.equal(accounting.totals.internalBytes, Buffer.byteLength("internal bytes for accounting"));
   assert.equal(accounting.entries.some((entry) => entry.storageKind === "internal" && entry.availabilityStatus === "available"), true);
 }
 
+/** @param {FilesSession} session */
 async function assertExternalAccounting(session) {
   await filesService.recordExternalStorageAccounting(session, {
     availabilityStatus: "available",
@@ -104,6 +125,7 @@ async function assertExternalAccounting(session) {
   assert.equal(external.entries[0].externalSourceProvider, "example-drive");
 }
 
+/** @param {FilesSession} session */
 async function assertAccountingReadPermissions(session) {
   await assert.rejects(
     () => filesService.readStorageAccounting(session),
@@ -111,6 +133,7 @@ async function assertAccountingReadPermissions(session) {
   );
 }
 
+/** @param {FilesSession} session @param {string} title */
 async function createTask(session, title) {
   const taskId = randomUUID();
   const now = new Date().toISOString();
@@ -147,6 +170,7 @@ VALUES (
   return taskId;
 }
 
+/** @param {string} targetId @param {{ displayName?: string, originalFilename?: string, text?: string }} [options] */
 function uploadPayload(targetId, options = {}) {
   return {
     contentBase64: Buffer.from(options.text || "hello file framework").toString("base64"),
@@ -159,6 +183,7 @@ function uploadPayload(targetId, options = {}) {
   };
 }
 
+/** @returns {Promise<{ workspace_id: string }>} */
 async function readWorkspace() {
   const rows = await querySql(`
 SELECT workspace_id
@@ -167,10 +192,13 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  /** @type {{ workspace_id: string }} */
+  const workspace = requireFirstRow(rows, "workspace");
+  assert.ok(workspace.workspace_id, "workspace should exist");
+  return workspace;
 }
 
+/** @param {string} workspaceId @returns {Promise<FilesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -180,17 +208,23 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "protected user should exist");
+  /** @type {{ display_name: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireFirstRow(rows, "protected user");
+  assert.ok(admin.user_id, "protected user should exist");
   return {
     active_workspace_id: workspaceId,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
+    home_workspace_id: workspaceId,
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
+    timezone: admin.timezone || "America/New_York",
+    user_id: admin.user_id,
+    username: admin.username,
     workspace_id: workspaceId,
   };
 }
 
+/** @param {string} workspaceId @returns {Promise<FilesSession>} */
 async function createLimitedSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -243,7 +277,10 @@ VALUES (
 
   return {
     active_workspace_id: workspaceId,
-    display_name: "Storage Limited User",
+    home_workspace_id: workspaceId,
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
     timezone: "America/New_York",
     user_id: userId,
     username: `storage-limited-${userId}@example.test`,
