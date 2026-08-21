@@ -93,17 +93,6 @@ Helper-contract rule for every remaining child (added at `0.33.33.31.6.1` after 
 
 Pre-closeout boundary probe for `0.33.33.31.7` through `0.33.33.31.11`: before archiving a child, search that child's touched owners for dynamic parsing, deserialization, and helper-level type erasure, and record the disposition in the archive entry as narrowed through a published contract, narrowed locally from `unknown`, intentionally left open with concrete rationale, or not present. A child must not be archived merely because its measured diagnostic count reached zero while a parsing boundary still feeds `any` into an assertion. The probe stays scoped to the child's own owners; it is not a repository-wide audit.
 
-#### 0.33.33.31.7 - Type storage provider, S3, and quota owners
-
-**Model: High Effort - Provider mocks and quota arithmetic must not be typed into agreement.**
-
-Measured at 197 diagnostics across 9 files and 2,378 lines.
-
-- [ ] Close the 197 diagnostics across the `file-s3-*`, `file-storage-*`, and `workspace-storage` owners.
-- [ ] Type provider configuration, S3 object operations and signed-url boundaries, storage accounting rows, quota state, and streaming contracts with named contracts.
-- [ ] Preserve provider registration, signed-url boundaries, quota enforcement arithmetic, accounting totals, and streaming behavior exactly; prove quota enforcement still fails closed with a negative control.
-- [ ] Inspect this child's dynamic boundaries explicitly: provider mock responses, S3 and API-style result objects, JSON and configuration parsing, quota and accounting records, and health-response payloads. Do not type provider mocks into agreement — third-party and provider values enter as a published provider contract or as `unknown` and are narrowed honestly.
-
 #### 0.33.33.31.8 - Type scanner adapter and worker owners
 
 **Model: High Effort - Scanner refusals and worker isolation are both fail-closed paths.**
