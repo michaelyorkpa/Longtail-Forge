@@ -3003,7 +3003,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 3700,
+      "errorCount": 3494,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3269,58 +3269,6 @@
             "count": 1
           }
         ],
-        "scripts/file-clamd-adapter-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 16
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 20
-          }
-        ],
-        "scripts/file-clamscan-adapter-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 12
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 20
-          }
-        ],
         "scripts/file-framework-contract-regression.mjs": [
           {
             "code": 7005,
@@ -3333,48 +3281,6 @@
           {
             "code": 7034,
             "count": 1
-          }
-        ],
-        "scripts/file-scan-job-handoff-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 10
-          }
-        ],
-        "scripts/file-scanner-health-diagnostics-regression.mjs": [
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "scripts/file-scanner-mode-resolver-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18047,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 15
           }
         ],
         "scripts/file-settings-regression.mjs": [
@@ -5237,32 +5143,6 @@
             "count": 53
           }
         ],
-        "scripts/separate-worker-end-to-end-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 22
-          },
-          {
-            "code": 7005,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 36
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
         "scripts/tag-bulk-assignment-regression.mjs": [
           {
             "code": 7006,
@@ -5930,39 +5810,13 @@
             "code": 7006,
             "count": 13
           }
-        ],
-        "scripts/worker-runner-regression.mjs": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 14
-          },
-          {
-            "code": 2345,
-            "count": 4
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 5
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
         ]
       }
     }
   },
   "totals": {
     "files": 1045,
-    "errors": 14834,
+    "errors": 14628,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

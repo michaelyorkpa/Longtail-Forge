@@ -28,6 +28,7 @@ try {
     targetId: taskId,
     targetType: "task",
   });
+  assert.ok(upload.file, "the scanned fixture upload should carry its file record");
   const fileId = upload.file.fileId;
   const attachmentId = upload.attachment.fileAttachmentId;
   const queuedJob = await readFileScanJob(session.workspace_id, fileId);
@@ -65,7 +66,7 @@ try {
     mode: "inline",
     workerId: "file-scan-job-handoff-regression",
   });
-  const completedJob = await readJobById(queuedJob.job_id);
+  const completedJob = await readJobById(String(queuedJob.job_id));
   const scannedFile = await readFileRow(session.workspace_id, fileId);
 
   assert.equal(summary.completed, 1, "worker should complete the queued file.scan job");
@@ -83,6 +84,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @returns {Promise<FilesSession>} */
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -97,6 +99,9 @@ LIMIT 1;
   return workspaceSessionFixture({ ...user, display_name: "Admin User" });
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} FilesSession */
+
+/** @param {FilesSession} session @param {string} title */
 async function createTask(session, title) {
   const taskId = randomUUID();
   const now = new Date().toISOString();
@@ -135,6 +140,7 @@ VALUES (
   return taskId;
 }
 
+/** @param {string} workspaceId @param {string} fileId */
 async function readFileScanJob(workspaceId, fileId) {
   const rows = await querySql(`
 SELECT *
@@ -150,6 +156,7 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {string} jobId */
 async function readJobById(jobId) {
   const rows = await querySql(`
 SELECT *
@@ -162,6 +169,7 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {string} workspaceId @param {string} fileId */
 async function readFileRow(workspaceId, fileId) {
   const rows = await querySql(`
 SELECT *
@@ -175,7 +183,9 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {NodeJS.ReadableStream} stream */
 async function streamToText(stream) {
+  /** @type {Buffer[]} */
   const chunks = [];
 
   for await (const chunk of stream) {
@@ -185,6 +195,7 @@ async function streamToText(stream) {
   return Buffer.concat(chunks).toString("utf8");
 }
 
+/** @param {unknown} value @param {string} label */
 function assertSafeReadModel(value, label) {
   const json = JSON.stringify(value);
 
