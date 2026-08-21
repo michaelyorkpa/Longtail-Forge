@@ -217,7 +217,11 @@ LIMIT 1;
   return workspaceSessionFixture(user);
 }
 
-/** @returns {Promise<import("../../../src/types/http-contracts.js").WorkspaceRequestSession>} */
+/**
+ * @param {string} workspaceId
+ * @param {string} clientId
+ * @returns {Promise<import("../../../src/types/http-contracts.js").WorkspaceRequestSession>}
+ */
 async function createClientScopedSession(workspaceId, clientId) {
   const userId = randomUUID();
   const now = "2026-01-01T00:00:00.000Z";

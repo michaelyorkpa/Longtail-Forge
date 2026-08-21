@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-options-payload-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-options-payload.db");
@@ -27,6 +31,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session */
 async function assertBusinessOptions(session) {
   const parent = (await clientsService.createClient({ name: "Options Parent" }, session)).client;
   await clientsService.createClient({
@@ -49,6 +54,7 @@ async function assertBusinessOptions(session) {
   }, session)).task.task_id, session)).task;
 
   const options = (await tasksService.list(session, { status: "active" })).options;
+  assert.ok(options, "task list responses should carry the picker options payload");
   assert.deepEqual(
     options.clients.map((client) => client.optionLabel),
     ["Options Parent", "  - Options Child"],
@@ -67,15 +73,18 @@ async function assertBusinessOptions(session) {
   assert.equal(historyOptions.tasks.some((task) => task.id === completedTask.task_id), false, "active picker defaults should stay active on the dedicated options read");
 }
 
+/** @param {TasksSession} session */
 async function assertPermissionFiltering(session) {
-  const noRoleSession = /** @type {import("../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ (await createNoRoleSession(session.workspace_id)));
+  const noRoleSession = await createNoRoleSession(session.workspace_id);
   const options = (await tasksService.list(noRoleSession, { status: "active" })).options;
+  assert.ok(options, "permission-filtered list responses should still carry an options payload");
 
   assert.equal(options.clients.length, 0, "unreadable clients should be absent from picker options");
   assert.equal(options.projects.length, 0, "unreadable projects should be absent from picker options");
   assert.equal(options.tasks.length, 0, "unreadable tasks should be absent from picker options");
 }
 
+/** @param {TasksSession} session */
 async function assertPersonalWorkspaceOptions(session) {
   const personalWorkspaceId = randomUUID();
   const now = new Date().toISOString();
@@ -138,6 +147,7 @@ VALUES (
   const workspaceProject = (await clientsService.createProject("", { name: "Personal Workspace Project" }, personalSession)).project;
   const options = (await tasksService.list(personalSession, { status: "active" })).options;
 
+  assert.ok(options, "personal-workspace list responses should carry the picker options payload");
   assert.equal(options.workspaceType, "personal");
   assert.equal(options.clients.length, 0, "personal workspaces should not expose client picker options");
   assert.ok(options.projects.some((project) => project.id === workspaceProject.id), "personal workspace projects should remain available");
@@ -155,6 +165,7 @@ async function assertBrowserUsesServiceLabels() {
   assert.doesNotMatch(taskDialog, /getClientTreeSortKey|getProjectTreeSortKey|getClientDepth|getProjectDepth|treeIndent/, "Task dialog should not rebuild picker hierarchy");
 }
 
+/** @param {string} workspaceId @returns {Promise<TasksSession>} */
 async function createNoRoleSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -198,14 +209,14 @@ VALUES (
 );
 `);
 
-  return {
+  return workspaceSessionFixture({
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
+    ip_address: "127.0.0.1",
     timezone: "America/New_York",
     user_id: userId,
     username: `task-options-no-role-${userId}@example.test`,
     workspace_id: workspaceId,
-  };
+  });
 }
 
 async function readSeedSession() {
@@ -215,16 +226,5 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }

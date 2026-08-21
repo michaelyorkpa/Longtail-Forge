@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files is assigned to exactly one child, and the children sum to the measured 3,150:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` has since archived, closing 108 diagnostics across 9 files and leaving 3,042 across 193:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.1` | Tasks query, projection, and payload core | 108 | 9 | 2,341 |
 | `.32.2` | Task checklists, relationships, bulk toolbars | 121 | 8 | 2,281 |
 | `.32.3` | Task recurrence and reminder scheduling | 202 | 9 | 2,477 |
 | `.32.4` | Task calendar windows and feed serialization | 149 | 4 | 1,850 |
@@ -109,16 +108,6 @@ Requirements shared by every child:
 - [ ] Do not resolve a nullability diagnostic with a non-null assertion where the owner can assert the value instead. This band is 518 of the 3,150 and is the likeliest source of a zero that the compiler believes and the runtime does not.
 - [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
-
-#### 0.33.33.32.1 - Type Tasks query, projection, and payload core
-
-**Model: High Effort - The canonical task query and selector contracts every other Tasks owner reads through.**
-
-Measured at 108 diagnostics across 9 files and 2,341 lines. No `JSON.parse`; one history-pinned owner.
-
-- [ ] Close the 108 diagnostics across `tasks-view-selector-query-contract`, `task-canonical-query`, `tasks-primary-repository-conversion`, `task-qol-closeout`, `task-options-payload`, `tasks-server-side-list-paging`, `task-activity-metrics`, `task-modal-complete-action`, and `regressions/tasks/task-list-pipeline-projection`.
-- [ ] Type the canonical query descriptor, view-selector inputs, task option payloads, paging cursors, and the list pipeline projection with named contracts rather than per-callback parameter annotations.
-- [ ] Preserve selector-to-query equivalence, paging boundary behaviour, activity metric derivation, and the projection's column set exactly.
 
 #### 0.33.33.32.2 - Type task checklists, relationships, and bulk toolbars
 

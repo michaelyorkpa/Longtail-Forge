@@ -3,6 +3,11 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+/** @typedef {Awaited<ReturnType<typeof createFixtures>>} CanonicalFixtures */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-canonical-query-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-canonical-query.db");
@@ -30,6 +35,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session */
 async function createFixtures(session) {
   const client = (await clientsService.createClient({ name: "Canonical Query Client" }, session)).client;
   const childClient = (await clientsService.createClient({
@@ -54,7 +60,7 @@ async function createFixtures(session) {
   const unreadableChildProject = (await clientsService.createProject(unreadableChildClient.id, {
     name: "Canonical Query Hidden Child Project",
   }, session)).project;
-  const tag = await tagsService.create(session, { name: "Canonical Query" });
+  const tag = (await tagsService.create(session, { name: "Canonical Query" })).tag;
   const now = new Date();
   const yesterday = dateKey(addDays(now, -1), session.timezone);
   const today = dateKey(now, session.timezone);
@@ -132,6 +138,7 @@ async function createFixtures(session) {
   };
 }
 
+/** @param {TasksSession} session @param {CanonicalFixtures} fixtures */
 async function assertCanonicalFilters(session, fixtures) {
   const assigned = await tasksService.list(session, { quickFilter: "assigned_to_me" });
   assert.ok(assigned.tasks.some((task) => task.task_id === fixtures.overdue.task_id), "assigned-to-me filter should include assigned tasks");
@@ -186,6 +193,7 @@ async function assertCanonicalFilters(session, fixtures) {
   assert.deepEqual(timer.tasks.map((task) => task.task_id), [fixtures.overdue.task_id]);
 }
 
+/** @param {TasksSession} session @param {CanonicalFixtures} fixtures */
 async function assertCanonicalSorts(session, fixtures) {
   const priority = await tasksService.list(session, { status: "active", sort: "priority" });
   assert.equal(priority.tasks[0].task_id, fixtures.overdue.task_id);
@@ -207,6 +215,7 @@ async function assertCanonicalSorts(session, fixtures) {
   );
 }
 
+/** @param {TasksSession} session @param {CanonicalFixtures} fixtures */
 async function assertWorkItemSummaryPayload(session, fixtures) {
   const result = await tasksService.listWorkItems(session, { status: "active", sort: "priority" });
   const item = result.items.find((candidate) => candidate.task_id === fixtures.overdue.task_id);
@@ -248,16 +257,19 @@ async function assertWorkItemSummaryPayload(session, fixtures) {
   const complete = (await tasksService.listWorkItems(session, { status: "history" })).items.find((candidate) =>
     candidate.task_id === fixtures.complete.task_id
   );
+  assert.ok(complete, "history work items should include the completed fixture task");
   assert.equal(complete.active_candidate, false);
 
   const workbench = await tasksService.listWorkbenchItems(session);
   const workbenchItem = workbench.items.find((candidate) => candidate.task_id === fixtures.overdue.task_id);
+  assert.ok(workbenchItem, "Workbench items should include the overdue fixture task");
   assert.equal(workbenchItem.description_excerpt, item.description_excerpt);
   assert.equal(workbenchItem.resume_context.active_candidate, true);
 }
 
+/** @param {TasksSession} session */
 async function assertPermissionFiltering(session) {
-  const noRoleSession = /** @type {import("../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ (await createNoRoleSession(session.workspace_id)));
+  const noRoleSession = await createNoRoleSession(session.workspace_id);
   const result = await tasksService.list(noRoleSession, { status: "active" });
   const workItems = await tasksService.listWorkItems(noRoleSession);
   const workbench = await tasksService.listWorkbenchItems(noRoleSession);
@@ -267,7 +279,7 @@ async function assertPermissionFiltering(session) {
   assert.equal(workbench.items.length, 0, "Workbench should consume permission-filtered canonical task work items");
 
   const hierarchyFixtures = await createHierarchyPermissionFixtures(session);
-  const limitedSession = /** @type {import("../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ (await createNoRoleSession(session.workspace_id)));
+  const limitedSession = await createNoRoleSession(session.workspace_id);
   await assignProjectAdminRole(limitedSession.user_id, session.workspace_id, hierarchyFixtures.readableProject.id);
 
   const limitedClientScope = await tasksService.list(limitedSession, {
@@ -291,6 +303,7 @@ async function assertPermissionFiltering(session) {
   );
 }
 
+/** @param {string} workspaceId @returns {Promise<TasksSession>} */
 async function createNoRoleSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -337,16 +350,17 @@ VALUES (
 );
 `);
 
-  return {
+  return workspaceSessionFixture({
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
+    ip_address: "127.0.0.1",
     timezone: "America/New_York",
     user_id: userId,
     username: `task-canonical-no-role-${userId}@example.test`,
     workspace_id: workspaceId,
-  };
+  });
 }
 
+/** @param {TasksSession} session */
 async function createHierarchyPermissionFixtures(session) {
   const parentClient = (await clientsService.createClient({ name: "Canonical Permission Parent Client" }, session)).client;
   const readableChildClient = (await clientsService.createClient({
@@ -381,6 +395,7 @@ async function createHierarchyPermissionFixtures(session) {
   };
 }
 
+/** @param {string} userId @param {string} workspaceId @param {string} projectId */
 async function assignProjectAdminRole(userId, workspaceId, projectId) {
   const now = new Date().toISOString();
 
@@ -415,26 +430,17 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }
 
+/** @param {Date} date @param {number} days @returns {Date} */
 function addDays(date, days) {
   const nextDate = new Date(date);
   nextDate.setDate(nextDate.getDate() + days);
   return nextDate;
 }
 
+/** @param {Date} date @param {string} [timezone] @returns {string} */
 function dateKey(date, timezone = "America/New_York") {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone || "America/New_York",

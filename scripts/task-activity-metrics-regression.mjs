@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-activity-metrics-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-activity-metrics.db");
@@ -29,6 +33,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session */
 async function assertTaskEditsExposeLastWorkedAt(session) {
   const created = (await tasksService.create({
     title: "Activity timestamp task",
@@ -55,6 +60,7 @@ async function assertTaskEditsExposeLastWorkedAt(session) {
   assert.equal(item.last_worked_at, updated.last_worked_at);
 }
 
+/** @param {TasksSession} session */
 async function assertCompletionMetricsAreReusable(session) {
   const task = (await tasksService.create({
     title: "Completion metrics task",
@@ -90,6 +96,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   );
 }
 
+/** @param {TasksSession} session @param {string} projectId */
 async function assertTimerLifecycleUpdatesLastWorkedAt(session, projectId) {
   const task = (await tasksService.create({
     title: "Timer activity task",
@@ -120,6 +127,7 @@ async function assertTimerLifecycleUpdatesLastWorkedAt(session, projectId) {
   assert.ok(Date.parse(afterFinalize.last_worked_at) >= Date.parse(afterPause.last_worked_at));
 }
 
+/** @param {TasksSession} session */
 async function assertLinkedContextEventsUpdateLastWorkedAt(session) {
   const task = (await tasksService.create({
     title: "Linked context activity task",
@@ -154,6 +162,7 @@ async function assertLinkedContextEventsUpdateLastWorkedAt(session) {
   assert.ok(Date.parse(afterFile.last_worked_at) >= Date.parse(afterNote.last_worked_at));
 }
 
+/** @param {string} workspaceId */
 async function createProject(workspaceId) {
   const now = new Date().toISOString();
   const projectId = randomUUID();
@@ -223,16 +232,5 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }

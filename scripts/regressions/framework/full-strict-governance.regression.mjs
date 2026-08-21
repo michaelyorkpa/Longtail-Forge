@@ -716,6 +716,19 @@ const newCleanFile = cloneLedger();
 newCleanFile.programs.scripts.files.push("scripts/synthetic-new.mjs");
 assert.doesNotThrow(() => validateShrinkOnly(ledger, newCleanFile));
 assert.equal(isFirstPartyDirectoryName(".repository-signature-types-fixture"), false);
+for (const taskQueryOwner of [
+  "scripts/regressions/tasks/task-list-pipeline-projection.regression.mjs",
+  "scripts/task-activity-metrics-regression.mjs",
+  "scripts/task-canonical-query-regression.mjs",
+  "scripts/task-modal-complete-action-regression.mjs",
+  "scripts/task-options-payload-regression.mjs",
+  "scripts/task-qol-closeout-regression.mjs",
+  "scripts/tasks-primary-repository-conversion-regression.mjs",
+  "scripts/tasks-server-side-list-paging-regression.mjs",
+  "scripts/tasks-view-selector-query-contract-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[taskQueryOwner], undefined, `${taskQueryOwner} must stay strict-clean after checkpoint 0.33.33.32.1`);
+}
 
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 
