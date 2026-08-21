@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18431,
+    "activeAssertionCount": 18434,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19115,
+    "effectiveAssertionCount": 19118,
     "retiredAssertionCredit": 15,
     "vitest": [
       {
@@ -1319,11 +1319,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 47,
+      "assertionCount": 50,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy files attachment context route contract.",
-      "entryPointAssertionCount": 47,
+      "entryPointAssertionCount": 50,
       "id": "legacy.files.attachment.context.route",
       "legacy": true,
       "path": "scripts/files-attachment-context-route-regression.mjs",

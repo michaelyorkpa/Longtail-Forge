@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.31.6.1 - Narrow attachment-context audit metadata
+
+**Model: High Effort** - A row typed truthfully and then reparsed into `any` is typed for show.
+
+Corrective child of `0.33.33.31.6`, added after post-merge review. Archiving it closes `0.33.33.31.6` again and hands off to the already-planned `0.33.33.31.7`. The `0.33.33.31.7` through `0.33.33.31.11` diagnostic and file assignments are unchanged; only their acceptance criteria are strengthened.
+
+- [x] Closed the one boundary `0.33.33.31.6` missed. That checkpoint typed the audit row truthfully as `{ metadata_json: string | null }` and then reopened the boundary on the next line: `JSON.parse` returns `any`, so the `previous_context.target_id` and `next_context.target_id` comparisons were claims TypeScript never checked. The HTTP `JSON.parse` boundaries were moved behind `unknown` at `0.33.33.31.4` through `0.33.33.31.6`; this database-backed JSON column now follows the same rule.
+- [x] Crossed the boundary honestly rather than renaming it. The parsed value enters as `unknown` and is narrowed by a local contract naming only what this owner proves, which checks at runtime that the payload is a JSON object, that `previous_context` and `next_context` are present and are objects, and that each carries a string `target_id`. No published production contract describes this payload, so none was invented, and the boundary is not crossed by a direct cast.
+- [x] Kept the existing proof whole. The narrowing returns the record that was actually read rather than a rebuilt smaller one, so the storage-leak scan still sees every field the audit row carries — a smaller reconstructed object would have quietly narrowed that scan too.
+- [x] Proved the narrowing is real with three controls: removing `previous_context`, renaming `next_context`, and dropping `target_id` from every audit context each make the owner fail at the narrowing with the specific reason, the last naming the keys that remained. The perturbed source restores byte-identical by SHA-256.
+- [x] Hardened the remaining rollup so this class of defect is caught before merge rather than after. `0.33.33.31` now carries a boundary rule stating that compiler-zero is not sufficient when an unchecked dynamic boundary makes that zero inherited rather than earned, with an inventory of the boundary kinds each remaining child must disposition and the rules for crossing them. It also carries a helper-contract rule drawn from the `0.33.33.31.1.1` correction, and a pre-closeout boundary probe that `0.33.33.31.7` through `0.33.33.31.11` must record in their archive entries.
+- [x] Added a concise reminder to each remaining child naming the boundaries most likely in its own owners: provider and S3 result objects for `0.33.33.31.7`, scanner and child-process output for `0.33.33.31.8`, persisted job and outbox JSON for `0.33.33.31.9`, observability and job payload records for `0.33.33.31.10`. `0.33.33.31.11` gains the final rollup-wide dynamic-boundary audit as a closeout duty, alongside the `readPayloadList` removal already recorded at `0.33.33.31.5.1`.
+- [x] Held the scope: no audit-subsystem refactor, no generalized JSON-schema framework, no Files behavior change, no reopening of the shared HTTP payload helper, no `0.33.33.31.6` authorization change, and no `0.33.33.31.7` implementation. The owner stays strict-clean, the scripts program stays at 3,897 diagnostics with explicit `any` at 7, and the three new runtime assertions raised discovered coverage from 19,115 to 19,118 with the floor ratcheted to match.
+
 ## Version 0.33.33.31.6 - Type Files attachment target and context read owners
 
 **Model: High Effort** - Attachment targets are a cross-module authorization surface.
