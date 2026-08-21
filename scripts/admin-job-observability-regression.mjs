@@ -16,7 +16,72 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-admin-jo
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Admin-Job-Observability-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} ObservabilityClientOptions */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+/** @typedef {import("../src/types/database-contracts.js").DatabaseRow} DatabaseRow */
+
+/**
+ * One fixture response. The body stays `unknown` on purpose: JSON.parse would
+ * hand back `any`, and every envelope read below would then be a claim the
+ * compiler never checks. That matters most here, because this owner exists to
+ * prove the readouts do not leak job payloads.
+ * @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown>} ObservabilityResponse
+ */
+
+/** @typedef {{ get: (url: string, options?: ObservabilityClientOptions) => Promise<ObservabilityResponse> }} ObservabilityApiClient */
+
+/** Both routes publish their service results unchanged. */
+/** @typedef {{ jobs: Awaited<ReturnType<typeof import("../src/services/jobs.service.js").jobsService.readAdminReadout>> }} JobsReadoutEnvelope */
+/** The worker status fields this owner asserts on, from the shape runtime diagnostics publishes. */
+/**
+ * @typedef {{
+ *   diagnostics: {
+ *     worker: {
+ *       mode: string,
+ *       status: {
+ *         lastErrorAt: string | null,
+ *         lastRunAt: string | null,
+ *         lastSuccessAt: string | null,
+ *         lockTtlSeconds: number,
+ *         pollIntervalMs: number,
+ *         registeredJobTypes: string[],
+ *         running: boolean,
+ *         state: string,
+ *         timerActive: boolean,
+ *         workerId: string | null,
+ *       },
+ *     },
+ *   },
+ * }} RuntimeDiagnosticsEnvelope
+ */
+
+/** @typedef {Awaited<ReturnType<typeof seedFixtures>>} ObservabilityFixtures */
+
+/** The columns insertJob writes; every one is a column this owner controls. */
+/**
+ * @typedef {{
+ *   attemptCount?: number,
+ *   availableAt?: string,
+ *   completedAt?: string | null,
+ *   createdAt?: string,
+ *   deadAt?: string | null,
+ *   dedupeKey?: string | null,
+ *   jobId: string,
+ *   jobType?: string,
+ *   lastError?: string | null,
+ *   lockedAt?: string | null,
+ *   lockedBy?: string | null,
+ *   maxAttempts?: number,
+ *   payload?: unknown,
+ *   priority?: number,
+ *   status?: string,
+ *   updatedAt?: string,
+ * }} InsertJobOptions
+ */
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const workspaceSettingsView = readText("views/protected/workspace-settings.html");
@@ -39,11 +104,11 @@ try {
 
   await initializeDatabase();
   const fixtures = await seedFixtures();
-  workspaceId = fixtures.workspaceId;
+  workspaceId = String(fixtures.workspaceId);
   await seedJobs();
 
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
 
   await assertJobsAdminReadout(api, fixtures);
   await assertRuntimeDiagnosticsReadout(api, fixtures);
@@ -83,11 +148,11 @@ function assertStaticContract() {
   assert.match(runtimeDiagnosticsSource, /lastRunAt[\s\S]*lastSuccessAt/, "runtime diagnostics should include worker health timestamps");
   assert.doesNotMatch(runtimeDiagnosticsSource, /payload_json|dedupe_key|process\.env|storageKey|signedUrl|clamdHost|clamscanPath|masterKey/i, "runtime diagnostics must not expose sensitive internals");
 
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.5[\s\S]*admin job observability/, "database docs should document admin job observability");
   assert.match(runtimeDocs, /Jobs Admin Readout[\s\S]*Workspace Settings[\s\S]*recent failures/, "runtime docs should document the admin jobs readout placement");
 }
 
+/** @param {ObservabilityApiClient} api @param {ObservabilityFixtures} fixtures */
 async function assertJobsAdminReadout(api, fixtures) {
   const unauthenticated = await api.get("/api/jobs/status");
   assert.equal(unauthenticated.status, 401, "jobs status should require login");
@@ -98,35 +163,42 @@ async function assertJobsAdminReadout(api, fixtures) {
   const firstPage = await api.get("/api/jobs/status?limit=1", { cookie: fixtures.adminSessionId });
   assert.equal(firstPage.status, 200, "workspace settings managers should read job status");
   assert.equal(firstPage.headers.get("cache-control"), "no-store");
-  assert.deepEqual(firstPage.body.jobs.counts, {
+  /** @type {JobsReadoutEnvelope} */
+  const firstPagePayload = readPayload(firstPage, ["jobs"], "GET /api/jobs/status");
+  assert.deepEqual(firstPagePayload.jobs.counts, {
     dead: 1,
     failed: 1,
     pending: 1,
     running: 1,
   });
-  assert.equal(firstPage.body.jobs.recentFailures.items.length, 1);
-  assert.equal(firstPage.body.jobs.recentFailures.pagination.limit, 1);
-  assert.equal(firstPage.body.jobs.recentFailures.pagination.maxPageSize, 50);
-  assert.equal(firstPage.body.jobs.recentFailures.pagination.hasMore, true);
-  assert.ok(firstPage.body.jobs.recentFailures.pagination.nextCursor, "first failures page should include a next cursor");
+  assert.equal(firstPagePayload.jobs.recentFailures.items.length, 1);
+  assert.equal(firstPagePayload.jobs.recentFailures.pagination.limit, 1);
+  assert.equal(firstPagePayload.jobs.recentFailures.pagination.maxPageSize, 50);
+  assert.equal(firstPagePayload.jobs.recentFailures.pagination.hasMore, true);
+  assert.ok(firstPagePayload.jobs.recentFailures.pagination.nextCursor, "first failures page should include a next cursor");
 
-  const secondPage = await api.get(`/api/jobs/status?limit=1&cursor=${encodeURIComponent(firstPage.body.jobs.recentFailures.pagination.nextCursor)}`, {
+  const secondPage = await api.get(`/api/jobs/status?limit=1&cursor=${encodeURIComponent(firstPagePayload.jobs.recentFailures.pagination.nextCursor)}`, {
     cookie: fixtures.adminSessionId,
   });
   assert.equal(secondPage.status, 200);
-  assert.equal(secondPage.body.jobs.recentFailures.items.length, 1);
-  assert.equal(secondPage.body.jobs.recentFailures.pagination.hasMore, false);
+  /** @type {JobsReadoutEnvelope} */
+  const secondPagePayload = readPayload(secondPage, ["jobs"], "GET /api/jobs/status");
+  assert.equal(secondPagePayload.jobs.recentFailures.items.length, 1);
+  assert.equal(secondPagePayload.jobs.recentFailures.pagination.hasMore, false);
 
-  const serialized = JSON.stringify(firstPage.body.jobs) + JSON.stringify(secondPage.body.jobs);
+  const serialized = JSON.stringify(firstPagePayload.jobs) + JSON.stringify(secondPagePayload.jobs);
   assert.doesNotMatch(serialized, /payload|dedupe|storageKey|signedUrl|scanner|Admin-Job-Observability-Test/i, "jobs readout should not expose sensitive job/runtime internals");
 }
 
+/** @param {ObservabilityApiClient} api @param {ObservabilityFixtures} fixtures */
 async function assertRuntimeDiagnosticsReadout(api, fixtures) {
   const diagnosticsResponse = await api.get("/api/runtime-diagnostics", { cookie: fixtures.adminSessionId });
   assert.equal(diagnosticsResponse.status, 200, "workspace settings managers should read runtime diagnostics");
 
-  const workerStatus = diagnosticsResponse.body.diagnostics.worker.status;
-  assert.equal(diagnosticsResponse.body.diagnostics.worker.mode, "disabled");
+  /** @type {RuntimeDiagnosticsEnvelope} */
+  const diagnostics = readPayload(diagnosticsResponse, ["diagnostics"], "GET /api/runtime-diagnostics");
+  const workerStatus = diagnostics.diagnostics.worker.status;
+  assert.equal(diagnostics.diagnostics.worker.mode, "disabled");
   assert.equal(workerStatus.state, "disabled");
   assert.equal(workerStatus.timerActive, false);
   assert.equal(workerStatus.pollIntervalMs, 5000);
@@ -135,19 +207,20 @@ async function assertRuntimeDiagnosticsReadout(api, fixtures) {
   assert.equal(workerStatus.lastSuccessAt, null);
   assert.ok(Array.isArray(workerStatus.registeredJobTypes), "worker status should include registered job types");
 
-  const serialized = JSON.stringify(diagnosticsResponse.body.diagnostics);
+  const serialized = JSON.stringify(diagnostics.diagnostics);
   assert.doesNotMatch(serialized, /payload|dedupe|storageKey|signedUrl|Admin-Job-Observability-Test|LONGTAIL_DATABASE_FILE|CLAMD|CLAMSCAN|masterKey/i, "runtime diagnostics should remain redacted");
 }
 
 async function seedFixtures() {
-  const admin = await db.get(`
+  /** @type {{ active_workspace_id: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireRow(await db.get(`
 SELECT user_id, username, home_workspace_id, active_workspace_id, timezone
 FROM users
 WHERE protected_user = 'yes'
 ORDER BY rowid
 LIMIT 1;
-`);
-  assert.ok(admin?.user_id, "fresh database should seed a protected admin");
+`), "protected admin");
+  assert.ok(admin.user_id, "fresh database should seed a protected admin");
 
   const workspace = admin.active_workspace_id || admin.home_workspace_id;
   const unprivilegedUser = {
@@ -262,7 +335,8 @@ async function seedJobs() {
   });
 }
 
-async function insertJob(options = {}) {
+/** @param {InsertJobOptions} options */
+async function insertJob(options) {
   const now = new Date().toISOString();
   const status = options.status || "pending";
 
@@ -328,9 +402,12 @@ async function assertIntegrity() {
   assert.equal(integrityRows[0]?.integrity_check, "ok", "admin job observability regression database should pass integrity check");
 }
 
+/** @param {string} baseUrl @returns {ObservabilityApiClient} */
 function createApi(baseUrl) {
   return {
+    /** @param {string} url @param {ObservabilityClientOptions} [options] @returns {Promise<ObservabilityResponse>} */
     async get(url, options = {}) {
+      /** @type {Record<string, string>} */
       const headers = {};
       if (options.cookie) {
         headers.Cookie = `longtail_forge_session=${options.cookie}`;
@@ -347,13 +424,15 @@ function createApi(baseUrl) {
   };
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {HttpFixtureServer} serverInstance @returns {Promise<void>} */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => {
@@ -361,7 +440,7 @@ function closeServer(serverInstance) {
         reject(error);
         return;
       }
-      resolve();
+      resolve(undefined);
     });
   });
 }

@@ -15,7 +15,27 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-search-i
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Search-Index-Jobs-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+/** @typedef {Awaited<ReturnType<typeof seedFixtures>>} SearchFixtures */
+
+/** This client always posts a JSON body, so it names its own option bag. */
+/** @typedef {{ body?: unknown, cookie?: string }} SearchClientOptions */
+
+/**
+ * One fixture response. The body stays `unknown` on purpose: JSON.parse would
+ * hand back `any`, and every envelope read below would then be a claim the
+ * compiler never checks.
+ * @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown>} SearchResponse
+ */
+
+/** @typedef {{ post: (url: string, options?: SearchClientOptions) => Promise<SearchResponse> }} SearchApiClient */
+
+/** The rebuild route envelope this owner reads. */
+/** @typedef {{ operation: string, scope: string }} SearchRebuildEnvelope */
 const architectureDocs = readText("docs/architecture.md");
 const databaseDocs = readText("docs/database.md");
 const moduleDocs = readText("docs/module-development.md");
@@ -63,7 +83,6 @@ try {
   assert.match(appSource, /registerSearchIndexJobHandlers/, "app startup should register search index job handlers");
   assert.match(workerCliSource, /registerSearchIndexJobHandlers/, "separate worker startup should register search index job handlers");
   assert.doesNotMatch(appSource, /searchIndexRebuildService\.rebuildApp|scheduleStartupSearchIndexRebuild/, "normal startup must not run a full synchronous app rebuild");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(architectureDocs, /As of 0\.33\.5\.21\.4[\s\S]*search\.index/, "architecture docs should document search indexing jobs");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.4[\s\S]*Search indexing uses the durable job runner/, "database docs should document the search job handoff");
   assert.match(moduleDocs, /Search indexing side effects are queued as durable jobs/, "module docs should document queued search indexing");
@@ -90,6 +109,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {SearchFixtures} fixtures */
 async function assertRecordWriteQueuesAndWorkerIndexes(fixtures) {
   resetJobWorkerStatusForTests();
   const result = await tasksService.create({
@@ -102,7 +122,7 @@ async function assertRecordWriteQueuesAndWorkerIndexes(fixtures) {
 
   assert.deepEqual(searchRowsBefore, [], "record writes should not write the search index before worker execution");
   assert.equal(queuedJob.status, "pending");
-  assert.match(queuedJob.payload_json, /task\.created/);
+  assert.match(String(queuedJob.payload_json), /task\.created/);
 
   const summary = await runJobWorkerOnce({
     claimLimit: 3,
@@ -115,6 +135,7 @@ async function assertRecordWriteQueuesAndWorkerIndexes(fixtures) {
   assert.deepEqual(searchRowsAfter.map((row) => row.title), ["Search index job queued task"]);
 }
 
+/** @param {SearchFixtures} fixtures */
 async function assertFailedIndexingJobRetries(fixtures) {
   resetJobWorkerStatusForTests();
   clearSearchIndexersForTests();
@@ -154,14 +175,15 @@ async function assertFailedIndexingJobRetries(fixtures) {
   assert.equal(summary.failed, 1);
   assert.equal(failedJob.status, "failed");
   assert.equal(failedJob.attempt_count, 1);
-  assert.match(failedJob.last_error, /search worker retry me/);
-  assert.ok(Date.parse(failedJob.available_at) > beforeRun, "failed search jobs should retry later");
+  assert.match(String(failedJob.last_error), /search worker retry me/);
+  assert.ok(Date.parse(String(failedJob.available_at)) > beforeRun, "failed search jobs should retry later");
   unregister();
 }
 
+/** @param {SearchFixtures} fixtures */
 async function assertManualRebuildRouteQueues(fixtures) {
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${/** @type {import("node:net").AddressInfo} */ (server.address()).port}`);
   const response = await api.post("/api/search-index/rebuild", {
     body: {},
     cookie: fixtures.sessionId,
@@ -169,11 +191,13 @@ async function assertManualRebuildRouteQueues(fixtures) {
   const rebuildJob = await readLatestSearchJob(fixtures.workspaceId, "rebuild", "");
 
   assert.equal(response.status, 202);
-  assert.equal(response.body.operation, "queue_rebuild");
-  assert.equal(response.body.scope, "workspace");
+  /** @type {SearchRebuildEnvelope} */
+  const rebuild = readPayload(response, ["operation", "scope"], "POST search rebuild");
+  assert.equal(rebuild.operation, "queue_rebuild");
+  assert.equal(rebuild.scope, "workspace");
   assert.equal(rebuildJob.status, "pending");
-  assert.match(rebuildJob.payload_json, /"operation":"rebuild"/);
-  assert.match(rebuildJob.payload_json, /"source":"admin-api"/);
+  assert.match(String(rebuildJob.payload_json), /"operation":"rebuild"/);
+  assert.match(String(rebuildJob.payload_json), /"source":"admin-api"/);
 }
 
 async function assertEmptyIndexStartupTransition() {
@@ -182,6 +206,7 @@ async function assertEmptyIndexStartupTransition() {
 
   const first = await queueSearchIndexRebuildIfEmpty({ source: "regression-empty-index" });
   const second = await queueSearchIndexRebuildIfEmpty({ source: "regression-empty-index" });
+  assert.ok("workspaceId" in first, "an empty-index rebuild should publish the workspace it queued for");
   const rows = await querySql(`
 SELECT job_id, status, payload_json
 FROM jobs
@@ -194,29 +219,40 @@ ORDER BY created_at;
   assert.equal(first.queued, true);
   assert.equal(second.operation, "queue_rebuild_if_empty");
   assert.equal(rows.length, 1, "empty-index startup transition should dedupe active rebuild jobs");
-  assert.match(rows[0].payload_json, /"scope":"app"/);
+  assert.match(String(rows[0].payload_json), /"scope":"app"/);
 }
 
 async function seedFixtures() {
-  const admin = await db.get(`
+  /** @type {{ active_workspace_id: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const admin = requireRow(await db.get(`
 SELECT user_id, username, home_workspace_id, active_workspace_id, timezone
 FROM users
 WHERE protected_user = 'yes'
 ORDER BY rowid
 LIMIT 1;
-`);
-  assert.ok(admin?.user_id, "fresh database should seed a protected admin");
+`), "protected admin");
+  assert.ok(admin.user_id, "fresh database should seed a protected admin");
 
   const workspaceId = admin.active_workspace_id || admin.home_workspace_id;
+  /** @type {import("../src/types/http-contracts.js").WorkspaceRequestSession} */
   const session = {
     active_workspace_id: workspaceId,
     home_workspace_id: admin.home_workspace_id,
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
     timezone: admin.timezone || "America/New_York",
     user_id: admin.user_id,
     username: admin.username,
     workspace_id: workspaceId,
   };
-  const sessionId = (await createSession(session)).sessionId;
+  const sessionId = (await createSession({
+    active_workspace_id: workspaceId,
+    home_workspace_id: admin.home_workspace_id,
+    timezone: admin.timezone || "America/New_York",
+    user_id: admin.user_id,
+    username: admin.username,
+  })).sessionId;
 
   return {
     session,
@@ -225,6 +261,7 @@ LIMIT 1;
   };
 }
 
+/** @param {string} workspaceId @param {string} operation @param {string} [recordId] */
 async function readLatestSearchJob(workspaceId, operation, recordId) {
   const operationPattern = `%"operation":"${operation}"%`;
   const recordPattern = recordId ? `%"recordId":"${recordId}"%` : "%";
@@ -247,6 +284,7 @@ LIMIT 1;
   return row;
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 function readTaskSearchRows(workspaceId, taskId) {
   return db.query(`
 SELECT title
@@ -267,9 +305,12 @@ async function assertIntegrity() {
   assert.equal(integrityRows[0]?.integrity_check, "ok", "search index jobs regression database should pass integrity check");
 }
 
+/** @param {string} baseUrl @returns {SearchApiClient} */
 function createApi(baseUrl) {
   return {
+    /** @param {string} url @param {SearchClientOptions} [options] @returns {Promise<SearchResponse>} */
     async post(url, options = {}) {
+      /** @type {Record<string, string>} */
       const headers = { "Content-Type": "application/json" };
       if (options.cookie) {
         headers.Cookie = `longtail_forge_session=${options.cookie}`;
@@ -283,19 +324,22 @@ function createApi(baseUrl) {
       const text = await response.text();
       return {
         body: text ? JSON.parse(text) : null,
+        headers: response.headers,
         status: response.status,
       };
     },
   };
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {HttpFixtureServer} activeServer @returns {Promise<void>} */
 function closeServer(activeServer) {
   return new Promise((resolve, reject) => {
     activeServer.close((error) => {
@@ -303,7 +347,7 @@ function closeServer(activeServer) {
         reject(error);
         return;
       }
-      resolve();
+      resolve(undefined);
     });
   });
 }

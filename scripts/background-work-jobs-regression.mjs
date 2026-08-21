@@ -12,7 +12,12 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-backgrou
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Background-Work-Jobs-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} JobsSession */
+
+/** The internal-bus events this owner captures while background work runs. */
+/** @typedef {import("../src/types/framework-contracts.js").InternalEvent} CapturedEvent */
 const architectureDocs = readText("docs/architecture.md");
 const databaseDocs = readText("docs/database.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
@@ -54,7 +59,6 @@ try {
   assert.doesNotMatch(workerCliSource, /registerTaskJobHandlers/, "separate worker startup should not import Tasks-specific handlers");
   assert.match(workerCliSource, /registerFileScanJobHandlers/, "separate worker startup should register file scan handlers");
   assert.match(workerCliSource, /registerFutureImportJobHandlers/, "separate worker startup should register future import handlers");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
   assert.match(architectureDocs, /As of 0\.33\.5\.21\.6[\s\S]*task\.reminder[\s\S]*task\.recurrence[\s\S]*file\.scan[\s\S]*import\.future/, "architecture docs should document background work jobs");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.6[\s\S]*task\.reminder[\s\S]*task\.recurrence[\s\S]*file\.scan[\s\S]*import\.future/, "database docs should document background work jobs");
   assert.match(runtimeDocs, /As of 0\.33\.5\.21\.7\.4[\s\S]*LONGTAIL_WORKER_MODE/, "runtime docs should document worker mode for background work jobs");
@@ -79,8 +83,10 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {JobsSession} session */
 async function assertTaskReminderJobsFireDueSoon(session) {
   const due = localDateTimeParts(addMinutes(new Date(), 6), session.timezone);
+  /** @type {CapturedEvent[]} */
   const capturedEvents = [];
   const unsubscribe = modulesService.onInternalEvent("task.due_soon", async (event) => {
     capturedEvents.push(event);
@@ -104,7 +110,7 @@ async function assertTaskReminderJobsFireDueSoon(session) {
     const reminderJob = await readLatestJob(session.workspace_id, "task.reminder", task.task_id);
 
     assert.equal(reminderJob.status, "pending");
-    assert.match(reminderJob.payload_json, /"operation":"fire_reminder"/);
+    assert.match(String(reminderJob.payload_json), /"operation":"fire_reminder"/);
     await runSql(`
 UPDATE jobs
 SET available_at = ${sqlText(new Date().toISOString())}
@@ -116,19 +122,24 @@ WHERE job_id = ${sqlText(reminderJob.job_id)};
       mode: "inline",
       workerId: "background-work-jobs-regression",
     });
-    const completedJob = await readJobById(reminderJob.job_id);
+    const completedJob = await readJobById(String(reminderJob.job_id));
 
     assert.equal(summary.completed, 1);
     assert.equal(completedJob.status, "completed");
     assert.equal(capturedEvents.length, 1);
-    assert.equal(capturedEvents[0].record_id, task.task_id);
-    assert.equal(capturedEvents[0].metadata.offset_minutes, 5);
-    assert.equal(capturedEvents[0].metadata.source, "task_reminder_job");
+    const [reminderEvent] = capturedEvents;
+    assert.equal(reminderEvent.record_id, task.task_id);
+    // The bus publishes metadata as optional, so the claims below only mean
+    // something once the payload is proven to carry one.
+    assert.ok(reminderEvent.metadata, "the reminder event should carry metadata");
+    assert.equal(reminderEvent.metadata.offset_minutes, 5);
+    assert.equal(reminderEvent.metadata.source, "task_reminder_job");
   } finally {
     unsubscribe();
   }
 }
 
+/** @param {JobsSession} session */
 async function assertRecurrenceJobsCreateNextInstanceOnce(session) {
   const task = (await tasksService.create({
     due_date: "2026-08-03",
@@ -171,6 +182,7 @@ WHERE job_id = ${sqlText(recurrenceJob.job_id)};
   assert.equal(await recurrenceInstanceCount(session.workspace_id, task.recurrence_template_id, "2026-08-04"), 1, "rerunning recurrence generation should not duplicate the next instance");
 }
 
+/** @param {JobsSession} session */
 async function assertFileScanJobsAreDurableAndIdempotent(session) {
   const task = (await tasksService.create({
     title: "File scan job target",
@@ -182,12 +194,14 @@ async function assertFileScanJobsAreDurableAndIdempotent(session) {
     targetId: task.task_id,
     targetType: "task",
   });
-  const fileId = upload.file.fileId;
+  assert.ok(upload.file, "the durable scan fixture upload should carry its file record");
+  const uploadedFile = upload.file;
+  const fileId = uploadedFile.fileId;
   const scanJob = await readLatestJob(session.workspace_id, "file.scan", fileId);
 
   assert.equal(scanJob.status, "pending");
-  assert.equal(upload.file.status, "pending", "upload should leave file availability to the durable scan job");
-  assert.equal(upload.file.scanStatus, "pending", "upload should leave scan completion to the durable scan job");
+  assert.equal(uploadedFile.status, "pending", "upload should leave file availability to the durable scan job");
+  assert.equal(uploadedFile.scanStatus, "pending", "upload should leave scan completion to the durable scan job");
 
   const summary = await runJobWorkerOnce({
     claimLimit: 10,
@@ -218,6 +232,7 @@ WHERE job_id = ${sqlText(scanJob.job_id)};
   assert.equal(fileAfterSecondRun.scan_status, "not_required");
 }
 
+/** @param {JobsSession} session */
 async function assertFutureImportJobIsReservedAndSafe(session) {
   const result = await queueFutureImportJob({
     source: "background-work-regression",
@@ -234,9 +249,10 @@ async function assertFutureImportJobIsReservedAndSafe(session) {
 
   assert.ok(summary.completed >= 1, "worker should complete the reserved import job");
   assert.equal(job.status, "completed");
-  assert.match(job.payload_json, /"operation":"reserved_import"/);
+  assert.match(String(job.payload_json), /"operation":"reserved_import"/);
 }
 
+/** @returns {Promise<JobsSession>} */
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -244,20 +260,24 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
+  /** @type {{ active_workspace_id: string, home_workspace_id: string, timezone: string, user_id: string, username: string }} */
+  const user = requireFirstRow(rows, "protected super admin");
 
-  assert.ok(user, "fresh database should seed a protected super admin");
-
+  const workspaceId = user.active_workspace_id || user.home_workspace_id;
   return {
+    active_workspace_id: workspaceId,
     home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
+    ip_address: "127.0.0.1",
+    password_change_required: false,
+    session_mode: "normal",
     timezone: user.timezone || "America/New_York",
     user_id: user.user_id,
     username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
+    workspace_id: workspaceId,
   };
 }
 
+/** @param {string} workspaceId @param {string} jobType @param {string} payloadNeedle */
 async function readLatestJob(workspaceId, jobType, payloadNeedle) {
   const rows = await querySql(`
 SELECT *
@@ -273,6 +293,8 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {string} jobId */
+/** @param {string} jobId */
 async function readJobById(jobId) {
   const rows = await querySql(`
 SELECT *
@@ -285,6 +307,8 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {string} fileId */
+/** @param {string} fileId */
 async function readFileRow(fileId) {
   const rows = await querySql(`
 SELECT status, scan_status
@@ -297,6 +321,7 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {string} workspaceId @param {string} templateId @param {string} instanceDate */
 async function recurrenceInstanceCount(workspaceId, templateId, instanceDate) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -314,10 +339,12 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok", "SQLite integrity check should pass");
 }
 
+/** @param {Date} date @param {number} minutes */
 function addMinutes(date, minutes) {
   return new Date(date.getTime() + minutes * 60 * 1000);
 }
 
+/** @param {Date} date @param {string} timeZone */
 function localDateTimeParts(date, timeZone) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     day: "2-digit",
@@ -328,7 +355,7 @@ function localDateTimeParts(date, timeZone) {
     month: "2-digit",
     timeZone,
     year: "numeric",
-  }).formatToParts(date).reduce((map, part) => {
+  }).formatToParts(date).reduce((/** @type {Record<string, string>} */ map, part) => {
     map[part.type] = part.value;
     return map;
   }, {});

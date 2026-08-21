@@ -506,7 +506,7 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 72 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 19140 |
+| Effective assertion floor | 19144 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |
