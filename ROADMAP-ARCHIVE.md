@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.31.8 - Type scanner adapter and worker owners
+
+**Model: High Effort** - Scanner refusals and worker isolation are both fail-closed paths.
+
+Eighth child of the `0.33.33.31` rollup, measured at 206 diagnostics across 7 files and 2,583 lines. Three children remain.
+
+- [x] Closed all 206 diagnostics across the two scanner adapters, the scan-job handoff, scanner health and mode resolution, the worker runner, and the separate-worker end-to-end proof. The scripts program falls from 3,700 to 3,494 diagnostics, explicit `any` holds at 7, and all seven owners are pinned strict-clean through `framework.full-strict-governance`.
+- [x] Closed this cohort's defining boundary: six of the seven owners spawn a real child and parse its last stdout line, which `JSON.parse` would otherwise infer as `any`. Each now enters as `unknown` and is narrowed at the point of consumption, proving the payload is a JSON object and that the keys the owner reads are present. Dropping `storageText` from the clamd lifecycle child fails with the key it dropped and the keys that remained.
+- [x] **Dynamic-boundary disposition** (required by the `0.33.33.31.6.1` rule): *child-process stdout parsed as structured data* — six sites across six owners, each narrowed locally from `unknown` with a small contract naming only what the owner proves. *Scanner adapter results* — narrowed through the published `ScannerFile`, `ClamdOptions`, and `ClamscanOptions` contracts; renaming `openReadStream` on `ScannerFile` breaks compilation in both adapter owners. *Worker process output* — the separate worker's stdout and stderr are this owner's own accumulated text rather than a structured payload, so they are named as an observation on the child rather than read off it as a contract. *Job payload JSON* — the worker-runner handler payload stays `unknown`, which is what the runner really hands a handler. *Not present* — no `*_json` database columns are parsed in these owners.
+- [x] Typed the provider doubles against what production actually consumes. `ClamdOptions.connect` and `ClamscanOptions.spawn` are both published as `unknown`, so the socket and child doubles carry their own precise member lists and need no cast at the injection site. Worker and process isolation is unchanged: no child was merged and `worker.js` still runs as a separate process.
+- [x] Retired nine historical pins across six owners: six identical assertions that a `0.33.5.21` or `0.33.5.22` completed-work breadcrumb stay absent from the live roadmap, which cannot fail against a `0.33.33` cursor, and three `CHANGELOG.md` matches for the clamd and clamscan quarantine policies and a shipped `0.33.5.22.9` heading. Both quarantine policies are proven executably in the same owners, which assert that infected and scanner-unavailable files are quarantined and not auto-deleted, so no behavior lost coverage. One version anchor in front of an otherwise-live runtime docs claim was dropped while keeping the behavior text.
+- [x] Removed all six owners from both lists in `scripts/planning-document-pin-baseline.json`. Discovered coverage rose from 19,128 to 19,135 despite the retirements, so no reviewed-retirement record was needed this time.
+- [x] Proved one contract per owner with its own negative control: turning clamd refusals into available files, overriding the clamscan disposition, opening the pending-scan preview gate, reporting the disabled scanner as healthy, dropping the scanner-mode enum validation, swallowing unknown job types instead of dead-lettering, and changing `worker.js`'s non-separate refusal each make the owning regression fail. Every perturbed source restores byte-identical by SHA-256, and all seven governance pins fail by name when a diagnostic is seeded against them.
+- [x] Ran `release.regression-manifest-generation` directly rather than leaving it to changed-file routing, which is the local-gate gap `0.33.33.31.7` recorded.
+- [x] Changed no production behavior. No explicit `any`, `@ts-ignore`, `@ts-nocheck`, or file exclusion was introduced.
+
 ## Version 0.33.33.31.7 - Type storage provider, S3, and quota owners
 
 **Model: High Effort** - Provider mocks and quota arithmetic must not be typed into agreement.

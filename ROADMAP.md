@@ -93,17 +93,6 @@ Helper-contract rule for every remaining child (added at `0.33.33.31.6.1` after 
 
 Pre-closeout boundary probe for `0.33.33.31.7` through `0.33.33.31.11`: before archiving a child, search that child's touched owners for dynamic parsing, deserialization, and helper-level type erasure, and record the disposition in the archive entry as narrowed through a published contract, narrowed locally from `unknown`, intentionally left open with concrete rationale, or not present. A child must not be archived merely because its measured diagnostic count reached zero while a parsing boundary still feeds `any` into an assertion. The probe stays scoped to the child's own owners; it is not a repository-wide audit.
 
-#### 0.33.33.31.8 - Type scanner adapter and worker owners
-
-**Model: High Effort - Scanner refusals and worker isolation are both fail-closed paths.**
-
-Measured at 206 diagnostics across 7 files and 2,583 lines.
-
-- [ ] Close the 206 diagnostics across the `file-clam*`, `file-scan*`, and `file-scanner-*` owners plus `worker-runner` and `separate-worker-end-to-end`.
-- [ ] Type scanner adapter results, mode resolution, health diagnostics, scan job handoff records, and worker child results with named contracts.
-- [ ] Preserve scanner refusal behavior, mode resolution, health reporting, scan handoff, and real worker process isolation; do not merge worker processes to simplify typing.
-- [ ] Inspect this child's dynamic boundaries explicitly: scanner result parsing, worker IPC and message payloads, child stdout and stderr parsing, health diagnostics, and job handoff JSON. Worker and process isolation must stay real, and parsed child output must not enter as `any`.
-
 #### 0.33.33.31.9 - Type job claiming, outbox, and retention owners
 
 **Model: High Effort - Claiming and idempotency are concurrency proofs.**
