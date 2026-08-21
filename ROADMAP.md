@@ -48,6 +48,24 @@ Release-wide measurable acceptance:
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
+### 0.33.33.31 - Type database, Files, and jobs regression owners
+
+**Model: High Effort** - Reopened only long enough to land one corrective child.
+
+The rollup closed at `0.33.33.31.11` and is reopened solely for `0.33.33.31.11.1`. Post-merge review of the closeout accepted it overall but found three nested array claims where the JSDoc was stronger than the runtime proof. `requireJsonRecord` proves only that the parsed value is a top-level object; a nested property annotated as an array was still an unchecked claim, so a JSON string of the same length could satisfy a length or sample-count assertion. That is a small version of the inherited-zero problem `0.33.33.31.6.1` exists to eliminate. No further `0.33.33.31` work is planned, and `0.33.33.32` implementation does not begin until this child merges.
+
+#### 0.33.33.31.11.1 - Prove remaining parsed-array shapes before the rollup closes
+
+**Model: Medium Effort - A regression-contract correction only; no production behavior changes.**
+
+- [ ] Prove `publicVisitorUserIds` is an array in `scripts/regressions/database/public-demo-baseline-candidate.regression.mjs` before its length and uniqueness assertions run.
+- [ ] Prove `blockingForeignKeyViolations` is an array in `scripts/regressions/database/workspace-cleanup-isolation.regression.mjs` before its length is read, correcting the adjacent `foreignKeyViolations` element claim only because it is the same concrete defect in the same local shape.
+- [ ] Prove `samplesMs` is an array in `scripts/sqlite-small-office-performance-regression.mjs` before its sample count is checked, along with the enclosing `routes` list the same statement iterates.
+- [ ] Make the role credentials shape in `scripts/regressions/database/development-data-seed.regression.mjs` truthful: remove the `version` claim the owner never asserts, and prove the `passwords` map it does consume.
+- [ ] Keep `scripts/test-support/json-record-assertions.mjs` a top-level object guard. It is not a schema framework, key-list validator, recursive parser, or shared nested-shape helper; nested shapes are proven locally where an owner relies on them.
+- [ ] Prove each correction with a same-length-string negative control and confirm the owner fails on the array proof rather than passing on a coincidental length. Restore every perturbed source byte-identically.
+- [ ] Hold the closing scripts-program figure and the explicit-`any` ceiling unless the correction legitimately changes them, and close `0.33.33.31.11` and the `0.33.33.31` rollup again.
+
 ### 0.33.33.32 - Type product regressions and close the scripts program
 
 **Model: High Effort** - The remaining legacy and module estate is mechanically large and must retain complete coverage metadata.
@@ -57,6 +75,12 @@ Release-wide measurable acceptance:
 - [ ] Enable direct scripts-program `checkJs` and `noImplicitAny`, delete the scripts ledger section at zero, and keep every operational entry directly runnable.
 - [ ] Strip historical roadmap/changelog/version-history pins from these owners while typing them, recording each disposition, and close the release-wide acceptance that no active regression pins historical `ROADMAP-ARCHIVE.md` or `CHANGELOG.md` content and fewer than 40 surviving programs read planning/history documents.
 - [ ] Re-run the assertion/entry-point/process inventory after strict closure.
+- [ ] Measure and reslice this rollup before implementation begins. `0.33.33.31` was measured at 1,758 diagnostics across 90 files and resliced into eleven children before any work started, and it closed on that plan exactly; this rollup inherits the same requirement. The current child boundaries are provisional and must not be treated as assignments until a fresh measurement is taken after `0.33.33.31.11.1` merges.
+- [ ] Carry the earned-zero boundary rules forward from `0.33.33.31.6.1`. Compiler-zero is insufficient when dynamic parsing or deserialization feeds unchecked values into assertions, so every child of this rollup must inventory the dynamic boundaries its own owners touch and record a disposition for each before closeout: narrowed through a published contract, narrowed locally from `unknown`, intentionally left open with concrete rationale, or not present.
+- [ ] Require `JSON.parse`, parsed response payloads, JSON-bearing database columns, child-process stdout and stderr, filesystem JSON, environment and configuration records, message/event/job payloads, and provider or mock responses to enter as `unknown` unless a published production contract already exists and truthfully describes the value. Never replace an `any` boundary with an unchecked cast that only gives it a more impressive name.
+- [ ] Require runtime proof of nested arrays and objects wherever an assertion depends on their shape. A top-level object guard proves only the top level; an annotation naming a nested property as an array is a claim TypeScript never checks, and `0.33.33.31.11.1` had to correct three places where a same-length string could have satisfied a length or count assertion.
+- [ ] Carry the `0.33.33.31.6.1` helper-contract rule forward: a helper must not reach zero by erasing information its callers already had, and a helper whose annotation makes downstream code add compensating casts, fallbacks, or hand-rebuilt types has the wrong contract.
+- [ ] Perform a rollup-wide dynamic-boundary audit at final closeout, before the scripts ledger section is deleted. The equivalent audit at `0.33.33.31.11` found 21 unchecked parse-then-read boundaries in owners closed before the rule existed, so the audit is a closeout requirement rather than a formality. Correct only concrete unchecked boundaries and type erasure; do not reopen closed owners for stylistic normalization.
 
 ### 0.33.33.33 - Isolate classic browser controllers with IIFEs
 
