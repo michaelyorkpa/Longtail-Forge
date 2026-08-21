@@ -28,6 +28,7 @@ The planning pass inspected the current pre-closeout `0.33.33` tree and found th
 - The public demo is the first explicitly enabled installation.
 - The initial public-demo sink is local and separate from the application database and hourly-reset data paths.
 - Every event is a discriminated closed schema. There is no `track(name, object)`, `metadata`, passthrough object, arbitrary property bag, generic module contribution, or unknown-key acceptance path.
+- `module_id` and `surface_id` each have a framework-owned telemetry allowlist that is closed and reviewed independently of the module, navigation, or view-surface registries. Registration, installation, activation, or framework recognition never makes an identifier telemetry-safe automatically.
 - Existing internal/domain events may supply the fact that something happened, but a named telemetry projector constructs a new safe object from the smallest required primitives. A projector never spreads or serializes an `InternalEvent`, audit row, request/session object, domain record, API body, or browser state object.
 - Telemetry and audit/security are separate projections with separate stores, retention, failure behavior, and access. Telemetry failure never becomes an audit/security failure and never fails product work.
 - Installation, participant, and telemetry-session identities are independent random values. None is derived from an application user, workspace, record, domain, host, network, license, hardware, or device signal.
@@ -51,7 +52,6 @@ These are approval gates, not unresolved architecture work:
 2. Approve the final plain-language notice copy and exact placements. Recommendation: the public-demo account chooser before login, a persistent footer Privacy link, and the hosted Privacy page; do not bury the disclosure only in legal terms.
 3. Approve a small-cohort export threshold. Recommendation: suppress cross-dimensional/co-occurrence/retention cells with fewer than five participants while allowing total event/participant counts to remain visible.
 4. Approve the exact Raymond Tec Longtail Forge destination URLs, CTA labels/placements, and coarse `utm_campaign` values.
-5. Decide whether anonymous `interest.cta_opened` counts are useful. Recommendation: include the coarse event with only `cta_class`; it is not a conversion pixel and is never passed to WordPress. Omitting it does not affect interest capture.
 
 No other broad planning decision should be required before implementation. The first checkpoint records these answers; only public-demo enablement and CTA work are blocked by the relevant approvals.
 
@@ -59,8 +59,8 @@ No other broad planning decision should be required before implementation. The f
 
 | Product question | Minimum telemetry evidence | Deliberately not collected |
 | --- | --- | --- |
-| Which modules and surfaces are used most? | `module.opened`, `surface.viewed` | URL, page title, record ID, DOM text |
-| Which surfaces lead to actual work? | Session-scoped sequence of surface/module events followed by typed create/complete/start/stop events | Clickstream coordinates, arbitrary action names |
+| Which approved first-party modules and surfaces are used most? | `module.opened`, `surface.viewed` with telemetry-owned allowlisted identifiers or reviewed `other | unknown` fallbacks | Framework registry IDs, private/third-party/custom IDs, URL, page title, record ID, DOM text |
+| Which approved surfaces lead to actual work? | Session-scoped sequence of telemetry-allowlisted/generic surface and module events followed by typed create/complete/start/stop events | Clickstream coordinates, arbitrary action names, unapproved registered identifiers |
 | Workbench versus direct navigation? | `surface.viewed` plus `entry_source`; domain-event `source` | Referrer URL or navigation history |
 | Quick Capture versus dedicated creation? | `quick_capture.opened`, `quick_capture.completed`, and mutation `source` | Form content or record ID |
 | Which features are used together? | Participant/event-family co-occurrence inside the raw 30-day window, then identity-free pair counts | Durable participant feature profile |
@@ -70,13 +70,12 @@ No other broad planning decision should be required before implementation. The f
 | Are secure Notes/Catalogs used and revisited? | `note.created|accessed`, `security_mode`, `catalog_class` within 30 days | Note/Catalog identity, title/body, encryption metadata |
 | Tasks created versus completed? | `task.created`, `task.completed` counts and session/cohort ratios | Exact task lifecycle linkage |
 | Business/personal/family and coarse-role differences? | Server-derived `workspace_type` and `role_class` | Workspace/user/role assignment IDs or names |
-| Which demo personas/features are explored? | Server-validated `demo_persona`, module/surface/action families | Shared username/password or application user ID |
+| Which demo personas/features are explored? | Server-validated `demo_persona`, telemetry-allowlisted module/surface IDs, and approved action families | Shared username/password, application user ID, or private/custom registry IDs |
 | Which workflows are opened but rarely completed? | Typed open/completed funnels in a telemetry session | Raw action parameters or entity correlation |
 | Which workflows repeatedly refuse or fail? | `workflow.outcome` with closed workflow/outcome/reason enums | Error messages, status bodies, request IDs, stack traces |
 | Adoption by Longtail Forge version? | Server-derived canonical `app_version` | branch, commit, artifact hash, hostname/domain |
 | Anonymous retention over time? | first-seen/return within D1/D7/D14/D30 and rolling-30 aggregates | Multi-month participant identity or cross-device reconciliation |
 | Is Search useful? | `search.performed` and result-count bucket | query, snippets, result IDs/titles |
-| Is a Raymond Tec CTA used? | Optional `interest.cta_opened` count | email, form content, destination query beyond approved UTM, telemetry-to-lead linkage |
 
 ## Closed telemetry object model
 
@@ -130,7 +129,13 @@ The storage adapter uses typed columns/event constraints. It does not persist an
 - `workflow_outcome`: `refused | failed`
 - `reason_class`: `permission | public_demo_policy | validation | module_disabled | dependency | conflict | storage | worker | unavailable | unknown`
 
-Module and surface values are accepted only when they resolve through the canonical bundled-module, navigation, view-surface, framework-surface, or module-action catalogs. A future module does not get arbitrary telemetry fields. Adding a new event or property requires a catalog/schema version, typed projector, question mapping, denylist review, compile/runtime negatives, aggregation disposition, and report disposition.
+### Telemetry-safe module and surface identifier catalogs
+
+`module_id` and `surface_id` do not accept framework registry values directly. Each field has its own closed, framework-owned telemetry allowlist and explicit mapping from reviewed built-in first-party module/surface identifiers to stable telemetry identifiers. The final initial values are frozen in `0.33.34.1` against the completed Lean Core tree and implemented as closed catalogs in `0.33.34.2`.
+
+Being installed, active, registered, contributed, navigable, or otherwise known to the module/view framework is only a lookup fact; it is never telemetry approval. A private, third-party, installation-specific, or custom module/surface with no telemetry mapping either collapses to the reviewed `other | unknown` telemetry value when that coarse class still answers the documented product question, or produces no `module.opened`/`surface.viewed` event. Its raw framework ID, label, route, origin, or contribution metadata never enters the telemetry object, logs, diagnostics, aggregate dimensions, or reports.
+
+Adding a telemetry-visible module or surface requires an explicit reviewed change to the corresponding telemetry allowlist. The change must include question mapping, a closed schema/catalog update, privacy and denylist review, compile/runtime negative controls, aggregation disposition, reporting disposition, and schema/catalog version handling where applicable. A generic telemetry contribution API is forbidden: modules cannot publish arbitrary telemetry identifiers, mappings, events, or properties through their manifests or runtime registration.
 
 ## Recommended initial event catalog
 
@@ -139,8 +144,8 @@ The table lists every event-specific property in addition to the server-owned en
 | Event | Exact event-specific properties | Question/notes |
 | --- | --- | --- |
 | `session.started` | none | Participant/session/role/workspace/device/version dimensions are already in the envelope. |
-| `surface.viewed` | `surface_id`, `surface_class`, `entry_source` | `surface_id` is a canonical registered safe ID; `surface_class = overview | work | recovery | settings | admin | auth | other`. |
-| `module.opened` | `module_id`, `entry_source` | `module_id` must exist in the bundled/active canonical registry; no module label/path. |
+| `surface.viewed` | `surface_id`, `surface_class`, `entry_source` | `surface_id` comes only from the telemetry-owned surface allowlist, including reviewed `other | unknown` fallbacks; registry membership is insufficient. `surface_class = overview | work | recovery | settings | admin | auth | other`. |
+| `module.opened` | `module_id`, `entry_source` | `module_id` comes only from the telemetry-owned module allowlist, including reviewed `other | unknown` fallbacks; installed/active/registered status is insufficient. No module label/path. |
 | `quick_capture.opened` | `capture_type` | `capture_type = task | note | list | timer | file | reporting | search`. |
 | `quick_capture.completed` | `capture_type`, `outcome` | `outcome = completed | canceled | fallback_opened`; completed means the canonical module action reported success. |
 | `workflow.outcome` | `workflow_id`, `workflow_outcome`, `reason_class`, `action_source` | Only refused/failed outcomes; no message, status, exception, request, or target. |
@@ -161,9 +166,8 @@ The table lists every event-specific property in addition to the server-owned en
 | `file.previewed` | `action_source`, `file_kind` | Counts successful route-backed previews only. |
 | `search.performed` | `action_source`, `result_count_bucket` | Query and result identity/text are forbidden. |
 | `demo.persona_selected` | `persona` | `persona` uses the six exact public-demo role classes and must match server-known demo context after authentication; credentials are absent. |
-| `interest.cta_opened` | `cta_class` | **Approval required.** `cta_class = learn_more | self_host_interest | saas_interest | early_access | product_news`; no URL, UTM value, or lead identity. |
 
-Events deliberately excluded from the first catalog include raw clicks, hover/scroll/input, page dwell, arbitrary errors, settings values, permission/audit/security events, login failures, record-level lifecycle correlation, comments, notification bodies, search content, and any event whose only purpose is collecting data for possible future questions.
+Events deliberately excluded from the first catalog include raw clicks, CTA clicks, hover/scroll/input, page dwell, arbitrary errors, settings values, permission/audit/security events, login failures, record-level lifecycle correlation, comments, notification bodies, search content, and any event whose only purpose is collecting data for possible future questions. Longtail Forge records no participant-linked telemetry event when an interest CTA is used.
 
 Public API calls, scheduled recurrence generation, workers, imports, webhooks, and other background/server-only mutations are also excluded from the initial participant catalog. A server/domain projector records an interactive mutation only when the request carries a valid telemetry-only browser context created under the approved gate. It must not synthesize a participant from an application user, workspace, API key, security session, job, request, or audit record. Adding non-interactive operational measurement later requires a separate product question and an identity-free event/aggregation design; it cannot reuse this participant envelope implicitly.
 
@@ -236,7 +240,7 @@ Only the enum is sent. The raw width and every other device characteristic remai
 | Zod/module contract pattern | Runtime validation for untrusted ingest/config and exact schema outputs | Unknown keys rejected; trusted internal safe objects are not repeatedly parsed |
 | Internal event bus/module hooks | Observe that a successful domain fact occurred when a safe request-local telemetry context exists | Never pass or spread full `InternalEvent`; hook failure remains isolated |
 | Module public entries/services | Module-owned safe projector facts and classifications | Framework does not import module repositories or interpret domain content |
-| Module/navigation/view-surface/action catalogs | Closed safe IDs for `module.opened`, `surface.viewed`, and Quick Capture | No raw path/label/URL or speculative telemetry manifest bag |
+| Module/navigation/view-surface/action catalogs | Lookup inputs for framework-owned mappings to separately reviewed telemetry IDs and Quick Capture enums | Registry membership is not telemetry approval; no raw/private/custom ID, path, label, URL, contribution field, or speculative telemetry manifest bag |
 | App-shell/browser contracts | Enablement bootstrap, canonical version, shared browser helper placement | No user/workspace IDs in telemetry bootstrap; browser state remains module-owned |
 | Runtime configuration/readiness | Install-level Off/On, sink selection, safe health classification | No workspace setting; no secrets/paths/identities in diagnostics |
 | Permissions/session services | Server-derived coarse role/workspace classes only | No role assignment/user/workspace IDs or persistent mapping |
@@ -304,7 +308,7 @@ Use a closed metric catalog, not arbitrary group-by requests. Durable records ma
 Minimum durable families:
 
 - daily active participants, installations, sessions, and event counts;
-- module/surface usage and Quick Capture funnels;
+- telemetry-allowlisted/generic module and surface usage plus Quick Capture funnels;
 - work-event counts and created/completed ratios;
 - feature-pair co-occurrence counts calculated while raw identities exist;
 - recurrence, secure-feature, tagging, Files, timer, Search, and demo-persona adoption;
@@ -318,7 +322,7 @@ Cross-dimensional, co-occurrence, funnel, and retention exports apply the approv
 
 ## Reporting recommendation
 
-`.34` should add a local operator CLI/package script that reads only the aggregate query service and emits one versioned aggregate JSON or CSV report. It should answer the product-question matrix and expose a safe content-free health summary.
+`.34` should add a local operator CLI/package script that reads only the aggregate query service and emits one versioned aggregate JSON or CSV report. It should answer the product-question matrix using only reviewed telemetry identifier/dimension catalogs and expose a safe content-free health summary.
 
 It should not add:
 
@@ -376,7 +380,7 @@ utm_medium=product
 utm_campaign=<approved coarse campaign>
 ```
 
-No installation, participant, telemetry-session, application-user, role/persona, workspace, device, version, event, or behavior identifier may enter the URL, referrer decoration, form, callback, pixel, or MailPoet record. Longtail Forge does not embed the form or receive a post-submission callback. An optional `interest.cta_opened` event counts only the coarse CTA class before navigation and cannot be joined to the submitted email.
+No installation, participant, telemetry-session, application-user, role/persona, workspace, device, version, event-history, or behavior identifier may enter the URL, referrer decoration, form, callback, pixel, or MailPoet record. Longtail Forge does not embed the form, receive a post-submission callback, or record a participant-linked telemetry event when the CTA is clicked. If future product owners need a simple CTA-use count, it requires a separately reviewed identity-free aggregate measurement design; it is not part of the participant event catalog and is not added by `.34`.
 
 Raymond Tec WordPress owns self-host, SaaS, early-access, and product-news interest plus marketing consent. It is not a telemetry sink. Feedback/free-form submissions remain outside `.34` telemetry for the same reason.
 
@@ -436,6 +440,7 @@ The `0.60` collector plan covers `telemetry.longtailforge.com`, installation aut
 | Public-demo reset erases or accidentally backs up telemetry with app state | Separate volume/path and explicit helper allowlists; two-reset survival plus restore-isolation proof |
 | A hosted sink silently activates outbound traffic | Default Off, destination allowlist, local `.34` sink only, `outbound.analytics` remains disabled, no-network tests |
 | CTA or WordPress submission deanonymizes prior behavior | Fixed URL/query allowlist; no IDs/behavior/referrer decoration; no callback/pixel; seeded URL inspection |
+| Registered private/custom module or surface ID leaks installation context | Separate telemetry-owned allowlists and explicit mappings; unapproved IDs collapse to reviewed `other | unknown` or emit no event; seeded active/registered extension negatives |
 | Bots/health checks distort usage or trigger browser identity | Health routes produce no telemetry; known owned automation uses explicit runtime/test classification; no UA fingerprint |
 | Future module adds arbitrary telemetry fields | Central catalog/schema/projector/question/denylist/aggregation/report checklist and excess-property/runtime failure |
 | Operator CLI becomes a raw participant browser | Aggregate query service only, no raw connection/filter/SQL, no IDs, small-cell suppression, output schema scan |
@@ -462,6 +467,8 @@ At minimum, implementation and closeout must prove:
 - interest redirects carry only approved origin/path/UTM values and cannot receive telemetry/application identity or behavioral identifiers;
 - security/audit logging remains operationally unchanged and separate, with no telemetry IDs/payloads;
 - future module catalog additions fail closed until their typed event/projector/privacy/aggregation/report dispositions exist;
+- active, installed, or registered private/third-party/custom module and surface IDs never appear automatically; unapproved values use only reviewed generic fallbacks or produce no corresponding event, and new telemetry-visible IDs require the complete catalog review/version process;
+- CTA navigation creates no participant-linked telemetry event or local telemetry persistence; only the approved coarse marketing parameters cross to Raymond Tec, and any future click count remains a separate identity-free aggregate design;
 - source scans reject telemetry imports of audit/security repositories and reject spreading/serializing raw internal events, requests, sessions, or domain records.
 
 ## Implementation checkpoint map
