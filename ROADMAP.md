@@ -93,17 +93,6 @@ Helper-contract rule for every remaining child (added at `0.33.33.31.6.1` after 
 
 Pre-closeout boundary probe for `0.33.33.31.7` through `0.33.33.31.11`: before archiving a child, search that child's touched owners for dynamic parsing, deserialization, and helper-level type erasure, and record the disposition in the archive entry as narrowed through a published contract, narrowed locally from `unknown`, intentionally left open with concrete rationale, or not present. A child must not be archived merely because its measured diagnostic count reached zero while a parsing boundary still feeds `any` into an assertion. The probe stays scoped to the child's own owners; it is not a repository-wide audit.
 
-#### 0.33.33.31.10 - Type job observability and background work owners
-
-**Model: High Effort - Observability reads are where job payloads leak if typed loosely.**
-
-Measured at 125 diagnostics across 5 files and 1,476 lines.
-
-- [ ] Close the 125 diagnostics across `admin-job-observability`, `background-work-jobs`, `notification-jobs`, `search-index-jobs`, and `scripts/regressions/jobs/`.
-- [ ] Type observability rows, background work payloads, and notification and search index job records with named contracts.
-- [ ] Preserve observability redaction, background work scheduling, and job payload boundaries exactly.
-- [ ] Inspect this child's dynamic boundaries explicitly: job payload and result JSON, observability metadata, background-worker messages, and notification or search-index job payloads. This child is the most likely in the rollup to carry dynamic payload records, so compiler-zero must not rest on `JSON.parse` inference.
-
 #### 0.33.33.31.11 - Type Files settings, descriptor, and folded contract closeout
 
 **Model: High Effort - The closeout child that returns the Files and database cohort to zero.**
