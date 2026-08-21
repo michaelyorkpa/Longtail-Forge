@@ -183,6 +183,12 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
     assert.equal(response.headers.get("content-type"), "image/png");
     assert.equal(response.headers.get("x-content-type-options"), "nosniff");
     assert.equal(response.headers.get("cache-control"), "no-store");
+    // The streamed preview is rendered in place, so the route must keep
+    // forwarding the preview headers rather than the download ones: inline
+    // disposition under the sanitized preview filename, and a sandboxed
+    // content security policy around whatever the bytes turn out to be.
+    assert.equal(response.headers.get("content-disposition"), 'inline; filename="preview-image.png"');
+    assert.equal(response.headers.get("content-security-policy"), "sandbox");
     assert.deepEqual(response.buffer, PNG_BYTES);
     assertNoUnsafeStorageLeak([Object.fromEntries(response.headers.entries())]);
   });

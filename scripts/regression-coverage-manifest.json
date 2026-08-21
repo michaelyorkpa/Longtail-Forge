@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18426,
+    "activeAssertionCount": 18428,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19110,
+    "effectiveAssertionCount": 19112,
     "retiredAssertionCredit": 15,
     "vitest": [
       {
@@ -1444,11 +1444,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 57,
+      "assertionCount": 59,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy files preview content route contract.",
-      "entryPointAssertionCount": 57,
+      "entryPointAssertionCount": 59,
       "id": "legacy.files.preview.content.route",
       "legacy": true,
       "path": "scripts/files-preview-content-route-regression.mjs",

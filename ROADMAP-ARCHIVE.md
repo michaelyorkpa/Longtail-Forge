@@ -1,5 +1,18 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.31.5.1 - Pin streamed preview response security headers
+
+**Model: High Effort** - An egress header that nothing asserts is an egress header that can quietly change.
+
+Corrective child of `0.33.33.31.5`, added after post-merge review. Archiving it closes `0.33.33.31.5` again and hands off to the already-planned `0.33.33.31.6`. The remaining `0.33.33.31` reslice is unchanged apart from one narrow closeout note added to `0.33.33.31.11`.
+
+- [x] Closed the coverage gap `0.33.33.31.5` recorded rather than papered over. The streamed image preview check already proved status, content type, `nosniff`, cache control, and the exact bytes; it did not prove that the preview is delivered inline under its sanitized filename, nor that it is delivered under a sandboxed content security policy.
+- [x] Read the expected values from the live implementation rather than inventing a header contract. `buildPreviewImageHeaders` emits `inline; filename="preview-image.png"` for this fixture and `Content-Security-Policy: sandbox`, and the assertions state exactly those.
+- [x] Proved the assertions own the preview route rather than duplicating the download-path proof. The preview headers have their own builder in `src/services/files-preview.service.js`, so three controls perturb it while leaving the shared download header policy in `src/services/files.service.js` untouched: sending `attachment` instead of `inline`, dropping the filename from the disposition, and dropping the sandbox policy. Each makes the preview owner fail, and in each case `file-api-lifecycle` — which owns the download disposition proof — stays green. Every perturbed source restores byte-identical by SHA-256.
+- [x] Held the scope: no new regression owner, server, file fixture, or route; no production behavior changed; no shared header policy weakened to manufacture a control. Every response body stays behind the `unknown` to checked-`readPayload` boundary established at `0.33.33.31.4`, and no explicit `any`, `@ts-ignore`, `@ts-nocheck`, file exclusion, broad response cast, or invented response schema was introduced.
+- [x] Recorded the `readPayloadList` disposition instead of acting on it here. The export published at `0.33.33.31.4` still has no consumer, and no owner in the remaining Files children reads a bare top-level array response body, so none is coming. `0.33.33.31.11` now carries the note to remove it at closeout, with the standing exception that a genuine consumer appearing before then should be kept.
+- [x] Kept every existing `0.33.33.31.5` proof intact. All three owners pass, the scripts program stays at 4,079 diagnostics with explicit `any` at 7, and `framework.full-strict-governance` still pins them strict-clean. The two new assertions raised discovered coverage from 19,110 to 19,112 and the floor was ratcheted to match.
+
 ## Version 0.33.33.31.5 - Type Files preview and download egress owners
 
 **Model: High Effort** - Egress decides what leaves the system and under what headers.
