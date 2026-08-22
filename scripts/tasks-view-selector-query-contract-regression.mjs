@@ -94,6 +94,16 @@ async function createFixtures(session) {
     project_id: project.id,
     tagIds: [tag.tag_id],
   });
+  // Identical to `overdue` in every dimension the Overdue view reads — same due
+  // date, project, and assignee — so the tag is the only thing that can
+  // separate them. Without this competing task the tag-composition assertion
+  // below would pass just as well against a filter that ignored tags entirely.
+  const overdueUntagged = await createTask(session, {
+    task_id: `task-view-overdue-untagged-${randomUUID()}`,
+    title: "Task View overdue active untagged",
+    due_date: yesterday,
+    project_id: project.id,
+  });
   const todayTask = await createTask(session, {
     task_id: `task-view-today-${randomUUID()}`,
     title: "Task View today active",
@@ -135,6 +145,7 @@ async function createFixtures(session) {
     completed,
     currentWeekEnd,
     overdue,
+    overdueUntagged,
     project,
     tag,
     today,
@@ -167,7 +178,11 @@ async function assertSavedTaskViews(session, fixtures) {
   assertExcludes(allActive, fixtures.archived.task_id, "All + Status Active should exclude archived tasks");
 
   assert.deepEqual(await taskIds(session, { task_view: "unassigned", status: "active" }), [fixtures.unassigned.task_id]);
-  assert.deepEqual(await taskIds(session, { task_view: "overdue", status: "active" }), [fixtures.overdue.task_id]);
+  assert.deepEqual(
+    [...await taskIds(session, { task_view: "overdue", status: "active" })].sort(),
+    [fixtures.overdue.task_id, fixtures.overdueUntagged.task_id].sort(),
+    "Overdue should return every overdue active task regardless of tag",
+  );
 
   const today = await taskIds(session, { task_view: "today", status: "active" });
   assertIncludes(today, fixtures.todayTask.task_id, "Due Today should include active tasks due on the current local date");
@@ -196,14 +211,24 @@ async function assertAdvancedFiltersCompose(session, fixtures) {
     "Advanced status/project filters should narrow the selected All view",
   );
 
+  // The Overdue view holds two otherwise-equivalent tasks, so this exact result
+  // proves both halves of the composition at once: the tagged task survives and
+  // the untagged one is removed. A filter that ignored `tags` would return both
+  // and fail here, which is what makes the assertion load-bearing.
+  const taggedOverdue = await taskIds(session, {
+    task_view: "overdue",
+    status: "active",
+    tags: [fixtures.tag.tag_id],
+  });
   assert.deepEqual(
-    await taskIds(session, {
-      task_view: "overdue",
-      status: "active",
-      tags: [fixtures.tag.tag_id],
-    }),
+    taggedOverdue,
     [fixtures.overdue.task_id],
     "Advanced tag filters should combine with the selected Overdue view",
+  );
+  assertExcludes(
+    taggedOverdue,
+    fixtures.overdueUntagged.task_id,
+    "An advanced tag filter should drop the equally overdue task that does not carry the tag",
   );
 
   assert.deepEqual(

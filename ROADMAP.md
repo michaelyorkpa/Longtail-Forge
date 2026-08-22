@@ -109,6 +109,21 @@ Requirements shared by every child:
 - [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
 
+#### 0.33.33.32.1.1 - Make the task view-selector tag-filter proof load-bearing
+
+**Model: Medium Effort - One fixture and its assertions in an already strict-clean owner; no production change.**
+
+Corrective child of the archived `0.33.33.32.1`. Archiving it closes `0.33.33.32.1` again and hands off to the already-planned `0.33.33.32.2`, whose diagnostic and file assignment is unchanged, as is every later checkpoint number.
+
+Why `0.33.33.32.1` is being corrected: the checkpoint found and fixed a real defect — `tagsService.create` returns `{ tag }`, and two owners read `.tag_id` off the wrapper, so they tagged fixtures with `undefined` and filtered by `tags: [undefined]`. That production-facing half is closed and is not reopened here. What `0.33.33.32.1` recorded rather than fixed is proof strength: `scripts/tasks-view-selector-query-contract-regression.mjs` now passes a genuine tag identifier, but its Overdue view holds exactly one task and that task carries the tag, so the composed assertion returns the same single task whether the tag criterion is honoured or ignored. This child makes that existing contract load-bearing.
+
+- [ ] Add one second active overdue task to the fixture that does not carry `fixtures.tag`, matching the existing overdue task in due date, project, and assignee so the tag is the only thing that can separate them.
+- [ ] Prove both halves of the composition: the plain saved Overdue view returns both overdue tasks regardless of tag, and Overdue combined with the selected tag returns the tagged task and excludes the untagged one.
+- [ ] Review the neighbouring saved-view assertions for any that depended on the previous one-overdue-task cardinality, and update only those. Do not broaden unrelated assertions to accommodate the new fixture, and do not weaken any assertion.
+- [ ] Prove the new assertion mechanically rather than by inspection: removing or bypassing the tag criterion must fail this regression. Record the inversion evidence, including a control showing the pre-correction fixture passed the same mutation.
+- [ ] Hold the scope: `scripts/tasks-view-selector-query-contract-regression.mjs` is the implementation owner. No production Tasks behaviour, no `src/modules/tasks/` change to satisfy the proof, no `public/js/` file, no new regression owner, and no new explicit `any` or checker suppression.
+- [ ] Keep all nine `0.33.33.32.1` owners strict-clean and hold the scripts program at 3,042 diagnostics across 193 files, the explicit-`any` ceiling at 7, and the assertion and coverage floors.
+
 #### 0.33.33.32.2 - Type task checklists, relationships, and bulk toolbars
 
 **Model: High Effort - Checklist and relationship writes are ordered, and bulk toolbars apply them across selections.**
