@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.5` have since archived, closing 687 diagnostics across 35 files and leaving 2,463 across 167:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.6` have since archived, closing 825 diagnostics across 39 files and leaving 2,325 across 163:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.6` | Notification delivery, inbox, subscriptions | 138 | 4 | 2,339 |
 | `.32.7` | Time Tracking timers, entries, billing runners | 206 | 9 | 2,539 |
 | `.32.8` | Public API v1 and cross-module scope | 94 | 4 | 985 |
 | `.32.9` | Workbench service seam and work resume state | 126 | 8 | 2,020 |
@@ -104,17 +103,6 @@ Requirements shared by every child:
 - [ ] Do not resolve a nullability diagnostic with a non-null assertion where the owner can assert the value instead. This band is 518 of the 3,150 and is the likeliest source of a zero that the compiler believes and the runtime does not.
 - [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
-
-#### 0.33.33.32.6 - Type notification delivery, inbox, and subscriptions
-
-**Model: High Effort - Notification fan-out crosses modules and carries user-visible content.**
-
-Measured at 138 diagnostics across 4 files and 2,339 lines. Three `JSON.parse` sites; two history-pinned owners.
-
-- [ ] Close the 138 diagnostics across `notification`, `notes-notification-follow`, `notifications-preferences-subscriptions-conversion`, and `notifications-inbox-lifecycle-conversion`.
-- [ ] Type notification records, subscription and preference rows, inbox lifecycle states, and follow relationships with named contracts.
-- [ ] Preserve fan-out scope, preference suppression, read/unread lifecycle, and follow-driven delivery exactly.
-- [ ] Disposition the notification payload boundary: event metadata and persisted notification payloads must enter as `unknown` unless a published contract already describes them truthfully.
 
 #### 0.33.33.32.7 - Type Time Tracking timers, entries, and billing runners
 

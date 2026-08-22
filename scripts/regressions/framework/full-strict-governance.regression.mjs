@@ -771,6 +771,14 @@ for (const readBudgetOwner of [
 ]) {
   assert.equal(ledger.programs.scripts.diagnostics[readBudgetOwner], undefined, `${readBudgetOwner} must stay strict-clean after checkpoint 0.33.33.32.5`);
 }
+for (const notificationOwner of [
+  "scripts/notes-notification-follow-regression.mjs",
+  "scripts/notification-regression.mjs",
+  "scripts/notifications-inbox-lifecycle-conversion-regression.mjs",
+  "scripts/notifications-preferences-subscriptions-conversion-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[notificationOwner], undefined, `${notificationOwner} must stay strict-clean after checkpoint 0.33.33.32.6`);
+}
 
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 

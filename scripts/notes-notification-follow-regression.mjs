@@ -6,6 +6,25 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+/** @typedef {ReturnType<typeof createApi>} FollowApi */
+/** @typedef {Awaited<ReturnType<typeof seedFixtures>>} FollowFixtures */
+/** @typedef {ReturnType<typeof userFixture>} FollowUser */
+/** @typedef {{ notification_id: string, event_type: string, status: string, url: string, updateTypeLabel: string, displayType: string, displayTitle?: string, title?: string, target?: Record<string, unknown>, record_id?: string, read_at?: unknown, dismissed_at?: unknown, priority?: string }} NotificationRow */
+/** @typedef {{ notifications: NotificationRow[] }} NotificationListBody */
+/** @typedef {{ notification: { status: string, read_at: unknown, dismissed_at: unknown } }} NotificationMutationBody */
+/** @typedef {{ unreadCount: number, totalUnreadCount?: number, lowPriorityUnreadCount?: number, hasHighPriority?: boolean, hasPriorityAlert?: boolean }} NotificationCountBody */
+/** @typedef {{ id: string, event_type?: string, userEnabled?: unknown, workspaceEnabled?: unknown, moduleEnabled?: unknown }} PreferenceEventRow */
+/** @typedef {{ events: PreferenceEventRow[], canManageWorkspaceDefaults?: boolean, groupingPreferences?: { groupingMode: string } }} NotificationPreferenceBody */
+/** @typedef {{ isFollowing: boolean, subscription?: { user_id: string } | null }} FollowStateBody */
+/** @typedef {{ task: { task_id: string, title: string } }} TaskEnvelopeBody */
+/** @typedef {{ notificationSummary: { unreadCount: number } }} ShellBody */
+/** @typedef {{ note: { note_id: string, title?: string } }} NoteEnvelopeBody */
+/** @typedef {{ link: { link_id?: string, note_link_id?: string } }} LinkEnvelopeBody */
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readTextAsync: readProjectFile } = createProjectTextReader();
 
@@ -25,7 +44,9 @@ try {
   await initializeDatabase();
   const fixtures = await seedFixtures();
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const address = server.address();
+  assert.ok(address && typeof address === "object", "the notification fixture server should bind a TCP port");
+  const api = createApi(`http://127.0.0.1:${address.port}`);
 
   await assertStaticContracts();
   await assertNoteNotificationFollowFlow(api, fixtures);
@@ -91,6 +112,7 @@ async function assertStaticContracts() {
   assert.match(css, /\[data-note-notification-toggle\]\.is-following/, "Notes follow bell should share the followed visual state");
 }
 
+/** @param {FollowApi} api @param {FollowFixtures} fixtures */
 async function assertNoteNotificationFollowFlow(api, fixtures) {
   const created = await api.post("/api/notes", {
     bodyMarkdown: "Followable note body",
@@ -99,22 +121,28 @@ async function assertNoteNotificationFollowFlow(api, fixtures) {
     title: "Followable notification note",
     visibility: "internal",
   }, { cookie: fixtures.sessions.superAdmin });
+  /** @type {NoteEnvelopeBody} */
+  const createdPayload = readPayload(created, ["note"], "created");
   assert.equal(created.status, 201, JSON.stringify(created.body));
-  const noteId = created.body.note.note_id;
+  const noteId = createdPayload.note.note_id;
 
   const initialStatus = await api.get(`/api/notifications/subscriptions?moduleId=notes&targetType=note&targetId=${encodeURIComponent(noteId)}`, {
     cookie: fixtures.sessions.workspaceAdmin,
   });
+  /** @type {FollowStateBody} */
+  const initialStatusPayload = readPayload(initialStatus, ["isFollowing"], "initialStatus");
   assert.equal(initialStatus.status, 200, JSON.stringify(initialStatus.body));
-  assert.equal(initialStatus.body.isFollowing, false);
+  assert.equal(initialStatusPayload.isFollowing, false);
 
   const followed = await api.post("/api/notifications/subscriptions", {
     moduleId: "notes",
     targetId: noteId,
     targetType: "note",
   }, { cookie: fixtures.sessions.workspaceAdmin });
+  /** @type {FollowStateBody} */
+  const followedPayload = readPayload(followed, ["isFollowing"], "followed");
   assert.equal(followed.status, 200, JSON.stringify(followed.body));
-  assert.equal(followed.body.isFollowing, true);
+  assert.equal(followedPayload.isFollowing, true);
 
   const deniedFollow = await api.post("/api/notifications/subscriptions", {
     moduleId: "notes",
@@ -131,8 +159,12 @@ async function assertNoteNotificationFollowFlow(api, fixtures) {
   assert.equal(await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "note.updated"), 1);
 
   const notificationList = await api.get("/api/notifications?status=unread", { cookie: fixtures.sessions.workspaceAdmin });
-  const noteUpdate = notificationList.body.notifications.find((notification) => notification.event_type === "note.updated");
+  /** @type {NotificationListBody} */
+  const notificationListPayload = readPayload(notificationList, ["notifications"], "notificationList");
+  const noteUpdate = notificationListPayload.notifications.find((notification) => notification.event_type === "note.updated");
+  assert.ok(noteUpdate, "the notification list should include the note update");
   assert.equal(noteUpdate.displayTitle, "Followable notification note updated");
+  assert.ok(noteUpdate.target, "the note update notification should carry its target");
   assert.equal(noteUpdate.target.recordType, "note");
   assert.equal(noteUpdate.target.canOpen, true);
   assert.equal(noteUpdate.url, `notes.html?note=${encodeURIComponent(noteId)}`);
@@ -152,11 +184,13 @@ async function assertNoteNotificationFollowFlow(api, fixtures) {
     targetId: fixtures.workspaceId,
     targetType: "workspace",
   }, { cookie: fixtures.sessions.superAdmin });
+  /** @type {LinkEnvelopeBody} */
+  const linkedPayload = readPayload(linked, ["link"], "linked");
   assert.equal(linked.status, 201, JSON.stringify(linked.body));
   await drainQueuedJobs();
   assert.equal(await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "note.linked"), 1);
 
-  const removed = await api.post(`/api/notes/${encodeURIComponent(noteId)}/links/${encodeURIComponent(linked.body.link.note_link_id)}/remove`, {}, {
+  const removed = await api.post(`/api/notes/${encodeURIComponent(noteId)}/links/${encodeURIComponent(String(linkedPayload.link.note_link_id))}/remove`, {}, {
     cookie: fixtures.sessions.superAdmin,
   });
   assert.equal(removed.status, 200, JSON.stringify(removed.body));
@@ -203,6 +237,7 @@ async function assertNoteNotificationFollowFlow(api, fixtures) {
   );
 }
 
+/** @param {FollowApi} api @param {string} cookie @param {string} noteId @param {Record<string, unknown>} [payload] */
 async function updateNote(api, cookie, noteId, payload = {}) {
   const response = await api.put(`/api/notes/${encodeURIComponent(noteId)}`, {
     libraryBucket: "active_work",
@@ -215,14 +250,20 @@ async function updateNote(api, cookie, noteId, payload = {}) {
 }
 
 async function seedFixtures() {
-  const workspaceId = (await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"))[0].workspace_id;
-  const superAdmin = (await querySql(`
+  const workspaceRow = requireFirstRow(
+    await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"),
+    "the seeded database should carry a workspace",
+  );
+  const workspaceId = String(workspaceRow.workspace_id);
+  const superAdminRows = await querySql(`
 SELECT user_id, username
 FROM users
 WHERE home_workspace_id = ${sqlText(workspaceId)}
   AND protected_user = 'yes'
 LIMIT 1;
-`))[0];
+`);
+  const superAdminRow = requireFirstRow(superAdminRows, "the seeded database should carry a protected super admin");
+  const superAdmin = { user_id: String(superAdminRow.user_id), username: String(superAdminRow.username) };
   const now = new Date().toISOString();
   const users = {
     workspaceAdmin: userFixture("notes-notification-admin"),
@@ -263,14 +304,26 @@ ${assignmentInsertSql(workspaceId, users.otherProjectUser.userId, "project_user"
   };
 }
 
+/** @param {string} baseUrl */
 function createApi(baseUrl) {
   return {
+    /** @param {string} url @param {{ cookie?: string }} [options] */
     get: (url, options = {}) => request(baseUrl, "GET", url, null, options),
+    /** @param {string} url @param {unknown} body @param {{ cookie?: string }} [options] */
     post: (url, body, options = {}) => request(baseUrl, "POST", url, body, options),
+    /** @param {string} url @param {unknown} body @param {{ cookie?: string }} [options] */
     put: (url, body, options = {}) => request(baseUrl, "PUT", url, body, options),
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {unknown} [body]
+ * @param {{ cookie?: string }} [options]
+ * @returns {Promise<{ body: unknown, status: number }>}
+ */
 async function request(baseUrl, method, url, body = null, options = {}) {
   const headers = {};
 
@@ -303,6 +356,7 @@ async function request(baseUrl, method, url, body = null, options = {}) {
   };
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId @param {string} eventType @returns {Promise<number>} */
 async function notificationCountFor(workspaceId, recipientUserId, eventType) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -337,17 +391,20 @@ async function drainQueuedJobs() {
   throw new Error("Notes notification follow queued work did not drain.");
 }
 
+/** @param {string} relativePath @returns {Promise<unknown>} */
 async function readJson(relativePath) {
   return JSON.parse(await readProjectFile(relativePath));
 }
 
+/** @param {import("express").Application} app @returns {Promise<import("node:http").Server>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const server = http.createServer(app);
+    const server = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
     server.listen(0, "127.0.0.1", () => resolve(server));
   });
 }
 
+/** @param {import("node:http").Server} server @returns {Promise<void>} */
 function closeServer(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => {
@@ -356,11 +413,12 @@ function closeServer(server) {
         return;
       }
 
-      resolve();
+      resolve(undefined);
     });
   });
 }
 
+/** @param {string} slug */
 function userFixture(slug) {
   return {
     displayName: slug.replaceAll("-", " "),
@@ -369,6 +427,7 @@ function userFixture(slug) {
   };
 }
 
+/** @param {string} workspaceId @param {FollowUser} user @returns {string} */
 function userInsertSql(workspaceId, user) {
   return `
 INSERT INTO users (
@@ -399,12 +458,14 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {FollowUser} user @param {string} now @returns {string} */
 function membershipInsertSql(workspaceId, user, now) {
   return `
 INSERT INTO user_workspaces (user_workspace_id, workspace_id, user_id, status, created_at, updated_at)
 VALUES (${sqlText(randomUUID())}, ${sqlText(workspaceId)}, ${sqlText(user.userId)}, 'active', ${sqlText(now)}, ${sqlText(now)});`;
 }
 
+/** @param {string} workspaceId @param {{ id: string, name: string, clientId?: string }} project @param {string} now @returns {string} */
 function projectInsertSql(workspaceId, project, now) {
   return `
 INSERT INTO projects (
@@ -447,6 +508,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} roleId @param {string} scopeType @param {string | null} scopeId @param {string} now @returns {string} */
 function assignmentInsertSql(workspaceId, userId, roleId, scopeType, scopeId, now) {
   const scopedProjectId = scopeType === "project" ? scopeId : null;
 
@@ -479,6 +541,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} username */
 async function createSession(workspaceId, userId, username) {
   const sessionId = randomUUID();
   const now = new Date().toISOString();

@@ -6,6 +6,23 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+/** @typedef {ReturnType<typeof createApi>} NotificationApi */
+/** @typedef {Awaited<ReturnType<typeof seedFixtures>>} NotificationFixtures */
+/** @typedef {ReturnType<typeof userFixture>} NotificationUser */
+/** @typedef {{ notification_id: string, event_type: string, status: string, url: string, updateTypeLabel: string, displayType: string, displayTitle?: string, title?: string, target?: Record<string, unknown>, record_id?: string, read_at?: unknown, dismissed_at?: unknown, priority?: string }} NotificationRow */
+/** @typedef {{ notifications: NotificationRow[] }} NotificationListBody */
+/** @typedef {{ notification: { status: string, read_at: unknown, dismissed_at: unknown } }} NotificationMutationBody */
+/** @typedef {{ unreadCount: number, totalUnreadCount?: number, lowPriorityUnreadCount?: number, hasHighPriority?: boolean, hasPriorityAlert?: boolean }} NotificationCountBody */
+/** @typedef {{ id: string, event_type?: string, userEnabled?: unknown, workspaceEnabled?: unknown, moduleEnabled?: unknown }} PreferenceEventRow */
+/** @typedef {{ events: PreferenceEventRow[], canManageWorkspaceDefaults?: boolean, groupingPreferences?: { groupingMode: string } }} NotificationPreferenceBody */
+/** @typedef {{ isFollowing: boolean, subscription?: { user_id: string } | null }} FollowStateBody */
+/** @typedef {{ task: { task_id: string, title: string } }} TaskEnvelopeBody */
+/** @typedef {{ notificationSummary: { unreadCount: number } }} ShellBody */
 import { appVersion } from "../src/core/version.js";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
@@ -28,7 +45,9 @@ try {
   await initializeDatabase();
   const fixtures = await seedFixtures();
   server = await listen(createApp());
-  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const address = server.address();
+  assert.ok(address && typeof address === "object", "the notification fixture server should bind a TCP port");
+  const baseUrl = `http://127.0.0.1:${address.port}`;
   const api = createApi(baseUrl);
 
   await runNotificationUiContractTests();
@@ -49,14 +68,20 @@ try {
 }
 
 async function seedFixtures() {
-  const workspaceId = (await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"))[0].workspace_id;
-  const superAdmin = (await querySql(`
+  const workspaceRow = requireFirstRow(
+    await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"),
+    "the seeded database should carry a workspace",
+  );
+  const workspaceId = String(workspaceRow.workspace_id);
+  const superAdminRows = await querySql(`
 SELECT user_id, username
 FROM users
 WHERE home_workspace_id = ${sqlText(workspaceId)}
   AND protected_user = 'yes'
 LIMIT 1;
-`))[0];
+`);
+  const superAdminRow = requireFirstRow(superAdminRows, "the seeded database should carry a protected super admin");
+  const superAdmin = { user_id: String(superAdminRow.user_id), username: String(superAdminRow.username) };
   const now = new Date().toISOString();
   const users = {
     workspaceAdmin: userFixture("notification-admin"),
@@ -97,12 +122,15 @@ ${assignmentInsertSql(workspaceId, users.otherProjectUser.userId, "project_user"
   };
 }
 
+/** @param {NotificationApi} api @param {NotificationFixtures} fixtures */
 async function runNotificationApiTests(api, fixtures) {
   const task = await api.post("/api/tasks", {
     assignee_ids: [fixtures.users.projectUser.userId],
     project_id: fixtures.project.id,
     title: "Notification regression task",
   }, { cookie: fixtures.sessions.workspaceAdmin });
+  /** @type {TaskEnvelopeBody} */
+  const taskPayload = readPayload(task, ["task"], "task");
 
   check("task creation used for notification regression succeeds", () => {
     assert.equal(task.status, 201, JSON.stringify(task.body));
@@ -110,33 +138,41 @@ async function runNotificationApiTests(api, fixtures) {
   await drainQueuedJobs();
 
   const recipientList = await api.get("/api/notifications", { cookie: fixtures.sessions.projectUser });
+  /** @type {NotificationListBody} */
+  const recipientListPayload = readPayload(recipientList, ["notifications"], "recipientList");
   check("recipient sees task-created notification", () => {
     assert.equal(recipientList.status, 200, JSON.stringify(recipientList.body));
-    assert.equal(recipientList.body.notifications.length, 1);
-    assert.equal(recipientList.body.notifications[0].event_type, "task.created");
-    assert.equal(recipientList.body.notifications[0].updateTypeLabel, "Task Created");
-    assert.equal(recipientList.body.notifications[0].displayType, "Task Created");
-    assert.equal(recipientList.body.notifications[0].status, "unread");
-    assert.match(recipientList.body.notifications[0].url, /^tasks\.html\?task=/);
+    assert.equal(recipientListPayload.notifications.length, 1);
+    assert.equal(recipientListPayload.notifications[0].event_type, "task.created");
+    assert.equal(recipientListPayload.notifications[0].updateTypeLabel, "Task Created");
+    assert.equal(recipientListPayload.notifications[0].displayType, "Task Created");
+    assert.equal(recipientListPayload.notifications[0].status, "unread");
+    assert.match(recipientListPayload.notifications[0].url, /^tasks\.html\?task=/);
   });
 
-  const notificationId = recipientList.body.notifications[0].notification_id;
+  const notificationId = recipientListPayload.notifications[0].notification_id;
   const adminList = await api.get("/api/notifications", { cookie: fixtures.sessions.workspaceAdmin });
+  /** @type {NotificationListBody} */
+  const adminListPayload = readPayload(adminList, ["notifications"], "adminList");
   check("non-recipient does not see another user's notification", () => {
     assert.equal(adminList.status, 200, JSON.stringify(adminList.body));
-    assert.equal(adminList.body.notifications.length, 0);
+    assert.equal(adminListPayload.notifications.length, 0);
   });
 
   const unreadCount = await api.get("/api/notifications/unread-count", { cookie: fixtures.sessions.projectUser });
+  /** @type {NotificationCountBody} */
+  const unreadCountPayload = readPayload(unreadCount, ["unreadCount"], "unreadCount");
   check("unread count starts at one", () => {
     assert.equal(unreadCount.status, 200, JSON.stringify(unreadCount.body));
-    assert.equal(unreadCount.body.unreadCount, 1);
+    assert.equal(unreadCountPayload.unreadCount, 1);
   });
 
   const shell = await api.get("/api/app-shell/bootstrap", { cookie: fixtures.sessions.projectUser });
+  /** @type {ShellBody} */
+  const shellPayload = readPayload(shell, ["notificationSummary"], "shell");
   check("app shell bootstrap exposes unread notification count", () => {
     assert.equal(shell.status, 200, JSON.stringify(shell.body));
-    assert.equal(shell.body.notificationSummary.unreadCount, 1);
+    assert.equal(shellPayload.notificationSummary.unreadCount, 1);
   });
 
   const page = await api.get("/notifications.html", { cookie: fixtures.sessions.projectUser });
@@ -157,30 +193,38 @@ async function runNotificationApiTests(api, fixtures) {
   });
 
   const unreadList = await api.get("/api/notifications?status=unread", { cookie: fixtures.sessions.projectUser });
+  /** @type {NotificationListBody} */
+  const unreadListPayload = readPayload(unreadList, ["notifications"], "unreadList");
   check("unread notification API filter includes unread notifications", () => {
     assert.equal(unreadList.status, 200, JSON.stringify(unreadList.body));
-    assert.ok(unreadList.body.notifications.some((notification) => notification.notification_id === notificationId));
+    assert.ok(unreadListPayload.notifications.some((notification) => notification.notification_id === notificationId));
   });
 
   const readResult = await api.post(`/api/notifications/${encodeURIComponent(notificationId)}/read`, {}, {
     cookie: fixtures.sessions.projectUser,
   });
+  /** @type {NotificationMutationBody} */
+  const readResultPayload = readPayload(readResult, ["notification"], "readResult");
   check("recipient can mark own notification read", () => {
     assert.equal(readResult.status, 200, JSON.stringify(readResult.body));
-    assert.equal(readResult.body.notification.status, "read");
-    assert.ok(readResult.body.notification.read_at);
+    assert.equal(readResultPayload.notification.status, "read");
+    assert.ok(readResultPayload.notification.read_at);
   });
 
   const activeAfterRead = await api.get("/api/notifications?status=active", { cookie: fixtures.sessions.projectUser });
+  /** @type {NotificationListBody} */
+  const activeAfterReadPayload = readPayload(activeAfterRead, ["notifications"], "activeAfterRead");
   check("active notification filter includes read notifications before dismissal", () => {
     assert.equal(activeAfterRead.status, 200, JSON.stringify(activeAfterRead.body));
-    assert.ok(activeAfterRead.body.notifications.some((notification) => notification.notification_id === notificationId));
+    assert.ok(activeAfterReadPayload.notifications.some((notification) => notification.notification_id === notificationId));
   });
 
   const readList = await api.get("/api/notifications?status=read", { cookie: fixtures.sessions.projectUser });
+  /** @type {NotificationListBody} */
+  const readListPayload = readPayload(readList, ["notifications"], "readList");
   check("read notification API filter includes read notifications", () => {
     assert.equal(readList.status, 200, JSON.stringify(readList.body));
-    assert.ok(readList.body.notifications.some((notification) => notification.notification_id === notificationId));
+    assert.ok(readListPayload.notifications.some((notification) => notification.notification_id === notificationId));
   });
 
   const deniedRead = await api.post(`/api/notifications/${encodeURIComponent(notificationId)}/read`, {}, {
@@ -190,23 +234,28 @@ async function runNotificationApiTests(api, fixtures) {
     assert.equal(deniedRead.status, 404, JSON.stringify(deniedRead.body));
   });
 
-  const initialSubscription = await api.get(`/api/notifications/subscriptions?moduleId=tasks&targetType=task&targetId=${encodeURIComponent(task.body.task.task_id)}`, {
+  const initialSubscription = await api.get(`/api/notifications/subscriptions?moduleId=tasks&targetType=task&targetId=${encodeURIComponent(taskPayload.task.task_id)}`, {
     cookie: fixtures.sessions.projectUser,
   });
+  /** @type {FollowStateBody} */
+  const initialSubscriptionPayload = readPayload(initialSubscription, ["isFollowing"], "initialSubscription");
   check("recipient can read task notification follow status", () => {
     assert.equal(initialSubscription.status, 200, JSON.stringify(initialSubscription.body));
-    assert.equal(initialSubscription.body.isFollowing, false);
+    assert.equal(initialSubscriptionPayload.isFollowing, false);
   });
 
   const followedSubscription = await api.post("/api/notifications/subscriptions", {
     moduleId: "tasks",
-    targetId: task.body.task.task_id,
+    targetId: taskPayload.task.task_id,
     targetType: "task",
   }, { cookie: fixtures.sessions.projectUser });
+  /** @type {FollowStateBody} */
+  const followedSubscriptionPayload = readPayload(followedSubscription, ["isFollowing"], "followedSubscription");
   check("recipient can follow an accessible task notification target", () => {
     assert.equal(followedSubscription.status, 200, JSON.stringify(followedSubscription.body));
-    assert.equal(followedSubscription.body.isFollowing, true);
-    assert.equal(followedSubscription.body.subscription.user_id, fixtures.users.projectUser.userId);
+    assert.equal(followedSubscriptionPayload.isFollowing, true);
+    assert.ok(followedSubscriptionPayload.subscription, "a followed target should return its subscription row");
+    assert.equal(followedSubscriptionPayload.subscription.user_id, fixtures.users.projectUser.userId);
   });
 
   const subscriptionAuditRows = await querySql(`
@@ -226,40 +275,48 @@ LIMIT 1;
 
   const deniedFollow = await api.post("/api/notifications/subscriptions", {
     moduleId: "tasks",
-    targetId: task.body.task.task_id,
+    targetId: taskPayload.task.task_id,
     targetType: "task",
   }, { cookie: fixtures.sessions.otherProjectUser });
   check("user cannot follow a task target they cannot access", () => {
     assert.equal(deniedFollow.status, 404, JSON.stringify(deniedFollow.body));
   });
 
-  const unfollowedSubscription = await api.delete(`/api/notifications/subscriptions?moduleId=tasks&targetType=task&targetId=${encodeURIComponent(task.body.task.task_id)}`, {
+  const unfollowedSubscription = await api.delete(`/api/notifications/subscriptions?moduleId=tasks&targetType=task&targetId=${encodeURIComponent(taskPayload.task.task_id)}`, {
     cookie: fixtures.sessions.projectUser,
   });
+  /** @type {FollowStateBody} */
+  const unfollowedSubscriptionPayload = readPayload(unfollowedSubscription, ["isFollowing"], "unfollowedSubscription");
   check("recipient can unfollow a task notification target", () => {
     assert.equal(unfollowedSubscription.status, 200, JSON.stringify(unfollowedSubscription.body));
-    assert.equal(unfollowedSubscription.body.isFollowing, false);
+    assert.equal(unfollowedSubscriptionPayload.isFollowing, false);
   });
 
   const dismissResult = await api.post(`/api/notifications/${encodeURIComponent(notificationId)}/dismiss`, {}, {
     cookie: fixtures.sessions.projectUser,
   });
+  /** @type {NotificationMutationBody} */
+  const dismissResultPayload = readPayload(dismissResult, ["notification"], "dismissResult");
   check("recipient can dismiss own notification", () => {
     assert.equal(dismissResult.status, 200, JSON.stringify(dismissResult.body));
-    assert.equal(dismissResult.body.notification.status, "dismissed");
-    assert.ok(dismissResult.body.notification.dismissed_at);
+    assert.equal(dismissResultPayload.notification.status, "dismissed");
+    assert.ok(dismissResultPayload.notification.dismissed_at);
   });
 
   const activeAfterDismiss = await api.get("/api/notifications?status=active", { cookie: fixtures.sessions.projectUser });
+  /** @type {NotificationListBody} */
+  const activeAfterDismissPayload = readPayload(activeAfterDismiss, ["notifications"], "activeAfterDismiss");
   check("active notification filter excludes dismissed notifications", () => {
     assert.equal(activeAfterDismiss.status, 200, JSON.stringify(activeAfterDismiss.body));
-    assert.equal(activeAfterDismiss.body.notifications.some((notification) => notification.notification_id === notificationId), false);
+    assert.equal(activeAfterDismissPayload.notifications.some((notification) => notification.notification_id === notificationId), false);
   });
 
   const dismissedList = await api.get("/api/notifications?status=dismissed", { cookie: fixtures.sessions.projectUser });
+  /** @type {NotificationListBody} */
+  const dismissedListPayload = readPayload(dismissedList, ["notifications"], "dismissedList");
   check("dismissed notification filter includes dismissed notifications", () => {
     assert.equal(dismissedList.status, 200, JSON.stringify(dismissedList.body));
-    assert.ok(dismissedList.body.notifications.some((notification) => notification.notification_id === notificationId));
+    assert.ok(dismissedListPayload.notifications.some((notification) => notification.notification_id === notificationId));
   });
 
   await notificationsService.create({
@@ -268,21 +325,23 @@ LIMIT 1;
     module_id: "tasks",
     priority: "low",
     recipient_user_id: fixtures.users.projectUser.userId,
-    record_id: task.body.task.task_id,
+    record_id: taskPayload.task.task_id,
     record_type: "task",
     title: "Low priority task update",
-    url: `tasks.html?task=${encodeURIComponent(task.body.task.task_id)}`,
+    url: `tasks.html?task=${encodeURIComponent(taskPayload.task.task_id)}`,
     workspace_id: fixtures.workspaceId,
   }, {
     user_id: fixtures.users.workspaceAdmin.userId,
     workspace_id: fixtures.workspaceId,
   });
   const lowPrioritySummary = await api.get("/api/notifications/unread-count", { cookie: fixtures.sessions.projectUser });
+  /** @type {NotificationCountBody} */
+  const lowPrioritySummaryPayload = readPayload(lowPrioritySummary, ["unreadCount"], "lowPrioritySummary");
   check("low priority unread notifications do not increase bell badge count", () => {
     assert.equal(lowPrioritySummary.status, 200, JSON.stringify(lowPrioritySummary.body));
-    assert.equal(lowPrioritySummary.body.unreadCount, 0);
-    assert.equal(lowPrioritySummary.body.totalUnreadCount, 1);
-    assert.equal(lowPrioritySummary.body.lowPriorityUnreadCount, 1);
+    assert.equal(lowPrioritySummaryPayload.unreadCount, 0);
+    assert.equal(lowPrioritySummaryPayload.totalUnreadCount, 1);
+    assert.equal(lowPrioritySummaryPayload.lowPriorityUnreadCount, 1);
   });
 
   await notificationsService.create({
@@ -291,38 +350,46 @@ LIMIT 1;
     module_id: "tasks",
     priority: "high",
     recipient_user_id: fixtures.users.projectUser.userId,
-    record_id: task.body.task.task_id,
+    record_id: taskPayload.task.task_id,
     record_type: "task",
     title: "High priority task update",
-    url: `tasks.html?task=${encodeURIComponent(task.body.task.task_id)}`,
+    url: `tasks.html?task=${encodeURIComponent(taskPayload.task.task_id)}`,
     workspace_id: fixtures.workspaceId,
   }, {
     user_id: fixtures.users.workspaceAdmin.userId,
     workspace_id: fixtures.workspaceId,
   });
   const highPrioritySummary = await api.get("/api/notifications/unread-count", { cookie: fixtures.sessions.projectUser });
+  /** @type {NotificationCountBody} */
+  const highPrioritySummaryPayload = readPayload(highPrioritySummary, ["unreadCount"], "highPrioritySummary");
   check("high priority notifications increase badge count and alert the bell", () => {
     assert.equal(highPrioritySummary.status, 200, JSON.stringify(highPrioritySummary.body));
-    assert.equal(highPrioritySummary.body.unreadCount, 1);
-    assert.equal(highPrioritySummary.body.totalUnreadCount, 2);
-    assert.equal(highPrioritySummary.body.hasHighPriority, true);
-    assert.equal(highPrioritySummary.body.hasPriorityAlert, true);
+    assert.equal(highPrioritySummaryPayload.unreadCount, 1);
+    assert.equal(highPrioritySummaryPayload.totalUnreadCount, 2);
+    assert.equal(highPrioritySummaryPayload.hasHighPriority, true);
+    assert.equal(highPrioritySummaryPayload.hasPriorityAlert, true);
   });
 
   const bulkRead = await api.post("/api/notifications/read-all", {}, { cookie: fixtures.sessions.projectUser });
+  /** @type {NotificationCountBody} */
+  const bulkReadPayload = readPayload(bulkRead, ["unreadCount"], "bulkRead");
   check("read all marks active unread notifications read", () => {
     assert.equal(bulkRead.status, 200, JSON.stringify(bulkRead.body));
-    assert.equal(bulkRead.body.unreadCount, 0);
-    assert.equal(bulkRead.body.totalUnreadCount, 0);
+    assert.equal(bulkReadPayload.unreadCount, 0);
+    assert.equal(bulkReadPayload.totalUnreadCount, 0);
   });
 
   const bulkDismiss = await api.post("/api/notifications/dismiss-all", {}, { cookie: fixtures.sessions.projectUser });
+  /** @type {NotificationCountBody} */
+  const bulkDismissPayload = readPayload(bulkDismiss, ["unreadCount"], "bulkDismiss");
   const activeAfterBulkDismiss = await api.get("/api/notifications?status=active", { cookie: fixtures.sessions.projectUser });
+  /** @type {NotificationListBody} */
+  const activeAfterBulkDismissPayload = readPayload(activeAfterBulkDismiss, ["notifications"], "activeAfterBulkDismiss");
   check("dismiss all removes active notifications from the bell dropdown source", () => {
     assert.equal(bulkDismiss.status, 200, JSON.stringify(bulkDismiss.body));
     assert.equal(activeAfterBulkDismiss.status, 200, JSON.stringify(activeAfterBulkDismiss.body));
-    assert.equal(activeAfterBulkDismiss.body.notifications.length, 0);
-    assert.equal(bulkDismiss.body.hasPriorityAlert, false);
+    assert.equal(activeAfterBulkDismissPayload.notifications.length, 0);
+    assert.equal(bulkDismissPayload.hasPriorityAlert, false);
   });
 
   const hiddenTarget = await notificationsService.create({
@@ -330,22 +397,26 @@ LIMIT 1;
     event_type: "task.updated",
     module_id: "tasks",
     recipient_user_id: fixtures.users.otherProjectUser.userId,
-    record_id: task.body.task.task_id,
+    record_id: taskPayload.task.task_id,
     record_type: "task",
     title: "Hidden task target",
-    url: `tasks.html?task=${encodeURIComponent(task.body.task.task_id)}`,
+    url: `tasks.html?task=${encodeURIComponent(taskPayload.task.task_id)}`,
     workspace_id: fixtures.workspaceId,
   }, {
     user_id: fixtures.users.workspaceAdmin.userId,
     workspace_id: fixtures.workspaceId,
   });
   const hiddenList = await api.get("/api/notifications", { cookie: fixtures.sessions.otherProjectUser });
+  /** @type {NotificationListBody} */
+  const hiddenListPayload = readPayload(hiddenList, ["notifications"], "hiddenList");
   check("notification target URL is hidden when recipient cannot access target record", () => {
     assert.ok(hiddenTarget.notification.notification_id);
     assert.equal(hiddenList.status, 200, JSON.stringify(hiddenList.body));
-    const hiddenNotification = hiddenList.body.notifications.find((notification) => notification.title === "Hidden task target");
+    const hiddenNotification = hiddenListPayload.notifications.find((notification) => notification.title === "Hidden task target");
+    assert.ok(hiddenNotification, "the hidden-notification lookup should find its row");
     assert.equal(hiddenNotification.updateTypeLabel, "Task Updated");
     assert.equal(hiddenNotification.url, "");
+    assert.ok(hiddenNotification.target, "the hidden notification should carry its target");
     assert.equal(hiddenNotification.target.canOpen, false);
   });
 }
@@ -537,36 +608,49 @@ async function runNotificationUiContractTests() {
   });
 }
 
+/** @param {NotificationApi} api @param {NotificationFixtures} fixtures */
 async function runNotificationPreferenceTests(api, fixtures) {
   const preferences = await api.get("/api/notifications/preferences", { cookie: fixtures.sessions.projectUser });
+  /** @type {NotificationPreferenceBody} */
+  const preferencesPayload = readPayload(preferences, ["events"], "preferences");
   check("user can read configurable notification preferences", () => {
     assert.equal(preferences.status, 200, JSON.stringify(preferences.body));
-    assert.ok(preferences.body.events.some((event) => event.id === "task.updated"));
-    assert.equal(preferences.body.canManageWorkspaceDefaults, false);
-    assert.equal(preferences.body.groupingPreferences.groupingMode, "client_project");
+    assert.ok(preferencesPayload.events.some((event) => event.id === "task.updated"));
+    assert.equal(preferencesPayload.canManageWorkspaceDefaults, false);
+    assert.ok(preferencesPayload.groupingPreferences, "the preference payload should carry grouping preferences");
+    assert.equal(preferencesPayload.groupingPreferences.groupingMode, "client_project");
   });
 
   const adminPreferences = await api.get("/api/notifications/preferences", { cookie: fixtures.sessions.workspaceAdmin });
+  /** @type {NotificationPreferenceBody} */
+  const adminPreferencesPayload = readPayload(adminPreferences, ["events"], "adminPreferences");
   check("workspace admin can manage notification defaults", () => {
     assert.equal(adminPreferences.status, 200, JSON.stringify(adminPreferences.body));
-    assert.equal(adminPreferences.body.canManageWorkspaceDefaults, true);
+    assert.equal(adminPreferencesPayload.canManageWorkspaceDefaults, true);
   });
 
   const muted = await api.put("/api/notifications/preferences", {
     groupingPreferences: { groupingMode: "notification_type" },
     preferences: [{ id: "task.updated", enabled: false }],
   }, { cookie: fixtures.sessions.projectUser });
+  /** @type {NotificationPreferenceBody} */
+  const mutedPayload = readPayload(muted, ["events"], "muted");
   check("user can mute a notification type", () => {
     assert.equal(muted.status, 200, JSON.stringify(muted.body));
-    const taskUpdated = muted.body.events.find((event) => event.id === "task.updated");
+    const taskUpdated = mutedPayload.events.find((event) => event.id === "task.updated");
+    assert.ok(taskUpdated, "the preference list should include the task.updated event");
     assert.equal(taskUpdated.userEnabled, false);
-    assert.equal(muted.body.groupingPreferences.groupingMode, "notification_type");
+    assert.ok(mutedPayload.groupingPreferences, "the preference payload should carry grouping preferences");
+    assert.equal(mutedPayload.groupingPreferences.groupingMode, "notification_type");
   });
 
   const groupingPersisted = await api.get("/api/notifications/preferences", { cookie: fixtures.sessions.projectUser });
+  /** @type {NotificationPreferenceBody} */
+  const groupingPersistedPayload = readPayload(groupingPersisted, ["events"], "groupingPersisted");
   check("user notification grouping preference persists independently from delivery toggles", () => {
     assert.equal(groupingPersisted.status, 200, JSON.stringify(groupingPersisted.body));
-    assert.equal(groupingPersisted.body.groupingPreferences.groupingMode, "notification_type");
+    assert.ok(groupingPersistedPayload.groupingPreferences, "the preference payload should carry grouping preferences");
+    assert.equal(groupingPersistedPayload.groupingPreferences.groupingMode, "notification_type");
   });
 
   const userPreferenceAuditRows = await querySql(`
@@ -612,6 +696,8 @@ LIMIT 1;
     project_id: fixtures.project.id,
     title: "Followed notification regression task",
   }, { cookie: fixtures.sessions.workspaceAdmin });
+  /** @type {TaskEnvelopeBody} */
+  const followedTaskPayload = readPayload(followedTask, ["task"], "followedTask");
   check("followed notification regression task can be created", () => {
     assert.equal(followedTask.status, 201, JSON.stringify(followedTask.body));
   });
@@ -619,12 +705,14 @@ LIMIT 1;
 
   const followedTarget = await api.post("/api/notifications/subscriptions", {
     moduleId: "tasks",
-    targetId: followedTask.body.task.task_id,
+    targetId: followedTaskPayload.task.task_id,
     targetType: "task",
   }, { cookie: fixtures.sessions.projectUser });
+  /** @type {FollowStateBody} */
+  const followedTargetPayload = readPayload(followedTarget, ["isFollowing"], "followedTarget");
   check("project user can follow an accessible unassigned-to-them task", () => {
     assert.equal(followedTarget.status, 200, JSON.stringify(followedTarget.body));
-    assert.equal(followedTarget.body.isFollowing, true);
+    assert.equal(followedTargetPayload.isFollowing, true);
   });
 
   const beforeFollowedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.updated");
@@ -634,10 +722,10 @@ LIMIT 1;
     moduleId: "tasks",
     newValue: {
       assignee_ids: [fixtures.users.workspaceAdmin.userId],
-      task_id: followedTask.body.task.task_id,
-      title: followedTask.body.task.title,
+      task_id: followedTaskPayload.task.task_id,
+      title: followedTaskPayload.task.title,
     },
-    recordId: followedTask.body.task.task_id,
+    recordId: followedTaskPayload.task.task_id,
     recordType: "task",
     session: {
       user_id: fixtures.users.workspaceAdmin.userId,
@@ -655,12 +743,14 @@ LIMIT 1;
     assert.equal(afterOtherFollowedRows, beforeOtherFollowedRows);
   });
 
-  const unfollowedTarget = await api.delete(`/api/notifications/subscriptions?moduleId=tasks&targetType=task&targetId=${encodeURIComponent(followedTask.body.task.task_id)}`, {
+  const unfollowedTarget = await api.delete(`/api/notifications/subscriptions?moduleId=tasks&targetType=task&targetId=${encodeURIComponent(followedTaskPayload.task.task_id)}`, {
     cookie: fixtures.sessions.projectUser,
   });
+  /** @type {FollowStateBody} */
+  const unfollowedTargetPayload = readPayload(unfollowedTarget, ["isFollowing"], "unfollowedTarget");
   check("project user can remove the followed task notification override", () => {
     assert.equal(unfollowedTarget.status, 200, JSON.stringify(unfollowedTarget.body));
-    assert.equal(unfollowedTarget.body.isFollowing, false);
+    assert.equal(unfollowedTargetPayload.isFollowing, false);
   });
 
   const beforeUnfollowedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.updated");
@@ -669,10 +759,10 @@ LIMIT 1;
     moduleId: "tasks",
     newValue: {
       assignee_ids: [fixtures.users.workspaceAdmin.userId],
-      task_id: followedTask.body.task.task_id,
-      title: followedTask.body.task.title,
+      task_id: followedTaskPayload.task.task_id,
+      title: followedTaskPayload.task.title,
     },
-    recordId: followedTask.body.task.task_id,
+    recordId: followedTaskPayload.task.task_id,
     recordType: "task",
     session: {
       user_id: fixtures.users.workspaceAdmin.userId,
@@ -691,6 +781,8 @@ LIMIT 1;
     project_id: fixtures.project.id,
     title: "Actor followed notification task",
   }, { cookie: fixtures.sessions.workspaceAdmin });
+  /** @type {TaskEnvelopeBody} */
+  const actorFollowedTaskPayload = readPayload(actorFollowedTask, ["task"], "actorFollowedTask");
   check("actor followed notification task can be created", () => {
     assert.equal(actorFollowedTask.status, 201, JSON.stringify(actorFollowedTask.body));
   });
@@ -698,12 +790,14 @@ LIMIT 1;
 
   const actorFollowedTarget = await api.post("/api/notifications/subscriptions", {
     moduleId: "tasks",
-    targetId: actorFollowedTask.body.task.task_id,
+    targetId: actorFollowedTaskPayload.task.task_id,
     targetType: "task",
   }, { cookie: fixtures.sessions.workspaceAdmin });
+  /** @type {FollowStateBody} */
+  const actorFollowedTargetPayload = readPayload(actorFollowedTarget, ["isFollowing"], "actorFollowedTarget");
   check("task creator can follow their own accessible task", () => {
     assert.equal(actorFollowedTarget.status, 200, JSON.stringify(actorFollowedTarget.body));
-    assert.equal(actorFollowedTarget.body.isFollowing, true);
+    assert.equal(actorFollowedTargetPayload.isFollowing, true);
   });
 
   const beforeActorFollowedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "task.updated");
@@ -712,10 +806,10 @@ LIMIT 1;
     moduleId: "tasks",
     newValue: {
       assignee_ids: [fixtures.users.workspaceAdmin.userId],
-      task_id: actorFollowedTask.body.task.task_id,
-      title: actorFollowedTask.body.task.title,
+      task_id: actorFollowedTaskPayload.task.task_id,
+      title: actorFollowedTaskPayload.task.title,
     },
-    recordId: actorFollowedTask.body.task.task_id,
+    recordId: actorFollowedTaskPayload.task.task_id,
     recordType: "task",
     session: {
       user_id: fixtures.users.workspaceAdmin.userId,
@@ -732,9 +826,12 @@ LIMIT 1;
   const defaults = await api.put("/api/notifications/workspace-defaults", {
     defaults: [{ id: "task.overdue", enabled: false, priority: "urgent" }],
   }, { cookie: fixtures.sessions.workspaceAdmin });
+  /** @type {NotificationPreferenceBody} */
+  const defaultsPayload = readPayload(defaults, ["events"], "defaults");
   check("workspace admin can save notification defaults", () => {
     assert.equal(defaults.status, 200, JSON.stringify(defaults.body));
-    const taskOverdue = defaults.body.events.find((event) => event.id === "task.overdue");
+    const taskOverdue = defaultsPayload.events.find((event) => event.id === "task.overdue");
+    assert.ok(taskOverdue, "the preference list should include the task.overdue event");
     assert.equal(taskOverdue.workspaceEnabled, false);
   });
 
@@ -777,6 +874,7 @@ LIMIT 1;
   });
 }
 
+/** @param {NotificationFixtures} fixtures */
 async function runNotificationEventTests(fixtures) {
   const beforeRows = await querySql(`
 SELECT COUNT(*) AS count
@@ -957,6 +1055,7 @@ WHERE event_type = 'task.assigned';
   });
 }
 
+/** @param {NotificationApi} api @param {NotificationFixtures} fixtures */
 async function runDisabledModuleTests(api, fixtures) {
   const beforeRows = await querySql(`
 SELECT COUNT(*) AS count
@@ -1000,25 +1099,41 @@ WHERE event_type = 'developer-example.sample';
   });
 
   const preferences = await api.get("/api/notifications/preferences", { cookie: fixtures.sessions.projectUser });
+  /** @type {NotificationPreferenceBody} */
+  const disabledModulePreferences = readPayload(preferences, ["events"], "disabled module preferences");
   check("disabled module notification preferences remain visible but sorted as disabled", () => {
     assert.equal(preferences.status, 200, JSON.stringify(preferences.body));
-    const developerEvent = preferences.body.events.find((event) => event.id === "developer-example.sample");
+    const developerEvent = disabledModulePreferences.events.find((event) => event.id === "developer-example.sample");
+    assert.ok(developerEvent, "the disabled developer example event should stay listed");
     assert.equal(developerEvent.moduleEnabled, false);
-    const disabledIndex = preferences.body.events.findIndex((event) => event.moduleEnabled === false);
-    const enabledAfterDisabled = preferences.body.events.slice(disabledIndex + 1).some((event) => event.moduleEnabled !== false);
+    const disabledIndex = disabledModulePreferences.events.findIndex((event) => event.moduleEnabled === false);
+    const enabledAfterDisabled = disabledModulePreferences.events.slice(disabledIndex + 1).some((event) => event.moduleEnabled !== false);
     assert.equal(enabledAfterDisabled, false);
   });
 }
 
+/** @param {string} baseUrl */
 function createApi(baseUrl) {
   return {
+    /** @param {string} url @param {{ cookie?: string }} [options] */
     get: (url, options = {}) => request(baseUrl, "GET", url, null, options),
+    /** @param {string} url @param {unknown} body @param {{ cookie?: string }} [options] */
     post: (url, body, options = {}) => request(baseUrl, "POST", url, body, options),
+    /** @param {string} url @param {unknown} body @param {{ cookie?: string }} [options] */
     put: (url, body, options = {}) => request(baseUrl, "PUT", url, body, options),
+    /** @param {string} url @param {{ cookie?: string }} [options] */
     delete: (url, options = {}) => request(baseUrl, "DELETE", url, null, options),
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {unknown} [body]
+ * @param {{ cookie?: string }} [options]
+ * @returns {Promise<{ body: unknown, status: number }>}
+ */
 async function request(baseUrl, method, url, body = null, options = {}) {
   const headers = {};
 
@@ -1051,6 +1166,7 @@ async function request(baseUrl, method, url, body = null, options = {}) {
   };
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId @param {string} eventType @returns {Promise<number>} */
 async function notificationCountFor(workspaceId, recipientUserId, eventType) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -1085,18 +1201,21 @@ async function drainQueuedJobs() {
   throw new Error("Notification regression queued work did not drain.");
 }
 
+/** @param {string} name @param {() => void} assertion */
 function check(name, assertion) {
   assertion();
   results.push(name);
 }
 
+/** @param {import("express").Application} app @returns {Promise<import("node:http").Server>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const server = http.createServer(app);
+    const server = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
     server.listen(0, "127.0.0.1", () => resolve(server));
   });
 }
 
+/** @param {import("node:http").Server} server @returns {Promise<void>} */
 function closeServer(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => {
@@ -1105,11 +1224,12 @@ function closeServer(server) {
         return;
       }
 
-      resolve();
+      resolve(undefined);
     });
   });
 }
 
+/** @param {string} slug */
 function userFixture(slug) {
   return {
     displayName: slug.replaceAll("-", " "),
@@ -1118,6 +1238,7 @@ function userFixture(slug) {
   };
 }
 
+/** @param {string} workspaceId @param {NotificationUser} user @returns {string} */
 function userInsertSql(workspaceId, user) {
   return `
 INSERT INTO users (
@@ -1148,12 +1269,14 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {NotificationUser} user @param {string} now @returns {string} */
 function membershipInsertSql(workspaceId, user, now) {
   return `
 INSERT INTO user_workspaces (user_workspace_id, workspace_id, user_id, status, created_at, updated_at)
 VALUES (${sqlText(randomUUID())}, ${sqlText(workspaceId)}, ${sqlText(user.userId)}, 'active', ${sqlText(now)}, ${sqlText(now)});`;
 }
 
+/** @param {string} workspaceId @param {{ id: string, name: string, clientId?: string }} project @param {string} now @returns {string} */
 function projectInsertSql(workspaceId, project, now) {
   return `
 INSERT INTO projects (
@@ -1196,6 +1319,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} roleId @param {string} scopeType @param {string | null} scopeId @param {string} now @returns {string} */
 function assignmentInsertSql(workspaceId, userId, roleId, scopeType, scopeId, now) {
   const scopedProjectId = scopeType === "project" ? scopeId : null;
 
@@ -1228,6 +1352,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} username */
 async function createSession(workspaceId, userId, username) {
   const sessionId = randomUUID();
   const now = new Date().toISOString();
