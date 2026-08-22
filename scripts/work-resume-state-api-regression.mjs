@@ -5,7 +5,17 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/routes/work-resume.routes.js").WorkResumeDismissResponse} WorkResumeDismissResponse */
+/** @typedef {import("../src/routes/work-resume.routes.js").WorkResumeItemResponse} WorkResumeItemResponse */
+/** @typedef {import("../src/routes/work-resume.routes.js").WorkResumeListResponse} WorkResumeListResponse */
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} ResumeApiSession */
+/** @typedef {{ method?: string, sessionId?: string }} ResumeApiRequestOptions */
+/** @typedef {{ body: unknown, status: number }} ResumeApiResponse */
+/** @typedef {{ get: (url: string) => Promise<ResumeApiResponse>, post: (url: string) => Promise<ResumeApiResponse> }} ResumeApiClient */
+/** @typedef {{ activeTimerId: string, hiddenTaskId: string, session: ResumeApiSession, sessionId: string, taskId: string }} ResumeApiFixture */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-work-resume-state-api-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-work-resume-state-api.db");
@@ -26,6 +36,7 @@ const {
   resetResumeStateReadResolvers,
 } = await import("../src/services/work-resume-state-read-checks.js");
 
+/** @type {import("node:http").Server | undefined} */
 let server;
 
 try {
@@ -33,7 +44,7 @@ try {
   const app = createApp();
   const fixture = await seedFixture();
   server = await listen(app);
-  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${listenerPort(server)}`;
   const api = createApi(baseUrl, fixture.sessionId);
 
   await assertProtectedRouteRequiresAuth(baseUrl);
@@ -110,9 +121,11 @@ async function seedFixture() {
   };
 }
 
+/** @param {string} baseUrl */
 async function assertProtectedRouteRequiresAuth(baseUrl) {
   const response = await fetch(`${baseUrl}/api/work-resume`);
-  const body = await response.json();
+  /** @type {{ error: { code: unknown, message: unknown, requestId: unknown } }} */
+  const body = readPayload({ body: await response.json() }, ["error"], "unauthenticated read");
 
   assert.equal(response.status, 401);
   assert.equal(body.error.code, "authentication_required");
@@ -120,75 +133,103 @@ async function assertProtectedRouteRequiresAuth(baseUrl) {
   assert.equal(body.error.requestId, response.headers.get("x-request-id"));
 }
 
+/** @param {string} baseUrl */
 async function assertPublicApiRouteIsNotExposed(baseUrl) {
   const response = await fetch(`${baseUrl}/api/v1/work-resume`);
 
   assert.notEqual(response.status, 200, "resume state must not be exposed through public API routes");
 }
 
+/** @param {ResumeApiClient} api @param {ResumeApiFixture} fixture */
 async function assertReadRouteReturnsBrowserSafeRows(api, fixture) {
   const response = await api.get("/api/work-resume?mode=recent&limit=50");
+  /** @type {WorkResumeListResponse} */
+  const payload = readPayload(response, ["emptyState", "items", "mode"], "recent read");
 
   assert.equal(response.status, 200);
-  assert.equal(response.body.mode, "recent");
-  assert.equal(response.body.emptyState.message, "No resumable work found.");
+  assert.equal(payload.mode, "recent");
+  assert.equal(payload.emptyState.message, "No resumable work found.");
 
-  const task = response.body.items.find((item) => item.recordId === fixture.taskId);
+  const task = payload.items.find((item) => item.recordId === fixture.taskId);
   assert.ok(task, "read route should include the seeded task resume row");
   assert.equal(task.moduleId, "tasks");
   assert.equal(task.recordType, "task");
   assert.equal(task.title, "Resume API Task");
   assert.equal(task.nextAction, "Use the browser resume API.");
   assert.equal(task.resumeStateId.length > 0, true);
-  assert.equal(task.resume_state_id, undefined, "browser response should not expose raw snake_case fields");
+  // The published item contract declares no snake_case member, so this now
+  // proves the key is absent rather than present and undefined.
+  assert.equal(Object.hasOwn(task, "resume_state_id"), false, "browser response should not expose raw snake_case fields");
 }
 
+/** @param {ResumeApiClient} api @param {ResumeApiFixture} fixture */
 async function assertFiltersAndActiveMode(api, fixture) {
   const tasksResponse = await api.get("/api/work-resume?mode=recent&module_id=tasks&record_type=task&limit=50");
+  /** @type {WorkResumeListResponse} */
+  const tasksPayload = readPayload(tasksResponse, ["items"], "filtered read");
   assert.equal(tasksResponse.status, 200);
-  assert.ok(tasksResponse.body.items.some((item) => item.recordId === fixture.taskId));
-  assert.equal(tasksResponse.body.items.every((item) => item.moduleId === "tasks" && item.recordType === "task"), true);
+  assert.ok(tasksPayload.items.some((item) => item.recordId === fixture.taskId));
+  assert.equal(tasksPayload.items.every((item) => item.moduleId === "tasks" && item.recordType === "task"), true);
 
   const activeResponse = await api.get("/api/work-resume?mode=active&limit=50");
+  /** @type {WorkResumeListResponse} */
+  const activePayload = readPayload(activeResponse, ["items"], "active read");
   assert.equal(activeResponse.status, 200);
-  assert.ok(activeResponse.body.items.some((item) => item.recordId === fixture.activeTimerId));
-  assert.equal(activeResponse.body.items.some((item) => item.recordId === fixture.hiddenTaskId), false);
+  assert.ok(activePayload.items.some((item) => item.recordId === fixture.activeTimerId));
+  assert.equal(activePayload.items.some((item) => item.recordId === fixture.hiddenTaskId), false);
 }
 
+/** @param {ResumeApiClient} api @param {ResumeApiFixture} fixture */
 async function assertDismissRouteHidesDefaultRows(api, fixture) {
   const recentResponse = await api.get("/api/work-resume?mode=recent&limit=50");
-  const task = recentResponse.body.items.find((item) => item.recordId === fixture.taskId);
+  /** @type {WorkResumeListResponse} */
+  const recentPayload = readPayload(recentResponse, ["items"], "recent read");
+  const task = recentPayload.items.find((item) => item.recordId === fixture.taskId);
   assert.ok(task);
 
   const dismissResponse = await api.post(`/api/work-resume/${encodeURIComponent(task.resumeStateId)}/dismiss`);
+  /** @type {WorkResumeDismissResponse} */
+  const dismissPayload = readPayload(dismissResponse, ["dismissed", "dismissedAt", "resumeStateId"], "dismiss");
   assert.equal(dismissResponse.status, 200);
-  assert.equal(dismissResponse.body.dismissed, true);
-  assert.ok(dismissResponse.body.dismissedAt, "dismiss response should include the persisted timestamp");
-  assert.equal(dismissResponse.body.resumeStateId, task.resumeStateId);
+  assert.equal(dismissPayload.dismissed, true);
+  assert.ok(dismissPayload.dismissedAt, "dismiss response should include the persisted timestamp");
+  assert.equal(dismissPayload.resumeStateId, task.resumeStateId);
 
   const leftOffResponse = await api.get("/api/work-resume?mode=left_off&limit=50");
+  /** @type {WorkResumeListResponse} */
+  const leftOffPayload = readPayload(leftOffResponse, ["items"], "left-off read");
   assert.equal(leftOffResponse.status, 200);
-  assert.equal(leftOffResponse.body.items.some((item) => item.recordId === fixture.taskId), false);
+  assert.equal(leftOffPayload.items.some((item) => item.recordId === fixture.taskId), false);
 
   const recentAfterDismiss = await api.get("/api/work-resume?mode=recent&limit=50");
-  assert.equal(recentAfterDismiss.body.items.some((item) => item.recordId === fixture.taskId), true);
+  /** @type {WorkResumeListResponse} */
+  const recentAfterDismissPayload = readPayload(recentAfterDismiss, ["items"], "recent read after dismiss");
+  assert.equal(recentAfterDismissPayload.items.some((item) => item.recordId === fixture.taskId), true);
 }
 
+/** @param {ResumeApiClient} api */
 async function assertEmptyStateIsGeneric(api) {
   const response = await api.get(`/api/work-resume?module_id=notes&record_type=note&client_id=${encodeURIComponent(`missing-${randomUUID()}`)}`);
 
+  /** @type {WorkResumeListResponse} */
+  const payload = readPayload(response, ["emptyState", "items"], "empty read");
+
   assert.equal(response.status, 200);
-  assert.deepEqual(response.body.items, []);
-  assert.equal(response.body.emptyState.message, "No resumable work found.");
+  assert.deepEqual(payload.items, []);
+  assert.equal(payload.emptyState.message, "No resumable work found.");
 }
 
+/** @param {string} baseUrl @param {string} sessionId @returns {ResumeApiClient} */
 function createApi(baseUrl, sessionId) {
   return {
+    /** @param {string} url */
     get: (url) => request(baseUrl, url, { sessionId }),
+    /** @param {string} url */
     post: (url) => request(baseUrl, url, { method: "POST", sessionId }),
   };
 }
 
+/** @param {string} baseUrl @param {string} url @param {ResumeApiRequestOptions} [options] @returns {Promise<ResumeApiResponse>} */
 async function request(baseUrl, url, options = {}) {
   const response = await fetch(`${baseUrl}${url}`, {
     method: options.method || "GET",
@@ -218,6 +259,7 @@ LIMIT 1;
   return workspaceSessionFixture(user);
 }
 
+/** @param {ResumeApiSession} session @returns {Promise<string>} */
 async function createSession(session) {
   const sessionId = randomUUID();
   const now = new Date().toISOString();
@@ -250,12 +292,21 @@ VALUES (
   return sessionId;
 }
 
+/** @param {import("node:http").Server} listening @returns {number} */
+function listenerPort(listening) {
+  const address = listening.address();
+  assert.ok(address && typeof address === "object", "the resume API fixture server should bind a TCP port");
+  return address.port;
+}
+
+/** @param {import("express").Application} app @returns {Promise<import("node:http").Server>} */
 function listen(app) {
   return new Promise((resolve) => {
     const nextServer = app.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {import("node:http").Server} nextServer @returns {Promise<void>} */
 function closeServer(nextServer) {
   return new Promise((resolve, reject) => {
     nextServer.close((error) => {
@@ -264,7 +315,7 @@ function closeServer(nextServer) {
         return;
       }
 
-      resolve();
+      resolve(undefined);
     });
   });
 }

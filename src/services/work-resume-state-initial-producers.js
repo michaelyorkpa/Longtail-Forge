@@ -18,6 +18,8 @@ import {
   registerResumeStateReadResolver,
 } from "./work-resume-state-read-checks.js";
 
+/** @typedef {import("../types/framework-contracts.js").InternalEvent} InternalEvent */
+/** @typedef {import("./work-resume-state-producers.js").ProducerBuilderContext} ProducerBuilderContext */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateBatchReadResolverContext} ResumeStateBatchReadResolverContext */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateProducerResult} ResumeStateProducerResult */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateReadCheck} ResumeStateReadCheck */
@@ -33,7 +35,7 @@ import {
  * @property {string} security_mode
  * @property {string} [effective_security_mode]
  */
-/** @typedef {{ emitted_at?: string, metadata?: Record<string, unknown>, new_value?: Record<string, unknown> | null, previous_value?: Record<string, unknown> | null, record_type?: string }} ResumeProducerEvent */
+/** @typedef {Pick<InternalEvent, "emitted_at" | "metadata" | "new_value" | "previous_value" | "record_id" | "record_type">} ResumeProducerEvent */
 /** @typedef {{ task_id?: string, id?: string, status?: string, blocked_reason?: string, client_id?: string, due_date?: string, resume_note?: string, handoff_note?: string, last_worked_at?: string, updated_at?: string, checklist_progress?: unknown, recurrence_instance_date?: string, recurrence_template_id?: string, next_action?: string, priority?: string, project_id?: string, title?: string, task_title?: string }} TaskEventRecord */
 /** @typedef {{ list_id?: string, client_id?: string, updated_at?: string, project_id?: string, status?: string, title?: string }} ListEventRecord */
 /** @typedef {Partial<SafeNoteLifecycleRow> & { client_id?: string, project_id?: string, title?: string, updated_at?: string }} NoteEventRecord */
@@ -339,7 +341,7 @@ LIMIT 1;
   };
 }
 
-/** @param {{ event: Record<string, any> }} input @returns {ResumeStateProducerResult | null} */
+/** @param {ProducerBuilderContext} input @returns {ResumeStateProducerResult | null} */
 function buildTaskPayload({ event }) {
   const task = event.record_type === "task_checklist_item"
     ? checklistTaskPayload(event)
@@ -372,18 +374,18 @@ function buildTaskPayload({ event }) {
   };
 }
 
-/** @param {{ event: Record<string, any> }} input @returns {ResumeStateProducerResult | null} */
+/** @param {ProducerBuilderContext} input @returns {ResumeStateProducerResult | null} */
 function buildListPayload({ event }) {
   const list = listFromEvent(event);
-  const listId = list.list_id || event.metadata?.list_id || event.record_id;
+  const listId = list.list_id || metadataText(event.metadata?.list_id) || event.record_id;
 
   if (!listId) {
     return null;
   }
 
   return {
-    clientId: list.client_id || event.metadata?.client_id || "",
-    lastWorkedAt: event.metadata?.last_activity_at || list.updated_at || event.emitted_at,
+    clientId: list.client_id || metadataText(event.metadata?.client_id),
+    lastWorkedAt: metadataText(event.metadata?.last_activity_at) || list.updated_at || event.emitted_at,
     metadata: {
       checked_item_count: event.metadata?.checked_item_count,
       completed_item_count: event.metadata?.completed_item_count,
@@ -394,15 +396,15 @@ function buildListPayload({ event }) {
     nextAction: event.metadata?.next_unchecked_item_label
       ? `Continue with ${event.metadata.next_unchecked_item_label}`
       : "",
-    projectId: list.project_id || event.metadata?.project_id || "",
+    projectId: list.project_id || metadataText(event.metadata?.project_id),
     recordId: listId,
-    sourceUrl: event.metadata?.source_url || `lists.html?list=${encodeURIComponent(listId)}`,
+    sourceUrl: metadataText(event.metadata?.source_url) || `lists.html?list=${encodeURIComponent(listId)}`,
     statusSnapshot: list.status || "active",
-    title: list.title || event.metadata?.title || "List",
+    title: list.title || metadataText(event.metadata?.title) || "List",
   };
 }
 
-/** @param {{ event: Record<string, any> }} input @returns {ResumeStateProducerResult | null} */
+/** @param {ProducerBuilderContext} input @returns {ResumeStateProducerResult | null} */
 function buildNotePayload({ event }) {
   const note = noteFromEvent(event);
 
@@ -426,7 +428,7 @@ function buildNotePayload({ event }) {
   };
 }
 
-/** @param {{ event: Record<string, any> }} input @returns {ResumeStateProducerResult | null} */
+/** @param {ProducerBuilderContext} input @returns {ResumeStateProducerResult | null} */
 function buildTimerPayload({ event }) {
   const timer = timerFromEvent(event);
 
@@ -473,6 +475,22 @@ function buildTimerPayload({ event }) {
     statusSnapshot: timer.timer_status === "running" ? "active" : "paused",
     title: timer.source_label || "Manual timer",
   };
+}
+
+/**
+ * Read a text field out of an event's metadata.
+ *
+ * Metadata is an open record on the published event contract, so these values
+ * arrive as `unknown`. The resume-state writer already normalizes every string
+ * field with `String(value ?? "")`, so this coerces the same way instead of
+ * dropping a non-string value the producer used to pass through. Falsy values
+ * still resolve to the empty string, exactly as the `||` fallback chains that
+ * called for them did.
+ * @param {unknown} value
+ * @returns {string}
+ */
+function metadataText(value) {
+  return value ? String(value) : "";
 }
 
 /** @param {ResumeProducerEvent} event @returns {TaskEventRecord} */

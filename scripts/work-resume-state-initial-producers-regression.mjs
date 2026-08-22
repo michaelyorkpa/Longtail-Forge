@@ -3,6 +3,9 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} ResumeSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-work-resume-state-initial-producers-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-work-resume-state-initial-producers.db");
@@ -49,6 +52,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {ResumeSession} session */
 async function assertTaskProducerWritesTaskAndChecklistState(session) {
   const taskId = `resume-task-${randomUUID()}`;
   await tasksService.create({
@@ -88,6 +92,7 @@ async function assertTaskProducerWritesTaskAndChecklistState(session) {
   assert.equal(checklistProgress.completed_count, 1);
 }
 
+/** @param {ResumeSession} session */
 async function assertListProducerWritesListItemAndLinkState(session) {
   const listId = `resume-list-${randomUUID()}`;
   await listsService.create({
@@ -137,6 +142,7 @@ async function assertListProducerWritesListItemAndLinkState(session) {
   assert.equal(item.last_action_type, "lists.link.created");
 }
 
+/** @param {ResumeSession} session */
 async function assertNoteProducerWritesOnlySafeActiveWorkNotes(session) {
   const noteId = `resume-note-${randomUUID()}`;
   await notesService.create({
@@ -189,6 +195,7 @@ async function assertNoteProducerWritesOnlySafeActiveWorkNotes(session) {
   assert.equal(await rawResumeRowCount(session, secureNoteId), 0);
 }
 
+/** @param {ResumeSession} session */
 async function assertTimerProducerWritesManualAndSourcedTimerState(session) {
   const manualTimerId = `manual-timer-${randomUUID()}`;
   await activeTimersRepository.upsert({
@@ -265,6 +272,7 @@ async function assertTimerProducerWritesManualAndSourcedTimerState(session) {
   assert.equal(item.metadata.source_module_id, "tasks");
 }
 
+/** @param {ResumeSession} session @param {string} recordId */
 async function findResumeItem(session, recordId) {
   const result = await workResumeStateService.listResumeState(session, {
     limit: 100,
@@ -276,6 +284,7 @@ async function findResumeItem(session, recordId) {
   return item;
 }
 
+/** @param {ResumeSession} session @param {string} recordId @returns {Promise<number>} */
 async function rawResumeRowCount(session, recordId) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -287,6 +296,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   return Number(rows[0]?.count) || 0;
 }
 
+/** @returns {Promise<ResumeSession>} */
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -298,12 +308,5 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }

@@ -16,6 +16,14 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 
+/** @typedef {import("../../../src/types/browser-contracts.js").CachedFetchOptions} CachedFetchOptions */
+/** @typedef {import("../../../src/types/browser-contracts.js").CachedFetchResult} CachedFetchResult */
+/** The subset of the installed helper this owner drives. */
+/** @typedef {{ getJson: (url: string, options?: CachedFetchOptions) => Promise<CachedFetchResult>, readCached: (cacheKey: string) => unknown }} SandboxCachedFetch */
+/** One recorded call into the scripted API the sandbox hands the helper. */
+/** @typedef {{ options: { cache?: string } | undefined, url: string }} SandboxApiCall */
+/** @typedef {unknown | ((url: string) => unknown)} SandboxResponse */
+
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-workbench-fanout-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "workbench-fanout.db");
@@ -30,9 +38,13 @@ const cachedFetchSource = readFileSync(path.join(root, "public/js/shared/cached-
 // The cached-fetch helper runs in a sandbox with a scripted API so its
 // stale-while-revalidate and no-duplicate-fetch behavior is provable in Node.
 function createCachedFetchSandbox() {
+  /** @type {Map<string, string>} */
   const storage = new Map();
+  /** @type {SandboxApiCall[]} */
   const calls = [];
+  /** @type {SandboxResponse} */
   let nextResponse = null;
+  /** @type {{ LongtailForge: { api: { getJson: (url: string, options?: { cache?: string }) => Promise<unknown> }, cachedFetch?: SandboxCachedFetch }, sessionStorage: { getItem: (key: string) => string | null, removeItem: (key: string) => void, setItem: (key: string, value: unknown) => void } }} */
   const sandboxWindow = {
     LongtailForge: {
       api: {
@@ -43,16 +55,20 @@ function createCachedFetchSandbox() {
       },
     },
     sessionStorage: {
-      getItem: (key) => (storage.has(key) ? storage.get(key) : null),
+      getItem: (key) => (storage.has(key) ? storage.get(key) ?? null : null),
       removeItem: (key) => storage.delete(key),
       setItem: (key, value) => storage.set(key, String(value)),
     },
   };
   new Function("window", cachedFetchSource)(sandboxWindow);
 
+  const { cachedFetch } = sandboxWindow.LongtailForge;
+  assert.ok(cachedFetch, "the cached-fetch helper should install itself on the window namespace");
+
   return {
     calls,
-    cachedFetch: sandboxWindow.LongtailForge.cachedFetch,
+    cachedFetch,
+    /** @param {SandboxResponse} value */
     setResponse: (value) => {
       nextResponse = value;
     },
@@ -111,8 +127,10 @@ try {
   assert.equal(cold.fromCache, false);
   assert.deepEqual(cold.data, { modes: ["one"] });
   assert.equal(sandbox.calls.length, 1, "a cold load fetches exactly once");
+  assert.ok(sandbox.calls[0]?.options, "the cold load should record the options it sent");
   assert.equal(sandbox.calls[0].options.cache, "no-cache", "near-static reads must allow ETag revalidation");
 
+  /** @type {unknown[]} */
   const updates = [];
   const warm = await sandbox.cachedFetch.getJson("/api/workbench/focus-modes", {
     cacheKey: "ws:focus-modes",
@@ -121,7 +139,7 @@ try {
   assert.equal(warm.fromCache, true, "a warm load serves the cached copy");
   await warm.revalidated;
   assert.equal(sandbox.calls.length, 2, "a warm load revalidates exactly once — no duplicate fetches");
-  assert.deepEqual(updates, [], "onUpdate must not fire when the payload is unchanged");
+  assert.equal(updates.length, 0, "onUpdate must not fire when the payload is unchanged");
 
   sandbox.setResponse({ modes: ["one", "two"] });
   const drifted = await sandbox.cachedFetch.getJson("/api/workbench/focus-modes", {

@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/framework-contracts.js").ResumeStateReadCheck} ResumeStateReadCheck */
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} ResumeSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-work-resume-state-service-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-work-resume-state-service.db");
@@ -18,6 +22,7 @@ const { workResumeStateService } = await import("../src/services/work-resume-sta
 try {
   await initializeDatabase();
   const session = await readSeedSession();
+  /** @type {Map<string, ResumeStateReadCheck>} */
   const resolverState = new Map();
 
   resetResumeStateReadResolvers();
@@ -38,6 +43,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {ResumeSession} session */
 async function assertUpsertNormalizesAndGuardsWorkspace(session) {
   const taskId = `resume-task-${randomUUID()}`;
   const longTitle = "Storage".repeat(80);
@@ -50,6 +56,7 @@ async function assertUpsertNormalizesAndGuardsWorkspace(session) {
     resumeRankHint: 2500,
     title: longTitle,
   });
+  assert.ok(saved, "upserting resume state should read the persisted row back");
 
   assert.equal(saved.workspace_id, session.workspace_id);
   assert.equal(saved.user_id, session.user_id);
@@ -80,6 +87,7 @@ async function assertUpsertNormalizesAndGuardsWorkspace(session) {
   );
 }
 
+/** @param {ResumeSession} session */
 async function assertDismissalClearsAfterNewProducerUpdate(session) {
   const taskId = `dismissal-task-${randomUUID()}`;
   const firstWorkedAt = "2026-06-13T13:00:00.000Z";
@@ -90,6 +98,7 @@ async function assertDismissalClearsAfterNewProducerUpdate(session) {
     recordType: "task",
     title: "Dismissal candidate",
   });
+  assert.ok(saved, "upserting resume state should read the persisted row back");
 
   assert.equal((await workResumeStateService.listResumeState(session)).items.some((item) => item.record_id === taskId), true);
 
@@ -123,6 +132,7 @@ async function assertDismissalClearsAfterNewProducerUpdate(session) {
   assert.equal(refreshed.dismissed_at, "");
 }
 
+/** @param {ResumeSession} session */
 async function assertDismissalHandlesPostUpdateDisappearance(session) {
   const taskId = `dismissal-disappearance-task-${randomUUID()}`;
   const saved = await workResumeStateService.upsertResumeState(session, {
@@ -131,6 +141,7 @@ async function assertDismissalHandlesPostUpdateDisappearance(session) {
     recordType: "task",
     title: "Dismissal disappearance candidate",
   });
+  assert.ok(saved, "upserting resume state should read the persisted row back");
   const triggerName = "work_resume_state_dismiss_disappearance_regression";
 
   await runSql(`
@@ -146,7 +157,7 @@ END;
   try {
     await assert.rejects(
       () => workResumeStateService.dismissResumeState(session, saved.resume_state_id),
-      (error) => error?.statusCode === 404 && error?.message === "Resume state was not found.",
+      (error) => rejectionStatus(error) === 404 && rejectionMessage(error) === "Resume state was not found.",
       "a row disappearing after the scoped update must preserve the existing not-found contract",
     );
   } finally {
@@ -154,6 +165,7 @@ END;
   }
 }
 
+/** @param {ResumeSession} session @param {Map<string, ResumeStateReadCheck>} resolverState */
 async function assertReadGuardsHideUnsafeRows(session, resolverState) {
   const deniedTaskId = `denied-task-${randomUUID()}`;
   const completedTaskId = `completed-task-${randomUUID()}`;
@@ -213,6 +225,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 `);
 }
 
+/** @param {ResumeSession} session */
 async function assertRemoveForRecordDeletesAllUserRows(session) {
   const taskId = `cleanup-task-${randomUUID()}`;
   const otherUserId = randomUUID();
@@ -272,6 +285,29 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   assert.deepEqual(rows, []);
 }
 
+/**
+ * Read a rejected service call's status without assuming the rejection really
+ * is an error object first. A rejection without a numeric status resolves to
+ * -1 so the predicate fails rather than passing vacuously.
+ * @param {unknown} error
+ * @returns {number}
+ */
+function rejectionStatus(error) {
+  if (error === null || typeof error !== "object" || !("statusCode" in error)) return -1;
+  const status = /** @type {{ statusCode: unknown }} */ (error).statusCode;
+  return typeof status === "number" ? status : -1;
+}
+
+/**
+ * Read a rejected service call's message as text without assuming a shape.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function rejectionMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** @returns {Promise<ResumeSession>} */
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -283,12 +319,5 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }

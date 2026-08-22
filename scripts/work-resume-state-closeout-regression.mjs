@@ -3,6 +3,12 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/framework-contracts.js").ResumeStateReadCheck} ResumeStateReadCheck */
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} ResumeSession */
+/** @typedef {{ note_id: string, [key: string]: unknown }} NoteEventMetadata */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-work-resume-state-closeout-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-work-resume-state-closeout.db");
@@ -31,6 +37,7 @@ const {
 try {
   await initializeDatabase();
   const session = await readSeedSession();
+  /** @type {Map<string, ResumeStateReadCheck>} */
   const resolverState = new Map();
 
   resetResumeStateReadResolvers();
@@ -57,6 +64,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {ResumeSession} session */
 async function assertWorkspaceBoundary(session) {
   const otherWorkspace = await workspacesRepository.createWorkspace({
     ownerUser: {
@@ -97,6 +105,7 @@ VALUES (
   assert.equal(listed.items.some((item) => item.record_id === otherWorkspaceRecordId), false);
 }
 
+/** @param {ResumeSession} session @param {Map<string, ResumeStateReadCheck>} resolverState */
 async function assertReadAndLifecycleGuards(session, resolverState) {
   const activeId = `closeout-active-${randomUUID()}`;
   const deniedId = `closeout-denied-${randomUUID()}`;
@@ -115,12 +124,18 @@ async function assertReadAndLifecycleGuards(session, resolverState) {
   resolverState.set(disabledId, { readable: true, status: "active" });
 
   for (const recordId of [activeId, deniedId, deletedId, completedId, archivedId, finalizedId, disabledId]) {
+    // Every id in this list is seeded above; proving it means the loop and the
+    // seeded read-check state fail here naming the record if they ever drift,
+    // rather than throwing on a property read.
+    const readCheck = resolverState.get(recordId);
+    assert.ok(readCheck, `read-check state should be seeded for ${recordId}`);
+
     await workResumeStateService.upsertResumeState(session, {
       lastActionType: "task.updated",
       moduleId: "tasks",
       recordId,
       recordType: "task",
-      statusSnapshot: resolverState.get(recordId).status || "active",
+      statusSnapshot: readCheck.status || "active",
       title: `Closeout ${recordId}`,
     });
   }
@@ -153,6 +168,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 `);
 }
 
+/** @param {ResumeSession} session */
 async function assertPrivateAndSecureNotesDoNotLeak(session) {
   const privateNoteId = `private-closeout-note-${randomUUID()}`;
   const secureNoteId = `secure-closeout-note-${randomUUID()}`;
@@ -193,12 +209,16 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   AND record_id = ${sqlText(activeNoteId)};
 `);
   assert.equal(activeRows.length, 1);
-  assert.equal(activeRows[0].title_snapshot, "Active closeout note");
-  assert.equal(activeRows[0].metadata_json.includes("body"), false);
-  assert.equal(activeRows[0].metadata_json.includes("secure"), false);
-  assert.equal(activeRows[0].metadata_json.includes("encrypt"), false);
+  const activeRow = requireFirstRow(activeRows, "the active note should persist one resume row");
+  const activeMetadataJson = activeRow.metadata_json;
+  assert.equal(activeRow.title_snapshot, "Active closeout note");
+  assert.ok(typeof activeMetadataJson === "string", "the resume row should persist its metadata as JSON text");
+  assert.equal(activeMetadataJson.includes("body"), false);
+  assert.equal(activeMetadataJson.includes("secure"), false);
+  assert.equal(activeMetadataJson.includes("encrypt"), false);
 }
 
+/** @param {ResumeSession} session */
 async function assertListProducerDoesNotGrantLinkedTargetLabels(session) {
   const listId = `closeout-list-${randomUUID()}`;
   await listsService.create({
@@ -231,10 +251,13 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 LIMIT 1;
 `);
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].metadata_json.includes("Hidden linked"), false);
-  assert.equal(rows[0].metadata_json.includes("target_label"), false);
+  const listMetadataJson = requireFirstRow(rows, "the list should persist one resume row").metadata_json;
+  assert.ok(typeof listMetadataJson === "string", "the resume row should persist its metadata as JSON text");
+  assert.equal(listMetadataJson.includes("Hidden linked"), false);
+  assert.equal(listMetadataJson.includes("target_label"), false);
 }
 
+/** @param {ResumeSession} session */
 async function assertInitialProducersWriteDeterministicRows(session) {
   const taskId = `deterministic-task-${randomUUID()}`;
   const timerId = `deterministic-timer-${randomUUID()}`;
@@ -282,6 +305,7 @@ async function assertInitialProducersWriteDeterministicRows(session) {
   assert.equal(timer?.status_snapshot, "active");
 }
 
+/** @param {ResumeSession} session */
 async function assertDismissalRefreshBoundary(session) {
   const recordId = `closeout-dismiss-${randomUUID()}`;
   const saved = await workResumeStateService.upsertResumeState(session, {
@@ -291,6 +315,7 @@ async function assertDismissalRefreshBoundary(session) {
     recordType: "task",
     title: "Dismiss closeout task",
   });
+  assert.ok(saved, "upserting resume state should read the persisted row back");
 
   await workResumeStateService.dismissResumeState(session, saved.resume_state_id);
   assert.equal((await workResumeStateService.listResumeState(session, { mode: "left_off", limit: 100 }))
@@ -308,6 +333,7 @@ async function assertDismissalRefreshBoundary(session) {
     .items.some((item) => item.record_id === recordId), true);
 }
 
+/** @param {ResumeSession} session @param {NoteEventMetadata} metadata */
 function noteEvent(session, metadata) {
   return {
     metadata: {
@@ -322,6 +348,7 @@ function noteEvent(session, metadata) {
   };
 }
 
+/** @param {ResumeSession} session @param {string} recordId @returns {Promise<number>} */
 async function rawResumeRowCount(session, recordId) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -333,6 +360,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   return Number(rows[0]?.count) || 0;
 }
 
+/** @returns {Promise<ResumeSession>} */
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -344,12 +372,5 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }

@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18530,
+    "activeAssertionCount": 18542,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,8 +106,8 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19250,
-    "retiredAssertionCredit": 51,
+    "effectiveAssertionCount": 19264,
+    "retiredAssertionCredit": 53,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -873,6 +873,32 @@
       ],
       "verificationPerformed": [
         "node scripts/time-entries-repository-conversion-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.work.resume.state.conversion",
+      "retiredInVersion": "0.33.33.32.9",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.26 rather than a live contract: one required a CHANGELOG heading recording that release's Work resume state conversion burndown, and one required that the completed 0.33.5.27.26 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The live conversion contract is still proven in this same owner by its static source assertions over src/services/work-resume-state.service.js and src/services/work-resume-state-initial-producers.js -- the db facade import, the absence of literal SQL helpers, the conflict seam, and the exact bound db.run/db.query/db.get counts -- and by its audit and database documentation assertions, which carry the same 304/57/302 burndown figures the retired changelog assertion restated. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and legacy.bump.version owns the one current CHANGELOG heading check.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/work-resume-state-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.work.resume.state.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/work-resume-state-conversion-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"
@@ -4146,11 +4172,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 143,
+      "assertionCount": 146,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 143,
+      "entryPointAssertionCount": 146,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -6592,11 +6618,11 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 31,
+      "assertionCount": 33,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves the workbench client loads in one parallel fan-out with stale-while-revalidate caches and warm-first render, the cached-fetch helper never duplicates fetches, dialog scripts lazy-load, and the app serves compressed responses.",
-      "entryPointAssertionCount": 31,
+      "entryPointAssertionCount": 33,
       "id": "workbench.workbench-client-fanout",
       "legacy": false,
       "path": "scripts/regressions/workbench/workbench-client-fanout.regression.mjs",
@@ -7694,11 +7720,11 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 33,
+      "assertionCount": 34,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy work resume state api contract.",
-      "entryPointAssertionCount": 33,
+      "entryPointAssertionCount": 34,
       "id": "legacy.work.resume.state.api",
       "legacy": true,
       "path": "scripts/work-resume-state-api-regression.mjs",
@@ -7711,11 +7737,11 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 27,
+      "assertionCount": 31,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy work resume state closeout contract.",
-      "entryPointAssertionCount": 27,
+      "entryPointAssertionCount": 31,
       "id": "legacy.work.resume.state.closeout",
       "legacy": true,
       "path": "scripts/work-resume-state-closeout-regression.mjs",
@@ -7729,11 +7755,11 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 27,
+      "assertionCount": 26,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy work resume state conversion contract.",
-      "entryPointAssertionCount": 27,
+      "entryPointAssertionCount": 26,
       "id": "legacy.work.resume.state.conversion",
       "legacy": true,
       "path": "scripts/work-resume-state-conversion-regression.mjs",
@@ -7780,11 +7806,11 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 25,
+      "assertionCount": 28,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy work resume state service contract.",
-      "entryPointAssertionCount": 25,
+      "entryPointAssertionCount": 28,
       "id": "legacy.work.resume.state.service",
       "legacy": true,
       "path": "scripts/work-resume-state-service-regression.mjs",

@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 2025,
+      "errorCount": 1896,
       "diagnostics": {
         "scripts/app-shell-navigation-regression.mjs": [
           {
@@ -4180,24 +4180,6 @@
             "count": 1
           }
         ],
-        "scripts/regressions/workbench/workbench-client-fanout.regression.mjs": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 5
-          },
-          {
-            "code": 7006,
-            "count": 9
-          },
-          {
-            "code": 7034,
-            "count": 3
-          }
-        ],
         "scripts/runtime-configuration-contract-regression.mjs": [
           {
             "code": 7006,
@@ -4620,10 +4602,6 @@
             "count": 6
           },
           {
-            "code": 2739,
-            "count": 2
-          },
-          {
             "code": 7006,
             "count": 6
           }
@@ -4642,98 +4620,12 @@
             "count": 15
           },
           {
-            "code": 2739,
-            "count": 1
-          },
-          {
             "code": 7006,
             "count": 27
           },
           {
             "code": 7031,
             "count": 7
-          }
-        ],
-        "scripts/work-resume-state-api-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 27
-          }
-        ],
-        "scripts/work-resume-state-closeout-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 2571,
-            "count": 5
-          },
-          {
-            "code": 2740,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 11
-          }
-        ],
-        "scripts/work-resume-state-conversion-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 12
-          }
-        ],
-        "scripts/work-resume-state-initial-producers-regression.mjs": [
-          {
-            "code": 2740,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 8
-          }
-        ],
-        "scripts/work-resume-state-producer-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 3
-          },
-          {
-            "code": 7031,
-            "count": 3
-          }
-        ],
-        "scripts/work-resume-state-service-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 12
-          },
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 6
-          }
-        ],
-        "scripts/workbench-service-dehardcode-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 9
           }
         ],
         "scripts/workbench-task-focus-related-context-regression.mjs": [
@@ -4747,13 +4639,12 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 13159,
-    "explicitAny": 7
+    "errors": 13030,
+    "explicitAny": 3
   },
   "explicitAnyByFile": {
     "scripts/regression-contracts/framework/markdown-checked-core.contract.mjs": 1,
     "src/repositories/account-export-recovery.repo.js": 1,
-    "src/services/work-resume-state-initial-producers.js": 4,
     "src/types/framework-contracts.d.ts": 1
   },
   "expectedErrorDirectives": [
