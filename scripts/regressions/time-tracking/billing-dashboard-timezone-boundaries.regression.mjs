@@ -8,6 +8,9 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 
 const fixture = await createDisposableDatabaseFixture("billing-dashboard-timezone-boundaries");
@@ -158,6 +161,7 @@ try {
   await fixture.cleanup();
 }
 
+/** @param {string} endTime @param {number} durationSeconds */
 function entry(endTime, durationSeconds) {
   return {
     billable: "yes",
@@ -168,6 +172,11 @@ function entry(endTime, durationSeconds) {
   };
 }
 
+/**
+ * @param {Record<string, unknown>} settings
+ * @param {import("../../../src/types/time-tracking-contracts.js").BillingScope} scope
+ * @param {{ label: string, start: string, end: string, today?: Date, query: Record<string, unknown>, expectedHours: number }} boundaryCase
+ */
 function assertBillingBoundaryCase(settings, scope, boundaryCase) {
   const start = new Date(boundaryCase.start);
   const end = new Date(boundaryCase.end);
@@ -206,14 +215,13 @@ WHERE users.protected_user = 'yes'
 ORDER BY users.user_id
 LIMIT 1;
 `);
-  assert.ok(user?.user_id, "protected user fixture is required");
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture({
+    active_workspace_id: user?.active_workspace_id || user?.home_workspace_id,
+    home_workspace_id: user?.home_workspace_id,
+    ip_address: "127.0.0.1",
+    timezone: user?.timezone || "America/New_York",
+    user_id: user?.user_id,
+    username: user?.username,
+    workspace_id: user?.active_workspace_id || user?.home_workspace_id,
+  });
 }

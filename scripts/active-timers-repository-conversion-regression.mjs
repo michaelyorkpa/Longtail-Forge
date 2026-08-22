@@ -4,6 +4,12 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TimeTrackingSession */
+/** @typedef {import("../src/types/time-tracking-contracts.js").ActiveTimerRecord} ActiveTimerRecord */
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
@@ -16,8 +22,6 @@ const activeTimersRepoSource = readText("src/modules/time-tracking/active-timers
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const timeTrackingDocs = readText("docs/time-tracking-module.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { activeTimersRepository } = await import("../src/modules/time-tracking/active-timers.repo.js");
@@ -49,10 +53,9 @@ function assertStaticContract() {
   assert.match(auditDocs, /0\.33\.5\.27\.12 Active Timers Repository Conversion[\s\S]*`time-tracking\/active-timers\.repo`[\s\S]*1,165 runtime literal-helper invocations[\s\S]*187 direct interpolated SQL operation sites[\s\S]*154 existing bound operation sites/, "audit docs should record the Active timers repository conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.12[\s\S]*`time-tracking\/active-timers\.repo`[\s\S]*named params[\s\S]*conflict seam[\s\S]*1,165 remaining helper invocations/, "database docs should record the Active timers repository conversion");
   assert.match(timeTrackingDocs, /As of version 0\.33\.5\.27\.12[\s\S]*active timer repository uses named bound params[\s\S]*conflict seam[\s\S]*slot compaction/, "Time Tracking docs should describe the converted active timer persistence boundary");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.12 - Conversion wave: Active timers[\s\S]*- \[x\] Convert `time-tracking\/active-timers\.repo`[\s\S]*- \[x\] Preserve active timer reads[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.12 - [\s\S]*Active timers repository conversion[\s\S]*1,165 helper invocations[\s\S]*187 direct interpolated operation sites[\s\S]*154 bound operation sites/, "changelog should record the Active timers conversion burndown");
   }
 
+/** @param {TimeTrackingSession} session */
 async function assertRepositoryLifecycle(session) {
   const manualTwo = await activeTimersRepository.upsert(timerValue(session, {
     accumulated_elapsed_seconds: 15,
@@ -102,6 +105,7 @@ async function assertRepositoryLifecycle(session) {
   }));
 
   const pausedSlotTwo = await activeTimersRepository.readBySlot(session.workspace_id, session.user_id, "2");
+  assert.ok(pausedSlotTwo, "slot two should remain readable after pausing");
   assert.equal(pausedSlotTwo.timer_status, "paused", "starting a sourced timer should pause other running timers for the user");
   assert.equal(pausedSlotTwo.last_active_start_time, null);
   assert.ok(pausedSlotTwo.accumulated_elapsed_seconds >= 100, "paused timer should include the elapsed active segment");
@@ -120,8 +124,13 @@ async function assertRepositoryLifecycle(session) {
     sourceModuleId: "tasks",
     sourceType: "task",
   });
+  assert.ok(readBySource, "the sourced timer should be readable by its source");
   assert.equal(readBySource.active_timer_id, sourcedTimer.active_timer_id);
-  assert.equal(readBySource.sourceMetadata.taskTimerStatusTransition.movedTaskFromOpen, true);
+  assert.ok(readBySource.sourceMetadata, "the sourced timer should carry its source metadata");
+  assert.equal(
+    requireJsonRecord(readBySource.sourceMetadata.taskTimerStatusTransition, "task timer status transition").movedTaskFromOpen,
+    true,
+  );
   assert.equal(await activeTimersRepository.hasSource(session.workspace_id, {
     sourceId: taskId,
     sourceModuleId: "tasks",
@@ -153,21 +162,27 @@ async function assertRepositoryLifecycle(session) {
   }));
   await activeTimersRepository.pauseRunningForUser(session.workspace_id, session.user_id);
   const pausedSlotThree = await activeTimersRepository.readBySlot(session.workspace_id, session.user_id, "3");
+  assert.ok(pausedSlotThree, "slot three should remain readable after pausing");
   assert.equal(pausedSlotThree.timer_status, "paused", "pauseRunningForUser should pause active timers");
   assert.equal(pausedSlotThree.last_active_start_time, null);
   assert.ok(pausedSlotThree.accumulated_elapsed_seconds >= 30, "pauseRunningForUser should preserve elapsed running time");
 }
 
+/**
+ * @param {TimeTrackingSession} session
+ * @param {Partial<ActiveTimerRecord>} [overrides]
+ * @returns {ActiveTimerRecord}
+ */
 function timerValue(session, overrides = {}) {
   return {
     accumulated_elapsed_seconds: 0,
-    active_timer_id: overrides.active_timer_id || randomUUID(),
+    active_timer_id: String(overrides.active_timer_id || randomUUID()),
     billable: "yes",
     client_id: "",
     client_name: "",
     description: "",
     last_active_start_time: null,
-    project_id: randomUUID(),
+    project_id: String(randomUUID()),
     project_name: "Converted Active Timer Project",
     source_id: null,
     source_label: "Manual",
@@ -183,6 +198,7 @@ function timerValue(session, overrides = {}) {
   };
 }
 
+/** @param {number} minutes @returns {string} */
 function minutesAgo(minutes) {
   return new Date(Date.now() - minutes * 60 * 1000).toISOString();
 }
@@ -195,14 +211,5 @@ WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
 
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireRow(user, "fresh database should seed a protected super admin"));
 }

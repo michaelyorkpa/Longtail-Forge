@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TimeTrackingSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-timer-timestamp-integrity-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-timer-timestamp-integrity.db");
@@ -26,6 +30,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TimeTrackingSession} session @param {string} clientId @param {string} projectId */
 async function assertPausedTimerFinalizesWithFactTimestamps(session, clientId, projectId) {
   const timerStartedAt = "2026-06-12T10:00:00.000Z";
   const falsifiedEnd = "2026-06-12T10:02:00.000Z";
@@ -56,7 +61,7 @@ async function assertPausedTimerFinalizesWithFactTimestamps(session, clientId, p
   assert.equal(entry.start_time, timerStartedAt);
   assert.equal(Number(entry.duration_seconds), 120);
   assert.notEqual(entry.end_time, falsifiedEnd);
-  assert.notEqual(entry.start_time, new Date(new Date(entry.end_time).getTime() - Number(entry.duration_seconds) * 1000).toISOString());
+  assert.notEqual(entry.start_time, new Date(new Date(String(entry.end_time)).getTime() - Number(entry.duration_seconds) * 1000).toISOString());
 
   const report = await timeTrackingBillingService.readProjectSummary(session, {
     projectIds: projectId,
@@ -67,6 +72,7 @@ async function assertPausedTimerFinalizesWithFactTimestamps(session, clientId, p
   assert.equal(row?.rawSeconds, 120);
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId */
 async function assertRunningTimerAddsCurrentActiveSegment(session, projectId) {
   const timerStartedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const lastActiveStartTime = new Date(Date.now() - 30 * 1000).toISOString();
@@ -99,6 +105,7 @@ async function assertRunningTimerAddsCurrentActiveSegment(session, projectId) {
   assert.ok(Number(entry.duration_seconds) <= 155, "running timer active segment should not include paused wall-clock time");
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} timerSlot @param {Record<string, unknown>} facts */
 async function setTimerFacts(workspaceId, userId, timerSlot, facts) {
   await runSql(`
 UPDATE active_work_timers
@@ -113,6 +120,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 `);
 }
 
+/** @param {string} workspaceId @param {string} entryId */
 async function readTimeEntry(workspaceId, entryId) {
   const rows = await querySql(`
 SELECT entry_id, start_time, end_time, duration_seconds
@@ -126,6 +134,7 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {string} workspaceId */
 async function createClientProject(workspaceId) {
   const now = new Date().toISOString();
   const clientId = randomUUID();
@@ -235,16 +244,5 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }

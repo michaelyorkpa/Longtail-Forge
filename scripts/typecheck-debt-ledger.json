@@ -3004,34 +3004,8 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 2307,
+      "errorCount": 2119,
       "diagnostics": {
-        "scripts/active-timers-repository-conversion-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18047,
-            "count": 8
-          },
-          {
-            "code": 18048,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 2345,
-            "count": 5
-          },
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
         "scripts/app-shell-navigation-regression.mjs": [
           {
             "code": 18046,
@@ -4226,38 +4200,6 @@
             "count": 23
           }
         ],
-        "scripts/regressions/time-tracking/billing-dashboard-timezone-boundaries.regression.mjs": [
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
-        "scripts/regressions/time-tracking/project-time-billing-runner.regression.mjs": [
-          {
-            "code": 18048,
-            "count": 1
-          },
-          {
-            "code": 18049,
-            "count": 9
-          },
-          {
-            "code": 2339,
-            "count": 11
-          },
-          {
-            "code": 2531,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 12
-          }
-        ],
         "scripts/regressions/time-tracking/public-api-duration-persistence.regression.mjs": [
           {
             "code": 2339,
@@ -4282,38 +4224,6 @@
           {
             "code": 7034,
             "count": 1
-          }
-        ],
-        "scripts/regressions/time-tracking/sourced-task-timer-bridge.regression.mjs": [
-          {
-            "code": 2339,
-            "count": 2
-          }
-        ],
-        "scripts/regressions/time-tracking/timer-task-linking.regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18047,
-            "count": 9
-          },
-          {
-            "code": 18048,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 27
           }
         ],
         "scripts/regressions/workbench/direct-task-completion.regression.mjs": [
@@ -4690,44 +4600,6 @@
             "count": 3
           }
         ],
-        "scripts/task-timer-status-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 48
-          }
-        ],
-        "scripts/timer-resume-metadata-regression.mjs": [
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 16
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/timer-timestamp-integrity-regression.mjs": [
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 12
-          }
-        ],
         "scripts/user-theme-auto-mode-regression.mjs": [
           {
             "code": 18048,
@@ -4955,7 +4827,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 13441,
+    "errors": 13253,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

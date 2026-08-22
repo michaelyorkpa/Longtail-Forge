@@ -4,6 +4,9 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TimeTrackingSession */
+/** @typedef {import("../src/types/framework-contracts.js").InternalEvent} InternalEvent */
+
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-timer-resume-metadata-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-timer-resume-metadata.db");
 process.env.SUPER_ADMIN_PASSWORD = "Timer-Resume-Metadata-Test-Password-123!";
@@ -35,6 +38,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId @param {InternalEvent[]} receivedEvents */
 async function assertManualTimerPayloadAndEvents(session, projectId, receivedEvents) {
   const started = await activeTimersService.save("1", {
     accumulated_elapsed_seconds: 0,
@@ -65,6 +69,7 @@ async function assertManualTimerPayloadAndEvents(session, projectId, receivedEve
   assert.ok(receivedEvents.every((event) => !Object.hasOwn(event.metadata || {}, "sourceMetadata")));
 }
 
+/** @param {TimeTrackingSession} session @param {{ task_id: string, title: string, project_id: string }} task @param {InternalEvent[]} receivedEvents */
 async function assertTaskTimerResumeContext(session, task, receivedEvents) {
   const result = await taskTimersService.save(task.task_id, {
     accumulated_elapsed_seconds: 45,
@@ -91,11 +96,12 @@ async function assertTaskTimerResumeContext(session, task, receivedEvents) {
   await taskTimersService.remove(task.task_id, session);
   assert.ok(receivedEvents.some((event) => (
     event.name === "timer.discarded" &&
-    event.metadata.source_id === task.task_id &&
-    event.metadata.source_label === task.title
+    event.metadata?.source_id === task.task_id &&
+    event.metadata?.source_label === task.title
   )));
 }
 
+/** @param {TimeTrackingSession} session @param {{ task_id: string, title: string, project_id: string }} task */
 async function assertInaccessibleSourceDetailsAreHidden(session, task) {
   const noRoleSession = await createNoRoleSession(session.workspace_id);
   const result = await activeTimersService.saveSourced({
@@ -143,6 +149,7 @@ async function assertTimeTrackingEventTypesRegistered() {
 }
 
 function captureTimerEvents() {
+  /** @type {InternalEvent[]} */
   const receivedEvents = [];
 
   for (const eventName of ["timer.started", "timer.paused", "timer.finalized", "timer.discarded"]) {
@@ -157,6 +164,7 @@ function captureTimerEvents() {
   return receivedEvents;
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId */
 async function createTask(session, projectId) {
   const result = await tasksService.create({
     assignee_ids: [session.user_id],

@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.7` have since archived, closing 839 diagnostics across 40 files and leaving 2,307 across 162; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.7.1` have since archived, closing 1,027 diagnostics across 48 files and leaving 2,119 across 154; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.7.1` | Remaining Time Tracking timers and billing runners | 188 | 8 | 2,323 |
 | `.32.8` | Public API v1 and cross-module scope | 94 | 4 | 985 |
 | `.32.9` | Workbench service seam and work resume state | 126 | 8 | 2,020 |
 | `.32.10` | Workbench focus modes, candidates, task focus | 144 | 7 | 3,001 |
@@ -105,18 +104,6 @@ Requirements shared by every child:
 - [ ] Do not resolve a nullability diagnostic with a non-null assertion where the owner can assert the value instead. This band is 518 of the 3,150 and is the likeliest source of a zero that the compiler believes and the runtime does not.
 - [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
-
-#### 0.33.33.32.7.1 - Type the remaining Time Tracking timers and billing runners
-
-**Model: High Effort - Timer state is stateful, clock-sensitive, and feeds billing.**
-
-The remainder of the original `0.33.33.32.7` cohort, measured at 188 diagnostics across 8 files and 2,323 lines once `0.33.33.32.7` has corrected the write boundary. Runs after `0.33.33.32.7`.
-
-- [ ] Close the 188 diagnostics across `task-timer-status` (54), `regressions/time-tracking/timer-task-linking` (42), `regressions/time-tracking/project-time-billing-runner` (34), `active-timers-repository-conversion` (19), `timer-resume-metadata` (18), `timer-timestamp-integrity` (13), `regressions/time-tracking/billing-dashboard-timezone-boundaries` (6), and `regressions/time-tracking/sourced-task-timer-bridge` (2).
-- [ ] Type active timer rows, resume metadata, task-timer links, and billing runner output with named contracts, reusing the published active-timer record and the `TimeEntryWriteInput` contract `0.33.33.32.7` publishes rather than rebuilding either.
-- [ ] Preserve accumulated-elapsed arithmetic, timestamp integrity rules, timezone boundary behaviour, source-metadata provenance, and billing totals exactly.
-- [ ] Disposition the `source_metadata_json` boundary explicitly; the equivalent column was one of the 21 unchecked parse-then-read sites the `0.33.33.31.11` audit found.
-- [ ] Carry the cohort's history-pin retirement and dynamic-boundary disposition for the owners this child touches.
 
 #### 0.33.33.32.8 - Type the public API v1 surface and cross-module scope
 
