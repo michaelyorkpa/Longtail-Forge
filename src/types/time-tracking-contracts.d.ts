@@ -37,6 +37,47 @@ export interface ActiveTimerRecord extends Record<string, unknown> {
   updated_at?: string;
 }
 
+/**
+ * The payload `activeTimersRepository.upsert()` actually accepts.
+ *
+ * This is deliberately not the normalized `ActiveTimerRecord` read record.
+ * `upsert` reads `workspace_id`, `user_id`, and `timer_slot` directly to pause
+ * competing timers and to read the row back, and every caller supplies the
+ * other required members here. The optional members are exactly the ones the
+ * write path defaults for itself: `source_type` falls back to `"manual"`,
+ * `source_label` and `source_url` to the empty string, `billable`,
+ * `client_name`, and `project_name` cross `textParam` and persist as the empty
+ * string, and `source_module_id` and `source_id` cross `nullableTextParam` and
+ * persist SQL `NULL`.
+ *
+ * Naming them as required, which the read record did, made a partial write the
+ * repository has always accepted look like a contract violation. Recorded at
+ * 0.33.33.32.9 after two resume-state owners proved it; this describes the
+ * accepted input and changes no storage behaviour.
+ */
+export interface ActiveTimerWriteInput {
+  active_timer_id: string;
+  workspace_id: string;
+  user_id: string;
+  timer_slot: string;
+  timer_status: TimerStatus;
+  accumulated_elapsed_seconds: number;
+  last_active_start_time: string | null;
+  client_id: string;
+  project_id: string;
+  description: string;
+  billable?: BillableFlag;
+  client_name?: string;
+  project_name?: string;
+  source_module_id?: string | null;
+  source_type?: string;
+  source_id?: string | null;
+  source_label?: string;
+  source_url?: string;
+  source_metadata_json?: unknown;
+  sourceMetadata?: Record<string, unknown>;
+}
+
 export interface ActiveTimerRow extends Record<string, unknown> {
   active_timer_id: unknown;
   workspace_id: unknown;

@@ -5,6 +5,13 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} WorkbenchSession */
+/** What this owner keeps from the records its fixtures create. */
+/** @typedef {{ client: { id: string, name: string }, project: { id: string, name: string }, task: { task_id: string } }} WorkbenchFixtures */
+/** The workbench bootstrap payload, taken from the service rather than guessed. */
+/** @typedef {Awaited<ReturnType<typeof workbenchService.bootstrap>>} WorkbenchBootstrap */
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-workbench-dehardcode-"));
@@ -36,6 +43,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {WorkbenchSession} session @param {WorkbenchFixtures} fixtures */
 async function assertWorkbenchSourcesEnabled(session, fixtures) {
   const bootstrap = await workbenchService.bootstrap(session);
   const taskPayload = await tasksService.listWorkbenchItems(session);
@@ -65,6 +73,7 @@ async function assertWorkbenchSourcesEnabled(session, fixtures) {
   );
 }
 
+/** @param {WorkbenchSession} session */
 async function assertWorkbenchDegradesWithoutTasks(session) {
   await modulesService.setModuleStatus(session.workspace_id, "tasks", false, { session });
 
@@ -79,6 +88,7 @@ async function assertWorkbenchDegradesWithoutTasks(session) {
   await modulesService.setModuleStatus(session.workspace_id, "tasks", true, { session });
 }
 
+/** @param {WorkbenchSession} session @param {WorkbenchFixtures} fixtures */
 async function assertWorkbenchDegradesWithoutTimeTracking(session, fixtures) {
   await modulesService.setModuleStatus(session.workspace_id, "time-tracking", false, { session });
 
@@ -100,6 +110,7 @@ async function assertWorkbenchDegradesWithoutTimeTracking(session, fixtures) {
   await modulesService.setModuleStatus(session.workspace_id, "time-tracking", true, { session });
 }
 
+/** @param {WorkbenchSession} session */
 async function assertSourceRemainsDehardcoded(session) {
   const workbenchSource = readText("src/services/workbench.service.js");
   const modulesSource = readText("src/core/modules/modules.service.js");
@@ -120,6 +131,7 @@ async function assertSourceRemainsDehardcoded(session) {
   assert.equal(Object.hasOwn(settings, "taskTimersEnabled"), false);
 }
 
+/** @param {WorkbenchSession} session @returns {Promise<WorkbenchFixtures>} */
 async function createWorkbenchFixtures(session) {
   const client = (await clientsService.createClient({ name: "Workbench De-hardcode Client" }, session)).client;
   const project = (await clientsService.createProject(client.id, { name: "Workbench De-hardcode Project" }, session)).project;
@@ -148,10 +160,12 @@ async function createWorkbenchFixtures(session) {
   };
 }
 
+/** @param {WorkbenchBootstrap} bootstrap @returns {unknown[]} */
 function workbenchRenderers(bootstrap) {
   return (bootstrap.registry?.workbenchCards || []).map((card) => card.renderer);
 }
 
+/** @returns {Promise<WorkbenchSession>} */
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -163,12 +177,8 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
+  return workspaceSessionFixture({
+    ...user,
     username: user.username || `workbench-dehardcode-${randomUUID()}@example.test`,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  });
 }

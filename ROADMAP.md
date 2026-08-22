@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.8` have since archived, closing 1,121 diagnostics across 52 files and leaving 2,025 across 150; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.9` have since archived, closing 1,247 diagnostics across 60 files and leaving 1,896 across 142; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.9` | Workbench service seam and work resume state | 126 | 8 | 2,020 |
 | `.32.10` | Workbench focus modes, candidates, task focus | 144 | 7 | 3,001 |
 | `.32.11` | Notes foundation, access, and API service | 121 | 7 | 2,762 |
 | `.32.12` | Notes secure catalog | 95 | 5 | 1,736 |
@@ -104,26 +103,13 @@ Requirements shared by every child:
 - [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
 
-#### 0.33.33.32.9 - Type the Workbench service seam and work resume state
-
-**Model: High Effort - Resume state is a service, an API, and a producer chain that must stay consistent.**
-
-Measured at 126 diagnostics across 8 files and 2,020 lines. One `JSON.parse` site; one history-pinned owner.
-
-- [ ] Close the 126 diagnostics across `work-resume-state-api`, `work-resume-state-service`, `work-resume-state-closeout`, `regressions/workbench/workbench-client-fanout`, `work-resume-state-conversion`, `workbench-service-dehardcode`, `work-resume-state-initial-producers`, and `work-resume-state-producer`.
-- [ ] Give resume state one named contract shared by the service, API, and producer owners rather than a per-owner shape, and type the client fan-out result set explicitly.
-- [ ] Preserve producer ordering, initial-producer seeding, resume state invalidation, de-hardcoded service configuration, and fan-out scope exactly.
-- [ ] **Own and resolve the four explicit `any` annotations in `src/services/work-resume-state-initial-producers.js`.** `buildTaskPayload`, `buildListPayload`, `buildNotePayload`, and `buildTimerPayload` each declare `@param {{ event: Record<string, any> }}`. This child owns the resume producer/event contract, so it is the right place to fix them rather than deferring them to closeout. For each one, either replace the annotation with the truthful existing contract, narrow through `unknown` where the boundary genuinely is open, or record a concrete reason it cannot yet be removed.
-- [ ] Align those signatures with the real producer/event boundary instead of inventing another local shape. The file already declares `ResumeProducerEvent` and its five `*FromEvent` helpers already take it; the four builders sit outside it only because they also read `event.record_id`, which `ResumeProducerEvent` omits and the published `InternalEvent` in `src/types/framework-contracts.d.ts` already declares. Reconcile the local typedef with the published event contract rather than widening the builders back to `any`.
-- [ ] Keep this change type-only. Annotations and contract reconciliation are in scope; producer registration order, event handling, and resume payload behaviour are not, and the server/test program must stay at zero.
-
 #### 0.33.33.32.10 - Type Workbench focus modes, candidates, and task focus
 
 **Model: High Effort - Focus selection decides what work a user is shown and is permission-filtered.**
 
-Measured at 144 diagnostics across 7 files and 3,001 lines, of which `work-focus-modes` alone is 1,467 lines carrying 53 diagnostics. No `JSON.parse`; one history-pinned owner.
+Measured at 144 diagnostics across 7 files and 3,001 lines, of which `work-focus-modes` alone is 1,467 lines carrying 53 diagnostics. No `JSON.parse`; one history-pinned owner. Now 141 across the same 7 files: `0.33.33.32.9` published `ActiveTimerWriteInput` and pointed `activeTimersRepository.upsert()` at it, which removed two diagnostics from `work-candidate-service` and one from `work-focus-modes`.
 
-- [ ] Close the 144 diagnostics across `work-focus-modes`, `task-resume-context`, `work-candidate-service`, `workbench-task-focus-related-context`, `regressions/workbench/task-focus-exit-capture`, `regressions/workbench/focus-candidate-pipeline`, and `regressions/workbench/direct-task-completion`.
+- [ ] Close the remaining 141 diagnostics across `work-focus-modes`, `task-resume-context`, `work-candidate-service`, `workbench-task-focus-related-context`, `regressions/workbench/task-focus-exit-capture`, `regressions/workbench/focus-candidate-pipeline`, and `regressions/workbench/direct-task-completion`.
 - [ ] Type focus mode definitions, candidate records and their ranking inputs, resume context, and exit-capture state with named contracts.
 - [ ] Preserve focus mode filtering, candidate ranking order, related-context scope, exit capture, and direct completion permissions exactly.
 - [ ] Resolve the 15 `TS2353` object-literal mismatches against the candidate and focus-mode contracts rather than widening the contracts to accept the literals.
@@ -324,7 +310,7 @@ Runs after `0.33.33.32.27`. This child has no diagnostics of its own, which is n
 - [ ] **Audit and correct the explicit-`any` detector before trusting its inventory.** The scanner in `scripts/typecheck-governance.mjs` matches `any` in raw source text with no awareness of string, comment, or regular-expression context, so it reports at least one false positive: `scripts/regression-contracts/framework/markdown-checked-core.contract.mjs` contains `{any}` inside a regular expression whose whole purpose is to detect forbidden `any` annotations in the Markdown service. Fix the detector so a literal inside a regular expression or string is not counted as an annotation, then regenerate the inventory.
 - [ ] **Disposition every genuine surviving explicit `any` in the repository from the regenerated inventory**, not from an assumed static list. Remove each one where a truthful contract exists; leave it only with a concrete recorded reason. Do not substitute `unknown` where that merely pushes compensating casts onto callers — that is the `0.33.33.31.6.1` helper-contract failure wearing a different name.
 - [ ] Two hits are known to be genuine today and need disposition here unless an earlier child legitimately removes them first. The `recordWorkspaceAccessLoss({ userId, workspaceId, source })` parameter in `src/repositories/account-export-recovery.repo.js` is annotated `@param {any} input` while the destructured call site already names all three fields. `ModuleStartupTask.formatSuccess?: (result: any) => string` in `src/types/framework-contracts.d.ts` is unrelated to that repository and should be given a truthful result contract — making the interface generic over its `run` result is the shape to prefer, so that each task's formatter receives the type its own `run` returns. Do not replace it with `unknown` and force every task formatter to cast.
-- [ ] The four `Record<string, any>` builder signatures in `src/services/work-resume-state-initial-producers.js` are **not** deferred here. `0.33.33.32.9` owns them; this child only confirms the regenerated inventory shows them resolved or carrying a recorded reason.
+- [ ] The four widened builder signatures in `src/services/work-resume-state-initial-producers.js` were resolved by `0.33.33.32.9`, which reconciled them with the published `ProducerBuilderContext`; the repository-wide explicit-`any` count fell from 7 to 3. This child only confirms the regenerated inventory still shows them resolved.
 - [ ] Change no production behaviour. Type annotations, contract reconciliation, and boundary narrowing are in scope; runtime behaviour, routes, fixtures, and new regression owners are not.
 
 #### 0.33.33.32.28.1 - Prove the scripts program permanently strict-zero

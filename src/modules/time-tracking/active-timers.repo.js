@@ -1,6 +1,7 @@
 import { db } from "../../core/database.js";
 
 /** @typedef {import("../../types/time-tracking-contracts.d.ts").ActiveTimerRecord} ActiveTimer */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").ActiveTimerWriteInput} ActiveTimerWriteInput */
 /** @typedef {import("../../types/time-tracking-contracts.d.ts").ActiveTimerRow} ActiveTimerRow */
 /** @typedef {import("../../types/time-tracking-contracts.d.ts").ActiveTimerSourceLookup} ActiveTimerSourceLookup */
 
@@ -246,7 +247,7 @@ LIMIT 1;
   });
 }
 
-/** @param {ActiveTimer} timer @returns {Promise<ActiveTimer>} */
+/** @param {ActiveTimerWriteInput} timer @returns {Promise<ActiveTimer>} */
 async function upsert(timer) {
   const now = new Date().toISOString();
 
@@ -498,7 +499,7 @@ function activeTimerRowToAppValue(row) {
   };
 }
 
-/** @param {ActiveTimer} timer @param {string} now */
+/** @param {ActiveTimerWriteInput} timer @param {string} now */
 function activeTimerWriteParams(timer, now) {
   return {
     accumulatedElapsedSeconds: integerParam(timer.accumulated_elapsed_seconds),

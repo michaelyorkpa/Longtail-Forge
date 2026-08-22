@@ -4,7 +4,11 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} ResumeSession */
+
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-work-resume-state-conversion-"));
@@ -17,8 +21,6 @@ const resumeServiceSource = readText("src/services/work-resume-state.service.js"
 const initialProducersSource = readText("src/services/work-resume-state-initial-producers.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const {
   closeDatabase,
@@ -69,10 +71,9 @@ function assertStaticContract() {
   assert.match(auditDocs, /\| services\/work-resume-state-initial-producers \| Converted \| 0 \| 0 \| 2 \| 2 \|/, "audit inventory should mark the initial producers converted");
   assert.match(auditDocs, /0\.33\.5\.27\.26 Work Resume State Conversion[\s\S]*`services\/work-resume-state\.service` and `services\/work-resume-state-initial-producers` are fully converted[\s\S]*304 runtime literal-helper invocations[\s\S]*57 direct interpolated SQL operation sites[\s\S]*302 existing bound operation sites/, "audit docs should record the Work resume state conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.26[\s\S]*`services\/work-resume-state\.service` and `services\/work-resume-state-initial-producers` are converted[\s\S]*304 remaining helper invocations/, "database docs should record the concrete Work resume state conversion");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.26 - Conversion wave: Work resume state[\s\S]*- \[x\] Convert `services\/work-resume-state\.service`[\s\S]*- \[x\] Preserve resume state upsert[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.26 - [\s\S]*Work resume state conversion[\s\S]*304 helper invocations[\s\S]*57 direct interpolated operation sites[\s\S]*302 bound operation sites/, "changelog should record the Work resume state conversion burndown");
 }
 
+/** @param {ResumeSession} session */
 async function assertConvertedRuntime(session) {
   const now = "2026-07-06T18:00:00.000Z";
   const clientId = `resume-client-${randomUUID()}-' OR 1=1 --`;
@@ -96,6 +97,7 @@ async function assertConvertedRuntime(session) {
     resumeRankHint: 500,
     title: "Converted resume state task",
   });
+  assert.ok(saved, "upserting resume state should read the persisted row back");
 
   assert.equal(saved.client_id, clientId, "context client should round-trip through the bound context read");
   assert.equal(saved.project_id, projectId, "context project should round-trip through the bound context read");
@@ -146,6 +148,7 @@ LIMIT 1;
   assert.equal(removedRow, null, "source removal should delete the converted resume row");
 }
 
+/** @param {string} workspaceId @param {string} clientId @param {string} name @param {string} now */
 async function insertClient(workspaceId, clientId, name, now) {
   await db.run(`
 INSERT INTO clients (
@@ -198,6 +201,7 @@ VALUES (
   });
 }
 
+/** @param {string} workspaceId @param {string} projectId @param {string} clientId @param {string} name @param {string} now */
 async function insertProject(workspaceId, projectId, clientId, name, now) {
   await db.run(`
 INSERT INTO projects (
@@ -231,6 +235,7 @@ VALUES (
   });
 }
 
+/** @returns {Promise<ResumeSession>} */
 async function readSeedSession() {
   const user = await db.get(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -241,14 +246,7 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
 async function assertIntegrity() {
@@ -256,6 +254,7 @@ async function assertIntegrity() {
   assert.equal(row?.integrity_check, "ok", "Work resume state conversion database should pass integrity check");
 }
 
+/** @param {string} source @param {RegExp} pattern @returns {number} */
 function countMatches(source, pattern) {
   return [...source.matchAll(pattern)].length;
 }

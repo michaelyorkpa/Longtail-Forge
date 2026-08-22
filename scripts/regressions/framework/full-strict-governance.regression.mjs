@@ -805,6 +805,33 @@ for (const publicApiScopeOwner of [
 ]) {
   assert.equal(ledger.programs.scripts.diagnostics[publicApiScopeOwner], undefined, `${publicApiScopeOwner} must stay strict-clean after checkpoint 0.33.33.32.8`);
 }
+for (const workResumeOwner of [
+  "scripts/regressions/workbench/workbench-client-fanout.regression.mjs",
+  "scripts/work-resume-state-api-regression.mjs",
+  "scripts/work-resume-state-closeout-regression.mjs",
+  "scripts/work-resume-state-conversion-regression.mjs",
+  "scripts/work-resume-state-initial-producers-regression.mjs",
+  "scripts/work-resume-state-producer-regression.mjs",
+  "scripts/work-resume-state-service-regression.mjs",
+  "scripts/workbench-service-dehardcode-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[workResumeOwner], undefined, `${workResumeOwner} must stay strict-clean after checkpoint 0.33.33.32.9`);
+}
+// The four resume producer builders re-opened an event the producer registry
+// already types. They are reconciled with the published context, so the local
+// widening cannot return. The retired annotation is matched by its parameter
+// prefix rather than spelled out, because the explicit-any detector scans this
+// file's own source too.
+const resumeProducerSource = fs.readFileSync("src/services/work-resume-state-initial-producers.js", "utf8");
+assert.equal(
+  resumeProducerSource.includes("{ event: Record<string, "),
+  false,
+  "src/services/work-resume-state-initial-producers.js must not reintroduce the widened producer event parameter",
+);
+assert.ok(
+  resumeProducerSource.includes("@param {ProducerBuilderContext} input"),
+  "src/services/work-resume-state-initial-producers.js should annotate its builders with the published producer context",
+);
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().
