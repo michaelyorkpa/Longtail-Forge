@@ -1,5 +1,23 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.32.4 - Type task calendar windows and feed serialization
+
+**Model: High Effort** - Calendar feeds leave the system as text and are scope-sensitive.
+
+Fourth child of the `0.33.33.32` rollup, measured at 149 diagnostics across 4 files and 1,850 lines. The scripts program falls from 2,719 to 2,570 and from 176 to 172 diagnostic-bearing files, exactly the measured size with no spill into another child. Twenty-three children remain.
+
+- [x] Closed all 149 diagnostics across `regressions/tasks/task-calendar-window`, `regressions/tasks/private-calendar-feed-scope`, `regressions/tasks/task-calendar-feed-serialization`, and `regressions/tasks/task-estimate-minutes`. All four are pinned strict-clean through `framework.full-strict-governance`.
+- [x] **Dynamic-boundary disposition** (required by the `0.33.33.31.6.1` rule): *`JSON.parse`* — one site, over the public API response body in the estimate owner. The body entered as `any` and seven envelope reads were taken straight off it; it now enters as `unknown` and every read crosses the shared `readPayload` narrowing published at `0.33.33.31.4`, with the three envelope shapes this owner actually reads named locally. *JSON-bearing database columns* — the `permission_overrides_json` references in the three calendar owners appear only inside SQL `INSERT` column lists and are never deserialized, so nothing needed narrowing and that is recorded rather than assumed. *Not present* — no child-process output, filesystem JSON, provider responses, or environment records in these owners.
+- [x] **Completed two fixture templates the published contract exposed as short.** The iCalendar serializer consumes a published `TaskRecurrenceTemplate`, and both fixture templates were missing `recovery_checkpoint_date` and `assignee_ids`, so the serializer was being handed an incomplete template. Both fixtures now carry the fields the contract requires, rather than the annotation being widened to accept whatever the fixtures happened to have.
+- [x] **Made the private feed helpers say what they mean.** `renderTasksPrivateCalendarFeed` resolves the rendered feed or `null` when scope refuses it, and this owner asserts refusals deliberately elsewhere. `assertFeedContains` and `assertFeedOmits` now accept the nullable render and prove it rendered once inside the helper, instead of ten call sites each re-proving it — and a refused feed now fails a containment assertion rather than being coerced into one.
+- [x] Narrowed three `assert.rejects` predicates that read `statusCode` and `message` straight off an unknown rejection. A rejection carrying no numeric status resolves to `-1`, so the predicate fails rather than passing vacuously.
+- [x] Proved values present rather than asserting them away: the listening fixture server proves it bound a TCP port before its address is read, the calendar row and virtual recurrence row `.find()` results are proven present, the integrity-check row is proven returned, and the seeded owner rows in two owners cross `requireRow` and `workspaceSessionFixture`. No non-null assertion was introduced.
+- [x] Corrected two of my own first-pass annotations against the real shapes rather than widening them: the calendar seed helpers take the camelCase fixture records this owner builds, not the snake_case column names the SQL they emit happens to use.
+- [x] Recorded that this cohort carries no historical planning pins, so no `retiredAssertions` record was needed and `scripts/planning-document-pin-baseline.json` is unchanged.
+- [x] Ratcheted discovered coverage to match the added proofs. No floor was lowered and no ceiling raised.
+- [x] Held the scope: no production behaviour changed, no new regression owner, fixture, or route, no `public/js/` file touched, and no explicit `any`, `@ts-ignore`, `@ts-nocheck`, file pragma, or `tsconfig.scripts.json` exclusion introduced. The explicit-`any` total stays at 7. Window inclusivity at both ends, private feed scope refusals, serialization field order and escaping, and estimate rounding are all unchanged.
+- [x] Verified with `npm run verify:slice` against the final tree under full-check escalation: closeout gates, typecheck/unit/lint, and all regression buckets pass, with the permission harness discovered through the buckets. All four owners also run green individually.
+
 ## Version 0.33.33.32.3 - Type task recurrence and reminder scheduling
 
 **Model: High Effort** - Recurrence materialization and reminder horizons derive from the same due-date arithmetic.

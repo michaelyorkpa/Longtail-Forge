@@ -9,6 +9,10 @@ export const regressionMeta = Object.freeze({
 
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { requireRow } from "../../test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 
 const fixture = await createDisposableDatabaseFixture("private-calendar-feed-scope");
@@ -34,7 +38,8 @@ FROM users
 WHERE protected_user = 'yes'
 LIMIT 1;
 `);
-  const workspaceId = owner.active_workspace_id || owner.home_workspace_id;
+  const ownerRow = requireRow(owner, "fresh database should seed a protected super admin");
+  const workspaceId = ownerSessionFor(ownerRow).workspace_id;
   const clientAId = randomUUID();
   const clientBId = randomUUID();
   const visibleProjectId = randomUUID();
@@ -98,14 +103,7 @@ INSERT INTO user_workspaces (
     scopeType: "workspace",
   });
 
-  const ownerSession = {
-    active_workspace_id: workspaceId,
-    home_workspace_id: owner.home_workspace_id,
-    timezone: owner.timezone || "America/New_York",
-    user_id: owner.user_id,
-    username: owner.username,
-    workspace_id: workspaceId,
-  };
+  const ownerSession = ownerSessionFor(ownerRow);
   await createTask("Workspace-only task", { due_date: "2026-08-06" });
   await createTask("Client A direct task", {
     client_id: clientAId,
@@ -176,6 +174,7 @@ WHERE workspace_id = :workspaceId
   );
 
   const workspaceContent = await render(subscriptions.workspace);
+  assert.ok(workspaceContent, "the workspace-scoped feed should render content");
   const clientAContent = await render(subscriptions.clientA);
   const clientBContent = await render(subscriptions.clientB);
   const visibleProjectContent = await render(subscriptions.visibleProject);
@@ -314,6 +313,7 @@ WHERE workspace_id = :workspaceId
     clientAAfterMove,
     clientBAfterMove,
   ]) {
+    assert.ok(content, "each scoped feed in the leak sweep should have rendered");
     assert.equal(content.includes(scopedUserId), false);
     for (const rawId of [
       clientAId,
@@ -338,13 +338,17 @@ WHERE workspace_id = :workspaceId
     }),
     null,
   );
-  assert.equal((await db.get("PRAGMA integrity_check;")).integrity_check, "ok");
+  const integrity = await db.get("PRAGMA integrity_check;");
+  assert.ok(integrity, "the integrity check should return a row");
+  assert.equal(integrity.integrity_check, "ok");
   console.log("Private calendar feed scope regression passed.");
 
+  /** @param {string} title @param {Record<string, unknown>} payload */
   async function createTask(title, payload) {
     return tasksService.create({ ...payload, title }, ownerSession);
   }
 
+  /** @param {string} name @param {Record<string, unknown>} scope */
   function descriptor(name, scope) {
     return createPrivateFeedSubscriptionDescriptor({
       name,
@@ -366,6 +370,7 @@ WHERE workspace_id = :workspaceId
     };
   }
 
+  /** @param {import("../../../src/types/private-feed-contracts.js").PrivateFeedSubscriptionDescriptor} subscription @returns {Promise<string | null>} */
   function render(subscription) {
     return renderTasksPrivateCalendarFeed({
       session: freshSession(),
@@ -373,6 +378,9 @@ WHERE workspace_id = :workspaceId
     });
   }
 
+  /**
+   * @param {{ clientId?: string | null, projectId?: string | null, roleId: string, scopeId: string | null, scopeType: string }} scope
+   */
   async function replaceScopedRole({
     clientId = null,
     projectId = null,
@@ -415,16 +423,31 @@ INSERT INTO user_role_assignments (
   await fixture.cleanup();
 }
 
+/** @param {string | null} content @param {readonly string[]} titles */
 function assertFeedContains(content, titles) {
+  assert.ok(content, "a feed asserted to contain titles must have rendered");
   assert.equal(typeof content, "string");
   for (const title of titles) {
     assert.equal(content.includes(`SUMMARY:${title}`), true, `expected ${title}`);
   }
 }
 
+/** @param {string | null} content @param {readonly string[]} titles */
 function assertFeedOmits(content, titles) {
+  assert.ok(content, "a feed asserted to omit titles must have rendered");
   assert.equal(typeof content, "string");
   for (const title of titles) {
     assert.equal(content.includes(title), false, `did not expect ${title}`);
   }
+}
+
+/**
+ * Narrow the seeded protected super admin row into the session contract the
+ * Tasks services publish, so the workspace identifier and timezone are proven
+ * strings rather than open row values.
+ * @param {Record<string, unknown>} row
+ * @returns {import("../../../src/types/http-contracts.js").WorkspaceRequestSession}
+ */
+function ownerSessionFor(row) {
+  return workspaceSessionFixture(row);
 }
