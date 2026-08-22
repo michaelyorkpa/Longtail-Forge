@@ -94,7 +94,15 @@ function validateCheckpointCommit({
   if (summary.length < 10 || summary.length > 200 || /[\r\n]/.test(summary)) {
     errors.push(`${TRAILER_NAMES.summary} must be a single-line 10-200 character outcome`);
   }
-  const liveHeading = new RegExp(`^### ${escapeRegExp(checkpoint)}(?: -|$)`, "m");
+  // The roadmap declares ordinary implementation checkpoints as `### <id>`, and
+  // a planning rollup declares its resliced implementation children and any
+  // corrective child as `#### <id>` beneath its own `###` heading. Both levels
+  // are live declarations, so both satisfy checkpoint identity; recognising only
+  // `###` reported a valid implementation commit for a live `####` child as
+  // referring to an undeclared checkpoint until its archive entry existed. The
+  // identifier itself still has to match exactly, and no other heading depth
+  // qualifies.
+  const liveHeading = new RegExp(`^#{3,4} ${escapeRegExp(checkpoint)}(?: -|$)`, "m");
   const archivedHeading = new RegExp(`^## Version ${escapeRegExp(checkpoint)}(?: -|$)`, "m");
   if (checkpointPattern.test(checkpoint) && !liveHeading.test(roadmapSource) && !archivedHeading.test(roadmapArchiveSource)) {
     errors.push(`${checkpoint} is not a declared numbered checkpoint in ROADMAP.md or ROADMAP-ARCHIVE.md`);

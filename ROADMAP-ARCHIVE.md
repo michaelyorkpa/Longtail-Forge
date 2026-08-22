@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.32.2.1 - Correct live resliced-child checkpoint validation
+
+**Model: Medium Effort** - One validator predicate and its proof; no product behavior changed.
+
+Corrective child of `0.33.33.32.2`. Archiving it closes that checkpoint again and hands off to the already-planned `0.33.33.32.3`, whose diagnostic and file assignment is unchanged, as is every later checkpoint number.
+
+- [x] Corrected a process defect `0.33.33.32.2` exposed, not a product one. `scripts/release/checkpoint-commits.mjs` recognised a live checkpoint only through `^### <checkpoint>`, but this branch's planning rollups declare their resliced implementation children — `0.33.33.32.2`, `.32.3`, `.32.4` — and their corrective children such as `.32.1.1` as `####` headings beneath the rollup's own `###` heading. A valid implementation commit for such a child was reported as referring to an undeclared checkpoint until its roadmap-to-archive handoff created an `## Version` heading in `ROADMAP-ARCHIVE.md`, which meant the implementation commit could never validate on its own and the two-commit checkpoint pattern only validated as a pair.
+- [x] **Reproduced the failure mode before changing the validator.** The new fixture declares `0.33.33.31` and `0.33.33.32` at `###` and `0.33.33.32.2`, `.32.3`, and `.32.2.1` at `####`, and asserts every one validates. Against the old predicate the two `###` entries passed and the run failed on `0.33.33.32.2` — exactly the reported defect — which is what made the subsequent fix a proof rather than an assumption.
+- [x] Changed one predicate: the live heading is now `^#{3,4} <checkpoint>(?: -|$)`. That accepts the two heading levels the roadmap actually uses for checkpoints and no others. Identity matching is untouched and still exact — the escaped full identifier must be followed by ` -` or end of line — so a numeric prefix of a declared child does not qualify and a heading at an unused depth does not qualify.
+- [x] Added six proofs alongside the reproduction: a live `###` checkpoint validates; live `####` resliced children validate before archiving; a live `####` corrective child such as `0.33.33.32.2.1` validates; a checkpoint declared in neither document still fails; a prefix-only match such as `0.33.33.3` against a declared `0.33.33.32.3` heading fails; a `######` heading fails; archived `## Version` recognition is unchanged; and a trailer-free `ROADMAP.md` commit still classifies as planning rather than as a checkpoint.
+- [x] **Proved the fix on a real commit rather than only a fixture.** This checkpoint's own implementation commit carries `LTF-Checkpoint: 0.33.33.32.2.1` while that child existed only as a live `####` heading with zero archive entries, and `npm run checkpoint:validate` passed. The negative control is decisive: reverting the predicate to the old `^###` form makes that identical commit fail as undeclared, and restoring the predicate makes it pass again.
+- [x] Changed no other checkpoint behavior. Trailer validation, documentation disposition, ceremony limits, deferred release paths, closeout handling, and base-SHA and range behavior are untouched. The separate roadmap cursor in `scripts/typecheck-governance.mjs`, which stamps the ledger from the first open **top-level** checkpoint, deliberately still reads `###` only and continues to stamp `0.33.33.32`.
+- [x] Ratcheted discovered coverage from 19,170 to 19,176 assertions for the six new proofs. No floor was lowered and no ceiling raised.
+- [x] Held the scope: process only. No product behavior, no `src/`, no `public/js/`, and none of the `0.33.33.32.3` TypeScript work.
+- [x] Verified with `npm run verify:slice` under full-check escalation, plus `npm run typecheck` and `npm run checkpoint:validate`.
+
 ## Version 0.33.33.32.2 - Type task checklists, relationships, and bulk toolbars
 
 **Model: High Effort** - Checklist and relationship writes are ordered, and bulk toolbars apply them across selections.
