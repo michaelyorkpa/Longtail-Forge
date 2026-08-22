@@ -11,7 +11,6 @@
     "reviewedDispositions": "Reviewed release/docs-area entries recorded at checkpoint 0.33.33.29. Each was inspected and found to reference planning-document filenames as ceremony path strings, synthetic fixture content, or detector patterns rather than as historical product evidence, so each asserts a current live contract and is consciously retained under the release-wide acceptance. Stripping remains owned by later checkpoints for their own areas."
   },
   "historicalContentPinners": [
-    "legacy.active.timers.repository.conversion",
     "legacy.batched.list.enrichment",
     "legacy.bump.version",
     "legacy.client.projects.repositories.conversion",
@@ -53,7 +52,6 @@
   ],
   "planningDocumentReaders": [
     "database.current-static-contracts",
-    "legacy.active.timers.repository.conversion",
     "legacy.batched.list.enrichment",
     "legacy.better.sqlite3.driver.closeout",
     "legacy.better.sqlite3.helper.core",

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "maximumActiveScripts": 347,
-  "minimumAssertionCount": 19225,
+  "minimumAssertionCount": 19238,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,
@@ -4839,6 +4839,32 @@
     }
   ],
   "retiredAssertions": [
+    {
+      "sourceRegression": "legacy.active.timers.repository.conversion",
+      "retiredInVersion": "0.33.33.32.7.1",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.12 rather than a live contract: one required a CHANGELOG heading recording that release Active timers conversion burndown, and one required that the completed 0.33.5.27.12 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The live conversion contract is still proven in this same owner by its static source assertions over src/modules/time-tracking/active-timers.repo.js and by its audit and database documentation assertions, which carry the same 1,165/187/154 burndown figures the retired changelog assertion restated. This checkpoint additionally strengthened the owner: its timerValue fixture now returns the published ActiveTimerRecord, and the persisted source-metadata transition block it reads crosses a runtime narrowing. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and legacy.bump.version owns the one current CHANGELOG heading check.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/active-timers-repository-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.active.timers.repository.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/active-timers-repository-conversion-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
     {
       "sourceRegression": "legacy.admin.job.observability",
       "retiredInVersion": "0.33.33.31.10",

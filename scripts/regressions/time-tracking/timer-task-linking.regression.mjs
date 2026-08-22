@@ -12,6 +12,11 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
+import { requireRow } from "../../test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TimeTrackingSession */
 
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readTextAsync: readText } = createProjectTextReader();
@@ -69,6 +74,7 @@ function assertStaticContract() {
   assert.match(timerHelp, /choose an active task[\s\S]*Link Task[\s\S]*remains running[\s\S]*original start[\s\S]*already has an active timer/, "Time Tracking Help should explain the current running-only linking workflow");
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId */
 async function assertRunningManualTimerLinksAndFinalizes(session, projectId) {
   const task = await createTask(session, projectId, "Link running manual timer");
   const started = await activeTimersService.save("2", runningManualPayload(projectId, "Keep this identity", 37), session);
@@ -102,9 +108,14 @@ async function assertRunningManualTimerLinksAndFinalizes(session, projectId) {
     sourceModuleId: "tasks",
     sourceType: "task",
   });
+  assert.ok(sourced, "linking should leave a readable sourced timer");
   assert.equal(sourced.active_timer_id, originalId);
+  assert.ok(sourced.sourceMetadata, "the linked timer should carry its source metadata");
   assert.equal(sourced.sourceMetadata.linkedFromManualTimerSlot, "2");
-  assert.equal(sourced.sourceMetadata.taskTimerStatusTransition.movedTaskFromOpen, true);
+  assert.equal(
+    requireJsonRecord(sourced.sourceMetadata.taskTimerStatusTransition, "task timer status transition").movedTaskFromOpen,
+    true,
+  );
   assert.equal(await auditCount(session.workspace_id, "task_timer_linked", task.task_id), 1);
 
   const finalized = await taskTimersService.finalize(task.task_id, {}, session);
@@ -114,6 +125,7 @@ async function assertRunningManualTimerLinksAndFinalizes(session, projectId) {
   assert.equal(entry.description, task.title);
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId */
 async function assertPausedManualTimerStaysManual(session, projectId) {
   const task = await createTask(session, projectId, "Reject paused manual timer");
   const paused = await activeTimersService.save("2", {
@@ -128,12 +140,14 @@ async function assertPausedManualTimerStaysManual(session, projectId) {
   );
 
   const stillManual = await activeTimersRepository.readBySlot(session.workspace_id, session.user_id, "2");
+  assert.ok(stillManual, "a rejected link should leave the manual timer readable");
   assert.equal(stillManual.active_timer_id, paused.timer.active_timer_id);
   assert.equal(stillManual.source_type, "manual");
   assert.equal(await readTaskStatus(session.workspace_id, task.task_id), "open", "a failed conversion should compensate its automatic task transition");
   await activeTimersService.remove("2", session);
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId */
 async function assertExistingTaskTimerRejectsLink(session, projectId) {
   const task = await createTask(session, projectId, "Existing task timer conflict", { status: "in_progress" });
   await taskTimersService.save(task.task_id, runningManualPayload(projectId, "Existing task timer", 1), session);
@@ -145,12 +159,14 @@ async function assertExistingTaskTimerRejectsLink(session, projectId) {
   );
 
   const stillManual = await activeTimersRepository.readBySlot(session.workspace_id, session.user_id, "2");
+  assert.ok(stillManual, "the rejected link should leave the manual timer readable");
   assert.equal(stillManual.active_timer_id, manual.timer.active_timer_id);
   assert.equal(stillManual.source_type, "manual");
   await taskTimersService.remove(task.task_id, session);
   await activeTimersService.remove("2", session);
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId */
 async function assertPermissionDeniedLinkStaysManual(session, projectId) {
   const task = await createTask(session, projectId, "Permission-safe timer link");
   const noRoleSession = await createNoRoleSession(session.workspace_id);
@@ -177,17 +193,19 @@ async function assertPermissionDeniedLinkStaysManual(session, projectId) {
 
   await assert.rejects(
     () => taskTimersService.linkManualTimer(task.task_id, { timer_slot: "1" }, noRoleSession),
-    (error) => error?.statusCode === 403,
+    (error) => rejectionStatus(error) === 403,
     "a user without Tasks/Time Tracking permission must not convert a manual timer",
   );
 
   const stillManual = await activeTimersRepository.readBySlot(noRoleSession.workspace_id, noRoleSession.user_id, "1");
+  assert.ok(stillManual, "a permission-denied link should leave the manual timer readable");
   assert.equal(stillManual.active_timer_id, manual.active_timer_id);
   assert.equal(stillManual.source_type, "manual");
   assert.equal(await readTaskStatus(session.workspace_id, task.task_id), "open");
   await activeTimersRepository.remove(noRoleSession.workspace_id, noRoleSession.user_id, "1");
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId @param {string} title @param {Record<string, unknown>} [overrides] */
 async function createTask(session, projectId, title, overrides = {}) {
   const result = await tasksService.create({
     assignee_ids: [session.user_id],
@@ -198,6 +216,7 @@ async function createTask(session, projectId, title, overrides = {}) {
   return result.task;
 }
 
+/** @param {string} workspaceId */
 async function createProject(workspaceId) {
   const now = new Date().toISOString();
   const projectId = randomUUID();
@@ -220,6 +239,7 @@ VALUES (
   return projectId;
 }
 
+/** @param {string} projectId @param {string} description @param {number} elapsedSeconds */
 function runningManualPayload(projectId, description, elapsedSeconds) {
   return {
     accumulated_elapsed_seconds: elapsedSeconds,
@@ -239,17 +259,10 @@ WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
   const user = rows[0];
-  assert.ok(user, "fresh database should seed a protected super admin");
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireRow(user, "fresh database should seed a protected super admin"));
 }
 
+/** @param {string} workspaceId @returns {Promise<TimeTrackingSession>} */
 async function createNoRoleSession(workspaceId) {
   const userId = randomUUID();
   const username = `timer-link-no-role-${userId}@example.test`;
@@ -275,26 +288,29 @@ VALUES (
 );
 `);
 
-  return {
+  return workspaceSessionFixture({
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
+    ip_address: "127.0.0.1",
     timezone: "America/New_York",
     user_id: userId,
     username,
     workspace_id: workspaceId,
-  };
+  });
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function readTaskStatus(workspaceId, taskId) {
   const rows = await querySql(`SELECT status FROM tasks WHERE workspace_id = ${sqlText(workspaceId)} AND task_id = ${sqlText(taskId)} LIMIT 1;`);
   return rows[0]?.status || "";
 }
 
+/** @param {string} workspaceId @param {string} entryId */
 async function readTimeEntry(workspaceId, entryId) {
   const rows = await querySql(`SELECT task_id, project_id, description FROM time_entries WHERE workspace_id = ${sqlText(workspaceId)} AND entry_id = ${sqlText(entryId)} LIMIT 1;`);
   return rows[0] || {};
 }
 
+/** @param {string} workspaceId @param {string} action @param {string} taskId @returns {Promise<number>} */
 async function auditCount(workspaceId, action, taskId) {
   const rows = await querySql(`SELECT COUNT(*) AS count FROM audit_logs WHERE workspace_id = ${sqlText(workspaceId)} AND action = ${sqlText(action)} AND record_type = 'task' AND record_id = ${sqlText(taskId)};`);
   return Number(rows[0]?.count) || 0;
@@ -305,6 +321,7 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok");
 }
 
+/** @param {string} source @param {string} functionName @returns {string} */
 function functionBlock(source, functionName) {
   const match = new RegExp(`(?:async\\s+)?function\\s+${functionName}\\(`).exec(source);
   assert.ok(match, `${functionName} should exist`);
@@ -313,10 +330,24 @@ function functionBlock(source, functionName) {
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
 
+/** @param {string} source @param {string} methodName @returns {string} */
 function classMethodBlock(source, methodName) {
   const match = new RegExp(`\\n  (?:async\\s+)?${methodName}\\(`).exec(source);
   assert.ok(match, `${methodName} should exist`);
   const start = match.index + 1;
   const nextMethod = source.slice(start + 1).search(/\n  (?:async\s+)?[a-zA-Z][a-zA-Z0-9]*\([^)]*\)\s*\{/);
   return source.slice(start, nextMethod === -1 ? source.length : start + 1 + nextMethod);
+}
+
+/**
+ * Read the HTTP status a rejected service call carries, proving the value
+ * really is an error object first. A rejection without a numeric status
+ * resolves to -1 so the predicate fails rather than passing vacuously.
+ * @param {unknown} error
+ * @returns {number}
+ */
+function rejectionStatus(error) {
+  if (error === null || typeof error !== "object" || !("statusCode" in error)) return -1;
+  const status = /** @type {{ statusCode: unknown }} */ (error).statusCode;
+  return typeof status === "number" ? status : -1;
 }

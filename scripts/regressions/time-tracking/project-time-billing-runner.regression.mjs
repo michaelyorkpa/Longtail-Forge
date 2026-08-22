@@ -9,6 +9,11 @@ export const regressionMeta = Object.freeze({
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
+
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TimeTrackingSession */
+/** @typedef {{ id: string }} BillingReportProject */
+/** @typedef {{ project: BillingReportProject, rawSeconds: number, billableSeconds: number, amount: number, displaySeconds: number, childRows?: BillingReportRow[] }} BillingReportRow */
+/** @typedef {{ totals: { seconds: number, amount: number }, rows: BillingReportRow[], scope: { childScopeIds: string[] } }} BillingReportResult */
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 
@@ -104,7 +109,8 @@ try {
     ...filters,
     tagIds: [],
   });
-  assert.equal(unfiltered.payload.result.totals.seconds, 5400);
+  const unfilteredResult = billingResult(unfiltered, "unfiltered billing report");
+  assert.equal(unfilteredResult.totals.seconds, 5400);
 
   await assertRecursiveHierarchyBilling(session);
 
@@ -113,7 +119,7 @@ try {
   assert.equal(disabled.statusCode, 404, "disabled Time Tracking must remove the executable contribution");
   await assert.rejects(
     () => timeTrackingBillingService.readProjectSummary(session, filters),
-    (error) => error?.statusCode === 403 && !String(error.message).includes(project.name),
+    (error) => rejectionStatus(error) === 403 && !rejectionMessage(error).includes(project.name),
     "retained compatibility reads must also reject disabled-module execution safely",
   );
 
@@ -123,6 +129,7 @@ try {
   await fixture.cleanup();
 }
 
+/** @param {TimeTrackingSession} session */
 async function assertRecursiveHierarchyBilling(session) {
   const parentClient = (await clientsService.createClient({
     name: "Rollup Parent Client",
@@ -180,11 +187,16 @@ async function assertRecursiveHierarchyBilling(session) {
     tagIds: [],
     includeDescendants: true,
   });
-  const result = execution.payload.result;
+  const result = billingResult(execution, "recursive hierarchy billing report");
   const parentRow = result.rows.find((row) => row.project.id === parentProject.id);
+  assert.ok(parentRow, "the parent project should appear as a report row");
   const childClientRow = result.rows.find((row) => row.project.id === childClientProject.id);
+  assert.ok(parentRow.childRows, "the parent row should carry child rows");
   const childRow = parentRow.childRows.find((row) => row.project.id === childProject.id);
+  assert.ok(childRow, "the child project should appear beneath its parent");
+  assert.ok(childRow.childRows, "the child row should carry grandchild rows");
   const grandchildRow = childRow.childRows.find((row) => row.project.id === grandchildProject.id);
+  assert.ok(grandchildRow, "the grandchild project should appear beneath its parent");
 
   assert.equal(execution.statusCode, 200);
   assert.ok(childClientRow, `Expected descendant-client project row; roots=${result.rows.map((row) => row.project.id).join(",")}; descendants=${result.scope.childScopeIds.join(",")}`);
@@ -205,6 +217,7 @@ async function assertRecursiveHierarchyBilling(session) {
   );
 }
 
+/** @param {TimeTrackingSession} session @param {string} projectId @param {number} durationSeconds @param {string} description */
 async function createBillingEntry(session, projectId, durationSeconds, description) {
   await timeEntriesService.create({
     project_id: projectId,
@@ -232,8 +245,11 @@ function assertFrameworkDecoupling() {
 }
 
 function assertContributionDependency() {
-  const contribution = modulesService.getModule("time-tracking").reporting
+  const timeTracking = modulesService.getModule("time-tracking");
+  assert.ok(timeTracking, "the Time Tracking module should be registered");
+  const contribution = timeTracking.reporting
     .find((report) => report.id === "project-time-billing");
+  assert.ok(contribution, "time-tracking should publish the project-time-billing report");
 
   assert.deepEqual(contribution.requiresEnabledModules, ["time-tracking", "client-projects"]);
 }
@@ -250,4 +266,43 @@ LIMIT 1;
 
   assert.ok(user, "Expected a protected seed user");
   return workspaceSessionFixture(user);
+}
+
+/**
+ * Prove a report execution carried a result payload before its rows and
+ * totals are read. The runner publishes the payload as an open value, so an
+ * absent result would otherwise compare `undefined` against a real total.
+ * @param {{ payload?: { result?: unknown } }} execution
+ * @param {string} label
+ * @returns {BillingReportResult}
+ */
+function billingResult(execution, label) {
+  const result = execution.payload?.result;
+  assert.ok(
+    result !== null && typeof result === "object",
+    `${label} should carry a result payload`,
+  );
+  return /** @type {BillingReportResult} */ (result);
+}
+
+/**
+ * Read the HTTP status a rejected service call carries, proving the value
+ * really is an error object first. A rejection without a numeric status
+ * resolves to -1 so the predicate fails rather than passing vacuously.
+ * @param {unknown} error
+ * @returns {number}
+ */
+function rejectionStatus(error) {
+  if (error === null || typeof error !== "object" || !("statusCode" in error)) return -1;
+  const status = /** @type {{ statusCode: unknown }} */ (error).statusCode;
+  return typeof status === "number" ? status : -1;
+}
+
+/**
+ * Read a rejected service call's message as text without assuming a shape.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function rejectionMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }

@@ -785,6 +785,18 @@ for (const timeEntryWriteOwner of [
 ]) {
   assert.equal(ledger.programs.scripts.diagnostics[timeEntryWriteOwner], undefined, `${timeEntryWriteOwner} must stay strict-clean after checkpoint 0.33.33.32.7`);
 }
+for (const timerBillingOwner of [
+  "scripts/active-timers-repository-conversion-regression.mjs",
+  "scripts/regressions/time-tracking/billing-dashboard-timezone-boundaries.regression.mjs",
+  "scripts/regressions/time-tracking/project-time-billing-runner.regression.mjs",
+  "scripts/regressions/time-tracking/sourced-task-timer-bridge.regression.mjs",
+  "scripts/regressions/time-tracking/timer-task-linking.regression.mjs",
+  "scripts/task-timer-status-regression.mjs",
+  "scripts/timer-resume-metadata-regression.mjs",
+  "scripts/timer-timestamp-integrity-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[timerBillingOwner], undefined, `${timerBillingOwner} must stay strict-clean after checkpoint 0.33.33.32.7.1`);
+}
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().

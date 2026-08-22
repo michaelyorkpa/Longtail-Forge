@@ -8,6 +8,8 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TimeTrackingSession */
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 
 const fixture = await createDisposableDatabaseFixture("sourced-task-timer-bridge");
@@ -78,7 +80,7 @@ try {
       project_id: projectId,
       timer_status: "paused",
     }, session),
-    (error) => error?.statusCode === 400 && /Billable must be/.test(error.message),
+    (error) => rejectionStatus(error) === 400 && /Billable must be/.test(rejectionMessage(error)),
     "sourced Time Tracking saves must validate their payload at the module edge",
   );
   const sourced = await activeTimersService.saveSourced(directSource, {
@@ -232,4 +234,26 @@ LIMIT 1;
     username: String(user.username || ""),
     workspace_id: workspaceId,
   };
+}
+
+/**
+ * Read the HTTP status a rejected service call carries, proving the value
+ * really is an error object first. A rejection without a numeric status
+ * resolves to -1 so the predicate fails rather than passing vacuously.
+ * @param {unknown} error
+ * @returns {number}
+ */
+function rejectionStatus(error) {
+  if (error === null || typeof error !== "object" || !("statusCode" in error)) return -1;
+  const status = /** @type {{ statusCode: unknown }} */ (error).statusCode;
+  return typeof status === "number" ? status : -1;
+}
+
+/**
+ * Read a rejected service call's message as text without assuming a shape.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function rejectionMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }
