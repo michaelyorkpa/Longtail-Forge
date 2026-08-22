@@ -15,6 +15,8 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-hot-endpoint-budgets-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "hot-endpoint-budgets.db");
 process.env.SUPER_ADMIN_PASSWORD = "Hot-Endpoint-Budgets-Test-123!";
@@ -25,6 +27,7 @@ const { readSqliteStatementCount } = await import("../../../src/db/sqlite.js");
 const { createSession } = await import("../../../src/security/sessions.js");
 const { tasksService } = await import("../../../src/modules/tasks/tasks.service.js");
 
+/** @type {import("node:http").Server | null} */
 let server = null;
 
 try {
@@ -63,9 +66,13 @@ LIMIT 1;
     const instance = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (createApp())));
     instance.listen(0, "127.0.0.1", () => resolve(instance));
   });
-  const base = `http://127.0.0.1:${server.address().port}`;
+  assert.ok(server, "the budget fixture server should be listening");
+  const address = server.address();
+  assert.ok(address && typeof address === "object", "the budget fixture server should bind a TCP port");
+  const base = `http://127.0.0.1:${address.port}`;
   const headers = { cookie: `longtail_forge_session=${httpSession.sessionId}` };
 
+  /** @param {string} url */
   async function measure(url) {
     const before = readSqliteStatementCount();
     const response = await fetch(base + url, { headers });
@@ -98,7 +105,7 @@ LIMIT 1;
   const itemCount = workbenchItems.body.items.length;
   assert.ok(itemCount >= 30, "seeded tasks should appear as work items");
   assert.ok(
-    workbenchItems.body.items.every((item) => !Object.hasOwn(item, "description")),
+    workbenchItems.body.items.every((/** @type {object} */ item) => !Object.hasOwn(item, "description")),
     "work items must not ship the full description",
   );
   assert.ok(
@@ -128,7 +135,8 @@ LIMIT 1;
   console.log("hot endpoint budgets regression passed.");
 } finally {
   if (server) {
-    await new Promise((resolve) => server.close(resolve));
+    const listening = server;
+    await new Promise((resolve) => listening.close(() => resolve(undefined)));
   }
   await closeSqlite();
   await fs.rm(tempDir, { force: true, recursive: true });
