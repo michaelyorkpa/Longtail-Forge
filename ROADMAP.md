@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.10` have since archived, closing 1,390 diagnostics across 68 files and leaving 1,753 across 134; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.11` have since archived, closing 1,511 diagnostics across 75 files and leaving 1,632 across 127; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.11` | Notes foundation, access, and API service | 121 | 7 | 2,762 |
 | `.32.12` | Notes secure catalog | 95 | 5 | 1,736 |
 | `.32.13` | Notes editor, preview, and Markdown | 57 | 5 | 1,449 |
 | `.32.14` | Notes linking, collections, and context | 82 | 6 | 2,154 |
@@ -104,17 +103,6 @@ Requirements shared by every child:
 - [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
 
-#### 0.33.33.32.11 - Type Notes foundation, access, and API service
-
-**Model: High Effort - Notes access control is the gate every other Notes owner sits behind.**
-
-Measured at 121 diagnostics across 7 files and 2,762 lines. No `JSON.parse`; two history-pinned owners. Nullability is 61 of the 121 here — the highest proportion in the rollup outside Lists.
-
-- [ ] Close the 121 diagnostics across `notes-integration-closeout`, `notes-foundation`, `notes-api-service`, `notes-access-contract`, `notes-server-side-list-paging`, `notes-records-filters-repository-conversion`, and `notes-writes-revisions-links-collections-repository-conversion`.
-- [ ] Type note records, access decisions, filter descriptors, paging cursors, and revision/link/collection write results with named contracts.
-- [ ] Preserve access-contract refusals, secure/plain separation at the service boundary, filter semantics, paging boundaries, and revision write ordering exactly.
-- [ ] Assert nullable values rather than asserting them away; a note the access contract refuses must stay distinguishable from a note that does not exist.
-
 #### 0.33.33.32.12 - Type the Notes secure catalog
 
 **Model: High Effort - Secure catalog transitions change who can read existing content.**
@@ -153,6 +141,7 @@ Measured at 82 diagnostics across 6 files and 2,154 lines. No `JSON.parse`; no h
 Measured at 144 diagnostics across 4 files and 1,696 lines, of which **115 are `TS18047`** — possibly-null values, not implicit-any parameters. No `JSON.parse`; two history-pinned owners.
 
 - [ ] Close the 144 diagnostics across `lists-records-items-repository-conversion`, `lists-catalog-links-repository-conversion`, `lists-service`, and `lists-foundation`.
+- [ ] **Restore the `enabledByDefault` contract `lists-foundation` lost.** `0.33.33.32.11` found the same defect in the Notes owners and fixed both there: a second assertion was collapsed into the version check's message position, so `assert.equal(listsModule.version, appVersion, true)` passes `true` where the message belongs and `assert.equal(listsModule.enabledByDefault, true)` was dropped entirely. Restore it as two assertions and confirm the contract still holds.
 - [ ] Type list records, item rows, catalog links, and service results with named contracts, naming the selected columns beneath the query that produces them as `0.33.33.31.2` established.
 - [ ] Resolve the nullability band by asserting the row exists, not by asserting it away. This child is the rollup's clearest opportunity to manufacture an inherited zero and must be reviewed on that basis.
 - [ ] Preserve list ordering, item membership, catalog link resolution, and service-level filtering exactly.
