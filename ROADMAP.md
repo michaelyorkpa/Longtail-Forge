@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.7.1` have since archived, closing 1,027 diagnostics across 48 files and leaving 2,119 across 154; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.8` have since archived, closing 1,121 diagnostics across 52 files and leaving 2,025 across 150; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.8` | Public API v1 and cross-module scope | 94 | 4 | 985 |
 | `.32.9` | Workbench service seam and work resume state | 126 | 8 | 2,020 |
 | `.32.10` | Workbench focus modes, candidates, task focus | 144 | 7 | 3,001 |
 | `.32.11` | Notes foundation, access, and API service | 121 | 7 | 2,762 |
@@ -104,17 +103,6 @@ Requirements shared by every child:
 - [ ] Do not resolve a nullability diagnostic with a non-null assertion where the owner can assert the value instead. This band is 518 of the 3,150 and is the likeliest source of a zero that the compiler believes and the runtime does not.
 - [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
-
-#### 0.33.33.32.8 - Type the public API v1 surface and cross-module scope
-
-**Model: High Effort - This is the only externally-consumed contract in the estate and its scope rules are authorization.**
-
-Measured at 94 diagnostics across 4 files and 985 lines. Three `JSON.parse` sites; no history-pinned owners. The `TS2353` band is object literals checked against API response contracts, so it is real contract drift rather than annotation noise.
-
-- [ ] Close the 94 diagnostics across `public-api-client-project-write`, `notes-lists-tags-api-scope`, `personal-family-workspace-scope`, and `regressions/time-tracking/public-api-duration-persistence`.
-- [ ] Type public API request and response envelopes, token scope records, and workspace-type scope decisions with named contracts derived from what the API actually publishes.
-- [ ] Preserve token scope refusals, cross-module scope boundaries, personal and family workspace behaviour, and duration persistence fidelity exactly.
-- [ ] Treat every parsed response body as `unknown` and narrow it through the shared payload helper. The 18 `TS2353` diagnostics mean at least one literal currently disagrees with its declared response shape, and the disagreement must be resolved in favour of what the server sends.
 
 #### 0.33.33.32.9 - Type the Workbench service seam and work resume state
 
