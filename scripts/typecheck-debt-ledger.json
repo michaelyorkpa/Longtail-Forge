@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 2719,
+      "errorCount": 2570,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -4328,98 +4328,6 @@
             "count": 3
           }
         ],
-        "scripts/regressions/tasks/private-calendar-feed-scope.regression.mjs": [
-          {
-            "code": 18047,
-            "count": 8
-          },
-          {
-            "code": 2322,
-            "count": 4
-          },
-          {
-            "code": 2345,
-            "count": 8
-          },
-          {
-            "code": 2531,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 9
-          },
-          {
-            "code": 7031,
-            "count": 3
-          }
-        ],
-        "scripts/regressions/tasks/task-calendar-feed-serialization.regression.mjs": [
-          {
-            "code": 18047,
-            "count": 5
-          },
-          {
-            "code": 2322,
-            "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 7005,
-            "count": 5
-          },
-          {
-            "code": 7006,
-            "count": 13
-          },
-          {
-            "code": 7034,
-            "count": 5
-          }
-        ],
-        "scripts/regressions/tasks/task-calendar-window.regression.mjs": [
-          {
-            "code": 18046,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 56
-          }
-        ],
-        "scripts/regressions/tasks/task-estimate-minutes.regression.mjs": [
-          {
-            "code": 18047,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 2353,
-            "count": 6
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 8
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
         "scripts/regressions/time-tracking/billing-dashboard-timezone-boundaries.regression.mjs": [
           {
             "code": 2345,
@@ -5203,7 +5111,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 13853,
+    "errors": 13704,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

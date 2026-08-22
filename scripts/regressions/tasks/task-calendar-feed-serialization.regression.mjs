@@ -12,6 +12,10 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+import { requireRow } from "../../test-support/database-row-assertions.mjs";
+
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-calendar-feed-serialization-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-calendar-feed-serialization.db");
@@ -48,6 +52,7 @@ assert.deepEqual(WINDOW, {
   startDate: "2026-04-25",
 });
 
+/** @type {import("../../../src/types/task-recurrence-contracts.js").TaskRecurrenceTemplate[]} */
 const templates = [
   {
     recurrence_template_id: RECURRING_TEMPLATE_ID,
@@ -57,6 +62,8 @@ const templates = [
     title: "Weekly planning review",
     status: "open",
     priority: "normal",
+    assignee_ids: [],
+    recovery_checkpoint_date: "",
     recurrence_anchor_date: "2026-07-27",
     due_time: "09:00",
     due_timezone: "America/New_York",
@@ -73,6 +80,8 @@ const templates = [
     title: "Open-ended monthly review",
     status: "open",
     priority: "normal",
+    assignee_ids: [],
+    recovery_checkpoint_date: "",
     recurrence_anchor_date: "2026-05-15",
     due_time: "",
     due_timezone: "America/New_York",
@@ -295,6 +304,7 @@ console.log("Task calendar feed serialization regression passed.");
 await closeSqlite();
 await fs.rm(tempDir, { force: true, recursive: true });
 
+/** @param {Record<string, unknown>} overrides */
 function taskFixture(overrides) {
   return {
     task_id: "",
@@ -315,6 +325,7 @@ function taskFixture(overrides) {
   };
 }
 
+/** @param {string} value @returns {string[]} */
 function unfoldLines(value) {
   const unfolded = [];
   for (const line of value.split("\r\n")) {
@@ -327,7 +338,9 @@ function unfoldLines(value) {
   return unfolded;
 }
 
+/** @param {readonly string[]} lines */
 function assertBalancedComponents(lines) {
+  /** @type {string[]} */
   const stack = [];
   for (const line of lines) {
     if (line.startsWith("BEGIN:")) {
@@ -339,8 +352,11 @@ function assertBalancedComponents(lines) {
   assert.deepEqual(stack, [], "all iCalendar components must close");
 }
 
+/** @param {readonly string[]} lines @param {string} componentName @returns {string[][]} */
 function readComponents(lines, componentName) {
+  /** @type {string[][]} */
   const components = [];
+  /** @type {string[] | null} */
   let current = null;
   for (const line of lines) {
     if (line === `BEGIN:${componentName}`) {
@@ -350,19 +366,22 @@ function readComponents(lines, componentName) {
       current.push(line);
     }
     if (line === `END:${componentName}`) {
-      components.push(current);
+      components.push(/** @type {string[]} */ (current));
       current = null;
     }
   }
+  assert.equal(current, null, `unterminated ${componentName} component`);
   return components;
 }
 
+/** @param {readonly string[][]} events @param {string} summaryLine @returns {string[]} */
 function findEvent(events, summaryLine) {
   const event = events.find((candidate) => candidate.includes(summaryLine));
   assert.ok(event, `expected event ${summaryLine}`);
   return event;
 }
 
+/** @param {readonly string[]} event @param {string} propertyName @returns {string} */
 function readProperty(event, propertyName) {
   const line = event.find((candidate) => (
     candidate.startsWith(`${propertyName}:`)
@@ -430,14 +449,7 @@ VALUES (
 );
 `);
 
-  const ownerSession = {
-    active_workspace_id: workspaceId,
-    home_workspace_id: owner.home_workspace_id,
-    timezone: owner.timezone || "America/New_York",
-    user_id: owner.user_id,
-    username: owner.username,
-    workspace_id: workspaceId,
-  };
+  const ownerSession = workspaceSessionFixture(requireRow(owner, "fresh database should seed a protected super admin"));
   await tasksService.create({
     due_date: "2026-08-08",
     project_id: visibleProjectId,
@@ -480,6 +492,7 @@ VALUES (
   assert.equal(integrity[0]?.integrity_check, "ok");
 }
 
+/** @param {unknown} value @returns {string} */
 function sqlText(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }

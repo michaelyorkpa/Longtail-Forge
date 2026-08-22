@@ -13,6 +13,16 @@ import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "../../test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+/** @typedef {Awaited<ReturnType<typeof createFixtures>>} CalendarFixtures */
+/** @typedef {Awaited<ReturnType<typeof tasksService.calendarWindow>>} CalendarResult */
+/** @typedef {{ userId: string, username: string, displayName?: string }} CalendarUser */
+/** @typedef {{ id: string, name: string }} CalendarClient */
+/** @typedef {{ id: string, clientId: string, name: string }} CalendarProject */
+/** @typedef {CalendarResult["reminders"][number]} ReminderMarker */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-calendar-window-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-calendar-window.db");
@@ -53,6 +63,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session */
 async function createFixtures(session) {
   const now = new Date().toISOString();
   const workspaceId = session.workspace_id;
@@ -198,15 +209,16 @@ VALUES ('${otherWorkspaceId}', 'Calendar Other Workspace', 'Active', 'business',
   };
 }
 
+/** @param {TasksSession} session @param {CalendarFixtures} fixtures */
 async function assertBoundedRangeEnforcement(session, fixtures) {
   await assert.rejects(
     tasksService.calendarWindow(session, { start: "2026-08-10", end: "2026-08-01" }),
-    (error) => error.statusCode === 400 && /on or after the start date/.test(error.message),
+    (error) => rejectionStatus(error) === 400 && /on or after the start date/.test(rejectionMessage(error)),
     "end before start must be rejected with 400",
   );
   await assert.rejects(
     tasksService.calendarWindow(session, { start: "2026-08-01", end: "2026-11-02" }),
-    (error) => error.statusCode === 400 && /cannot exceed 93 days/.test(error.message),
+    (error) => rejectionStatus(error) === 400 && /cannot exceed 93 days/.test(rejectionMessage(error)),
     "windows wider than 93 days must be rejected with 400",
   );
 
@@ -220,6 +232,7 @@ async function assertBoundedRangeEnforcement(session, fixtures) {
   assert.ok(singleDay.reminders.every((marker) => marker.date === "2026-08-12"), "single-day reminder markers must stay inside the requested date");
 }
 
+/** @param {CalendarResult} result @param {CalendarFixtures} fixtures */
 function assertWorkspaceScoping(result, fixtures) {
   const rowIds = result.tasks.map((row) => row.task_id);
   const markerIds = result.reminders.map((marker) => marker.task_id);
@@ -231,6 +244,7 @@ function assertWorkspaceScoping(result, fixtures) {
   assert.ok(!rowIds.includes(fixtures.completedTask.task_id), "completed tasks stay excluded from the active calendar default");
 }
 
+/** @param {TasksSession} session @param {CalendarFixtures} fixtures */
 async function assertStatusFiltering(session, fixtures) {
   const widened = await tasksService.calendarWindow(session, {
     start: WINDOW_START,
@@ -250,6 +264,7 @@ async function assertStatusFiltering(session, fixtures) {
   assert.equal(completedOnly.reminders.length, 0, "terminal-only calendar reads do not produce reminder markers");
 }
 
+/** @param {CalendarResult} result @param {CalendarFixtures} fixtures */
 function assertCalendarRowContract(result, fixtures) {
   const row = result.tasks.find((candidate) => candidate.task_id === fixtures.timedTask.task_id);
   const expectedFields = [
@@ -296,11 +311,13 @@ function assertCalendarRowContract(result, fixtures) {
   assert.equal(row.endDate, row.due_date, "the calendar end date must match the single-day due-date key");
 
   const alphaRow = result.tasks.find((candidate) => candidate.task_id === fixtures.alphaTask.task_id);
+  assert.ok(alphaRow, "the date-only fixture task should appear as a calendar row");
   assert.equal(alphaRow.allDay, true, "date-only tasks are all-day entries");
   assert.equal(alphaRow.client_name, fixtures.clients.alpha.name, "rows must carry readable client context");
   assert.equal(alphaRow.project_name, fixtures.projects.alpha.name, "rows must carry readable project context");
 }
 
+/** @param {CalendarResult} result @param {CalendarFixtures} fixtures */
 function assertRecurrenceProjection(result, fixtures) {
   assert.deepEqual(
     taskRecurrenceService.projectOccurrenceDates({
@@ -347,6 +364,7 @@ function assertRecurrenceProjection(result, fixtures) {
   );
 
   const virtualRow = weeklyRows.find((row) => row.virtual);
+  assert.ok(virtualRow, "the weekly recurrence should project a virtual row");
   assert.deepEqual(
     Object.keys(virtualRow).sort(),
     [
@@ -374,6 +392,7 @@ function assertRecurrenceProjection(result, fixtures) {
   assert.equal(virtualRow.endDate, virtualRow.instanceDate);
 }
 
+/** @param {TasksSession} session */
 async function assertCalendarProjectionIsReadOnly(session) {
   const before = await querySql("SELECT COUNT(*) AS total FROM tasks;");
   await tasksService.calendarWindow(session, { start: WINDOW_START, end: WINDOW_END });
@@ -381,6 +400,7 @@ async function assertCalendarProjectionIsReadOnly(session) {
   assert.equal(after[0].total, before[0].total, "reading projected calendar occurrences must not create task rows");
 }
 
+/** @param {TasksSession} session @param {CalendarFixtures} fixtures */
 async function assertCalendarRepositoryProjection(session, fixtures) {
   const projectionSource = repositorySource.slice(
     repositorySource.indexOf("function taskCalendarSelectSql"),
@@ -421,6 +441,7 @@ async function assertCalendarRepositoryProjection(session, fixtures) {
   }
 }
 
+/** @param {CalendarResult} result @param {CalendarFixtures} fixtures */
 function assertReminderMarkers(result, fixtures) {
   const markersByTask = new Map();
   for (const marker of result.reminders) {
@@ -429,11 +450,13 @@ function assertReminderMarkers(result, fixtures) {
 
   // Default date-only policy fires 3 days and 1 day before the due date in
   // the session timezone (America/New_York fixture default).
+  /** @type {ReminderMarker[]} */
   const alphaMarkers = markersByTask.get(fixtures.alphaTask.task_id) || [];
   assert.deepEqual(alphaMarkers.map((marker) => marker.date), ["2026-08-09", "2026-08-11"], "date-only reminders fire 3d and 1d before the due date");
   assert.ok(alphaMarkers.every((marker) => marker.due_kind === "date_only"));
 
   // Default date-time policy fires 24 hours and 2 hours before the due time.
+  /** @type {ReminderMarker[]} */
   const timedMarkers = markersByTask.get(fixtures.timedTask.task_id) || [];
   assert.deepEqual(timedMarkers.map((marker) => marker.date), ["2026-08-12", "2026-08-13"], "date-time reminders fire 24h and 2h before the due time");
   assert.ok(timedMarkers.every((marker) => marker.due_kind === "date_time"));
@@ -444,6 +467,7 @@ function assertReminderMarkers(result, fixtures) {
 
   // The lookahead surfaces only the in-window firing (3d before 2026-09-02);
   // the 1d firing lands after the window and the task itself is not a row.
+  /** @type {ReminderMarker[]} */
   const lookaheadMarkers = markersByTask.get(fixtures.lookaheadTask.task_id) || [];
   assert.deepEqual(lookaheadMarkers.map((marker) => marker.date), ["2026-08-30"], "lookahead reminders surface only in-window firings");
 
@@ -458,6 +482,7 @@ function assertReminderMarkers(result, fixtures) {
   assert.deepEqual(result.reminders, sorted, "reminder markers must be sorted by fire time");
 }
 
+/** @param {CalendarFixtures} fixtures */
 async function assertScopedPermissionFiltering(fixtures) {
   const scopedSession = /** @type {import("../../../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ ({
     active_workspace_id: fixtures.workspaceId,
@@ -484,6 +509,7 @@ async function assertScopedPermissionFiltering(fixtures) {
   );
 }
 
+/** @param {TasksSession} session @param {CalendarFixtures} fixtures */
 async function assertClientProjectFilters(session, fixtures) {
   const projectScoped = await tasksService.calendarWindow(session, {
     start: WINDOW_START,
@@ -517,6 +543,7 @@ async function assertClientProjectFilters(session, fixtures) {
   );
 }
 
+/** @param {TasksSession} session @param {CalendarFixtures} fixtures */
 async function assertDisabledModuleRead(session, fixtures) {
   const now = new Date().toISOString();
 
@@ -560,25 +587,15 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }
 
+/** @param {unknown} value @returns {string} */
 function sqlText(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
 
+/** @param {string} workspaceId @param {CalendarUser} user @returns {string} */
 function userInsertSql(workspaceId, user) {
   return `
 INSERT INTO users (
@@ -591,12 +608,14 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {CalendarUser} user @param {string} now @returns {string} */
 function membershipInsertSql(workspaceId, user, now) {
   return `
 INSERT INTO user_workspaces (user_workspace_id, user_id, workspace_id, status, created_at, updated_at)
 VALUES (${sqlText(randomUUID())}, ${sqlText(user.userId)}, ${sqlText(workspaceId)}, 'active', ${sqlText(now)}, ${sqlText(now)});`;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} roleId @param {string} scopeType @param {string | null} scopeId @param {string} now @returns {string} */
 function assignmentInsertSql(workspaceId, userId, roleId, scopeType, scopeId, now) {
   const scopedClientId = scopeType === "client" ? sqlText(scopeId) : "NULL";
   const scopedProjectId = scopeType === "project" ? sqlText(scopeId) : "NULL";
@@ -612,6 +631,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {CalendarClient} client @param {string} now @returns {string} */
 function clientInsertSql(workspaceId, client, now) {
   return `
 INSERT INTO clients (
@@ -634,6 +654,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {CalendarProject} project @param {string} now @returns {string} */
 function projectInsertSql(workspaceId, project, now) {
   return `
 INSERT INTO projects (
@@ -646,4 +667,26 @@ VALUES (
   NULL, NULL, NULL,
   NULL, ${sqlText(now)}, ${sqlText(now)}
 );`;
+}
+
+/**
+ * Read the HTTP status a rejected service call carries, proving the value
+ * really is an error object first. A rejection without a numeric status
+ * resolves to -1 so the predicate fails rather than passing vacuously.
+ * @param {unknown} error
+ * @returns {number}
+ */
+function rejectionStatus(error) {
+  if (error === null || typeof error !== "object" || !("statusCode" in error)) return -1;
+  const status = /** @type {{ statusCode: unknown }} */ (error).statusCode;
+  return typeof status === "number" ? status : -1;
+}
+
+/**
+ * Read a rejected service call's message as text without assuming a shape.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function rejectionMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }

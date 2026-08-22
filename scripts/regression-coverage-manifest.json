@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18469,
+    "activeAssertionCount": 18480,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19181,
+    "effectiveAssertionCount": 19192,
     "retiredAssertionCredit": 43,
     "vitest": [
       {
@@ -4042,11 +4042,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 136,
+      "assertionCount": 137,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 136,
+      "entryPointAssertionCount": 137,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -5859,11 +5859,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 25,
+      "assertionCount": 30,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves Workspace, Client, and Project calendar subscriptions apply a Tasks-owned SQL ceiling plus current permission and hierarchy intersection.",
-      "entryPointAssertionCount": 25,
+      "entryPointAssertionCount": 30,
       "id": "tasks.private-calendar-feed-scope",
       "legacy": false,
       "path": "scripts/regressions/tasks/private-calendar-feed-scope.regression.mjs",
@@ -5881,11 +5881,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 54,
+      "assertionCount": 55,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves bounded, subscription-scoped, permission-shaped Tasks iCalendar serialization for one-off, recurring, moved, hidden, and cancelled occurrences.",
-      "entryPointAssertionCount": 54,
+      "entryPointAssertionCount": 55,
       "id": "tasks.task-calendar-feed-serialization",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-calendar-feed-serialization.regression.mjs",
@@ -5903,11 +5903,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 71,
+      "assertionCount": 72,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves the task calendar-window contract: lean real rows plus bounded read-time recurrence projection, real-instance deduplication, exact renderer payload shape, workspace and permission scoping without leaks, reminder correctness, client/project filters, and disabled-module reads.",
-      "entryPointAssertionCount": 71,
+      "entryPointAssertionCount": 72,
       "id": "tasks.task-calendar-window",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-calendar-window.regression.mjs",
@@ -5924,11 +5924,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 44,
+      "assertionCount": 47,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves nullable quarter-hour Task estimates across storage constraints, service and public API payloads, the canonical editor duplicate flow, read models, and recurrence materialization.",
-      "entryPointAssertionCount": 44,
+      "entryPointAssertionCount": 47,
       "id": "tasks.task-estimate-minutes",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-estimate-minutes.regression.mjs",

@@ -754,6 +754,14 @@ for (const recurrenceReminderOwner of [
 ]) {
   assert.equal(ledger.programs.scripts.diagnostics[recurrenceReminderOwner], undefined, `${recurrenceReminderOwner} must stay strict-clean after checkpoint 0.33.33.32.3`);
 }
+for (const calendarFeedOwner of [
+  "scripts/regressions/tasks/private-calendar-feed-scope.regression.mjs",
+  "scripts/regressions/tasks/task-calendar-feed-serialization.regression.mjs",
+  "scripts/regressions/tasks/task-calendar-window.regression.mjs",
+  "scripts/regressions/tasks/task-estimate-minutes.regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[calendarFeedOwner], undefined, `${calendarFeedOwner} must stay strict-clean after checkpoint 0.33.33.32.4`);
+}
 
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 
