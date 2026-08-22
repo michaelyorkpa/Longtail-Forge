@@ -3,12 +3,18 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-bulk-due-tags-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-bulk-due-tags.db");
 process.env.SUPER_ADMIN_PASSWORD = "Task-Bulk-Due-Tags-Test-Password-123!";
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
+/** @typedef {Awaited<ReturnType<typeof createFixtures>>} DueTagFixtures */
+
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const { tagsService } = await import("../src/services/tags.service.js");
 
@@ -30,6 +36,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session */
 async function createFixtures(session) {
   const directTag = (await tagsService.create(session, { name: "Bulk Due Direct" })).tag;
   const propagatedTag = (await tagsService.create(session, { name: "Bulk Due Propagated" })).tag;
@@ -68,6 +75,7 @@ async function createFixtures(session) {
   };
 }
 
+/** @param {TasksSession} session @param {DueTagFixtures} fixtures */
 async function assertDueDateBulkActions(session, fixtures) {
   const setDate = await tasksService.bulkUpdate({
     action: "due_date",
@@ -88,6 +96,7 @@ async function assertDueDateBulkActions(session, fixtures) {
   assert.equal(clearedDate.tasks[0].due_time, "", "clearing due date should clear due time too");
 }
 
+/** @param {TasksSession} session @param {DueTagFixtures} fixtures */
 async function assertDueTimeBulkActions(session, fixtures) {
   const setTime = await tasksService.bulkUpdate({
     action: "due_time",
@@ -107,6 +116,7 @@ async function assertDueTimeBulkActions(session, fixtures) {
   assert.equal(clearedTime.tasks[0].due_time, "");
 }
 
+/** @param {TasksSession} session @param {DueTagFixtures} fixtures */
 async function assertTagBulkActionsPreserveNonManualTags(session, fixtures) {
   const added = await tasksService.bulkUpdate({
     action: "tag_add",
@@ -132,6 +142,7 @@ async function assertTagBulkActionsPreserveNonManualTags(session, fixtures) {
   assert.ok(assignments.propagatedTags.some((tag) => tag.tag_id === fixtures.propagatedTag.tag_id), "bulk remove should preserve propagated tags");
 }
 
+/** @param {TasksSession} session @param {DueTagFixtures} fixtures */
 async function assertPartialFailures(session, fixtures) {
   const invalidDueTime = await tasksService.bulkUpdate({
     action: "due_time",
@@ -168,6 +179,7 @@ async function assertBrowserWiring() {
   assert.match(tasksJs, /action: "due_time"/);
 }
 
+/** @param {string} workspaceId @returns {Promise<TasksSession>} */
 async function createNoRoleSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -212,15 +224,15 @@ VALUES (
 );
 `);
 
-  return {
+  return workspaceSessionFixture({
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
+    ip_address: "127.0.0.1",
     timezone: "America/New_York",
     user_id: userId,
     username: `task-bulk-no-role-${userId}@example.test`,
     workspace_id: workspaceId,
-  };
+  });
 }
 
 async function readSeedSession() {
@@ -230,19 +242,7 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }
 
 async function assertIntegrity() {

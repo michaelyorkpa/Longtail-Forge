@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-checklist-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-checklist.db");
@@ -14,6 +18,9 @@ const { indexTaskRecord } = await import("../src/modules/tasks/search-indexers.j
 const { taskTimersService } = await import("../src/modules/tasks/task-timers.service.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 
+/** @typedef {import("../src/types/framework-contracts.js").InternalEvent} InternalEvent */
+
+/** @type {InternalEvent[]} */
 const capturedEvents = [];
 const unsubscribe = [
   "task.updated",
@@ -45,6 +52,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session */
 async function assertChecklistLifecycleAndProgress(session) {
   const task = (await tasksService.create({
     title: "Checklist parent task",
@@ -102,11 +110,13 @@ async function assertChecklistLifecycleAndProgress(session) {
 
   const summary = await tasksService.summary(session);
   const assigned = summary.assignedToMe.find((item) => item.task_id === task.task_id);
+  assert.ok(assigned, "the checklist task should appear in the assigned-to-me summary");
   assert.equal(assigned.checklistProgress.total_count, 2);
   assert.equal(assigned.resumeContext.checklist_progress.next_incomplete_item_label, "Review final state");
 
   const workbench = await tasksService.listWorkbenchItems(session);
   const workItem = workbench.items.find((item) => item.task_id === task.task_id);
+  assert.ok(workItem, "the checklist task should appear in the Workbench item list");
   assert.equal(workItem.checklist_progress.total_count, 2);
   assert.equal(workItem.resume_context.checklist_progress.total_count, 2);
 
@@ -114,10 +124,15 @@ async function assertChecklistLifecycleAndProgress(session) {
     workspaceId: session.workspace_id,
     recordId: task.task_id,
   });
+  assert.ok(
+    searchDocument && !("documents" in searchDocument),
+    "indexing a single checklist task should return that record's search document",
+  );
   assert.match(searchDocument.body, /Review final state/);
   assert.doesNotMatch(searchDocument.body, /Draft recovery summary/);
 }
 
+/** @param {TasksSession} session */
 async function assertChecklistDrivenStatusTransitions(session) {
   const task = (await tasksService.create({
     title: "Checklist status transition task",
@@ -164,6 +179,7 @@ async function assertChecklistDrivenStatusTransitions(session) {
   await assertBlockedChecklistStart(session);
 }
 
+/** @param {TasksSession} session */
 async function assertBlockedChecklistStart(session) {
   const task = (await tasksService.create({
     blocked_reason: "Waiting for checklist prerequisites.",
@@ -187,6 +203,7 @@ async function assertBlockedChecklistStart(session) {
   assert.equal(unchecked.task.blocked_reason, "", "only timer reset may restore the prior blocked reason");
 }
 
+/** @param {TasksSession} session @param {string} status */
 async function assertChecklistToggleKeepsLifecycleStatus(session, status) {
   const task = (await tasksService.create({
     title: `Checklist ${status} task`,
@@ -202,6 +219,7 @@ async function assertChecklistToggleKeepsLifecycleStatus(session, status) {
   assert.equal(unchecked.task.status, status, `${status} tasks should not change status when checklist items are unchecked`);
 }
 
+/** @param {TasksSession} session @param {string} projectId */
 async function assertStartedWorkEvidenceContinuity(session, projectId) {
   const running = await createTimerChecklistTask(session, projectId, "Running timer checklist continuity");
   const runningStart = await taskTimersService.save(running.task.task_id, runningTimerPayload(), session);
@@ -247,6 +265,7 @@ async function assertStartedWorkEvidenceContinuity(session, projectId) {
   assert.equal(await countTaskTimeEntries(session.workspace_id, savedTime.task.task_id), 1, "the continuity fixture should retain its task-linked time entry");
 }
 
+/** @param {TasksSession} session @param {string} projectId @param {string} title */
 async function createTimerChecklistTask(session, projectId, title) {
   const task = (await tasksService.create({
     assignee_ids: [session.user_id],
@@ -258,6 +277,7 @@ async function createTimerChecklistTask(session, projectId, title) {
   return { item: checklist.item, task };
 }
 
+/** @param {string} workspaceId */
 async function createProject(workspaceId) {
   const projectId = randomUUID();
   const now = new Date().toISOString();
@@ -281,6 +301,7 @@ VALUES (
   return projectId;
 }
 
+/** @param {string} workspaceId @param {string} taskId @returns {Promise<number>} */
 async function countTaskTimeEntries(workspaceId, taskId) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -300,6 +321,7 @@ function runningTimerPayload() {
   };
 }
 
+/** @param {TasksSession} session @param {TasksSession} noRoleSession */
 async function assertChecklistPermissionBoundaries(session, noRoleSession) {
   const task = (await tasksService.create({
     title: "Private checklist task",
@@ -325,6 +347,7 @@ async function assertTaskViewDialogIncludesChecklistControls() {
   assert.match(taskDialogScript, /data-task-checklist-list/, "Tasks dialog must include checklist list markup");
 }
 
+/** @param {string} workspaceId @returns {Promise<TasksSession>} */
 async function createNoRoleSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -369,14 +392,14 @@ VALUES (
 );
 `);
 
-  return {
+  return workspaceSessionFixture({
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
+    ip_address: "127.0.0.1",
     timezone: "America/New_York",
     user_id: userId,
     username: `task-checklist-${userId}@example.test`,
     workspace_id: workspaceId,
-  };
+  });
 }
 
 async function readSeedSession() {
@@ -386,16 +409,5 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }

@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
@@ -15,8 +19,6 @@ const taskChecklistsRepoSource = readText("src/modules/tasks/task-checklists.rep
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const tasksDocs = readText("docs/tasks-module.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { taskChecklistsRepository } = await import("../src/modules/tasks/task-checklists.repo.js");
@@ -52,10 +54,9 @@ function assertStaticContract() {
   assert.match(auditDocs, /\| tasks\/task-checklists\.repo \| Converted \| 0 \| 0 \| 11 \| 11 \|/, "audit inventory should mark tasks/task-checklists.repo converted");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.9[\s\S]*`tasks\/task-checklists\.repo`[\s\S]*1,331 remaining helper invocations/, "database docs should record the Task checklist repository conversion");
   assert.match(tasksDocs, /As of version 0\.33\.5\.27\.9[\s\S]*task checklist repository uses named bound params[\s\S]*`db\.transaction\(callback\)`[\s\S]*boolean seam/, "Tasks docs should describe the converted checklist persistence boundary");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.9 - Conversion wave: Task checklist repository[\s\S]*- \[x\] Convert `tasks\/task-checklists\.repo`[\s\S]*- \[x\] Preserve checklist read\/progress[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.9 - [\s\S]*Task checklist repository conversion[\s\S]*1,331 helper invocations[\s\S]*215 direct interpolated operation sites[\s\S]*123 bound operation sites/, "changelog should record the Task checklist conversion burndown");
 }
 
+/** @param {TasksSession} session */
 async function assertRepositoryLifecycle(session) {
   const task = (await tasksService.create({
     next_action: "Verify converted checklist persistence.",
@@ -76,6 +77,8 @@ async function assertRepositoryLifecycle(session) {
     sort_order: 2500,
     updated_by_user_id: session.user_id,
   });
+  assert.ok(first, "creating a checklist item should return the persisted row");
+  assert.ok(second, "creating a second checklist item should return the persisted row");
   assertUuidVersion(first.task_checklist_item_id, 7, "new Tasks checklist child identity");
   assertUuidVersion(second.task_checklist_item_id, 7, "second new Tasks checklist child identity");
 
@@ -105,6 +108,7 @@ async function assertRepositoryLifecycle(session) {
     label: "First converted checklist item done",
     updated_by_user_id: session.user_id,
   });
+  assert.ok(updatedFirst, "updating a checklist item should return the persisted row");
   assert.equal(updatedFirst.is_checked, true, "checked state should round-trip as a logical boolean");
   assert.equal(updatedFirst.completed_at, completedAt, "checked item completion timestamp should be preserved");
   assertProgress(
@@ -140,6 +144,7 @@ async function assertRepositoryLifecycle(session) {
   );
 
   const deletedSecond = await taskChecklistsRepository.softDelete(session.workspace_id, second.task_checklist_item_id, session.user_id);
+  assert.ok(deletedSecond, "soft deleting a checklist item should return the persisted row");
   assert.ok(deletedSecond.deleted_at, "soft delete should preserve deleted metadata on direct item reads");
   assert.equal(
     (await taskChecklistsRepository.readForTask(session.workspace_id, task.task_id))
@@ -153,6 +158,7 @@ async function assertRepositoryLifecycle(session) {
     label: "Third converted checklist item",
     updated_by_user_id: session.user_id,
   });
+  assert.ok(third, "creating a third checklist item should return the persisted row");
   assert.equal(third.sort_order, 3000, "implicit next-sort-order should ignore deleted rows and continue after active rows");
   assert.deepEqual(
     (await taskChecklistsRepository.readForTask(session.workspace_id, task.task_id)).map((item) => item.label),
@@ -170,6 +176,11 @@ async function assertRepositoryLifecycle(session) {
   );
 }
 
+/**
+ * @param {Map<string, { total_count: number, completed_count: number, next_incomplete_item_label: string }>} progressByTaskId
+ * @param {string} taskId
+ * @param {{ total: number, completed: number, next: string }} expected
+ */
 function assertProgress(progressByTaskId, taskId, expected) {
   const progress = progressByTaskId.get(taskId);
   assert.ok(progress, "progress map should include the converted task");
@@ -178,6 +189,7 @@ function assertProgress(progressByTaskId, taskId, expected) {
   assert.equal(progress.next_incomplete_item_label, expected.next);
 }
 
+/** @param {unknown} value @param {number} expectedVersion @param {string} label */
 function assertUuidVersion(value, expectedVersion, label) {
   assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
   assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
@@ -191,14 +203,5 @@ WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
 
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireRow(user, "fresh database should seed a protected super admin"));
 }

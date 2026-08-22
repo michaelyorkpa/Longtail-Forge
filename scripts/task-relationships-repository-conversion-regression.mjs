@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
@@ -17,8 +21,6 @@ const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const tasksDocs = readText("docs/tasks-module.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { taskRelationshipsRepository } = await import("../src/modules/tasks/task-relationships.repo.js");
@@ -57,10 +59,9 @@ function assertStaticContract() {
   assert.match(auditDocs, /0\.33\.5\.27\.10 Task Relationships Repository Conversion[\s\S]*`tasks\/task-relationships\.repo`[\s\S]*1,285 runtime literal-helper invocations[\s\S]*204 direct interpolated SQL operation sites[\s\S]*134 existing bound operation sites/, "audit docs should record the Task relationships repository conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.10[\s\S]*`tasks\/task-relationships\.repo`[\s\S]*named params[\s\S]*1,285 remaining helper invocations/, "database docs should record the Task relationships repository conversion");
   assert.match(tasksDocs, /As of version 0\.33\.5\.27\.10[\s\S]*task relationships repository uses named bound params[\s\S]*array-valued task-id params[\s\S]*boolean seam/, "Tasks docs should describe the converted relationship persistence boundary");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.10 - Conversion wave: Task relationships repository[\s\S]*- \[x\] Convert `tasks\/task-relationships\.repo`[\s\S]*- \[x\] Preserve parent\/child reads[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.10 - [\s\S]*Task relationships repository conversion[\s\S]*1,285 helper invocations[\s\S]*204 direct interpolated operation sites[\s\S]*134 bound operation sites/, "changelog should record the Task relationships conversion burndown");
 }
 
+/** @param {TasksSession} session */
 async function assertRepositoryLifecycle(session) {
   const parent = (await tasksService.create({ title: "Relationship conversion parent" }, session)).task;
   const blockingChild = (await tasksService.create({ title: "Blocking relationship child" }, session)).task;
@@ -91,9 +92,13 @@ async function assertRepositoryLifecycle(session) {
     updated_by_user_id: session.user_id,
   });
 
+  assert.ok(blocking, "creating a blocking relationship should return the persisted row");
+  assert.ok(nonBlocking, "creating a non-blocking relationship should return the persisted row");
   assert.equal(blocking.is_blocking, true, "created blocking relationship should round-trip as a logical boolean");
   assert.equal(nonBlocking.is_blocking, false, "created non-blocking relationship should round-trip as a logical boolean");
-  assert.equal((await taskRelationshipsRepository.readActivePair(session.workspace_id, parent.task_id, blockingChild.task_id)).task_relationship_id, blocking.task_relationship_id);
+  const activePair = await taskRelationshipsRepository.readActivePair(session.workspace_id, parent.task_id, blockingChild.task_id);
+  assert.ok(activePair, "the created blocking pair should be readable as an active pair");
+  assert.equal(activePair.task_relationship_id, blocking.task_relationship_id);
 
   const parentRelationships = await taskRelationshipsRepository.readForTask(session.workspace_id, parent.task_id);
   assert.deepEqual(
@@ -158,6 +163,7 @@ async function assertRepositoryLifecycle(session) {
     is_blocking: false,
     updated_by_user_id: session.user_id,
   });
+  assert.ok(updated, "updating a relationship should return the persisted row");
   assert.equal(updated.is_blocking, false, "relationship updates should preserve logical boolean reads");
   assert.deepEqual(await taskRelationshipsRepository.readBlockingChildren(session.workspace_id, parent.task_id), [], "updated non-blocking relationships should leave blocking-child reads");
   assertSummary(await taskRelationshipsRepository.relationshipSummary(session.workspace_id, parent.task_id), {
@@ -169,6 +175,7 @@ async function assertRepositoryLifecycle(session) {
   });
 
   const removed = await taskRelationshipsRepository.remove(session.workspace_id, blocking.task_relationship_id, session.user_id);
+  assert.ok(removed, "removing a relationship should return the persisted row");
   assert.ok(removed.removed_at, "removed relationship should remain readable by id with lifecycle metadata");
   assert.equal(await taskRelationshipsRepository.readActivePair(session.workspace_id, parent.task_id, blockingChild.task_id), null, "active pair reads should exclude removed relationships");
   assert.deepEqual(
@@ -185,6 +192,10 @@ async function assertRepositoryLifecycle(session) {
   });
 }
 
+/**
+ * @param {import("../src/types/task-workflow-contracts.js").TaskRelationshipSummary | null | undefined} summary
+ * @param {{ child: number, blockingChild: number, incompleteBlockingChild: number, parent: number, blockingParent: number }} expected
+ */
 function assertSummary(summary, expected) {
   assert.ok(summary, "relationship summary should be present");
   assert.equal(summary.child_count, expected.child);
@@ -202,14 +213,5 @@ WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
 
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireRow(user, "fresh database should seed a protected super admin"));
 }

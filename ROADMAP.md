@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` has since archived, closing 108 diagnostics across 9 files and leaving 3,042 across 193:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` and `0.33.33.32.2` have since archived, closing 229 diagnostics across 17 files and leaving 2,921 across 185:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.2` | Task checklists, relationships, bulk toolbars | 121 | 8 | 2,281 |
 | `.32.3` | Task recurrence and reminder scheduling | 202 | 9 | 2,477 |
 | `.32.4` | Task calendar windows and feed serialization | 149 | 4 | 1,850 |
 | `.32.5` | Dashboard and hot-endpoint read budgets | 107 | 5 | 1,821 |
@@ -108,16 +107,6 @@ Requirements shared by every child:
 - [ ] Do not resolve a nullability diagnostic with a non-null assertion where the owner can assert the value instead. This band is 518 of the 3,150 and is the likeliest source of a zero that the compiler believes and the runtime does not.
 - [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
-
-#### 0.33.33.32.2 - Type task checklists, relationships, and bulk toolbars
-
-**Model: High Effort - Checklist and relationship writes are ordered, and bulk toolbars apply them across selections.**
-
-Measured at 121 diagnostics across 8 files and 2,281 lines. Two `JSON.parse` sites; two history-pinned owners.
-
-- [ ] Close the 121 diagnostics across `task-checklist`, `tasks-bulk-nondestructive-toolbar`, `task-relationships`, `task-checklists-repository-conversion`, `tasks-bulk-lifecycle-toolbar`, `task-relationships-repository-conversion`, `task-bulk-due-tags`, and `task-recurrence-checklist-propagation`.
-- [ ] Type checklist items and ordering, relationship edges and their direction, and bulk selection and result envelopes with named contracts.
-- [ ] Preserve checklist ordering, relationship cycle refusals, the non-destructive/lifecycle toolbar split, and bulk permission gating exactly.
 
 #### 0.33.33.32.3 - Type task recurrence and reminder scheduling
 

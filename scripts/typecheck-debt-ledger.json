@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 3042,
+      "errorCount": 2921,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -4920,54 +4920,6 @@
             "count": 2
           }
         ],
-        "scripts/task-bulk-due-tags-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 10
-          }
-        ],
-        "scripts/task-checklist-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 2
-          },
-          {
-            "code": 18048,
-            "count": 4
-          },
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7005,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 16
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/task-checklists-repository-conversion-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 12
-          },
-          {
-            "code": 7006,
-            "count": 7
-          }
-        ],
-        "scripts/task-recurrence-checklist-propagation-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
         "scripts/task-recurrence-completion-continuity-regression.mjs": [
           {
             "code": 18047,
@@ -5002,50 +4954,6 @@
           {
             "code": 7006,
             "count": 2
-          }
-        ],
-        "scripts/task-relationships-regression.mjs": [
-          {
-            "code": 18048,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2531,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 12
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/task-relationships-repository-conversion-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 6
-          },
-          {
-            "code": 2531,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 3
           }
         ],
         "scripts/task-reminder-notification-delivery-regression.mjs": [
@@ -5122,34 +5030,6 @@
           {
             "code": 7006,
             "count": 48
-          }
-        ],
-        "scripts/tasks-bulk-lifecycle-toolbar-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 10
-          }
-        ],
-        "scripts/tasks-bulk-nondestructive-toolbar-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 16
-          },
-          {
-            "code": 7034,
-            "count": 1
           }
         ],
         "scripts/time-entries-repository-conversion-regression.mjs": [
@@ -5421,7 +5301,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 14176,
+    "errors": 14055,
     "explicitAny": 7
   },
   "explicitAnyByFile": {
