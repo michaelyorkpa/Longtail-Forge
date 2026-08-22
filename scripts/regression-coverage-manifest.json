@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18466,
+    "activeAssertionCount": 18469,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,8 +106,8 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19176,
-    "retiredAssertionCredit": 41,
+    "effectiveAssertionCount": 19181,
+    "retiredAssertionCredit": 43,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -697,6 +697,32 @@
       ]
     },
     {
+      "sourceRegression": "legacy.task.recurrence.reminders.repository.conversion",
+      "retiredInVersion": "0.33.33.32.3",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.11 rather than a live contract: one required a CHANGELOG heading recording that release Task recurrence and reminders conversion burndown, and one required that the completed 0.33.5.27.11 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The live conversion contract is still proven in this same owner by fifteen static assertions over src/modules/tasks/task-recurrence.repo.js and src/modules/tasks/task-reminders.repo.js plus the audit and database documentation assertions carrying the same 1,218/197/144 burndown figures the retired changelog assertion restated. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and legacy.bump.version owns the one current CHANGELOG heading check.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/task-recurrence-reminders-repository-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.task.recurrence.reminders.repository.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/task-recurrence-reminders-repository-conversion-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
       "sourceRegression": "legacy.task.relationships.repository.conversion",
       "retiredInVersion": "0.33.33.32.2",
       "retirementType": "historical-planning-pin",
@@ -853,11 +879,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 35,
+      "assertionCount": 34,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy async recurrence response closeout contract.",
-      "entryPointAssertionCount": 35,
+      "entryPointAssertionCount": 34,
       "id": "legacy.async.recurrence.response.closeout",
       "legacy": true,
       "path": "scripts/async-recurrence-response-closeout-regression.mjs",
@@ -4016,11 +4042,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 135,
+      "assertionCount": 136,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 135,
+      "entryPointAssertionCount": 136,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -5941,11 +5967,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 46,
+      "assertionCount": 45,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves permission-checked, exactly-once recurrence materialization, independent occurrence edits, calendar replacement, and completion/sweep continuity.",
-      "entryPointAssertionCount": 46,
+      "entryPointAssertionCount": 45,
       "id": "tasks.task-recurrence-materialize-on-touch-permissions",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-recurrence-materialize-on-touch-permissions.regression.mjs",
@@ -5962,11 +5988,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 50,
+      "assertionCount": 49,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves atomic recurring-task recovery, durable checkpoints, next-not-passed boundaries, timer and permission preflight, and retry convergence.",
-      "entryPointAssertionCount": 50,
+      "entryPointAssertionCount": 49,
       "id": "tasks.task-recurrence-skip-to-current",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-recurrence-skip-to-current.regression.mjs",
@@ -7112,11 +7138,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 61,
+      "assertionCount": 72,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves recurrence completion continuity, checklist-template seeding, safe feedback, and durable sweep recovery across every completion surface.",
-      "entryPointAssertionCount": 61,
+      "entryPointAssertionCount": 72,
       "id": "tasks.recurrence-completion-continuity",
       "legacy": false,
       "path": "scripts/task-recurrence-completion-continuity-regression.mjs",
@@ -7132,11 +7158,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 29,
+      "assertionCount": 28,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy task recurrence frequency contract.",
-      "entryPointAssertionCount": 29,
+      "entryPointAssertionCount": 28,
       "id": "legacy.task.recurrence.frequency",
       "legacy": true,
       "path": "scripts/task-recurrence-frequency-regression.mjs",
@@ -7150,11 +7176,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 15,
+      "assertionCount": 14,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy task recurrence linked note propagation contract.",
-      "entryPointAssertionCount": 15,
+      "entryPointAssertionCount": 14,
       "id": "legacy.task.recurrence.linked.note.propagation",
       "legacy": true,
       "path": "scripts/task-recurrence-linked-note-propagation-regression.mjs",
@@ -7168,11 +7194,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 34,
+      "assertionCount": 31,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy task recurrence reminders repository conversion contract.",
-      "entryPointAssertionCount": 34,
+      "entryPointAssertionCount": 31,
       "id": "legacy.task.recurrence.reminders.repository.conversion",
       "legacy": true,
       "path": "scripts/task-recurrence-reminders-repository-conversion-regression.mjs",
@@ -7238,11 +7264,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 33,
+      "assertionCount": 32,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy task reminder scheduling horizon contract.",
-      "entryPointAssertionCount": 33,
+      "entryPointAssertionCount": 32,
       "id": "legacy.task.reminder.scheduling.horizon",
       "legacy": true,
       "path": "scripts/task-reminder-scheduling-horizon-regression.mjs",

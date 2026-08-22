@@ -4,6 +4,12 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+/** @typedef {Awaited<ReturnType<typeof seedFixtures>>} ReminderFixtures */
+/** @typedef {{ displayName: string, userId: string, username: string }} ReminderUserSeed */
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
@@ -68,6 +74,7 @@ function assertStaticContract() {
   assert.match(runtimeDocs, /0\.33\.5\.21\.8[\s\S]*task due reminders reach in-app notifications/, "runtime docs should document reminder delivery");
 }
 
+/** @param {ReminderFixtures} fixtures */
 async function assertAssignedReminderNotifiesAssignee(fixtures) {
   resetJobWorkerStatusForTests();
   const task = await createReminderTask(fixtures.admin.session, {
@@ -95,6 +102,7 @@ async function assertAssignedReminderNotifiesAssignee(fixtures) {
   await assertNotificationSurfaceIncludes(fixtures.assignee.session, task.task_id);
 }
 
+/** @param {ReminderFixtures} fixtures */
 async function assertUnassignedReminderNotifiesCreator(fixtures) {
   resetJobWorkerStatusForTests();
   const task = await createReminderTask(fixtures.admin.session, {
@@ -114,6 +122,7 @@ async function assertUnassignedReminderNotifiesCreator(fixtures) {
   await assertNotificationSurfaceIncludes(fixtures.admin.session, task.task_id);
 }
 
+/** @param {ReminderFixtures} fixtures */
 async function assertFollowedReminderNotifiesFollower(fixtures) {
   resetJobWorkerStatusForTests();
   const task = await createReminderTask(fixtures.admin.session, {
@@ -147,6 +156,7 @@ async function assertFollowedReminderNotifiesFollower(fixtures) {
   await assertNotificationSurfaceIncludes(fixtures.follower.session, task.task_id);
 }
 
+/** @param {ReminderFixtures} fixtures */
 async function assertMutedResponsibleUserIsSkipped(fixtures) {
   resetJobWorkerStatusForTests();
   const task = await createReminderTask(fixtures.admin.session, {
@@ -165,6 +175,7 @@ async function assertMutedResponsibleUserIsSkipped(fixtures) {
   );
 }
 
+/** @param {TasksSession} session @param {{ assigneeIds?: string[], title?: string, dueMinutesFromNow?: number }} [options] */
 async function createReminderTask(session, options = {}) {
   const due = localDateTimeParts(addMinutes(new Date(), 6), session.timezone);
   const result = await tasksService.create({
@@ -182,15 +193,18 @@ async function createReminderTask(session, options = {}) {
   return result.task;
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function fireReminderAndDrain(workspaceId, taskId) {
   const reminderJob = await readReminderJob(workspaceId, taskId);
-  await forceJobDue(reminderJob.job_id);
+  assert.ok(reminderJob, "a queued reminder job should exist for the task");
+  await forceJobDue(String(reminderJob.job_id));
   await drainDueJobs({
     until: async () => (await dueSoonNotificationJobCount(workspaceId, taskId)) > 0,
   });
   await drainDueJobs();
 }
 
+/** @param {{ maxRuns?: number, until?: () => Promise<boolean> }} [options] */
 async function drainDueJobs(options = {}) {
   for (let index = 0; index < (options.maxRuns || 30); index += 1) {
     if (options.until && await options.until()) {
@@ -236,6 +250,7 @@ async function seedFixtures() {
   };
 }
 
+/** @param {string} workspaceId @param {string} label */
 async function createWorkspaceUser(workspaceId, label) {
   const now = new Date().toISOString();
   const user = {
@@ -252,13 +267,13 @@ ${assignmentInsertSql(workspaceId, user.userId, "workspace_admin", "workspace", 
 
   return {
     ...user,
-    session: {
-      ip: "127.0.0.1",
+    session: workspaceSessionFixture({
+      ip_address: "127.0.0.1",
       timezone: "America/New_York",
       user_id: user.userId,
       username: user.username,
       workspace_id: workspaceId,
-    },
+    }),
   };
 }
 
@@ -269,20 +284,10 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }
 
+/** @param {string} workspaceId @param {string} taskId */
 async function readReminderJob(workspaceId, taskId) {
   const rows = await querySql(`
 SELECT *
@@ -299,6 +304,7 @@ LIMIT 1;
   return rows[0];
 }
 
+/** @param {string} workspaceId @param {string} taskId @returns {Promise<number>} */
 async function reminderFireJobCount(workspaceId, taskId) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -312,6 +318,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   return Number(rows[0]?.count || 0);
 }
 
+/** @param {string} workspaceId @param {string} taskId @returns {Promise<number>} */
 async function dueSoonNotificationJobCount(workspaceId, taskId) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -325,6 +332,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   return Number(rows[0]?.count || 0);
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId @param {string} taskId */
 async function dueSoonNotifications(workspaceId, recipientUserId, taskId) {
   return querySql(`
 SELECT *
@@ -337,10 +345,12 @@ ORDER BY created_at DESC, notification_id DESC;
 `);
 }
 
+/** @param {string} workspaceId @param {string} recipientUserId @param {string} taskId @returns {Promise<number>} */
 async function dueSoonNotificationCount(workspaceId, recipientUserId, taskId) {
   return (await dueSoonNotifications(workspaceId, recipientUserId, taskId)).length;
 }
 
+/** @param {string} jobId */
 async function forceJobDue(jobId) {
   await runSql(`
 UPDATE jobs
@@ -349,6 +359,7 @@ WHERE job_id = ${sqlText(jobId)};
 `);
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} eventType @param {boolean} enabled */
 async function saveUserPreference(workspaceId, userId, eventType, enabled) {
   const now = new Date().toISOString();
 
@@ -368,6 +379,7 @@ ON CONFLICT(workspace_id, user_id, event_type) DO UPDATE SET
 `);
 }
 
+/** @param {TasksSession} session @param {string} taskId */
 async function assertNotificationSurfaceIncludes(session, taskId) {
   const [listResult, unread] = await Promise.all([
     notificationsService.list(session, {
@@ -386,14 +398,15 @@ async function assertNotificationSurfaceIncludes(session, taskId) {
   assert.ok(unread.highPriorityCount >= 1, "bell summary should include the high-priority reminder");
 }
 
+/** @param {Record<string, unknown>} notification @param {string} taskId */
 function assertReminderNotificationShape(notification, taskId) {
   assert.equal(notification.event_type, "task.due_soon");
   assert.equal(notification.priority, "high");
   assert.equal(notification.record_id, taskId);
   assert.equal(notification.url, `tasks.html?task=${encodeURIComponent(taskId)}`);
-  assert.match(notification.title, /Due in 5 minutes:/);
-  assert.match(notification.body, /due in 5 minutes/);
-  assert.match(notification.metadata_json, /notification_delivery_key/);
+  assert.match(String(notification.title), /Due in 5 minutes:/);
+  assert.match(String(notification.body), /due in 5 minutes/);
+  assert.match(String(notification.metadata_json), /notification_delivery_key/);
 }
 
 async function assertIntegrity() {
@@ -401,6 +414,7 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok", "SQLite integrity check should pass");
 }
 
+/** @param {string} workspaceId @param {ReminderUserSeed} user @returns {string} */
 function userInsertSql(workspaceId, user) {
   return `
 INSERT INTO users (
@@ -431,12 +445,14 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {ReminderUserSeed} user @param {string} now @returns {string} */
 function membershipInsertSql(workspaceId, user, now) {
   return `
 INSERT INTO user_workspaces (user_workspace_id, workspace_id, user_id, status, created_at, updated_at)
 VALUES (${sqlText(randomUUID())}, ${sqlText(workspaceId)}, ${sqlText(user.userId)}, 'active', ${sqlText(now)}, ${sqlText(now)});`;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} roleId @param {string} scopeType @param {string | null} scopeId @param {string} now @returns {string} */
 function assignmentInsertSql(workspaceId, userId, roleId, scopeType, scopeId, now) {
   const scopedProjectId = scopeType === "project" ? scopeId : null;
 
@@ -465,10 +481,12 @@ VALUES (
 );`;
 }
 
+/** @param {Date} date @param {number} minutes @returns {Date} */
 function addMinutes(date, minutes) {
   return new Date(date.getTime() + minutes * 60 * 1000);
 }
 
+/** @param {Date} date @param {string} timeZone */
 function localDateTimeParts(date, timeZone) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     day: "2-digit",
@@ -479,7 +497,7 @@ function localDateTimeParts(date, timeZone) {
     month: "2-digit",
     timeZone,
     year: "numeric",
-  }).formatToParts(date).reduce((map, part) => {
+  }).formatToParts(date).reduce((/** @type {Record<string, string>} */ map, part) => {
     map[part.type] = part.value;
     return map;
   }, {});
