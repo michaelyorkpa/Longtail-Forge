@@ -1,5 +1,25 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.32.12 - Type the Notes secure catalog
+
+**Model: High Effort** - Secure catalog transitions change who can read existing content.
+
+Twelfth child of the `0.33.33.32` rollup, measured at 95 diagnostics across 5 files and 1,736 lines — exactly as recorded. The scripts program falls from 1,632 to 1,537 and from 127 to 122 diagnostic-bearing files. The server/test program stays at zero. Fourteen children remain.
+
+- [x] Closed all 95 diagnostics across `regressions/notes/secure-catalog-transitions` (36), `notes-secure` (22), `regressions/notes/secure-catalog-consumer-enforcement` (19), `regressions/notes/secure-catalog-effective-security` (10), and `regressions/notes/notes-settings-catalog-management` (8). All five are pinned strict-clean through `framework.full-strict-governance`.
+- [x] **Narrowed every refusal predicate in the child — 28 of the 95 diagnostics were one shape.** Transition legality, permission boundaries, wrong-password rejection, concurrent-rename refusal, locked-note reads, catalog-count limits, hierarchy cycles, and public-API consumer exclusion all read `statusCode`, `code`, or `message` straight off an unknown rejection. Each now crosses a shared reader per owner, with a refusal carrying no numeric status resolving to `-1` so the predicate fails rather than passing vacuously. These are the assertions that prove a secure note stays indistinguishable from a missing one, so a vacuous pass here would have been the most expensive kind.
+- [x] **Proved a refusal by inverting it, as this child required.** Removing `assertNoteConsumerAccess` from the public API read path made `secure-catalog-consumer-enforcement` fail with `Missing expected rejection`. The source was restored and the owner re-run green.
+- [x] **Corrected a stale call-site arity.** `notes-secure` called `assertManifestAndSchema(adminSession)` against a function that declares no parameters and never used one. The argument is dropped rather than the parameter invented.
+- [x] **Named the public API path as key-authenticated instead of handing it a browser session.** `notesPublicApiService.listNotes` and `readNote` publish `ApiSession`, which requires `api_key_id`; the owner was passing a `WorkspaceRequestSession`. The fixture now builds an explicit API session, which is what a public API call actually carries.
+- [x] Proved the persisted plaintext columns are text before matching them. The downgrade assertions are what prove secure content really returns to plaintext, and a column that stopped being written would previously have thrown inside a regular expression instead of naming itself.
+- [x] Proved every external Notes consumer the enforcement owner names still exists before matching a pattern against its source, so a moved or renamed consumer fails there rather than matching nothing. Proved the secure-note event's suppression metadata block, which is what proves a secure note leaks neither title nor body.
+- [x] Reused published contracts by type-only import — `WorkspaceRequestSession` through the shared `workspaceSessionFixture` for all five seeded sessions, `NoteCollectionRecord` for the catalog records, `InternalEvent` for both captured event arrays, and `ApiSession` for the public API calls.
+- [x] **Dynamic-boundary disposition** (required by the `0.33.33.31.6.1` rule): *`JSON.parse`* — none, as measured. *Database rows* — the persisted note and revision columns behind the encryption and downgrade assertions, each proven before use. *Filesystem reads* — a recursive walk of `src/` reading every JavaScript file as text to find external Notes consumers, plus the named consumer sources; text is not a structured boundary and the walk's own return type is now declared. *Not present* — parsed response payloads, child-process output, JSON-bearing database columns, environment records, and provider responses.
+- [x] Preserved behaviour exactly. Transition legality and its refusal statuses, effective-security resolution and inheritance, consumer enforcement refusals and their codes, settings-driven catalog management limits, encryption and downgrade fidelity, and the fail-closed indexing behaviour are unchanged; all five owners run green individually.
+- [x] No historical planning pins in scope: none of the five owners reads `ROADMAP.md`, `ROADMAP-ARCHIVE.md`, or `CHANGELOG.md`, so `scripts/planning-document-pin-baseline.json` is untouched.
+- [x] Held the scope: no production behaviour changed, no production file modified, no new regression owner, fixture, or route, no `public/js/` file touched, and no explicit `any`, `@ts-ignore`, `@ts-nocheck`, file pragma, or `tsconfig.scripts.json` exclusion introduced. The explicit-`any` total stays at 3.
+- [x] Verified with `npm run verify:slice` against the final tree under full-check escalation.
+
 ## Version 0.33.33.32.11 - Type Notes foundation, access, and API service
 
 **Model: High Effort** - Notes access control is the gate every other Notes owner sits behind.
