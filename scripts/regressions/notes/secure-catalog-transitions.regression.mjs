@@ -11,6 +11,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "../../test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} SecureSession */
+/** @typedef {import("../../../src/types/notes-collections-contracts.js").NoteCollectionRecord} CatalogRecord */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-secure-catalog-transitions-"));
 const secureKey = "Catalog-Transition-Regression-Master-Key-2026!";
@@ -53,6 +58,7 @@ WHERE user_id = ${sqlText(session.user_id)};
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {SecureSession} session */
 async function assertPermissionBoundary(session) {
   const catalog = await createCatalog(session, "Permission Boundary");
   await assert.rejects(
@@ -60,10 +66,11 @@ async function assertPermissionBoundary(session) {
       ...session,
       user_id: "missing-secure-catalog-operator",
     }),
-    (error) => error?.statusCode === 403,
+    (error) => rejectionStatus(error) === 403,
   );
 }
 
+/** @param {SecureSession} session */
 async function assertSynchronousEnablePreservationAndDowngrade(session) {
   const root = await createCatalog(session, "Synchronous Secure Root");
   const child = await createCatalog(session, "Inherited Child", root.note_library_collection_id);
@@ -152,7 +159,7 @@ SELECT
       ...downgradePayload(root, removalPreflight, operatorPassword),
       confirmAffectedNoteCount: removalPreflight.affectedNoteCount + 1,
     }, session),
-    (error) => error?.statusCode === 400 && /confirm/i.test(error.message),
+    (error) => rejectionStatus(error) === 400 && /confirm/i.test(rejectionMessage(error)),
   );
 
   const removed = await catalogSecurityService.remove(
@@ -197,6 +204,7 @@ ORDER BY created_at ASC;
   assert.doesNotMatch(JSON.stringify(preservationAuditRows), /Move preservation body|secure_payload|encrypted_data_key/);
 }
 
+/** @param {SecureSession} session */
 async function assertLargeCatalogFailureRetryAndDowngrade(session) {
   const catalog = await createCatalog(session, "Large Transition Catalog");
   const notes = [];
@@ -236,15 +244,15 @@ async function assertLargeCatalogFailureRetryAndDowngrade(session) {
   assert.equal(await countSearchDocuments(notes[0].note_id), 0, "transition-state indexing must fail closed");
   await assert.rejects(
     notesService.read(notes[0].note_id, session),
-    (error) => error?.statusCode === 423,
+    (error) => rejectionStatus(error) === 423,
   );
   await assert.rejects(
     notesService.updateCollection(catalog.note_library_collection_id, { title: "Unsafe concurrent rename" }, session),
-    (error) => error?.statusCode === 409 && /security transition/i.test(error.message),
+    (error) => rejectionStatus(error) === 409 && /security transition/i.test(rejectionMessage(error)),
   );
   await assert.rejects(
     catalogSecurityService.enable(catalog.note_library_collection_id, {}, session),
-    (error) => error?.statusCode === 409,
+    (error) => rejectionStatus(error) === 409,
   );
 
   delete process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY;
@@ -306,7 +314,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   assert.ok(partialFailure, "partially failed transition catalog should remain readable");
   assert.equal(partialFailure.security_transition_state, "failed");
   assert.equal(partialFailure.effective_security_mode, "secure");
-  await assert.rejects(notesService.read(notes[0].note_id, session), (error) => error?.statusCode === 423);
+  await assert.rejects(notesService.read(notes[0].note_id, session), (error) => rejectionStatus(error) === 423);
   await querySql(`
 UPDATE notes
 SET encryption_auth_tag = ${sqlText(originalAuthTag)}
@@ -329,6 +337,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   assert.equal(await countRevisions(notes.map((note) => note.note_id)), initialRevisionCount);
 }
 
+/** @param {SecureSession} session */
 async function assertWrongPasswordRejected(session) {
   const catalog = await createCatalog(session, "Wrong Password Boundary");
   await createNoteWithRevision(session, catalog.note_library_collection_id, "Wrong password body");
@@ -339,7 +348,7 @@ async function assertWrongPasswordRejected(session) {
   const removePreflight = (await catalogSecurityService.preflight(catalog.note_library_collection_id, { action: "remove" }, session)).preflight;
   await assert.rejects(
     catalogSecurityService.remove(catalog.note_library_collection_id, downgradePayload(catalog, removePreflight, "wrong password"), session),
-    (error) => error?.statusCode === 400 && /incorrect/i.test(error.message),
+    (error) => rejectionStatus(error) === 400 && /incorrect/i.test(rejectionMessage(error)),
   );
   const unchanged = await notesRepository.readCollectionById(session.workspace_id, catalog.note_library_collection_id);
   assert.ok(unchanged, "wrong-password rejection should leave the catalog readable");
@@ -347,7 +356,7 @@ async function assertWrongPasswordRejected(session) {
   assert.equal(unchanged.security_transition_state, "stable");
 }
 
-/** @param {string | null} [parentCollectionId] */
+/** @param {SecureSession} session @param {string} title @param {string | null} [parentCollectionId] */
 async function createCatalog(session, title, parentCollectionId = null) {
   return (await notesService.createCollection({
     libraryBucket: "reference",
@@ -356,6 +365,7 @@ async function createCatalog(session, title, parentCollectionId = null) {
   }, session)).collection;
 }
 
+/** @param {SecureSession} session @param {string} collectionId @param {string} bodyPrefix */
 async function createNoteWithRevision(session, collectionId, bodyPrefix) {
   const created = (await notesService.create({
     body_markdown: `${bodyPrefix} initial`,
@@ -368,6 +378,7 @@ async function createNoteWithRevision(session, collectionId, bodyPrefix) {
   }, session)).note;
 }
 
+/** @param {CatalogRecord} catalog @param {{ affectedNoteCount: number }} preflight @param {string} currentPassword */
 function downgradePayload(catalog, preflight, currentPassword) {
   return {
     confirmAction: "remove_security",
@@ -377,6 +388,7 @@ function downgradePayload(catalog, preflight, currentPassword) {
   };
 }
 
+/** @param {{ transitionVersion: unknown }} result @param {SecureSession} session @param {CatalogRecord} catalog @param {string} action */
 function jobPayload(result, session, catalog, action) {
   return {
     action,
@@ -387,6 +399,7 @@ function jobPayload(result, session, catalog, action) {
   };
 }
 
+/** @param {string} noteId @param {string} forbiddenText */
 async function assertEncrypted(noteId, forbiddenText) {
   const notes = await querySql(`
 SELECT body_markdown, body_excerpt, body_plaintext_index, secure_payload, encrypted_data_key
@@ -408,25 +421,36 @@ WHERE note_id = ${sqlText(noteId)};
   assert.doesNotMatch(JSON.stringify(revisions), new RegExp(forbiddenText));
 }
 
+/** @param {string} noteId @param {string} expectedText */
 async function assertPlaintext(noteId, expectedText) {
   const notes = await querySql(`
 SELECT body_markdown, body_excerpt, body_plaintext_index, security_mode, secure_payload, encrypted_data_key
 FROM notes
 WHERE note_id = ${sqlText(noteId)};
 `);
-  assert.match(notes[0].body_markdown, new RegExp(expectedText));
-  assert.match(notes[0].body_plaintext_index, new RegExp(expectedText));
-  assert.equal(notes[0].security_mode, "normal");
-  assert.equal(notes[0].secure_payload, null);
-  assert.equal(notes[0].encrypted_data_key, null);
+  const plaintextRow = requireFirstRow(notes, "the downgraded note should persist a row");
+  assert.ok(typeof plaintextRow.body_markdown === "string", "a downgraded note should persist plaintext body Markdown");
+  assert.ok(typeof plaintextRow.body_plaintext_index === "string", "a downgraded note should persist a plaintext search index");
+  assert.match(plaintextRow.body_markdown, new RegExp(expectedText));
+  assert.match(plaintextRow.body_plaintext_index, new RegExp(expectedText));
+  assert.equal(plaintextRow.security_mode, "normal");
+  assert.equal(plaintextRow.secure_payload, null);
+  assert.equal(plaintextRow.encrypted_data_key, null);
   const revisions = await querySql(`
 SELECT body_markdown, security_mode, secure_payload, encrypted_data_key
 FROM note_revisions
 WHERE note_id = ${sqlText(noteId)};
 `);
-  assert.ok(revisions.every((revision) => revision.body_markdown.includes(expectedText) && revision.security_mode === "normal" && !revision.secure_payload && !revision.encrypted_data_key));
+  assert.ok(revisions.every((revision) => (
+    typeof revision.body_markdown === "string" &&
+    revision.body_markdown.includes(expectedText) &&
+    revision.security_mode === "normal" &&
+    !revision.secure_payload &&
+    !revision.encrypted_data_key
+  )), "every downgraded revision should carry plaintext body Markdown");
 }
 
+/** @param {string} noteId @returns {Promise<number>} */
 async function countSearchDocuments(noteId) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -438,6 +462,7 @@ WHERE module_id = 'notes'
   return Number(rows[0]?.count || 0);
 }
 
+/** @param {readonly string[]} noteIds @returns {Promise<number>} */
 async function countRevisions(noteIds) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -447,6 +472,7 @@ WHERE note_id IN (${noteIds.map(sqlText).join(", ")});
   return Number(rows[0]?.count || 0);
 }
 
+/** @returns {Promise<SecureSession>} */
 async function readProtectedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.display_name, users.timezone, workspaces.workspace_id
@@ -456,18 +482,36 @@ WHERE users.protected_user = 'yes'
 ORDER BY users.rowid
 LIMIT 1;
 `);
-  assert.ok(rows[0]?.workspace_id);
-  return {
-    active_workspace_id: rows[0].workspace_id,
-    display_name: rows[0].display_name,
-    ip_address: "127.0.0.1",
-    timezone: rows[0].timezone || "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    workspace_id: rows[0].workspace_id,
-  };
+  const user = requireFirstRow(rows, "a protected super admin owning a workspace should exist");
+  return workspaceSessionFixture({
+    ...user,
+    active_workspace_id: user.workspace_id,
+  });
 }
 
+/**
+ * Read a rejected service call's status without assuming the rejection
+ * really is an error object first. A refusal without a numeric status
+ * resolves to -1 so the predicate fails rather than passing vacuously.
+ * @param {unknown} error
+ * @returns {number}
+ */
+function rejectionStatus(error) {
+  if (error === null || typeof error !== "object" || !("statusCode" in error)) return -1;
+  const status = /** @type {{ statusCode: unknown }} */ (error).statusCode;
+  return typeof status === "number" ? status : -1;
+}
+
+/**
+ * Read a rejected service call's message as text without assuming a shape.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function rejectionMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** @param {unknown} value @returns {string} */
 function sqlText(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }

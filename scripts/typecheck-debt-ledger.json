@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 1632,
+      "errorCount": 1537,
       "diagnostics": {
         "scripts/app-shell-navigation-regression.mjs": [
           {
@@ -3642,32 +3642,6 @@
             "count": 1
           }
         ],
-        "scripts/notes-secure-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18047,
-            "count": 2
-          },
-          {
-            "code": 2554,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 16
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
         "scripts/notes-task-context-regression.mjs": [
           {
             "code": 7006,
@@ -3972,74 +3946,6 @@
           {
             "code": 7006,
             "count": 2
-          }
-        ],
-        "scripts/regressions/notes/notes-settings-catalog-management.regression.mjs": [
-          {
-            "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regressions/notes/secure-catalog-consumer-enforcement.regression.mjs": [
-          {
-            "code": 2339,
-            "count": 8
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 7
-          },
-          {
-            "code": 7023,
-            "count": 1
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/regressions/notes/secure-catalog-effective-security.regression.mjs": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 4
-          },
-          {
-            "code": 7031,
-            "count": 2
-          }
-        ],
-        "scripts/regressions/notes/secure-catalog-transitions.regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 10
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 23
           }
         ],
         "scripts/runtime-configuration-contract-regression.mjs": [
@@ -4421,7 +4327,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 12766,
+    "errors": 12671,
     "explicitAny": 3
   },
   "explicitAnyByFile": {

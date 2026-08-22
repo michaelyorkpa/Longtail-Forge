@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.11` have since archived, closing 1,511 diagnostics across 75 files and leaving 1,632 across 127; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.12` have since archived, closing 1,606 diagnostics across 80 files and leaving 1,537 across 122; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.12` | Notes secure catalog | 95 | 5 | 1,736 |
 | `.32.13` | Notes editor, preview, and Markdown | 57 | 5 | 1,449 |
 | `.32.14` | Notes linking, collections, and context | 82 | 6 | 2,154 |
 | `.32.15` | Lists repositories and service | 144 | 4 | 1,696 |
@@ -102,16 +101,6 @@ Requirements shared by every child:
 - [ ] Do not resolve a nullability diagnostic with a non-null assertion where the owner can assert the value instead. This band is 518 of the 3,150 and is the likeliest source of a zero that the compiler believes and the runtime does not.
 - [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
-
-#### 0.33.33.32.12 - Type the Notes secure catalog
-
-**Model: High Effort - Secure catalog transitions change who can read existing content.**
-
-Measured at 95 diagnostics across 5 files and 1,736 lines. No `JSON.parse`; no history-pinned owners.
-
-- [ ] Close the 95 diagnostics across `regressions/notes/secure-catalog-transitions`, `notes-secure`, `regressions/notes/secure-catalog-consumer-enforcement`, `regressions/notes/secure-catalog-effective-security`, and `regressions/notes/notes-settings-catalog-management`.
-- [ ] Type catalog entries, transition records, effective-security resolutions, and consumer enforcement decisions with named contracts.
-- [ ] Preserve transition legality, effective security resolution, consumer enforcement refusals, and settings-driven catalog management exactly; prove at least one refusal by inverting it.
 
 #### 0.33.33.32.13 - Type the Notes editor, preview, and Markdown owners
 

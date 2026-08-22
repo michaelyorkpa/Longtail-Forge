@@ -890,6 +890,15 @@ assert.ok(
     .includes("assert.equal(notesModule.enabledByDefault, true,"),
   "scripts/notes-foundation-regression.mjs should keep the restored enabled-by-default contract",
 );
+for (const secureCatalogOwner of [
+  "scripts/notes-secure-regression.mjs",
+  "scripts/regressions/notes/notes-settings-catalog-management.regression.mjs",
+  "scripts/regressions/notes/secure-catalog-consumer-enforcement.regression.mjs",
+  "scripts/regressions/notes/secure-catalog-effective-security.regression.mjs",
+  "scripts/regressions/notes/secure-catalog-transitions.regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[secureCatalogOwner], undefined, `${secureCatalogOwner} must stay strict-clean after checkpoint 0.33.33.32.12`);
+}
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().

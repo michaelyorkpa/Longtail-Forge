@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18593,
+    "activeAssertionCount": 18596,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19323,
+    "effectiveAssertionCount": 19326,
     "retiredAssertionCredit": 61,
     "vitest": [
       {
@@ -3015,11 +3015,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 64,
+      "assertionCount": 66,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes secure contract.",
-      "entryPointAssertionCount": 64,
+      "entryPointAssertionCount": 66,
       "id": "legacy.notes.secure",
       "legacy": true,
       "path": "scripts/notes-secure-regression.mjs",
@@ -4252,11 +4252,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 155,
+      "assertionCount": 156,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 155,
+      "entryPointAssertionCount": 156,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -5077,11 +5077,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 40,
+      "assertionCount": 39,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves the Notes Settings catalog surface, permission-gated safe read model, explicit/inherited security controls, and bounded bulk archive/restore behavior.",
-      "entryPointAssertionCount": 40,
+      "entryPointAssertionCount": 39,
       "id": "notes.notes-settings-catalog-management",
       "legacy": false,
       "path": "scripts/regressions/notes/notes-settings-catalog-management.regression.mjs",
@@ -5100,11 +5100,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 50,
+      "assertionCount": 51,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves the declared fail-closed effective-security policy across Notes consumers and the future Support View boundary.",
-      "entryPointAssertionCount": 50,
+      "entryPointAssertionCount": 51,
       "id": "notes.secure-catalog-consumer-enforcement",
       "legacy": false,
       "path": "scripts/regressions/notes/secure-catalog-consumer-enforcement.regression.mjs",
@@ -5125,11 +5125,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 31,
+      "assertionCount": 30,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves secure-catalog inheritance, fail-closed hierarchy projection, and encrypted note/revision persistence for secure creation and moves.",
-      "entryPointAssertionCount": 31,
+      "entryPointAssertionCount": 30,
       "id": "notes.secure-catalog-effective-security",
       "legacy": false,
       "path": "scripts/regressions/notes/secure-catalog-effective-security.regression.mjs",
@@ -5147,11 +5147,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 86,
+      "assertionCount": 87,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves fail-closed secure-catalog enable/retry/downgrade transitions, preservation moves, job routing, and current-password confirmation.",
-      "entryPointAssertionCount": 86,
+      "entryPointAssertionCount": 87,
       "id": "notes.secure-catalog-transitions",
       "legacy": false,
       "path": "scripts/regressions/notes/secure-catalog-transitions.regression.mjs",

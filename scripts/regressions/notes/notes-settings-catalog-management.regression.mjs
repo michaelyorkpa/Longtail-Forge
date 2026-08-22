@@ -12,6 +12,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { requireFirstRow } from "../../test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 const { readTextAsync: readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-settings-catalogs-"));
@@ -65,6 +67,7 @@ function assertStaticContract() {
   assert.doesNotMatch(settingsSource, /SECURE_NOTES_MASTER_KEY|LONGTAIL_SECURE_NOTES_MASTER_KEY/);
 }
 
+/** @param {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} session */
 async function assertCatalogManagement(session) {
   const rootCatalog = (await notesService.createCollection({
     libraryBucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
@@ -145,26 +148,28 @@ async function assertCatalogManagement(session) {
 
   await assert.rejects(
     notesService.bulkManageCatalogs({ action: "archive", catalogIds: [] }, session),
-    (error) => error?.statusCode === 400 && /Select at least one Notes catalog/.test(error.message),
+    (error) => rejectionStatus(error) === 400 && /Select at least one Notes catalog/.test(rejectionMessage(error)),
   );
   await assert.rejects(
     notesService.bulkManageCatalogs({ action: "archive", catalogIds: Array.from({ length: 101 }, (_, index) => `catalog-${index}`) }, session),
-    (error) => error?.statusCode === 400 && /at most 100 catalogs/.test(error.message),
+    (error) => rejectionStatus(error) === 400 && /at most 100 catalogs/.test(rejectionMessage(error)),
   );
 }
 
+/** @param {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} session */
 async function assertPermissionBoundary(session) {
   const deniedSession = { ...session, user_id: "notes-settings-user-without-permissions" };
   await assert.rejects(
     notesService.listCatalogSettings(deniedSession),
-    (error) => error?.statusCode === 403,
+    (error) => rejectionStatus(error) === 403,
   );
   await assert.rejects(
     notesService.bulkManageCatalogs({ action: "archive", catalogIds: ["catalog"] }, deniedSession),
-    (error) => error?.statusCode === 403,
+    (error) => rejectionStatus(error) === 403,
   );
 }
 
+/** @returns {Promise<import("../../../src/types/http-contracts.js").WorkspaceRequestSession>} */
 async function readProtectedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.display_name, users.timezone, workspaces.workspace_id
@@ -174,13 +179,28 @@ WHERE users.protected_user = 'yes'
 ORDER BY users.rowid
 LIMIT 1;
 `);
-  assert.ok(rows[0]?.workspace_id, "seeded protected workspace should exist");
-  return {
-    active_workspace_id: rows[0].workspace_id,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    workspace_id: rows[0].workspace_id,
-  };
+  const user = requireFirstRow(rows, "seeded protected workspace should exist");
+  return workspaceSessionFixture({ ...user, active_workspace_id: user.workspace_id });
+}
+
+/**
+ * Read a rejected service call's status without assuming the rejection
+ * really is an error object first. A refusal without a numeric status
+ * resolves to -1 so the predicate fails rather than passing vacuously.
+ * @param {unknown} error
+ * @returns {number}
+ */
+function rejectionStatus(error) {
+  if (error === null || typeof error !== "object" || !("statusCode" in error)) return -1;
+  const status = /** @type {{ statusCode: unknown }} */ (error).statusCode;
+  return typeof status === "number" ? status : -1;
+}
+
+/**
+ * Read a rejected service call's message as text without assuming a shape.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function rejectionMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }
