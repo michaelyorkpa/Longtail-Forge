@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 2119,
+      "errorCount": 2025,
       "diagnostics": {
         "scripts/app-shell-navigation-regression.mjs": [
           {
@@ -3644,24 +3644,6 @@
             "count": 9
           }
         ],
-        "scripts/notes-lists-tags-api-scope-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 20
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
         "scripts/notes-markdown-revision-regression.mjs": [
           {
             "code": 2571,
@@ -3822,46 +3804,10 @@
             "count": 1
           }
         ],
-        "scripts/personal-family-workspace-scope-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 18048,
-            "count": 11
-          },
-          {
-            "code": 7006,
-            "count": 9
-          }
-        ],
         "scripts/project-default-assignee-regression.mjs": [
           {
             "code": 7006,
             "count": 41
-          }
-        ],
-        "scripts/public-api-client-project-write-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2353,
-            "count": 14
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 14
-          },
-          {
-            "code": 7034,
-            "count": 1
           }
         ],
         "scripts/quick-action-capture-regression.mjs": [
@@ -4198,32 +4144,6 @@
           {
             "code": 7006,
             "count": 23
-          }
-        ],
-        "scripts/regressions/time-tracking/public-api-duration-persistence.regression.mjs": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 2353,
-            "count": 4
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 8
-          },
-          {
-            "code": 7034,
-            "count": 1
           }
         ],
         "scripts/regressions/workbench/direct-task-completion.regression.mjs": [
@@ -4827,7 +4747,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 13253,
+    "errors": 13159,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

@@ -215,10 +215,30 @@ WHERE note_id = ${sqlText(personalDefault.note.note_id)};
     const listsScript = await fs.readFile(path.join(process.cwd(), "public/js/lists.js"), "utf8");
     const notesScript = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
     const notesModule = modulesService.getModule("notes");
+    assert.ok(notesModule?.viewSurfaces, "the notes module should contribute view surfaces");
     const notesSurface = notesModule.viewSurfaces.find((surface) => surface.id === "notes.workspace");
+    assert.ok(notesSurface?.modals, "the notes workspace surface should contribute modals");
     const noteEditor = notesSurface.modals.find((modal) => modal.id === "note-editor");
     const noteBulkEditor = notesSurface.modals.find((modal) => modal.id === "note-bulk-editor");
-    const visibilityValues = (field) => field.options.map((option) => option[0]);
+    assert.ok(notesSurface.filters, "the notes workspace surface should contribute filters");
+    assert.ok(noteEditor?.fields, "the note editor modal should contribute fields");
+    assert.ok(noteBulkEditor?.fields, "the note bulk editor modal should contribute fields");
+    /**
+     * The descriptor contracts publish `options` as an optional `unknown[]`,
+     * so both the presence of the list and its value/label pair shape are
+     * proven here rather than assumed by the comparison below.
+     * @param {import("../src/types/framework-contracts.js").ViewFilterDescriptor
+     *   | import("../src/types/framework-contracts.js").ViewFieldDescriptor
+     *   | undefined} field
+     * @returns {unknown[]}
+     */
+    const visibilityValues = (field) => {
+      assert.ok(field?.options, "a visibility descriptor should declare its options");
+      return field.options.map((option) => {
+        assert.ok(Array.isArray(option), "visibility options should be value/label pairs");
+        return option[0];
+      });
+    };
 
     assert.match(filesPage, /data-files-host/);
     assert.match(filesPage, /js\/shared\/client-project-options\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/files\.js/);
@@ -259,17 +279,20 @@ WHERE note_id = ${sqlText(personalDefault.note.note_id)};
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {string} name @param {() => Promise<void> | void} assertion */
 async function check(name, assertion) {
   await assertion();
   checks += 1;
 }
 
+/** @param {string} workspaceId */
 async function scopeIds(workspaceId) {
   return (await modulesService.listAvailableApiScopes(workspaceId))
     .map((scope) => scope.id)
     .sort();
 }
 
+/** @param {string} workspaceId */
 async function attachableTargetTypes(workspaceId) {
   return (await modulesService.listActiveAttachableTypes(workspaceId))
     .filter((type) => type.moduleId === "client-projects")
@@ -277,6 +300,7 @@ async function attachableTargetTypes(workspaceId) {
     .sort();
 }
 
+/** @param {string} workspaceId @param {string} workspaceType */
 async function setWorkspaceType(workspaceId, workspaceType) {
   await runSql(`
 UPDATE workspaces
@@ -285,6 +309,7 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
+/** @param {string} noteId */
 async function storedNoteVisibility(noteId) {
   const rows = await querySql(`
 SELECT visibility
