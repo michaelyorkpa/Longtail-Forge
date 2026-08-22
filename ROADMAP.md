@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` and `0.33.33.32.2` have since archived, closing 229 diagnostics across 17 files and leaving 2,921 across 185:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.3` have since archived, closing 431 diagnostics across 26 files and leaving 2,719 across 176:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.3` | Task recurrence and reminder scheduling | 202 | 9 | 2,477 |
 | `.32.4` | Task calendar windows and feed serialization | 149 | 4 | 1,850 |
 | `.32.5` | Dashboard and hot-endpoint read budgets | 107 | 5 | 1,821 |
 | `.32.6` | Notification delivery, inbox, subscriptions | 138 | 4 | 2,339 |
@@ -107,17 +106,6 @@ Requirements shared by every child:
 - [ ] Do not resolve a nullability diagnostic with a non-null assertion where the owner can assert the value instead. This band is 518 of the 3,150 and is the likeliest source of a zero that the compiler believes and the runtime does not.
 - [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
-
-#### 0.33.33.32.3 - Type task recurrence and reminder scheduling
-
-**Model: High Effort - Recurrence materialization and reminder horizons derive from the same due-date arithmetic.**
-
-Measured at 202 diagnostics across 9 files and 2,477 lines — the largest child in the rollup. One `JSON.parse` site; one history-pinned owner.
-
-- [ ] Close the 202 diagnostics across `task-reminder-notification-delivery`, `task-reminder-scheduling-horizon`, `task-recurrence-completion-continuity`, `regressions/tasks/task-recurrence-materialize-on-touch-permissions`, `regressions/tasks/task-recurrence-skip-to-current`, `task-recurrence-linked-note-propagation`, `task-recurrence-frequency`, `async-recurrence-response-closeout`, and `task-recurrence-reminders-repository-conversion`.
-- [ ] Type recurrence rules and materialization results, scheduling horizon windows, reminder rows, and delivery envelopes with named contracts, sharing one horizon contract between the recurrence and reminder owners rather than annotating each callback.
-- [ ] Preserve materialize-on-touch permission gating, skip-to-current semantics, frequency arithmetic, linked-note propagation, and the asynchronous recurrence response contract exactly.
-- [ ] Disposition the reminder delivery boundary explicitly: delivery envelopes and scheduled-job payloads are the most likely unchecked reads in this cohort.
 
 #### 0.33.33.32.4 - Type task calendar windows and feed serialization
 
