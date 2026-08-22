@@ -762,6 +762,15 @@ for (const calendarFeedOwner of [
 ]) {
   assert.equal(ledger.programs.scripts.diagnostics[calendarFeedOwner], undefined, `${calendarFeedOwner} must stay strict-clean after checkpoint 0.33.33.32.4`);
 }
+for (const readBudgetOwner of [
+  "scripts/dashboard-workbench-regression.mjs",
+  "scripts/regressions/dashboard/hot-endpoint-budgets.regression.mjs",
+  "scripts/regressions/tasks/dashboard-summary-budgets.regression.mjs",
+  "scripts/regressions/time-tracking/dashboard-effort-summary-budgets.regression.mjs",
+  "scripts/regressions/workbench/hot-endpoint-budgets.regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[readBudgetOwner], undefined, `${readBudgetOwner} must stay strict-clean after checkpoint 0.33.33.32.5`);
+}
 
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 

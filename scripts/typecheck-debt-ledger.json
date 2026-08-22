@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 2570,
+      "errorCount": 2463,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3200,16 +3200,6 @@
           {
             "code": 7031,
             "count": 4
-          }
-        ],
-        "scripts/dashboard-workbench-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 1
-          },
-          {
-            "code": 7023,
-            "count": 1
           }
         ],
         "scripts/framework-admin-low-count-repositories-conversion-regression.mjs": [
@@ -4218,28 +4208,6 @@
             "count": 1
           }
         ],
-        "scripts/regressions/dashboard/hot-endpoint-budgets.regression.mjs": [
-          {
-            "code": 2739,
-            "count": 2
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 25
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 15
-          }
-        ],
         "scripts/regressions/licensing/licensing-public-release-gates.regression.mjs": [
           {
             "code": 7006,
@@ -4314,20 +4282,6 @@
             "count": 23
           }
         ],
-        "scripts/regressions/tasks/dashboard-summary-budgets.regression.mjs": [
-          {
-            "code": 7005,
-            "count": 6
-          },
-          {
-            "code": 7006,
-            "count": 23
-          },
-          {
-            "code": 7034,
-            "count": 3
-          }
-        ],
         "scripts/regressions/time-tracking/billing-dashboard-timezone-boundaries.regression.mjs": [
           {
             "code": 2345,
@@ -4336,28 +4290,6 @@
           {
             "code": 7006,
             "count": 5
-          }
-        ],
-        "scripts/regressions/time-tracking/dashboard-effort-summary-budgets.regression.mjs": [
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2554,
-            "count": 3
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 19
-          },
-          {
-            "code": 7034,
-            "count": 1
           }
         ],
         "scripts/regressions/time-tracking/project-time-billing-runner.regression.mjs": [
@@ -4450,20 +4382,6 @@
           {
             "code": 7031,
             "count": 2
-          }
-        ],
-        "scripts/regressions/workbench/hot-endpoint-budgets.regression.mjs": [
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 2
-          },
-          {
-            "code": 7034,
-            "count": 1
           }
         ],
         "scripts/regressions/workbench/task-focus-exit-capture.regression.mjs": [
@@ -5111,7 +5029,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 13704,
+    "errors": 13597,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

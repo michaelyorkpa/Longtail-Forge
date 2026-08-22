@@ -12,6 +12,10 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import http from "node:http";
 import { performance } from "node:perf_hooks";
+import { requireRow } from "../../test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 
 const fixture = await createDisposableDatabaseFixture("dashboard-hot-endpoint-budgets");
@@ -25,6 +29,12 @@ const { timeEntriesRepository } = await import("../../../src/modules/time-tracki
 const { createSession } = await import("../../../src/security/sessions.js");
 const { normalizeUtcIso } = await import("../../../src/utils/timezones.js");
 
+/** @typedef {"calendar" | "dashboardSummary" | "effortSummary"} EndpointName */
+/** @typedef {{ bytes: number, milliseconds: number, statements: number }} EndpointBudget */
+/** @typedef {{ bytes: number, milliseconds: number, statements: number }} EndpointMeasurement */
+/** @typedef {Record<EndpointName, EndpointMeasurement>} EndpointMeasurements */
+
+/** @type {Readonly<Record<EndpointName, EndpointBudget>>} */
 const ENDPOINT_BUDGETS = Object.freeze({
   calendar: { bytes: 131072, milliseconds: 500, statements: 24 },
   dashboardSummary: { bytes: 65536, milliseconds: 500, statements: 24 },
@@ -32,6 +42,7 @@ const ENDPOINT_BUDGETS = Object.freeze({
 });
 const TIMEZONE = "America/New_York";
 
+/** @type {import("node:http").Server | null} */
 let server = null;
 
 try {
@@ -48,11 +59,15 @@ try {
     user_id: session.user_id,
     username: session.username,
   });
-  server = await new Promise((resolve) => {
+  /** @type {import("node:http").Server} */
+  const listening = await new Promise((resolve) => {
     const instance = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (createApp())));
     instance.listen(0, "127.0.0.1", () => resolve(instance));
   });
-  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  server = listening;
+  const address = listening.address();
+  assert.ok(address && typeof address === "object", "the budget fixture server should bind a TCP port");
+  const baseUrl = `http://127.0.0.1:${address.port}`;
   const headers = { cookie: `longtail_forge_session=${httpSession.sessionId}` };
   const endpoints = {
     dashboardSummary: "/api/tasks/dashboard-summary",
@@ -69,7 +84,7 @@ try {
   const grown = await measureEndpoints(baseUrl, headers, endpoints);
   assertBudgets(grown, "grown");
 
-  for (const name of Object.keys(endpoints)) {
+  for (const name of /** @type {EndpointName[]} */ (Object.keys(endpoints))) {
     assert.ok(
       grown[name].statements - small[name].statements <= 2,
       `${name} grew from ${small[name].statements} to ${grown[name].statements} statements after unrelated data growth`,
@@ -90,13 +105,21 @@ try {
   console.log("Dashboard hot endpoint budgets regression passed.");
 } finally {
   if (server) {
-    await new Promise((resolve) => server.close(resolve));
+    const listeningServer = server;
+    await new Promise((resolve) => listeningServer.close(() => resolve(undefined)));
   }
   await closeSqlite();
   await fixture.cleanup();
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {Record<string, string>} headers
+ * @param {Record<EndpointName, string>} endpoints
+ * @returns {Promise<EndpointMeasurements>}
+ */
 async function measureEndpoints(baseUrl, headers, endpoints) {
+  /** @type {Partial<EndpointMeasurements>} */
   const results = {};
   for (const [name, url] of Object.entries(endpoints)) {
     const samples = [];
@@ -104,14 +127,20 @@ async function measureEndpoints(baseUrl, headers, endpoints) {
       samples.push(await measureEndpoint(baseUrl, headers, url));
     }
     samples.sort((left, right) => left.milliseconds - right.milliseconds);
-    results[name] = {
+    results[/** @type {EndpointName} */ (name)] = {
       ...samples[1],
       statements: Math.max(...samples.map((sample) => sample.statements)),
     };
   }
-  return results;
+  return /** @type {EndpointMeasurements} */ (results);
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {Record<string, string>} headers
+ * @param {string} url
+ * @returns {Promise<EndpointMeasurement>}
+ */
 async function measureEndpoint(baseUrl, headers, url) {
   const statementStart = readSqliteStatementCount();
   const timeStart = performance.now();
@@ -127,14 +156,16 @@ async function measureEndpoint(baseUrl, headers, url) {
   };
 }
 
+/** @param {string} baseUrl @param {Record<string, string>} headers @param {Record<EndpointName, string>} endpoints */
 async function warmEndpoints(baseUrl, headers, endpoints) {
   for (const url of Object.values(endpoints)) {
     await measureEndpoint(baseUrl, headers, url);
   }
 }
 
+/** @param {EndpointMeasurements} results @param {string} label */
 function assertBudgets(results, label) {
-  for (const [name, result] of Object.entries(results)) {
+  for (const [name, result] of /** @type {[EndpointName, EndpointMeasurement][]} */ (Object.entries(results))) {
     const budget = ENDPOINT_BUDGETS[name];
     assert.ok(result.statements <= budget.statements, `${label} ${name} issued ${result.statements} statements; budget is ${budget.statements}`);
     assert.ok(result.bytes <= budget.bytes, `${label} ${name} returned ${result.bytes} bytes; budget is ${budget.bytes}`);
@@ -149,17 +180,10 @@ FROM users
 WHERE protected_user = 'yes'
 LIMIT 1;
 `))[0];
-  assert.ok(user, "fresh database should seed a protected super admin");
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: TIMEZONE,
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireRow(user, "fresh database should seed a protected super admin"));
 }
 
+/** @param {TasksSession} session @param {string} today @param {{ start: string, end: string }} range */
 async function seedVisibleRows(session, today, range) {
   for (let index = 0; index < 12; index += 1) {
     await tasksService.create({
@@ -170,7 +194,7 @@ async function seedVisibleRows(session, today, range) {
   }
 
   for (let index = 0; index < 6; index += 1) {
-    await timeEntriesRepository.create(entryFixture(
+    await createUnscopedEntry(entryFixture(
       session,
       `dashboard-visible-entry-${index}`,
       addDaysKey(today, -(index % 6)),
@@ -179,6 +203,7 @@ async function seedVisibleRows(session, today, range) {
   }
 }
 
+/** @param {TasksSession} session @param {string} today */
 async function seedUnrelatedGrowth(session, today) {
   const now = new Date().toISOString();
   await db.transaction(async (transaction) => {
@@ -205,7 +230,7 @@ VALUES (
   });
 
   for (let index = 0; index < 500; index += 1) {
-    await timeEntriesRepository.create(entryFixture(
+    await createUnscopedEntry(entryFixture(
       session,
       `dashboard-historical-entry-${index}`,
       addDaysKey(today, -120),
@@ -214,10 +239,13 @@ VALUES (
   }
 }
 
+/** @param {TasksSession} session @param {string} entryId @param {string} dateKey @param {number} durationSeconds */
 function entryFixture(session, entryId, dateKey, durationSeconds) {
   const endTime = normalizeUtcIso(`${dateKey}T12:00:00.000`, TIMEZONE);
   return {
     billable: "yes",
+    created_at: endTime,
+    updated_at: endTime,
     client_id: null,
     client_name: "",
     description: entryId,
@@ -235,6 +263,7 @@ function entryFixture(session, entryId, dateKey, durationSeconds) {
   };
 }
 
+/** @param {string} today @returns {{ start: string, end: string }} */
 function dashboardCalendarRange(today) {
   const monthStart = `${today.slice(0, 7)}-01`;
   const weekday = new Date(`${monthStart}T12:00:00.000Z`).getUTCDay();
@@ -242,6 +271,7 @@ function dashboardCalendarRange(today) {
   return { end: addDaysKey(start, 41), start };
 }
 
+/** @param {Date} date @param {string} timezone @returns {string} */
 function localDateKey(date, timezone) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
     day: "2-digit",
@@ -252,8 +282,30 @@ function localDateKey(date, timezone) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+/** @param {string} dateKey @param {number} days @returns {string} */
 function addDaysKey(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Persist a workspace-scoped time entry that carries no client, project, or
+ * task.
+ *
+ * The published TimeEntry contract in src/utils/normalizers.js declares
+ * client_id, project_id, and task_id as non-nullable strings, but the
+ * repository stores the nulls this fixture supplies and the dashboard reads
+ * them as unscoped rows. Widening those three properties to `string | null`
+ * was tried and reintroduces three diagnostics in already-closed Time Tracking
+ * server owners, so this child records the over-strict contract as a finding
+ * rather than reopening them. The nulls are preserved deliberately: replacing
+ * them with empty strings would change what the dashboard groups and could
+ * move the measured statement counts these budgets exist to pin.
+ * @param {ReturnType<typeof entryFixture>} entry
+ */
+async function createUnscopedEntry(entry) {
+  await timeEntriesRepository.create(
+    /** @type {import("../../../src/utils/normalizers.js").TimeEntry} */ (/** @type {unknown} */ (entry)),
+  );
 }

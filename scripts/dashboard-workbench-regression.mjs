@@ -743,6 +743,7 @@ function scanUnexpectedFrameworkCoupling() {
     .sort();
 }
 
+/** @param {string} relativeDirectory @returns {string[]} */
 function listProjectFiles(relativeDirectory) {
   const absoluteDirectory = join(projectRoot, relativeDirectory);
   const entries = [];

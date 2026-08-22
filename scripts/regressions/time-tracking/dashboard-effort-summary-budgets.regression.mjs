@@ -9,6 +9,10 @@ export const regressionMeta = Object.freeze({
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { requireRow } from "../../test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 
 const fixture = await createDisposableDatabaseFixture("dashboard-effort-summary-budgets");
@@ -32,6 +36,7 @@ const TIMEZONE = "America/New_York";
 const WINDOW_DAYS = 7;
 const ROW_LIMIT = 3;
 
+/** @type {typeof permissionsService.filterReadableTimeEntries | null} */
 let originalFilterReadableTimeEntries = null;
 
 try {
@@ -50,7 +55,7 @@ try {
 
   await initializeDatabase();
   const session = await readSeedSession();
-  const today = localDateKey(new Date(), TIMEZONE);
+  const today = localDateKey(new Date());
   const recentEntries = [
     entryFixture(session, "recent-1", today, "13:00", 900),
     entryFixture(session, "recent-2", today, "11:00", 600),
@@ -85,10 +90,11 @@ LIMIT :limit;
   await timeTrackingDashboardService.readDashboardEffortSummary(freshSession(session));
 
   let authorizedRowCount = -1;
-  originalFilterReadableTimeEntries = permissionsService.filterReadableTimeEntries;
+  const filterReadableTimeEntries = permissionsService.filterReadableTimeEntries;
+  originalFilterReadableTimeEntries = filterReadableTimeEntries;
   permissionsService.filterReadableTimeEntries = async (requestSession, entries) => {
     authorizedRowCount = entries.length;
-    return originalFilterReadableTimeEntries(requestSession, entries);
+    return filterReadableTimeEntries(requestSession, entries);
   };
 
   const small = await measureSummary(freshSession(session));
@@ -126,6 +132,7 @@ LIMIT :limit;
   await fixture.cleanup();
 }
 
+/** @param {TasksSession} session */
 async function measureSummary(session) {
   const before = readSqliteStatementCount();
   const body = await timeTrackingDashboardService.readDashboardEffortSummary(session);
@@ -143,22 +150,15 @@ FROM users
 WHERE protected_user = 'yes'
 LIMIT 1;
 `))[0];
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: TIMEZONE,
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireRow(user, "fresh database should seed a protected super admin"));
 }
 
+/** @param {TasksSession} session @returns {TasksSession} */
 function freshSession(session) {
   return { ...session };
 }
 
+/** @param {TasksSession} session @param {string} entryId @param {string} dateKey @param {string} time @param {number} durationSeconds */
 function entryFixture(session, entryId, dateKey, time, durationSeconds) {
   const endTime = normalizeUtcIso(`${dateKey}T${time}:00.000`, TIMEZONE);
   const startTime = new Date(Date.parse(endTime) - durationSeconds * 1000).toISOString();
@@ -181,12 +181,16 @@ function entryFixture(session, entryId, dateKey, time, durationSeconds) {
   };
 }
 
+/** @param {ReturnType<typeof entryFixture>[]} entries */
 async function insertEntries(entries) {
   for (const entry of entries) {
-    await timeEntriesRepository.create(entry);
+    await timeEntriesRepository.create(
+      /** @type {import("../../../src/utils/normalizers.js").TimeEntry} */ (/** @type {unknown} */ (entry)),
+    );
   }
 }
 
+/** @param {TasksSession} session @param {string} today @param {number} daysAgo @param {number} count */
 async function insertHistoricalEntries(session, today, daysAgo, count) {
   const dateKey = addDaysKey(today, -daysAgo);
   const entries = Array.from({ length: count }, (_, index) => entryFixture(
@@ -199,11 +203,12 @@ async function insertHistoricalEntries(session, today, daysAgo, count) {
   await insertEntries(entries);
 }
 
+/** @param {TasksSession} session @param {string} today */
 async function readLegacyExpectedSummary(session, today) {
   const windowStart = addDaysKey(today, -(WINDOW_DAYS - 1));
   const recentEntries = (await timeEntriesRepository.readAll(session.workspace_id))
     .filter((entry) => {
-      const dateKey = localDateKey(new Date(entry.end_time), TIMEZONE);
+      const dateKey = localDateKey(new Date(String(entry.end_time)));
       return dateKey >= windowStart && dateKey <= today;
     })
     .sort((left, right) => (
@@ -215,12 +220,13 @@ async function readLegacyExpectedSummary(session, today) {
     entriesCount: recentEntries.length,
     rowIds: recentEntries.slice(0, ROW_LIMIT).map((entry) => entry.entry_id),
     todaySeconds: recentEntries
-      .filter((entry) => localDateKey(new Date(entry.end_time), TIMEZONE) === today)
+      .filter((entry) => localDateKey(new Date(String(entry.end_time))) === today)
       .reduce((total, entry) => total + Number(entry.duration_seconds || 0), 0),
     totalSeconds: recentEntries.reduce((total, entry) => total + Number(entry.duration_seconds || 0), 0),
   };
 }
 
+/** @param {Awaited<ReturnType<typeof timeTrackingDashboardService.readDashboardEffortSummary>>} summary */
 function summaryFacts(summary) {
   return {
     entriesCount: summary.recentTime.entriesCount,
@@ -230,6 +236,7 @@ function summaryFacts(summary) {
   };
 }
 
+/** @param {Date} date @returns {string} */
 function localDateKey(date) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
     day: "2-digit",
@@ -240,6 +247,7 @@ function localDateKey(date) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+/** @param {string} dateKey @param {number} days @returns {string} */
 function addDaysKey(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);
