@@ -11,6 +11,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "../../test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-secure-catalog-policy-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "secure-catalog-policy.db");
@@ -36,6 +38,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} session */
 async function assertSecureCatalogCreationAndMove(session) {
   const root = (await notesService.createCollection({
     libraryBucket: "reference",
@@ -134,6 +137,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   assert.equal(projectedExplicit.security_source, "explicit_note");
 }
 
+/** @param {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} session */
 async function assertHierarchyBoundaries(session) {
   const parent = (await notesService.createCollection({
     libraryBucket: "active_work",
@@ -150,7 +154,7 @@ async function assertHierarchyBoundaries(session) {
       parentCollectionId: child.note_library_collection_id,
       title: parent.title,
     }, session),
-    (error) => error?.statusCode === 400 && /cannot create a cycle/i.test(error.message),
+    (error) => rejectionStatus(error) === 400 && /cannot create a cycle/i.test(rejectionMessage(error)),
   );
   await assert.rejects(
     notesService.create({
@@ -158,10 +162,11 @@ async function assertHierarchyBoundaries(session) {
       note_collection_id: `other-workspace-${child.note_library_collection_id}`,
       title: "Cross-workspace collection",
     }, session),
-    (error) => error?.statusCode === 404 && /collection not found/i.test(error.message),
+    (error) => rejectionStatus(error) === 404 && /collection not found/i.test(rejectionMessage(error)),
   );
 }
 
+/** @param {string} noteId @param {{ expectedRevisionCount: number, forbiddenText: string }} expectations */
 async function assertEncryptedNoteAndRevisions(noteId, { expectedRevisionCount, forbiddenText }) {
   const notes = await querySql(`
 SELECT body_markdown, body_excerpt, body_plaintext_index, security_mode, secure_payload, encrypted_data_key
@@ -193,6 +198,7 @@ ORDER BY revision_number ASC;
   assert.doesNotMatch(JSON.stringify(revisions), new RegExp(forbiddenText));
 }
 
+/** @returns {Promise<import("../../../src/types/http-contracts.js").WorkspaceRequestSession>} */
 async function readProtectedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.display_name, users.timezone, workspaces.workspace_id
@@ -202,17 +208,33 @@ WHERE users.protected_user = 'yes'
 ORDER BY users.rowid
 LIMIT 1;
 `);
-  assert.ok(rows[0]?.workspace_id, "seeded protected workspace should exist");
-  return {
-    active_workspace_id: rows[0].workspace_id,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    workspace_id: rows[0].workspace_id,
-  };
+  const user = requireFirstRow(rows, "seeded protected workspace should exist");
+  return workspaceSessionFixture({ ...user, active_workspace_id: user.workspace_id });
 }
 
+/** @param {unknown} value @returns {string} */
 function sqlText(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+/**
+ * Read a rejected service call's status without assuming the rejection
+ * really is an error object first. A refusal without a numeric status
+ * resolves to -1 so the predicate fails rather than passing vacuously.
+ * @param {unknown} error
+ * @returns {number}
+ */
+function rejectionStatus(error) {
+  if (error === null || typeof error !== "object" || !("statusCode" in error)) return -1;
+  const status = /** @type {{ statusCode: unknown }} */ (error).statusCode;
+  return typeof status === "number" ? status : -1;
+}
+
+/**
+ * Read a rejected service call's message as text without assuming a shape.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function rejectionMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }

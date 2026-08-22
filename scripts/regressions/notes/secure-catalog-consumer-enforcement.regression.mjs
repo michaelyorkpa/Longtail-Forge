@@ -11,6 +11,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "../../test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
+
+/** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} SecureSession */
+/** @typedef {import("../../../src/types/framework-contracts.js").InternalEvent} InternalEvent */
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-secure-catalog-consumers-"));
@@ -54,6 +59,7 @@ try {
   assertSourceAndManifestGuardrail();
   await initializeDatabase();
   const session = await readProtectedSession();
+  /** @type {InternalEvent[]} */
   const events = [];
   unsubscribe = internalEventBus.on("note.created", (event) => events.push(event), {
     id: "regression:secure-catalog-consumer-event",
@@ -120,13 +126,14 @@ function assertSourceAndManifestGuardrail() {
   for (const [relativePath, source] of externalNotesConsumers) {
     assert.doesNotMatch(source, /notesRepository/, `${relativePath} must not bypass the Notes service`);
   }
-  assert.match(externalNotesConsumers.get("src/modules/lists/lists.service.js"), /notes\.provider-catalogs/);
-  assert.match(externalNotesConsumers.get("src/services/files.service.js"), /readForAttachmentAccess/);
-  assert.match(externalNotesConsumers.get("src/services/notifications.service.js"), /notes\.notifications/);
-  assert.match(externalNotesConsumers.get("src/services/work-resume-state-initial-producers.js"), /notes\.resume/);
-  assert.match(externalNotesConsumers.get("src/services/workbench-task-focus-related-context.service.js"), /notes\.workbench/);
+  assert.match(consumerSource(externalNotesConsumers, "src/modules/lists/lists.service.js"), /notes\.provider-catalogs/);
+  assert.match(consumerSource(externalNotesConsumers, "src/services/files.service.js"), /readForAttachmentAccess/);
+  assert.match(consumerSource(externalNotesConsumers, "src/services/notifications.service.js"), /notes\.notifications/);
+  assert.match(consumerSource(externalNotesConsumers, "src/services/work-resume-state-initial-producers.js"), /notes\.resume/);
+  assert.match(consumerSource(externalNotesConsumers, "src/services/workbench-task-focus-related-context.service.js"), /notes\.workbench/);
 }
 
+/** @param {SecureSession} session @param {readonly InternalEvent[]} events */
 async function assertConsumerEnforcement(session, events) {
   const catalog = (await notesService.createCollection({
     libraryBucket: "active_work",
@@ -162,10 +169,12 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   assert.equal((await notesService.read(created.note_id, session)).note.title, secretTitle);
   assert.equal((await notesService.listRevisions(created.note_id, session)).revisions.length, 2);
   assert.equal(await noteToSearchDocument(stored), null);
-  assert.deepEqual((await notesPublicApiService.listNotes(session)).data, []);
+  /** @type {import("../../../src/types/http-contracts.js").ApiSession} */
+  const apiSession = { ...session, api_key_id: "secure-catalog-consumer-enforcement-key" };
+  assert.deepEqual((await notesPublicApiService.listNotes(apiSession)).data, []);
   await assert.rejects(
-    notesPublicApiService.readNote(session, created.note_id),
-    (error) => error?.statusCode === 404 && error?.code === "protected_note_excluded",
+    notesPublicApiService.readNote(apiSession, created.note_id),
+    (error) => rejectionStatus(error) === 404 && rejectionCode(error) === "protected_note_excluded",
   );
   await assert.rejects(
     filesService.listAttachments(session, {
@@ -173,7 +182,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
       targetId: created.note_id,
       targetType: "note",
     }),
-    (error) => error?.statusCode === 403 && /Secure notes do not allow framework file attachments/.test(error.message),
+    (error) => rejectionStatus(error) === 403 && /Secure notes do not allow framework file attachments/.test(rejectionMessage(error)),
   );
   assert.equal((await notesService.listResumeContext(session)).count, 0);
   assert.deepEqual(await notesService.listConsumerSummaries(session, {
@@ -182,18 +191,19 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   }), []);
   assert.throws(
     () => assertNoteConsumerAccess(stored, "notes.support-view"),
-    (error) => error?.statusCode === 404 && error?.code === "protected_note_excluded" && error.message === "Note not found.",
+    (error) => rejectionStatus(error) === 404 && rejectionCode(error) === "protected_note_excluded" && rejectionMessage(error) === "Note not found.",
   );
   await assert.rejects(
     notesService.readConsumerSummary(created.note_id, {
       ...session,
       workspace_id: `other-${session.workspace_id}`,
     }, "notes.workspace"),
-    (error) => error?.statusCode === 404,
+    (error) => rejectionStatus(error) === 404,
   );
 
   const secureEvent = events.find((event) => event.record_id === created.note_id);
   assert.ok(secureEvent);
+  assert.ok(secureEvent.metadata, "a secure note event should carry suppression metadata");
   assert.equal(secureEvent.metadata.suppress_activity, true);
   assert.equal(secureEvent.metadata.suppress_notifications, true);
   assert.equal(Object.hasOwn(secureEvent.metadata, "title"), false);
@@ -229,6 +239,7 @@ ORDER BY created_at ASC;
   assert.doesNotMatch(JSON.stringify(auditRows), new RegExp(`${secretTitle}|${secretBody}|secure_payload|encrypted_data_key`));
 }
 
+/** @returns {Promise<SecureSession>} */
 async function readProtectedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.display_name, users.timezone, workspaces.workspace_id
@@ -238,17 +249,11 @@ WHERE users.protected_user = 'yes'
 ORDER BY users.rowid
 LIMIT 1;
 `);
-  assert.ok(rows[0]?.workspace_id);
-  return {
-    active_workspace_id: rows[0].workspace_id,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    workspace_id: rows[0].workspace_id,
-  };
+  const user = requireFirstRow(rows, "a protected super admin owning a workspace should exist");
+  return workspaceSessionFixture({ ...user, active_workspace_id: user.workspace_id });
 }
 
+/** @param {readonly string[]} paths @returns {Promise<Record<string, string>>} */
 async function readSources(paths) {
   return Object.fromEntries(await Promise.all(paths.map(async (relativePath) => [
     relativePath,
@@ -256,8 +261,10 @@ async function readSources(paths) {
   ])));
 }
 
+/** @returns {Promise<Map<string, string>>} */
 async function readExternalNotesConsumers() {
   const files = await listJavaScriptFiles(path.join(root, "src"));
+  /** @type {[string, string][]} */
   const entries = [];
   for (const absolutePath of files) {
     const relativePath = path.relative(root, absolutePath).replaceAll("\\", "/");
@@ -270,6 +277,7 @@ async function readExternalNotesConsumers() {
   return new Map(entries);
 }
 
+/** @param {string} directory @returns {Promise<string[]>} */
 async function listJavaScriptFiles(directory) {
   const entries = await fs.readdir(directory, { withFileTypes: true });
   const files = [];
@@ -281,6 +289,54 @@ async function listJavaScriptFiles(directory) {
   return files;
 }
 
+/**
+ * Read one external consumer's source, proving the consumer this owner
+ * names still exists. A renamed or moved consumer fails here instead of
+ * matching a pattern against nothing.
+ * @param {Map<string, string>} consumers
+ * @param {string} relativePath
+ * @returns {string}
+ */
+function consumerSource(consumers, relativePath) {
+  const source = consumers.get(relativePath);
+  assert.ok(source, `${relativePath} should still consume the Notes service`);
+  return source;
+}
+
+/** @param {unknown} value @returns {string} */
 function sqlText(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+/**
+ * Read a rejected service call's status without assuming the rejection
+ * really is an error object first. A refusal without a numeric status
+ * resolves to -1 so the predicate fails rather than passing vacuously.
+ * @param {unknown} error
+ * @returns {number}
+ */
+function rejectionStatus(error) {
+  if (error === null || typeof error !== "object" || !("statusCode" in error)) return -1;
+  const status = /** @type {{ statusCode: unknown }} */ (error).statusCode;
+  return typeof status === "number" ? status : -1;
+}
+
+/**
+ * Read a rejected service call's error code without assuming a shape.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function rejectionCode(error) {
+  if (error === null || typeof error !== "object" || !("code" in error)) return "";
+  const code = /** @type {{ code: unknown }} */ (error).code;
+  return typeof code === "string" ? code : "";
+}
+
+/**
+ * Read a rejected service call's message as text without assuming a shape.
+ * @param {unknown} error
+ * @returns {string}
+ */
+function rejectionMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }
