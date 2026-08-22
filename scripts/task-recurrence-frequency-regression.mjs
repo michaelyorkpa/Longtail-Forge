@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-recurrence-frequency-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-recurrence-frequency.db");
@@ -36,6 +40,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session */
 async function assertWeekdayRecurrenceSkipsWeekends(session) {
   const task = (await tasksService.create({
     title: "Weekday recurring task",
@@ -57,6 +62,7 @@ async function assertWeekdayRecurrenceSkipsWeekends(session) {
   assert.equal(createdTask.recurrence_instance_date, "2026-06-15");
 }
 
+/** @param {TasksSession} session */
 async function assertWeekendRecurrenceSkipsWeekdays(session) {
   const task = (await tasksService.create({
     title: "Weekend recurring task",
@@ -92,6 +98,7 @@ async function assertWeekendRecurrenceSkipsWeekdays(session) {
   assert.equal(createdTask.recurrence_instance_date, "2026-06-20");
 }
 
+/** @param {TasksSession} session */
 async function assertDailyRecurrenceRemainsSevenDays(session) {
   const task = (await tasksService.create({
     title: "Daily recurring task",
@@ -112,6 +119,7 @@ async function assertDailyRecurrenceRemainsSevenDays(session) {
   assert.equal(createdTask.recurrence_instance_date, "2026-06-13");
 }
 
+/** @param {TasksSession} session */
 async function assertFutureEditDoesNotPersistInstanceStatus(session) {
   const task = (await tasksService.create({
     title: "Future edit recurring task",
@@ -151,6 +159,7 @@ async function assertFutureEditDoesNotPersistInstanceStatus(session) {
   assert.equal(createdTask.status, "open", "Next recurring task instances should be created open.");
 }
 
+/** @param {TasksSession} session */
 async function assertBlockedReasonStaysOnOneOccurrence(session) {
   const task = (await tasksService.create({
     title: "Blocked recurring occurrence",
@@ -194,20 +203,10 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }
 
+/** @param {string} workspaceId @param {string} templateId */
 async function readTemplateStatus(workspaceId, templateId) {
   const rows = await querySql(`
 SELECT status
@@ -220,6 +219,7 @@ LIMIT 1;
   return rows[0]?.status || "";
 }
 
+/** @param {{ task_id: string, recurrence_template_id?: string | null }} task @param {TasksSession} session @param {string} instanceDate */
 async function completeAndRunRecurrence(task, session, instanceDate) {
   const completed = await tasksService.complete(task.task_id, session);
   assert.equal(completed.createdTask, null, "recurrence generation should be queued instead of inline");
@@ -236,7 +236,7 @@ async function completeAndRunRecurrence(task, session, instanceDate) {
 SELECT task_id
 FROM tasks
 WHERE workspace_id = ${sqlText(session.workspace_id)}
-  AND recurrence_template_id = ${sqlText(task.recurrence_template_id)}
+  AND recurrence_template_id = ${sqlText(String(task.recurrence_template_id))}
   AND recurrence_instance_date = ${sqlText(instanceDate)}
   AND task_id <> ${sqlText(task.task_id)}
 LIMIT 1;

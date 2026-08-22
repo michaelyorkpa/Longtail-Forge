@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
@@ -52,6 +56,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session @param {Date} now */
 async function assertOptionalSecondaryReminderRoundTrip(session, now) {
   const due = localDateTimeParts(addMinutes(now, 45), session.timezone);
   const single = (await tasksService.create({
@@ -104,6 +109,7 @@ function assertStaticContract() {
   assert.match(runtimeDocs, /As of 0\.33\.5\.21\.7\.4[\s\S]*30-day scheduling horizon[\s\S]*12-hour top-up sweep/, "runtime docs should document reminder horizon and sweep behavior");
 }
 
+/** @param {TasksSession} session @param {Date} now */
 async function assertBackfillQueuesExistingTask(session, now) {
   const due = localDateTimeParts(addMinutes(now, 20), session.timezone);
   const task = await createRepositoryTask(session, {
@@ -136,6 +142,7 @@ async function assertBackfillQueuesExistingTask(session, now) {
   assert.equal(await reminderFireJobCount(session.workspace_id, task.task_id), 1, "repeated sweeps should not duplicate reminder jobs");
 }
 
+/** @param {TasksSession} session @param {Date} now */
 async function assertHorizonDefersAndSweepTopsUp(session, now) {
   const serviceDue = localDateTimeParts(addDays(now, 90), session.timezone);
   const serviceTask = (await tasksService.create({
@@ -173,6 +180,7 @@ async function assertHorizonDefersAndSweepTopsUp(session, now) {
   assert.equal(await reminderFireJobCount(session.workspace_id, topUpTask.task_id), 1, "later sweep should top up reminders that enter the horizon");
 }
 
+/** @param {TasksSession} session @param {Date} now */
 async function assertCompletedArchivedAndFarFutureTasksDoNotQueue(session, now) {
   const due = localDateTimeParts(addMinutes(now, 30), session.timezone);
   const completed = await createRepositoryTask(session, {
@@ -208,7 +216,11 @@ async function assertCompletedArchivedAndFarFutureTasksDoNotQueue(session, now) 
   assert.equal(await reminderFireJobCount(session.workspace_id, farFuture.task_id), 0, "far-future many-offset tasks should not create long-lived reminder jobs");
 }
 
-async function createRepositoryTask(session, options = {}) {
+/**
+ * @param {TasksSession} session
+ * @param {{ title: string, dueDate: string, dueTime?: string, dueTimezone?: string, status?: string, offsets?: number[] }} options
+ */
+async function createRepositoryTask(session, options) {
   const dueTimezone = options.dueTimezone || session.timezone || "America/New_York";
   const dueAtUtc = options.dueTime ? normalizeUtcIso(`${options.dueDate}T${options.dueTime}:00`, dueTimezone) : "";
   const now = new Date().toISOString();
@@ -239,6 +251,7 @@ async function createRepositoryTask(session, options = {}) {
   return storedTask;
 }
 
+/** @param {string} workspaceId @param {string} taskId @returns {Promise<number>} */
 async function reminderFireJobCount(workspaceId, taskId) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -259,18 +272,7 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }
 
 async function assertIntegrity() {
@@ -278,14 +280,17 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok", "SQLite integrity check should pass");
 }
 
+/** @param {Date} date @param {number} minutes @returns {Date} */
 function addMinutes(date, minutes) {
   return new Date(date.getTime() + minutes * 60 * 1000);
 }
 
+/** @param {Date} date @param {number} days @returns {Date} */
 function addDays(date, days) {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
+/** @param {Date} date @param {string} timeZone */
 function localDateTimeParts(date, timeZone) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     day: "2-digit",
@@ -296,7 +301,7 @@ function localDateTimeParts(date, timeZone) {
     month: "2-digit",
     timeZone,
     year: "numeric",
-  }).formatToParts(date).reduce((map, part) => {
+  }).formatToParts(date).reduce((/** @type {Record<string, string>} */ map, part) => {
     map[part.type] = part.value;
     return map;
   }, {});

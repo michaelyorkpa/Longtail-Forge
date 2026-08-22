@@ -11,6 +11,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-recurrence-continuity-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-recurrence-continuity.db");
@@ -70,6 +74,7 @@ async function assertRecurrenceServiceBoundary() {
   assert.match(tasksServiceSource, /taskRecurrenceService\.(?:listActiveTemplates|readTemplate|replaceTemplateChecklist|replaceTemplateNoteLinks)/);
 }
 
+/** @param {TasksSession} session */
 async function assertDedicatedCompletionContinuity(session) {
   const dueDate = dateOffset(0);
   const nextDate = dateOffset(7);
@@ -94,10 +99,13 @@ async function assertDedicatedCompletionContinuity(session) {
   assert.deepEqual(templateItems.map((item) => item.label), ["First step", "Second step"]);
 
   const pendingRead = await tasksService.readRecurrenceContinuity(source.task_id, session);
+  assert.ok(pendingRead.recurrenceContinuity, "the pending continuity read should carry a recurrence continuity payload");
   assert.equal(pendingRead.recurrenceContinuity.status, "pending", "continuity read should survive refresh before the worker runs");
 
   await runJobs("dedicated-completion");
   const availableRead = await tasksService.readRecurrenceContinuity(source.task_id, session);
+  assert.ok(availableRead.recurrenceContinuity, "the available continuity read should carry a recurrence continuity payload");
+  assert.ok(availableRead.recurrenceContinuity.nextTask, "the available continuity read should name the next generated occurrence");
   assert.equal(availableRead.recurrenceContinuity.status, "available");
   assert.equal(availableRead.recurrenceContinuity.nextTask.due_date, nextDate);
   assert.match(availableRead.recurrenceContinuity.nextTask.url, /^tasks\.html\?task=/);
@@ -108,11 +116,13 @@ async function assertDedicatedCompletionContinuity(session) {
 
   const ended = await createRecurringTask(session, "Ended recurrence", dateOffset(1), dateOffset(1));
   const endedResult = await tasksService.complete(ended.task_id, session);
+  assert.ok(endedResult.recurrenceContinuity, "the ended-series completion should carry a recurrence continuity payload");
   assert.equal(endedResult.recurrenceContinuity.status, "ended");
   assert.equal(endedResult.recurrenceContinuity.nextScheduledDate, "");
   assert.equal(endedResult.recurrenceJob.queued, false);
 }
 
+/** @param {TasksSession} session */
 async function assertEstablishedTemplatePreserved(session) {
   const source = await createRecurringTask(session, "Established checklist template", dateOffset(2));
   await tasksService.addChecklistItem(source.task_id, { label: "Template-owned step" }, session);
@@ -128,6 +138,7 @@ async function assertEstablishedTemplatePreserved(session) {
   await tasksService.addChecklistItem(source.task_id, { label: "Occurrence-only step" }, session);
 
   const completion = await tasksService.complete(source.task_id, session);
+  assert.ok(completion.recurrenceContinuity, "the established-template completion should carry a recurrence continuity payload");
   assert.equal(completion.recurrenceContinuity.checklistTemplateSeeded, false);
   const templateItems = await taskRecurrenceRepository.readTemplateChecklist(
     session.workspace_id,
@@ -141,14 +152,18 @@ async function assertEstablishedTemplatePreserved(session) {
 
   await runJobs("established-template");
   const continuity = await tasksService.readRecurrenceContinuity(source.task_id, session);
+  assert.ok(continuity.recurrenceContinuity, "the established-template continuity read should carry a recurrence continuity payload");
+  assert.ok(continuity.recurrenceContinuity.nextTask, "the established-template continuity read should name the next generated occurrence");
   const generated = (await tasksService.read(continuity.recurrenceContinuity.nextTask.task_id, session)).task;
   assert.deepEqual(generated.checklistItems.map((item) => item.label), ["Template-owned step"]);
   assert.deepEqual(generated.checklistItems.map((item) => item.is_checked), [false]);
 }
 
+/** @param {TasksSession} session */
 async function assertCompletionSurfaceParity(session) {
   const generic = await createRecurringTask(session, "Generic update completion", dateOffset(3));
   const genericResult = await tasksService.update(generic.task_id, { status: "complete" }, session);
+  assert.ok(genericResult.recurrenceContinuity, "the generic status completion should carry a recurrence continuity payload");
   assert.equal(genericResult.recurrenceContinuity.status, "pending", "generic status completion should use the continuity handoff");
 
   const bulk = await createRecurringTask(session, "Bulk completion", dateOffset(4));
@@ -157,13 +172,15 @@ async function assertCompletionSurfaceParity(session) {
     status: "complete",
     task_ids: [bulk.task_id],
   }, session);
+  assert.ok(bulkResult.recurrenceContinuities, "bulk completion should return a per-task continuity list");
   assert.equal(bulkResult.recurrenceContinuities.length, 1, "bulk completion should return safe per-task continuity");
   assert.equal(bulkResult.recurrenceContinuities[0].task_id, bulk.task_id);
   assert.equal(bulkResult.recurrenceContinuities[0].status, "pending");
 
   const publicApi = await createRecurringTask(session, "Public API completion", dateOffset(5));
-  const publicResult = await tasksPublicApiService.completeTask(session, publicApi.task_id);
+  const publicResult = await tasksPublicApiService.completeTask(publicApiSession(session), publicApi.task_id);
   assert.equal(publicResult.task.status, "complete");
+  assert.ok(publicResult.recurrenceContinuity, "the public API completion should carry a recurrence continuity payload");
   assert.equal(publicResult.recurrenceContinuity.status, "pending");
   assert.deepEqual(
     Object.keys(publicResult.recurrenceJob).sort(),
@@ -172,6 +189,7 @@ async function assertCompletionSurfaceParity(session) {
   );
 }
 
+/** @param {TasksSession} session */
 async function assertQueueFailureAndSweepRecovery(session) {
   const source = await createRecurringTask(session, "Queue failure recovery", dateOffset(6));
   await tasksService.addChecklistItem(source.task_id, { label: "Recovered checklist step" }, session);
@@ -207,6 +225,8 @@ async function assertQueueFailureAndSweepRecovery(session) {
   });
   await runJobs("queue-failure-sweep");
   const recovered = await tasksService.readRecurrenceContinuity(source.task_id, session);
+  assert.ok(recovered.recurrenceContinuity, "the swept recovery read should carry a recurrence continuity payload");
+  assert.ok(recovered.recurrenceContinuity.nextTask, "the swept recovery read should name the next generated occurrence");
   assert.equal(recovered.recurrenceContinuity.status, "available", "periodic sweep should recover a failed recurrence handoff");
   const recoveredTask = (await tasksService.read(recovered.recurrenceContinuity.nextTask.task_id, session)).task;
   assert.deepEqual(recoveredTask.checklistItems.map((item) => item.label), ["Recovered checklist step"]);
@@ -251,6 +271,7 @@ async function assertBrowserContracts() {
   assert.match(candidateService, /Math\.abs\(dayDistance\) <= 1/, "far-future passive recurrence should remain outside normal ranking");
 }
 
+/** @param {TasksSession} session @param {string} title @param {string} dueDate @param {string} [endDate] */
 async function createRecurringTask(session, title, dueDate, endDate = dateOffset(45)) {
   return (await tasksService.create({
     title,
@@ -264,6 +285,7 @@ async function createRecurringTask(session, title, dueDate, endDate = dateOffset
   }, session)).task;
 }
 
+/** @param {string} label */
 async function runJobs(label) {
   for (let pass = 0; pass < 3; pass += 1) {
     const result = await runJobWorkerOnce({
@@ -271,12 +293,13 @@ async function runJobs(label) {
       mode: "inline",
       workerId: `task-recurrence-continuity-${label}-${pass}`,
     });
-    if (!result?.claimedCount) {
+    if (!result?.claimed) {
       break;
     }
   }
 }
 
+/** @param {number} days @returns {string} */
 function dateOffset(days) {
   const date = new Date();
   date.setUTCHours(12, 0, 0, 0);
@@ -292,14 +315,19 @@ WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
   const user = rows[0];
-  assert.ok(user, "fresh database should seed a protected super admin");
+  return workspaceSessionFixture(requireRow(user, "fresh database should seed a protected super admin"));
+}
 
+/**
+ * Present the session shape the Tasks public API service publishes. The
+ * surface authenticates with an API key, so its contract requires an
+ * api_key_id; the workspace fixture session does not carry one.
+ * @param {import("../src/types/http-contracts.js").WorkspaceRequestSession} session
+ * @returns {import("../src/types/http-contracts.js").ApiSession}
+ */
+function publicApiSession(session) {
   return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
+    ...session,
+    api_key_id: "recurrence-continuity-regression-key",
   };
 }

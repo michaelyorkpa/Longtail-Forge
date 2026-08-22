@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-recurrence-linked-notes-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-recurrence-linked-notes.db");
@@ -36,6 +40,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session */
 async function assertRecurringLinkedNotePropagation(session) {
   const source = (await createRecurringTask(session, "Recurring linked-note source")).task;
   const templateId = source.recurrence_template_id;
@@ -77,6 +82,7 @@ async function assertRecurringLinkedNotePropagation(session) {
   assert.deepEqual(await linkedNoteTitlesForTask(session, generated.task_id), [note.title], "Newly generated recurrence instances should inherit template linked notes");
 }
 
+/** @param {TasksSession} session */
 async function assertRecurringLinkedNoteRemoval(session) {
   const source = (await createRecurringTask(session, "Recurring linked-note removal source")).task;
   const templateId = source.recurrence_template_id;
@@ -99,6 +105,7 @@ async function assertRecurringLinkedNoteRemoval(session) {
   assert.ok((await notesService.read(note.note_id, session)).note.note_id, "Removing a propagated task link should not delete the note record");
 }
 
+/** @param {TasksSession} session @param {string} title */
 async function createRecurringTask(session, title) {
   return tasksService.create({
     due_date: "2026-06-25",
@@ -112,6 +119,7 @@ async function createRecurringTask(session, title) {
   }, session);
 }
 
+/** @param {TasksSession} session @param {string} taskId @param {string} title */
 async function createLinkedNote(session, taskId, title) {
   const note = (await notesService.create({
     body_markdown: `## ${title}\n\nKeep this reference attached to recurring work.`,
@@ -123,6 +131,7 @@ async function createLinkedNote(session, taskId, title) {
   return note;
 }
 
+/** @param {TasksSession} session @param {string} templateId @param {string} instanceDate @param {string} title @param {string} [status] */
 async function createSeriesOccurrence(session, templateId, instanceDate, title, status = "open") {
   return (await tasksService.create({
     due_date: instanceDate,
@@ -135,6 +144,7 @@ async function createSeriesOccurrence(session, templateId, instanceDate, title, 
   }, session)).task;
 }
 
+/** @param {TasksSession} session @param {{ task_id: string, title: string, recurrence_template_id?: string | null }} sourceTask */
 async function saveAllFuture(session, sourceTask) {
   await tasksService.update(sourceTask.task_id, {
     recurrence: {
@@ -148,15 +158,18 @@ async function saveAllFuture(session, sourceTask) {
   }, session);
 }
 
+/** @param {TasksSession} session @param {string} taskId @returns {Promise<string[]>} */
 async function linkedNoteTitlesForTask(session, taskId) {
   const result = await notesService.listForTarget(session, {
     moduleId: "tasks",
     targetId: taskId,
     targetType: "task",
   });
-  return (result.linkedNotes || []).map((note) => note.label || /** @type {Record<string, unknown>} */ (note).title);
+  return (result.linkedNotes || []).map((note) =>
+    String(note.label || /** @type {Record<string, unknown>} */ (note).title || ""));
 }
 
+/** @param {string} taskId */
 function taskTarget(taskId) {
   return {
     module_id: "tasks",
@@ -175,16 +188,5 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }

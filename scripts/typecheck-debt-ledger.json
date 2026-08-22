@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 2921,
+      "errorCount": 2719,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3044,12 +3044,6 @@
           {
             "code": 7006,
             "count": 23
-          }
-        ],
-        "scripts/async-recurrence-response-closeout-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 7
           }
         ],
         "scripts/audit-extensibility-regression.mjs": [
@@ -4426,34 +4420,6 @@
             "count": 1
           }
         ],
-        "scripts/regressions/tasks/task-recurrence-materialize-on-touch-permissions.regression.mjs": [
-          {
-            "code": 18046,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 19
-          }
-        ],
-        "scripts/regressions/tasks/task-recurrence-skip-to-current.regression.mjs": [
-          {
-            "code": 18046,
-            "count": 7
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 11
-          }
-        ],
         "scripts/regressions/time-tracking/billing-dashboard-timezone-boundaries.regression.mjs": [
           {
             "code": 2345,
@@ -4920,70 +4886,6 @@
             "count": 2
           }
         ],
-        "scripts/task-recurrence-completion-continuity-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 18
-          },
-          {
-            "code": 18048,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 9
-          }
-        ],
-        "scripts/task-recurrence-frequency-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 10
-          }
-        ],
-        "scripts/task-recurrence-linked-note-propagation-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 16
-          }
-        ],
-        "scripts/task-recurrence-reminders-repository-conversion-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/task-reminder-notification-delivery-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 14
-          },
-          {
-            "code": 7006,
-            "count": 45
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
-        "scripts/task-reminder-scheduling-horizon-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 17
-          },
-          {
-            "code": 7006,
-            "count": 17
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
         "scripts/task-resume-context-regression.mjs": [
           {
             "code": 18047,
@@ -5301,7 +5203,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 14055,
+    "errors": 13853,
     "explicitAny": 7
   },
   "explicitAnyByFile": {

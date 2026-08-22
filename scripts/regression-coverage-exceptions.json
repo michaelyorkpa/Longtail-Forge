@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "maximumActiveScripts": 347,
-  "minimumAssertionCount": 19176,
+  "minimumAssertionCount": 19181,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,
@@ -5215,6 +5215,32 @@
       ],
       "verificationPerformed": [
         "node scripts/task-checklists-repository-conversion-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.task.recurrence.reminders.repository.conversion",
+      "retiredInVersion": "0.33.33.32.3",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.11 rather than a live contract: one required a CHANGELOG heading recording that release Task recurrence and reminders conversion burndown, and one required that the completed 0.33.5.27.11 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The live conversion contract is still proven in this same owner by fifteen static assertions over src/modules/tasks/task-recurrence.repo.js and src/modules/tasks/task-reminders.repo.js plus the audit and database documentation assertions carrying the same 1,218/197/144 burndown figures the retired changelog assertion restated. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and legacy.bump.version owns the one current CHANGELOG heading check.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/task-recurrence-reminders-repository-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.task.recurrence.reminders.repository.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/task-recurrence-reminders-repository-conversion-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"

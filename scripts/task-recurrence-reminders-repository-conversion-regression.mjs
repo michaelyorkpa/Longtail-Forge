@@ -4,6 +4,10 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
@@ -17,8 +21,6 @@ const remindersRepoSource = readText("src/modules/tasks/task-reminders.repo.js")
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const tasksDocs = readText("docs/tasks-module.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { taskRecurrenceRepository } = await import("../src/modules/tasks/task-recurrence.repo.js");
@@ -56,10 +58,9 @@ function assertStaticContract() {
   assert.match(auditDocs, /0\.33\.5\.27\.11 Task Recurrence and Reminders Repository Conversion[\s\S]*`tasks\/task-recurrence\.repo`[\s\S]*`tasks\/task-reminders\.repo`[\s\S]*1,218 runtime literal-helper invocations[\s\S]*197 direct interpolated SQL operation sites[\s\S]*144 existing bound operation sites/, "audit docs should record the Task recurrence/reminders repository conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.11[\s\S]*`tasks\/task-recurrence\.repo`[\s\S]*`tasks\/task-reminders\.repo`[\s\S]*1,218 remaining helper invocations/, "database docs should record the Task recurrence/reminders repository conversion");
   assert.match(tasksDocs, /As of version 0\.33\.5\.27\.11[\s\S]*task recurrence and reminder repositories use named bound params[\s\S]*[Tt]emplate assignee replacement[\s\S]*reminder offset replacement/, "Tasks docs should describe the converted recurrence/reminder persistence boundary");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.11 - Conversion wave: Task recurrence and reminders[\s\S]*- \[x\] Convert `tasks\/task-recurrence\.repo` and `tasks\/task-reminders\.repo`[\s\S]*- \[x\] Preserve recurrence template reads\/writes[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.11 - [\s\S]*Task recurrence and reminders repository conversion[\s\S]*1,218 helper invocations[\s\S]*197 direct interpolated operation sites[\s\S]*144 bound operation sites/, "changelog should record the Task recurrence/reminders conversion burndown");
 }
 
+/** @param {TasksSession} session */
 async function assertRecurrenceTemplateRepository(session) {
   const created = await taskRecurrenceRepository.createTemplate(session.workspace_id, {
     assignee_ids: [session.user_id],
@@ -113,6 +114,7 @@ async function assertRecurrenceTemplateRepository(session) {
   assert.equal(reread.rrule, "FREQ=DAILY;INTERVAL=2");
 }
 
+/** @param {TasksSession} session */
 async function assertReminderOffsetRepository(session) {
   const taskTargetId = randomUUID();
   const projectTargetId = randomUUID();
@@ -164,14 +166,5 @@ WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
 
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireRow(user, "fresh database should seed a protected super admin"));
 }

@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
@@ -58,6 +62,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session */
 async function assertProtectedCompletionResponse(session) {
   const task = (await tasksService.create({
     due_date: "2026-09-01",
@@ -86,6 +91,7 @@ async function assertProtectedCompletionResponse(session) {
   assert.equal(await recurrenceInstanceCount(session.workspace_id, task.recurrence_template_id, "2026-09-02"), 1, "worker should create the next recurring task instance");
 }
 
+/** @param {TasksSession} session */
 async function assertPublicCompletionResponse(session) {
   const task = (await tasksService.create({
     due_date: "2026-10-06",
@@ -98,7 +104,7 @@ async function assertPublicCompletionResponse(session) {
     title: "Public async recurrence task",
   }, session)).task;
 
-  const completed = await tasksPublicApiService.completeTask(session, task.task_id);
+  const completed = await tasksPublicApiService.completeTask(publicApiSession(session), task.task_id);
   assert.ok(completed.recurrenceContinuity, "public recurring completion should expose continuity");
 
   assert.equal(completed.task.status, "complete");
@@ -131,20 +137,10 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }
 
+/** @param {string} workspaceId @param {string} templateId @param {string} instanceDate @returns {Promise<number>} */
 async function recurrenceInstanceCount(workspaceId, templateId, instanceDate) {
   const rows = await querySql(`
 SELECT COUNT(*) AS count
@@ -162,8 +158,23 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok", "SQLite integrity check should pass");
 }
 
+/** @param {string} source @param {string} functionName @returns {string} */
 function functionBlock(source, functionName) {
   const pattern = new RegExp(`function ${functionName}\\([^)]*\\) \\{([\\s\\S]*?)\\n\\}`);
   const match = source.match(pattern);
   return match ? match[0] : "";
+}
+
+/**
+ * Present the session shape the Tasks public API service publishes. The
+ * surface authenticates with an API key, so its contract requires an
+ * api_key_id; the workspace fixture session does not carry one.
+ * @param {import("../src/types/http-contracts.js").WorkspaceRequestSession} session
+ * @returns {import("../src/types/http-contracts.js").ApiSession}
+ */
+function publicApiSession(session) {
+  return {
+    ...session,
+    api_key_id: "async-recurrence-response-regression-key",
+  };
 }
