@@ -866,6 +866,30 @@ assert.ok(
   resumeResolverSource.includes("function isWorkspaceScopedSession(session, workspaceId)"),
   "src/services/work-resume-state-initial-producers.js should keep the resolver workspace-scope proof",
 );
+for (const notesOwner of [
+  "scripts/notes-access-contract-regression.mjs",
+  "scripts/notes-api-service-regression.mjs",
+  "scripts/notes-foundation-regression.mjs",
+  "scripts/notes-integration-closeout-regression.mjs",
+  "scripts/notes-records-filters-repository-conversion-regression.mjs",
+  "scripts/notes-server-side-list-paging-regression.mjs",
+  "scripts/notes-writes-revisions-links-collections-repository-conversion-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[notesOwner], undefined, `${notesOwner} must stay strict-clean after checkpoint 0.33.33.32.11`);
+}
+// Two manifest contracts had been silently dropped by collapsing a second
+// assertion into the version check's message position. Both are restored and
+// must not collapse again.
+assert.ok(
+  fs.readFileSync("scripts/notes-integration-closeout-regression.mjs", "utf8")
+    .includes('assert.equal(notesModule.publicApiRoutes.length, 1,'),
+  "scripts/notes-integration-closeout-regression.mjs should keep the restored public API router count",
+);
+assert.ok(
+  fs.readFileSync("scripts/notes-foundation-regression.mjs", "utf8")
+    .includes("assert.equal(notesModule.enabledByDefault, true,"),
+  "scripts/notes-foundation-regression.mjs should keep the restored enabled-by-default contract",
+);
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().

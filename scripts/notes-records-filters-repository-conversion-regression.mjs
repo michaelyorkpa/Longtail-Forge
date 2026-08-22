@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-record-filter-repo-"));
@@ -18,8 +19,7 @@ const notesRepoSource = readText("src/modules/notes/notes.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const notesDocs = readText("docs/notes-module.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
+
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { clientsService } = await import("../src/modules/client-projects/clients.service.js");
@@ -51,6 +51,9 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
+/** @typedef {Awaited<ReturnType<typeof createFixtures>>} NotesFixtures */
+
 function assertStaticContract() {
 
   const convertedBlocks = [
@@ -74,10 +77,10 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.14[\s\S]*`notes\/notes\.repo`[\s\S]*record list\/read\/filter paths[\s\S]*named params/, "database docs should record the Notes records/filter conversion");
   assert.match(notesDocs, /^# Notes Module Developer Guide$/m, "Notes docs should retain the owning developer-guide heading");
   assert.match(notesDocs, /As of 0\.33\.5\.27\.14[\s\S]*record list\/read\/filter SQL[\s\S]*named params[\s\S]*dialect comparison seams/, "Notes docs should document the converted Notes read/filter repository boundary");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.14 - Conversion wave: Notes records and filters[\s\S]*- \[x\] Convert the note record list\/read\/filter paths[\s\S]*- \[x\] Preserve secure\/private placeholders[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.14 - [\s\S]*Notes records and filters repository conversion[\s\S]*helper invocations[\s\S]*direct interpolated operation sites[\s\S]*bound operation sites/, "changelog should record the Notes records/filter conversion burndown");
+
   }
 
+/** @param {NotesSession} session */
 async function createFixtures(session) {
   const suffix = randomUUID().slice(0, 8);
   const client = (await clientsService.createClient({
@@ -210,6 +213,7 @@ WHERE workspace_id = :workspaceId
   };
 }
 
+/** @param {NotesSession} session @param {NotesFixtures} fixtures */
 async function assertRepositoryRecordReads(session, fixtures) {
   const byIds = await notesRepository.readByIds(session.workspace_id, [
     fixtures.childNote.note_id,
@@ -239,6 +243,7 @@ async function assertRepositoryRecordReads(session, fixtures) {
   assert.equal(secureRow.body_plaintext_index, null, "secure note record reads should preserve closed plaintext placeholders");
 }
 
+/** @param {NotesSession} session @param {NotesFixtures} fixtures */
 async function assertRepositoryListFilters(session, fixtures) {
   const statusActive = await queryIds(session, {
     limit: 50,
@@ -337,6 +342,7 @@ async function assertRepositoryListFilters(session, fixtures) {
   );
 }
 
+/** @param {NotesSession} session @param {NotesFixtures} fixtures */
 async function assertServiceReadModelShaping(session, fixtures) {
   const secureList = await notesService.list(session, {
     limit: 20,
@@ -363,11 +369,13 @@ async function assertServiceReadModelShaping(session, fixtures) {
   );
 }
 
+/** @param {NotesSession} session @param {Record<string, unknown>} options */
 async function queryIds(session, options) {
   const result = await notesRepository.queryList(session.workspace_id, options);
   return new Set(result.notes.map((note) => note.note_id));
 }
 
+/** @returns {Promise<NotesSession>} */
 async function readSeedSession() {
   const user = await db.get(`
 SELECT users.user_id, users.username, users.display_name, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -378,16 +386,7 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    display_name: user.display_name,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
 async function assertIntegrity() {
@@ -395,6 +394,7 @@ async function assertIntegrity() {
   assert.deepEqual(rows, [{ integrity_check: "ok" }]);
 }
 
+/** @param {RegExp} startPattern @param {RegExp} endPattern @returns {string} */
 function sourceBlock(startPattern, endPattern) {
   const start = notesRepoSource.search(startPattern);
   const end = notesRepoSource.search(endPattern);

@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-server-side-paging-"));
@@ -28,8 +30,8 @@ const { NOTE_LIBRARY_BUCKETS, NOTE_SECURITY_MODES, NOTE_VISIBILITIES } = await i
 
 try {
   await initializeDatabase();
-  const workspace = await readWorkspace();
-  const session = await readProtectedSession(workspace.workspace_id);
+  const workspaceId = await readWorkspace();
+  const session = await readProtectedSession(workspaceId);
   const fixtures = await createFixtures(session);
   const originalRepositoryList = notesRepository.list;
 
@@ -53,6 +55,9 @@ try {
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
 }
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
+/** @typedef {Awaited<ReturnType<typeof createFixtures>>} PagingFixtures */
 
 function assertStaticContract() {
 
@@ -80,6 +85,7 @@ function assertStaticContract() {
   assert.match(notesDocs, /As of 0\.33\.5\.20\.3, the protected Notes workspace uses a lightweight server-shaped list read/, "Notes docs should keep the server-side list version on the shipped list-read contract");
 }
 
+/** @param {NotesSession} session */
 async function createFixtures(session) {
   const root = await notesService.createCollection({
     libraryBucket: NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
@@ -149,6 +155,7 @@ async function createFixtures(session) {
   };
 }
 
+/** @param {NotesSession} session @param {PagingFixtures} fixtures */
 async function assertLightweightListProjection(session, fixtures) {
   const result = await notesService.list(session, {
     limit: 20,
@@ -159,6 +166,7 @@ async function assertLightweightListProjection(session, fixtures) {
   const secureListNote = result.notes.find((note) => note.note_id === fixtures.secureNoteId);
 
   assert.ok(result.notes.length > 0, "Notes list should return seeded records");
+  assert.ok(result.pagination, "Notes list should report pagination");
   assert.ok(result.pagination.nextCursor || result.notes.length <= 20, "Notes list should expose cursor metadata");
   for (const note of result.notes) {
     assert.equal(Object.hasOwn(note, "body_markdown"), false, "List rows should not include editable body Markdown");
@@ -170,6 +178,7 @@ async function assertLightweightListProjection(session, fixtures) {
   assert.doesNotMatch(JSON.stringify(secureListNote), /secure body needle/i, "Secure note list rows should not leak secure body content");
 }
 
+/** @param {NotesSession} session */
 async function assertCursorPaging(session) {
   const firstPage = await notesService.list(session, {
     limit: 3,
@@ -178,6 +187,7 @@ async function assertCursorPaging(session) {
     status: "all",
   });
   assert.equal(firstPage.notes.length, 3, "first Notes page should honor requested page size");
+  assert.ok(firstPage.pagination, "the first Notes page should report pagination");
   assert.equal(firstPage.pagination.limit, 3, "pagination should report the effective page size");
   assert.ok(firstPage.pagination.nextCursor, "first Notes page should expose an opaque next cursor");
 
@@ -195,6 +205,7 @@ async function assertCursorPaging(session) {
   assert.equal([...secondIds].some((noteId) => firstIds.has(noteId)), false, "cursor paging should not duplicate the first page");
 }
 
+/** @param {NotesSession} session @param {PagingFixtures} fixtures */
 async function assertCollectionFiltering(session, fixtures) {
   const result = await notesService.list(session, {
     collection: fixtures.rootCollectionId,
@@ -210,6 +221,7 @@ async function assertCollectionFiltering(session, fixtures) {
   assert.equal(ids.has(fixtures.outsideNoteId), false, "Collection filtering should exclude notes outside the selected tree");
 }
 
+/** @param {NotesSession} session @param {PagingFixtures} fixtures */
 async function assertDetailReadStillRendersBody(session, fixtures) {
   const result = await notesService.read(fixtures.detailNoteId, session);
 
@@ -218,6 +230,7 @@ async function assertDetailReadStillRendersBody(session, fixtures) {
   assert.match(result.note.body_html, /<strong>rendered body needle<\/strong>/, "Detail rendered HTML should preserve Markdown formatting");
 }
 
+/** @returns {Promise<string>} */
 async function readWorkspace() {
   const rows = await querySql(`
 SELECT workspace_id
@@ -226,10 +239,12 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  const workspaceId = requireFirstRow(rows, "workspace should exist").workspace_id;
+  assert.ok(typeof workspaceId === "string" && workspaceId, "the seeded workspace should carry an id");
+  return workspaceId;
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -240,14 +255,11 @@ LIMIT 1;
 `);
 
   assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
+  return workspaceSessionFixture({
+    ...requireFirstRow(rows, "protected user should exist"),
     active_workspace_id: workspaceId,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
     workspace_id: workspaceId,
-  };
+  });
 }
 
 async function assertIntegrity() {

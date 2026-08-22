@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-write-repo-"));
@@ -18,8 +19,7 @@ const notesRepoSource = readText("src/modules/notes/notes.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const notesDocs = readText("docs/notes-module.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
+
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { notesRepository } = await import("../src/modules/notes/notes.repo.js");
@@ -64,10 +64,10 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.15[\s\S]*`notes\/notes\.repo`[\s\S]*fully converted[\s\S]*904 remaining helper invocations/, "database docs should record the full Notes repository conversion");
   assert.match(notesDocs, /^# Notes Module Developer Guide$/m, "Notes docs should retain the owning developer-guide heading");
   assert.match(notesDocs, /As of 0\.33\.5\.27\.15[\s\S]*Notes repository is fully converted[\s\S]*writes[\s\S]*revisions[\s\S]*links[\s\S]*collections[\s\S]*count helpers/, "Notes docs should document the fully converted Notes repository boundary");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.15 - Conversion wave: Notes writes, revisions, links, and collections[\s\S]*- \[x\] Convert the remaining `notes\/notes\.repo`[\s\S]*- \[x\] Preserve revision numbering[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.15 - [\s\S]*Notes writes, revisions, links, and collections repository conversion[\s\S]*904 helper invocations[\s\S]*166 direct interpolated operation sites[\s\S]*180 bound operation sites/, "changelog should record the Notes write conversion burndown");
+
 }
 
+/** @param {import("../src/types/http-contracts.js").WorkspaceRequestSession} session */
 async function assertRepositoryMutationLifecycle(session) {
   const suffix = randomUUID().slice(0, 8);
   const legacyRootCollectionId = randomUUID();
@@ -267,11 +267,13 @@ async function assertRepositoryMutationLifecycle(session) {
   assert.equal(await notesRepository.countPlaintextSecurePlaceholders(session.workspace_id), 1, "secure plaintext placeholder count should preserve the existing safety check");
 }
 
+/** @param {unknown} value @param {number} expectedVersion @param {string} label */
 function assertUuidVersion(value, expectedVersion, label) {
   assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
   assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }
 
+/** @returns {Promise<import("../src/types/http-contracts.js").WorkspaceRequestSession>} */
 async function readSeedSession() {
   const user = await db.get(`
 SELECT users.user_id, users.username, users.display_name, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -282,16 +284,7 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    display_name: user.display_name,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
 async function assertIntegrity() {

@@ -4,6 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { appVersion } from "../src/core/version.js";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
+/** @typedef {import("../src/types/framework-contracts.js").ApiScopeContribution} ApiScopeContribution */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-integration-closeout-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-integration-closeout.db");
@@ -25,9 +30,9 @@ try {
   registerSearchIndexJobHandlers({ replace: true });
   await searchService.ensureSearchBackendStorage({ refresh: true });
 
-  const workspace = await readWorkspace();
-  const adminSession = await readProtectedSession(workspace.workspace_id);
-  const limitedSession = await createClientUserSession(workspace.workspace_id);
+  const workspaceId = await readWorkspace();
+  const adminSession = await readProtectedSession(workspaceId);
+  const limitedSession = await createClientUserSession(workspaceId);
 
   await assertManifestIntegrationContract();
   await assertNotesDoNotBypassFrameworkStorage();
@@ -44,9 +49,26 @@ try {
 
 async function assertManifestIntegrationContract() {
   const notesModule = modulesService.getModule("notes");
+  assert.ok(notesModule, "the Notes module should be registered");
+  const {
+    apiScopes,
+    attachableTypes,
+    help,
+    notificationEvents,
+  } = notesModule;
+  assert.ok(apiScopes, "Notes should contribute API scopes");
+  assert.ok(attachableTypes, "Notes should contribute attachable types");
+  assert.ok(notificationEvents, "Notes should contribute notification events");
+  assert.ok(help?.articles, "Notes should contribute help articles");
 
-  assert.equal(notesModule.version, appVersion, 1, "Notes should expose only the read-only public API router");
-  assert.deepEqual(notesModule.apiScopes.map((scope) => scope.id), ["notes:read"]);
+  assert.equal(notesModule.version, appVersion);
+  // Restored from 0.33.5.14.4. The public-API-router count and the version
+  // check were collapsed into one four-argument `assert.equal` at
+  // 0.33.6.15.1, which silently dropped this contract: the surviving call
+  // passed `1` where the message belongs, so the router count was never
+  // compared at all.
+  assert.equal(notesModule.publicApiRoutes.length, 1, "Notes should expose only the read-only public API router");
+  assert.deepEqual(apiScopes.map(apiScopeId), ["notes:read"]);
   assert.deepEqual(
     notesModule.publicApiEndpoints.map((endpoint) => `${endpoint.method} ${endpoint.path} ${endpoint.scope}`),
     ["GET /api/v1/notes notes:read", "GET /api/v1/notes/:noteId notes:read"],
@@ -54,11 +76,11 @@ async function assertManifestIntegrationContract() {
   assert.ok(notesModule.permissions.some((permission) => permission.id === "notes.view"));
   assert.ok(notesModule.taggableTypes.some((type) => type.targetType === "note" && type.requiredTagPermission === "tags.assign"));
   assert.ok(notesModule.searchableTypes.some((type) => type.recordType === "note" && type.indexer === "notes.records"));
-  assert.ok(notesModule.attachableTypes.some((type) => type.targetType === "note" && type.lifecycleEvents.includes("file.attachment.created")));
+  assert.ok(attachableTypes.some((type) => type.targetType === "note" && type.lifecycleEvents?.includes("file.attachment.created")));
   assert.ok(notesModule.auditRecordTypes.some((type) => type.recordType === "note"));
   assert.ok(notesModule.eventTypes.some((type) => type.event === "note.updated"));
-  assert.ok(notesModule.notificationEvents.some((event) => event.id === "note.updated" && event.recipientMode === "explicit_users"));
-  assert.ok(notesModule.help.articles.length >= 4);
+  assert.ok(notificationEvents.some((event) => event.id === "note.updated" && event.recipientMode === "explicit_users"));
+  assert.ok(help.articles.length >= 4);
 }
 
 async function assertNotesDoNotBypassFrameworkStorage() {
@@ -77,6 +99,7 @@ async function assertNotesDoNotBypassFrameworkStorage() {
   assert.doesNotMatch(`${service}\n${repository}\n${routes}`, /INSERT\s+INTO\s+file_attachments|UPDATE\s+file_attachments|DELETE\s+FROM\s+file_attachments|INSERT\s+INTO\s+files|UPDATE\s+files|DELETE\s+FROM\s+files/i);
 }
 
+/** @param {NotesSession} session */
 async function assertArchiveCollectionAndSearchBehavior(session) {
   const collection = await notesService.createCollection({
     libraryBucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
@@ -119,6 +142,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   assert.equal(changed.note.note_collection_id, null, "moving Library buckets should not keep a cross-bucket collection assignment");
 }
 
+/** @param {NotesSession} adminSession @param {NotesSession} limitedSession */
 async function assertPermissionSafeCollectionCounts(adminSession, limitedSession) {
   const collection = await notesService.createCollection({
     libraryBucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
@@ -168,6 +192,7 @@ async function assertPermissionSafeCollectionCounts(adminSession, limitedSession
   assert.equal(limitedList.notes.some((note) => note.note_id === secureNote.note.note_id), false);
 }
 
+/** @param {NotesSession} adminSession @param {NotesSession} limitedSession */
 async function assertLinkedRecordAccessHidesNotes(adminSession, limitedSession) {
   const linked = await notesService.create({
     title: "Hidden linked-user note",
@@ -192,6 +217,7 @@ async function assertLinkedRecordAccessHidesNotes(adminSession, limitedSession) 
   );
 }
 
+/** @returns {Promise<string>} */
 async function readWorkspace() {
   const rows = await querySql(`
 SELECT workspace_id
@@ -200,10 +226,12 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  const workspaceId = requireFirstRow(rows, "workspace should exist").workspace_id;
+  assert.ok(typeof workspaceId === "string" && workspaceId, "the seeded workspace should carry an id");
+  return workspaceId;
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -214,16 +242,14 @@ LIMIT 1;
 `);
 
   assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
-    workspace_id: workspaceId,
+  return workspaceSessionFixture({
+    ...requireFirstRow(rows, "protected user should exist"),
     active_workspace_id: workspaceId,
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-  };
+    workspace_id: workspaceId,
+  });
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function createClientUserSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -301,21 +327,32 @@ VALUES (
 );
 `);
 
-  return {
-    workspace_id: workspaceId,
+  return workspaceSessionFixture({
     active_workspace_id: workspaceId,
+    display_name: "Limited Integration User",
     user_id: userId,
     username: `limited-integration-${userId}@example.test`,
-    display_name: "Limited Integration User",
-    timezone: "America/New_York",
-  };
+    workspace_id: workspaceId,
+  });
 }
 
+/** @param {() => Promise<unknown>} fn @param {RegExp} pattern */
 async function assertRejectsWithMessage(fn, pattern) {
   await assert.rejects(fn, (error) => {
-    assert.match(error.message, pattern);
+    assert.match(error instanceof Error ? error.message : String(error), pattern);
     return true;
   });
+}
+
+/**
+ * The manifest accepts an API scope as either a bare scope string or a full
+ * contribution, and normalization treats the string form as its own id. This
+ * reads whichever form the module contributed the same way.
+ * @param {string | ApiScopeContribution} scope
+ * @returns {string}
+ */
+function apiScopeId(scope) {
+  return typeof scope === "string" ? scope : scope.id;
 }
 
 async function assertIntegrity() {

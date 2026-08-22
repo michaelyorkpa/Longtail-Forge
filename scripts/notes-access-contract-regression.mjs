@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-access-contract-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-access-contract.db");
@@ -42,6 +43,7 @@ try {
 
 async function assertNotesManifestContract() {
   const notesModule = modulesService.getModule("notes");
+  assert.ok(notesModule, "the Notes module should be registered");
   const permissionIds = notesModule.permissions.map((permission) => permission.id);
   const eventNames = notesModule.eventTypes.map((eventType) => eventType.event);
   const auditTypes = notesModule.auditRecordTypes.map((recordType) => recordType.recordType);
@@ -60,6 +62,8 @@ async function assertNotesManifestContract() {
 
   const adminGrant = notesModule.defaultRolePermissions.find((grant) => grant.roleId === "workspace_admin");
   const externalGrant = notesModule.defaultRolePermissions.find((grant) => grant.roleId === "client_external_user");
+  assert.ok(adminGrant, "Notes should grant workspace admins its default permissions");
+  assert.ok(externalGrant, "Notes should declare an explicit external client user grant");
   assert.deepEqual(adminGrant.permissions, Object.values(NOTE_PERMISSIONS));
   assert.deepEqual(externalGrant.permissions, [], "external client users should not receive default Notes access");
 }
@@ -230,6 +234,7 @@ async function assertImportMetadataSchema() {
   await assertColumns("note_revisions", NOTE_IMPORT_METADATA_FIELDS);
 }
 
+/** @param {string} tableName @param {readonly string[]} expectedColumns */
 async function assertColumns(tableName, expectedColumns) {
   const rows = await querySql(`PRAGMA table_info(${tableName});`);
   const columns = new Set(rows.map((row) => row.name));
@@ -260,7 +265,7 @@ ORDER BY name;
 }
 
 async function assertImportMetadataStorage() {
-  const workspace = await readWorkspace();
+  const workspaceId = await readWorkspace();
   const now = new Date().toISOString();
 
   await runSql(`
@@ -287,7 +292,7 @@ INSERT INTO notes (
   original_page_id
 ) VALUES (
   'note-import-1',
-  ${sqlText(workspace.workspace_id)},
+  ${sqlText(workspaceId)},
   'Imported Note',
   '# Imported',
   'reference',
@@ -333,7 +338,7 @@ INSERT INTO note_revisions (
   original_page_id
 ) VALUES (
   'note-import-revision-1',
-  ${sqlText(workspace.workspace_id)},
+  ${sqlText(workspaceId)},
   'note-import-1',
   1,
   'Imported Note',
@@ -364,10 +369,12 @@ INSERT INTO note_revisions (
     original_notebook: "Notebook",
   });
 
+  // The access policy decides on visibility, workspace, status, library
+  // bucket, and ownership; it never reads a note id. The fixture used to pass
+  // one, which implied the decision was id-sensitive.
   const access = canAccessNote({
     note: {
-      note_id: "note-import-1",
-      workspace_id: workspace.workspace_id,
+      workspace_id: workspaceId,
       visibility: NOTE_VISIBILITIES.PRIVATE,
       security_mode: NOTE_SECURITY_MODES.NORMAL,
       status: NOTE_STATUSES.ACTIVE,
@@ -375,16 +382,19 @@ INSERT INTO note_revisions (
       created_by_user_id: "someone-else",
     },
     operation: "read",
-    session: { workspace_id: workspace.workspace_id, user_id: "viewer" },
+    session: { workspace_id: workspaceId, user_id: "viewer" },
     permissions: [NOTE_PERMISSIONS.VIEW],
   });
 
   assert.equal(access.reason, "private_note", "import metadata must not grant note access");
 }
 
+/** @returns {Promise<string>} */
 async function readWorkspace() {
   const rows = await querySql("SELECT workspace_id FROM workspaces ORDER BY workspace_id LIMIT 1;");
-  return rows[0];
+  const workspaceId = requireFirstRow(rows, "workspace should exist").workspace_id;
+  assert.ok(typeof workspaceId === "string" && workspaceId, "the seeded workspace should carry an id");
+  return workspaceId;
 }
 
 async function assertIntegrity() {
