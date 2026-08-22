@@ -832,6 +832,26 @@ assert.ok(
   resumeProducerSource.includes("@param {ProducerBuilderContext} input"),
   "src/services/work-resume-state-initial-producers.js should annotate its builders with the published producer context",
 );
+for (const focusOwner of [
+  "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs",
+  "scripts/regressions/workbench/direct-task-completion.regression.mjs",
+  "scripts/regressions/workbench/focus-candidate-pipeline.regression.mjs",
+  "scripts/regressions/workbench/task-focus-exit-capture.regression.mjs",
+  "scripts/task-resume-context-regression.mjs",
+  "scripts/work-candidate-service-regression.mjs",
+  "scripts/work-focus-modes-regression.mjs",
+  "scripts/workbench-task-focus-related-context-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[focusOwner], undefined, `${focusOwner} must stay strict-clean after checkpoint 0.33.33.32.10`);
+}
+// The task-source fixture defaulted its whole parameter, which left `projectId`
+// and `title` off the inferred type and produced fifteen excess-property
+// failures at its call sites. The empty default cannot return.
+assert.equal(
+  fs.readFileSync("scripts/work-focus-modes-regression.mjs", "utf8").includes("} = {}) {"),
+  false,
+  "scripts/work-focus-modes-regression.mjs must not reintroduce the dead fixture parameter default",
+);
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().

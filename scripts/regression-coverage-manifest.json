@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18542,
+    "activeAssertionCount": 18558,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,8 +106,8 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19264,
-    "retiredAssertionCredit": 53,
+    "effectiveAssertionCount": 19284,
+    "retiredAssertionCredit": 57,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -899,6 +899,33 @@
       ],
       "verificationPerformed": [
         "node scripts/work-resume-state-conversion-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.workbench.task.focus.related.context",
+      "retiredInVersion": "0.33.33.32.10",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 4,
+      "rationale": "Four assertions pinned archived planning history rather than a live contract, two in the owner and two in its folded workbench-task-focus-related-context-ui contract module. Two required CHANGELOG prose for releases 0.33.6.12h and 0.33.6.12e-2, and two were assertRoadmapCursorAtLeast(\"0.33.8\") cursor floors that a live 0.33.33 cursor can never fail.",
+      "assertionDisposition": "No behavior lost coverage. The same-project due-date ordering the 0.33.6.12h changelog assertion restated is proven directly in this owner by its static assertions over src/services/workbench-task-focus-related-context.service.js -- compareSameProjectTaskItems, sameProjectDueBucket, and compareSameProjectDueAt with its overdue, due-today, and future branches, plus the priority, status, and updated_at tie-breakers -- and by the runtime ordering assertions over the seeded fixtures. The related-context read model the 0.33.6.12e-2 assertion restated is proven by the contract module's surviving module-contract, ui-surface-contract, and view-building-contract assertions, which name the same Inspector boundary against current documentation. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and legacy.bump.version owns the one current CHANGELOG heading check.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/workbench-task-focus-related-context-regression.mjs",
+        "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.workbench.task.focus.related.context",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/workbench-task-focus-related-context-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"
@@ -4172,11 +4199,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 146,
+      "assertionCount": 148,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 146,
+      "entryPointAssertionCount": 148,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -6448,8 +6475,8 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 408,
-      "contractAssertionCount": 407,
+      "assertionCount": 407,
+      "contractAssertionCount": 406,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/workbench/task-focus-deep-link.contract.mjs",
@@ -6501,7 +6528,7 @@
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs",
-          "assertionCount": 23
+          "assertionCount": 22
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
@@ -6557,11 +6584,11 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 15,
+      "assertionCount": 16,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves batched resume-state read checks return results identical to the per-row resolvers, the workbench bootstrap computes no focus candidates, and focus-candidate query counts stay near-constant as resume rows grow.",
-      "entryPointAssertionCount": 15,
+      "entryPointAssertionCount": 16,
       "id": "workbench.focus-candidate-pipeline",
       "legacy": false,
       "path": "scripts/regressions/workbench/focus-candidate-pipeline.regression.mjs",
@@ -6597,11 +6624,11 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 31,
+      "assertionCount": 33,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves one deduplicated app-shell navigation intent holds eligible non-blocked Task Focus exits for reusable resume-note capture and hard exits use a bounded content-free session marker.",
-      "entryPointAssertionCount": 31,
+      "entryPointAssertionCount": 33,
       "id": "workbench.task-focus-exit-capture",
       "legacy": false,
       "path": "scripts/regressions/workbench/task-focus-exit-capture.regression.mjs",
@@ -7412,11 +7439,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 84,
+      "assertionCount": 93,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy task resume context contract.",
-      "entryPointAssertionCount": 84,
+      "entryPointAssertionCount": 93,
       "id": "legacy.task.resume.context",
       "legacy": true,
       "path": "scripts/task-resume-context-regression.mjs",
@@ -7686,11 +7713,11 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 34,
+      "assertionCount": 38,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy work candidate service contract.",
-      "entryPointAssertionCount": 34,
+      "entryPointAssertionCount": 38,
       "id": "legacy.work.candidate.service",
       "legacy": true,
       "path": "scripts/work-candidate-service-regression.mjs",
@@ -7838,11 +7865,11 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 48,
+      "assertionCount": 47,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy workbench task focus related context contract.",
-      "entryPointAssertionCount": 48,
+      "entryPointAssertionCount": 47,
       "id": "legacy.workbench.task.focus.related.context",
       "legacy": true,
       "path": "scripts/workbench-task-focus-related-context-regression.mjs",

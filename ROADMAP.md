@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.9` have since archived, closing 1,247 diagnostics across 60 files and leaving 1,896 across 142; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.10` have since archived, closing 1,390 diagnostics across 68 files and leaving 1,753 across 134; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.10` | Workbench focus modes, candidates, task focus | 144 | 7 | 3,001 |
 | `.32.11` | Notes foundation, access, and API service | 121 | 7 | 2,762 |
 | `.32.12` | Notes secure catalog | 95 | 5 | 1,736 |
 | `.32.13` | Notes editor, preview, and Markdown | 57 | 5 | 1,449 |
@@ -102,17 +101,6 @@ Requirements shared by every child:
 - [ ] Do not resolve a nullability diagnostic with a non-null assertion where the owner can assert the value instead. This band is 518 of the 3,150 and is the likeliest source of a zero that the compiler believes and the runtime does not.
 - [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
-
-#### 0.33.33.32.10 - Type Workbench focus modes, candidates, and task focus
-
-**Model: High Effort - Focus selection decides what work a user is shown and is permission-filtered.**
-
-Measured at 144 diagnostics across 7 files and 3,001 lines, of which `work-focus-modes` alone is 1,467 lines carrying 53 diagnostics. No `JSON.parse`; one history-pinned owner. Now 141 across the same 7 files: `0.33.33.32.9` published `ActiveTimerWriteInput` and pointed `activeTimersRepository.upsert()` at it, which removed two diagnostics from `work-candidate-service` and one from `work-focus-modes`.
-
-- [ ] Close the remaining 141 diagnostics across `work-focus-modes`, `task-resume-context`, `work-candidate-service`, `workbench-task-focus-related-context`, `regressions/workbench/task-focus-exit-capture`, `regressions/workbench/focus-candidate-pipeline`, and `regressions/workbench/direct-task-completion`.
-- [ ] Type focus mode definitions, candidate records and their ranking inputs, resume context, and exit-capture state with named contracts.
-- [ ] Preserve focus mode filtering, candidate ranking order, related-context scope, exit capture, and direct completion permissions exactly.
-- [ ] Resolve the 15 `TS2353` object-literal mismatches against the candidate and focus-mode contracts rather than widening the contracts to accept the literals.
 
 #### 0.33.33.32.11 - Type Notes foundation, access, and API service
 

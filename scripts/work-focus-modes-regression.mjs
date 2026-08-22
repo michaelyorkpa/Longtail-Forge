@@ -3,6 +3,16 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/framework-contracts.js").WorkCandidate} WorkCandidate */
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} FocusSession */
+/** The task-source fixture this owner seeds. `projectId` and `title` carry no
+ * default, so the destructured parameter alone inferred neither. */
+/** @typedef {{ blockedReason?: string, dueDate?: string, projectId: string, recurrence?: boolean, status?: string, title: string }} TaskSourceCandidateInput */
+/** @typedef {{ projectId: string, status?: string, title: string, updatedAt: string }} UpdatedTaskInput */
+/** @typedef {{ projectId: string, taskId: string, timerStatus: import("../src/types/time-tracking-contracts.js").TimerStatus, title: string }} TaskTimerInput */
+/** @typedef {import("../src/services/work-resume-state.service.js").ResumeStateUpsertPayload} ResumeStateUpsertPayload */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-work-focus-modes-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-work-focus-modes.db");
@@ -53,6 +63,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {FocusSession} session */
 async function assertCanonicalBusinessFocusModes(session) {
   const modes = await workFocusModesService.listFocusModes(session);
 
@@ -158,6 +169,7 @@ async function assertDocumentedOverdueFocusContracts() {
   );
 }
 
+/** @param {FocusSession} session */
 async function assertModeResolutionContracts(session) {
   const today = "2026-07-07";
   const startMyDay = await workFocusModesService.resolveFocusMode(session, {
@@ -269,6 +281,7 @@ async function assertModeResolutionContracts(session) {
   assert.equal(scopedStart.candidateQuery.projectId, "project-alpha");
 }
 
+/** @param {FocusSession} session */
 async function assertResolvedContextsDriveCandidates(session) {
   const today = "2026-07-07";
   const clientAlpha = `client-alpha-${randomUUID()}`;
@@ -627,6 +640,7 @@ async function assertResolvedContextsDriveCandidates(session) {
   );
 }
 
+/** @param {FocusSession} session */
 async function assertDescendantHierarchyFocusScopes(session) {
   const today = "2026-07-07";
   const parentClientId = `focus-parent-client-${randomUUID()}`;
@@ -749,6 +763,7 @@ async function assertDescendantHierarchyFocusScopes(session) {
   assert.equal(leafProjectFocus.items.some((candidate) => candidate.recordId === descendantClientTaskId), false);
 }
 
+/** @param {FocusSession} session */
 async function assertPickUpWhereLeftOffExecutesResumeStrategy(session) {
   const today = "2026-07-07";
   const projectId = `resume-focus-${randomUUID()}`;
@@ -958,6 +973,7 @@ async function assertPickUpWhereLeftOffExecutesResumeStrategy(session) {
   );
 }
 
+/** @param {FocusSession} session */
 async function assertPickUpWhereLeftOffIncludesTaskTimers(session) {
   const today = "2026-07-07";
   const projectId = `resume-task-timers-${randomUUID()}`;
@@ -1039,6 +1055,7 @@ async function assertPickUpWhereLeftOffIncludesTaskTimers(session) {
   assert.equal(focus.items.some((candidate) => candidate.recordId === blockedTaskId), false);
 }
 
+/** @param {FocusSession} session */
 async function assertPickUpWhereLeftOffBoostsSecondUpdatedTask(session) {
   const today = "2026-07-09";
   const clientId = `updated-boost-client-${randomUUID()}`;
@@ -1227,6 +1244,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   assert.equal(unreadableFocus.items.some((candidate) => candidate.recordId === boostedId), false);
 }
 
+/** @param {FocusSession} session */
 async function assertClientFocusWorkspaceGating(session) {
   await setWorkspaceType(session.workspace_id, "personal");
 
@@ -1272,10 +1290,16 @@ function registerFocusReadResolvers() {
       return { deleted: true, readable: false, status: "deleted" };
     }
 
-    return { readable: true, status: row.status_snapshot || "active" };
+    const statusSnapshot = row.status_snapshot;
+
+    return {
+      readable: true,
+      status: typeof statusSnapshot === "string" && statusSnapshot ? statusSnapshot : "active",
+    };
   });
 }
 
+/** @param {FocusSession} session @param {ResumeStateUpsertPayload} [overrides] @returns {Promise<string>} */
 async function upsertTaskCandidate(session, overrides = {}) {
   const taskId = `focus-task-${randomUUID()}`;
 
@@ -1293,6 +1317,7 @@ async function upsertTaskCandidate(session, overrides = {}) {
   return taskId;
 }
 
+/** @param {readonly WorkCandidate[]} items @param {readonly string[]} expectedIds @returns {string[]} */
 function intersectCandidateIds(items, expectedIds) {
   const expected = new Set(expectedIds);
   return items
@@ -1300,6 +1325,7 @@ function intersectCandidateIds(items, expectedIds) {
     .filter((recordId) => expected.has(recordId));
 }
 
+/** @param {string} workspaceId @param {string} workspaceType */
 async function setWorkspaceType(workspaceId, workspaceType) {
   await runSql(`
 UPDATE workspaces
@@ -1308,6 +1334,7 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
+/** @param {string} workspaceId @param {string} projectId @param {string} name @param {string} [clientId] @param {string} [parentProjectId] */
 async function createProject(workspaceId, projectId, name, clientId = "", parentProjectId = "") {
   await projectsRepository.create(workspaceId, clientId, {
     billable: "no",
@@ -1318,6 +1345,7 @@ async function createProject(workspaceId, projectId, name, clientId = "", parent
   });
 }
 
+/** @param {string} workspaceId @param {string} clientId @param {string} name @param {string} [parentClientId] */
 async function createClient(workspaceId, clientId, name, parentClientId = "") {
   await clientsRepository.create(workspaceId, {
     billable: "yes",
@@ -1328,6 +1356,7 @@ async function createClient(workspaceId, clientId, name, parentClientId = "") {
   });
 }
 
+/** @param {FocusSession} session @param {UpdatedTaskInput} input @returns {Promise<string>} */
 async function createUpdatedTask(session, { projectId, status = "open", title, updatedAt }) {
   const created = (await tasksService.create({
     project_id: projectId,
@@ -1351,6 +1380,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   return created.task_id;
 }
 
+/** @param {FocusSession} session @param {TaskSourceCandidateInput} input @returns {Promise<string>} */
 async function createTaskSourceCandidate(session, {
   blockedReason = "",
   dueDate = "",
@@ -1358,7 +1388,7 @@ async function createTaskSourceCandidate(session, {
   recurrence = false,
   status = "open",
   title,
-} = {}) {
+}) {
   const created = (await tasksService.create({
     blocked_reason: blockedReason,
     due_date: dueDate,
@@ -1387,6 +1417,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   return created.task_id;
 }
 
+/** @param {FocusSession} session @param {TaskTimerInput} input */
 async function upsertTaskTimer(session, { projectId, taskId, timerStatus, title }) {
   await activeTimersRepository.upsert({
     accumulated_elapsed_seconds: 120,
@@ -1410,6 +1441,7 @@ async function upsertTaskTimer(session, { projectId, taskId, timerStatus, title 
   });
 }
 
+/** @param {FocusSession} session @param {string} taskId @param {ResumeStateUpsertPayload} [overrides] */
 async function upsertResumeTaskCandidate(session, taskId, overrides = {}) {
   await workResumeStateService.upsertResumeState(session, {
     moduleId: "tasks",
@@ -1423,6 +1455,7 @@ async function upsertResumeTaskCandidate(session, taskId, overrides = {}) {
   });
 }
 
+/** @param {string} workspaceId @returns {Promise<FocusSession>} */
 async function createLimitedSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -1435,16 +1468,15 @@ INSERT INTO user_workspaces (user_workspace_id, user_id, workspace_id, status, c
 VALUES (${sqlText(randomUUID())}, ${sqlText(userId)}, ${sqlText(workspaceId)}, 'active', ${sqlText(now)}, ${sqlText(now)});
 `);
 
-  return {
+  return workspaceSessionFixture({
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
-    timezone: "America/New_York",
     user_id: userId,
     username: `${userId}@example.test`,
     workspace_id: workspaceId,
-  };
+  });
 }
 
+/** @returns {Promise<FocusSession>} */
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -1456,12 +1488,5 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }

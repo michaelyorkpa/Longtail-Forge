@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
-const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
 const moduleContract = readText("docs/module-contract.md");
 const uiSurfaceContract = readText("docs/ui-surface-contract.md");
@@ -115,15 +113,10 @@ assert.match(
   /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*selected-task related-context read model[\s\S]*Task Focus related-context service owns selected-task aggregation/,
   "View-building contract should include the selected-task related-context Inspector boundary",
 );
-assert.match(
-  changelog,
-  /## Version 0\.33\.6\.12e-2[\s\S]*selected-task related-context read model from 0\.33\.6\.12e-1 instead of Focus Selection candidate overflow[\s\S]*existing module actions or explicit safe fallbacks/,
-  "Changelog should preserve the Task Focus related-context UI closeout",
-);
-assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench Task Focus related-context UI regression passed.");
 
+/** @param {string} source @param {string} name @returns {string} */
 function functionBody(source, name) {
   const starts = [
     `async function ${name}(`,

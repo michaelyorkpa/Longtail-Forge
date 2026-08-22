@@ -13,6 +13,14 @@ import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
+/** The held handler the controller hands to an intercepted navigation. */
+/** @typedef {() => Promise<void> | void} InterceptHandler */
+/** One exit signal the controller arbitrates. */
+/** @typedef {{ kind: string, continue: () => unknown }} ExitIntent */
+/** The navigate event the controller intercepts, as this harness emits it. */
+/** @typedef {{ canIntercept: boolean, destination: { url: string }, intercept: (options: { handler: InterceptHandler }) => void, navigationType: string }} NavigateEvent */
+/** @typedef {(event: NavigateEvent) => void} NavigateListener */
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const navigationSource = await fs.readFile(path.join(root, "public/js/navigation.js"), "utf8");
 const workbenchSource = await fs.readFile(path.join(root, "public/js/workbench.js"), "utf8");
@@ -48,12 +56,13 @@ console.log("Workbench Task Focus exit-capture regression passed.");
 
 async function assertControllerDeduplication() {
   const harness = createControllerHarness();
+  /** @type {(() => void) | undefined} */
   let releaseCapture;
   let beforeCalls = 0;
   let commitCalls = 0;
   let continueCalls = 0;
   let errorCalls = 0;
-  const captureGate = new Promise((resolve) => { releaseCapture = resolve; });
+  const captureGate = new Promise((resolve) => { releaseCapture = () => resolve(undefined); });
 
   harness.controller.registerExitGuard({
     shouldHold: () => true,
@@ -70,6 +79,7 @@ async function assertControllerDeduplication() {
   assert.equal(first, duplicate, "concurrent exit signals should share one pending intent");
   await Promise.resolve();
   assert.equal(beforeCalls, 1, "one drift should open one capture");
+  assert.ok(releaseCapture, "the capture gate should expose its release");
   releaseCapture();
   await first;
   assert.equal(continueCalls, 1, "only the first exact destination should continue once");
@@ -81,8 +91,13 @@ async function assertHistoryTraversalInterception() {
   const harness = createControllerHarness();
   let captures = 0;
   let commits = 0;
-  let interceptedHandler = null;
+  // The controller hands its held handler to `intercept`, which the checker
+  // cannot see running, so it is captured on a record whose declared shape
+  // survives the callback boundary and is then proven present.
+  /** @type {{ handler: InterceptHandler | null }} */
+  const intercepted = { handler: null };
   harness.controller.registerExitGuard({
+    /** @param {ExitIntent} intent */
     shouldHold: (intent) => intent.kind === "history-traversal",
     beforeContinue: async () => { captures += 1; },
     onCommitted: () => { commits += 1; },
@@ -91,17 +106,20 @@ async function assertHistoryTraversalInterception() {
   harness.navigationListener({
     canIntercept: true,
     destination: { url: "http://longtail.local/tasks.html" },
-    intercept(options) { interceptedHandler = options.handler; },
+    /** @param {{ handler: InterceptHandler }} options */
+    intercept(options) { intercepted.handler = options.handler; },
     navigationType: "traverse",
   });
-  assert.equal(typeof interceptedHandler, "function", "history traversal should be held before its destination commits");
-  await interceptedHandler();
+  assert.ok(intercepted.handler, "history traversal should be held before its destination commits");
+  await intercepted.handler();
   assert.equal(captures, 1);
   assert.equal(commits, 1);
 }
 
 function createControllerHarness() {
+  /** @type {Map<string, (event: unknown) => void>} */
   const documentListeners = new Map();
+  /** @type {NavigateListener | null} */
   let navigationListener = null;
   const browserWindow = {
     URL,
@@ -111,6 +129,7 @@ function createControllerHarness() {
       origin: "http://longtail.local",
     },
     navigation: {
+      /** @param {string} type @param {NavigateListener} listener */
       addEventListener(type, listener) {
         if (type === "navigate") navigationListener = listener;
       },
@@ -118,6 +137,7 @@ function createControllerHarness() {
   };
   const browserDocument = {
     baseURI: browserWindow.location.href,
+    /** @param {string} type @param {(event: unknown) => void} listener */
     addEventListener(type, listener) { documentListeners.set(type, listener); },
   };
   const factory = vm.runInNewContext(`(${extractFunctionSource(navigationSource, "createNavigationIntentController")})`, {
@@ -128,10 +148,15 @@ function createControllerHarness() {
   const controller = factory();
   return {
     controller,
-    navigationListener(event) { return navigationListener(event); },
+    /** @param {NavigateEvent} event */
+    navigationListener(event) {
+      assert.ok(navigationListener, "the controller should subscribe to navigate events");
+      return navigationListener(event);
+    },
   };
 }
 
+/** @param {string} source @param {string} name @returns {string} */
 function extractFunctionSource(source, name) {
   const start = source.indexOf(`function ${name}(`) >= 0
     ? source.indexOf(`function ${name}(`)
