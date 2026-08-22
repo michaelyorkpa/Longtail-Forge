@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.4` have since archived, closing 580 diagnostics across 30 files and leaving 2,570 across 172:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.5` have since archived, closing 687 diagnostics across 35 files and leaving 2,463 across 167:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.5` | Dashboard and hot-endpoint read budgets | 107 | 5 | 1,821 |
 | `.32.6` | Notification delivery, inbox, subscriptions | 138 | 4 | 2,339 |
 | `.32.7` | Time Tracking timers, entries, billing runners | 206 | 9 | 2,539 |
 | `.32.8` | Public API v1 and cross-module scope | 94 | 4 | 985 |
@@ -105,16 +104,6 @@ Requirements shared by every child:
 - [ ] Do not resolve a nullability diagnostic with a non-null assertion where the owner can assert the value instead. This band is 518 of the 3,150 and is the likeliest source of a zero that the compiler believes and the runtime does not.
 - [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
-
-#### 0.33.33.32.5 - Type dashboard and hot-endpoint read budgets
-
-**Model: High Effort - These owners share one budget harness; typing them apart would duplicate its contract four ways.**
-
-Measured at 107 diagnostics across 5 files and 1,821 lines. Two `JSON.parse` sites; no history-pinned owners. The `TS7053`, `TS7005`, and `TS7034` band here is the harness's implicitly-typed accumulators, not per-owner debt.
-
-- [ ] Close the 107 diagnostics across `regressions/dashboard/hot-endpoint-budgets`, `regressions/tasks/dashboard-summary-budgets`, `regressions/time-tracking/dashboard-effort-summary-budgets`, `regressions/workbench/hot-endpoint-budgets`, and `dashboard-workbench`.
-- [ ] Give the shared budget harness one named contract covering query counts, timing accumulators, and budget records, and have all four budget owners read through it instead of re-annotating locals.
-- [ ] Preserve every measured budget value and its failure direction; a budget that becomes unenforceable because its accumulator was retyped is a regression, not a cleanup.
 
 #### 0.33.33.32.6 - Type notification delivery, inbox, and subscriptions
 
