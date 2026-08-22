@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18558,
+    "activeAssertionCount": 18570,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19284,
+    "effectiveAssertionCount": 19296,
     "retiredAssertionCredit": 57,
     "vitest": [
       {
@@ -4200,11 +4200,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 148,
+      "assertionCount": 150,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 148,
+      "entryPointAssertionCount": 150,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -6104,11 +6104,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 41,
+      "assertionCount": 42,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves the typed canonical filter/sort engine boundary, opt-in list options, bounded SQL workbench paging, lean projection serialization, due-window pushdown, and permission filtering through one precomputed evaluator.",
-      "entryPointAssertionCount": 41,
+      "entryPointAssertionCount": 42,
       "id": "tasks.task-list-pipeline-projection",
       "legacy": false,
       "path": "scripts/regressions/tasks/task-list-pipeline-projection.regression.mjs",
@@ -6585,11 +6585,11 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 16,
+      "assertionCount": 15,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves batched resume-state read checks return results identical to the per-row resolvers, the workbench bootstrap computes no focus candidates, and focus-candidate query counts stay near-constant as resume rows grow.",
-      "entryPointAssertionCount": 16,
+      "entryPointAssertionCount": 15,
       "id": "workbench.focus-candidate-pipeline",
       "legacy": false,
       "path": "scripts/regressions/workbench/focus-candidate-pipeline.regression.mjs",
@@ -7800,11 +7800,11 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 29,
+      "assertionCount": 39,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy work resume state initial producers contract.",
-      "entryPointAssertionCount": 29,
+      "entryPointAssertionCount": 39,
       "id": "legacy.work.resume.state.initial.producers",
       "legacy": true,
       "path": "scripts/work-resume-state-initial-producers-regression.mjs",

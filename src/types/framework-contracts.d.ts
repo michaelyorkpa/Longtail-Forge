@@ -1,4 +1,4 @@
-import type { RequestSession } from "./http-contracts.js";
+import type { RequestSession, WorkspaceRequestSession } from "./http-contracts.js";
 import type { JobPayload, RegisteredJobType } from "./job-contracts.js";
 export type { JobPayload, JobPayloadRegistry, RegisteredJobType } from "./job-contracts.js";
 
@@ -882,7 +882,14 @@ export interface ResumeStateReadResolverContext {
   recordId: string;
   recordType: string;
   row: Record<string, unknown>;
-  session: RequestSession;
+  /**
+   * Workspace-scoped by construction: `runReadCheck` in
+   * `work-resume-state.service` is the only producer of this context and
+   * already requires a `WorkspaceRequestSession`. Resolvers still must not
+   * assume this session is scoped to `workspaceId` — that is a separate
+   * invariant no type can state, and each resolver proves it for itself.
+   */
+  session: WorkspaceRequestSession;
   userId: string;
   workspaceId: string;
 }
@@ -890,7 +897,8 @@ export interface ResumeStateReadResolverContext {
 export interface ResumeStateBatchReadResolverContext {
   recordIds: string[];
   rows: Array<Record<string, unknown>>;
-  session: RequestSession;
+  /** Workspace-scoped by construction; see `ResumeStateReadResolverContext`. */
+  session: WorkspaceRequestSession;
   workspaceId: string;
 }
 
