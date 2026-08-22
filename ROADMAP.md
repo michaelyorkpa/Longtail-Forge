@@ -108,20 +108,6 @@ Requirements shared by every child:
 - [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
 
-#### 0.33.33.32.2.1 - Correct live resliced-child checkpoint validation
-
-**Model: Medium Effort - One validator predicate and its proof; no product behavior.**
-
-Corrective child of the archived `0.33.33.32.2`, opened before `0.33.33.32.3` begins. Archiving it closes `0.33.33.32.2` again and hands off to the already-planned `0.33.33.32.3`, whose diagnostic and file assignment is unchanged, as is every later checkpoint number.
-
-Why the correction is needed: `.32.2` exposed a process defect rather than a product one. `scripts/release/checkpoint-commits.mjs` recognised a live checkpoint only through `^### <checkpoint>`, but this branch's planning rollups declare their resliced implementation children — `0.33.33.32.2`, `.32.3`, `.32.4`, and corrective children such as `.32.1.1` — as `####` headings beneath the rollup's own `###` heading. A valid implementation commit for such a child was therefore reported as referring to an undeclared checkpoint until its roadmap-to-archive handoff created an `## Version` heading in `ROADMAP-ARCHIVE.md`, which meant the implementation commit could never validate on its own.
-
-- [ ] Reproduce the `.32.2` failure mode as a test before changing the validator, so the fix is proven against the real defect rather than assumed from the regex.
-- [ ] Make live checkpoint recognition accept the heading levels the roadmap actually uses for checkpoints, and no others. Keep checkpoint identity exact: the full numeric identifier must still match, a numeric prefix of a declared child must not qualify, and an unused heading depth must not qualify.
-- [ ] Preserve archived `## Version <checkpoint>` recognition exactly, the planning-versus-checkpoint distinction for trailer-free `ROADMAP.md` commits, trailer validation, documentation disposition, ceremony limits, deferred release paths, closeout handling, and base-SHA/range behavior.
-- [ ] Prove a live `####` child validates before any archive entry exists for it, using a real implementation-style commit rather than only a unit fixture.
-- [ ] Hold the scope: process only. No product behavior, no `src/`, no `public/js/`, and none of the `0.33.33.32.3` TypeScript work.
-
 #### 0.33.33.32.3 - Type task recurrence and reminder scheduling
 
 **Model: High Effort - Recurrence materialization and reminder horizons derive from the same due-date arithmetic.**
