@@ -60,7 +60,8 @@ The reslice follows the seams the estate already has — subsystem ownership and
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.7` | Time Tracking timers, entries, billing runners | 206 | 9 | 2,539 |
+| `.32.7` | TimeEntry write boundary and repository seam | 14 | 1 + 5 | 216 |
+| `.32.7.1` | Remaining Time Tracking timers and billing runners | 188 | 8 | 2,323 |
 | `.32.8` | Public API v1 and cross-module scope | 94 | 4 | 985 |
 | `.32.9` | Workbench service seam and work resume state | 126 | 8 | 2,020 |
 | `.32.10` | Workbench focus modes, candidates, task focus | 144 | 7 | 3,001 |
@@ -84,6 +85,8 @@ The reslice follows the seams the estate already has — subsystem ownership and
 | `.32.28` | Rollup-wide audits and the corrections they find | see below | 78 candidates | — |
 | `.32.28.1` | Final scripts-program closeout and measurement | 0 | 0 | — |
 
+`0.33.33.32.7` was resliced before implementation after `0.33.33.32.5` exposed that `timeEntriesRepository.create()` uses the normalized read record as its write contract. A measured probe put the correct repair at two production files, three already-closed consumers, and a scripts program that falls to 2,321 rather than rising, so the production seam correction is separated from the eight timer and billing owners it would otherwise ship beside. The two children sum to 202 rather than the originally measured 206 because the contract correction legitimately removes four diagnostics from `time-entries-repository-conversion`.
+
 Sizing evidence for the typing children: the twenty-seven span 34 to 206 diagnostics against a proven `0.33.33.31` range of 96 to 217, and 985 to 3,001 lines against a proven range of 1,321 to 6,369. Two children sit outside the usual line band for reasons that are recorded rather than hidden. `.32.10` carries 3,001 lines because `work-focus-modes-regression.mjs` alone is 1,467 lines while contributing only 53 diagnostics, so its line count overstates the session cost. `.32.25` and `.32.26` carry 15 and 21 diagnostic-bearing files — a subset of the 19 and 41 modules their aggregators own — because declarative contract modules average 120 lines and two diagnostics each; the closest precedent is the 28-file `0.33.33.30.7.2` closeout, which held. Every file count in this table is diagnostic-bearing files, not aggregator inventory. If any child's first working probe disagrees with its measured size, reslice that child before starting rather than absorbing the overflow.
 
 The diagnostic profile is mechanical and dominated by the same two shapes as the previous rollup: **1,915 `TS7006`** implicit-any parameters and **518** nullability diagnostics (`TS18047`, `TS18048`, `TS2531`, `TS2532`), with `TS2339` property reads a distant third. That means the work is roughly linear in files, and that the nullability band is where a careless non-null assertion would silently manufacture an inherited zero.
@@ -104,16 +107,42 @@ Requirements shared by every child:
 - [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
 
-#### 0.33.33.32.7 - Type Time Tracking timers, entries, and billing runners
+#### 0.33.33.32.7 - Correct the TimeEntry write boundary and type the Time Entry repository seam
+
+**Model: High Effort - The only production contract correction in the rollup; it crosses three programs and touches an already-closed owner.**
+
+Resliced before implementation. `0.33.33.32.5` found that `timeEntriesRepository.create()` and `update()` both declare `@param {TimeEntry}`, where `TimeEntry` is the normalized application-facing **read output** from `src/utils/normalizers.js`. A measured probe confirms the repository does not have that contract:
+
+- `timeEntryWriteParams` sends `client_id` and `task_id` through `nullableTextParam`, so both legitimately persist `null`.
+- It sends `project_id` through `textParam`, so a null project persists as the empty string rather than `NULL` — an asymmetry the read contract hides entirely.
+- `create()` and `update()` generate `created_at` and `updated_at` from their own clock and never read either field from the caller.
+- Every other field is coerced with `textParam` or `integerParam`, so the write boundary accepts far more than the read record admits.
+
+The probe also answers the question `0.33.33.32.5` left open. The three diagnostics that appeared there came from widening the **output** record: making `TimeEntry.client_id`, `.project_id`, and `.task_id` nullable breaks the two `search-indexers.js` calls and the one `time-tracking-dashboard.service.js` call that pass a normalized `TimeEntry` where a `TimeEntryRecord` is required, because `TimeEntryRecord` declares those three as `string`. Widening the output type is therefore the wrong repair; defining a separate write input is the right one, and a probe of that design leaves the server/test program at **zero**.
+
+Measured effect of the correct repair: the scripts program falls from 2,325 to 2,321. `time-entries-repository-conversion` drops from 18 diagnostics to 14 because the boundary it exercises becomes honest, and `workspace-storage-regression` — strict-clean since an earlier checkpoint — gains one, which is evidence rather than breakage.
+
+- [ ] Publish a truthful `TimeEntryWriteInput` in `src/types/time-tracking-contracts.d.ts` beside the existing record types, and point `create()`, `update()`, and `timeEntryWriteParams` at it. Name required identity and timing fields as required, the scope identifiers as nullable where the repository genuinely accepts null, and omit `created_at` and `updated_at` because the repository owns their generation. Do not invent optionality to make a fixture compile.
+- [ ] Do **not** widen the normalized `TimeEntry` read record. `TimeEntry` and `TimeEntryRecord` are both output shapes and must stay assignable to one another; the measured three-diagnostic cascade is what happens when that is ignored.
+- [ ] Record what each existing type represents, and correct any name or ownership that is misleading, without redesigning Time Tracking types: `TimeEntry` is the normalized read output, `TimeEntryRecord` is its published equivalent with literal billable and invoice-status unions, `TimeEntryRow` is the raw driver row, `TimeEntryWriteParameters` is the bound SQL parameter bag, and `TimeEntryInput` is the input to `normalizeTimeEntry` rather than to the repository.
+- [ ] Close the 14 remaining diagnostics in `time-entries-repository-conversion`, the direct consumer of this boundary.
+- [ ] **Remove both `0.33.33.32.5` compatibility bridges.** The documented `unknown`-to-`TimeEntry` double casts in `regressions/time-tracking/dashboard-effort-summary-budgets` and `regressions/dashboard/hot-endpoint-budgets` must be deleted, and the fixtures must satisfy the truthful create input directly. A compensating cast surviving this checkpoint is a failure of it. A probe confirms both call sites compile unchanged once the contract is correct.
+- [ ] **Correct the already-closed consumer this exposes rather than widening the type to accommodate it.** `scripts/workspace-storage-regression.mjs` passes `created_at` and `updated_at` in its create literal; `create()` overwrites both from its own clock, so those two lines have never done anything and the fixture's timestamps are a claim nothing honours. Delete them. Do not add the fields to `TimeEntryWriteInput` to keep the owner green.
+- [ ] Return the server/test program to permanent zero in this same checkpoint, and prove it. The probe shows zero with no server change required; if implementation disagrees, treat the difference as evidence about the contract, not as a reason to loosen the input type, and introduce no suppression or debt.
+- [ ] Preserve `nullableTextParam` semantics exactly. The budget fixtures store nulls deliberately, and `0.33.33.32.5` established that turning them into empty strings can move the read-budget measurements those owners exist to pin.
+- [ ] Re-pin every owner this checkpoint touches strict-clean through `framework.full-strict-governance`, including the three already-closed owners it edits.
+
+#### 0.33.33.32.7.1 - Type the remaining Time Tracking timers and billing runners
 
 **Model: High Effort - Timer state is stateful, clock-sensitive, and feeds billing.**
 
-Measured at 206 diagnostics across 9 files and 2,539 lines. Two `JSON.parse` sites; two history-pinned owners.
+The remainder of the original `0.33.33.32.7` cohort, measured at 188 diagnostics across 8 files and 2,323 lines once `0.33.33.32.7` has corrected the write boundary. Runs after `0.33.33.32.7`.
 
-- [ ] Close the 206 diagnostics across `task-timer-status`, `regressions/time-tracking/timer-task-linking`, `regressions/time-tracking/project-time-billing-runner`, `active-timers-repository-conversion`, `timer-resume-metadata`, `time-entries-repository-conversion`, `timer-timestamp-integrity`, `regressions/time-tracking/billing-dashboard-timezone-boundaries`, and `regressions/time-tracking/sourced-task-timer-bridge`.
-- [ ] Type active timer rows, time entry rows, resume metadata, task-timer links, and billing runner output with named contracts, reusing the published active-timer record rather than rebuilding it per owner.
+- [ ] Close the 188 diagnostics across `task-timer-status` (54), `regressions/time-tracking/timer-task-linking` (42), `regressions/time-tracking/project-time-billing-runner` (34), `active-timers-repository-conversion` (19), `timer-resume-metadata` (18), `timer-timestamp-integrity` (13), `regressions/time-tracking/billing-dashboard-timezone-boundaries` (6), and `regressions/time-tracking/sourced-task-timer-bridge` (2).
+- [ ] Type active timer rows, resume metadata, task-timer links, and billing runner output with named contracts, reusing the published active-timer record and the `TimeEntryWriteInput` contract `0.33.33.32.7` publishes rather than rebuilding either.
 - [ ] Preserve accumulated-elapsed arithmetic, timestamp integrity rules, timezone boundary behaviour, source-metadata provenance, and billing totals exactly.
 - [ ] Disposition the `source_metadata_json` boundary explicitly; the equivalent column was one of the 21 unchecked parse-then-read sites the `0.33.33.31.11` audit found.
+- [ ] Carry the cohort's history-pin retirement and dynamic-boundary disposition for the owners this child touches.
 
 #### 0.33.33.32.8 - Type the public API v1 surface and cross-module scope
 
