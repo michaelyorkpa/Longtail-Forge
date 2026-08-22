@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 1753,
+      "errorCount": 1632,
       "diagnostics": {
         "scripts/app-shell-navigation-regression.mjs": [
           {
@@ -3528,38 +3528,6 @@
             "count": 1
           }
         ],
-        "scripts/notes-access-contract-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 13
-          },
-          {
-            "code": 18048,
-            "count": 2
-          },
-          {
-            "code": 2322,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/notes-api-service-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18047,
-            "count": 7
-          },
-          {
-            "code": 7006,
-            "count": 14
-          }
-        ],
         "scripts/notes-collections-regression.mjs": [
           {
             "code": 18047,
@@ -3588,50 +3556,6 @@
           {
             "code": 7031,
             "count": 5
-          }
-        ],
-        "scripts/notes-foundation-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 13
-          },
-          {
-            "code": 18048,
-            "count": 6
-          },
-          {
-            "code": 2769,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/notes-integration-closeout-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18047,
-            "count": 11
-          },
-          {
-            "code": 18048,
-            "count": 5
-          },
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 9
           }
         ],
         "scripts/notes-linked-panel-regression.mjs": [
@@ -3682,12 +3606,6 @@
           {
             "code": 7006,
             "count": 6
-          }
-        ],
-        "scripts/notes-records-filters-repository-conversion-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 11
           }
         ],
         "scripts/notes-search-help-regression.mjs": [
@@ -3750,16 +3668,6 @@
             "count": 1
           }
         ],
-        "scripts/notes-server-side-list-paging-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 9
-          }
-        ],
         "scripts/notes-task-context-regression.mjs": [
           {
             "code": 7006,
@@ -3790,12 +3698,6 @@
           {
             "code": 7024,
             "count": 1
-          }
-        ],
-        "scripts/notes-writes-revisions-links-collections-repository-conversion-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 4
           }
         ],
         "scripts/performance-regression.mjs": [
@@ -4519,7 +4421,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 12887,
+    "errors": 12766,
     "explicitAny": 3
   },
   "explicitAnyByFile": {

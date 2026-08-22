@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 import { fixtureString } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-foundation-"));
@@ -34,9 +35,19 @@ try {
 
 async function assertNotesModuleManifest() {
   const notesModule = modulesService.getModule("notes");
+  assert.ok(notesModule, "the Notes module should be registered");
+  const { help, notificationEvents, notificationFollowTargets } = notesModule;
+  assert.ok(notificationEvents, "Notes should contribute notification events");
+  assert.ok(notificationFollowTargets, "Notes should contribute notification follow targets");
+  assert.ok(help?.articles, "Notes should contribute help articles");
 
   assert.equal(notesModule.id, "notes");
-  assert.equal(notesModule.version, appVersion, true);
+  assert.equal(notesModule.version, appVersion);
+  // Restored from 0.33.4-era coverage. The version and enabled-by-default
+  // checks were collapsed into one three-argument `assert.equal` at
+  // 0.33.6.14a, which passed `true` where the message belongs and dropped
+  // the enabled-by-default contract entirely.
+  assert.equal(notesModule.enabledByDefault, true, "Notes should stay enabled by default");
   assert.equal(notesModule.canDisable, true);
   assert.equal(notesModule.historicalReadAccess, true);
   assert.equal(notesModule.migrationsDir, null, "Notes schema is folded into the consolidated fresh baseline");
@@ -47,14 +58,14 @@ async function assertNotesModuleManifest() {
     type.sourceLabel === "Notes"
   )), "Notes should register searchable note records");
   assert.ok(["note.updated", "note.archived", "note.restored", "note.linked", "note.unlinked"].every((eventId) => (
-    notesModule.notificationEvents.some((event) => event.id === eventId && event.recipientMode === "explicit_users")
+    notificationEvents.some((event) => event.id === eventId && event.recipientMode === "explicit_users")
   )), "Notes should declare followable non-secure note notifications");
-  assert.ok(notesModule.notificationFollowTargets.some((target) => (
+  assert.ok(notificationFollowTargets.some((target) => (
     target.targetType === "note" &&
-    target.eventTypes.includes("note.updated") &&
-    target.eventTypes.includes("note.unlinked")
+    target.eventTypes?.includes("note.updated") &&
+    target.eventTypes?.includes("note.unlinked")
   )), "Notes should declare note notification follow targets");
-  assert.ok(notesModule.help.articles.some((article) => article.id === "notes.attachments-search"));
+  assert.ok(help.articles.some((article) => article.id === "notes.attachments-search"));
   assert.ok(notesModule.taggableTypes.some((type) => type.targetType === "note"), "Notes should register note tag targets");
   assert.ok(notesModule.attachableTypes.some((type) => type.targetType === "note"), "Notes should register note attachment targets");
   assert.ok(notesModule.settings.some((setting) => setting.id === "notesEnabled" && setting.moduleStatus === true));
@@ -188,6 +199,7 @@ ORDER BY name;
   assert.equal(indexes.length, 25, "Notes foundation should create the expected lookup and uniqueness indexes");
 }
 
+/** @param {string} tableName @param {readonly string[]} expectedColumns */
 async function assertColumns(tableName, expectedColumns) {
   const rows = await querySql(`PRAGMA table_info(${tableName});`);
   const columns = new Set(rows.map((row) => row.name));
@@ -203,9 +215,14 @@ async function assertNotesConstraints() {
   const notesTable = await querySql("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'notes';");
   const revisionsTable = await querySql("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'note_revisions';");
 
+  const notesTableSql = requireFirstRow(notesTable, "the notes table should exist").sql;
+  const revisionsTableSql = requireFirstRow(revisionsTable, "the note_revisions table should exist").sql;
+  assert.ok(typeof notesTableSql === "string", "the notes table should report its schema text");
+  assert.ok(typeof revisionsTableSql === "string", "the note_revisions table should report its schema text");
+
   for (const noteKind of ["decision", "procedure", "reference", "idea", "log", "client", "project", "task", "ticket", "user"]) {
-    assert.match(notesTable[0].sql, new RegExp(`'${noteKind}'`), `notes.note_type should allow ${noteKind}`);
-    assert.match(revisionsTable[0].sql, new RegExp(`'${noteKind}'`), `note_revisions.note_type should allow ${noteKind}`);
+    assert.match(notesTableSql, new RegExp(`'${noteKind}'`), `notes.note_type should allow ${noteKind}`);
+    assert.match(revisionsTableSql, new RegExp(`'${noteKind}'`), `note_revisions.note_type should allow ${noteKind}`);
   }
 
   await runSql(`

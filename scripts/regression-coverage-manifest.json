@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18570,
+    "activeAssertionCount": 18593,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,8 +106,8 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19296,
-    "retiredAssertionCredit": 57,
+    "effectiveAssertionCount": 19323,
+    "retiredAssertionCredit": 61,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -643,6 +643,58 @@
       ],
       "verificationPerformed": [
         "node scripts/job-retention-pruning-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.notes.records.filters.repository.conversion",
+      "retiredInVersion": "0.33.33.32.11",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.14 rather than a live contract: one required CHANGELOG prose recording that release's Notes records and filters conversion burndown, and one required that the completed 0.33.5.27.14 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The conversion contract is still proven in this same owner by its static source assertions over src/modules/notes/notes.repo.js and src/modules/notes/notes.service.js -- the db facade import, the absence of literal SQL helpers, and the bound operation counts -- and by the runtime repository read, filter, and service read-model assertions over seeded fixtures. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and legacy.bump.version owns the one current CHANGELOG heading check.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/notes-records-filters-repository-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.notes.records.filters.repository.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/notes-records-filters-repository-conversion-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.notes.writes.revisions.links.collections.repository.conversion",
+      "retiredInVersion": "0.33.33.32.11",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.15 rather than a live contract: one required CHANGELOG prose recording that release's 904/166/180 Notes write conversion burndown, and one required that the completed 0.33.5.27.15 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The conversion contract is still proven in this same owner by its static source assertions over the Notes repository and by the runtime mutation-lifecycle assertions, which exercise collection, note, revision, and link writes end to end and check revision numbering and canonical UUID versions directly rather than through changelog prose. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and legacy.bump.version owns the one current CHANGELOG heading check.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/notes-writes-revisions-links-collections-repository-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.notes.writes.revisions.links.collections.repository.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/notes-writes-revisions-links-collections-repository-conversion-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"
@@ -2670,11 +2722,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 41,
+      "assertionCount": 45,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes access contract contract.",
-      "entryPointAssertionCount": 41,
+      "entryPointAssertionCount": 45,
       "id": "legacy.notes.access.contract",
       "legacy": true,
       "path": "scripts/notes-access-contract-regression.mjs",
@@ -2689,11 +2741,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 81,
+      "assertionCount": 84,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes api service contract.",
-      "entryPointAssertionCount": 81,
+      "entryPointAssertionCount": 84,
       "id": "legacy.notes.api.service",
       "legacy": true,
       "path": "scripts/notes-api-service-regression.mjs",
@@ -2758,11 +2810,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 31,
+      "assertionCount": 38,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes foundation contract.",
-      "entryPointAssertionCount": 31,
+      "entryPointAssertionCount": 38,
       "id": "legacy.notes.foundation",
       "legacy": true,
       "path": "scripts/notes-foundation-regression.mjs",
@@ -2775,11 +2827,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 41,
+      "assertionCount": 47,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes integration closeout contract.",
-      "entryPointAssertionCount": 41,
+      "entryPointAssertionCount": 47,
       "id": "legacy.notes.integration.closeout",
       "legacy": true,
       "path": "scripts/notes-integration-closeout-regression.mjs",
@@ -2930,11 +2982,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 50,
+      "assertionCount": 48,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes records filters repository conversion contract.",
-      "entryPointAssertionCount": 50,
+      "entryPointAssertionCount": 48,
       "id": "legacy.notes.records.filters.repository.conversion",
       "legacy": true,
       "path": "scripts/notes-records-filters-repository-conversion-regression.mjs",
@@ -2981,11 +3033,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 42,
+      "assertionCount": 44,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes server side list paging contract.",
-      "entryPointAssertionCount": 42,
+      "entryPointAssertionCount": 44,
       "id": "legacy.notes.server.side.list.paging",
       "legacy": true,
       "path": "scripts/notes-server-side-list-paging-regression.mjs",
@@ -3030,11 +3082,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 56,
+      "assertionCount": 54,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes writes revisions links collections repository conversion contract.",
-      "entryPointAssertionCount": 56,
+      "entryPointAssertionCount": 54,
       "id": "legacy.notes.writes.revisions.links.collections.repository.conversion",
       "legacy": true,
       "path": "scripts/notes-writes-revisions-links-collections-repository-conversion-regression.mjs",
@@ -4200,11 +4252,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 150,
+      "assertionCount": 155,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 150,
+      "entryPointAssertionCount": 155,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
