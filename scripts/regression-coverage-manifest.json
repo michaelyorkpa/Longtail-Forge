@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18481,
+    "activeAssertionCount": 18504,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,8 +106,8 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19193,
-    "retiredAssertionCredit": 43,
+    "effectiveAssertionCount": 19220,
+    "retiredAssertionCredit": 47,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -641,6 +641,58 @@
       ],
       "verificationPerformed": [
         "node scripts/notification-jobs-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.notifications.inbox.lifecycle.conversion",
+      "retiredInVersion": "0.33.33.32.6",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.21 rather than a live contract: one required a CHANGELOG heading recording that release Notifications inbox and lifecycle conversion burndown, and one required that the completed 0.33.5.27.21 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The live conversion contract is still proven in this same owner by its static source assertions over the notifications repository and by its audit and database documentation assertions, which carry the same 536/111/246 burndown figures the retired changelog assertion restated. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and legacy.bump.version owns the one current CHANGELOG heading check.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/notifications-inbox-lifecycle-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.notifications.inbox.lifecycle.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/notifications-inbox-lifecycle-conversion-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.notifications.preferences.subscriptions.conversion",
+      "retiredInVersion": "0.33.33.32.6",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.22 rather than a live contract: one required a CHANGELOG heading recording that release Notification preferences and subscriptions conversion burndown, and one required that the completed 0.33.5.27.22 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The live conversion contract is still proven in this same owner by its static source assertions over the notifications repository and by its audit and database documentation assertions, which carry the same 487/103/256 burndown figures the retired changelog assertion restated. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and legacy.bump.version owns the one current CHANGELOG heading check.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/notifications-preferences-subscriptions-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.notifications.preferences.subscriptions.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/notifications-preferences-subscriptions-conversion-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"
@@ -2723,11 +2775,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 42,
+      "assertionCount": 45,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes notification follow contract.",
-      "entryPointAssertionCount": 42,
+      "entryPointAssertionCount": 45,
       "id": "legacy.notes.notification.follow",
       "legacy": true,
       "path": "scripts/notes-notification-follow-regression.mjs",
@@ -2905,11 +2957,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 238,
+      "assertionCount": 248,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notification contract.",
-      "entryPointAssertionCount": 238,
+      "entryPointAssertionCount": 248,
       "id": "legacy.notification",
       "legacy": true,
       "path": "scripts/notification-regression.mjs",
@@ -2922,11 +2974,11 @@
     },
     {
       "area": "notifications",
-      "assertionCount": 36,
+      "assertionCount": 40,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notifications inbox lifecycle conversion contract.",
-      "entryPointAssertionCount": 36,
+      "entryPointAssertionCount": 40,
       "id": "legacy.notifications.inbox.lifecycle.conversion",
       "legacy": true,
       "path": "scripts/notifications-inbox-lifecycle-conversion-regression.mjs",
@@ -2939,11 +2991,11 @@
     },
     {
       "area": "notifications",
-      "assertionCount": 43,
+      "assertionCount": 48,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notifications preferences subscriptions conversion contract.",
-      "entryPointAssertionCount": 43,
+      "entryPointAssertionCount": 48,
       "id": "legacy.notifications.preferences.subscriptions.conversion",
       "legacy": true,
       "path": "scripts/notifications-preferences-subscriptions-conversion-regression.mjs",
@@ -4042,11 +4094,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 138,
+      "assertionCount": 139,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 138,
+      "entryPointAssertionCount": 139,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",

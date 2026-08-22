@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 2463,
+      "errorCount": 2325,
       "diagnostics": {
         "scripts/active-timers-repository-conversion-regression.mjs": [
           {
@@ -3704,20 +3704,6 @@
             "count": 3
           }
         ],
-        "scripts/notes-notification-follow-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 40
-          }
-        ],
         "scripts/notes-preview-editor-regression.mjs": [
           {
             "code": 2339,
@@ -3854,48 +3840,6 @@
           {
             "code": 7006,
             "count": 4
-          }
-        ],
-        "scripts/notification-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 55
-          }
-        ],
-        "scripts/notifications-inbox-lifecycle-conversion-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 9
-          },
-          {
-            "code": 7006,
-            "count": 5
-          },
-          {
-            "code": 7031,
-            "count": 4
-          }
-        ],
-        "scripts/notifications-preferences-subscriptions-conversion-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 12
-          },
-          {
-            "code": 7006,
-            "count": 5
-          },
-          {
-            "code": 7031,
-            "count": 2
           }
         ],
         "scripts/performance-regression.mjs": [
@@ -5029,7 +4973,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 13597,
+    "errors": 13459,
     "explicitAny": 7
   },
   "explicitAnyByFile": {
