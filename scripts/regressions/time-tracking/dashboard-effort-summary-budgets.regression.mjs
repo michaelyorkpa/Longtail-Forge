@@ -184,9 +184,7 @@ function entryFixture(session, entryId, dateKey, time, durationSeconds) {
 /** @param {ReturnType<typeof entryFixture>[]} entries */
 async function insertEntries(entries) {
   for (const entry of entries) {
-    await timeEntriesRepository.create(
-      /** @type {import("../../../src/utils/normalizers.js").TimeEntry} */ (/** @type {unknown} */ (entry)),
-    );
+    await timeEntriesRepository.create(entry);
   }
 }
 

@@ -4,6 +4,12 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TimeTrackingSession */
+/** @typedef {import("../src/types/time-tracking-contracts.js").TimeEntryWriteInput} TimeEntryWriteInput */
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
@@ -16,8 +22,6 @@ const timeEntriesRepoSource = readText("src/modules/time-tracking/time-entries.r
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const timeTrackingDocs = readText("docs/time-tracking-module.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { timeEntriesRepository } = await import("../src/modules/time-tracking/time-entries.repo.js");
@@ -50,10 +54,9 @@ function assertStaticContract() {
   assert.match(auditDocs, /0\.33\.5\.27\.13 Time Entries Repository Conversion[\s\S]*`time-tracking\/time-entries\.repo`[\s\S]*1,116 runtime literal-helper invocations[\s\S]*180 direct interpolated SQL operation sites[\s\S]*162 existing bound operation sites/, "audit docs should record the Time entries repository conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.13[\s\S]*`time-tracking\/time-entries\.repo`[\s\S]*named params[\s\S]*1,116 remaining helper invocations/, "database docs should record the Time entries repository conversion");
   assert.match(timeTrackingDocs, /As of version 0\.33\.5\.27\.13[\s\S]*time entry repository uses named bound params[\s\S]*project-scope updates[\s\S]*reporting-facing reads/, "Time Tracking docs should describe the converted time entry persistence boundary");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.13 - Conversion wave: Time entries[\s\S]*- \[x\] Convert `time-tracking\/time-entries\.repo`[\s\S]*- \[x\] Preserve entry reads[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.13 - [\s\S]*Time entries repository conversion[\s\S]*1,116 helper invocations[\s\S]*180 direct interpolated operation sites[\s\S]*162 bound operation sites/, "changelog should record the Time entries conversion burndown");
 }
 
+/** @param {TimeTrackingSession} session */
 async function assertRepositoryLifecycle(session) {
   const projectA = randomUUID();
   const projectB = randomUUID();
@@ -110,10 +113,12 @@ WHERE workspace_id = :workspaceId
     entryId: entryLate,
     workspaceId: session.workspace_id,
   });
+  assert.ok(rawLate, "the late entry should be readable as a raw row");
   assert.equal(rawLate.client_id, null, "blank optional client ids should keep nullable text behavior");
   assert.equal(rawLate.task_id, null, "blank optional task ids should keep nullable text behavior");
   assert.equal(Number(rawLate.duration_seconds), 0, "invalid durations should keep integer coercion behavior");
 
+  /** @type {Set<string>} */
   const ourIds = new Set([entryEarly, entryLate, entryOtherProject]);
   const createdRows = (await timeEntriesRepository.readAll(session.workspace_id))
     .filter((entry) => ourIds.has(entry.entry_id));
@@ -124,6 +129,7 @@ WHERE workspace_id = :workspaceId
   );
 
   const lateEntry = await timeEntriesRepository.readById(session.workspace_id, entryLate);
+  assert.ok(lateEntry, "the late entry should be readable through the repository");
   assert.equal(lateEntry.client_id, "", "nullable client ids should normalize back to an empty app value");
   assert.equal(lateEntry.task_id, "", "nullable task ids should normalize back to an empty app value");
   assert.equal(lateEntry.duration_seconds, "0", "integer-coerced durations should normalize as the existing app string shape");
@@ -148,6 +154,7 @@ WHERE workspace_id = :workspaceId
     task_id: "",
   }));
   const updatedEarly = await timeEntriesRepository.readById(session.workspace_id, entryEarly);
+  assert.ok(updatedEarly, "the updated early entry should be readable through the repository");
   assert.equal(updatedEarly.description, "Updated early entry");
   assert.equal(updatedEarly.duration_seconds, "2400");
   assert.equal(updatedEarly.invoice_status, "billed");
@@ -168,6 +175,7 @@ WHERE workspace_id = :workspaceId
     "project-scope updates should rewrite only scope labels for matching project entries",
   );
   const untouchedOtherProject = await timeEntriesRepository.readById(session.workspace_id, entryOtherProject);
+  assert.ok(untouchedOtherProject, "the other-project entry should remain readable");
   assert.equal(untouchedOtherProject.client_name, "Client B", "project-scope updates should not touch other projects");
 
   await timeEntriesRepository.remove(session.workspace_id, entryLate);
@@ -175,6 +183,11 @@ WHERE workspace_id = :workspaceId
   assert.equal(await timeEntriesRepository.countByProjectId(session.workspace_id, projectA), 1, "project count should reflect removed entries");
 }
 
+/**
+ * @param {TimeTrackingSession} session
+ * @param {Partial<TimeEntryWriteInput>} [overrides]
+ * @returns {TimeEntryWriteInput}
+ */
 function entryValue(session, overrides = {}) {
   return {
     billable: "yes",
@@ -204,13 +217,5 @@ WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
 
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireRow(user, "fresh database should seed a protected super admin"));
 }

@@ -76,8 +76,6 @@ try {
     start_time: "2026-06-02T12:00:00.000Z",
     end_time: "2026-06-02T13:00:00.000Z",
     task_id: "",
-    created_at: "2026-06-02T12:00:00.000Z",
-    updated_at: "2026-06-02T13:00:00.000Z",
     duration_seconds: "3600",
     duration_hours: "1.00",
     billable: "yes",

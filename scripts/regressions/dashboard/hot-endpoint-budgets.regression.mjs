@@ -194,7 +194,7 @@ async function seedVisibleRows(session, today, range) {
   }
 
   for (let index = 0; index < 6; index += 1) {
-    await createUnscopedEntry(entryFixture(
+    await timeEntriesRepository.create(entryFixture(
       session,
       `dashboard-visible-entry-${index}`,
       addDaysKey(today, -(index % 6)),
@@ -230,7 +230,7 @@ VALUES (
   });
 
   for (let index = 0; index < 500; index += 1) {
-    await createUnscopedEntry(entryFixture(
+    await timeEntriesRepository.create(entryFixture(
       session,
       `dashboard-historical-entry-${index}`,
       addDaysKey(today, -120),
@@ -244,8 +244,6 @@ function entryFixture(session, entryId, dateKey, durationSeconds) {
   const endTime = normalizeUtcIso(`${dateKey}T12:00:00.000`, TIMEZONE);
   return {
     billable: "yes",
-    created_at: endTime,
-    updated_at: endTime,
     client_id: null,
     client_name: "",
     description: entryId,
@@ -287,25 +285,4 @@ function addDaysKey(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-/**
- * Persist a workspace-scoped time entry that carries no client, project, or
- * task.
- *
- * The published TimeEntry contract in src/utils/normalizers.js declares
- * client_id, project_id, and task_id as non-nullable strings, but the
- * repository stores the nulls this fixture supplies and the dashboard reads
- * them as unscoped rows. Widening those three properties to `string | null`
- * was tried and reintroduces three diagnostics in already-closed Time Tracking
- * server owners, so this child records the over-strict contract as a finding
- * rather than reopening them. The nulls are preserved deliberately: replacing
- * them with empty strings would change what the dashboard groups and could
- * move the measured statement counts these budgets exist to pin.
- * @param {ReturnType<typeof entryFixture>} entry
- */
-async function createUnscopedEntry(entry) {
-  await timeEntriesRepository.create(
-    /** @type {import("../../../src/utils/normalizers.js").TimeEntry} */ (/** @type {unknown} */ (entry)),
-  );
 }
