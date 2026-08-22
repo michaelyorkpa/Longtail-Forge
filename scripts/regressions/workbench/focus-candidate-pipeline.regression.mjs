@@ -76,9 +76,10 @@ try {
 
   // Re-registering the per-row production resolver supersedes the batch
   // shortcut, so the same reads run through the per-row path.
+  /** @type {import("../../../src/types/framework-contracts.js").ResumeStateReadResolver} */
   const perRowTaskResolver = async ({ recordId, session: resolverSession }) => {
     try {
-      const result = await tasksService.readCore(recordId, resolverSession);
+      const result = await tasksService.readCore(recordId, workspaceScopedSession(resolverSession));
       const task = result.task || {};
       return {
         archived: task.status === "archived",
@@ -162,4 +163,18 @@ LIMIT 1;
   assert.ok(user, "fresh database should seed a protected super admin");
 
   return workspaceSessionFixture(user);
+}
+
+/**
+ * The read-resolver context publishes a `RequestSession`, which does not
+ * guarantee the workspace scope the Tasks read requires. This proves the scope
+ * and carries the rest of the session through unchanged, so a resolver invoked
+ * without one fails here instead of reading across workspaces.
+ * @param {import("../../../src/types/http-contracts.js").RequestSession} session
+ * @returns {import("../../../src/types/task-server-contracts.js").TaskServerSession}
+ */
+function workspaceScopedSession(session) {
+  const workspaceId = session.workspace_id;
+  assert.ok(workspaceId, "a task read resolver should receive a workspace-scoped session");
+  return { ...session, workspace_id: workspaceId };
 }

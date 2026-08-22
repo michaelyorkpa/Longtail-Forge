@@ -167,6 +167,7 @@ LIMIT 1;
   return workspaceSessionFixture(user);
 }
 
+/** @param {string} source @param {string} name @returns {string} */
 function functionBody(source, name) {
   const syncStart = source.indexOf(`function ${name}(`);
   const asyncStart = source.indexOf(`async function ${name}(`);

@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 1896,
+      "errorCount": 1753,
       "diagnostics": {
         "scripts/app-shell-navigation-regression.mjs": [
           {
@@ -4020,12 +4020,6 @@
             "count": 2
           }
         ],
-        "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
         "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs": [
           {
             "code": 7006,
@@ -4144,40 +4138,6 @@
           {
             "code": 7006,
             "count": 23
-          }
-        ],
-        "scripts/regressions/workbench/direct-task-completion.regression.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regressions/workbench/focus-candidate-pipeline.regression.mjs": [
-          {
-            "code": 7031,
-            "count": 2
-          }
-        ],
-        "scripts/regressions/workbench/task-focus-exit-capture.regression.mjs": [
-          {
-            "code": 2721,
-            "count": 1
-          },
-          {
-            "code": 2722,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 9
-          },
-          {
-            "code": 7034,
-            "count": 1
           }
         ],
         "scripts/runtime-configuration-contract-regression.mjs": [
@@ -4468,40 +4428,6 @@
             "count": 2
           }
         ],
-        "scripts/task-resume-context-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 3
-          },
-          {
-            "code": 18048,
-            "count": 8
-          },
-          {
-            "code": 2339,
-            "count": 8
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2551,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 8
-          },
-          {
-            "code": 7006,
-            "count": 8
-          },
-          {
-            "code": 7034,
-            "count": 3
-          }
-        ],
         "scripts/user-theme-auto-mode-regression.mjs": [
           {
             "code": 18048,
@@ -4587,59 +4513,13 @@
             "code": 7006,
             "count": 3
           }
-        ],
-        "scripts/work-candidate-service-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 3
-          },
-          {
-            "code": 18048,
-            "count": 4
-          },
-          {
-            "code": 18049,
-            "count": 6
-          },
-          {
-            "code": 7006,
-            "count": 6
-          }
-        ],
-        "scripts/work-focus-modes-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2353,
-            "count": 15
-          },
-          {
-            "code": 7006,
-            "count": 27
-          },
-          {
-            "code": 7031,
-            "count": 7
-          }
-        ],
-        "scripts/workbench-task-focus-related-context-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 13
-          }
         ]
       }
     }
   },
   "totals": {
     "files": 1046,
-    "errors": 13030,
+    "errors": 12887,
     "explicitAny": 3
   },
   "explicitAnyByFile": {

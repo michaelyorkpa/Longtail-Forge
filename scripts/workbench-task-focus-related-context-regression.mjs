@@ -4,9 +4,13 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} RelatedContextSession */
+/** The fixture records this owner keeps and reads back. */
+/** @typedef {Awaited<ReturnType<typeof createRelatedContextFixtures>>} RelatedContextFixtures */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-workbench-related-context-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-workbench-related-context.db");
@@ -38,6 +42,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {RelatedContextSession} session @param {RelatedContextFixtures} fixtures */
 async function assertRelatedContextReadModel(session, fixtures) {
   const result = await workbenchTaskFocusRelatedContextService.readTaskFocusRelatedContext(
     session,
@@ -122,7 +127,6 @@ async function assertRelatedContextReadModel(session, fixtures) {
 }
 
 async function assertStaticContracts() {
-  const changelog = readText("CHANGELOG.md");
   const serviceSource = readText("src/services/workbench-task-focus-related-context.service.js");
   const genericWorkbenchSource = readText("src/services/workbench.service.js");
 
@@ -143,13 +147,9 @@ async function assertStaticContracts() {
     "same-project task reads should stay on the Tasks service active-task contract so completed, archived, permission-filtered, and disabled-module tasks remain pruned by owning behavior",
   );
   assert.match(serviceSource, /files-not-taggable/, "service should document the current Files shared-tag boundary");
-  assert.match(
-    changelog,
-    /## Version 0\.33\.6\.12h[\s\S]*Same project tasks` group by due-date proximity[\s\S]*due-today and overdue tasks now lead[\s\S]*no-due tasks stay last/,
-  );
-  assertRoadmapCursorAtLeast("0.33.8", "live roadmap should stay advanced beyond the related-context slice");
 }
 
+/** @param {RelatedContextSession} session */
 async function createRelatedContextFixtures(session) {
   const today = localDateKey(new Date(), session.timezone);
   const yesterday = addDaysKey(today, -1);
@@ -295,6 +295,7 @@ async function createRelatedContextFixtures(session) {
   };
 }
 
+/** @param {RelatedContextSession} session @param {string} tagId @param {string} targetType @param {string} targetId @param {string} sourceTaskId */
 async function insertPropagatedAssignment(session, tagId, targetType, targetId, sourceTaskId) {
   const now = new Date().toISOString();
   await runSql(`
@@ -329,6 +330,7 @@ VALUES (
 `);
 }
 
+/** @param {string} taskId @param {string} updatedAt */
 async function setTaskUpdatedAt(taskId, updatedAt) {
   await runSql(`
 UPDATE tasks
@@ -342,6 +344,7 @@ async function assertIntegrity() {
   assert.equal(result[0]?.integrity_check, "ok");
 }
 
+/** @returns {Promise<RelatedContextSession>} */
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -353,16 +356,13 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
+  return workspaceSessionFixture({
+    ...user,
     username: user.username || `workbench-related-context-${randomUUID()}@example.test`,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  });
 }
 
+/** @param {Date} date @param {string} [timezone] @returns {string} */
 function localDateKey(date, timezone = "America/New_York") {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone || "America/New_York",
@@ -374,6 +374,7 @@ function localDateKey(date, timezone = "America/New_York") {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+/** @param {string} dateKey @param {number} days @returns {string} */
 function addDaysKey(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);

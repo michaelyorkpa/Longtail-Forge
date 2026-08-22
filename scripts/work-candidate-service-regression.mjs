@@ -3,7 +3,10 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} CandidateSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-work-candidate-service-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-work-candidate-service.db");
@@ -37,6 +40,7 @@ try {
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
 }
+/** @param {CandidateSession} session */
 async function assertResumeRowsUseStableCandidateShape(session) {
   const taskId = `candidate-task-${randomUUID()}`;
   const sourceUrl = `tasks.html?task=${encodeURIComponent(taskId)}`;
@@ -73,17 +77,21 @@ async function assertResumeRowsUseStableCandidateShape(session) {
   assert.equal(candidate.title, "Normalized Candidate Task");
   assert.equal(candidate.contextLabel, "Client Alpha / Project Roadrunner");
   assert.equal(candidate.reason, "Review the normalized candidate contract.");
+  assert.ok(candidate.primaryAction, "a resume candidate should publish its primary action");
   assert.equal(candidate.primaryAction.href, sourceUrl);
   assert.equal(candidate.primaryAction.type, "link");
   assert.equal(candidate.sourceUrl, sourceUrl);
   assert.equal(candidate.priority, "high");
   assert.equal(candidate.blockedReason, "Waiting for final estimate.");
   assert.equal(candidate.rankHint, 900);
-  assert.equal(candidate.metadata.body_markdown, undefined);
-  assert.equal(candidate.metadata.nested.secure_payload, undefined);
-  assert.equal(candidate.metadata.nested.checkpoint, "kept");
+  assert.ok(candidate.metadata, "a resume candidate should publish its metadata");
+  const nestedMetadata = requireJsonRecord(candidate.metadata.nested, "candidate nested metadata");
+  assert.equal(Object.hasOwn(candidate.metadata, "body_markdown"), false, "candidate metadata must not carry note bodies");
+  assert.equal(Object.hasOwn(nestedMetadata, "secure_payload"), false, "nested candidate metadata must not carry secure payloads");
+  assert.equal(nestedMetadata.checkpoint, "kept");
 }
 
+/** @param {CandidateSession} session */
 async function assertTaskCandidatesUseWorkItemSourceGate(session) {
   const taskId = `candidate-source-task-${randomUUID()}`;
 
@@ -137,6 +145,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 `);
 }
 
+/** @param {CandidateSession} session */
 async function assertLiveTimersContributeCandidates(session) {
   const activeTimerId = `candidate-timer-${randomUUID()}`;
 
@@ -169,15 +178,19 @@ async function assertLiveTimersContributeCandidates(session) {
   assert.equal(candidate.recordType, "active_work_timer");
   assert.equal(candidate.title, "Manual focus timer");
   assert.equal(candidate.reason, "Timer is running.");
+  assert.ok(candidate.primaryAction, "a live timer candidate should publish its primary action");
+  const timerActionPayload = requireJsonRecord(candidate.primaryAction.payload, "timer candidate action payload");
   assert.equal(candidate.primaryAction.id, "timer.pause");
   assert.equal(candidate.primaryAction.method, "POST");
   assert.equal(candidate.primaryAction.route, "/api/active-timers/42/pause");
-  assert.equal(candidate.primaryAction.payload.timer_status, "paused");
+  assert.equal(timerActionPayload.timer_status, "paused");
   assert.equal(candidate.sourceUrl, "time-tracker.html");
   assert.equal(candidate.rankHint, 1000);
+  assert.ok(candidate.metadata, "a live timer candidate should publish its metadata");
   assert.equal(candidate.metadata.timer_slot, "42");
 }
 
+/** @param {CandidateSession} session */
 async function assertLiveTimersRespectTimerSourceGate(session) {
   await runSql(`
 UPDATE workspace_modules
@@ -204,6 +217,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 `);
 }
 
+/** @param {CandidateSession} session */
 async function assertSourcePermissionsFilterCandidates(session) {
   const limitedSession = await createLimitedSession(session.workspace_id);
   const limitedTaskId = `candidate-permission-task-${randomUUID()}`;
@@ -274,6 +288,7 @@ function stableCandidateKeys() {
   ].sort();
 }
 
+/** @param {string} workspaceId @returns {Promise<CandidateSession>} */
 async function createLimitedSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -295,6 +310,7 @@ VALUES (${sqlText(randomUUID())}, ${sqlText(userId)}, ${sqlText(workspaceId)}, '
   });
 }
 
+/** @returns {Promise<CandidateSession>} */
 async function readSeedSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
