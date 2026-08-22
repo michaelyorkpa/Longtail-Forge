@@ -202,6 +202,92 @@ for (const invalidCheckpoint of ["0.33.33.0", "0.33.33.12.0", "0.33.33.12.alpha"
   assert.ok(invalidNestedCheckpoint.errors.includes("LTF-Checkpoint must be a numeric 0.33.33.#[.#...] slice"));
 }
 
+// Live checkpoint recognition must accept the heading levels the roadmap
+// actually uses. Ordinary implementation checkpoints are `### <id>`, while a
+// planning rollup declares its resliced implementation children and any
+// corrective child as `#### <id>` beneath its own `###` heading. Before
+// 0.33.33.32.2.1 only `###` was recognized, so a valid implementation commit
+// for a live `####` child was reported as referring to an undeclared
+// checkpoint until its roadmap-to-archive handoff created an archive heading.
+const liveHeadingRoadmap = [
+  "### 0.33.33.31 - Type database, Files, and jobs regression owners",
+  "### 0.33.33.32 - Type product regressions and close the scripts program",
+  "#### 0.33.33.32.2 - Type task checklists, relationships, and bulk toolbars",
+  "#### 0.33.33.32.3 - Type task recurrence and reminder scheduling",
+  "#### 0.33.33.32.2.1 - Correct live resliced-child checkpoint validation",
+].join("\n");
+for (const liveCheckpoint of ["0.33.33.31", "0.33.33.32", "0.33.33.32.2", "0.33.33.32.3", "0.33.33.32.2.1"]) {
+  const liveChild = validateCheckpointCommit({
+    message: checkpointMessage({
+      checkpoint: liveCheckpoint,
+      docs: "No docs change needed: synthetic live checkpoint proof.",
+      summary: "Validate a checkpoint that is still live in the roadmap",
+    }),
+    paths: ["scripts/synthetic-owner.mjs"],
+    roadmapArchiveSource: "",
+    roadmapSource: liveHeadingRoadmap,
+  });
+  assert.deepEqual(liveChild.errors, [], `${liveCheckpoint} is declared live and must validate before it is archived`);
+  assert.equal(liveChild.kind, "checkpoint");
+}
+
+// Identity matching stays exact: a checkpoint absent from both documents
+// fails, and a heading that merely shares a numeric prefix never qualifies.
+for (const undeclared of ["0.33.33.32.9", "0.33.33.44"]) {
+  const missingCheckpoint = validateCheckpointCommit({
+    message: checkpointMessage({
+      checkpoint: undeclared,
+      docs: "No docs change needed: synthetic undeclared checkpoint proof.",
+      summary: "Reject a checkpoint that no roadmap document declares",
+    }),
+    paths: ["scripts/synthetic-owner.mjs"],
+    roadmapArchiveSource: "",
+    roadmapSource: liveHeadingRoadmap,
+  });
+  assert.ok(
+    missingCheckpoint.errors.includes(`${undeclared} is not a declared numbered checkpoint in ROADMAP.md or ROADMAP-ARCHIVE.md`),
+    `${undeclared} must not validate against a roadmap that never declares it`,
+  );
+}
+const prefixOnlyCheckpoint = validateCheckpointCommit({
+  message: checkpointMessage({
+    checkpoint: "0.33.33.3",
+    docs: "No docs change needed: synthetic prefix checkpoint proof.",
+    summary: "Reject a checkpoint that only prefixes a declared heading",
+  }),
+  paths: ["scripts/synthetic-owner.mjs"],
+  roadmapArchiveSource: "",
+  roadmapSource: "#### 0.33.33.32.3 - Type task recurrence and reminder scheduling",
+});
+assert.ok(
+  prefixOnlyCheckpoint.errors.includes("0.33.33.3 is not a declared numbered checkpoint in ROADMAP.md or ROADMAP-ARCHIVE.md"),
+  "a numeric prefix of a declared child must not satisfy checkpoint identity",
+);
+
+// A heading level the roadmap does not use for checkpoints must not qualify.
+const overDeepHeading = validateCheckpointCommit({
+  message: checkpointMessage({
+    checkpoint: "0.33.33.32.4",
+    docs: "No docs change needed: synthetic heading-level proof.",
+    summary: "Reject a checkpoint declared at an unused heading depth",
+  }),
+  paths: ["scripts/synthetic-owner.mjs"],
+  roadmapArchiveSource: "",
+  roadmapSource: "###### 0.33.33.32.4 - Type task calendar windows and feed serialization",
+});
+assert.ok(
+  overDeepHeading.errors.includes("0.33.33.32.4 is not a declared numbered checkpoint in ROADMAP.md or ROADMAP-ARCHIVE.md"),
+  "only the heading levels the roadmap uses for checkpoints may declare one",
+);
+
+// A ROADMAP-only commit with no trailers stays planning, not a checkpoint.
+const planningOnlyCommit = validateCheckpointCommit({
+  message: "Reslice 0.33.33.32 into twenty-eight children",
+  paths: ["ROADMAP.md"],
+  roadmapSource: liveHeadingRoadmap,
+});
+assert.equal(planningOnlyCommit.kind, "planning", "a trailer-free ROADMAP-only commit must stay planning");
+
 const parsedTrailers = parseCheckpointTrailers(firstCheckpointMessage);
 assert.equal(parsedTrailers.values.get(TRAILER_NAMES.checkpoint), "0.33.33.1");
 assert.equal(parsedTrailers.values.get(TRAILER_NAMES.summary), "Rebase internal checkpoint ceremony on branch-closeout identity");

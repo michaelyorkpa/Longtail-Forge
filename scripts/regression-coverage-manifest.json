@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18460,
+    "activeAssertionCount": 18466,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19170,
+    "effectiveAssertionCount": 19176,
     "retiredAssertionCredit": 41,
     "vitest": [
       {
@@ -5165,11 +5165,11 @@
     },
     {
       "area": "release",
-      "assertionCount": 81,
+      "assertionCount": 87,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves ceremony-aware routing, prechecked CI escalation, stage timing, and the generated canonical agent brief.",
-      "entryPointAssertionCount": 81,
+      "entryPointAssertionCount": 87,
       "id": "release.developer-verification-throughput",
       "legacy": false,
       "path": "scripts/regressions/release/developer-verification-throughput.regression.mjs",
