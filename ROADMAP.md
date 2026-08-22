@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.10` have since archived, closing 1,390 diagnostics across 68 files and leaving 1,753 across 134; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.10` have since archived, closing 1,390 diagnostics across 68 files and leaving 1,753 across 134; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.10.1` | Tasks resume-state resolver workspace scope | 0 | 0 | production seam |
 | `.32.11` | Notes foundation, access, and API service | 121 | 7 | 2,762 |
 | `.32.12` | Notes secure catalog | 95 | 5 | 1,736 |
 | `.32.13` | Notes editor, preview, and Markdown | 57 | 5 | 1,449 |
@@ -104,37 +103,6 @@ Requirements shared by every child:
 - [ ] Do not resolve a nullability diagnostic with a non-null assertion where the owner can assert the value instead. This band is 518 of the 3,150 and is the likeliest source of a zero that the compiler believes and the runtime does not.
 - [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
-
-#### 0.33.33.32.10.1 - Prove the Tasks resume-state resolver workspace scope
-
-**Model: High Effort - A production authorization-adjacent boundary; the correction must be proven, not asserted.**
-
-Corrective child opened by `0.33.33.32.10`, which proved on the regression side that a resume-state read resolver cannot assume its context session is workspace-scoped. The production resolvers still do. This child is production behaviour and contract work, not annotation work, and does not close scripts-program diagnostics.
-
-Both Tasks resolvers in `src/services/work-resume-state-initial-producers.js` cast the context session straight to `TaskServerSession`:
-
-- `taskReadResolver` at the `tasksService.readCore` call.
-- `taskBatchReadResolver` at the `tasksService.readLifecycleForIds` call.
-
-Their three siblings do not. `listReadResolver` and `listBatchReadResolver` call the published `hasWorkspaceSession` type predicate and refuse when it fails. `noteReadResolver` and `noteBatchReadResolver` compare `session.workspace_id` against the context `workspaceId` and refuse on mismatch. The timer resolvers scope their own query by the context `workspaceId` and never pass the session onward. Tasks is the only module that proves nothing.
-
-**Scope of the current exposure, stated precisely.** Both read-check paths reach resolvers from `listResumeState`, whose row query is already filtered `workspace_id = :workspaceId` from `session.workspace_id`, so `row.workspace_id` cannot differ from the session's workspace on any live path today. This child is therefore not fixing a reachable cross-workspace read. It is removing an unchecked type assertion at an authorization-adjacent seam — the exact inherited-zero pattern this rollup exists to eliminate — and closing the inconsistency where three of four modules prove a scope invariant and the fourth assumes it.
-
-- [ ] **Correct the published resolver context instead of narrowing around it.** `ResumeStateReadResolverContext.session` and `ResumeStateBatchReadResolverContext.session` are declared `RequestSession` in `src/types/framework-contracts.d.ts`, but the sole caller already guarantees more: `runReadCheck` and `runBatchedReadChecks` in `src/services/work-resume-state.service.js` both declare their `session` parameter as `WorkspaceRequestSession`. The contract under-states an invariant its only producer already holds. Declare both context members `WorkspaceRequestSession`. A measured probe confirms `WorkspaceRequestSession` is assignable to `TaskServerSession` with no assertion, so this alone retires both casts.
-- [ ] Do not widen `RequestSession` globally, and do not replace either cast with a helper that casts. The blast radius of the contract correction is first-party and small: eight production resolvers and seven regression resolvers, none of which assigns a context session to a `RequestSession`-typed target.
-- [ ] **Add the runtime proof the type system cannot express.** The workspace-match invariant relates two independent context members and no type can state it. Both Tasks resolvers must verify the session workspace equals the context `workspaceId` before entering the Tasks read, returning `{ readable: false }` per row and the equivalent unreadable map for the batch when it fails, exactly as the Notes resolvers already do.
-- [ ] Extend the same match check to `listReadResolver` and `listBatchReadResolver`, which today prove the session shape but not the workspace. Leaving two of four modules half-proven repeats the inconsistency this child exists to close, and the change is the same one line.
-- [ ] Preserve every existing permission-filtering and refusal semantic: the Tasks try/catch refusal, the lifecycle status mapping, the Notes eligibility pre-filter, and the batch fallback to per-row checks are unchanged.
-- [ ] Simplify the `workspaceScopedSession` helper `0.33.33.32.10` added to `regressions/workbench/focus-candidate-pipeline`, which exists only because the context under-declared its session. It becomes redundant once the contract is corrected and should not survive as dead narrowing.
-
-**Required proof.** Both Tasks resolvers are reachable from a regression through the exported `readResumeStateReadResolver` and `readResumeStateBatchReadResolver`, so the proof needs no new test architecture:
-
-- [ ] A correctly workspace-scoped session succeeds for both the per-row and batch resolver.
-- [ ] A session carrying no workspace scope is refused by both.
-- [ ] A session scoped to a different workspace than the context `workspaceId` is refused by both.
-- [ ] The Tasks read is not invoked after a scope refusal. Prove this by counting calls through a temporarily substituted `tasksService` method and restoring it, if that holds without inventing a new harness; if it does not, record why and keep the three refusal proofs.
-- [ ] Make the refusal proof load-bearing with mutation evidence: with the scope check inverted or removed, the refusal assertions must fail. Record the observed failure, as `0.33.33.32.1.1` did.
-- [ ] Keep the scripts and server/test programs at their current totals. This child changes production behaviour and one published contract; it is not expected to move the scripts ledger, and any movement it does cause must be measured and recorded rather than assumed.
 
 #### 0.33.33.32.11 - Type Notes foundation, access, and API service
 

@@ -19,6 +19,8 @@ const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const { workResumeStateService } = await import("../src/services/work-resume-state.service.js");
 const {
+  readResumeStateBatchReadResolver,
+  readResumeStateReadResolver,
   resetResumeStateReadResolvers,
 } = await import("../src/services/work-resume-state-read-checks.js");
 const {
@@ -42,6 +44,7 @@ try {
   await assertListProducerWritesListItemAndLinkState(session);
   await assertNoteProducerWritesOnlySafeActiveWorkNotes(session);
   await assertTimerProducerWritesManualAndSourcedTimerState(session);
+  await assertTaskReadResolversProveTheirWorkspaceScope(session);
 
   console.log("Work resume state initial producers regression passed.");
 } finally {
@@ -270,6 +273,94 @@ async function assertTimerProducerWritesManualAndSourcedTimerState(session) {
   assert.equal(item.record_type, "task");
   assert.equal(item.last_action_type, "timer.paused");
   assert.equal(item.metadata.source_module_id, "tasks");
+}
+
+/**
+ * The Tasks read resolvers must prove the session they were handed is scoped
+ * to the workspace the record belongs to before they read Tasks. Both are
+ * driven directly here: the resolver registry publishes them, so the refusal
+ * contract is proven against the registered production functions rather than
+ * against a copy.
+ * @param {ResumeSession} session
+ */
+async function assertTaskReadResolversProveTheirWorkspaceScope(session) {
+  const taskId = `resume-scope-task-${randomUUID()}`;
+  await tasksService.create({ task_id: taskId, title: "Resume scope task" }, session);
+
+  const readResolver = readResumeStateReadResolver("tasks", "task");
+  const batchResolver = readResumeStateBatchReadResolver("tasks", "task");
+  assert.ok(readResolver, "the Tasks per-row read resolver should be registered");
+  assert.ok(batchResolver, "the Tasks batch read resolver should be registered");
+
+  const { workspace_id: workspaceId } = session;
+  const otherWorkspaceId = `other-workspace-${randomUUID()}`;
+  /** @param {ResumeSession} resolverSession @param {string} contextWorkspaceId */
+  const readContext = (resolverSession, contextWorkspaceId) => ({
+    moduleId: "tasks",
+    recordId: taskId,
+    recordType: "task",
+    row: {},
+    session: resolverSession,
+    userId: session.user_id,
+    workspaceId: contextWorkspaceId,
+  });
+  /** @param {ResumeSession} resolverSession @param {string} contextWorkspaceId */
+  const batchContext = (resolverSession, contextWorkspaceId) => ({
+    recordIds: [taskId],
+    rows: [],
+    session: resolverSession,
+    workspaceId: contextWorkspaceId,
+  });
+
+  // A correctly scoped session reads the task.
+  const scopedRead = await readResolver(readContext(session, workspaceId));
+  assert.deepEqual(scopedRead, { archived: false, completed: false, readable: true, status: "open" },
+    "a workspace-scoped session should read the seeded task");
+  const scopedBatch = await batchResolver(batchContext(session, workspaceId));
+  assert.equal(scopedBatch.get(taskId)?.readable, true, "a workspace-scoped session should read the seeded task in batch");
+
+  // A session carrying no workspace scope is refused.
+  const unscopedSession = /** @type {ResumeSession} */ ({ ...session, workspace_id: "" });
+  assert.deepEqual(await readResolver(readContext(unscopedSession, workspaceId)), { readable: false },
+    "a session with no workspace scope must be refused");
+  assert.deepEqual(await batchResolver(batchContext(unscopedSession, workspaceId)), new Map([[taskId, { readable: false }]]),
+    "a session with no workspace scope must be refused in batch");
+
+  // A session scoped to a different workspace than the record is refused.
+  assert.deepEqual(await readResolver(readContext(session, otherWorkspaceId)), { readable: false },
+    "a session scoped to another workspace must be refused");
+  assert.deepEqual(await batchResolver(batchContext(session, otherWorkspaceId)), new Map([[taskId, { readable: false }]]),
+    "a session scoped to another workspace must be refused in batch");
+
+  // A refusal must happen before Tasks is read, not after. Both service
+  // entry points are counted through a temporary substitution and restored.
+  const originalReadCore = tasksService.readCore;
+  const originalReadLifecycleForIds = tasksService.readLifecycleForIds;
+  let taskReads = 0;
+
+  try {
+    tasksService.readCore = async (...args) => {
+      taskReads += 1;
+      return originalReadCore(...args);
+    };
+    tasksService.readLifecycleForIds = async (...args) => {
+      taskReads += 1;
+      return originalReadLifecycleForIds(...args);
+    };
+
+    await readResolver(readContext(unscopedSession, workspaceId));
+    await batchResolver(batchContext(unscopedSession, workspaceId));
+    await readResolver(readContext(session, otherWorkspaceId));
+    await batchResolver(batchContext(session, otherWorkspaceId));
+    assert.equal(taskReads, 0, "a scope refusal must not reach the Tasks service");
+
+    await readResolver(readContext(session, workspaceId));
+    await batchResolver(batchContext(session, workspaceId));
+    assert.equal(taskReads, 2, "a proven scope must still reach the Tasks service");
+  } finally {
+    tasksService.readCore = originalReadCore;
+    tasksService.readLifecycleForIds = originalReadLifecycleForIds;
+  }
 }
 
 /** @param {ResumeSession} session @param {string} recordId */

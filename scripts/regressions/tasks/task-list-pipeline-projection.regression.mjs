@@ -46,7 +46,18 @@ try {
     "list projections must not read reminder details per row",
   );
   assert.match(tasksModuleSource, /listRoute: "\/api\/tasks\/options"/, "the Tasks workbench card should consume the cacheable options route");
-  assert.match(resumeProducersSource, /tasksService\.readCore\(\s*recordId,\s*\/\*\* @type \{import\("\.\.\/types\/task-server-contracts\.d\.ts"\)\.TaskServerSession\} \*\/ \(session\),\s*\)/, "the resume-state read check should use the lightweight core read through the named Tasks session boundary");
+  // The lightweight core read is the pipeline contract this owner protects.
+  // Until 0.33.33.32.10.1 the session reached it through an inline
+  // TaskServerSession assertion, and this guard pinned that assertion text.
+  // The resolver context now publishes the workspace-scoped session, so the
+  // boundary is the contract rather than a cast, and the guard proves the
+  // lightweight read plus the scope proof that must precede it.
+  assert.match(resumeProducersSource, /tasksService\.readCore\(recordId, session\)/, "the resume-state read check should use the lightweight core read");
+  assert.match(
+    resumeProducersSource,
+    /async function taskReadResolver\(\{ recordId, session, workspaceId \}\)[\s\S]*?isWorkspaceScopedSession\(session, workspaceId\)[\s\S]*?tasksService\.readCore/,
+    "the resume-state read check should prove its workspace scope before the Tasks read",
+  );
   assert.match(tasksServiceSource, /createTaskListFilterContext[\s\S]*visibleTaskListCandidates[\s\S]*taskMatchesCanonicalQuery/, "the Tasks orchestrator should consume the typed filter engine boundary");
   assert.doesNotMatch(tasksServiceSource, /function (?:taskMatchesCanonicalQuery|sortCanonicalTasks|normalizeTaskListPagination)\b/, "the Tasks orchestrator must not re-own extracted filter, sort, or paging decisions");
   assert.deepEqual(strictCleanOwnerState("src/modules/tasks/task-list-engine.js"), { owned: true, diagnostics: 0 }, "the filter engine must remain strict-clean in its checked program");

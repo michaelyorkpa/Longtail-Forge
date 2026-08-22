@@ -24,7 +24,6 @@ import {
 /** @typedef {import("../types/framework-contracts.js").ResumeStateProducerResult} ResumeStateProducerResult */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateReadCheck} ResumeStateReadCheck */
 /** @typedef {import("../types/framework-contracts.js").ResumeStateReadResolverContext} ResumeStateReadResolverContext */
-/** @typedef {import("../types/http-contracts.js").RequestSession} RequestSession */
 /** @typedef {import("../types/http-contracts.js").WorkspaceRequestSession} WorkspaceRequestSession */
 /**
  * @typedef {Object} SafeNoteLifecycleRow
@@ -167,18 +166,20 @@ function registerTimerProducer() {
 }
 
 /** @param {ResumeStateBatchReadResolverContext} context @returns {Promise<Map<string, ResumeStateReadCheck>>} */
-async function taskBatchReadResolver({ recordIds, session }) {
-  return tasksService.readLifecycleForIds(
-    /** @type {import("../types/task-server-contracts.d.ts").TaskServerSession} */ (session),
-    recordIds,
-  );
+async function taskBatchReadResolver({ recordIds, session, workspaceId }) {
+  if (!isWorkspaceScopedSession(session, workspaceId)) {
+    return unreadableChecks(recordIds);
+  }
+
+  return tasksService.readLifecycleForIds(session, recordIds);
 }
 
 /** @param {ResumeStateBatchReadResolverContext} context @returns {Promise<Map<string, ResumeStateReadCheck>>} */
-async function listBatchReadResolver({ recordIds, session }) {
-  if (!hasWorkspaceSession(session)) {
-    return new Map(recordIds.map((recordId) => [recordId, { readable: false }]));
+async function listBatchReadResolver({ recordIds, session, workspaceId }) {
+  if (!isWorkspaceScopedSession(session, workspaceId)) {
+    return unreadableChecks(recordIds);
   }
+
   return listsService.readLifecycleForIds(session, recordIds);
 }
 
@@ -187,8 +188,8 @@ async function listBatchReadResolver({ recordIds, session }) {
 // and secure-content policy, and that boundary is not re-implemented here.
 /** @param {ResumeStateBatchReadResolverContext} context @returns {Promise<Map<string, ResumeStateReadCheck>>} */
 async function noteBatchReadResolver({ recordIds, session, workspaceId }) {
-  if (!session.workspace_id || session.workspace_id !== workspaceId) {
-    return new Map(recordIds.map((recordId) => [recordId, { readable: false }]));
+  if (!isWorkspaceScopedSession(session, workspaceId)) {
+    return unreadableChecks(recordIds);
   }
 
   const lifecycleRows = await readSafeNoteLifecycleForIds(workspaceId, recordIds);
@@ -243,12 +244,13 @@ WHERE workspace_id = :workspaceId
 }
 
 /** @param {ResumeStateReadResolverContext} context @returns {Promise<ResumeStateReadCheck>} */
-async function taskReadResolver({ recordId, session }) {
+async function taskReadResolver({ recordId, session, workspaceId }) {
+  if (!isWorkspaceScopedSession(session, workspaceId)) {
+    return { readable: false };
+  }
+
   try {
-    const result = await tasksService.readCore(
-      recordId,
-      /** @type {import("../types/task-server-contracts.d.ts").TaskServerSession} */ (session),
-    );
+    const result = await tasksService.readCore(recordId, session);
     const task = result.task || {};
     return {
       archived: task.status === "archived",
@@ -262,11 +264,12 @@ async function taskReadResolver({ recordId, session }) {
 }
 
 /** @param {ResumeStateReadResolverContext} context @returns {Promise<ResumeStateReadCheck>} */
-async function listReadResolver({ recordId, session }) {
+async function listReadResolver({ recordId, session, workspaceId }) {
+  if (!isWorkspaceScopedSession(session, workspaceId)) {
+    return { readable: false };
+  }
+
   try {
-    if (!hasWorkspaceSession(session)) {
-      return { readable: false };
-    }
     const result = await listsService.read(recordId, session, { includeDeleted: true });
     const list = result.list || {};
     return {
@@ -295,14 +298,14 @@ async function noteReadResolver({ recordId, session, workspaceId }) {
     };
   }
 
-  if (!session.workspace_id || session.workspace_id !== workspaceId) {
+  if (!isWorkspaceScopedSession(session, workspaceId)) {
     return { readable: false };
   }
 
   return readEligibleNoteCheck(recordId, { ...session, workspace_id: workspaceId });
 }
 
-/** @param {string} recordId @param {import("../types/http-contracts.js").WorkspaceRequestSession} session @returns {Promise<ResumeStateReadCheck>} */
+/** @param {string} recordId @param {WorkspaceRequestSession} session @returns {Promise<ResumeStateReadCheck>} */
 async function readEligibleNoteCheck(recordId, session) {
   try {
     const note = await notesService.readConsumerSummary(recordId, session, "notes.resume");
@@ -612,9 +615,28 @@ function textParam(value) {
   return String(value ?? "");
 }
 
-/** @param {RequestSession} session @returns {session is WorkspaceRequestSession} */
-function hasWorkspaceSession(session) {
-  return Boolean(session.workspace_id);
+/**
+ * Prove a read resolver is running in the workspace it was handed.
+ *
+ * The context publishes the session and the workspace separately, and no
+ * type can state that they agree. A resolver that skips this check reads a
+ * record scoped to one workspace with a session scoped to another, so every
+ * module proves it here rather than assuming the caller already did.
+ * @param {WorkspaceRequestSession} session
+ * @param {string} workspaceId
+ * @returns {boolean}
+ */
+function isWorkspaceScopedSession(session, workspaceId) {
+  return Boolean(session.workspace_id) && session.workspace_id === workspaceId;
+}
+
+/**
+ * The refusal a batch resolver returns when it cannot prove its scope.
+ * @param {readonly string[]} recordIds
+ * @returns {Map<string, ResumeStateReadCheck>}
+ */
+function unreadableChecks(recordIds) {
+  return new Map(recordIds.map((recordId) => [recordId, { readable: false }]));
 }
 
 export {

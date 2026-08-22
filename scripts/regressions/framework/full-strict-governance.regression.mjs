@@ -852,6 +852,20 @@ assert.equal(
   false,
   "scripts/work-focus-modes-regression.mjs must not reintroduce the dead fixture parameter default",
 );
+// 0.33.33.32.10.1 corrected the resume-state resolver context to publish the
+// workspace-scoped session its only producer already guarantees, so neither
+// Tasks resolver needs a type assertion to reach a Tasks read. The assertion
+// cannot return, and the runtime scope proof the type cannot express must stay.
+const resumeResolverSource = fs.readFileSync("src/services/work-resume-state-initial-producers.js", "utf8");
+assert.equal(
+  resumeResolverSource.includes("TaskServerSession"),
+  false,
+  "src/services/work-resume-state-initial-producers.js must not reintroduce the Tasks session assertion",
+);
+assert.ok(
+  resumeResolverSource.includes("function isWorkspaceScopedSession(session, workspaceId)"),
+  "src/services/work-resume-state-initial-producers.js should keep the resolver workspace-scope proof",
+);
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().
