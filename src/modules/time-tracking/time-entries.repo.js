@@ -6,6 +6,7 @@ import { normalizeTimeEntry } from "../../utils/normalizers.js";
 /** @typedef {import("../../types/time-tracking-contracts.d.ts").DashboardEffortReadOptions} DashboardEffortReadOptions */
 /** @typedef {import("../../types/time-tracking-contracts.d.ts").ProjectScopeUpdate} ProjectScopeUpdate */
 /** @typedef {import("../../types/time-tracking-contracts.d.ts").TimeEntryRow} TimeEntryRow */
+/** @typedef {import("../../types/time-tracking-contracts.d.ts").TimeEntryWriteInput} TimeEntryWriteInput */
 /** @typedef {import("../../types/time-tracking-contracts.d.ts").TimeEntryWriteParameters} TimeEntryWriteParameters */
 
 /** @param {string} workspaceId */
@@ -194,7 +195,7 @@ ORDER BY end_time;
   return rows.map(timeEntryRowToAppValue);
 }
 
-/** @param {TimeEntry} entry */
+/** @param {TimeEntryWriteInput} entry */
 async function create(entry) {
   const now = new Date().toISOString();
   await db.run(`
@@ -239,7 +240,7 @@ VALUES (
 `, timeEntryWriteParams(entry, now, { includeCreatedAt: true }));
 }
 
-/** @param {TimeEntry} entry */
+/** @param {TimeEntryWriteInput} entry */
 async function update(entry) {
   const now = new Date().toISOString();
   await db.run(`
@@ -355,7 +356,7 @@ function timeEntryRowToAppValue(row) {
 }
 
 /**
- * @param {TimeEntry} entry
+ * @param {TimeEntryWriteInput} entry
  * @param {string} now
  * @param {{ includeCreatedAt?: boolean }} [options]
  */
@@ -371,6 +372,11 @@ function timeEntryWriteParams(entry, now, options = {}) {
     endTime: textParam(entry.end_time),
     entryId: textParam(entry.entry_id),
     invoiceStatus: textParam(entry.invoice_status),
+    // `project_id` crosses textParam while `client_id` and `task_id` cross
+    // nullableTextParam, so a null project persists as the empty string while a
+    // null client or task persists as SQL NULL. That asymmetry is existing
+    // runtime behaviour recorded at 0.33.33.32.7 and is deliberately unchanged
+    // here; this checkpoint corrected the contract, not the storage shape.
     projectId: textParam(entry.project_id),
     projectName: textParam(entry.project_name),
     startTime: textParam(entry.start_time),

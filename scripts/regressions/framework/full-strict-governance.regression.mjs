@@ -779,6 +779,25 @@ for (const notificationOwner of [
 ]) {
   assert.equal(ledger.programs.scripts.diagnostics[notificationOwner], undefined, `${notificationOwner} must stay strict-clean after checkpoint 0.33.33.32.6`);
 }
+for (const timeEntryWriteOwner of [
+  "scripts/time-entries-repository-conversion-regression.mjs",
+  "scripts/workspace-storage-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[timeEntryWriteOwner], undefined, `${timeEntryWriteOwner} must stay strict-clean after checkpoint 0.33.33.32.7`);
+}
+// The 0.33.33.32.5 compatibility casts are retired: the published
+// TimeEntryWriteInput contract means no owner needs to launder a fixture
+// through `unknown` to reach timeEntriesRepository.create().
+for (const budgetOwner of [
+  "scripts/regressions/dashboard/hot-endpoint-budgets.regression.mjs",
+  "scripts/regressions/time-tracking/dashboard-effort-summary-budgets.regression.mjs",
+]) {
+  assert.equal(
+    fs.readFileSync(budgetOwner, "utf8").includes("TimeEntry} */ (/** @type {unknown}"),
+    false,
+    `${budgetOwner} must not reintroduce the retired TimeEntry compatibility cast`,
+  );
+}
 
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 

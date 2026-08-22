@@ -119,6 +119,37 @@ export interface DashboardEffortReadOptions {
   windowStart?: unknown;
 }
 
+/**
+ * The payload `timeEntriesRepository.create()` and `update()` actually accept.
+ *
+ * This is deliberately not the normalized `TimeEntry` read record. The write
+ * path owns both lifecycle timestamps and generates them from its own clock, so
+ * naming them here would describe a value the repository never reads. It also
+ * accepts nulls the read record forbids: `client_id` and `task_id` cross
+ * `nullableTextParam` and persist SQL `NULL`, while `project_id` crosses
+ * `textParam` and persists a null input as the empty string. That asymmetry is
+ * existing runtime behaviour recorded at 0.33.33.32.7, not a defect this
+ * contract corrects — the type admits the null callers really pass and says
+ * nothing about which storage representation results.
+ */
+export interface TimeEntryWriteInput {
+  entry_id: string;
+  workspace_id: string;
+  user_id: string;
+  client_id?: string | null;
+  client_name?: string;
+  project_id?: string | null;
+  project_name?: string;
+  task_id?: string | null;
+  description?: string;
+  start_time: string;
+  end_time: string;
+  duration_seconds: number | string;
+  duration_hours: string;
+  billable?: string;
+  invoice_status?: string;
+}
+
 export type TimeEntryWriteParameters = Record<string, string | number | null> & {
   createdAt?: string;
 };
