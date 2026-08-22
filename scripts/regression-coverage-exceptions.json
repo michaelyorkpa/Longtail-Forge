@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "maximumActiveScripts": 347,
-  "minimumAssertionCount": 19159,
+  "minimumAssertionCount": 19170,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,
@@ -5189,6 +5189,58 @@
       ],
       "verificationPerformed": [
         "node scripts/search-index-jobs-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.task.checklists.repository.conversion",
+      "retiredInVersion": "0.33.33.32.2",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.9 rather than a live contract: one required a CHANGELOG heading recording that release's Task checklist conversion burndown, and one required that the completed 0.33.5.27.9 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The live Task checklist repository conversion contract is still proven in this same owner by eleven source assertions over src/modules/tasks/task-checklists.repo.js and by four documentation assertions over docs/database-parameter-binding-audit.md, docs/database.md, and docs/tasks-module.md, which carry the same 1,331/215/123 burndown figures the retired changelog assertion restated. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and legacy.bump.version owns the one current CHANGELOG heading check.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/task-checklists-repository-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.task.checklists.repository.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/task-checklists-repository-conversion-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.task.relationships.repository.conversion",
+      "retiredInVersion": "0.33.33.32.2",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.10 rather than a live contract: one required a CHANGELOG heading recording that release's Task relationships conversion burndown, and one required that the completed 0.33.5.27.10 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The live Task relationships repository conversion contract is still proven in this same owner by its source assertions over src/modules/tasks/task-relationships.repo.js and by documentation assertions over docs/database-parameter-binding-audit.md and docs/database.md, which carry the same 1,285/204/134 burndown figures the retired changelog assertion restated. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and legacy.bump.version owns the one current CHANGELOG heading check.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/task-relationships-repository-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.task.relationships.repository.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/task-relationships-repository-conversion-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"

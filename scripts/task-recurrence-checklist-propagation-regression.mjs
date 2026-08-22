@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-recurrence-checklist-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-recurrence-checklist.db");
@@ -32,6 +36,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session */
 async function assertRecurringChecklistPropagation(session) {
   const source = (await tasksService.create({
     title: "Recurring checklist source",
@@ -137,6 +142,7 @@ async function assertRecurringChecklistPropagation(session) {
   );
 }
 
+/** @param {TasksSession} session @param {string} templateId @param {string} instanceDate @param {string} title @param {string} [status] */
 async function createSeriesOccurrence(session, templateId, instanceDate, title, status = "open") {
   return (await tasksService.create({
     title,
@@ -156,16 +162,5 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }

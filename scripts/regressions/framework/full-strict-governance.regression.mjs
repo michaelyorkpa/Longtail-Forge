@@ -729,6 +729,18 @@ for (const taskQueryOwner of [
 ]) {
   assert.equal(ledger.programs.scripts.diagnostics[taskQueryOwner], undefined, `${taskQueryOwner} must stay strict-clean after checkpoint 0.33.33.32.1`);
 }
+for (const taskWorkflowOwner of [
+  "scripts/task-bulk-due-tags-regression.mjs",
+  "scripts/task-checklist-regression.mjs",
+  "scripts/task-checklists-repository-conversion-regression.mjs",
+  "scripts/task-recurrence-checklist-propagation-regression.mjs",
+  "scripts/task-relationships-regression.mjs",
+  "scripts/task-relationships-repository-conversion-regression.mjs",
+  "scripts/tasks-bulk-lifecycle-toolbar-regression.mjs",
+  "scripts/tasks-bulk-nondestructive-toolbar-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[taskWorkflowOwner], undefined, `${taskWorkflowOwner} must stay strict-clean after checkpoint 0.33.33.32.2`);
+}
 
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 

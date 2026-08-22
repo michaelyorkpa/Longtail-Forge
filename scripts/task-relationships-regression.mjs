@@ -3,6 +3,11 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-relationships-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-relationships.db");
@@ -14,6 +19,9 @@ const { clientsService } = await import("../src/modules/client-projects/clients.
 const { indexTaskRecord } = await import("../src/modules/tasks/search-indexers.js");
 const { tasksRepository } = await import("../src/modules/tasks/tasks.repo.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
+/** @typedef {import("../src/types/framework-contracts.js").InternalEvent} InternalEvent */
+
+/** @type {InternalEvent[]} */
 const capturedTaskEvents = [];
 const unsubscribeTaskUpdated = internalEventBus.on("task.updated", async (event) => {
   capturedTaskEvents.push(event);
@@ -42,6 +50,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TasksSession} session @param {string} clientId */
 async function assertProjectCascade(session, clientId) {
   const sourceProject = (await clientsService.createProject(clientId, { name: "Cascade source Project" }, session)).project;
   const childProject = (await clientsService.createProject(clientId, { name: "Cascade child source Project" }, session)).project;
@@ -100,9 +109,17 @@ ORDER BY created_at DESC
 LIMIT 1;
 `);
   assert.equal(grandchildAudit?.action, "task_updated", "descendant Project changes should retain canonical audit history");
-  assert.equal(JSON.parse(String(grandchildAudit?.metadata_json || "{}")).project_id, destinationProject.id);
+  const grandchildAuditMetadata = requireJsonRecord(
+    JSON.parse(String(grandchildAudit?.metadata_json || "{}")),
+    "cascaded grandchild audit metadata",
+  );
+  assert.equal(grandchildAuditMetadata.project_id, destinationProject.id);
   const indexedGrandchild = await indexTaskRecord({ workspaceId: session.workspace_id, recordId: grandchild.task_id });
-  assert.equal(indexedGrandchild?.project_id, destinationProject.id, "descendant Search documents should refresh to the destination Project");
+  assert.ok(
+    indexedGrandchild && !("documents" in indexedGrandchild),
+    "indexing a single cascaded descendant task should return that record's search document",
+  );
+  assert.equal(indexedGrandchild.project_id, destinationProject.id, "descendant Search documents should refresh to the destination Project");
 
   const leafMove = await tasksService.update(leaf.task_id, { project_id: destinationProject.id }, session);
   assert.deepEqual(leafMove.tasks.map((task) => task.task_id), [leaf.task_id], "a non-parent Project change should return and touch only itself");
@@ -115,13 +132,14 @@ LIMIT 1;
   await assignProjectAdmin(projectAdminSession, destinationProject.id);
   await assert.rejects(
     () => tasksService.update(deniedParent.task_id, { project_id: destinationProject.id }, projectAdminSession),
-    (error) => error?.statusCode === 403,
+    (error) => error instanceof Error && "statusCode" in error && error.statusCode === 403,
     "a descendant outside the actor's old scope should reject the whole cascade",
   );
   assert.equal((await tasksService.read(deniedParent.task_id, session)).task.project_id, sourceProject.id, "failed descendant authority should roll back the parent move");
   assert.equal((await tasksService.read(deniedChild.task_id, session)).task.project_id, childProject.id, "failed descendant authority should leave the child unchanged");
 }
 
+/** @param {TasksSession} session */
 async function assertPersonalProjectCascade(session) {
   await runSql(`UPDATE workspaces SET workspace_type = 'personal' WHERE workspace_id = ${sqlText(session.workspace_id)};`);
   const sourceProject = (await clientsService.createProject("", { name: "Personal cascade source" }, session)).project;
@@ -136,6 +154,7 @@ async function assertPersonalProjectCascade(session) {
   assert.ok(moved.tasks.every((task) => task.client_id === ""), "Personal descendants should remain Client-free after a Project cascade");
 }
 
+/** @param {TasksSession} session */
 async function assertParentChildBlockingLifecycle(session) {
   const parent = (await tasksService.create({
     title: "Parent launch task",
@@ -165,7 +184,10 @@ async function assertParentChildBlockingLifecycle(session) {
 
   const relationshipRead = await tasksService.listRelationships(parent.task_id, session);
   assert.equal(relationshipRead.relationships.length, 1);
-  assert.equal(relationshipRead.relationships[0].related_task.title, "Child blocker task");
+  const firstRelationship = relationshipRead.relationships[0];
+  assert.ok(firstRelationship, "the parent task should expose its single child relationship");
+  assert.ok(firstRelationship.related_task, "the child relationship should resolve its related task");
+  assert.equal(firstRelationship.related_task.title, "Child blocker task");
 
   const listRead = await tasksService.listAll(session, { status: "active", task_view: "all" });
   const childListRow = listRead.tasks.find((task) => task.task_id === child.task_id);
@@ -200,9 +222,11 @@ async function assertParentChildBlockingLifecycle(session) {
 
   const workbench = await tasksService.listWorkbenchItems(session);
   const workItem = workbench.items.find((item) => item.task_id === parent.task_id);
+  assert.ok(workItem, "the parent task should appear in the Workbench item list");
   assert.equal(workItem.relationship_summary.child_count, 1);
 }
 
+/** @param {TasksSession} session @param {string} clientA @param {string} clientB */
 async function assertRelationshipBoundaries(session, clientA, clientB) {
   const parent = (await tasksService.create({
     title: "Client A parent task",
@@ -244,6 +268,7 @@ async function assertRelationshipBoundaries(session, clientA, clientB) {
   assert.equal(removed.relationshipSummary.child_count, 0);
 }
 
+/** @param {string} workspaceId @param {string} name */
 async function createClient(workspaceId, name) {
   const now = new Date().toISOString();
   const clientId = randomUUID();
@@ -296,6 +321,7 @@ VALUES (
   return clientId;
 }
 
+/** @param {string} workspaceId @returns {Promise<TasksSession>} */
 async function createNoRoleSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -341,17 +367,18 @@ VALUES (
 );
 `);
 
-  return {
+  return workspaceSessionFixture({
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
+    ip_address: "127.0.0.1",
     timezone: "America/New_York",
     user_id: userId,
     username,
     workspace_id: workspaceId,
-  };
+  });
 }
 
+/** @param {TasksSession} session @param {string} projectId */
 async function assignProjectAdmin(session, projectId) {
   const now = new Date().toISOString();
   await runSql(`
@@ -385,16 +412,5 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
-
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "fresh database should seed a protected super admin"));
 }
