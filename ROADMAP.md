@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.16` have since archived, closing 2,021 diagnostics across 101 files and leaving 1,122 across 101; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.17` have since archived, closing 2,168 diagnostics across 109 files and leaving 975 across 93; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.17` | Tags service, repositories, and propagation | 147 | 8 | 2,653 |
 | `.32.18` | Search contract and API | 126 | 3 | 2,000 |
 | `.32.19` | Search indexing, FTS seam, and rebuild | 119 | 7 | 2,570 |
 | `.32.20` | Help centre surface and content | 94 | 7 | 1,892 |
@@ -100,15 +99,6 @@ Requirements shared by every child:
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
 
 
-#### 0.33.33.32.17 - Type Tags service, repositories, and propagation
-
-**Model: High Effort - Tag propagation walks the client/project/task hierarchy and can leak scope if mistyped.**
-
-Measured at 147 diagnostics across 8 files and 2,653 lines. No `JSON.parse`; two history-pinned owners.
-
-- [ ] Close the 147 diagnostics across `tag-propagation-service-conversion`, `tags-repository-conversion`, `tag-propagation-foundation`, `tag-propagation-paths`, `tag-propagation-contract`, `tag-bulk-assignment`, `tag-service`, and `tag-core-records`.
-- [ ] Type tag records, assignment rows, propagation paths, and propagation results with one shared contract across the five propagation owners rather than five local shapes.
-- [ ] Preserve propagation path derivation, propagation stopping rules, bulk assignment permissions, and core record identity exactly.
 
 #### 0.33.33.32.18 - Type the Search contract and API
 
