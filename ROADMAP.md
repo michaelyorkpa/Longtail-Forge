@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.12` have since archived, closing 1,606 diagnostics across 80 files and leaving 1,537 across 122; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.13` have since archived, closing 1,663 diagnostics across 85 files and leaving 1,480 across 117; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.13` | Notes editor, preview, and Markdown | 57 | 5 | 1,449 |
 | `.32.14` | Notes linking, collections, and context | 82 | 6 | 2,154 |
 | `.32.15` | Lists repositories and service | 144 | 4 | 1,696 |
 | `.32.16` | Lists API, workflow, and admin scale | 132 | 6 | 2,329 |
@@ -101,16 +100,6 @@ Requirements shared by every child:
 - [ ] Do not resolve a nullability diagnostic with a non-null assertion where the owner can assert the value instead. This band is 518 of the 3,150 and is the likeliest source of a zero that the compiler believes and the runtime does not.
 - [ ] Strip historical `ROADMAP-ARCHIVE.md` and `CHANGELOG.md` pins from the owners the child touches, recording each disposition; any surviving planning-document read must assert a current live contract. 41 of the 202 files carry such a pin today, counted per child below.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
-
-#### 0.33.33.32.13 - Type the Notes editor, preview, and Markdown owners
-
-**Model: High Effort - Markdown rendering is a safe-output surface.**
-
-Measured at 57 diagnostics across 5 files and 1,449 lines. No `JSON.parse`; no history-pinned owners.
-
-- [ ] Close the 57 diagnostics across `notes-ui-workflow`, `notes-preview-editor`, `notes-external-markdown-links-preference`, `notes-markdown-soft-break`, and `notes-markdown-revision`.
-- [ ] Type editor state, preview render results, Markdown source and rendered output, and external-link preference records with named contracts.
-- [ ] Preserve safe-Markdown escaping, soft-break handling, revision comparison, and external link preference behaviour exactly.
 
 #### 0.33.33.32.14 - Type Notes linking, collections, and context
 

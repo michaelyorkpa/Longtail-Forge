@@ -3,6 +3,12 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
+/** The navigation tree the app shell publishes, reused rather than redeclared. */
+/** @typedef {import("../src/services/app-shell.service.js").AppShellNavigationItem} NavigationItem */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-ui-workflow-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-ui-workflow.db");
@@ -16,8 +22,8 @@ const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await imp
 
 try {
   await initializeDatabase();
-  const workspace = await readWorkspace();
-  const session = await readProtectedSession(workspace.workspace_id);
+  const workspaceId = await readWorkspace();
+  const session = await readProtectedSession(workspaceId);
 
   await assertManifest();
   await assertProtectedView(session);
@@ -34,10 +40,12 @@ try {
 
 async function assertManifest() {
   const notesModule = modulesService.getModule("notes");
+  assert.ok(notesModule, "the Notes module should be registered");
 
   assert.equal(notesModule.version, appVersion, "Notes module metadata should track the current app version");
 }
 
+/** @param {NotesSession} session */
 async function assertProtectedView(session) {
   const result = await staticService.read("/notes.html", session);
   const html = result.contents.toString("utf8");
@@ -331,17 +339,20 @@ async function assertProtectedView(session) {
   assert.match(linkedPanelJs, /readonly/);
 }
 
+/** @param {NotesSession} session */
 async function assertNavigation(session) {
   const bootstrap = await appShellService.bootstrap(session);
-  const actionsMenu = bootstrap.navigation.find((item) => item.id === "actions" && Array.isArray(item.items));
-  const settingsMenu = bootstrap.navigation.find((item) => item.id === "settings" && Array.isArray(item.items));
+  const navigation = navigationItems(bootstrap.navigation);
+  const actionsMenu = navigation.find((item) => item.id === "actions" && Array.isArray(item.items));
+  const settingsMenu = navigation.find((item) => item.id === "settings" && Array.isArray(item.items));
   const adminSettingsMenu = settingsMenu?.items?.find((item) => item.id === "admin-settings-group");
-  const topLevelNotesLink = bootstrap.navigation.find((item) => item.href === "notes.html");
-  const topLevelProjectLink = bootstrap.navigation.find((item) => item.href === "projects.html");
+  const topLevelNotesLink = navigation.find((item) => item.href === "notes.html");
+  const topLevelProjectLink = navigation.find((item) => item.href === "projects.html");
   const notesLink = flattenNavigation(actionsMenu?.items).find((item) => item.href === "notes.html");
   const timeKeepingMenu = actionsMenu?.items?.find((item) => item.id === "time-keeping");
 
   assert.ok(actionsMenu, "Actions menu should appear in authenticated navigation");
+  assert.ok(actionsMenu.items, "the Actions menu should publish its child items");
   assert.equal(topLevelNotesLink, undefined, "Notes should live under Actions instead of top-level navigation");
   assert.equal(topLevelProjectLink, undefined, "Projects should not duplicate the framework-owned Admin menu");
   assert.deepEqual(
@@ -361,6 +372,7 @@ async function assertNavigation(session) {
   assert.equal(notesLink.label, "Notes");
 }
 
+/** @param {NotesSession} session */
 async function assertNoteDetailHtml(session) {
   const result = await notesService.create({
     title: "UI Markdown note",
@@ -373,11 +385,12 @@ async function assertNoteDetailHtml(session) {
   assert.match(readResult.note.body_html, /<strong>bold<\/strong>/);
 }
 
+/** @param {NotesSession} session */
 async function assertDisabledModuleState(session) {
   await setNotesStatus(session.workspace_id, "disabled");
 
   const bootstrap = await appShellService.bootstrap(session);
-  const notesLink = flattenNavigation(bootstrap.navigation).find((item) => item.href === "notes.html");
+  const notesLink = flattenNavigation(navigationItems(bootstrap.navigation)).find((item) => item.href === "notes.html");
   assert.equal(notesLink, undefined, "disabled Notes module should not appear in navigation");
 
   const historicalRead = await staticService.read("/notes.html", session);
@@ -386,6 +399,7 @@ async function assertDisabledModuleState(session) {
   await setNotesStatus(session.workspace_id, "enabled");
 }
 
+/** @param {string} workspaceId @param {string} status */
 async function setNotesStatus(workspaceId, status) {
   const now = new Date().toISOString();
 
@@ -398,6 +412,22 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 `);
 }
 
+/**
+ * Cross the bootstrap payload's open navigation list into the tree the shell
+ * actually builds. `AppShellBootstrap` publishes `navigation` as `unknown[]`
+ * because the payload is browser-facing and modules contribute to it, so the
+ * entries are proven to be records here rather than assumed.
+ * @param {readonly unknown[]} navigation
+ * @returns {NavigationItem[]}
+ */
+function navigationItems(navigation) {
+  return navigation.map((item) => {
+    assert.ok(item && typeof item === "object", "app shell navigation entries should be records");
+    return /** @type {NavigationItem} */ (item);
+  });
+}
+
+/** @param {readonly NavigationItem[]} [items] @returns {NavigationItem[]} */
 function flattenNavigation(items = []) {
   return items.flatMap((item) => [
     item,
@@ -405,6 +435,7 @@ function flattenNavigation(items = []) {
   ]);
 }
 
+/** @returns {Promise<string>} */
 async function readWorkspace() {
   const rows = await querySql(`
 SELECT workspace_id
@@ -413,10 +444,12 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  const workspaceId = requireFirstRow(rows, "workspace should exist").workspace_id;
+  assert.ok(typeof workspaceId === "string" && workspaceId, "the seeded workspace should carry an id");
+  return workspaceId;
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -426,16 +459,12 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
-    workspace_id: workspaceId,
+  return workspaceSessionFixture({
+    ...requireFirstRow(rows, "protected user should exist"),
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-  };
+    workspace_id: workspaceId,
+  });
 }
 
 async function assertIntegrity() {

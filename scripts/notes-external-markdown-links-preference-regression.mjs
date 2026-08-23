@@ -4,6 +4,10 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-external-links-"));
@@ -19,7 +23,6 @@ const settingsHostScript = readText("public/js/shared/settings-host.js");
 const userSettingsScript = readText("public/js/user-settings.js");
 const notesScript = readText("public/js/notes.js");
 const css = readText("public/css/longtail-forge.css");
-const roadmap = readText("ROADMAP.md");
 
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { notesService } = await import("../src/modules/notes/notes.service.js");
@@ -29,8 +32,8 @@ try {
   assertStaticContract();
 
   await initializeDatabase();
-  const workspace = await readWorkspace();
-  const session = await readProtectedSession(workspace.workspace_id);
+  const workspaceId = await readWorkspace();
+  const session = await readProtectedSession(workspaceId);
 
   await assertMigrationAndColumn();
   await assertSettingsDefaultAndSave(session);
@@ -73,7 +76,6 @@ function assertStaticContract() {
   assert.match(notesScript, /anchor\.setAttribute\("rel", "noopener noreferrer"\)/, "enabled preference should protect new-tab external links");
   assert.match(notesScript, /anchor\.removeAttribute\("target"\)/, "disabled preference should leave external links as same-tab anchors");
 
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/, "live roadmap should not carry completed-history breadcrumbs");
 }
 
 async function assertMigrationAndColumn() {
@@ -97,6 +99,7 @@ WHERE version = '066';
   assert.equal(column.dflt_value, "0");
 }
 
+/** @param {NotesSession} session */
 async function assertSettingsDefaultAndSave(session) {
   const initial = await usersService.readSettings(session);
   assert.equal(initial.openExternalLinksNewTab, false, "preference should default off");
@@ -112,6 +115,7 @@ async function assertSettingsDefaultAndSave(session) {
   await assertStoredPreference(session.user_id, 0);
 }
 
+/** @param {NotesSession} session */
 async function assertServerRenderedHtmlIsUserAgnostic(session) {
   const markdown = [
     "[External](https://example.com/docs)",
@@ -143,6 +147,7 @@ async function assertServerRenderedHtmlIsUserAgnostic(session) {
   assert.equal(disabledRead.note.body_html, cachedHtml, "disabling the preference must not change cached Note body HTML");
 }
 
+/** @param {string} userId @param {number} expected */
 async function assertStoredPreference(userId, expected) {
   const rows = await querySql(`
 SELECT open_external_links_new_tab
@@ -153,6 +158,7 @@ LIMIT 1;
   assert.equal(rows[0]?.open_external_links_new_tab, expected);
 }
 
+/** @returns {Promise<string>} */
 async function readWorkspace() {
   const rows = await querySql(`
 SELECT workspace_id
@@ -161,10 +167,12 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  const workspaceId = requireFirstRow(rows, "workspace should exist").workspace_id;
+  assert.ok(typeof workspaceId === "string" && workspaceId, "the seeded workspace should carry an id");
+  return workspaceId;
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -174,15 +182,11 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
+  return workspaceSessionFixture({
+    ...requireFirstRow(rows, "protected user should exist"),
     active_workspace_id: workspaceId,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
     workspace_id: workspaceId,
-  };
+  });
 }
 
 async function assertIntegrity() {

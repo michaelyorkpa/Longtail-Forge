@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -251,6 +252,7 @@ ORDER BY name;
   assert.equal(indexes.length, 10, "Notes revision pass should create expected history/wiki indexes");
 }
 
+/** @param {string} tableName @param {readonly string[]} expectedColumns */
 async function assertColumns(tableName, expectedColumns) {
   const rows = await querySql(`PRAGMA table_info(${tableName});`);
   const columns = new Set(rows.map((row) => row.name));
@@ -391,9 +393,11 @@ INSERT INTO note_wiki_links (
 `);
 
   const revisionRows = await querySql("SELECT revision_number, title, body_excerpt FROM note_revisions WHERE note_id = 'note-markdown-1';");
-  assert.equal(revisionRows[0].revision_number, 1);
-  assert.equal(revisionRows[0].title, "Markdown Note Updated");
-  assert.ok(revisionRows[0].body_excerpt.includes("Markdown Note Updated"));
+  const revisionRow = requireFirstRow(revisionRows, "the updated note should persist a revision");
+  assert.equal(revisionRow.revision_number, 1);
+  assert.equal(revisionRow.title, "Markdown Note Updated");
+  assert.ok(typeof revisionRow.body_excerpt === "string", "a note revision should persist an excerpt");
+  assert.ok(revisionRow.body_excerpt.includes("Markdown Note Updated"));
 
   const wikiRows = await querySql("SELECT raw_target, target_slug, status FROM note_wiki_links WHERE note_id = 'note-markdown-1';");
   assert.deepEqual(wikiRows[0], {

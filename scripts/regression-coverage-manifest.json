@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18596,
+    "activeAssertionCount": 18597,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,8 +106,8 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19326,
-    "retiredAssertionCredit": 61,
+    "effectiveAssertionCount": 19328,
+    "retiredAssertionCredit": 62,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -643,6 +643,30 @@
       ],
       "verificationPerformed": [
         "node scripts/job-retention-pruning-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.notes.external.markdown.links.preference",
+      "retiredInVersion": "0.33.33.32.13",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a 0.33.5.21 durable-jobs completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail. This owner was a planning-document reader rather than a historical content pinner: it asserted on ROADMAP.md only, never on ROADMAP-ARCHIVE.md or CHANGELOG.md content.",
+      "assertionDisposition": "No behavior lost coverage. The external-link preference contract is proven in this same owner by its migration and column assertions, its settings save and read round trip, its persisted-column check, and its user-agnostic server-render assertion, none of which touch a planning document. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/notes-external-markdown-links-preference-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.notes.external.markdown.links.preference",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/notes-external-markdown-links-preference-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"
@@ -2775,11 +2799,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 47,
+      "assertionCount": 45,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes external markdown links preference contract.",
-      "entryPointAssertionCount": 47,
+      "entryPointAssertionCount": 45,
       "id": "legacy.notes.external.markdown.links.preference",
       "legacy": true,
       "path": "scripts/notes-external-markdown-links-preference-regression.mjs",
@@ -2880,11 +2904,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 48,
+      "assertionCount": 49,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes markdown revision contract.",
-      "entryPointAssertionCount": 48,
+      "entryPointAssertionCount": 49,
       "id": "legacy.notes.markdown.revision",
       "legacy": true,
       "path": "scripts/notes-markdown-revision-regression.mjs",
@@ -2898,11 +2922,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 10,
+      "assertionCount": 9,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes markdown soft break contract.",
-      "entryPointAssertionCount": 10,
+      "entryPointAssertionCount": 9,
       "id": "legacy.notes.markdown.soft.break",
       "legacy": true,
       "path": "scripts/notes-markdown-soft-break-regression.mjs",
@@ -3065,11 +3089,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 249,
+      "assertionCount": 251,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes ui workflow contract.",
-      "entryPointAssertionCount": 249,
+      "entryPointAssertionCount": 251,
       "id": "legacy.notes.ui.workflow",
       "legacy": true,
       "path": "scripts/notes-ui-workflow-regression.mjs",
@@ -4252,11 +4276,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 156,
+      "assertionCount": 157,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 156,
+      "entryPointAssertionCount": 157,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
