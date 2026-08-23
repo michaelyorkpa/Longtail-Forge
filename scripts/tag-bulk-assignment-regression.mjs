@@ -3,6 +3,15 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+// Tags publishes the session shape this owner drives; it is imported rather
+// than redescribed so the five propagation owners in this checkpoint answer to
+// one contract.
+/** @typedef {import("../src/services/tags.service.js").TagSession} TagSession */
+
+/** @typedef {Awaited<ReturnType<typeof seedFixtures>>} BulkTagFixtures */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-tag-bulk-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-tag-bulk.db");
@@ -34,6 +43,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TagSession} session */
 async function seedFixtures(session) {
   const directTag = (await tagsService.create(session, { name: "Bulk Direct" })).tag;
   const replacementTag = (await tagsService.create(session, { name: "Bulk Replacement" })).tag;
@@ -128,6 +138,7 @@ VALUES (
   };
 }
 
+/** @param {TagSession} session @param {BulkTagFixtures} fixtures */
 async function assertNotesBulkConsumer(session, fixtures) {
   const added = await tagsService.bulkAssign(session, {
     action: "add",
@@ -152,6 +163,7 @@ async function assertNotesBulkConsumer(session, fixtures) {
   assert.deepEqual(assignments.directTags.map((tag) => tag.tag_id), [fixtures.replacementTag.tag_id]);
 }
 
+/** @param {string} projectId @param {string} description */
 function timeEntryPayload(projectId, description) {
   return {
     description,
@@ -163,6 +175,7 @@ function timeEntryPayload(projectId, description) {
   };
 }
 
+/** @param {TagSession} session @param {BulkTagFixtures} fixtures */
 async function assertTagFilterSemantics(session, fixtures) {
   assert.deepEqual(tagsService.normalizeTagFilterIntent("__no_tags__"), {
     noTagsMode: "effective",
@@ -193,6 +206,7 @@ async function assertTagFilterSemantics(session, fixtures) {
   );
 }
 
+/** @param {TagSession} session @param {BulkTagFixtures} fixtures */
 async function assertBulkAssignmentContract(session, fixtures) {
   const added = await tagsService.bulkAssign(session, {
     action: "add",
@@ -250,6 +264,7 @@ async function assertBulkAssignmentContract(session, fixtures) {
   assert.equal(JSON.stringify(partial.errors).includes("Bulk Tag Task C"), false);
 }
 
+/** @param {TagSession} session @param {BulkTagFixtures} fixtures */
 async function assertTasksBulkConsumer(session, fixtures) {
   const result = await tasksService.bulkUpdate({
     action: "tag_add",
@@ -263,6 +278,7 @@ async function assertTasksBulkConsumer(session, fixtures) {
   assert.ok(result.tasks[0].tags.some((tag) => tag.tag_id === fixtures.directTag.tag_id));
 }
 
+/** @param {TagSession} session @param {BulkTagFixtures} fixtures */
 async function assertTimeEntriesBulkConsumer(session, fixtures) {
   const added = await tagsService.bulkAssign(session, {
     action: "add",
@@ -331,6 +347,7 @@ async function assertBrowserWiring() {
   assert.match(timeEntriesJs, /selectedEntryIds/);
 }
 
+/** @returns {Promise<TagSession>} */
 async function readSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, workspaces.workspace_id
@@ -341,12 +358,7 @@ ORDER BY users.user_id, workspaces.workspace_id
 LIMIT 1;
 `);
 
-  return {
-    timezone: "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    workspace_id: rows[0].workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "the protected user and workspace cross join"));
 }
 
 async function assertIntegrity() {

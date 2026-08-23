@@ -2,6 +2,16 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+// Tags publishes the session and assignment shapes this owner walks. They are
+// imported rather than redescribed so the five propagation owners in this
+// checkpoint answer to one contract.
+/** @typedef {import("../src/services/tags.service.js").TagAssignment} TagAssignment */
+/** @typedef {import("../src/services/tags.service.js").TagSession} TagSession */
+
+/** @typedef {Awaited<ReturnType<typeof createPropagationFixtures>>} PropagationFixtures */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-tag-propagation-paths-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-tag-propagation-paths.db");
@@ -39,6 +49,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {TagSession} session */
 async function createPropagationFixtures(session) {
   const parentClientTag = (await tagsService.create(session, { name: "Parent Client Effective" })).tag;
   const parentProjectTag = (await tagsService.create(session, { name: "Parent Project Effective" })).tag;
@@ -84,6 +95,7 @@ async function createPropagationFixtures(session) {
   };
 }
 
+/** @param {TagSession} session @param {PropagationFixtures} fixtures */
 async function assertClientProjectTaskPropagation(session, fixtures) {
   assertTagIds(
     await tagsService.listPropagatedTagsForTarget(session, "client", fixtures.childClient.id),
@@ -107,6 +119,7 @@ async function assertClientProjectTaskPropagation(session, fixtures) {
   );
 }
 
+/** @param {TagSession} session @param {PropagationFixtures} fixtures */
 async function assertSuppressionAndRemovalBehavior(session, fixtures) {
   const childProjectParentTagAssignment = (await tagsService.listPropagatedTagsForTarget(
     session,
@@ -114,6 +127,10 @@ async function assertSuppressionAndRemovalBehavior(session, fixtures) {
     fixtures.childProject.id,
   )).find((assignment) => assignment.tag_id === fixtures.parentProjectTag.tag_id);
 
+  // Suppression is the behaviour under test, so the assignment it suppresses is
+  // proven to have propagated first; without it a propagation that silently
+  // stopped would fail here as a bare TypeError rather than naming the tag.
+  assert.ok(childProjectParentTagAssignment, "the parent project tag should have propagated to the child project before it is suppressed");
   await tagsService.suppressPropagatedAssignment(session, {
     assignmentId: childProjectParentTagAssignment.tag_assignment_id,
   });
@@ -152,6 +169,7 @@ async function assertSuppressionAndRemovalBehavior(session, fixtures) {
   });
   const propagatedConverted = (await tagsService.listPropagatedTagsForTarget(session, "project", fixtures.childProject.id))
     .find((assignment) => assignment.tag_id === fixtures.convertedTag.tag_id);
+  assert.ok(propagatedConverted, "assigning the converted tag to the parent project should propagate it to the child project");
   await tagsRepository.removeAssignmentById(session.workspace_id, propagatedConverted.tag_assignment_id);
   await tagsRepository.addAssignment(session.workspace_id, {
     created_by_user_id: session.user_id,
@@ -172,6 +190,7 @@ async function assertSuppressionAndRemovalBehavior(session, fixtures) {
   );
 }
 
+/** @param {TagSession} session @param {PropagationFixtures} fixtures */
 async function assertTimeEntrySnapshotsSearchAndReporting(session, fixtures) {
   const firstEntry = (await timeEntriesService.create({
     description: "Task-bound propagated snapshot",
@@ -249,6 +268,7 @@ async function assertTimeEntrySnapshotsSearchAndReporting(session, fixtures) {
   assert.equal(report.rows.reduce((seconds, row) => seconds + row.displaySeconds, 0), 1800);
 }
 
+/** @param {TagSession} session @param {PropagationFixtures} fixtures */
 async function assertNoSemanticSideEffects(session, fixtures) {
   const unfilteredReport = await timeTrackingBillingService.readProjectSummary(session, {
     includeDescendants: true,
@@ -263,6 +283,7 @@ async function assertNoSemanticSideEffects(session, fixtures) {
   assert.equal((await tasksService.read(fixtures.task.task_id, session)).task.status, "open");
 }
 
+/** @param {readonly TagAssignment[]} assignments @param {readonly string[]} expectedTagIds @param {string} message */
 function assertTagIds(assignments, expectedTagIds, message) {
   assert.deepEqual(
     assignments.map((assignment) => assignment.tag_id).sort(),
@@ -271,6 +292,7 @@ function assertTagIds(assignments, expectedTagIds, message) {
   );
 }
 
+/** @returns {Promise<TagSession>} */
 async function readProtectedSession() {
   const rows = await querySql(`
 SELECT user_id, username, home_workspace_id, active_workspace_id
@@ -279,19 +301,11 @@ WHERE protected_user = 'yes'
 ORDER BY username
 LIMIT 1;
 `);
-  const user = rows[0];
 
-  assert.ok(user, "protected user should exist");
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    timezone: "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "the protected user"));
 }
 
+/** @param {string} workspaceId */
 async function enableAuditLogging(workspaceId) {
   await runSql(`
 UPDATE workspace_settings

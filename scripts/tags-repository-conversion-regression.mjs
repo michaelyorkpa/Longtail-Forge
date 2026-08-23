@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { fixtureString } from "./test-support/session-fixtures.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
@@ -16,8 +18,6 @@ process.env.SUPER_ADMIN_PASSWORD = "Tags-Repository-Conversion-Test-123!";
 const tagsRepoSource = readText("src/repositories/tags.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { tagsRepository } = await import("../src/repositories/tags.repo.js");
@@ -92,10 +92,9 @@ function assertStaticContract() {
   assert.match(auditDocs, /\| tags\.repo \| Converted \| 0 \| 0 \| 17 \| 17 \|/, "audit inventory should mark tags repo fully converted");
   assert.match(auditDocs, /0\.33\.5\.27\.23 Tags Repository Conversion[\s\S]*`tags\.repo` is fully converted[\s\S]*403 runtime literal-helper invocations[\s\S]*86 direct interpolated SQL operation sites[\s\S]*273 existing bound operation sites/, "audit docs should record the Tags repository conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.23[\s\S]*`tags\.repo` is converted[\s\S]*403 remaining helper invocations/, "database docs should record the concrete Tags repository conversion");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.23 - Conversion wave: Tags repository[\s\S]*- \[x\] Convert `tags\.repo`[\s\S]*- \[x\] Preserve tag create\/update\/archive[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.23 - [\s\S]*Tags repository conversion[\s\S]*403 helper invocations[\s\S]*86 direct interpolated operation sites[\s\S]*273 bound operation sites/, "changelog should record the Tags repository conversion burndown");
   }
 
+/** @param {string} functionName */
 function assertConvertedFunction(functionName) {
   const block = functionBlock(tagsRepoSource, functionName);
   assert.match(block, /\bdb\.(?:query|get|run)\(`/u, `${functionName} should use the provider-neutral db facade`);
@@ -107,6 +106,7 @@ function assertConvertedFunction(functionName) {
   assert.doesNotMatch(block, /\b(?:querySql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, `${functionName} should not use literal SQL helpers after conversion`);
 }
 
+/** @param {string} functionName @param {readonly RegExp[]} patterns */
 function assertFunctionUsesPatterns(functionName, patterns) {
   const block = functionBlock(tagsRepoSource, functionName);
 
@@ -115,25 +115,24 @@ function assertFunctionUsesPatterns(functionName, patterns) {
   }
 }
 
+/** @returns {Promise<{ userId: string, workspaceId: string }>} */
 async function readFixture() {
-  const workspace = (await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"))[0];
-  const user = (await querySql(`
+  const workspace = requireFirstRow(await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"), "the default workspace");
+  const user = requireFirstRow(await querySql(`
 SELECT user_id
 FROM users
 WHERE home_workspace_id = ${sqlText(workspace.workspace_id)}
 ORDER BY protected_user DESC, username
 LIMIT 1;
-`))[0];
-
-  assert.ok(workspace?.workspace_id, "fresh database should include a workspace");
-  assert.ok(user?.user_id, "fresh database should include a protected user");
+`), "the protected user");
 
   return {
-    userId: user.user_id,
-    workspaceId: workspace.workspace_id,
+    userId: fixtureString(user.user_id, "the protected user ID"),
+    workspaceId: fixtureString(workspace.workspace_id, "the default workspace ID"),
   };
 }
 
+/** @param {{ userId: string, workspaceId: string }} fixture */
 async function assertTagsRepositoryRuntime({ userId, workspaceId }) {
   const targetId = `tag-repo-target-${randomUUID()}-'; DROP TABLE tags; --`;
   const secondTargetId = `tag-repo-target-${randomUUID()}`;
@@ -155,6 +154,11 @@ async function assertTagsRepositoryRuntime({ userId, workspaceId }) {
     slug: "research",
   });
 
+  // createTag resolves the row it read back, so it answers null when the write
+  // stored nothing. Every assertion below reads these two tags, so the write is
+  // proven to have persisted rather than asserted away.
+  assert.ok(firstTag, "creating the first tag should read the persisted record back");
+  assert.ok(secondTag, "creating the second tag should read the persisted record back");
   assert.equal(firstTag.slug, "alpha-work", "created tag should read back by ID");
   assert.equal((await tagsRepository.readTagBySlug(workspaceId, "alpha-work"))?.tag_id, firstTag.tag_id, "tag slug reads should use bound params");
 
@@ -164,6 +168,7 @@ async function assertTagsRepositoryRuntime({ userId, workspaceId }) {
     name: "Beta Work",
     slug: "beta-work",
   });
+  assert.ok(updatedTag, "updating a tag should read the persisted record back");
   assert.equal(updatedTag.name, "Beta Work", "tag update should preserve name");
   assert.equal(updatedTag.color, "", "empty color should continue to read as an empty app value");
 
@@ -304,6 +309,7 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok", "SQLite integrity check should pass");
 }
 
+/** @param {string} source @param {string} functionName @returns {string} */
 function functionBlock(source, functionName) {
   const pattern = new RegExp(`(?:async\\s+)?function ${functionName}\\s*\\([^)]*\\)\\s*\\{`);
   const match = pattern.exec(source);

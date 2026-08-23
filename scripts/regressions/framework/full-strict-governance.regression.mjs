@@ -964,6 +964,41 @@ assert.ok(
     .includes("assert.ok(projectLinkBody.link.target,"),
   "scripts/lists-api-regression.mjs should keep proving a created link resolves its target",
 );
+for (const tagOwner of [
+  "scripts/tag-bulk-assignment-regression.mjs",
+  "scripts/tag-core-records-regression.mjs",
+  "scripts/tag-propagation-contract-regression.mjs",
+  "scripts/tag-propagation-foundation-regression.mjs",
+  "scripts/tag-propagation-paths-regression.mjs",
+  "scripts/tag-propagation-service-conversion-regression.mjs",
+  "scripts/tag-service-regression.mjs",
+  "scripts/tags-repository-conversion-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[tagOwner], undefined, `${tagOwner} must stay strict-clean after checkpoint 0.33.33.32.17`);
+}
+// The tag owners answer to the session, record, and propagation shapes Tags
+// and the propagation registry already publish, rather than to five local
+// redescriptions of the same rows.
+for (const propagationOwner of [
+  "scripts/tag-bulk-assignment-regression.mjs",
+  "scripts/tag-propagation-contract-regression.mjs",
+  "scripts/tag-propagation-foundation-regression.mjs",
+  "scripts/tag-propagation-paths-regression.mjs",
+  "scripts/tag-propagation-service-conversion-regression.mjs",
+]) {
+  assert.ok(
+    fs.readFileSync(propagationOwner, "utf8").includes('import("../src/services/tags.service.js").TagSession'),
+    `${propagationOwner} should keep answering to the published Tags session contract`,
+  );
+}
+// The tags repository create and update paths resolve the row they read back,
+// so the conversion owner proves each write persisted rather than comparing
+// fields on a null the repository can legitimately answer.
+assert.ok(
+  fs.readFileSync("scripts/tags-repository-conversion-regression.mjs", "utf8")
+    .includes("creating the first tag should read the persisted record back"),
+  "scripts/tags-repository-conversion-regression.mjs should keep proving its tag writes read back",
+);
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().
