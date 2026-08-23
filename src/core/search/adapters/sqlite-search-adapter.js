@@ -652,6 +652,12 @@ function buildFtsSearchStatement(request) {
     return null;
   }
 
+  // `buildSearchWhereClause` binds the workspace, target, scope, and tag
+  // parameters into this record, so it is the shared parameter bag rather than
+  // the three members the literal starts with. The LIKE builder below already
+  // says so; this one did not, which understated every bound parameter the FTS
+  // path adds.
+  /** @type {SearchParams} */
   const params = {
     ftsQuery,
     limit: normalizeSearchLimit(request?.limit),

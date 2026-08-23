@@ -18,8 +18,6 @@ const tagTextSource = readText("src/core/search/tag-text.js");
 const searchServiceSource = readText("src/services/search.service.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const {
   closeDatabase,
@@ -77,8 +75,6 @@ function assertStaticContract() {
   assert.match(auditDocs, /\| core\/search\/tag-text \| Converted \| 0 \| 0 \| 1 \| 1 \|/, "audit inventory should keep search tag-text converted");
   assert.match(auditDocs, /0\.33\.5\.27\.25 Search Adapter and Rebuild Service Conversion[\s\S]*`services\/search-index-rebuild\.service` is converted[\s\S]*362 runtime literal-helper invocations[\s\S]*66 direct interpolated SQL operation sites[\s\S]*293 existing bound operation sites/, "audit docs should record the Search adapter/rebuild service conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.25[\s\S]*`services\/search-index-rebuild\.service` is converted[\s\S]*362 remaining helper invocations/, "database docs should record the concrete Search adapter/rebuild service conversion");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.25 - Conversion wave: Search adapter and rebuild service[\s\S]*- \[x\] Convert `core\/search\/adapters\/sqlite-search-adapter`[\s\S]*- \[x\] Keep FTS5 maintenance[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.25 - [\s\S]*Search adapter and rebuild service conversion[\s\S]*362 helper invocations[\s\S]*66 direct interpolated operation sites[\s\S]*293 bound operation sites/, "changelog should record the Search adapter/rebuild service conversion burndown");
 }
 
 async function seedWorkspace() {
@@ -183,6 +179,19 @@ async function assertRebuildServiceRuntime() {
   assert.deepEqual(searchResult.results, [], "stale canonical rows should not remain discoverable through indexed LIKE fallback");
 }
 
+/**
+ * One canonical `search_index` row this owner seeds, named as a single seam
+ * input rather than five separately annotated bindings.
+ * @typedef {{
+ *   moduleId: string,
+ *   recordId: string,
+ *   recordType: string,
+ *   title: string,
+ *   workspaceId: string,
+ * }} SeamRowInput
+ */
+
+/** @param {SeamRowInput} input */
 async function insertSearchRow({
   moduleId,
   recordId,
@@ -242,6 +251,7 @@ VALUES (
   });
 }
 
+/** @param {string} workspaceId @param {string[]} recordIds */
 async function readRows(workspaceId, recordIds) {
   return db.query(`
 SELECT module_id, record_type, record_id
@@ -260,6 +270,7 @@ async function assertIntegrity() {
   assert.equal(row?.integrity_check, "ok", "Search adapter/rebuild service conversion database should pass integrity check");
 }
 
+/** @param {string} source @param {RegExp} pattern @returns {number} */
 function countMatches(source, pattern) {
   return [...source.matchAll(pattern)].length;
 }

@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.18` have since archived, closing 2,294 diagnostics across 112 files and leaving 849 across 90; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.19` have since archived, closing 2,413 diagnostics across 119 files and leaving 730 across 83; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.19` | Search indexing, FTS seam, and rebuild | 119 | 7 | 2,570 |
 | `.32.20` | Help centre surface and content | 94 | 7 | 1,892 |
 | `.32.21` | Clients/Projects read anatomy and descriptor host | 122 | 6 | 1,363 |
 | `.32.22` | Clients/Projects hierarchy, repositories, assignment | 141 | 5 | 2,004 |
@@ -100,16 +99,6 @@ Requirements shared by every child:
 
 
 
-#### 0.33.33.32.19 - Type Search indexing, the FTS seam, and rebuild
-
-**Model: High Effort - Index rebuild and repair are destructive-adjacent and run against live data.**
-
-Measured at 119 diagnostics across 7 files and 2,570 lines. No `JSON.parse`; two history-pinned owners.
-
-- [ ] Close the 119 diagnostics across `search-workflow`, `search-fts-seam`, `search-lifecycle`, `search-index-sync`, `search-rebuild`, `search-adapter-rebuild-service-conversion`, and `search-fts-repair`.
-- [ ] Type index rows, sync deltas, rebuild progress and results, and FTS seam adapter contracts with named contracts.
-- [ ] Preserve index synchronization semantics, rebuild idempotence, repair refusals, and FTS dialect behaviour exactly.
-- [ ] Type the 13 `TS7031` destructured bindings against the seam contract rather than annotating each destructuring site.
 
 #### 0.33.33.32.20 - Type the Help centre surface and content owners
 
@@ -213,10 +202,10 @@ Runs after `0.33.33.32.27`. This child has no diagnostics of its own, which is n
 - [ ] **Disposition every genuine surviving explicit `any` in the repository from the regenerated inventory**, not from an assumed static list. Remove each one where a truthful contract exists; leave it only with a concrete recorded reason. Do not substitute `unknown` where that merely pushes compensating casts onto callers — that is the `0.33.33.31.6.1` helper-contract failure wearing a different name.
 - [ ] Two hits are known to be genuine today and need disposition here unless an earlier child legitimately removes them first. The `recordWorkspaceAccessLoss({ userId, workspaceId, source })` parameter in `src/repositories/account-export-recovery.repo.js` is annotated `@param {any} input` while the destructured call site already names all three fields. `ModuleStartupTask.formatSuccess?: (result: any) => string` in `src/types/framework-contracts.d.ts` is unrelated to that repository and should be given a truthful result contract — making the interface generic over its `run` result is the shape to prefer, so that each task's formatter receives the type its own `run` returns. Do not replace it with `unknown` and force every task formatter to cast.
 - [ ] The four widened builder signatures in `src/services/work-resume-state-initial-producers.js` were resolved by `0.33.33.32.9`, which reconciled them with the published `ProducerBuilderContext`; the repository-wide explicit-`any` count fell from 7 to 3. This child only confirms the regenerated inventory still shows them resolved.
-- [ ] **Disposition three published contracts `0.33.33.32.18` measured as narrower than their producers.** Each was narrowed locally in the owner rather than corrected in production, because a contract correction belongs in an audit child or its own corrective child rather than folded into a typing child, and each is recorded here with the evidence.
+- [ ] **Disposition the two published contracts `0.33.33.32.18` measured as narrower than their producers and left open.** A third, `SearchReference`, was resolved at `0.33.33.32.19`, which owned its producers. Each was narrowed locally in the owner rather than corrected in production, because a contract correction belongs in an audit child or its own corrective child rather than folded into a typing child, and each is recorded here with the evidence.
   - `AppShellBootstrap.searchTargets` is `unknown[]`. Unlike its sibling `navigation`, which `0.33.33.32.13` confirmed is deliberately open because modules contribute arbitrary entries, every search target is built by one normalizing producer, `visibleSearchTargets`, which always answers `{ aggregate, id, label, moduleId, recordType, sourceLabel }`. It can carry a truthful published contract.
   - `SearchPermissionTarget` carries `[key: string]: unknown`, so `target.fields` — always built by `composePermissionSafeSearchRequest` from the validated declaration, with ten known members — reads as `unknown`.
-  - `SearchReference` in `src/types/framework-contracts.d.ts` declares `workspaceId` plus five optional members, but `reindexSearchRecord` hands a registered indexer the full normalized reference: `searchIndexId`, both casings of all four identity fields, and the declaration, record, and service handles. `search-contract`'s assertion that indexers receive the canonical camelCase payload is asserting exactly the members the contract omits. `0.33.33.32.19` touches this same seam and may resolve it first.
+  - `SearchReference` was the third finding. `0.33.33.32.19` owned both of its producers and resolved it there: the base contract still describes what every indexer can rely on, and the new `SearchRecordIndexerReference` describes what `reindexSearchRecord` always publishes. Nothing is left for this child.
 - [ ] Change no production behaviour. Type annotations, contract reconciliation, and boundary narrowing are in scope; runtime behaviour, routes, fixtures, and new regression owners are not.
 
 #### 0.33.33.32.28.1 - Prove the scripts program permanently strict-zero

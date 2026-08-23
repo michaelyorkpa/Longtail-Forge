@@ -1,5 +1,25 @@
 import assert from "node:assert/strict";
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/**
+ * The records one seeded workspace carries. Every member is read by the seed
+ * SQL below, so the fixture is named once rather than annotated per read.
+ * @typedef {{
+ *   clientId: string,
+ *   projectId: string,
+ *   tagId: string,
+ *   taskId: string,
+ *   timeEntryId: string,
+ *   title: string,
+ * }} LifecycleWorkspaceFixture
+ */
+
+/**
+ * The filter record the search request composer accepts. It is the service's
+ * own published input contract rather than a local redescription.
+ * @typedef {NonNullable<Parameters<typeof searchService.composePermissionSafeSearchRequest>[0]>["filters"]} LifecycleSearchFilters
+ */
 
 const fixture = await createDisposableDatabaseFixture("search-lifecycle-regression");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
@@ -67,8 +87,13 @@ await checkAsync("initial searchable modules populate workspace-scoped index row
   const helpCenterRow = firstRows.find((row) => row.module_id === "framework" && row.record_type === "help_article" && row.record_id === "framework.help-center");
   assert.ok(helpCenterRow, "framework Help Center search row should be indexed");
   assert.equal(helpCenterRow.source, "Help");
-  assert.match(helpCenterRow.body, /in-app product manual/);
-  assert.doesNotMatch(helpCenterRow.body, /^#\s/m);
+  // The indexed body is a database column, so it is proven to be text before
+  // the two regular-expression assertions that prove Help content is indexed
+  // as prose rather than raw Markdown.
+  const helpCenterBody = helpCenterRow.body;
+  assert.ok(typeof helpCenterBody === "string", "the indexed Help Center row should carry a text body");
+  assert.match(helpCenterBody, /in-app product manual/);
+  assert.doesNotMatch(helpCenterBody, /^#\s/m);
   for (const expectedType of [
     "client-projects:client",
     "client-projects:project",
@@ -177,20 +202,24 @@ await checkAsync("permission-sensitive search target and exact filters apply bef
 
 console.log(`Search lifecycle regression passed ${checks} checks.`);
 
+/** @param {string} workspaceId @param {LifecycleSearchFilters} [filters] */
 async function composeWorkspaceSearch(workspaceId, filters) {
   return searchService.composePermissionSafeSearchRequest({
-    session: {
+    session: workspaceSessionFixture({
       workspace_id: workspaceId,
       user_id: `${workspaceId}-user`,
-    },
+      username: `${workspaceId}-user@example.test`,
+    }),
     filters,
   });
 }
 
+/** @param {string} workspaceId @param {LifecycleSearchFilters} [filters] */
 async function executeWorkspaceSearch(workspaceId, filters) {
   return searchService.executeSearch(await composeWorkspaceSearch(workspaceId, filters));
 }
 
+/** @param {string} workspaceId */
 async function clearWorkspaceSearchRows(workspaceId) {
   await runSql(`
 DELETE FROM search_index
@@ -198,6 +227,7 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
+/** @param {string} workspaceId */
 async function readWorkspaceSearchRows(workspaceId) {
   return querySql(`
 SELECT module_id, record_type, record_id, body, source
@@ -207,6 +237,11 @@ ORDER BY module_id, record_type, record_id;
 `);
 }
 
+/**
+ * Seed one workspace's client, project, task, time entry, and tag.
+ * @param {string} workspaceId
+ * @param {LifecycleWorkspaceFixture} fixture
+ */
 async function seedWorkspace(workspaceId, fixture) {
   await runSql(`
 INSERT OR IGNORE INTO workspaces (workspace_id, name, status, workspace_type, created_at, updated_at)
@@ -474,6 +509,7 @@ VALUES (
 `);
 }
 
+/** @param {string} name @param {() => Promise<void>} assertion */
 async function checkAsync(name, assertion) {
   assert.equal(typeof name, "string");
   await assertion();
