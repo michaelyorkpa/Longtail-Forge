@@ -41,8 +41,10 @@ async function assertListsModuleManifest() {
   const listsModule = modulesService.getModule("lists");
   if (!listsModule) throw new Error("Lists module should be registered.");
 
+  assert.ok(listsModule, "the Lists module should be registered");
   assert.equal(listsModule.id, "lists");
-  assert.equal(listsModule.version, appVersion, true);
+  assert.equal(listsModule.version, appVersion);
+  assert.equal(listsModule.enabledByDefault, true, "Lists should stay enabled by default");
   assert.equal(listsModule.canDisable, true);
   assert.equal(listsModule.historicalReadAccess, true);
   assert.equal(listsModule.migrationsDir, null, "Lists schema is folded into the consolidated fresh baseline");
@@ -218,6 +220,7 @@ ORDER BY name;
   assert.equal(indexes.length, 23, "Lists foundation should create the expected lookup indexes");
 }
 
+/** @param {string} tableName @param {readonly string[]} expectedColumns */
 async function assertColumns(tableName, expectedColumns) {
   const rows = await querySql(`PRAGMA table_info(${tableName});`);
   const columns = new Set(rows.map((row) => row.name));

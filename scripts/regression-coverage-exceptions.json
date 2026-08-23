@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "maximumActiveScripts": 347,
-  "minimumAssertionCount": 19340,
+  "minimumAssertionCount": 19404,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,
@@ -5167,6 +5167,58 @@
       ],
       "verificationPerformed": [
         "node scripts/job-retention-pruning-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.lists.catalog.links.repository.conversion",
+      "retiredInVersion": "0.33.33.32.15",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.17 rather than a live contract: one required CHANGELOG prose recording that release's 726/149/201 Lists catalog and linked records conversion burndown, and one required that the completed 0.33.5.27.17 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The conversion contract is still proven in this same owner by its static source assertions over src/modules/lists/lists.repo.js -- the db facade import, the absence of literal SQL helpers, and the bound operation counts -- and by the runtime repository lifecycle assertions, which now additionally prove every write read its record back rather than comparing fields on a null the repository can legitimately answer. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and legacy.bump.version owns the one current CHANGELOG heading check.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/lists-catalog-links-repository-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.lists.catalog.links.repository.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/lists-catalog-links-repository-conversion-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.lists.records.items.repository.conversion",
+      "retiredInVersion": "0.33.33.32.15",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.16 rather than a live contract: one required CHANGELOG prose recording that release's 798/159/191 Lists records and items conversion burndown, and one required that the completed 0.33.5.27.16 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The conversion contract is still proven in this same owner by its static source assertions over src/modules/lists/lists.repo.js -- the db facade import, the absence of literal SQL helpers, and the bound operation counts -- and by the runtime repository lifecycle assertions, which now additionally prove every write read its record back rather than comparing fields on a null the repository can legitimately answer. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence, and legacy.bump.version owns the one current CHANGELOG heading check.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/lists-records-items-repository-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.lists.records.items.repository.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/lists-records-items-repository-conversion-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"

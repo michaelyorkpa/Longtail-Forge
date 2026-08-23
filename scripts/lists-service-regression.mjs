@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
 import { strictCleanOwnerState } from "./test-support/typecheck-ledger.mjs";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const [
   ,
@@ -103,6 +105,7 @@ async function assertManifestContracts() {
   assert.match(listsServiceSource, /function createItem\([\s\S]*listItemsService\.createItem[\s\S]*function updateItem\([\s\S]*listItemsService\.updateItem/, "the public Lists facade should delegate item writes without changing its API");
 
   const listsModule = modulesService.getModule("lists");
+  assert.ok(listsModule, "the Lists module should be registered");
   const permissionIds = new Set(listsModule.permissions.map((permission) => permission.id));
 
   assert.equal(listsModule.version, appVersion, "lists");
@@ -160,7 +163,11 @@ ORDER BY permission_id;
   assert.deepEqual(rows.map((row) => row.permission_id), Object.values(LIST_PERMISSIONS).sort());
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} ListsSession */
+
+/** @param {ListsSession} session */
 async function assertServiceLifecycle(session) {
+  /** @type {import("../src/types/framework-contracts.js").InternalEvent[]} */
   const capturedEvents = [];
   const unsubscribe = modulesService.onInternalEvent("lists.list.created", (event) => {
     capturedEvents.push(event);
@@ -225,6 +232,8 @@ async function assertServiceLifecycle(session) {
       listId: created.list.list_id,
       q: "catalog",
     });
+    assert.ok(updated, "updating a list should answer the persisted list");
+    assert.ok(updated, "updating a list should answer the persisted list");
     assert.equal(usedSuggestions.suggestions[0].catalog_item_id, catalog.catalogItem.catalog_item_id);
     assert.equal(usedSuggestions.suggestions[0].use_count, 1);
 
@@ -237,12 +246,12 @@ async function assertServiceLifecycle(session) {
     }, session);
     assert.ok(capturedEvents.some((event) => (
       event.record_type === "list_item_catalog" &&
-      event.metadata.catalog_item_id === catalog.catalogItem.catalog_item_id &&
+      event.metadata?.catalog_item_id === catalog.catalogItem.catalog_item_id &&
       !JSON.stringify(event.metadata).includes("example.invalid")
     )), "Catalog create events should use safe metadata");
     assert.ok(capturedEvents.some((event) => (
       event.record_type === "list_item_catalog" &&
-      event.metadata.catalog_item_id === catalog.catalogItem.catalog_item_id &&
+      event.metadata?.catalog_item_id === catalog.catalogItem.catalog_item_id &&
       !JSON.stringify(event.new_value).includes("example.invalid")
     )), "Catalog update events should sanitize raw URL metadata");
     const catalogAuditRows = await querySql(`
@@ -257,6 +266,7 @@ ORDER BY created_at;
     assert.ok(catalogAuditRows.every((row) => !JSON.stringify(row).includes("example.invalid")));
     const catalogSnapshotRead = await listsService.read(created.list.list_id, session);
     const catalogSnapshotItem = catalogSnapshotRead.items.find((entry) => entry.list_item_id === catalogItem.item.list_item_id);
+    assert.ok(catalogSnapshotItem, "the catalog-sourced item should appear in the list read");
     assert.equal(catalogSnapshotItem.item_name, "Catalog Fastener");
     assert.equal(catalogSnapshotItem.quantity, 12);
     assert.equal(catalogSnapshotItem.unit, "pack");
@@ -301,6 +311,7 @@ ORDER BY created_at;
       targetId: linkedTask.task.task_id,
       targetType: "task",
     }, session);
+    assert.ok(taskLink, "creating the task link should answer the persisted link");
     if (!taskLink.link.target) throw new Error("Created task link should include its target summary.");
     assert.equal(taskLink.link.target.label, "Linked List Task");
     assert.equal(taskLink.link.target.target_type, "task");
@@ -308,6 +319,7 @@ ORDER BY created_at;
       targetId: linkedNote.note.note_id,
       targetType: "note",
     }, session);
+    assert.ok(noteLink, "creating the note link should answer the persisted link");
     if (!noteLink.link.target) throw new Error("Created note link should include its target summary.");
     assert.equal(noteLink.link.target.label, "Linked List Note");
     await assert.rejects(
@@ -319,6 +331,8 @@ ORDER BY created_at;
       /not supported for Lists/,
       "Strict link creation must reject a module/type mismatch",
     );
+    assert.ok(noteLink, "creating the note link should answer the persisted link");
+    assert.ok(taskLink, "creating the task link should answer the persisted link");
     const linkedRead = await listsService.read(created.list.list_id, session);
     assert.equal(linkedRead.links.length, 2);
     assert.ok(linkedRead.links.every((link) => /** @type {{label?: string}|null} */ (link.target)?.label));
@@ -450,6 +464,8 @@ WHERE note_id = ${sqlText(linkedNote.note.note_id)};
     );
 
     const archived = await listsService.archive(created.list.list_id, session);
+    assert.ok(archived, "archiving a list should answer the persisted list");
+    assert.ok(archived, "archiving a list should answer the persisted list");
     assert.equal(archived.list.status, "archived");
 
     const restored = await listsService.restore(created.list.list_id, session);
@@ -471,22 +487,24 @@ WHERE note_id = ${sqlText(linkedNote.note.note_id)};
     assert.ok(capturedEvents.some((event) => (
       event.module_id === "lists" &&
       event.record_type === "list" &&
-      event.metadata.title === "R&D Procurement"
+      event.metadata?.title === "R&D Procurement"
     )), "List created event should use safe list metadata");
     assert.ok(capturedEvents.some((event) => (
       event.module_id === "lists" &&
       event.record_type === "list_item" &&
-      event.metadata.item_name === "Aluminum extrusion" &&
-      !("url" in event.metadata)
+      event.metadata?.item_name === "Aluminum extrusion" &&
+      !("url" in (event.metadata || {}))
     )), "Item checked event should use safe item metadata");
-    const createdEvent = capturedEvents.find((event) => event.record_type === "list" && event.metadata.title === "R&D Procurement");
-    assert.equal(createdEvent?.metadata.source_url, `lists.html?list=${encodeURIComponent(created.list.list_id)}`);
-    assert.equal(createdEvent?.metadata.total_item_count, 0);
-    const checkedEvent = capturedEvents.find((event) => event.record_type === "list_item" && event.metadata.item_name === "Aluminum extrusion");
-    assert.equal(checkedEvent?.metadata.total_item_count, 3);
-    assert.equal(checkedEvent?.metadata.checked_item_count, 1);
-    assert.equal(checkedEvent?.metadata.next_unchecked_item_label, "Catalog Fastener");
-    assert.equal(checkedEvent?.metadata.project_id, "");
+    const createdEvent = capturedEvents.find((event) => event.record_type === "list" && event.metadata?.title === "R&D Procurement");
+    assert.ok(createdEvent?.metadata, "the list created event should carry safe metadata");
+    assert.equal(createdEvent.metadata.source_url, `lists.html?list=${encodeURIComponent(created.list.list_id)}`);
+    assert.equal(createdEvent.metadata.total_item_count, 0);
+    const checkedEvent = capturedEvents.find((event) => event.record_type === "list_item" && event.metadata?.item_name === "Aluminum extrusion");
+    assert.ok(checkedEvent?.metadata, "the item checked event should carry safe metadata");
+    assert.equal(checkedEvent.metadata.total_item_count, 3);
+    assert.equal(checkedEvent.metadata.checked_item_count, 1);
+    assert.equal(checkedEvent.metadata.next_unchecked_item_label, "Catalog Fastener");
+    assert.equal(checkedEvent.metadata.project_id, "");
 
     const auditRows = await querySql(`
 SELECT action, record_type, record_label, metadata_json
@@ -587,6 +605,7 @@ function assertAccessPolicy() {
   });
 }
 
+/** @param {ListsSession} session */
 async function assertDisabledModuleWriteBlocking(session) {
   const created = await listsService.create({ title: "Disable Test" }, session);
   await modulesService.setModuleStatus(session.workspace_id, "lists", false, { session });
@@ -601,6 +620,7 @@ async function assertDisabledModuleWriteBlocking(session) {
   await modulesService.setModuleStatus(session.workspace_id, "lists", true, { session });
 }
 
+/** @returns {Promise<ListsSession>} */
 async function readSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, workspaces.workspace_id
@@ -611,12 +631,7 @@ ORDER BY users.user_id, workspaces.workspace_id
 LIMIT 1;
 `);
 
-  return {
-    timezone: "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    workspace_id: rows[0].workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "protected user fixture is required"));
 }
 
 async function assertIntegrity() {

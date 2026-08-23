@@ -926,6 +926,21 @@ assert.ok(
     .includes('await assertColumns("note_library_collections", ['),
   "scripts/notes-collections-regression.mjs should keep the restored note_library_collections column check",
 );
+for (const listsOwner of [
+  "scripts/lists-catalog-links-repository-conversion-regression.mjs",
+  "scripts/lists-foundation-regression.mjs",
+  "scripts/lists-records-items-repository-conversion-regression.mjs",
+  "scripts/lists-service-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[listsOwner], undefined, `${listsOwner} must stay strict-clean after checkpoint 0.33.33.32.15`);
+}
+// The fourth and last collapsed assertion is restored: lists-foundation lost
+// its enabled-by-default contract to an `assert.equal` message slot.
+assert.ok(
+  fs.readFileSync("scripts/lists-foundation-regression.mjs", "utf8")
+    .includes("assert.equal(listsModule.enabledByDefault, true,"),
+  "scripts/lists-foundation-regression.mjs should keep the restored enabled-by-default contract",
+);
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().

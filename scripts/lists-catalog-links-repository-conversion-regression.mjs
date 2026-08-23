@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-catalog-links-repo-"));
@@ -17,8 +18,6 @@ const listsModuleSource = readText("src/modules/lists/module.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const listsDocs = readText("docs/lists-module.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { clientsService } = await import("../src/modules/client-projects/clients.service.js");
@@ -72,10 +71,19 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.17[\s\S]*`lists\/lists\.repo` is fully converted[\s\S]*726 remaining helper invocations/, "database docs should record the full Lists repository conversion");
   assert.match(listsDocs, /^# Lists Module Developer Guide$/m, "Lists docs should retain the owning developer-guide heading");
   assert.match(listsDocs, /As of 0\.33\.5\.27\.17[\s\S]*Lists repository is fully converted[\s\S]*catalog[\s\S]*linked-record/, "Lists docs should document the fully converted repository boundary");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.17 - Conversion wave: Lists catalog and linked records[\s\S]*- \[x\] Convert the remaining `lists\/lists\.repo`[\s\S]*- \[x\] Preserve catalog suggestions[\s\S]*- \[x\] Because the 0\.33\.5\.27\.16\/0\.33\.5\.27\.17 split[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.17 - [\s\S]*Lists catalog and linked records repository conversion[\s\S]*726 helper invocations[\s\S]*149 direct interpolated operation sites[\s\S]*201 bound operation sites/, "changelog should record the Lists catalog/link conversion burndown");
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} ListsSession */
+/** The fixture record, including the catalog and link members the lifecycle
+ * phases attach to it after `createFixtures` returns. */
+/** @typedef {Awaited<ReturnType<typeof createFixtures>> & {
+ *   catalog?: { archived: ListsCatalogRecord, clientScoped: ListsCatalogRecord, projectScoped: ListsCatalogRecord, shared: ListsCatalogRecord },
+ *   links?: { noteLink: ListsLinkRecord, secondListLink: ListsLinkRecord, taskLink: ListsLinkRecord },
+ * }} CatalogFixtures */
+/** @typedef {NonNullable<Awaited<ReturnType<typeof listsRepository.createCatalogItem>>>} ListsCatalogRecord */
+/** @typedef {NonNullable<Awaited<ReturnType<typeof listsRepository.createLink>>>} ListsLinkRecord */
+
+/** @param {ListsSession} session */
 async function createFixtures(session) {
   const suffix = randomUUID().slice(0, 8);
   const client = (await clientsService.createClient({
@@ -96,6 +104,8 @@ async function createFixtures(session) {
     title: `27.17 Catalog Links ${suffix}`,
     updated_by_user_id: session.user_id,
   });
+  assert.ok(list, "creating a list should read the persisted record back");
+  assert.ok(list, "creating a list should read the persisted record back");
   const secondList = await listsRepository.create(session.workspace_id, {
     created_by_user_id: session.user_id,
     is_reusable: false,
@@ -104,6 +114,8 @@ async function createFixtures(session) {
     title: `27.17 Second ${suffix}`,
     updated_by_user_id: session.user_id,
   });
+  assert.ok(secondList, "creating the second list should read the persisted record back");
+  assert.ok(secondList, "creating the second list should read the persisted record back");
   const task = (await tasksService.create({
     title: `27.17 Linked Task ${suffix}`,
   }, session)).task;
@@ -123,6 +135,7 @@ async function createFixtures(session) {
   };
 }
 
+/** @param {ListsSession} session @param {CatalogFixtures} fixtures */
 async function assertCatalogLifecycle(session, fixtures) {
   const shared = await listsRepository.createCatalogItem(session.workspace_id, {
     created_by_user_id: session.user_id,
@@ -137,6 +150,8 @@ async function assertCatalogLifecycle(session, fixtures) {
     use_count: 20,
     vendor_name: "Shared Vendor",
   });
+  assert.ok(shared, "creating the shared catalog item should read the persisted record back");
+  assert.ok(shared, "creating the shared catalog item should read the persisted record back");
   const clientScoped = await listsRepository.createCatalogItem(session.workspace_id, {
     client_id: fixtures.client.id,
     created_by_user_id: session.user_id,
@@ -148,6 +163,7 @@ async function assertCatalogLifecycle(session, fixtures) {
     updated_by_user_id: session.user_id,
     use_count: 1,
   });
+  assert.ok(clientScoped, "creating the client-scoped catalog item should read the persisted record back");
   const projectScoped = await listsRepository.createCatalogItem(session.workspace_id, {
     client_id: fixtures.client.id,
     created_by_user_id: session.user_id,
@@ -160,6 +176,8 @@ async function assertCatalogLifecycle(session, fixtures) {
     updated_by_user_id: session.user_id,
     use_count: 1,
   });
+  assert.ok(projectScoped, "creating the project-scoped catalog item should read the persisted record back");
+  assert.ok(projectScoped, "creating the project-scoped catalog item should read the persisted record back");
   const archived = await listsRepository.createCatalogItem(session.workspace_id, {
     archived_at: "2026-07-06T15:00:00.000Z",
     created_by_user_id: session.user_id,
@@ -169,6 +187,8 @@ async function assertCatalogLifecycle(session, fixtures) {
     updated_by_user_id: session.user_id,
     use_count: 100,
   });
+  assert.ok(archived, "creating the archived catalog item should read the persisted record back");
+  assert.ok(archived, "creating the archived catalog item should read the persisted record back");
 
   assert.equal(shared.quantity, 1.5, "catalog quantities should preserve finite numeric values");
   assert.equal(shared.estimated_cost, 10.5, "catalog estimated cost should preserve finite numeric values");
@@ -216,6 +236,8 @@ async function assertCatalogLifecycle(session, fixtures) {
     updated_by_user_id: session.user_id,
     use_count: "7.8",
   });
+  assert.ok(updated, "updating a catalog item should read the persisted record back");
+  assert.ok(updated, "updating a catalog item should read the persisted record back");
   assert.equal(updated.item_name, `Conversion Bolt Project Revised ${fixtures.suffix}`, "catalog updates should return the updated row");
   assert.equal(updated.quantity, 1, "catalog update quantity should preserve null-to-default behavior");
   assert.equal(updated.estimated_cost, null, "catalog update blank estimated cost should remain null");
@@ -223,21 +245,26 @@ async function assertCatalogLifecycle(session, fixtures) {
   assert.deepEqual(updated.metadata_json, { updated: true }, "catalog update metadata should remain parsed");
 
   const used = await listsRepository.incrementCatalogUsage(session.workspace_id, updated.catalog_item_id, session.user_id);
+  assert.ok(used, "incrementing catalog usage should read the persisted record back");
+  assert.ok(used, "incrementing catalog usage should read the persisted record back");
   assert.equal(used.use_count, 8, "catalog usage increments should preserve arithmetic behavior");
   assert.equal(used.updated_by_user_id, session.user_id, "catalog usage should keep updater storage");
   assert.ok(used.last_used_at, "catalog usage should set last_used_at");
 
   const archivedBefore = archived.use_count;
   const archivedAfter = await listsRepository.incrementCatalogUsage(session.workspace_id, archived.catalog_item_id, session.user_id);
+  assert.ok(archivedAfter, "incrementing an archived catalog row should still read the record back");
   assert.equal(archivedAfter.use_count, archivedBefore, "archived catalog rows should not be usage-incremented");
 
   fixtures.catalog = {
+    archived,
     clientScoped,
     projectScoped: updated,
     shared,
   };
 }
 
+/** @param {ListsSession} session @param {CatalogFixtures} fixtures */
 async function assertLinkLifecycle(session, fixtures) {
   const taskLink = await listsRepository.createLink(session.workspace_id, {
     created_by_user_id: session.user_id,
@@ -248,6 +275,8 @@ async function assertLinkLifecycle(session, fixtures) {
     target_id: fixtures.task.task_id,
     target_type: "task",
   });
+  assert.ok(taskLink, "creating the task link should read the persisted record back");
+  assert.ok(taskLink, "creating the task link should read the persisted record back");
   const noteLink = await listsRepository.createLink(session.workspace_id, {
     created_by_user_id: session.user_id,
     list_id: fixtures.list.list_id,
@@ -255,6 +284,8 @@ async function assertLinkLifecycle(session, fixtures) {
     target_id: fixtures.note.note_id,
     target_type: "note",
   });
+  assert.ok(noteLink, "creating the note link should read the persisted record back");
+  assert.ok(noteLink, "creating the note link should read the persisted record back");
   const secondListLink = await listsRepository.createLink(session.workspace_id, {
     created_by_user_id: session.user_id,
     list_id: fixtures.secondList.list_id,
@@ -262,11 +293,14 @@ async function assertLinkLifecycle(session, fixtures) {
     target_id: fixtures.task.task_id,
     target_type: "task",
   });
+  assert.ok(secondListLink, "creating the second list link should read the persisted record back");
 
   assert.equal(taskLink.link_role, "blocks", "link roles should preserve explicit values");
   assert.deepEqual(taskLink.metadata_json, { source: "repo" }, "link metadata should remain parsed");
   assert.equal(noteLink.link_role, "related", "link roles should preserve the default related value");
-  assert.equal((await listsRepository.readLinkById(session.workspace_id, fixtures.list.list_id, taskLink.list_link_id)).target_id, fixtures.task.task_id, "single link reads should remain exact");
+  const taskLinkRead = await listsRepository.readLinkById(session.workspace_id, fixtures.list.list_id, taskLink.list_link_id);
+  assert.ok(taskLinkRead, "a created link should remain readable by id");
+  assert.equal(taskLinkRead.target_id, fixtures.task.task_id, "single link reads should remain exact");
   assert.deepEqual(
     (await listsRepository.listLinks(session.workspace_id, fixtures.list.list_id)).map((link) => link.list_link_id),
     [taskLink.list_link_id, noteLink.list_link_id],
@@ -282,8 +316,12 @@ async function assertLinkLifecycle(session, fixtures) {
   assert.deepEqual(await listsRepository.listLinksForLists(session.workspace_id, []), [], "empty batched link reads should remain no-op");
 
   const removed = await listsRepository.removeLink(session.workspace_id, fixtures.list.list_id, taskLink.list_link_id);
+  assert.ok(removed, "removing a link should answer the removed link");
+  assert.ok(removed, "removing a link should answer the removed link");
   assert.ok(removed.removed_at, "link removals should return the soft-removed link");
-  assert.equal((await listsRepository.readLinkById(session.workspace_id, fixtures.list.list_id, taskLink.list_link_id)).removed_at, removed.removed_at, "removed links should remain readable by id");
+  const removedRead = await listsRepository.readLinkById(session.workspace_id, fixtures.list.list_id, taskLink.list_link_id);
+  assert.ok(removedRead, "a removed link should remain readable by id");
+  assert.equal(removedRead.removed_at, removed.removed_at, "removed links should remain readable by id");
   assert.deepEqual(
     (await listsRepository.listLinks(session.workspace_id, fixtures.list.list_id)).map((link) => link.list_link_id),
     [noteLink.list_link_id],
@@ -297,7 +335,10 @@ async function assertLinkLifecycle(session, fixtures) {
   };
 }
 
+/** @param {ListsSession} session @param {CatalogFixtures} fixtures */
 async function assertServiceReadShaping(session, fixtures) {
+  assert.ok(fixtures.catalog, "the catalog lifecycle should have attached its fixtures");
+  assert.ok(fixtures.links, "the link lifecycle should have attached its fixtures");
   const read = await listsService.read(fixtures.list.list_id, session);
   assert.deepEqual(
     read.links.map((link) => [link.list_link_id, /** @type {{label?: string}|null} */ (link.target)?.label, link.targetAccess]),
@@ -325,6 +366,7 @@ async function assertServiceReadShaping(session, fixtures) {
   assert.equal(suggestions.suggestions[0].catalog_item_id, fixtures.catalog.projectScoped.catalog_item_id, "service catalog suggestions should preserve context ranking");
 }
 
+/** @returns {Promise<ListsSession>} */
 async function readSeedSession() {
   const user = await db.get(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -335,14 +377,7 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
 async function assertIntegrity() {
