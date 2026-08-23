@@ -7,6 +7,25 @@ import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
+/** @typedef {import("../src/types/framework-contracts.js").SearchRecord} SearchRecord */
+
+/**
+ * One canonical search document this owner seeds, named as a single seam
+ * input rather than eight separately annotated bindings. The camelCase
+ * members are the fixture's own spelling; `createSearchDocument` maps them to
+ * the snake_case columns the published `SearchRecord` declares.
+ * @typedef {{
+ *   body: string,
+ *   indexedAt: string,
+ *   recordId: string,
+ *   source: string,
+ *   summary: string,
+ *   tagsText: string,
+ *   title: string,
+ *   workspaceId: string,
+ * }} SeamDocumentInput
+ */
+
 const dialectContractVersion = "0.33.6.14a";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-search-fts-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -14,8 +33,6 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-search-f
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Search-Fts-Seams-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
@@ -70,10 +87,8 @@ function assertStaticContract() {
 
   assert.match(searchServiceSource, /backendNeutralQueryModel: true/, "search service should keep callers on a backend-neutral query model");
   assert.match(searchServiceSource, /adapterSyntax: null/, "permission-safe search request shaping should not emit backend syntax");
-    assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.6 - Search\/FTS seam extraction[\s\S]*- \[x\] Move backend search syntax ownership[\s\S]*- \[x\] Keep canonical `search_index` rows[\s\S]*- \[x\] Add focused search regressions/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.6[\s\S]*SQLite search adapter[\s\S]*`db\.dialect\.search\.match\(\.\.\.\)`[\s\S]*indexed `LIKE` fallback/, "database docs should describe the search FTS seam extraction");
   assert.match(auditDocs, /0\.33\.5\.27\.6 Search\/FTS Seam Extraction[\s\S]*`core\/search\/adapters\/sqlite-search-adapter`[\s\S]*1,441 runtime literal-helper invocations[\s\S]*228 direct interpolated SQL operation sites/, "audit docs should record the search adapter conversion");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.6 - [\s\S]*Search\/FTS seam extraction[\s\S]*canonical `search_index`[\s\S]*indexed LIKE fallback/, "changelog should record the search FTS seam slice");
 }
 
 function assertSearchLoweringHelpers() {
@@ -230,6 +245,7 @@ ORDER BY search_index_id;
   assert.deepEqual(repairedPreferred.results.map((row) => row.record_id), ["alpha-record"], "repaired FTS storage should still read from canonical rows");
 }
 
+/** @param {SeamDocumentInput} input @returns {SearchRecord} */
 function createSearchDocument({
   body,
   indexedAt,
@@ -264,6 +280,7 @@ function createSearchDocument({
   };
 }
 
+/** @param {string} workspaceId @param {string} now */
 async function corruptFtsRows(workspaceId, now) {
   await db.run(`
 DELETE FROM search_index_fts
@@ -301,6 +318,7 @@ VALUES (
   });
 }
 
+/** @param {string} workspaceId */
 async function readCanonicalMetadata(workspaceId) {
   return db.query(`
 SELECT search_index_id, client_id, project_id, visibility, record_status, source, indexed_at

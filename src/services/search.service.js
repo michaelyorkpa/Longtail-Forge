@@ -25,18 +25,9 @@ import { resolveClientProjectFilterScope } from "../core/client-project-filter-s
 /** @typedef {Partial<SearchRecord> & SearchDocumentInput} PartialSearchRecord */
 /**
  * Canonical camelCase Search record reference plus the live persistence aliases
- * retained for adapters and result envelopes.
- * @typedef {Object} NormalizedSearchRecordReference
- * @property {string} searchIndexId
- * @property {string} workspaceId
- * @property {string} moduleId
- * @property {string} recordType
- * @property {string} recordId
- * @property {string} search_index_id
- * @property {string} workspace_id
- * @property {string} module_id
- * @property {string} record_type
- * @property {string} record_id
+ * retained for adapters and result envelopes. This is the published
+ * indexer-facing reference contract rather than a second description of it.
+ * @typedef {import("../types/framework-contracts.js").SearchRecordIndexerReference} NormalizedSearchRecordReference
  */
 
 const SEARCH_SERVICE_VERSION = "0.33.5.6.1";

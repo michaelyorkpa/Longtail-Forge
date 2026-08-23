@@ -222,6 +222,7 @@ ORDER BY search_index_id;
 `);
 }
 
+/** @param {string} name @param {() => Promise<void>} assertion */
 async function checkAsync(name, assertion) {
   assert.equal(typeof name, "string");
   await assertion();

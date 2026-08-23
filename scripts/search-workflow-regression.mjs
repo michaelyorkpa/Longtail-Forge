@@ -6,8 +6,33 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+import { fixtureString } from "./test-support/session-fixtures.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readTextAsync: readProjectFile } = createProjectTextReader();
+
+/** @typedef {import("../src/types/framework-contracts.js").BrowserSearchResult} BrowserSearchResult */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} WorkflowApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} WorkflowClientOptions */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} WorkflowServer */
+
+/**
+ * What this owner's `fetch` fixture resolves. It carries no headers, so it is
+ * declared here rather than through the shared fetch-response contract.
+ * @typedef {{ body: unknown, status: number }} WorkflowResponse
+ */
+
+/** @typedef {ReturnType<typeof createApi>} WorkflowApi */
+
+/**
+ * The search route's pagination envelope, as `boundedPaginationEnvelope`
+ * builds it plus the page number the route adds.
+ * @typedef {{ hasMore: boolean, limit: number, maxPageSize: number, nextCursor: string, offset: number, page: number, returned: number, total: number | null }} WorkflowPagination
+ */
+
+/** @typedef {{ results: BrowserSearchResult[] }} ResultsEnvelope */
+/** @typedef {{ pagination: WorkflowPagination, results: BrowserSearchResult[] }} PaginationResultsEnvelope */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-search-workflow-regression-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-search-workflow-test.db");
@@ -19,7 +44,9 @@ const { createSession } = await import("../src/security/sessions.js");
 const { searchIndexRebuildService } = await import("../src/services/search-index-rebuild.service.js");
 const { searchService } = await import("../src/services/search.service.js");
 
+/** @type {string[]} */
 const results = [];
+/** @type {WorkflowServer | undefined} */
 let server;
 
 try {
@@ -28,20 +55,22 @@ try {
   const fixtures = await seedWorkflowFixtures();
   await searchIndexRebuildService.rebuildWorkspace({ audit: false, workspaceId: fixtures.workspaceId });
   server = await listen(app);
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${listenerPort(server)}`);
 
   await checkAsync("browser search discovers indexed Tasks, Time Entries, Clients, and Projects", async () => {
     const response = await api.get("/api/search?text=workflow-e2e&limit=10", { cookie: fixtures.sessionId });
+    /** @type {ResultsEnvelope} */
+    const responseBody = readPayload(response, ["results"], "response");
 
     assert.equal(response.status, 200);
-    assert.deepEqual(resultTypes(response.body.results), [
+    assert.deepEqual(resultTypes(responseBody.results), [
       "client-projects:client",
       "client-projects:project",
       "tasks:task",
       "time-tracking:time_entry",
     ]);
-    assert.ok(response.body.results.every((result) => result.workspaceId === fixtures.workspaceId));
-    assert.ok(response.body.results.every((result) => result.target && typeof result.target.url === "string"));
+    assert.ok(responseBody.results.every((result) => result.workspaceId === fixtures.workspaceId));
+    assert.ok(responseBody.results.every((result) => result.target && typeof result.target.url === "string"));
   });
 
   await checkAsync("browser search results update after indexed record edits", async () => {
@@ -62,36 +91,46 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
     const oldResponse = await api.get("/api/search?text=workflow-edit-original&module=tasks", {
       cookie: fixtures.sessionId,
     });
+    /** @type {ResultsEnvelope} */
+    const oldResponseBody = readPayload(oldResponse, ["results"], "old response");
     const newResponse = await api.get("/api/search?text=workflow-edit-retitled&module=tasks", {
       cookie: fixtures.sessionId,
     });
+    /** @type {ResultsEnvelope} */
+    const newResponseBody = readPayload(newResponse, ["results"], "new response");
 
     assert.equal(reindexResult.ok, true);
     assert.equal(oldResponse.status, 200);
     assert.equal(newResponse.status, 200);
-    assert.deepEqual(oldResponse.body.results.map((result) => result.recordId), []);
-    assert.deepEqual(newResponse.body.results.map((result) => result.recordId), [fixtures.taskId]);
+    assert.deepEqual(oldResponseBody.results.map((result) => result.recordId), []);
+    assert.deepEqual(newResponseBody.results.map((result) => result.recordId), [fixtures.taskId]);
   });
 
   await checkAsync("browser search pagination remains stable across repeated requests", async () => {
     const firstPage = await api.get("/api/search?text=workflow-e2e&limit=2&page=1", { cookie: fixtures.sessionId });
+    /** @type {PaginationResultsEnvelope} */
+    const firstPageBody = readPayload(firstPage, ["pagination", "results"], "first page");
     const secondPage = await api.get("/api/search?text=workflow-e2e&limit=2&page=2", { cookie: fixtures.sessionId });
+    /** @type {PaginationResultsEnvelope} */
+    const secondPageBody = readPayload(secondPage, ["pagination", "results"], "second page");
     const repeatedFirstPage = await api.get("/api/search?text=workflow-e2e&limit=2&page=1", {
       cookie: fixtures.sessionId,
     });
+    /** @type {ResultsEnvelope} */
+    const repeatedFirstPageBody = readPayload(repeatedFirstPage, ["results"], "repeated first page");
 
     assert.equal(firstPage.status, 200);
     assert.equal(secondPage.status, 200);
-    assert.equal(firstPage.body.pagination.returned, 2);
-    assert.equal(firstPage.body.pagination.hasMore, true);
-    assert.equal(secondPage.body.pagination.page, 2);
+    assert.equal(firstPageBody.pagination.returned, 2);
+    assert.equal(firstPageBody.pagination.hasMore, true);
+    assert.equal(secondPageBody.pagination.page, 2);
     assert.deepEqual(
-      firstPage.body.results.map((result) => result.searchIndexId),
-      repeatedFirstPage.body.results.map((result) => result.searchIndexId),
+      firstPageBody.results.map((result) => result.searchIndexId),
+      repeatedFirstPageBody.results.map((result) => result.searchIndexId),
     );
     assert.notDeepEqual(
-      firstPage.body.results.map((result) => result.searchIndexId),
-      secondPage.body.results.map((result) => result.searchIndexId),
+      firstPageBody.results.map((result) => result.searchIndexId),
+      secondPageBody.results.map((result) => result.searchIndexId),
     );
   });
 
@@ -99,15 +138,19 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
     const visible = await api.get("/api/search?text=workflow-edit-retitled&module=tasks", {
       cookie: fixtures.projectUserSessionId,
     });
+    /** @type {ResultsEnvelope} */
+    const visibleBody = readPayload(visible, ["results"], "visible");
     const hidden = await api.get("/api/search?text=workflow-edit-retitled&module=tasks", {
       cookie: fixtures.unscopedSessionId,
     });
+    /** @type {PaginationResultsEnvelope} */
+    const hiddenBody = readPayload(hidden, ["pagination", "results"], "hidden");
 
     assert.equal(visible.status, 200);
-    assert.deepEqual(visible.body.results.map((result) => result.recordId), [fixtures.taskId]);
+    assert.deepEqual(visibleBody.results.map((result) => result.recordId), [fixtures.taskId]);
     assert.equal(hidden.status, 200);
-    assert.deepEqual(hidden.body.results, []);
-    assert.equal(hidden.body.pagination.hasMore, false);
+    assert.deepEqual(hiddenBody.results, []);
+    assert.equal(hiddenBody.pagination.hasMore, false);
   });
 
   await checkAsync("global search UI has loading, empty, error, filtered, and paginated states", async () => {
@@ -133,14 +176,16 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
 
 async function seedWorkflowFixtures() {
   const now = "2026-06-08T21:00:00.000Z";
-  const workspace = (await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"))[0];
-  const user = (await querySql(`
+  const workspaceRow = requireFirstRow(await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"), "the default workspace");
+  const workspace = { workspace_id: fixtureString(workspaceRow.workspace_id, "the default workspace ID") };
+  const user = requireFirstRow(await querySql(`
 SELECT user_id, home_workspace_id, active_workspace_id, username, timezone
 FROM users
 WHERE protected_user = 'yes'
 ORDER BY username
 LIMIT 1;
-`))[0];
+`), "the protected user");
+  const seedUserId = fixtureString(user.user_id, "the protected user ID");
   const clientId = `search-workflow-client-${randomUUID()}`;
   const projectId = `search-workflow-project-${randomUUID()}`;
   const taskId = `search-workflow-task-${randomUUID()}`;
@@ -167,8 +212,8 @@ ${membershipInsertSql(workspace.workspace_id, unscopedUserId, now)}
 ${assignmentInsertSql(workspace.workspace_id, projectUserId, "project_user", "project", projectId, now)}
 ${clientInsertSql(workspace.workspace_id, clientId, now)}
 ${projectInsertSql(workspace.workspace_id, projectId, clientId, now)}
-${taskInsertSql(workspace.workspace_id, taskId, clientId, projectId, user.user_id, now)}
-${timeEntryInsertSql(workspace.workspace_id, timeEntryId, clientId, projectId, taskId, user.user_id, now)}
+${taskInsertSql(workspace.workspace_id, taskId, clientId, projectId, seedUserId, now)}
+${timeEntryInsertSql(workspace.workspace_id, timeEntryId, clientId, projectId, taskId, seedUserId, now)}
 `);
 
   return {
@@ -195,6 +240,7 @@ ${timeEntryInsertSql(workspace.workspace_id, timeEntryId, clientId, projectId, t
   };
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} usernamePrefix */
 function userInsertSql(workspaceId, userId, usernamePrefix) {
   return `
 INSERT OR REPLACE INTO users (
@@ -225,12 +271,17 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} now */
 function membershipInsertSql(workspaceId, userId, now) {
   return `
 INSERT OR REPLACE INTO user_workspaces (user_workspace_id, user_id, workspace_id, status, created_at, updated_at)
 VALUES (${sqlText(randomUUID())}, ${sqlText(userId)}, ${sqlText(workspaceId)}, 'active', ${sqlText(now)}, ${sqlText(now)});`;
 }
 
+/**
+ * @param {string} workspaceId @param {string} userId @param {string} roleId
+ * @param {string} scopeType @param {string} scopeId @param {string} now
+ */
 function assignmentInsertSql(workspaceId, userId, roleId, scopeType, scopeId, now) {
   return `
 INSERT OR REPLACE INTO user_role_assignments (
@@ -261,6 +312,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {string} clientId @param {string} now */
 function clientInsertSql(workspaceId, clientId, now) {
   return `
 INSERT OR REPLACE INTO clients (
@@ -317,6 +369,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {string} projectId @param {string} clientId @param {string} now */
 function projectInsertSql(workspaceId, projectId, clientId, now) {
   return `
 INSERT OR REPLACE INTO projects (
@@ -361,6 +414,10 @@ VALUES (
 );`;
 }
 
+/**
+ * @param {string} workspaceId @param {string} taskId @param {string} clientId
+ * @param {string} projectId @param {string} userId @param {string} now
+ */
 function taskInsertSql(workspaceId, taskId, clientId, projectId, userId, now) {
   return `
 INSERT OR REPLACE INTO tasks (
@@ -421,6 +478,11 @@ VALUES (
 );`;
 }
 
+/**
+ * @param {string} workspaceId @param {string} entryId @param {string} clientId
+ * @param {string} projectId @param {string} taskId @param {string} userId
+ * @param {string} now
+ */
 function timeEntryInsertSql(workspaceId, entryId, clientId, projectId, taskId, userId, now) {
   return `
 INSERT OR REPLACE INTO time_entries (
@@ -463,18 +525,26 @@ VALUES (
 );`;
 }
 
+/** @param {readonly BrowserSearchResult[]} searchResults @returns {string[]} */
 function resultTypes(searchResults) {
   return searchResults
     .map((result) => `${result.moduleId}:${result.recordType}`)
     .sort();
 }
 
+/**
+ * @param {string} baseUrl
+ * @returns {{ get: (pathname: string, options?: WorkflowClientOptions) => Promise<WorkflowResponse> }}
+ */
 function createApi(baseUrl) {
   return {
     async get(pathname, options = {}) {
       const response = await fetch(`${baseUrl}${pathname}`, {
         headers: options.cookie ? { Cookie: `longtail_forge_session=${options.cookie}` } : {},
       });
+      // The parsed body stays `unknown`; every read below crosses that
+      // boundary through `readPayload`, which proves the envelope it names.
+      /** @type {unknown} */
       const body = await response.json().catch(() => ({}));
 
       return {
@@ -485,17 +555,30 @@ function createApi(baseUrl) {
   };
 }
 
+/** @param {WorkflowApp} app @returns {Promise<WorkflowServer>} */
 function listen(app) {
   return new Promise((resolve) => {
     listenOnFetchSafePort(app, resolve);
   });
 }
 
+/** @param {WorkflowServer} listening @returns {number} */
+function listenerPort(listening) {
+  const address = listening.address();
+  assert.ok(address && typeof address === "object", "the Search workflow fixture server should bind a TCP port");
+  return address.port;
+}
+
+/**
+ * @param {WorkflowApp} app
+ * @param {(server: WorkflowServer) => void} resolve
+ * @param {number} [attempts]
+ */
 function listenOnFetchSafePort(app, resolve, attempts = 0) {
-  const nextServer = http.createServer(app);
+  const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
 
   nextServer.listen(0, "127.0.0.1", () => {
-    const port = nextServer.address().port;
+    const port = listenerPort(nextServer);
 
     if (!isFetchBlockedPort(port) || attempts >= 20) {
       resolve(nextServer);
@@ -506,6 +589,7 @@ function listenOnFetchSafePort(app, resolve, attempts = 0) {
   });
 }
 
+/** @param {number} port @returns {boolean} */
 function isFetchBlockedPort(port) {
   return new Set([
     1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77, 79, 87, 95,
@@ -516,6 +600,7 @@ function isFetchBlockedPort(port) {
   ]).has(Number(port));
 }
 
+/** @param {WorkflowServer} activeServer @returns {Promise<void>} */
 function closeServer(activeServer) {
   return new Promise((resolve, reject) => {
     activeServer.close((error) => {
@@ -529,6 +614,7 @@ function closeServer(activeServer) {
   });
 }
 
+/** @param {string} name @param {() => Promise<void>} assertion */
 async function checkAsync(name, assertion) {
   assert.equal(typeof name, "string");
   await assertion();

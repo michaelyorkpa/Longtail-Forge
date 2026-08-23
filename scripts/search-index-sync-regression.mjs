@@ -187,6 +187,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   assert.equal(removeSummary.completed, 1);
   assert.deepEqual(removedRows, []);
 
+  /** @type {string[]} */
   const loggedMessages = [];
   const missingContextResult = await searchIndexSyncService.reindexRecord({
     moduleId: "developer-example",
@@ -242,18 +243,21 @@ LIMIT 1;
 
 console.log(`Search index sync regression passed ${checks} checks.`);
 
+/** @param {string} name @param {() => void} assertion */
 function check(name, assertion) {
   assert.equal(typeof name, "string");
   assertion();
   checks += 1;
 }
 
+/** @param {string} name @param {() => Promise<void>} assertion */
 async function checkAsync(name, assertion) {
   assert.equal(typeof name, "string");
   await assertion();
   checks += 1;
 }
 
+/** @returns {string} */
 function readPublicJavascript() {
   return collectFiles("public/js")
     .filter((filePath) => filePath.endsWith(".js"))
@@ -261,6 +265,7 @@ function readPublicJavascript() {
     .join("\n");
 }
 
+/** @param {string} directory @returns {string[]} */
 function collectFiles(directory) {
   return readdirSync(directory)
     .flatMap((entry) => {

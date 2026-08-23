@@ -927,6 +927,12 @@ export interface SearchRecord {
   [key: string]: unknown;
 }
 
+/**
+ * What every registered search indexer can rely on receiving. Both producers
+ * publish at least this much: the rebuild path passes the workspace, the
+ * declaration, and the rebuild flag, and the single-record path passes the
+ * full canonical identity described by `SearchRecordIndexerReference`.
+ */
 export interface SearchReference {
   workspaceId: string;
   moduleId?: string;
@@ -937,6 +943,42 @@ export interface SearchReference {
   record?: unknown;
   searchService?: Record<string, unknown>;
 }
+
+/**
+ * The reference `reindexSearchRecord` hands an indexer for one record.
+ *
+ * It always spreads the normalized record reference, and normalization throws
+ * unless the workspace, module, record type, and record id all resolve, so the
+ * canonical camelCase identity, the derived search index id, and the
+ * snake_case persistence aliases are all present and non-empty here. They are
+ * optional on `SearchReference` because the rebuild producer legitimately
+ * publishes none of them; they are required here because this producer always
+ * does.
+ *
+ * Declared as a type alias rather than an interface on purpose: the normalized
+ * reference is also handed to `removeSearchDocument` and to the adapter's
+ * `removeDocument`, both of which accept an open record reference and normalize
+ * it themselves, and only an alias carries the implicit index signature that
+ * assignment needs. `reindexSearchRecord` passes this reference to a
+ * `SearchIndexer`, so the compiler proves at that call that the alias remains a
+ * superset of `SearchReference`.
+ */
+export type SearchRecordIndexerReference = {
+  workspaceId: string;
+  moduleId: string;
+  recordType: string;
+  recordId: string;
+  searchIndexId: string;
+  workspace_id: string;
+  module_id: string;
+  record_type: string;
+  record_id: string;
+  search_index_id: string;
+  declaration?: SearchableTypeContribution;
+  rebuild?: boolean;
+  record?: unknown;
+  searchService?: Record<string, unknown>;
+};
 
 export interface SearchResult {
   search_index_id: string;

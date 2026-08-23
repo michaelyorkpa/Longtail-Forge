@@ -4,6 +4,8 @@ import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 /** @typedef {import("../src/types/database-contracts.js").DatabaseRow} DatabaseRow */
+/** @typedef {import("../src/types/framework-contracts.js").SearchReference} SearchReference */
+/** @typedef {import("../src/types/framework-contracts.js").SearchRecordIndexerReference} SearchRecordIndexerReference */
 
 const fixture = await createDisposableDatabaseFixture("search-contract-regression");
 const { validateModuleManifest } = await import("../src/core/modules/manifest-contract.js");
@@ -722,11 +724,12 @@ WHERE search_index_id = ${sqlText(firstDocument.search_index_id)};
     assert.deepEqual(removedFtsRows, []);
   }
 
-  // The reference the framework hands a registered indexer enters as unknown:
-  // proving it is a record is what makes the canonical-identity assertion below
-  // mean something, because a reference that never arrived would otherwise read
-  // as five `undefined` values and fail with an unreadable diff.
-  /** @type {unknown} */
+  // The reference the framework hands a registered indexer is now a published
+  // contract, corrected at 0.33.33.32.19 after 0.33.33.32.18 measured it as
+  // narrower than its producer. It is still proven to have arrived before the
+  // canonical-identity assertion reads it, because a reference that never
+  // arrived would otherwise read as five `undefined` values.
+  /** @type {SearchReference | null} */
   let receivedSearchReference = null;
   const unregister = registerSearchIndexer("developer-example.records", async (reference) => {
     receivedSearchReference = reference;
@@ -757,7 +760,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   assert.equal(reindexResult.ok, true);
   assert.equal(reindexResult.operation, "reindex_one");
   assert.equal(reindexResult.indexedCount, 1);
-  const indexerReference = requireJsonRecord(receivedSearchReference, "the reference handed to the registered indexer");
+  const indexerReference = recordIndexerReference(receivedSearchReference);
   assert.deepEqual({
     searchIndexId: indexerReference.searchIndexId,
     workspaceId: indexerReference.workspaceId,
@@ -1301,6 +1304,43 @@ ORDER BY name;
 clearSearchIndexersForTests();
 
 console.log(`Search contract regression passed ${checks} checks.`);
+
+/**
+ * Narrow the reference a registered indexer received to the record-indexer
+ * contract.
+ *
+ * `SearchIndexer` promises only the base `SearchReference`, because the rebuild
+ * producer legitimately publishes nothing more than the workspace, the
+ * declaration, and the rebuild flag. This assertion is about the other
+ * producer: that `reindexSearchRecord` hands an indexer the full canonical
+ * identity. So every member the published record-indexer contract adds is
+ * proven present here rather than assumed, and the narrowing that follows rests
+ * on that proof.
+ * @param {SearchReference | null} reference
+ * @returns {SearchRecordIndexerReference}
+ */
+function recordIndexerReference(reference) {
+  assert.ok(reference, "the registered indexer should have received a search reference");
+  const record = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (reference));
+
+  for (const field of [
+    "searchIndexId",
+    "workspaceId",
+    "moduleId",
+    "recordType",
+    "recordId",
+    "search_index_id",
+    "workspace_id",
+    "module_id",
+    "record_type",
+    "record_id",
+  ]) {
+    assert.equal(typeof record[field], "string", `the single-record indexer reference should carry ${field}`);
+    assert.ok(record[field], `the single-record indexer reference should carry a non-empty ${field}`);
+  }
+
+  return /** @type {SearchRecordIndexerReference} */ (reference);
+}
 
 /**
  * Read the search_index row one module indexer wrote.

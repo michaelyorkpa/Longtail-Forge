@@ -57,8 +57,13 @@ await checkAsync("workspace rebuild indexes initial module records without dupli
   const helpCenterRow = rows.find((row) => row.module_id === "framework" && row.record_type === "help_article" && row.record_id === "framework.help-center");
   assert.ok(helpCenterRow, "framework Help Center search row should be indexed");
   assert.equal(helpCenterRow.source, "Help");
-  assert.match(helpCenterRow.body, /in-app product manual/);
-  assert.doesNotMatch(helpCenterRow.body, /^#\s/m);
+  // The indexed body is a database column, so it is proven to be text before
+  // the two regular-expression assertions that prove Help content is indexed
+  // as prose rather than raw Markdown.
+  const helpCenterBody = helpCenterRow.body;
+  assert.ok(typeof helpCenterBody === "string", "the indexed Help Center row should carry a text body");
+  assert.match(helpCenterBody, /in-app product manual/);
+  assert.doesNotMatch(helpCenterBody, /^#\s/m);
   for (const expectedType of [
     "client-projects:client",
     "client-projects:project",
@@ -392,6 +397,7 @@ VALUES (
 `);
 }
 
+/** @param {string} moduleId @param {string} recordType @param {string} recordId */
 async function insertStaleSearchRow(moduleId, recordType, recordId) {
   await runSql(`
 INSERT OR REPLACE INTO search_index (
@@ -444,12 +450,14 @@ ORDER BY module_id, record_type, record_id;
 `);
 }
 
+/** @param {string} name @param {() => void} assertion */
 function check(name, assertion) {
   assert.equal(typeof name, "string");
   assertion();
   checks += 1;
 }
 
+/** @param {string} name @param {() => Promise<void>} assertion */
 async function checkAsync(name, assertion) {
   assert.equal(typeof name, "string");
   await assertion();

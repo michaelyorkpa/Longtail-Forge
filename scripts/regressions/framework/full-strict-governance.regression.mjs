@@ -1019,6 +1019,37 @@ assert.ok(
     .includes("indexer should have written a search_index row"),
   "scripts/search-contract-regression.mjs should keep proving each module indexer wrote its row",
 );
+for (const searchIndexOwner of [
+  "scripts/search-adapter-rebuild-service-conversion-regression.mjs",
+  "scripts/search-fts-repair-regression.mjs",
+  "scripts/search-fts-seam-regression.mjs",
+  "scripts/search-index-sync-regression.mjs",
+  "scripts/search-lifecycle-regression.mjs",
+  "scripts/search-rebuild-regression.mjs",
+  "scripts/search-workflow-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[searchIndexOwner], undefined, `${searchIndexOwner} must stay strict-clean after checkpoint 0.33.33.32.19`);
+}
+// 0.33.33.32.19 corrected two search producers 0.33.33.32.18 measured as
+// narrower than what they publish. The record-indexer reference is now a
+// published contract rather than an undeclared shape, and the FTS statement's
+// parameter bag is annotated as the shared bound-parameter record that
+// buildSearchWhereClause mutates into it.
+assert.ok(
+  fs.readFileSync("src/types/framework-contracts.d.ts", "utf8")
+    .includes("export type SearchRecordIndexerReference = {"),
+  "framework contracts should keep publishing the record-indexer reference",
+);
+assert.ok(
+  fs.readFileSync("src/core/search/adapters/sqlite-search-adapter.js", "utf8")
+    .includes("/** @type {SearchParams} */\n  const params = {\n    ftsQuery,"),
+  "the SQLite FTS statement should keep declaring its shared bound-parameter record",
+);
+assert.ok(
+  fs.readFileSync("scripts/search-contract-regression.mjs", "utf8")
+    .includes("the single-record indexer reference should carry"),
+  "scripts/search-contract-regression.mjs should keep proving the record-indexer reference members",
+);
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().

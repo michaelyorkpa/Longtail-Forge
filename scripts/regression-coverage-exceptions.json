@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "maximumActiveScripts": 347,
-  "minimumAssertionCount": 19450,
+  "minimumAssertionCount": 19460,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,
@@ -5447,6 +5447,58 @@
       ],
       "verificationPerformed": [
         "node scripts/notifications-preferences-subscriptions-conversion-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.search.adapter.rebuild.service.conversion",
+      "retiredInVersion": "0.33.33.32.19",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.25 rather than a live contract: one required CHANGELOG prose recording that release of the search adapter and rebuild service, and one required that the completed 0.33.5.27.25 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The conversion contract is still proven in this same owner by its static source assertions over the SQLite search adapter and the rebuild service -- the db facade import, the absence of every literal SQL helper, and the bound operation counts -- and by the runtime probes, which seed canonical rows, run target and workspace rebuilds against them, and prove stale rows are removed through bound reads and stop being discoverable through the indexed LIKE fallback. The live audit inventory in docs/database-parameter-binding-audit.md still records both modules as converted, and that is a current documentation contract rather than planning history.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/search-adapter-rebuild-service-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.search.adapter.rebuild.service.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/search-adapter-rebuild-service-conversion-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.search.fts.seam",
+      "retiredInVersion": "0.33.33.32.19",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.6 rather than a live contract: one required CHANGELOG prose recording that release of the Search/FTS seam extraction, and one required that the completed 0.33.5.27.6 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The seam contract is still proven in this same owner by its static source assertions over src/db/adapters/sqlite-dialect-seams.js and src/core/search/adapters/sqlite-search-adapter.js -- the independent dialect contract version, dialect ownership of virtual-table creation, MATCH lowering, and rank lowering, the adapter delegating all three, and the absence of local LIKE escaping -- and by the runtime probes, which build both the FTS and the fallback statement and prove every bound parameter, then corrupt and repair the FTS storage and prove canonical rows stay discoverable. Those probes are now stronger than they were: the FTS statement's parameter bag is annotated as the shared bound-parameter record it actually is, so the workspace, target, scope, and tag parameters the where-clause builder binds into it are checked rather than missing from its inferred type. The live audit inventory and database documentation still record the seam extraction, and those are current documentation contracts rather than planning history.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/search-fts-seam-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.search.fts.seam",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/search-fts-seam-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"
