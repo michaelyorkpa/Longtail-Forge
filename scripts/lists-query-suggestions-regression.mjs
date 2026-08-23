@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} ListsQuerySession */
+/** @typedef {Awaited<ReturnType<typeof seedLists>>} ListsQueryFixtures */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-query-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-query.db");
@@ -30,6 +35,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {ListsQuerySession} session */
 async function seedLists(session) {
   await runSql(`
 UPDATE workspaces
@@ -90,7 +96,9 @@ WHERE workspace_id = ${sqlText(session.workspace_id)};
     item_name: "Checked item",
   }, session);
   const checkedItems = await listsService.read(neededFirst.list_id, session);
-  await listsService.checkItem(neededFirst.list_id, checkedItems.items.find((item) => item.item_name === "Checked item").list_item_id, session);
+  const itemToCheck = checkedItems.items.find((item) => item.item_name === "Checked item");
+  assert.ok(itemToCheck, "the seeded list should read back the item this fixture checks");
+  await listsService.checkItem(neededFirst.list_id, itemToCheck.list_item_id, session);
 
   const linkedTask = (await tasksService.create({
     title: "Linked Query Task",
@@ -132,6 +140,7 @@ WHERE list_id = ${sqlText(reusable.list_id)};
   };
 }
 
+/** @param {ListsQuerySession} session @param {ListsQueryFixtures} fixtures */
 async function assertCanonicalIndexQueries(session, fixtures) {
   const defaults = await listsService.list(session);
   assert.deepEqual(
@@ -192,6 +201,7 @@ async function assertCanonicalIndexQueries(session, fixtures) {
   );
 }
 
+/** @param {ListsQuerySession} session @param {ListsQueryFixtures} fixtures */
 async function assertCatalogSuggestionRanking(session, fixtures) {
   const shared = await listsService.createCatalogItem({
     item_name: "Canonical Bolt",
@@ -242,10 +252,12 @@ async function assertCatalogSuggestionRanking(session, fixtures) {
   }, session);
   const snapshotRead = await listsService.read(fixtures.active.list_id, session);
   const snapshotItem = snapshotRead.items.find((item) => item.list_item_id === catalogBackedItem.item.list_item_id);
+  assert.ok(snapshotItem, "the catalog-backed item should still read back after its catalog row was revised");
   assert.equal(snapshotItem.item_name, "Canonical Bolt Project");
   assert.equal(snapshotItem.quantity, 3);
 }
 
+/** @param {ListsQuerySession} session @param {ListsQueryFixtures} fixtures */
 async function assertPermissionFiltering(session, fixtures) {
   const unprivilegedSession = {
     ...session,
@@ -272,6 +284,7 @@ async function assertBrowserQueryContract() {
   assert.doesNotMatch(listsJs, /state\.lists\.filter\(\(list\)/);
 }
 
+/** @returns {Promise<ListsQuerySession>} */
 async function readSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, workspaces.workspace_id
@@ -282,12 +295,7 @@ ORDER BY users.user_id, workspaces.workspace_id
 LIMIT 1;
 `);
 
-  return {
-    timezone: "America/New_York",
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    workspace_id: rows[0].workspace_id,
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "the protected user and workspace cross join"));
 }
 
 async function assertIntegrity() {

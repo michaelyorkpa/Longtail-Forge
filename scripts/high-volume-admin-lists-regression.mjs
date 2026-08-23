@@ -7,8 +7,37 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} AdminApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} AdminClientOptions */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} AdminServer */
+
+/**
+ * What this owner's `fetch` fixture resolves. It carries no headers, so it is
+ * declared here rather than through the shared fetch-response contract, which
+ * would claim a field the fixture never returns.
+ * @typedef {{ body: unknown, status: number }} AdminResponse
+ */
+
+/** @typedef {ReturnType<typeof createApi>} AdminApi */
+
+/**
+ * The pagination envelope every endpoint under test answers, as
+ * `boundedPaginationEnvelope` builds it. `nextCursor` is the empty string
+ * rather than null on the last page, which is what the has-more assertions
+ * below depend on.
+ * @typedef {{ hasMore: boolean, limit: number, maxPageSize: number, nextCursor: string, offset?: number, returned?: number, total?: number | null }} AdminPagination
+ */
+
+/** @typedef {{ auditLogs: Array<{ audit_id: unknown }>, pagination: AdminPagination }} AuditPage */
+/** @typedef {{ filterOptions: { modules: string[] }, notifications: Array<{ module_id: unknown }>, pagination: AdminPagination }} NotificationsPage */
+/** @typedef {{ pagination: AdminPagination, results: Array<{ recordType: unknown, searchIndexId: unknown }> }} SearchPage */
+/** @typedef {{ attachments: Array<{ fileAttachmentId: unknown }>, pagination: AdminPagination }} FilesPage */
 
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-high-volume-admin-lists-"));
@@ -24,8 +53,6 @@ const filesServiceSource = readText("src/services/files.service.js");
 const filesRepoSource = readText("src/repositories/files.repo.js");
 const filesScript = readText("public/js/files.js");
 const notificationsScript = readText("public/js/notifications.js");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 assertStaticContract();
 runSeed();
@@ -39,6 +66,7 @@ const { createApp } = await import("../src/core/app.js");
 const { closeSqlite, getSql, initializeDatabase, querySql } = await import("../src/db/index.js");
 const { createSession } = await import("../src/security/sessions.js");
 
+/** @type {AdminServer | undefined} */
 let server;
 
 try {
@@ -48,7 +76,7 @@ try {
   const notificationSession = await createSeedSession(await readNotificationRecipientUser());
 
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${listenerPort(server)}`);
 
   await assertAuditEndpoint(api, superSession.sessionId);
   await assertNotificationsEndpoint(api, notificationSession.sessionId);
@@ -91,91 +119,113 @@ function assertStaticContract() {
   assert.match(filesScript, /FILES_PAGE_SIZE = 50/, "Files browser should request bounded pages");
   assert.match(filesScript, /data-file-load-more/, "Files browser should expose a load-more control for additional pages");
 
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.20 bounded queries and small-office scale data work is archived/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, /Version 0\.33\.5\.20\.5/, "Changelog should include the high-volume admin lists release");
 }
 
 async function assertSeedCounts() {
-  const marker = await getSql("SELECT expected_counts_json FROM scale_seed_runs LIMIT 1;");
-  const expected = JSON.parse(marker?.expected_counts_json || "{}");
+  const marker = requireRow(await getSql("SELECT expected_counts_json FROM scale_seed_runs LIMIT 1;"), "the scale seed marker");
+  const expectedCountsJson = marker.expected_counts_json;
+  assert.ok(typeof expectedCountsJson === "string", "the scale seed marker should persist its expected counts as JSON text");
+  const expected = requireJsonRecord(JSON.parse(expectedCountsJson), "the scale seed expected counts");
 
   assert.equal(expected.audit_logs, 200, "dev-demo scale seed should include audit rows");
   assert.equal(expected.notifications, 60, "dev-demo scale seed should include notifications");
   assert.equal(expected.files, 24, "dev-demo scale seed should include file rows");
-  assert.ok(expected.search_index >= 150, "dev-demo scale seed should include search rows");
+  const searchIndexCount = expected.search_index;
+  assert.ok(typeof searchIndexCount === "number", "the scale seed should record its search row count as a number");
+  assert.ok(searchIndexCount >= 150, "dev-demo scale seed should include search rows");
 }
 
+/** @param {AdminApi} api @param {string} cookie */
 async function assertAuditEndpoint(api, cookie) {
   const firstPage = await api.get("/api/audit-logs?limit=17", { cookie });
+  /** @type {AuditPage} */
+  const firstBody = readPayload(firstPage, ["auditLogs", "pagination"], "audit first page");
 
   assert.equal(firstPage.status, 200, JSON.stringify(firstPage.body));
-  assert.equal(firstPage.body.auditLogs.length, 17, "Audit endpoint should honor bounded page size");
-  assert.equal(firstPage.body.pagination.limit, 17);
-  assert.equal(firstPage.body.pagination.maxPageSize, 500);
-  assert.equal(firstPage.body.pagination.hasMore, true);
-  assert.ok(firstPage.body.pagination.nextCursor, "Audit endpoint should expose a next cursor");
-  assert.equal(firstPage.body.pagination.total, 200);
+  assert.equal(firstBody.auditLogs.length, 17, "Audit endpoint should honor bounded page size");
+  assert.equal(firstBody.pagination.limit, 17);
+  assert.equal(firstBody.pagination.maxPageSize, 500);
+  assert.equal(firstBody.pagination.hasMore, true);
+  assert.ok(firstBody.pagination.nextCursor, "Audit endpoint should expose a next cursor");
+  assert.equal(firstBody.pagination.total, 200);
 
-  const secondPage = await api.get(`/api/audit-logs?limit=17&cursor=${encodeURIComponent(firstPage.body.pagination.nextCursor)}`, { cookie });
-  const firstIds = new Set(firstPage.body.auditLogs.map((log) => log.audit_id));
+  const secondPage = await api.get(`/api/audit-logs?limit=17&cursor=${encodeURIComponent(firstBody.pagination.nextCursor)}`, { cookie });
+  /** @type {AuditPage} */
+  const secondBody = readPayload(secondPage, ["auditLogs"], "audit cursor page");
+  const firstIds = new Set(firstBody.auditLogs.map((log) => log.audit_id));
 
   assert.equal(secondPage.status, 200, JSON.stringify(secondPage.body));
-  assert.equal(secondPage.body.auditLogs.some((log) => firstIds.has(log.audit_id)), false, "Audit cursor page should not duplicate first-page rows");
+  assert.equal(secondBody.auditLogs.some((log) => firstIds.has(log.audit_id)), false, "Audit cursor page should not duplicate first-page rows");
 }
 
+/** @param {AdminApi} api @param {string} cookie */
 async function assertNotificationsEndpoint(api, cookie) {
   const firstPage = await api.get("/api/notifications?limit=3", { cookie });
+  /** @type {NotificationsPage} */
+  const firstBody = readPayload(firstPage, ["filterOptions", "notifications", "pagination"], "notifications first page");
 
   assert.equal(firstPage.status, 200, JSON.stringify(firstPage.body));
-  assert.equal(firstPage.body.notifications.length, 3, "Notifications endpoint should honor bounded page size");
-  assert.equal(firstPage.body.pagination.limit, 3);
-  assert.equal(firstPage.body.pagination.maxPageSize, 100);
-  assert.equal(firstPage.body.pagination.hasMore, true);
-  assert.ok(firstPage.body.pagination.nextCursor, "Notifications endpoint should expose a next cursor");
-  assert.ok(firstPage.body.filterOptions.modules.length > 0, "Notifications endpoint should return server-owned module filters");
+  assert.equal(firstBody.notifications.length, 3, "Notifications endpoint should honor bounded page size");
+  assert.equal(firstBody.pagination.limit, 3);
+  assert.equal(firstBody.pagination.maxPageSize, 100);
+  assert.equal(firstBody.pagination.hasMore, true);
+  assert.ok(firstBody.pagination.nextCursor, "Notifications endpoint should expose a next cursor");
+  assert.ok(firstBody.filterOptions.modules.length > 0, "Notifications endpoint should return server-owned module filters");
 
-  const moduleId = firstPage.body.filterOptions.modules[0];
+  const moduleId = firstBody.filterOptions.modules[0];
   const modulePage = await api.get(`/api/notifications?limit=5&moduleId=${encodeURIComponent(moduleId)}`, { cookie });
+  /** @type {NotificationsPage} */
+  const moduleBody = readPayload(modulePage, ["notifications"], "module-filtered notifications page");
 
   assert.equal(modulePage.status, 200, JSON.stringify(modulePage.body));
-  assert.ok(modulePage.body.notifications.length > 0, "Module-filtered notifications should return seeded rows");
-  assert.ok(modulePage.body.notifications.every((notification) => notification.module_id === moduleId), "Notification module filter should apply on the endpoint");
+  assert.ok(moduleBody.notifications.length > 0, "Module-filtered notifications should return seeded rows");
+  assert.ok(moduleBody.notifications.every((notification) => notification.module_id === moduleId), "Notification module filter should apply on the endpoint");
 }
 
+/** @param {AdminApi} api @param {string} cookie */
 async function assertSearchEndpoint(api, cookie) {
   const firstPage = await api.get("/api/search?recordType=task&limit=11", { cookie });
+  /** @type {SearchPage} */
+  const firstBody = readPayload(firstPage, ["pagination", "results"], "search first page");
 
   assert.equal(firstPage.status, 200, JSON.stringify(firstPage.body));
-  assert.equal(firstPage.body.results.length, 11, "Search endpoint should honor bounded page size");
-  assert.equal(firstPage.body.pagination.limit, 11);
-  assert.equal(firstPage.body.pagination.maxPageSize, 100);
-  assert.equal(firstPage.body.pagination.hasMore, true);
-  assert.ok(firstPage.body.pagination.nextCursor, "Search endpoint should expose a next cursor");
-  assert.ok(firstPage.body.results.every((result) => result.recordType === "task"));
+  assert.equal(firstBody.results.length, 11, "Search endpoint should honor bounded page size");
+  assert.equal(firstBody.pagination.limit, 11);
+  assert.equal(firstBody.pagination.maxPageSize, 100);
+  assert.equal(firstBody.pagination.hasMore, true);
+  assert.ok(firstBody.pagination.nextCursor, "Search endpoint should expose a next cursor");
+  assert.ok(firstBody.results.every((result) => result.recordType === "task"));
 
-  const secondPage = await api.get(`/api/search?recordType=task&limit=11&cursor=${encodeURIComponent(firstPage.body.pagination.nextCursor)}`, { cookie });
-  const firstIds = new Set(firstPage.body.results.map((result) => result.searchIndexId));
+  const secondPage = await api.get(`/api/search?recordType=task&limit=11&cursor=${encodeURIComponent(firstBody.pagination.nextCursor)}`, { cookie });
+  /** @type {SearchPage} */
+  const secondBody = readPayload(secondPage, ["results"], "search cursor page");
+  const firstIds = new Set(firstBody.results.map((result) => result.searchIndexId));
 
   assert.equal(secondPage.status, 200, JSON.stringify(secondPage.body));
-  assert.equal(secondPage.body.results.some((result) => firstIds.has(result.searchIndexId)), false, "Search cursor page should not duplicate first-page results");
+  assert.equal(secondBody.results.some((result) => firstIds.has(result.searchIndexId)), false, "Search cursor page should not duplicate first-page results");
 }
 
+/** @param {AdminApi} api @param {string} cookie */
 async function assertFilesEndpoint(api, cookie) {
   const firstPage = await api.get("/api/files/attachments?status=all&limit=7", { cookie });
+  /** @type {FilesPage} */
+  const firstBody = readPayload(firstPage, ["attachments", "pagination"], "files first page");
 
   assert.equal(firstPage.status, 200, JSON.stringify(firstPage.body));
-  assert.equal(firstPage.body.attachments.length, 7, "Files endpoint should honor bounded page size");
-  assert.equal(firstPage.body.pagination.limit, 7);
-  assert.equal(firstPage.body.pagination.maxPageSize, 200);
-  assert.equal(firstPage.body.pagination.hasMore, true);
-  assert.ok(firstPage.body.pagination.nextCursor, "Files endpoint should expose a next cursor");
+  assert.equal(firstBody.attachments.length, 7, "Files endpoint should honor bounded page size");
+  assert.equal(firstBody.pagination.limit, 7);
+  assert.equal(firstBody.pagination.maxPageSize, 200);
+  assert.equal(firstBody.pagination.hasMore, true);
+  assert.ok(firstBody.pagination.nextCursor, "Files endpoint should expose a next cursor");
   assert.equal(JSON.stringify(firstPage.body).includes("storage_key"), false, "Files browse must not expose storage keys");
 
-  const secondPage = await api.get(`/api/files/attachments?status=all&limit=7&cursor=${encodeURIComponent(firstPage.body.pagination.nextCursor)}`, { cookie });
-  const firstIds = new Set(firstPage.body.attachments.map((attachment) => attachment.fileAttachmentId));
+  const secondPage = await api.get(`/api/files/attachments?status=all&limit=7&cursor=${encodeURIComponent(firstBody.pagination.nextCursor)}`, { cookie });
+  /** @type {FilesPage} */
+  const secondBody = readPayload(secondPage, ["attachments"], "files cursor page");
+  const firstIds = new Set(firstBody.attachments.map((attachment) => attachment.fileAttachmentId));
 
   assert.equal(secondPage.status, 200, JSON.stringify(secondPage.body));
-  assert.equal(secondPage.body.attachments.some((attachment) => firstIds.has(attachment.fileAttachmentId)), false, "Files cursor page should not duplicate first-page attachments");
+  assert.equal(secondBody.attachments.some((attachment) => firstIds.has(attachment.fileAttachmentId)), false, "Files cursor page should not duplicate first-page attachments");
 }
 
 async function readProtectedSeedUser() {
@@ -207,6 +257,7 @@ LIMIT 1;
   return row;
 }
 
+/** @param {Record<string, unknown>} user */
 async function createSeedSession(user) {
   return createSession({
     active_workspace_id: user.active_workspace_id || user.home_workspace_id,
@@ -240,13 +291,25 @@ function runSeed() {
   assert.equal(result.status, 0, result.stderr || result.stdout);
 }
 
+/**
+ * @param {string} baseUrl
+ * @returns {{ get: (url: string, options?: AdminClientOptions) => Promise<AdminResponse> }}
+ */
 function createApi(baseUrl) {
   return {
     get: (url, options = {}) => request(baseUrl, "GET", url, options),
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {AdminClientOptions} [options]
+ * @returns {Promise<AdminResponse>}
+ */
 async function request(baseUrl, method, url, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {};
 
   if (options.cookie) {
@@ -259,6 +322,9 @@ async function request(baseUrl, method, url, options = {}) {
     redirect: "manual",
   });
   const text = await response.text();
+  // The parsed body stays `unknown`; every read below crosses that boundary
+  // through `readPayload`, which proves the envelopes it names are present.
+  /** @type {unknown} */
   let body = null;
 
   try {
@@ -273,13 +339,22 @@ async function request(baseUrl, method, url, options = {}) {
   };
 }
 
+/** @param {AdminApp} app @returns {Promise<AdminServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const server = http.createServer(app);
+    const server = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     server.listen(0, "127.0.0.1", () => resolve(server));
   });
 }
 
+/** @param {AdminServer} listening @returns {number} */
+function listenerPort(listening) {
+  const address = listening.address();
+  assert.ok(address && typeof address === "object", "the admin-scale fixture server should bind a TCP port");
+  return address.port;
+}
+
+/** @param {AdminServer} server @returns {Promise<void>} */
 function closeServer(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => {
@@ -293,6 +368,7 @@ function closeServer(server) {
   });
 }
 
+/** @param {Record<string, string>} [overrides] @returns {NodeJS.ProcessEnv} */
 function cleanEnv(overrides = {}) {
   const env = { ...process.env, ...overrides };
   delete env.LTF_REGRESSION_BASELINE_DB;

@@ -5,6 +5,11 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { appVersion } from "../src/core/version.js";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/help-static-contracts.js").HelpArticle} HelpArticle */
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} CloseoutSession */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-closeout-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-closeout.db");
@@ -45,9 +50,16 @@ try {
 
 async function assertManifestAndHelp() {
   const listsModule = modulesService.getModule("lists");
-  const articleIds = new Set(listsModule.help.articles.map((article) => article.id));
-  const articleBodies = await Promise.all(listsModule.help.articles.map(async (article) => {
-    const body = article.body || await fs.readFile(path.join("help", ...article.contentPath.split("/")), "utf8");
+  assert.ok(listsModule, "the Lists module should be registered");
+  assert.ok(listsModule.help, "the Lists manifest should contribute Help");
+  assert.ok(listsModule.help.articles, "the Lists Help contribution should carry articles");
+  assert.ok(listsModule.help.sections, "the Lists Help contribution should carry sections");
+  const articles = listsModule.help.articles.map(helpArticle);
+  const articleIds = new Set(articles.map((article) => article.id));
+  const articleBodies = await Promise.all(articles.map(async (article) => {
+    const body = typeof article.body === "string" && article.body
+      ? article.body
+      : await fs.readFile(path.join("help", ...contentPathOf(article).split("/")), "utf8");
     return `${article.title}\n${article.summary}\n${body}`;
   }));
   const articleText = articleBodies.join("\n");
@@ -85,6 +97,31 @@ async function assertManifestAndHelp() {
   assert.doesNotMatch(articleText, /inventory management|ERP software/i, "Help should describe Lists boundaries without positioning Lists as inventory or ERP");
 }
 
+/**
+ * Narrow one contributed Help article.
+ *
+ * The framework publishes module Help contributions as open records because a
+ * module may contribute any shape and the manifest contract is what validates
+ * it, so this owner proves the fields it reads instead of tightening that
+ * boundary. An article contributed without an id or a title would otherwise
+ * reach the declared-article assertions below as `undefined` and simply fail
+ * the membership check without naming what was wrong.
+ * @param {Record<string, unknown>} article
+ * @returns {HelpArticle}
+ */
+function helpArticle(article) {
+  assert.ok(typeof article.id === "string" && article.id, "each contributed Lists Help article should declare an id");
+  assert.ok(typeof article.title === "string" && article.title, `Lists Help article ${article.id} should declare a title`);
+  return /** @type {HelpArticle} */ (/** @type {unknown} */ (article));
+}
+
+/** @param {HelpArticle} article @returns {string} */
+function contentPathOf(article) {
+  assert.ok(article.contentPath, `Lists Help article ${article.id} should declare a content path when it carries no inline body`);
+  return article.contentPath;
+}
+
+/** @param {CloseoutSession} session */
 async function assertHelpDiscoveryAndSearch(session) {
   const help = await helpService.list(session);
   const listsArticles = help.articles.filter((article) => article.moduleId === "lists");
@@ -155,6 +192,7 @@ async function assertFrameworkBoundaries() {
   assert.doesNotMatch(`${service}\n${repository}\n${routes}`, /INSERT\s+INTO\s+file_attachments|UPDATE\s+file_attachments|DELETE\s+FROM\s+file_attachments|INSERT\s+INTO\s+files|UPDATE\s+files|DELETE\s+FROM\s+files/i);
 }
 
+/** @param {CloseoutSession} session */
 async function assertBusinessUseCases(session) {
   const { clientId, projectId } = await seedClientProject(session.workspace_id);
   const procurement = await listsService.create({
@@ -211,6 +249,7 @@ async function assertBusinessUseCases(session) {
   assert.equal(duplicatedBom.list.sourceContext.duplicatedFrom.status, "finalized");
 }
 
+/** @param {CloseoutSession} session */
 async function assertFamilyUseCases(session) {
   const grocery = await listsService.create({
     title: "Closeout Grocery List",
@@ -240,6 +279,7 @@ async function assertFamilyUseCases(session) {
   );
 }
 
+/** @param {CloseoutSession} session */
 async function assertResumeSafeState(session) {
   const list = await listsService.create({
     title: "Closeout Resume List",
@@ -269,14 +309,14 @@ async function assertResumeSafeState(session) {
   );
 }
 
+/** @returns {Promise<CloseoutSession>} */
 async function seedBusinessSession() {
-  const workspace = (await querySql(`
+  const workspace = requireFirstRow(await querySql(`
 SELECT workspace_id
 FROM workspaces
 ORDER BY created_at
 LIMIT 1;
-`))[0];
-  assert.ok(workspace?.workspace_id, "default workspace should exist");
+`), "the default workspace");
 
   await runSql(`
 UPDATE workspaces
@@ -285,16 +325,15 @@ WHERE workspace_id = ${sqlText(workspace.workspace_id)};
 `);
 
   const user = await readProtectedUser();
-  return {
+  return workspaceSessionFixture({
+    ...user,
     active_workspace_id: workspace.workspace_id,
     home_workspace_id: workspace.workspace_id,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
     workspace_id: workspace.workspace_id,
-  };
+  });
 }
 
+/** @returns {Promise<CloseoutSession>} */
 async function seedFamilySession() {
   const workspaceId = randomUUID();
   const user = await readProtectedUser();
@@ -371,16 +410,15 @@ INSERT INTO user_role_assignments (
 
   await modulesService.syncModuleRegistry(workspaceId);
 
-  return {
+  return workspaceSessionFixture({
+    ...user,
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
     workspace_id: workspaceId,
-  };
+  });
 }
 
+/** @param {string} workspaceId */
 async function seedClientProject(workspaceId) {
   const now = "2026-06-11T00:00:00.000Z";
   const clientId = randomUUID();
@@ -476,15 +514,15 @@ INSERT INTO projects (
 }
 
 async function readProtectedUser() {
-  const user = (await querySql(`
+  const user = requireFirstRow(await querySql(`
 SELECT user_id, username, timezone
 FROM users
 WHERE protected_user = 'yes'
 ORDER BY rowid
 LIMIT 1;
-`))[0];
+`), "the protected user fixture");
 
-  assert.ok(user?.user_id, "protected user fixture is required");
+  assert.ok(user.user_id, "protected user fixture is required");
   return user;
 }
 
