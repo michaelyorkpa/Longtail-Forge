@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18691,
+    "activeAssertionCount": 18706,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19435,
+    "effectiveAssertionCount": 19450,
     "retiredAssertionCredit": 75,
     "vitest": [
       {
@@ -4456,11 +4456,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 169,
+      "assertionCount": 172,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 169,
+      "entryPointAssertionCount": 172,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -7019,11 +7019,11 @@
     },
     {
       "area": "search",
-      "assertionCount": 70,
+      "assertionCount": 76,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy search api contract.",
-      "entryPointAssertionCount": 70,
+      "entryPointAssertionCount": 76,
       "id": "legacy.search.api",
       "legacy": true,
       "path": "scripts/search-api-regression.mjs",
@@ -7036,11 +7036,11 @@
     },
     {
       "area": "search",
-      "assertionCount": 185,
+      "assertionCount": 191,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy search contract contract.",
-      "entryPointAssertionCount": 185,
+      "entryPointAssertionCount": 191,
       "id": "legacy.search.contract",
       "legacy": true,
       "path": "scripts/search-contract-regression.mjs",

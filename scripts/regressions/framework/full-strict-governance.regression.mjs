@@ -999,6 +999,26 @@ assert.ok(
     .includes("creating the first tag should read the persisted record back"),
   "scripts/tags-repository-conversion-regression.mjs should keep proving its tag writes read back",
 );
+for (const searchOwner of [
+  "scripts/search-api-regression.mjs",
+  "scripts/search-contract-regression.mjs",
+  "scripts/search-shell-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[searchOwner], undefined, `${searchOwner} must stay strict-clean after checkpoint 0.33.33.32.18`);
+}
+// The Search API owner reads every response body through the shared payload
+// helper, and the canonical description proves each indexed record type was
+// written before comparing its columns.
+assert.ok(
+  fs.readFileSync("scripts/search-api-regression.mjs", "utf8")
+    .includes('readPayload(response, ["backend", "pagination", "query", "results"]'),
+  "scripts/search-api-regression.mjs should keep narrowing its response bodies through the shared payload helper",
+);
+assert.ok(
+  fs.readFileSync("scripts/search-contract-regression.mjs", "utf8")
+    .includes("indexer should have written a search_index row"),
+  "scripts/search-contract-regression.mjs should keep proving each module indexer wrote its row",
+);
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().

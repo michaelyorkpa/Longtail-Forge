@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 975,
+      "errorCount": 849,
       "diagnostics": {
         "scripts/app-shell-navigation-regression.mjs": [
           {
@@ -3708,46 +3708,6 @@
             "count": 5
           }
         ],
-        "scripts/search-api-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 48
-          }
-        ],
-        "scripts/search-contract-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 2
-          },
-          {
-            "code": 2322,
-            "count": 6
-          },
-          {
-            "code": 2339,
-            "count": 22
-          },
-          {
-            "code": 2345,
-            "count": 8
-          },
-          {
-            "code": 2532,
-            "count": 21
-          },
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
         "scripts/search-fts-repair-regression.mjs": [
           {
             "code": 7006,
@@ -3812,16 +3772,6 @@
           {
             "code": 7006,
             "count": 7
-          }
-        ],
-        "scripts/search-shell-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 10
-          },
-          {
-            "code": 7006,
-            "count": 2
           }
         ],
         "scripts/search-workflow-regression.mjs": [
@@ -3933,7 +3883,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 12109,
+    "errors": 11983,
     "explicitAny": 3
   },
   "explicitAnyByFile": {
