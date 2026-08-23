@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "maximumActiveScripts": 347,
-  "minimumAssertionCount": 19326,
+  "minimumAssertionCount": 19328,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,
@@ -5167,6 +5167,30 @@
       ],
       "verificationPerformed": [
         "node scripts/job-retention-pruning-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.notes.external.markdown.links.preference",
+      "retiredInVersion": "0.33.33.32.13",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required that a 0.33.5.21 durable-jobs completed-work breadcrumb stay absent from the live roadmap. The live cursor is 0.33.33, so an archived section can never re-enter and the assertion can never fail. This owner was a planning-document reader rather than a historical content pinner: it asserted on ROADMAP.md only, never on ROADMAP-ARCHIVE.md or CHANGELOG.md content.",
+      "assertionDisposition": "No behavior lost coverage. The external-link preference contract is proven in this same owner by its migration and column assertions, its settings save and read round trip, its persisted-column check, and its user-agnostic server-render assertion, none of which touch a planning document. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/notes-external-markdown-links-preference-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.notes.external.markdown.links.preference",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/notes-external-markdown-links-preference-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"

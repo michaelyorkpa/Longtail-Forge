@@ -74,7 +74,6 @@
     "legacy.lists.catalog.links.repository.conversion",
     "legacy.lists.records.items.repository.conversion",
     "legacy.migration.compatibility",
-    "legacy.notes.external.markdown.links.preference",
     "legacy.parameter.binding.conversion.wave",
     "legacy.parameter.binding.layer",
     "legacy.runtime.configuration.contract",

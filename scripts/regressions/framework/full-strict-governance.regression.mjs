@@ -899,6 +899,15 @@ for (const secureCatalogOwner of [
 ]) {
   assert.equal(ledger.programs.scripts.diagnostics[secureCatalogOwner], undefined, `${secureCatalogOwner} must stay strict-clean after checkpoint 0.33.33.32.12`);
 }
+for (const notesEditorOwner of [
+  "scripts/notes-external-markdown-links-preference-regression.mjs",
+  "scripts/notes-markdown-revision-regression.mjs",
+  "scripts/notes-markdown-soft-break-regression.mjs",
+  "scripts/notes-preview-editor-regression.mjs",
+  "scripts/notes-ui-workflow-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[notesEditorOwner], undefined, `${notesEditorOwner} must stay strict-clean after checkpoint 0.33.33.32.13`);
+}
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().
