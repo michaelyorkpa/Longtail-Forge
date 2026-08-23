@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-linked-panel-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-linked-panel.db");
@@ -18,9 +20,9 @@ const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await imp
 try {
   await assertTaskNotesPanelSourceContract();
   await initializeDatabase();
-  const workspace = await readWorkspace();
-  const adminSession = await readProtectedSession(workspace.workspace_id);
-  const limitedSession = await createClientUserSession(workspace.workspace_id);
+  const workspaceId = await readWorkspace();
+  const adminSession = await readProtectedSession(workspaceId);
+  const limitedSession = await createClientUserSession(workspaceId);
 
   await assertLinkedPanelReadModel(adminSession);
   await assertLinkedPanelAccessBeforeShaping(adminSession, limitedSession);
@@ -64,6 +66,9 @@ async function assertTaskNotesPanelSourceContract() {
   assert.match(notesScript, /libraryInput\.value = "active_work"/);
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
+
+/** @param {NotesSession} session */
 async function assertLinkedPanelReadModel(session) {
   const beta = await notesService.create({
     title: "Beta panel note",
@@ -126,6 +131,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     target_id: session.user_id,
   });
   assert.equal(empty.count, 0);
+  assert.ok(empty.emptyState, "an empty linked panel should publish its empty state");
   assert.equal(empty.emptyState.title, "No linked notes yet.");
 
   await runSql(`
@@ -153,6 +159,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 `);
 }
 
+/** @param {NotesSession} adminSession @param {NotesSession} limitedSession */
 async function assertLinkedPanelAccessBeforeShaping(adminSession, limitedSession) {
   const privateNote = await notesService.create({
     title: "Hidden private panel note",
@@ -179,6 +186,7 @@ async function assertLinkedPanelAccessBeforeShaping(adminSession, limitedSession
   assert.equal(JSON.stringify(limitedPanel).includes("Hidden secure panel note"), false, "secure note labels should not leak through panel payloads");
 }
 
+/** @param {NotesSession} adminSession @param {NotesSession} limitedSession */
 async function assertCollectionDefaultsAndCounts(adminSession, limitedSession) {
   const parent = await notesService.createCollection({
     libraryBucket: NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
@@ -227,6 +235,7 @@ async function assertCollectionDefaultsAndCounts(adminSession, limitedSession) {
   assert.equal(JSON.stringify(tree).includes(String(visible.note.title)), false, "collection trees should expose counts, not note labels");
 }
 
+/** @param {NotesSession} adminSession */
 async function assertResumeContextHook(adminSession) {
   const project = await createProjectFixture(adminSession.workspace_id);
   const linkedActive = await notesService.create({
@@ -294,6 +303,7 @@ WHERE workspace_id = ${sqlText(adminSession.workspace_id)}
   assert.equal(serialized.includes("body_markdown"), false);
 }
 
+/** @returns {Promise<string>} */
 async function readWorkspace() {
   const rows = await querySql(`
 SELECT workspace_id
@@ -302,10 +312,12 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  const workspaceId = requireFirstRow(rows, "workspace should exist").workspace_id;
+  assert.ok(typeof workspaceId === "string" && workspaceId, "the seeded workspace should carry an id");
+  return workspaceId;
 }
 
+/** @param {string} workspaceId */
 async function createProjectFixture(workspaceId) {
   const suffix = randomUUID().slice(0, 8);
   const clientId = `resume-client-${suffix}`;
@@ -327,6 +339,7 @@ async function createProjectFixture(workspaceId) {
   return { id: projectId, clientId };
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -336,17 +349,14 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
-    workspace_id: workspaceId,
+  return workspaceSessionFixture({
+    ...requireFirstRow(rows, "protected user should exist"),
     active_workspace_id: workspaceId,
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-  };
+    workspace_id: workspaceId,
+  });
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function createClientUserSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -424,12 +434,11 @@ VALUES (
 );
 `);
 
-  return {
-    workspace_id: workspaceId,
+  return workspaceSessionFixture({
     active_workspace_id: workspaceId,
+    display_name: "Limited Linked Panel User",
     user_id: userId,
     username: `limited-linked-panel-${userId}@example.test`,
-    display_name: "Limited Linked Panel User",
-    timezone: "America/New_York",
-  };
+    workspace_id: workspaceId,
+  });
 }

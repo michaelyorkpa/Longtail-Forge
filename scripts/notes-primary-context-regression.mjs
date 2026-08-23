@@ -3,6 +3,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-primary-context-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-primary-context.db");
@@ -79,6 +81,9 @@ async function assertBrowserPrimaryContextContract() {
   assert.match(notesCss, /\.notes-primary-context\s*\{[\s\S]*border-top:\s*1px solid var\(--color-border-subtle\);/);
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
+
+/** @param {NotesSession} session @param {{ workspace_id: string, workspace_name: string }} workspace */
 async function assertBusinessPrimaryContextTargets(session, workspace) {
   await setWorkspaceType(session.workspace_id, "business");
   const suffix = randomUUID().slice(0, 8);
@@ -157,6 +162,7 @@ async function assertBusinessPrimaryContextTargets(session, workspace) {
   assert.equal(updated.note.project_id || "", "");
 }
 
+/** @param {NotesSession} session */
 async function assertFamilyPrimaryContextTargets(session) {
   await setWorkspaceType(session.workspace_id, "family");
   const suffix = randomUUID().slice(0, 8);
@@ -192,6 +198,7 @@ async function assertIntegrity() {
   assert.equal(result[0]?.integrity_check, "ok");
 }
 
+/** @param {string} workspaceId @param {string} workspaceType */
 async function setWorkspaceType(workspaceId, workspaceType) {
   await runSql(`
 UPDATE workspaces
@@ -200,12 +207,16 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
+/** @returns {Promise<{ workspace_id: string, workspace_name: string }>} */
 async function readWorkspace() {
   const rows = await querySql("SELECT workspace_id, name AS workspace_name FROM workspaces ORDER BY rowid LIMIT 1;");
-  assert.ok(rows[0]?.workspace_id, "workspace fixture is required");
-  return rows[0];
+  const row = requireFirstRow(rows, "workspace fixture is required");
+  assert.ok(typeof row.workspace_id === "string" && row.workspace_id, "the seeded workspace should carry an id");
+  assert.ok(typeof row.workspace_name === "string", "the seeded workspace should carry a name");
+  return { workspace_id: row.workspace_id, workspace_name: row.workspace_name };
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -214,13 +225,10 @@ WHERE protected_user = 'yes'
 ORDER BY rowid
 LIMIT 1;
 `);
-  const user = rows[0];
-  assert.ok(user?.user_id, "protected user fixture is required");
-  return {
+  const user = requireFirstRow(rows, "protected user fixture is required");
+  return workspaceSessionFixture({
+    ...user,
     display_name: user.display_name || user.username,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
     workspace_id: workspaceId,
-  };
+  });
 }

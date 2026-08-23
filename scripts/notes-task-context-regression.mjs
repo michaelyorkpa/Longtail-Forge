@@ -3,6 +3,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-task-context-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-task-context.db");
@@ -16,8 +18,8 @@ const { closeSqlite, initializeDatabase, querySql } = await import("../src/db/in
 
 try {
   await initializeDatabase();
-  const workspace = await readWorkspace();
-  const session = await readProtectedSession(workspace.workspace_id);
+  const workspaceId = await readWorkspace();
+  const session = await readProtectedSession(workspaceId);
 
   await assertStaticTaskContextContract();
   await assertTaskCreatedNoteContext(session);
@@ -43,6 +45,11 @@ async function assertStaticTaskContextContract() {
   assert.match(notesServiceSource, /links\.push\(\{\s*module_id: "tasks",\s*target_type: "task",\s*target_id: taskId,\s*\}\)/);
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
+/** @typedef {import("../src/types/notes-domain-contracts.js").NotesServiceDecoratedLink} NoteLink */
+/** @typedef {Awaited<ReturnType<typeof createTaskContextFixtures>>} TaskContextFixtures */
+
+/** @param {NotesSession} session */
 async function assertTaskCreatedNoteContext(session) {
   const fixtures = await createTaskContextFixtures(session);
 
@@ -113,6 +120,7 @@ WHERE version = '0.33.5.18.6.5.4';
   assert.match(currentSchema, /task_id TEXT/, "fresh baseline should retain legacy direct task column for compatibility reads");
 }
 
+/** @param {NotesSession} session */
 async function createTaskContextFixtures(session) {
   const suffix = randomUUID().slice(0, 8);
   const clientId = `task-context-client-${suffix}`;
@@ -157,6 +165,7 @@ async function createTaskContextFixtures(session) {
   return { clientId, projectId, workspaceProjectId, taskId };
 }
 
+/** @param {{ links?: readonly NoteLink[] }} note @param {string} taskId @returns {NoteLink | undefined} */
 function findTaskLink(note, taskId) {
   return (note.links || []).find((link) => (
     (link.targetType || link.target_type) === "task" &&
@@ -164,6 +173,7 @@ function findTaskLink(note, taskId) {
   ));
 }
 
+/** @param {readonly string[]} labels @param {TaskContextFixtures} fixtures */
 function assertReadableLabelsDoNotExposeIds(labels, fixtures) {
   for (const label of labels) {
     assert.ok(label, "label should exist");
@@ -178,12 +188,15 @@ async function assertIntegrity() {
   assert.equal(result[0]?.integrity_check, "ok");
 }
 
+/** @returns {Promise<string>} */
 async function readWorkspace() {
   const rows = await querySql("SELECT workspace_id FROM workspaces ORDER BY rowid LIMIT 1;");
-  assert.ok(rows[0]?.workspace_id, "workspace fixture is required");
-  return rows[0];
+  const workspaceId = requireFirstRow(rows, "workspace fixture is required").workspace_id;
+  assert.ok(typeof workspaceId === "string" && workspaceId, "the seeded workspace should carry an id");
+  return workspaceId;
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -192,13 +205,10 @@ WHERE protected_user = 'yes'
 ORDER BY rowid
 LIMIT 1;
 `);
-  const user = rows[0];
-  assert.ok(user?.user_id, "protected user fixture is required");
-  return {
+  const user = requireFirstRow(rows, "protected user fixture is required");
+  return workspaceSessionFixture({
+    ...user,
     display_name: user.display_name || user.username,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
     workspace_id: workspaceId,
-  };
+  });
 }
