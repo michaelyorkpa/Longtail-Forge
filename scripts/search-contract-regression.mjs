@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/database-contracts.js").DatabaseRow} DatabaseRow */
 
 const fixture = await createDisposableDatabaseFixture("search-contract-regression");
 const { validateModuleManifest } = await import("../src/core/modules/manifest-contract.js");
@@ -24,7 +28,9 @@ await initializeDatabase();
 
 let checks = 0;
 
+/** @param {string} name @param {() => void} assertion */
 function check(name, assertion) {
+  assert.equal(typeof name, "string");
   assertion();
   checks += 1;
 }
@@ -165,10 +171,11 @@ check("manifest validation accepts well-formed searchableTypes and rejects direc
 
 await checkAsync("search service composes permission-safe filter models inside the active workspace", async () => {
   const request = await searchService.composePermissionSafeSearchFilters({
-    session: {
+    session: workspaceSessionFixture({
       workspace_id: "workspace-1",
       user_id: "user-1",
-    },
+      username: "search-contract@example.test",
+    }),
     searchableType: sampleSearchableType,
     filters: {
       text: "  invoice copy ",
@@ -207,9 +214,11 @@ await checkAsync("search service composes permission-safe filter models inside t
 await checkAsync("search filters cannot escape the active workspace", async () => {
   await assert.rejects(
     () => searchService.composePermissionSafeSearchFilters({
-      session: {
+      session: workspaceSessionFixture({
         workspace_id: "workspace-1",
-      },
+        user_id: "user-1",
+        username: "search-contract@example.test",
+      }),
       searchableType: sampleSearchableType,
       filters: {
         workspaceId: "workspace-2",
@@ -252,10 +261,11 @@ await checkAsync("active searchable type list excludes disabled or missing modul
 
 await checkAsync("permission-safe search request hides disabled modules and stays adapter-neutral", async () => {
   const inactiveRequest = await searchService.composePermissionSafeSearchRequest({
-    session: {
+    session: workspaceSessionFixture({
       workspace_id: "workspace-with-no-enabled-modules",
       user_id: "user-1",
-    },
+      username: "search-contract@example.test",
+    }),
     filters: {
       text: "alpha NEAR beta",
       moduleId: "developer-example",
@@ -297,10 +307,11 @@ ON CONFLICT(workspace_id, module_id) DO UPDATE SET
 `);
 
   const request = await searchService.composePermissionSafeSearchRequest({
-    session: {
+    session: workspaceSessionFixture({
       workspace_id: workspaceId,
       user_id: "user-1",
-    },
+      username: "search-contract@example.test",
+    }),
     filters: {
       moduleIds: ["developer-example"],
       recordTypes: ["developer_example"],
@@ -328,16 +339,22 @@ ON CONFLICT(workspace_id, module_id) DO UPDATE SET
     projectId: "project-1",
     projectIds: [],
   });
-  assert.equal(target.fields.workspace, "workspace_id");
-  assert.equal(target.fields.tagsText, null);
+  // The framework publishes a search target as an open record because modules
+  // contribute varying declarations, so the field map this assertion reads is
+  // proven to be a record here rather than by tightening that boundary.
+  const targetFields = requireJsonRecord(target.fields, "the search target field map");
+  assert.equal(targetFields.workspace, "workspace_id");
+  assert.equal(targetFields.tagsText, null);
 });
 
 await checkAsync("permission-safe search request cannot escape the active workspace", async () => {
   await assert.rejects(
     () => searchService.composePermissionSafeSearchRequest({
-      session: {
+      session: workspaceSessionFixture({
         workspace_id: "workspace-1",
-      },
+        user_id: "user-1",
+        username: "search-contract@example.test",
+      }),
       filters: {
         workspaceId: "workspace-2",
       },
@@ -559,10 +576,11 @@ VALUES (
 `);
 
   const request = await searchService.composePermissionSafeSearchRequest({
-    session: {
+    session: workspaceSessionFixture({
       workspace_id: workspaceId,
       user_id: "user-1",
-    },
+      username: "search-contract@example.test",
+    }),
     filters: {
       text: "alpha launch",
       moduleId: "developer-example",
@@ -661,6 +679,10 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   assert.equal(removeResult.ok, true);
   assert.equal(removeResult.operation, "remove_one");
   assert.equal(removeResult.removedCount, 1);
+  // The indexing helpers answer either the canonical record reference or an
+  // error record, and these are the assertions proving the reference is
+  // canonical, so the successful shape is proven before it is read.
+  assert.ok("searchIndexId" in removeResult, "a successful removal should answer the canonical record reference");
   assert.deepEqual({
     searchIndexId: removeResult.searchIndexId,
     workspaceId: removeResult.workspaceId,
@@ -689,6 +711,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   }, "record-reference normalization must preserve the live adapter aliases without weakening the canonical contract");
   assert.deepEqual(removedRows, []);
 
+  assert.ok("storage" in firstResult, "a successful index write should report its storage state");
   if (firstResult.storage.ftsTableReady) {
     const removedFtsRows = await querySql(`
 SELECT search_index_id
@@ -699,6 +722,11 @@ WHERE search_index_id = ${sqlText(firstDocument.search_index_id)};
     assert.deepEqual(removedFtsRows, []);
   }
 
+  // The reference the framework hands a registered indexer enters as unknown:
+  // proving it is a record is what makes the canonical-identity assertion below
+  // mean something, because a reference that never arrived would otherwise read
+  // as five `undefined` values and fail with an unreadable diff.
+  /** @type {unknown} */
   let receivedSearchReference = null;
   const unregister = registerSearchIndexer("developer-example.records", async (reference) => {
     receivedSearchReference = reference;
@@ -729,12 +757,13 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   assert.equal(reindexResult.ok, true);
   assert.equal(reindexResult.operation, "reindex_one");
   assert.equal(reindexResult.indexedCount, 1);
+  const indexerReference = requireJsonRecord(receivedSearchReference, "the reference handed to the registered indexer");
   assert.deepEqual({
-    searchIndexId: receivedSearchReference?.searchIndexId,
-    workspaceId: receivedSearchReference?.workspaceId,
-    moduleId: receivedSearchReference?.moduleId,
-    recordType: receivedSearchReference?.recordType,
-    recordId: receivedSearchReference?.recordId,
+    searchIndexId: indexerReference.searchIndexId,
+    workspaceId: indexerReference.workspaceId,
+    moduleId: indexerReference.moduleId,
+    recordType: indexerReference.recordType,
+    recordId: indexerReference.recordId,
   }, {
     searchIndexId: `${workspaceId}:developer-example:example_record:write-record-1`,
     workspaceId,
@@ -767,6 +796,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 
   assert.equal(staleRemovalResult.ok, true);
   assert.equal(staleRemovalResult.operation, "reindex_one");
+  assert.ok("removedStaleIndex" in staleRemovalResult, "a reindex that finds no document should report the stale index removal");
   assert.equal(staleRemovalResult.removedStaleIndex, true);
   assert.deepEqual(staleRows, []);
 
@@ -1141,31 +1171,39 @@ ORDER BY record_type;
   ].sort());
 
   const rowsByType = new Map(indexedRows.map((row) => [row.record_type, row]));
+  // Each record type is proven to have been indexed before its columns are
+  // compared, and each free-text column is proven to be text before it is
+  // matched. A module indexer that stopped writing now names the record type it
+  // dropped instead of failing on `undefined`.
+  const clientRow = indexedRow(rowsByType, "client");
+  const projectRow = indexedRow(rowsByType, "project");
+  const taskRow = indexedRow(rowsByType, "task");
+  const timeEntryRow = indexedRow(rowsByType, "time_entry");
 
-  assert.equal(rowsByType.get("client").title, "Acme Client");
-  assert.equal(rowsByType.get("client").record_status, "active");
-  assert.match(rowsByType.get("client").body, /Ada Account/);
-  assert.match(rowsByType.get("client").tags_text, /VIP/);
+  assert.equal(clientRow.title, "Acme Client");
+  assert.equal(clientRow.record_status, "active");
+  assert.match(indexedText(clientRow, "body"), /Ada Account/);
+  assert.match(indexedText(clientRow, "tags_text"), /VIP/);
 
-  assert.equal(rowsByType.get("project").title, "Website Launch");
-  assert.equal(rowsByType.get("project").record_status, "completed");
-  assert.equal(rowsByType.get("project").client_id, "search-client-1");
-  assert.match(rowsByType.get("project").body, /Parent Launch/);
-  assert.match(rowsByType.get("project").tags_text, /Launch/);
+  assert.equal(projectRow.title, "Website Launch");
+  assert.equal(projectRow.record_status, "completed");
+  assert.equal(projectRow.client_id, "search-client-1");
+  assert.match(indexedText(projectRow, "body"), /Parent Launch/);
+  assert.match(indexedText(projectRow, "tags_text"), /Launch/);
 
-  assert.equal(rowsByType.get("task").title, "Draft launch checklist");
-  assert.equal(rowsByType.get("task").record_status, "open");
-  assert.equal(rowsByType.get("task").client_id, "search-client-1");
-  assert.equal(rowsByType.get("task").project_id, "search-project-1");
-  assert.match(rowsByType.get("task").body, /Search User/);
-  assert.match(rowsByType.get("task").tags_text, /Checklist/);
+  assert.equal(taskRow.title, "Draft launch checklist");
+  assert.equal(taskRow.record_status, "open");
+  assert.equal(taskRow.client_id, "search-client-1");
+  assert.equal(taskRow.project_id, "search-project-1");
+  assert.match(indexedText(taskRow, "body"), /Search User/);
+  assert.match(indexedText(taskRow, "tags_text"), /Checklist/);
 
-  assert.equal(rowsByType.get("time_entry").title, "Implementation meeting");
-  assert.equal(rowsByType.get("time_entry").record_status, "active");
-  assert.equal(rowsByType.get("time_entry").client_id, "search-client-1");
-  assert.equal(rowsByType.get("time_entry").project_id, "search-project-1");
-  assert.match(rowsByType.get("time_entry").body, /Website Launch/);
-  assert.match(rowsByType.get("time_entry").tags_text, /Meeting/);
+  assert.equal(timeEntryRow.title, "Implementation meeting");
+  assert.equal(timeEntryRow.record_status, "active");
+  assert.equal(timeEntryRow.client_id, "search-client-1");
+  assert.equal(timeEntryRow.project_id, "search-project-1");
+  assert.match(indexedText(timeEntryRow, "body"), /Website Launch/);
+  assert.match(indexedText(timeEntryRow, "tags_text"), /Meeting/);
 
   unregisterClientProjects();
   unregisterTasks();
@@ -1264,6 +1302,31 @@ clearSearchIndexersForTests();
 
 console.log(`Search contract regression passed ${checks} checks.`);
 
+/**
+ * Read the search_index row one module indexer wrote.
+ * @param {Map<unknown, DatabaseRow>} rowsByType
+ * @param {string} recordType
+ * @returns {DatabaseRow}
+ */
+function indexedRow(rowsByType, recordType) {
+  const row = rowsByType.get(recordType);
+  assert.ok(row, `the ${recordType} indexer should have written a search_index row`);
+  return row;
+}
+
+/**
+ * Read one free-text column off an indexed row.
+ * @param {DatabaseRow} row
+ * @param {string} column
+ * @returns {string}
+ */
+function indexedText(row, column) {
+  const value = row[column];
+  assert.ok(typeof value === "string", `the indexed ${column} column should be text`);
+  return value;
+}
+
+/** @param {string} name @param {() => Promise<void>} assertion */
 async function checkAsync(name, assertion) {
   assert.equal(typeof name, "string");
   await assertion();

@@ -6,6 +6,56 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { fixtureString } from "./test-support/session-fixtures.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+// The search result, error, and query-error shapes are the ones the route and
+// the framework already publish, imported rather than redescribed here.
+/** @typedef {import("../src/types/framework-contracts.js").BrowserSearchResult} BrowserSearchResult */
+/** @typedef {import("../src/core/http-error-contract.js").ApiErrorValue} ApiErrorValue */
+/** @typedef {import("../src/routes/search.routes.js").SearchQueryError} SearchQueryError */
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} SearchApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} SearchClientOptions */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} SearchServer */
+
+/**
+ * What this owner's `fetch` fixture resolves. Its headers are flattened to a
+ * plain record rather than a `Headers` instance, so it is declared here rather
+ * than through the shared fetch-response contract.
+ * @typedef {{ body: unknown, headers: Record<string, string>, status: number }} SearchResponse
+ */
+
+/** @typedef {ReturnType<typeof createApi>} SearchApi */
+
+/**
+ * The search route's error envelope: the framework's published API error value
+ * with the field errors the search route itself publishes, so a
+ * filter-validation failure names the query field it rejected. The members
+ * mirror `ApiErrorValue`; only `fields` is narrower, because the framework
+ * leaves it open for routes that report other field shapes.
+ * @typedef {Omit<ApiErrorValue, "fields"> & { fields?: SearchQueryError[] }} SearchApiError
+ */
+
+/**
+ * The search route's pagination envelope: the shared bounded-pagination
+ * envelope plus the page number the route adds.
+ * @typedef {{ hasMore: boolean, limit: number, maxPageSize: number, nextCursor: string, offset: number, page: number, returned: number, total: number | null }} SearchPagination
+ */
+
+/**
+ * The public echo of the parsed query. Every member is what `publicQuery`
+ * carries, not only the four these assertions read.
+ * @typedef {{ clientId: string, libraryBucket: string, moduleIds: string[], noteCollectionId: string, projectId: string, recordStatus: string, recordTypes: string[], source: string, tagIds: string[], text: string, visibility: string }} SearchPublicQuery
+ */
+
+/** @typedef {{ error: SearchApiError }} ErrorEnvelope */
+/** @typedef {{ pagination: SearchPagination }} PaginationEnvelope */
+/** @typedef {{ results: BrowserSearchResult[] }} ResultsEnvelope */
+/** @typedef {{ pagination: SearchPagination, results: BrowserSearchResult[] }} PaginationResultsEnvelope */
+/** @typedef {{ query: SearchPublicQuery, results: BrowserSearchResult[] }} QueryResultsEnvelope */
+/** @typedef {{ backend: string, pagination: SearchPagination, query: SearchPublicQuery, results: BrowserSearchResult[] }} SearchResponseEnvelope */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-search-api-regression-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-search-api-test.db");
@@ -17,7 +67,9 @@ const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await imp
 const { createSession } = await import("../src/security/sessions.js");
 const { searchService } = await import("../src/services/search.service.js");
 
+/** @type {string[]} */
 const results = [];
+/** @type {SearchServer | undefined} */
 let server;
 
 try {
@@ -30,30 +82,34 @@ try {
     "the Search scalar/repeated/nested query contract requires the application-owned extended parser",
   );
   server = await listen(app);
-  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${listenerPort(server)}`;
   const api = createApi(baseUrl);
 
   await checkAsync("GET /api/search requires authentication", async () => {
     const response = await api.get("/api/search?text=route-contract");
+    /** @type {ErrorEnvelope} */
+    const responseBody = readPayload(response, ["error"], "response");
 
     assert.equal(response.status, 401);
-    assert.equal(response.body.error.code, "authentication_required");
-    assert.equal(response.body.error.message, "Login required.");
-    assert.equal(response.body.error.requestId, response.headers["x-request-id"]);
+    assert.equal(responseBody.error.code, "authentication_required");
+    assert.equal(responseBody.error.message, "Login required.");
+    assert.equal(responseBody.error.requestId, response.headers["x-request-id"]);
   });
 
   await checkAsync("GET /api/search returns active-workspace search results", async () => {
     const response = await api.get("/api/search?text=route-contract", { cookie: fixtures.sessionId });
+    /** @type {SearchResponseEnvelope} */
+    const responseBody = readPayload(response, ["backend", "pagination", "query", "results"], "response");
 
     assert.equal(response.status, 200);
-    assert.equal(response.body.query.text, "route-contract");
-    assert.equal(response.body.pagination.page, 1);
-    assert.equal(response.body.pagination.limit, 25);
-    assert.equal(response.body.results.length, 4);
-    assert.ok(["sqlite-fts5", "sqlite-like"].includes(response.body.backend));
-    assert.ok(response.body.results.every((result) => result.workspaceId === fixtures.workspaceId));
-    assert.ok(response.body.results.every((result) => !Object.hasOwn(result, "body")));
-    assert.ok(response.body.results.every((result) => !Object.hasOwn(result, "tags_text")));
+    assert.equal(responseBody.query.text, "route-contract");
+    assert.equal(responseBody.pagination.page, 1);
+    assert.equal(responseBody.pagination.limit, 25);
+    assert.equal(responseBody.results.length, 4);
+    assert.ok(["sqlite-fts5", "sqlite-like"].includes(responseBody.backend));
+    assert.ok(responseBody.results.every((result) => result.workspaceId === fixtures.workspaceId));
+    assert.ok(responseBody.results.every((result) => !Object.hasOwn(result, "body")));
+    assert.ok(responseBody.results.every((result) => !Object.hasOwn(result, "tags_text")));
   });
 
   await checkAsync("GET /api/search applies module, record type, client, project, and tag filters", async () => {
@@ -66,36 +122,38 @@ try {
       `tagId=${encodeURIComponent(fixtures.tagId)}`,
     ].join("&");
     const response = await api.get(`/api/search?${query}`, { cookie: fixtures.sessionId });
+    /** @type {QueryResultsEnvelope} */
+    const responseBody = readPayload(response, ["query", "results"], "response");
 
     assert.equal(response.status, 200);
-    assert.deepEqual(response.body.query.moduleIds, ["tasks"]);
-    assert.deepEqual(response.body.query.recordTypes, ["task"]);
-    assert.deepEqual(response.body.query.tagIds, [fixtures.tagId]);
-    assert.deepEqual(response.body.results.map((result) => result.recordId), ["search-api-task-1"]);
-    assert.equal(response.body.results[0].snippet, "route-contract task exact filter");
-    assert.equal(response.body.results[0].sourceLabel, "Task");
-    assert.equal(response.body.results[0].status, "active");
-    assert.equal(response.body.results[0].updatedAt, "2026-06-08T20:04:00.000Z");
-    assert.deepEqual(response.body.results[0].context.client, {
+    assert.deepEqual(responseBody.query.moduleIds, ["tasks"]);
+    assert.deepEqual(responseBody.query.recordTypes, ["task"]);
+    assert.deepEqual(responseBody.query.tagIds, [fixtures.tagId]);
+    assert.deepEqual(responseBody.results.map((result) => result.recordId), ["search-api-task-1"]);
+    assert.equal(responseBody.results[0].snippet, "route-contract task exact filter");
+    assert.equal(responseBody.results[0].sourceLabel, "Task");
+    assert.equal(responseBody.results[0].status, "active");
+    assert.equal(responseBody.results[0].updatedAt, "2026-06-08T20:04:00.000Z");
+    assert.deepEqual(responseBody.results[0].context.client, {
       id: fixtures.clientId,
       name: "Search API Client",
       status: "active",
     });
-    assert.deepEqual(response.body.results[0].context.project, {
+    assert.deepEqual(responseBody.results[0].context.project, {
       id: fixtures.projectId,
       name: "Search API Project",
       status: "active",
       clientId: fixtures.clientId,
       clientName: "Search API Client",
     });
-    assert.deepEqual(response.body.results[0].tags, [{
+    assert.deepEqual(responseBody.results[0].tags, [{
       tagId: fixtures.tagId,
       name: "Search API Tag",
       slug: fixtures.tagId,
       color: "#2563eb",
       status: "active",
     }]);
-    assert.deepEqual(response.body.results[0].target, {
+    assert.deepEqual(responseBody.results[0].target, {
       url: "tasks.html?task=search-api-task-1",
       actionId: "tasks.edit",
       params: { taskId: "search-api-task-1" },
@@ -112,27 +170,33 @@ try {
       "tagId=__no_tags__",
     ].join("&");
     const response = await api.get(`/api/search?${query}`, { cookie: fixtures.sessionId });
+    /** @type {QueryResultsEnvelope} */
+    const responseBody = readPayload(response, ["query", "results"], "response");
 
     assert.equal(response.status, 200);
-    assert.deepEqual(response.body.query.tagIds, ["__no_tags__"]);
-    assert.deepEqual(response.body.results.map((result) => result.recordId), ["search-api-task-2"]);
+    assert.deepEqual(responseBody.query.tagIds, ["__no_tags__"]);
+    assert.deepEqual(responseBody.results.map((result) => result.recordId), ["search-api-task-2"]);
   });
 
   await checkAsync("GET /api/search returns stable pagination metadata", async () => {
     const firstPage = await api.get("/api/search?text=route-contract&limit=2&page=1", { cookie: fixtures.sessionId });
+    /** @type {PaginationResultsEnvelope} */
+    const firstPageBody = readPayload(firstPage, ["pagination", "results"], "first page");
     const secondPage = await api.get("/api/search?text=route-contract&limit=2&page=2", { cookie: fixtures.sessionId });
+    /** @type {PaginationResultsEnvelope} */
+    const secondPageBody = readPayload(secondPage, ["pagination", "results"], "second page");
 
     assert.equal(firstPage.status, 200);
-    assert.equal(firstPage.body.pagination.returned, 2);
-    assert.equal(firstPage.body.pagination.hasMore, true);
+    assert.equal(firstPageBody.pagination.returned, 2);
+    assert.equal(firstPageBody.pagination.hasMore, true);
     assert.equal(secondPage.status, 200);
-    assert.equal(secondPage.body.pagination.page, 2);
-    assert.equal(secondPage.body.pagination.offset, 2);
-    assert.equal(secondPage.body.pagination.returned, 2);
-    assert.equal(secondPage.body.pagination.hasMore, false);
+    assert.equal(secondPageBody.pagination.page, 2);
+    assert.equal(secondPageBody.pagination.offset, 2);
+    assert.equal(secondPageBody.pagination.returned, 2);
+    assert.equal(secondPageBody.pagination.hasMore, false);
     assert.notDeepEqual(
-      firstPage.body.results.map((result) => result.searchIndexId),
-      secondPage.body.results.map((result) => result.searchIndexId),
+      firstPageBody.results.map((result) => result.searchIndexId),
+      secondPageBody.results.map((result) => result.searchIndexId),
     );
   });
 
@@ -140,22 +204,30 @@ try {
     const response = await api.get("/api/search?text=route-contract&limit=2&limit=3&page=1&page=2", {
       cookie: fixtures.sessionId,
     });
+    /** @type {PaginationEnvelope} */
+    const responseBody = readPayload(response, ["pagination"], "response");
 
     assert.equal(response.status, 200);
-    assert.equal(response.body.pagination.limit, 2);
-    assert.equal(response.body.pagination.page, 1);
-    assert.equal(response.body.pagination.returned, 2);
+    assert.equal(responseBody.pagination.limit, 2);
+    assert.equal(responseBody.pagination.page, 1);
+    assert.equal(responseBody.pagination.returned, 2);
   });
 
   await checkAsync("GET /api/search rejects unsupported nested query values", async () => {
     const response = await api.get("/api/search?module%5Bnested%5D=tasks&limit%5Bnested%5D=2", {
       cookie: fixtures.sessionId,
     });
+    /** @type {ErrorEnvelope} */
+    const responseBody = readPayload(response, ["error"], "response");
 
     assert.equal(response.status, 400);
-    assert.equal(response.body.error.code, "invalid_search_filters");
-    assert.ok(response.body.error.fields.some((field) => field.field === "module"));
-    assert.ok(response.body.error.fields.some((field) => field.field === "limit"));
+    assert.equal(responseBody.error.code, "invalid_search_filters");
+    // The framework publishes field errors as optional, and these assertions
+    // are the ones proving the route names the query field it rejected, so the
+    // list is proven present rather than read through.
+    assert.ok(responseBody.error.fields, "a rejected nested filter set should report which fields it rejected");
+    assert.ok(responseBody.error.fields.some((field) => field.field === "module"));
+    assert.ok(responseBody.error.fields.some((field) => field.field === "limit"));
   });
 
   await checkAsync("GET /api/search rejects cursors that bypass the bounded page range", async () => {
@@ -163,48 +235,62 @@ try {
     const response = await api.get(`/api/search?cursor=${encodeURIComponent(cursor)}`, {
       cookie: fixtures.sessionId,
     });
+    /** @type {ErrorEnvelope} */
+    const responseBody = readPayload(response, ["error"], "response");
 
     assert.equal(response.status, 400);
-    assert.equal(response.body.error.code, "invalid_search_filters");
-    assert.ok(response.body.error.fields.some((field) => field.field === "cursor"));
+    assert.equal(responseBody.error.code, "invalid_search_filters");
+    assert.ok(responseBody.error.fields, "a rejected cursor should report which field it rejected");
+    assert.ok(responseBody.error.fields.some((field) => field.field === "cursor"));
   });
 
   await checkAsync("GET /api/search returns structured validation errors", async () => {
     const response = await api.get("/api/search?limit=banana&module=%5Bbad%5D", { cookie: fixtures.sessionId });
+    /** @type {ErrorEnvelope} */
+    const responseBody = readPayload(response, ["error"], "response");
 
     assert.equal(response.status, 400);
-    assert.equal(response.body.error.code, "invalid_search_filters");
-    assert.ok(response.body.error.fields.some((field) => field.field === "limit"));
-    assert.ok(response.body.error.fields.some((field) => field.field === "module"));
+    assert.equal(responseBody.error.code, "invalid_search_filters");
+    assert.ok(responseBody.error.fields, "a rejected filter set should report which fields it rejected");
+    assert.ok(responseBody.error.fields.some((field) => field.field === "limit"));
+    assert.ok(responseBody.error.fields.some((field) => field.field === "module"));
   });
 
   await checkAsync("GET /api/search filters each result by declared read permission and record scope", async () => {
     const scoped = await api.get("/api/search?text=permission-scope", { cookie: fixtures.projectUserSessionId });
+    /** @type {PaginationResultsEnvelope} */
+    const scopedBody = readPayload(scoped, ["pagination", "results"], "scoped");
     const unscoped = await api.get("/api/search?text=permission-scope", { cookie: fixtures.unscopedSessionId });
+    /** @type {ResultsEnvelope} */
+    const unscopedBody = readPayload(unscoped, ["results"], "unscoped");
 
     assert.equal(scoped.status, 200);
-    assert.deepEqual(scoped.body.results.map((result) => result.recordId), [
+    assert.deepEqual(scopedBody.results.map((result) => result.recordId), [
       "search-api-visible-task",
       "search-api-visible-task-2",
     ]);
-    assert.equal(scoped.body.pagination.hasMore, false);
+    assert.equal(scopedBody.pagination.hasMore, false);
     assert.equal(unscoped.status, 200);
-    assert.deepEqual(unscoped.body.results, []);
+    assert.deepEqual(unscopedBody.results, []);
   });
 
   await checkAsync("GET /api/search counts only permission-visible rows toward the requested offset", async () => {
     const query = "module=tasks&recordType=task&source=permission-paging&limit=1";
     const firstPage = await api.get(`/api/search?${query}&page=1`, { cookie: fixtures.projectUserSessionId });
+    /** @type {PaginationResultsEnvelope} */
+    const firstPageBody = readPayload(firstPage, ["pagination", "results"], "first page");
     const secondPage = await api.get(`/api/search?${query}&page=2`, { cookie: fixtures.projectUserSessionId });
+    /** @type {PaginationResultsEnvelope} */
+    const secondPageBody = readPayload(secondPage, ["pagination", "results"], "second page");
 
     assert.equal(firstPage.status, 200);
-    assert.deepEqual(firstPage.body.results.map((result) => result.recordId), ["search-api-visible-task"]);
-    assert.equal(firstPage.body.pagination.offset, 0);
-    assert.equal(firstPage.body.pagination.hasMore, true);
+    assert.deepEqual(firstPageBody.results.map((result) => result.recordId), ["search-api-visible-task"]);
+    assert.equal(firstPageBody.pagination.offset, 0);
+    assert.equal(firstPageBody.pagination.hasMore, true);
     assert.equal(secondPage.status, 200);
-    assert.deepEqual(secondPage.body.results.map((result) => result.recordId), ["search-api-visible-task-2"]);
-    assert.equal(secondPage.body.pagination.offset, 1);
-    assert.equal(secondPage.body.pagination.hasMore, false);
+    assert.deepEqual(secondPageBody.results.map((result) => result.recordId), ["search-api-visible-task-2"]);
+    assert.equal(secondPageBody.pagination.offset, 1);
+    assert.equal(secondPageBody.pagination.hasMore, false);
   });
 
   await checkAsync("GET /api/search hides disabled-module records through active search", async () => {
@@ -216,9 +302,11 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
 `);
 
     const response = await api.get("/api/search?text=permission-scope&module=tasks", { cookie: fixtures.sessionId });
+    /** @type {ResultsEnvelope} */
+    const responseBody = readPayload(response, ["results"], "response");
 
     assert.equal(response.status, 200);
-    assert.deepEqual(response.body.results, []);
+    assert.deepEqual(responseBody.results, []);
 
     await runSql(`
 UPDATE workspace_modules
@@ -240,19 +328,27 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
 
 async function seedSearchFixtures() {
   const now = new Date().toISOString();
-  const workspace = (await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"))[0];
-  const user = (await querySql(`
+  const workspaceRow = requireFirstRow(await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"), "the default workspace");
+  const workspace = { workspace_id: fixtureString(workspaceRow.workspace_id, "the default workspace ID") };
+  const user = requireFirstRow(await querySql(`
 SELECT user_id, home_workspace_id, active_workspace_id, username, timezone
 FROM users
 WHERE home_workspace_id = ${sqlText(workspace.workspace_id)}
   AND protected_user = 'yes'
 LIMIT 1;
-`))[0];
+`), "the protected user");
   const session = await createSession(user);
   const taskType = searchService.listSearchableTypes()
     .find((type) => type.moduleId === "tasks" && type.recordType === "task");
   const projectType = searchService.listSearchableTypes()
     .find((type) => type.moduleId === "client-projects" && type.recordType === "project");
+
+  // Every indexed fixture below is written through one of these two declared
+  // searchable types. If a module stopped declaring one, the fixture would
+  // index nothing and the result assertions would fail on empty pages instead
+  // of naming the missing declaration.
+  assert.ok(taskType, "the Tasks module should declare a searchable task type");
+  assert.ok(projectType, "the Client/Projects module should declare a searchable project type");
   const clientId = `search-api-client-${randomUUID()}`;
   const projectId = `search-api-project-${randomUUID()}`;
   const otherClientId = `search-api-other-client-${randomUUID()}`;
@@ -381,6 +477,7 @@ VALUES (${sqlText(randomUUID())}, ${sqlText(workspace.workspace_id)}, ${sqlText(
   };
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} usernamePrefix */
 function userInsertSql(workspaceId, userId, usernamePrefix) {
   return `
 INSERT OR REPLACE INTO users (
@@ -411,12 +508,21 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {string} userId @param {string} now */
 function membershipInsertSql(workspaceId, userId, now) {
   return `
 INSERT OR REPLACE INTO user_workspaces (user_workspace_id, user_id, workspace_id, status, created_at, updated_at)
 VALUES (${sqlText(randomUUID())}, ${sqlText(userId)}, ${sqlText(workspaceId)}, 'active', ${sqlText(now)}, ${sqlText(now)});`;
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} userId
+ * @param {string} roleId
+ * @param {string} scopeType
+ * @param {string} scopeId
+ * @param {string} now
+ */
 function assignmentInsertSql(workspaceId, userId, roleId, scopeType, scopeId, now) {
   return `
 INSERT OR REPLACE INTO user_role_assignments (
@@ -447,6 +553,7 @@ VALUES (
 );`;
 }
 
+/** @param {string} workspaceId @param {string} clientId @param {string} name @param {string} now */
 function clientInsertSql(workspaceId, clientId, name, now) {
   return `
 INSERT OR REPLACE INTO clients (
@@ -503,6 +610,13 @@ VALUES (
 );`;
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} projectId
+ * @param {string} clientId
+ * @param {string} name
+ * @param {string} now
+ */
 function projectInsertSql(workspaceId, projectId, clientId, name, now) {
   return `
 INSERT OR REPLACE INTO projects (
@@ -539,6 +653,10 @@ VALUES (
 );`;
 }
 
+/**
+ * @param {import("../src/types/search-rebuild-contracts.js").ActiveSearchableTypeDeclaration} searchableType
+ * @param {import("../src/services/search.service.js").SearchDocumentInput} document
+ */
 async function indexDocument(searchableType, document) {
   const result = await searchService.indexSearchDocument(
     searchService.normalizeSearchDocument(searchableType, document),
@@ -547,13 +665,25 @@ async function indexDocument(searchableType, document) {
   assert.equal(result.ok, true);
 }
 
+/**
+ * @param {string} baseUrl
+ * @returns {{ get: (url: string, options?: SearchClientOptions) => Promise<SearchResponse> }}
+ */
 function createApi(baseUrl) {
   return {
     get: (url, options = {}) => request(baseUrl, "GET", url, options),
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {SearchClientOptions} [options]
+ * @returns {Promise<SearchResponse>}
+ */
 async function request(baseUrl, method, url, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {};
 
   if (options.cookie) {
@@ -566,6 +696,11 @@ async function request(baseUrl, method, url, options = {}) {
     redirect: "manual",
   });
   const text = await response.text();
+  // The parsed body stays `unknown`. Every read below crosses that boundary
+  // through `readPayload`, which proves the envelope it names is present, so a
+  // route that stops publishing one fails naming it rather than comparing
+  // `undefined` against an expected value further down.
+  /** @type {unknown} */
   let parsedBody = null;
 
   try {
@@ -581,18 +716,28 @@ async function request(baseUrl, method, url, options = {}) {
   };
 }
 
+/** @param {string} name @param {() => Promise<void>} assertion */
 async function checkAsync(name, assertion) {
   await assertion();
   results.push(name);
 }
 
+/** @param {SearchApp} app @returns {Promise<SearchServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const server = http.createServer(app);
+    const server = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     server.listen(0, "127.0.0.1", () => resolve(server));
   });
 }
 
+/** @param {SearchServer} listening @returns {number} */
+function listenerPort(listening) {
+  const address = listening.address();
+  assert.ok(address && typeof address === "object", "the Search API fixture server should bind a TCP port");
+  return address.port;
+}
+
+/** @param {SearchServer} server @returns {Promise<void>} */
 function closeServer(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => {

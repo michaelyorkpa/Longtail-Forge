@@ -3,8 +3,21 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readTextAsync: readProjectFile } = createProjectTextReader();
+
+/**
+ * One entry in the app shell's search-target list, as this owner reads it.
+ *
+ * The app-shell bootstrap contract publishes `searchTargets` as an open list,
+ * alongside `navigation`, which `0.33.33.32.13` confirmed is deliberate for
+ * that payload. So the shape is described here, where the walk happens, rather
+ * than by tightening a framework payload that is open by design. Unlike
+ * `navigation`, every entry is built by one normalizing producer, which
+ * `0.33.33.32.28` records as a candidate for a truthful published contract.
+ * @typedef {{ aggregate?: unknown, id?: unknown, label?: unknown, moduleId?: unknown, recordType?: unknown, sourceLabel?: unknown }} SearchTarget
+ */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-search-shell-regression-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-search-shell-test.db");
@@ -24,9 +37,10 @@ try {
   const appCore = await readProjectFile("src/core/app.js");
 
   assert.ok(Array.isArray(shell.searchTargets), "app shell bootstrap should return searchTargets");
-  assert.ok(shell.searchTargets.some((target) => target.moduleId === "tasks" && target.recordType === "task"));
-  assert.ok(shell.searchTargets.some((target) => target.moduleId === "client-projects" && target.recordType === "client"));
-  assert.ok(shell.searchTargets.every((target) => (
+  const searchTargets = shell.searchTargets.map(searchTarget);
+  assert.ok(searchTargets.some((target) => target.moduleId === "tasks" && target.recordType === "task"));
+  assert.ok(searchTargets.some((target) => target.moduleId === "client-projects" && target.recordType === "client"));
+  assert.ok(searchTargets.every((target) => (
     target.id === `${target.moduleId}:${target.recordType}` ||
     target.id === `source:${target.sourceLabel}:${target.recordType}`
   )));
@@ -84,13 +98,20 @@ ORDER BY username
 LIMIT 1;
 `);
 
-  const user = rows[0];
-
-  assert.ok(user, "protected user fixture is required");
-
-  return workspaceSessionFixture(user);
+  return workspaceSessionFixture(requireFirstRow(rows, "the protected user fixture"));
 }
 
+/**
+ * Prove one contributed search target is a record before it is walked.
+ * @param {unknown} value
+ * @returns {SearchTarget}
+ */
+function searchTarget(value) {
+  assert.ok(value && typeof value === "object" && !Array.isArray(value), "each app shell search target should be a record");
+  return /** @type {SearchTarget} */ (value);
+}
+
+/** @param {string} source @param {string} functionName @returns {string} */
 function readFunctionBody(source, functionName) {
   const marker = `function ${functionName}`;
   const start = source.indexOf(marker);
