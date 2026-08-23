@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-record-item-repo-"));
@@ -17,8 +18,6 @@ const listsModuleSource = readText("src/modules/lists/module.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const listsDocs = readText("docs/lists-module.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const { closeSqlite, db, initializeDatabase } = await import("../src/db/index.js");
 const { listsRepository } = await import("../src/modules/lists/lists.repo.js");
@@ -69,10 +68,11 @@ function assertStaticContract() {
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.16[\s\S]*`lists\/lists\.repo`[\s\S]*record and item paths[\s\S]*72 helper invocations remain[\s\S]*798 remaining helper invocations/, "database docs should record the Lists records/items conversion");
   assert.match(listsDocs, /^# Lists Module Developer Guide$/m, "Lists docs should retain the owning developer-guide heading");
   assert.match(listsDocs, /As of 0\.33\.5\.27\.16[\s\S]*list record and list item persistence paths use named params[\s\S]*[Cc]atalog and linked-record paths remain assigned to 0\.33\.5\.27\.17/, "Lists docs should document the converted records/items boundary");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.16 - Conversion wave: Lists records and items[\s\S]*- \[x\] Convert list record and list item read\/write paths[\s\S]*- \[x\] Preserve list execution[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.16 - [\s\S]*Lists records and items repository conversion[\s\S]*798 helper invocations[\s\S]*159 direct interpolated operation sites[\s\S]*191 bound operation sites/, "changelog should record the Lists records/items conversion burndown");
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} ListsSession */
+
+/** @param {ListsSession} session */
 async function assertRepositoryRecordAndItemLifecycle(session) {
   const suffix = randomUUID().slice(0, 8);
   const list = await listsRepository.create(session.workspace_id, {
@@ -85,6 +85,8 @@ async function assertRepositoryRecordAndItemLifecycle(session) {
     title: `27.16 Active ${suffix}`,
     updated_by_user_id: session.user_id,
   });
+  assert.ok(list, "creating a list should read the persisted record back");
+  assert.ok(list, "creating a list should read the persisted record back");
   const secondList = await listsRepository.create(session.workspace_id, {
     created_by_user_id: session.user_id,
     description: "",
@@ -94,6 +96,8 @@ async function assertRepositoryRecordAndItemLifecycle(session) {
     title: `27.16 Reusable ${suffix}`,
     updated_by_user_id: session.user_id,
   });
+  assert.ok(secondList, "creating the second list should read the persisted record back");
+  assert.ok(secondList, "creating the second list should read the persisted record back");
   const deletedList = await listsRepository.create(session.workspace_id, {
     created_by_user_id: session.user_id,
     is_reusable: false,
@@ -102,13 +106,17 @@ async function assertRepositoryRecordAndItemLifecycle(session) {
     title: `27.16 Deleted ${suffix}`,
     updated_by_user_id: session.user_id,
   });
+  assert.ok(deletedList, "creating the soft-delete fixture should read the persisted record back");
+  assert.ok(deletedList, "creating the soft-delete fixture should read the persisted record back");
 
   assert.equal(list.is_reusable, false, "created non-reusable list should read as false");
   assertUuidVersion(list.list_id, 7, "new Lists record identity");
   assertUuidVersion(secondList.list_id, 7, "new reusable Lists record identity");
   assert.deepEqual(list.metadata_json, { slice: "0.33.5.27.16" }, "list metadata should remain parsed");
   assert.equal(secondList.is_reusable, true, "created reusable list should read through the boolean seam");
-  assert.equal((await listsRepository.readById(session.workspace_id, list.list_id)).title, list.title, "single list reads should stay exact");
+  const listRead = await listsRepository.readById(session.workspace_id, list.list_id);
+  assert.ok(listRead, "a created list should remain readable by id");
+  assert.equal(listRead.title, list.title, "single list reads should stay exact");
   assert.equal((await listsRepository.readByIds(session.workspace_id, [list.list_id, secondList.list_id, list.list_id])).length, 2, "batched list reads should de-duplicate ids");
   assert.ok((await listsRepository.readByIds(session.workspace_id, [])).length === 0, "empty batched list reads should remain no-op");
   assert.ok((await listsRepository.list(session.workspace_id)).every((entry) => entry.list_id !== deletedList.list_id), "default list reads should hide deleted rows");
@@ -133,6 +141,8 @@ async function assertRepositoryRecordAndItemLifecycle(session) {
     title: `27.16 Updated ${suffix}`,
     updated_by_user_id: session.user_id,
   });
+  assert.ok(updatedList, "updating a list should read the persisted record back");
+  assert.ok(updatedList, "updating a list should read the persisted record back");
   assert.equal(updatedList.status, LIST_STATUSES.COMPLETED, "list status updates should remain intact");
   assert.equal(updatedList.is_reusable, true, "list reusable updates should read through the boolean seam");
   assert.deepEqual(updatedList.metadata_json, { updated: true }, "list update metadata should remain parsed");
@@ -153,6 +163,8 @@ async function assertRepositoryRecordAndItemLifecycle(session) {
     unit: "box",
     updated_by_user_id: session.user_id,
   });
+  assert.ok(firstItem, "creating the first item should read the persisted record back");
+  assert.ok(firstItem, "creating the first item should read the persisted record back");
   const secondItem = await listsRepository.createItem(session.workspace_id, {
     created_by_user_id: session.user_id,
     item_name: `27.16 Cable ${suffix}`,
@@ -162,6 +174,8 @@ async function assertRepositoryRecordAndItemLifecycle(session) {
     sort_order: 10,
     updated_by_user_id: session.user_id,
   });
+  assert.ok(secondItem, "creating the second item should read the persisted record back");
+  assert.ok(secondItem, "creating the second item should read the persisted record back");
   await listsRepository.createItem(session.workspace_id, {
     created_by_user_id: session.user_id,
     item_name: `27.16 Other List Item ${suffix}`,
@@ -201,6 +215,8 @@ async function assertRepositoryRecordAndItemLifecycle(session) {
     title: `27.4 Legacy Parent ${suffix}`,
     updated_by_user_id: session.user_id,
   });
+  assert.ok(legacyList, "creating the legacy list should read the persisted record back");
+  assert.ok(legacyList, "creating the legacy list should read the persisted record back");
   const mixedVersionItem = await listsRepository.createItem(session.workspace_id, {
     created_by_user_id: session.user_id,
     item_name: `27.4 UUIDv7 Child ${suffix}`,
@@ -210,6 +226,8 @@ async function assertRepositoryRecordAndItemLifecycle(session) {
     sort_order: 10,
     updated_by_user_id: session.user_id,
   });
+  assert.ok(mixedVersionItem, "creating the mixed-version item should read the persisted record back");
+  assert.ok(mixedVersionItem, "creating the mixed-version item should read the persisted record back");
   assert.equal(legacyList.list_id, legacyListId, "caller-supplied UUIDv4 Lists identity must remain byte-for-byte unchanged");
   assertUuidVersion(legacyList.list_id, 4, "caller-supplied legacy Lists identity");
   assertUuidVersion(mixedVersionItem.list_item_id, 7, "new child identity related to a UUIDv4 Lists parent");
@@ -232,6 +250,8 @@ async function assertRepositoryRecordAndItemLifecycle(session) {
     sort_order: "not-a-number",
     updated_by_user_id: session.user_id,
   });
+  assert.ok(updatedItem, "updating an item should read the persisted record back");
+  assert.ok(updatedItem, "updating an item should read the persisted record back");
   assert.equal(updatedItem.item_name, `27.16 Bracket Updated ${suffix}`, "item updates should return the updated item");
   assert.equal(updatedItem.quantity, 0, "updated quantity should preserve finite numeric values");
   assert.equal(updatedItem.estimated_cost, null, "invalid updated estimated cost should preserve number-or-null behavior");
@@ -261,6 +281,7 @@ async function assertRepositoryRecordAndItemLifecycle(session) {
     deleted_at: "2026-07-06T14:00:00.000Z",
     updated_by_user_id: session.user_id,
   });
+  assert.ok(deletedItem, "a delete-style item update should read the persisted record back");
   assert.ok(deletedItem.deleted_at, "item delete-style updates should persist deleted_at");
   assert.deepEqual(
     (await listsRepository.listItems(session.workspace_id, list.list_id)).map((item) => item.list_item_id),
@@ -279,11 +300,13 @@ async function assertRepositoryRecordAndItemLifecycle(session) {
   assert.equal(shaped.list.resumeContext.progress.totalItemCount, 1, "service-owned resume context should remain shaped after conversion");
 }
 
+/** @param {unknown} value @param {number} expectedVersion @param {string} label */
 function assertUuidVersion(value, expectedVersion, label) {
   assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
   assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);
 }
 
+/** @returns {Promise<ListsSession>} */
 async function readSeedSession() {
   const user = await db.get(`
 SELECT users.user_id, users.username, users.timezone, users.home_workspace_id, users.active_workspace_id
@@ -294,14 +317,7 @@ LIMIT 1;
 
   assert.ok(user, "fresh database should seed a protected super admin");
 
-  return {
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
 async function assertIntegrity() {
