@@ -941,6 +941,29 @@ assert.ok(
     .includes("assert.equal(listsModule.enabledByDefault, true,"),
   "scripts/lists-foundation-regression.mjs should keep the restored enabled-by-default contract",
 );
+for (const listsSurfaceOwner of [
+  "scripts/batched-list-enrichment-regression.mjs",
+  "scripts/high-volume-admin-lists-regression.mjs",
+  "scripts/lists-api-regression.mjs",
+  "scripts/lists-closeout-regression.mjs",
+  "scripts/lists-query-suggestions-regression.mjs",
+  "scripts/lists-ui-workflow-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[listsSurfaceOwner], undefined, `${listsSurfaceOwner} must stay strict-clean after checkpoint 0.33.33.32.16`);
+}
+// The Lists API owner reads every response body through the shared payload
+// helper rather than off a parsed `any`, and the two link assertions prove
+// the picker resolved a target instead of reading through a nullable one.
+assert.ok(
+  fs.readFileSync("scripts/lists-api-regression.mjs", "utf8")
+    .includes("readPayload(projectLink, [\"link\"]"),
+  "scripts/lists-api-regression.mjs should keep narrowing its response bodies through the shared payload helper",
+);
+assert.ok(
+  fs.readFileSync("scripts/lists-api-regression.mjs", "utf8")
+    .includes("assert.ok(projectLinkBody.link.target,"),
+  "scripts/lists-api-regression.mjs should keep proving a created link resolves its target",
+);
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().

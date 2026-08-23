@@ -3,6 +3,21 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { fixtureString, workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} ListsUiSession */
+
+/**
+ * One app-shell navigation entry, as this owner walks it.
+ *
+ * The app-shell bootstrap contract publishes `navigation` as an open list,
+ * which `0.33.33.32.13` confirmed is deliberate: the shell carries whatever
+ * the enabled modules contribute. So the shape is described here, where the
+ * walk happens, rather than by tightening a framework payload that is open by
+ * design.
+ * @typedef {{ href?: unknown, id?: unknown, items?: unknown[], label?: unknown }} NavigationItem
+ */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-ui-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-ui.db");
@@ -34,9 +49,11 @@ try {
 async function assertManifest() {
   const listsModule = modulesService.getModule("lists");
 
+  assert.ok(listsModule, "the Lists module should be registered");
   assert.equal(listsModule.version, appVersion, "Lists module metadata should track the current app version");
 }
 
+/** @param {ListsUiSession} session */
 async function assertProtectedView(session) {
   const result = await staticService.read("/lists.html", session);
   const html = result.contents.toString("utf8");
@@ -247,19 +264,23 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(listsStyles, /#eff6ff|#f0fdfa|#fff7ed|#bfdbfe|#99f6e4|#fed7aa/);
 }
 
+/** @param {ListsUiSession} session */
 async function assertNavigation(session) {
   const bootstrap = await appShellService.bootstrap(session);
-  const actionsMenu = bootstrap.navigation.find((item) => item.id === "actions" && Array.isArray(item.items));
-  const listsLink = flattenNavigation(actionsMenu?.items).find((item) => item.href === "lists.html");
+  const actionsMenu = bootstrap.navigation.map(navigationItem).find((item) => item.id === "actions" && Array.isArray(item.items));
+  assert.ok(actionsMenu, "the app shell should publish an actions menu");
+  assert.ok(actionsMenu.items, "the actions menu should carry entries");
+  const listsLink = flattenNavigation(actionsMenu.items).find((item) => item.href === "lists.html");
 
   assert.ok(listsLink, "Lists should appear in authenticated navigation while enabled");
   assert.equal(listsLink.label, "Procurement Lists");
   assert.deepEqual(
-    actionsMenu.items.map((item) => item.label),
+    actionsMenu.items.map(navigationItem).map((item) => item.label),
     ["Time Keeping", "Tasks", "Calendar", "Notes", "Procurement Lists", "Files", "Reporting"],
   );
 }
 
+/** @param {ListsUiSession} session */
 async function assertWorkspaceAwareLabels(session) {
   await runSql(`
 UPDATE workspaces
@@ -278,6 +299,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)};
 `);
 }
 
+/** @param {ListsUiSession} session */
 async function assertDisabledModuleState(session) {
   await setListsStatus(session.workspace_id, "disabled");
 
@@ -291,6 +313,7 @@ async function assertDisabledModuleState(session) {
   await setListsStatus(session.workspace_id, "enabled");
 }
 
+/** @param {string} workspaceId @param {string} status */
 async function setListsStatus(workspaceId, status) {
   const now = new Date().toISOString();
 
@@ -303,13 +326,25 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 `);
 }
 
+/**
+ * Prove one navigation entry is a record before it is walked.
+ * @param {unknown} value
+ * @returns {NavigationItem}
+ */
+function navigationItem(value) {
+  assert.ok(value && typeof value === "object" && !Array.isArray(value), "each app-shell navigation entry should be a record");
+  return /** @type {NavigationItem} */ (value);
+}
+
+/** @param {readonly unknown[]} [items] @returns {NavigationItem[]} */
 function flattenNavigation(items = []) {
-  return items.flatMap((item) => [
+  return items.map(navigationItem).flatMap((item) => [
     item,
     ...(item.items ? flattenNavigation(item.items) : []),
   ]);
 }
 
+/** @param {string} source @param {string} functionName */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);
@@ -317,37 +352,34 @@ function functionBlock(source, functionName) {
   return source.slice(start, next === -1 ? source.length : next);
 }
 
+/** @returns {Promise<{ workspace_id: string }>} */
 async function readWorkspace() {
-  const rows = await querySql(`
+  const row = requireFirstRow(await querySql(`
 SELECT workspace_id
 FROM workspaces
 ORDER BY created_at
 LIMIT 1;
-`);
+`), "the default workspace");
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  return { workspace_id: fixtureString(row.workspace_id, "the default workspace id") };
 }
 
+/** @param {string} workspaceId @returns {Promise<ListsUiSession>} */
 async function readProtectedSession(workspaceId) {
-  const rows = await querySql(`
+  const row = requireFirstRow(await querySql(`
 SELECT user_id, username, display_name, timezone
 FROM users
 WHERE protected_user = 'yes'
 ORDER BY rowid
 LIMIT 1;
-`);
+`), "the protected user");
 
-  assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
-    workspace_id: workspaceId,
+  return workspaceSessionFixture({
+    ...row,
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-  };
+    workspace_id: workspaceId,
+  });
 }
 
 async function assertIntegrity() {

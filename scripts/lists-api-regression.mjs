@@ -6,6 +6,56 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+// The Lists records these envelopes carry are the module's own published
+// contracts, proved against the repository at 0.33.33.32.15, rather than a
+// second description of the same rows written from the assertions upward.
+/** @typedef {import("../src/types/lists-catalog-item-contracts.js").ListsCatalogItemRecord} ListsCatalogItemRecord */
+/** @typedef {import("../src/types/lists-domain-contracts.js").ListsBrowserLink} ListsBrowserLink */
+/** @typedef {import("../src/types/lists-domain-contracts.js").ListsBrowserRecord} ListsBrowserRecord */
+/** @typedef {import("../src/types/lists-item-contracts.js").ListsItemRecord} ListsItemRecord */
+/** @typedef {import("../src/types/link-target-directory-contracts.js").LinkTarget} LinkTarget */
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} ListsApiApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} ListsApiClientOptions */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureFetchResponse<unknown> & { text: string }} ListsApiResponse */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} ListsApiServer */
+
+/** @typedef {ReturnType<typeof createApi>} ListsApi */
+
+/**
+ * The fixture record the flows share. The three list and item identifiers are
+ * optional because the flow that creates each one attaches it after seeding,
+ * and each is proven present where a later flow depends on it.
+ * @typedef {Awaited<ReturnType<typeof seedFixtures>> & {
+ *   businessItemId?: string,
+ *   businessListId?: string,
+ *   familyListId?: string,
+ * }} ListsApiFixtures
+ */
+
+/** @typedef {{ error: { message: string } }} ErrorEnvelope */
+/** @typedef {{ list: ListsBrowserRecord }} ListEnvelope */
+/** @typedef {{ items: ListsItemRecord[], list: ListsBrowserRecord }} ListItemsEnvelope */
+/** @typedef {{ links: ListsBrowserLink[], list: ListsBrowserRecord }} ListLinksEnvelope */
+/** @typedef {{ item: ListsItemRecord }} ItemEnvelope */
+/** @typedef {{ items: ListsItemRecord[] }} ItemsEnvelope */
+/** @typedef {{ link: ListsBrowserLink }} LinkEnvelope */
+/** @typedef {{ links: ListsBrowserLink[] }} LinksEnvelope */
+/** @typedef {{ catalogItem: ListsCatalogItemRecord }} CatalogItemEnvelope */
+/** @typedef {{ catalogItems: ListsCatalogItemRecord[] }} CatalogItemsEnvelope */
+/** @typedef {{ suggestions: ListsCatalogItemRecord[] }} SuggestionsEnvelope */
+
+/**
+ * The link-target picker envelope, as `listsService.listLinkTargets` builds
+ * it: the active providers it offers and the targets it resolved for the
+ * requested type.
+ * @typedef {{
+ *   providers: Array<{ id: string, label: string, moduleId: string, providerId: string, targetType: string }>,
+ *   targets: LinkTarget[],
+ * }} LinkTargetsEnvelope
+ */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-lists-api-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-lists-api.db");
@@ -15,13 +65,14 @@ const { createApp } = await import("../src/core/app.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { createSession } = await import("../src/security/sessions.js");
 
+/** @type {ListsApiServer | undefined} */
 let server;
 
 try {
   await initializeDatabase();
   const fixtures = await seedFixtures();
   server = await listen(createApp());
-  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${listenerPort(server)}`;
   const api = createApi(baseUrl);
 
   await assertAuthenticationRequired(api);
@@ -40,25 +91,31 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {ListsApi} api */
 async function assertAuthenticationRequired(api) {
   const response = await api.get("/api/lists");
   assert.equal(response.status, 401);
 }
 
+/** @param {ListsApi} api @param {ListsApiFixtures} fixtures */
 async function assertBusinessListApiFlow(api, fixtures) {
   const invalidShape = await api.post("/api/lists", {
     title: { nested: true },
   }, { cookie: fixtures.adminSessionId });
+  /** @type {ErrorEnvelope} */
+  const invalidShapeBody = readPayload(invalidShape, ["error"], "invalid shape");
   assert.equal(invalidShape.status, 400);
-  assert.equal(invalidShape.body.error.message, "List title must be text or a scalar value.");
+  assert.equal(invalidShapeBody.error.message, "List title must be text or a scalar value.");
 
   const mismatch = await api.post("/api/lists", {
     client_id: fixtures.otherClientId,
     project_id: fixtures.projectId,
     title: "Mismatched procurement list",
   }, { cookie: fixtures.adminSessionId });
+  /** @type {ErrorEnvelope} */
+  const mismatchBody = readPayload(mismatch, ["error"], "mismatch");
   assert.equal(mismatch.status, 400);
-  assert.match(mismatch.body.error.message, /project/i);
+  assert.match(mismatchBody.error.message, /project/i);
 
   const created = await api.post("/api/lists", {
     description: "API procurement flow",
@@ -66,25 +123,31 @@ async function assertBusinessListApiFlow(api, fixtures) {
     project_id: fixtures.projectId,
     title: "API Procurement List",
   }, { cookie: fixtures.adminSessionId });
+  /** @type {ListEnvelope} */
+  const createdBody = readPayload(created, ["list"], "created");
   assert.equal(created.status, 201);
-  assert.equal(created.body.list.title, "API Procurement List");
-  assert.equal(created.body.list.client_id, fixtures.clientId);
-  assert.equal(created.body.list.project_id, fixtures.projectId);
-  fixtures.businessListId = created.body.list.list_id;
+  assert.equal(createdBody.list.title, "API Procurement List");
+  assert.equal(createdBody.list.client_id, fixtures.clientId);
+  assert.equal(createdBody.list.project_id, fixtures.projectId);
+  fixtures.businessListId = createdBody.list.list_id;
 
   const item = await api.post(`/api/lists/${fixtures.businessListId}/items`, {
     item_name: "API Widget",
     quantity: 2,
     unit: "box",
   }, { cookie: fixtures.adminSessionId });
+  /** @type {ItemEnvelope} */
+  const itemBody = readPayload(item, ["item"], "item");
   assert.equal(item.status, 201);
-  assert.equal(item.body.item.item_name, "API Widget");
-  fixtures.businessItemId = item.body.item.list_item_id;
+  assert.equal(itemBody.item.item_name, "API Widget");
+  fixtures.businessItemId = itemBody.item.list_item_id;
 
   const secondItem = await api.post(`/api/lists/${fixtures.businessListId}/items`, {
     item_name: "API Cable",
     quantity: 5,
   }, { cookie: fixtures.adminSessionId });
+  /** @type {ItemEnvelope} */
+  const secondItemBody = readPayload(secondItem, ["item"], "second item");
   assert.equal(secondItem.status, 201);
 
   const updatedItem = await api.put(`/api/lists/${fixtures.businessListId}/items/${fixtures.businessItemId}`, {
@@ -93,67 +156,90 @@ async function assertBusinessListApiFlow(api, fixtures) {
     quantity: 3,
     sort_order: 20,
   }, { cookie: fixtures.adminSessionId });
+  /** @type {ItemEnvelope} */
+  const updatedItemBody = readPayload(updatedItem, ["item"], "updated item");
   assert.equal(updatedItem.status, 200);
-  assert.equal(updatedItem.body.item.purchase_status, "ordered");
+  assert.equal(updatedItemBody.item.purchase_status, "ordered");
 
   const reordered = await api.post(`/api/lists/${fixtures.businessListId}/items/reorder`, {
     items: [
-      { list_item_id: secondItem.body.item.list_item_id, sort_order: 0 },
+      { list_item_id: secondItemBody.item.list_item_id, sort_order: 0 },
       { list_item_id: fixtures.businessItemId, sort_order: 10 },
     ],
   }, { cookie: fixtures.adminSessionId });
+  /** @type {ItemsEnvelope} */
+  const reorderedBody = readPayload(reordered, ["items"], "reordered");
   assert.equal(reordered.status, 200);
-  assert.deepEqual(reordered.body.items.map((entry) => entry.list_item_id), [
-    secondItem.body.item.list_item_id,
+  assert.deepEqual(reorderedBody.items.map((entry) => entry.list_item_id), [
+    secondItemBody.item.list_item_id,
     fixtures.businessItemId,
   ]);
 
   const checked = await api.post(`/api/lists/${fixtures.businessListId}/items/${fixtures.businessItemId}/check`, {}, {
     cookie: fixtures.adminSessionId,
   });
+  /** @type {ItemEnvelope} */
+  const checkedBody = readPayload(checked, ["item"], "checked");
   assert.equal(checked.status, 200);
-  assert.ok(checked.body.item.checked_at);
+  assert.ok(checkedBody.item.checked_at);
 
   const completedItem = await api.post(`/api/lists/${fixtures.businessListId}/items/${fixtures.businessItemId}/complete`, {}, {
     cookie: fixtures.adminSessionId,
   });
+  /** @type {ItemEnvelope} */
+  const completedItemBody = readPayload(completedItem, ["item"], "completed item");
   assert.equal(completedItem.status, 200);
-  assert.ok(completedItem.body.item.completed_at);
+  assert.ok(completedItemBody.item.completed_at);
 
   const unchecked = await api.post(`/api/lists/${fixtures.businessListId}/items/${fixtures.businessItemId}/uncheck`, {}, {
     cookie: fixtures.adminSessionId,
   });
+  /** @type {ItemEnvelope} */
+  const uncheckedBody = readPayload(unchecked, ["item"], "unchecked");
   assert.equal(unchecked.status, 200);
-  assert.equal(unchecked.body.item.checked_at, null);
-  assert.ok(unchecked.body.item.completed_at);
+  assert.equal(uncheckedBody.item.checked_at, null);
+  assert.ok(uncheckedBody.item.completed_at);
 
   const items = await api.get(`/api/lists/${fixtures.businessListId}/items`, { cookie: fixtures.adminSessionId });
+  /** @type {ItemsEnvelope} */
+  const itemsBody = readPayload(items, ["items"], "items");
   assert.equal(items.status, 200);
-  assert.equal(items.body.items.length, 2);
+  assert.equal(itemsBody.items.length, 2);
 
   const read = await api.get(`/api/lists/${fixtures.businessListId}`, { cookie: fixtures.adminSessionId });
+  /** @type {ListItemsEnvelope} */
+  const readBody = readPayload(read, ["items", "list"], "read");
   assert.equal(read.status, 200);
-  assert.equal(read.body.items.length, 2);
-  assert.equal(read.body.list.progress.totalItemCount, 2);
-  assert.equal(read.body.list.progress.nextUncheckedItemLabel, "API Cable");
-  assert.equal(read.body.list.resumeContext.sourceUrl, `lists.html?list=${encodeURIComponent(fixtures.businessListId)}`);
-  assert.equal(read.body.list.resumeContext.progress.totalItemCount, 2);
+  assert.equal(readBody.items.length, 2);
+  assert.equal(readBody.list.progress.totalItemCount, 2);
+  assert.equal(readBody.list.progress.nextUncheckedItemLabel, "API Cable");
+  assert.equal(readBody.list.resumeContext.sourceUrl, `lists.html?list=${encodeURIComponent(fixtures.businessListId)}`);
+  assert.equal(readBody.list.resumeContext.progress.totalItemCount, 2);
 
   const reusable = await api.post(`/api/lists/${fixtures.businessListId}/mark-reusable`, {}, { cookie: fixtures.adminSessionId });
+  /** @type {ListEnvelope} */
+  const reusableBody = readPayload(reusable, ["list"], "reusable");
   assert.equal(reusable.status, 200);
-  assert.equal(reusable.body.list.is_reusable, true);
+  assert.equal(reusableBody.list.is_reusable, true);
 
   const duplicated = await api.post(`/api/lists/${fixtures.businessListId}/duplicate`, {}, { cookie: fixtures.adminSessionId });
+  /** @type {ListItemsEnvelope} */
+  const duplicatedBody = readPayload(duplicated, ["items", "list"], "duplicated");
   assert.equal(duplicated.status, 201);
-  assert.equal(duplicated.body.list.status, "active");
-  assert.equal(duplicated.body.list.is_reusable, false);
-  assert.equal(duplicated.body.list.source_list_id, fixtures.businessListId);
-  assert.equal(duplicated.body.list.duplicated_from_list_id, fixtures.businessListId);
-  assert.equal(duplicated.body.list.sourceContext.duplicatedFrom.title, "API Procurement List");
-  assert.equal(duplicated.body.list.sourceContext.sourceList.title, "API Procurement List");
-  assert.equal(duplicated.body.items.length, 2);
-  assert.ok(duplicated.body.items.every((entry) => entry.purchase_status === "needed"));
-  assert.ok(duplicated.body.items.every((entry) => entry.checked_at === null && entry.completed_at === null));
+  assert.equal(duplicatedBody.list.status, "active");
+  assert.equal(duplicatedBody.list.is_reusable, false);
+  assert.equal(duplicatedBody.list.source_list_id, fixtures.businessListId);
+  assert.equal(duplicatedBody.list.duplicated_from_list_id, fixtures.businessListId);
+  // Both source summaries are nullable on the published record, and these are
+  // the assertions proving a duplicate keeps its provenance, so each is proven
+  // present rather than read through.
+  assert.ok(duplicatedBody.list.sourceContext.duplicatedFrom, "a duplicated list should record what it was duplicated from");
+  assert.ok(duplicatedBody.list.sourceContext.sourceList, "a duplicated list should record its source list");
+  assert.equal(duplicatedBody.list.sourceContext.duplicatedFrom.title, "API Procurement List");
+  assert.equal(duplicatedBody.list.sourceContext.sourceList.title, "API Procurement List");
+  assert.equal(duplicatedBody.items.length, 2);
+  assert.ok(duplicatedBody.items.every((entry) => entry.purchase_status === "needed"));
+  assert.ok(duplicatedBody.items.every((entry) => entry.checked_at === null && entry.completed_at === null));
 
   const catalog = await api.post("/api/lists/item-catalog", {
     estimated_cost: 9,
@@ -162,35 +248,45 @@ async function assertBusinessListApiFlow(api, fixtures) {
     quantity: 6,
     unit: "roll",
   }, { cookie: fixtures.adminSessionId });
+  /** @type {CatalogItemEnvelope} */
+  const catalogBody = readPayload(catalog, ["catalogItem"], "catalog");
   assert.equal(catalog.status, 201);
-  assert.equal(catalog.body.catalogItem.use_count, 0);
+  assert.equal(catalogBody.catalogItem.use_count, 0);
 
   const catalogSuggestions = await api.get(`/api/lists/item-suggestions?listId=${fixtures.businessListId}&q=tape`, {
     cookie: fixtures.adminSessionId,
   });
+  /** @type {SuggestionsEnvelope} */
+  const catalogSuggestionsBody = readPayload(catalogSuggestions, ["suggestions"], "catalog suggestions");
   assert.equal(catalogSuggestions.status, 200);
-  assert.equal(catalogSuggestions.body.suggestions[0].catalog_item_id, catalog.body.catalogItem.catalog_item_id);
+  assert.equal(catalogSuggestionsBody.suggestions[0].catalog_item_id, catalogBody.catalogItem.catalog_item_id);
   const catalogList = await api.get(`/api/lists/catalog-items?listId=${fixtures.businessListId}&q=tape`, {
     cookie: fixtures.adminSessionId,
   });
+  /** @type {CatalogItemsEnvelope} */
+  const catalogListBody = readPayload(catalogList, ["catalogItems"], "catalog list");
   assert.equal(catalogList.status, 200);
-  assert.equal(catalogList.body.catalogItems[0].catalog_item_id, catalog.body.catalogItem.catalog_item_id);
+  assert.equal(catalogListBody.catalogItems[0].catalog_item_id, catalogBody.catalogItem.catalog_item_id);
 
   const catalogBackedItem = await api.post(`/api/lists/${fixtures.businessListId}/items`, {
-    catalog_item_id: catalog.body.catalogItem.catalog_item_id,
+    catalog_item_id: catalogBody.catalogItem.catalog_item_id,
     item_name: "API Catalog Tape",
   }, { cookie: fixtures.adminSessionId });
+  /** @type {ItemEnvelope} */
+  const catalogBackedItemBody = readPayload(catalogBackedItem, ["item"], "catalog backed item");
   assert.equal(catalogBackedItem.status, 201);
-  assert.equal(catalogBackedItem.body.item.quantity, 6);
-  assert.equal(catalogBackedItem.body.item.unit, "roll");
-  assert.equal(catalogBackedItem.body.item.estimated_cost, 9);
+  assert.equal(catalogBackedItemBody.item.quantity, 6);
+  assert.equal(catalogBackedItemBody.item.unit, "roll");
+  assert.equal(catalogBackedItemBody.item.estimated_cost, 9);
 
   const usedSuggestions = await api.get(`/api/lists/item-suggestions?listId=${fixtures.businessListId}&q=tape`, {
     cookie: fixtures.adminSessionId,
   });
-  assert.equal(usedSuggestions.body.suggestions[0].use_count, 1);
+  /** @type {SuggestionsEnvelope} */
+  const usedSuggestionsBody = readPayload(usedSuggestions, ["suggestions"], "used suggestions");
+  assert.equal(usedSuggestionsBody.suggestions[0].use_count, 1);
 
-  const updatedCatalog = await api.put(`/api/lists/item-catalog/${catalog.body.catalogItem.catalog_item_id}`, {
+  const updatedCatalog = await api.put(`/api/lists/item-catalog/${catalogBody.catalogItem.catalog_item_id}`, {
     item_name: "API Catalog Tape Revised",
     list_type: "procurement",
     quantity: 100,
@@ -198,7 +294,10 @@ async function assertBusinessListApiFlow(api, fixtures) {
   }, { cookie: fixtures.adminSessionId });
   assert.equal(updatedCatalog.status, 200);
   const snapshotRead = await api.get(`/api/lists/${fixtures.businessListId}`, { cookie: fixtures.adminSessionId });
-  const snapshotItem = snapshotRead.body.items.find((entry) => entry.list_item_id === catalogBackedItem.body.item.list_item_id);
+  /** @type {ItemsEnvelope} */
+  const snapshotReadBody = readPayload(snapshotRead, ["items"], "snapshot read");
+  const snapshotItem = snapshotReadBody.items.find((entry) => entry.list_item_id === catalogBackedItemBody.item.list_item_id);
+  assert.ok(snapshotItem, "the catalog-backed item should still be readable after the catalog row was revised");
   assert.equal(snapshotItem.item_name, "API Catalog Tape");
   assert.equal(snapshotItem.quantity, 6);
   assert.equal(snapshotItem.unit, "roll");
@@ -209,33 +308,45 @@ async function assertBusinessListApiFlow(api, fixtures) {
     save_to_catalog: true,
     unit: "kit",
   }, { cookie: fixtures.adminSessionId });
+  /** @type {ItemEnvelope} */
+  const savedCatalogItemBody = readPayload(savedCatalogItem, ["item"], "saved catalog item");
   assert.equal(savedCatalogItem.status, 201);
-  assert.ok(savedCatalogItem.body.item.catalog_item_id);
+  assert.ok(savedCatalogItemBody.item.catalog_item_id);
 
   const projectTargets = await api.get("/api/lists/link-targets?targetType=project&q=Lists%20API", {
     cookie: fixtures.adminSessionId,
   });
+  /** @type {LinkTargetsEnvelope} */
+  const projectTargetsBody = readPayload(projectTargets, ["providers", "targets"], "project targets");
   assert.equal(projectTargets.status, 200);
-  assert.deepEqual(projectTargets.body.providers.map((provider) => provider.targetType), ["client", "note", "project", "task"]);
-  assert.equal(projectTargets.body.targets[0].targetId, fixtures.projectId);
-  assert.equal(projectTargets.body.targets[0].displayLabel, "Lists API Project - Lists API Client");
-  assert.equal(projectTargets.body.targets[0].isAvailable, true);
-  assert.ok(!projectTargets.body.targets[0].displayLabel.includes(fixtures.projectId));
+  assert.deepEqual(projectTargetsBody.providers.map((provider) => provider.targetType), ["client", "note", "project", "task"]);
+  assert.equal(projectTargetsBody.targets[0].targetId, fixtures.projectId);
+  assert.equal(projectTargetsBody.targets[0].displayLabel, "Lists API Project - Lists API Client");
+  assert.equal(projectTargetsBody.targets[0].isAvailable, true);
+  assert.ok(!projectTargetsBody.targets[0].displayLabel.includes(fixtures.projectId));
 
   const projectLink = await api.post(`/api/lists/${fixtures.businessListId}/links`, {
     targetId: fixtures.projectId,
     targetType: "project",
   }, { cookie: fixtures.adminSessionId });
+  /** @type {LinkEnvelope} */
+  const projectLinkBody = readPayload(projectLink, ["link"], "project link");
   assert.equal(projectLink.status, 201);
-  assert.equal(projectLink.body.link.target.target_type, "project");
-  assert.equal(projectLink.body.link.target.label, "Lists API Project");
+  // A link whose target could not be resolved publishes a null target, and
+  // these are the assertions proving the picker resolved a labelled one.
+  assert.ok(projectLinkBody.link.target, "creating a project link should resolve its linked target");
+  assert.equal(projectLinkBody.link.target.target_type, "project");
+  assert.equal(projectLinkBody.link.target.label, "Lists API Project");
 
   const clientLink = await api.post(`/api/lists/${fixtures.businessListId}/links`, {
     targetId: fixtures.clientId,
     targetType: "client",
   }, { cookie: fixtures.adminSessionId });
+  /** @type {LinkEnvelope} */
+  const clientLinkBody = readPayload(clientLink, ["link"], "client link");
   assert.equal(clientLink.status, 201);
-  assert.equal(clientLink.body.link.target.label, "Lists API Client");
+  assert.ok(clientLinkBody.link.target, "creating a client link should resolve its linked target");
+  assert.equal(clientLinkBody.link.target.label, "Lists API Client");
 
   const mismatchedProviderLink = await api.post(`/api/lists/${fixtures.businessListId}/links`, {
     moduleId: "tasks",
@@ -245,50 +356,70 @@ async function assertBusinessListApiFlow(api, fixtures) {
   assert.equal(mismatchedProviderLink.status, 400, "Strict link creation should reject a provider/type mismatch");
 
   const links = await api.get(`/api/lists/${fixtures.businessListId}/links`, { cookie: fixtures.adminSessionId });
+  /** @type {LinksEnvelope} */
+  const linksBody = readPayload(links, ["links"], "links");
   assert.equal(links.status, 200);
-  assert.equal(links.body.links.length, 2);
+  assert.equal(linksBody.links.length, 2);
 
   const readWithLinks = await api.get(`/api/lists/${fixtures.businessListId}`, { cookie: fixtures.adminSessionId });
-  assert.equal(readWithLinks.body.links.length, 2);
-  assert.ok(readWithLinks.body.links.every((link) => link.target?.label));
-  assert.equal(readWithLinks.body.list.resumeContext.linkedRecords.length, 2);
-  assert.ok(readWithLinks.body.list.resumeContext.linkedRecords.every((link) => link.isAvailable && link.sourceUrl));
+  /** @type {ListLinksEnvelope} */
+  const readWithLinksBody = readPayload(readWithLinks, ["links", "list"], "read with links");
+  assert.equal(readWithLinksBody.links.length, 2);
+  assert.ok(readWithLinksBody.links.every((link) => link.target?.label));
+  assert.equal(readWithLinksBody.list.resumeContext.linkedRecords.length, 2);
+  assert.ok(readWithLinksBody.list.resumeContext.linkedRecords.every((link) => link.isAvailable && link.sourceUrl));
 
-  const removedLink = await api.post(`/api/lists/${fixtures.businessListId}/links/${projectLink.body.link.list_link_id}/remove`, {}, {
+  const removedLink = await api.post(`/api/lists/${fixtures.businessListId}/links/${projectLinkBody.link.list_link_id}/remove`, {}, {
     cookie: fixtures.adminSessionId,
   });
+  /** @type {LinkEnvelope} */
+  const removedLinkBody = readPayload(removedLink, ["link"], "removed link");
   assert.equal(removedLink.status, 200);
-  assert.ok(removedLink.body.link.removed_at);
+  assert.ok(removedLinkBody.link.removed_at);
 
   const unmarkedReusable = await api.post(`/api/lists/${fixtures.businessListId}/unmark-reusable`, {}, { cookie: fixtures.adminSessionId });
+  /** @type {ListEnvelope} */
+  const unmarkedReusableBody = readPayload(unmarkedReusable, ["list"], "unmarked reusable");
   assert.equal(unmarkedReusable.status, 200);
-  assert.equal(unmarkedReusable.body.list.is_reusable, false);
+  assert.equal(unmarkedReusableBody.list.is_reusable, false);
 
   const completed = await api.post(`/api/lists/${fixtures.businessListId}/complete`, {}, { cookie: fixtures.adminSessionId });
+  /** @type {ListEnvelope} */
+  const completedBody = readPayload(completed, ["list"], "completed");
   assert.equal(completed.status, 200);
-  assert.equal(completed.body.list.status, "completed");
+  assert.equal(completedBody.list.status, "completed");
 
   const reopened = await api.post(`/api/lists/${fixtures.businessListId}/reopen`, {}, { cookie: fixtures.adminSessionId });
+  /** @type {ListEnvelope} */
+  const reopenedBody = readPayload(reopened, ["list"], "reopened");
   assert.equal(reopened.status, 200);
-  assert.equal(reopened.body.list.status, "active");
+  assert.equal(reopenedBody.list.status, "active");
 
   const archived = await api.post(`/api/lists/${fixtures.businessListId}/archive`, {}, { cookie: fixtures.adminSessionId });
+  /** @type {ListEnvelope} */
+  const archivedBody = readPayload(archived, ["list"], "archived");
   assert.equal(archived.status, 200);
-  assert.equal(archived.body.list.status, "archived");
+  assert.equal(archivedBody.list.status, "archived");
 
   const restored = await api.post(`/api/lists/${fixtures.businessListId}/restore`, {}, { cookie: fixtures.adminSessionId });
+  /** @type {ListEnvelope} */
+  const restoredBody = readPayload(restored, ["list"], "restored");
   assert.equal(restored.status, 200);
-  assert.equal(restored.body.list.status, "active");
+  assert.equal(restoredBody.list.status, "active");
 
   const deletedItem = await api.delete(`/api/lists/${fixtures.businessListId}/items/${fixtures.businessItemId}`, {
     cookie: fixtures.adminSessionId,
   });
+  /** @type {ItemEnvelope} */
+  const deletedItemBody = readPayload(deletedItem, ["item"], "deleted item");
   assert.equal(deletedItem.status, 200);
-  assert.ok(deletedItem.body.item.deleted_at);
+  assert.ok(deletedItemBody.item.deleted_at);
 
   const deleted = await api.delete(`/api/lists/${fixtures.businessListId}`, { cookie: fixtures.adminSessionId });
+  /** @type {ListEnvelope} */
+  const deletedBody = readPayload(deleted, ["list"], "deleted");
   assert.equal(deleted.status, 200);
-  assert.equal(deleted.body.list.status, "deleted");
+  assert.equal(deletedBody.list.status, "deleted");
 
   const hiddenDeleted = await api.get(`/api/lists/${fixtures.businessListId}`, { cookie: fixtures.adminSessionId });
   assert.equal(hiddenDeleted.status, 404);
@@ -296,61 +427,80 @@ async function assertBusinessListApiFlow(api, fixtures) {
   const restoredDeleted = await api.post(`/api/lists/${fixtures.businessListId}/restore`, {}, {
     cookie: fixtures.adminSessionId,
   });
+  /** @type {ListEnvelope} */
+  const restoredDeletedBody = readPayload(restoredDeleted, ["list"], "restored deleted");
   assert.equal(restoredDeleted.status, 200);
-  assert.equal(restoredDeleted.body.list.status, "active");
+  assert.equal(restoredDeletedBody.list.status, "active");
 
   const bom = await api.post("/api/lists", {
     list_type: "bill_of_materials",
     title: "API BOM",
   }, { cookie: fixtures.adminSessionId });
+  /** @type {ListEnvelope} */
+  const bomBody = readPayload(bom, ["list"], "bom");
   assert.equal(bom.status, 201);
-  const bomItem = await api.post(`/api/lists/${bom.body.list.list_id}/items`, {
+  const bomItem = await api.post(`/api/lists/${bomBody.list.list_id}/items`, {
     actual_cost: 32,
     item_name: "BOM Part",
     purchase_status: "received",
     tracking_id: "API-BOM-TRACK",
   }, { cookie: fixtures.adminSessionId });
   assert.equal(bomItem.status, 201);
-  const finalizedBom = await api.post(`/api/lists/${bom.body.list.list_id}/finalize`, {}, { cookie: fixtures.adminSessionId });
+  const finalizedBom = await api.post(`/api/lists/${bomBody.list.list_id}/finalize`, {}, { cookie: fixtures.adminSessionId });
+  /** @type {ListEnvelope} */
+  const finalizedBomBody = readPayload(finalizedBom, ["list"], "finalized bom");
   assert.equal(finalizedBom.status, 200);
-  assert.equal(finalizedBom.body.list.status, "finalized");
-  const finalizedEdit = await api.post(`/api/lists/${bom.body.list.list_id}/items`, {
+  assert.equal(finalizedBomBody.list.status, "finalized");
+  const finalizedEdit = await api.post(`/api/lists/${bomBody.list.list_id}/items`, {
     item_name: "Blocked finalized edit",
   }, { cookie: fixtures.adminSessionId });
+  /** @type {ErrorEnvelope} */
+  const finalizedEditBody = readPayload(finalizedEdit, ["error"], "finalized edit");
   assert.equal(finalizedEdit.status, 400);
-  assert.match(finalizedEdit.body.error.message, /finalized/i);
-  const duplicatedBom = await api.post(`/api/lists/${bom.body.list.list_id}/duplicate`, {}, { cookie: fixtures.adminSessionId });
+  assert.match(finalizedEditBody.error.message, /finalized/i);
+  const duplicatedBom = await api.post(`/api/lists/${bomBody.list.list_id}/duplicate`, {}, { cookie: fixtures.adminSessionId });
+  /** @type {ListItemsEnvelope} */
+  const duplicatedBomBody = readPayload(duplicatedBom, ["items", "list"], "duplicated bom");
   assert.equal(duplicatedBom.status, 201);
-  assert.equal(duplicatedBom.body.list.status, "active");
-  assert.equal(duplicatedBom.body.list.sourceContext.duplicatedFrom.title, "API BOM");
-  assert.equal(duplicatedBom.body.list.sourceContext.duplicatedFrom.status, "finalized");
-  assert.equal(duplicatedBom.body.items[0].actual_cost, null);
-  assert.equal(duplicatedBom.body.items[0].purchase_status, "needed");
+  assert.equal(duplicatedBomBody.list.status, "active");
+  assert.ok(duplicatedBomBody.list.sourceContext.duplicatedFrom, "a duplicated bill of materials should record what it was duplicated from");
+  assert.equal(duplicatedBomBody.list.sourceContext.duplicatedFrom.title, "API BOM");
+  assert.equal(duplicatedBomBody.list.sourceContext.duplicatedFrom.status, "finalized");
+  assert.equal(duplicatedBomBody.items[0].actual_cost, null);
+  assert.equal(duplicatedBomBody.items[0].purchase_status, "needed");
 }
 
+/** @param {ListsApi} api @param {ListsApiFixtures} fixtures */
 async function assertFamilyListApiFlow(api, fixtures) {
   const created = await api.post("/api/lists", {
     title: "Family Grocery List",
   }, { cookie: fixtures.familySessionId });
+  /** @type {ListEnvelope} */
+  const createdBody = readPayload(created, ["list"], "created");
   assert.equal(created.status, 201);
-  assert.equal(created.body.list.list_type, "shopping");
-  assert.equal(created.body.list.client_id, null);
-  fixtures.familyListId = created.body.list.list_id;
+  assert.equal(createdBody.list.list_type, "shopping");
+  assert.equal(createdBody.list.client_id, null);
+  fixtures.familyListId = createdBody.list.list_id;
 
   const blockedClientContext = await api.post("/api/lists", {
     client_id: fixtures.clientId,
     title: "Family Client List",
   }, { cookie: fixtures.familySessionId });
+  /** @type {ErrorEnvelope} */
+  const blockedClientContextBody = readPayload(blockedClientContext, ["error"], "blocked client context");
   assert.equal(blockedClientContext.status, 400);
-  assert.match(blockedClientContext.body.error.message, /business workspaces/i);
+  assert.match(blockedClientContextBody.error.message, /business workspaces/i);
 
   const familySuggestions = await api.get(`/api/lists/item-suggestions?listId=${fixtures.familyListId}&q=tape`, {
     cookie: fixtures.familySessionId,
   });
+  /** @type {SuggestionsEnvelope} */
+  const familySuggestionsBody = readPayload(familySuggestions, ["suggestions"], "family suggestions");
   assert.equal(familySuggestions.status, 200);
-  assert.deepEqual(familySuggestions.body.suggestions, []);
+  assert.deepEqual(familySuggestionsBody.suggestions, []);
 }
 
+/** @param {ListsApi} api @param {ListsApiFixtures} fixtures */
 async function assertUnauthorizedAndIsolation(api, fixtures) {
   const externalRead = await api.get(`/api/lists/${fixtures.businessListId}`, {
     cookie: fixtures.externalSessionId,
@@ -384,6 +534,7 @@ async function assertUnauthorizedAndIsolation(api, fixtures) {
   assert.equal(crossWorkspaceRead.status, 404);
 }
 
+/** @param {ListsApi} api @param {ListsApiFixtures} fixtures */
 async function assertDisabledModuleBehavior(api, fixtures) {
   await runSql(`
 UPDATE workspace_modules
@@ -398,8 +549,10 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
   const write = await api.post(`/api/lists/${fixtures.businessListId}/items`, {
     item_name: "Blocked while disabled",
   }, { cookie: fixtures.adminSessionId });
+  /** @type {ErrorEnvelope} */
+  const writeBody = readPayload(write, ["error"], "write");
   assert.equal(write.status, 403);
-  assert.match(write.body.error.message, /disabled/i);
+  assert.match(writeBody.error.message, /disabled/i);
 
   await runSql(`
 UPDATE workspace_modules
@@ -601,6 +754,15 @@ VALUES
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @returns {{
+ *   delete: (url: string, options?: ListsApiClientOptions) => Promise<ListsApiResponse>,
+ *   get: (url: string, options?: ListsApiClientOptions) => Promise<ListsApiResponse>,
+ *   post: (url: string, body?: unknown, options?: ListsApiClientOptions) => Promise<ListsApiResponse>,
+ *   put: (url: string, body?: unknown, options?: ListsApiClientOptions) => Promise<ListsApiResponse>,
+ * }}
+ */
 function createApi(baseUrl) {
   return {
     delete: (url, options = {}) => request(baseUrl, "DELETE", url, null, options),
@@ -610,7 +772,16 @@ function createApi(baseUrl) {
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {unknown} body
+ * @param {ListsApiClientOptions} [options]
+ * @returns {Promise<ListsApiResponse>}
+ */
 async function request(baseUrl, method, url, body, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {};
 
   if (options.cookie) {
@@ -627,6 +798,11 @@ async function request(baseUrl, method, url, body, options = {}) {
     redirect: "manual",
   });
   const text = await response.text();
+  // The parsed body stays `unknown`. Every read below crosses that boundary
+  // through `readPayload`, which proves the envelope it names is present, so a
+  // route that stops publishing one fails here rather than comparing
+  // `undefined` against an expected value further down.
+  /** @type {unknown} */
   let parsedBody = null;
 
   try {
@@ -648,13 +824,22 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok");
 }
 
+/** @param {ListsApiApp} app @returns {Promise<ListsApiServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const server = http.createServer(app);
+    const server = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     server.listen(0, "127.0.0.1", () => resolve(server));
   });
 }
 
+/** @param {ListsApiServer} listening @returns {number} */
+function listenerPort(listening) {
+  const address = listening.address();
+  assert.ok(address && typeof address === "object", "the Lists API fixture server should bind a TCP port");
+  return address.port;
+}
+
+/** @param {ListsApiServer} server @returns {Promise<void>} */
 function closeServer(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => {

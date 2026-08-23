@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18668,
+    "activeAssertionCount": 18688,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,8 +106,8 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19404,
-    "retiredAssertionCredit": 67,
+    "effectiveAssertionCount": 19428,
+    "retiredAssertionCredit": 71,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -390,6 +390,32 @@
       ]
     },
     {
+      "sourceRegression": "legacy.batched.list.enrichment",
+      "retiredInVersion": "0.33.33.32.16",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.20.4 rather than a live contract: one required a CHANGELOG heading recording that release of the shared visible-record batching helper, and one required that a completed 0.33.5.20 roadmap breadcrumb stay absent from the live roadmap, which it can never re-enter now that the 0.33.5.20 section is archived.",
+      "assertionDisposition": "No behavior lost coverage. The batching contract is still proven in this same owner by its static source assertions over src/core/list-enrichment.js, the four module services, and the five repositories -- the shared batch helper, the grouping helper, and every batch read the visible-row path depends on -- and by the fourteen instrumented call counters, which prove at runtime that each linked target type is read in one bounded batch and never once per visible row. Those counters are now stronger than they were: each instrumented method is proven callable before it is wrapped, so a renamed batch read fails naming the method instead of leaving a counter at zero and satisfying every should-not-be-called assertion.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/batched-list-enrichment-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.batched.list.enrichment",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/batched-list-enrichment-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
       "sourceRegression": "legacy.file.s3.diagnostics.signed.url.boundary",
       "retiredInVersion": "0.33.33.31.7",
       "retirementType": "historical-planning-pin",
@@ -549,6 +575,32 @@
       "verificationPerformed": [
         "node scripts/file-storage-streaming-contract-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.high.volume.admin.lists",
+      "retiredInVersion": "0.33.33.32.16",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.20.5 rather than a live contract: one required a CHANGELOG heading recording that release of bounded admin-scale list endpoints, and one required that a completed 0.33.5.20 roadmap breadcrumb stay absent from the live roadmap, which it can never re-enter now that the 0.33.5.20 section is archived.",
+      "assertionDisposition": "No behavior lost coverage. The bounded-pagination contract is still proven in this same owner by its static source assertions over the pagination helper, the audit, notifications, search, and files services and repositories, and the two browser scripts, and by the four live endpoint probes against a scale-seeded database, which drive real cursor paging and prove each page honors its bound, exposes a cursor, and does not repeat the previous page. Those probes are now stronger than they were: each response body enters as unknown and is narrowed through the shared payload helper, so an endpoint that stops publishing an envelope fails naming the envelope rather than comparing undefined against an expected count.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/high-volume-admin-lists-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.high.volume.admin.lists",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/high-volume-admin-lists-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"
       ]
     },
@@ -1259,11 +1311,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 44,
+      "assertionCount": 42,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy batched list enrichment contract.",
-      "entryPointAssertionCount": 44,
+      "entryPointAssertionCount": 42,
       "id": "legacy.batched.list.enrichment",
       "legacy": true,
       "path": "scripts/batched-list-enrichment-regression.mjs",
@@ -2412,11 +2464,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 66,
+      "assertionCount": 67,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy high volume admin lists contract.",
-      "entryPointAssertionCount": 66,
+      "entryPointAssertionCount": 67,
       "id": "legacy.high.volume.admin.lists",
       "legacy": true,
       "path": "scripts/high-volume-admin-lists-regression.mjs",
@@ -2635,11 +2687,11 @@
     },
     {
       "area": "lists",
-      "assertionCount": 128,
+      "assertionCount": 135,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy lists api contract.",
-      "entryPointAssertionCount": 128,
+      "entryPointAssertionCount": 135,
       "id": "legacy.lists.api",
       "legacy": true,
       "path": "scripts/lists-api-regression.mjs",
@@ -2669,11 +2721,11 @@
     },
     {
       "area": "lists",
-      "assertionCount": 55,
+      "assertionCount": 61,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy lists closeout contract.",
-      "entryPointAssertionCount": 55,
+      "entryPointAssertionCount": 61,
       "id": "legacy.lists.closeout",
       "legacy": true,
       "path": "scripts/lists-closeout-regression.mjs",
@@ -2704,11 +2756,11 @@
     },
     {
       "area": "lists",
-      "assertionCount": 30,
+      "assertionCount": 32,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy lists query suggestions contract.",
-      "entryPointAssertionCount": 30,
+      "entryPointAssertionCount": 32,
       "id": "legacy.lists.query.suggestions",
       "legacy": true,
       "path": "scripts/lists-query-suggestions-regression.mjs",
@@ -2755,11 +2807,11 @@
     },
     {
       "area": "lists",
-      "assertionCount": 200,
+      "assertionCount": 202,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy lists ui workflow contract.",
-      "entryPointAssertionCount": 200,
+      "entryPointAssertionCount": 202,
       "id": "legacy.lists.ui.workflow",
       "legacy": true,
       "path": "scripts/lists-ui-workflow-regression.mjs",
@@ -4352,11 +4404,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 162,
+      "assertionCount": 166,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 162,
+      "entryPointAssertionCount": 166,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",

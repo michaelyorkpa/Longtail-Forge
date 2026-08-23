@@ -3,8 +3,28 @@ import fs from "node:fs/promises";
 
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 const { readText } = createProjectTextReader();
+
+/**
+ * The session this owner seeds and reads through.
+ *
+ * Lists, Tasks, and Notes publish their read paths as accepting the wider
+ * service-session union and their write paths as requiring a workspace request
+ * session. This fixture drives both, so it seeds the workspace session the
+ * write paths declare rather than the narrower notification-source session it
+ * used to build by hand.
+ * @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} EnrichmentSession
+ */
+
+/**
+ * One instrumented repository method, as it is read back off the repository
+ * object by name. The wrapper only counts and forwards, so it describes the
+ * call rather than any one repository signature.
+ * @typedef {(...args: unknown[]) => unknown} CountedMethod
+ */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-batched-list-enrichment-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-batched-list-enrichment.db");
@@ -19,8 +39,6 @@ const tasksRepoSource = readText("src/modules/tasks/tasks.repo.js");
 const notesRepoSource = readText("src/modules/notes/notes.repo.js");
 const clientsRepoSource = readText("src/modules/client-projects/clients.repo.js");
 const projectsRepoSource = readText("src/modules/client-projects/projects.repo.js");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 assertStaticContracts();
 
@@ -35,6 +53,7 @@ const { tasksRepository } = await import("../src/modules/tasks/tasks.repo.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
+/** @type {Record<string, number>} */
 const counters = {};
 const restoreCounters = [
   wrapCounter(listsRepository, "listItems", counters),
@@ -117,10 +136,9 @@ function assertStaticContracts() {
   assert.match(listsServiceSource, /readSourceContextsForLists\(session, batch\)/, "Lists service should batch source-list context");
   assert.match(listsServiceSource, /tagsService\.decorateRecordsForTarget\([\s\S]*"list"[\s\S]*shapedLists/, "Lists tags should decorate shaped visible rows through the existing multi-record tag path");
 
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.20 bounded queries and small-office scale data work is archived/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, /Version 0\.33\.5\.20\.4[\s\S]*visible-record batching helper/, "Changelog should record the 0.33.5.20.4 release");
 }
 
+/** @param {EnrichmentSession} session */
 async function seedVisibleListRows(session) {
   await runSql(`
 UPDATE workspaces
@@ -166,26 +184,44 @@ WHERE workspace_id = ${sqlText(session.workspace_id)};
   return { listIds };
 }
 
+/**
+ * Instrument one repository method with a call counter.
+ *
+ * The repositories publish named interfaces rather than open records, so the
+ * method is reached through one deliberate indexing view of the object and is
+ * then proven callable before it is wrapped. That proof is what the counter
+ * assertions rest on: a batch read that is renamed or removed would otherwise
+ * leave its counter at zero and satisfy every should-not-be-called assertion
+ * below for the wrong reason.
+ * @param {object} object
+ * @param {string} methodName
+ * @param {Record<string, number>} counters
+ * @param {string} [counterName]
+ * @returns {() => void} restores the original method
+ */
 function wrapCounter(object, methodName, counters, counterName = methodName) {
-  const original = object[methodName];
-  assert.equal(typeof original, "function", `${methodName} should exist for instrumentation`);
-  object[methodName] = async function countedMethod(...args) {
+  const methods = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (object));
+  const original = methods[methodName];
+  assert.ok(typeof original === "function", `${methodName} should exist for instrumentation`);
+  const originalMethod = /** @type {CountedMethod} */ (original);
+  methods[methodName] = async function countedMethod(/** @type {unknown[]} */ ...args) {
     counters[counterName] = (counters[counterName] || 0) + 1;
-    return original.apply(this, args);
+    return originalMethod.apply(this, args);
   };
 
   return () => {
-    object[methodName] = original;
+    methods[methodName] = original;
   };
 }
 
+/** @param {Record<string, number>} counters */
 function resetCounters(counters) {
   for (const key of Object.keys(counters)) {
     counters[key] = 0;
   }
 }
 
-/** @returns {Promise<import("../src/types/http-contracts.js").ServiceAuthorizationSession & { timezone: string }>} */
+/** @returns {Promise<EnrichmentSession>} */
 async function readSession() {
   const rows = await querySql(`
 SELECT users.user_id, users.username, workspaces.workspace_id
@@ -196,13 +232,7 @@ ORDER BY users.user_id, workspaces.workspace_id
 LIMIT 1;
 `);
 
-  return {
-    authorization_source: "notification",
-    timezone: "America/New_York",
-    user_id: String(rows[0].user_id),
-    username: String(rows[0].username),
-    workspace_id: String(rows[0].workspace_id),
-  };
+  return workspaceSessionFixture(requireFirstRow(rows, "the protected user and workspace cross join"));
 }
 
 async function assertIntegrity() {
