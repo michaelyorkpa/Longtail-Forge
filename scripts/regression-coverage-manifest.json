@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18597,
+    "activeAssertionCount": 18608,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,8 +106,8 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19328,
-    "retiredAssertionCredit": 62,
+    "effectiveAssertionCount": 19340,
+    "retiredAssertionCredit": 63,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -667,6 +667,30 @@
       ],
       "verificationPerformed": [
         "node scripts/notes-external-markdown-links-preference-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.notes.files.hierarchy.scope",
+      "retiredInVersion": "0.33.33.32.14",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion was an assertRoadmapCursorAtLeast(\"0.33.8\") cursor floor against a live 0.33.33 cursor, which it can never fail. This owner appears in neither planning-document-pin-baseline list: the baseline scan matches planning-document filenames, and a cursor-floor caller that imports scripts/lib/roadmap-cursor.mjs without naming a document is excluded by construction. An independent inventory of this child found it, which the roadmap per-child \"history-pinned owners\" note did not report because that note counts historical content pinners only.",
+      "assertionDisposition": "No behavior lost coverage. The hierarchy and Linked Context scope contract is proven in this same owner by its static source assertions and by the runtime Notes and Files hierarchy scope assertions over seeded client, project, and descendant fixtures, including the unreadable-descendant exclusion path. release.historical-evidence-retirement owns the standing rule that no active regression may use archived roadmap or changelog history as product evidence.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/notes-files-hierarchy-scope-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.notes.files.hierarchy.scope",
+        "release.historical-evidence-retirement"
+      ],
+      "verificationPerformed": [
+        "node scripts/notes-files-hierarchy-scope-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"
@@ -3021,11 +3045,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 36,
+      "assertionCount": 46,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes search help contract.",
-      "entryPointAssertionCount": 36,
+      "entryPointAssertionCount": 46,
       "id": "legacy.notes.search.help",
       "legacy": true,
       "path": "scripts/notes-search-help-regression.mjs",
@@ -3072,11 +3096,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 38,
+      "assertionCount": 37,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes task context contract.",
-      "entryPointAssertionCount": 38,
+      "entryPointAssertionCount": 37,
       "id": "legacy.notes.task.context",
       "legacy": true,
       "path": "scripts/notes-task-context-regression.mjs",
@@ -4276,11 +4300,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 157,
+      "assertionCount": 159,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 157,
+      "entryPointAssertionCount": 159,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",

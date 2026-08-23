@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 1480,
+      "errorCount": 1398,
       "diagnostics": {
         "scripts/app-shell-navigation-regression.mjs": [
           {
@@ -3526,86 +3526,6 @@
           {
             "code": 7024,
             "count": 1
-          }
-        ],
-        "scripts/notes-collections-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 2769,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 8
-          }
-        ],
-        "scripts/notes-files-hierarchy-scope-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 10
-          },
-          {
-            "code": 7031,
-            "count": 5
-          }
-        ],
-        "scripts/notes-linked-panel-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 9
-          }
-        ],
-        "scripts/notes-primary-context-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 6
-          }
-        ],
-        "scripts/notes-search-help-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18047,
-            "count": 8
-          },
-          {
-            "code": 18048,
-            "count": 5
-          },
-          {
-            "code": 2339,
-            "count": 7
-          },
-          {
-            "code": 2531,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 9
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/notes-task-context-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 8
           }
         ],
         "scripts/performance-regression.mjs": [
@@ -4261,7 +4181,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 12614,
+    "errors": 12532,
     "explicitAny": 3
   },
   "explicitAnyByFile": {

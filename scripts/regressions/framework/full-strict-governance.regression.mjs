@@ -908,6 +908,24 @@ for (const notesEditorOwner of [
 ]) {
   assert.equal(ledger.programs.scripts.diagnostics[notesEditorOwner], undefined, `${notesEditorOwner} must stay strict-clean after checkpoint 0.33.33.32.13`);
 }
+for (const notesContextOwner of [
+  "scripts/notes-collections-regression.mjs",
+  "scripts/notes-files-hierarchy-scope-regression.mjs",
+  "scripts/notes-linked-panel-regression.mjs",
+  "scripts/notes-primary-context-regression.mjs",
+  "scripts/notes-search-help-regression.mjs",
+  "scripts/notes-task-context-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[notesContextOwner], undefined, `${notesContextOwner} must stay strict-clean after checkpoint 0.33.33.32.14`);
+}
+// A third assertion had been silently dropped by collapsing it into an
+// `assert.equal` message slot: note_library_collections lost its column check
+// at 0.33.6.14a. Restored and pinned.
+assert.ok(
+  fs.readFileSync("scripts/notes-collections-regression.mjs", "utf8")
+    .includes('await assertColumns("note_library_collections", ['),
+  "scripts/notes-collections-regression.mjs should keep the restored note_library_collections column check",
+);
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().

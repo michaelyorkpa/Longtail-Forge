@@ -4,6 +4,17 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
+
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
+/** The help article members this owner reads, as `module.help.js` contributes them. */
+/** @typedef {{ id: string, title: string, summary: string, contentPath: string, body?: string }} HelpArticle */
+/** @typedef {{ cookie?: string }} ApiGetOptions */
+/** @typedef {{ baseUrl: string, sessionId: string }} BrowserContext */
+/** @typedef {{ body: unknown, status: number }} ApiGetResponse */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-search-help-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-search-help.db");
@@ -25,6 +36,7 @@ const { tagsService } = await import("../src/services/tags.service.js");
 const { createSession } = await import("../src/security/sessions.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
+/** @type {import("node:http").Server | undefined} */
 let server;
 
 try {
@@ -32,11 +44,13 @@ try {
   registerSearchIndexJobHandlers({ replace: true });
   await searchService.ensureSearchBackendStorage({ refresh: true });
 
-  const workspace = await readWorkspace();
-  const session = await readProtectedSession(workspace.workspace_id);
-  const browserSession = await createSession(session);
+  const workspaceId = await readWorkspace();
+  const session = await readProtectedSession(workspaceId);
+  // `createSession` seeds from an open record of session fields; an interface
+  // is not assignable to `Record<string, unknown>` without spreading it.
+  const browserSession = await createSession({ ...session });
   server = await listen(createApp());
-  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${listenerPort(server)}`;
 
   await assertNotesManifestContributions();
   await assertNotesSearchIndexing(session, {
@@ -49,7 +63,8 @@ try {
   console.log("Notes search and Help regression passed.");
 } finally {
   if (server) {
-    await new Promise((resolve) => server.close(resolve));
+    const listening = server;
+    await new Promise((resolve) => listening.close(resolve));
   }
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
@@ -57,6 +72,8 @@ try {
 
 async function assertNotesManifestContributions() {
   const notesModule = modulesService.getModule("notes");
+  assert.ok(notesModule, "the Notes module should be registered");
+  assert.ok(notesModule.notificationEvents, "Notes should contribute notification events");
   const searchableType = notesModule.searchableTypes.find((type) => type.recordType === "note");
 
   assert.ok(searchableType, "Notes should declare a note searchable type");
@@ -67,6 +84,7 @@ async function assertNotesManifestContributions() {
   assert.ok(notesModule.notificationEvents.some((event) => event.id === "note.updated"));
 }
 
+/** @param {NotesSession} session @param {BrowserContext} browserContext */
 async function assertNotesSearchIndexing(session, browserContext) {
   const tag = await tagsService.create(session, {
     color: "#0f766e",
@@ -101,10 +119,11 @@ async function assertNotesSearchIndexing(session, browserContext) {
     workspaceId: session.workspace_id,
     recordId: normal.note.note_id,
   });
-  assert.equal(normalDocument.library_bucket, NOTE_LIBRARY_BUCKETS.REFERENCE);
-  assert.equal(normalDocument.source, "Notes");
-  assert.match(normalDocument.body, /Needle body/);
-  assert.match(normalDocument.tags_text, /Notes Search Needle/);
+  const normalFields = searchDocumentFields(normalDocument, "the reference note");
+  assert.equal(normalFields.library_bucket, NOTE_LIBRARY_BUCKETS.REFERENCE);
+  assert.equal(normalFields.source, "Notes");
+  assert.match(normalFields.body, /Needle body/);
+  assert.match(normalFields.tags_text, /Notes Search Needle/);
 
   assert.equal(await indexNoteRecord({
     workspaceId: session.workspace_id,
@@ -119,7 +138,7 @@ async function assertNotesSearchIndexing(session, browserContext) {
     workspaceId: session.workspace_id,
     recordId: activeWork.note.note_id,
   });
-  assert.equal(archivedDocument.search_status, NOTE_STATUSES.ARCHIVED);
+  assert.equal(searchDocumentFields(archivedDocument, "the archived note").search_status, NOTE_STATUSES.ARCHIVED);
 
   await drainQueuedSearchJobs();
 
@@ -140,12 +159,15 @@ async function assertNotesSearchIndexing(session, browserContext) {
   const browserResult = await apiGet(browserContext.baseUrl, "/api/search?text=Needle&recordType=note&limit=5", {
     cookie: browserContext.sessionId,
   });
-  const browserNote = browserResult.body.results.find((row) => row.recordId === normal.note.note_id);
+  /** @type {{ results: { recordId: string, [key: string]: unknown }[] }} */
+  const browserPayload = readPayload(browserResult, ["results"], "browser search");
+  const browserNote = browserPayload.results.find((row) => row.recordId === normal.note.note_id);
 
   assert.equal(browserResult.status, 200);
   assert.ok(browserNote, "browser search should return the matching note");
-  assert.equal(browserNote.target.url, `notes.html?note=${encodeURIComponent(normal.note.note_id)}`);
-  assert.equal(browserNote.target.actionId, "notes.open");
+  const browserTarget = requireJsonRecord(browserNote.target, "browser search result target");
+  assert.equal(browserTarget.url, `notes.html?note=${encodeURIComponent(normal.note.note_id)}`);
+  assert.equal(browserTarget.actionId, "notes.open");
 
   const rows = await querySql(`
 SELECT library_bucket, record_status, source
@@ -163,13 +185,15 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 }
 
 async function assertNotesHelpContribution() {
-  const help = modulesService.getModule("notes").help;
-  const articleBodies = await Promise.all(help.articles.map(async (article) => {
+  const notesModule = modulesService.getModule("notes");
+  assert.ok(notesModule?.help?.articles, "Notes should contribute help articles");
+  const articles = notesModule.help.articles.map(helpArticle);
+  const articleBodies = await Promise.all(articles.map(async (article) => {
     const body = article.body || await fs.readFile(path.join("help", ...article.contentPath.split("/")), "utf8");
     return `${article.title}\n${article.summary}\n${body}`;
   }));
   const articleText = articleBodies.join("\n");
-  const articlesById = new Map(help.articles.map((article) => [article.id, article]));
+  const articlesById = new Map(articles.map((article) => [article.id, article]));
 
   for (const articleId of [
     "notes.basics",
@@ -207,6 +231,7 @@ async function assertNotesHelpContribution() {
   assert.doesNotMatch(articleText, /\bPARA\b|\bGTD\b|Getting Things Done|second brain|Zettelkasten/i, "Notes Help should use Longtail Forge product language instead of external productivity-method branding");
 }
 
+/** @param {NotesSession} session */
 async function assertNotesNotificationContribution(session) {
   const noteId = "notification-note";
   await ensureNotificationActorUser(session);
@@ -237,6 +262,7 @@ async function assertNotesNotificationContribution(session) {
   assert.doesNotMatch(result.notifications[0].body, /Hidden secure search body|Needle body/);
 }
 
+/** @param {NotesSession} session */
 async function ensureNotificationActorUser(session) {
   await runSql(`
 INSERT INTO users (
@@ -274,6 +300,7 @@ ON CONFLICT(user_id) DO UPDATE SET
 `);
 }
 
+/** @returns {Promise<string>} */
 async function readWorkspace() {
   const rows = await querySql(`
 SELECT workspace_id
@@ -282,10 +309,12 @@ ORDER BY created_at
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.workspace_id, "workspace should exist");
-  return rows[0];
+  const workspaceId = requireFirstRow(rows, "workspace should exist").workspace_id;
+  assert.ok(typeof workspaceId === "string" && workspaceId, "the seeded workspace should carry an id");
+  return workspaceId;
 }
 
+/** @param {string} workspaceId @returns {Promise<NotesSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -295,18 +324,15 @@ ORDER BY rowid
 LIMIT 1;
 `);
 
-  assert.ok(rows[0]?.user_id, "protected user should exist");
-  return {
-    workspace_id: workspaceId,
+  return workspaceSessionFixture({
+    ...requireFirstRow(rows, "protected user should exist"),
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    user_id: rows[0].user_id,
-    username: rows[0].username,
-    display_name: rows[0].display_name,
-    timezone: rows[0].timezone || "America/New_York",
-  };
+    workspace_id: workspaceId,
+  });
 }
 
+/** @param {string} baseUrl @param {string} pathname @param {ApiGetOptions} [options] @returns {Promise<ApiGetResponse>} */
 async function apiGet(baseUrl, pathname, options = {}) {
   const response = await fetch(`${baseUrl}${pathname}`, {
     headers: options.cookie ? { Cookie: `longtail_forge_session=${options.cookie}` } : {},
@@ -319,6 +345,14 @@ async function apiGet(baseUrl, pathname, options = {}) {
   };
 }
 
+/** @param {import("node:http").Server} listening @returns {number} */
+function listenerPort(listening) {
+  const address = listening.address();
+  assert.ok(address && typeof address === "object", "the Notes search fixture server should bind a TCP port");
+  return address.port;
+}
+
+/** @param {import("express").Application} app @returns {Promise<import("node:http").Server>} */
 function listen(app) {
   return new Promise((resolve, reject) => {
     const nextServer = app.listen(0, "127.0.0.1", () => resolve(nextServer));
@@ -345,4 +379,42 @@ async function drainQueuedSearchJobs() {
   }
 
   throw new Error("Queued note search indexing jobs did not drain.");
+}
+
+/**
+ * Prove a search-index read answered one document rather than the
+ * whole-workspace batch or the null a non-searchable note produces. The null
+ * branch is a real contract this owner asserts elsewhere, so it must stay
+ * distinguishable from a document that lost a field.
+ * @param {unknown} document
+ * @param {string} label
+ * @returns {{ body: string, library_bucket: unknown, search_status: unknown, source: unknown, tags_text: string }}
+ */
+function searchDocumentFields(document, label) {
+  assert.ok(document && typeof document === "object" && !("documents" in document), `${label} should index to one search document`);
+  const record = /** @type {Record<string, unknown>} */ (document);
+  assert.ok(typeof record.body === "string", `${label} search document should carry body text`);
+  assert.ok(typeof record.tags_text === "string", `${label} search document should carry tag text`);
+  return {
+    body: record.body,
+    library_bucket: record.library_bucket,
+    search_status: record.search_status,
+    source: record.source,
+    tags_text: record.tags_text,
+  };
+}
+
+/**
+ * Read one contributed help article. The manifest publishes articles as open
+ * records, so the members this owner reads are proven per article.
+ * @param {Record<string, unknown>} article
+ * @returns {HelpArticle}
+ */
+function helpArticle(article) {
+  const { body, contentPath, id, summary, title } = article;
+  assert.ok(typeof id === "string", "a help article should carry an id");
+  assert.ok(typeof title === "string", `help article ${id} should carry a title`);
+  assert.ok(typeof summary === "string", `help article ${id} should carry a summary`);
+  assert.ok(typeof contentPath === "string", `help article ${id} should carry a content path`);
+  return { contentPath, id, summary, title, ...(typeof body === "string" ? { body } : {}) };
 }
