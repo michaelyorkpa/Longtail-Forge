@@ -4,8 +4,20 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 const { readText } = createProjectTextReader();
+
+// Tags publishes its own session, record, and propagation shapes, and the
+// propagation registry publishes the resolver context and the pair a resolver
+// answers. Both are imported here rather than redescribed, so this owner and
+// the four other propagation owners in this checkpoint answer to one contract.
+/** @typedef {import("../src/services/tags.service.js").TagSession} TagSession */
+/** @typedef {import("../src/services/tag-propagation-registry.js").TagPropagationContext} TagPropagationContext */
+/** @typedef {import("../src/services/tag-propagation-registry.js").TagPropagationTarget} TagPropagationTarget */
+
+/** @typedef {Awaited<ReturnType<typeof createResolverFixtures>>} ResolverFixtures */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-tag-propagation-service-conversion-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -17,8 +29,6 @@ const registrySource = readText("src/services/tag-propagation-registry.js");
 const tagsServiceSource = readText("src/services/tags.service.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { readTagPropagationResolver } = await import("../src/services/tag-propagation-registry.js");
@@ -64,10 +74,9 @@ function assertStaticContract() {
   assert.match(auditDocs, /\| services\/tags\.service \| Converted \| 0 \| 0 \| 3 \| 3 \|/, "audit inventory should mark tags service converted");
   assert.match(auditDocs, /0\.33\.5\.27\.24 Tag Propagation and Tags Service Conversion[\s\S]*`services\/tag-propagation-registry` and `services\/tags\.service` are fully converted[\s\S]*367 runtime literal-helper invocations[\s\S]*68 direct interpolated SQL operation sites[\s\S]*291 existing bound operation sites/, "audit docs should record the Tag propagation service conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.24[\s\S]*`services\/tag-propagation-registry` and `services\/tags\.service` are converted[\s\S]*367 remaining helper invocations/, "database docs should record the concrete Tag propagation service conversion");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.24 - Conversion wave: Tag propagation and tags service[\s\S]*- \[x\] Convert `services\/tag-propagation-registry`[\s\S]*- \[x\] Preserve Client\/Project\/Task\/Note propagation targets[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.24 - [\s\S]*Tag propagation and tags service conversion[\s\S]*367 helper invocations[\s\S]*68 direct interpolated operation sites[\s\S]*291 bound operation sites/, "changelog should record the Tag propagation service conversion burndown");
 }
 
+/** @returns {Promise<TagSession>} */
 async function readProtectedSession() {
   const rows = await querySql(`
 SELECT user_id, username, home_workspace_id, active_workspace_id
@@ -76,19 +85,13 @@ WHERE protected_user = 'yes'
 ORDER BY username
 LIMIT 1;
 `);
-  const user = rows[0];
+  const user = requireFirstRow(rows, "the protected user");
 
-  assert.ok(user?.user_id, "fresh database should include a protected user");
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    timezone: "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  assert.ok(user.user_id, "fresh database should include a protected user");
+  return workspaceSessionFixture(user);
 }
 
+/** @param {TagSession} session */
 async function createResolverFixtures(session) {
   const now = new Date().toISOString();
   const parentClientId = `conversion-parent-client-${randomUUID()}`;
@@ -126,6 +129,7 @@ async function createResolverFixtures(session) {
   };
 }
 
+/** @param {string} workspaceId @param {ResolverFixtures} fixtures */
 async function assertBuiltInResolvers(workspaceId, fixtures) {
   await assertResolverPairs("client-projects.client-children", [
     { sourceTargetId: fixtures.parentClientId },
@@ -180,6 +184,12 @@ async function assertBuiltInResolvers(workspaceId, fixtures) {
   ], workspaceId, [`project:${fixtures.parentProjectId}->note:${fixtures.linkedProjectNoteId}`]);
 }
 
+/**
+ * @param {string} resolverId
+ * @param {readonly TagPropagationContext[]} contexts
+ * @param {string} workspaceId
+ * @param {readonly string[]} expectedPairs
+ */
 async function assertResolverPairs(resolverId, contexts, workspaceId, expectedPairs) {
   const resolver = readTagPropagationResolver(resolverId);
   assert.equal(typeof resolver, "function", `${resolverId} should be registered`);
@@ -195,6 +205,7 @@ async function assertResolverPairs(resolverId, contexts, workspaceId, expectedPa
   }
 }
 
+/** @param {TagSession} session @param {ResolverFixtures} fixtures */
 async function assertTagsServiceRuntime(session, fixtures) {
   const parentProjectTag = (await tagsService.create(session, {
     name: "Bound Parent Project Service Tag",
@@ -243,6 +254,13 @@ async function assertTagsServiceRuntime(session, fixtures) {
   assert.ok(Number(clientsRows[0]?.count || 0) >= 2, "bound resolver inputs should leave client storage intact");
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} clientId
+ * @param {string} parentClientId empty when the client has no parent
+ * @param {string} name
+ * @param {string} now
+ */
 async function insertClient(workspaceId, clientId, parentClientId, name, now) {
   await runSql(`
 INSERT INTO clients (
@@ -290,6 +308,14 @@ VALUES (
 `);
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {string} projectId
+ * @param {string} clientId
+ * @param {string} parentProjectId empty when the project has no parent
+ * @param {string} name
+ * @param {string} now
+ */
 async function insertProject(workspaceId, projectId, clientId, parentProjectId, name, now) {
   await runSql(`
 INSERT INTO projects (
@@ -317,6 +343,7 @@ VALUES (
 `);
 }
 
+/** @param {TagSession} session @param {string} taskId @param {string} projectId @param {string} now */
 async function insertTask(session, taskId, projectId, now) {
   await runSql(`
 INSERT INTO tasks (
@@ -348,7 +375,13 @@ VALUES (
 `);
 }
 
-async function insertNote(session, noteId, title, options = {}) {
+/**
+ * @param {TagSession} session
+ * @param {string} noteId
+ * @param {string} title
+ * @param {{ clientId?: string, now: string, projectId?: string }} options
+ */
+async function insertNote(session, noteId, title, options) {
   await runSql(`
 INSERT INTO notes (
   note_id,
@@ -389,6 +422,13 @@ VALUES (
 `);
 }
 
+/**
+ * @param {TagSession} session
+ * @param {string} noteId
+ * @param {string} targetType
+ * @param {string} targetId
+ * @param {string} now
+ */
 async function insertNoteLink(session, noteId, targetType, targetId, now) {
   await runSql(`
 INSERT INTO note_links (
@@ -422,6 +462,7 @@ VALUES (
 `);
 }
 
+/** @param {string} workspaceId */
 async function enableAuditLogging(workspaceId) {
   await runSql(`
 UPDATE workspace_settings
@@ -436,10 +477,12 @@ async function assertIntegrity() {
   assert.equal(rows[0]?.integrity_check, "ok", "SQLite integrity check should pass");
 }
 
+/** @param {TagPropagationTarget} pair @returns {string} */
 function pairKey(pair) {
   return `${pair.sourceTargetType}:${pair.sourceTargetId}->${pair.targetType}:${pair.targetId}`;
 }
 
+/** @param {string} source @param {RegExp} pattern @returns {number} */
 function countMatches(source, pattern) {
   return [...source.matchAll(pattern)].length;
 }

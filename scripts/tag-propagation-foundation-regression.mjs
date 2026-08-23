@@ -16,6 +16,15 @@ const { tagsService } = await import("../src/services/tags.service.js");
 
 /** @typedef {{ user_id: string, username: string, home_workspace_id: string, active_workspace_id: string | null }} ProtectedSessionProjection */
 
+// Tags publishes the session, tag record, and assignment shapes this owner
+// works in. They are imported rather than redescribed so the five propagation
+// owners in this checkpoint answer to one contract.
+/** @typedef {import("../src/services/tags.service.js").TagAssignment} TagAssignment */
+/** @typedef {import("../src/services/tags.service.js").TagRecord} TagRecord */
+/** @typedef {import("../src/services/tags.service.js").TagSession} TagSession */
+
+/** @typedef {Awaited<ReturnType<typeof createTaskTarget>>} TaskTarget */
+
 try {
   await initializeDatabase();
 
@@ -98,6 +107,10 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/**
+ * @param {TagSession} session
+ * @param {{ manualTag: TagRecord, propagatedTag: TagRecord, systemTag: TagRecord, target: TaskTarget }} fixtures
+ */
 async function assertAssignmentSourceValidation(session, { manualTag, propagatedTag, systemTag, target }) {
   for (const assignment of [
     { source: "manual", tag_id: manualTag.tag_id },
@@ -134,6 +147,7 @@ async function assertAssignmentSourceValidation(session, { manualTag, propagated
   assert.equal((await tagsService.listEffectiveTagsForTarget(session, "task", target.taskId)).length, 3);
 }
 
+/** @param {TagSession} session @param {string} taskId @param {string} propagatedTagId */
 async function assertSuppressionRules(session, taskId, propagatedTagId) {
   const manualAssignment = (await tagsService.listDirectTagsForTarget(session, "task", taskId))[0];
   assert.equal(manualAssignment, undefined, "test setup should have cleared manual tags before suppression checks");
@@ -174,6 +188,7 @@ async function assertSuppressionRules(session, taskId, propagatedTagId) {
   assert.equal(suppressions[0].propagation_rule_id, "task-from-project");
 }
 
+/** @param {TagSession} session */
 async function assertClientProjectSavesPreservePropagatedTags(session) {
   const clientDirectTag = (await tagsService.create(session, { name: "Client Direct" })).tag;
   const clientPropagatedTag = (await tagsService.create(session, { name: "Client Propagated" })).tag;
@@ -233,6 +248,7 @@ async function assertClientProjectSavesPreservePropagatedTags(session) {
   );
 }
 
+/** @param {TagSession} session @param {string} taskId */
 async function assertRefreshStubs(session, taskId) {
   const targetRefresh = await tagsService.refreshPropagatedAssignmentsForTarget(session, {
     targetId: taskId,
@@ -246,6 +262,7 @@ async function assertRefreshStubs(session, taskId) {
   assert.equal(workspaceRefresh.workspace_id, session.workspace_id);
 }
 
+/** @param {readonly TagAssignment[]} assignments @param {readonly string[]} expectedTagIds */
 function assertIncludesTagIds(assignments, expectedTagIds) {
   const actualTagIds = new Set(assignments.map((assignment) => assignment.tag_id));
 
@@ -328,6 +345,7 @@ LIMIT 1;
   });
 }
 
+/** @param {TagSession} session @param {string} title @returns {Promise<{ taskId: string }>} */
 async function createTaskTarget(session, title) {
   const taskId = randomUUID();
   const now = new Date().toISOString();
@@ -366,6 +384,7 @@ VALUES (
   return { taskId };
 }
 
+/** @param {string} workspaceId */
 async function enableAuditLogging(workspaceId) {
   await runSql(`
 UPDATE workspace_settings

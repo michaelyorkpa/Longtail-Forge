@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 1122,
+      "errorCount": 975,
       "diagnostics": {
         "scripts/app-shell-navigation-regression.mjs": [
           {
@@ -3842,90 +3842,6 @@
             "count": 53
           }
         ],
-        "scripts/tag-bulk-assignment-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 13
-          }
-        ],
-        "scripts/tag-core-records-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "scripts/tag-propagation-contract-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 16
-          }
-        ],
-        "scripts/tag-propagation-foundation-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 13
-          },
-          {
-            "code": 7031,
-            "count": 4
-          }
-        ],
-        "scripts/tag-propagation-paths-regression.mjs": [
-          {
-            "code": 18048,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 14
-          }
-        ],
-        "scripts/tag-propagation-service-conversion-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 6
-          },
-          {
-            "code": 7006,
-            "count": 36
-          }
-        ],
-        "scripts/tag-service-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18048,
-            "count": 1
-          },
-          {
-            "code": 2345,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 7
-          }
-        ],
-        "scripts/tags-repository-conversion-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 22
-          },
-          {
-            "code": 7006,
-            "count": 5
-          },
-          {
-            "code": 7031,
-            "count": 2
-          }
-        ],
         "scripts/user-theme-auto-mode-regression.mjs": [
           {
             "code": 18048,
@@ -4017,7 +3933,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 12256,
+    "errors": 12109,
     "explicitAny": 3
   },
   "explicitAnyByFile": {

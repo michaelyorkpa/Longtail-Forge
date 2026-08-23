@@ -61,7 +61,8 @@ try {
 
   await assert.rejects(
     () => modulesService.setModuleStatus(session.workspace_id, "tags", false, { session }),
-    (error) => error.message === "Module 'tags' cannot be disabled because it is a core framework module.",
+    (error) => error instanceof Error &&
+      error.message === "Module 'tags' cannot be disabled because it is a core framework module.",
   );
   await runSql(`
 UPDATE workspace_modules
@@ -133,6 +134,7 @@ LIMIT 1;
   return workspaceSessionFixture(user);
 }
 
+/** @param {string} workspaceId */
 async function enableAuditLogging(workspaceId) {
   await runSql(`
 UPDATE workspace_settings

@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18688,
+    "activeAssertionCount": 18691,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,8 +106,8 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19428,
-    "retiredAssertionCredit": 71,
+    "effectiveAssertionCount": 19435,
+    "retiredAssertionCredit": 75,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -947,6 +947,58 @@
       ],
       "verificationPerformed": [
         "node scripts/search-index-jobs-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.tag.propagation.service.conversion",
+      "retiredInVersion": "0.33.33.32.17",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.24 rather than a live contract: one required CHANGELOG prose recording that release's 367/68/291 conversion burndown for the tag propagation registry and tags service, and one required that the completed 0.33.5.27.24 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The conversion contract is still proven in this same owner by its static source assertions over src/services/tag-propagation-registry.js and src/services/tags.service.js -- the db facade import, the absence of every literal SQL helper, the exact 15 bound resolver reads, the 18 bound workspace-scope predicates, the bound module and target-type predicates, the identifier allowlisting on the dynamic descriptor read, and the preserved empty-string normalization -- and by the runtime probes, which drive all eight built-in resolvers against SQL-like fixture identifiers and prove propagation still materializes through the converted reads. The live audit inventory in docs/database-parameter-binding-audit.md still records both modules as converted, and that is a current documentation contract rather than planning history.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/tag-propagation-service-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.tag.propagation.service.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/tag-propagation-service-conversion-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.tags.repository.conversion",
+      "retiredInVersion": "0.33.33.32.17",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.23 rather than a live contract: one required CHANGELOG prose recording that release's 403/86/273 conversion burndown for the tags repository, and one required that the completed 0.33.5.27.23 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The conversion contract is still proven in this same owner by its per-function static assertions over src/repositories/tags.repo.js, which require every converted function to use the db facade with named parameters and no literal SQL helper, and by the runtime probe, which drives tag create, update, archive, restore, search, batched reads, assignment add and remove, propagation-context reads, and suppression against a SQL-injection-shaped target identifier. That probe is now stronger than it was: each write is proven to have read its record back rather than compared through a null the repository can legitimately answer. The live audit inventory in docs/database-parameter-binding-audit.md still records tags.repo as converted, and that is a current documentation contract rather than planning history.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/tags-repository-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.tags.repository.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/tags-repository-conversion-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"
@@ -4404,11 +4456,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 166,
+      "assertionCount": 169,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 166,
+      "entryPointAssertionCount": 169,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -7279,11 +7331,11 @@
     },
     {
       "area": "tags",
-      "assertionCount": 18,
+      "assertionCount": 19,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy tag propagation paths contract.",
-      "entryPointAssertionCount": 18,
+      "entryPointAssertionCount": 19,
       "id": "legacy.tag.propagation.paths",
       "legacy": true,
       "path": "scripts/tag-propagation-paths-regression.mjs",
@@ -7296,11 +7348,11 @@
     },
     {
       "area": "tags",
-      "assertionCount": 34,
+      "assertionCount": 32,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy tag propagation service conversion contract.",
-      "entryPointAssertionCount": 34,
+      "entryPointAssertionCount": 32,
       "id": "legacy.tag.propagation.service.conversion",
       "legacy": true,
       "path": "scripts/tag-propagation-service-conversion-regression.mjs",
@@ -7313,11 +7365,11 @@
     },
     {
       "area": "tags",
-      "assertionCount": 22,
+      "assertionCount": 24,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy tag service contract.",
-      "entryPointAssertionCount": 22,
+      "entryPointAssertionCount": 24,
       "id": "legacy.tag.service",
       "legacy": true,
       "path": "scripts/tag-service-regression.mjs",
@@ -7330,11 +7382,11 @@
     },
     {
       "area": "tags",
-      "assertionCount": 37,
+      "assertionCount": 36,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy tags repository conversion contract.",
-      "entryPointAssertionCount": 37,
+      "entryPointAssertionCount": 36,
       "id": "legacy.tags.repository.conversion",
       "legacy": true,
       "path": "scripts/tags-repository-conversion-regression.mjs",
