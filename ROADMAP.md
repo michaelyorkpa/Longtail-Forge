@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.15` have since archived, closing 1,889 diagnostics across 95 files and leaving 1,254 across 107; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.16` have since archived, closing 2,021 diagnostics across 101 files and leaving 1,122 across 101; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.16` | Lists API, workflow, and admin scale | 132 | 6 | 2,329 |
 | `.32.17` | Tags service, repositories, and propagation | 147 | 8 | 2,653 |
 | `.32.18` | Search contract and API | 126 | 3 | 2,000 |
 | `.32.19` | Search indexing, FTS seam, and rebuild | 119 | 7 | 2,570 |
@@ -100,16 +99,6 @@ Requirements shared by every child:
 - [ ] **Inventory both pin categories per child; the per-child counts above are historical content pinners only.** `0.33.33.32.13` and `0.33.33.32.14` were both recorded as having no history-pinned owners and both turned out to carry a dead planning-document read — a `0.33.5.21` breadcrumb check and an `assertRoadmapCursorAtLeast("0.33.8")` floor respectively, neither of which a live 0.33.33 cursor can fail. The second was invisible to `scripts/planning-document-pin-baseline.json` by construction: its scan matches planning-document filenames, so a cursor-floor caller importing `scripts/lib/roadmap-cursor.mjs` without naming a document is never counted. **Eleven owners estate-wide have that shape**; `0.33.33.32.28` owns deciding what to do with the rest.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
 
-#### 0.33.33.32.16 - Type the Lists API, workflow, and admin scale owners
-
-**Model: High Effort - Includes the high-volume admin path where enrichment batching is measured.**
-
-Measured at 132 diagnostics across 6 files and 2,329 lines. Three `JSON.parse` sites; two history-pinned owners.
-
-- [ ] Close the 132 diagnostics across `lists-api`, `high-volume-admin-lists`, `lists-ui-workflow`, `batched-list-enrichment`, `lists-closeout`, and `lists-query-suggestions`.
-- [ ] Type API envelopes, enrichment batches, query suggestion results, and admin-scale fixtures with named contracts, reusing the Lists record contracts proved at `0.33.33.32.15`.
-- [ ] Preserve batching boundaries and their measured query counts, suggestion ranking, admin-scale thresholds, and workflow transitions exactly.
-- [ ] Enter every parsed response body as `unknown` and narrow through the shared payload helper.
 
 #### 0.33.33.32.17 - Type Tags service, repositories, and propagation
 
