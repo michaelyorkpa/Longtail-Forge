@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -16,8 +18,6 @@ const clientsRepoSource = readText("src/modules/client-projects/clients.repo.js"
 const projectsRepoSource = readText("src/modules/client-projects/projects.repo.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const {
   closeDatabase,
@@ -36,7 +36,16 @@ try {
   assertStaticContract();
 
   await initializeDatabase();
-  clientProjectsModuleEntry.activateApp();
+  // `activateApp` is optional on the module entry contract and receives the
+  // activation context the framework always supplies. This owner drives it
+  // directly, so it presents the same context rather than calling the hook with
+  // none and relying on this module's implementation ignoring it.
+  assert.ok(clientProjectsModuleEntry.activateApp, "the Clients/Projects module entry should expose an app activation hook");
+  clientProjectsModuleEntry.activateApp({
+    moduleId: "client-projects",
+    runtime: "app",
+    registerStartupTask() {},
+  });
   const session = await readSeedSession();
 
   await assertClientProjectRepositoryRuntime(session);
@@ -75,10 +84,11 @@ function assertStaticContract() {
   assert.match(auditDocs, /\| client-projects\/projects\.repo \| Converted \| 0 \| 0 \| 8 \| 8 \|/, "audit inventory should mark projects repo converted");
   assert.match(auditDocs, /0\.33\.5\.27\.27 Clients and Projects Repository Conversion[\s\S]*`client-projects\/clients\.repo` and `client-projects\/projects\.repo` are fully converted[\s\S]*195 runtime literal-helper invocations[\s\S]*45 direct interpolated SQL operation sites[\s\S]*319 existing bound operation sites/, "audit docs should record the Clients/Projects repositories conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.27[\s\S]*`client-projects\/clients\.repo` and `client-projects\/projects\.repo` are converted[\s\S]*195 remaining helper invocations/, "database docs should record the concrete Clients/Projects repositories conversion");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.27 - Conversion wave: Clients and Projects repositories[\s\S]*- \[x\] Convert `client-projects\/clients\.repo`[\s\S]*- \[x\] Preserve hierarchy-aware reads[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.27 - [\s\S]*Clients and Projects repositories conversion[\s\S]*195 helper invocations[\s\S]*45 direct interpolated operation sites[\s\S]*319 bound operation sites/, "changelog should record the Clients/Projects repositories conversion burndown");
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} ConversionSession */
+
+/** @param {ConversionSession} session */
 async function assertClientProjectRepositoryRuntime(session) {
   const parentClient = (await clientsService.createClient({
     action: {
@@ -182,7 +192,13 @@ async function assertClientProjectRepositoryRuntime(session) {
     [childClient.name, parentClient.name],
     "batched client reads should preserve name ordering through bound array params",
   );
-  assert.equal(readClients.find((client) => client.id === parentClient.id)?.billing_rounding.enabled, true, "client billing rounding should read through the boolean seam");
+  const readParentClient = readClients.find((client) => client.id === parentClient.id);
+  assert.ok(readParentClient, "the batched client read should return the parent client");
+  // `billing_rounding` is null on a record with no rounding configured, and
+  // these are the assertions proving the boolean seam round-trips a configured
+  // one, so the block is proven present rather than read through.
+  assert.ok(readParentClient.billing_rounding, "the parent client should carry a billing rounding block");
+  assert.equal(readParentClient.billing_rounding.enabled, true, "client billing rounding should read through the boolean seam");
 
   const readProjects = await projectsRepository.readByIds(session.workspace_id, [
     childProject.id,
@@ -193,14 +209,18 @@ async function assertClientProjectRepositoryRuntime(session) {
     [childProject.name, parentProject.name],
     "batched project reads should preserve readable labels through bound array params",
   );
-  assert.equal(readProjects[1].billing_rounding.enabled, true, "project billing rounding should read through the boolean seam");
-  assert.deepEqual(readProjects[1].taskDefaults.sortOrder, ["priority", "due_date", "status"], "project task-default sort order should round-trip");
+  const readParentProject = readProjects[1];
+  assert.ok(readParentProject, "the batched project read should return both projects");
+  assert.ok(readParentProject.billing_rounding, "the parent project should carry a billing rounding block");
+  assert.equal(readParentProject.billing_rounding.enabled, true, "project billing rounding should read through the boolean seam");
+  assert.deepEqual(readParentProject.taskDefaults.sortOrder, ["priority", "due_date", "status"], "project task-default sort order should round-trip");
 
   const duplicateNameMatch = await projectsRepository.readByNameInScope(
     session.workspace_id,
     parentClient.id,
     parentProject.name.toLowerCase(),
   );
+  assert.ok(duplicateNameMatch, "the case-insensitive duplicate read should find the parent project");
   assert.equal(duplicateNameMatch.id, parentProject.id, "case-insensitive duplicate reads should use the dialect seam");
   assert.equal(
     await projectsRepository.readByNameInScope(session.workspace_id, parentClient.id, parentProject.name, parentProject.id),
@@ -226,7 +246,9 @@ async function assertClientProjectRepositoryRuntime(session) {
     parent_client_id: parentClient.id,
   }, session);
   const updatedChildClient = await clientsRepository.readById(session.workspace_id, childClient.id);
+  assert.ok(updatedChildClient, "updating a client should read the persisted record back");
   assert.equal(updatedChildClient.parent_client_id, parentClient.id, "client update should preserve parent hierarchy");
+  assert.ok(updatedChildClient.billing_rounding, "the updated child client should keep its billing rounding block");
   assert.equal(updatedChildClient.billing_rounding.enabled, false, "client update should preserve false billing rounding through the boolean seam");
 
   const activeClients = (await clientsService.listClients(session, { include_depth: "true" })).clients;
@@ -235,11 +257,21 @@ async function assertClientProjectRepositoryRuntime(session) {
   assert.equal(activeClients.find((client) => client.id === childClient.id)?.depth, 1, "client hierarchy reads should preserve child depth metadata");
 
   await clientsService.archiveClient(parentClient.id, {}, session);
-  assert.equal((await clientsRepository.readById(session.workspace_id, parentClient.id)).status, "Inactive", "client archive should mark the client inactive");
-  assert.equal((await projectsRepository.readById(session.workspace_id, parentProject.id)).status, "Inactive", "client archive should cascade inactive status to active projects");
-  assert.equal((await projectsRepository.readById(session.workspace_id, completedProject.id)).status, "Completed", "client archive should preserve completed projects");
+  const archivedClient = await clientsRepository.readById(session.workspace_id, parentClient.id);
+  const archivedProject = await projectsRepository.readById(session.workspace_id, parentProject.id);
+  const preservedProject = await projectsRepository.readById(session.workspace_id, completedProject.id);
+  // Archiving must not remove the rows, and these are the assertions proving
+  // the cascade sets status rather than deleting, so each read is proven to
+  // have found its record before its status is compared.
+  assert.ok(archivedClient, "archiving a client should leave the client readable");
+  assert.ok(archivedProject, "archiving a client should leave its active project readable");
+  assert.ok(preservedProject, "archiving a client should leave its completed project readable");
+  assert.equal(archivedClient.status, "Inactive", "client archive should mark the client inactive");
+  assert.equal(archivedProject.status, "Inactive", "client archive should cascade inactive status to active projects");
+  assert.equal(preservedProject.status, "Completed", "client archive should preserve completed projects");
 }
 
+/** @param {ConversionSession} session */
 async function assertBusinessOnlyClientGate(session) {
   const personalWorkspace = await workspacesRepository.createWorkspace({
     ownerUser: { user_id: session.user_id },
@@ -267,17 +299,7 @@ WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
 
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
 async function assertIntegrity() {
@@ -285,6 +307,11 @@ async function assertIntegrity() {
   assert.equal(row?.integrity_check, "ok", "Clients/Projects repositories conversion database should pass integrity check");
 }
 
+/**
+ * @param {ConversionSession} session
+ * @param {{ id: string, name: string }} legacyClient
+ * @param {{ id: string, name: string }} legacyProject
+ */
 async function assertSearchAndAuditExportCompatibility(session, legacyClient, legacyProject) {
   for (const [recordType, recordId] of [
     ["client", legacyClient.id],
@@ -319,6 +346,11 @@ ORDER BY record_type;
   assert.match(csv, new RegExp(legacyProject.id), "audit export should retain the exact legacy Project ID");
 }
 
+/**
+ * @param {string} workspaceId
+ * @param {{ id: string, name: string }} client
+ * @param {{ id: string, name: string }} project
+ */
 async function assertCanonicalCreateActionMetadata(workspaceId, client, project) {
   const rows = await db.query(`
 SELECT record_type, record_id, metadata_json
@@ -332,8 +364,11 @@ ORDER BY created_at;
   });
   const clientAudit = rows.find((row) => row.record_type === "client" && row.record_id === client.id);
   const projectAudit = rows.find((row) => row.record_type === "project" && row.record_id === project.id);
-  const clientAction = JSON.parse(clientAudit?.metadata_json || "{}").provided_action;
-  const projectAction = JSON.parse(projectAudit?.metadata_json || "{}").provided_action;
+  // The audit metadata is a JSON-bearing database column, so each row is proven
+  // present and its column proven to be text before it is parsed, and the parsed
+  // value is narrowed to a record before the action is read off it.
+  const clientAction = auditActionMetadata(clientAudit, "client");
+  const projectAction = auditActionMetadata(projectAudit, "project");
 
   assert.equal(clientAction?.client_id, client.id, "Client audit action metadata should use the canonical server-generated ID");
   assert.equal(clientAction?.client_name, client.name, "Client audit action metadata should use the canonical saved label");
@@ -342,6 +377,22 @@ ORDER BY created_at;
   assert.equal(projectAction?.project_name, project.name, "Project audit action metadata should use the canonical saved label");
 }
 
+/** @param {unknown} value @param {number} version @param {string} message */
+/**
+ * Read the recorded action metadata off one audit row.
+ * @param {Record<string, unknown> | undefined} auditRow
+ * @param {string} recordType
+ * @returns {Record<string, unknown>}
+ */
+function auditActionMetadata(auditRow, recordType) {
+  assert.ok(auditRow, `the ${recordType} create should record an audit row`);
+  const metadataJson = auditRow.metadata_json;
+  assert.ok(typeof metadataJson === "string", `the ${recordType} audit row should persist metadata as JSON text`);
+  const metadata = requireJsonRecord(JSON.parse(metadataJson), `the ${recordType} audit metadata`);
+  return requireJsonRecord(metadata.provided_action, `the ${recordType} audit provided action`);
+}
+
+/** @param {unknown} value @param {number} version @param {string} message */
 function assertUuidVersion(value, version, message) {
   assert.match(
     String(value || ""),

@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -25,6 +27,10 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} BugfixSession */
+/** @typedef {import("../src/services/tags.service.js").TagAssignment} TagAssignment */
+
+/** @param {BugfixSession} session */
 async function assertProjectCreationInheritsClientBilling(session) {
   const client = (await clientsService.createClient({
     name: "Billing Inheritance Client",
@@ -64,6 +70,7 @@ async function assertProjectCreationInheritsClientBilling(session) {
   assert.equal(workspaceProject.billable, "no", "workspace projects should default to non-billable when the payload omits a billable choice");
 }
 
+/** @param {BugfixSession} session */
 async function assertClientBillingSavesPreserveTags(session) {
   const directTag = (await tagsService.create(session, { name: "Billing Direct Tag" })).tag;
   const propagatedTag = (await tagsService.create(session, { name: "Billing Propagated Tag" })).tag;
@@ -111,6 +118,7 @@ async function assertClientBillingSavesPreserveTags(session) {
   );
 }
 
+/** @param {readonly TagAssignment[]} assignments @param {readonly string[]} expectedTagIds @param {string} message */
 function assertTagIds(assignments, expectedTagIds, message) {
   assert.deepEqual(
     assignments.map((assignment) => assignment.tag_id).sort(),
@@ -126,19 +134,9 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
+  const user = requireFirstRow(rows, "the protected super admin");
 
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
 async function assertIntegrity() {

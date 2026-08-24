@@ -1096,6 +1096,37 @@ assert.ok(
     .includes("should declare a data source"),
   "scripts/clients-projects-read-descriptor-host-regression.mjs should keep proving each surface declares its data source",
 );
+for (const hierarchyOwner of [
+  "scripts/client-project-hierarchy-branch-closeout-regression.mjs",
+  "scripts/client-projects-bugfix-regression.mjs",
+  "scripts/client-projects-repositories-conversion-regression.mjs",
+  "scripts/framework-admin-low-count-repositories-conversion-regression.mjs",
+  "scripts/project-default-assignee-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[hierarchyOwner], undefined, `${hierarchyOwner} must stay strict-clean after checkpoint 0.33.33.32.22`);
+}
+// Six owners built session records naming `ip` where every published session
+// contract names `ip_address`, so each set a field nothing reads and omitted
+// the one the contract declares. All of them seed through the shared fixture.
+for (const sessionOwner of [
+  "scripts/client-project-hierarchy-branch-closeout-regression.mjs",
+  "scripts/client-projects-bugfix-regression.mjs",
+  "scripts/client-projects-repositories-conversion-regression.mjs",
+  "scripts/framework-admin-low-count-repositories-conversion-regression.mjs",
+  "scripts/project-default-assignee-regression.mjs",
+]) {
+  const source = fs.readFileSync(sessionOwner, "utf8");
+  assert.ok(source.includes("workspaceSessionFixture"), `${sessionOwner} should seed sessions through the shared workspace session fixture`);
+  assert.equal(/^\s*ip: "/m.test(source), false, `${sessionOwner} must not reintroduce the misnamed ip session field`);
+}
+// The Clients/Projects audit metadata is a JSON-bearing database column, so it
+// is proven to be text and narrowed to a record before the recorded action is
+// read off it.
+assert.ok(
+  fs.readFileSync("scripts/client-projects-repositories-conversion-regression.mjs", "utf8")
+    .includes("audit row should persist metadata as JSON text"),
+  "scripts/client-projects-repositories-conversion-regression.mjs should keep narrowing its audit metadata column",
+);
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().
