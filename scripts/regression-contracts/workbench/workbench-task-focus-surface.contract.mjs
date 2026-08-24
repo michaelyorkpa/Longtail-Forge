@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBody } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -18,90 +18,90 @@ assert.match(
   "Workbench should reference CSS and JS for the Task Focus surface",
 );
 assert.match(
-  functionBody(workbenchScript, "createWorkbenchShell"),
+  extractFunctionBody(workbenchScript, "createWorkbenchShell"),
   /createTaskFocusPanel\(\)[\s\S]*createGuidedFocusPanel\(\)[\s\S]*createRecommendedActionPanel\(\)[\s\S]*createSecondaryWorkbenchPanel\(\)[\s\S]*createWorkbenchInspectorPanel\(\)/,
   "Workbench should mount a dedicated Task Focus panel beside the existing Focus Selection panels",
 );
 assert.match(
-  functionBody(workbenchScript, "renderWorkbenchViewState"),
+  extractFunctionBody(workbenchScript, "renderWorkbenchViewState"),
   /toggleWorkbenchStatePanel\(taskFocusPanelElement, !isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(focusPanelElement, isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(recommendedActionPanelElement, isTaskFocus\);[\s\S]*toggleWorkbenchStatePanel\(secondaryWorkbenchPanelElement, false\);/,
   "Task Focus should hide the focus questions and recommendation card while keeping the state-aware timer panel mounted",
 );
 assert.match(
-  functionBody(workbenchScript, "renderWorkbench"),
+  extractFunctionBody(workbenchScript, "renderWorkbench"),
   /renderRecommendedAction\(\);[\s\S]*renderTaskFocusSurface\(\);[\s\S]*renderWorkbenchInspector\(\);/,
   "Workbench render should keep the Task Focus body synchronized with view state",
 );
 
 assert.match(
-  functionBody(workbenchScript, "enterTaskFocus"),
+  extractFunctionBody(workbenchScript, "enterTaskFocus"),
   /state\.viewState = WORKBENCH_VIEW_STATE_TASK_FOCUS;[\s\S]*state\.activeTaskFocus = taskFocusFromCandidate\(candidate, taskId\);[\s\S]*await refreshActiveTaskFocus\(\);/,
   "Entering Task Focus should set the focused task immediately and refresh it from the Tasks read route",
 );
 assert.match(
-  functionBody(workbenchScript, "refreshActiveTaskFocus"),
+  extractFunctionBody(workbenchScript, "refreshActiveTaskFocus"),
   /api\.getJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}`,[\s\S]*cache: "no-store"[\s\S]*consumeTaskFocusResumeNote\(result\.task \|\| null, taskId\)[\s\S]*applyActiveTaskFocusTask\(task\)/,
   "Task Focus should load focused task details through the existing Tasks read route, consume any resume note, and apply the resulting task",
 );
 
 assert.match(
-  functionBody(workbenchScript, "createTaskFocusActionStrip"),
+  extractFunctionBody(workbenchScript, "createTaskFocusActionStrip"),
   /isBlocked[\s\S]*icon: "start"[\s\S]*id: "resume"[\s\S]*label: "Resume task"[\s\S]*onClick: resumeFocusedTask[\s\S]*icon: "pause"[\s\S]*id: "block"[\s\S]*label: "Block task"/,
   "Task Focus should switch its lifecycle control from Pause/Block to Play/Resume while the focused Task is Blocked",
 );
 assert.match(
-  functionBody(workbenchScript, "createTaskFocusActionButton"),
+  extractFunctionBody(workbenchScript, "createTaskFocusActionButton"),
   /iconOnly: true[\s\S]*text: ""[\s\S]*button\.dataset\.workbenchTaskFocusAction = id;[\s\S]*button\.dataset\.workbenchTaskFocusIconOnly = "true";/,
   "Task Focus actions should be icon-only controls with stable accessible labels and hooks",
 );
 assert.match(
-  functionBody(workbenchScript, "openFocusedTaskEditor"),
+  extractFunctionBody(workbenchScript, "openFocusedTaskEditor"),
   /openTaskCandidate\(activeTaskFocusCandidate\(\), taskId, event\?\.currentTarget \|\| null\)/,
   "Task Focus Edit should reuse the existing Task candidate editor opener path",
 );
 assert.match(
-  functionBody(workbenchScript, "openTaskCandidate"),
+  extractFunctionBody(workbenchScript, "openTaskCandidate"),
   /window\.LongtailForge\.moduleActions\.open\("tasks\.edit"/,
   "Task Focus Edit should open the canonical registered Tasks edit modal",
 );
 assert.match(
-  functionBody(workbenchScript, "completeFocusedTask"),
+  extractFunctionBody(workbenchScript, "completeFocusedTask"),
   /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`, \{\}\)[\s\S]*resetTaskFocusState\(\);[\s\S]*await refreshFocusCandidates\(\);[\s\S]*renderWorkbench\(\);[\s\S]*const completionDetail = \{[\s\S]*\.\.\.result,[\s\S]*recordId: result\.task\?\.task_id \|\| taskId[\s\S]*setTaskCompletionStatus\(completionDetail\)[\s\S]*focusActiveFocusQuestion\(\)/,
   "Task Focus Complete should call the existing route, return directly to Focus Selection, and retain completion continuity",
 );
 assert.doesNotMatch(
-  functionBody(workbenchScript, "completeFocusedTask"),
+  extractFunctionBody(workbenchScript, "completeFocusedTask"),
   /openTaskCandidate|task_completion_follow_up|next_action/,
   "Task Focus Complete should not open or synthesize a Next Action follow-up",
 );
 assert.match(
-  functionBody(workbenchScript, "blockFocusedTask"),
+  extractFunctionBody(workbenchScript, "blockFocusedTask"),
   /openTaskCandidate\(activeTaskFocusCandidate\(\), taskId,[\s\S]*defaults: \{ status: "blocked" \},[\s\S]*focusTarget: "blocked_reason"[\s\S]*refreshActiveTaskFocus\(\)/,
   "Task Focus Block should open the canonical Tasks editor in blocked state focused on Blocked Reason",
 );
 assert.match(
-  functionBody(workbenchScript, "resumeFocusedTask"),
+  extractFunctionBody(workbenchScript, "resumeFocusedTask"),
   /api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}`, \{[\s\S]*blocked_reason: ""[\s\S]*status: "in_progress"[\s\S]*applyActiveTaskFocusTask[\s\S]*refreshFocusCandidates\(\)[\s\S]*Task resumed\./,
   "Task Focus Play/Resume should use the canonical Tasks update route, clear Blocked Reason, save In Progress, and refresh the focused surface",
 );
 
 assert.match(
-  functionBody(workbenchScript, "createTaskFocusSummary"),
+  extractFunctionBody(workbenchScript, "createTaskFocusSummary"),
   /dataset: \{ workbenchTaskFocusSummary: "" \}[\s\S]*text: "Task Focus"[\s\S]*id: "workbench-task-focus-heading"[\s\S]*taskFocusBadges\(task, active\)/,
   "Task Focus should render a readable selected-task heading and summary",
 );
 assert.doesNotMatch(
-  functionBody(workbenchScript, "taskFocusLeadText"),
+  extractFunctionBody(workbenchScript, "taskFocusLeadText"),
   /active\?\.contextLabel/,
   "Task Focus summary lead text should not duplicate the Client/Project context fallback",
 );
 assert.match(
-  functionBody(workbenchScript, "taskFocusBadges"),
+  extractFunctionBody(workbenchScript, "taskFocusBadges"),
   /badge\(formatToken\(task\.status \|\| active\?\.status \|\| "open"\)[\s\S]*badge\(formatToken\(task\.priority \|\| active\?\.priority \|\| "normal"\)[\s\S]*dueText \? badge\(`Due \$\{dueText\}`, "due"\) : null[\s\S]*taskFocusTagBadges\(task\)/,
   "Task Focus summary badges should include status, priority, due date, and safe task tags",
 );
 assert.match(
-  functionBody(workbenchScript, "taskFocusTagBadges"),
+  extractFunctionBody(workbenchScript, "taskFocusTagBadges"),
   /task\.directTags[\s\S]*task\.direct_tags[\s\S]*tag\.name \|\| tag\.slug[\s\S]*badge\(label, "tag"\)/,
   "Task Focus summary tag badges should come from safe direct-tag labels, not IDs",
 );
@@ -111,33 +111,33 @@ assert.match(
   "Task Focus should stack its summary badges below the title and context at the canonical phone breakpoint",
 );
 assert.match(
-  functionBody(workbenchScript, "createTaskDetailsSection"),
+  extractFunctionBody(workbenchScript, "createTaskDetailsSection"),
   /workbenchTaskDetailsReadonly: "true"[\s\S]*createWorkbenchSectionSummary\([\s\S]*title: "Task Details"[\s\S]*setWorkbenchDisclosureOpen\(details, false\);/,
   "Task Details should be read-only and collapsed by default",
 );
 assert.doesNotMatch(
-  functionBody(workbenchScript, "createTaskDetailFields"),
+  extractFunctionBody(workbenchScript, "createTaskDetailFields"),
   /createElement\("(input|select|textarea)"/,
   "Task Details should not render editable form controls",
 );
 assert.match(
-  functionBody(workbenchScript, "createTaskDetailFields"),
+  extractFunctionBody(workbenchScript, "createTaskDetailFields"),
   /"Title"[\s\S]*"Status"[\s\S]*"Priority"[\s\S]*"Due"[\s\S]*"Assignees"[\s\S]*"Client"[\s\S]*"Project"[\s\S]*"Blocked reason"[\s\S]*"Description"/,
   "Task Details should include the safe read-only task metadata required by the roadmap",
 );
 assert.match(
-  functionBody(workbenchScript, "renderTaskFocusSurface"),
+  extractFunctionBody(workbenchScript, "renderTaskFocusSurface"),
   /createTaskFocusSummary\(active\)[\s\S]*createTaskDetailsSection\(active\)[\s\S]*createTaskFocusChecklistSection\(active\)/,
   "Task Focus should preserve the action, summary, details, and checklist section order",
 );
 
 assert.match(
-  functionBody(workbenchScript, "renderWorkbenchInspector"),
+  extractFunctionBody(workbenchScript, "renderWorkbenchInspector"),
   /resolvedWorkbenchViewState\(\) === WORKBENCH_VIEW_STATE_TASK_FOCUS[\s\S]*renderTaskFocusInspector\(\);[\s\S]*return;[\s\S]*const candidates = workbenchInspectorCandidates\(\);/,
   "Task Focus should not render Focus Selection overflow candidates in the right panel",
 );
 assert.match(
-  functionBody(workbenchScript, "renderTaskFocusInspector"),
+  extractFunctionBody(workbenchScript, "renderTaskFocusInspector"),
   /setWorkbenchInspectorCopy\("Task context", "Related work for the focused task\."\)[\s\S]*taskFocusRelatedContextState\(\)[\s\S]*taskFocusRelatedContextGroups\(context\)[\s\S]*workbenchInspectorCountText\.textContent = String\(items\.length\);/,
   "Task Focus Inspector should switch from More-in-this-focus candidate overflow to selected-task related context",
 );
@@ -190,40 +190,3 @@ assert.match(
 );
 
 console.log("Workbench Task Focus surface regression passed.");
-
-/**
- * Extract one named function's body text from a source file this module reads.
- * @param {string} source file text from the shared project text reader
- * @param {string} name the function name to locate
- */
-function functionBody(source, name) {
-  const starts = [
-    `async function ${name}(`,
-    `function ${name}(`,
-    `${name}: () => (`,
-  ];
-  const start = starts
-    .map((signature) => source.indexOf(signature))
-    .find((index) => index >= 0);
-  assert.notEqual(start, undefined, `Missing function ${name}`);
-
-  const signatureEnd = source.indexOf(") {", start);
-  const openBrace = signatureEnd >= 0 ? signatureEnd + 2 : source.indexOf("{", start);
-  assert.notEqual(openBrace, -1, `Missing body for function ${name}`);
-
-  let depth = 0;
-  for (let index = openBrace; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      depth += 1;
-    }
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(openBrace, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not parse function ${name}`);
-}

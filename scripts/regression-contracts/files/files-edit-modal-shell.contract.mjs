@@ -1,76 +1,42 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBlock } from "../../test-support/source-scan.mjs";
 const { readText: read } = createProjectTextReader();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @param {string} source @param {string} name */
-function functionBlock(source, name) {
-  const start = source.indexOf(`function ${name}(`);
-  assert.notEqual(start, -1, `${name} should exist`);
-  let braceStart = -1;
-  let parenDepth = 0;
-
-  for (let index = start; index < source.length; index += 1) {
-    if (source[index] === "(") {
-      parenDepth += 1;
-    } else if (source[index] === ")") {
-      parenDepth = Math.max(0, parenDepth - 1);
-    } else if (source[index] === "{" && parenDepth === 0) {
-      braceStart = index;
-      break;
-    }
-  }
-
-  assert.notEqual(braceStart, -1, `${name} should have a function body`);
-
-  let depth = 0;
-  for (let index = braceStart; index < source.length; index += 1) {
-    if (source[index] === "{") {
-      depth += 1;
-    } else if (source[index] === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`${name} body should close`);
-}
-
 const filesPage = read("views/protected/files.html");
 const filesScript = read("public/js/files.js");
 
 assert.match(filesPage, /css\/longtail-forge\.css/, "Files page should reference modal styling");
 assert.match(filesPage, /js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files page should reference the Files adapter");
 
-const openerBlock = functionBlock(filesScript, "openFileEditor");
-const buildBlock = functionBlock(filesScript, "buildFileEditorDialog");
+const openerBlock = extractFunctionBlock(filesScript, "openFileEditor");
+const buildBlock = extractFunctionBlock(filesScript, "buildFileEditorDialog");
 const metadataBlock = [
-  functionBlock(filesScript, "createFileEditorMetadataSection"),
-  functionBlock(filesScript, "createFileEditorMetadataList"),
-  functionBlock(filesScript, "createReadOnlyMetadataRow"),
+  extractFunctionBlock(filesScript, "createFileEditorMetadataSection"),
+  extractFunctionBlock(filesScript, "createFileEditorMetadataList"),
+  extractFunctionBlock(filesScript, "createReadOnlyMetadataRow"),
 ].join("\n");
 const controlsBlock = [
-  functionBlock(filesScript, "createFileEditorControlsSection"),
-  functionBlock(filesScript, "createFileContextSelect"),
-  functionBlock(filesScript, "hydrateFileEditorOptionControls"),
-  functionBlock(filesScript, "hydrateFileEditorContextControls"),
-  functionBlock(filesScript, "hydrateFileEditorProjectControl"),
-  functionBlock(filesScript, "fileEditorClientOptions"),
-  functionBlock(filesScript, "fileEditorProjectOptions"),
+  extractFunctionBlock(filesScript, "createFileEditorControlsSection"),
+  extractFunctionBlock(filesScript, "createFileContextSelect"),
+  extractFunctionBlock(filesScript, "hydrateFileEditorOptionControls"),
+  extractFunctionBlock(filesScript, "hydrateFileEditorContextControls"),
+  extractFunctionBlock(filesScript, "hydrateFileEditorProjectControl"),
+  extractFunctionBlock(filesScript, "fileEditorClientOptions"),
+  extractFunctionBlock(filesScript, "fileEditorProjectOptions"),
 ].join("\n");
 const targetOptionsBlock = [
-  functionBlock(filesScript, "loadFileEditorTargetOptions"),
-  functionBlock(filesScript, "fileEditorTargetOptionQuery"),
-  functionBlock(filesScript, "fileEditorSelectedContext"),
-  functionBlock(filesScript, "hydrateTargetSelect"),
-  functionBlock(filesScript, "createFileEditorTargetOption"),
-  functionBlock(filesScript, "fileEditorTargetOptionLabel"),
-  functionBlock(filesScript, "fileEditorTargetContextLabel"),
+  extractFunctionBlock(filesScript, "loadFileEditorTargetOptions"),
+  extractFunctionBlock(filesScript, "fileEditorTargetOptionQuery"),
+  extractFunctionBlock(filesScript, "fileEditorSelectedContext"),
+  extractFunctionBlock(filesScript, "hydrateTargetSelect"),
+  extractFunctionBlock(filesScript, "createFileEditorTargetOption"),
+  extractFunctionBlock(filesScript, "fileEditorTargetOptionLabel"),
+  extractFunctionBlock(filesScript, "fileEditorTargetContextLabel"),
 ].join("\n");
 const editorSource = [
   openerBlock,
@@ -78,8 +44,8 @@ const editorSource = [
   metadataBlock,
   controlsBlock,
   targetOptionsBlock,
-  functionBlock(filesScript, "bindFileEditorControlEvents"),
-  functionBlock(filesScript, "setFileEditorControlsDisabled"),
+  extractFunctionBlock(filesScript, "bindFileEditorControlEvents"),
+  extractFunctionBlock(filesScript, "setFileEditorControlsDisabled"),
 ].join("\n");
 
 assert.match(filesScript, /LongtailForge\.filesDialog = Object\.freeze\(\{[\s\S]*openFileEditor/, "Files should expose a canonical filesDialog.openFileEditor opener");
@@ -123,14 +89,14 @@ assert.doesNotMatch(controlsBlock, /response\.filters\?\.client|response\.filter
 assert.match(targetOptionsBlock, /\/api\/files\/attachable-targets/, "File editor should load target choices through the attachable target provider");
 assert.match(targetOptionsBlock, /usesBusinessScope\(\)[\s\S]*clientId/, "Business Client selection should participate in target option filtering");
 assert.match(targetOptionsBlock, /projectId/, "Project selection should participate in target option filtering");
-assert.doesNotMatch(functionBlock(filesScript, "fileEditorTargetOptionQuery"), /\bmoduleId:\s*row\.moduleId\b|\btargetType:\s*row\.targetType\b/, "File editor target query should not restrict choices to the current module/target type");
+assert.doesNotMatch(extractFunctionBlock(filesScript, "fileEditorTargetOptionQuery"), /\bmoduleId:\s*row\.moduleId\b|\btargetType:\s*row\.targetType\b/, "File editor target query should not restrict choices to the current module/target type");
 assert.match(targetOptionsBlock, /context\.clientId !== optionClientId[\s\S]*context\.projectId !== optionProjectId/, "Target option labels should omit context parts already selected by Client/Project filters");
-assert.doesNotMatch(functionBlock(filesScript, "bindFileEditorControlEvents"), /setSelectValueIfPresent|applyFileEditorSelectedTargetContext/, "Target changes should not rewrite Client/Project dropdown values");
+assert.doesNotMatch(extractFunctionBlock(filesScript, "bindFileEditorControlEvents"), /setSelectValueIfPresent|applyFileEditorSelectedTargetContext/, "Target changes should not rewrite Client/Project dropdown values");
 
 assert.match(buildBlock, /previewButton\.dataset\.fileContextPreview = ""/, "File editor should expose a shared footer Preview control");
 assert.match(buildBlock, /saveButton\.dataset\.fileContextSave = ""/, "File editor should expose a shared footer Save control");
 assert.doesNotMatch(editorSource, /rename|replacement|storageProvider|storageKey|quarantine|hardDelete|permanent|purge/i, "File editor shell should not add forbidden controls");
-assert.doesNotMatch(functionBlock(filesScript, "createFileActions"), /openFileEditor/, "Files row actions should not open the editor in this slice");
+assert.doesNotMatch(extractFunctionBlock(filesScript, "createFileActions"), /openFileEditor/, "Files row actions should not open the editor in this slice");
 
 console.log("Files edit modal shell regression passed.");
 // Consolidated under files.current-static-contracts by 0.33.33.11.

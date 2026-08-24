@@ -1,46 +1,12 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBlock } from "../../test-support/source-scan.mjs";
 const { readText: read } = createProjectTextReader();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @param {string} source @param {string} name */
-function functionBlock(source, name) {
-  const start = source.indexOf(`function ${name}`);
-  assert.notEqual(start, -1, `${name} should exist`);
-  let braceStart = -1;
-  let parenDepth = 0;
-
-  for (let index = start; index < source.length; index += 1) {
-    if (source[index] === "(") {
-      parenDepth += 1;
-    } else if (source[index] === ")") {
-      parenDepth = Math.max(0, parenDepth - 1);
-    } else if (source[index] === "{" && parenDepth === 0) {
-      braceStart = index;
-      break;
-    }
-  }
-
-  assert.notEqual(braceStart, -1, `${name} should have a function body`);
-
-  let depth = 0;
-  for (let index = braceStart; index < source.length; index += 1) {
-    if (source[index] === "{") {
-      depth += 1;
-    } else if (source[index] === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`${name} body should close`);
-}
-
 const filesPage = read("views/protected/files.html");
 const filesScript = read("public/js/files.js");
 const filePreviewScript = read("public/js/shared/file-preview.js");
@@ -51,23 +17,23 @@ assert.match(filesPage, /css\/longtail-forge\.css/, "Files page should reference
 assert.match(filesPage, /js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files page should load shared preview before Files browser wiring");
 assert.match(icons, /eye:\s*Object\.freeze/, "Shared icon registry should include the Preview eye icon");
 
-const fileRow = functionBlock(filesScript, "fileRow");
-const actions = functionBlock(filesScript, "createFileActions");
-const previewAction = functionBlock(filesScript, "createPreviewAction");
-const downloadOnlyMarker = functionBlock(filesScript, "createDownloadOnlyMarker");
-const rowOpen = functionBlock(filesScript, "wireFileTableRow");
-const actionIsolation = functionBlock(filesScript, "isFileRowActionEvent");
-const openPreview = functionBlock(filePreviewScript, "openFilePreview");
-const buildPreview = functionBlock(filePreviewScript, "buildFilePreviewDialog");
-const loadPreview = functionBlock(filePreviewScript, "loadFilePreview");
-const renderContent = functionBlock(filePreviewScript, "renderFilePreviewContent");
-const renderImage = functionBlock(filePreviewScript, "renderFilePreviewImage");
-const renderText = functionBlock(filePreviewScript, "renderFilePreviewText");
-const renderMarkdown = functionBlock(filePreviewScript, "renderFilePreviewMarkdown");
-const downloadAction = functionBlock(filePreviewScript, "createPreviewDownloadAction");
-const previewAvailability = functionBlock(filePreviewScript, "previewAvailabilityForRow");
-const previewKind = functionBlock(filePreviewScript, "previewKindForExtension");
-const previewStateMessage = functionBlock(filePreviewScript, "previewStateMessage");
+const fileRow = extractFunctionBlock(filesScript, "fileRow");
+const actions = extractFunctionBlock(filesScript, "createFileActions");
+const previewAction = extractFunctionBlock(filesScript, "createPreviewAction");
+const downloadOnlyMarker = extractFunctionBlock(filesScript, "createDownloadOnlyMarker");
+const rowOpen = extractFunctionBlock(filesScript, "wireFileTableRow");
+const actionIsolation = extractFunctionBlock(filesScript, "isFileRowActionEvent");
+const openPreview = extractFunctionBlock(filePreviewScript, "openFilePreview");
+const buildPreview = extractFunctionBlock(filePreviewScript, "buildFilePreviewDialog");
+const loadPreview = extractFunctionBlock(filePreviewScript, "loadFilePreview");
+const renderContent = extractFunctionBlock(filePreviewScript, "renderFilePreviewContent");
+const renderImage = extractFunctionBlock(filePreviewScript, "renderFilePreviewImage");
+const renderText = extractFunctionBlock(filePreviewScript, "renderFilePreviewText");
+const renderMarkdown = extractFunctionBlock(filePreviewScript, "renderFilePreviewMarkdown");
+const downloadAction = extractFunctionBlock(filePreviewScript, "createPreviewDownloadAction");
+const previewAvailability = extractFunctionBlock(filePreviewScript, "previewAvailabilityForRow");
+const previewKind = extractFunctionBlock(filePreviewScript, "previewKindForExtension");
+const previewStateMessage = extractFunctionBlock(filePreviewScript, "previewStateMessage");
 
 assert.match(fileRow, /const canManageReview = canManageFileReview\(attachment, file, fileId\)[\s\S]*const preview = filePreview\.previewAvailabilityForRow\(\{[\s\S]*canPreviewInReview: canManageReview[\s\S]*extension[\s\S]*fileSizeBytes[\s\S]*scanStatus[\s\S]*status/, "Files rows should derive local preview affordance state");
 assert.match(fileRow, /previewKind:\s*preview\.kind[\s\S]*previewable:\s*preview\.state === "previewable"[\s\S]*previewState:\s*preview\.state/, "Files rows should expose preview kind/state for action rendering");

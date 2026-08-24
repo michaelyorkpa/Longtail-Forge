@@ -1,4 +1,4 @@
-import { escapeRegExp } from "../../test-support/source-scan.mjs";
+import { escapeRegExp, extractFunctionBlock } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
@@ -30,17 +30,17 @@ assert.match(filesScript, /const filePreview = window\.LongtailForge\?\.filePrev
   "Files page should consume the shared preview helper");
 assert.match(filesScript, /openFilePreview: \(\.\.\.args\) => filePreview\.openFilePreview\(\.\.\.args\)/,
   "Files page should keep the canonical filesDialog preview opener through the shared helper");
-assert.match(functionBlock(filesScript, "fileRow"), /filePreview\.previewAvailabilityForRow\(\{[\s\S]*canPreviewInReview: canManageReview[\s\S]*extension[\s\S]*fileSizeBytes[\s\S]*scanStatus[\s\S]*status/,
+assert.match(extractFunctionBlock(filesScript, "fileRow"), /filePreview\.previewAvailabilityForRow\(\{[\s\S]*canPreviewInReview: canManageReview[\s\S]*extension[\s\S]*fileSizeBytes[\s\S]*scanStatus[\s\S]*status/,
   "Files rows should still derive preview affordance from the shared eligibility helper");
-assert.match(functionBlock(filesScript, "createPreviewAction"), /icon:\s*"eye"[\s\S]*filePreview\.openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/,
+assert.match(extractFunctionBlock(filesScript, "createPreviewAction"), /icon:\s*"eye"[\s\S]*filePreview\.openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/,
   "Files row Preview action should keep opening the shared preview modal");
 assert.doesNotMatch(filesScript, /function buildFilePreviewDialog|function loadFilePreview|function renderFilePreviewMarkdown|function previewAvailabilityForRow/,
   "Files page should not keep a duplicate preview modal implementation");
 
-const createActions = functionBlock(attachmentHelper, "createAttachmentActions");
-const createPreviewAction = functionBlock(attachmentHelper, "createAttachmentPreviewAction");
-const createDownloadAction = functionBlock(attachmentHelper, "createAttachmentDownloadAction");
-const actionButton = functionBlock(attachmentHelper, "createAttachmentActionButton");
+const createActions = extractFunctionBlock(attachmentHelper, "createAttachmentActions");
+const createPreviewAction = extractFunctionBlock(attachmentHelper, "createAttachmentPreviewAction");
+const createDownloadAction = extractFunctionBlock(attachmentHelper, "createAttachmentDownloadAction");
+const actionButton = extractFunctionBlock(attachmentHelper, "createAttachmentActionButton");
 
 assert.match(createActions, /createAttachmentPreviewRow\(attachment, file, options\)[\s\S]*const preview = createAttachmentPreviewAction\(view, previewRow\)[\s\S]*const actionNodes = \[preview, download, remove, report, quarantine, deleteButton, restore\]/,
   "Shared attachment rows should include Preview before the existing file actions");
@@ -77,43 +77,3 @@ assert.match(notesDocs, /As of 0\.33\.5\.21\.9\.3[\s\S]*shared Files Preview mod
 assert.match(moduleContract, /As of 0\.33\.5\.21\.9\.3[\s\S]*public\/js\/shared\/file-preview\.js[\s\S]*LongtailForge\.filePreview/,
   "Module contract should document the shared preview helper boundary");
 console.log("Notes file preview actions regression passed.");
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} name the name to locate
- */
-function functionBlock(source, name) {
-  const start = source.indexOf(`function ${name}`);
-  assert.notEqual(start, -1, `${name} should exist`);
-  let braceStart = -1;
-  let parenDepth = 0;
-
-  for (let index = start; index < source.length; index += 1) {
-    if (source[index] === "(") {
-      parenDepth += 1;
-    } else if (source[index] === ")") {
-      parenDepth = Math.max(0, parenDepth - 1);
-    } else if (source[index] === "{" && parenDepth === 0) {
-      braceStart = index;
-      break;
-    }
-  }
-
-  assert.notEqual(braceStart, -1, `${name} should have a function body`);
-
-  let depth = 0;
-  for (let index = braceStart; index < source.length; index += 1) {
-    if (source[index] === "{") {
-      depth += 1;
-    } else if (source[index] === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`${name} body should close`);
-}

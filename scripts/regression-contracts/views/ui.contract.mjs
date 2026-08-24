@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBody } from "../../test-support/source-scan.mjs";
 // Consolidated under views.current-static-contracts by 0.33.33.9.
 const { readText } = createProjectTextReader();
 
@@ -33,13 +33,13 @@ assert.doesNotMatch(
 );
 
 assert.doesNotMatch(
-  readFunctionBody(files.workspaceSettings, "normalizeSettings"),
+  extractFunctionBody(files.workspaceSettings, "normalizeSettings"),
   legacyModuleFlagPattern,
   "Workspace Settings normalization must not carry top-level legacy module flags into save payloads",
 );
 
 assert.doesNotMatch(
-  readFunctionBody(files.moduleSettings, "normalizeSettings"),
+  extractFunctionBody(files.moduleSettings, "normalizeSettings"),
   legacyModuleFlagPattern,
   "Module Settings normalization must not carry top-level legacy module flags into save payloads",
 );
@@ -50,12 +50,12 @@ assert.match(
   "Create Workspace must submit initial module state through moduleSettings",
 );
 assert.match(
-  readFunctionBody(files.workspaceSettings, "saveSettings"),
+  extractFunctionBody(files.workspaceSettings, "saveSettings"),
   /settings\.moduleSettings\s*=\s*readModuleSettingsPayload\(\)/,
   "Workspace Settings save must preserve the keyed moduleSettings payload shape",
 );
 assert.doesNotMatch(
-  readFunctionBody(files.userSettings, "createWorkspace"),
+  extractFunctionBody(files.userSettings, "createWorkspace"),
   /\btimeTrackingEnabled\b/,
   "Create Workspace browser payload must not submit deprecated timeTrackingEnabled",
 );
@@ -66,7 +66,7 @@ assert.match(
   "app shell must read module settings navigation from module metadata",
 );
 assert.doesNotMatch(
-  readFunctionBody(files.appShell, "buildNavigation"),
+  extractFunctionBody(files.appShell, "buildNavigation"),
   /\b(?:tasks-settings|time-tracking-settings)\b/,
   "app shell buildNavigation must not hard-code first-party module settings links",
 );
@@ -76,7 +76,7 @@ assert.doesNotMatch(
   "User Settings is framework-owned and must not be contributed by the Users module navigation",
 );
 assert.match(
-  readFunctionBody(files.appShell, "addModuleNavItem"),
+  extractFunctionBody(files.appShell, "addModuleNavItem"),
   /const href = String\(item\?\.href \|\| ""\)[\s\S]*targetItems\.some\(\(existingItem\) => existingItem\.href === href\)/,
   "app shell menu composition must de-duplicate module navigation by href",
 );
@@ -148,41 +148,15 @@ assert.match(files.userAdminView, /data-new-user-client-scope-field[^>]*hidden/,
 assert.match(files.userAdminView, /data-new-user-project-scope-field[^>]*hidden/, "project scope must start conditionally hidden");
 assert.match(files.userAdmin, /getJson\(`\/api\/users\/add-options\$\{query\}`/, "Add User must load server-shaped workspace, role, and scope options");
 assert.match(files.userAdmin, /postJson\("\/api\/users\/lookup"/, "Add User must use exact-account lookup before submission");
-assert.match(readFunctionBody(files.userAdmin, "renderNewUserScopeOptions"), /scopeType !== "client"/);
-assert.match(readFunctionBody(files.userAdmin, "renderNewUserScopeOptions"), /scopeType !== "project"/);
+assert.match(extractFunctionBody(files.userAdmin, "renderNewUserScopeOptions"), /scopeType !== "client"/);
+assert.match(extractFunctionBody(files.userAdmin, "renderNewUserScopeOptions"), /scopeType !== "project"/);
 assert.doesNotMatch(
-  readFunctionBody(files.userAdmin, "createUser"),
+  extractFunctionBody(files.userAdmin, "createUser"),
   /scope_type:\s*initialRoleId === "super_admin"/,
   "Add User must not reconstruct role scope policy in the browser",
 );
 
 console.log("UI contract regression passed.");
-
-/** @param {string} source @param {string} functionName @returns {string} */
-function readFunctionBody(source, functionName) {
-  const marker = `function ${functionName}`;
-  const start = source.indexOf(marker);
-  assert.notEqual(start, -1, `${functionName} function was not found`);
-
-  const bodyStart = source.indexOf("{", start);
-  assert.notEqual(bodyStart, -1, `${functionName} function body was not found`);
-
-  let depth = 0;
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const char = source[index];
-
-    if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(bodyStart, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`${functionName} function body did not close`);
-}
 
 /** @param {string} source @param {string} constName @returns {string} */
 function readConstArray(source, constName) {

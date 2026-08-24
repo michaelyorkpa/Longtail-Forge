@@ -115,6 +115,47 @@ export function extractFunctionBlock(source, functionName) {
 }
 
 /**
+ * Extract one named function's body, from its opening brace through the
+ * matching close, braces included.
+ *
+ * This is a different region from `extractFunctionBlock`, which spans the
+ * declaration as well, and the difference is load-bearing: an owner asserting
+ * about a body must not accidentally match the signature, and an owner
+ * asserting about a declaration must not lose it. `0.33.33.32.28.4.1` measured
+ * 144 extractions across sixteen contract modules and found 82 that want this
+ * region and 56 that want the other, so both are published rather than one
+ * being forced onto the other.
+ *
+ * The declaration is matched the same anchored way as `extractFunctionBlock`,
+ * which is what stops a call site being mistaken for a definition, and the
+ * parameter list is walked as a balanced group, because a default such as
+ * `(candidate = {})` puts a brace inside the signature.
+ * @param {string} source
+ * @param {string} functionName
+ * @returns {string}
+ */
+export function extractFunctionBody(source, functionName) {
+  const declaration = new RegExp(`(?:async\\s+)?function\\s+${escapeRegExp(functionName)}\\s*\\(`).exec(source);
+  if (!declaration) {
+    throw new Error(`${functionName} should exist`);
+  }
+  let cursor = declaration.index + declaration[0].length - 1;
+  let parens = 0;
+  for (; cursor < source.length; cursor += 1) {
+    if (source[cursor] === "(") parens += 1;
+    else if (source[cursor] === ")") {
+      parens -= 1;
+      if (parens === 0) break;
+    }
+  }
+  const openBrace = source.indexOf("{", cursor);
+  if (openBrace === -1) {
+    throw new Error(`${functionName} should have a body`);
+  }
+  return source.slice(openBrace, findBalancedClose(source, openBrace) + 1);
+}
+
+/**
  * @param {string} source
  * @param {readonly string[]} snippets
  * @returns {boolean}

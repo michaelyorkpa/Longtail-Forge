@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBody } from "../../test-support/source-scan.mjs";
 import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 const { readTextAsync: readText } = createProjectTextReader();
 
@@ -99,12 +99,12 @@ try {
 }
 
 function assertStaticCompletionContract() {
-  const saveAndComplete = functionBody(taskDialogSource, "saveAndCompleteTask");
-  const saveTaskForm = functionBody(taskDialogSource, "saveTaskForm");
-  const changeState = functionBody(taskDialogSource, "taskFormChangeState");
-  const formSnapshot = functionBody(taskDialogSource, "taskFormSnapshot");
-  const tasksCompletion = functionBody(tasksBrowserSource, "postTaskAction");
-  const workbenchCompletion = functionBody(workbenchSource, "completeFocusedTask");
+  const saveAndComplete = extractFunctionBody(taskDialogSource, "saveAndCompleteTask");
+  const saveTaskForm = extractFunctionBody(taskDialogSource, "saveTaskForm");
+  const changeState = extractFunctionBody(taskDialogSource, "taskFormChangeState");
+  const formSnapshot = extractFunctionBody(taskDialogSource, "taskFormSnapshot");
+  const tasksCompletion = extractFunctionBody(tasksBrowserSource, "postTaskAction");
+  const workbenchCompletion = extractFunctionBody(workbenchSource, "completeFocusedTask");
 
   assert.match(
     saveAndComplete,
@@ -130,7 +130,7 @@ function assertStaticCompletionContract() {
     "dirty-state comparison should separate any pending edit from recurrence-template changes",
   );
   assert.match(
-    functionBody(taskDialogSource, "readTaskFormPayload"),
+    extractFunctionBody(taskDialogSource, "readTaskFormPayload"),
     /next_action: fields\.nextAction\.value/,
     "Next Action should remain an ordinary editable Task field",
   );
@@ -165,28 +165,4 @@ LIMIT 1;
   assert.ok(user, "fresh database should seed a protected super admin");
 
   return workspaceSessionFixture(user);
-}
-
-/** @param {string} source @param {string} name @returns {string} */
-function functionBody(source, name) {
-  const syncStart = source.indexOf(`function ${name}(`);
-  const asyncStart = source.indexOf(`async function ${name}(`);
-  const start = syncStart >= 0 ? syncStart : asyncStart;
-  assert.notEqual(start, -1, `Missing function ${name}`);
-
-  const signatureEnd = source.indexOf(") {", start);
-  const openBrace = signatureEnd >= 0 ? signatureEnd + 2 : source.indexOf("{", start);
-  let depth = 0;
-  for (let index = openBrace; index < source.length; index += 1) {
-    if (source[index] === "{") {
-      depth += 1;
-    } else if (source[index] === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(openBrace, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not parse function ${name}`);
 }

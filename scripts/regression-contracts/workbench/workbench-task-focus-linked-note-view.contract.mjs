@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBody } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -36,7 +36,7 @@ assert.match(
   "Workbench should lazy-load Notes only for the Notes-owned read action",
 );
 
-const openNoteViewerBody = functionBody(notesScript, "openNoteViewer");
+const openNoteViewerBody = extractFunctionBody(notesScript, "openNoteViewer");
 assert.match(
   openNoteViewerBody,
   /api\.getJson\(`\/api\/notes\/\$\{encodeURIComponent\(noteId\)\}`,\s*\{ cache: "no-store" \}\)/,
@@ -54,74 +54,39 @@ assert.match(
 );
 
 assert.match(
-  functionBody(notesScript, "createNoteViewDialog"),
+  extractFunctionBody(notesScript, "createNoteViewDialog"),
   /noteViewBody[\s\S]*label: "Close"[\s\S]*label: "Edit"[\s\S]*noteViewAction = "edit"[\s\S]*view\.createModal\(\{[\s\S]*title: "View Note"[\s\S]*className: "notes-view-dialog"[\s\S]*actions: \[closeAction, editAction\]/,
   "Notes view modal should render a read surface with an explicit Edit footer action",
 );
 assert.match(
-  functionBody(notesScript, "renderNoteViewDialog"),
+  extractFunctionBody(notesScript, "renderNoteViewDialog"),
   /notes-view-rendered-body[\s\S]*body\.innerHTML = note\.body_html \|\| "";[\s\S]*applyExternalMarkdownLinkPreference\(body\)[\s\S]*openNoteViewEditHandoff/,
   "Notes view modal should show the server-rendered Markdown HTML and wire the Edit handoff",
 );
 assert.doesNotMatch(
-  functionBody(notesScript, "renderNoteViewDialog"),
+  extractFunctionBody(notesScript, "renderNoteViewDialog"),
   /body_markdown|MarkdownIt|marked|showdown|markdown-it|DOMParser/,
   "Notes view modal should not expose raw Markdown or add a browser Markdown parser",
 );
 assert.match(
-  functionBody(notesScript, "openNoteViewEditHandoff"),
+  extractFunctionBody(notesScript, "openNoteViewEditHandoff"),
   /view\.closeModal\(dialog, "edit"\)[\s\S]*openNoteEditor\(\{[\s\S]*mode: "edit"[\s\S]*noteId[\s\S]*\}, hostContext\)/,
   "The Notes view modal Edit action should close the read modal and open the canonical editor for the same note",
 );
 assert.match(
-  functionBody(notesScript, "noteViewErrorMessage"),
+  extractFunctionBody(notesScript, "noteViewErrorMessage"),
   /Secure note is locked[\s\S]*Note is unavailable or you do not have access\./,
   "Unreadable, stale, or secure-error note targets should show safe fixed messages",
 );
 assert.doesNotMatch(
-  functionBody(notesScript, "noteViewErrorMessage"),
+  extractFunctionBody(notesScript, "noteViewErrorMessage"),
   /error\.message|noteId|recordId|body_html|body_markdown/,
   "Unavailable note messages should not echo raw IDs or note bodies",
 );
 assert.doesNotMatch(
-  functionBody(workbenchScript, "createTaskFocusRelatedContextItem"),
+  extractFunctionBody(workbenchScript, "createTaskFocusRelatedContextItem"),
   /innerHTML|notes-rendered-body|body_html|body_markdown/,
   "Task Focus Inspector should not embed note preview content inline",
 );
 
 console.log("Workbench Task Focus linked-note view regression passed.");
-
-/**
- * Extract one named function's body text from a source file this module reads.
- * @param {string} source file text from the shared project text reader
- * @param {string} name the function name to locate
- */
-function functionBody(source, name) {
-  const starts = [
-    `async function ${name}(`,
-    `function ${name}(`,
-  ];
-  const start = starts
-    .map((signature) => source.indexOf(signature))
-    .find((index) => index >= 0);
-  assert.notEqual(start, undefined, `Missing function ${name}`);
-
-  const signatureEnd = source.indexOf(") {", start);
-  const openBrace = signatureEnd >= 0 ? signatureEnd + 2 : source.indexOf("{", start);
-  assert.notEqual(openBrace, -1, `Missing body for function ${name}`);
-
-  let depth = 0;
-  for (let index = openBrace; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(openBrace, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not parse function ${name}`);
-}

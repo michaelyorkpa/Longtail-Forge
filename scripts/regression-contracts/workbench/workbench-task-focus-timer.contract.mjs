@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBody } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -41,68 +41,68 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  functionBody(workbenchScript, "createTimerSection"),
+  extractFunctionBody(workbenchScript, "createTimerSection"),
   /body: \[timerList\][\s\S]*cardId: "active-work-timers"[\s\S]*defaultOpen: shouldOpenTimerSectionByDefault\(\)[\s\S]*title: "Timers"/,
   "Focus Selection Timers should render only the active timer list in the card body",
 );
 assert.match(
-  functionBody(workbenchScript, "renderTimers"),
+  extractFunctionBody(workbenchScript, "renderTimers"),
   /const timers = sortedTimers\(visibleTimerPanelTimers\(\)\);[\s\S]*const emptyMessage = timerPanelEmptyStateText\(\);[\s\S]*updateTimerSectionTitle\(\);[\s\S]*timerList\.appendChild\(emptyState\(emptyMessage\)\)/,
   "Timer rendering should use the state-aware visible timer list, title, and empty state",
 );
 assert.match(
-  functionBody(workbenchScript, "activeOrPausedTimers"),
+  extractFunctionBody(workbenchScript, "activeOrPausedTimers"),
   /\["running", "paused"\]\.includes\(timer\?\.timer_status\)/,
   "Timer rendering should explicitly filter to active and paused records",
 );
 assert.match(
-  functionBody(workbenchScript, "visibleTimerPanelTimers"),
+  extractFunctionBody(workbenchScript, "visibleTimerPanelTimers"),
   /activeOrPausedTimers\(state\.timers\)\.filter\(\(timer\) => \([\s\S]*taskTimerSurfaceAvailable\(\) \|\| !isTaskTimer\(timer\)[\s\S]*if \(!isTaskFocusView\(\)\) \{[\s\S]*return timers;[\s\S]*const focusedTaskId = currentTaskFocusId\(\);[\s\S]*return timers\.filter\(\(timer\) => !taskTimerMatches\(timer, focusedTaskId\)\);/,
   "the lower timer panel should suppress task timers when unavailable and otherwise filter the focused task timer",
 );
 assert.match(
-  functionBody(workbenchScript, "timerPanelEmptyStateText"),
+  extractFunctionBody(workbenchScript, "timerPanelEmptyStateText"),
   /isTaskFocusView\(\) \? "No other active or paused timers\." : "No active or paused timers\."/,
   "Task Focus should use a distinct Other Active Timers empty state without changing Focus Selection",
 );
 assert.match(
-  functionBody(workbenchScript, "updateTimerSectionTitle"),
+  extractFunctionBody(workbenchScript, "updateTimerSectionTitle"),
   /title\.textContent = isTaskFocusView\(\) \? "Other Active Timers" : "Timers";/,
   "Task Focus should rename the lower timer panel to Other Active Timers",
 );
 assert.match(
-  functionBody(workbenchScript, "renderWorkbenchViewState"),
+  extractFunctionBody(workbenchScript, "renderWorkbenchViewState"),
   /toggleWorkbenchStatePanel\(secondaryWorkbenchPanelElement, false\);/,
   "The lower timer panel should remain mounted so Task Focus can show Other Active Timers",
 );
 
 assert.match(
-  functionBody(workbenchScript, "renderTaskFocusSurface"),
+  extractFunctionBody(workbenchScript, "renderTaskFocusSurface"),
   /createTaskFocusSummary\(active\)[\s\S]*createTaskDetailsSection\(active\)[\s\S]*createTaskFocusChecklistSection\(active\)[\s\S]*createTaskFocusTimerSection\(active\)/,
   "Task Focus should render the task-linked timer section after Checklist at the bottom of the main column",
 );
 assert.match(
-  functionBody(workbenchScript, "createTaskFocusTimerSection"),
+  extractFunctionBody(workbenchScript, "createTaskFocusTimerSection"),
   /workbenchTaskFocusTimer: ""[\s\S]*workbenchTaskFocusTimerDefaultOpen: "true"[\s\S]*workbenchTaskFocusTimerLinked: "task"[\s\S]*title: "Task Timer"[\s\S]*setWorkbenchDisclosureOpen\(details, true\);/,
   "Task Focus timer should be a default-open task-linked collapsible section with the shared summary caret",
 );
 assert.match(
-  functionBody(workbenchScript, "createTaskFocusTimerControls"),
+  extractFunctionBody(workbenchScript, "createTaskFocusTimerControls"),
   /label: "Start"[\s\S]*saveFocusedTaskTimer\("running"\)[\s\S]*label: "Pause"[\s\S]*saveFocusedTaskTimer\("paused"\)[\s\S]*label: "Save Time"[\s\S]*finalizeFocusedTaskTimer[\s\S]*label: "Reset"[\s\S]*resetFocusedTaskTimer/,
   "Task Focus timer controls should expose Start, Pause, Save Time, and Reset",
 );
 assert.doesNotMatch(
-  functionBody(workbenchScript, "createTaskFocusTimerControls"),
+  extractFunctionBody(workbenchScript, "createTaskFocusTimerControls"),
   /createElement\("(select|input|textarea)"|Client|Project|workbenchManual/,
   "Task Focus timer controls should use the selected task context and not ask the user to reselect Client, Project, or Task",
 );
 assert.match(
-  functionBody(workbenchScript, "createTaskFocusTimerControls"),
+  extractFunctionBody(workbenchScript, "createTaskFocusTimerControls"),
   /dataset: \{ workbenchTaskFocusTimerDisplay: "" \}[\s\S]*duration\.dataset\.workbenchDuration = timer\.active_timer_id;/,
   "The Task Timer control counter should be the focused task timer's live duration display",
 );
 assert.match(
-  functionBody(workbenchScript, "startTicking"),
+  extractFunctionBody(workbenchScript, "startTicking"),
   /document\.querySelector\(`\[data-workbench-duration="\$\{timer\.active_timer_id\}"\]`\)[\s\S]*element\.textContent = formatDuration\(readElapsedSeconds\(timer\)\);/,
   "The focused Task Timer counter should update through the shared live duration tick while running",
 );
@@ -112,54 +112,54 @@ assert.doesNotMatch(
   "Task Focus should not render a duplicate focused-task timer card below the controls",
 );
 assert.match(
-  functionBody(workbenchScript, "currentTaskFocusTimer"),
+  extractFunctionBody(workbenchScript, "currentTaskFocusTimer"),
   /activeOrPausedTimers\(state\.timers\)\.find\(\(timer\) => taskTimerMatches\(timer, taskId\)\)/,
   "Task Focus timer lookup should be scoped to the focused task, not a manual project picker",
 );
 
 assert.match(
-  functionBody(workbenchScript, "saveFocusedTaskTimer"),
+  extractFunctionBody(workbenchScript, "saveFocusedTaskTimer"),
   /api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/timer`[\s\S]*active_task_timer_id:[\s\S]*timer_status: timerStatus[\s\S]*accumulated_elapsed_seconds: readElapsedSeconds\(timer\)/,
   "Task Focus Start/Pause should reuse the Tasks-owned task timer save route",
 );
 assert.match(
-  functionBody(workbenchScript, "finalizeFocusedTaskTimer"),
+  extractFunctionBody(workbenchScript, "finalizeFocusedTaskTimer"),
   /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/timer\/finalize`[\s\S]*duration_seconds: Math\.max\(1, readElapsedSeconds\(timer\)\)[\s\S]*end_time: new Date\(\)\.toISOString\(\)/,
   "Task Focus Save Time should reuse the Tasks-owned task timer finalize route",
 );
 assert.match(
-  functionBody(workbenchScript, "resetFocusedTaskTimer"),
+  extractFunctionBody(workbenchScript, "resetFocusedTaskTimer"),
   /modal\.confirm\(\{[\s\S]*title: "Reset task timer"[\s\S]*api\.deleteJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/timer`\)/,
   "Task Focus Reset should confirm and reuse the Tasks-owned task timer delete route",
 );
 assert.match(
-  functionBody(workbenchScript, "taskFocusTimerEligibility"),
+  extractFunctionBody(workbenchScript, "taskFocusTimerEligibility"),
   /options\.taskTimersEnabled === false[\s\S]*Task timers are disabled\.[\s\S]*!task\.project_id[\s\S]*Task timers require a project-linked task\.[\s\S]*Completed and archived tasks cannot use task timers\./,
   "Task Focus timer controls should preserve the Task modal eligibility rules",
 );
 assert.match(
-  functionBody(workbenchScript, "refreshWorkbenchAfterTaskFocusTimerMutation"),
+  extractFunctionBody(workbenchScript, "refreshWorkbenchAfterTaskFocusTimerMutation"),
   /applyActiveTaskFocusTask\(result\.task\)[\s\S]*await loadWorkbench\(\)[\s\S]*renderTaskFocusSurface\(\)/,
   "Task Focus timer mutations should refresh both timer state and the focused task read model",
 );
 assert.match(
-  functionBody(workbenchScript, "applyActiveTaskFocusTask"),
+  extractFunctionBody(workbenchScript, "applyActiveTaskFocusTask"),
   /preserveTaskFocusChecklistData\(task, state\.activeTaskFocus\.task\)/,
   "Applying a focused task should preserve prior checklist data when the payload omits it",
 );
 assert.match(
-  functionBody(workbenchScript, "preserveTaskFocusChecklistData"),
+  extractFunctionBody(workbenchScript, "preserveTaskFocusChecklistData"),
   /!Array\.isArray\(merged\.checklistItems\) && Array\.isArray\(existingTask\?\.checklistItems\)[\s\S]*!merged\.checklistProgress && existingTask\?\.checklistProgress/,
   "Checklist preservation should carry forward the focused task's checklist items and progress across un-enriched timer payloads",
 );
 
 assert.match(
-  functionBody(workbenchScript, "finalizeTimer"),
+  extractFunctionBody(workbenchScript, "finalizeTimer"),
   /timer\.source_type === "task"[\s\S]*finalizeSourceTaskTimer\(timer\)/,
   "Existing Workbench task timer cards should finalize through the Tasks timer service when the task source is readable",
 );
 assert.match(
-  functionBody(workbenchScript, "discardTimer"),
+  extractFunctionBody(workbenchScript, "discardTimer"),
   /timer\.source_type === "task"[\s\S]*api\.deleteJson\(`\/api\/tasks\/\$\{encodeURIComponent\(timer\.source_id\)\}\/timer`\)[\s\S]*api\.deleteJson\(`\/api\/active-timers\/\$\{encodeURIComponent\(timer\.timer_slot\)\}`\)/,
   "Existing Workbench task timer cards should reset through Tasks while manual/recovery timers keep the active-timer fallback",
 );
@@ -169,12 +169,12 @@ assert.match(
   "Task timer routes should remain Tasks-owned",
 );
 assert.match(
-  functionBody(taskTimersService, "transitionTaskToInProgressForTimerStart"),
+  extractFunctionBody(taskTimersService, "transitionTaskToInProgressForTimerStart"),
   /task\.status !== "open" && task\.status !== "blocked"[\s\S]*previousBlockedReason[\s\S]*blocked_reason: ""[\s\S]*movedTaskToInProgress: true/,
   "Tasks should own Open/Blocked timer-start transitions and the exact recoverable Blocked reason",
 );
 assert.match(
-  functionBody(taskTimersService, "revertTaskTimerStartTransition"),
+  extractFunctionBody(taskTimersService, "revertTaskTimerStartTransition"),
   /taskWorkEvidenceService\.readStartedWorkEvidence[\s\S]*evidence\.hasStartedWork[\s\S]*restoredStatus[\s\S]*previousBlockedReason/,
   "Task Timer Reset should restore the prior lifecycle only when no independent work evidence remains",
 );
@@ -195,7 +195,7 @@ assert.doesNotMatch(
   "Disabled Workbench badges should retain the accessible secondary-text contrast instead of dimming the whole badge",
 );
 assert.match(
-  functionBody(workbenchScript, "createTimerCard"),
+  extractFunctionBody(workbenchScript, "createTimerCard"),
   /title\.className = "workbench-timer-title";[\s\S]*meta\.className = "workbench-card-meta";[\s\S]*summary\.append\(title, meta\);/,
   "Each timer card should retain explicit title and badge-group hooks inside its own summary",
 );
@@ -256,44 +256,6 @@ assert.match(
 );
 
 console.log("Workbench Task Focus timer regression passed.");
-
-/**
- * Extract one named function's body text from a source file this module reads.
- * @param {string} source file text from the shared project text reader
- * @param {string} name the function name to locate
- */
-function functionBody(source, name) {
-  const starts = [
-    `async function ${name}(`,
-    `function ${name}(`,
-    `${name}: () => (`,
-  ];
-  const start = starts
-    .map((signature) => source.indexOf(signature))
-    .find((index) => index >= 0);
-  assert.notEqual(start, undefined, `Missing function ${name}`);
-
-  const signatureEnd = source.indexOf(") {", start);
-  const openBrace = signatureEnd >= 0 ? signatureEnd + 2 : source.indexOf("{", start);
-  assert.notEqual(openBrace, -1, `Missing body for function ${name}`);
-
-  let depth = 0;
-  for (let index = openBrace; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      depth += 1;
-    }
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(openBrace, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not parse function ${name}`);
-}
-
 /**
  * Extract one quick-action definition block from the app-shell service source.
  * @param {string} source file text from the shared project text reader
