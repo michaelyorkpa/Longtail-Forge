@@ -1,4 +1,4 @@
-import { escapeRegExp } from "./test-support/source-scan.mjs";
+import { escapeRegExp, extractFunctionSpan } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { readdirSync } from "node:fs";
 import path from "node:path";
@@ -89,8 +89,8 @@ check("QAC dispatches modal actions through the module action registry with safe
 check("QAC uses the shared icon registry and avoids badge or recommendation behavior", () => {
   assert.match(icons, /bolt: Object\.freeze/);
   assert.match(footer, /icon: "bolt"/);
-  assert.doesNotMatch(functionBlock(footer, "createQuickActionShell"), /badge|alert|recommend/i);
-  assert.doesNotMatch(functionBlock(footer, "createQuickActionItem"), /badge|alert|recommend/i);
+  assert.doesNotMatch(extractFunctionSpan(footer, "createQuickActionShell"), /badge|alert|recommend/i);
+  assert.doesNotMatch(extractFunctionSpan(footer, "createQuickActionItem"), /badge|alert|recommend/i);
 });
 
 check("QAC styles are footer-aware, responsive, and quiet until opened", () => {
@@ -137,11 +137,3 @@ check("regression suite includes QAC coverage", () => {
   });
 
 console.log(`Quick Action Capture regression passed ${checks} checks.`);
-
-/** @param {string} source @param {string} functionName @returns {string} */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `Missing function ${functionName}`);
-  const nextFunction = source.slice(start + 1).search(/\nfunction\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}

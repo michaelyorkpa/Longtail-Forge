@@ -7,7 +7,7 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 import { readPayload } from "./test-support/http-payload-assertions.mjs";
@@ -128,8 +128,8 @@ function assertStaticContracts() {
   assert.match(filesRoutes, /multipartBatchFailureResult\(\{[\s\S]*info[\s\S]*\}\)/, "Multipart batch malformed file parts should preserve their filename when available");
   assert.match(filesService, /assertStoredFileObjectExists\(file,[\s\S]*adapter\.metadata\(file\.storage_key\)/, "metadata() should remain an active storage adapter contract for download and preview pre-checks");
   assert.doesNotMatch(localStorageAdapter, /async quarantine\(/, "Local storage adapter should not expose unused quarantine() surface");
-  assert.match(functionBlock(filesService, "quarantineFile"), /filesRepo\.quarantineFile/, "Quarantine service should delegate only the lifecycle write to the Files repository");
-  assert.match(functionBlock(filesRepository, "quarantineFile"), /SET status = 'quarantined'[\s\S]*quarantine_reason = :quarantineReason/, "Quarantine remains DB lifecycle state until storage relocation is explicitly designed");
+  assert.match(extractFunctionSpan(filesService, "quarantineFile"), /filesRepo\.quarantineFile/, "Quarantine service should delegate only the lifecycle write to the Files repository");
+  assert.match(extractFunctionSpan(filesRepository, "quarantineFile"), /SET status = 'quarantined'[\s\S]*quarantine_reason = :quarantineReason/, "Quarantine remains DB lifecycle state until storage relocation is explicitly designed");
 
   assert.match(helper, /FormData/, "Attachment helper should build multipart form uploads");
   assert.match(helper, /postMultipartJson\("\/api\/files\/upload\/batch", buildUploadForm\(options, files\)\)/, "Attachment helper should prefer the streamed multipart batch route");
@@ -137,14 +137,14 @@ function assertStaticContracts() {
   assert.match(helper, /appendFormField\(form, "moduleId", options\.moduleId\)/, "Attachment helper should preserve module metadata before file parts");
   assert.match(helper, /appendFormField\(form, "targetType", options\.targetType\)/, "Attachment helper should preserve target type metadata before file parts");
   assert.match(helper, /appendFormField\(form, "targetId", options\.targetId\)/, "Attachment helper should preserve target ID metadata before file parts");
-  assert.doesNotMatch(functionBlock(helper, "uploadFiles"), /readFileBase64|contentBase64|\/api\/files\/batch/, "Normal attachment helper uploads should no longer use base64 JSON");
+  assert.doesNotMatch(extractFunctionSpan(helper, "uploadFiles"), /readFileBase64|contentBase64|\/api\/files\/batch/, "Normal attachment helper uploads should no longer use base64 JSON");
   assert.doesNotMatch(helper, /FileReader|function readFileBase64/, "Attachment helper should not require FileReader for normal uploads");
 
-  const resultItem = functionBlock(helper, "createUploadResultItem");
+  const resultItem = extractFunctionSpan(helper, "createUploadResultItem");
   assert.match(resultItem, /review pending/, "Upload results should keep pending-review copy visible");
   assert.match(resultItem, /data-file-upload-result/, "Upload results should keep stable success/error hooks");
 
-  const uploadFiles = functionBlock(helper, "uploadFiles");
+  const uploadFiles = extractFunctionSpan(helper, "uploadFiles");
   assert.match(uploadFiles, /emit\(container, state, "uploadCompleted", result\)/, "Upload flow should preserve uploadCompleted callbacks");
   assert.match(uploadFiles, /emit\(container, state, "attachmentAdded", result\)/, "Upload flow should preserve attachmentAdded callbacks");
   assert.match(uploadFiles, /await refresh\(container, state\)/, "Upload flow should refresh the host attachment list after completion");
@@ -534,12 +534,4 @@ function closeServer(serverInstance) {
       resolve();
     });
   });
-}
-
-/** @param {string} source @param {string} functionName */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }

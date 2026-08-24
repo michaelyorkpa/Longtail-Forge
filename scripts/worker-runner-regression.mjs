@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const root = process.cwd();
@@ -115,7 +115,7 @@ try {
   assert.match(workerCliSource, /initializeWorkerDatabase/, "separate worker should use worker schema readiness startup");
   assert.doesNotMatch(workerCliSource, /\binitializeDatabase\b/, "separate worker CLI must not run app migrations/startup maintenance");
   assert.match(workerCliSource, /acquireWorkerProcessLock/, "separate SQLite worker should enforce one local worker process");
-  assert.doesNotMatch(functionBlock(dbIndexSource, "initializeWorkerDatabase"), /runMigrations|runAppStartupMaintenance/, "worker database startup must verify schema without owning migrations or app startup maintenance");
+  assert.doesNotMatch(extractFunctionSpan(dbIndexSource, "initializeWorkerDatabase"), /runMigrations|runAppStartupMaintenance/, "worker database startup must verify schema without owning migrations or app startup maintenance");
   assert.match(runtimeDocs, /`LONGTAIL_WORKER_MODE`[\s\S]*`inline`[\s\S]*`separate`[\s\S]*`disabled`/, "runtime docs should document worker modes as active settings");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.2[\s\S]*Worker runner v1/, "database docs should document the worker runner");
   assert.match(sqliteDocs, /As of 0\.33\.5\.21\.2[\s\S]*at most one local worker process/, "SQLite docs should document the one-worker boundary");
@@ -400,12 +400,4 @@ function cleanEnv(overrides = {}) {
   }
 
   return { ...env, ...overrides };
-}
-
-/** @param {string} source @param {string} name */
-function functionBlock(source, name) {
-  const start = source.indexOf(`async function ${name}`);
-  assert.notEqual(start, -1, `expected ${name} function`);
-  const nextFunction = source.indexOf("\nasync function ", start + 1);
-  return source.slice(start, nextFunction === -1 ? undefined : nextFunction);
 }

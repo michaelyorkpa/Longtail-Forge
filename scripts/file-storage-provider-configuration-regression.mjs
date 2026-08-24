@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "./test-support/source-scan.mjs";
 const { readTextAsync: readText } = createProjectTextReader();
 /** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} FilesSession */
 
@@ -112,7 +112,7 @@ async function assertStaticContracts() {
 
           assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15, `LONGTAIL_STORAGE_PROVIDER=local` is consumed by Files upload writes/, "runtime docs should identify the live upload-write provider setting");
   assert.match(filesServiceSource, /function resolveConfiguredFileStorageProvider\(\)/, "Files service should own configured provider resolution");
-  assert.doesNotMatch(functionBlock(filesServiceSource, "uploadAndAttach"), /getFileStorageAdapter\("local"\)|storageProvider:\s*"local"/, "upload writes should not hardcode the local provider");
+  assert.doesNotMatch(extractFunctionSpan(filesServiceSource, "uploadAndAttach"), /getFileStorageAdapter\("local"\)|storageProvider:\s*"local"/, "upload writes should not hardcode the local provider");
   }
 
 async function readSeedSession() {
@@ -202,12 +202,4 @@ async function streamToText(stream) {
   }
 
   return Buffer.concat(chunks).toString("utf8");
-}
-
-/** @param {string} source @param {string} functionName */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.indexOf("\nfunction ", start + 1);
-  return source.slice(start, nextFunction === -1 ? source.length : nextFunction);
 }

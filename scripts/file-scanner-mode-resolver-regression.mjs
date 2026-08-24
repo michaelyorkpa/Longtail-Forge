@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { fileURLToPath } from "node:url";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 
@@ -109,7 +109,7 @@ function assertStaticContracts() {
   assert.doesNotMatch(scannerJobSource, /let scannerAdapter = createNoopFileScannerAdapter\(\)/, "Files scanner job service should not keep hidden noop as the default");
   assert.match(filesServiceSource, /filesScannerJobService\.resolveConfiguredFileScannerAdapter\(\)/, "Files facade should preserve configured scanner resolution");
   assert.match(scannerJobSource, /scanner\.adapter\.scan\(createFileScanContext/, "scanner job service should pass a Files-owned provider-safe scan context");
-  assert.doesNotMatch(functionBlock(scannerJobSource, "createFileScanContext"), /storageKey:|storage_key:|storagePath|protectedPath/, "scan context should not expose storage keys or paths");
+  assert.doesNotMatch(extractFunctionSpan(scannerJobSource, "createFileScanContext"), /storageKey:|storage_key:|storagePath|protectedPath/, "scan context should not expose storage keys or paths");
 
   assert.match(runtimeDocs, /As of 0\.33\.5\.22\.15[\s\S]*`none`[\s\S]*`noop`[\s\S]*`clamd`[\s\S]*`clamscan`/, "runtime docs should formalize scanner modes");
   assert.match(moduleDocs, /As of 0\.33\.5\.22\.15[\s\S]*file\.scan[\s\S]*not_required/, "module docs should record none-mode file.scan disposition");
@@ -360,12 +360,4 @@ function cleanEnv(overrides = {}) {
     ...env,
     ...overrides,
   };
-}
-
-/** @param {string} source @param {string} functionName */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }

@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 /** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBlock } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notifications-preferences-subscriptions-conversion-"));
@@ -106,7 +106,7 @@ function assertStaticContract() {
 
 /** @param {string} functionName */
 function assertConvertedFunction(functionName) {
-  const block = functionBlock(notificationsRepoSource, functionName);
+  const block = extractFunctionBlock(notificationsRepoSource, functionName);
   assert.match(block, /\b(?:db|transaction)\.(?:query|get|run|transaction)\(`/u, `${functionName} should use the provider-neutral db facade`);
   assert.match(block, /:[A-Za-z][A-Za-z0-9_]*|subscriptionTargetParams|subscriptionWriteParams|notificationDisplayPreferenceParams/u, `${functionName} should use named params`);
   assert.doesNotMatch(block, /\b(?:querySql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, `${functionName} should not use literal SQL helpers after conversion`);
@@ -114,7 +114,7 @@ function assertConvertedFunction(functionName) {
 
 /** @param {string} functionName @param {readonly RegExp[]} patterns */
 function assertFunctionUsesPatterns(functionName, patterns) {
-  const block = functionBlock(notificationsRepoSource, functionName);
+  const block = extractFunctionBlock(notificationsRepoSource, functionName);
 
   for (const pattern of patterns) {
     assert.match(block, pattern, `${functionName} should include ${pattern}`);
@@ -259,27 +259,4 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok", "SQLite integrity check should pass");
-}
-
-/** @param {string} source @param {string} functionName @returns {string} */
-function functionBlock(source, functionName) {
-  const pattern = new RegExp(`(?:async\\s+)?function ${functionName}\\s*\\([^)]*\\)\\s*\\{`);
-  const match = pattern.exec(source);
-  assert.ok(match, `${functionName} should exist`);
-
-  const bodyStart = match.index + match[0].lastIndexOf("{");
-  let depth = 0;
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const character = source[index];
-    if (character === "{") {
-      depth += 1;
-    } else if (character === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(match.index, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not extract function ${functionName}`);
 }

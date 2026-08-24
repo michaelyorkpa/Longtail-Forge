@@ -1,4 +1,4 @@
-import { escapeRegExp } from "./test-support/source-scan.mjs";
+import { escapeRegExp, extractFunctionBlock } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { readdirSync, statSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -51,7 +51,7 @@ function assertStaticBoundary() {
   assert.match(sqliteSearchAdapterSource, /db\.dialect\.introspection\.compileOptions\(\)/, "SQLite search adapter should read compile options through the introspection seam");
   assert.doesNotMatch(sqliteSearchAdapterSource, /PRAGMA compile_options/, "SQLite search adapter should not own raw compile-options PRAGMA SQL");
 
-  const readTableColumnSet = functionBlock(filesRepoSource, "readTableColumnSet");
+  const readTableColumnSet = extractFunctionBlock(filesRepoSource, "readTableColumnSet");
   assert.match(readTableColumnSet, /db\.dialect\.introspection\.tableInfo\(safeSqlIdentifier\(tableName\)\)/, "Files repository should consume provider-owned table introspection");
   assert.doesNotMatch(readTableColumnSet, /\bPRAGMA\b/, "Files repository should not own raw PRAGMA table introspection");
 
@@ -174,32 +174,6 @@ function listRuntimeSourceFiles() {
 
   walk(sourceRoot);
   return files.sort();
-}
-
-function functionBlock(/** @type {string} */ source, /** @type {string} */ name) {
-  const startPattern = new RegExp(`(?:async\\s+)?function ${escapeRegExp(name)}\\s*\\(`);
-  const startMatch = source.match(startPattern);
-  assert.ok(startMatch, `Expected to find function ${name}`);
-
-  const start = startMatch.index;
-  const openBrace = source.indexOf("{", start);
-  assert.notEqual(openBrace, -1, `Expected function ${name} to have a body`);
-
-  let depth = 0;
-  for (let index = openBrace; index < source.length; index += 1) {
-    const char = source[index];
-
-    if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not find end of function ${name}`);
 }
 
 function normalizePath(/** @type {string} */ absolutePath) {
