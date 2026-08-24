@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import http from "node:http";
 import express from "express";
 import { createErrorHandler } from "../../../src/middleware/error-handler.js";
@@ -83,9 +84,10 @@ try {
   const response = await request(disabled, "/api/public-demo/accounts");
   assert.equal(response.statusCode, 404);
   assert.equal(response.headers["cache-control"], "no-store");
-  const body = JSON.parse(response.body);
-  assert.equal(body.error.code, "not_found");
-  assert.equal(body.error.message, "The requested resource was not found.");
+  const payload = requireJsonRecord(JSON.parse(response.body), "the disabled-catalog response body");
+  const error = requireJsonRecord(payload.error, "the disabled-catalog error envelope");
+  assert.equal(error.code, "not_found");
+  assert.equal(error.message, "The requested resource was not found.");
   assert.doesNotMatch(response.body, /role-|password|account|demo/i);
 } finally {
   await close(disabled);

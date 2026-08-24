@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18731,
+    "activeAssertionCount": 18735,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19545,
+    "effectiveAssertionCount": 19549,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -5285,11 +5285,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 207,
+      "assertionCount": 210,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 207,
+      "entryPointAssertionCount": 210,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -7690,11 +7690,11 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 16,
+      "assertionCount": 17,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Pins statement-count and payload budgets for the hot workbench-path endpoints over HTTP so N+1 reintroductions and payload bloat fail loudly.",
-      "entryPointAssertionCount": 16,
+      "entryPointAssertionCount": 17,
       "id": "workbench.hot-endpoint-budgets",
       "legacy": false,
       "path": "scripts/regressions/workbench/hot-endpoint-budgets.regression.mjs",

@@ -9,6 +9,7 @@ export const regressionMeta = Object.freeze({
 
 import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import http from "node:http";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
 
@@ -124,8 +125,9 @@ ORDER BY role_id;
   });
   const validRouteText = await validRouteResponse.text();
   assert.equal(validRouteResponse.status, 200, validRouteText);
-  const validRoutePayload = JSON.parse(validRouteText);
-  assert.equal(validRoutePayload.supportView.effectiveUserId, target.user_id);
+  const validRoutePayload = requireJsonRecord(JSON.parse(validRouteText), "the Support View start response");
+  const validRouteSupportView = requireJsonRecord(validRoutePayload.supportView, "the Support View envelope");
+  assert.equal(validRouteSupportView.effectiveUserId, target.user_id);
   const validRouteSessionId = readSessionCookie(validRouteResponse);
   const validRouteSession = await readSupportViewSession(validRouteSessionId);
   const validRouteExit = await supportViewService.exit(validRouteSession, validRouteSessionId, requestContext());

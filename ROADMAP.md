@@ -60,13 +60,12 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.28`, plus the corrective children `0.33.33.32.22.1` and `0.33.33.32.28.2`, have since archived, closing **all 3,143 diagnostics across all 202 files** — the measured cohort exactly — and leaving 0 across 0, with the repository's explicit-`any` count also at 0. Reaching zero once is not the same as proving it stays there: `0.33.33.32.28.1` is still the only child that may close the scripts program's governance state, and it runs only after the three corrective children `0.33.33.32.28` opened; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.28`, plus the corrective children `0.33.33.32.22.1`, `0.33.33.32.28.2`, and `0.33.33.32.28.3.2`, have since archived, closing **all 3,143 diagnostics across all 202 files** — the measured cohort exactly — and leaving 0 across 0, with the repository's explicit-`any` count also at 0. Reaching zero once is not the same as proving it stays there: `0.33.33.32.28.1` is still the only child that may close the scripts program's governance state, and it runs only after the three corrective children `0.33.33.32.28` opened; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
 | `.32.28.3` | Narrow the package manifest and lockfile boundaries | 31 sites | 20 | — |
 | `.32.28.3.1` | Narrow the generated policy, ledger, and audit reads | 14 sites | 8 | — |
-| `.32.28.3.2` | Narrow the response bodies and disposition the clones | 10 sites | 8 | — |
 | `.32.28.3.3` | Narrow the in-test synthetic and computed sources | 22 sites | 19 | — |
 | `.32.28.4` | Migrate family B, top-level owners | 15 defs | 15 | — |
 | `.32.28.4.1` | Migrate family B, contract modules | 16 defs | 16 | — |
@@ -108,9 +107,9 @@ Requirements shared by every child:
 - The source-slicing helper inventory is **79 definitions across 77 owners**, not 75 across 73. Four owners annotate their helper parameters inline — `function functionBlock(/** @type {string} */ source, ...)` — and the definition matcher that produced the original figure required a bare parameter list, so it skipped them. All four are family B, in `scripts/` top level.
 - The assertion figure is **135 negative and 792 positive**, not 138 negative. The original counter summed per helper name and could count one `assert.doesNotMatch` twice when an owner bound the same helper under two names; the corrected counter deduplicates by call-site offset.
 
-The unchecked-boundary figure was confirmed unchanged at **77 sites across 55 owners**.
+The unchecked-boundary figure was confirmed unchanged at **77 sites across 55 owners**. `0.33.33.32.28.3.2` has since closed 10 of them across 8 owners, leaving **67 across 47** for the three remaining boundary children.
 
-**Execution order.** `0.33.33.32.28.2` has archived. Next are the four `0.33.33.32.28.3*` boundary children, then the six `0.33.33.32.28.4*` helper children, and **`0.33.33.32.28.1` last**. The numbering is historical, not an execution order; `0.33.33.32.28.1` is not renumbered because it is referenced by every closeout rule in this rollup.
+**Execution order.** `0.33.33.32.28.2` and `0.33.33.32.28.3.2` have archived. Next are the three remaining `0.33.33.32.28.3*` boundary children, then the six `0.33.33.32.28.4*` helper children, and **`0.33.33.32.28.1` last**. The numbering is historical, not an execution order; `0.33.33.32.28.1` is not renumbered because it is referenced by every closeout rule in this rollup.
 
 **Reconciliation contract.** Every one of the 77 boundary findings belongs to exactly one `.32.28.3*` child and every one of the 79 helper definitions to exactly one `.32.28.4*` child or to the recorded local dispositions. No owner appears in two children: the boundary partition assigns whole owners rather than individual sites, so an owner is edited once and pinned once. Each child below states its own site or definition count, and the counts sum to the totals.
 
@@ -133,16 +132,6 @@ The unchecked-boundary figure was confirmed unchanged at **77 sites across 55 ow
 - [ ] Narrow through `requireJsonRecord` with local shapes naming only the fields each owner reads. Do not attempt a whole schema for the coverage policy or the ledger.
 - [ ] Where three or more owners read the same artefact, consider publishing one shape in `scripts/test-support/` rather than three local ones — but only if the fields actually overlap.
 - [ ] Owners: `regression-contracts/database/migration-runner-checked-boundary`, `regressions/framework/asset-cache-version`, `regressions/release/files-regression-isolation-audit`, `regressions/release/public-demo-compose-reset`, `regressions/release/regression-baseline-bypass-audit`, `regressions/release/regression-discovery-runner`, `regressions/release/regression-routing-commands`, `test-support/typecheck-ledger`.
-
-#### 0.33.33.32.28.3.2 - Narrow the response bodies and disposition the clones
-
-**Model: Medium Effort - Eight owners, two genuinely different dispositions.**
-
-**10 sites across 8 owners.** Seven are HTTP or streamed response bodies that should cross through the published `readPayload`. **Three are not boundaries at all**: `JSON.parse(JSON.stringify(value))` deep-clones of a value the owner already holds, in `lib/regression-change-routing` and `regressions/release/developer-verification-throughput`. They are counted here because the audit counted every parse site, and they must be dispositioned explicitly rather than quietly skipped.
-
-- [ ] Route the seven response bodies through `readPayload`, proving the envelope keys each assertion depends on.
-- [ ] Record the three deep-clones as non-boundaries with the reason, and consider replacing them with `structuredClone` so the parse site disappears rather than needing a disposition every time this audit runs.
-- [ ] Owners: `backup-restore-drill`, `lib/regression-change-routing`, `regressions/framework/operational-security-basics`, `regressions/framework/public-demo-account-catalog`, `regressions/framework/support-view-session-contract`, `regressions/framework/tls-cookie-posture`, `regressions/framework/trusted-proxy-request-context`, `regressions/workbench/hot-endpoint-budgets`.
 
 #### 0.33.33.32.28.3.3 - Narrow the in-test synthetic and computed sources
 

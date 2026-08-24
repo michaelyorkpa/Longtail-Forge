@@ -8,6 +8,9 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { readPayload } from "../../test-support/http-payload-assertions.mjs";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
+import { fixtureString } from "../../test-support/session-fixtures.mjs";
 import fs from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
@@ -58,11 +61,14 @@ async function assertStructuredLogContract() {
     requestId: "36bd50cb-32d2-4b11-924f-705721552c4d",
     token: secretMarker,
   });
-  const first = JSON.parse(lines[0]);
+  // The logger's own serialized output. It is parsed back to prove the
+  // redaction dropped the secret-bearing fields, so it enters as a proven
+  // record rather than as `any`.
+  const first = requireJsonRecord(JSON.parse(lines[0]), "the first emitted log line");
   assert.deepEqual(Object.keys(first), ["timestamp", "level", "event", "component", "requestId"]);
   assert.equal(first.level, "info");
   assert.equal(first.event, "security.probe");
-  assert.match(first.timestamp, /^\d{4}-\d{2}-\d{2}T/);
+  assert.match(fixtureString(first.timestamp, "the log line timestamp"), /^\d{4}-\d{2}-\d{2}T/);
   assert.doesNotMatch(lines[0], new RegExp(secretMarker));
   assert.equal(Object.hasOwn(first, "password"), false);
   assert.equal(Object.hasOwn(first, "token"), false);
@@ -126,7 +132,7 @@ async function assertRequestCorrelation() {
     assert.match(/** @type {string} */ (result.headers["x-request-id"]), /^[0-9a-f-]{36}$/i);
     assertUuidVersion(/** @type {string} */ (result.headers["x-request-id"]), 4, "framework request correlation identity");
     assert.notEqual(/** @type {string} */ (result.headers["x-request-id"]), inboundId, "inbound IDs should not control trusted correlation fields");
-    assert.equal(result.body.requestId, /** @type {string} */ (result.headers["x-request-id"]));
+    assert.equal(readPayload(result, ["requestId"], "probe response").requestId, /** @type {string} */ (result.headers["x-request-id"]));
     const requestLog = JSON.parse(/** @type {string} */ (lines.at(-1)));
     assert.equal(requestLog.event, "http.request.completed");
     assert.equal(requestLog.requestId, /** @type {string} */ (result.headers["x-request-id"]));
@@ -262,8 +268,10 @@ function closeServer(server) {
   });
 }
 
-/** @typedef {{ requestId: string }} CorrelationPayload */
-/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} server @param {string} requestPath @param {Record<string, string>} [headers] @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureJsonResponse<CorrelationPayload>>} */
+// The correlation probe's body is parsed JSON, so the response publishes it
+// as `unknown` and the one assertion that reads it proves the key. The
+// previous CorrelationPayload annotation was a claim nothing checked.
+/** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer} server @param {string} requestPath @param {Record<string, string>} [headers] @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureJsonResponse<unknown>>} */
 function request(server, requestPath, headers = {}) {
   return new Promise((resolve, reject) => {
     const address = /** @type {import("node:net").AddressInfo} */ (server.address());
@@ -278,7 +286,7 @@ function request(server, requestPath, headers = {}) {
       const chunks = [];
       response.on("data", (chunk) => chunks.push(chunk));
       response.on("end", () => resolve({
-        body: JSON.parse(Buffer.concat(chunks).toString("utf8")),
+        body: /** @type {unknown} */ (JSON.parse(Buffer.concat(chunks).toString("utf8"))),
         headers: response.headers,
         status: response.statusCode,
       }));
