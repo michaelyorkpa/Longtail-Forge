@@ -1,4 +1,4 @@
-import { escapeRegExp } from "./test-support/source-scan.mjs";
+import { escapeRegExp, extractFunctionBlock } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 
 import fs from "node:fs/promises";
@@ -58,8 +58,8 @@ function assertStaticContract() {
   assert.doesNotMatch(settingsRepoSource, /Number\(row\.audit_logging_enabled\) === 1/, "workspace settings should not own SQLite integer boolean row mapping");
   assert.doesNotMatch(settingsRepoSource, /\? 1 : 0/, "workspace settings save path should not own SQLite integer boolean binding");
 
-  const pauseOtherRunningTimers = functionBlock(activeTimersRepoSource, "pauseOtherRunningTimers");
-  const pauseRunningForUser = functionBlock(activeTimersRepoSource, "pauseRunningForUser");
+  const pauseOtherRunningTimers = extractFunctionBlock(activeTimersRepoSource, "pauseOtherRunningTimers");
+  const pauseRunningForUser = extractFunctionBlock(activeTimersRepoSource, "pauseRunningForUser");
   for (const proofPath of [pauseOtherRunningTimers, pauseRunningForUser]) {
     assert.match(proofPath, /db\.run\(`/, "active timer pause proof paths should use the bound database API");
     assert.match(proofPath, /db\.dialect\.time\.elapsedSecondsSince/, "active timer pause proof paths should use the timestamp seam");
@@ -229,31 +229,4 @@ WHERE workspace_id = :workspaceId;
 async function assertIntegrity() {
   const row = await db.get("PRAGMA integrity_check;");
   assert.equal(row?.integrity_check, "ok", "boolean/time seam regression database should pass integrity check");
-}
-
-function functionBlock(/** @type {string} */ source, /** @type {string} */ functionName) {
-  const marker = `function ${functionName}`;
-  let start = source.indexOf(marker);
-  if (start < 0) {
-    start = source.indexOf(`async ${marker}`);
-  }
-  assert.notEqual(start, -1, `Could not find ${functionName} in source.`);
-
-  const braceStart = source.indexOf("{", start);
-  assert.notEqual(braceStart, -1, `Could not find ${functionName} body.`);
-
-  let depth = 0;
-  for (let index = braceStart; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not extract ${functionName} body.`);
 }

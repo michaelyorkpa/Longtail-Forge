@@ -1,4 +1,4 @@
-import { escapeRegExp } from "./test-support/source-scan.mjs";
+import { escapeRegExp, extractFunctionBlock } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
@@ -51,7 +51,7 @@ function assertStaticContract() {
   assert.match(sqliteDialectSource, /escapeLikePattern/, "SQLite dialect seams should expose LIKE pattern escaping");
   assert.match(sqliteDialectSource, /likePattern/, "SQLite dialect seams should expose pattern construction");
 
-  const proofPath = functionBlock(filesRepoSource, "readAttachableTargetOptionRows");
+  const proofPath = extractFunctionBlock(filesRepoSource, "readAttachableTargetOptionRows");
   assert.match(proofPath, /db\.query\(`/, "Files attachable target options should use the bound database API");
   assert.match(proofPath, /db\.dialect\.comparison\.containsNoCase/, "Files attachable target search should use the case-insensitive comparison seam");
   assert.match(proofPath, /db\.dialect\.comparison\.likePattern/, "Files attachable target search should use the dialect LIKE pattern helper");
@@ -235,31 +235,4 @@ VALUES (
 async function assertIntegrity() {
   const row = await db.get("PRAGMA integrity_check;");
   assert.equal(row?.integrity_check, "ok", "case-insensitive seam regression database should pass integrity check");
-}
-
-function functionBlock(/** @type {string} */ source, /** @type {string} */ functionName) {
-  const marker = `function ${functionName}`;
-  let start = source.indexOf(marker);
-  if (start < 0) {
-    start = source.indexOf(`async ${marker}`);
-  }
-  assert.notEqual(start, -1, `Could not find ${functionName} in source.`);
-
-  const braceStart = source.indexOf("{", start);
-  assert.notEqual(braceStart, -1, `Could not find ${functionName} body.`);
-
-  let depth = 0;
-  for (let index = braceStart; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not parse ${functionName} body.`);
 }

@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBlock } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 
@@ -115,14 +115,14 @@ function assertStaticContract() {
   ]);
 
   const convertedBlocks = [
-    functionBlock(filesRepositorySource, "updateAttachmentContext"),
-    functionBlock(filesRepositorySource, "readAttachableTarget"),
-    functionBlock(filesRepositorySource, "readAttachmentContextLabels"),
-    functionBlock(filesRepositorySource, "readWorkspaceType"),
-    functionBlock(filesRepositorySource, "readAttachableTargetOptionRows"),
-    functionBlock(filesRepositorySource, "readClientLabels"),
-    functionBlock(filesRepositorySource, "readProjectLabels"),
-    functionBlock(filesRepositorySource, "findDuplicateActiveAttachment"),
+    extractFunctionBlock(filesRepositorySource, "updateAttachmentContext"),
+    extractFunctionBlock(filesRepositorySource, "readAttachableTarget"),
+    extractFunctionBlock(filesRepositorySource, "readAttachmentContextLabels"),
+    extractFunctionBlock(filesRepositorySource, "readWorkspaceType"),
+    extractFunctionBlock(filesRepositorySource, "readAttachableTargetOptionRows"),
+    extractFunctionBlock(filesRepositorySource, "readClientLabels"),
+    extractFunctionBlock(filesRepositorySource, "readProjectLabels"),
+    extractFunctionBlock(filesRepositorySource, "findDuplicateActiveAttachment"),
   ].join("\n");
 
   assert.doesNotMatch(convertedBlocks, /\bsqlText\b|\bsqlInteger\b|\bsqlNullableText\b|\bsqlNullableInteger\b|\bquerySql\b|\brunSql\b/, "converted Files context/target blocks should not use literal helpers or compatibility query wrappers");
@@ -135,7 +135,7 @@ function assertStaticContract() {
 /** @param {string} source @param {string} functionName @param {RegExp[]} patterns */
 /** @param {string} source @param {string} functionName @param {RegExp[]} patterns */
 function assertFunctionUsesNamedParams(source, functionName, patterns) {
-  const block = functionBlock(source, functionName);
+  const block = extractFunctionBlock(source, functionName);
 
   for (const pattern of patterns) {
     assert.match(block, pattern, `${functionName} should include ${pattern}`);
@@ -516,42 +516,4 @@ function looksLikeRawIdentifier(value) {
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok");
-}
-
-/** @param {string} source @param {string} functionName */
-function functionBlock(source, functionName) {
-  const asyncStart = source.indexOf(`async function ${functionName}`);
-  const syncStart = source.indexOf(`function ${functionName}`);
-  const start = asyncStart >= 0 && (syncStart < 0 || asyncStart < syncStart) ? asyncStart : syncStart;
-  assert.notEqual(start, -1, `${functionName} should exist`);
-
-  let braceStart = -1;
-  let parenDepth = 0;
-  for (let index = start; index < source.length; index += 1) {
-    const character = source[index];
-    if (character === "(") {
-      parenDepth += 1;
-    } else if (character === ")") {
-      parenDepth -= 1;
-    } else if (character === "{" && parenDepth === 0) {
-      braceStart = index;
-      break;
-    }
-  }
-  assert.notEqual(braceStart, -1, `${functionName} body should exist`);
-  let depth = 0;
-
-  for (let index = braceStart; index < source.length; index += 1) {
-    const character = source[index];
-    if (character === "{") {
-      depth += 1;
-    } else if (character === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not find end of ${functionName}`);
 }

@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { extractFunctionBlock } from "../../test-support/source-scan.mjs";
 import fs from "node:fs/promises";
 import vm from "node:vm";
 import { createFakeBrowserContext, createFakeEvent } from "../../test-support/fake-dom.mjs";
@@ -60,9 +61,9 @@ context.window.fetch = async () => ({ status: context.responseStatus });
 const executableSource = [
   'const SESSION_LOGIN_PATH = "/login.html";',
   "let sessionAuthWarningPromise = null;",
-  extractFunction(navigationSource, "installSessionAuthWarningGuard"),
-  extractFunction(navigationSource, "isAppApiRequest"),
-  extractFunction(navigationSource, "showSessionAuthWarning"),
+  extractFunctionBlock(navigationSource, "installSessionAuthWarningGuard"),
+  extractFunctionBlock(navigationSource, "isAppApiRequest"),
+  extractFunctionBlock(navigationSource, "showSessionAuthWarning"),
   "this.sessionAuthContract = { installSessionAuthWarningGuard, showSessionAuthWarning };",
 ].join("\n");
 
@@ -127,27 +128,6 @@ assert.equal(
 );
 
 console.log("Framework session/auth warning regression passed.");
-
-/** @param {string} source @param {string} name @returns {string} */
-function extractFunction(source, name) {
-  const start = source.indexOf(`function ${name}(`);
-  assert.notEqual(start, -1, `Expected ${name} in navigation.js`);
-  const bodyStart = source.indexOf("{", start);
-  let depth = 0;
-
-  for (let index = bodyStart; index < source.length; index += 1) {
-    if (source[index] === "{") {
-      depth += 1;
-    } else if (source[index] === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not extract ${name}`);
-}
 
 async function settleMicrotasks() {
   await Promise.resolve();

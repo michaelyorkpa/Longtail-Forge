@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { clearTimeout, setTimeout } from "node:timers";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBlock } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const root = process.cwd();
@@ -95,7 +95,7 @@ function assertStaticContract() {
   assert.match(workerCliSource, /runModuleStartupTasks\("worker"/, "separate worker startup should run module-owned startup work");
   assert.doesNotMatch(workerCliSource, /queueTaskReminderSweepJobs/, "separate worker startup should not import Tasks-specific sweeps");
   assert.match(workerCliSource, /jobsService\.pruneOldJobs/, "separate worker startup should run retention pruning");
-  assert.doesNotMatch(functionBlock(dbIndexSource, "initializeWorkerDatabase"), /runMigrations|runAppStartupMaintenance/, "worker database startup should not run migrations or app defaults");
+  assert.doesNotMatch(extractFunctionBlock(dbIndexSource, "initializeWorkerDatabase"), /runMigrations|runAppStartupMaintenance/, "worker database startup should not run migrations or app defaults");
   assert.match(appSource, /config\.worker\.mode === "separate"[\s\S]*state=external/, "app separate mode should leave processing to node worker.js");
   assert.match(appSource, /config\.worker\.mode === "disabled"[\s\S]*state=disabled/, "app disabled mode should report that jobs will not process");
   assert.match(architectureDocs, /0\.33\.5\.21\.7\.6[\s\S]*separate worker/i, "architecture docs should document separate-worker validation");
@@ -649,13 +649,6 @@ function waitForChildExit(child, timeoutMs) {
     };
     child.once("exit", onExit);
   });
-}
-
-/** @param {string} source @param {string} functionName */
-function functionBlock(source, functionName) {
-  const pattern = new RegExp(`async function ${functionName}\\([^)]*\\) \\{([\\s\\S]*?)\\n\\}`);
-  const match = source.match(pattern);
-  return match ? match[0] : "";
 }
 
 function cleanEnv(overrides = {}) {

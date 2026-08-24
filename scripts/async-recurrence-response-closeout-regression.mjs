@@ -7,7 +7,7 @@ import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 /** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBlock } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-async-recurrence-response-"));
@@ -37,12 +37,12 @@ try {
   assert.match(tasksServiceSource, /createdTask: null,[\s\S]*recurrenceContinuity: recurrenceHandoff\.recurrenceContinuity,[\s\S]*recurrenceJob: recurrenceHandoff\.recurrenceJob/, "task completion should return safe continuity and queued metadata instead of an inline task");
   assert.doesNotMatch(tasksServiceSource, /const recurrenceResult = await taskRecurrenceService\.createNextInstance/, "task completion should not create the next recurrence instance inline");
   assert.match(publicApiSource, /recurrenceJob: publicRecurrenceJob\(result\.recurrenceJob\)/, "public API completion should expose a safe recurrence queued hint");
-  assert.doesNotMatch(functionBlock(publicApiSource, "publicRecurrenceJob"), /jobId|job_id|dedupe|payload/i, "public recurrence job response should not expose job internals");
+  assert.doesNotMatch(extractFunctionBlock(publicApiSource, "publicRecurrenceJob"), /jobId|job_id|dedupe|payload/i, "public recurrence job response should not expose job internals");
   assert.match(tasksPageSource, /renderTaskRecurrenceContinuity\(result\.recurrenceContinuity\)/, "Tasks page should render safe recurrence continuity");
   assert.match(tasksPageSource, /trackTaskRecurrenceContinuity\([^\n]+result\.recurrenceContinuity\)/, "Tasks page should track pending recurrence continuity without creating inline");
   assert.match(workbenchSource, /detail\.taskLifecycleAction === "complete"[\s\S]*setTaskCompletionStatus\(detail\)/, "Workbench modal completion should use safe lifecycle detail");
-  assert.match(functionBlock(workbenchSource, "setTaskCompletionStatus"), /detail\.recurrenceContinuity[\s\S]*trackTaskRecurrenceContinuity/, "Workbench completion should render and track safe recurrence continuity");
-  assert.doesNotMatch(functionBlock(workbenchSource, "setTaskCompletionStatus"), /jobId|job_id|dedupe|payload/i, "Workbench completion should not expose recurrence job internals");
+  assert.match(extractFunctionBlock(workbenchSource, "setTaskCompletionStatus"), /detail\.recurrenceContinuity[\s\S]*trackTaskRecurrenceContinuity/, "Workbench completion should render and track safe recurrence continuity");
+  assert.doesNotMatch(extractFunctionBlock(workbenchSource, "setTaskCompletionStatus"), /jobId|job_id|dedupe|payload/i, "Workbench completion should not expose recurrence job internals");
   assert.match(tasksDocs, /As of 0\.33\.9\.6[\s\S]*does not create the next instance inline[\s\S]*recurrenceContinuity[\s\S]*queue\/failure booleans/, "Tasks docs should describe the async recurrence continuity contract");
   assert.match(publicApiDocs, /As of 0\.33\.9\.6[\s\S]*createdTask` remains `null`[\s\S]*recurrenceContinuity[\s\S]*queue\/failure booleans/, "public API docs should describe the safe recurrence continuity contract");
   await initializeDatabase();
@@ -156,13 +156,6 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 async function assertIntegrity() {
   const rows = await db.query("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok", "SQLite integrity check should pass");
-}
-
-/** @param {string} source @param {string} functionName @returns {string} */
-function functionBlock(source, functionName) {
-  const pattern = new RegExp(`function ${functionName}\\([^)]*\\) \\{([\\s\\S]*?)\\n\\}`);
-  const match = source.match(pattern);
-  return match ? match[0] : "";
 }
 
 /**
