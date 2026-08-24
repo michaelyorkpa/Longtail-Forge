@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 // Consolidated under tasks.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -21,13 +21,13 @@ assert.match(viewBuilder, /createListShell,[\s\S]*createModal/, "Framework list-
 assert.match(styles, /\.view-list-shell\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*0;[\s\S]*max-width:\s*100%/, "Framework CSS should own list-shell layout");
 assert.match(styles, /\.view-list-shell-status:empty\s*\{[\s\S]*display:\s*none/, "Framework CSS should hide empty list-shell status mounts");
 
-const mainChrome = functionBlock(tasksScript, "createTaskMainListChrome");
-const renderTasks = functionBlock(tasksScript, "renderTasks");
-const createTaskRow = functionBlock(tasksScript, "createTaskRow");
-const createActions = functionBlock(tasksScript, "createActions");
-const taskViewChrome = functionBlock(tasksScript, "createTaskViewSelectorChrome");
-const filterChrome = functionBlock(tasksScript, "createTaskFilterChrome");
-const bulkChrome = functionBlock(tasksScript, "createTaskBulkToolbarChrome");
+const mainChrome = extractFunctionSpan(tasksScript, "createTaskMainListChrome");
+const renderTasks = extractFunctionSpan(tasksScript, "renderTasks");
+const createTaskRow = extractFunctionSpan(tasksScript, "createTaskRow");
+const createActions = extractFunctionSpan(tasksScript, "createActions");
+const taskViewChrome = extractFunctionSpan(tasksScript, "createTaskViewSelectorChrome");
+const filterChrome = extractFunctionSpan(tasksScript, "createTaskFilterChrome");
+const bulkChrome = extractFunctionSpan(tasksScript, "createTaskBulkToolbarChrome");
 
 assert.match(tasksScript, /view\.renderSurface\(\{ \.\.\.activeTasksViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Tasks should still use the framework-rendered page shell");
 assert.match(tasksModule, /sidebarPanels:\s*\[[\s\S]*id:\s*"tasks-view-selector"[\s\S]*id:\s*"tasks-filters"/, "Tasks descriptor should own sidebar panel placement through the framework");
@@ -58,16 +58,3 @@ assert.match(tasksDocs, /As of 0\.33\.5\.18\.8\.4[\s\S]*framework list shell own
 assert.match(tasksView, /css\/longtail-forge\.css[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/tasks\.js/, "Tasks host should load the list-shell cache keys");
 
 console.log("Tasks list surface boundary regression passed.");
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} functionName the name to locate
- */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}

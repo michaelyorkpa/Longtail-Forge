@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 // Consolidated under tasks.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -94,7 +94,7 @@ for (const serviceFunction of [
   "deleteChecklistItem",
   "setChecklistItemChecked",
 ]) {
-  const block = functionBlock(tasksService, serviceFunction);
+  const block = extractFunctionSpan(tasksService, serviceFunction);
   assert.match(block, /assertModuleWriteEnabled\(session, TASKS_MODULE_ID\)/, `${serviceFunction} should enforce module writes.`);
   assert.match(block, /assertCanEditTask\(session, task\)/, `${serviceFunction} should enforce task edit permission.`);
 }
@@ -116,18 +116,3 @@ assert.match(
 );
 
 console.log("Tasks checklist escape-hatch regression passed.");
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} functionName the name to locate
- */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`async function ${functionName}`);
-  const fallbackStart = source.indexOf(`function ${functionName}`);
-  const blockStart = start >= 0 ? start : fallbackStart;
-  assert.notEqual(blockStart, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(blockStart + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(blockStart, nextFunction === -1 ? source.length : blockStart + 1 + nextFunction);
-}

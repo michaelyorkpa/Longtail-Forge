@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 // Consolidated under tasks.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -27,8 +27,8 @@ assert.match(tasksScript, /if \(Object\.hasOwn\(saved, "quickFilter"\)\)/, "Save
 assert.match(tasksScript, /state\.quickFilter = DEFAULT_TASK_VIEW/, "Missing or invalid saved state should fall back to My Tasks");
 assert.doesNotMatch(tasksScript, /handleFilterDetailsToggle|data-task-quick-filter|task-quick-filters/, "Tasks sidebar should not keep the old quick-filter button row or clear the view when filters open");
 
-const taskViewChrome = functionBlock(tasksScript, "createTaskViewSelectorChrome");
-const filterChrome = functionBlock(tasksScript, "createTaskFilterChrome");
+const taskViewChrome = extractFunctionSpan(tasksScript, "createTaskViewSelectorChrome");
+const filterChrome = extractFunctionSpan(tasksScript, "createTaskFilterChrome");
 assert.match(
   taskViewChrome,
   /"data-task-view-selector"[\s\S]*"aria-label": "Saved Task Views"[\s\S]*\["my", "My Tasks", true\],\s*\["all", "All"\],\s*\["unassigned", "Unassigned"\],\s*\["overdue", "Overdue"\],\s*\["today", "Due Today"\],\s*\["week", "Due This Week"\],\s*\["complete", "Completed"\],\s*\["archived", "Archived"\]/,
@@ -53,19 +53,6 @@ assert.match(rendererShellRegression, /Backdrop click should close the drawer/, 
 assert.match(rendererShellRegression, /Escape should close the drawer/, "Shared renderer regression should cover slide-out Escape close behavior");
 
 console.log("Tasks filter sidebar anatomy regression passed.");
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} functionName the name to locate
- */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}
 
 /**
  * Extract the inclusive region between two literal markers.

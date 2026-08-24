@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 // Consolidated under tasks.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -15,10 +15,10 @@ assert.match(viewBuilder, /function createBulkActionToolbar\(options = \{\}\)[\s
 assert.match(viewBuilder, /data-view-bulk-selection-count/, "Framework bulk toolbar helper should expose a selection-count mount");
 assert.match(viewBuilder, /createBulkActionToolbar,/, "Framework bulk toolbar helper should be exported");
 
-const mainChrome = functionBlock(tasksScript, "createTaskMainListChrome");
-const bulkChrome = functionBlock(tasksScript, "createTaskBulkToolbarChrome");
-const bulkControls = functionBlock(tasksScript, "taskBulkToolbarControls");
-const updateBulkControls = functionBlock(tasksScript, "updateBulkControls");
+const mainChrome = extractFunctionSpan(tasksScript, "createTaskMainListChrome");
+const bulkChrome = extractFunctionSpan(tasksScript, "createTaskBulkToolbarChrome");
+const bulkControls = extractFunctionSpan(tasksScript, "taskBulkToolbarControls");
+const updateBulkControls = extractFunctionSpan(tasksScript, "updateBulkControls");
 assert(
   tasksScript.indexOf("let state = {") < tasksScript.indexOf("buildTasksViewShell();"),
   "Tasks state should initialize before the descriptor shell renders the bulk toolbar",
@@ -32,8 +32,8 @@ assert.match(updateBulkControls, /if \(bulkToolbar && selectedCount > 0\) \{[\s\
 assert.doesNotMatch(updateBulkControls, /reloadTaskList|renderTasks/, "Expanding or summarizing the bulk toolbar should not reload or reorder the task list");
 assert.match(tasksScript, /function updateBulkToolbarSummary\(selectedCount\)[\s\S]*bulkSelectionCount\.textContent = `\$\{selectedCount\} selected`[\s\S]*bulkSelectionCount\.hidden = selectedCount === 0/, "Tasks should display selected counts only when applicable");
 
-const taskViewChrome = functionBlock(tasksScript, "createTaskViewSelectorChrome");
-const filterChrome = functionBlock(tasksScript, "createTaskFilterChrome");
+const taskViewChrome = extractFunctionSpan(tasksScript, "createTaskViewSelectorChrome");
+const filterChrome = extractFunctionSpan(tasksScript, "createTaskFilterChrome");
 assert.doesNotMatch(taskViewChrome, /data-task-bulk-toolbar|data-task-bulk-status-control/, "Saved Task Views sidebar panel should not contain the bulk toolbar");
 assert.doesNotMatch(filterChrome, /data-task-bulk-toolbar|data-task-bulk-status-control/, "Sorting and Filters sidebar panel should not contain the bulk toolbar");
 
@@ -46,16 +46,3 @@ assert.match(styles, /\.task-bulk-grid \.checkbox-line\s*\{[\s\S]*display:\s*inl
 assert.match(styles, /\.task-bulk-grid \.checkbox-line input\[type="checkbox"\]\s*\{[\s\S]*width:\s*auto;[\s\S]*margin:\s*0;/, "Tasks bulk clear checkboxes should not inherit full-width input styling");
 
 console.log("Tasks bulk toolbar shell regression passed.");
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} functionName the name to locate
- */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}

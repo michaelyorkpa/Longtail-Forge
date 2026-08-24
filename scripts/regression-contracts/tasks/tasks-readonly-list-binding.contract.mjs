@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 // Consolidated under tasks.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -18,14 +18,14 @@ assert.match(tasksScript, /view\.registerBehavior\("tasks\.main\.list"[\s\S]*con
 assert.doesNotMatch(tasksScript, /main\.replaceChildren\(createTaskMainListChrome\(\)\)/, "Tasks adapter should not replace the framework-owned main panel");
 assert.match(tasksScript, /main\.classList\.add\("tasks-main-list-panel"\)[\s\S]*main\.dataset\.tasksMainPanel = ""/, "Tasks adapter may keep compatibility hooks on the framework main panel");
 
-const registerBehaviors = functionBlock(tasksScript, "registerTasksViewBehaviors");
+const registerBehaviors = extractFunctionSpan(tasksScript, "registerTasksViewBehaviors");
 assert.match(registerBehaviors, /tasks\.sidebar\.view-selector[\s\S]*createTaskViewSelectorChrome/, "Saved Task Views should mount in the sidebar");
 assert.match(registerBehaviors, /tasks\.sidebar\.filters[\s\S]*createTaskFilterChrome/, "Sorting and Filters should mount in the sidebar");
 assert.match(registerBehaviors, /tasks\.main\.list[\s\S]*createTaskMainListChrome/, "Task list chrome should mount in the main detail region");
 
-const taskViewChrome = functionBlock(tasksScript, "createTaskViewSelectorChrome");
-const filterChrome = functionBlock(tasksScript, "createTaskFilterChrome");
-const mainChrome = functionBlock(tasksScript, "createTaskMainListChrome");
+const taskViewChrome = extractFunctionSpan(tasksScript, "createTaskViewSelectorChrome");
+const filterChrome = extractFunctionSpan(tasksScript, "createTaskFilterChrome");
+const mainChrome = extractFunctionSpan(tasksScript, "createTaskMainListChrome");
 assert.doesNotMatch(taskViewChrome, /data-task-list|task-density-row|data-task-bulk-toolbar/, "Saved Task Views sidebar chrome should not contain list rows or bulk actions");
 assert.doesNotMatch(filterChrome, /data-task-list|task-density-row|data-task-bulk-toolbar|Task Details<\/th>/, "Sorting and Filters sidebar chrome should not contain list rows or bulk actions");
 assert.match(mainChrome, /view\.createListShell\(\{[\s\S]*className:\s*"tasks-main-list-surface"[\s\S]*toolbar:\s*createTaskBulkToolbarChrome\(\)[\s\S]*statusAttrs:\s*\{\s*"data-task-status":\s*""\s*\}[\s\S]*children:\s*list/, "Main list chrome should use the framework list shell and place the bulk toolbar before the task table");
@@ -33,21 +33,21 @@ assert.match(mainChrome, /view\.createElement\("tbody"[\s\S]*"data-task-list":\s
 assert.match(mainChrome, /className:\s*\["view-table-wrap", "list-table-wrap"\]/, "Main list chrome should reuse the shared table overflow wrapper while preserving list-table compatibility styling");
 assert.match(tasksScript, /function createTaskBulkToolbarChrome\(\)[\s\S]*view\.createBulkActionToolbar\([\s\S]*data-task-bulk-toolbar/, "Tasks bulk toolbar should mount through the framework bulk toolbar shell");
 
-const renderTasks = functionBlock(tasksScript, "renderTasks");
+const renderTasks = extractFunctionSpan(tasksScript, "renderTasks");
 assert.match(renderTasks, /taskList\.replaceChildren\(\)/, "Existing list rows should still render into the task list body");
 assert.match(renderTasks, /nestedTaskDisplayRows\(tasks\)[\s\S]*taskNestingDepths\.set\(task, depth\)[\s\S]*createTaskRow\(task\)/, "Task rows should still come from the Tasks-owned row builder in parent-before-child display order");
 
-const createTaskRow = functionBlock(tasksScript, "createTaskRow");
+const createTaskRow = extractFunctionSpan(tasksScript, "createTaskRow");
 assert.match(createTaskRow, /row\.classList\.add\("task-density-row"\)/, "Task rows should keep the dense row class");
 assert.match(createTaskRow, /appendTaskMetadata\(metaBand, task\)/, "Task rows should keep due date, status, priority, scope, and assignee metadata");
 assert.match(createTaskRow, /contentCell\.colSpan = 6/, "Task rows should keep the current table density");
 
-const createActions = functionBlock(tasksScript, "createActions");
+const createActions = extractFunctionSpan(tasksScript, "createActions");
 assert.match(createActions, /actionButton\("Edit"[\s\S]*actionButton\("Duplicate"[\s\S]*actionButton\("Copy Link"[\s\S]*actionButton\("Follow Notifications"[\s\S]*createTaskLifecycleActionStrip\(task\)/, "Existing row utility actions should still appear while lifecycle actions use the framework action strip");
-const lifecycleDescriptor = functionBlock(tasksScript, "taskLifecycleActionStripDescriptor");
+const lifecycleDescriptor = extractFunctionSpan(tasksScript, "taskLifecycleActionStripDescriptor");
 assert.match(lifecycleDescriptor, /id:\s*"complete-task"[\s\S]*id:\s*"reopen-task"[\s\S]*id:\s*"block-task"[\s\S]*id:\s*"resume-task"[\s\S]*id:\s*"archive-task"[\s\S]*id:\s*"restore-task"/, "Completed, blocked, archived, and active lifecycle row actions should still appear when applicable");
 
-const buildTaskQuery = functionBlock(tasksScript, "buildTaskQuery");
+const buildTaskQuery = extractFunctionSpan(tasksScript, "buildTaskQuery");
 assert.match(buildTaskQuery, /params\.set\("task_view", canonicalTaskViewValue\(taskView\)\)/, "Saved task view should still affect visible task reads");
 assert.match(buildTaskQuery, /params\.set\("status", canonicalStatusValue\(statusValue\)\)/, "Status filter should still affect visible task reads");
 assert.match(buildTaskQuery, /params\.set\("sort", canonicalSortValue/, "Sort filter should still affect visible task reads");
@@ -64,16 +64,3 @@ assert.match(styles, /\.view-slideout-sidebar-main > \.tasks-main-list-region\s*
 assert.match(styles, /\.view-list-shell\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*0/, "Framework list shell should own no-gap list placement");
 
 console.log("Tasks read-only list binding regression passed.");
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} functionName the name to locate
- */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}

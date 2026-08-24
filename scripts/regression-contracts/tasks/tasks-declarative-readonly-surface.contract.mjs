@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 // Consolidated under tasks.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -35,10 +35,10 @@ assert.match(tasksScript, /view\.registerBehavior\("tasks\.main\.list"[\s\S]*con
 assert.match(tasksScript, /const main = surface\.querySelector\("\.view-slideout-sidebar-main"\)/, "Tasks adapter should target the slide-out main panel for the task list");
 assert.doesNotMatch(tasksScript, /main\.replaceChildren\(createTaskMainListChrome\(\)\)/, "Tasks adapter should not replace the framework-owned main panel");
 
-const filterChrome = functionBlock(tasksScript, "createTaskFilterChrome");
-const taskViewChrome = functionBlock(tasksScript, "createTaskViewSelectorChrome");
-const mainChrome = functionBlock(tasksScript, "createTaskMainListChrome");
-const bulkChrome = functionBlock(tasksScript, "createTaskBulkToolbarChrome");
+const filterChrome = extractFunctionSpan(tasksScript, "createTaskFilterChrome");
+const taskViewChrome = extractFunctionSpan(tasksScript, "createTaskViewSelectorChrome");
+const mainChrome = extractFunctionSpan(tasksScript, "createTaskMainListChrome");
+const bulkChrome = extractFunctionSpan(tasksScript, "createTaskBulkToolbarChrome");
 assert.match(taskViewChrome, /data-task-view-selector/, "Tasks sidebar should expose a task view selector");
 assert.doesNotMatch(taskViewChrome, /<button|<details|<label|>\s*Task View\s*<|data-task-list/, "Tasks view selector panel should not render button filters, collapsible sections, repeated visible labels, or task lists");
 assert.match(filterChrome, /data-task-filter-details/, "Tasks sidebar should keep the sorting/filter controls");
@@ -68,17 +68,4 @@ function assertNoProtectedAnatomy(html, label) {
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));
   assert.doesNotMatch(body, /<(section|form|table|dialog|details|button|h1|h2|ul|ol)\b/i, `${label} should not ship protected view anatomy outside the descriptor host`);
   assert.doesNotMatch(body, /\b(data-task-list|data-task-dialog|data-task-quick-filter|data-task-bulk-toolbar|data-task-status-filter)\b/, `${label} should not ship Tasks workspace hooks outside the host`);
-}
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} functionName the name to locate
- */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }

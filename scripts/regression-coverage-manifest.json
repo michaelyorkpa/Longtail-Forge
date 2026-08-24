@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18751,
+    "activeAssertionCount": 18752,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19565,
+    "effectiveAssertionCount": 19566,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -5285,11 +5285,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 277,
+      "assertionCount": 291,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 277,
+      "entryPointAssertionCount": 291,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -6959,16 +6959,16 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 783,
-      "contractAssertionCount": 782,
+      "assertionCount": 770,
+      "contractAssertionCount": 769,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/tasks/task-checklist-editor-display.contract.mjs",
-          "assertionCount": 12
+          "assertionCount": 11
         },
         {
           "path": "scripts/regression-contracts/tasks/task-critical-quick-fixes.contract.mjs",
-          "assertionCount": 52
+          "assertionCount": 51
         },
         {
           "path": "scripts/regression-contracts/tasks/task-editor-workbench-handoff.contract.mjs",
@@ -6996,7 +6996,7 @@
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-bulk-toolbar-shell.contract.mjs",
-          "assertionCount": 23
+          "assertionCount": 22
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-canonical-editor-opener.contract.mjs",
@@ -7004,27 +7004,27 @@
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-checklist-escape-hatch.contract.mjs",
-          "assertionCount": 20
+          "assertionCount": 19
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-declarative-readonly-surface.contract.mjs",
-          "assertionCount": 39
+          "assertionCount": 38
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-detail-read-panel.contract.mjs",
-          "assertionCount": 23
+          "assertionCount": 22
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-filter-sidebar-anatomy.contract.mjs",
-          "assertionCount": 29
+          "assertionCount": 28
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-lifecycle-action-descriptor.contract.mjs",
-          "assertionCount": 32
+          "assertionCount": 31
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-list-surface-boundary.contract.mjs",
-          "assertionCount": 29
+          "assertionCount": 28
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-modal-context-sections.contract.mjs",
@@ -7036,7 +7036,7 @@
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-readonly-list-binding.contract.mjs",
-          "assertionCount": 36
+          "assertionCount": 35
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-recurrence-reminder-escape-hatch.contract.mjs",
@@ -7044,7 +7044,7 @@
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-relationship-linked-context.contract.mjs",
-          "assertionCount": 43
+          "assertionCount": 42
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-strict-guardrail-inventory.contract.mjs",
@@ -7052,7 +7052,7 @@
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-tags-files-child-dialog.contract.mjs",
-          "assertionCount": 30
+          "assertionCount": 29
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-timer-utility-escape-hatch.contract.mjs",
@@ -7060,7 +7060,7 @@
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-workflow-action-descriptor.contract.mjs",
-          "assertionCount": 40
+          "assertionCount": 39
         }
       ],
       "description": "Runs source-only Tasks list, editor, modal, relationship, and Workbench-handoff contracts through one table-driven owner.",

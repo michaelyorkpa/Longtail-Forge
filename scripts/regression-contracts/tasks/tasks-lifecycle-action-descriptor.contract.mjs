@@ -1,4 +1,4 @@
-import { escapeRegExp } from "../../test-support/source-scan.mjs";
+import { escapeRegExp, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
@@ -14,18 +14,18 @@ const tasksView = readText("views/protected/tasks.html");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 
 const behaviorHandlers = constBlock(tasksScript, "TASK_LIFECYCLE_BEHAVIOR_HANDLERS");
-const registerBehaviors = functionBlock(tasksScript, "registerTaskLifecycleBehaviors");
-const createActions = functionBlock(tasksScript, "createActions");
-const lifecycleStrip = functionBlock(tasksScript, "createTaskLifecycleActionStrip");
-const lifecycleDescriptor = functionBlock(tasksScript, "taskLifecycleActionStripDescriptor");
-const lifecycleButton = functionBlock(tasksScript, "taskLifecycleActionButton");
-const disabledReason = functionBlock(tasksScript, "taskLifecycleDisabledReason");
-const permissionCheck = functionBlock(tasksScript, "hasTaskLifecyclePermission");
-const permissionAllow = functionBlock(tasksScript, "permissionAllowsTaskAction");
-const runLifecycleAction = functionBlock(tasksScript, "runTaskLifecycleAction");
-const confirmLifecycleAction = functionBlock(tasksScript, "confirmTaskLifecycleAction");
-const updateLifecycleStatus = functionBlock(tasksScript, "updateTaskLifecycleStatus");
-const postTaskAction = functionBlock(tasksScript, "postTaskAction");
+const registerBehaviors = extractFunctionSpan(tasksScript, "registerTaskLifecycleBehaviors");
+const createActions = extractFunctionSpan(tasksScript, "createActions");
+const lifecycleStrip = extractFunctionSpan(tasksScript, "createTaskLifecycleActionStrip");
+const lifecycleDescriptor = extractFunctionSpan(tasksScript, "taskLifecycleActionStripDescriptor");
+const lifecycleButton = extractFunctionSpan(tasksScript, "taskLifecycleActionButton");
+const disabledReason = extractFunctionSpan(tasksScript, "taskLifecycleDisabledReason");
+const permissionCheck = extractFunctionSpan(tasksScript, "hasTaskLifecyclePermission");
+const permissionAllow = extractFunctionSpan(tasksScript, "permissionAllowsTaskAction");
+const runLifecycleAction = extractFunctionSpan(tasksScript, "runTaskLifecycleAction");
+const confirmLifecycleAction = extractFunctionSpan(tasksScript, "confirmTaskLifecycleAction");
+const updateLifecycleStatus = extractFunctionSpan(tasksScript, "updateTaskLifecycleStatus");
+const postTaskAction = extractFunctionSpan(tasksScript, "postTaskAction");
 
 assert.match(registerBehaviors, /taskLifecycleActionStripDescriptor\(\)\.actions\.forEach[\s\S]*view\.registerBehavior\(action\.behavior, handler\)/, "Lifecycle behaviors should be registered through the view behavior registry");
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.complete": \(\{ record, trigger \}\) => postTaskAction\(record, "complete", trigger\)/, "Complete should dispatch through the Tasks-owned complete handler with focus-return context");
@@ -62,7 +62,7 @@ assert.match(runLifecycleAction, /if \(action\.confirm && !await confirmTaskLife
 assert.match(runLifecycleAction, /handler\(\{[\s\S]*record:\s*task[\s\S]*refresh:\s*reloadTaskList/, "Lifecycle handlers should receive the Tasks record and refresh hook");
 assert.match(confirmLifecycleAction, /modal\?\.confirm[\s\S]*danger:\s*confirmOptions\.danger === true \|\| action\.role === "destructive"/, "Destructive lifecycle confirmation should use the framework modal confirm helper");
 assert.match(updateLifecycleStatus, /api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(task\.task_id\)\}`, payload\)[\s\S]*upsertTask\(result\.task\)[\s\S]*await reloadTaskList\(\)/, "Direct lifecycle status updates should use the existing Tasks update route and refresh the list");
-assert.match(functionBlock(tasksScript, "openTaskDialogForBlock"), /focusTarget:\s*"blocked_reason"[\s\S]*status:\s*"blocked"/, "Block should open the canonical editor in blocked state focused on Blocked Reason");
+assert.match(extractFunctionSpan(tasksScript, "openTaskDialogForBlock"), /focusTarget:\s*"blocked_reason"[\s\S]*status:\s*"blocked"/, "Block should open the canonical editor in blocked state focused on Blocked Reason");
 assert.match(postTaskAction, /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(task\.task_id\)\}\/\$\{action\}`, \{\}\)[\s\S]*await reloadTaskList\(\)/, "POST lifecycle actions should use the existing Tasks lifecycle routes and refresh the list");
 
 assert.doesNotMatch(tasksRoutes, /tasksRoutes\.delete\("\/tasks\/:taskId"\s*,/, "Browser API should not expose a task delete route");
@@ -80,19 +80,6 @@ console.log("Tasks lifecycle action descriptor regression passed.");
 function constBlock(source, constName) {
   const start = source.indexOf(`const ${constName}`);
   assert.notEqual(start, -1, `${constName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} functionName the name to locate
- */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }

@@ -1,4 +1,4 @@
-import { escapeRegExp } from "../../test-support/source-scan.mjs";
+import { escapeRegExp, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
@@ -15,23 +15,23 @@ const tasksView = readText("views/protected/tasks.html");
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 
 const workflowHandlers = constBlock(tasksScript, "TASK_WORKFLOW_BEHAVIOR_HANDLERS");
-const registerWorkflows = functionBlock(tasksScript, "registerTaskWorkflowBehaviors");
-const createActions = functionBlock(tasksScript, "createActions");
-const workflowMenu = functionBlock(tasksScript, "createTaskWorkflowActionMenu");
-const workflowDescriptor = functionBlock(tasksScript, "taskWorkflowActionMenuDescriptor");
-const workflowButton = functionBlock(tasksScript, "taskWorkflowActionButton");
-const disabledReason = functionBlock(tasksScript, "taskWorkflowDisabledReason");
-const permissionCheck = functionBlock(tasksScript, "hasTaskWorkflowPermission");
-const timerDisabledReason = functionBlock(tasksScript, "taskTimerDisabledReason");
-const runWorkflowAction = functionBlock(tasksScript, "runTaskWorkflowAction");
-const openWorkflowDialog = functionBlock(tasksScript, "openTaskDialogForWorkflow");
-const saveTimerAction = functionBlock(tasksScript, "saveTaskTimerAction");
-const readElapsed = functionBlock(tasksScript, "readTaskTimerElapsedSeconds");
-const configureDialog = functionBlock(tasksScript, "configureTaskDialog");
-const normalizeFocus = functionBlock(taskDialogScript, "normalizeTaskEditorFocusTarget");
-const openTaskEditor = functionBlock(taskDialogScript, "openTaskEditor");
-const openEditor = functionBlock(taskDialogScript, "open");
-const focusTarget = functionBlock(taskDialogScript, "focusTaskEditorTarget");
+const registerWorkflows = extractFunctionSpan(tasksScript, "registerTaskWorkflowBehaviors");
+const createActions = extractFunctionSpan(tasksScript, "createActions");
+const workflowMenu = extractFunctionSpan(tasksScript, "createTaskWorkflowActionMenu");
+const workflowDescriptor = extractFunctionSpan(tasksScript, "taskWorkflowActionMenuDescriptor");
+const workflowButton = extractFunctionSpan(tasksScript, "taskWorkflowActionButton");
+const disabledReason = extractFunctionSpan(tasksScript, "taskWorkflowDisabledReason");
+const permissionCheck = extractFunctionSpan(tasksScript, "hasTaskWorkflowPermission");
+const timerDisabledReason = extractFunctionSpan(tasksScript, "taskTimerDisabledReason");
+const runWorkflowAction = extractFunctionSpan(tasksScript, "runTaskWorkflowAction");
+const openWorkflowDialog = extractFunctionSpan(tasksScript, "openTaskDialogForWorkflow");
+const saveTimerAction = extractFunctionSpan(tasksScript, "saveTaskTimerAction");
+const readElapsed = extractFunctionSpan(tasksScript, "readTaskTimerElapsedSeconds");
+const configureDialog = extractFunctionSpan(tasksScript, "configureTaskDialog");
+const normalizeFocus = extractFunctionSpan(taskDialogScript, "normalizeTaskEditorFocusTarget");
+const openTaskEditor = extractFunctionSpan(taskDialogScript, "openTaskEditor");
+const openEditor = extractFunctionSpan(taskDialogScript, "open");
+const focusTarget = extractFunctionSpan(taskDialogScript, "focusTaskEditorTarget");
 
 assert.match(registerWorkflows, /taskWorkflowActionMenuDescriptor\(\)\.actions\.forEach[\s\S]*view\.registerBehavior\(action\.behavior, handler\)/, "Workflow behaviors should be registered through the view behavior registry");
 assert.match(workflowHandlers, /"tasks\.workflow\.assign"[\s\S]*openTaskDialogForWorkflow\(record, action, trigger\)/, "Assign should dispatch to the canonical task editor");
@@ -95,19 +95,6 @@ console.log("Tasks workflow action descriptor regression passed.");
 function constBlock(source, constName) {
   const start = source.indexOf(`const ${constName}`);
   assert.notEqual(start, -1, `${constName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} functionName the name to locate
- */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
