@@ -40,86 +40,241 @@ Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, 
 
 Release-wide measurable acceptance:
 
-- [ ] Every first-party server, test, script, and browser JavaScript file belongs to its owning checked program with no file omitted from the combined program universe, file pragmas, `@ts-ignore`, `@ts-nocheck`, or unexplained `any`; `npm run typecheck` is green under full strict.
+- [ ] Every first-party server, test, script, and browser JavaScript file belongs to its owning checked program with no file omitted from the combined program universe, file pragmas, `@ts-ignore`, `@ts-nocheck`, or unexplained `any`; `npm run typecheck` is green under full strict. **Two of the three programs are there: server/tests retired at zero at `0.33.33.26.2` and scripts at `0.33.33.32.28.1`, with explicit `any` at 0 estate-wide.** The browser program carries the remaining 11,134 diagnostics and nine decorative `// @ts-check` pragmas; it is already all-file full strict under `tsconfig.public.json` and is retired at zero by `0.33.33.44`. **Retirement means permanently required to remain at zero, never no longer checked** — the ledger section stays, the estate stays listed, and governance forbids new debt until the whole temporary ledger is deleted at `0.33.33.48`.
 - [ ] Every retired or consolidated regression has a machine-checked assertion disposition and named continuing owner. Assertion inventory is at least the baseline minus reviewed true duplicates, and protected behavioral owners remain intact.
 - [ ] **No active regression, gate, or operational verification owner depends on historical release-specific `ROADMAP-ARCHIVE.md` or `CHANGELOG.md` content, or on obsolete live-roadmap breadcrumbs, as evidence for current behaviour.** Every surviving planning or history read owns a current live structural or release-process contract and carries a recorded rationale. Scanner coverage is evidence supporting this acceptance, not the acceptance itself.
   - **Forbidden:** an assertion that archived release prose still contains particular wording, or that the live roadmap no longer contains a named completed heading or breadcrumb, used as proof that the code behaves a certain way today.
   - **Allowed:** live roadmap structure and cursor advancement, the version handoff, changelog structure, release-process and routing invariants, and any other read whose subject is a contract that is still live. Naming a planning document as a *path* in a routing table, a ceremony inventory, or an allowed-paths list is a path reference, not a history dependency.
   - **Scanner completeness is not the criterion.** `0.33.33.32.28` restated this deliberately, because the previous wording made a filename grep the standard and five blind-spot classes were then found in it - content readers outside the original pattern, live-roadmap breadcrumb checks the historical pattern cannot see, cursor-floor helpers that name no document, filenames written inside escaped regular expressions, and owners that are not discovered regressions at all. **Every one of the five turned out to be benign once classified.** A rule that demands perfect textual detection of every way a file can mention a filename measures the scanner, not the estate. The baseline stays as shrink-only governance evidence; semantic classification is what the acceptance asks for.
   - Measured at `0.33.33.32.28`: **68 files under `scripts/` name a planning document in some form** - 50 in discovered regressions, 13 in retired scripts still on disk, and 5 in operational tooling that reads the live roadmap by design. The pin baseline records **7 historical content pinners and 24 planning-document readers**, and every one of the 7 names the documents only as path strings in a routing or ceremony table.
-- [ ] The static estate uses one shared source reader, one `escapeRegExp`, and one fake-DOM harness. The permission harness is discovered and floor-counted.
-- [ ] The target full run uses roughly 250-300 Node processes and roughly 250-300 discovered regression entry points without increasing the measured verification wall. These are review targets, not permission to weaken coverage if runtime evidence disagrees.
+- [x] The static estate uses one shared source reader, one `escapeRegExp`, and one fake-DOM harness. The permission harness is discovered and floor-counted. **Closed across `0.33.33.32.28.4` through `0.33.33.32.28.4.5`**: seventy-three owners cut function regions through the three published extractors in `scripts/test-support/source-scan.mjs`, five recorded Workbench readers keep a brace-less body region that no published contract serves, and `framework.full-strict-governance` forbids any other script from defining a function-region extractor.
+- [ ] The target full run uses roughly 250-300 Node processes and roughly 250-300 discovered regression entry points without increasing the measured verification wall. These are review targets, not permission to weaken coverage if runtime evidence disagrees. **Measured at `0.33.33.32.28.1`: 347 discovered entry points, unchanged across the whole `0.33.33.32` rollup.** The gap to the review target is recorded rather than closed; `0.33.33.48` dispositions it.
 - [ ] Internal checkpoints normally touch no more than two ceremony files; each completed checkpoint's roadmap-to-archive handoff is the final bookkeeping commit in the same protected implementation pull request and becomes authoritative on merge, while release version, changelog rollup, durable decision/docs updates, and runtime identity proof batch at branch closeout.
 - [ ] The branch records final before/after compiler, regression, process, assertion, history-reader, dependency-cycle, scripts-line, and module-locality measurements with hypotheses labeled separately from enforced contracts.
 
 ### 0.33.33.33 - Isolate classic browser controllers with IIFEs
 
-**Model: High Effort** - Mechanical wrapping can break implicit globals and page initialization across many surfaces.
+**Model: High Effort** - Planning rollup only; its numbered children below are the protected implementation checkpoints.
 
-- [ ] IIFE-wrap every remaining bare classic controller and explicitly publish only supported `window.LongtailForge.*` surfaces. The 0.33.33.25-era re-audit counts 27 bare classic scripts, not the originally audited fourteen: the module/page controllers plus thirteen leaf and support scripts (`splash`, `footer`, `login`, `account-recovery`, `module-settings`, and similar); record a wrap-or-justify disposition for each.
-- [ ] Preserve classic-script loading and Workbench dynamic `import()` compatibility without adding modules, bundling, or script-order changes.
-- [ ] Remove real and compiler-visible global lexical collisions, including the `api`/`view`/`state` family.
-- [ ] Prove every affected page through focused view contracts and Playwright before accepting the browser ledger change.
+**Remeasured against the tree at `03dab65c`, after `0.33.33.32` closed.** The `0.33.33.25`-era figure of 27 bare classic scripts is **stale in both directions**: the browser estate holds **77 `public/js/**/*.js` files — 1 ES module and 76 classic scripts, of which 47 are already IIFE-isolated and **29 are bare top-level**. Those 29 carry **32,209 lines, 2,415 top-level lexical names, and 6,980 of the browser program's 11,134 strict diagnostics (63%)**.
+
+**This is not mechanical wrapping, and that is the finding that resliced the checkpoint.** Scoping 2,415 names changes the lexical environment of the files that hold most of the browser debt, on pages whose blast radius ranges from one to thirty-five. The compiler already sees the collisions: **104 lexical names are declared at top level by two or more of the 29**, and the browser ledger carries exactly **104 `TS2451` redeclaration diagnostics**. That reconciliation is the acceptance evidence for the collision work — `TS2451` must reach 0 when this rollup closes — and it corrects the roadmap's previous wording, which named only the `api`/`view`/`state` family. The real set includes `setStatus` (14 scripts), `createOption` (8), `state` (7), `api` (7), `view` (6), `formatToken` (6), and 98 more.
+
+Children are grouped by **measured load surface**, because that is what determines blast radius and what each child must prove. The groups below come from parsing every `<script src>` in `views/**/*.html` plus the shell injection in `src/services/static.service.js`, not from area names.
+
+- [ ] Every child IIFE-wraps its owners, publishes only supported `window.LongtailForge.*` surfaces, and preserves classic-script loading, script order, and Workbench dynamic `import()` compatibility. No modules, no bundling, no delivery-mode change.
+- [ ] **No child may change a diagnostic count as its goal.** These owners are also the `0.33.33.39` through `0.33.33.44` typing estate; wrapping is scoping work and any diagnostic movement other than the `TS2451` collisions is incidental and must be recorded, not pursued.
+- [ ] Every child proves each affected page through its focused view contracts and Playwright coverage before the browser ledger is regenerated.
+- [ ] **`TS2451` reconciliation.** The rollup closes when all 104 redeclaration diagnostics are gone and no new lexical collision exists among the 29.
+
+**Reconciliation: 29 owners, each in exactly one child, no duplicate and no orphan.**
+
+| Child | Load surface | Owners | Lines | Diagnostics |
+| --- | --- | --- | --- | --- |
+| `.33.1` | Shell injected into every page | 3 | 2,221 | 225 |
+| `.33.2` | Pre-authentication and entry pages | 3 | 464 | 73 |
+| `.33.3` | Settings page controllers | 4 | 1,654 | 464 |
+| `.33.4` | Administration and support pages | 6 | 2,888 | 889 |
+| `.33.5` | Reporting, calendar, and dynamically loaded surfaces | 4 | 2,093 | 385 |
+| `.33.6` | Record module page controllers | 6 | 16,483 | 3,629 |
+| `.33.7` | Time tracking and orchestration controllers | 3 | 6,406 | 1,315 |
+| **Total** | | **29** | **32,209** | **6,980** |
+
+#### 0.33.33.33.1 - Isolate the injected shell scripts
+
+**Model: Medium Effort - Three owners, but every page loads them.**
+
+`footer.js` (35 pages), `navigation.js` (30 pages), and `shared/view-response-records.js`, which `src/services/static.service.js` injects into every rendered page alongside four already-isolated shell scripts. Highest blast radius in the rollup and the only child whose failure mode is global, so it runs first and its proof is the widest.
+
+- [ ] Wrap all three, and record which of their names other scripts legitimately consume before scoping them.
+- [ ] `view-response-records.js` leaks one name, `COMPATIBILITY_RECORD_KEYS`, and is a shared contract file rather than a controller; wrap or justify explicitly rather than assuming either.
+
+#### 0.33.33.33.2 - Isolate the pre-authentication pages
+
+**Model: Low Effort - The smallest owners, and the pattern proof for the rollup.**
+
+`login.js`, `splash.js`, and `account-recovery.js`. 464 lines and 73 diagnostics between them, on pages that run before authentication, so a wrapping mistake is visible immediately and cannot corrupt authenticated state. This child establishes the wrap-and-publish pattern the later children reuse.
+
+#### 0.33.33.33.3 - Isolate the settings page controllers
+
+**Model: Medium Effort - Four owners that share four colliding names.**
+
+`workspace-settings.js`, `notes-settings.js`, `files-settings.js`, and `module-settings.js` (which loads on 4 pages). 1,654 lines and 464 diagnostics. They collide on `settingsPageController`, `settingsCatalog`, `normalizeSettings`, and `normalizeWorkspaceType` — a real shared-name cluster, which is why they are one child rather than four.
+
+#### 0.33.33.33.4 - Isolate the administration and support pages
+
+**Model: Medium Effort - Six single-page owners with permission-sensitive surfaces.**
+
+`user-admin.js`, `role-assignments.js`, `audit-log.js`, `support-view.js`, `support-view-audit.js`, and `api-keys.js`. 2,888 lines and 889 diagnostics. Each loads on exactly one page, so the child is six independent proofs; grouped because their Playwright and permission coverage is one harness.
+
+#### 0.33.33.33.5 - Isolate the reporting, calendar, and dynamically loaded surfaces
+
+**Model: Medium Effort - Two page controllers and two scripts no page loads with a script tag.**
+
+`reporting.js`, `calendar.js`, `dashboard.js`, and `tasks-dashboard.js`. The last two have **no `<script src>` anywhere**: `dashboard.js` is loaded by `dashboard.entry.js` and `tasks-dashboard.js` by a module's dynamic loader, so their globals are consumed through a different delivery path and must be proved through that path rather than through a page load.
+
+- [ ] Prove the dynamic-loader path explicitly; a page-only proof does not cover these two.
+
+#### 0.33.33.33.6 - Isolate the record module page controllers
+
+**Model: High Effort - The largest owners in the browser estate.**
+
+`notes.js` (4,682 lines, 391 top-level names), `clients-projects.js` (3,813, loaded by 2 pages), `tasks.js` (2,982), `lists.js` (2,616), `files.js` (2,051), and `tags.js` (339). Six owners, 16,483 lines, 3,629 diagnostics, and 1,215 of the 2,415 names in the rollup.
+
+- [ ] Each owner is proved on its own page before the next is wrapped; this child does not batch its six.
+- [ ] `clients-projects.js` loads on both `clients.html` and `projects.html` and must be proved on both.
+
+#### 0.33.33.33.7 - Isolate the time tracking and orchestration controllers
+
+**Model: High Effort - Workbench is a live orchestration surface and is also the subject of `0.33.33.34`.**
+
+`workbench.js` (4,239 lines, 295 names), `time-entries.js`, and `stop-watch.js`. 6,406 lines and 1,315 diagnostics.
+
+- [ ] **Ordering: this child runs before `0.33.33.34`.** That checkpoint moves `WORKBENCH_MODULE_ACTION_DEPENDENCIES` out of `workbench.js`; moving a table out of a file whose scoping is about to change would have to be proved twice.
 
 ### 0.33.33.34 - Extract the Workbench module-action loader and Files bridge
 
 **Model: High Effort** - The loader is shared framework machinery whose dependency table controls several module controllers.
 
+**Remeasured and kept as one checkpoint.** The seam is genuinely singular: one table, `WORKBENCH_MODULE_ACTION_DEPENDENCIES` at `public/js/workbench.js:45`, read at exactly one site, `workbench.js:3225`; one destination, `public/js/shared/module-actions.js`, which is 387 lines and already IIFE-isolated; and one stub, the `window.LongtailForge.filesDialog` bridge built at `workbench.js:2981-3001`. There is no second dependency table and no second consumer, so there is nothing to slice along.
+
 - [ ] Move the hard-coded action dependency table and loader to `public/js/shared/` behind a typed stable contract.
 - [ ] Remove Workbench's inline `filesDialog` stub once the canonical File Context/preview helper is loadable.
 - [ ] Preserve asset versioning, lazy loading, module enablement, failure messaging, and action registration.
 - [ ] Do not broaden the loader into a plugin system or change Workbench workflow behavior.
+- [ ] **Ordering: runs after `0.33.33.33.7`**, which scopes `workbench.js`. Moving a table out of a file whose lexical environment is about to change would have to be proved twice.
 
-### 0.33.33.35 - Remove descriptor fallbacks and isolate view-renderer responsibilities
+### 0.33.33.35 - Isolate view-renderer and view-builder responsibilities
 
-**Model: High Effort** - Shared declarative view interpretation is security- and behavior-relevant across many pages.
+**Model: High Effort** - Planning rollup only; its numbered children below are the protected implementation checkpoints.
 
-- [ ] Delete the five module-local descriptor fallbacks — the Notes/Lists/Files/Tasks view-surface fallbacks and the nested Notes linked-records fallback — and use the established null-and-skip contract for unavailable server descriptors.
-- [ ] Extract descriptor-action permission/route interpolation, search-options combobox, and data binding from `view-renderer.js` behind explicit contracts.
+**Resliced on measurement.** The previous single checkpoint combined five changes with different owners, different consumers, and different risk. `public/js/shared/view-renderer.js` is **2,085 lines carrying 404 browser diagnostics**; `public/js/shared/view-builder.js` is **2,013 lines carrying 492**; the descriptor fallbacks are **11 references across four module controllers**, which are not view-framework files at all. Those are three independent seams: one deletes module-local behaviour, one extracts from the renderer, one extracts from the builder. Nothing measured ties them together beyond both framework files being shared, which is a reason to separate them rather than to batch them.
+
+- [ ] The frozen factory namespace rule holds across every child: no child may add to or reorder the frozen factory namespace.
+- [ ] Every child preserves server authority, action visibility, focus return, and current module surface anatomy.
+
+**Reconciliation: three children, disjoint owners.** `.35.1` owns the four module controllers; `.35.2` owns `view-renderer.js`; `.35.3` owns `view-builder.js`. No file appears in two children.
+
+#### 0.33.33.35.1 - Delete the module-local descriptor fallbacks
+
+**Model: Medium Effort - Module-owned behaviour removal, not framework extraction.**
+
+The Notes, Lists, Files, and Tasks view-surface fallbacks and the nested Notes linked-records fallback — 11 descriptor-fallback references across `notes.js`, `lists.js`, `files.js`, and `tasks.js`.
+
+- [ ] Use the established null-and-skip contract for unavailable server descriptors and delete the five fallbacks.
+- [ ] These four owners are also `0.33.33.33.6` owners; this child runs after that one so the deletion happens inside a scoped file.
+
+#### 0.33.33.35.2 - Extract the view-renderer responsibilities
+
+**Model: High Effort - 2,085 lines with descriptor, permission, and combobox behaviour in one file.**
+
+- [ ] Extract descriptor-action permission and route interpolation, the search-options combobox, and data binding from `view-renderer.js` behind explicit contracts.
+- [ ] Permission and route interpolation is the security-relevant extraction and is proved separately from the two presentational ones.
+
+#### 0.33.33.35.3 - Extract the view-builder modal stack
+
+**Model: Medium Effort - One extraction from a 2,013-line file.**
+
 - [ ] Extract only the modal stack from `view-builder.js`; keep the frozen factory namespace intact.
-- [ ] Preserve server authority, action visibility, focus return, and current module surface anatomy.
+- [ ] Preserve focus return and modal ordering behaviour.
 
 ### 0.33.33.36 - Share the Notes/Lists linked-context picker
 
 **Model: High Effort** - Linked-context scope and safe labels cross module hierarchy and permission boundaries.
 
-- [ ] Replace the duplicated Notes and Lists implementations with one shared typed picker contract.
-- [ ] **Close the producer gap `0.33.33.32.23` measured before consolidating.** That child typed all six linked-context owners and reported plainly: `LinkTargetCandidate` in `src/types/link-target-directory-contracts.d.ts` **is** the right shape for the shared picker — the framework already publishes it, `linkTargetDirectory.list` already returns it, and its members are exactly what the six owners read. What is missing is on the producer. `notesService.listLinkTargets` declares no return type, and it builds `const targets = []` from two sources: the directory provider, which answers `LinkTargetCandidate[]`, and a local `listTargetsByType` whose literals are untyped. The inferred union widens `targetType` from the published `LinkTargetType` union to `string`, so **a consumer cannot annotate against the published contract without a cast**. That is why six owners each describe picker targets locally. Declare `listLinkTargets`'s return as `{ targets: LinkTargetCandidate[] }` and type `listTargetsByType` to match, before or as part of the consolidation; the shared picker will otherwise inherit the same untyped seam it is meant to remove.
+**The `0.33.33.32.23` producer gap was re-verified against the current tree and still holds.** `src/types/link-target-directory-contracts.d.ts` publishes `LinkTargetCandidate` (line 21) and declares the directory returning `Promise<LinkTargetCandidate[]>` (line 65), so the published contract is still the right one. `notesService.listLinkTargets` at `src/modules/notes/notes.service.js:937` still carries a JSDoc block with `@param` entries and **no `@returns`**, and still composes its result from the directory provider and the local `listTargetsByType` at line 1732. The inferred union still widens `targetType` from the published `LinkTargetType` union to `string`, so a consumer still cannot annotate against the published contract without a cast. No third consumer has appeared; Notes and Lists remain the only two.
 
+- [ ] **Close the producer gap before consolidating.** Declare `listLinkTargets`'s return as `{ targets: LinkTargetCandidate[] }` and type `listTargetsByType` to match. The shared picker will otherwise inherit the untyped seam it is meant to remove.
+- [ ] Replace the duplicated Notes and Lists implementations with one shared typed picker contract.
 - [ ] Preserve client/project descendant scope, unavailable/hidden labels, workspace type behavior, and saved selection rules.
 - [ ] Keep module-owned payload meaning and save behavior outside the shared helper.
 - [ ] Remove both old implementations only after Notes and Lists browser regressions pass.
 
-### 0.33.33.37 - Share the Task action policy
+### 0.33.33.37 - Share the Task action legality core
 
-**Model: High Effort** - Triplicated permission and lifecycle rules can expose invalid actions if consolidated incorrectly.
+**Model: High Effort** - Lifecycle legality is shared; visibility, enablement messaging, and DOM state are not.
 
-- [ ] Replace Tasks, Workbench, and Task Dialog action-policy copies with one typed shared policy module.
-- [ ] Preserve permission, status, timer, blocking, recurrence, and module-enablement visibility rules.
-- [ ] Keep rendering and workflow dispatch local to each surface.
-- [ ] Prove identical action matrices at all three consumers before deleting the copies.
+**The "three copies" premise did not survive measurement, and the checkpoint is narrowed rather than resliced.** The three surfaces implement three different things:
 
-### 0.33.33.38 - Add typed DOM, API-response, and page-state browser contracts
+- `public/js/tasks.js` — `taskWorkflowActionVisible(action, task)` returns a **boolean visibility** decision driven by a *descriptor* (`action.visibleStatuses`, `action.timerVisibility`) plus live timer state, for a list row.
+- `public/js/workbench.js` — `taskFocusLifecycleDisabledReason(action, active)` returns a **human-readable disabled reason string** driven by Task Focus session state (`isLoading`, `error`, `taskId`) that does not exist on the Tasks list.
+- `public/js/task-dialog.js` — `updateCompleteTaskActionState()` and `updateBlockTaskActionState()` are **imperative DOM state updaters** reading predicates from the dialog's own closure.
 
-**Model: High Effort** - These shared contracts collapse most browser error cascades and can encode unsafe assumptions if too broad.
+Different return types, different inputs, different responsibilities. **Consolidating them into one policy module and proving "identical action matrices" would force an equality that does not exist** and would have to invent a reason string for the Tasks list or a session for the dialog. What is genuinely shared is smaller and real: given a task status, and a timer where one applies, which lifecycle transitions are legal.
+
+- [ ] Extract only the **status-and-timer legality core** into one typed shared contract, and have all three surfaces consume it.
+- [ ] Keep visibility resolution local to Tasks, disabled-reason messaging local to Workbench, and DOM state updating local to Task Dialog. These are surface responsibilities, not duplication.
+- [ ] **Prove each surface's action matrix is unchanged** — not that the three matrices are identical. Record the legitimate differences rather than removing them.
+- [ ] Ordering: runs after `0.33.33.33.6` and `0.33.33.33.7`, which scope all three files.
+
+### 0.33.33.38 - Add typed DOM, response, and page-state browser contracts
+
+**Model: High Effort** - Planning rollup only; its numbered children below are the protected implementation checkpoints.
+
+**Resliced on a root-cause measurement of the browser ledger.** The 11,134 diagnostics were classified by compiler code, and `TS2339` — 4,423 of them, the largest family — was further classified by the *receiver type* the property was missing from. The result contradicts the previous single checkpoint's premise that these contracts "collapse most browser error cascades":
+
+| Root family | Diagnostics | Owner |
+| --- | --- | --- |
+| Under-inferred page state: `{}` (2,628), a concrete `never[]`-bearing state literal (630), `never` (277), plus `TS7005`/`TS7034`/`TS7031`/`TS7053` (839) | **4,374** | `.38.3` |
+| DOM subtype and event target: `Element` (833), `EventTarget` (10), plus most nullability `TS18047`/`TS18048` (1,326) | **2,169** | `.38.1` |
+| Values entering as `unknown`: `TS18046` | **1,038** | `.38.2` |
+| **Implicit-any parameters: `TS7006`** | **3,222** | **not `.38`** |
+| Lexical redeclaration: `TS2451` | **104** | `0.33.33.33` |
+| Assorted remaining codes | **227** | per-controller |
+
+**The most important correction: `TS7006` is 29% of the browser program and no shared contract can collapse it.** Implicit-any parameters are removed by annotating each function's parameters in the controller that declares them, which is `0.33.33.39` through `0.33.33.44` work. A `.38` that claimed to collapse "most" cascades would be measuring the wrong thing.
+
+- [ ] **Each child publishes contract vocabulary and helpers. Adoption is `0.33.33.39` through `.44`.** A child may adopt its own helpers in shared framework files it already owns, but no child converts a module controller.
+- [ ] **Do not invent a broad shared shape because many diagnostics disappear.** The 630-diagnostic state literal is one page's state, not a shared contract; per-page state shapes belong to the module children. `.38.3` publishes the pattern, not the pages' shapes.
+- [ ] Keep contracts in declaration/JSDoc surfaces and preserve response shaping on the server.
+
+#### 0.33.33.38.1 - Publish checked DOM lookup and event-target contracts
+
+**Model: High Effort - 2,169 diagnostics are addressable by this family.**
 
 - [ ] Add checked DOM lookup/assert helpers that return the correct element subtype or fail explicitly; do not turn required elements into optional no-ops.
+- [ ] Add explicit event-target narrowing rather than casting at each listener.
+- [ ] Report how much of the 833 `Element` and 1,326 nullability cohort each helper can truthfully own; the nullability cohort is not all DOM and must be split honestly.
+
+#### 0.33.33.38.2 - Publish response and handoff contracts entering as unknown
+
+**Model: High Effort - 1,038 `unknown` diagnostics, and the boundary rule this branch already enforces.**
+
 - [ ] Add named API response and descriptor handoff contracts with `unknown` narrowing at network and view boundaries.
-- [ ] Add page-state typedefs that prevent `{}`, `never[]`, and nullable-element cascades without inventing runtime data.
-- [ ] Keep contracts in declaration/JSDoc surfaces and preserve response shaping on the server.
+- [ ] **Every dynamic boundary enters as `unknown`**: fetch bodies, bootstrap payloads, DOM datasets, descriptor handoffs, storage reads, parsed JSON, and external globals. A JSDoc annotation over an `any`-producing boundary is not proof — this is the inherited-zero shape the scripts program spent four children removing.
+- [ ] Read the producer before publishing any contract, and do not tighten a deliberately extensible contract to remove errors.
+
+#### 0.33.33.38.3 - Publish page-state contract patterns
+
+**Model: High Effort - The largest addressable family at 4,374 diagnostics, and the easiest to over-reach.**
+
+- [ ] Add page-state typedef patterns that prevent `{}`, `never[]`, and nullable-element cascades without inventing runtime data.
+- [ ] Publish the pattern and any genuinely shared state fragments; leave each page's own state shape to that page's typing child.
+- [ ] Record which of the 4,374 the pattern can own once adopted, separating measured effect from hypothesis.
+
+**Staging rule for `0.33.33.39` through `0.33.33.44`.** These six keep their architectural ownership boundaries and **are deliberately not sliced into implementation children yet**. `0.33.33.38` exists to collapse cascades, and `0.33.33.33` rescopes 2,415 lexical names in the files that hold 63% of the browser debt; any diagnostic partition drawn today would be measuring a tree that neither has touched. The figures recorded below are today's measurement, kept as a starting point and explicitly not as child boundaries.
+
+- [ ] **Mandatory remeasurement gate.** After `0.33.33.38` archives, regenerate the browser ledger and reclassify the remaining debt by root family and owner *before* any of `.39` through `.44` is sliced. That reslice reconciles the full remaining browser debt exactly — every diagnostic in exactly one child, no duplicate and no orphan — in the same way `0.33.33.32` reconciled its 202 files.
+- [ ] **No child may absorb an unexpectedly larger cohort because the old roadmap grouped it there.** If measurement disagrees with the grouping below, the grouping is what changes.
+- [ ] Ordering: all six run after `0.33.33.33` (scoping), `0.33.33.35` (framework extraction), and `0.33.33.38` (contracts), because each changes what these owners contain.
 
 ### 0.33.33.39 - Type shared browser framework code
 
 **Model: High Effort** - Shared browser helpers have broad fan-in and include descriptor, recovery, modal, API, and shell behavior.
 
+Today's measurement: the already-isolated shared cohort is **47 files, 21,550 lines, 4,123 diagnostics**, and includes `view-renderer.js` (404) and `view-builder.js` (492), both of which `0.33.33.35` changes first.
+
 - [ ] Close full-strict debt in `public/js/shared/`, app-shell/bootstrap, navigation, dialogs, formatters, records, and view helpers.
-- [ ] Use the new DOM/API/state contracts and narrow event targets explicitly.
+- [ ] Use the `0.33.33.38` DOM/response/state contracts and narrow event targets explicitly.
 - [ ] Preserve accessibility, focus, recovery, cache-version, CSP, and frozen namespace behavior.
+- [ ] **Do not absorb module-specific controller behaviour.** A shared file that turns out to hold module logic is a finding for that module's child, not work for this one.
 - [ ] Reduce shared-browser ledger debt to zero.
 
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.
+
+Today's measurement: `public/js/notes.js` alone is **4,682 lines with 391 top-level names and 1,306 diagnostics** — the largest single owner in the browser program. **This is already too large for one implementation child** on the evidence of every comparable `0.33.33.32` child, but its internal boundaries are not drawn here because `0.33.33.33.6` rescopes it and `0.33.33.38` changes what its diagnostics are.
 
 - [ ] Close full-strict debt in Notes and its browser-owned helpers using named state, response, DOM, and action contracts.
 - [ ] Preserve secure/plain note separation, safe Markdown, revision rules, linked context, attachments, and modal focus.
@@ -130,7 +285,10 @@ Release-wide measurable acceptance:
 
 **Model: High Effort** - Task lifecycle, recurrence, reminders, checklist, timers, and editor state share one high-risk workflow.
 
+Today's measurement: `tasks.js` is 2,982 lines and 661 diagnostics; `task-dialog.js` is already IIFE-isolated and is not in the `0.33.33.33` estate.
+
 - [ ] Close full-strict debt in Tasks, Task Dialog, and task-owned browser helpers.
+- [ ] **Type against the post-`0.33.33.37` shape.** That checkpoint extracts the shared status-and-timer legality core and leaves visibility, disabled-reason messaging, and DOM state local. Do not plan typing work around the pre-`.37` arrangement, and do not re-consolidate what `.37` deliberately left separate.
 - [ ] Preserve list authority, canonical editor behavior, recurrence scope, blocking recovery, timer state, checklist saves, and action policy.
 - [ ] Keep Task Dialog's shared closure intact except for already-authorized policy extraction.
 - [ ] Reduce this browser ledger cohort to zero with rendered lifecycle coverage.
@@ -139,6 +297,9 @@ Release-wide measurable acceptance:
 
 **Model: High Effort** - Workbench is a live orchestration surface with dynamic modules, timers, resume state, and recovery behavior.
 
+Today's measurement: `workbench.js` is **4,239 lines with 295 top-level names and 895 diagnostics**, and is touched by three earlier checkpoints — `0.33.33.33.7` scopes it, `0.33.33.34` moves its action-dependency table out, and `0.33.33.37` takes its legality core.
+
+- [ ] **Extraction and typing are provisionally two children, and the post-`0.33.33.38` remeasurement decides.** Task Focus extraction changes what the file contains; typing a surface and then extracting a mode from it would prove the same behaviour twice. The evidence for splitting is the file's size and its three prior dependencies; the evidence against is that the extraction may be small once `.34` and `.37` have taken their pieces. Measure before slicing.
 - [ ] Extract the self-contained Task Focus mode behind typed inputs/events while preserving Workbench ownership of the live surface.
 - [ ] Close full-strict debt in Workbench, action loading, candidate rendering, timers, and resume/recovery state.
 - [ ] Preserve module contribution boundaries, no-raw-ID labels, focus capture, blocking recovery, and fallback navigation.
@@ -148,17 +309,26 @@ Release-wide measurable acceptance:
 
 **Model: High Effort** - Three large operational surfaces share hierarchy and view helpers but retain distinct workflows.
 
+Today's measurement, taken independently per module rather than as a group: `clients-projects.js` 3,813 lines / 520 diagnostics across two pages; `lists.js` 2,616 / 696; `files.js` 2,051 / 380. **8,480 lines and 1,596 diagnostics between them**, which is larger than the Notes controller this roadmap already calls the largest.
+
+- [ ] **This will almost certainly need at least one child per module family, and the post-`0.33.33.38` remeasurement draws them.** The three are grouped here by ownership, not because one implementation unit is defensible; nothing measured shows they share state or payload meaning.
 - [ ] Close full-strict debt in Lists, Files, Clients/Projects, and their settings/helpers after shared extraction lands.
 - [ ] Preserve server-side filtering, compact Files listing/modal rules, Lists execution/detail purpose, and hierarchy permissions.
 - [ ] Use shared contracts without merging module-owned state or payload meaning.
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
-### 0.33.33.44 - Type remaining browser controllers and close the browser program
+### 0.33.33.44 - Close the browser program at zero
 
-**Model: High Effort** - The final cross-surface pass must eliminate every remaining dial exception without hiding edge cases.
+**Model: High Effort** - Planning rollup and final browser-program closeout; its measured children are drawn by the post-`0.33.33.38` remeasurement.
 
+**Two stale statements are corrected here.** First, `tsconfig.public.json` **already** carries `allowJs`, `checkJs`, unqualified `strict`, and `noImplicitAny`, includes `public/js/**/*.js`, and excludes only `node_modules`. The browser program is already all-file full strict, so this checkpoint **proves and closes it; it does not enable it**. Nine browser files still carry a decorative `// @ts-check` pragma, which program-level `checkJs` has made redundant — the same removal `0.33.33.26.2` made for the 205 server/test pragmas.
+
+Second, the previous wording said to "delete the browser ledger section at zero". That contradicts the lifecycle `0.33.33.32` established and would break live governance, which asserts the program list is exactly `["server-tests", "browser", "scripts"]`. **Retire the browser section at zero exactly as `server-tests` and `scripts` are retired**: the section stays, its diagnostics map empties, its error count reaches zero, the full browser estate remains listed and owned, and governance asserts it may never regain debt. **The temporary compiler ledger is deleted as a whole at `0.33.33.48`**, once all three programs are permanently zero and the governance that depends on it has been migrated or retired. Retirement means permanently required to remain at zero; it never means no longer checked.
+
+- [ ] Receive whatever measured children remain after `0.33.33.39` through `.43`, then close with one final permanent-zero proof child.
 - [ ] Close full-strict debt in settings, admin, Search, Notifications, Help, calendar, support, recovery, footer/splash, and remaining page controllers.
-- [ ] Remove browser `@ts-check` pragmas, enable direct all-file `checkJs` and `noImplicitAny`, and delete the browser ledger section at zero.
+- [ ] Remove the nine remaining browser `// @ts-check` pragmas; program-level `checkJs` is already authoritative.
+- [ ] **Retire the browser ledger section at zero — do not delete it.** Prove the estate is still fully listed and checked after retirement.
 - [ ] Confirm all classic pages and the Dashboard bridge retain their existing delivery modes.
 - [ ] Prove the three-program `npm run typecheck` is green with zero suppressions, first-party omissions, or unexplained explicit `any`.
 
@@ -166,23 +336,30 @@ Release-wide measurable acceptance:
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
 
-- [ ] Centralize the byte-identical public API response helpers and repeated record-indexer control flow with at least two existing consumers each.
-- [ ] Default proven `createModuleEntry` constants only where all current consumers agree; do not hide meaningful module declarations.
+**Two of the four proposed extractions are verified against the current tree and two are not.** `createModuleEntry` has **8 first-party consumers** under `src/modules/*/module.js`, comfortably past the Two-Module Rule. The Time Tracking manifest is **587 lines**, still above the 500-line threshold this checkpoint uses. The public API response helpers and the record-indexer control flow were **not located under their roadmap names** in a current search, so their consumer counts are unverified and are hypotheses until the checkpoint measures them.
+
+- [ ] **Measure each proposed extraction against the current tree before extracting it.** Apply the Two-Module Rule with counted consumers, not with the names this roadmap uses. If an extraction has fewer than two real consumers, record that and drop it rather than building the abstraction.
+- [ ] Centralize the byte-identical public API response helpers and repeated record-indexer control flow **where at least two existing consumers are counted**.
+- [ ] Default proven `createModuleEntry` constants only where all 8 current consumers agree; do not hide meaningful module declarations.
 - [ ] Keep route/service behavior explicit and do not create a route DSL, new manifest fields, empty concern files, or plugin hooks.
-- [ ] Compose the oversized Time Tracking manifest only where current 500-line/75-line thresholds prove cohesive concern owners.
+- [ ] Compose the 587-line Time Tracking manifest only where the current 500-line/75-line thresholds prove cohesive concern owners.
 
 ### 0.33.33.46 - Add the strict-clean module scaffold
 
 **Model: High Effort** - The generator defines the default architecture inherited by Support Tickets and future modules.
 
 - [ ] Add `npm run module:create -- <module-id>` for the proven minimal skeleton: module entry/public seam, contracts, repository, service, browser/public API routes, search indexer, view/controller, Help/docs, terminology, permissions/scopes, and regression-area home.
+- [ ] **The scaffold inherits whatever `0.33.33.45` actually extracts, not what it proposed.** Build the generator against the measured post-`.45` module shape.
 - [ ] Emit no empty-array padding, speculative concern composition, route DSL, framework edits, or Support Tickets feature behavior.
+- [ ] **Generated output must enter all three permanent-zero programs clean.** A scaffold that produces a diagnostic in the server, scripts, or browser program is not done, and its browser controller must already be IIFE-isolated to the `0.33.33.33` standard.
 - [ ] Generate a throwaway module in a disposable fixture, build the registry/catalog, boot it, prove navigation/permission/search registration and strict-clean output, then remove it.
 - [ ] Require untouched scaffold output to pass the normal validation contract without a transpile step.
 
 ### 0.33.33.47 - Establish dependency and module-locality ratchets
 
 **Model: High Effort** - New architecture metrics become lasting gates and must distinguish useful signals from count theater.
+
+**No dependency-cycle measurement tool exists in the current tree**, and nothing in `0.33.33.33` adds one, so this checkpoint still owns building it. Every number it proposes is a hypothesis until that tool produces a baseline.
 
 - [ ] Add a maintained dependency-cycle measurement tool and record the honest baseline before enforcing a no-growth ratchet.
 - [ ] Record median files touched for module-local changes, cross-module/framework edits for a standard capability, scaffold-to-green time, and ceremony-file count.
@@ -193,11 +370,15 @@ Release-wide measurable acceptance:
 
 **Model: High Effort** - Final closure must prove that reduced machinery retains every protected behavior and that no type debt remains hidden.
 
-- [ ] Delete the temporary compiler ledger and retire superseded honesty/seam/pragma inventories only after all three direct full-strict programs are green.
+**`0.33.33.48` is not the first time any program reaches zero.** The server/test program was retired at zero at `0.33.33.26.2`, the scripts program at `0.33.33.32.28.1`, and the browser program is retired at zero by `0.33.33.44`. This checkpoint deletes the temporary three-program ledger **as a whole**, after all three are already permanently zero, and migrates or retires the governance that reads it.
+
+- [ ] **Delete the temporary compiler ledger only after all three programs are already retired at zero**, and migrate or retire every governance assertion that reads it — including the program-list assertion, the per-owner strict-clean pins, the shrink-only mutation proof, and the three retirement assertions themselves.
+- [ ] **Prove the three direct programs remain complete after deletion.** Removing the ledger removes the universe check that currently refuses an unowned first-party file; that guarantee must survive in another form or the deletion has weakened the estate.
+- [ ] Retire superseded honesty/seam/pragma inventories in the same pass.
 - [ ] Record final before/after measurements and the complete protection-to-owner map, including any numeric target rejected for safety.
-- [ ] Record the regression entry-point disposition against the 250-300 review target (347 as of 0.33.33.25.5, with the static reduction concentrated in contract-module re-parenting) and the `maximumActiveScripts` ceiling-regeneration ceremony future modules use to add discovered entry points.
+- [ ] Record the regression entry-point disposition against the 250-300 review target (347 as of `0.33.33.25.5`, unchanged at `0.33.33.32.28.1`, with the static reduction concentrated in contract-module re-parenting) and the `maximumActiveScripts` ceiling-regeneration ceremony future modules use to add discovered entry points.
 - [ ] Run the branch-wide full regression, permission, browser, audit, packaging, dependency, and protected CI gates once against the final tree.
-- [ ] Record the scripted multi-site edit discipline in `AGENTS.md` as durable working practice, carrying over the rule and the three concrete failures recorded in the `0.33.33.32` shared requirements.
+- [ ] Record the scripted multi-site edit discipline in `AGENTS.md` as durable working practice, carrying over the rule and the concrete failures recorded across the `0.33.33.32` children.
 - [ ] Roll up checkpoint trailers into the changelog and durable decisions/docs, bump once to `0.33.33`, archive the completed roadmap section, and prove `/api/app-info` from the exact candidate artifact.
 
 ## Version 0.33.34 - Public Demo Analytics, Privacy, and Interest Capture
