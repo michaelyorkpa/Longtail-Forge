@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { randomUUID } from "node:crypto";
 
 import fs from "node:fs/promises";
@@ -19,8 +20,6 @@ const apiKeysRepoSource = readText("src/repositories/api-keys.repo.js");
 const helpServiceSource = readText("src/services/help.service.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const {
   closeDatabase,
@@ -82,10 +81,11 @@ function assertStaticContract() {
   assert.match(auditDocs, /\| db\/migrations \| Migration compatibility \| 0 \| 0 \| 10 \| 28 \|[\s\S]*\| db\/index \| Startup compatibility \| 0 \| 0 \| 31 \| 40 \|/, "audit inventory should mark migration and startup compatibility after value conversion");
   assert.match(auditDocs, /0\.33\.5\.27\.28 Framework and Admin Low-Count Repository Conversion[\s\S]*`core\/modules\/modules\.service`, `audit-logs\.repo`, `api-keys\.repo`, and `services\/help\.service` are fully converted[\s\S]*117 runtime literal-helper invocations[\s\S]*27 direct interpolated SQL operation sites[\s\S]*345 existing bound operation sites/, "audit docs should record the framework/admin low-count repository conversion slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.28[\s\S]*`core\/modules\/modules\.service`, `audit-logs\.repo`, `api-keys\.repo`, and `services\/help\.service` are converted[\s\S]*117 remaining helper invocations/, "database docs should record the concrete framework/admin low-count repository conversion");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.28 - Conversion wave: Framework and admin low-count repositories[\s\S]*- \[x\] Convert `core\/modules\/modules\.service`[\s\S]*- \[x\] Preserve module registry sync\/status[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.28 - [\s\S]*Framework and admin low-count repositories conversion[\s\S]*117 helper invocations[\s\S]*27 direct interpolated operation sites[\s\S]*345 bound operation sites/, "changelog should record the framework/admin low-count repository conversion burndown");
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} AdminConversionSession */
+
+/** @param {AdminConversionSession} session */
 async function assertModulesAndHelpRuntime(session) {
   const initialStatus = await modulesService.readModuleStatus(session.workspace_id, "developer-example");
   assert.equal(initialStatus, "disabled", "developer example should start disabled in a fresh workspace");
@@ -114,6 +114,7 @@ async function assertModulesAndHelpRuntime(session) {
   assert.deepEqual(await helpService.listActiveSearchableTypes("missing-workspace-' OR 1=1 --"), [], "missing workspace Help reads should remain safely empty");
 }
 
+/** @param {AdminConversionSession} session */
 async function assertAuditLogsRuntime(session) {
   const now = new Date().toISOString();
   const clientId = `audit-client-${randomUUID()}-%_`;
@@ -164,6 +165,7 @@ async function assertAuditLogsRuntime(session) {
   assert.equal(await auditLogsRepository.countSearch(session.workspace_id, { clientId }), 1, "retention cleanup should preserve newer rows");
 }
 
+/** @param {AdminConversionSession} session */
 async function assertApiKeysRuntime(session) {
   const keyName = "Conversion API Key '; DROP TABLE api_keys; --";
   const createdResult = await apiKeysService.create({
@@ -194,17 +196,26 @@ LIMIT 1;
 `, { apiKeyId: created.api_key_id, workspaceId: session.workspace_id });
   assertUuidVersion(audit?.audit_id, 7, "new audit record identity");
 
-  const byHash = await apiKeysRepository.readByHash(storedKey.key_hash);
+  // Every one of these repository reads answers null when the row is gone, and
+  // each assertion below reads the record it returns, so the read is proven to
+  // have found the key rather than compared a member on null.
+  assert.ok(storedKey, "the stored API key should read back");
+  const keyHash = storedKey.key_hash;
+  assert.ok(typeof keyHash === "string", "the stored API key should carry a text hash");
+  const byHash = await apiKeysRepository.readByHash(keyHash);
+  assert.ok(byHash, "API key hash reads should find the stored key");
   assert.equal(byHash.api_key_id, created.api_key_id, "API key hash reads should use bound params");
 
   await apiKeysRepository.updateLastUsed(created.api_key_id);
   const used = await apiKeysRepository.readById(session.workspace_id, created.api_key_id);
+  assert.ok(used, "the API key should still read back after its last-used update");
   assert.ok(used.last_used_at, "API key last-used updates should persist through bound params");
 
   const allKeys = await apiKeysRepository.readAll(session.workspace_id);
   assert.ok(allKeys.some((key) => key.api_key_id === created.api_key_id && key.scopes.includes("projects:read")), "API key list reads should include scopes");
 
   const revoked = await apiKeysRepository.revoke(session.workspace_id, created.api_key_id);
+  assert.ok(revoked, "revoking an API key should read the persisted record back");
   assert.equal(revoked.status, "revoked", "API key revoke should preserve status semantics");
   assert.ok(revoked.revoked_at, "API key revoke should set revoked timestamp");
 }
@@ -217,17 +228,7 @@ WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
 
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
 async function assertIntegrity() {
@@ -235,12 +236,14 @@ async function assertIntegrity() {
   assert.equal(row?.integrity_check, "ok", "framework/admin low-count conversion database should pass integrity check");
 }
 
+/** @param {string} label @param {string} source */
 function assertNoLiteralHelpers(label, source) {
   assert.doesNotMatch(source, /\b(?:querySql|getSql|runSql|sqlText|sqlInteger|sqlNullableText|sqlNullableInteger)\b/, `${label} should be fully off literal helpers and compatibility query wrappers`);
   assert.match(source, /\b(?:db|transaction|database)\.(?:query|get|run|transaction)\b/, `${label} should use the adapter db path`);
   assert.match(source, /:[A-Za-z][A-Za-z0-9_]*\b/, `${label} should use named params`);
 }
 
+/** @param {unknown} value @param {number} expectedVersion @param {string} label */
 function assertUuidVersion(value, expectedVersion, label) {
   assert.match(String(value || ""), /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, `${label} should be a canonical UUID`);
   assert.equal(String(value)[14], String(expectedVersion), `${label} should use UUIDv${expectedVersion}`);

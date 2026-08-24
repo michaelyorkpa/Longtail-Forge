@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18738,
+    "activeAssertionCount": 18752,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,8 +106,8 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19486,
-    "retiredAssertionCredit": 79,
+    "effectiveAssertionCount": 19506,
+    "retiredAssertionCredit": 85,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -416,6 +416,58 @@
       ]
     },
     {
+      "sourceRegression": "legacy.client.project.hierarchy.branch.closeout",
+      "retiredInVersion": "0.33.33.32.22",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two planning-document reads asserted nothing a live cursor can fail. One required the roadmap cursor to have advanced past 0.33.8, which a 0.33.33 cursor satisfies unconditionally and cannot regress below. The other required that the completed 0.33.6.14 branch body stay absent from the live roadmap, which it can never re-enter now that it is archived. Neither is a historical content pin -- this owner reads no CHANGELOG and no archive -- but both are dead planning-document reads of exactly the shape 0.33.33.32.14 recorded, which is why the two-category inventory rule exists.",
+      "assertionDisposition": "No behavior lost coverage. The hierarchy scope contract is still proven in this same owner by its static assertions over the Lists and Clients/Projects module sources and the three live documentation contracts it reads -- the module contract, the Lists module guide, and the view-building contract, all of which describe current ownership rather than release history -- and by the runtime probes, which drive descendant-aware scope across Tasks, Notes, Files, Lists, Workbench, and Search, and prove unreadable descendants stay excluded for a project-scoped user. Those probes are now stronger: every search response body enters as unknown and is narrowed through the shared payload helper.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/client-project-hierarchy-branch-closeout-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.client.project.hierarchy.branch.closeout",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/client-project-hierarchy-branch-closeout-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.client.projects.repositories.conversion",
+      "retiredInVersion": "0.33.33.32.22",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.27 rather than a live contract: one required CHANGELOG prose recording that release's 195/45/319 Clients and Projects repositories conversion burndown, and one required that the completed 0.33.5.27.27 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The conversion contract is still proven in this same owner by its static source assertions over the Clients and Projects repositories -- the db facade import, the absence of every literal SQL helper, and the bound operation counts -- and by the runtime probes, which drive hierarchy-aware batched reads, case-insensitive duplicate detection, billing-rounding round-trips through the boolean seam, parent-before-child ordering across mixed identifier versions, and the archive cascade. Those probes are now stronger: every repository read that can answer null is proven to have found its record, and the audit metadata column is proven to be JSON text and narrowed to a record before the recorded action is read off it. The live audit inventory in docs/database-parameter-binding-audit.md still records the modules as converted, and that is a current documentation contract rather than planning history.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/client-projects-repositories-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.client.projects.repositories.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/client-projects-repositories-conversion-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
       "sourceRegression": "legacy.file.s3.diagnostics.signed.url.boundary",
       "retiredInVersion": "0.33.33.31.7",
       "retirementType": "historical-planning-pin",
@@ -575,6 +627,32 @@
       "verificationPerformed": [
         "node scripts/file-storage-streaming-contract-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.framework.admin.low.count.repositories.conversion",
+      "retiredInVersion": "0.33.33.32.22",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions pinned archived planning history for release 0.33.5.27.28 rather than a live contract: one required CHANGELOG prose recording that release's 117/27/345 framework and admin low-count repository conversion burndown, and one required that the completed 0.33.5.27.28 roadmap slice body stay absent from the live roadmap, which it can never re-enter now that it is archived.",
+      "assertionDisposition": "No behavior lost coverage. The conversion contract is still proven in this same owner by its per-module static assertions, which require each converted module to use the adapter db path with named parameters and no literal SQL helper, and by the runtime probes over module registry sync and status, audit log reads and their identity, and the API key lifecycle from creation through hash lookup, last-used update, listing, and revocation. Those probes are now stronger: every API key repository read that can answer null is proven to have found its record before its members are compared, and the stored key hash is proven to be text before it is used as a lookup key.",
+      "retiredEvidence": [
+        "ROADMAP.md",
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/framework-admin-low-count-repositories-conversion-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.framework.admin.low.count.repositories.conversion",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/framework-admin-low-count-repositories-conversion-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"
       ]
     },
@@ -1514,11 +1592,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 12,
+      "assertionCount": 11,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy client projects bugfix contract.",
-      "entryPointAssertionCount": 12,
+      "entryPointAssertionCount": 11,
       "id": "legacy.client.projects.bugfix",
       "legacy": true,
       "path": "scripts/client-projects-bugfix-regression.mjs",
@@ -1548,11 +1626,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 56,
+      "assertionCount": 66,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy client projects repositories conversion contract.",
-      "entryPointAssertionCount": 56,
+      "entryPointAssertionCount": 66,
       "id": "legacy.client.projects.repositories.conversion",
       "legacy": true,
       "path": "scripts/client-projects-repositories-conversion-regression.mjs",
@@ -2406,11 +2484,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 55,
+      "assertionCount": 57,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy framework admin low count repositories conversion contract.",
-      "entryPointAssertionCount": 55,
+      "entryPointAssertionCount": 57,
       "id": "legacy.framework.admin.low.count.repositories.conversion",
       "legacy": true,
       "path": "scripts/framework-admin-low-count-repositories-conversion-regression.mjs",
@@ -3509,11 +3587,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 7,
+      "assertionCount": 6,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy project default assignee contract.",
-      "entryPointAssertionCount": 7,
+      "entryPointAssertionCount": 6,
       "id": "legacy.project.default.assignee",
       "legacy": true,
       "path": "scripts/project-default-assignee-regression.mjs",
@@ -4508,11 +4586,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 181,
+      "assertionCount": 185,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 181,
+      "entryPointAssertionCount": 185,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",

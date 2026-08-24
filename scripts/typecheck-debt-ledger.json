@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 514,
+      "errorCount": 373,
       "diagnostics": {
         "scripts/app-shell-navigation-regression.mjs": [
           {
@@ -3038,70 +3038,6 @@
           {
             "code": 7023,
             "count": 1
-          }
-        ],
-        "scripts/client-project-hierarchy-branch-closeout-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 48
-          },
-          {
-            "code": 7031,
-            "count": 5
-          }
-        ],
-        "scripts/client-projects-bugfix-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 6
-          }
-        ],
-        "scripts/client-projects-repositories-conversion-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 4
-          },
-          {
-            "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 2531,
-            "count": 5
-          },
-          {
-            "code": 2554,
-            "count": 1
-          },
-          {
-            "code": 2722,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 11
-          }
-        ],
-        "scripts/framework-admin-low-count-repositories-conversion-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 5
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 8
           }
         ],
         "scripts/legacy-cleanup-regression.mjs": [
@@ -3186,12 +3122,6 @@
           {
             "code": 7006,
             "count": 1
-          }
-        ],
-        "scripts/project-default-assignee-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 41
           }
         ],
         "scripts/quick-action-capture-regression.mjs": [
@@ -3607,7 +3537,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 11648,
+    "errors": 11507,
     "explicitAny": 3
   },
   "explicitAnyByFile": {

@@ -7,10 +7,26 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
-import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
+
+/** @typedef {import("../src/types/framework-contracts.js").BrowserSearchResult} BrowserSearchResult */
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} HierarchySession */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HierarchyApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureClientOptions} HierarchyClientOptions */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HierarchyServer */
+
+/**
+ * What this owner's `fetch` fixture resolves. It carries no headers, so it is
+ * declared here rather than through the shared fetch-response contract.
+ * @typedef {{ body: unknown, status: number }} HierarchyResponse
+ */
+
+/** @typedef {ReturnType<typeof createApi>} HierarchyApi */
+/** @typedef {Awaited<ReturnType<typeof createHierarchyFixtures>>} HierarchyFixtures */
+/** @typedef {{ results: BrowserSearchResult[] }} ResultsEnvelope */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-client-project-hierarchy-closeout-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-client-project-hierarchy-closeout.db");
@@ -21,7 +37,6 @@ process.env.LONGTAIL_SECURE_NOTES_KEY_VERSION = "test-v1";
 
 const listsDocs = readText("docs/lists-module.md");
 const moduleContract = readText("docs/module-contract.md");
-const roadmap = readText("ROADMAP.md");
 const viewBuildingContract = readText("docs/view-building-contract.md");
 const clientProjectsModuleSource = readText("src/modules/client-projects/module.js");
 const listsModuleSource = readText("src/modules/lists/module.js");
@@ -56,7 +71,7 @@ try {
   await reindexHierarchyFixtures(adminSession.workspace_id, fixtures);
 
   server = await listen(createApp());
-  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${listenerPort(server)}`;
   const api = createApi(baseUrl);
 
   await assertTasksHierarchyScope(adminSession, fixtures);
@@ -101,14 +116,9 @@ function assertStaticContract() {
     /As of 0\.33\.6\.14\.3, Lists reads and Search route filtering consume the shared descendant-aware hierarchy scope resolver[\s\S]*Browser code and query strings continue to submit only the selected direct client\/project values[\s\S]*Lists service\/repository and Search service\/adapter expand readable descendants server-side/,
     "View-building contract should document the Lists/Search hierarchy scope ownership boundary",
   );
-  assertRoadmapCursorAtLeast("0.33.8", "Roadmap should advance the active cursor beyond the completed hierarchy follow-up slice");
-  assert.doesNotMatch(
-    roadmap,
-    /### Version 0\.33\.6\.14 - App-wide hierarchical client\/project scoping standard[\s\S]*#### Version 0\.33\.6\.14\.3 - Lists and Search adoption plus branch closeout/,
-    "Live roadmap should archive the completed 0.33.6.14 branch details",
-  );
       }
 
+/** @param {HierarchySession} session */
 async function createHierarchyFixtures(session) {
   const parentClient = (await clientsService.createClient({ name: "Branch Parent Client" }, session)).client;
   const childClient = (await clientsService.createClient({
@@ -227,6 +237,7 @@ async function createHierarchyFixtures(session) {
   };
 }
 
+/** @param {string} workspaceId @param {HierarchyFixtures} fixtures */
 async function reindexHierarchyFixtures(workspaceId, fixtures) {
   await Promise.all([
     reindexRecord(workspaceId, "client-projects", "client", fixtures.childClient.id),
@@ -244,6 +255,7 @@ async function reindexHierarchyFixtures(workspaceId, fixtures) {
   ]);
 }
 
+/** @param {HierarchySession} session @param {HierarchyFixtures} fixtures */
 async function assertTasksHierarchyScope(session, fixtures) {
   const parentClientScope = await tasksService.list(session, {
     client_id: fixtures.parentClient.id,
@@ -283,6 +295,7 @@ async function assertTasksHierarchyScope(session, fixtures) {
   );
 }
 
+/** @param {HierarchySession} session @param {HierarchyFixtures} fixtures */
 async function assertNotesHierarchyScope(session, fixtures) {
   const parentClientScope = await notesService.list(session, {
     client_id: fixtures.parentClient.id,
@@ -313,6 +326,7 @@ async function assertNotesHierarchyScope(session, fixtures) {
   );
 }
 
+/** @param {HierarchySession} session @param {HierarchyFixtures} fixtures */
 async function assertFilesHierarchyScope(session, fixtures) {
   const parentClientScope = await filesService.listAttachments(session, {
     client_id: fixtures.parentClient.id,
@@ -343,6 +357,7 @@ async function assertFilesHierarchyScope(session, fixtures) {
   );
 }
 
+/** @param {HierarchySession} session @param {HierarchyFixtures} fixtures */
 async function assertListsHierarchyScope(session, fixtures) {
   const parentClientScope = await listsService.list(session, {
     client_id: fixtures.parentClient.id,
@@ -382,6 +397,7 @@ async function assertListsHierarchyScope(session, fixtures) {
   );
 }
 
+/** @param {HierarchySession} session @param {HierarchyFixtures} fixtures */
 async function assertWorkbenchHierarchyScope(session, fixtures) {
   const parentClientScope = await workFocusModesService.listFocusCandidates(session, {
     clientId: fixtures.parentClient.id,
@@ -421,22 +437,25 @@ async function assertWorkbenchHierarchyScope(session, fixtures) {
   );
 }
 
+/** @param {HierarchyApi} api @param {string} cookie @param {HierarchyFixtures} fixtures */
 async function assertSearchHierarchyScope(api, cookie, fixtures) {
   const taskResponse = await api.get(
     `/api/search?text=${encodeURIComponent("scope needle")}&recordType=task&clientId=${encodeURIComponent(fixtures.parentClient.id)}`,
     { cookie },
   );
+  /** @type {ResultsEnvelope} */
+  const taskResponseBody = readPayload(taskResponse, ["results"], "task response");
   assert.equal(taskResponse.status, 200);
   assert.ok(
-    taskResponse.body.results.some((result) => result.recordId === fixtures.descendantClientTask.task_id),
+    taskResponseBody.results.some((result) => result.recordId === fixtures.descendantClientTask.task_id),
     "parent client Search task filters should include readable descendant-client task results",
   );
   assert.ok(
-    taskResponse.body.results.some((result) => result.recordId === fixtures.descendantProjectTask.task_id),
+    taskResponseBody.results.some((result) => result.recordId === fixtures.descendantProjectTask.task_id),
     "parent client Search task filters should include same-client descendant-project task results",
   );
   assert.equal(
-    taskResponse.body.results.some((result) => result.recordId === fixtures.unrelatedTask.task_id),
+    taskResponseBody.results.some((result) => result.recordId === fixtures.unrelatedTask.task_id),
     false,
     "parent client Search task filters should exclude unrelated task results",
   );
@@ -445,13 +464,15 @@ async function assertSearchHierarchyScope(api, cookie, fixtures) {
     `/api/search?text=${encodeURIComponent("scope needle")}&recordType=note&clientId=${encodeURIComponent(fixtures.parentClient.id)}`,
     { cookie },
   );
+  /** @type {ResultsEnvelope} */
+  const noteResponseBody = readPayload(noteResponse, ["results"], "note response");
   assert.equal(noteResponse.status, 200);
   assert.ok(
-    noteResponse.body.results.some((result) => result.recordId === fixtures.descendantClientNote.note_id),
+    noteResponseBody.results.some((result) => result.recordId === fixtures.descendantClientNote.note_id),
     "parent client Search note filters should include readable descendant-client note results",
   );
   assert.ok(
-    noteResponse.body.results.some((result) => result.recordId === fixtures.descendantProjectNote.note_id),
+    noteResponseBody.results.some((result) => result.recordId === fixtures.descendantProjectNote.note_id),
     "parent client Search note filters should include same-client descendant-project note results",
   );
 
@@ -459,13 +480,15 @@ async function assertSearchHierarchyScope(api, cookie, fixtures) {
     `/api/search?text=${encodeURIComponent("scope needle")}&recordType=list&clientId=${encodeURIComponent(fixtures.parentClient.id)}`,
     { cookie },
   );
+  /** @type {ResultsEnvelope} */
+  const listResponseBody = readPayload(listResponse, ["results"], "list response");
   assert.equal(listResponse.status, 200);
   assert.ok(
-    listResponse.body.results.some((result) => result.recordId === fixtures.descendantClientList.list_id),
+    listResponseBody.results.some((result) => result.recordId === fixtures.descendantClientList.list_id),
     "parent client Search list filters should include readable descendant-client list results",
   );
   assert.ok(
-    listResponse.body.results.some((result) => result.recordId === fixtures.descendantProjectList.list_id),
+    listResponseBody.results.some((result) => result.recordId === fixtures.descendantProjectList.list_id),
     "parent client Search list filters should include same-client descendant-project list results",
   );
 
@@ -473,9 +496,11 @@ async function assertSearchHierarchyScope(api, cookie, fixtures) {
     `/api/search?text=${encodeURIComponent("scope needle")}&recordType=client&clientId=${encodeURIComponent(fixtures.parentClient.id)}`,
     { cookie },
   );
+  /** @type {ResultsEnvelope} */
+  const clientResponseBody = readPayload(clientResponse, ["results"], "client response");
   assert.equal(clientResponse.status, 200);
   assert.deepEqual(
-    clientResponse.body.results.map((result) => result.recordId),
+    clientResponseBody.results.map((result) => result.recordId),
     [fixtures.childClient.id],
     "parent client Search client filters should include descendant client records themselves",
   );
@@ -484,14 +509,17 @@ async function assertSearchHierarchyScope(api, cookie, fixtures) {
     `/api/search?text=${encodeURIComponent("scope needle")}&recordType=project&projectId=${encodeURIComponent(fixtures.parentProject.id)}`,
     { cookie },
   );
+  /** @type {ResultsEnvelope} */
+  const projectResponseBody = readPayload(projectResponse, ["results"], "project response");
   assert.equal(projectResponse.status, 200);
   assert.deepEqual(
-    projectResponse.body.results.map((result) => result.recordId),
+    projectResponseBody.results.map((result) => result.recordId),
     [fixtures.childProject.id],
     "parent project Search project filters should include descendant project records themselves",
   );
 }
 
+/** @param {HierarchyApi} api @param {HierarchySession} adminSession */
 async function assertUnreadableDescendantsStayExcluded(api, adminSession) {
   const parentClient = (await clientsService.createClient({ name: "Permission Parent Client" }, adminSession)).client;
   const readableChildClient = (await clientsService.createClient({
@@ -635,21 +663,23 @@ async function assertUnreadableDescendantsStayExcluded(api, adminSession) {
     `/api/search?text=${encodeURIComponent("permission needle")}&clientId=${encodeURIComponent(parentClient.id)}`,
     { cookie: limitedBrowserSession.sessionId },
   );
+  /** @type {ResultsEnvelope} */
+  const searchScopeBody = readPayload(searchScope, ["results"], "search scope");
   assert.equal(searchScope.status, 200);
   assert.ok(
-    searchScope.body.results.some((result) => result.recordId === readableTask.task_id),
+    searchScopeBody.results.some((result) => result.recordId === readableTask.task_id),
     "Search should keep readable descendant task results visible",
   );
   assert.ok(
-    searchScope.body.results.some((result) => result.recordId === readableNote.note_id),
+    searchScopeBody.results.some((result) => result.recordId === readableNote.note_id),
     "Search should keep readable descendant note results visible",
   );
   assert.ok(
-    searchScope.body.results.some((result) => result.recordId === readableList.list_id),
+    searchScopeBody.results.some((result) => result.recordId === readableList.list_id),
     "Search should keep readable descendant list results visible",
   );
   assert.equal(
-    searchScope.body.results.some((result) => (
+    searchScopeBody.results.some((result) => (
       result.recordId === hiddenTask.task_id ||
       result.recordId === hiddenNote.note_id ||
       result.recordId === hiddenList.list_id
@@ -659,6 +689,10 @@ async function assertUnreadableDescendantsStayExcluded(api, adminSession) {
   );
 }
 
+/**
+ * @param {string} workspaceId @param {string} moduleId
+ * @param {string} recordType @param {string} recordId
+ */
 async function reindexRecord(workspaceId, moduleId, recordType, recordId) {
   const result = await searchService.reindexSearchRecord({
     moduleId,
@@ -672,6 +706,15 @@ async function reindexRecord(workspaceId, moduleId, recordType, recordId) {
   assert.equal(result.ok, true, `${moduleId}:${recordType}:${recordId} should reindex successfully`);
 }
 
+/**
+ * @param {{
+ *   clientId: string,
+ *   label: string,
+ *   projectId: string,
+ *   session: HierarchySession,
+ *   targetId: string,
+ * }} input
+ */
 async function insertAvailableAttachment({ clientId, label, projectId, session, targetId }) {
   const attachmentId = randomUUID();
   const fileId = randomUUID();
@@ -779,18 +822,12 @@ LIMIT 1;
   return user;
 }
 
+/** @param {unknown} user @returns {HierarchySession} */
 function toSession(user) {
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
+/** @param {string} workspaceId */
 async function createNoRoleSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -846,6 +883,7 @@ VALUES (
   });
 }
 
+/** @param {string} userId @param {string} workspaceId @param {string} projectId */
 async function assignProjectAdminRole(userId, workspaceId, projectId) {
   const now = new Date().toISOString();
 
@@ -878,13 +916,25 @@ async function assertIntegrity() {
   assert.deepEqual(rows, [{ integrity_check: "ok" }]);
 }
 
+/**
+ * @param {string} baseUrl
+ * @returns {{ get: (url: string, options?: HierarchyClientOptions) => Promise<HierarchyResponse> }}
+ */
 function createApi(baseUrl) {
   return {
     get: (url, options = {}) => request(baseUrl, "GET", url, options),
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {HierarchyClientOptions} [options]
+ * @returns {Promise<HierarchyResponse>}
+ */
 async function request(baseUrl, method, url, options = {}) {
+  /** @type {Record<string, string>} */
   const headers = {};
 
   if (options.cookie) {
@@ -897,6 +947,9 @@ async function request(baseUrl, method, url, options = {}) {
     redirect: "manual",
   });
   const text = await response.text();
+  // The parsed body stays `unknown`; every read below crosses that boundary
+  // through `readPayload`, which proves the envelope it names is present.
+  /** @type {unknown} */
   let parsedBody = null;
 
   try {
@@ -911,13 +964,22 @@ async function request(baseUrl, method, url, options = {}) {
   };
 }
 
+/** @param {HierarchyApp} app @returns {Promise<HierarchyServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(app);
+    const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }
 
+/** @param {HierarchyServer} listening @returns {number} */
+function listenerPort(listening) {
+  const address = listening.address();
+  assert.ok(address && typeof address === "object", "the hierarchy closeout fixture server should bind a TCP port");
+  return address.port;
+}
+
+/** @param {HierarchyServer} activeServer @returns {Promise<void>} */
 function closeServer(activeServer) {
   return new Promise((resolve, reject) => {
     activeServer.close((error) => {
