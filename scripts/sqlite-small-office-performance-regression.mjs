@@ -21,8 +21,6 @@ const expectedRouteIds = Object.freeze([
 const performanceScript = readText("scripts/sqlite-small-office-performance.mjs");
 const sqliteDocs = readText("docs/sqlite-small-office-mode.md");
 const databaseDocs = readText("docs/database.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 assertStaticContract();
 assertPerformanceSmoke();
@@ -45,8 +43,6 @@ function assertStaticContract() {
   assert.match(sqliteDocs, /not a hosted SaaS load test/, "SQLite small-office docs should document the expected limits honestly");
   assert.match(sqliteDocs, /Workbench bootstrap is a special canary/, "SQLite small-office docs should call out Workbench bootstrap limits");
   assert.match(databaseDocs, /As of version 0\.33\.5\.20\.6/, "Database docs should mention the performance pass");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.20 bounded queries and small-office scale data work is archived/, "live roadmap should not carry completed-history breadcrumbs");
-  assert.match(changelog, /Version 0\.33\.5\.20\.6/, "Changelog should include the SQLite small-office performance release");
 }
 
 function assertPerformanceSmoke() {

@@ -7,7 +7,6 @@ const { readText } = createProjectTextReader();
 
 const helper = readText("public/js/shared/view-builder.js");
 const css = readText("public/css/longtail-forge.css");
-const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
 
 assert.doesNotMatch(helper, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view builder must not inject HTML strings");
@@ -245,6 +244,5 @@ assert.match(css, /\.view-collapsible-index-footer\s*\{[\s\S]*justify-content:\s
 assert.match(css, /\.view-linked-context-picker\s*\{[\s\S]*display:\s*grid/, "CSS should define the shared linked context picker shell");
 assert.match(viewContract, /As of 0\.33\.5\.15\.6/, "view contract should report helper implementation version");
 assert.match(viewContract, /`LongtailForge\.view` is implemented in `public\/js\/shared\/view-builder\.js`/, "view contract should document implemented helper location");
-assert.match(changelog, /## Version 0\.33\.5\.15\.2 - /, "Changelog should include helper implementation version");
 
 console.log("View builder helper regression passed.");

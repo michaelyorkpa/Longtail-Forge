@@ -1,4 +1,6 @@
 /** @typedef {import("../types/framework-contracts.js").AppShellBootstrap} AppShellBootstrap */
+/** @typedef {import("../types/framework-contracts.js").AppShellSearchTarget} AppShellSearchTarget */
+/** @typedef {import("../types/search-rebuild-contracts.js").ActiveSearchableTypeDeclaration} ActiveSearchableTypeDeclaration */
 /** @typedef {{ href?: string, id: string, items?: AppShellNavigationItem[], label: string, moduleId?: string }} AppShellNavigationItem */
 /** @typedef {{ id: string, items: AppShellNavigationItem[], label: string }} AppShellNavigationMenu */
 /** @typedef {{ actionType: string, description: string, href?: string, icon: string, id: string, label: string, moduleActionId?: string, moduleId: string, publicDemoCapability?: string, requiredModules?: string[], requiredPermissions?: string[], requiredReportingReports?: boolean, requiredSearchTargets?: boolean, requiredWorkspaceCapabilities?: string[], temporaryFallback?: boolean, temporaryLabel?: string }} QuickActionDefinition */
@@ -188,7 +190,15 @@ async function bootstrap(session) {
   };
 }
 
-/** @param {WorkspaceRequestSession} session @param {WorkspaceContext} workspaceContext @param {{reportingReports?: ReportingContribution[], searchTargets?: SearchableTypeContribution[]}} [options] */
+/**
+ * The searchTargets option is the shell's own normalized targets, not the raw
+ * module contributions. The previous annotation said otherwise and only
+ * type-checked because SearchableTypeContribution carries an index signature
+ * and no required member, so the mismatch was silent.
+ * @param {WorkspaceRequestSession} session
+ * @param {WorkspaceContext} workspaceContext
+ * @param {{reportingReports?: ReportingContribution[], searchTargets?: AppShellSearchTarget[]}} [options]
+ */
 async function readQuickActions(session, workspaceContext, options = {}) {
   const visibleActions = [];
 
@@ -221,7 +231,7 @@ async function readQuickActions(session, workspaceContext, options = {}) {
   return visibleActions;
 }
 
-/** @param {SearchableTypeContribution[]} [searchTargets] */
+/** @param {AppShellSearchTarget[]} [searchTargets] */
 function normalizeSearchTargetsForQuickActions(searchTargets = []) {
   return Array.isArray(searchTargets) ? searchTargets.filter((target) => target?.recordType) : [];
 }
@@ -310,8 +320,19 @@ async function readSearchTargets(session) {
   return visibleSearchTargets(searchableTypes);
 }
 
-/** @param {SearchableTypeContribution[]} [searchableTypes] */
+/**
+ * Collapse the active searchable-type declarations into the shell's visible
+ * search targets, merging same-source record types into one aggregate entry.
+ *
+ * The input is the normalized active declaration rather than the open module
+ * contribution: searchService.listActiveSearchableTypes runs every field
+ * through normalizeSearchableType before this sees it, so the members read
+ * below are strings rather than index-signature reads.
+ * @param {ActiveSearchableTypeDeclaration[]} [searchableTypes]
+ * @returns {AppShellSearchTarget[]}
+ */
 function visibleSearchTargets(searchableTypes = []) {
+  /** @type {Map<string, AppShellSearchTarget>} */
   const visibleTargets = new Map();
 
   for (const type of searchableTypes) {

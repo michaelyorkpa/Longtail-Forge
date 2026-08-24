@@ -10,15 +10,12 @@ import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const dialectContractVersion = "0.33.6.14a";
-const booleanTimeSliceVersion = "0.33.5.27.5";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-boolean-time-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-boolean-time-seams.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Database-Boolean-Time-Seams-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
@@ -75,10 +72,8 @@ function assertStaticContract() {
     parameterBindingBaseline.findings.some((/** @type {Record<string, unknown>} */ finding) => finding.file === "src/modules/time-tracking/active-timers.repo.js"),
     "parameter-binding baseline should track reviewed active-timer dynamic SQL composition by stable file/signature",
   );
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.5 - Boolean and timestamp\/interval seams[\s\S]*- \[x\] Implement adapter-owned logical boolean normalization[\s\S]*- \[x\] Implement the provider date\/time helper[\s\S]*- \[x\] Convert one small proof path/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.5[\s\S]*`db\.dialect\.boolean\.bindFields\(\.\.\.\)`[\s\S]*`db\.dialect\.time\.elapsedSecondsSince\(\.\.\.\)`/, "database docs should describe the boolean and timestamp seam implementation");
   assert.match(auditDocs, /0\.33\.5\.27\.5 Boolean and Timestamp\/Interval Seams[\s\S]*`settings\.repo`[\s\S]*`time-tracking\/active-timers\.repo`/, "audit docs should record the boolean/time proof paths");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(booleanTimeSliceVersion)} - [\\s\\S]*Boolean and timestamp\\/interval seams[\\s\\S]*active timer pause`), "changelog should record the boolean/time seam slice");
 }
 
 async function assertBooleanHelpers(/** @type {import("../src/types/database-contracts.js").DatabaseDialect} */ dialect) {

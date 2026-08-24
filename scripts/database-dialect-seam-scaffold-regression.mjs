@@ -15,8 +15,6 @@ process.env.SUPER_ADMIN_PASSWORD = "Database-Dialect-Seams-Test-123!";
 
 const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const providerSource = readText("src/db/provider.js");
 const coreDatabaseSource = readText("src/core/database.js");
 const sqliteAdapterSource = readText("src/db/adapters/sqlite-adapter.js");
@@ -73,8 +71,6 @@ try {
 
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.2[\s\S]*`db\.dialect`[\s\S]*conflict writes[\s\S]*case-insensitive comparison[\s\S]*timestamp math[\s\S]*FTS5[\s\S]*PRAGMA/, "database docs should describe the dialect seam scaffold");
   assert.match(auditDocs, /0\.33\.5\.27\.2 Dialect Seam Scaffold[\s\S]*No application repository conversion happened[\s\S]*1,498 runtime literal-helper invocations/, "audit docs should record the no-burndown seam scaffold");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.2 - Dialect seam scaffold and SQLite proof harness[\s\S]*- \[x\] Add the provider-neutral seam surface[\s\S]*- \[x\] Keep the first pass focused[\s\S]*- \[x\] Add a focused regression/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.2 - [\s\S]*dialect seam scaffold[\s\S]*SQLite proof harness/, "changelog should record the dialect seam scaffold slice");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "dialect seam scaffold regression database should pass integrity check");

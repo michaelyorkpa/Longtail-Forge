@@ -250,7 +250,7 @@ LIMIT 1;
   const session = workspaceSessionFixture(user);
   // `createSession` seeds from an open record; the workspace session is spread
   // into one rather than passed as the named contract it is.
-  const created = await createSession({ ...session });
+  const created = await createSession(session);
 
   return {
     ...session,

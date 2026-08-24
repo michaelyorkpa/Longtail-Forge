@@ -7,6 +7,8 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { readActiveRoadmapCursor } from "./lib/roadmap-cursor.mjs";
 
+const EXPLICIT_ANY_PATTERN = /(?:[:<,{|&]\s*|\bas\s+)any\b|\bany\s*(?:\[\]|[>,}|&])/g;
+
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ledgerPath = path.join(rootDir, "scripts", "typecheck-debt-ledger.json");
 const declarationPrefix = "src/types/";
@@ -142,10 +144,116 @@ function collectSourcePolicy(files) {
       if (!filePath.startsWith("tests/typecheck/")) throw new Error(`${filePath}:${lineNumber} uses @ts-expect-error outside a negative compile fixture`);
       expectedErrorDirectives.push(`${filePath}:${lineNumber}`);
     }
-    const explicitAny = [...source.matchAll(/(?:[:<,{|&]\s*|\bas\s+)any\b|\bany\s*(?:\[\]|[>,}|&])/g)].length;
+    const explicitAny = countExplicitAnyAnnotations(source);
     if (explicitAny > 0) explicitAnyByFile[filePath] = explicitAny;
   }
   return { explicitAnyByFile, expectedErrorDirectives: expectedErrorDirectives.sort() };
+}
+
+// Characters and keywords after which a `/` starts a regular expression
+// rather than a division. Used only by the literal stripper below.
+const REGEX_PRECEDERS = new Set([..."(,=:[!&|?{};+-*%~^<>"]);
+const REGEX_PRECEDING_KEYWORDS = new Set(["return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "case", "do", "else", "yield", "await"]);
+
+/**
+ * Blank out string, template, and regular-expression literals so the explicit-
+ * `any` detector reads annotations rather than text that merely contains the
+ * word.
+ *
+ * Comments are deliberately preserved: JSDoc type annotations live in block
+ * comments and are exactly what must still be found. `0.33.33.32.28` added
+ * this after the detector counted an annotation-shaped token inside a regular
+ * expression whose whole purpose was to forbid such annotations elsewhere.
+ *
+ * Comments therefore stay in scope by design, so prose that spells an
+ * annotation still counts. That is the correct trade: a missed annotation is a
+ * governance hole, a counted sentence is a rewrite.
+ * @param {string} source
+ * @returns {string}
+ */
+function stripLiteralsForAnnotationScan(source) {
+  let out = "";
+  let index = 0;
+
+  /** @param {number} at @returns {boolean} */
+  function regexAllowedAt(at) {
+    let cursor = at - 1;
+    while (cursor >= 0 && /\s/.test(source[cursor])) cursor -= 1;
+    if (cursor < 0) return true;
+    const character = source[cursor];
+    if (REGEX_PRECEDERS.has(character)) return true;
+    if (!/[A-Za-z0-9_$]/.test(character)) return false;
+    const end = cursor + 1;
+    while (cursor >= 0 && /[A-Za-z0-9_$]/.test(source[cursor])) cursor -= 1;
+    return REGEX_PRECEDING_KEYWORDS.has(source.slice(cursor + 1, end));
+  }
+
+  while (index < source.length) {
+    const character = source[index];
+    const next = source[index + 1];
+
+    if (character === "/" && next === "/") {
+      const end = source.indexOf("\n", index);
+      const stop = end === -1 ? source.length : end;
+      out += source.slice(index, stop);
+      index = stop;
+      continue;
+    }
+    if (character === "/" && next === "*") {
+      const end = source.indexOf("*/", index + 2);
+      const stop = end === -1 ? source.length : end + 2;
+      out += source.slice(index, stop);
+      index = stop;
+      continue;
+    }
+    if (character === '"' || character === "'" || character === "`") {
+      const quote = character;
+      let cursor = index + 1;
+      while (cursor < source.length) {
+        if (source[cursor] === "\\") { cursor += 2; continue; }
+        if (source[cursor] === quote) break;
+        cursor += 1;
+      }
+      out += `${quote}${quote}`;
+      index = cursor + 1;
+      continue;
+    }
+    if (character === "/" && regexAllowedAt(index)) {
+      let cursor = index + 1;
+      let inClass = false;
+      let closed = false;
+      while (cursor < source.length) {
+        const current = source[cursor];
+        if (current === "\\") { cursor += 2; continue; }
+        if (current === "\n") break;
+        if (current === "[") inClass = true;
+        else if (current === "]") inClass = false;
+        else if (current === "/" && !inClass) { closed = true; break; }
+        cursor += 1;
+      }
+      if (closed) {
+        let end = cursor + 1;
+        while (end < source.length && /[a-z]/.test(source[end])) end += 1;
+        out += "/./";
+        index = end;
+        continue;
+      }
+    }
+
+    out += character;
+    index += 1;
+  }
+
+  return out;
+}
+
+/**
+ * Count explicit `any` annotations in one source file.
+ * @param {string} source
+ * @returns {number}
+ */
+function countExplicitAnyAnnotations(source) {
+  return [...stripLiteralsForAnnotationScan(source).matchAll(EXPLICIT_ANY_PATTERN)].length;
 }
 
 /** @returns {{ config: string, firstPartyFiles: number, errors: number }} */
@@ -269,4 +377,4 @@ if (path.resolve(process.argv[1] || "") === fileURLToPath(import.meta.url)) {
   });
 }
 
-export { PROGRAMS, collectGovernanceState, collectSourcePolicy, firstPartyJavaScriptFiles, isFirstPartyDirectoryName, validateShrinkOnly };
+export { PROGRAMS, collectGovernanceState, collectSourcePolicy, countExplicitAnyAnnotations, firstPartyJavaScriptFiles, isFirstPartyDirectoryName, validateShrinkOnly };

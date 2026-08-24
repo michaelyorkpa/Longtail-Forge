@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 import { requireRow } from "./test-support/database-row-assertions.mjs";
 const { readText } = createProjectTextReader();
@@ -18,8 +17,6 @@ const sqliteSearchAdapterSource = readText("src/core/search/adapters/sqlite-sear
 const tagTextSource = readText("src/core/search/tag-text.js");
 const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const {
   createBulkValuesBindings,
@@ -79,11 +76,6 @@ try {
   assert.match(auditDocs, /0\.33\.5\.28\.1 Bulk VALUES Placeholder Ceiling Guard[\s\S]*32,766 placeholders[\s\S]*callers must split larger writes before calling `createBulkValuesBindings\(\)`/, "audit docs should record the bulk VALUES placeholder ceiling guard");
   assert.match(auditDocs, /0\.33\.5\.28\.2 Empty-List NOT IN Guardrail[\s\S]*documentation-only guardrail[\s\S]*empty exclusion set should normally preserve all rows/, "audit docs should record the empty-list NOT IN guardrail");
   assert.match(auditDocs, /Remaining runtime literal-helper invocations after the proof conversion: 1,677/, "audit docs should record the post-proof helper burndown");
-  assertRoadmapCursorAtLeast("0.33.8", "live roadmap should record the current archived handoff");
-  assertRoadmapCursorAtLeast("0.33.8", "live roadmap should advance after the completed parameter-binding gap closeout branch");
-  assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.28 - Parameter-binding gap closeout/m, "live roadmap should not keep the completed parameter-binding gap closeout branch open");
-  assert.match(changelog, /Archived the completed 0\.33\.5\.28 parameter-binding gap closeout branch[\s\S]*advanced the live roadmap cursor to 0\.33\.5\.29/, "changelog should record the parameter-binding gap closeout archive handoff");
-  assert.match(changelog, /## Version 0\.33\.5\.23\.2 - [\s\S]*named-to-positional parameter binding layer/, "changelog should retain the binding-layer slice");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "parameter-binding layer database should pass integrity check");

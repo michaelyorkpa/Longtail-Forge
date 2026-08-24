@@ -2,7 +2,30 @@ import { randomBytes } from "node:crypto";
 import { config } from "../config.js";
 import { normalizeTimezone } from "../utils/normalizers.js";
 
-/** @typedef {Record<string, unknown>} SessionSeed */
+/**
+ * The session fields prepareSessionRecord actually consumes.
+ *
+ * Every member is optional because the helper tolerates absence, and every
+ * member is `unknown` because each one is normalized on the way in rather
+ * than trusted. Callers may pass a wider record - production spreads a whole
+ * authenticated user row - and the extra members are simply unread.
+ *
+ * This replaces `Record<string, unknown>`, which was not a description of the
+ * input at all: a named session interface is not assignable to an index
+ * signature it does not declare, so callers holding a precise session had to
+ * launder it through an object literal to satisfy a helper that wanted less
+ * than they had.
+ * @typedef {{
+ *   active_workspace_id?: unknown,
+ *   home_workspace_id?: unknown,
+ *   ip_address?: unknown,
+ *   session_mode?: unknown,
+ *   support_session_id?: unknown,
+ *   timezone?: unknown,
+ *   user_id?: unknown,
+ *   username?: unknown,
+ * }} SessionSeed
+ */
 /** @typedef {{ expiresAt?: string, maxAgeSeconds?: number, rememberMe?: boolean }} PrepareSessionOptions */
 
 const REMEMBERED_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;

@@ -124,7 +124,14 @@ assert.deepEqual(normalized.viewSurfaces, [{ id: "tasks.index" }]);
 assert.deepEqual(normalized.navigation, [{ id: "actions", items: [] }]);
 assert.deepEqual(normalized.moduleNavigation, [{ id: "tasks" }]);
 assert.deepEqual(normalized.moduleSettingsNavigation, []);
-assert.deepEqual(normalized.searchTargets, [{ recordType: "task" }]);
+assert.deepEqual(normalized.searchTargets, [{
+  aggregate: false,
+  id: "",
+  label: "task",
+  moduleId: "",
+  recordType: "task",
+  sourceLabel: "",
+}], "the adapter should project each search target onto the published contract rather than pass an arbitrary record through");
 assert.equal(normalized.supportView, null);
 assert.equal(normalized.workspaceContext.workspaceName, "Workspace One");
 assert.deepEqual(normalized.workspaceContext.enabledModules, ["tasks", "notes"]);

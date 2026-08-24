@@ -28,11 +28,6 @@ import { fixtureString, workspaceSessionFixture } from "./test-support/session-f
 
 /** @typedef {{ query: HelpSearchQuery, results: BrowserSearchResult[] }} SearchEnvelope */
 
-/**
- * One app-shell navigation entry or search target, as these owners read them.
- * @typedef {{ href?: unknown, id?: unknown, items?: unknown[], label?: unknown, recordType?: unknown, sourceLabel?: unknown }} ShellItem
- */
-
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-help-search-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-help-search-test.db");
 process.env.SUPER_ADMIN_PASSWORD = "Help-Search-Test-Password-123!";
@@ -71,7 +66,7 @@ try {
     assert.ok(helpTypes.every((type) => type.sourceLabel === "Help"));
 
     const shell = await appShellService.bootstrap(session);
-    const visibleHelpTargets = shell.searchTargets.map(shellItem).filter((target) => (
+    const visibleHelpTargets = shell.searchTargets.filter((target) => (
       target.sourceLabel === "Help" &&
       target.recordType === "help_article"
     ));
@@ -214,7 +209,7 @@ LIMIT 1;
   const session = workspaceSessionFixture(user);
   // `createSession` seeds from an open record; the workspace session is spread
   // into one rather than passed as the named contract it is.
-  const created = await createSession({ ...session });
+  const created = await createSession(session);
 
   return {
     ...session,
@@ -251,17 +246,6 @@ async function check(name, assertion) {
   await assertion();
   checks.push(name);
 }
-
-/**
- * Prove one app-shell entry is a record before it is walked.
- * @param {unknown} value
- * @returns {ShellItem}
- */
-function shellItem(value) {
-  assert.ok(value && typeof value === "object" && !Array.isArray(value), "each app-shell entry should be a record");
-  return /** @type {ShellItem} */ (value);
-}
-
 /**
  * @param {string} baseUrl
  * @param {string} sessionId

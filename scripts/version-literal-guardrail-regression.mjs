@@ -18,14 +18,15 @@ import {
 } from "./test-support/version-literal-guardrail.mjs";
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
 import { readPayload } from "./test-support/http-payload-assertions.mjs";
+import { requirePackageLock, requirePackageManifest } from "./test-support/package-manifest-assertions.mjs";
 
 /** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
 /** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
 /** @typedef {import("./test-support/version-literal-guardrail.mjs").VersionLiteralViolation} VersionLiteralViolation */
 
 const root = process.cwd();
-const packageJson = JSON.parse(await fs.readFile("package.json", "utf8"));
-const packageLock = JSON.parse(await fs.readFile("package-lock.json", "utf8"));
+const packageJson = requirePackageManifest(JSON.parse(await fs.readFile("package.json", "utf8")));
+const packageLock = requirePackageLock(JSON.parse(await fs.readFile("package-lock.json", "utf8")));
 const changelog = await fs.readFile("CHANGELOG.md", "utf8");
 const roadmap = await fs.readFile("ROADMAP.md", "utf8");
 const roadmapArchive = await fs.readFile("ROADMAP-ARCHIVE.md", "utf8");
@@ -37,7 +38,12 @@ const { closeDatabase } = await import("../src/db/provider.js");
 try {
 assert.equal(appVersion, packageJson.version, "the runtime helper should match package metadata");
 assert.equal(packageLock.version, packageJson.version, "the lock root should match package metadata");
-assert.equal(packageLock.packages[""].version, packageJson.version, "the lock package entry should match package metadata");
+// The lockfile's root package entry is proven present rather than assumed:
+// a lockfile that stopped carrying one would otherwise compare undefined
+// against the version and pass.
+const rootLockEntry = packageLock.packages?.[""];
+assert.ok(rootLockEntry, "package-lock.json should carry a root package entry");
+assert.equal(rootLockEntry.version, packageJson.version, "the lock package entry should match package metadata");
 assert.match(changelog, new RegExp(`^## Version ${escapeRegExp(appVersion)} - `, "m"), "CHANGELOG should carry the current version heading");
 const activeRoadmapCursor = readActiveRoadmapCursor({ roadmapSource: roadmap });
 assert.ok(

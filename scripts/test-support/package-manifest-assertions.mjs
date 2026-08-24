@@ -24,9 +24,22 @@ import assert from "node:assert/strict";
  */
 
 /**
+ * One entry in a package-lock.json `packages` map. The root entry, keyed by
+ * the empty string, is the one regression owners read.
+ * @typedef {object} PackageLockEntry
+ * @property {Record<string, string>} [dependencies]
+ * @property {Record<string, string>} [devDependencies]
+ * @property {string} [name]
+ * @property {string} [version]
+ */
+
+/**
  * The package-lock.json fields regression owners assert on.
  * @typedef {object} PackageLockManifest
- * @property {Record<string, unknown>} [packages]
+ * @property {number} [lockfileVersion]
+ * @property {string} [name]
+ * @property {Record<string, PackageLockEntry>} [packages]
+ * @property {string} [version]
  */
 
 /**

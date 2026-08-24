@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
-import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 /** @typedef {import("../src/types/database-contracts.js").DatabaseRow} DatabaseRow */
@@ -341,10 +340,8 @@ ON CONFLICT(workspace_id, module_id) DO UPDATE SET
     projectId: "project-1",
     projectIds: [],
   });
-  // The framework publishes a search target as an open record because modules
-  // contribute varying declarations, so the field map this assertion reads is
-  // proven to be a record here rather than by tightening that boundary.
-  const targetFields = requireJsonRecord(target.fields, "the search target field map");
+  const targetFields = target.fields;
+  assert.ok(targetFields, "a composed search target should publish its column map");
   assert.equal(targetFields.workspace, "workspace_id");
   assert.equal(targetFields.tagsText, null);
 });
