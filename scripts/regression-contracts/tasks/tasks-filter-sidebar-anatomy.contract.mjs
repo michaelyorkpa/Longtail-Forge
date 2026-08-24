@@ -54,6 +54,12 @@ assert.match(rendererShellRegression, /Escape should close the drawer/, "Shared 
 
 console.log("Tasks filter sidebar anatomy regression passed.");
 
+/**
+ * Extract one named function from a source file this module reads, from its
+ * declaration to the next top-level function declaration.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} functionName the name to locate
+ */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);
@@ -61,6 +67,12 @@ function functionBlock(source, functionName) {
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
 
+/**
+ * Extract the inclusive region between two literal markers.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} startText the literal the region begins with
+ * @param {string} endText the literal the region ends with
+ */
 function sourceSlice(source, startText, endText) {
   const start = source.indexOf(startText);
   assert.notEqual(start, -1, `Missing source start: ${startText}`);

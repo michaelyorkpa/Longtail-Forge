@@ -5,7 +5,6 @@ import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under notes.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
-const roadmap = readText("ROADMAP.md");
 const notesDocs = readText("docs/notes-module.md");
 const moduleContract = readText("docs/module-contract.md");
 const filesScript = readText("public/js/files.js");
@@ -73,14 +72,18 @@ assert.match(workbenchView, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/
 assert.match(readText("public/js/workbench.js"), /src: "js\/task-dialog\.js"/,
   "Workbench should lazy-load the task dialog after its static attachment and preview helpers");
 
-assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/,
-  "live roadmap should not carry completed-history breadcrumbs");
 assert.match(notesDocs, /As of 0\.33\.5\.21\.9\.3[\s\S]*shared Files Preview modal[\s\S]*icon-only action buttons/,
   "Notes docs should document preview and icon attachment actions");
 assert.match(moduleContract, /As of 0\.33\.5\.21\.9\.3[\s\S]*public\/js\/shared\/file-preview\.js[\s\S]*LongtailForge\.filePreview/,
   "Module contract should document the shared preview helper boundary");
 console.log("Notes file preview actions regression passed.");
 
+/**
+ * Extract one named function from a source file this module reads, from its
+ * declaration to the next top-level function declaration.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} name the name to locate
+ */
 function functionBlock(source, name) {
   const start = source.indexOf(`function ${name}`);
   assert.notEqual(start, -1, `${name} should exist`);

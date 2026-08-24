@@ -103,6 +103,12 @@ checks += 5;
 
 console.log(`Task editor Workbench handoff guardrail passed ${checks} checks.`);
 
+/**
+ * Extract one named function from a source file this module reads, from its
+ * declaration to the next top-level function declaration.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} name the name to locate
+ */
 function functionBody(source, name) {
   const start = source.indexOf(`function ${name}(`) >= 0
     ? source.indexOf(`function ${name}(`)

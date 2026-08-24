@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "maximumActiveScripts": 347,
-  "minimumAssertionCount": 19524,
+  "minimumAssertionCount": 19525,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,
@@ -5912,6 +5912,90 @@
       ],
       "verificationPerformed": [
         "node scripts/workbench-task-focus-related-context-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "lists.current-static-contracts",
+      "retiredInVersion": "0.33.33.32.26",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 4,
+      "rationale": "Four assertions across four Lists contract modules required an archived CHANGELOG.md heading for releases 0.33.5.15.3, 0.33.5.16.9, 0.33.5.16.10, and 0.33.5.16.11 to exist. Each was a bare heading-presence check: it recorded that a past release happened, said nothing about how Lists behaves today, and could not fail while the archived entries exist.",
+      "assertionDisposition": "No behavior lost coverage. Every module retains its live assertions over public/js/lists.js, src/modules/lists/module.js, views/protected/lists.html, public/css/longtail-forge.css, the shared view renderer, and docs/view-building-contract.md: the declarative read-only surface and its generic field input hooks, the item and modal descriptors with no one-off grid layout, the view-builder pilot conversion of the protected Lists workspace, and the workflow, linked-record, and layout descriptors with workspace-scoped context controls preserved. legacy.bump.version owns changelog structure and release.historical-evidence-retirement rejects archived history used as product evidence.",
+      "retiredEvidence": [
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/regression-contracts/lists/lists-declarative-readonly-surface.contract.mjs",
+        "scripts/regression-contracts/lists/lists-items-modals-descriptor.contract.mjs",
+        "scripts/regression-contracts/lists/lists-view-builder-pilot.contract.mjs",
+        "scripts/regression-contracts/lists/lists-workflow-linked-layout.contract.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "lists.current-static-contracts",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/lists/current-static-contracts.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "notes.current-static-contracts",
+      "retiredInVersion": "0.33.33.32.26",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 5,
+      "rationale": "Five assertions across three Notes contract modules read planning documents. One required an archived CHANGELOG.md heading for release 0.33.5.18.3 to exist. Four read the live ROADMAP.md: three asserted it no longer carries a specific completed-history breadcrumb, and one that the completed 0.33.5.18.3 section is archived out of it. The live-roadmap reads are the dead-breadcrumb class 0.33.33.32.13 first recorded: each asserted that ROADMAP.md no longer contains one specific 0.33.5.18-era or 0.33.5.21-era breadcrumb string. The live cursor is 0.33.33, those strings were removed twenty-eight minor versions ago, and no checkpoint can reintroduce a literal that nothing writes. release.roadmap-cursor-floor owns the live-roadmap structural contract - it proves the cursor parses, never regresses below its floor, and that no regression pins an exact cursor or next-section value - and release.checkpoint-commits plus legacy.bump.version own the roadmap-to-archive handoff that removes a completed section from the live plan.",
+      "assertionDisposition": "No behavior lost coverage. The modules retain their live assertions over views/protected/notes.html, src/modules/notes/module.js, public/js/notes.js, public/js/files.js, public/js/workbench.js, public/css/longtail-forge.css, docs/notes-module.md, and docs/module-contract.md: the minimal framework host, framework-built dialogs, the server-rendered body_html detail path, the live preview route, collection filter options staying in the module, the shared Files preview modal with icon-only attachment actions, the shared file-preview helper boundary, the Workbench lazy-load ordering, and the Notes/Tasks modal footer parity. legacy.bump.version owns changelog structure, release.roadmap-cursor-floor owns the live-roadmap structural contract, and release.historical-evidence-retirement rejects archived history used as product evidence.",
+      "retiredEvidence": [
+        "CHANGELOG.md",
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/regression-contracts/notes/notes-declarative-readonly-surface.contract.mjs",
+        "scripts/regression-contracts/notes/notes-file-preview-actions.contract.mjs",
+        "scripts/regression-contracts/notes/notes-tasks-modal-footer-visual-parity.contract.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "notes.current-static-contracts",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/notes/current-static-contracts.regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "tasks.current-static-contracts",
+      "retiredInVersion": "0.33.33.32.26",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion in the Tasks tags/files child-dialog contract module asserted the live ROADMAP.md no longer carries the 0.33.5.18.12 completed-history breadcrumb. The live-roadmap reads are the dead-breadcrumb class 0.33.33.32.13 first recorded: each asserted that ROADMAP.md no longer contains one specific 0.33.5.18-era or 0.33.5.21-era breadcrumb string. The live cursor is 0.33.33, those strings were removed twenty-eight minor versions ago, and no checkpoint can reintroduce a literal that nothing writes. release.roadmap-cursor-floor owns the live-roadmap structural contract - it proves the cursor parses, never regresses below its floor, and that no regression pins an exact cursor or next-section value - and release.checkpoint-commits plus legacy.bump.version own the roadmap-to-archive handoff that removes a completed section from the live plan.",
+      "assertionDisposition": "No behavior lost coverage. The module retains its live assertions over the Tasks dialogs, the shared tag and file attachment helpers, and the module contract, which prove the child-dialog boundary against live sources. release.roadmap-cursor-floor owns the live-roadmap structural contract and release.historical-evidence-retirement rejects archived history used as product evidence.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/regression-contracts/tasks/tasks-tags-files-child-dialog.contract.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "tasks.current-static-contracts",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/tasks/current-static-contracts.regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"

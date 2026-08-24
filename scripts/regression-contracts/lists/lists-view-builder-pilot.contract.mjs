@@ -10,7 +10,6 @@ const listsModule = readText("src/modules/lists/module.js");
 const listsJs = readText("public/js/lists.js");
 const css = readText("public/css/longtail-forge.css");
 const renderer = readText("public/js/shared/view-renderer.js");
-const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
 
 assert.match(html, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Lists protected view should be a minimal host");
@@ -99,6 +98,5 @@ assert.match(css, /\.view-detail-action-strip,[\s\S]*\.view-inline-action-row\s*
 
 assert.match(viewContract, /As of 0\.33\.5\.15\.6/, "View-building contract should document the current view-builder line");
 assert.match(viewContract, /Lists protected workspace now uses `LongtailForge\.view`/, "View-building contract should describe the converted Lists workspace");
-assert.match(changelog, /## Version 0\.33\.5\.15\.3 - /, "Changelog should include the Lists pilot version");
 
 console.log("Lists view-builder pilot regression passed.");

@@ -59,12 +59,23 @@ assert.match(declarativeGuide, /\| Tasks \| tasks \| tasks\.html \| tasks\.works
 
 console.log("Tasks declarative read-only surface regression passed.");
 
+/**
+ * Assert one view ships no protected-view anatomy outside its descriptor host.
+ * @param {string} html view text from the shared project text reader
+ * @param {string} label the view name shown on failure
+ */
 function assertNoProtectedAnatomy(html, label) {
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));
   assert.doesNotMatch(body, /<(section|form|table|dialog|details|button|h1|h2|ul|ol)\b/i, `${label} should not ship protected view anatomy outside the descriptor host`);
   assert.doesNotMatch(body, /\b(data-task-list|data-task-dialog|data-task-quick-filter|data-task-bulk-toolbar|data-task-status-filter)\b/, `${label} should not ship Tasks workspace hooks outside the host`);
 }
 
+/**
+ * Extract one named function from a source file this module reads, from its
+ * declaration to the next top-level function declaration.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} functionName the name to locate
+ */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);

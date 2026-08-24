@@ -24,8 +24,6 @@
     "legacy.sqlite.small.office.performance",
     "legacy.startup.maintenance.compatibility",
     "legacy.view.builder.helper",
-    "lists.current-static-contracts",
-    "notes.current-static-contracts",
     "release.changed-regression-auto-run",
     "release.current-static-contracts",
     "release.developer-verification-throughput",
@@ -66,8 +64,6 @@
     "legacy.task.reminder.notification.delivery",
     "legacy.user.theme.auto.mode",
     "legacy.view.builder.helper",
-    "lists.current-static-contracts",
-    "notes.current-static-contracts",
     "release.changed-regression-auto-run",
     "release.current-static-contracts",
     "release.developer-verification-throughput",
@@ -76,8 +72,7 @@
     "release.public-demo-compose-reset",
     "release.public-demo-reset-scheduler",
     "release.regression-routing-commands",
-    "release.runtime-artifact-boundary",
-    "tasks.current-static-contracts"
+    "release.runtime-artifact-boundary"
   ],
   "reviewedDispositions": {
     "legacy.bump.version": "Retained: writes a synthetic CHANGELOG.md into a temporary directory as version-bump fixture input; never reads repository history.",

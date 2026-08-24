@@ -71,6 +71,12 @@ assert.match(tasksView, /css\/longtail-forge\.css[\s\S]*js\/shared\/view-builder
 
 console.log("Tasks lifecycle action descriptor regression passed.");
 
+/**
+ * Extract one named const declaration from a source file this module reads, from its
+ * declaration to the next top-level function declaration.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} constName the name to locate
+ */
 function constBlock(source, constName) {
   const start = source.indexOf(`const ${constName}`);
   assert.notEqual(start, -1, `${constName} should exist`);
@@ -78,6 +84,12 @@ function constBlock(source, constName) {
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
 
+/**
+ * Extract one named function from a source file this module reads, from its
+ * declaration to the next top-level function declaration.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} functionName the name to locate
+ */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);

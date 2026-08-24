@@ -8,8 +8,6 @@ const html = readText("views/protected/notes.html");
 const notesModule = readText("src/modules/notes/module.js");
 const notesJs = readText("public/js/notes.js");
 const stylesheet = readText("public/css/longtail-forge.css");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 // Protected view is now a minimal framework host; as of .18.4 the dialogs are framework-built too.
 assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/, "Notes view should be a minimal framework host");
@@ -100,10 +98,5 @@ assert.match(stylesheet, /\.notes-list-heading strong\s*\{[\s\S]*text-overflow:\
 assert.match(notesJs, /\/api\/notes\/preview/, "Notes live preview route should stay module-owned");
 assert.match(notesJs, /body_html/, "Notes detail should render the server Markdown-rendered body_html");
 assert.match(notesJs, /collectionFilterOptions/, "Notes collection read logic should remain in the module");
-
-assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.6\.1 through 0\.33\.5\.18\.6\.11 are archived/, "live roadmap should not carry completed-history breadcrumbs");
-assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.18\.3 - Notes Declarative Read-Only Surface Proof/, "completed Notes declarative proof slice should be archived out of the live roadmap");
-
-assert.match(changelog, /## Version 0\.33\.5\.18\.3 - /, "Changelog should record the Notes read-only proof");
 
 console.log("Notes declarative read-only surface regression passed.");

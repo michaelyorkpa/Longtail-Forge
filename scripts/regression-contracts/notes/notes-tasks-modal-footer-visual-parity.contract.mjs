@@ -12,7 +12,6 @@ const tasksView = readText("views/protected/tasks.html");
 const workbenchScript = readText("public/js/workbench.js");
 const tasksDocs = readText("docs/tasks-module.md");
 const notesDocs = readText("docs/notes-module.md");
-const roadmap = readText("ROADMAP.md");
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the modal footer visual parity version");
 
@@ -45,10 +44,15 @@ assert.match(notesDocs, /^# Notes Module Developer Guide$/m, "Notes docs should 
 assert.match(notesDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Notes docs should document footer utility visual parity");
 assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks docs should retain the owning module heading");
 assert.match(tasksDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Tasks docs should document footer utility visual parity");
-assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
 
 console.log("Notes and Tasks modal footer visual parity regression passed.");
 
+/**
+ * Extract one named function from a source file this module reads, from its
+ * declaration to the next top-level function declaration.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} functionName the name to locate
+ */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);
