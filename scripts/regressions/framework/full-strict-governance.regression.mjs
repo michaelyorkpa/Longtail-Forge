@@ -244,6 +244,48 @@ assert.equal(
   0,
   "the server/test program's ledger section is retired at zero and may never regain debt",
 );
+// 0.33.33.32.28.1 retires the scripts program's debt at zero, exactly as the
+// server/test program was retired at 0.33.33.26.2: the ledger section stays,
+// its diagnostics map is empty, its error count is zero, and it may never
+// regain debt.
+//
+// **Retirement means permanently required to remain at zero. It never means
+// no longer checked.** `tsconfig.scripts.json` carries unqualified `strict`,
+// `checkJs`, and `noImplicitAny` and excludes nothing under `scripts/`, so the
+// program still compiles on every canonical `npm run typecheck`; the ledger
+// generator refuses a universe in which any first-party file is unowned. The
+// two assertions below hold both halves of that: the debt is zero, and the
+// program still carries every script on disk.
+assert.equal(
+  ledger.programs.scripts.errorCount,
+  0,
+  "the scripts program's ledger section is retired at zero and may never regain debt",
+);
+assert.deepEqual(
+  Object.keys(ledger.programs.scripts.diagnostics),
+  [],
+  "the retired scripts program carries no per-file debt",
+);
+const scriptsOnDisk = discoveredScriptPaths();
+assert.ok(
+  scriptsOnDisk.length > 500,
+  "the retired scripts program still compiles the whole scripts estate, not an emptied file list",
+);
+// The program also owns the three root configuration files `tsconfig.scripts.json`
+// names, of which one is an `.mjs` this discovery sees.
+assert.deepEqual(
+  scriptsOnDisk.filter((scriptPath) => !scriptPath.startsWith("scripts/")),
+  ["vitest.config.mjs"],
+  "the scripts program's file list is the scripts estate plus the root configuration it is defined to cover",
+);
+// Retirement is a floor for the whole program, so the per-checkpoint pins above
+// are now implied by it rather than the other way round. The pins stay because
+// they name which checkpoint closed which owner, which the floor cannot say.
+assert.equal(
+  ledger.totals.errors,
+  ledger.programs.browser.errorCount,
+  "with two of the three programs retired at zero, every remaining diagnostic belongs to the browser program",
+);
 const scriptInfrastructureDebt = Object.keys(ledger.programs.scripts.diagnostics)
   .filter((filePath) => filePath.startsWith("scripts/lib/") || filePath.startsWith("scripts/test-support/"));
 assert.deepEqual(
