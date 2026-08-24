@@ -1,6 +1,7 @@
 /* global fetch */
 
 import assert from "node:assert/strict";
+import { extractFunctionBlock } from "./test-support/source-scan.mjs";
 import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
@@ -676,32 +677,10 @@ function assertNoUnsafeStorageLeak(values) {
 function assertPreviewSourceBoundary() {
   const serviceSource = path.join(process.cwd(), "src/services/files.service.js");
   return fs.readFile(serviceSource, "utf8").then((source) => {
-    const block = functionBlock(source, "readAttachmentPreviewDescriptor");
+    const block = extractFunctionBlock(source, "readAttachmentPreviewDescriptor");
 
     assert.doesNotMatch(block, /recordFileAudit|emitFileLifecycleEvent|getFileStorageAdapter|\.read\(/, "Preview descriptor route should not read storage, audit, or emit lifecycle events");
   });
-}
-
-/** @param {string} source @param {string} name */
-function functionBlock(source, name) {
-  const start = source.indexOf(`function ${name}`);
-  assert.notEqual(start, -1, `${name} should exist`);
-  const braceStart = source.indexOf("{", start);
-  assert.notEqual(braceStart, -1, `${name} should have a function body`);
-  let depth = 0;
-
-  for (let index = braceStart; index < source.length; index += 1) {
-    if (source[index] === "{") {
-      depth += 1;
-    } else if (source[index] === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`${name} body should close`);
 }
 
 async function assertIntegrity() {

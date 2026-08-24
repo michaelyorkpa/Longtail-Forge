@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import { extractFunctionSpan } from "./test-support/source-scan.mjs";
 import os from "node:os";
 import path from "node:path";
 import { appVersion } from "../src/core/version.js";
@@ -152,7 +153,7 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /handleListEditorLinkedContextRemove/);
   assert.match(listsJs, /state\.editorStagedTargets/);
   assert.match(listsJs, /renderListEditorLinkedItems/);
-  assert.doesNotMatch(functionBlock(listsJs, "createListDialogShell"), /target_id|task_search|task_picker|Paste record ID/);
+  assert.doesNotMatch(extractFunctionSpan(listsJs, "createListDialogShell"), /target_id|task_search|task_picker|Paste record ID/);
   assert.match(listsJs, /\/api\/lists\/\$\{encodeURIComponent\(listId\)\}\/links/);
   assert.match(listsJs, /remove-link/);
   assert.match(listsJs, /Linked Records/);
@@ -342,14 +343,6 @@ function flattenNavigation(items = []) {
     item,
     ...(item.items ? flattenNavigation(item.items) : []),
   ]);
-}
-
-/** @param {string} source @param {string} functionName */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const next = source.indexOf("\nfunction ", start + 1);
-  return source.slice(start, next === -1 ? source.length : next);
 }
 
 /** @returns {Promise<{ workspace_id: string }>} */

@@ -9,7 +9,7 @@ import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 /** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const tasksModuleSource = readText("src/modules/tasks/module.js");
@@ -19,11 +19,11 @@ const tasksScript = readText("public/js/tasks.js");
 
 assert.match(tasksModuleSource, /version:\s*appVersion/, "Tasks module should report the current app version");
 
-const bulkChrome = functionBlock(tasksScript, "createTaskBulkToolbarChrome");
-const bulkControls = functionBlock(tasksScript, "taskBulkToolbarControls");
-const selectedBulkActions = functionBlock(tasksScript, "selectedBulkActions");
-const applyBulkAction = functionBlock(tasksScript, "applyBulkAction");
-const reloadTaskList = functionBlock(tasksScript, "reloadTaskList");
+const bulkChrome = extractFunctionSpan(tasksScript, "createTaskBulkToolbarChrome");
+const bulkControls = extractFunctionSpan(tasksScript, "taskBulkToolbarControls");
+const selectedBulkActions = extractFunctionSpan(tasksScript, "selectedBulkActions");
+const applyBulkAction = extractFunctionSpan(tasksScript, "applyBulkAction");
+const reloadTaskList = extractFunctionSpan(tasksScript, "reloadTaskList");
 
 assert.match(tasksScript, /bulkApplyButton\?\.addEventListener\("click", applyBulkAction\)/, "Bulk apply control should dispatch to the Tasks-owned handler");
 assert.match(bulkChrome, /view\.createBulkActionToolbar\(\{[\s\S]*body:\s*taskBulkToolbarControls\(\)/, "Framework toolbar should host the Tasks-owned bulk control body");
@@ -417,12 +417,4 @@ LIMIT 1;
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok");
-}
-
-/** @param {string} source @param {string} functionName @returns {string} */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }

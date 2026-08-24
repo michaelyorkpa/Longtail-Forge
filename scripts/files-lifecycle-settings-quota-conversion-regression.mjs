@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBlock } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-files-lifecycle-settings-quota-conversion-"));
@@ -174,7 +174,7 @@ function assertStaticContract() {
 
 /** @param {string} source @param {string} functionName @param {RegExp[]} patterns */
 function assertFunctionUsesNamedParams(source, functionName, patterns) {
-  const block = functionBlock(source, functionName);
+  const block = extractFunctionBlock(source, functionName);
 
   for (const pattern of patterns) {
     assert.match(block, pattern, `${functionName} should include ${pattern}`);
@@ -397,27 +397,4 @@ function assertNoStorageLeak(value) {
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok", "SQLite integrity check should pass");
-}
-
-/** @param {string} source @param {string} functionName */
-function functionBlock(source, functionName) {
-  const pattern = new RegExp(`(?:async\\s+)?function ${functionName}\\s*\\([^)]*\\)\\s*\\{`);
-  const match = pattern.exec(source);
-  assert.ok(match, `${functionName} should exist`);
-
-  const bodyStart = match.index + match[0].lastIndexOf("{");
-  let depth = 0;
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const character = source[index];
-    if (character === "{") {
-      depth += 1;
-    } else if (character === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(match.index, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not extract function ${functionName}`);
 }

@@ -2061,6 +2061,117 @@ assert.throws(
   /target should exist/,
   "extractFunctionSpan should refuse an arrow function rather than guess at its region",
 );
+// 0.33.33.32.28.4.4 migrated the fourteen top-level regression owners, and
+// measuring them found three terminator variants no plan had recorded: one that
+// only stops at an `async function`, one that only stops at a plain `function`,
+// and one that is brace balanced and never reaches a terminator at all. The
+// first two produced regions several times wider than the function they name -
+// 2,083 characters for a 411-character function in one case - because an
+// intervening declaration of the other kind did not end them. These pin the
+// terminator behaviour that difference turns on, and the relationship between
+// the three published regions.
+assert.equal(
+  extractFunctionSpan('async function target() {\n  return 1;\n}\nconst t = 2;\nfunction next() {}\n', "target"),
+  'async function target() {\n  return 1;\n}\nconst t = 2;',
+  "a plain function ends the span of an async one",
+);
+assert.equal(
+  extractFunctionSpan('function target() {\n  return 1;\n}\nconst t = 2;\nasync function next() {}\n', "target"),
+  'function target() {\n  return 1;\n}\nconst t = 2;',
+  "an async function ends the span of a plain one",
+);
+assert.equal(
+  extractFunctionSpan('function target() {\n  return 1;\n}\nclass Between {\n  method() {}\n}\nfunction next() {}\n', "target"),
+  'function target() {\n  return 1;\n}\nclass Between {\n  method() {}\n}',
+  "a class declaration between two functions is carried by the span rather than ending it",
+);
+assert.equal(
+  extractFunctionSpan('function target() {\n  async function inner() {}\n  return inner;\n}\nfunction next() {}\n', "target"),
+  'function target() {\n  async function inner() {}\n  return inner;\n}',
+  "a nested async function does not end a span",
+);
+// Generators. The extractors refuse to answer one, which is the safe reading -
+// but a generator does not end a span either, so a family-C owner whose subject
+// declares one would find its span running past it. Neither behaviour is
+// reachable from any owner migrated so far; both are pinned so the next child
+// meets them as assertions.
+assert.throws(
+  () => extractFunctionBlock('function* target() {\n  yield 1;\n}\nfunction next() {}\n', "target"),
+  /target should exist/,
+  "extractFunctionBlock should refuse a generator rather than guess at its region",
+);
+assert.throws(
+  () => extractFunctionSpan('function* target() {\n  yield 1;\n}\nfunction next() {}\n', "target"),
+  /target should exist/,
+  "extractFunctionSpan should refuse a generator rather than guess at its region",
+);
+assert.equal(
+  extractFunctionSpan('function target() {\n  return 1;\n}\nfunction* next() {}\n', "target"),
+  'function target() {\n  return 1;\n}\nfunction* next() {}\n',
+  "a generator does not end a span, so a span over a source declaring one reaches the end of the file",
+);
+// The three published regions nest: a body is the tail of its block, and a
+// block is the head of its span. An owner choosing between them is choosing how
+// much context to read, never a different function.
+for (const nesting of [
+  'function target(a) {\n  return a;\n}\nconst trailing = 1;\nfunction next() {}\n',
+  'async function target(a) {\n  return a;\n}\nconst trailing = 1;\nfunction next() {}\n',
+  'function target(options = {}) {\n  return `x${options}`;\n}\nclass Trailing {}\nfunction next() {}\n',
+]) {
+  const block = extractFunctionBlock(nesting, "target");
+  const body = extractFunctionBody(nesting, "target");
+  const span = extractFunctionSpan(nesting, "target");
+  assert.ok(block.endsWith(body), "a function body should be the tail of its block");
+  assert.ok(span.startsWith(block), "a function block should be the head of its span");
+  assert.ok(span.length >= block.length && block.length >= body.length, "the three regions should widen in a fixed order");
+}
+// The async prefix belongs to the declaration, not to the body, and a
+// declaration named inside a string anchors nothing. Both are relied on by
+// the owners this checkpoint migrated: several read async repository
+// functions, and several read sources that quote function names in messages.
+assert.equal(
+  extractFunctionBlock(`async function target(a) {\n  return a;\n}\nconst trailing = 1;\n`, "target"),
+  `async function target(a) {\n  return a;\n}`,
+  "extractFunctionBlock should keep the async prefix of the declaration",
+);
+assert.equal(
+  extractFunctionBody(`async function target(a) {\n  return a;\n}\nconst trailing = 1;\n`, "target"),
+  `{\n  return a;\n}`,
+  "extractFunctionBody should omit the signature of an async declaration entirely",
+);
+assert.equal(
+  extractFunctionSpan(`async function target(a) {\n  return a;\n}\nconst trailing = 1;\n`, "target"),
+  `async function target(a) {\n  return a;\n}\nconst trailing = 1;\n`,
+  "a span whose source declares no further function reaches the end of the file",
+);
+assert.equal(
+  extractFunctionBlock(`const note = "function target() {}";\nfunction target(a) {\n  return a;\n}\n`, "target"),
+  `function target(a) {\n  return a;\n}`,
+  "a declaration quoted inside a string should not anchor an extraction",
+);
+// Each region refuses an undeclared name rather than answering the file, and
+// refuses a bare call site or an arrow function rather than anchoring on one.
+for (const [label, cut] of /** @type {const} */ ([
+  ["extractFunctionBlock", extractFunctionBlock],
+  ["extractFunctionBody", extractFunctionBody],
+  ["extractFunctionSpan", extractFunctionSpan],
+])) {
+  assert.throws(
+    () => cut(`function other() {\n  return 1;\n}\n`, "target"),
+    /target should exist/,
+    `${label} should refuse a source that never declares the name`,
+  );
+  assert.throws(
+    () => cut(`target(1);\n`, "target"),
+    /target should exist/,
+    `${label} should refuse a source that only calls the name`,
+  );
+  assert.throws(
+    () => cut(`const target = () => {\n  return 1;\n};\n`, "target"),
+    /target should exist/,
+    `${label} should refuse an arrow function rather than guess at its region`,
+  );
+}
 // The scanner refuses rather than guesses. The one lexical form it cannot read
 // is a regular expression immediately after a closing paren, because that
 // position is genuinely ambiguous and every occurrence in this repository is
@@ -2079,7 +2190,8 @@ assert.throws(
 // 0.33.33.32.28.4.1 migrated the family-B contract modules onto the published
 // helpers, 0.33.33.32.28.4 migrated twelve more, and 0.33.33.32.28.4.2 the
 // thirteen Tasks contract modules, and 0.33.33.32.28.4.3 the eight Files
-// contract modules, so forty-nine owners now
+// contract modules, and 0.33.33.32.28.4.4 the fourteen top-level regression
+// owners, so sixty-three owners now
 // depend on them. Each of these owners carried its
 // own function-region extractor, and every one of them found its target by
 // building a `function <name>` needle and walking braces from there. That
@@ -2163,6 +2275,20 @@ for (const familyBOwner of [
   "scripts/regression-contracts/files/files-strict-guardrail-inventory.contract.mjs",
   "scripts/regression-contracts/files/files-upload-shell.contract.mjs",
   "scripts/regression-contracts/files/files-visual-state-control-parity.contract.mjs",
+  "scripts/database-introspection-boundary-regression.mjs",
+  "scripts/file-multipart-batch-upload-helper-regression.mjs",
+  "scripts/file-scanner-mode-resolver-regression.mjs",
+  "scripts/file-storage-provider-configuration-regression.mjs",
+  "scripts/files-lifecycle-settings-quota-conversion-regression.mjs",
+  "scripts/files-preview-availability-route-regression.mjs",
+  "scripts/files-preview-content-route-regression.mjs",
+  "scripts/lists-ui-workflow-regression.mjs",
+  "scripts/notifications-preferences-subscriptions-conversion-regression.mjs",
+  "scripts/quick-action-capture-regression.mjs",
+  "scripts/tags-repository-conversion-regression.mjs",
+  "scripts/tasks-bulk-lifecycle-toolbar-regression.mjs",
+  "scripts/tasks-bulk-nondestructive-toolbar-regression.mjs",
+  "scripts/worker-runner-regression.mjs",
 ]) {
   const source = fs.readFileSync(familyBOwner, "utf8");
   assert.ok(

@@ -8,7 +8,7 @@ import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 /** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const tasksModuleSource = readText("src/modules/tasks/module.js");
@@ -21,14 +21,14 @@ const styles = readText("public/css/longtail-forge.css");
 
 assert.match(tasksModuleSource, /version:\s*appVersion/, "Tasks module should report the current app version");
 
-const bulkControls = functionBlock(tasksScript, "taskBulkToolbarControls");
-const updateBulkControls = functionBlock(tasksScript, "updateBulkControls");
-const selectedBulkActions = functionBlock(tasksScript, "selectedBulkActions");
-const lifecycleTaskIds = functionBlock(tasksScript, "bulkLifecycleTaskIds");
-const lifecycleOptions = functionBlock(tasksScript, "updateBulkLifecycleOptions");
-const archiveConfirmation = functionBlock(tasksScript, "confirmBulkArchive");
-const applyBulkAction = functionBlock(tasksScript, "applyBulkAction");
-const reloadTaskList = functionBlock(tasksScript, "reloadTaskList");
+const bulkControls = extractFunctionSpan(tasksScript, "taskBulkToolbarControls");
+const updateBulkControls = extractFunctionSpan(tasksScript, "updateBulkControls");
+const selectedBulkActions = extractFunctionSpan(tasksScript, "selectedBulkActions");
+const lifecycleTaskIds = extractFunctionSpan(tasksScript, "bulkLifecycleTaskIds");
+const lifecycleOptions = extractFunctionSpan(tasksScript, "updateBulkLifecycleOptions");
+const archiveConfirmation = extractFunctionSpan(tasksScript, "confirmBulkArchive");
+const applyBulkAction = extractFunctionSpan(tasksScript, "applyBulkAction");
+const reloadTaskList = extractFunctionSpan(tasksScript, "reloadTaskList");
 
 assert.match(bulkControls, /data-task-bulk-lifecycle[\s\S]*data-task-bulk-lifecycle-control[\s\S]*hidden:\s*true/, "Bulk toolbar should expose a module-owned lifecycle control");
 assert.match(tasksScript, /bulkLifecycleInput\?\.addEventListener\("change", updateBulkControls\)/, "Lifecycle control changes should update bulk action state");
@@ -214,12 +214,4 @@ LIMIT 1;
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok");
-}
-
-/** @param {string} source @param {string} functionName @returns {string} */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }

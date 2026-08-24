@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 import { fixtureString } from "./test-support/session-fixtures.mjs";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBlock } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-tags-repository-conversion-"));
@@ -96,7 +96,7 @@ function assertStaticContract() {
 
 /** @param {string} functionName */
 function assertConvertedFunction(functionName) {
-  const block = functionBlock(tagsRepoSource, functionName);
+  const block = extractFunctionBlock(tagsRepoSource, functionName);
   assert.match(block, /\bdb\.(?:query|get|run)\(`/u, `${functionName} should use the provider-neutral db facade`);
   assert.match(
     block,
@@ -108,7 +108,7 @@ function assertConvertedFunction(functionName) {
 
 /** @param {string} functionName @param {readonly RegExp[]} patterns */
 function assertFunctionUsesPatterns(functionName, patterns) {
-  const block = functionBlock(tagsRepoSource, functionName);
+  const block = extractFunctionBlock(tagsRepoSource, functionName);
 
   for (const pattern of patterns) {
     assert.match(block, pattern, `${functionName} should include ${pattern}`);
@@ -307,27 +307,4 @@ async function assertTagsRepositoryRuntime({ userId, workspaceId }) {
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok", "SQLite integrity check should pass");
-}
-
-/** @param {string} source @param {string} functionName @returns {string} */
-function functionBlock(source, functionName) {
-  const pattern = new RegExp(`(?:async\\s+)?function ${functionName}\\s*\\([^)]*\\)\\s*\\{`);
-  const match = pattern.exec(source);
-  assert.ok(match, `${functionName} should exist`);
-
-  const bodyStart = match.index + match[0].lastIndexOf("{");
-  let depth = 0;
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const character = source[index];
-    if (character === "{") {
-      depth += 1;
-    } else if (character === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(match.index, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not extract function ${functionName}`);
 }

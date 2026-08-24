@@ -1,6 +1,7 @@
 /* global fetch */
 
 import assert from "node:assert/strict";
+import { extractFunctionBlock } from "./test-support/source-scan.mjs";
 import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
@@ -595,37 +596,15 @@ function assertNoUnsafeStorageLeak(values) {
 async function assertPreviewSourceBoundary() {
   const serviceSource = await fs.readFile(path.join(process.cwd(), "src/services/files.service.js"), "utf8");
   const previewServiceSource = await fs.readFile(path.join(process.cwd(), "src/services/files-preview.service.js"), "utf8");
-  const descriptorBlock = functionBlock(serviceSource, "readAttachmentPreviewDescriptor");
-  const contentBlock = functionBlock(serviceSource, "readAttachmentPreviewContent");
-  const previewContentBlock = functionBlock(previewServiceSource, "readAttachmentPreviewContent");
+  const descriptorBlock = extractFunctionBlock(serviceSource, "readAttachmentPreviewDescriptor");
+  const contentBlock = extractFunctionBlock(serviceSource, "readAttachmentPreviewContent");
+  const previewContentBlock = extractFunctionBlock(previewServiceSource, "readAttachmentPreviewContent");
 
   assert.doesNotMatch(descriptorBlock, /recordFileAudit|emitFileLifecycleEvent|getFileStorageAdapter|\.read\(/, "Preview descriptors should not read content, audit, or emit lifecycle events");
   assert.match(contentBlock, /assertStoredFileObjectExists\([\s\S]*\.read\(/, "Preview content should precheck storage metadata before reading through the Files storage adapter");
   assert.match(contentBlock, /filesPreviewService\.assertContentAvailable\([\s\S]*assertStoredFileObjectExists\([\s\S]*filesPreviewService\.readContent\(/, "Files facade should reject unavailable content before provider reads and delegate safe shaping to the preview seam");
   assert.match(previewContentBlock, /renderMarkdownToHtml/, "Markdown preview content should use the shared Markdown service");
   assert.doesNotMatch(`${contentBlock}\n${previewContentBlock}`, /MarkdownIt|marked|showdown|recordFileAudit|emitFileLifecycleEvent/, "Preview content should not add another Markdown parser or preview audit/lifecycle event in this slice");
-}
-
-/** @param {string} source @param {string} name */
-function functionBlock(source, name) {
-  const start = source.indexOf(`function ${name}`);
-  assert.notEqual(start, -1, `${name} should exist`);
-  const braceStart = source.indexOf("{", start);
-  assert.notEqual(braceStart, -1, `${name} should have a function body`);
-  let depth = 0;
-
-  for (let index = braceStart; index < source.length; index += 1) {
-    if (source[index] === "{") {
-      depth += 1;
-    } else if (source[index] === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`${name} body should close`);
 }
 
 async function assertIntegrity() {
