@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.23`, plus the corrective child `0.33.33.32.22.1`, have since archived, closing 2,845 diagnostics across 143 files and leaving 298 across 59; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.24`, plus the corrective child `0.33.33.32.22.1`, have since archived, closing 2,969 diagnostics across 153 files and leaving 174 across 49; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.24` | View descriptor, app shell, module action owners | 124 | 10 | 1,723 |
 | `.32.25` | Workbench and Time Tracking contract modules | 32 | 14 | 2,380 |
 | `.32.26` | Tasks, Notes, Lists, Tags contract modules | 55 | 21 | 1,820 |
 | `.32.27` | Remaining legacy and operational owners | 87 | 14 | 2,646 |
@@ -97,16 +96,6 @@ Requirements shared by every child:
 
 
 
-#### 0.33.33.32.24 - Type view descriptor, app shell, and module action owners
-
-**Model: High Effort - These static owners read browser source text and guard the declarative view contract.**
-
-Measured at 124 diagnostics across 10 files and 1,723 lines. No `JSON.parse`; two history-pinned owners.
-
-- [ ] Close the 124 diagnostics across `app-shell-navigation`, `view-renderer-actions`, `view-descriptor-reference`, `view-descriptor-bootstrap`, `view-shared-capabilities`, `module-file-closeout`, `view-conversion-branch-closeout`, `quick-action-opener-rollout`, `quick-action-capture`, and `module-actions`.
-- [ ] Type descriptor references, action definitions, navigation entries, shared capability records, and module action registrations with named contracts, using the shared source reader rather than per-owner file reads.
-- [ ] Preserve descriptor reference resolution, action permission interpolation, navigation ordering, quick-action registration, and module file inventory expectations exactly.
-- [ ] Change no `public/js/` file. These owners inspect browser source; the browser program is typed at `0.33.33.38` through `0.33.33.41`.
 
 #### 0.33.33.32.25 - Type Workbench and Time Tracking contract modules
 
@@ -174,6 +163,7 @@ Runs after `0.33.33.32.27`. This child has no diagnostics of its own, which is n
   - Weigh a narrower permanent form against that: match `ip:` only inside a literal that also carries a session member such as `user_id`, `username`, `workspace_id`, `home_workspace_id`, or `session_mode`; or require that any literal cast to a published session type name its fields against that type; or keep the blanket rule and add an explicit allowlist with a recorded reason per entry. A narrower rule is only worth adopting if it still fails all seven original fixtures — verify that against their pre-correction form in Git rather than assuming.
   - **The deeper defect is the double cast, not the field name.** `/** @type {SessionType} */ (/** @type {unknown} */ ({ ... }))` is what let a wrong field survive in an owner that was already closed and pinned strict-clean. Consider whether the durable guard should target that pattern — a laundering cast to a published session type — rather than one misspelled member, since the next instance of this class will almost certainly involve a different field. If that broader guard is adopted, the `ip` rule may become redundant; say so plainly rather than keeping both out of caution.
   - Whatever form is chosen, keep the verification `0.33.33.32.22.1` performed: reintroduce the defect in one owner, confirm the guard fails with a message that names the file and the problem, and restore the owner.
+  - **Verify every governance guard by making it fail, not by reading it.** `0.33.33.32.24` authored a guard whose regular expression contained a literal backspace byte, because a `\b` escape was consumed by the patch script that wrote it. The guard parsed, the regression passed, and the rule it claimed to enforce could never match anything — a dead guard reads as protection while providing none, which is worse than no guard at all. It was caught only by reintroducing the defect and observing that nothing failed. Treat "the governance regression passes" as no evidence that a new guard works, and scan `scripts/regressions/framework/full-strict-governance.regression.mjs` for control characters as part of this audit.
 - [ ] Change no production behaviour. Type annotations, contract reconciliation, and boundary narrowing are in scope; runtime behaviour, routes, fixtures, and new regression owners are not.
 
 #### 0.33.33.32.28.1 - Prove the scripts program permanently strict-zero
