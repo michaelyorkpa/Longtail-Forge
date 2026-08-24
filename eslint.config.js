@@ -20,6 +20,7 @@ const nodeGlobals = {
   Buffer: "readonly",
   console: "readonly",
   process: "readonly",
+  structuredClone: "readonly",
   setTimeout: "readonly",
   URL: "readonly",
 };

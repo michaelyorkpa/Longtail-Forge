@@ -1469,6 +1469,47 @@ assert.equal(
   true,
   "the small-office performance owner should keep typing its fixture app from the published contract rather than casting",
 );
+// 0.33.33.32.28.3.2 narrowed the response-body boundaries. Each of these
+// owners parses a response, a probe body, or a serialized log line, and each
+// must keep crossing that boundary through a shared narrowing rather than
+// reading a member straight off JSON.parse.
+for (const responseOwner of [
+  "scripts/backup-restore-drill.mjs",
+  "scripts/lib/regression-change-routing.mjs",
+  "scripts/regressions/framework/operational-security-basics.regression.mjs",
+  "scripts/regressions/framework/public-demo-account-catalog.regression.mjs",
+  "scripts/regressions/framework/support-view-session-contract.regression.mjs",
+  "scripts/regressions/framework/tls-cookie-posture.regression.mjs",
+  "scripts/regressions/framework/trusted-proxy-request-context.regression.mjs",
+  "scripts/regressions/workbench/hot-endpoint-budgets.regression.mjs",
+]) {
+  const source = fs.readFileSync(responseOwner, "utf8");
+  assert.ok(
+    ["readPayload", "requireJsonRecord", "fixtureString", "isJsonRecord"].some((narrowing) => source.includes(narrowing)),
+    `${responseOwner} parses a response body and must narrow it through a shared assertion helper`,
+  );
+}
+// Three probe clients declared their parsed body as a named shape that nothing
+// checked - a route that stopped publishing a field would have compared
+// undefined rather than failing. The body stays open and is proven per read.
+for (const probeOwner of [
+  "scripts/regressions/framework/tls-cookie-posture.regression.mjs",
+  "scripts/regressions/framework/trusted-proxy-request-context.regression.mjs",
+]) {
+  assert.ok(
+    fs.readFileSync(probeOwner, "utf8").includes("{ body: unknown,"),
+    `${probeOwner} should keep publishing its probe body as unknown rather than reclaiming a shape nothing proves`,
+  );
+}
+// The version-only change detector used JSON.parse(JSON.stringify(value)) to
+// clone two `unknown` parameters, which also silently widened them so their
+// members could be read. structuredClone keeps the clone without the widening.
+const roundTripClone = `JSON.parse(JSON.${"stringify"}(`;
+assert.equal(
+  fs.readFileSync("scripts/lib/regression-change-routing.mjs", "utf8").includes(roundTripClone),
+  false,
+  "scripts/lib/regression-change-routing.mjs must not reintroduce the round-trip clone that widened its unknown inputs",
+);
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 
 /**

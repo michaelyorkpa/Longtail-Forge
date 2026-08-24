@@ -371,24 +371,37 @@ function inspectVersionBookkeepingPaths({ baseSha, cwd, paths, untracked }) {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isJsonRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
  * @param {unknown} before
  * @param {unknown} after
  * @param {string} filePath
  * @returns {boolean}
  */
 function isApplicationVersionOnlyChange(before, after, filePath) {
-  const normalizedBefore = JSON.parse(JSON.stringify(before));
-  const normalizedAfter = JSON.parse(JSON.stringify(after));
+  if (!isJsonRecord(before) || !isJsonRecord(after)) return false;
+  const normalizedBefore = structuredClone(before);
+  const normalizedAfter = structuredClone(after);
   const beforeVersion = normalizedBefore.version;
   const afterVersion = normalizedAfter.version;
   if (!beforeVersion || !afterVersion || beforeVersion === afterVersion) return false;
   normalizedBefore.version = "<application-version>";
   normalizedAfter.version = "<application-version>";
   if (filePath === "package-lock.json") {
-    if (!normalizedBefore.packages?.[""] || !normalizedAfter.packages?.[""]) return false;
-    if (normalizedBefore.packages[""].version !== beforeVersion || normalizedAfter.packages[""].version !== afterVersion) return false;
-    normalizedBefore.packages[""].version = "<application-version>";
-    normalizedAfter.packages[""].version = "<application-version>";
+    const beforePackages = isJsonRecord(normalizedBefore.packages) ? normalizedBefore.packages : null;
+    const afterPackages = isJsonRecord(normalizedAfter.packages) ? normalizedAfter.packages : null;
+    const beforeRoot = beforePackages && isJsonRecord(beforePackages[""]) ? beforePackages[""] : null;
+    const afterRoot = afterPackages && isJsonRecord(afterPackages[""]) ? afterPackages[""] : null;
+    if (!beforeRoot || !afterRoot) return false;
+    if (beforeRoot.version !== beforeVersion || afterRoot.version !== afterVersion) return false;
+    beforeRoot.version = "<application-version>";
+    afterRoot.version = "<application-version>";
   }
   return isDeepStrictEqual(normalizedBefore, normalizedAfter);
 }

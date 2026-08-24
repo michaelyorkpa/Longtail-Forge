@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
 import { createHash, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
@@ -33,13 +34,6 @@ import {
  * @property {DrillServerProcess} child
  * @property {number} port
  * @property {() => string} output
- */
-
-/**
- * One JSON body returned by a drill readiness or app-info probe.
- * @typedef {object} DrillProbeResponse
- * @property {string} [status]
- * @property {string} [version]
  */
 
 /**
@@ -450,7 +444,7 @@ async function stopServer(active) {
 /** @param {number} port */
 async function verifyRuntime(port) {
   assert.deepEqual(await requestJson(port, "/readyz"), { status: "ready" });
-  assert.equal((await requestJson(port, "/api/app-info")).version, packageJson.version);
+  assert.equal(requireJsonRecord(await requestJson(port, "/api/app-info"), "the app-info response").version, packageJson.version);
 }
 
 /**
@@ -458,7 +452,7 @@ async function verifyRuntime(port) {
  * @param {string} pathname
  * @param {DrillServerProcess} child
  * @param {() => string} output
- * @returns {Promise<DrillProbeResponse>}
+ * @returns {Promise<unknown>}
  */
 async function waitForJson(port, pathname, child, output) {
   const deadline = Date.now() + 30000;
@@ -476,7 +470,7 @@ async function waitForJson(port, pathname, child, output) {
 /**
  * @param {number} port
  * @param {string} pathname
- * @returns {Promise<DrillProbeResponse>}
+ * @returns {Promise<unknown>} the parsed body, left open for the caller to prove
  */
 function requestJson(port, pathname) {
   return new Promise((resolve, reject) => {
@@ -487,7 +481,7 @@ function requestJson(port, pathname) {
       response.once("error", reject);
       response.once("end", () => {
         if (response.statusCode !== 200) return reject(new Error(`${pathname} returned ${response.statusCode}.`));
-        try { resolve(JSON.parse(Buffer.concat(chunks).toString("utf8"))); } catch (error) { reject(error); }
+        try { resolve(/** @type {unknown} */ (JSON.parse(Buffer.concat(chunks).toString("utf8")))); } catch (error) { reject(error); }
       });
     });
     request.once("error", reject);
