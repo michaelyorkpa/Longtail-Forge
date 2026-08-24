@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requirePackageManifest, requireScripts } from "../../test-support/package-manifest-assertions.mjs";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { createChangedRegressionPlan } from "../../lib/changed-regression-runner.mjs";
@@ -29,7 +30,7 @@ const beforePackage = { name: "longtail-forge", version: "1.0.0", scripts: { che
 assert.equal(isApplicationVersionOnlyChange(beforePackage, { ...beforePackage, version: "1.0.1" }, "package.json"), true);
 assert.equal(isApplicationVersionOnlyChange(beforePackage, { ...beforePackage, version: "1.0.1", scripts: { check: "new" } }, "package.json"), false);
 const beforeLock = { name: "longtail-forge", version: "1.0.0", lockfileVersion: 3, packages: { "": { name: "longtail-forge", version: "1.0.0" } } };
-const afterLock = JSON.parse(JSON.stringify(beforeLock));
+const afterLock = structuredClone(beforeLock);
 afterLock.version = "1.0.1";
 afterLock.packages[""].version = "1.0.1";
 assert.equal(isApplicationVersionOnlyChange(beforeLock, afterLock, "package-lock.json"), true);
@@ -67,20 +68,24 @@ for (const narrowPaths of [[], ["CHANGELOG.md"], ["src/modules/tasks/tasks.servi
   const ledgerCommands = routedSlice.commands.filter((command) => command === "npm run typecheck" || command === "npm run check:fast");
   assert.equal(ledgerCommands.length, 1, `every routing outcome must schedule the strict ledger exactly once (${narrowPaths.join(", ") || "empty"})`);
 }
-const syntheticLedgerSource = JSON.stringify({
+// The synthetic ledger is written here and read back three times. It is bound
+// as an object and cloned rather than round-tripped through JSON.parse, which
+// would answer `any` for a value this owner then mutates member by member.
+/** @type {import("../../typecheck-governance.mjs").GovernanceState} */
+const syntheticLedger = {
   schemaVersion: 1,
   checkpoint: "0.33.33.18.1",
-  programs: { scripts: { config: "tsconfig.scripts.json", files: ["scripts/synthetic-owner.mjs"], errorCount: 1, diagnostics: { "scripts/synthetic-owner.mjs": [{ code: 7006, count: 1 }] } } },
+  programs: { scripts: { config: "tsconfig.scripts.json", environment: "node", files: ["scripts/synthetic-owner.mjs"], errorCount: 1, diagnostics: { "scripts/synthetic-owner.mjs": [{ code: 7006, count: 1 }] } } },
   totals: { files: 1, errors: 1, explicitAny: 0 },
   explicitAnyByFile: {},
   expectedErrorDirectives: [],
   declarationProbe: { config: "tsconfig.declarations.json", firstPartyFiles: 0, errors: 0 },
-});
-const baselineLedgerState = JSON.parse(syntheticLedgerSource);
-const seededIncrease = JSON.parse(syntheticLedgerSource);
+};
+const baselineLedgerState = structuredClone(syntheticLedger);
+const seededIncrease = structuredClone(syntheticLedger);
 seededIncrease.programs.scripts.diagnostics["scripts/synthetic-owner.mjs"][0].count = 2;
 assert.throws(() => validateShrinkOnly(baselineLedgerState, seededIncrease), /increased 1 -> 2/, "a seeded per-file ledger regression must fail the strict gate");
-const seededNewFile = JSON.parse(syntheticLedgerSource);
+const seededNewFile = structuredClone(syntheticLedger);
 seededNewFile.programs.scripts.files.push("scripts/synthetic-new.mjs");
 seededNewFile.programs.scripts.diagnostics["scripts/synthetic-new.mjs"] = [{ code: 2322, count: 1 }];
 assert.throws(() => validateShrinkOnly(baselineLedgerState, seededNewFile), /new file has 1 strict diagnostic/, "a seeded new file with diagnostics must fail the strict gate");
@@ -126,7 +131,7 @@ const roadmapArchiveSource = ["0.33.33.1", "0.33.33.2", "0.33.33.3", "0.33.33.6"
 const workflowSource = readFileSync(".github/workflows/development-pr.yml", "utf8");
 const agentGuide = readFileSync("AGENTS.md", "utf8");
 const versioning = readFileSync("docs/versioning.md", "utf8");
-const packageSource = JSON.parse(readFileSync("package.json", "utf8"));
+const packageSource = requirePackageManifest(JSON.parse(readFileSync("package.json", "utf8")));
 const firstCheckpointMessage = checkpointMessage({
   checkpoint: "0.33.33.1",
   docs: "Docs updated: AGENTS.md, docs/versioning.md.",
@@ -404,7 +409,7 @@ assert.match(versioning, /Version-wide Internal Checkpoints/);
 assert.match(versioning, /final bookkeeping commit in the same protected pull request/);
 assert.match(versioning, /becomes authoritative only when that pull request merges/);
 assert.match(versioning, /npm run checkpoint:validate/);
-assert.equal(packageSource.scripts["checkpoint:validate"], "node scripts/release/checkpoint-commits.mjs --base-ref origin/nightly");
+assert.equal(requireScripts(packageSource)["checkpoint:validate"], "node scripts/release/checkpoint-commits.mjs --base-ref origin/nightly");
 
 const syntheticBaseSha = "a".repeat(40);
 assert.equal(resolveCheckpointBaseSha({ environment: { LTF_CHECKPOINT_BASE_SHA: syntheticBaseSha } }), syntheticBaseSha);

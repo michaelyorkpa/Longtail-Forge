@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { requireManifestString, requirePackageLock, requirePackageManifest } from "../test-support/package-manifest-assertions.mjs";
 import path from "node:path";
 
 const NOTICES_PATH = "THIRD_PARTY_NOTICES.md";
@@ -135,7 +136,7 @@ function writeThirdPartyNotices({ rootDir = process.cwd() } = {}) {
  * @param {{ rootDir?: string }} [options]
  */
 function generateThirdPartyNotices({ rootDir = process.cwd() } = {}) {
-  const lock = JSON.parse(readFileSync(path.join(rootDir, LOCK_PATH), "utf8"));
+  const lock = requirePackageLock(JSON.parse(readFileSync(path.join(rootDir, LOCK_PATH), "utf8")));
   const packageRecords = productionPackageRecords(lock, rootDir);
   const assetRecords = [lucideRecord(rootDir)];
   const records = [...packageRecords, ...assetRecords].sort(compareRecords);
@@ -216,7 +217,7 @@ function productionPackageRecords(lock, rootDir) {
       continue;
     }
     const packageDir = path.join(rootDir, ...packagePath.split("/"));
-    const packageJson = JSON.parse(readFileSync(path.join(packageDir, "package.json"), "utf8"));
+    const packageJson = requirePackageManifest(JSON.parse(readFileSync(path.join(packageDir, "package.json"), "utf8")));
     const key = `${packageJson.name}@${packageJson.version}`;
     if (byComponent.has(key)) {
       continue;
@@ -236,8 +237,8 @@ function productionPackageRecords(lock, rootDir) {
       copyright,
       license,
       licenseText,
-      name: packageJson.name,
-      version: packageJson.version,
+      name: requireManifestString(packageJson, "name", "dependency package.json"),
+      version: requireManifestString(packageJson, "version", "dependency package.json"),
     }));
   }
   return [...byComponent.values()];

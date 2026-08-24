@@ -8,17 +8,18 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requirePackageManifest, requireScripts } from "../../test-support/package-manifest-assertions.mjs";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import { parseCli } from "../../workspace-backup.mjs";
 
-const packageJson = JSON.parse(await fs.readFile("package.json", "utf8"));
+const packageJson = requirePackageManifest(JSON.parse(await fs.readFile("package.json", "utf8")));
 const packageSource = await fs.readFile("src/services/workspace-backup-package.js", "utf8");
 const serviceSource = await fs.readFile("src/services/workspace-backups.service.js", "utf8");
 const settingsSource = await fs.readFile("public/js/shared/settings-host.js", "utf8");
 
 for (const scriptName of ["workspace-backup:inspect", "workspace-backup:restore", "workspace-backup:drill"]) {
-  assert.ok(packageJson.scripts[scriptName], `${scriptName} should be independently runnable`);
+  assert.ok(requireScripts(packageJson)[scriptName], `${scriptName} should be independently runnable`);
 }
 assert.match(packageSource, /credentialsIncluded:\s*false[\s\S]*masterKeyIncluded:\s*false/);
 assert.match(packageSource, /DELETE FROM users WHERE user_id NOT IN[\s\S]*user_status = 'inactive'[\s\S]*protected_user = 'no'/);

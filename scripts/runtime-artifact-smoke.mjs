@@ -1,5 +1,7 @@
 import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
+import { requirePackageManifest, requireScripts } from "./test-support/package-manifest-assertions.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import { get as httpGet } from "node:http";
@@ -54,9 +56,9 @@ try {
   runCommand("tar", ["-xzf", artifactPath, "--strip-components=1", "-C", installDir], workspace);
   runNpm(["ci", "--omit=dev"], installDir);
 
-  const installedPackage = JSON.parse(await fs.readFile(path.join(installDir, "package.json"), "utf8"));
+  const installedPackage = requirePackageManifest(JSON.parse(await fs.readFile(path.join(installDir, "package.json"), "utf8")));
   assert.equal(installedPackage.version, artifact.version);
-  assert.equal(installedPackage.scripts.start, "node server.js");
+  assert.equal(requireScripts(installedPackage, "installed package.json").start, "node server.js");
   assert.equal(installedPackage.devDependencies, undefined);
   for (const dependencyName of ["vitest", "typescript", "eslint", "@playwright/test", "@axe-core/playwright"]) {
     await assertPathMissing(path.join(installDir, "node_modules", ...dependencyName.split("/")));
@@ -81,7 +83,7 @@ try {
   const output = collectOutput(server);
   const appInfo = await waitForJson(`http://127.0.0.1:${port}/api/app-info`, server, output);
   assert.equal(appInfo.version, artifact.version);
-  assert.match(appInfo.correspondingSourceUrl, new RegExp(`/tree/v${escapeRegExp(artifact.version)}$`));
+  assert.match(String(appInfo.correspondingSourceUrl), new RegExp(`/tree/v${escapeRegExp(artifact.version)}$`));
   const ready = await waitForJson(`http://127.0.0.1:${port}/readyz`, server, output);
   assert.deepEqual(ready, { status: "ready" });
   const terms = await requestText(`http://127.0.0.1:${port}/terms.html`);
@@ -186,7 +188,7 @@ function collectOutput(child) {
  * @param {string} url
  * @param {SmokeServerProcess} child
  * @param {() => string} output
- * @returns {Promise<Record<string, string>>}
+ * @returns {Promise<Record<string, unknown>>}
  */
 async function waitForJson(url, child, output) {
   const deadline = Date.now() + 30000;
@@ -209,7 +211,7 @@ async function waitForJson(url, child, output) {
 
 /**
  * @param {string} url
- * @returns {Promise<Record<string, string> | null>}
+ * @returns {Promise<Record<string, unknown> | null>}
  */
 function requestJson(url) {
   return new Promise((resolve, reject) => {
@@ -224,7 +226,9 @@ function requestJson(url) {
           return;
         }
         try {
-          resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+          // The served body is proven a record rather than trusted as one: the
+          // declared return used to be satisfied by `JSON.parse` answering `any`.
+          resolve(requireJsonRecord(JSON.parse(Buffer.concat(chunks).toString("utf8")), `${url} response body`));
         } catch (error) {
           reject(error);
         }

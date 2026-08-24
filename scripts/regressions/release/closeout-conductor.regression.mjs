@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requirePackageManifest, requireScripts } from "../../test-support/package-manifest-assertions.mjs";
 import { readFileSync } from "node:fs";
 import {
   CLOSEOUT_FIXES,
@@ -31,7 +32,7 @@ import {
  * @typedef {{ args: readonly string[], file: string }} ComposedSpawnInvocation
  */
 
-const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
+const packageJson = requirePackageManifest(JSON.parse(readFileSync("package.json", "utf8")));
 const commandSource = readFileSync("scripts/run-closeout.mjs", "utf8");
 const expectedScripts = [
   "version:guard",
@@ -47,7 +48,7 @@ const expectedScripts = [
 assert.deepEqual(CLOSEOUT_GATES.map((gate) => gate.script), expectedScripts);
 assert.deepEqual(CLOSEOUT_GATES.map((gate) => gate.hard), [true, true, true, true, true, true, false, false]);
 for (const script of expectedScripts) {
-  assert.ok(packageJson.scripts[script], `${script} should remain independently runnable`);
+  assert.ok(requireScripts(packageJson)[script], `${script} should remain independently runnable`);
 }
 assert.match(commandSource, /runCloseoutGates\(CLOSEOUT_GATES/);
 assert.match(commandSource, /--fix/);

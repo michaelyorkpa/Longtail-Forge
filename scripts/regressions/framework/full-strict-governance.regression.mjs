@@ -2176,6 +2176,65 @@ for (const familyBOwner of [
     `${familyBOwner} must not rebuild a local function-region extractor: ${rebuilt.join(", ")}`,
   );
 }
+// 0.33.33.32.28.3 routed the package manifest and lockfile boundaries through
+// the published narrowings. These owners prove dependency, packaging, and
+// release decisions by reading package.json and package-lock.json, and every
+// one of them used to read a member straight off a parse that answers `any`:
+// a renamed field, a manifest that failed to parse into the expected shape,
+// or a read that returned a string would all have looked identical.
+//
+// The needle is assembled rather than spelled, because a guard that writes
+// out the text it forbids matches itself.
+const parseCall = `${"JSON"}.parse(`;
+// A parse may also be published open - annotated `unknown` so every read has
+// to prove the envelope it depends on - which is how the Express contract
+// owner crosses a served response body.
+const manifestNarrowings = ["requirePackageManifest", "requirePackageLock", "requireJsonRecord", "@type {unknown}"];
+for (const manifestOwner of [
+  "scripts/better-sqlite3-install-smoke.mjs",
+  "scripts/demo-data-host.mjs",
+  "scripts/file-storage-scanner-runtime-closeout-regression.mjs",
+  "scripts/lib/package-script-runner.mjs",
+  "scripts/lib/public-demo-baseline-candidate.mjs",
+  "scripts/lib/regression-manifest.mjs",
+  "scripts/lib/third-party-notices.mjs",
+  "scripts/regression-contracts/views/markdown-renderer-service.contract.mjs",
+  "scripts/regressions/database/backup-restore-foundation.regression.mjs",
+  "scripts/regressions/database/workspace-backup-package.regression.mjs",
+  "scripts/regressions/framework/bundled-module-registry.regression.mjs",
+  "scripts/regressions/framework/express-5-http-contract.regression.mjs",
+  "scripts/regressions/release/closeout-conductor.regression.mjs",
+  "scripts/regressions/release/current-static-contracts.regression.mjs",
+  "scripts/regressions/release/dependency-baseline.regression.mjs",
+  "scripts/regressions/release/developer-verification-throughput.regression.mjs",
+  "scripts/regressions/release/playwright-dev-only-boundary.regression.mjs",
+  "scripts/regressions/release/runtime-artifact-boundary.regression.mjs",
+  "scripts/runtime-artifact-smoke.mjs",
+  "scripts/workspace-backup-drill.mjs",
+]) {
+  const source = fs.readFileSync(manifestOwner, "utf8");
+  assert.ok(
+    [
+      "requirePackageManifest",
+      "requirePackageLock",
+      "requireJsonRecord",
+      "structuredClone",
+    ].some((narrowing) => source.includes(narrowing)),
+    `${manifestOwner} crosses a manifest or co-located boundary and must narrow it rather than read a member off a parse`,
+  );
+  // Every parse in these owners has to be an argument to a narrowing. Checking
+  // the parse line rather than the whole file is what makes the rule precise:
+  // an owner may narrow one boundary and leave another open, and this catches
+  // exactly that.
+  const openParses = source
+    .split(String.fromCharCode(10))
+    .filter((line) => line.includes(parseCall) && !manifestNarrowings.some((narrowing) => line.includes(narrowing)));
+  assert.deepEqual(
+    openParses.map((line) => line.trim()),
+    [],
+    `${manifestOwner} must pass every parsed value through a published narrowing`,
+  );
+}
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 
 /**

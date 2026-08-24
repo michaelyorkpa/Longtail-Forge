@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requirePackageLock, requirePackageManifest } from "../../test-support/package-manifest-assertions.mjs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -20,8 +21,12 @@ import {
   createArtifactManifest,
 } from "../../build-runtime-artifact.mjs";
 
-const packageJson = JSON.parse(await fs.readFile("package.json", "utf8"));
-const packageLock = JSON.parse(await fs.readFile("package-lock.json", "utf8"));
+const packageJson = requireRuntimeSourceManifest(
+  requirePackageManifest(JSON.parse(await fs.readFile("package.json", "utf8"))),
+);
+const packageLock = requireRuntimeSourceLock(
+  requirePackageLock(JSON.parse(await fs.readFile("package-lock.json", "utf8"))),
+);
 const runtimeSmoke = await fs.readFile("scripts/runtime-artifact-smoke.mjs", "utf8");
 const runtimePackage = createRuntimePackage(packageJson);
 const runtimeLock = createRuntimeLock(packageLock);
@@ -129,3 +134,43 @@ try {
 }
 
 console.log("Runtime artifact boundary regression passed.");
+
+/**
+ * Prove the manifest fields the runtime package is derived from.
+ *
+ * The published `PackageManifest` declares every field optional because most
+ * owners read one or two. This owner hands the whole manifest to
+ * `createRuntimePackage`, which copies six of them into the artifact it emits,
+ * so a missing one would ship a runtime manifest with an undefined member.
+ * They are proven here rather than assumed; before this checkpoint the parse
+ * answered `any` and nothing checked them at all.
+ * @param {import("../../test-support/package-manifest-assertions.mjs").PackageManifest} manifest
+ * @returns {import("../../build-runtime-artifact.mjs").SourcePackageManifest}
+ */
+function requireRuntimeSourceManifest(manifest) {
+  for (const field of /** @type {const} */ (["name", "version", "license", "type"])) {
+    assert.equal(typeof manifest[field], "string", `package.json ${field} should be a string the runtime package can copy`);
+  }
+  for (const field of /** @type {const} */ (["engines", "dependencies"])) {
+    const value = manifest[field];
+    assert.ok(value && typeof value === "object", `package.json ${field} should be an object the runtime package can copy`);
+  }
+  return /** @type {import("../../build-runtime-artifact.mjs").SourcePackageManifest} */ (
+    /** @type {unknown} */ (manifest)
+  );
+}
+
+/**
+ * Prove the lockfile carries the `packages` map the runtime shrinkwrap rewrite
+ * walks. `createRuntimeLock` reports a missing root entry itself; this proves
+ * the map it looks the root up in is present at all.
+ * @param {import("../../test-support/package-manifest-assertions.mjs").PackageLockManifest} lock
+ * @returns {import("../../build-runtime-artifact.mjs").SourcePackageLock}
+ */
+function requireRuntimeSourceLock(lock) {
+  const packages = lock.packages;
+  assert.ok(packages && typeof packages === "object", "package-lock.json should carry a packages map");
+  return /** @type {import("../../build-runtime-artifact.mjs").SourcePackageLock} */ (
+    /** @type {unknown} */ (lock)
+  );
+}

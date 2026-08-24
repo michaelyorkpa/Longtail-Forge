@@ -8,6 +8,8 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
+import { requirePackageManifest, requireScripts } from "../../test-support/package-manifest-assertions.mjs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import fsPromises from "node:fs/promises";
@@ -61,9 +63,9 @@ check("every bundled manifest is a checked ModuleManifest declaration", () => {
     );
   }
 
-  const packageJson = JSON.parse(read("package.json"));
+  const packageJson = requirePackageManifest(JSON.parse(read("package.json")));
   assert.match(
-    packageJson.scripts["check:fast"],
+    requireScripts(packageJson)["check:fast"],
     /^npm run typecheck\s*&&/,
     "the fast gate must typecheck bundled declarations before unit and lint work",
   );
@@ -206,7 +208,7 @@ check("module entry import is side-effect free and explicit app activation resto
     console.log(JSON.stringify({ before, after }));
   `);
   assert.equal(probe.status, 0, probe.stderr || probe.stdout);
-  const result = JSON.parse(probe.stdout.trim());
+  const result = requireJsonRecord(JSON.parse(probe.stdout.trim()), "bundled module registry probe output");
   assert.deepEqual(result.before, {
     search: [],
     reports: [],
@@ -214,7 +216,10 @@ check("module entry import is side-effect free and explicit app activation resto
     taskSettings: false,
     timeSettings: false,
   });
-  assert.deepEqual(result.after.search, [
+  // The probe emits { before, after }; `after` is the half this owner reads
+  // members off, so it is proven a record rather than indexed through unknown.
+  const after = requireJsonRecord(result.after, "bundled module registry probe after-state");
+  assert.deepEqual(after.search, [
     "client-projects.clients",
     "client-projects.projects",
     "framework.help-articles",
@@ -223,11 +228,11 @@ check("module entry import is side-effect free and explicit app activation resto
     "tasks.records",
     "time-tracking.time-entries",
   ]);
-  assert.deepEqual(result.after.reports, ["time-tracking.project-time-billing"]);
-  assert.equal(result.after.reminderJob, true);
-  assert.equal(result.after.recurrenceJob, true);
-  assert.equal(result.after.taskSettings, true);
-  assert.equal(result.after.timeSettings, true);
+  assert.deepEqual(after.reports, ["time-tracking.project-time-billing"]);
+  assert.equal(after.reminderJob, true);
+  assert.equal(after.recurrenceJob, true);
+  assert.equal(after.taskSettings, true);
+  assert.equal(after.timeSettings, true);
 });
 
 check("framework app and worker bootstraps contain no Tasks-specific activation imports", () => {

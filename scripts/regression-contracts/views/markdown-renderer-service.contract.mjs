@@ -1,15 +1,16 @@
 import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
+import { requireDependencies, requirePackageManifest } from "../../test-support/package-manifest-assertions.mjs";
 import { MARKDOWN_RENDER_MODES, createMarkdownExcerpt, isSafeMarkdownUrl, markdownService, markdownToPlainText, normalizeMarkdownSource, renderMarkdownToHtml } from "../../../src/core/markdown/markdown.service.js";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under views.current-static-contracts by 0.33.33.9.
 const { readTextAsync: readText } = createProjectTextReader();
 
-const packageJson = JSON.parse(await readText("package.json"));
+const packageJson = requirePackageManifest(JSON.parse(await readText("package.json")));
 const contract = await readText("docs/markdown-platform-contract.md");
 const serviceSource = await readText("src/core/markdown/markdown.service.js");
 
-assert.equal(packageJson.dependencies["markdown-it"], "^15.0.0", "markdown-it should use the reviewed 15.0 baseline");
+assert.equal(requireDependencies(packageJson)["markdown-it"], "^15.0.0", "markdown-it should use the reviewed 15.0 baseline");
 assert.doesNotMatch(serviceSource, /from\s+["']markdown-it\//, "the service should use the supported package-root export rather than removed internal subpaths");
 
 assert.equal(typeof markdownService.renderMarkdownToHtml, "function", "service should expose safe HTML rendering");

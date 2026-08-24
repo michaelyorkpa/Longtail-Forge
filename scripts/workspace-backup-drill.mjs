@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { requirePackageManifest } from "./test-support/package-manifest-assertions.mjs";
 import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -32,7 +33,7 @@ const archivePath = path.join(tempDir, "workspace.ltfworkspace.tgz");
 const targetDatabase = path.join(tempDir, "restored", "workspace.db");
 const targetFiles = path.join(tempDir, "restored", "files");
 const secureKeyBackup = path.join(tempDir, "separate-secure-notes-key.backup");
-const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
+const packageJson = requirePackageManifest(JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8")));
 const targetWorkspaceId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const targetUserId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const targetMembershipId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
