@@ -15,6 +15,7 @@ const root = path.resolve(__dirname, "..");
 const modules = modulesService.listModules();
 let checks = 0;
 
+/** @param {string} name @param {() => void} assertion */
 function check(name, assertion) {
   assertion();
   checks += 1;
@@ -117,6 +118,7 @@ check("framework-owned surfaces respect disabled-module filtering boundaries", (
   assert.ok(filesService.includes("resolveAttachableType(session.workspace_id"), "Files service should resolve active attachable targets for workspace sessions");
 });
 
+/** @param {string} directory @param {string} extension @returns {string[]} */
 function listFiles(directory, extension) {
   const entries = fs.readdirSync(directory, { withFileTypes: true });
   return entries.flatMap((entry) => {
@@ -132,6 +134,7 @@ function listFiles(directory, extension) {
   });
 }
 
+/** @param {string} filePath @returns {string} */
 function relative(filePath) {
   return path.relative(root, filePath).replaceAll(path.sep, "/");
 }

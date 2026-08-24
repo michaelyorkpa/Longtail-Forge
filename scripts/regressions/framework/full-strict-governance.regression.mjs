@@ -1164,6 +1164,38 @@ for (const pickerSessionOwner of [
     `${pickerSessionOwner} should answer to the shared picker session contract`,
   );
 }
+for (const viewOwner of [
+  "scripts/app-shell-navigation-regression.mjs",
+  "scripts/module-actions-regression.mjs",
+  "scripts/module-file-closeout-regression.mjs",
+  "scripts/quick-action-capture-regression.mjs",
+  "scripts/quick-action-opener-rollout-regression.mjs",
+  "scripts/view-conversion-branch-closeout-regression.mjs",
+  "scripts/view-descriptor-bootstrap-regression.mjs",
+  "scripts/view-descriptor-reference-regression.mjs",
+  "scripts/view-renderer-actions-regression.mjs",
+  "scripts/view-shared-capabilities-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[viewOwner], undefined, `${viewOwner} must stay strict-clean after checkpoint 0.33.33.32.24`);
+}
+// The module-actions owner reads browser source through the shared project text
+// reader rather than nineteen private readFileSync calls.
+assert.ok(
+  fs.readFileSync("scripts/module-actions-regression.mjs", "utf8").includes("createProjectTextReader"),
+  "scripts/module-actions-regression.mjs should read browser source through the shared reader",
+);
+assert.equal(
+  fs.readFileSync("scripts/module-actions-regression.mjs", "utf8").includes("fs.readFileSync("),
+  false,
+  "scripts/module-actions-regression.mjs must not reintroduce private file reads",
+);
+// The renderer-action owner proves the fake browser context installed the API
+// it supplied, rather than reading counters back through the harness cast.
+assert.ok(
+  fs.readFileSync("scripts/view-renderer-actions-regression.mjs", "utf8")
+    .includes("should install the provided action API"),
+  "scripts/view-renderer-actions-regression.mjs should keep proving its action API install",
+);
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().

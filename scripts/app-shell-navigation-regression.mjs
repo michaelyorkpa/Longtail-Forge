@@ -4,6 +4,17 @@ import os from "node:os";
 import path from "node:path";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
+/**
+ * One app-shell navigation entry, as this owner walks it.
+ *
+ * The bootstrap contract publishes `navigation` as an open list, which
+ * `0.33.33.32.13` confirmed is deliberate: the shell carries whatever the
+ * enabled modules contribute. The shape is therefore described here, where the
+ * walk happens, and every payload this owner reads is proven to be a list of
+ * records at the point it enters.
+ * @typedef {{ href?: unknown, id?: unknown, items?: ShellNavItem[], label?: unknown, moduleId?: unknown }} ShellNavItem
+ */
+
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-app-shell-navigation-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-app-shell-navigation.db");
 process.env.SUPER_ADMIN_PASSWORD = "App-Shell-Navigation-Test-123!";
@@ -18,7 +29,7 @@ try {
   await modulesService.syncModuleRegistry(session.workspace_id);
   await disableFixtureModules(session.workspace_id, ["notes", "lists"]);
   const shell = await appShellService.bootstrap(session);
-  const navigation = shell.navigation || [];
+  const navigation = navigationItems(shell.navigation);
   const actionsMenu = navigation.find((item) => item.id === "actions");
   const topLevelLabels = navigation.map((item) => item.label);
 
@@ -50,17 +61,18 @@ try {
   const reportingMenu = (actionsMenu.items || []).find((item) => item.id === "reporting");
   assert.ok(reportingMenu, "Actions should directly contain a Reporting slide-out");
   assert.equal(reportingMenu.label, "Reporting");
-  assert.equal((reportingMenu.items || []).length, 1, "Reporting should list only catalog-eligible report entries");
-  assert.equal(reportingMenu.items[0].label, "Project Time & Billing");
-  assert.equal(reportingMenu.items[0].href, "reporting.html?report=time-tracking%3Aproject-time-billing");
-  assert.equal(reportingMenu.items[0].moduleId, "time-tracking");
+  assert.equal((submenu(reportingMenu, "Reporting") || []).length, 1, "Reporting should list only catalog-eligible report entries");
+  assert.equal(submenu(reportingMenu, "Reporting")[0].label, "Project Time & Billing");
+  assert.equal(submenu(reportingMenu, "Reporting")[0].href, "reporting.html?report=time-tracking%3Aproject-time-billing");
+  assert.equal(submenu(reportingMenu, "Reporting")[0].moduleId, "time-tracking");
 
   await disableFixtureModules(session.workspace_id, ["time-tracking"]);
   const disabledShell = await appShellService.bootstrap(session);
-  const disabledActions = disabledShell.navigation.find((item) => item.id === "actions");
-  const disabledSettings = disabledShell.navigation.find((item) => item.id === "settings");
+  const disabledNavigation = navigationItems(disabledShell.navigation);
+  const disabledActions = disabledNavigation.find((item) => item.id === "actions");
+  const disabledSettings = disabledNavigation.find((item) => item.id === "settings");
   const disabledAdmin = (disabledSettings?.items || []).find((item) => item.id === "admin-settings-group");
-  const disabledModules = disabledAdmin?.items.find((item) => item.id === "module-settings-group");
+  const disabledModules = submenu(disabledAdmin, "disabled Admin").find((item) => item.id === "module-settings-group");
   assert.equal(
     (disabledActions?.items || []).some((item) => item.label === "Time Keeping"),
     false,
@@ -77,7 +89,7 @@ try {
     "Workspace Settings must remain available as the module recovery path",
   );
   assert.equal(
-    (disabledShell.quickActions || []).some((item) => item.id === "timer"),
+    navigationItems(disabledShell.quickActions || []).some((item) => item.id === "timer"),
     false,
     "Capture must not offer Timer when Time Tracking is disabled",
   );
@@ -87,7 +99,7 @@ try {
     "Reporting navigation should hide when no catalog-eligible reports remain",
   );
   assert.equal(
-    (disabledShell.quickActions || []).some((item) => item.id === "reporting"),
+    navigationItems(disabledShell.quickActions || []).some((item) => item.id === "reporting"),
     false,
     "Reporting quick action should hide when no catalog-eligible reports remain",
   );
@@ -97,23 +109,23 @@ try {
   assert.ok(adminMenu, "Settings should expose the Admin drawer");
   assert.equal(adminMenu.label, "Admin");
   assert.deepEqual(
-    (adminMenu.items || []).map((item) => item.label),
+    (submenu(adminMenu, "Admin") || []).map((item) => item.label),
     ["Modules", "Projects", "Clients", "User Admin", "Role Assignments", "Workspace", "API Keys", "Audit Log"],
     "Settings -> Admin should keep the specified administrative order",
   );
-  const modulesMenu = adminMenu.items.find((item) => item.id === "module-settings-group");
+  const modulesMenu = submenu(adminMenu, "Admin").find((item) => item.id === "module-settings-group");
   assert.deepEqual(
     (modulesMenu?.items || []).map((item) => item.label),
     ["Calendar", "Files", "Tags", "Tasks", "Time Tracking", "Workbench"],
     "Admin Modules should keep the specified order while Developer Example is disabled",
   );
   assert.equal(
-    modulesMenu?.items.find((item) => item.label === "Calendar")?.href,
+    submenu(modulesMenu, "Modules").find((item) => item.label === "Calendar")?.href,
     "calendar-settings.html",
     "Calendar subscription administration should use its dedicated Admin Modules destination",
   );
-  assert.equal(adminMenu.items.find((item) => item.label === "Projects")?.href, "projects.html");
-  assert.equal(adminMenu.items.find((item) => item.label === "Workspace")?.href, "workspace-settings.html");
+  assert.equal(submenu(adminMenu, "Admin").find((item) => item.label === "Projects")?.href, "projects.html");
+  assert.equal(submenu(adminMenu, "Admin").find((item) => item.label === "Workspace")?.href, "workspace-settings.html");
   const adminHrefs = new Set((adminMenu?.items || []).map((item) => item.href));
   assert.ok(adminHrefs.has("clients.html"), "Clients should remain under Settings -> Admin");
   assert.ok(!(actionsMenu.items || []).some((item) => item.href === "clients.html"), "Clients should not move into Actions");
@@ -121,12 +133,13 @@ try {
   await modulesService.setModuleStatus(session.workspace_id, "time-tracking", true, { session });
   await modulesService.setModuleStatus(session.workspace_id, "developer-example", true, { session });
   const developerShell = await appShellService.bootstrap(session);
-  const developerAdmin = developerShell.navigation
-    .find((item) => item.id === "settings")?.items
-    .find((item) => item.id === "admin-settings-group");
-  const developerModules = developerAdmin?.items.find((item) => item.id === "module-settings-group");
+  const developerAdmin = submenu(
+    navigationItems(developerShell.navigation).find((item) => item.id === "settings"),
+    "Settings",
+  ).find((item) => item.id === "admin-settings-group");
+  const developerModules = submenu(developerAdmin, "Developer Admin").find((item) => item.id === "module-settings-group");
   assert.deepEqual(
-    developerModules?.items.map((item) => item.label),
+    submenu(developerModules, "Developer Modules").map((item) => item.label),
     ["Calendar", "Files", "Tags", "Tasks", "Time Tracking", "Workbench", "Developer Example"],
     "Developer Example should appear last only after it is explicitly enabled",
   );
@@ -151,6 +164,31 @@ SET status = 'disabled',
 WHERE workspace_id = ${sqlText(workspaceId)}
   AND module_id IN (${quotedModuleIds});
 `);
+}
+
+/**
+ * Prove one shell navigation payload is a list of records before it is walked.
+ * @param {unknown} value
+ * @returns {ShellNavItem[]}
+ */
+function navigationItems(value) {
+  assert.ok(Array.isArray(value), "the app shell should publish a navigation list");
+  for (const entry of value) {
+    assert.ok(entry && typeof entry === "object" && !Array.isArray(entry), "each app-shell navigation entry should be a record");
+  }
+  return /** @type {ShellNavItem[]} */ (value);
+}
+
+/**
+ * Read one menu's contributed children.
+ * @param {ShellNavItem | undefined} menu
+ * @param {string} label
+ * @returns {ShellNavItem[]}
+ */
+function submenu(menu, label) {
+  assert.ok(menu, `${label} menu should exist`);
+  assert.ok(menu.items, `${label} menu should contribute child entries`);
+  return menu.items;
 }
 
 async function readProtectedSession() {

@@ -17,6 +17,7 @@ const moduleContract = readText("docs/module-contract.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
 let checks = 0;
 
+/** @param {string} name @param {() => void} assertion */
 function check(name, assertion) {
   assertion();
   checks += 1;
@@ -88,6 +89,7 @@ check("documentation and suite registration cover the 0.33.6.12j boundary", () =
 
 console.log(`Quick Action opener rollout regression passed ${checks} checks.`);
 
+/** @param {string} source @param {string} actionId @returns {string} */
 function actionDefinitionBlock(source, actionId) {
   const start = source.indexOf(`id: "${actionId}"`);
   assert.notEqual(start, -1, `Missing quick action ${actionId}`);

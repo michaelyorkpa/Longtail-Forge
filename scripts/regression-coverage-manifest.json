@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18751,
+    "activeAssertionCount": 18764,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,8 +106,8 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19508,
-    "retiredAssertionCredit": 88,
+    "effectiveAssertionCount": 19522,
+    "retiredAssertionCredit": 89,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -1315,6 +1315,31 @@
       ]
     },
     {
+      "sourceRegression": "legacy.view.renderer.actions",
+      "retiredInVersion": "0.33.33.32.24",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion required a CHANGELOG heading for release 0.33.5.16.8 rather than a live contract. The heading records that a past release happened; it says nothing about how the renderer resolves actions today, and it cannot fail while the archived changelog entry exists.",
+      "assertionDisposition": "No behavior lost coverage. The renderer action contract is still proven in this same owner by its static source assertions over public/js/shared/view-renderer.js and by its fake-DOM probes, which render a descriptor surface and prove behavior actions dispatch with a safe context, route actions honour confirm metadata and call the shared API client, mutations refresh the surface, and a missing behavior degrades safely. Those probes are now stronger: the installed action API is proven to be the one the owner supplied rather than read back through the harness's laundering cast, the captured behavior context is proven present before its members are compared, and the confirm log is a named array rather than a `this`-bound property on the options object.",
+      "retiredEvidence": [
+        "CHANGELOG.md"
+      ],
+      "sourcePaths": [
+        "scripts/view-renderer-actions-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.view.renderer.actions",
+        "release.historical-evidence-retirement",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/view-renderer-actions-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
       "sourceRegression": "legacy.work.resume.state.conversion",
       "retiredInVersion": "0.33.33.32.9",
       "retirementType": "historical-planning-pin",
@@ -1458,11 +1483,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 34,
+      "assertionCount": 38,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy app shell navigation contract.",
-      "entryPointAssertionCount": 34,
+      "entryPointAssertionCount": 38,
       "id": "legacy.app.shell.navigation",
       "legacy": true,
       "path": "scripts/app-shell-navigation-regression.mjs",
@@ -4636,11 +4661,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 187,
+      "assertionCount": 191,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 187,
+      "entryPointAssertionCount": 191,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -8075,11 +8100,11 @@
     },
     {
       "area": "views",
-      "assertionCount": 16,
+      "assertionCount": 18,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy view descriptor bootstrap contract.",
-      "entryPointAssertionCount": 16,
+      "entryPointAssertionCount": 18,
       "id": "legacy.view.descriptor.bootstrap",
       "legacy": true,
       "path": "scripts/view-descriptor-bootstrap-regression.mjs",
@@ -8120,11 +8145,11 @@
     },
     {
       "area": "views",
-      "assertionCount": 23,
+      "assertionCount": 24,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy view renderer actions contract.",
-      "entryPointAssertionCount": 23,
+      "entryPointAssertionCount": 24,
       "id": "legacy.view.renderer.actions",
       "legacy": true,
       "path": "scripts/view-renderer-actions-regression.mjs",
@@ -8135,11 +8160,11 @@
     },
     {
       "area": "views",
-      "assertionCount": 35,
+      "assertionCount": 37,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy view shared capabilities contract.",
-      "entryPointAssertionCount": 35,
+      "entryPointAssertionCount": 37,
       "id": "legacy.view.shared.capabilities",
       "legacy": true,
       "path": "scripts/view-shared-capabilities-regression.mjs",

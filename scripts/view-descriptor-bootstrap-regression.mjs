@@ -40,17 +40,22 @@ try {
   assert.ok(discoverableSurfaces.some((surface) => surface.id === "tags.management"), "Enabled descriptor should be discoverable before permission filtering");
   assert.equal(discoverableSurfaces.some((surface) => surface.id === "developer-example.surface"), false, "Disabled module descriptors should not be discoverable");
 
+  // The app-shell bootstrap publishes its delivered view surfaces as an open
+  // list, which 0.33.33.32.13 confirmed is deliberate, so each entry is proven
+  // to be a record where this owner reads its id and layout.
   const allowedShell = await appShellService.bootstrap(protectedSession);
   assert.ok(Array.isArray(allowedShell.viewSurfaces), "App shell should include a top-level viewSurfaces array");
   assert.ok(Array.isArray(allowedShell.workspaceContext.viewSurfaces), "Workspace context should include the delivered viewSurfaces array");
   assert.deepEqual(allowedShell.workspaceContext.viewSurfaces, allowedShell.viewSurfaces, "Workspace context should use the same descriptor payload");
-  assert.ok(allowedShell.viewSurfaces.some((surface) => surface.id === "tags.management"), "Allowed protected views should deliver descriptors");
-  assert.ok(allowedShell.viewSurfaces.some((surface) => surface.id === "notes.workspace" && surface.layout === "slide-out-sidebar"), "Allowed protected views should deliver the Notes slide-out sidebar descriptor");
-  assert.equal(allowedShell.viewSurfaces.some((surface) => surface.id === "developer-example.surface"), false, "Disabled module descriptors should not leak through app shell");
+  const allowedSurfaces = allowedShell.viewSurfaces.map(deliveredSurface);
+  assert.ok(allowedSurfaces.some((surface) => surface.id === "tags.management"), "Allowed protected views should deliver descriptors");
+  assert.ok(allowedSurfaces.some((surface) => surface.id === "notes.workspace" && surface.layout === "slide-out-sidebar"), "Allowed protected views should deliver the Notes slide-out sidebar descriptor");
+  assert.equal(allowedSurfaces.some((surface) => surface.id === "developer-example.surface"), false, "Disabled module descriptors should not leak through app shell");
 
   const deniedShell = await appShellService.bootstrap(deniedSession);
-  assert.equal(deniedShell.viewSurfaces.some((surface) => surface.id === "tags.management"), false, "Permission-denied protected views should not deliver descriptors");
-  assert.equal(deniedShell.workspaceContext.viewSurfaces.some((surface) => surface.id === "tags.management"), false, "Permission-denied descriptors should not be cached in workspace context");
+  assert.ok(Array.isArray(deniedShell.workspaceContext.viewSurfaces), "Workspace context should include the delivered viewSurfaces array");
+  assert.equal(deniedShell.viewSurfaces.map(deliveredSurface).some((surface) => surface.id === "tags.management"), false, "Permission-denied protected views should not deliver descriptors");
+  assert.equal(deniedShell.workspaceContext.viewSurfaces.map(deliveredSurface).some((surface) => surface.id === "tags.management"), false, "Permission-denied descriptors should not be cached in workspace context");
 
   console.log("View descriptor bootstrap regression passed.");
 } finally {
@@ -69,6 +74,17 @@ ON CONFLICT(workspace_id) DO NOTHING;
   await ensureUser(deniedUserId, "descriptor-denied", "no");
 }
 
+/**
+ * Prove one delivered view surface is a record before its id is read.
+ * @param {unknown} surface
+ * @returns {{ id?: unknown, layout?: unknown }}
+ */
+function deliveredSurface(surface) {
+  assert.ok(surface && typeof surface === "object" && !Array.isArray(surface), "each delivered view surface should be a record");
+  return /** @type {{ id?: unknown, layout?: unknown }} */ (surface);
+}
+
+/** @param {string} userId @param {string} username @param {string} protectedUser */
 async function ensureUser(userId, username, protectedUser) {
   const existing = await querySql(`
 SELECT user_id
@@ -126,6 +142,7 @@ ON CONFLICT(user_workspace_id) DO UPDATE SET
 `);
 }
 
+/** @param {string} userId @returns {import("../src/types/http-contracts.js").WorkspaceRequestSession} */
 function sessionFor(userId) {
   return workspaceSessionFixture({
     active_workspace_id: workspaceId,
