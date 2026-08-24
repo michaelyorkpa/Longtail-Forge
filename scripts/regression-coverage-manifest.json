@@ -4615,11 +4615,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 108,
+      "assertionCount": 107,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves exact-target preflight and six-public-plus-one-private demo-host provision/reset through a backup-first, secret-safe, rollback-capable database-and-Files operation.",
-      "entryPointAssertionCount": 108,
+      "entryPointAssertionCount": 107,
       "id": "database.demo-data-host-operation",
       "legacy": false,
       "path": "scripts/regressions/database/demo-data-host-operation.regression.mjs",
@@ -5221,8 +5221,8 @@
     },
     {
       "area": "framework",
-      "assertionCount": 258,
-      "contractAssertionCount": 251,
+      "assertionCount": 257,
+      "contractAssertionCount": 250,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/framework/calendar-subscription-settings.contract.mjs",
@@ -5230,7 +5230,7 @@
         },
         {
           "path": "scripts/regression-contracts/framework/reporting-closeout.contract.mjs",
-          "assertionCount": 28
+          "assertionCount": 27
         },
         {
           "path": "scripts/regression-contracts/framework/reporting-host.contract.mjs",
@@ -5285,11 +5285,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 318,
+      "assertionCount": 329,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 318,
+      "entryPointAssertionCount": 329,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -6020,12 +6020,12 @@
     },
     {
       "area": "lists",
-      "assertionCount": 146,
-      "contractAssertionCount": 145,
+      "assertionCount": 144,
+      "contractAssertionCount": 143,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/lists/lists-declarative-readonly-surface.contract.mjs",
-          "assertionCount": 38
+          "assertionCount": 37
         },
         {
           "path": "scripts/regression-contracts/lists/lists-items-modals-descriptor.contract.mjs",
@@ -6037,7 +6037,7 @@
         },
         {
           "path": "scripts/regression-contracts/lists/lists-workflow-linked-layout.contract.mjs",
-          "assertionCount": 40
+          "assertionCount": 39
         }
       ],
       "description": "Runs source-only Lists anatomy and workflow contracts through one table-driven owner.",
@@ -6057,8 +6057,8 @@
     },
     {
       "area": "notes",
-      "assertionCount": 220,
-      "contractAssertionCount": 219,
+      "assertionCount": 219,
+      "contractAssertionCount": 218,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/notes/notes-context-terminology.contract.mjs",
@@ -6090,7 +6090,7 @@
         },
         {
           "path": "scripts/regression-contracts/notes/notes-tasks-modal-footer-visual-parity.contract.mjs",
-          "assertionCount": 22
+          "assertionCount": 21
         }
       ],
       "description": "Runs source-only Notes anatomy, context, files, and modal contracts through one table-driven owner.",
@@ -7422,8 +7422,8 @@
     },
     {
       "area": "views",
-      "assertionCount": 1005,
-      "contractAssertionCount": 991,
+      "assertionCount": 1000,
+      "contractAssertionCount": 986,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/views/accessibility.contract.mjs",
@@ -7435,7 +7435,7 @@
         },
         {
           "path": "scripts/regression-contracts/views/client-modal-footer-actions.contract.mjs",
-          "assertionCount": 34
+          "assertionCount": 33
         },
         {
           "path": "scripts/regression-contracts/views/dashboard-calendar-embed.contract.mjs",
@@ -7471,7 +7471,7 @@
         },
         {
           "path": "scripts/regression-contracts/views/mobile-app-shell-header.contract.mjs",
-          "assertionCount": 13
+          "assertionCount": 11
         },
         {
           "path": "scripts/regression-contracts/views/mobile-foundation.contract.mjs",
@@ -7515,7 +7515,7 @@
         },
         {
           "path": "scripts/regression-contracts/views/view-builder-converted-surface-guardrails.contract.mjs",
-          "assertionCount": 37
+          "assertionCount": 36
         },
         {
           "path": "scripts/regression-contracts/views/view-builder.contract.mjs",
@@ -7523,7 +7523,7 @@
         },
         {
           "path": "scripts/regression-contracts/views/view-descriptor-declarative-guardrails.contract.mjs",
-          "assertionCount": 113
+          "assertionCount": 112
         },
         {
           "path": "scripts/regression-contracts/views/view-descriptor-terminology.contract.mjs",
@@ -7710,11 +7710,11 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 33,
+      "assertionCount": 32,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves one deduplicated app-shell navigation intent holds eligible non-blocked Task Focus exits for reusable resume-note capture and hard exits use a bounded content-free session marker.",
-      "entryPointAssertionCount": 33,
+      "entryPointAssertionCount": 32,
       "id": "workbench.task-focus-exit-capture",
       "legacy": false,
       "path": "scripts/regressions/workbench/task-focus-exit-capture.regression.mjs",

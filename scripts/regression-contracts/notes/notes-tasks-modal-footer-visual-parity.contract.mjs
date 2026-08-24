@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 // Consolidated under notes.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -15,12 +15,12 @@ const notesDocs = readText("docs/notes-module.md");
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the modal footer visual parity version");
 
-const noteShell = functionBlock(notesScript, "createNoteDialogShell");
-const openEditor = functionBlock(notesScript, "openEditor");
-const copyCurrentNoteLink = functionBlock(notesScript, "copyCurrentNoteLink");
-const taskUtilityActions = functionBlock(taskDialog, "taskEditorUtilityActions");
-const taskDescriptor = functionBlock(taskDialog, "taskEditorModalDescriptor");
-const taskDecorateControls = functionBlock(taskDialog, "decorateTaskDialogControls");
+const noteShell = extractFunctionSpan(notesScript, "createNoteDialogShell");
+const openEditor = extractFunctionSpan(notesScript, "openEditor");
+const copyCurrentNoteLink = extractFunctionSpan(notesScript, "copyCurrentNoteLink");
+const taskUtilityActions = extractFunctionSpan(taskDialog, "taskEditorUtilityActions");
+const taskDescriptor = extractFunctionSpan(taskDialog, "taskEditorModalDescriptor");
+const taskDecorateControls = extractFunctionSpan(taskDialog, "decorateTaskDialogControls");
 
 assert.match(noteShell, /const cancel = view\.createActionButton\(\{[\s\S]*icon: "close"[\s\S]*iconOnly: true[\s\S]*label: "Cancel"[\s\S]*role: "secondary"/, "Notes Cancel should use the compact icon commit treatment");
 assert.match(noteShell, /const save = view\.createActionButton\(\{[\s\S]*icon: "save"[\s\S]*iconOnly: true[\s\S]*label: modal\.footerActions\?\.find[\s\S]*role: "primary"[\s\S]*type: "submit"/, "Notes Save should use the compact icon commit treatment");
@@ -46,16 +46,3 @@ assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks docs should retain the ownin
 assert.match(tasksDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Tasks docs should document footer utility visual parity");
 
 console.log("Notes and Tasks modal footer visual parity regression passed.");
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} functionName the name to locate
- */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}

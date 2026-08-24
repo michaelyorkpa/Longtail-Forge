@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { extractFunctionBlock } from "../../test-support/source-scan.mjs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import vm from "node:vm";
@@ -35,17 +36,17 @@ assert.match(navigationSource, /kind: "logout"[\s\S]*continue: performLogout/, "
 
 assert.match(workbenchSource, /installTaskFocusExitGuard\(\)/, "Workbench should register its bounded exit guard");
 assert.match(workbenchSource, /function taskFocusExitSnapshot[\s\S]*resolvedWorkbenchViewState\(\)[\s\S]*\["open", "in_progress"\][\s\S]*blocked_reason/, "loaded Open and In Progress Task Focus without blocked context should hold an exit");
-assert.doesNotMatch(extractFunctionSource(workbenchSource, "taskFocusExitSnapshot"), /currentTaskFocusTimer|timer_status/, "Task Focus exit capture must not depend on timer state");
+assert.doesNotMatch(extractFunctionBlock(workbenchSource, "taskFocusExitSnapshot"), /currentTaskFocusTimer|timer_status/, "Task Focus exit capture must not depend on timer state");
 assert.match(workbenchSource, /function offerTaskResumeNoteBeforeExit[\s\S]*await window\.LongtailForge\.taskResumeNoteCapture\?\.offer/, "interceptable exits should await the existing Tasks-owned capture before continuing");
 assert.match(workbenchSource, /kind: "workbench-change-focus"[\s\S]*continue: continueChangeFocus/, "Change Focus should preserve its exact state transition through the intent controller");
 assert.match(workbenchSource, /function navigateFromWorkbench[\s\S]*navigationIntent\.navigate/, "scripted Workbench page fallbacks should use the shared intent");
 assert.match(workbenchSource, /addEventListener\("beforeunload", writePendingTaskFocusDrift\)[\s\S]*addEventListener\("pagehide", writePendingTaskFocusDrift\)/, "refresh and hard exit should persist the bounded drift marker best-effort");
 assert.match(workbenchSource, /addEventListener\("pageshow"[\s\S]*event\.persisted[\s\S]*recoverPendingTaskFocusDrift/, "a restored back-forward-cache Workbench should consume the same bounded recovery marker");
 assert.match(workbenchSource, /JSON\.stringify\(\{\s*taskId: snapshot\.taskId,\s*timestamp: Date\.now\(\),?\s*\}\)/, "the drift marker should contain only Task ID and timestamp");
-assert.doesNotMatch(extractFunctionSource(workbenchSource, "writePendingTaskFocusDrift"), /resume_note|next_action|title|description|task:/, "the hard-exit marker must not duplicate Task content or note text");
+assert.doesNotMatch(extractFunctionBlock(workbenchSource, "writePendingTaskFocusDrift"), /resume_note|next_action|title|description|task:/, "the hard-exit marker must not duplicate Task content or note text");
 assert.match(workbenchSource, /WORKBENCH_TASK_FOCUS_DRIFT_MAX_AGE_MS = 12 \* 60 \* 60 \* 1000/, "drift recovery should be time-bounded");
 assert.match(workbenchSource, /function recoverPendingTaskFocusDrift[\s\S]*clearPendingTaskFocusDrift\(\)[\s\S]*api\.getJson[\s\S]*\["open", "in_progress"\][\s\S]*blocked_reason[\s\S]*resume_note[\s\S]*taskResumeNoteCapture\?\.offer/, "recovery should clear once, then re-check readability, non-blocked lifecycle, Blocked Reason, and current resume-note state");
-assert.doesNotMatch(extractFunctionSource(workbenchSource, "recoverPendingTaskFocusDrift"), /activeOrPausedTimers|taskTimerMatches/, "hard-exit recovery must not require a timer");
+assert.doesNotMatch(extractFunctionBlock(workbenchSource, "recoverPendingTaskFocusDrift"), /activeOrPausedTimers|taskTimerMatches/, "hard-exit recovery must not require a timer");
 assert.match(workbenchSource, /function consumeTaskFocusResumeNote[\s\S]*taskResumeNoteCapture\?\.consume/, "successful Task Focus entry should consume the prior resume note");
 assert.match(workbenchSource, /text: `Resume note: \$\{resumeNote\}`/, "Start here should label a candidate handoff with the exact Resume note prefix");
 
@@ -140,7 +141,7 @@ function createControllerHarness() {
     /** @param {string} type @param {(event: unknown) => void} listener */
     addEventListener(type, listener) { documentListeners.set(type, listener); },
   };
-  const factory = vm.runInNewContext(`(${extractFunctionSource(navigationSource, "createNavigationIntentController")})`, {
+  const factory = vm.runInNewContext(`(${extractFunctionBlock(navigationSource, "createNavigationIntentController")})`, {
     document: browserDocument,
     SESSION_LOGIN_PATH: "/login.html",
     window: browserWindow,
@@ -154,20 +155,4 @@ function createControllerHarness() {
       return navigationListener(event);
     },
   };
-}
-
-/** @param {string} source @param {string} name @returns {string} */
-function extractFunctionSource(source, name) {
-  const start = source.indexOf(`function ${name}(`) >= 0
-    ? source.indexOf(`function ${name}(`)
-    : source.indexOf(`async function ${name}(`);
-  assert.notEqual(start, -1, `Missing function ${name}`);
-  const openBrace = source.indexOf("{", start);
-  let depth = 0;
-  for (let index = openBrace; index < source.length; index += 1) {
-    if (source[index] === "{") depth += 1;
-    if (source[index] === "}") depth -= 1;
-    if (depth === 0) return source.slice(start, index + 1);
-  }
-  throw new Error(`Could not extract function ${name}`);
 }
