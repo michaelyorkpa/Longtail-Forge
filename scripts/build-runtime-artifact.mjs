@@ -309,17 +309,17 @@ function runNpmPack(stageDir, outputDir) {
     throw new Error(`npm pack failed: ${String(result.stderr || result.stdout || result.error).trim()}`);
   }
 
-  /** @type {NpmPackResult[]} */
+  /** @type {unknown} */
   let parsed;
   try {
     parsed = JSON.parse(result.stdout);
   } catch (error) {
     throw new Error(`npm pack returned invalid JSON: ${/** @type {Error} */ (error).message}`);
   }
-  if (!Array.isArray(parsed) || parsed.length !== 1 || !parsed[0]?.filename) {
+  if (!Array.isArray(parsed) || parsed.length !== 1 || typeof parsed[0]?.filename !== "string") {
     throw new Error("npm pack did not report exactly one runtime artifact.");
   }
-  return parsed[0];
+  return /** @type {NpmPackResult} */ (parsed[0]);
 }
 
 function resolveWindowsNpmCli() {

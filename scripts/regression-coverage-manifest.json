@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18739,
+    "activeAssertionCount": 18742,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19553,
+    "effectiveAssertionCount": 19556,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -5221,12 +5221,12 @@
     },
     {
       "area": "framework",
-      "assertionCount": 256,
-      "contractAssertionCount": 249,
+      "assertionCount": 258,
+      "contractAssertionCount": 251,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/framework/calendar-subscription-settings.contract.mjs",
-          "assertionCount": 69
+          "assertionCount": 71
         },
         {
           "path": "scripts/regression-contracts/framework/reporting-closeout.contract.mjs",
@@ -5285,11 +5285,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 215,
+      "assertionCount": 217,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 215,
+      "entryPointAssertionCount": 217,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -5752,8 +5752,8 @@
     },
     {
       "area": "framework",
-      "assertionCount": 67,
-      "contractAssertionCount": 66,
+      "assertionCount": 66,
+      "contractAssertionCount": 65,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/framework/http-error-development-guardrails.contract.mjs",
@@ -5765,7 +5765,7 @@
         },
         {
           "path": "scripts/regression-contracts/framework/markdown-checked-core.contract.mjs",
-          "assertionCount": 14
+          "assertionCount": 13
         },
         {
           "path": "scripts/regression-contracts/framework/password-startup-checked-core.contract.mjs",

@@ -194,6 +194,7 @@ function roleFixture(roleId, displayName, username, scopeType, scopeKey, publicV
  * @returns {RoleCredentialDocument}
  */
 function parseCredentialDocument(source, credentialBinding, usesPublicDemoProfile) {
+  /** @type {Record<string, unknown> | null} */
   let parsed;
   try {
     parsed = JSON.parse(source);
@@ -227,8 +228,8 @@ function parseCredentialDocument(source, credentialBinding, usesPublicDemoProfil
       || typeof binding !== "object"
       || Array.isArray(binding)
       || Object.keys(binding).sort().join(",") !== "publicUrl,target"
-      || binding.target !== credentialBinding.target
-      || binding.publicUrl !== credentialBinding.publicUrl
+      || /** @type {Record<string, unknown>} */ (binding).target !== credentialBinding.target
+      || /** @type {Record<string, unknown>} */ (binding).publicUrl !== credentialBinding.publicUrl
     ) {
       throw new Error("Sanitized-demo role credential binding does not match the exact named demo installation.");
     }
@@ -242,7 +243,10 @@ function parseCredentialDocument(source, credentialBinding, usesPublicDemoProfil
       : "Sanitized-demo role credential file must define exactly one password for every shipped role.");
   }
 
-  return parsed;
+  // Every member of RoleCredentialDocument is proven by the guard chain above:
+  // the record, its version, its passwords map, and its binding when one is
+  // required. Naming that result is the point of the validation.
+  return /** @type {RoleCredentialDocument} */ (/** @type {unknown} */ (parsed));
 }
 
 /**

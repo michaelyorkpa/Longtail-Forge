@@ -9,18 +9,13 @@ export const regressionMeta = Object.freeze({
 
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
-import { strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
+import { strictCleanOwnerProgram, strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
 
 const markdownPath = "src/core/markdown/markdown.service.js";
-const [markdownSource, typecheckLedgerSource] = await Promise.all([
-  fs.readFile(markdownPath, "utf8"),
-  fs.readFile("scripts/typecheck-debt-ledger.json", "utf8"),
-]);
-const typecheckLedger = JSON.parse(typecheckLedgerSource);
+const markdownSource = await fs.readFile(markdownPath, "utf8");
 
 assert.deepEqual(strictCleanOwnerState(markdownPath), { owned: true, diagnostics: 0 }, "the Markdown service must stay strict-clean in its checked program");
-assert.ok(typecheckLedger.programs["server-tests"].files.includes(markdownPath), "the Markdown service must stay in the strict server/tests program");
-assert.equal(typecheckLedger.programs["server-tests"].diagnostics[markdownPath], undefined, "the Markdown service must stay strict-clean");
+assert.equal(strictCleanOwnerProgram(markdownPath), "server-tests", "the Markdown service must stay in the strict server/tests program");
 assert.doesNotMatch(markdownSource, /@ts-(?:ignore|expect-error)|@(?:type|param|returns?)\s*\{any\}|as unknown as/, "the Markdown service must not suppress or guess across its checked boundary");
 
 for (const contract of [

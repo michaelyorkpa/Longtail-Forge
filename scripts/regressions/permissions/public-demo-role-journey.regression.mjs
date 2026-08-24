@@ -9,6 +9,19 @@ export const regressionMeta = Object.freeze({
 
 import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
+
+/**
+ * The result envelope the journey script prints. Only what this owner asserts
+ * on is named; the script writes it, so the shape is exact.
+ * @typedef {{
+ *   checks: number,
+ *   credentialsPrinted: boolean,
+ *   ok: boolean,
+ *   publicDemo: boolean,
+ *   rolesVerified: string[],
+ * }} JourneyResult
+ */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -70,7 +83,11 @@ try {
     assert.doesNotMatch(result.stderr, new RegExp(escapeRegExp(password)));
   }
 
-  const output = JSON.parse(result.stdout.slice(result.stdout.lastIndexOf("\n{") + 1));
+  // The journey script's structured stdout. It is sliced out of a mixed
+  // stream, so it crosses the boundary through the shared record narrowing
+  // before the result envelope is read.
+  /** @type {JourneyResult} */
+  const output = requireJsonRecord(JSON.parse(result.stdout.slice(result.stdout.lastIndexOf("\n{") + 1)), "the journey result envelope");
   const publicVisitors = SANITIZED_DEMO_ROLE_FIXTURES.filter((fixture) => fixture.publicVisitor);
   assert.equal(output.ok, true);
   assert.equal(output.publicDemo, true);

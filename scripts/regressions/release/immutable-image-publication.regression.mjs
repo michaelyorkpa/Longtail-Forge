@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requirePackageManifest } from "../../test-support/package-manifest-assertions.mjs";
 import fs from "node:fs/promises";
 import {
   PROVENANCE_PREDICATES,
@@ -131,7 +132,7 @@ assert.doesNotMatch(configScript, /demo-development|"nightly", "ssh-compose-dige
 assert.match(configScript, /COMPOSE_DEPLOY_HELPER/);
 assert.match(configScript, /COMPOSE_DEPLOY_INBOX/);
 assert.match(compose, /image: \$\{LONGTAIL_IMAGE:-longtail-forge:local\}/);
-assert.equal(JSON.parse(packageSource).scripts["image:publish"], "node scripts/release/published-container-image.mjs");
+assert.equal(requirePackageManifest(JSON.parse(packageSource)).scripts?.["image:publish"], "node scripts/release/published-container-image.mjs");
 
 const digest = `sha256:${"a".repeat(64)}`;
 const platformDigest = `sha256:${"b".repeat(64)}`;

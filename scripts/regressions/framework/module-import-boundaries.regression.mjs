@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
@@ -72,7 +73,9 @@ for (const moduleName of moduleNames) {
   }
 }
 
-const baseline = JSON.parse(readFileSync(BASELINE_PATH, "utf8"));
+/** @typedef {{ deepImports: { file: string, specifier: string }[] }} DeepImportBaseline */
+/** @type {DeepImportBaseline} */
+const baseline = requireJsonRecord(JSON.parse(readFileSync(BASELINE_PATH, "utf8")), BASELINE_PATH);
 const baselineKeys = new Set(baseline.deepImports.map((/** @type {{ file: string, specifier: string }} */ entry) => `${entry.file} -> ${entry.specifier}`));
 const foundKeys = new Set(findings.map((entry) => `${entry.file} -> ${entry.specifier}`));
 

@@ -1555,6 +1555,58 @@ assert.equal(
   null,
   "the strict-ledger probe should answer null for a path no program owns",
 );
+// 0.33.33.32.28.3.3 narrowed the in-test synthetic and computed sources: a
+// staging script's stdout, a fixture the owner wrote moments earlier, a
+// git-show of a tracked manifest, a JSON-bearing column, a checked-in
+// baseline. Each owner must keep crossing its boundary through a shared
+// narrowing, a published probe, or a declared `unknown` the local guards then
+// prove - never by reading a member straight off JSON.parse.
+for (const syntheticOwner of [
+  "scripts/build-runtime-artifact.mjs",
+  "scripts/lib/demo-data-operation.mjs",
+  "scripts/lib/development-data-safety.mjs",
+  "scripts/lib/docs-change-routing.mjs",
+  "scripts/lib/sanitized-demo-role-fixtures.mjs",
+  "scripts/regression-contracts/framework/calendar-subscription-settings.contract.mjs",
+  "scripts/regression-contracts/framework/identifier-authority.contract.mjs",
+  "scripts/regression-contracts/framework/markdown-checked-core.contract.mjs",
+  "scripts/regression-contracts/framework/password-startup-checked-core.contract.mjs",
+  "scripts/regressions/framework/module-import-boundaries.regression.mjs",
+  "scripts/regressions/framework/public-legal-surfaces.regression.mjs",
+  "scripts/regressions/framework/support-view-request-enforcement.regression.mjs",
+  "scripts/regressions/permissions/public-demo-role-journey.regression.mjs",
+  "scripts/regressions/permissions/sanitized-demo-role-journey.regression.mjs",
+  "scripts/regressions/release/immutable-image-publication.regression.mjs",
+  "scripts/regressions/release/maintenance-release-rehearsal.regression.mjs",
+  "scripts/regressions/release/preview-deployment-boundary.regression.mjs",
+  "scripts/release/checkpoint-commits.mjs",
+  "scripts/release/install-playwright-browser.mjs",
+]) {
+  const source = fs.readFileSync(syntheticOwner, "utf8");
+  assert.ok(
+    [
+      "requireJsonRecord",
+      "requirePackageManifest",
+      "requirePackageLock",
+      "strictCleanOwnerProgram",
+      "strictCleanOwnerConfig",
+      "@type {unknown}",
+    ].some((narrowing) => source.includes(narrowing)),
+    `${syntheticOwner} parses a synthetic or computed source and must narrow it rather than read a member off JSON.parse`,
+  );
+}
+// Three owners re-asked by hand what the shared strict-ledger probe already
+// answers. The probe answers all three questions now, so nothing needs to
+// reach past it into the generated ledger.
+const rawLedgerRead = `programs[${"\""}server-tests${"\""}]`;
+const ledgerGovernanceOwner = "scripts/regressions/framework/full-strict-governance.regression.mjs";
+for (const ledgerOwner of discoveredScriptPaths().filter((path) => path !== ledgerGovernanceOwner)) {
+  assert.equal(
+    fs.readFileSync(ledgerOwner, "utf8").includes(rawLedgerRead),
+    false,
+    `${ledgerOwner} must read the strict ledger through the shared probe rather than indexing its programs directly`,
+  );
+}
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 
 /**

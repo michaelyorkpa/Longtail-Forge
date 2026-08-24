@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireJsonRecord } from "../test-support/json-record-assertions.mjs";
 import Database from "better-sqlite3";
 import { createOpaqueId } from "../../src/core/identifiers.js";
 import { parseRuntimeEnvText } from "../../src/runtime-env.js";
@@ -954,12 +955,12 @@ async function seedCandidate({
   }
   const jsonStart = String(result.stdout || "").indexOf("{");
   if (jsonStart < 0) throw new Error("Fictional demo-data staging returned no verification summary.");
-  const parsed = JSON.parse(result.stdout.slice(jsonStart));
+  const parsed = requireJsonRecord(JSON.parse(result.stdout.slice(jsonStart)), "the demo-data staging summary");
   if (!parsed.ok || parsed.profile !== DEMO_PROFILE || parsed.anchorDate !== anchorDate
-    || parsed.workbench?.roleFixtureLoginCount !== SANITIZED_DEMO_ROLE_FIXTURES.length) {
+    || requireJsonRecord(parsed.workbench, "the staging summary workbench envelope").roleFixtureLoginCount !== SANITIZED_DEMO_ROLE_FIXTURES.length) {
     throw new Error("Fictional demo-data staging returned an unexpected contract.");
   }
-  return parsed;
+  return /** @type {DemoSeedResult} */ (/** @type {unknown} */ (parsed));
 }
 
 /**
@@ -1106,9 +1107,10 @@ function verifyDemoRoleFixtureRows(database) {
   const manifestRow = /** @type {DemoSeedManifestRow | undefined} */ (database.prepare(
     "SELECT scenario_manifest_json FROM development_data_seed_runs LIMIT 1",
   ).get());
+  /** @type {Record<string, unknown>} */
   let manifest;
   try {
-    manifest = JSON.parse(manifestRow?.scenario_manifest_json || "{}");
+    manifest = requireJsonRecord(JSON.parse(manifestRow?.scenario_manifest_json || "{}"), "the seeded scenario manifest column");
   } catch {
     throw new Error("Candidate demo role fixture manifest is invalid.");
   }

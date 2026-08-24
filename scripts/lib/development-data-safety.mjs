@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { requireJsonRecord } from "../test-support/json-record-assertions.mjs";
 
 export const DEVELOPMENT_PROFILE = "development";
 export const DEMO_PROFILE = "sanitized-demo";
@@ -121,11 +122,11 @@ export async function assertSeedDirectoryEmpty(target) {
  */
 export async function readSeedMarker(target) {
   const markerFile = path.join(target.dataDir, ".longtail-development-data.json");
-  const parsed = JSON.parse(await fs.readFile(markerFile, "utf8"));
+  const parsed = requireJsonRecord(JSON.parse(await fs.readFile(markerFile, "utf8")), markerFile);
   if (parsed.profile !== target.profile || parsed.marker !== target.marker) {
     throw new Error("Seed marker does not match the requested profile; refusing reset.");
   }
-  if (path.resolve(parsed.database) !== target.database || path.resolve(parsed.filesRoot) !== target.filesRoot) {
+  if (path.resolve(String(parsed.database)) !== target.database || path.resolve(String(parsed.filesRoot)) !== target.filesRoot) {
     throw new Error("Seed marker paths do not match the requested target; refusing reset.");
   }
   return { markerFile, parsed };

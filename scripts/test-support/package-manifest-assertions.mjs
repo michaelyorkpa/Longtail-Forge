@@ -17,6 +17,7 @@ import assert from "node:assert/strict";
 /**
  * The package.json fields regression owners assert on.
  * @typedef {object} PackageManifest
+ * @property {Record<string, boolean>} [allowScripts]
  * @property {Record<string, string>} [dependencies]
  * @property {Record<string, string>} [devDependencies]
  * @property {Record<string, string>} [scripts]

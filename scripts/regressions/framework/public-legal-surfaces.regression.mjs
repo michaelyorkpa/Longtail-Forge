@@ -8,6 +8,8 @@ export const regressionMeta = Object.freeze({
 });
 
 import { escapeRegExp } from "../../test-support/source-scan.mjs";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
+import { fixtureString } from "../../test-support/session-fixtures.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import http from "node:http";
@@ -53,9 +55,11 @@ try {
   assert.equal(protectedHelp.statusCode, 401, "authenticated surfaces must remain protected");
   assert.equal(login.statusCode, 200);
 
-  const runtimeIdentity = JSON.parse(appInfo.body);
+  const runtimeIdentity = requireJsonRecord(JSON.parse(appInfo.body), "the app-info runtime identity");
   assert.equal(appInfo.statusCode, 200);
-  assert.match(runtimeIdentity.correspondingSourceUrl, new RegExp(`/tree/v${escapeRegExp(runtimeIdentity.canonicalVersion)}$`));
+  const canonicalVersion = fixtureString(runtimeIdentity.canonicalVersion, "the app-info canonical version");
+  const correspondingSourceUrl = fixtureString(runtimeIdentity.correspondingSourceUrl, "the app-info corresponding-source URL");
+  assert.match(correspondingSourceUrl, new RegExp(`/tree/v${escapeRegExp(canonicalVersion)}$`));
 } finally {
   await /** @type {Promise<void>} */ (new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
   await fs.rm(fixtureRoot, { recursive: true, force: true });

@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requirePackageManifest } from "../../test-support/package-manifest-assertions.mjs";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
@@ -30,7 +31,7 @@ const paths = {
 const content = Object.fromEntries(
   Object.entries(paths).map(([key, value]) => [key, readFileSync(value, "utf8")]),
 );
-const packageJson = JSON.parse(content.package);
+const packageJson = requirePackageManifest(JSON.parse(content.package));
 
 assert.deepEqual(packageJson.allowScripts, {
   "better-sqlite3@13.0.3": true,
