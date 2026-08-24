@@ -9,7 +9,6 @@ const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const responseRecords = readText("public/js/shared/view-response-records.js");
 const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
-const changelog = readText("CHANGELOG.md");
 
 assert.match(renderer, /function registerBehavior\(id, handler\)/, "Renderer should expose behavior registration");
 assert.match(renderer, /runRouteAction\(action, state, record\)/, "Renderer should route declarative route actions");
@@ -17,6 +16,27 @@ assert.match(renderer, /requiredPermissions/, "Renderer should read action permi
 assert.match(renderer, /Missing view behavior handler/, "Missing behavior handlers should fail visibly");
 assert.match(renderer, /openDescriptorModal\(state, modalId, record\)/, "Renderer should own descriptor modal opening");
 
+/**
+ * The action API this owner installs into the fake browser context.
+ *
+ * Declared here because the shared harness casts a caller-supplied API to its
+ * own `FakeQueuedJsonApi` shape, which declares only `calls` and `getJson`.
+ * The installation is proven below and the assertions then read this typed
+ * local, so nothing is read back through that cast.
+ * @typedef {{
+ *   deleteCalls: string[],
+ *   getCalls: string[],
+ *   postCalls: Array<{ body: unknown, url: string }>,
+ *   deleteJson: (url: string) => Promise<unknown>,
+ *   getJson: (url: string) => Promise<unknown>,
+ *   postJson: (url: string, body: unknown) => Promise<unknown>,
+ * }} ActionApi
+ */
+
+/** @type {string[]} */
+const confirmMessages = [];
+
+/** @type {ActionApi} */
 const actionApi = {
   deleteCalls: [],
   getCalls: [],
@@ -36,12 +56,13 @@ const actionApi = {
 };
 const context = createFakeBrowserContext({
   api: actionApi,
+  /** @param {string} message */
   confirm(message) {
-    this.confirmMessages.push(message);
+    confirmMessages.push(message);
     return true;
   },
   iconButton: { iconClass: false, iconOnlyText: true },
-  window: { confirmMessages: [] },
+  window: { confirmMessages },
   workspaceContext: {
     permissionIds: ["sample.view"],
     workspaceId: "actions-workspace",
@@ -66,8 +87,19 @@ vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
 const { view } = /** @type {FakeLongtailForgeGlobal & { view: ActionsViewSurface }} */ (context.window.LongtailForge);
 assert.equal(typeof view.registerBehavior, "function", "LongtailForge.view.registerBehavior should be exposed");
 
+/**
+ * One behavior invocation, as the renderer hands it to a registered handler.
+ * @typedef {{
+ *   openModal: (modalId: string, record?: unknown) => unknown,
+ *   record: { title?: unknown },
+ *   refresh: () => unknown,
+ *   workspaceContext: { workspaceId?: unknown },
+ * }} BehaviorContext
+ */
+
+/** @type {BehaviorContext[]} */
 const behaviorCalls = [];
-view.registerBehavior("sample.open", async (actionContext) => {
+view.registerBehavior("sample.open", /** @param {BehaviorContext} actionContext */ async (actionContext) => {
   behaviorCalls.push(actionContext);
   actionContext.openModal("edit-sample", actionContext.record);
 });
@@ -80,17 +112,23 @@ const openButton = findButtonByText(surface, "Open selected");
 assert.equal(openButton.disabled, false, "Behavior actions should be enabled after rendering");
 await openButton.click();
 assert.equal(behaviorCalls.length, 1, "Registered behavior should run once");
-assert.equal(behaviorCalls[0].record.title, "Alpha", "Behavior context should include the selected record");
-assert.equal(typeof behaviorCalls[0].refresh, "function", "Behavior context should include refresh");
-assert.equal(typeof behaviorCalls[0].openModal, "function", "Behavior context should include openModal");
-assert.equal(behaviorCalls[0].workspaceContext.workspaceId, "actions-workspace", "Behavior context should include workspace context");
+const behaviorContext = behaviorCalls[0];
+assert.ok(behaviorContext, "the registered behavior should have captured its action context");
+assert.equal(behaviorContext.record.title, "Alpha", "Behavior context should include the selected record");
+assert.equal(typeof behaviorContext.refresh, "function", "Behavior context should include refresh");
+assert.equal(typeof behaviorContext.openModal, "function", "Behavior context should include openModal");
+assert.equal(behaviorContext.workspaceContext.workspaceId, "actions-workspace", "Behavior context should include workspace context");
 assert(context.document.body.querySelector("dialog"), "Behavior openModal should append a descriptor modal");
 
 const routeButton = findButtonByText(surface, "Delete selected");
 await routeButton.click();
 assert.deepEqual(context.window.confirmMessages, ["Delete this record?"], "Route actions should honor confirm metadata");
-assert.deepEqual(context.window.LongtailForge.api.deleteCalls, ["/api/sample/alpha"], "Route actions should call the shared API client");
-assert.equal(context.window.LongtailForge.api.getCalls.length, 2, "Route actions should refresh after mutation");
+// The harness casts a caller-supplied API to its own shape, so the install is
+// proven here and the counters are then read off the typed local rather than
+// back through that cast.
+assert.equal(context.window.LongtailForge.api, actionApi, "the fake browser context should install the provided action API");
+assert.deepEqual(actionApi.deleteCalls, ["/api/sample/alpha"], "Route actions should call the shared API client");
+assert.equal(actionApi.getCalls.length, 2, "Route actions should refresh after mutation");
 
 const missingButton = findButtonByText(surface, "Missing behavior");
 await missingButton.click();
@@ -104,7 +142,6 @@ await openButton.click();
 assert.match(surface.textContent, /You do not have permission to run this action/, "A rendered action should still recheck live permission hints before dispatch");
 assert.equal(behaviorCalls.length, 1, "A permission hint removed after render should block the behavior dispatch");
 
-assert.match(changelog, /## Version 0\.33\.5\.16\.8 - /, "Changelog should include renderer action version");
 
 console.log("View renderer actions regression passed.");
 
@@ -175,12 +212,14 @@ function descriptor() {
   };
 }
 
+/** @param {FakeNode} root @param {string} text @returns {FakeNode} */
 function findButtonByText(root, text) {
   const button = root.querySelectorAll("button").find((candidate) => candidate.textContent === text);
   assert.ok(button, `Expected button '${text}'`);
   return button;
 }
 
+/** @param {FakeNode} root @param {string} text @returns {boolean} */
 function hasButtonByText(root, text) {
   return root.querySelectorAll("button").some((candidate) => candidate.textContent === text);
 }

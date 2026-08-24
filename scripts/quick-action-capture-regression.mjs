@@ -17,6 +17,7 @@ const moduleContract = readText("docs/module-contract.md");
 const surfaceContract = readText("docs/ui-surface-contract.md");
 let checks = 0;
 
+/** @param {string} name @param {() => void} assertion */
 function check(name, assertion) {
   assertion();
   checks += 1;
@@ -137,6 +138,7 @@ check("regression suite includes QAC coverage", () => {
 
 console.log(`Quick Action Capture regression passed ${checks} checks.`);
 
+/** @param {string} source @param {string} functionName @returns {string} */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `Missing function ${functionName}`);

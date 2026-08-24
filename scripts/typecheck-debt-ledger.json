@@ -3004,22 +3004,8 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 298,
+      "errorCount": 174,
       "diagnostics": {
-        "scripts/app-shell-navigation-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 11
-          },
-          {
-            "code": 2339,
-            "count": 12
-          },
-          {
-            "code": 7006,
-            "count": 23
-          }
-        ],
         "scripts/audit-extensibility-regression.mjs": [
           {
             "code": 18047,
@@ -3058,42 +3044,10 @@
             "count": 2
           }
         ],
-        "scripts/module-actions-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/module-file-closeout-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 5
-          },
-          {
-            "code": 7023,
-            "count": 1
-          },
-          {
-            "code": 7024,
-            "count": 1
-          }
-        ],
         "scripts/performance-regression.mjs": [
           {
             "code": 7006,
             "count": 1
-          }
-        ],
-        "scripts/quick-action-capture-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "scripts/quick-action-opener-rollout-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 4
           }
         ],
         "scripts/regression-clean-clone-contract.mjs": [
@@ -3425,79 +3379,13 @@
             "code": 7006,
             "count": 6
           }
-        ],
-        "scripts/view-conversion-branch-closeout-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
-        "scripts/view-descriptor-bootstrap-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 6
-          },
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
-        "scripts/view-descriptor-reference-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 2353,
-            "count": 10
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/view-renderer-actions-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 2345,
-            "count": 3
-          },
-          {
-            "code": 7005,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 12
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
-        "scripts/view-shared-capabilities-regression.mjs": [
-          {
-            "code": 18047,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 3
-          }
         ]
       }
     }
   },
   "totals": {
     "files": 1046,
-    "errors": 11432,
+    "errors": 11308,
     "explicitAny": 3
   },
   "explicitAnyByFile": {

@@ -117,10 +117,12 @@ assert.match(clientsProjectsInventory, /Admin\/Settings, Reporting, Dashboard, W
 
 console.log("View conversion branch closeout regression passed.");
 
+/** @param {string} prefix @returns {RegExp} */
 function strictSurfaceRegex(prefix) {
   return new RegExp(`${escapeRegExp(prefix)}[\\s\\S]*${strictSurfaceIdsInCloseoutOrder.map(escapeRegExp).join("[\\s\\S]*")}`);
 }
 
+/** @param {string} path @param {RegExp} hostPattern */
 function assertMinimalHost(path, hostPattern) {
   const html = readText(path);
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));
@@ -128,6 +130,7 @@ function assertMinimalHost(path, hostPattern) {
   assert.doesNotMatch(body, /<(section|form|table|dialog|details|button|h1|h2|ul|ol)\b/i, `${path} should not ship framework-owned protected view anatomy`);
 }
 
+/** @param {string} path @param {readonly RegExp[]} patterns */
 function assertHostScripts(path, patterns) {
   const html = readText(path);
   let cursor = 0;

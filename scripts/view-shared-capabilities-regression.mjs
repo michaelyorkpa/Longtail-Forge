@@ -78,14 +78,46 @@ vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
  * @typedef {{ registerBehavior: (id: string, handler: Function) => void, renderSurface: (descriptor: object, host: FakeNode) => CapabilitySurface }} CapabilityViewSurface
  */
 const view = /** @type {CapabilityViewSurface} */ (context.window.LongtailForge.view);
-let mountedWith = null;
-view.registerBehavior("caps.mount", (ctx) => {
-  mountedWith = ctx;
-  ctx.container.appendChild(context.document.createElement("p")).textContent = "REGION_MOUNTED";
+
+/**
+ * Append a paragraph to a mounted region and set its text.
+ *
+ * `appendChild` answers `false` when the fake DOM rejects the append, so the
+ * node is proven before its text is written; otherwise a rejected append would
+ * silently write nothing and the region assertion would fail without saying why.
+ * @param {FakeNode} container
+ * @param {string} text
+ * @param {import("./test-support/fake-dom.mjs").FakeDocument} [document]
+ */
+function appendParagraph(container, text, document = context.document) {
+  const paragraph = container.appendChild(document.createElement("p"));
+  assert.ok(paragraph, "the mounted region should accept an appended paragraph");
+  paragraph.textContent = text;
+}
+
+/**
+ * One capability behavior invocation, as the renderer hands it to a handler.
+ * @typedef {{
+ *   container: FakeNode,
+ *   control?: FakeNode,
+ *   mountSearchOptions?: Function,
+ *   refresh?: Function,
+ *   setOptions?: Function,
+ * }} CapabilityContext
+ */
+
+// Captured on a record rather than two `let` bindings: a binding assigned only
+// inside a callback is narrowed to its initializer by control-flow analysis, so
+// proving it present afterwards collapses the type to `never`. This is the
+// pattern 0.33.33.32.14 recorded for the same situation.
+/** @type {{ mount: CapabilityContext | null, options: CapabilityContext | null }} */
+const captured = { mount: null, options: null };
+view.registerBehavior("caps.mount", /** @param {CapabilityContext} ctx */ (ctx) => {
+  captured.mount = ctx;
+  appendParagraph(ctx.container, "REGION_MOUNTED");
 });
-let optionMount = null;
-view.registerBehavior("caps.statusOptions", (ctx) => {
-  optionMount = ctx;
+view.registerBehavior("caps.statusOptions", /** @param {CapabilityContext} ctx */ (ctx) => {
+  captured.options = ctx;
   return [
     { value: "open", label: "Open" },
     { value: "closed", label: "Closed" },
@@ -100,6 +132,9 @@ await Promise.resolve();
 // Capability 1: filter -> refetch query params (default + dynamic).
 assert.equal(context.window.LongtailForge.api.calls[0], "/api/caps?status=open", "Filter defaults should be applied to the dataSource query");
 const statusSelect = surface.querySelector("[data-view-input=\"status\"]");
+// The option-source behavior must have run for any of these to mean anything.
+const optionMount = captured.options;
+assert.ok(optionMount, "the option-source behavior should have received a mount context");
 assert.equal(optionMount.control, statusSelect, "Option-source behaviors should receive the select control");
 assert.equal(typeof optionMount.setOptions, "function", "Option-source behaviors should receive a shared setOptions helper");
 assert.equal(typeof optionMount.mountSearchOptions, "function", "Option-source behaviors should receive a shared search-options helper");
@@ -109,7 +144,7 @@ await surface.refresh();
 assert.ok(context.window.LongtailForge.api.calls.includes("/api/caps?status=closed"), "Changing a filter should refetch with new query params");
 
 // Capability 2: mount slot/region filled by a registered behavior.
-assert.ok(mountedWith && typeof mountedWith.refresh === "function", "Mount behavior should receive a safe context with refresh");
+assert.ok(captured.mount && typeof captured.mount.refresh === "function", "Mount behavior should receive a safe context with refresh");
 assert.match(surface.textContent, /REGION_MOUNTED/, "Registered mount behavior should fill its region container");
 
 // Capability 2b: display-only hierarchy metadata + chip-list table display hooks.
@@ -132,8 +167,8 @@ vm.runInNewContext(surfaceDescriptor, regionOnlyContext, { filename: "view-surfa
 vm.runInNewContext(builder, regionOnlyContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, regionOnlyContext, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, regionOnlyContext, { filename: "view-renderer.js" });
-/** @type {CapabilityViewSurface} */ (regionOnlyContext.window.LongtailForge.view).registerBehavior("caps.regionOnly", (ctx) => {
-  ctx.container.appendChild(regionOnlyContext.document.createElement("p")).textContent = "REGION_ONLY_MOUNT";
+/** @type {CapabilityViewSurface} */ (regionOnlyContext.window.LongtailForge.view).registerBehavior("caps.regionOnly", /** @param {CapabilityContext} ctx */ (ctx) => {
+  appendParagraph(ctx.container, "REGION_ONLY_MOUNT", regionOnlyContext.document);
 });
 const regionOnlyHost = regionOnlyContext.document.createElement("main");
 const regionOnlySurface = /** @type {CapabilityViewSurface} */ (regionOnlyContext.window.LongtailForge.view).renderSurface({

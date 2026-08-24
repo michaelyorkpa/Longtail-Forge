@@ -1,27 +1,29 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
+import { createProjectTextReader } from "./test-support/source-scan.mjs";
+const { readText } = createProjectTextReader();
 
-const moduleActionsSource = fs.readFileSync("public/js/shared/module-actions.js", "utf8");
-const workbenchView = fs.readFileSync("views/protected/workbench.html", "utf8");
-const taskView = fs.readFileSync("views/protected/tasks.html", "utf8");
-const timeEntriesView = fs.readFileSync("views/protected/time-entries.html", "utf8");
-const projectsView = fs.readFileSync("views/protected/projects.html", "utf8");
-const clientsView = fs.readFileSync("views/protected/clients.html", "utf8");
-const notesView = fs.readFileSync("views/protected/notes.html", "utf8");
-const listsView = fs.readFileSync("views/protected/lists.html", "utf8");
-const filesView = fs.readFileSync("views/protected/files.html", "utf8");
-const workbenchScript = fs.readFileSync("public/js/workbench.js", "utf8");
-const tasksScript = fs.readFileSync("public/js/tasks.js", "utf8");
-const taskDialogScript = fs.readFileSync("public/js/task-dialog.js", "utf8");
-const timeEntryDialogScript = fs.readFileSync("public/js/time-entry-dialog.js", "utf8");
-const timeTrackingTimerDialogScript = fs.readFileSync("public/js/time-tracking-timer-dialog.js", "utf8");
-const timeEntriesScript = fs.readFileSync("public/js/time-entries.js", "utf8");
-const clientsProjectsScript = fs.readFileSync("public/js/clients-projects.js", "utf8");
-const notesScript = fs.readFileSync("public/js/notes.js", "utf8");
-const listsScript = fs.readFileSync("public/js/lists.js", "utf8");
-const filesScript = fs.readFileSync("public/js/files.js", "utf8");
+const moduleActionsSource = readText("public/js/shared/module-actions.js");
+const workbenchView = readText("views/protected/workbench.html");
+const taskView = readText("views/protected/tasks.html");
+const timeEntriesView = readText("views/protected/time-entries.html");
+const projectsView = readText("views/protected/projects.html");
+const clientsView = readText("views/protected/clients.html");
+const notesView = readText("views/protected/notes.html");
+const listsView = readText("views/protected/lists.html");
+const filesView = readText("views/protected/files.html");
+const workbenchScript = readText("public/js/workbench.js");
+const tasksScript = readText("public/js/tasks.js");
+const taskDialogScript = readText("public/js/task-dialog.js");
+const timeEntryDialogScript = readText("public/js/time-entry-dialog.js");
+const timeTrackingTimerDialogScript = readText("public/js/time-tracking-timer-dialog.js");
+const timeEntriesScript = readText("public/js/time-entries.js");
+const clientsProjectsScript = readText("public/js/clients-projects.js");
+const notesScript = readText("public/js/notes.js");
+const listsScript = readText("public/js/lists.js");
+const filesScript = readText("public/js/files.js");
 let checks = 0;
 
+/** @param {string} name @param {() => void} assertion */
 function check(name, assertion) {
   assertion();
   checks += 1;
