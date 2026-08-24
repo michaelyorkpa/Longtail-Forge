@@ -1756,45 +1756,187 @@ assert.throws(
   /target should exist/,
   "extractFunctionBody should refuse an arrow function rather than guess at its region",
 );
-// Two limitations, pinned as they behave rather than claimed correct. Both
-// predate this checkpoint and neither changed with it: every one of the 176
-// migrated extractions was proved to return exactly what that owner's own
-// helper returned, so no migrated assertion reads a different region than it
-// read before.
+// 0.33.33.32.28.4 closed the two defects 0.33.33.32.28.4.1 pinned, and the
+// pins were load-bearing: both failed the moment the scanner changed, which is
+// how the fix was confirmed to be the fix. Both extractors now locate the
+// declaration in masked source, so declaration-shaped text inside a comment or
+// a string cannot be chosen, and both walk masked braces, so a brace inside a
+// comment, a string, a template literal, or a regular expression cannot end a
+// region early.
 //
-// First: both extractors anchor on the declaration text wherever it appears,
-// including inside a comment, so a commented mention ahead of the real
-// declaration widens the block to span both. Widening can only make a negative
-// assertion fail louder, but it can let a positive assertion match text that
-// lives in the comment.
+// Comment anchoring: a decoy in a line comment, a block comment, and a JSDoc
+// block, each ahead of the real declaration. Before the fix the first threw,
+// the second returned the commented-out fake, and the third returned prose.
 assert.equal(
-  extractFunctionBlock('// function target(x) is described here\nfunction target(a) {\n  return a;\n}\n', "target"),
-  'function target(x) is described here\nfunction target(a) {\n  return a;\n}',
-  "extractFunctionBlock currently anchors on a commented mention and widens the block",
+  extractFunctionBlock('// function target() {\nfunction target(a) {\n  return a;\n}\n', "target"),
+  'function target(a) {\n  return a;\n}',
+  "extractFunctionBlock should ignore a declaration decoy in a line comment",
 );
 assert.equal(
-  extractFunctionBody('// function target(x) is described here\nfunction target(a) {\n  return a;\n}\n', "target"),
+  extractFunctionBody('// function target() {\nfunction target(a) {\n  return a;\n}\n', "target"),
   '{\n  return a;\n}',
-  "extractFunctionBody skips the commented parameter list and still cuts the real body",
+  "extractFunctionBody should ignore a declaration decoy in a line comment",
 );
-// Second: string and template literals are stepped over, but a regular
-// expression literal is not, so an unbalanced brace inside a character class
-// truncates the region. A truncated region is the dangerous direction for
-// `assert.doesNotMatch` - it can pass because the text it forbids fell outside
-// the cut - so `0.33.33.32.28.4` should narrow this before it migrates fifteen
-// more owners onto extractFunctionBlock.
 assert.equal(
-  extractFunctionBlock('function target() {\n  return /[}]/.test("x");\n}\n', "target"),
-  'function target() {\n  return /[}',
-  "extractFunctionBlock currently truncates on a brace inside a regular expression literal",
+  extractFunctionBlock('/*\nfunction target() {\n}\n*/\nfunction target(a) {\n  return a;\n}\n', "target"),
+  'function target(a) {\n  return a;\n}',
+  "extractFunctionBlock should ignore a complete declaration commented out in a block comment",
 );
+assert.equal(
+  extractFunctionBody('/*\nfunction target() {\n}\n*/\nfunction target(a) {\n  return a;\n}\n', "target"),
+  '{\n  return a;\n}',
+  "extractFunctionBody should ignore a complete declaration commented out in a block comment",
+);
+assert.equal(
+  extractFunctionBlock('/**\n * function target() { described here }\n */\nfunction target(a) {\n  return a;\n}\n', "target"),
+  'function target(a) {\n  return a;\n}',
+  "extractFunctionBlock should ignore a declaration named in a JSDoc block",
+);
+assert.equal(
+  extractFunctionBody('/**\n * function target() { described here }\n */\nfunction target(a) {\n  return a;\n}\n', "target"),
+  '{\n  return a;\n}',
+  "extractFunctionBody should ignore a declaration named in a JSDoc block",
+);
+// Comments inside the body must not move brace depth. Before the fix both of
+// these truncated at the brace in the comment - the dangerous direction.
+assert.equal(
+  extractFunctionBlock('function target(a) {\n  // closing brace } in a comment\n  return a;\n}\n', "target"),
+  'function target(a) {\n  // closing brace } in a comment\n  return a;\n}',
+  "extractFunctionBlock should not close on a brace inside a line comment in the body",
+);
+assert.equal(
+  extractFunctionBody('function target(a) {\n  // closing brace } in a comment\n  return a;\n}\n', "target"),
+  '{\n  // closing brace } in a comment\n  return a;\n}',
+  "extractFunctionBody should not close on a brace inside a line comment in the body",
+);
+assert.equal(
+  extractFunctionBlock('function target(a) {\n  /* } */\n  return a;\n}\n', "target"),
+  'function target(a) {\n  /* } */\n  return a;\n}',
+  "extractFunctionBlock should not close on a brace inside a block comment in the body",
+);
+assert.equal(
+  extractFunctionBody('function target(a) {\n  /* } */\n  return a;\n}\n', "target"),
+  '{\n  /* } */\n  return a;\n}',
+  "extractFunctionBody should not close on a brace inside a block comment in the body",
+);
+assert.equal(
+  extractFunctionBody('function target(a) {\n  /* { */\n  return a;\n}\n', "target"),
+  '{\n  /* { */\n  return a;\n}',
+  "extractFunctionBody should not open a level on a brace inside a block comment in the body",
+);
+// Regular-expression literals. Before the fix the first truncated, the second
+// threw, and the sixth truncated at the slash inside its character class.
 assert.equal(
   extractFunctionBody('function target() {\n  return /[}]/.test("x");\n}\n', "target"),
-  '{\n  return /[}',
-  "extractFunctionBody currently truncates on a brace inside a regular expression literal",
+  '{\n  return /[}]/.test("x");\n}',
+  "extractFunctionBody should not close on a brace inside a regular-expression character class",
 );
-// 0.33.33.32.28.4.1 migrated the family-B contract modules onto the
-// published source-slicing helpers. Each of these sixteen owners carried its
+assert.equal(
+  extractFunctionBody('function target() {\n  return /[{]/.test("x");\n}\n', "target"),
+  '{\n  return /[{]/.test("x");\n}',
+  "extractFunctionBody should not open a level on a brace inside a regular-expression character class",
+);
+assert.equal(
+  extractFunctionBody('function target() {\n  return /[{}]/.test("x");\n}\n', "target"),
+  '{\n  return /[{}]/.test("x");\n}',
+  "extractFunctionBody should read a character class holding both braces",
+);
+assert.equal(
+  extractFunctionBody('function target() {\n  return /\\{foo\\}/.test("x");\n}\n', "target"),
+  '{\n  return /\\{foo\\}/.test("x");\n}',
+  "extractFunctionBody should read escaped braces in a regular-expression body",
+);
+assert.equal(
+  extractFunctionBody('function target() {\n  return /(?:a|{b})/.test("x");\n}\n', "target"),
+  '{\n  return /(?:a|{b})/.test("x");\n}',
+  "extractFunctionBody should read a brace inside a regular-expression group",
+);
+assert.equal(
+  extractFunctionBody('function target() {\n  return /a\\/b[/}]c/.test("x");\n}\n', "target"),
+  '{\n  return /a\\/b[/}]c/.test("x");\n}',
+  "extractFunctionBody should not end a regular expression at an escaped slash or one inside a character class",
+);
+assert.equal(
+  extractFunctionBlock('function target() {\n  return /a\\/b[/}]c/.test("x");\n}\n', "target"),
+  'function target() {\n  return /a\\/b[/}]c/.test("x");\n}',
+  "extractFunctionBlock should not end a regular expression at an escaped slash or one inside a character class",
+);
+// Division must stay division. These two are the controls that stop the regex
+// reading from being bought at the price of ordinary arithmetic; the repository
+// has 49 slashes after a closing paren and every one of them divides.
+assert.equal(
+  extractFunctionBody('function target(a, b) {\n  const half = (a + b) / 2;\n  const third = half / 3;\n  return { half, third };\n}\n', "target"),
+  '{\n  const half = (a + b) / 2;\n  const third = half / 3;\n  return { half, third };\n}',
+  "extractFunctionBody should read a slash after a closing paren as division",
+);
+assert.equal(
+  extractFunctionBody('function target() {\n  return "a / b / c }";\n}\n', "target"),
+  '{\n  return "a / b / c }";\n}',
+  "extractFunctionBody should not read slashes inside a string as a regular expression",
+);
+// A template substitution is code, and its own braces are tracked, so an
+// object literal inside `${...}` does not close the substitution early.
+assert.equal(
+  extractFunctionBody('function target(a) {\n  return `x${JSON.stringify({ a })}y`;\n}\n', "target"),
+  '{\n  return `x${JSON.stringify({ a })}y`;\n}',
+  "extractFunctionBody should track brace depth inside a template substitution",
+);
+// The scanner decides what is code by walking the source, so the shapes that
+// can fool a simpler reader are worth pinning. Every one of these appears in
+// the browser and repository sources these owners read.
+assert.equal(
+  extractFunctionBody('function target() {\n  return "http://example.com/}";\n}\n', "target"),
+  '{\n  return "http://example.com/}";\n}',
+  "extractFunctionBody should not read the double slash inside a URL string as a comment",
+);
+assert.equal(
+  extractFunctionBlock('function target() {\n  return "http://example.com/}";\n}\n', "target"),
+  'function target() {\n  return "http://example.com/}";\n}',
+  "extractFunctionBlock should not read the double slash inside a URL string as a comment",
+);
+assert.equal(
+  extractFunctionBody('function target(c) {\n  return `a${`b${c}`}d`;\n}\n', "target"),
+  '{\n  return `a${`b${c}`}d`;\n}',
+  "extractFunctionBody should read a template literal nested inside a substitution",
+);
+assert.equal(
+  extractFunctionBody('function target(s) {\n  return /["\']}/.test(s);\n}\n', "target"),
+  '{\n  return /["\']}/.test(s);\n}',
+  "extractFunctionBody should not open a string on a quote inside a regular expression",
+);
+assert.equal(
+  extractFunctionBody("function target() {\n  return 'it\\'s }';\n}\n", "target"),
+  "{\n  return 'it\\'s }';\n}",
+  "extractFunctionBody should not close a string on an escaped quote",
+);
+assert.equal(
+  extractFunctionBody('function target() {\n  return "*/ }";\n}\n', "target"),
+  '{\n  return "*/ }";\n}',
+  "extractFunctionBody should not read a comment terminator inside a string",
+);
+assert.equal(
+  extractFunctionBody('function target(s) {\n  return /{a}/.test(s);\n}\n', "target"),
+  '{\n  return /{a}/.test(s);\n}',
+  "extractFunctionBody should read a regular expression opening a statement after return",
+);
+// The scanner refuses rather than guesses. The one lexical form it cannot read
+// is a regular expression immediately after a closing paren, because that
+// position is genuinely ambiguous and every occurrence in this repository is
+// division. When such a literal carries an unbalanced brace the masked source
+// stops balancing, and the source is refused instead of being cut wrong.
+assert.throws(
+  () => extractFunctionBody('function target(ok) {\n  if (ok) /}/.test("x");\n  return ok;\n}\n', "target"),
+  /Source could not be scanned/,
+  "the scanner should refuse a source whose masked braces do not balance rather than return a truncated region",
+);
+assert.throws(
+  () => extractFunctionBlock('function target(ok) {\n  if (ok) /{/.test("x");\n  return ok;\n}\n', "target"),
+  /Source could not be scanned/,
+  "the scanner should refuse an unbalanced masked source from extractFunctionBlock as well",
+);
+// 0.33.33.32.28.4.1 migrated the family-B contract modules onto the published
+// helpers and 0.33.33.32.28.4 migrated twelve more owners, so twenty-eight now
+// depend on them. Each of these owners carried its
 // own function-region extractor, and every one of them found its target by
 // building a `function <name>` needle and walking braces from there. That
 // construction is what made the Tags record workflow read a call site instead
@@ -1822,6 +1964,18 @@ for (const familyBOwner of [
   "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
   "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs",
   "scripts/regressions/workbench/direct-task-completion.regression.mjs",
+  "scripts/async-recurrence-response-closeout-regression.mjs",
+  "scripts/clients-projects-bulk-toolbar-regression.mjs",
+  "scripts/clients-projects-related-regions-regression.mjs",
+  "scripts/database-boolean-time-seam-regression.mjs",
+  "scripts/database-case-insensitive-seam-regression.mjs",
+  "scripts/database-transaction-helper-regression.mjs",
+  "scripts/files-browse-attachment-reads-conversion-regression.mjs",
+  "scripts/files-context-targets-conversion-regression.mjs",
+  "scripts/notifications-inbox-lifecycle-conversion-regression.mjs",
+  "scripts/regressions/framework/session-auth-warning.regression.mjs",
+  "scripts/search-shell-regression.mjs",
+  "scripts/separate-worker-end-to-end-regression.mjs",
 ]) {
   const source = fs.readFileSync(familyBOwner, "utf8");
   assert.ok(

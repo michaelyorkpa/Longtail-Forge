@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBody } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const clientsHtml = readText("views/protected/clients.html");
@@ -27,28 +27,28 @@ assert.match(clientProjectsModule, /id:\s*"client-projects\.projects"[\s\S]*sele
 assert.match(clientsProjectsScript, /registerBehavior\("client-projects\.clients\.bulk", mountClientBulkToolbar\)/, "Clients bulk region should mount through a registered module-owned behavior");
 assert.match(clientsProjectsScript, /registerBehavior\("client-projects\.projects\.bulk", mountProjectBulkToolbar\)/, "Projects bulk region should mount through a registered module-owned behavior");
 assert.match(
-  readFunctionBody(clientsProjectsScript, "createClientBulkToolbar"),
+  extractFunctionBody(clientsProjectsScript, "createClientBulkToolbar"),
   /createBulkActionToolbar\(\{[\s\S]*label:\s*"Bulk Changes"[\s\S]*selectedCount:\s*getSelectedClientIds\(\)\.length[\s\S]*body:\s*createClientBulkControls\(\)/,
   "Client bulk chrome should use the shared bulk toolbar shell with module-owned controls",
 );
 assert.match(
-  readFunctionBody(clientsProjectsScript, "createProjectBulkToolbar"),
+  extractFunctionBody(clientsProjectsScript, "createProjectBulkToolbar"),
   /createBulkActionToolbar\(\{[\s\S]*label:\s*"Bulk Changes"[\s\S]*selectedCount:\s*getSelectedProjectIds\(\)\.length[\s\S]*body:\s*controls/,
   "Project bulk chrome should use the shared bulk toolbar shell with module-owned controls",
 );
 assert.doesNotMatch(clientsProjectsScript, /function createClientInlineBulkControls/, "Client inline bulk compatibility should not reintroduce legacy toolbar chrome");
 assert.doesNotMatch(clientsProjectsScript, /function createProjectInlineBulkControls/, "Project inline bulk compatibility should not reintroduce legacy toolbar chrome");
-assert.match(readFunctionBody(clientsProjectsScript, "getSelectedClientIds"), /data-view-row-select-type="client"/, "Clients bulk selected IDs should include descriptor table selections");
-assert.match(readFunctionBody(clientsProjectsScript, "getSelectedProjectIds"), /data-view-row-select-type="project"/, "Projects bulk selected IDs should include descriptor table selections");
-assert.match(readFunctionBody(clientsProjectsScript, "syncClientProjectsBulkToolbar"), /bulkToolbar\.open = true[\s\S]*data-view-bulk-selection-count[\s\S]*select\.disabled = selectedCount === 0/, "Bulk toolbar state should auto-open on selection, update selected count, and enable controls");
-assert.match(readFunctionBody(clientsProjectsScript, "createProjectBulkControls"), /createBulkClientSelect\(\)[\s\S]*shouldChangeClient:\s*true/, "Project bulk controls should keep module-owned Client reassignment semantics");
-assert.match(readFunctionBody(clientsProjectsScript, "createBulkClientSelect"), /if \(!clientsEnabledForWorkspace\(\)\) \{[\s\S]*return null/, "Project Client reassignment should stay hidden outside Business workspaces");
-assert.match(readFunctionBody(clientsProjectsScript, "applyBulkProjectUpdate"), /canChangeClient = clientsEnabledForWorkspace\(\) && shouldChangeClient[\s\S]*client_id:\s*canChangeClient \? nextClientId : project\.client_id/, "Project bulk payloads should not submit Client IDs outside Business workspaces");
-assert.match(readFunctionBody(clientsProjectsScript, "applyBulkProjectUpdate"), /\/api\/projects\/\$\{encodeURIComponent\(project\.id\)\}/, "Project bulk updates should keep existing granular project routes");
-assert.doesNotMatch(readFunctionBody(clientsProjectsScript, "applyBulkProjectUpdate"), /\/api\/projects\/bulk|\/api\/client-projects\/bulk/, "Project bulk updates should not invent a bulk route in this slice");
-assert.match(readFunctionBody(clientsProjectsScript, "applyBulkClientUpdate"), /\/api\/clients\/\$\{encodeURIComponent\(client\.id\)\}/, "Client bulk updates should keep existing granular client routes");
-assert.match(readFunctionBody(clientsProjectsScript, "formatBulkResultMessage"), /could not be updated/, "Bulk updates should keep partial-failure messaging in the module adapter");
-assert.match(readFunctionBody(clientsProjectsScript, "refreshClientProjectsAfterBulkUpdate"), /refreshClientProjectData\(\)[\s\S]*refreshActiveClientProjectsReadSurface\(\)/, "Descriptor bulk saves should refresh both module data and active descriptor surfaces");
+assert.match(extractFunctionBody(clientsProjectsScript, "getSelectedClientIds"), /data-view-row-select-type="client"/, "Clients bulk selected IDs should include descriptor table selections");
+assert.match(extractFunctionBody(clientsProjectsScript, "getSelectedProjectIds"), /data-view-row-select-type="project"/, "Projects bulk selected IDs should include descriptor table selections");
+assert.match(extractFunctionBody(clientsProjectsScript, "syncClientProjectsBulkToolbar"), /bulkToolbar\.open = true[\s\S]*data-view-bulk-selection-count[\s\S]*select\.disabled = selectedCount === 0/, "Bulk toolbar state should auto-open on selection, update selected count, and enable controls");
+assert.match(extractFunctionBody(clientsProjectsScript, "createProjectBulkControls"), /createBulkClientSelect\(\)[\s\S]*shouldChangeClient:\s*true/, "Project bulk controls should keep module-owned Client reassignment semantics");
+assert.match(extractFunctionBody(clientsProjectsScript, "createBulkClientSelect"), /if \(!clientsEnabledForWorkspace\(\)\) \{[\s\S]*return null/, "Project Client reassignment should stay hidden outside Business workspaces");
+assert.match(extractFunctionBody(clientsProjectsScript, "applyBulkProjectUpdate"), /canChangeClient = clientsEnabledForWorkspace\(\) && shouldChangeClient[\s\S]*client_id:\s*canChangeClient \? nextClientId : project\.client_id/, "Project bulk payloads should not submit Client IDs outside Business workspaces");
+assert.match(extractFunctionBody(clientsProjectsScript, "applyBulkProjectUpdate"), /\/api\/projects\/\$\{encodeURIComponent\(project\.id\)\}/, "Project bulk updates should keep existing granular project routes");
+assert.doesNotMatch(extractFunctionBody(clientsProjectsScript, "applyBulkProjectUpdate"), /\/api\/projects\/bulk|\/api\/client-projects\/bulk/, "Project bulk updates should not invent a bulk route in this slice");
+assert.match(extractFunctionBody(clientsProjectsScript, "applyBulkClientUpdate"), /\/api\/clients\/\$\{encodeURIComponent\(client\.id\)\}/, "Client bulk updates should keep existing granular client routes");
+assert.match(extractFunctionBody(clientsProjectsScript, "formatBulkResultMessage"), /could not be updated/, "Bulk updates should keep partial-failure messaging in the module adapter");
+assert.match(extractFunctionBody(clientsProjectsScript, "refreshClientProjectsAfterBulkUpdate"), /refreshClientProjectData\(\)[\s\S]*refreshActiveClientProjectsReadSurface\(\)/, "Descriptor bulk saves should refresh both module data and active descriptor surfaces");
 
 assert.match(css, /\.client-projects-bulk-region\s*\{[\s\S]*background:\s*transparent/, "Bulk descriptor region should stay visually neutral around the shared toolbar");
 assert.match(css, /\.view-data-table \.view-row-select\s*\{[\s\S]*width:\s*16px[\s\S]*height:\s*16px/, "Shared table selection checkboxes should have stable dimensions");
@@ -57,50 +57,3 @@ assert.match(projectsHtml, /css\/longtail-forge\.css[\s\S]*view-renderer\.js[\s\
 assert.match(workbenchScript, /src: "js\/clients-projects\.js"/, "Workbench should lazy-load the updated Clients/Projects adapter for module-triggered actions");
 
 console.log("Clients/Projects bulk toolbar regression passed.");
-
-/** @param {string} source @param {string} functionName @returns {string} */
-function readFunctionBody(source, functionName) {
-  const markers = [`function ${functionName}(`, `async function ${functionName}(`];
-  const start = markers
-    .map((marker) => source.indexOf(marker))
-    .filter((index) => index >= 0)
-    .sort((left, right) => left - right)[0] ?? -1;
-  assert.notEqual(start, -1, `${functionName} function was not found`);
-
-  const signatureStart = source.indexOf("(", start);
-  assert.notEqual(signatureStart, -1, `${functionName} function signature was not found`);
-
-  let signatureDepth = 0;
-  let signatureEnd = -1;
-  for (let index = signatureStart; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "(") {
-      signatureDepth += 1;
-    } else if (char === ")") {
-      signatureDepth -= 1;
-      if (signatureDepth === 0) {
-        signatureEnd = index;
-        break;
-      }
-    }
-  }
-  assert.notEqual(signatureEnd, -1, `${functionName} function signature did not close`);
-
-  const bodyStart = source.indexOf("{", signatureEnd);
-  assert.notEqual(bodyStart, -1, `${functionName} function body was not found`);
-
-  let depth = 0;
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(bodyStart, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`${functionName} function body did not close`);
-}

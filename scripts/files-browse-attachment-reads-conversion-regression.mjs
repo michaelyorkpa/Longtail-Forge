@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBlock } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 
@@ -87,18 +87,18 @@ function assertStaticContract() {
   ]);
 
   const convertedBlocks = [
-    functionBlock(filesRepositorySource, "buildAttachmentReadQuery"),
-    functionBlock(filesRepositorySource, "readAttachmentRows"),
-    functionBlock(filesRepositorySource, "readFile"),
-    functionBlock(filesRepositorySource, "readAttachmentById"),
-    functionBlock(filesRepositorySource, "readActiveAttachmentsForFile"),
-    functionBlock(filesRepositorySource, "attachmentOrderByClause"),
+    extractFunctionBlock(filesRepositorySource, "buildAttachmentReadQuery"),
+    extractFunctionBlock(filesRepositorySource, "readAttachmentRows"),
+    extractFunctionBlock(filesRepositorySource, "readFile"),
+    extractFunctionBlock(filesRepositorySource, "readAttachmentById"),
+    extractFunctionBlock(filesRepositorySource, "readActiveAttachmentsForFile"),
+    extractFunctionBlock(filesRepositorySource, "attachmentOrderByClause"),
   ].join("\n");
 
   assert.doesNotMatch(convertedBlocks, /\bsqlText\b|\bsqlInteger\b|\bsqlNullableText\b|\bsqlNullableInteger\b|\bquerySql\b|\brunSql\b/, "converted Files browse/read blocks should not use literal helpers or compatibility query wrappers");
   assert.doesNotMatch(convertedBlocks, /LOWER\(files\.|COLLATE NOCASE/, "converted Files browse/read blocks should route case-insensitive SQL through dialect seams");
-  assert.match(functionBlock(filesRepositorySource, "attachmentOrderByClause"), /orderByNoCase\("COALESCE\(files\.display_name, files\.original_filename, ''\)", "ASC"\)/, "filename ordering should use the comparison seam");
-  assert.match(functionBlock(filesRepositorySource, "attachmentOrderByClause"), /orderByNoCase\("files\.status", "ASC"\)/, "status ordering should use the comparison seam");
+  assert.match(extractFunctionBlock(filesRepositorySource, "attachmentOrderByClause"), /orderByNoCase\("COALESCE\(files\.display_name, files\.original_filename, ''\)", "ASC"\)/, "filename ordering should use the comparison seam");
+  assert.match(extractFunctionBlock(filesRepositorySource, "attachmentOrderByClause"), /orderByNoCase\("files\.status", "ASC"\)/, "status ordering should use the comparison seam");
 
   assert.match(auditDocs, /## Baseline-driven workflow[\s\S]*npm run audit:params:check[\s\S]*Do not update the baseline in unrelated feature work/, "audit docs should record the current baseline-driven parameter-binding ratchet");
   assert.match(auditDocs, /\| services\/files\.service \| Converted \| 0 \| 0 \| 32 \| 33 \|/, "audit inventory should record the fully converted Files service state");
@@ -106,7 +106,7 @@ function assertStaticContract() {
 
 /** @param {string} source @param {string} functionName @param {RegExp[]} patterns */
 function assertFunctionUsesNamedParams(source, functionName, patterns) {
-  const block = functionBlock(source, functionName);
+  const block = extractFunctionBlock(source, functionName);
 
   for (const pattern of patterns) {
     assert.match(block, pattern, `${functionName} should include ${pattern}`);
@@ -299,42 +299,4 @@ async function streamToString(stream) {
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok");
-}
-
-/** @param {string} source @param {string} functionName */
-function functionBlock(source, functionName) {
-  const asyncStart = source.indexOf(`async function ${functionName}`);
-  const syncStart = source.indexOf(`function ${functionName}`);
-  const start = asyncStart >= 0 && (syncStart < 0 || asyncStart < syncStart) ? asyncStart : syncStart;
-  assert.notEqual(start, -1, `${functionName} should exist`);
-
-  let braceStart = -1;
-  let parenDepth = 0;
-  for (let index = start; index < source.length; index += 1) {
-    const character = source[index];
-    if (character === "(") {
-      parenDepth += 1;
-    } else if (character === ")") {
-      parenDepth -= 1;
-    } else if (character === "{" && parenDepth === 0) {
-      braceStart = index;
-      break;
-    }
-  }
-  assert.notEqual(braceStart, -1, `${functionName} body should exist`);
-  let depth = 0;
-
-  for (let index = braceStart; index < source.length; index += 1) {
-    const character = source[index];
-    if (character === "{") {
-      depth += 1;
-    } else if (character === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not find end of ${functionName}`);
 }

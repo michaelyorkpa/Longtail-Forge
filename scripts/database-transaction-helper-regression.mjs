@@ -6,7 +6,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBlock } from "./test-support/source-scan.mjs";
 import { requireRow } from "./test-support/database-row-assertions.mjs";
 const { readText } = createProjectTextReader();
 
@@ -73,8 +73,8 @@ try {
 }
 
 function assertTaskAssigneePilotSource() {
-  const replaceAssignees = functionBlock(tasksSource, "replaceAssignees");
-  const replaceAssigneesWithExecutor = functionBlock(tasksSource, "replaceAssigneesWithExecutor");
+  const replaceAssignees = extractFunctionBlock(tasksSource, "replaceAssignees");
+  const replaceAssigneesWithExecutor = extractFunctionBlock(tasksSource, "replaceAssigneesWithExecutor");
   assert.match(replaceAssignees, /db\.transaction\(async \(transaction\)/, "task assignee replacement should use db.transaction");
   assert.match(replaceAssignees, /replaceAssigneesWithExecutor\(transaction/, "task assignee replacement should delegate through the active transaction client");
   assert.match(replaceAssigneesWithExecutor, /database\.run\(`[\s\S]*UPDATE task_assignees/, "the shared transaction executor should update task assignees through its provided client");
@@ -83,7 +83,7 @@ function assertTaskAssigneePilotSource() {
 }
 
 function assertNoteCreateLinkPilotSource() {
-  const createWithLinks = functionBlock(notesRepoSource, "createWithLinks");
+  const createWithLinks = extractFunctionBlock(notesRepoSource, "createWithLinks");
   assert.match(createWithLinks, /db\.transaction\(async \(transaction\)/, "note create/link workflow should use db.transaction");
   assert.match(createWithLinks, /insertNote\(transaction/, "note create/link workflow should insert the note through the transaction client");
   assert.match(createWithLinks, /insertNoteLink\(transaction/, "note create/link workflow should insert links through the transaction client");
@@ -324,24 +324,4 @@ LIMIT 1;
   assert.ok(user?.user_id, "fresh database should seed a protected super admin");
 
   return workspaceSessionFixture(user);
-}
-
-function functionBlock(/** @type {string} */ source, /** @type {string} */ name) {
-  const pattern = new RegExp(`(?:async\\s+)?function\\s+${name}\\s*\\([^)]*\\)\\s*\\{`, "m");
-  const match = pattern.exec(source);
-  assert.ok(match, `Expected function ${name} to exist.`);
-
-  let depth = 0;
-  for (let index = match.index; index < source.length; index += 1) {
-    if (source[index] === "{") {
-      depth += 1;
-    } else if (source[index] === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(match.index, index + 1);
-      }
-    }
-  }
-
-  assert.fail(`Expected function ${name} to close.`);
 }
