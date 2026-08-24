@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.22`, plus the corrective child `0.33.33.32.22.1`, have since archived, closing 2,770 diagnostics across 137 files and leaving 373 across 65; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.23`, plus the corrective child `0.33.33.32.22.1`, have since archived, closing 2,845 diagnostics across 143 files and leaving 298 across 59; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.23` | Shared linked-context pickers and labels | 75 | 6 | 1,657 |
 | `.32.24` | View descriptor, app shell, module action owners | 124 | 10 | 1,723 |
 | `.32.25` | Workbench and Time Tracking contract modules | 32 | 14 | 2,380 |
 | `.32.26` | Tasks, Notes, Lists, Tags contract modules | 55 | 21 | 1,820 |
@@ -97,17 +96,6 @@ Requirements shared by every child:
 
 
 
-
-#### 0.33.33.32.23 - Type the shared linked-context pickers and labels
-
-**Model: High Effort - This cohort is what `0.33.33.36` consolidates; its contract must be right before the merge.**
-
-Measured at 75 diagnostics across 6 files and 1,657 lines. No `JSON.parse`; no history-pinned owners. The profile is unusually clean — 65 `TS7006` and 10 `TS2339` only.
-
-- [ ] Close the 75 diagnostics across `linked-context-unavailable-fallback`, `linked-context-note-list-label`, `linked-context-task-label-sort`, `linked-context-client-scope-picker`, `linked-context-client-project-label-sort`, and `linked-context-picker-shell`.
-- [ ] Type picker options, label records, sort keys, and unavailable/hidden states with one contract shared across all six owners, since Notes and Lists currently duplicate the implementation this describes.
-- [ ] Preserve client/project descendant scope, unavailable and hidden label text, sort order, and saved selection behaviour exactly.
-- [ ] Record whether the resulting contract is the right shape for the `0.33.33.36` shared picker, and say so plainly if it is not. This child does not implement that consolidation.
 
 #### 0.33.33.32.24 - Type view descriptor, app shell, and module action owners
 
@@ -228,6 +216,8 @@ Runs after `0.33.33.32.28`. No diagnostics and no audit backlog: this child exis
 **Model: High Effort** - Linked-context scope and safe labels cross module hierarchy and permission boundaries.
 
 - [ ] Replace the duplicated Notes and Lists implementations with one shared typed picker contract.
+- [ ] **Close the producer gap `0.33.33.32.23` measured before consolidating.** That child typed all six linked-context owners and reported plainly: `LinkTargetCandidate` in `src/types/link-target-directory-contracts.d.ts` **is** the right shape for the shared picker — the framework already publishes it, `linkTargetDirectory.list` already returns it, and its members are exactly what the six owners read. What is missing is on the producer. `notesService.listLinkTargets` declares no return type, and it builds `const targets = []` from two sources: the directory provider, which answers `LinkTargetCandidate[]`, and a local `listTargetsByType` whose literals are untyped. The inferred union widens `targetType` from the published `LinkTargetType` union to `string`, so **a consumer cannot annotate against the published contract without a cast**. That is why six owners each describe picker targets locally. Declare `listLinkTargets`'s return as `{ targets: LinkTargetCandidate[] }` and type `listTargetsByType` to match, before or as part of the consolidation; the shared picker will otherwise inherit the same untyped seam it is meant to remove.
+
 - [ ] Preserve client/project descendant scope, unavailable/hidden labels, workspace type behavior, and saved selection rules.
 - [ ] Keep module-owned payload meaning and save behavior outside the shared helper.
 - [ ] Remove both old implementations only after Notes and Lists browser regressions pass.
