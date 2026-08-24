@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 174,
+      "errorCount": 142,
       "diagnostics": {
         "scripts/audit-extensibility-regression.mjs": [
           {
@@ -3182,90 +3182,6 @@
             "count": 4
           }
         ],
-        "scripts/regression-contracts/time-tracking/time-entries-screen.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "scripts/regression-contracts/time-tracking/time-tracking-create-timer-modal.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/workbench/task-focus-deep-link.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/workbench/workbench-collapsible-sections.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/workbench/workbench-in-place-open-work.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/workbench/workbench-inspector-panel.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/workbench/workbench-recommended-cycling.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/workbench/workbench-remove-all-tasks-list.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/workbench/workbench-remove-quick-notes.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/workbench/workbench-task-focus-checklist.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/workbench/workbench-task-focus-linked-note-view.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "scripts/regression-contracts/workbench/workbench-view-state.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
         "scripts/regression-runner-regression.mjs": [
           {
             "code": 2339,
@@ -3385,7 +3301,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 11308,
+    "errors": 11276,
     "explicitAny": 3
   },
   "explicitAnyByFile": {

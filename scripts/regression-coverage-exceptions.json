@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "maximumActiveScripts": 347,
-  "minimumAssertionCount": 19522,
+  "minimumAssertionCount": 19524,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,
@@ -5918,6 +5918,34 @@
       ]
     },
     {
+      "sourceRegression": "time-tracking.current-static-contracts",
+      "retiredInVersion": "0.33.33.32.25",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion in the Create Timer modal contract module required archived CHANGELOG.md prose for release 0.33.6.12d-2 to still contain particular wording. It recorded that a past release happened and could not fail while the archived entry exists. Fourteen redundant assertRoadmapCursorAtLeast(\"0.33.8\") floors were removed alongside them and are deliberately not credited: the manifest's assertion counter does not match that call, so counting them would manufacture coverage that never existed. release.roadmap-cursor-floor asserts that exact 0.33.8 floor once against the same live ROADMAP.md, and additionally proves the helper's parsing, comparison, out-of-order-evidence, and failure behaviour, so every removed copy was a duplicate of one release-gate assertion.",
+      "assertionDisposition": "No behavior lost coverage. The module still proves against live sources that Time Tracking owns the Create Timer modal registered as time-tracking.timer.create, that the app-shell quick-action definition dispatches that module action rather than navigating to time-tracker.html, that the footer lazy-loads the dialog safely, that the shared quick-action refresh path is used, and that docs/architecture records Timer as modal-backed rather than a quick-action fallback. legacy.bump.version owns changelog structure and release.historical-evidence-retirement rejects archived history used as product evidence.",
+      "retiredEvidence": [
+        "CHANGELOG.md",
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/regression-contracts/time-tracking/time-tracking-create-timer-modal.contract.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "time-tracking.current-static-contracts",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/time-tracking/current-static-contracts.regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
       "sourceRegression": "views.current-static-contracts",
       "retiredInVersion": "0.33.33.30.1",
       "retirementType": "historical-planning-pin",
@@ -5945,6 +5973,46 @@
       ],
       "verificationPerformed": [
         "node scripts/regressions/views/current-static-contracts.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "workbench.current-static-contracts",
+      "retiredInVersion": "0.33.33.32.25",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 14,
+      "rationale": "Fourteen assertions across twelve Workbench contract modules required archived CHANGELOG.md prose for releases 0.33.6.6a through 0.33.6.12m to still contain particular wording. Each recorded that a past release happened; none described how Workbench behaves today, and none could fail while the archived changelog entries exist. Fourteen redundant assertRoadmapCursorAtLeast(\"0.33.8\") floors were removed alongside them and are deliberately not credited: the manifest's assertion counter does not match that call, so counting them would manufacture coverage that never existed. release.roadmap-cursor-floor asserts that exact 0.33.8 floor once against the same live ROADMAP.md, and additionally proves the helper's parsing, comparison, out-of-order-evidence, and failure behaviour, so every removed copy was a duplicate of one release-gate assertion.",
+      "assertionDisposition": "No behavior lost coverage. Every module retains its live assertions over public/js/workbench.js, views/protected/workbench.html, public/css/longtail-forge.css, src/services/app-shell.service.js, src/services/work-focus-modes.service.js, public/js/footer.js, docs/module-contract.md, and docs/view-building-contract.md, which prove the same contracts against live sources rather than against release notes: collapsible section defaults and the caret affordance, the retired main-column overflow, host status copy, in-place open-work and the Focus Selection/Task Focus primary-action split, the Inspector panel and its overflow affordance, recommended-action cycling and the top-five window, the removed all-tasks list, the removed Quick Notes section with QAC Note as the capture path, the split Client and Project focus filters, checklist-driven status transitions, the linked-note view modal and its edit handoff, the Task Focus summary chip row, and Task Focus timer de-duplication. legacy.bump.version owns changelog structure and release.historical-evidence-retirement rejects archived history used as product evidence.",
+      "retiredEvidence": [
+        "CHANGELOG.md",
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/regression-contracts/workbench/workbench-collapsible-sections.contract.mjs",
+        "scripts/regression-contracts/workbench/workbench-guided-ui.contract.mjs",
+        "scripts/regression-contracts/workbench/workbench-host-status-copy.contract.mjs",
+        "scripts/regression-contracts/workbench/workbench-in-place-open-work.contract.mjs",
+        "scripts/regression-contracts/workbench/workbench-inspector-panel.contract.mjs",
+        "scripts/regression-contracts/workbench/workbench-recommended-cycling.contract.mjs",
+        "scripts/regression-contracts/workbench/workbench-remove-all-tasks-list.contract.mjs",
+        "scripts/regression-contracts/workbench/workbench-remove-quick-notes.contract.mjs",
+        "scripts/regression-contracts/workbench/workbench-split-focus-filters.contract.mjs",
+        "scripts/regression-contracts/workbench/workbench-task-focus-checklist.contract.mjs",
+        "scripts/regression-contracts/workbench/workbench-task-focus-linked-note-view.contract.mjs",
+        "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+        "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "workbench.current-static-contracts",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/regressions/workbench/current-static-contracts.regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"

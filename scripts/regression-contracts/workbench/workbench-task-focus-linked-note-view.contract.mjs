@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
-const changelog = readText("CHANGELOG.md");
 const moduleActionsSource = readText("public/js/shared/module-actions.js");
 const notesScript = readText("public/js/notes.js");
 const relatedContextService = readText("src/services/workbench-task-focus-related-context.service.js");
@@ -91,15 +89,13 @@ assert.doesNotMatch(
   "Task Focus Inspector should not embed note preview content inline",
 );
 
-assert.match(
-  changelog,
-  /## Version 0\.33\.6\.12m[\s\S]*linked Note rows through a new Notes-owned `notes\.view` module action[\s\S]*rendering existing server-generated Markdown HTML[\s\S]*explicit `Edit` handoff/,
-  "Changelog should preserve the linked-note view modal and edit handoff closeout",
-);
-assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
-
 console.log("Workbench Task Focus linked-note view regression passed.");
 
+/**
+ * Extract one named function's body text from a source file this module reads.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} name the function name to locate
+ */
 function functionBody(source, name) {
   const starts = [
     `async function ${name}(`,

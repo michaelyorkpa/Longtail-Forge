@@ -31,9 +31,7 @@
     "release.developer-verification-throughput",
     "release.github-only-docs-workflow-routing",
     "release.regression-routing-commands",
-    "release.runtime-artifact-boundary",
-    "time-tracking.current-static-contracts",
-    "workbench.current-static-contracts"
+    "release.runtime-artifact-boundary"
   ],
   "planningDocumentReaders": [
     "database.current-static-contracts",
@@ -79,9 +77,7 @@
     "release.public-demo-reset-scheduler",
     "release.regression-routing-commands",
     "release.runtime-artifact-boundary",
-    "tasks.current-static-contracts",
-    "time-tracking.current-static-contracts",
-    "workbench.current-static-contracts"
+    "tasks.current-static-contracts"
   ],
   "reviewedDispositions": {
     "legacy.bump.version": "Retained: writes a synthetic CHANGELOG.md into a temporary directory as version-bump fixture input; never reads repository history.",

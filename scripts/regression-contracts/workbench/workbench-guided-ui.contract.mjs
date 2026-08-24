@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
@@ -125,7 +124,5 @@ assert.match(
 assert.match(css, /\.workbench-focus-question-list/, "Workbench CSS should style the focus question list");
 assert.match(css, /\.workbench-recommended-card/, "Workbench CSS should emphasize the recommended candidate");
 assert.match(css, /\.workbench-inspector-list[\s\S]*overflow-y: auto;/, "Workbench CSS should bound right-panel overflow candidates");
-
-assertRoadmapCursorAtLeast("0.33.8", "Roadmap should archive the completed hierarchy follow-up and advance to the next live slice");
 
 console.log("Workbench guided UI regression passed.");

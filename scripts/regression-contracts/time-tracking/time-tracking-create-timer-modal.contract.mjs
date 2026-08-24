@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
 
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under time-tracking.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
 const appShellService = readText("src/services/app-shell.service.js");
-const changelog = readText("CHANGELOG.md");
 const footer = readText("public/js/footer.js");
 const quickActionRefresh = readText("public/js/shared/quick-action-refresh.js");
 const workbench = readText("public/js/workbench.js");
@@ -152,15 +150,14 @@ assert.match(
   /As of 0\.33\.6\.12d-2[\s\S]*Timer is modal-backed through `time-tracking\.timer\.create`/,
   "Architecture docs should record that Timer is no longer a QAC fallback",
 );
-assert.match(
-  changelog,
-  /## Version 0\.33\.6\.12d-2[\s\S]*Time Tracking-owned Create Timer modal registered as `time-tracking\.timer\.create`[\s\S]*QAC Timer to dispatch the Create Timer module action instead of navigating to `time-tracker\.html`/,
-  "Changelog should preserve the Create Timer modal closeout",
-);
-assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Time Tracking Create Timer modal regression passed.");
 
+/**
+ * Extract one quick-action definition block from the app-shell service source.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} id the quick-action id to locate
+ */
 function actionDefinitionBlock(source, id) {
   const marker = `id: "${id}"`;
   const start = source.indexOf(marker);

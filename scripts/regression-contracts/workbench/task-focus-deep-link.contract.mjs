@@ -91,6 +91,11 @@ checks += 4;
 
 console.log(`Workbench task-focus deep-link guardrail passed ${checks} checks.`);
 
+/**
+ * Extract one named function's body text from a source file this module reads.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} name the function name to locate
+ */
 function functionBody(source, name) {
   const start = source.indexOf(`function ${name}(`) >= 0
     ? source.indexOf(`function ${name}(`)

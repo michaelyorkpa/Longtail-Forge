@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
-const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
 const taskDialogScript = readText("public/js/task-dialog.js");
 const moduleActions = readText("public/js/shared/module-actions.js");
@@ -116,19 +114,18 @@ assert.match(
 );
 
 assert.match(
-  changelog,
-  /## Version 0\.33\.6\.12a[\s\S]*Focus Selection\/Task Focus[\s\S]*`Focus task` markers/,
-  "Changelog should preserve the Workbench Task Focus primary-action direction closeout",
-);
-assert.match(
   moduleContract,
   /As of 0\.33\.6\.12c-1, Workbench has explicit `focus-selection` and `task-focus` browser states[\s\S]*Primary actions on normalized Task candidates are labeled `Focus task` and enter Task Focus[\s\S]*The header action slot is `Change Focus`/,
   "Module contract should preserve the Workbench Task Focus primary-action direction",
 );
-assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench explicit open/context regression passed.");
 
+/**
+ * Extract one named function's body text from a source file this module reads.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} name the function name to locate
+ */
 function functionBody(source, name) {
   const start = source.indexOf(`function ${name}(`) >= 0
     ? source.indexOf(`function ${name}(`)

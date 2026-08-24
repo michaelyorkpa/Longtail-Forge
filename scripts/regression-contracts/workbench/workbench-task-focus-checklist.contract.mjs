@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
-const changelog = readText("CHANGELOG.md");
 const tasksHelp = readText("help/framework/tasks-basics.md");
 const css = readText("public/css/longtail-forge.css");
 const moduleContract = readText("docs/module-contract.md");
@@ -142,15 +140,14 @@ assert.match(
   /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*As of 0\.33\.6\.12l[\s\S]*checklist mutation response refreshes the selected task status chip/,
   "View-building contract should include the Task Focus checklist anatomy",
 );
-assert.match(
-  changelog,
-  /## Version 0\.33\.6\.12l[\s\S]*checking checklist work on an Open task now returns an In Progress task, and unchecking the last checked item on an eligible In Progress task returns it to Open\./,
-  "Changelog should preserve the Task Focus checklist-driven status transition closeout",
-);
-assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench Task Focus checklist regression passed.");
 
+/**
+ * Extract one named function's body text from a source file this module reads.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} name the function name to locate
+ */
 function functionBody(source, name) {
   const starts = [
     `async function ${name}(`,

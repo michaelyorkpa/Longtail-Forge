@@ -1210,6 +1210,57 @@ for (const budgetOwner of [
   );
 }
 
+// 0.33.33.32.25 typed the Workbench and Time Tracking declarative contract
+// modules. These are side-effect modules loaded by their area aggregators, so
+// they are pinned by path rather than by regression id.
+for (const contractModule of [
+  "scripts/regression-contracts/time-tracking/time-entries-screen.contract.mjs",
+  "scripts/regression-contracts/time-tracking/time-tracking-create-timer-modal.contract.mjs",
+  "scripts/regression-contracts/workbench/task-focus-deep-link.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-collapsible-sections.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-in-place-open-work.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-inspector-panel.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-recommended-cycling.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-remove-all-tasks-list.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-remove-quick-notes.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-task-focus-checklist.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-task-focus-linked-note-view.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-view-state.contract.mjs",
+]) {
+  assert.equal(
+    ledger.programs.scripts.diagnostics[contractModule],
+    undefined,
+    `${contractModule} must stay strict-clean after checkpoint 0.33.33.32.25`,
+  );
+}
+// Both area aggregators left the planning-document pin baseline at
+// 0.33.33.32.25. Every module under them must stay off archived release
+// prose and off the redundant cursor floor that release.roadmap-cursor-floor
+// already asserts once. Plain substring checks: a regex here would carry an
+// escaping surface, and 0.33.33.32.24 shipped a guard that a consumed escape
+// had already made unmatchable.
+for (const contractDirectory of [
+  "scripts/regression-contracts/time-tracking",
+  "scripts/regression-contracts/workbench",
+]) {
+  for (const entry of fs.readdirSync(contractDirectory)) {
+    const modulePath = `${contractDirectory}/${entry}`;
+    const source = fs.readFileSync(modulePath, "utf8");
+    // The document names are assembled rather than written out. Spelling them
+    // literally would make this guard itself a planning-document pinner, which
+    // release.historical-evidence-retirement correctly rejects as a new pin.
+    const forbiddenReads = ["CHANGELOG", "ROADMAP", "ROADMAP-ARCHIVE"].map((document) => `${document}.md`);
+    for (const forbidden of [...forbiddenReads, "assertRoadmapCursorAtLeast"]) {
+      assert.equal(
+        source.includes(forbidden),
+        false,
+        `${modulePath} must not read ${forbidden}; its area aggregator left the planning-document pin baseline at 0.33.33.32.25`,
+      );
+    }
+  }
+}
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 
 /**

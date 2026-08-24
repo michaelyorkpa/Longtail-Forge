@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
-const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
 const css = readText("public/css/longtail-forge.css");
 const workbenchHtml = readText("views/protected/workbench.html");
@@ -149,24 +147,18 @@ assert.match(
   "Recommended-action arrows should remain compact icon-only controls",
 );
 assert.match(
-  changelog,
-  /## Version 0\.33\.6\.6a[\s\S]*top-five cycling contract without the old secondary-list slice/,
-  "Changelog should preserve the recommended-action cycling and overflow closeout",
-);
-assert.match(
   moduleContract,
   /As of 0\.33\.6\.6a, the Workbench recommended-action panel gained right-aligned icon-only cycle controls[\s\S]*active recommendation window is the top five ranked candidates[\s\S]*overflow starts after the top-five window/,
   "Module contract should preserve the top-five recommended-action and Inspector overflow boundary",
 );
-assert.match(
-  changelog,
-  /## Version 0\.33\.6\.6h[\s\S]*Previous`\/`Next` without the old verbose recommendation-cycle labels/,
-  "Changelog should preserve the recommended-action cycle label correction closeout",
-);
-assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench recommended-action cycling regression passed.");
 
+/**
+ * Extract one named function's body text from a source file this module reads.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} name the function name to locate
+ */
 function extractFunctionBody(source, name) {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1, `Missing function ${name}`);

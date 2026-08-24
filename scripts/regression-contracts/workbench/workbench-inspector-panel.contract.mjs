@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
-const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
 const icons = readText("public/js/shared/icons.js");
 const moduleContract = readText("docs/module-contract.md");
@@ -144,17 +142,14 @@ assert.match(
   /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*right-side "More in this focus" Inspector overflow list[\s\S]*main-column "More in this focus" section/,
   "View-building contract should include the current Workbench Inspector anatomy",
 );
-assert.match(
-  changelog,
-  // Historical changelog text is preserved verbatim, including its inert
-  // ?v= keys; only live source dropped raw keys in the inert-key retirement.
-  /## Version 0\.33\.6\.11[\s\S]*served `workbench\.js\?v=\d+`, `longtail-forge\.css\?v=\d+`, and `footer\.js` exposed the Inspector and module-loader markers/,
-  "Changelog should preserve the Workbench Inspector panel closeout",
-);
-assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench Inspector panel regression passed.");
 
+/**
+ * Extract one named function's body text from a source file this module reads.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} name the function name to locate
+ */
 function functionBody(source, name) {
   const start = source.indexOf(`function ${name}(`) >= 0
     ? source.indexOf(`function ${name}(`)
