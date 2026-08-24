@@ -1,6 +1,14 @@
 # Regression Suite Contract
 
-This document records the current regression-suite contract through 0.33.33.30.3. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+This document records the current regression-suite contract through 0.33.33.32. The runner auto-discovers convention-path metadata regressions, generates its coverage index from that registry, and exposes ceremony-aware narrow-area routing plus conservative full escalation while preserving the checked-in legacy migration snapshot and every documented retirement.
+
+As of 0.33.33.32, the scripts program is closed at zero strict diagnostics and its ledger section is retired. The `0.33.33.32` rollup and its eleven corrective children took the program from **3,150 diagnostics across 202 diagnostic-bearing files to 0 across 0**, measured against the tree at `48ce14df`; combined strict debt falls from 14,284 to 11,134, all of it now the browser program, and explicit `any` falls from 7 to 0. `tsconfig.scripts.json` already carried unqualified `strict`, `checkJs`, and `noImplicitAny` and excludes nothing under `scripts/`, so this closure is proof rather than enablement: all 588 `.mjs` files under `scripts/`, plus the three root configuration files the program is defined to cover, compile under those flags with no `@ts-ignore`, `@ts-nocheck`, `@ts-expect-error`, file pragma, or exclusion anywhere in the program — the only occurrences of those strings in `scripts/` are inside the detector that forbids them.
+
+Retirement follows the pattern `server-tests` established at `0.33.33.26.2`: the ledger section stays, its diagnostics map is empty, its error count is zero, and `framework.full-strict-governance` asserts it may never regain debt. **Retirement means the program is permanently required to remain at zero; it never means the program is no longer checked.** Three assertions hold both halves — zero debt, no per-file debt, and a file list that is still the whole scripts estate rather than an emptied one — and each was proved by seeding a ledger that satisfies the earlier integrity checks and watching its own assertion fail. The ledger itself retires when all three programs reach zero at `0.33.33.41`.
+
+Two audits close with the program. **Unchecked dynamic boundaries reach 0**: the four boundary children narrowed every `JSON.parse` in the estate through a published narrowing or published it open as `unknown` with each read proven, and a per-parse-line guard keeps it that way. **The source-slicing consolidation closes at five**: seventy-three owners cut function regions through `extractFunctionBlock`, `extractFunctionBody`, and `extractFunctionSpan`, and the five remaining local readers — all Workbench contract modules returning a body without its braces — are named in governance, which also asserts that no script anywhere else may define a function-region extractor.
+
+Coverage grew throughout rather than being spent: effective regression assertions advance from 19,155 to **19,577 across 347 scripts**, with 46 required release gates and a release-gate floor of 86. All 66 retired assertions are the single permitted `historical-planning-pin` type, crediting 143. Surviving history-document readers fall from 46 historical-content pinners and 72 planning-document readers to **7 and 24**. No regression owner, fixture, or route was added by this closeout, and no production behaviour changed.
 
 As of 0.33.33.30.3, HTTP error, transport, and production security posture owners are strict-clean. Ten `scripts/regressions/framework/` owners close their 188 diagnostics with named contracts for error envelopes, request-context probes, security audit rows, cookie posture, and the config fixtures each drives. `framework.security-static-contracts` was already clean and needed a disposition only.
 
@@ -502,11 +510,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18758 |
+| Active regression assertions | 18763 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 74 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 19572 |
+| Effective assertion floor | 19577 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |
