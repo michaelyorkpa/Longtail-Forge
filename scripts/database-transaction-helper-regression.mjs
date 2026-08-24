@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { randomUUID } from "node:crypto";
 
 import fs from "node:fs/promises";
@@ -322,16 +323,7 @@ LIMIT 1;
 
   assert.ok(user?.user_id, "fresh database should seed a protected super admin");
 
-  return /** @type {import("../src/types/http-contracts.js").WorkspaceRequestSession} */ (/** @type {unknown} */ ({
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    display_name: user.display_name || user.username,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  }));
+  return workspaceSessionFixture(user);
 }
 
 function functionBlock(/** @type {string} */ source, /** @type {string} */ name) {

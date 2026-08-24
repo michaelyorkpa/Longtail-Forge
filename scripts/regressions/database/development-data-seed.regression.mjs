@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -592,14 +593,7 @@ ORDER BY tasks.title;
 
     const sessionUser = seededRows[0];
     assert.ok(seededRows.every((row) => row.user_id === sessionUser.user_id && row.workspace_id === sessionUser.workspace_id));
-    const session = /** @type {import("../../../src/types/task-workflow-contracts.js").TaskWorkflowSession} */ (/** @type {unknown} */ ({
-      home_workspace_id: sessionUser.home_workspace_id,
-      ip: "127.0.0.1",
-      timezone: sessionUser.timezone || "America/New_York",
-      user_id: sessionUser.user_id,
-      username: sessionUser.username,
-      workspace_id: sessionUser.workspace_id,
-    }));
+    const session = workspaceSessionFixture(sessionUser);
     const byTitle = new Map(seededRows.map((row) => [row.title, row]));
     const runningTask = /** @type {{ task_id: string }} */ (byTitle.get("Validate POS receipt layout"));
     const pausedTask = /** @type {{ task_id: string }} */ (byTitle.get("Fix mobile checkout overlap"));

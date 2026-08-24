@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import http from "node:http";
@@ -294,15 +295,12 @@ async function createScopedSession(workspaceId, {
  * @returns {ProbeAuthorizationSession}
  */
 function toSession(user, workspaceId) {
-  return /** @type {ProbeAuthorizationSession} */ (/** @type {unknown} */ ({
+  return workspaceSessionFixture({
+    ...user,
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
     workspace_id: workspaceId,
-  }));
+  });
 }
 
 /** The preview payload this probe posts and the response it reads back. */
