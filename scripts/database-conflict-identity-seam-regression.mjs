@@ -9,15 +9,12 @@ import { requireRow } from "./test-support/database-row-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const dialectContractVersion = "0.33.6.14a";
-const conflictIdentitySliceVersion = "0.33.5.27.3";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-conflict-identity-seams-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-conflict-identity-seams.db");
 process.env.LONGTAIL_WORKER_MODE = "disabled";
 process.env.SUPER_ADMIN_PASSWORD = "Database-Conflict-Identity-Seams-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const databaseDocs = readText("docs/database.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const sqliteDialectSource = readText("src/db/adapters/sqlite-dialect-seams.js");
@@ -72,10 +69,8 @@ function assertStaticContract() {
   assert.doesNotMatch(parameterAuditRegression, /src\/core\/jobs\/job-runner\.js:\d+/, "parameter-binding audit should not allowlist raw job runner RETURNING");
   assert.doesNotMatch(parameterAuditRegression, /src\/services\/jobs\.service\.js:\d+/, "parameter-binding audit should not allowlist raw jobs service RETURNING");
 
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.3 - Upsert\/conflict and identity\/RETURNING seams[\s\S]*- \[x\] Implement the provider-neutral upsert\/conflict helper[\s\S]*- \[x\] Implement the returned-row\/last-insert identity seam[\s\S]*- \[x\] Decide the durable-job `RETURNING` outcome[\s\S]*- \[x\] Convert one low-risk proof path/, "live roadmap should archive completed 0.33.5.27 slice bodies");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.3[\s\S]*`databaseDialect\.conflict\.buildInsertOrIgnore\(\.\.\.\)`[\s\S]*[Dd]urable job[\s\S]*returning seam/, "database docs should describe the conflict and identity seam implementation");
   assert.match(auditDocs, /0\.33\.5\.27\.3 Upsert\/Conflict and Identity Seams[\s\S]*durable-job `RETURNING` statements are converted to the provider returning seam/, "audit docs should record the durable-job RETURNING resolution");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(conflictIdentitySliceVersion)} - [\\s\\S]*upsert\\/conflict and identity seams[\\s\\S]*durable job`), "changelog should record the conflict and identity seam slice");
   }
 
 async function assertStartupConflictProofPath() {

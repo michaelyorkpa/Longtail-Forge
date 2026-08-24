@@ -48,7 +48,7 @@ try {
   const session = await readProtectedSession(workspaceId);
   // `createSession` seeds from an open record of session fields; an interface
   // is not assignable to `Record<string, unknown>` without spreading it.
-  const browserSession = await createSession({ ...session });
+  const browserSession = await createSession(session);
   server = await listen(createApp());
   const baseUrl = `http://127.0.0.1:${listenerPort(server)}`;
 

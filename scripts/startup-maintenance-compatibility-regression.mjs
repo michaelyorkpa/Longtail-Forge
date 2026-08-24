@@ -20,8 +20,6 @@ const dbIndexSource = readText("src/db/index.js");
 const appStartupMaintenanceSource = readText("src/db/app-startup-maintenance.js");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 
 const {
   closeDatabase,
@@ -63,8 +61,6 @@ function assertStaticContract() {
   assert.match(auditDocs, /\| db\/migrations \| Migration compatibility \| 0 \| 0 \| 10 \| 28 \|[\s\S]*\| db\/index \| Startup compatibility \| 0 \| 0 \| 31 \| 40 \|/, "audit inventory should mark migrations and startup as compatibility-tracked after value conversion");
   assert.match(auditDocs, /0\.33\.5\.27\.29 Startup Maintenance Compatibility Path[\s\S]*`src\/db\/index\.js` no longer has literal-helper calls or direct interpolated operation sites[\s\S]*18 runtime literal-helper invocations[\s\S]*8 direct interpolated SQL operation sites[\s\S]*375 existing bound operation sites/, "audit docs should record the startup maintenance compatibility slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.29[\s\S]*`src\/db\/index\.js` startup maintenance has no remaining literal-helper calls or direct interpolated operation sites[\s\S]*18 remaining helper invocations/, "database docs should record the startup maintenance compatibility outcome");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.29 - Startup maintenance compatibility path[\s\S]*- \[x\] Review `src\/db\/index\.js`[\s\S]*- \[x\] Convert paths that can safely move[\s\S]*- \[x\] Account for dialect-sensitive startup statements[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.29 - [\s\S]*Startup maintenance compatibility path[\s\S]*18 helper invocations[\s\S]*8 direct interpolated operation sites[\s\S]*375 bound operation sites/, "changelog should record the startup maintenance compatibility burndown");
 }
 
 async function assertFreshStartupMaintenance() {

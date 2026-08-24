@@ -7,18 +7,6 @@ import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readTextAsync: readProjectFile } = createProjectTextReader();
 
-/**
- * One entry in the app shell's search-target list, as this owner reads it.
- *
- * The app-shell bootstrap contract publishes `searchTargets` as an open list,
- * alongside `navigation`, which `0.33.33.32.13` confirmed is deliberate for
- * that payload. So the shape is described here, where the walk happens, rather
- * than by tightening a framework payload that is open by design. Unlike
- * `navigation`, every entry is built by one normalizing producer, which
- * `0.33.33.32.28` records as a candidate for a truthful published contract.
- * @typedef {{ aggregate?: unknown, id?: unknown, label?: unknown, moduleId?: unknown, recordType?: unknown, sourceLabel?: unknown }} SearchTarget
- */
-
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-search-shell-regression-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-search-shell-test.db");
 process.env.SUPER_ADMIN_PASSWORD = "Search-Shell-Test-Password-123!";
@@ -37,13 +25,21 @@ try {
   const appCore = await readProjectFile("src/core/app.js");
 
   assert.ok(Array.isArray(shell.searchTargets), "app shell bootstrap should return searchTargets");
-  const searchTargets = shell.searchTargets.map(searchTarget);
+  const searchTargets = shell.searchTargets;
   assert.ok(searchTargets.some((target) => target.moduleId === "tasks" && target.recordType === "task"));
   assert.ok(searchTargets.some((target) => target.moduleId === "client-projects" && target.recordType === "client"));
   assert.ok(searchTargets.every((target) => (
     target.id === `${target.moduleId}:${target.recordType}` ||
     target.id === `source:${target.sourceLabel}:${target.recordType}`
   )));
+  // The runtime counterpart of the published AppShellSearchTarget contract:
+  // consumers now trust these six members statically, so the producer is
+  // proven to emit exactly them and nothing else.
+  assert.deepEqual(
+    [...new Set(searchTargets.flatMap((target) => Object.keys(target)))].sort(),
+    ["aggregate", "id", "label", "moduleId", "recordType", "sourceLabel"],
+    "every published search target should carry exactly the six contract members",
+  );
 
   assert.match(navigation, /dataset\.globalSearchForm/);
   assert.match(navigation, /dataset\.globalSearchShell/);
@@ -100,17 +96,6 @@ LIMIT 1;
 
   return workspaceSessionFixture(requireFirstRow(rows, "the protected user fixture"));
 }
-
-/**
- * Prove one contributed search target is a record before it is walked.
- * @param {unknown} value
- * @returns {SearchTarget}
- */
-function searchTarget(value) {
-  assert.ok(value && typeof value === "object" && !Array.isArray(value), "each app shell search target should be a record");
-  return /** @type {SearchTarget} */ (value);
-}
-
 /** @param {string} source @param {string} functionName @returns {string} */
 function readFunctionBody(source, functionName) {
   const marker = `function ${functionName}`;

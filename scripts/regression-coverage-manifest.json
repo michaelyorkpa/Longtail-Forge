@@ -85,9 +85,9 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18747,
+    "activeAssertionCount": 18729,
     "creditedAssertionReduction": 496,
-    "directOwnerAssertionCount": 73,
+    "directOwnerAssertionCount": 74,
     "directOwners": [
       {
         "path": "scripts/typecheck-debt-ledger.json",
@@ -99,15 +99,15 @@
       },
       {
         "path": "scripts/version-literal-guardrail-regression.mjs",
-        "assertionCount": 19
+        "assertionCount": 20
       },
       {
         "path": "tests/e2e/settings-admin-navigation.spec.mjs",
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19535,
-    "retiredAssertionCredit": 118,
+    "effectiveAssertionCount": 19543,
+    "retiredAssertionCredit": 143,
     "vitest": [
       {
         "path": "tests/unit/asset-version.test.mjs",
@@ -462,6 +462,202 @@
       ],
       "verificationPerformed": [
         "node scripts/client-projects-repositories-conversion-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.clients.projects.hierarchy.reparent",
+      "retiredInVersion": "0.33.33.32.28",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 3,
+      "rationale": "Assertions of this class required archived CHANGELOG.md prose for a completed 0.33.5.x release to still contain particular wording, or required the live ROADMAP.md to no longer contain a specific completed-slice heading or breadcrumb. Neither describes how the code behaves today: the first records that a past release happened and cannot fail while the archived entry exists, and the second names a literal removed many minor versions ago that nothing writes back. release.roadmap-cursor-floor owns the live-roadmap structural contract, release.checkpoint-commits and legacy.bump.version own the roadmap-to-archive handoff, and legacy.bump.version owns changelog structure.",
+      "assertionDisposition": "No behavior lost coverage. The owner retains every live assertion it had - between 23 and 102 of them - over the runtime sources, adapters, migrations, repositories, and documented contracts it exists to prove. The retired assertions were the only ones reading a planning document. Service-owned hierarchy ordering, reparenting, and the focused regression's own registration are still proven against live sources.",
+      "retiredEvidence": [
+        "CHANGELOG.md",
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/clients-projects-hierarchy-reparent-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.clients.projects.hierarchy.reparent",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/clients-projects-hierarchy-reparent-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.database.adapter.contract",
+      "retiredInVersion": "0.33.33.32.28",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "Assertions of this class required archived CHANGELOG.md prose for a completed 0.33.5.x release to still contain particular wording, or required the live ROADMAP.md to no longer contain a specific completed-slice heading or breadcrumb. Neither describes how the code behaves today: the first records that a past release happened and cannot fail while the archived entry exists, and the second names a literal removed many minor versions ago that nothing writes back. release.roadmap-cursor-floor owns the live-roadmap structural contract, release.checkpoint-commits and legacy.bump.version own the roadmap-to-archive handoff, and legacy.bump.version owns changelog structure.",
+      "assertionDisposition": "No behavior lost coverage. The owner retains every live assertion it had - between 23 and 102 of them - over the runtime sources, adapters, migrations, repositories, and documented contracts it exists to prove. The retired assertions were the only ones reading a planning document. The adapter contract surface is still proven against the live provider.",
+      "retiredEvidence": [
+        "CHANGELOG.md",
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/database-adapter-contract-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.database.adapter.contract",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/database-adapter-contract-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.database.boolean.time.seam",
+      "retiredInVersion": "0.33.33.32.28",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Assertions of this class required archived CHANGELOG.md prose for a completed 0.33.5.x release to still contain particular wording, or required the live ROADMAP.md to no longer contain a specific completed-slice heading or breadcrumb. Neither describes how the code behaves today: the first records that a past release happened and cannot fail while the archived entry exists, and the second names a literal removed many minor versions ago that nothing writes back. release.roadmap-cursor-floor owns the live-roadmap structural contract, release.checkpoint-commits and legacy.bump.version own the roadmap-to-archive handoff, and legacy.bump.version owns changelog structure.",
+      "assertionDisposition": "No behavior lost coverage. The owner retains every live assertion it had - between 23 and 102 of them - over the runtime sources, adapters, migrations, repositories, and documented contracts it exists to prove. The retired assertions were the only ones reading a planning document. Adapter-owned logical boolean normalization and the timestamp/interval seams are still proven against the live dialect.",
+      "retiredEvidence": [
+        "CHANGELOG.md",
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/database-boolean-time-seam-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.database.boolean.time.seam",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/database-boolean-time-seam-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.database.case.insensitive.seam",
+      "retiredInVersion": "0.33.33.32.28",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Assertions of this class required archived CHANGELOG.md prose for a completed 0.33.5.x release to still contain particular wording, or required the live ROADMAP.md to no longer contain a specific completed-slice heading or breadcrumb. Neither describes how the code behaves today: the first records that a past release happened and cannot fail while the archived entry exists, and the second names a literal removed many minor versions ago that nothing writes back. release.roadmap-cursor-floor owns the live-roadmap structural contract, release.checkpoint-commits and legacy.bump.version own the roadmap-to-archive handoff, and legacy.bump.version owns changelog structure.",
+      "assertionDisposition": "No behavior lost coverage. The owner retains every live assertion it had - between 23 and 102 of them - over the runtime sources, adapters, migrations, repositories, and documented contracts it exists to prove. The retired assertions were the only ones reading a planning document. The provider-neutral case-insensitive comparison and ordering helpers are still proven against the live dialect.",
+      "retiredEvidence": [
+        "CHANGELOG.md",
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/database-case-insensitive-seam-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.database.case.insensitive.seam",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/database-case-insensitive-seam-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.database.conflict.identity.seam",
+      "retiredInVersion": "0.33.33.32.28",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Assertions of this class required archived CHANGELOG.md prose for a completed 0.33.5.x release to still contain particular wording, or required the live ROADMAP.md to no longer contain a specific completed-slice heading or breadcrumb. Neither describes how the code behaves today: the first records that a past release happened and cannot fail while the archived entry exists, and the second names a literal removed many minor versions ago that nothing writes back. release.roadmap-cursor-floor owns the live-roadmap structural contract, release.checkpoint-commits and legacy.bump.version own the roadmap-to-archive handoff, and legacy.bump.version owns changelog structure.",
+      "assertionDisposition": "No behavior lost coverage. The owner retains every live assertion it had - between 23 and 102 of them - over the runtime sources, adapters, migrations, repositories, and documented contracts it exists to prove. The retired assertions were the only ones reading a planning document. The provider-neutral upsert/conflict and identity/RETURNING seams are still proven against the live dialect.",
+      "retiredEvidence": [
+        "CHANGELOG.md",
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/database-conflict-identity-seam-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.database.conflict.identity.seam",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/database-conflict-identity-seam-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.database.dialect.seam.scaffold",
+      "retiredInVersion": "0.33.33.32.28",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Assertions of this class required archived CHANGELOG.md prose for a completed 0.33.5.x release to still contain particular wording, or required the live ROADMAP.md to no longer contain a specific completed-slice heading or breadcrumb. Neither describes how the code behaves today: the first records that a past release happened and cannot fail while the archived entry exists, and the second names a literal removed many minor versions ago that nothing writes back. release.roadmap-cursor-floor owns the live-roadmap structural contract, release.checkpoint-commits and legacy.bump.version own the roadmap-to-archive handoff, and legacy.bump.version owns changelog structure.",
+      "assertionDisposition": "No behavior lost coverage. The owner retains every live assertion it had - between 23 and 102 of them - over the runtime sources, adapters, migrations, repositories, and documented contracts it exists to prove. The retired assertions were the only ones reading a planning document. The provider-neutral seam surface and its SQLite proof harness are still proven against the live dialect.",
+      "retiredEvidence": [
+        "CHANGELOG.md",
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/database-dialect-seam-scaffold-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.database.dialect.seam.scaffold",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/database-dialect-seam-scaffold-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.database.introspection.boundary",
+      "retiredInVersion": "0.33.33.32.28",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Assertions of this class required archived CHANGELOG.md prose for a completed 0.33.5.x release to still contain particular wording, or required the live ROADMAP.md to no longer contain a specific completed-slice heading or breadcrumb. Neither describes how the code behaves today: the first records that a past release happened and cannot fail while the archived entry exists, and the second names a literal removed many minor versions ago that nothing writes back. release.roadmap-cursor-floor owns the live-roadmap structural contract, release.checkpoint-commits and legacy.bump.version own the roadmap-to-archive handoff, and legacy.bump.version owns changelog structure.",
+      "assertionDisposition": "No behavior lost coverage. The owner retains every live assertion it had - between 23 and 102 of them - over the runtime sources, adapters, migrations, repositories, and documented contracts it exists to prove. The retired assertions were the only ones reading a planning document. The PRAGMA, rowid, and introspection seam boundaries are still proven against the live provider.",
+      "retiredEvidence": [
+        "CHANGELOG.md",
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/database-introspection-boundary-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.database.introspection.boundary",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/database-introspection-boundary-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"
@@ -881,6 +1077,34 @@
       ]
     },
     {
+      "sourceRegression": "legacy.migration.compatibility",
+      "retiredInVersion": "0.33.33.32.28",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Assertions of this class required archived CHANGELOG.md prose for a completed 0.33.5.x release to still contain particular wording, or required the live ROADMAP.md to no longer contain a specific completed-slice heading or breadcrumb. Neither describes how the code behaves today: the first records that a past release happened and cannot fail while the archived entry exists, and the second names a literal removed many minor versions ago that nothing writes back. release.roadmap-cursor-floor owns the live-roadmap structural contract, release.checkpoint-commits and legacy.bump.version own the roadmap-to-archive handoff, and legacy.bump.version owns changelog structure.",
+      "assertionDisposition": "No behavior lost coverage. The owner retains every live assertion it had - between 23 and 102 of them - over the runtime sources, adapters, migrations, repositories, and documented contracts it exists to prove. The retired assertions were the only ones reading a planning document. The migration compatibility path and its bound-operation counts are still measured against live sources rather than read from release notes.",
+      "retiredEvidence": [
+        "CHANGELOG.md",
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/migration-compatibility-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.migration.compatibility",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/migration-compatibility-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
       "sourceRegression": "legacy.notes.external.markdown.links.preference",
       "retiredInVersion": "0.33.33.32.13",
       "retirementType": "historical-planning-pin",
@@ -1057,6 +1281,62 @@
       ]
     },
     {
+      "sourceRegression": "legacy.parameter.binding.conversion.wave",
+      "retiredInVersion": "0.33.33.32.28",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "Assertions of this class required archived CHANGELOG.md prose for a completed 0.33.5.x release to still contain particular wording, or required the live ROADMAP.md to no longer contain a specific completed-slice heading or breadcrumb. Neither describes how the code behaves today: the first records that a past release happened and cannot fail while the archived entry exists, and the second names a literal removed many minor versions ago that nothing writes back. release.roadmap-cursor-floor owns the live-roadmap structural contract, release.checkpoint-commits and legacy.bump.version own the roadmap-to-archive handoff, and legacy.bump.version owns changelog structure.",
+      "assertionDisposition": "No behavior lost coverage. The owner retains every live assertion it had - between 23 and 102 of them - over the runtime sources, adapters, migrations, repositories, and documented contracts it exists to prove. The retired assertions were the only ones reading a planning document. The converted parameter-binding wave is still proven against live repository sources. Two redundant assertRoadmapCursorAtLeast(\"0.33.8\") floors were removed alongside it and are deliberately not credited: the manifest's assertion counter does not match that call, so counting them would manufacture coverage that never existed, and release.roadmap-cursor-floor already asserts that exact floor once.",
+      "retiredEvidence": [
+        "CHANGELOG.md",
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/parameter-binding-conversion-wave-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.parameter.binding.conversion.wave",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/parameter-binding-conversion-wave-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.parameter.binding.layer",
+      "retiredInVersion": "0.33.33.32.28",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 3,
+      "rationale": "Assertions of this class required archived CHANGELOG.md prose for a completed 0.33.5.x release to still contain particular wording, or required the live ROADMAP.md to no longer contain a specific completed-slice heading or breadcrumb. Neither describes how the code behaves today: the first records that a past release happened and cannot fail while the archived entry exists, and the second names a literal removed many minor versions ago that nothing writes back. release.roadmap-cursor-floor owns the live-roadmap structural contract, release.checkpoint-commits and legacy.bump.version own the roadmap-to-archive handoff, and legacy.bump.version owns changelog structure.",
+      "assertionDisposition": "No behavior lost coverage. The owner retains every live assertion it had - between 23 and 102 of them - over the runtime sources, adapters, migrations, repositories, and documented contracts it exists to prove. The retired assertions were the only ones reading a planning document. The named-to-positional binding layer is still proven against live sources. Two redundant cursor floors were removed alongside these and are deliberately not credited, for the reason recorded on the conversion-wave entry.",
+      "retiredEvidence": [
+        "CHANGELOG.md",
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/parameter-binding-layer-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.parameter.binding.layer",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/parameter-binding-layer-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
       "sourceRegression": "legacy.runtime.configuration.contract",
       "retiredInVersion": "0.33.33.32.27",
       "retirementType": "historical-planning-pin",
@@ -1208,6 +1488,62 @@
       ],
       "verificationPerformed": [
         "node scripts/search-index-jobs-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.sqlite.small.office.performance",
+      "retiredInVersion": "0.33.33.32.28",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Assertions of this class required archived CHANGELOG.md prose for a completed 0.33.5.x release to still contain particular wording, or required the live ROADMAP.md to no longer contain a specific completed-slice heading or breadcrumb. Neither describes how the code behaves today: the first records that a past release happened and cannot fail while the archived entry exists, and the second names a literal removed many minor versions ago that nothing writes back. release.roadmap-cursor-floor owns the live-roadmap structural contract, release.checkpoint-commits and legacy.bump.version own the roadmap-to-archive handoff, and legacy.bump.version owns changelog structure.",
+      "assertionDisposition": "No behavior lost coverage. The owner retains every live assertion it had - between 23 and 102 of them - over the runtime sources, adapters, migrations, repositories, and documented contracts it exists to prove. The retired assertions were the only ones reading a planning document. The bounded-query and small-office scale thresholds are still measured against a live database.",
+      "retiredEvidence": [
+        "CHANGELOG.md",
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/sqlite-small-office-performance-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.sqlite.small.office.performance",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/sqlite-small-office-performance-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.startup.maintenance.compatibility",
+      "retiredInVersion": "0.33.33.32.28",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Assertions of this class required archived CHANGELOG.md prose for a completed 0.33.5.x release to still contain particular wording, or required the live ROADMAP.md to no longer contain a specific completed-slice heading or breadcrumb. Neither describes how the code behaves today: the first records that a past release happened and cannot fail while the archived entry exists, and the second names a literal removed many minor versions ago that nothing writes back. release.roadmap-cursor-floor owns the live-roadmap structural contract, release.checkpoint-commits and legacy.bump.version own the roadmap-to-archive handoff, and legacy.bump.version owns changelog structure.",
+      "assertionDisposition": "No behavior lost coverage. The owner retains every live assertion it had - between 23 and 102 of them - over the runtime sources, adapters, migrations, repositories, and documented contracts it exists to prove. The retired assertions were the only ones reading a planning document. The startup maintenance compatibility path and its bound-operation counts are still measured against live sources.",
+      "retiredEvidence": [
+        "CHANGELOG.md",
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/startup-maintenance-compatibility-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.startup.maintenance.compatibility",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/startup-maintenance-compatibility-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"
@@ -1416,6 +1752,34 @@
       ],
       "verificationPerformed": [
         "node scripts/user-theme-auto-mode-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.view.builder.helper",
+      "retiredInVersion": "0.33.33.32.28",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "Assertions of this class required archived CHANGELOG.md prose for a completed 0.33.5.x release to still contain particular wording, or required the live ROADMAP.md to no longer contain a specific completed-slice heading or breadcrumb. Neither describes how the code behaves today: the first records that a past release happened and cannot fail while the archived entry exists, and the second names a literal removed many minor versions ago that nothing writes back. release.roadmap-cursor-floor owns the live-roadmap structural contract, release.checkpoint-commits and legacy.bump.version own the roadmap-to-archive handoff, and legacy.bump.version owns changelog structure.",
+      "assertionDisposition": "No behavior lost coverage. The owner retains every live assertion it had - between 23 and 102 of them - over the runtime sources, adapters, migrations, repositories, and documented contracts it exists to prove. The retired assertions were the only ones reading a planning document. The view-builder helper implementation is still proven against live browser sources and the view-building contract.",
+      "retiredEvidence": [
+        "CHANGELOG.md",
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/view-builder-helper-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.view.builder.helper",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/view-builder-helper-regression.mjs",
         "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
@@ -2023,11 +2387,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 29,
+      "assertionCount": 26,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy clients projects hierarchy reparent contract.",
-      "entryPointAssertionCount": 29,
+      "entryPointAssertionCount": 26,
       "id": "legacy.clients.projects.hierarchy.reparent",
       "legacy": true,
       "path": "scripts/clients-projects-hierarchy-reparent-regression.mjs",
@@ -2083,11 +2447,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 51,
+      "assertionCount": 50,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy database adapter contract contract.",
-      "entryPointAssertionCount": 51,
+      "entryPointAssertionCount": 50,
       "id": "legacy.database.adapter.contract",
       "legacy": true,
       "path": "scripts/database-adapter-contract-regression.mjs",
@@ -2101,11 +2465,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 35,
+      "assertionCount": 33,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy database boolean time seam contract.",
-      "entryPointAssertionCount": 35,
+      "entryPointAssertionCount": 33,
       "id": "legacy.database.boolean.time.seam",
       "legacy": true,
       "path": "scripts/database-boolean-time-seam-regression.mjs",
@@ -2118,11 +2482,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 33,
+      "assertionCount": 31,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy database case insensitive seam contract.",
-      "entryPointAssertionCount": 33,
+      "entryPointAssertionCount": 31,
       "id": "legacy.database.case.insensitive.seam",
       "legacy": true,
       "path": "scripts/database-case-insensitive-seam-regression.mjs",
@@ -2135,11 +2499,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 44,
+      "assertionCount": 42,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy database conflict identity seam contract.",
-      "entryPointAssertionCount": 44,
+      "entryPointAssertionCount": 42,
       "id": "legacy.database.conflict.identity.seam",
       "legacy": true,
       "path": "scripts/database-conflict-identity-seam-regression.mjs",
@@ -2152,11 +2516,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 72,
+      "assertionCount": 70,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy database dialect seam scaffold contract.",
-      "entryPointAssertionCount": 72,
+      "entryPointAssertionCount": 70,
       "id": "legacy.database.dialect.seam.scaffold",
       "legacy": true,
       "path": "scripts/database-dialect-seam-scaffold-regression.mjs",
@@ -2169,11 +2533,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 27,
+      "assertionCount": 25,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy database introspection boundary contract.",
-      "entryPointAssertionCount": 27,
+      "entryPointAssertionCount": 25,
       "id": "legacy.database.introspection.boundary",
       "legacy": true,
       "path": "scripts/database-introspection-boundary-regression.mjs",
@@ -2945,11 +3309,11 @@
     },
     {
       "area": "docs",
-      "assertionCount": 41,
+      "assertionCount": 40,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy help search contract.",
-      "entryPointAssertionCount": 41,
+      "entryPointAssertionCount": 40,
       "id": "legacy.help.search",
       "legacy": true,
       "path": "scripts/help-search-regression.mjs",
@@ -3341,11 +3705,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 37,
+      "assertionCount": 35,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy migration compatibility contract.",
-      "entryPointAssertionCount": 37,
+      "entryPointAssertionCount": 35,
       "id": "legacy.migration.compatibility",
       "legacy": true,
       "path": "scripts/migration-compatibility-regression.mjs",
@@ -3835,11 +4199,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 28,
+      "assertionCount": 27,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy parameter binding conversion wave contract.",
-      "entryPointAssertionCount": 28,
+      "entryPointAssertionCount": 27,
       "id": "legacy.parameter.binding.conversion.wave",
       "legacy": true,
       "path": "scripts/parameter-binding-conversion-wave-regression.mjs",
@@ -3850,11 +4214,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 88,
+      "assertionCount": 85,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy parameter binding layer contract.",
-      "entryPointAssertionCount": 88,
+      "entryPointAssertionCount": 85,
       "id": "legacy.parameter.binding.layer",
       "legacy": true,
       "path": "scripts/parameter-binding-layer-regression.mjs",
@@ -4921,11 +5285,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 198,
+      "assertionCount": 205,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 198,
+      "entryPointAssertionCount": 205,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -7501,11 +7865,11 @@
     },
     {
       "area": "search",
-      "assertionCount": 194,
+      "assertionCount": 195,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy search contract contract.",
-      "entryPointAssertionCount": 194,
+      "entryPointAssertionCount": 195,
       "id": "legacy.search.contract",
       "legacy": true,
       "path": "scripts/search-contract-regression.mjs",
@@ -7692,11 +8056,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 23,
+      "assertionCount": 21,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy sqlite small office performance contract.",
-      "entryPointAssertionCount": 23,
+      "entryPointAssertionCount": 21,
       "id": "legacy.sqlite.small.office.performance",
       "legacy": true,
       "path": "scripts/sqlite-small-office-performance-regression.mjs",
@@ -7709,11 +8073,11 @@
     },
     {
       "area": "database",
-      "assertionCount": 33,
+      "assertionCount": 31,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy startup maintenance compatibility contract.",
-      "entryPointAssertionCount": 33,
+      "entryPointAssertionCount": 31,
       "id": "legacy.startup.maintenance.compatibility",
       "legacy": true,
       "path": "scripts/startup-maintenance-compatibility-regression.mjs",
@@ -8343,11 +8707,11 @@
     },
     {
       "area": "views",
-      "assertionCount": 102,
+      "assertionCount": 101,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy view builder helper contract.",
-      "entryPointAssertionCount": 102,
+      "entryPointAssertionCount": 101,
       "id": "legacy.view.builder.helper",
       "legacy": true,
       "path": "scripts/view-builder-helper-regression.mjs",

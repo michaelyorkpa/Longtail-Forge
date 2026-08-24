@@ -19,8 +19,6 @@ const migrationsSource = readText("src/db/migrations.js");
 const projectAdminScopeMigration = readText("src/db/migrations/074_project_admin_project_scope.sql");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
-const roadmap = readText("ROADMAP.md");
-const changelog = readText("CHANGELOG.md");
 const previousRoleSeedBaselineChecksum = "1268626e1b685969642bcf1bf560e40fa59cf27618e958da4c0172f2a309882c";
 
 const {
@@ -81,8 +79,6 @@ function assertStaticContract() {
   assert.match(auditDocs, /\| db\/migrations \| Migration compatibility \| 0 \| 0 \| 10 \| 28 \|[\s\S]*\| db\/index \| Startup compatibility \| 0 \| 0 \| 31 \| 40 \|/, "audit inventory should mark migrations as compatibility-tracked with values converted");
   assert.match(auditDocs, /0\.33\.5\.27\.30 Migration Compatibility Path[\s\S]*`src\/db\/migrations\.js` no longer has literal-helper calls or direct interpolated operation sites[\s\S]*0 runtime literal-helper invocations[\s\S]*385 existing bound operation sites/, "audit docs should record the migration compatibility slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.27\.30[\s\S]*`src\/db\/migrations\.js` has no remaining literal-helper calls or direct interpolated operation sites[\s\S]*current baseline SQL[\s\S]*future migration SQL files remain migration-owned compatibility SQL[\s\S]*385 existing bound operation sites/, "database docs should record the migration compatibility outcome");
-  assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.27\.30 - Migration compatibility path[\s\S]*- \[x\] Review `src\/db\/migrations\.js`[\s\S]*- \[x\] Convert paths that can safely move[\s\S]*- \[x\] Account for dialect-sensitive migration statements[\s\S]*- \[x\] Update the burndown ratchet/, "live roadmap should archive completed 0.33.5.27 slice bodies");
-  assert.match(changelog, /## Version 0\.33\.5\.27\.30 - [\s\S]*Migration compatibility path[\s\S]*0 helper invocations[\s\S]*0 direct interpolated operation sites[\s\S]*385 bound operation sites/, "changelog should record the migration compatibility burndown");
 }
 
 async function assertMigrationRows() {

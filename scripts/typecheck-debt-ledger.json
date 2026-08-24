@@ -3011,13 +3011,9 @@
   "totals": {
     "files": 1046,
     "errors": 11134,
-    "explicitAny": 3
+    "explicitAny": 0
   },
-  "explicitAnyByFile": {
-    "scripts/regression-contracts/framework/markdown-checked-core.contract.mjs": 1,
-    "src/repositories/account-export-recovery.repo.js": 1,
-    "src/types/framework-contracts.d.ts": 1
-  },
+  "explicitAnyByFile": {},
   "expectedErrorDirectives": [
     "tests/typecheck/browser-database-boundary.fixture.mjs:3",
     "tests/typecheck/client-project-contracts.fixture.mjs:27",

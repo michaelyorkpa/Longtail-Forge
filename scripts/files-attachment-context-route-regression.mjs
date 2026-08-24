@@ -590,7 +590,6 @@ VALUES (
   });
   const clientUserSession = await createSession({
     active_workspace_id: workspaceId,
-    display_name: "Files Context Client User",
     home_workspace_id: workspaceId,
     timezone: "America/New_York",
     user_id: clientUserId,

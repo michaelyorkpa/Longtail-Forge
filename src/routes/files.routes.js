@@ -10,6 +10,7 @@ import {
 
 /** @typedef {Awaited<ReturnType<typeof filesService.uploadStreamAndAttach>>} FileUploadResult */
 /** @typedef {import("node:stream").Readable} MultipartFileStream */
+/** @typedef {import("busboy").BusboyParser} BusboyParser */
 /** @typedef {{ filename?: string, mimeType?: string, valueTruncated?: boolean }} MultipartPartInfo */
 /** @typedef {{ destroyParser?: boolean }} MultipartFailureOptions */
 /** @typedef {Map<string, string>} MultipartFields */
@@ -174,7 +175,7 @@ function readMultipartUpload(request) {
   }
 
   return new Promise((resolve, reject) => {
-    /** @type {import("node:stream").Writable} */
+    /** @type {BusboyParser} */
     let parser;
 
     try {
@@ -232,7 +233,7 @@ function readMultipartUpload(request) {
     request.on("aborted", handleRequestAborted);
     request.on("error", handleRequestError);
 
-    parser.on("field", (name, value, info = {}) => {
+    parser.on("field", (name, value, info) => {
       if (settled) {
         return;
       }
@@ -243,7 +244,7 @@ function readMultipartUpload(request) {
       fields.set(name, value);
     });
 
-    parser.on("file", (fieldName, file, info = {}) => {
+    parser.on("file", (fieldName, file, info) => {
       if (settled) {
         file.resume();
         return;
@@ -330,7 +331,7 @@ function readMultipartBatchUpload(request) {
   }
 
   return new Promise((resolve, reject) => {
-    /** @type {import("node:stream").Writable} */
+    /** @type {BusboyParser} */
     let parser;
 
     try {
@@ -384,7 +385,7 @@ function readMultipartBatchUpload(request) {
     request.on("aborted", handleRequestAborted);
     request.on("error", handleRequestError);
 
-    parser.on("field", (name, value, info = {}) => {
+    parser.on("field", (name, value, info) => {
       if (settled) {
         return;
       }
@@ -395,7 +396,7 @@ function readMultipartBatchUpload(request) {
       fields.set(name, value);
     });
 
-    parser.on("file", (fieldName, file, info = {}) => {
+    parser.on("file", (fieldName, file, info) => {
       if (settled) {
         file.resume();
         return;

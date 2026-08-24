@@ -1,6 +1,7 @@
 import { db } from "../core/database.js";
 
 /** @typedef {import("../types/database-contracts.js").TransactionClient} TransactionClient */
+/** @typedef {{ user_id: string }} WorkspaceMemberUserIdRow */
 
 const QUALIFICATION_BASIS = "former_workspace_administrator";
 const QUALIFICATION_UPSERT_SQL = db.dialect.conflict.buildInsertOnConflictDoUpdate({
@@ -63,7 +64,9 @@ WHERE user_id = :userId;
 }
 
 /**
- * @param {any} input
+ * Record, or clear, one user's export-recovery qualification after they lose
+ * access to a workspace.
+ * @param {{ source: string, userId: string, workspaceId: string }} input
  * @param {TransactionClient} [database]
  */
 async function recordWorkspaceAccessLoss({ userId, workspaceId, source }, database = db) {
@@ -119,7 +122,7 @@ LIMIT 1;
  * @param {TransactionClient} [database]
  */
 async function prepareWorkspacePurge(workspaceId, database = db) {
-  const users = await database.query(`
+  const users = /** @type {WorkspaceMemberUserIdRow[]} */ (await database.query(`
 SELECT DISTINCT user_id
 FROM (
   SELECT user_id
@@ -133,7 +136,7 @@ FROM (
 )
 WHERE user_id IS NOT NULL
 ORDER BY user_id;
-`, { workspaceId });
+`, { workspaceId }));
   for (const user of users) {
     await recordWorkspaceAccessLoss({
       source: "workspace_purge",

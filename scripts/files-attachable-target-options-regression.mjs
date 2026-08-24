@@ -338,7 +338,6 @@ VALUES (${sqlText(otherWorkspaceId)}, 'Other Attachable Target Options Workspace
   });
   const clientUserSession = await createSession({
     active_workspace_id: workspaceId,
-    display_name: "Files Target Option Client User",
     home_workspace_id: workspaceId,
     timezone: "America/New_York",
     user_id: clientUserId,

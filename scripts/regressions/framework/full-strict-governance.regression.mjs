@@ -12,6 +12,7 @@ import fs from "node:fs";
 import {
   PROGRAMS,
   collectSourcePolicy,
+  countExplicitAnyAnnotations,
   firstPartyJavaScriptFiles,
   isFirstPartyDirectoryName,
   validateShrinkOnly,
@@ -22,6 +23,9 @@ import { compareDottedVersions } from "../../lib/roadmap-cursor.mjs";
 /** @typedef {{ config: string, environment: string, files: string[], errorCount: number, diagnostics: Record<string, DiagnosticCount[]> }} ProgramState */
 /** @typedef {{ schemaVersion: number, checkpoint: string, programs: Record<string, ProgramState>, totals: { files: number, errors: number, explicitAny: number }, explicitAnyByFile: Record<string, number>, expectedErrorDirectives: string[], declarationProbe: { config: string, firstPartyFiles: number, errors: number } }} GovernanceLedger */
 /** @typedef {{ compilerOptions: Record<string, unknown>, include: string[], exclude: string[] }} TypeScriptConfig */
+
+// The published session members that make a literal session-shaped.
+const SESSION_LITERAL_MEMBERS = ["active_workspace_id", "home_workspace_id", "session_mode", "user_id", "username", "workspace_id"];
 
 /** @type {GovernanceLedger} */
 const ledger = JSON.parse(fs.readFileSync("scripts/typecheck-debt-ledger.json", "utf8"));
@@ -1113,12 +1117,23 @@ for (const hierarchyOwner of [
 // every remaining `ip:` member by its receiving contract, found seven more that
 // were all session-shaped, and corrected them. This guard is estate-wide rather
 // than a list of owners so the class cannot reopen anywhere.
+// 0.33.33.32.28 narrowed this from a blanket prohibition on any `ip:` member
+// to one tied to session-shaped literals. The blanket form was correct for the
+// estate as it stood but would have failed a future legitimate `ip` on an
+// unrelated shape - a request-context record, an HTTP client option, a
+// rate-limit or audit fixture describing a remote address. The narrowed rule
+// was verified against all seven pre-correction fixtures in Git rather than
+// assumed: every one of them names a session member in the same literal, so
+// all seven still fail. The broader alternative - forbidding a laundering cast
+// to any published session type - was measured and rejected: ten such casts
+// remain estate-wide and every one is a deliberate probe stub, so that rule
+// would be all false positives.
 for (const scriptPath of discoveredScriptPaths()) {
   const source = fs.readFileSync(scriptPath, "utf8");
-  assert.equal(
-    /^\s*ip: /m.test(source),
-    false,
-    `${scriptPath} must not set the misnamed ip session field; published session contracts name ip_address`,
+  assert.deepEqual(
+    sessionShapedIpMembers(source),
+    [],
+    `${scriptPath} sets the misnamed ip field on a session-shaped literal; published session contracts name ip_address`,
   );
 }
 for (const sessionOwner of [
@@ -1373,8 +1388,121 @@ assert.ok(
     .includes("(request: import(\"node:http\").IncomingMessage, response: import(\"node:http\").ServerResponse): void;"),
   "the express Application declaration should keep its Node request-listener call signature",
 );
+// 0.33.33.32.28 audited the explicit-`any` inventory and closed it. One of the
+// three recorded occurrences was a detector false positive - a regular
+// expression whose own purpose was to forbid such annotations - and the
+// detector now blanks string, template, and regular-expression literals before
+// scanning. The other two were real and were replaced with truthful contracts.
+// This pins the result: the repository carries no explicit `any`.
+assert.equal(
+  ledger.totals.explicitAny,
+  0,
+  `the repository should carry no explicit any; the ledger records ${JSON.stringify(ledger.explicitAnyByFile)}`,
+);
+// The detector must stay literal-aware, and that is proven by driving it
+// rather than by reading its source: a zero inventory is only trustworthy if
+// the thing producing it still finds a real annotation. Both fixtures are
+// assembled from parts so this file does not spell the token it is testing.
+const annotationToken = `{${"an"}${"y"}}`;
+assert.equal(
+  countExplicitAnyAnnotations(`/** @param ${annotationToken} value */`),
+  1,
+  "the explicit-any detector must still count a real JSDoc annotation",
+);
+assert.equal(
+  countExplicitAnyAnnotations(`const forbidden = /@param ${annotationToken}/;`),
+  0,
+  "the explicit-any detector must not count an annotation spelled inside a regular expression",
+);
+assert.equal(
+  countExplicitAnyAnnotations(`const message = "a ${annotationToken} annotation is forbidden";`),
+  0,
+  "the explicit-any detector must not count an annotation spelled inside a string",
+);
+// 0.33.33.32.28 published AppShellSearchTarget and SearchTargetFieldMap, so
+// consumers now trust those members statically. Each needs a live proof that
+// the producer really emits them.
+assert.ok(
+  fs.readFileSync("scripts/search-shell-regression.mjs", "utf8")
+    .includes("should carry exactly the six contract members"),
+  "scripts/search-shell-regression.mjs should keep proving the published search-target contract at runtime",
+);
+assert.ok(
+  fs.readFileSync("scripts/search-contract-regression.mjs", "utf8")
+    .includes("should publish its column map"),
+  "scripts/search-contract-regression.mjs should keep proving the published search target column map",
+);
+// SessionSeed now names the eight fields prepareSessionRecord consumes, so no
+// caller needs to launder a precise session through an object literal.
+// The needle is assembled rather than spelled out. A source-text guard that
+// writes its own forbidden pattern matches itself - the third time this
+// rollup has hit that, after the planning-document names at 0.33.33.32.25
+// and the annotation-shaped token in the detector's own comment.
+  const spreadOnlySeed = `createSession({ ${"."}${".."}`;
+for (const seedOwner of discoveredScriptPaths()) {
+  assert.equal(
+    fs.readFileSync(seedOwner, "utf8").includes(spreadOnlySeed),
+    false,
+    `${seedOwner} must not reintroduce the spread-only createSession compatibility pattern`,
+  );
+}
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 
+/**
+ * Every line in one source that sets an `ip` member inside an object literal
+ * that also names a published session member.
+ *
+ * The enclosing literal is found by walking outward on brace depth, so a
+ * session member anywhere in the same literal counts and one in a neighbouring
+ * literal does not.
+ * @param {string} source
+ * @returns {number[]} the 1-based line numbers of the offending members
+ */
+function sessionShapedIpMembers(source) {
+  /** @type {number[]} */
+  const offenders = [];
+  const lines = source.split("\r\n").join("\n").split("\n");
+  for (let index = 0; index < lines.length; index += 1) {
+    if (!/^\s*ip:\s/.test(lines[index])) continue;
+    const open = literalStart(lines, index);
+    const close = literalEnd(lines, index);
+    const literal = lines.slice(open, close + 1).join("\n");
+    if (SESSION_LITERAL_MEMBERS.some((member) => new RegExp(`\\b${member}\\s*:`).test(literal))) {
+      offenders.push(index + 1);
+    }
+  }
+  return offenders;
+}
+
+/** @param {string[]} lines @param {number} from @returns {number} */
+function literalStart(lines, from) {
+  let depth = 0;
+  for (let index = from; index >= 0; index -= 1) {
+    for (const character of [...lines[index]].reverse()) {
+      if (character === "}") depth += 1;
+      else if (character === "{") {
+        if (depth === 0) return index;
+        depth -= 1;
+      }
+    }
+  }
+  return 0;
+}
+
+/** @param {string[]} lines @param {number} from @returns {number} */
+function literalEnd(lines, from) {
+  let depth = 0;
+  for (let index = from; index < lines.length; index += 1) {
+    for (const character of lines[index]) {
+      if (character === "{") depth += 1;
+      else if (character === "}") {
+        if (depth === 0) return index;
+        depth -= 1;
+      }
+    }
+  }
+  return lines.length - 1;
+}
 /**
  * Every first-party script the scripts program checks.
  *

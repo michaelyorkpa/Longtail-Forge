@@ -4,7 +4,6 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 import { requireRow } from "./test-support/database-row-assertions.mjs";
 const { readText } = createProjectTextReader();
@@ -15,7 +14,6 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-parameter-binding-w
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-binding-wave.db");
 process.env.SUPER_ADMIN_PASSWORD = "Parameter-Binding-Wave-Test-123!";
 
-const changelog = readText("CHANGELOG.md");
 const auditDocs = readText("docs/database-parameter-binding-audit.md");
 const databaseDocs = readText("docs/database.md");
 const convertedSources = new Map([
@@ -53,9 +51,6 @@ try {
   assert.match(auditDocs, /Remaining direct interpolated SQL operation sites after the conversion wave: 233/, "audit docs should record the wave operation-site burndown");
   assert.match(databaseDocs, /As of version 0\.33\.5\.23\.3[\s\S]*auth, workspace, permission, and settings repositories/, "database docs should record the converted wave");
   assert.match(databaseDocs, /As of version 0\.33\.5\.23\.4[\s\S]*SQL parameter-binding branch is closed/, "database docs should record the closeout boundary");
-  assertRoadmapCursorAtLeast("0.33.8", "live roadmap should record the current archived handoff");
-  assertRoadmapCursorAtLeast("0.33.8", "live roadmap should advance after the completed database extraction contract and parameter-binding gap closeout branches");
-  assert.match(changelog, /## Version 0\.33\.5\.23\.3 - [\s\S]*Converted the first parameter-binding wave/, "changelog should include the conversion-wave slice");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "conversion-wave database should pass integrity check");

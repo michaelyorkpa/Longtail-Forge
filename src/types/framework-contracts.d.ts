@@ -282,17 +282,23 @@ export interface NotificationFollowTargetContribution {
   eventTypes?: string[];
 }
 
-export interface ModuleStartupTask {
+export interface ModuleStartupTask<Result = unknown> {
   id: string;
-  run: () => unknown | Promise<unknown>;
-  formatSuccess?: (result: any) => string;
+  run: () => Result | Promise<Result>;
+  /**
+   * Declared in method position on purpose. The result type is known only
+   * where the task is registered; the runtime that invokes this holds
+   * `unknown`, and method-position bivariance is what lets both be true at
+   * once without an `any`.
+   */
+  formatSuccess?(result: Awaited<Result>): string;
   failureMessage?: string;
 }
 
 export interface ModuleActivationContext {
   moduleId: string;
   runtime: "app" | "worker";
-  registerStartupTask: (task: ModuleStartupTask) => void;
+  registerStartupTask: <Result>(task: ModuleStartupTask<Result>) => void;
 }
 
 export interface ModuleEntry {
@@ -1004,7 +1010,39 @@ export interface SearchResult {
   [key: string]: unknown;
 }
 
+/**
+ * The column map one permission-safe search target publishes.
+ *
+ * Built by exactly one producer in search.service.js from the normalized
+ * searchable-type declaration, so every target carries the same ten members.
+ * The nullable ones are nullable at the source: a declaration that names no
+ * client, project, tag, visibility, or status column answers null for it.
+ */
+export interface SearchTargetFieldMap {
+  body: string[];
+  client: string | null;
+  id: string;
+  project: string | null;
+  recordStatus: string | null;
+  summary: string;
+  tagsText: string | null;
+  title: string;
+  visibility: string | null;
+  workspace: string;
+}
+
+/**
+ * The index signature stays open on purpose: a target is the spread of one
+ * permission-safe filter composition, whose remaining members vary with the
+ * filter input rather than with a fixed contract.
+ *
+ * `fields` is declared because it has one producer and one shape, but it is
+ * optional rather than required: this type is also the input the search
+ * adapters accept, and no adapter reads or requires the column map. Requiring
+ * it would reject targets the execution path genuinely handles.
+ */
 export interface SearchPermissionTarget {
+  fields?: SearchTargetFieldMap;
   moduleId: string;
   recordType: string;
   requiredReadPermission?: string;
@@ -1271,6 +1309,22 @@ export interface AppShellBootstrapUser {
   username: string;
 }
 
+/**
+ * One entry in the app shell's visible search target list.
+ *
+ * Unlike the shell's `navigation`, which is deliberately open because modules
+ * contribute arbitrary entries, every target is built by one normalizing
+ * producer in app-shell.service.js and always carries these six members.
+ */
+export interface AppShellSearchTarget {
+  aggregate: boolean;
+  id: string;
+  label: string;
+  moduleId: string;
+  recordType: string;
+  sourceLabel: string;
+}
+
 export interface AppShellBootstrap {
   activeWorkspaceId: string;
   app: Record<string, unknown>;
@@ -1281,7 +1335,7 @@ export interface AppShellBootstrap {
   notificationSummary: Record<string, unknown>;
   permissionHints: Record<string, unknown>;
   quickActions: unknown[];
-  searchTargets: unknown[];
+  searchTargets: AppShellSearchTarget[];
   supportView: Record<string, unknown> | null;
   themeAutoSource: string;
   themeMode: string;
