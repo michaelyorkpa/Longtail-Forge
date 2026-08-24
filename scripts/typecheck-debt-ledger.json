@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 636,
+      "errorCount": 514,
       "diagnostics": {
         "scripts/app-shell-navigation-regression.mjs": [
           {
@@ -3064,12 +3064,6 @@
             "count": 6
           }
         ],
-        "scripts/client-projects-canonical-payload-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 10
-          }
-        ],
         "scripts/client-projects-repositories-conversion-regression.mjs": [
           {
             "code": 18047,
@@ -3094,72 +3088,6 @@
           {
             "code": 7006,
             "count": 11
-          }
-        ],
-        "scripts/clients-projects-bulk-toolbar-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/clients-projects-framework-read-anatomy-regression.mjs": [
-          {
-            "code": 18048,
-            "count": 30
-          },
-          {
-            "code": 2339,
-            "count": 11
-          },
-          {
-            "code": 7005,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 19
-          },
-          {
-            "code": 7034,
-            "count": 2
-          }
-        ],
-        "scripts/clients-projects-read-descriptor-host-regression.mjs": [
-          {
-            "code": 18048,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 15
-          },
-          {
-            "code": 7031,
-            "count": 10
-          }
-        ],
-        "scripts/clients-projects-related-regions-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/clients-projects-strict-closeout-regression.mjs": [
-          {
-            "code": 18048,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 7
-          },
-          {
-            "code": 7031,
-            "count": 4
           }
         ],
         "scripts/framework-admin-low-count-repositories-conversion-regression.mjs": [
@@ -3679,7 +3607,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 11770,
+    "errors": 11648,
     "explicitAny": 3
   },
   "explicitAnyByFile": {

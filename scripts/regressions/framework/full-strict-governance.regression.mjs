@@ -1073,6 +1073,29 @@ for (const navigationOwner of [
     `${navigationOwner} should keep walking navigation through the published node contract`,
   );
 }
+for (const clientProjectsOwner of [
+  "scripts/client-projects-canonical-payload-regression.mjs",
+  "scripts/clients-projects-bulk-toolbar-regression.mjs",
+  "scripts/clients-projects-framework-read-anatomy-regression.mjs",
+  "scripts/clients-projects-read-descriptor-host-regression.mjs",
+  "scripts/clients-projects-related-regions-regression.mjs",
+  "scripts/clients-projects-strict-closeout-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[clientProjectsOwner], undefined, `${clientProjectsOwner} must stay strict-clean after checkpoint 0.33.33.32.21`);
+}
+// The read-anatomy owners prove the framework-owned table anatomy is present
+// before asserting on it, rather than weakening the assertions that make this
+// module's framework-versus-module boundary provable.
+assert.ok(
+  fs.readFileSync("scripts/clients-projects-framework-read-anatomy-regression.mjs", "utf8")
+    .includes("descriptor should contribute a table"),
+  "scripts/clients-projects-framework-read-anatomy-regression.mjs should keep proving the contributed table anatomy",
+);
+assert.ok(
+  fs.readFileSync("scripts/clients-projects-read-descriptor-host-regression.mjs", "utf8")
+    .includes("should declare a data source"),
+  "scripts/clients-projects-read-descriptor-host-regression.mjs should keep proving each surface declares its data source",
+);
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().

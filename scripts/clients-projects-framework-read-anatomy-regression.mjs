@@ -7,6 +7,23 @@ import { createFakeBrowserContext } from "./test-support/fake-dom.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
+/** @typedef {import("../src/types/framework-contracts.js").ViewFilterDescriptor} ViewFilterDescriptor */
+/** @typedef {import("../src/types/framework-contracts.js").ViewSurfaceDescriptor} ViewSurfaceDescriptor */
+/** @typedef {import("../src/types/framework-contracts.js").ViewTableDescriptor} ViewTableDescriptor */
+
+/**
+ * A read surface with the framework-owned table anatomy this owner asserts on.
+ *
+ * The descriptor contract publishes `table` and each of its parts as optional
+ * because not every contributed surface is a table page. Clients and Projects
+ * are, and this owner is the standing proof of that anatomy, so the parts are
+ * proven present rather than read through.
+ * @typedef {ViewSurfaceDescriptor & {
+ *   filters: ViewFilterDescriptor[],
+ *   table: ViewTableDescriptor & Required<Pick<ViewTableDescriptor, "columns" | "rowActions" | "secondaryRows" | "selection">>,
+ * }} ReadSurfaceDescriptor
+ */
+
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const responseRecords = readText("public/js/shared/view-response-records.js");
@@ -44,11 +61,10 @@ assert.match(css, /\.client-projects-filter-panel \.view-filter-panel-fields\s*\
 assert.match(css, /tr:has\(\+ \.client-projects-tag-row\)[\s\S]*border-bottom: 0/, "Client/Project tag rows should visually join the record-name row without an extra divider");
 assert.match(css, /\.client-projects-tag-row \.surface-chip\s*\{[\s\S]*max-width: 100%[\s\S]*overflow-wrap: anywhere/, "Client/Project tag chips should contain long labels within their borders");
 
+assert.ok(clientProjectsModule.viewSurfaces, "Clients/Projects should contribute view surfaces");
 const surfaces = new Map(clientProjectsModule.viewSurfaces.map((surface) => [surface.id, surface]));
-const clientsDescriptor = surfaces.get("client-projects.clients");
-const projectsDescriptor = surfaces.get("client-projects.projects");
-assert.ok(clientsDescriptor, "Clients descriptor should be available");
-assert.ok(projectsDescriptor, "Projects descriptor should be available");
+const clientsDescriptor = readSurfaceAnatomy(surfaces.get("client-projects.clients"), "Clients");
+const projectsDescriptor = readSurfaceAnatomy(surfaces.get("client-projects.projects"), "Projects");
 assert.equal(clientsDescriptor.filterPlacement, "slide-out-sidebar", "Clients filters should render through the shared slide-out filter surface");
 assert.equal(projectsDescriptor.filterPlacement, "slide-out-sidebar", "Projects filters should render through the shared slide-out filter surface");
 assert.equal(clientsDescriptor.table.columns.some((column) => column.label === "Tags"), false, "Clients should not expose Tags as a standalone table column");
@@ -106,9 +122,18 @@ vm.runInNewContext(renderer, clientsContext, { filename: "view-renderer.js" });
  * @typedef {FakeNode & { refresh: () => Promise<unknown> }} ReadSurface
  */
 /**
- * The published `LongtailForge.view` read-anatomy entry points under test.
- * @typedef {{ registerBehavior: (id: string, handler: Function) => void, renderSurface: (descriptor: object, host: FakeNode) => ReadSurface }} ReadViewSurface
+ * One dispatched module-owned behavior call, as the descriptor hands it to a
+ * registered handler.
+ * @typedef {{ action: { behavior: string }, record?: { id?: string } | null, mountSearchOptions: (options: Array<{ label: string, value: string }>, config?: Record<string, unknown>) => void }} BehaviorContext
  */
+
+/** @typedef {{ behavior: string, recordId: string }} DispatchedBehavior */
+
+/**
+ * The published `LongtailForge.view` read-anatomy entry points under test.
+ * @typedef {{ registerBehavior: (id: string, handler: (context: BehaviorContext) => unknown) => void, renderSurface: (descriptor: object, host: FakeNode) => ReadSurface }} ReadViewSurface
+ */
+/** @type {DispatchedBehavior[]} */
 const clientActionCalls = [];
 const clientsView = /** @type {ReadViewSurface} */ (clientsContext.window.LongtailForge.view);
 clientsView.registerBehavior("client-projects.clients.tags", (ctx) => ctx.mountSearchOptions([{ value: "tag-focus", label: "Focus" }], { submitMode: "option-or-input" }));
@@ -156,6 +181,7 @@ vm.runInNewContext(builder, projectsContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, projectsContext, { filename: "view-response-records.js" });
 vm.runInNewContext(renderer, projectsContext, { filename: "view-renderer.js" });
 
+/** @type {DispatchedBehavior[]} */
 const projectActionCalls = [];
 const projectsView = /** @type {ReadViewSurface} */ (projectsContext.window.LongtailForge.view);
 projectsView.registerBehavior("client-projects.projects.tags", (ctx) => ctx.mountSearchOptions([{ value: "tag-focus", label: "Focus" }], { submitMode: "option-or-input" }));
@@ -206,6 +232,12 @@ const { closeDatabase } = await import("../src/db/provider.js");
 await closeDatabase();
 await fixture.cleanup();
 
+/**
+ * One seeded Clients row, as the descriptor's data source shapes it.
+ * @typedef {{ depth?: number, id?: string, name?: string, parent_client_id?: string }} ClientRecordOverrides
+ */
+
+/** @param {ClientRecordOverrides} [overrides] */
 function clientRecord(overrides = {}) {
   const name = overrides.name || "Client";
   const depth = overrides.depth || 0;
@@ -228,6 +260,12 @@ function clientRecord(overrides = {}) {
   };
 }
 
+/**
+ * One seeded Projects row, as the descriptor's data source shapes it.
+ * @typedef {{ depth?: number, id?: string, name?: string, parent_project_id?: string }} ProjectRecordOverrides
+ */
+
+/** @param {ProjectRecordOverrides} [overrides] */
 function projectRecord(overrides = {}) {
   const name = overrides.name || "Project";
   const depth = overrides.depth || 0;
@@ -254,12 +292,36 @@ function projectRecord(overrides = {}) {
   };
 }
 
+/**
+ * Prove one contributed read surface carries the framework-owned anatomy.
+ *
+ * A descriptor that stopped contributing its table, columns, secondary rows,
+ * selection column, row actions, or filters would otherwise reach the
+ * assertions below as `undefined` and fail on a member comparison rather than
+ * naming the anatomy it dropped. That naming is the point of this owner.
+ * @param {ViewSurfaceDescriptor | undefined} descriptor
+ * @param {string} label
+ * @returns {ReadSurfaceDescriptor}
+ */
+function readSurfaceAnatomy(descriptor, label) {
+  assert.ok(descriptor, `${label} descriptor should be available`);
+  assert.ok(descriptor.filters, `${label} descriptor should contribute filters`);
+  assert.ok(descriptor.table, `${label} descriptor should contribute a table`);
+  assert.ok(descriptor.table.columns, `${label} table should contribute columns`);
+  assert.ok(descriptor.table.secondaryRows, `${label} table should contribute secondary rows`);
+  assert.ok(descriptor.table.selection, `${label} table should contribute a selection column`);
+  assert.ok(descriptor.table.rowActions, `${label} table should contribute row actions`);
+  return /** @type {ReadSurfaceDescriptor} */ (descriptor);
+}
+
+/** @param {string} html @param {string} label */
 function assertMinimalHost(html, label) {
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));
   assert.doesNotMatch(body, /<(section|form|table|dialog|details|button|h1|h2|ul|ol)\b/i, `${label} protected host should not ship page anatomy`);
   assert.match(body, /data-client-projects-host/, `${label} protected host should expose the descriptor host`);
 }
 
+/** @param {string} text @param {readonly string[]} orderedLabels */
 function assertTextOrder(text, orderedLabels) {
   let lastIndex = -1;
   for (const label of orderedLabels) {
@@ -269,18 +331,21 @@ function assertTextOrder(text, orderedLabels) {
   }
 }
 
+/** @param {FakeNode} root @param {string} text @returns {FakeNode} */
 function findButtonByText(root, text) {
   const button = root.querySelectorAll("button").find((candidate) => candidate.textContent === text);
   assert.ok(button, `Expected button '${text}'`);
   return button;
 }
 
+/** @param {FakeNode} root @param {string} label @returns {FakeNode} */
 function findButtonByLabel(root, label) {
   const button = root.querySelectorAll("button").find((candidate) => candidate.getAttribute("aria-label") === label || candidate.title === label);
   assert.ok(button, `Expected button labeled '${label}'`);
   return button;
 }
 
+/** @param {FakeNode} root @param {string} fieldName @returns {FakeNode | undefined} */
 function findFieldControl(root, fieldName) {
   return root.querySelectorAll("input")
     .concat(root.querySelectorAll("select"))
