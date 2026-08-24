@@ -64,9 +64,17 @@ The reslice follows the seams the estate already has — subsystem ownership and
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.28.2` | Retire the dead request-listener laundering casts | 0 | 45 | — |
-| `.32.28.3` | Narrow the unchecked parsed boundaries the audit measured | 0 | 55 | — |
-| `.32.28.4` | Consolidate the source-slicing helper families | 0 | 73 | — |
+| `.32.28.2` | Retire the dead request-listener laundering casts | 45 sites | 45 | — |
+| `.32.28.3` | Narrow the package manifest and lockfile boundaries | 31 sites | 20 | — |
+| `.32.28.3.1` | Narrow the generated policy, ledger, and audit reads | 14 sites | 8 | — |
+| `.32.28.3.2` | Narrow the response bodies and disposition the clones | 10 sites | 8 | — |
+| `.32.28.3.3` | Narrow the in-test synthetic and computed sources | 22 sites | 19 | — |
+| `.32.28.4` | Migrate family B, top-level owners | 15 defs | 15 | — |
+| `.32.28.4.1` | Migrate family B, contract modules | 16 defs | 16 | — |
+| `.32.28.4.2` | Migrate family C, Tasks contract modules | 15 defs | 13 | — |
+| `.32.28.4.3` | Migrate family C, Files contract modules | 8 defs | 8 | — |
+| `.32.28.4.4` | Migrate family C, top-level owners | 8 defs | 8 | — |
+| `.32.28.4.5` | Migrate family C, remaining module areas | 10 defs | 10 | — |
 | `.32.28.1` | Final scripts-program closeout and measurement | 0 | 0 | — |
 
 `0.33.33.32.7` was resliced before implementation after `0.33.33.32.5` exposed that `timeEntriesRepository.create()` uses the normalized read record as its write contract. A measured probe put the correct repair at two production files, three already-closed consumers, and a scripts program that falls to 2,321 rather than rising, so the production seam correction is separated from the eight timer and billing owners it would otherwise ship beside. The two children sum to 202 rather than the originally measured 206 because the contract correction legitimately removes four diagnostics from `time-entries-repository-conversion`.
@@ -94,16 +102,19 @@ Requirements shared by every child:
 - [ ] **Inventory both pin categories per child; the per-child counts above are historical content pinners only.** `0.33.33.32.13` and `0.33.33.32.14` were both recorded as having no history-pinned owners and both turned out to carry a dead planning-document read — a `0.33.5.21` breadcrumb check and an `assertRoadmapCursorAtLeast("0.33.8")` floor respectively, neither of which a live 0.33.33 cursor can fail. The second was invisible to `scripts/planning-document-pin-baseline.json` by construction: its scan matches planning-document filenames, so a cursor-floor caller importing `scripts/lib/roadmap-cursor.mjs` without naming a document is never counted. **Eleven owners estate-wide have that shape**; `0.33.33.32.28` owns deciding what to do with the rest.
 - [ ] Preserve child-process isolation, discovered-coverage floors, and existing assertion meaning. Retiring an assertion requires the `retiredAssertions` mechanism established at `0.33.33.30.7.2`, not a silent deletion.
 
+`0.33.33.32.28` has archived. It resolved the contract findings, closed the explicit-`any` inventory, corrected the planning-document acceptance above, and opened corrective children for the findings too large to absorb.
 
+**Those children were then resliced, planning-only, before any of them started.** Two were still too large as implementation units, and remeasuring them corrected two figures `0.33.33.32.28` had recorded:
 
+- The source-slicing helper inventory is **79 definitions across 77 owners**, not 75 across 73. Four owners annotate their helper parameters inline — `function functionBlock(/** @type {string} */ source, ...)` — and the definition matcher that produced the original figure required a bare parameter list, so it skipped them. All four are family B, in `scripts/` top level.
+- The assertion figure is **135 negative and 792 positive**, not 138 negative. The original counter summed per helper name and could count one `assert.doesNotMatch` twice when an owner bound the same helper under two names; the corrected counter deduplicates by call-site offset.
 
+The unchecked-boundary figure was confirmed unchanged at **77 sites across 55 owners**.
 
+**Execution order.** `0.33.33.32.28.2` first, then the four `0.33.33.32.28.3*` boundary children, then the six `0.33.33.32.28.4*` helper children, and **`0.33.33.32.28.1` last**. The numbering is historical, not an execution order; `0.33.33.32.28.1` is not renumbered because it is referenced by every closeout rule in this rollup.
 
+**Reconciliation contract.** Every one of the 77 boundary findings belongs to exactly one `.32.28.3*` child and every one of the 79 helper definitions to exactly one `.32.28.4*` child or to the recorded local dispositions. No owner appears in two children: the boundary partition assigns whole owners rather than individual sites, so an owner is edited once and pinned once. Each child below states its own site or definition count, and the counts sum to the totals.
 
-
-
-
-`0.33.33.32.28` has archived. It resolved the contract findings, closed the explicit-`any` inventory, corrected the planning-document acceptance above, and opened three corrective children for the findings too large to absorb. **`0.33.33.32.28.1` runs last**, after `.32.28.2`, `.32.28.3`, and `.32.28.4` complete - the numbering is historical, not an execution order.
 #### 0.33.33.32.28.2 - Retire the dead request-listener laundering casts
 
 **Model: Medium Effort - One uniform removal across forty-five owners, every one machine-verified.**
@@ -114,38 +125,109 @@ Corrective child opened by `0.33.33.32.28`. `0.33.33.32.27` declared that an exp
 - [ ] Verify each owner still runs, and re-measure the double-cast inventory afterwards; the remaining classes should be 59 across ~44 owners.
 - [ ] Add a governance guard forbidding the shape's return, and prove it by reintroducing one.
 - [ ] Change no runtime behaviour. This is the removal of a type-level workaround whose cause is already fixed.
+- [ ] **A fresh probe at the reslice confirmed the child is genuinely uniform**, so it stays one child: all 45 sites are wrapped in `http.createServer(...)`, none is anything else; each owner carries exactly one; there are only two cast operands, `app` (41) and `createApp()` (4); and the three target spellings — `import("node:http").RequestListener`, `http.RequestListener`, and a local `HttpRequestListener` alias — all name the same Node type. **Fold no unrelated double-cast cleanup into it.** The other 59-to-67 double casts in the estate, depending on how the operand is matched, are a separate question this rollup has already dispositioned as legitimate.
 
-#### 0.33.33.32.28.3 - Narrow the unchecked parsed boundaries the audit measured
+#### 0.33.33.32.28.3 - Narrow the package manifest and lockfile boundaries
 
-**Model: High Effort - The largest remaining inherited-zero surface in the estate.**
+**Model: Medium Effort - The producer-collapse child: one shared helper pair already exists for all of it.**
 
-Corrective child opened by `0.33.33.32.28`. The rollup-wide dynamic-boundary audit measured **279 `JSON.parse` sites under `scripts/`**: 202 already narrowed, annotated, or read as a whole value, and **77 concrete unchecked assumptions across 55 owners** - 14 that read a member straight off the parse result, and 63 that bind an unannotated result whose members are then read. None produces a diagnostic, which is exactly why the scripts program can be at zero while these remain.
+**31 sites across 20 owners.** 24 of the 31 parse `package.json` or `package-lock.json`; the remaining 7 are other boundaries in those same owners, taken here so no owner is edited by two children. This is the single largest collapse available: `scripts/test-support/package-manifest-assertions.mjs` already publishes `requirePackageManifest` and `requirePackageLock`, and `0.33.33.32.28` already extended `PackageLockManifest` with the root-entry shape ten owners were reading through `unknown`. **No new contract is needed — only adoption.**
 
-- [ ] Narrow all 77 through the shared helpers the estate already publishes - `requireJsonRecord`, `readPayload`, `requireRow`, `requireFirstRow`, `requirePackageManifest`, `requirePackageLock` - or through a truthful published contract where one exists. Name only the fields each owner reads.
-- [ ] Do not add runtime guards around values that are already statically typed, such as `readFile(..., "utf8")` text. The audit counted structured boundaries, not every read.
-- [ ] Extend the `0.33.33.32.27` guard - which requires a parse-bearing owner to import a shared narrowing - from its fourteen owners to the estate, once the estate can satisfy it.
-- [ ] Reslice if the measurement grows: 55 owners is at the upper end of what one child has carried in this rollup.
+- [ ] Route all 24 manifest reads through the published helpers, and the 7 co-located boundaries through `requireJsonRecord` or `readPayload` as their kind requires.
+- [ ] Extend `PackageManifest` or `PackageLockManifest` only where an owner reads a member the published shape does not declare, and only with members that genuinely exist.
+- [ ] Owners: `better-sqlite3-install-smoke`, `demo-data-host`, `file-storage-scanner-runtime-closeout`, `lib/package-script-runner`, `lib/public-demo-baseline-candidate`, `lib/regression-manifest`, `lib/third-party-notices`, `regression-contracts/views/markdown-renderer-service`, `regressions/database/backup-restore-foundation`, `regressions/database/workspace-backup-package`, `regressions/framework/bundled-module-registry`, `regressions/framework/express-5-http-contract`, `regressions/release/closeout-conductor`, `regressions/release/current-static-contracts`, `regressions/release/dependency-baseline`, `regressions/release/developer-verification-throughput`, `regressions/release/playwright-dev-only-boundary`, `regressions/release/runtime-artifact-boundary`, `runtime-artifact-smoke`, `workspace-backup-drill`.
 
-#### 0.33.33.32.28.4 - Consolidate the source-slicing helper families
+#### 0.33.33.32.28.3.1 - Narrow the generated policy, ledger, and audit reads
 
-**Model: High Effort - Not a rename. 138 negative assertions depend on exactly what these helpers return.**
+**Model: Medium Effort - Eight owners reading files this repository generates.**
 
-Corrective child opened by `0.33.33.32.28`, which classified the duplication rather than acting on it. **75 local definitions across 73 owners**, under five names, in four semantic families:
+**14 sites across 8 owners.** These parse `scripts/regression-coverage-*.json`, `scripts/regression-legacy-snapshot.json`, `scripts/typecheck-debt-ledger.json`, the isolation audits, and the compose-reset operation markers. Every one is a file the repository writes, so the shapes are knowable exactly and several owners read the same artefact.
 
-| Family | Definitions | Owners | What the returned text spans |
-| --- | --- | --- | --- |
-| C | 41 | 39 | the declaration through the next top-level declaration |
-| B | 27 | 27 | the whole block, braces included |
-| A | 5 | 5 | the body only, braces excluded |
-| other | 2 | 2 | neither shape |
+- [ ] Narrow through `requireJsonRecord` with local shapes naming only the fields each owner reads. Do not attempt a whole schema for the coverage policy or the ledger.
+- [ ] Where three or more owners read the same artefact, consider publishing one shape in `scripts/test-support/` rather than three local ones — but only if the fields actually overlap.
+- [ ] Owners: `regression-contracts/database/migration-runner-checked-boundary`, `regressions/framework/asset-cache-version`, `regressions/release/files-regression-isolation-audit`, `regressions/release/public-demo-compose-reset`, `regressions/release/regression-baseline-bypass-audit`, `regressions/release/regression-discovery-runner`, `regressions/release/regression-routing-commands`, `test-support/typecheck-ledger`.
 
-`scripts/test-support/source-scan.mjs` already publishes `extractFunctionBlock`, which returns the declaration through the balanced close - **family B semantics**, keyed off a regular-expression declaration match rather than `indexOf`. **No local definition matches it exactly.**
+#### 0.33.33.32.28.3.2 - Narrow the response bodies and disposition the clones
 
-- [ ] Migrate family B to the published helper, one owner at a time, re-verifying every assertion. Family B is the only family whose semantics the published helper already has.
-- [ ] Publish a second named helper for family C rather than forcing it onto family B semantics. Family C spans a different region by design: it includes whatever follows the function up to the next declaration, which several owners rely on to assert about trailing constants.
-- [ ] Leave families A and other local unless a per-owner reading shows they are equivalent. Seven definitions is not worth a third published helper.
-- [ ] **Re-verify all 138 negative assertions.** 51 are fed directly by a helper call and 87 through a binding of one. Broadening the extracted region makes `assert.doesNotMatch` vacuous without failing anything, which is the failure mode this rollup has had to correct repeatedly. A seeded control per migrated owner is the minimum.
-- [ ] Do not partially consolidate. An estate with three helper semantics under one name is worse than one with four families that are each honest.
+**Model: Medium Effort - Eight owners, two genuinely different dispositions.**
+
+**10 sites across 8 owners.** Seven are HTTP or streamed response bodies that should cross through the published `readPayload`. **Three are not boundaries at all**: `JSON.parse(JSON.stringify(value))` deep-clones of a value the owner already holds, in `lib/regression-change-routing` and `regressions/release/developer-verification-throughput`. They are counted here because the audit counted every parse site, and they must be dispositioned explicitly rather than quietly skipped.
+
+- [ ] Route the seven response bodies through `readPayload`, proving the envelope keys each assertion depends on.
+- [ ] Record the three deep-clones as non-boundaries with the reason, and consider replacing them with `structuredClone` so the parse site disappears rather than needing a disposition every time this audit runs.
+- [ ] Owners: `backup-restore-drill`, `lib/regression-change-routing`, `regressions/framework/operational-security-basics`, `regressions/framework/public-demo-account-catalog`, `regressions/framework/support-view-session-contract`, `regressions/framework/tls-cookie-posture`, `regressions/framework/trusted-proxy-request-context`, `regressions/workbench/hot-endpoint-budgets`.
+
+#### 0.33.33.32.28.3.3 - Narrow the in-test synthetic and computed sources
+
+**Model: Medium Effort - Nineteen owners, one or two sites each, no shared producer.**
+
+**22 sites across 19 owners.** These parse a source the owner built or computed itself — a synthetic ledger, a fixture written moments earlier, a git-show of a tracked file, a captured child-process line. They have no common producer, which is why they are one child by shape rather than by artefact.
+
+- [ ] Narrow each through `requireJsonRecord` with a local shape naming only what the owner reads. Where the owner wrote the fixture itself, the shape is exact and should say so.
+- [ ] Do not add runtime guards around values that are already statically typed. The audit counted structured boundaries, not every read.
+- [ ] Owners, by area — release: `regressions/release/immutable-image-publication`, `regressions/release/maintenance-release-rehearsal`, `regressions/release/preview-deployment-boundary`, `release/checkpoint-commits`, `release/install-playwright-browser`. Framework: `regression-contracts/framework/calendar-subscription-settings`, `regression-contracts/framework/identifier-authority`, `regression-contracts/framework/markdown-checked-core`, `regression-contracts/framework/password-startup-checked-core`, `regressions/framework/module-import-boundaries`, `regressions/framework/public-legal-surfaces`, `regressions/framework/support-view-request-enforcement`. Library and top level: `build-runtime-artifact`, `lib/demo-data-operation`, `lib/development-data-safety`, `lib/docs-change-routing`, `lib/sanitized-demo-role-fixtures`, `regressions/permissions/public-demo-role-journey`, `regressions/permissions/sanitized-demo-role-journey`.
+
+Rules shared by every `0.33.33.32.28.4*` child:
+
+- [ ] **Prove equivalence per owner. "All owners still pass" is not evidence.** For each migrated helper, prove the published helper extracts the same region as the owner's previous helper for every name that owner asks for — or, where the region genuinely differs, prove the assertions still mean what they meant.
+- [ ] **Every negative assertion needs a seeded control.** `assert.doesNotMatch` cannot fail by being given too little text, so a migration that narrows the extracted region silently turns a real proof vacuous. For each negative assertion in scope, seed the forbidden text *inside the intended region* and confirm the assertion fails; then remove it and confirm it passes.
+- [ ] Publish one family-C helper contract in `scripts/test-support/source-scan.mjs` and have every family-C child use it. The family-C children may land in any order but must not each invent their own.
+- [ ] Leave families A and other local. Family A is 5 definitions across 5 Workbench contract modules returning the body without its braces, and the two remaining definitions match no family. Seven definitions do not justify a third published contract, and each is recorded rather than migrated.
+
+#### 0.33.33.32.28.4 - Migrate family B, top-level owners
+
+**Model: High Effort - The family the published helper already matches, but the region still has to be proved.**
+
+**15 definitions across 15 owners, feeding 51 positive and 17 negative assertions.** Family B returns the whole balanced block including its braces, which is what `extractFunctionBlock` already returns — keyed off a regular-expression declaration match rather than `indexOf`, which is the one difference that must be proved rather than assumed. **Four of these fifteen are the owners the original inventory missed**, which annotate their parameters inline.
+
+- [ ] Migrate all fifteen to the published `extractFunctionBlock`, per-owner, with the shared equivalence and seeded-control rules above.
+- [ ] Pay particular attention to the `indexOf`-versus-regex difference: a local helper that finds `function foo(` by substring will also match `asyncfunction foo(` or a call site inside a comment, where the published helper's anchored pattern will not. Where the two disagree on a real source, the published helper is right and the assertion may need re-reading.
+
+#### 0.33.33.32.28.4.1 - Migrate family B, contract modules
+
+**Model: High Effort - Sixteen contract modules, and the densest assertion load in family B.**
+
+**16 definitions across 16 owners, feeding 177 positive and 37 negative assertions** — 89 positive in the Workbench contract modules alone. Same migration as `0.33.33.32.28.4`, separated because these owners are loaded by area aggregators and a failure here fails a whole area.
+
+- [ ] Migrate all sixteen, with the shared equivalence and seeded-control rules above.
+- [ ] Areas: Workbench (8), Files (3), Notes (1), Tags (1), Tasks (1), Views (1), and one `regressions/workbench` owner.
+
+#### 0.33.33.32.28.4.2 - Migrate family C, Tasks contract modules
+
+**Model: High Effort - The largest single assertion load in the estate.**
+
+**15 definitions across 13 owners, feeding 199 positive and 21 negative assertions.** Family C returns the declaration through the *next top-level declaration*, which is a different region from anything published: it includes whatever follows the function, which several owners rely on to assert about trailing constants. **This child publishes the family-C helper contract** that `0.33.33.32.28.4.3` through `.4.5` then consume.
+
+- [ ] Publish one family-C helper in `scripts/test-support/source-scan.mjs`, named for what it spans rather than for what it is not — the region from a declaration to the next top-level declaration.
+- [ ] Prove the published helper's region equals each owner's previous region for every name that owner asks for, and seed a control for all 21 negative assertions.
+- [ ] Two owners define two family-C helpers each; both definitions must be migrated or neither.
+
+#### 0.33.33.32.28.4.3 - Migrate family C, Files contract modules
+
+**Model: High Effort - Eight owners, 239 positive assertions.**
+
+**8 definitions across 8 owners, feeding 239 positive and 23 negative assertions.** Consumes the family-C helper `0.33.33.32.28.4.2` publishes; does not define its own.
+
+- [ ] Migrate all eight, with the shared equivalence and seeded-control rules above.
+
+#### 0.33.33.32.28.4.4 - Migrate family C, top-level owners
+
+**Model: High Effort - The highest negative-assertion density in family C.**
+
+**8 definitions across 8 owners, feeding 28 positive and 14 negative assertions.** Half as many positives as the Files child but two thirds as many negatives, which makes this the child where a silent vacuity would be most likely and least visible.
+
+- [ ] Migrate all eight, with the shared equivalence and seeded-control rules above.
+- [ ] Seed a control for every one of the 14 negative assertions without exception.
+
+#### 0.33.33.32.28.4.5 - Migrate family C, remaining module areas
+
+**Model: Medium Effort - Ten owners across six areas, one or two definitions each.**
+
+**10 definitions across 10 owners, feeding 52 positive and 10 negative assertions.** Views (3), Lists (2), Notes (2), and one each in the framework contracts, `regressions/database`, and `regressions/time-tracking`.
+
+- [ ] Migrate all ten, with the shared equivalence and seeded-control rules above.
+- [ ] Re-measure the whole helper inventory afterwards. If family A and the two unclassified definitions are all that remain, record that as the end state and close the consolidation rather than inventing a third contract for seven definitions.
+
 #### 0.33.33.32.28.1 - Prove the scripts program permanently strict-zero
 
 **Model: High Effort - The proof and measurement checkpoint that closes the rollup.**
