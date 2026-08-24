@@ -60,13 +60,12 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.28`, plus the corrective children `0.33.33.32.22.1`, `0.33.33.32.28.2`, `0.33.33.32.28.3.1`, `0.33.33.32.28.3.2`, and `0.33.33.32.28.3.3`, have since archived, closing **all 3,143 diagnostics across all 202 files** — the measured cohort exactly — and leaving 0 across 0, with the repository's explicit-`any` count also at 0. Reaching zero once is not the same as proving it stays there: `0.33.33.32.28.1` is still the only child that may close the scripts program's governance state, and it runs only after the three corrective children `0.33.33.32.28` opened; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.28`, plus the corrective children `0.33.33.32.22.1`, `0.33.33.32.28.2`, `0.33.33.32.28.3.1`, `0.33.33.32.28.3.2`, `0.33.33.32.28.3.3`, and `0.33.33.32.28.4.1`, have since archived, closing **all 3,143 diagnostics across all 202 files** — the measured cohort exactly — and leaving 0 across 0, with the repository's explicit-`any` count also at 0. Reaching zero once is not the same as proving it stays there: `0.33.33.32.28.1` is still the only child that may close the scripts program's governance state, and it runs only after the three corrective children `0.33.33.32.28` opened; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
 | `.32.28.3` | Narrow the package manifest and lockfile boundaries | 31 sites | 20 | — |
 | `.32.28.4` | Migrate family B, top-level owners | 15 defs | 15 | — |
-| `.32.28.4.1` | Migrate family B, contract modules | 16 defs | 16 | — |
 | `.32.28.4.2` | Migrate family C, Tasks contract modules | 15 defs | 13 | — |
 | `.32.28.4.3` | Migrate family C, Files contract modules | 8 defs | 8 | — |
 | `.32.28.4.4` | Migrate family C, top-level owners | 8 defs | 8 | — |
@@ -107,7 +106,7 @@ Requirements shared by every child:
 
 The unchecked-boundary figure was confirmed unchanged at **77 sites across 55 owners**. `0.33.33.32.28.3.2`, `0.33.33.32.28.3.1`, and `0.33.33.32.28.3.3` have since closed 46 of them across 35 owners, leaving **33 across 22** for the last boundary child. Two of that 33 are already closed: `build-runtime-artifact` and `sanitized-demo-role-fixtures` annotate a `let` two lines above their parse, and the site classifier only inspects the immediately preceding line. Both were driven directly and answer `unknown` and `object` rather than `any`.
 
-**Execution order.** `0.33.33.32.28.2`, `0.33.33.32.28.3.1`, `0.33.33.32.28.3.2`, and `0.33.33.32.28.3.3` have archived. Next is `0.33.33.32.28.3`, the last boundary child, then the six `0.33.33.32.28.4*` helper children, and **`0.33.33.32.28.1` last**. The numbering is historical, not an execution order; `0.33.33.32.28.1` is not renumbered because it is referenced by every closeout rule in this rollup.
+**Execution order.** `0.33.33.32.28.2`, `0.33.33.32.28.3.1`, `0.33.33.32.28.3.2`, `0.33.33.32.28.3.3`, and `0.33.33.32.28.4.1` have archived. Next is `0.33.33.32.28.3`, the last boundary child, then the five remaining `0.33.33.32.28.4*` helper children, and **`0.33.33.32.28.1` last**. The numbering is historical, not an execution order; `0.33.33.32.28.1` is not renumbered because it is referenced by every closeout rule in this rollup.
 
 **Reconciliation contract.** Every one of the 77 boundary findings belongs to exactly one `.32.28.3*` child and every one of the 79 helper definitions to exactly one `.32.28.4*` child or to the recorded local dispositions. No owner appears in two children: the boundary partition assigns whole owners rather than individual sites, so an owner is edited once and pinned once. Each child below states its own site or definition count, and the counts sum to the totals.
 
@@ -135,16 +134,8 @@ Rules shared by every `0.33.33.32.28.4*` child:
 **15 definitions across 15 owners, feeding 51 positive and 17 negative assertions.** Family B returns the whole balanced block including its braces, which is what `extractFunctionBlock` already returns — keyed off a regular-expression declaration match rather than `indexOf`, which is the one difference that must be proved rather than assumed. **Four of these fifteen are the owners the original inventory missed**, which annotate their parameters inline.
 
 - [ ] Migrate all fifteen to the published `extractFunctionBlock`, per-owner, with the shared equivalence and seeded-control rules above.
+- [ ] **Narrow the two extractor limitations `0.33.33.32.28.4.1` pinned before migrating onto `extractFunctionBlock`.** Both published extractors anchor on the declaration text wherever it appears, including inside a comment, which widens the region; and they step over string and template literals but not regular-expression literals, so an unbalanced brace inside a character class **truncates** it. Truncation is the direction that can make an `assert.doesNotMatch` pass because the text it forbids fell outside the cut. `framework.full-strict-governance` pins both behaviours today, so changing either will fail loudly until the pins are updated with it.
 - [ ] Pay particular attention to the `indexOf`-versus-regex difference: a local helper that finds `function foo(` by substring will also match `asyncfunction foo(` or a call site inside a comment, where the published helper's anchored pattern will not. Where the two disagree on a real source, the published helper is right and the assertion may need re-reading.
-
-#### 0.33.33.32.28.4.1 - Migrate family B, contract modules
-
-**Model: High Effort - Sixteen contract modules, and the densest assertion load in family B.**
-
-**16 definitions across 16 owners, feeding 177 positive and 37 negative assertions** — 89 positive in the Workbench contract modules alone. Same migration as `0.33.33.32.28.4`, separated because these owners are loaded by area aggregators and a failure here fails a whole area.
-
-- [ ] Migrate all sixteen, with the shared equivalence and seeded-control rules above.
-- [ ] Areas: Workbench (8), Files (3), Notes (1), Tags (1), Tasks (1), Views (1), and one `regressions/workbench` owner.
 
 #### 0.33.33.32.28.4.2 - Migrate family C, Tasks contract modules
 
