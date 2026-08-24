@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const filesScript = readText("public/js/files.js");
@@ -28,23 +28,23 @@ assert.match(inventoryDoc, /Files strict enforcement now fails if `public\/js\/f
 assert.match(inventoryDoc, /Closeout Coverage In 0\.33\.5\.18\.12\.7[\s\S]*compact listing-first browse[\s\S]*route-backed Preview[\s\S]*strict `files\.browse` guardrails/,
   "Files inventory should document the closeout boundary");
 
-const resultsChrome = functionBlock(filesScript, "createFilesResultsChrome");
-const filesTable = functionBlock(filesScript, "createFilesTable");
-const fileStatusCell = functionBlock(filesScript, "createFileStatusCell");
-const fileActions = functionBlock(filesScript, "createFileActions");
-const fileEditorDialog = functionBlock(filesScript, "buildFileEditorDialog");
-const fileEditorControls = functionBlock(filesScript, "createFileEditorControlsSection");
-const filePreviewDialog = functionBlock(filePreviewScript, "buildFilePreviewDialog");
-const filePreviewLoader = functionBlock(filePreviewScript, "loadFilePreview");
-const previewAvailability = functionBlock(filePreviewScript, "previewAvailabilityForRow");
+const resultsChrome = extractFunctionSpan(filesScript, "createFilesResultsChrome");
+const filesTable = extractFunctionSpan(filesScript, "createFilesTable");
+const fileStatusCell = extractFunctionSpan(filesScript, "createFileStatusCell");
+const fileActions = extractFunctionSpan(filesScript, "createFileActions");
+const fileEditorDialog = extractFunctionSpan(filesScript, "buildFileEditorDialog");
+const fileEditorControls = extractFunctionSpan(filesScript, "createFileEditorControlsSection");
+const filePreviewDialog = extractFunctionSpan(filePreviewScript, "buildFilePreviewDialog");
+const filePreviewLoader = extractFunctionSpan(filePreviewScript, "loadFilePreview");
+const previewAvailability = extractFunctionSpan(filePreviewScript, "previewAvailabilityForRow");
 
 assert.equal(countMatches(filesScript, /document\.createElement/g), 0, "Files browse should not create DOM nodes directly after strict enforcement");
 assert.equal(countMatches(filesScript, /innerHTML/g), 0, "Files browse should not keep direct innerHTML writes after preview extraction");
 assert.equal(countMatches(filePreviewScript, /innerHTML/g), 1, "Shared preview should only use innerHTML for route-sanitized Markdown preview content");
-assert.match(functionBlock(filePreviewScript, "renderFilePreviewMarkdown"), /content\.innerHTML = html \|\| ""/,
+assert.match(extractFunctionSpan(filePreviewScript, "renderFilePreviewMarkdown"), /content\.innerHTML = html \|\| ""/,
   "Markdown preview should keep the documented route-sanitized innerHTML escape hatch");
 assert.equal(countMatches(attachmentHelper, /document\.createElement/g), 1, "Attachment helper should only keep direct DOM creation in the centralized fallback");
-assert.match(functionBlock(attachmentHelper, "createAttachmentElement"), /document\.createElement\(tagName\)/,
+assert.match(extractFunctionSpan(attachmentHelper, "createAttachmentElement"), /document\.createElement\(tagName\)/,
   "Attachment helper should centralize native DOM fallback construction");
 
 assert.match(resultsChrome, /view\.createListShell/, "Files browse results should use the shared list shell");
@@ -54,15 +54,15 @@ assert.match(fileStatusCell, /createFileStatusChip[\s\S]*createFileScanStatusChi
   "Files browse status/review states should use shared chip-row anatomy");
 assert.match(fileActions, /view\.createDetailActionStrip\(\{[\s\S]*className: "files-row-actions"[\s\S]*actions: rowActions/,
   "Files browse row actions should stay in a shared dense action shell");
-assert.match(functionBlock(filesScript, "createPreviewAction"), /view\.createActionButton[\s\S]*action:\s*"files\.preview"/,
+assert.match(extractFunctionSpan(filesScript, "createPreviewAction"), /view\.createActionButton[\s\S]*action:\s*"files\.preview"/,
   "Files Preview action should use shared action button anatomy");
-assert.match(functionBlock(filesScript, "createReportAction"), /view\.createActionButton[\s\S]*action:\s*"files\.report"/,
+assert.match(extractFunctionSpan(filesScript, "createReportAction"), /view\.createActionButton[\s\S]*action:\s*"files\.report"/,
   "Files Report action should use shared action button anatomy");
-assert.match(functionBlock(filesScript, "createQuarantineAction"), /view\.createActionButton[\s\S]*action:\s*"files\.quarantine"/,
+assert.match(extractFunctionSpan(filesScript, "createQuarantineAction"), /view\.createActionButton[\s\S]*action:\s*"files\.quarantine"/,
   "Files Review action should keep the existing quarantine action ID through shared anatomy");
 assert.match(fileEditorDialog, /view\.renderDescriptorModalForm\(fileEditorModalDescriptor\(\)[\s\S]*createFileEditorMetadataSection[\s\S]*createFileEditorControlsSection/,
   "File Context should use the shared modal form while keeping Files-owned body behavior");
-assert.match(functionBlock(filesScript, "fileEditorModalDescriptor"), /id:\s*"files\.file-context"/,
+assert.match(extractFunctionSpan(filesScript, "fileEditorModalDescriptor"), /id:\s*"files\.file-context"/,
   "File Context descriptor should keep the Files-owned modal ID");
 assert.match(fileEditorControls, /createFileContextField\("Client"[\s\S]*view\.createFieldGrid[\s\S]*createFileContextField\("Project"[\s\S]*createFileContextField\("Target"/,
   "File Context controls should use the shared field grid");
@@ -73,27 +73,27 @@ assert.match(filePreviewLoader, /\/api\/files\/attachments\/\$\{encodeURICompone
 
 assert.match(previewAvailability, /reviewPreviewAllowed[\s\S]*status !== "available"[\s\S]*kind === "unsupported"[\s\S]*too_large_for_preview[\s\S]*state:\s*"previewable"/,
   "Files should keep preview/download availability decisions as a documented escape hatch");
-assert.match(functionBlock(filesScript, "reportFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/report[\s\S]*FILE_REPORT_REASON/,
+assert.match(extractFunctionSpan(filesScript, "reportFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/report[\s\S]*FILE_REPORT_REASON/,
   "Files browse Report should keep the existing Files route");
-assert.match(functionBlock(filesScript, "quarantineFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/quarantine[\s\S]*FILE_QUARANTINE_REASON/,
+assert.match(extractFunctionSpan(filesScript, "quarantineFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/quarantine[\s\S]*FILE_QUARANTINE_REASON/,
   "Files browse Review should keep the existing quarantine route");
-assert.match(functionBlock(filesScript, "deleteFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/delete/,
+assert.match(extractFunctionSpan(filesScript, "deleteFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/delete/,
   "Files browse Delete should keep the existing Files route");
-assert.match(functionBlock(filesScript, "restoreFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/restore/,
+assert.match(extractFunctionSpan(filesScript, "restoreFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/restore/,
   "Files browse Restore should keep the existing Files route");
-assert.match(functionBlock(filesScript, "workspaceHasPermission"), /files\.manage_quarantine/,
+assert.match(extractFunctionSpan(filesScript, "workspaceHasPermission"), /files\.manage_quarantine/,
   "Files browse permission-shaped visibility should stay Files-owned");
-assert.match(functionBlock(filesScript, "hydrateFileEditorContextControls"), /business[\s\S]*clientSelect[\s\S]*hydrateFileEditorProjectControl/i,
+assert.match(extractFunctionSpan(filesScript, "hydrateFileEditorContextControls"), /business[\s\S]*clientSelect[\s\S]*hydrateFileEditorProjectControl/i,
   "File Context should keep Business-only Client and Project selector behavior Files-owned");
-assert.match(functionBlock(filesScript, "loadFileEditorTargetOptions"), /\/api\/files\/attachable-targets\?[\s\S]*hydrateFileEditorOptionControls/,
+assert.match(extractFunctionSpan(filesScript, "loadFileEditorTargetOptions"), /\/api\/files\/attachable-targets\?[\s\S]*hydrateFileEditorOptionControls/,
   "File Context should keep target metadata loading Files-owned");
 
-const attachmentPanelShell = functionBlock(attachmentHelper, "createAttachmentPanelShell");
-const uploadShell = functionBlock(attachmentHelper, "createUploadShell");
-const attachmentList = functionBlock(attachmentHelper, "attachmentList");
-const attachmentItem = functionBlock(attachmentHelper, "attachmentItem");
-const attachmentActions = functionBlock(attachmentHelper, "createAttachmentActions");
-const uploadFiles = functionBlock(attachmentHelper, "uploadFiles");
+const attachmentPanelShell = extractFunctionSpan(attachmentHelper, "createAttachmentPanelShell");
+const uploadShell = extractFunctionSpan(attachmentHelper, "createUploadShell");
+const attachmentList = extractFunctionSpan(attachmentHelper, "attachmentList");
+const attachmentItem = extractFunctionSpan(attachmentHelper, "attachmentItem");
+const attachmentActions = extractFunctionSpan(attachmentHelper, "createAttachmentActions");
+const uploadFiles = extractFunctionSpan(attachmentHelper, "uploadFiles");
 
 assert.match(attachmentPanelShell, /view\?\.createListShell[\s\S]*file-attachments-panel-shell/,
   "Attachment panel shell should use the shared list shell when available");
@@ -105,29 +105,29 @@ assert.match(attachmentItem, /attachmentRecoveryMessage[\s\S]*file-attachment-me
   "Attachment metadata and recovery states should remain visible in shared chip/list anatomy");
 assert.match(attachmentActions, /files\.removeAttachment[\s\S]*files\.report[\s\S]*files\.quarantine[\s\S]*files\.delete[\s\S]*files\.restore[\s\S]*view\?\.createDetailActionStrip[\s\S]*className: "file-attachment-actions"/,
   "Attachment actions should stay in a shared dense action shell with Files action IDs");
-assert.match(functionBlock(attachmentHelper, "createAttachmentEmptyState"), /view\?\.createEmptyState/,
+assert.match(extractFunctionSpan(attachmentHelper, "createAttachmentEmptyState"), /view\?\.createEmptyState/,
   "Attachment empty states should use the shared empty-state helper when available");
 assert.match(uploadFiles, /postMultipartJson\("\/api\/files\/upload\/batch", buildUploadForm\(options, files\)\)/,
   "Attachment upload behavior should keep Files-owned streamed route calls");
-assert.match(functionBlock(attachmentHelper, "buildUploadForm"), /appendFormField\(form, "visibility", options\.visibility\)[\s\S]*form\.append\("files", file, file\.name\)/,
+assert.match(extractFunctionSpan(attachmentHelper, "buildUploadForm"), /appendFormField\(form, "visibility", options\.visibility\)[\s\S]*form\.append\("files", file, file\.name\)/,
   "Attachment upload behavior should keep Files-owned metadata and file payload construction");
 assert.doesNotMatch(attachmentHelper, /FileReader|function readFileBase64/,
   "Attachment helper should not use FileReader for the normal browser upload path");
-assert.match(functionBlock(attachmentHelper, "acceptedExtensions"), /archive[\s\S]*document[\s\S]*image[\s\S]*pdf[\s\S]*presentation[\s\S]*text/,
+assert.match(extractFunctionSpan(attachmentHelper, "acceptedExtensions"), /archive[\s\S]*document[\s\S]*image[\s\S]*pdf[\s\S]*presentation[\s\S]*text/,
   "Accepted file categories should remain Files-owned");
-assert.match(functionBlock(attachmentHelper, "refresh"), /\/api\/files\/attachments\?/,
+assert.match(extractFunctionSpan(attachmentHelper, "refresh"), /\/api\/files\/attachments\?/,
   "Attachment refresh should keep using the Files attachment route");
-assert.match(functionBlock(attachmentHelper, "reportFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/report/,
+assert.match(extractFunctionSpan(attachmentHelper, "reportFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/report/,
   "Attachment Report should keep the existing Files route");
-assert.match(functionBlock(attachmentHelper, "quarantineFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/quarantine/,
+assert.match(extractFunctionSpan(attachmentHelper, "quarantineFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/quarantine/,
   "Attachment Review should keep the existing quarantine route");
-assert.match(functionBlock(attachmentHelper, "deleteFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/delete/,
+assert.match(extractFunctionSpan(attachmentHelper, "deleteFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/delete/,
   "Attachment Delete should keep the existing Files route");
-assert.match(functionBlock(attachmentHelper, "restoreFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/restore/,
+assert.match(extractFunctionSpan(attachmentHelper, "restoreFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/restore/,
   "Attachment Restore should keep the existing Files route");
-assert.match(functionBlock(attachmentHelper, "emit"), /CustomEvent\(`longtailforge:file-attachments:/,
+assert.match(extractFunctionSpan(attachmentHelper, "emit"), /CustomEvent\(`longtailforge:file-attachments:/,
   "Attachment helper should keep host callbacks/events as a documented escape hatch");
-assert.match(functionBlock(attachmentHelper, "attachmentRecoveryMessage"), /recovery window[\s\S]*in review[\s\S]*review completes/,
+assert.match(extractFunctionSpan(attachmentHelper, "attachmentRecoveryMessage"), /recovery window[\s\S]*in review[\s\S]*review completes/,
   "Attachment recovery states should stay Files-owned");
 
 assert.doesNotMatch(filesScript, /createFilesSummaryPanel|createFilesDetailPanel|createFilesPreviewPanel|createFilesMetadataPanel|selectedFile|data-file-selected-row|Inspector/,
@@ -144,13 +144,5 @@ console.log(`Files strict declarative guardrail enforcement passed. Direct DOM c
 /** @param {string} source @param {RegExp} pattern */
 function countMatches(source, pattern) {
   return [...source.matchAll(pattern)].length;
-}
-
-/** @param {string} source @param {string} functionName */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n\s*(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
 // Consolidated under files.current-static-contracts by 0.33.33.11.

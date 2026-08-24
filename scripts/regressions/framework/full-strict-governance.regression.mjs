@@ -2016,6 +2016,51 @@ assert.equal(
   'function target() {\n  return 1;\n}\nexport function next() {\n  return 2;\n}\n',
   "an exported function does not end a span, so a span over an ES module surface reaches the end of the file",
 );
+// 0.33.33.32.28.4.3 migrated the eight Files contract modules onto
+// `extractFunctionSpan`. Seven of them wrote the same terminator the Tasks
+// modules did; the eighth wrote `\n\s*(?:async\s+)?function\s+`, which ends a
+// span at an *indented* function too. These pin the boundary properties that
+// difference turns on, so the next family-C child meets them as assertions.
+assert.equal(
+  extractFunctionSpan('function target() {\n  return 1;\n}\n\nfunction next() {}\n', "target"),
+  'function target() {\n  return 1;\n}\n',
+  "a blank line before the next function belongs to the span, which ends at the newline the declaration sits on",
+);
+assert.equal(
+  extractFunctionSpan('function target() {\n  return 1;\n}\nfunction next() {}\n', "target"),
+  'function target() {\n  return 1;\n}',
+  "a span against an immediately adjacent function ends at its own closing brace",
+);
+assert.equal(
+  extractFunctionSpan('function target() {\r\n  return 1;\r\n}\r\nconst t = 2;\r\nfunction next() {}\r\n', "target"),
+  'function target() {\r\n  return 1;\r\n}\r\nconst t = 2;\r',
+  "a span over a source with Windows line endings carries its trailing declarations and ends before the terminator's newline",
+);
+assert.equal(
+  extractFunctionSpan('/**\n * Docs.\n */\nfunction target() {\n  return 1;\n}\nfunction next() {}\n', "target"),
+  'function target() {\n  return 1;\n}',
+  "a JSDoc block above a declaration is not part of its span",
+);
+assert.equal(
+  extractFunctionSpan('function target() {\n  return 1;\n}\nconst s = "\\nfunction decoy() {}";\nfunction next() {}\n', "target"),
+  'function target() {\n  return 1;\n}\nconst s = "\\nfunction decoy() {}";',
+  "a function declaration inside an ordinary string should not end the span",
+);
+assert.equal(
+  extractFunctionSpan('class Thing {\n  target() {\n    return 1;\n  }\n}\nfunction target() {\n  return 2;\n}\nfunction next() {}\n', "target"),
+  'function target() {\n  return 2;\n}',
+  "a class method sharing the name should not be mistaken for the declaration",
+);
+assert.equal(
+  extractFunctionSpan('target();\nfunction target() {\n  return 1;\n}\nfunction next() {}\n', "target"),
+  'function target() {\n  return 1;\n}',
+  "a call site above the declaration should not anchor a span",
+);
+assert.throws(
+  () => extractFunctionSpan('const target = () => {\n  return 1;\n};\n', "target"),
+  /target should exist/,
+  "extractFunctionSpan should refuse an arrow function rather than guess at its region",
+);
 // The scanner refuses rather than guesses. The one lexical form it cannot read
 // is a regular expression immediately after a closing paren, because that
 // position is genuinely ambiguous and every occurrence in this repository is
@@ -2033,7 +2078,8 @@ assert.throws(
 );
 // 0.33.33.32.28.4.1 migrated the family-B contract modules onto the published
 // helpers, 0.33.33.32.28.4 migrated twelve more, and 0.33.33.32.28.4.2 the
-// thirteen Tasks contract modules, so forty-one owners now
+// thirteen Tasks contract modules, and 0.33.33.32.28.4.3 the eight Files
+// contract modules, so forty-nine owners now
 // depend on them. Each of these owners carried its
 // own function-region extractor, and every one of them found its target by
 // building a `function <name>` needle and walking braces from there. That
@@ -2045,6 +2091,28 @@ assert.throws(
 // The needle is assembled rather than spelled: a guard that writes out the
 // text it forbids matches itself.
 const localExtractorNeedle = `function $${"{"}`;
+/**
+ * The local functions in one owner that build a `function <name>` needle.
+ *
+ * The check looks inside declarations rather than at the whole file, because
+ * an owner may legitimately assert that such a declaration is *absent* from a
+ * subject - `files-browse-compact-reset` proves five functions were removed
+ * that way, and a file-wide check reads that as a rebuilt extractor. The
+ * bodies are cut with the published extractor, so the guard is held to the
+ * same contract it enforces.
+ * @param {string} source
+ * @returns {string[]}
+ */
+const rebuiltExtractors = (source) => {
+  /** @type {string[]} */
+  const offenders = [];
+  for (const declaration of source.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\(/gm)) {
+    if (extractFunctionBlock(source, declaration[1]).includes(localExtractorNeedle)) {
+      offenders.push(declaration[1]);
+    }
+  }
+  return offenders;
+};
 for (const familyBOwner of [
   "scripts/regression-contracts/files/files-edit-modal-save.contract.mjs",
   "scripts/regression-contracts/files/files-edit-modal-shell.contract.mjs",
@@ -2087,16 +2155,25 @@ for (const familyBOwner of [
   "scripts/regression-contracts/tasks/tasks-relationship-linked-context.contract.mjs",
   "scripts/regression-contracts/tasks/tasks-tags-files-child-dialog.contract.mjs",
   "scripts/regression-contracts/tasks/tasks-workflow-action-descriptor.contract.mjs",
+  "scripts/regression-contracts/files/files-attachment-panel-shell.contract.mjs",
+  "scripts/regression-contracts/files/files-browse-compact-reset.contract.mjs",
+  "scripts/regression-contracts/files/files-browse-list-shell.contract.mjs",
+  "scripts/regression-contracts/files/files-filter-sidebar.contract.mjs",
+  "scripts/regression-contracts/files/files-row-attachment-actions.contract.mjs",
+  "scripts/regression-contracts/files/files-strict-guardrail-inventory.contract.mjs",
+  "scripts/regression-contracts/files/files-upload-shell.contract.mjs",
+  "scripts/regression-contracts/files/files-visual-state-control-parity.contract.mjs",
 ]) {
   const source = fs.readFileSync(familyBOwner, "utf8");
   assert.ok(
     source.includes("test-support/source-scan.mjs"),
     `${familyBOwner} must cut function regions through the published source-scan helpers`,
   );
+  const rebuilt = rebuiltExtractors(source);
   assert.equal(
-    source.includes(localExtractorNeedle),
-    false,
-    `${familyBOwner} must not rebuild a local function-region extractor`,
+    rebuilt.length,
+    0,
+    `${familyBOwner} must not rebuild a local function-region extractor: ${rebuilt.join(", ")}`,
   );
 }
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
