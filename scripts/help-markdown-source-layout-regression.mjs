@@ -286,11 +286,13 @@ await check("current-state Help rejects known pre-0.33.25 drift", async () => {
 
 console.log(`Help Markdown source layout regression passed ${checks} checks.`);
 
+/** @param {string} name @param {() => void | Promise<void>} assertion */
 async function check(name, assertion) {
   await assertion();
   checks += 1;
 }
 
+/** @param {string} source @param {string} articleId @returns {string} */
 function findArticleBlock(source, articleId) {
   const escapedId = escapeRegex(articleId);
   const match = source.match(new RegExp(`\\{\\s*id:\\s*"${escapedId}"[\\s\\S]*?\\n\\s*\\},`));
@@ -298,16 +300,19 @@ function findArticleBlock(source, articleId) {
   return match[0];
 }
 
+/** @param {string} articleBlock @param {string} articleId @returns {string} */
 function readContentPath(articleBlock, articleId) {
   const pathMatch = articleBlock.match(/contentPath:\s*"([^"]+)"/);
   assert.ok(pathMatch, `${articleId} should declare contentPath`);
   return pathMatch[1];
 }
 
+/** @param {string} value @returns {string} */
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/** @param {string} directory @returns {Promise<string[]>} */
 async function listMarkdownFiles(directory) {
   const entries = await fs.readdir(directory, { withFileTypes: true });
   const files = [];

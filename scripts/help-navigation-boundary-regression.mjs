@@ -13,6 +13,8 @@ process.env.SUPER_ADMIN_PASSWORD = "Help-Nav-Boundary-Test-Password-123!";
 const { closeSqlite, initializeDatabase, querySql } = await import("../src/db/index.js");
 const { helpService } = await import("../src/services/help.service.js");
 
+/** @typedef {import("../src/types/help-static-contracts.js").HelpNavigationItem} HelpNavigationItem */
+
 let checks = 0;
 
 try {
@@ -88,6 +90,7 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @param {string} name @param {() => void | Promise<void>} assertion */
 async function check(name, assertion) {
   await assertion();
   checks += 1;
@@ -107,6 +110,11 @@ LIMIT 1;
   return workspaceSessionFixture(user);
 }
 
+/**
+ * @param {readonly HelpNavigationItem[] | undefined} items
+ * @param {string} articleId
+ * @returns {HelpNavigationItem | null}
+ */
 function findNavigationArticle(items, articleId) {
   for (const item of items || []) {
     if (item.type === "article" && item.id === articleId) {
@@ -120,6 +128,11 @@ function findNavigationArticle(items, articleId) {
   return null;
 }
 
+/**
+ * @param {readonly HelpNavigationItem[] | undefined} items
+ * @param {string} title
+ * @returns {HelpNavigationItem | null}
+ */
 function findNavigationGroup(items, title) {
   for (const item of items || []) {
     if (item.type === "group" && item.title === title) {

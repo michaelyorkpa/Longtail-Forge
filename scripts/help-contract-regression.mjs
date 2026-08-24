@@ -14,6 +14,7 @@ const { modulesService } = await import("../src/core/modules/modules.service.js"
 
 let checks = 0;
 
+/** @param {string} name @param {() => void | Promise<void>} assertion */
 async function check(name, assertion) {
   await assertion();
   checks += 1;
