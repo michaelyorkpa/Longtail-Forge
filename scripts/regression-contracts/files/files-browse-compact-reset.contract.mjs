@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const filesHtml = readText("views/protected/files.html");
@@ -25,32 +25,32 @@ assert.match(frameworkSurfaceSource, /route:\s*"\/api\/files\/attachments"/, "Fi
 
 assert.match(filesRepository, /files\.created_at AS file_created_at[\s\S]*files\.updated_at AS file_updated_at[\s\S]*files\.uploaded_by_user_id AS file_uploaded_by_user_id/, "Files repository projections should keep safe uploaded detail metadata available for later route-backed modals");
 assert.match(filesService, /uploadedByLabelForSession\(session, attachment\.file_uploaded_by_user_id\)/, "Files attachment reads should keep safe uploader labels on the read model");
-assert.doesNotMatch(functionBlock(filesService, "shapeAttachment"), /uploadedByUserId|uploaded_by_user_id|storage_key|sha256Hash|storageProvider/, "Attachment read model should not expose uploader IDs, storage keys, hashes, or storage providers to the browse UI");
+assert.doesNotMatch(extractFunctionSpan(filesService, "shapeAttachment"), /uploadedByUserId|uploaded_by_user_id|storage_key|sha256Hash|storageProvider/, "Attachment read model should not expose uploader IDs, storage keys, hashes, or storage providers to the browse UI");
 
-const resultsChrome = functionBlock(filesScript, "createFilesResultsChrome");
+const resultsChrome = extractFunctionSpan(filesScript, "createFilesResultsChrome");
 assert.match(resultsChrome, /requireFilesViewHelper\("createListShell"\)/, "Files results should still use the shared list shell");
 assert.match(resultsChrome, /dataset:\s*\{\s*fileTableMount:\s*""\s*\}[\s\S]*children:\s*\[createFilesTable\(\[\]\)\]/, "Files results should expose one table remount target");
 assert.match(resultsChrome, /statusAttrs:\s*\{\s*"data-file-status":\s*""\s*\}/, "Files results should keep the small status/live region");
 assert.match(resultsChrome, /children:\s*\[[\s\S]*tableMount,[\s\S]*createFilesPaginationChrome\(\)[\s\S]*\]/, "Files results should mount only the compact table and bounded pagination controls inside the list shell");
 assert.doesNotMatch(resultsChrome, /summaryMount|detailMount|createFilesSummaryPanel|createFilesDetailPanel/, "Files results should not mount inline summary or detail panels");
 
-const renderFiles = functionBlock(filesScript, "renderFiles");
+const renderFiles = extractFunctionSpan(filesScript, "renderFiles");
 assert.match(renderFiles, /attachments\.map\(\(attachment\) => fileRow\(attachment\)\)[\s\S]*renderFilesTable\(rows\)/, "Files render should shape API attachments and render the compact table");
 assert.doesNotMatch(renderFiles, /state\.fileRows|reconcileSelectedFile|renderFilesSummary|renderSelectedFileDetail/, "Files render should not keep selected-row state or inline detail panels in sync");
 
-const loadFiles = functionBlock(filesScript, "loadFiles");
+const loadFiles = extractFunctionSpan(filesScript, "loadFiles");
 assert.match(loadFiles, /params\.set\("limit", String\(FILES_PAGE_SIZE\)\)[\s\S]*const attachments = result\.attachments \|\| \[\][\s\S]*state\.attachments = options\.append \? \[\.\.\.state\.attachments, \.\.\.attachments\] : attachments[\s\S]*renderFiles\(state\.attachments\)[\s\S]*setStatus\(visibleFileCountLabel\(state\.attachments\.length, state\.pagination\)\)/, "Files successful browse loads should keep a bounded page size and compact visible-count status above the table");
 
-const visibleFileCountLabel = functionBlock(filesScript, "visibleFileCountLabel");
+const visibleFileCountLabel = extractFunctionSpan(filesScript, "visibleFileCountLabel");
 assert.match(visibleFileCountLabel, /const label = `\$\{safeCount\} file attachment\$\{safeCount === 1 \? "" : "s"\} visible`[\s\S]*return pagination\.hasMore \? `\$\{label\}\. More available\.` : label/, "Files visible-count status should stay compact and attachment-scoped while hinting at additional pages");
 
-const filesTable = functionBlock(filesScript, "createFilesTable");
+const filesTable = extractFunctionSpan(filesScript, "createFilesTable");
 assert.match(filesTable, /view\.createDataTable\(\{[\s\S]*className:\s*"files-table-wrap"[\s\S]*tableClassName:\s*"files-table"[\s\S]*emptyMessage:\s*"No file attachments match the current filters\."/,
   "Files browse table should render through the shared data table helper with the existing empty state");
 assert.match(filesTable, /tbody\.dataset\.fileList = ""/, "Files browse table should keep a stable file-list hook after remounting");
 assert.doesNotMatch(filesTable, /rows\.forEach|wireSelectableFileRow|fileSelectableRow|fileSelectedRow/, "Files table should not wire selected-row behavior");
 
-const fileRow = functionBlock(filesScript, "fileRow");
+const fileRow = extractFunctionSpan(filesScript, "fileRow");
 assert.match(fileRow, /moduleLabel:\s*formatToken\(attachment\.moduleId \|\| attachment\.module_id \|\| ""\)/, "Files should shape the readable module label");
 assert.match(fileRow, /targetLabel:\s*formatTargetDisplay\(targetType, targetLabel\)/, "Files should shape readable target labels");
 assert.match(fileRow, /clientLabel,[\s\S]*projectLabel,[\s\S]*statusLabel:[\s\S]*attachedAtLabel:/, "Files should shape client/project/status/timestamp display data");
@@ -114,12 +114,4 @@ assert.match(styles, /\.files-floating-tooltip\s*\{[\s\S]*position:\s*fixed[\s\S
 assert.doesNotMatch(regressionSuite, /scripts\/files-detail-summary-regression\.mjs/, "Regression suite should not keep the replaced detail summary regression");
 
 console.log("Files browse compact reset regression passed.");
-
-/** @param {string} source @param {string} functionName */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}
 // Consolidated under files.current-static-contracts by 0.33.33.11.

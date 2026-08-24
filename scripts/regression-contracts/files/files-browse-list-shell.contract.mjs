@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const filesHtml = readText("views/protected/files.html");
@@ -26,27 +26,27 @@ assert.match(frameworkSurfaceSource, /route:\s*"\/api\/files\/attachments"/, "Fi
   assert.match(frameworkSurfaceSource, pattern, `Files descriptor should expose ${pattern} through fieldBindings`);
 });
 
-const resultsChrome = functionBlock(filesScript, "createFilesResultsChrome");
+const resultsChrome = extractFunctionSpan(filesScript, "createFilesResultsChrome");
 assert.match(resultsChrome, /requireFilesViewHelper\("createListShell"\)/, "Files results should require the shared list shell helper");
 assert.match(resultsChrome, /view\.createListShell\(\{[\s\S]*className:\s*"files-browse-list-shell"[\s\S]*statusAttrs:\s*\{\s*"data-file-status":\s*""\s*\}[\s\S]*children:\s*\[[\s\S]*tableMount,[\s\S]*createFilesPaginationChrome\(\)[\s\S]*\]/, "Files results should mount the compact status, table, and bounded pagination through the shared list shell");
 assert.match(resultsChrome, /dataset:\s*\{\s*fileTableMount:\s*""\s*\}/, "Files results should expose a stable table remount target");
 assert.doesNotMatch(resultsChrome, /summaryMount|detailMount|createFilesSummaryPanel|createFilesDetailPanel/, "Files results should not mount inline summary or detail panels");
 
-const filesTable = functionBlock(filesScript, "createFilesTable");
+const filesTable = extractFunctionSpan(filesScript, "createFilesTable");
 assert.match(filesTable, /requireFilesViewHelper\("createDataTable"\)/, "Files browse table should require the shared data table helper");
 assert.match(filesTable, /view\.createDataTable\(\{[\s\S]*className:\s*"files-table-wrap"[\s\S]*tableClassName:\s*"files-table"[\s\S]*columns:\s*filesTableColumns\(\)[\s\S]*emptyMessage:\s*"No file attachments match the current filters\."/,
   "Files browse table should render through the shared data table helper with the existing empty state");
 assert.match(filesTable, /tbody\.dataset\.fileList = ""/, "Files browse table should keep a stable file-list hook after remounting");
 assert.doesNotMatch(filesTable, /wireSelectableFileRow|fileSelectableRow|fileSelectedRow/, "Files browse table should not wire selected-row behavior");
 
-const renderFiles = functionBlock(filesScript, "renderFiles");
+const renderFiles = extractFunctionSpan(filesScript, "renderFiles");
 assert.match(renderFiles, /attachments\.map\(\(attachment\) => fileRow\(attachment\)\)/, "Files should shape API attachments before rendering rows");
 assert.match(renderFiles, /renderFilesTable\(rows\)/, "Files render should delegate table rendering to the helper-owned table remount path");
 assert.doesNotMatch(renderFiles, /state\.fileRows|reconcileSelectedFile|renderFilesSummary|renderSelectedFileDetail/, "Files render should stay compact without selected-row detail sync");
-const renderFilesTable = functionBlock(filesScript, "renderFilesTable");
+const renderFilesTable = extractFunctionSpan(filesScript, "renderFilesTable");
 assert.match(renderFilesTable, /fileTableMount\.replaceChildren\(createFilesTable\(rows\)\)/, "Files should remount the helper-owned table instead of manually rebuilding table rows");
 
-const fileRow = functionBlock(filesScript, "fileRow");
+const fileRow = extractFunctionSpan(filesScript, "fileRow");
 assert.match(fileRow, /const fileSizeBytes = Number\(file\.fileSizeBytes \|\| file\.file_size_bytes \|\| 0\)[\s\S]*fileSizeBytes,[\s\S]*fileSizeLabel:\s*formatBytes\(fileSizeBytes\)/, "Files row shaping should keep file size display data owned by Files");
 assert.match(fileRow, /moduleLabel:\s*formatToken\(attachment\.moduleId \|\| attachment\.module_id \|\| ""\)/, "Files should shape the readable module label");
 assert.match(fileRow, /targetLabel:\s*formatTargetDisplay\(targetType, targetLabel\)/, "Files should shape readable target labels");
@@ -59,42 +59,42 @@ assert.doesNotMatch(fileRow, /targetLabel:\s*[^,\n]*(targetId|target_id)|clientL
 assert.doesNotMatch(filesScript, /\b(querySql|runSql|storage_key|file_attachments|search_index|tagsService|tagLinks)\b/, "Files browser adapter should not query storage, search, tags, or attachment tables directly");
 assert.match(filesScript, /api\.getJson\(`\/api\/files\/attachments\?\$\{params\.toString\(\)\}`/, "Files browse should continue loading through the service-owned attachments route");
 
-const fileCell = functionBlock(filesScript, "createFileCell");
+const fileCell = extractFunctionSpan(filesScript, "createFileCell");
 assert.match(fileCell, /createFilesElement\("span"[\s\S]*className: "files-file-cell"/, "File cell should use the compact file-cell anatomy");
 assert.match(fileCell, /children:\s*\[[\s\S]*createFileTypeIcon\(row\)[\s\S]*createTruncatedText\(row\.fileName, "files-file-name"\)/, "File cell should render the file-type icon before the truncated filename");
 
-const fileTypeIcon = functionBlock(filesScript, "createFileTypeIcon");
+const fileTypeIcon = extractFunctionSpan(filesScript, "createFileTypeIcon");
 assert.match(fileTypeIcon, /className: "files-file-type-label"[\s\S]*text: fileTypeBadgeText\(row\.extension, row\.fileTypeLabel\)/, "File type indicator should render safe file-type text inside the icon");
 assert.match(fileTypeIcon, /dataset:\s*\{\s*fileType: safeFileTypeToken/, "File type indicator should expose only a safe file-type token");
 assert.doesNotMatch(fileTypeIcon, /\.title\s*=/, "File type indicator should not use native title tooltips");
 
-const fileTypeBadgeText = functionBlock(filesScript, "fileTypeBadgeText");
+const fileTypeBadgeText = extractFunctionSpan(filesScript, "fileTypeBadgeText");
 assert.match(fileTypeBadgeText, /replace\(\S*\/\^\\\.\//, "File type badge text should derive from a sanitized extension");
 assert.match(fileTypeBadgeText, /slice\(0, 4\)\.toUpperCase\(\)/, "File type badge text should fit inside the small icon");
 
-const truncatedText = functionBlock(filesScript, "createTruncatedText");
+const truncatedText = extractFunctionSpan(filesScript, "createTruncatedText");
 assert.match(truncatedText, /className: \["files-truncate", className\]\.filter\(Boolean\)\.join\(" "\)/, "Truncated text should use the shared Files truncation class");
 assert.doesNotMatch(truncatedText, /span\.title = text/, "Truncated text should not create a duplicate native title tooltip");
 assert.match(truncatedText, /span\.dataset\.fullText = text[\s\S]*span\.tabIndex = 0[\s\S]*span\.setAttribute\("aria-label", text\)/, "Truncated text should keep full safe value data and accessible labels");
 assert.match(truncatedText, /pointerenter[\s\S]*showFilesTooltip\(span, text\)[\s\S]*pointerleave[\s\S]*hideFilesTooltip[\s\S]*focus[\s\S]*showFilesTooltip\(span, text\)[\s\S]*blur[\s\S]*hideFilesTooltip/, "Truncated text should reveal through the custom floating tooltip on hover and focus");
 
-const showFilesTooltip = functionBlock(filesScript, "showFilesTooltip");
+const showFilesTooltip = extractFunctionSpan(filesScript, "showFilesTooltip");
 assert.match(showFilesTooltip, /document\.body\.appendChild\(activeFilesTooltip\)/, "Files tooltip should be appended to the body so it can float above table overflow");
 assert.match(showFilesTooltip, /target\.setAttribute\("aria-describedby", activeFilesTooltip\.id\)/, "Files tooltip should wire focus users through aria-describedby");
 
-const positionFilesTooltip = functionBlock(filesScript, "positionFilesTooltip");
+const positionFilesTooltip = extractFunctionSpan(filesScript, "positionFilesTooltip");
 assert.match(positionFilesTooltip, /getBoundingClientRect\(\)[\s\S]*window\.innerWidth[\s\S]*window\.innerHeight/, "Files tooltip should position against the viewport");
 
-const actions = functionBlock(filesScript, "createFileActions");
+const actions = extractFunctionSpan(filesScript, "createFileActions");
 assert.match(actions, /view\.createDetailActionStrip\(\{[\s\S]*className: "files-row-actions"[\s\S]*actions: rowActions/, "File row actions should use the shared dense action strip");
 assert.match(actions, /createDownloadAction\(row\)[\s\S]*createDeleteAction\(row\)[\s\S]*createRestoreAction\(row\)/, "Files should keep existing download/delete/restore action availability");
 
-const downloadAction = functionBlock(filesScript, "createDownloadAction");
+const downloadAction = extractFunctionSpan(filesScript, "createDownloadAction");
 assert.match(downloadAction, /className: "button-link action-button view-action-button icon-button files-row-action"/, "Download should be an icon-only bordered action control");
 assert.match(downloadAction, /"aria-label": label[\s\S]*download: true[\s\S]*title: label/, "Download should keep accessible label/title and browser download semantics");
 assert.match(downloadAction, /createIcon\?\.\("download", \{ decorative: true \}\)/, "Download should use the shared download icon");
 
-const deleteAction = functionBlock(filesScript, "createDeleteAction");
+const deleteAction = extractFunctionSpan(filesScript, "createDeleteAction");
 assert.match(deleteAction, /view\.createActionButton\(\{[\s\S]*icon:\s*"delete"[\s\S]*iconOnly:\s*true[\s\S]*label:\s*`Delete \$\{row\.fileName\}`[\s\S]*text:\s*""[\s\S]*title:\s*`Delete \$\{row\.fileName\}`[\s\S]*variant:\s*"danger"/, "Delete should be an icon-only shared action button with accessible label/title");
 assert.match(deleteAction, /onClick:\s*\(event\) => \{[\s\S]*stopFileRowActionEvent\(event\)[\s\S]*deleteFile\(row\.fileId, row\.file\)/, "Delete should preserve the Files-owned delete workflow while isolating row activation");
 
@@ -113,12 +113,4 @@ assert.match(styles, /\.files-floating-tooltip\s*\{[\s\S]*position:\s*fixed[\s\S
 assert.match(styles, /\.files-row-actions\s*\{[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*wrap[\s\S]*justify-content:\s*flex-end/, "Files actions should stay compact, wrapped, and right-aligned");
 
 console.log("Files browse list shell regression passed.");
-
-/** @param {string} source @param {string} functionName */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}
 // Consolidated under files.current-static-contracts by 0.33.33.11.

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const filesHtml = readText("views/protected/files.html");
@@ -24,11 +24,11 @@ assert.match(filesScript, /view\.registerBehavior\("files\.browse\.results"/, "F
 assert.match(filesScript, /view\.renderSurface\(\{ \.\.\.activeFilesViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Files adapter should render the descriptor shell without renderer-owned data fetching");
 assert.match(filesScript, /fallbackFilesViewSurfaceDescriptor/, "Files adapter should keep a fallback descriptor for early bootstrap timing");
 
-const filterChrome = functionBlock(filesScript, "createFilesFilterChrome");
+const filterChrome = extractFunctionSpan(filesScript, "createFilesFilterChrome");
 assert.match(filterChrome, /createFilterLabel\("Filename"[\s\S]*createFilterLabel\("Status"[\s\S]*createBusinessFilterLabel\("Client", createClientSelect\(\)\)[\s\S]*createFilterLabel\("Project", createProjectSelect\(\)\)[\s\S]*createAdvancedTargetFilters\(\)/, "Files filters should expose readable filename/status/client/project controls before advanced target filters");
 assert.doesNotMatch(filterChrome, /Client ID|Project ID|Target ID/, "Normal Files filters should not expose raw ID labels");
 
-const advancedFilters = functionBlock(filesScript, "createAdvancedTargetFilters");
+const advancedFilters = extractFunctionSpan(filesScript, "createAdvancedTargetFilters");
 assert.match(advancedFilters, /createFilesElement\("summary", \{ text: "Advanced target filters" \}\)/, "Raw target filters should live behind an explicit advanced disclosure");
 assert.match(advancedFilters, /"Module"[\s\S]*"fileFilterModule"[\s\S]*"Target Type"[\s\S]*"fileFilterTargetType"[\s\S]*"Target ID"[\s\S]*"fileFilterTargetId"[\s\S]*"Project ID"[\s\S]*"fileFilterProjectId"/, "Advanced target filters should preserve module, target type, target ID, and raw project ID meanings");
 
@@ -41,13 +41,13 @@ assert.match(filesScript, /clientFilter\.disabled = !usesBusinessScope\(\)/, "No
 assert.match(filesScript, /element\.hidden = !usesBusinessScope\(\)/, "Non-Business workspaces should hide Client filter controls");
 assert.match(filesScript, /projectId:\s*projectFilter\?\.value \|\| advancedProjectFilter\?\.value/, "Project filter semantics should support readable options plus explicit advanced IDs");
 
-const bindFilesEvents = functionBlock(filesScript, "bindFilesEvents");
+const bindFilesEvents = extractFunctionSpan(filesScript, "bindFilesEvents");
 assert.match(bindFilesEvents, /filterForm\?\.addEventListener\("submit"[\s\S]*loadFiles\(\)/, "Apply should refetch Files through the browse loader");
 assert.match(bindFilesEvents, /clientFilter\?\.addEventListener\("change"[\s\S]*populateProjectFilter\(\)[\s\S]*loadFiles\(\)/, "Client changes should refresh project options and refetch Files");
 assert.match(bindFilesEvents, /moduleFilter[\s\S]*targetTypeFilter[\s\S]*targetIdFilter[\s\S]*projectFilter[\s\S]*advancedProjectFilter[\s\S]*filenameFilter[\s\S]*statusFilter[\s\S]*addEventListener\("change"[\s\S]*loadFiles\(\)/, "Filter value changes should refetch Files through the Files route");
 assert.match(filesScript, /const params = readFilters\(\);[\s\S]*params\.set\("limit", String\(FILES_PAGE_SIZE\)\)[\s\S]*api\.getJson\(`\/api\/files\/attachments\?\$\{params\.toString\(\)\}`/, "Files browse loader should refetch bounded pages through the Files attachments route");
 
-const fileRow = functionBlock(filesScript, "fileRow");
+const fileRow = extractFunctionSpan(filesScript, "fileRow");
 assert.match(fileRow, /clientId:[\s\S]*projectId:/, "Files may keep raw context IDs internally for the modal shell");
 assert.doesNotMatch(fileRow, /clientLabel:\s*[^,\n]*(clientId|client_id)|projectLabel:\s*[^,\n]*(projectId|project_id)/, "Normal Files visible labels should not fall back to raw client/project IDs");
 assert.match(filesScript, /function formatTargetDisplay\(targetType, targetLabel\)/, "Files rows should format target context without normal raw ID fallback");
@@ -60,14 +60,6 @@ assert.match(rendererShellRegression, /Backdrop click should close the drawer/, 
 assert.match(rendererShellRegression, /Escape should close the drawer/, "Shared renderer regression should cover slide-out Escape close behavior");
 
 console.log("Files filter sidebar regression passed.");
-
-/** @param {string} source @param {string} functionName */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}
 
 /** @param {string} html @param {string} label */
 function assertNoProtectedAnatomy(html, label) {
