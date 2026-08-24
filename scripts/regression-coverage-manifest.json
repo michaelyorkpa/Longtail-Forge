@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18735,
+    "activeAssertionCount": 18739,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19549,
+    "effectiveAssertionCount": 19553,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -4504,8 +4504,8 @@
     },
     {
       "area": "database",
-      "assertionCount": 207,
-      "contractAssertionCount": 206,
+      "assertionCount": 206,
+      "contractAssertionCount": 205,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/database/clients-projects-strict-guardrail-inventory.contract.mjs",
@@ -4521,7 +4521,7 @@
         },
         {
           "path": "scripts/regression-contracts/database/migration-runner-checked-boundary.contract.mjs",
-          "assertionCount": 17
+          "assertionCount": 16
         },
         {
           "path": "scripts/regression-contracts/database/parameter-binding-audit.contract.mjs",
@@ -5285,11 +5285,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 210,
+      "assertionCount": 215,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 210,
+      "entryPointAssertionCount": 215,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
