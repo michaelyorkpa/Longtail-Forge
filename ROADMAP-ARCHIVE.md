@@ -1,5 +1,22 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.32.28.2 - Retire the dead request-listener laundering casts
+
+**Model: Medium Effort** - One uniform removal across forty-five owners, every one machine-verified.
+
+First corrective child of `0.33.33.32.28`. All 45 request-listener laundering casts are gone: `http.createServer(/** @type {RequestListener} */ (/** @type {unknown} */ (app)))` is now `http.createServer(app)` in every owner that carried it. Both typed programs stay at zero, the browser program stays at 11,134, and the explicit-`any` count stays at 0. Ten children remain: the four `0.33.33.32.28.3*`, the six `0.33.33.32.28.4*`, and `0.33.33.32.28.1` last.
+
+- [x] **Removed all 45, matched by exact literal shape rather than a pattern.** The transformation matched only `http.createServer(` followed by a request-listener cast of a value first widened to `unknown`, with the operand restricted to `app` or `createApp()` and the target to the three spellings the reslice probe found. Nothing fuzzy: the diff is **45 files, one line each**.
+- [x] **One of the 45 was not dead, and the type checker said so immediately.** `sqlite-small-office-performance` declared its `listen` parameter as `@param {unknown} app`, so the double cast was that parameter's only narrowing rather than a workaround for a declaration gap. Removing it failed the scripts program on the spot. **The cast was not restored.** The parameter is now typed `HttpFixtureApp` from the published fixture contract, the way every other owner types it, so the owner ends up more truthful than it started rather than back where it was. This is exactly the check the child existed to run: 44 of the 45 were dead, and the one that was not could not hide.
+- [x] **Re-measured the double-cast inventory.** Request-listener casts fall from **45 to 0**. The estate-wide total falls from 104 to 59 by the `0.33.33.32.28` counter, and from 112 to 67 by the stricter operand match the reslice probe used — the plan predicted 59 across roughly 44 owners, and the measured result is 59 across 45. The remaining classes are the ones `0.33.33.32.28` already dispositioned as legitimate: 9 deliberate probe stubs casting a local literal, 10 session-typed probe casts, and the rest boundary casts with recorded rationale. **None was folded into this child.**
+- [x] **Guarded the shape's return, and proved it.** `framework.full-strict-governance` now fails any discovered script that reintroduces the laundering cast, and separately fails if the small-office owner's fixture app is retyped back to `unknown` — so removing the declaration and the consequence both fail rather than only one of them. Both were proved by reintroducing the defect and observing the failure. The needle is assembled from parts: a source-text guard that spells its own forbidden pattern matches itself, which this rollup has now hit three times and would have hit a fourth here.
+- [x] Ran every owner. 42 of the 45 are discovered regressions and run under the slice gate; the three that are not — `measure-dashboard-performance`, `sqlite-small-office-performance`, and the shared `public-demo-files-ingress-probe` — were run directly. `sqlite-small-office-performance` completes and reports its route budgets green. **`measure-dashboard-performance` fails, and the failure predates this checkpoint**: the unmodified file at `HEAD` fails identically with `page.evaluate: TypeError: Illegal invocation` at line 134, a Playwright browser-automation fault in code this child did not touch. It is a manual measurement tool rather than a discovered regression or a gate, so it blocks nothing, but it is recorded here rather than passed over.
+- [x] Normalized 31 of the 45 owners from CRLF to LF. They were checked out with Windows line endings while the repository stores LF, so the first diff read as 892 changed lines in one file rather than one. The diff after normalization is exactly one line per owner, which is what made the review of 45 files tractable.
+- [x] **Dynamic-boundary disposition** (required by the `0.33.33.31.6.1` rule): none introduced or changed. This child removes type-level workarounds and adds no read of any dynamic value.
+- [x] Changed no runtime behaviour. A JSDoc cast has no runtime existence, so all 45 removals are byte-identical to the engine; the single parameter annotation added is also a comment.
+- [x] Held the scope the reslice set: no unrelated double-cast cleanup, no new regression owner or fixture, no explicit `any`, `@ts-ignore`, `@ts-nocheck`, file pragma, or `tsconfig.scripts.json` exclusion.
+- [x] Verified with `npm run verify:slice` against the final tree under full-check escalation.
+
 ## Version 0.33.33.32.28 - Audit the rollup and correct what the audits find
 
 **Model: High Effort** - The audit that catches inherited zeros, plus every correction it produced.
@@ -2530,7 +2547,6 @@ Acceptance criteria:
 
 Completed on 2026-08-07. The exact public demo now refuses database growth, oversized input, and amplification-prone queries through persistent server-owned budgets while ordinary deployments remain unchanged. The active cursor advanced to `0.33.31.12` for cross-role editable-content safety proof.
 
-
 **Model: High Effort** — Durable caps cross mutation and read boundaries and must remain server-authoritative without duplicating module policy in the browser.
 
 - [x] Add one framework-owned demo budget service for per-account/workspace mutable record growth between resets, field/rich-text/body sizes, maximum page sizes, expensive query/search bounds, and safe pre-write/pre-query refusal. The hourly reset is recovery depth, not quota enforcement.
@@ -4566,7 +4582,6 @@ Acceptance criteria:
 - Permission or hierarchy changes take effect on the next feed request; a subscription whose required scope is no longer authorized fails closed with the generic missing-feed response.
 - Multiple feeds for the same owner can expose different Workspace/Client/Project ceilings without changing Task identity or recurrence behavior.
 
-
 ## Version 0.33.22.9 - Named workspace calendar subscriptions and revocation lifecycle
 
 Completed locally on 2026-07-25. The backend credential and revocation lifecycle is complete; the active cursor advances to `0.33.22.9.1` for Tasks-owned content scoping.
@@ -4609,7 +4624,6 @@ Acceptance criteria:
 - One user can hold multiple independently named and revocable calendar subscriptions in one workspace, and each active row has one valid workspace/Client/Project scope plus an active owner.
 - Existing eligible URLs survive migration unchanged; ineligible or orphaned legacy rows are safely revoked.
 - Removing or deactivating the owner, removing the membership, disabling Tasks, removing the required permission/scope, or invalidating the Client/Project makes the affected URL immediately inoperable without leaking why.
-
 
 ## Version 0.33.22.8 - Subscription UI, documentation, and closeout
 
@@ -8277,7 +8291,6 @@ Acceptance criteria:
 * Release-gate coverage is preserved and runnable as one closeout conductor command.
 * The repo is ready for 0.33.7 TypeScript/Zod/Vitest without dragging the old maintenance clutter into that slice.
 
-
 ## Version 0.33.6.15 - App version source-of-truth and version-bump cleanup
 
 Completed 0.33.6.15.1 through 0.33.6.15.4. The live roadmap continues with 0.33.6.16.
@@ -10847,7 +10860,6 @@ Acceptance criteria:
 
 Completed 0.33.5.24.1 through 0.33.5.24.4 from the Node 24 LTS upgrade branch. The live roadmap continues with 0.33.5.25.
 
-
 Purpose:
 
 Move the dev/runtime baseline off end-of-life Node 20 onto Node 24 LTS, rebuild the native `better-sqlite3` driver for the new ABI, and pin the repo's supported-Node contract. This is a runtime/toolchain upgrade, not an app-code change: an audit of the app source found no APIs removed or deprecated through Node 24 (no `new Buffer(...)`, `crypto.createCipher`, legacy `url.parse`, `punycode`, or `process.binding`). The one native dependency (`better-sqlite3`) already declares Node 24 in its engine range, so the risk is entirely mechanical -- the native-module ABI rebuild, prebuild/toolchain availability, the npm 10 -> 11 jump, and a version-pinned smoke test. Note that the end-of-life concern is the Node **runtime** major, not npm; upgrading npm alone would neither address the EOL runtime nor rebuild the native module.
@@ -11156,7 +11168,6 @@ Acceptance criteria:
 Acceptance criteria:
 
 - `clamd` is available as an optional runtime scanner adapter for service deployments without requiring Linux-only assumptions.
-
 
 ### Version 0.33.5.22.11 - Scanner setup docs and ClamAV closeout
 
@@ -16559,8 +16570,6 @@ Acceptance criteria:
 - Notification subscription behavior remains framework-owned, while note event meaning remains
   Notes-owned.
 
-
-
 #### Version 0.33.5.18.11.5 - Files browse reset to compact listing
 
 Intent:
@@ -16605,7 +16614,6 @@ Acceptance criteria:
 - The main page does not show a detail dashboard below the table.
 - The row actions still work exactly as before.
 - No storage, scan, lifecycle, upload, delete, restore, report, quarantine, permission, or schema behavior changes in this slice.
-
 
 #### Version 0.33.5.18.11.6 - Files attachment context update route
 
@@ -17099,7 +17107,6 @@ Acceptance criteria:
 - File service behavior remains authoritative for storage, scanning, permissions, lifecycle, downloads,
   uploads, delete/restore, reporting, quarantine, and attachment target validation.
 - Strict guardrails protect Files like Notes and Tasks without outlawing required Files-owned behavior.
-
 
 <!-- Archived from ROADMAP.md at branch closeout: completed 0.33.7 TypeScript/Zod/Vitest foundation planning block. -->
 

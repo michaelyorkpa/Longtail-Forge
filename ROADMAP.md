@@ -60,11 +60,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.28`, plus the corrective child `0.33.33.32.22.1`, have since archived, closing **all 3,143 diagnostics across all 202 files** — the measured cohort exactly — and leaving 0 across 0, with the repository's explicit-`any` count also at 0. Reaching zero once is not the same as proving it stays there: `0.33.33.32.28.1` is still the only child that may close the scripts program's governance state, and it runs only after the three corrective children `0.33.33.32.28` opened; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.28`, plus the corrective children `0.33.33.32.22.1` and `0.33.33.32.28.2`, have since archived, closing **all 3,143 diagnostics across all 202 files** — the measured cohort exactly — and leaving 0 across 0, with the repository's explicit-`any` count also at 0. Reaching zero once is not the same as proving it stays there: `0.33.33.32.28.1` is still the only child that may close the scripts program's governance state, and it runs only after the three corrective children `0.33.33.32.28` opened; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.28.2` | Retire the dead request-listener laundering casts | 45 sites | 45 | — |
 | `.32.28.3` | Narrow the package manifest and lockfile boundaries | 31 sites | 20 | — |
 | `.32.28.3.1` | Narrow the generated policy, ledger, and audit reads | 14 sites | 8 | — |
 | `.32.28.3.2` | Narrow the response bodies and disposition the clones | 10 sites | 8 | — |
@@ -111,21 +110,9 @@ Requirements shared by every child:
 
 The unchecked-boundary figure was confirmed unchanged at **77 sites across 55 owners**.
 
-**Execution order.** `0.33.33.32.28.2` first, then the four `0.33.33.32.28.3*` boundary children, then the six `0.33.33.32.28.4*` helper children, and **`0.33.33.32.28.1` last**. The numbering is historical, not an execution order; `0.33.33.32.28.1` is not renumbered because it is referenced by every closeout rule in this rollup.
+**Execution order.** `0.33.33.32.28.2` has archived. Next are the four `0.33.33.32.28.3*` boundary children, then the six `0.33.33.32.28.4*` helper children, and **`0.33.33.32.28.1` last**. The numbering is historical, not an execution order; `0.33.33.32.28.1` is not renumbered because it is referenced by every closeout rule in this rollup.
 
 **Reconciliation contract.** Every one of the 77 boundary findings belongs to exactly one `.32.28.3*` child and every one of the 79 helper definitions to exactly one `.32.28.4*` child or to the recorded local dispositions. No owner appears in two children: the boundary partition assigns whole owners rather than individual sites, so an owner is edited once and pinned once. Each child below states its own site or definition count, and the counts sum to the totals.
-
-#### 0.33.33.32.28.2 - Retire the dead request-listener laundering casts
-
-**Model: Medium Effort - One uniform removal across forty-five owners, every one machine-verified.**
-
-Corrective child opened by `0.33.33.32.28`. `0.33.33.32.27` declared that an express `Application` is a Node request listener, which is what `http.createServer(app)` requires. That makes a compensating cast unnecessary, and the audit measured **45 sites across 45 owners** still carrying it, in nine line shapes, all of the form `http.createServer(/** @type {RequestListener} */ (/** @type {unknown} */ (app)))`. They are the single largest double-cast class in the estate: 45 of the 104 measured sites.
-
-- [ ] Remove all 45 laundering casts, leaving `http.createServer(app)`. Every removal is verified by the type checker: if the cast was load-bearing, the program fails immediately.
-- [ ] Verify each owner still runs, and re-measure the double-cast inventory afterwards; the remaining classes should be 59 across ~44 owners.
-- [ ] Add a governance guard forbidding the shape's return, and prove it by reintroducing one.
-- [ ] Change no runtime behaviour. This is the removal of a type-level workaround whose cause is already fixed.
-- [ ] **A fresh probe at the reslice confirmed the child is genuinely uniform**, so it stays one child: all 45 sites are wrapped in `http.createServer(...)`, none is anything else; each owner carries exactly one; there are only two cast operands, `app` (41) and `createApp()` (4); and the three target spellings — `import("node:http").RequestListener`, `http.RequestListener`, and a local `HttpRequestListener` alias — all name the same Node type. **Fold no unrelated double-cast cleanup into it.** The other 59-to-67 double casts in the estate, depending on how the operand is matched, are a separate question this rollup has already dispositioned as legitimate.
 
 #### 0.33.33.32.28.3 - Narrow the package manifest and lockfile boundaries
 
