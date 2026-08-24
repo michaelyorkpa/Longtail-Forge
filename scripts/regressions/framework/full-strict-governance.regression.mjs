@@ -1139,6 +1139,31 @@ assert.ok(
     .includes("audit row should persist metadata as JSON text"),
   "scripts/client-projects-repositories-conversion-regression.mjs should keep narrowing its audit metadata column",
 );
+for (const pickerOwner of [
+  "scripts/linked-context-client-project-label-sort-regression.mjs",
+  "scripts/linked-context-client-scope-picker-regression.mjs",
+  "scripts/linked-context-note-list-label-regression.mjs",
+  "scripts/linked-context-picker-shell-regression.mjs",
+  "scripts/linked-context-task-label-sort-regression.mjs",
+  "scripts/linked-context-unavailable-fallback-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[pickerOwner], undefined, `${pickerOwner} must stay strict-clean after checkpoint 0.33.33.32.23`);
+}
+// The five database-backed picker owners answer to one shared session contract
+// rather than five local session shapes.
+for (const pickerSessionOwner of [
+  "scripts/linked-context-client-project-label-sort-regression.mjs",
+  "scripts/linked-context-client-scope-picker-regression.mjs",
+  "scripts/linked-context-note-list-label-regression.mjs",
+  "scripts/linked-context-task-label-sort-regression.mjs",
+  "scripts/linked-context-unavailable-fallback-regression.mjs",
+]) {
+  assert.ok(
+    fs.readFileSync(pickerSessionOwner, "utf8")
+      .includes('import("../src/types/http-contracts.js").WorkspaceRequestSession} PickerSession'),
+    `${pickerSessionOwner} should answer to the shared picker session contract`,
+  );
+}
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().

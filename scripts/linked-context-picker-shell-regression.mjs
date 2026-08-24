@@ -10,7 +10,6 @@ const css = readText("public/css/longtail-forge.css");
 const pickerContract = readText("docs/linked-context-picker-contract.md");
 const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
-const roadmap = readText("ROADMAP.md");
 
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "picker shell must not own data loading or browser storage");
 assert.match(helper, /function createLinkedContextPicker/, "view builder should implement the shared Linked Context picker shell");
@@ -137,8 +136,8 @@ assert.equal(readonlyPicker.getAttribute("data-view-readonly"), "true", "readonl
 assert(findByClass(readonlyPicker, "view-linked-context-picker-target").disabled, "readonly picker should disable target select");
 assert(findByClass(readonlyPicker, "view-linked-context-picker-search").disabled, "readonly picker should disable search input");
 assert(findByClass(readonlyPicker, "view-linked-context-picker-record").disabled, "readonly picker should disable record select");
-assert(findByDatasetValue(readonlyPicker, "surfaceAction", "use-linked-context-target").disabled, "readonly picker should disable Use Target");
-assert(findByDatasetValue(readonlyPicker, "surfaceAction", "remove-linked-context").disabled, "readonly picker should disable Remove");
+assert(requireByDatasetValue(readonlyPicker, "surfaceAction", "use-linked-context-target").disabled, "readonly picker should disable Use Target");
+assert(requireByDatasetValue(readonlyPicker, "surfaceAction", "remove-linked-context").disabled, "readonly picker should disable Remove");
 assert.equal(findByClass(readonlyPicker, "view-linked-context-picker-state").textContent, "You can view linked context but cannot change it.");
 
 const linkedContextList = view.createLinkedContextList({
@@ -171,24 +170,58 @@ assert.match(pickerContract, /`LongtailForge\.view\.createLinkedContextPicker\(o
 assert.match(viewContract, /createLinkedContextPicker/, "view-building contract should list the shared picker primitive");
 assert.match(viewContract, /createLinkedContextList/, "view-building contract should list the shared read-list primitive");
 assert.match(moduleContract, /shared Linked Context picker shell/, "module contract should document framework picker anatomy ownership");
-assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.6\.1 through 0\.33\.5\.18\.6\.11 are archived/, "live roadmap should not carry completed-history breadcrumbs");
-assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.6\.5\.2 - Framework Linked Context picker shell/, "completed picker shell slice should be archived out of the live roadmap");
 
 console.log("Linked Context picker shell regression passed.");
 
+/**
+ * Read one rendered picker element by class.
+ *
+ * Every caller asserts on the element it names, so a shell that stopped
+ * rendering that part now fails naming the class rather than reading a member
+ * off `null` further down.
+ * @param {FakeNode} root @param {string} className @returns {FakeNode}
+ */
 function findByClass(root, className) {
-  return root.querySelector(`.${className}`);
+  const element = root.querySelector(`.${className}`);
+  assert.ok(element, `picker shell should render .${className}`);
+  return element;
 }
 
+/**
+ * Read one rendered picker action that must be rendered.
+ *
+ * These callers assert that readonly mode disables the action, which only means
+ * something if the action is there to disable.
+ * @param {FakeNode} root @param {string} name @param {string} value @returns {FakeNode}
+ */
+function requireByDatasetValue(root, name, value) {
+  const element = findByDatasetValue(root, name, value);
+  assert.ok(element, `picker shell should render the ${value} action`);
+  return element;
+}
+
+/**
+ * Read one rendered picker element by dataset value, or null when absent.
+ *
+ * Unlike `findByClass` this legitimately answers null: the assertions using it
+ * prove that non-removable rows expose no remove action.
+ * @param {FakeNode} root @param {string} name @param {string} value @returns {FakeNode | null}
+ */
 function findByDatasetValue(root, name, value) {
   return findDescendants(root).find((element) => element.dataset?.[name] === value) || null;
 }
 
+/** @param {FakeNode} root @returns {FakeNode[]} */
 function findDescendants(root) {
+  /** @type {FakeNode[]} */
   const results = [];
+  /** @type {FakeNode[]} */
   const queue = [...root.children];
   while (queue.length) {
     const element = queue.shift();
+    if (!element) {
+      break;
+    }
     results.push(element);
     queue.push(...element.children);
   }

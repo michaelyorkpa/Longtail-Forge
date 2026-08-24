@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "maximumActiveScripts": 347,
-  "minimumAssertionCount": 19506,
+  "minimumAssertionCount": 19508,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,
@@ -5297,6 +5297,56 @@
       ],
       "verificationPerformed": [
         "node scripts/job-retention-pruning-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.linked.context.client.scope.picker",
+      "retiredInVersion": "0.33.33.32.23",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One planning-document read asserted nothing a live cursor can fail: an assertRoadmapCursorAtLeast(\"0.33.8\") floor that a 0.33.33 cursor satisfies unconditionally and cannot regress below. It is not a historical content pin -- this owner reads no CHANGELOG and no archive -- and it was invisible to scripts/planning-document-pin-baseline.json by construction, because that scan matches planning-document filenames and a cursor-floor caller names none. This is the fourth owner of that shape found since 0.33.33.32.14 recorded it.",
+      "assertionDisposition": "No behavior lost coverage. The client-scope picker contract is still proven in this same owner by its static source assertions and by the runtime probes, which drive All Clients, single-client, and workspace-only scopes across a parent, child, and unrelated client, prove descendant projects appear under a parent client scope, and prove Personal and Family workspaces hide client context entirely. Those probes are now stronger: the workspace fixture row is proven, its name proven to be text before it becomes an expected label, and the session seeded through the shared workspace session fixture.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/linked-context-client-scope-picker-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.linked.context.client.scope.picker",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor"
+      ],
+      "verificationPerformed": [
+        "node scripts/linked-context-client-scope-picker-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.linked.context.picker.shell",
+      "retiredInVersion": "0.33.33.32.23",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 2,
+      "rationale": "Two assertions required that completed 0.33.5.18.6 planning history stay absent from the live roadmap -- a breadcrumb line and the 0.33.5.18.6.5.2 picker shell slice body. Neither can re-enter the live roadmap now that the section is archived, so neither can fail. This owner reads no CHANGELOG and no archive, so it was recorded as a planning-document reader rather than a historical content pinner.",
+      "assertionDisposition": "No behavior lost coverage. The picker shell contract is still proven in this same owner by its fake-DOM probes, which render the shell, prove target and record option labels come from provider descriptors without target-type prefixes, prove row label, secondary, and hint anatomy, prove source-URL rows render as links, prove row metadata retains target type and id for module save handlers, prove non-removable rows expose no remove action, and prove readonly mode disables every control. Those probes are now stronger: each element the assertions read is proven rendered, so a shell that stopped rendering a part fails naming the part instead of reading a member off null.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/linked-context-picker-shell-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.linked.context.picker.shell",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor"
+      ],
+      "verificationPerformed": [
+        "node scripts/linked-context-picker-shell-regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"

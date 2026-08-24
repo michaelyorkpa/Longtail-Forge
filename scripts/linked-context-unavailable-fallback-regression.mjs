@@ -3,6 +3,10 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { fixtureString, workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} PickerSession */
+/** @typedef {import("../src/types/link-target-directory-contracts.js").LinkTargetCandidate} LinkTarget */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-linked-context-unavailable-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-linked-context-unavailable.db");
@@ -45,6 +49,7 @@ async function assertStaticFallbackContract() {
   assert.match(notesJs, /function unavailableTargetLabel\(targetType = ""\)[\s\S]*client: "Unavailable client"[\s\S]*project: "Unavailable project"[\s\S]*task: "Unavailable task"[\s\S]*note: "Unavailable note"[\s\S]*list: "Unavailable list"[\s\S]*"Unavailable linked context"/, "Browser fallback labels should stay type-specific where supported and generic otherwise");
 }
 
+/** @param {PickerSession} session */
 async function assertUnavailableContextReadModel(session) {
   const suffix = randomUUID().slice(0, 8);
   const ids = {
@@ -99,6 +104,7 @@ async function assertUnavailableContextReadModel(session) {
   }
 }
 
+/** @param {PickerSession} session */
 async function assertStrictCreateStillRejectsMissingTargets(session) {
   await assert.rejects(
     () => notesService.create({
@@ -116,6 +122,10 @@ async function assertStrictCreateStillRejectsMissingTargets(session) {
   );
 }
 
+/**
+ * @param {PickerSession} session @param {string} noteId @param {string} moduleId
+ * @param {string} targetType @param {string} targetId
+ */
 async function insertLink(session, noteId, moduleId, targetType, targetId) {
   const now = new Date().toISOString();
 
@@ -151,6 +161,24 @@ VALUES (
 `);
 }
 
+/**
+ * Prove no label variant on a fallback record echoes a raw target id.
+ *
+ * Both casings are probed on purpose. The published target contract declares
+ * only the camelCase labels, so the snake_case members are the defensive half
+ * of this check: whatever spelling a provider emits, none of them may leak an
+ * id. The parameter therefore names all ten as optional rather than claiming
+ * the published shape.
+ * @param {{
+ *   aria_label?: unknown, ariaLabel?: unknown,
+ *   display_label?: unknown, displayLabel?: unknown,
+ *   full_label?: unknown, fullLabel?: unknown,
+ *   label?: unknown,
+ *   secondary_label?: unknown, secondaryLabel?: unknown,
+ *   subtitle?: unknown,
+ * }} [record]
+ * @param {string} [targetId]
+ */
 function assertSafeLabelSet(record = {}, targetId = "") {
   const labels = [
     record.label,
@@ -170,6 +198,7 @@ function assertSafeLabelSet(record = {}, targetId = "") {
   }
 }
 
+/** @param {string} workspaceId @param {string} workspaceType @param {string} workspaceName */
 async function setWorkspace(workspaceId, workspaceType, workspaceName) {
   await runSql(`
 UPDATE workspaces
@@ -179,12 +208,13 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
+/** @returns {Promise<{ workspace_id: string, workspace_name?: unknown }>} */
 async function readWorkspace() {
-  const rows = await querySql("SELECT workspace_id FROM workspaces ORDER BY rowid LIMIT 1;");
-  assert.ok(rows[0]?.workspace_id, "workspace fixture is required");
-  return rows[0];
+  const row = requireFirstRow(await querySql("SELECT workspace_id FROM workspaces ORDER BY rowid LIMIT 1;"), "the workspace fixture");
+  return { ...row, workspace_id: fixtureString(row.workspace_id, "the workspace fixture id") };
 }
 
+/** @param {string} workspaceId @returns {Promise<PickerSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -195,13 +225,7 @@ LIMIT 1;
 `);
   const user = rows[0];
   assert.ok(user?.user_id, "protected user fixture is required");
-  return {
-    display_name: user.display_name || user.username,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: workspaceId,
-  };
+  return workspaceSessionFixture({ ...user, workspace_id: workspaceId });
 }
 
 async function assertIntegrity() {
