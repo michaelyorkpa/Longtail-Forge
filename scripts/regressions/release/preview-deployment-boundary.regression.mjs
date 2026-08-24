@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requirePackageManifest } from "../../test-support/package-manifest-assertions.mjs";
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -109,7 +110,7 @@ assert.match(runtimeArtifact, /artifact is not a supported production installer/
 assert.match(envExample, /LONGTAIL_DOCKER_TRUST_PROXY=172\.30\.17\.1\/32/);
 assert.match(envExample, /LONGTAIL_FILE_SCANNER=clamd/);
 assert.match(envExample, /LONGTAIL_CLAMD_HOST=172\.30\.17\.1/);
-assert.equal(JSON.parse(packageJsonSource).scripts["bare-metal:smoke"], undefined);
+assert.equal(requirePackageManifest(JSON.parse(packageJsonSource)).scripts?.["bare-metal:smoke"], undefined);
 
 assert.match(containerSmoke, /--read-only/);
 assert.match(containerSmoke, /\/tmp:rw,noexec,nosuid,nodev,size=512m,mode=0700,uid=10001,gid=10001/);

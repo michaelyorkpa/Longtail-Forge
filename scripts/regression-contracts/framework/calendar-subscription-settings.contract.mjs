@@ -10,6 +10,7 @@ export const regressionMeta = Object.freeze({
 
 import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
+import { requirePackageLock, requirePackageManifest } from "../../test-support/package-manifest-assertions.mjs";
 
 import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
@@ -129,10 +130,17 @@ assert.match(settingsHelp, /read-only/i, "Help should preserve provider-neutral 
 assert.match(settingsHelp, /periodic/i, "Help should explain refresh timing");
 assert.doesNotMatch(settingsHelp, /Google Calendar sync/i, "Help must not imply provider-specific synchronization");
 
-const packageData = JSON.parse(packageJson);
-const packageLockData = JSON.parse(packageLock);
+const packageData = requirePackageManifest(JSON.parse(packageJson));
+const packageLockData = requirePackageLock(JSON.parse(packageLock));
 assert.equal(packageLockData.version, packageData.version, "package and lockfile versions should match");
-assert.equal(packageLockData.packages[""].version, packageData.version, "lockfile root package version should match");
-assertRoadmapCursorAtLeast(packageData.version, "the Calendar administration correction should not move the roadmap backward");
+// The lockfile's root entry and the manifest version are proven present
+// rather than assumed: a lockfile or manifest that stopped carrying one
+// would otherwise compare undefined against undefined and pass.
+const rootLockEntry = packageLockData.packages?.[""];
+assert.ok(rootLockEntry, "package-lock.json should carry a root package entry");
+const declaredVersion = packageData.version;
+assert.ok(declaredVersion, "package.json should declare a version");
+assert.equal(rootLockEntry.version, declaredVersion, "lockfile root package version should match");
+assertRoadmapCursorAtLeast(declaredVersion, "the Calendar administration correction should not move the roadmap backward");
 
 console.log("Calendar subscription settings regression passed.");

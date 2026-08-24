@@ -45,11 +45,12 @@ const POLL_INTERVAL_MS = 5_000;
 function commandFromEnvironment(name, fallback) {
   const raw = process.env[name];
   if (!raw) return [...fallback];
+  /** @type {unknown} */
   const parsed = JSON.parse(raw);
   if (!Array.isArray(parsed) || parsed.length === 0 || !parsed.every((entry) => typeof entry === "string")) {
     throw new Error(`${name} must be a JSON array of command strings.`);
   }
-  return parsed;
+  return /** @type {string[]} */ (parsed);
 }
 
 /** @param {string} name @param {number} fallback @returns {number} */

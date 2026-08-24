@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -67,7 +68,9 @@ const DEDICATED_SECURITY_PATTERNS = Object.freeze({
   "src/services/sessions.service.js": [/randomBytes\(32\)/, /createHmac\("sha256"/],
 });
 
-const baseline = JSON.parse(await fs.readFile(BASELINE_PATH, "utf8"));
+/** @typedef {{ productionDirectRandomUuid: Record<string, { calls: number, classification?: string }>, schemaVersion: number }} IdentifierMigrationBaseline */
+/** @type {IdentifierMigrationBaseline} */
+const baseline = requireJsonRecord(JSON.parse(await fs.readFile(BASELINE_PATH, "utf8")), BASELINE_PATH);
 assert.equal(baseline.schemaVersion, 1, "identifier migration baseline schema must remain recognized");
 
 const productionFiles = (await Promise.all(PRODUCTION_ROOTS.map(listCodeFiles))).flat().sort();
@@ -81,7 +84,7 @@ for (const filePath of productionFiles) {
 
 const expectedDirectCalls = Object.fromEntries(
   Object.entries(baseline.productionDirectRandomUuid)
-    .map(([filePath, entry]) => [filePath, entry.calls])
+    .map(([filePath, entry]) => /** @type {[string, number]} */ ([filePath, entry.calls]))
     .sort(([left], [right]) => left.localeCompare(right)),
 );
 assert.deepEqual(

@@ -1,5 +1,6 @@
 import { escapeRegExp } from "../test-support/source-scan.mjs";
 import { spawnSync } from "node:child_process";
+import { requirePackageManifest } from "../test-support/package-manifest-assertions.mjs";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -145,8 +146,8 @@ function validateCheckpointCommit({
 function isScriptOnlyPackageChange(beforeSource, afterSource) {
   if (!beforeSource || !afterSource) return false;
   try {
-    const beforePackage = JSON.parse(beforeSource);
-    const afterPackage = JSON.parse(afterSource);
+    const beforePackage = requirePackageManifest(JSON.parse(beforeSource), "the previous package.json");
+    const afterPackage = requirePackageManifest(JSON.parse(afterSource), "package.json in the working tree");
     if (beforePackage.version !== afterPackage.version) return false;
     const beforeScripts = beforePackage.scripts;
     const afterScripts = afterPackage.scripts;

@@ -9,6 +9,7 @@ export const regressionMeta = Object.freeze({
 
 import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import fs from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
@@ -257,7 +258,7 @@ try {
   assert.ok(logoutEvents.some((event) => (
     event.event_type === "exited"
     && event.outcome === "success"
-    && JSON.parse(event.metadata_json).reason_class === "administrator_logout"
+    && requireJsonRecord(JSON.parse(String(event.metadata_json)), "the Support View event metadata column").reason_class === "administrator_logout"
   )), "logout must record an attributed Support View end event");
   const remainingActorSessions = await db.query(`
 SELECT session_id

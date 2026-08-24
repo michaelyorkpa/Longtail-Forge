@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { requireJsonRecord } from "../test-support/json-record-assertions.mjs";
 import {
   collectChangedPaths,
   normalizeChangedPath,
@@ -22,28 +23,34 @@ const NO_DOCS_CHANGE_PREFIX = "No docs change needed:";
  * @returns {DocsOwnershipIndex}
  */
 function loadDocsOwnershipIndex({ cwd = process.cwd(), indexPath = DOCS_OWNERSHIP_INDEX } = {}) {
-  const index = JSON.parse(readFileSync(path.resolve(cwd, indexPath), "utf8"));
+  // The parsed index enters open and the existing validator narrows it, which
+  // is what its parameter type was always meant to be doing.
+  const index = requireJsonRecord(JSON.parse(readFileSync(path.resolve(cwd, indexPath), "utf8")), indexPath);
   return validateDocsOwnershipIndex(index);
 }
 
 /**
- * @param {DocsOwnershipIndexInput} index
+ * @param {unknown} index
  * @returns {DocsOwnershipIndex}
  */
 function validateDocsOwnershipIndex(index) {
-  if (index?.schemaVersion !== 1 || !Array.isArray(index.areas)) {
+  if (!index || typeof index !== "object" || Array.isArray(index)) {
+    throw new Error("Documentation ownership index must be a JSON object.");
+  }
+  const candidate = /** @type {DocsOwnershipIndexInput} */ (index);
+  if (candidate.schemaVersion !== 1 || !Array.isArray(candidate.areas)) {
     throw new Error("Documentation ownership index must use schemaVersion 1 and define areas.");
   }
   if (
-    index.noteConvention?.docsUpdated !== "Docs updated: <comma-separated paths>." ||
-    index.noteConvention?.noDocsChangeNeeded !== "No docs change needed: <short reason>."
+    candidate.noteConvention?.docsUpdated !== "Docs updated: <comma-separated paths>." ||
+    candidate.noteConvention?.noDocsChangeNeeded !== "No docs change needed: <short reason>."
   ) {
     throw new Error("Documentation ownership index must publish both closeout note conventions.");
   }
 
   /** @type {Set<string>} */
   const ids = new Set();
-  const areas = index.areas.map((area, areaIndex) => {
+  const areas = candidate.areas.map((area, areaIndex) => {
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(area?.id || "")) {
       throw new Error(`Documentation ownership area ${areaIndex + 1} needs a stable kebab-case id.`);
     }
@@ -90,8 +97,8 @@ function validateDocsOwnershipIndex(index) {
 
   return Object.freeze({
     areas: Object.freeze(areas),
-    noteConvention: Object.freeze({ ...index.noteConvention }),
-    schemaVersion: index.schemaVersion,
+    noteConvention: Object.freeze({ ...candidate.noteConvention }),
+    schemaVersion: candidate.schemaVersion,
   });
 }
 

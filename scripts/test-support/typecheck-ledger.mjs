@@ -10,7 +10,7 @@
 import { readFileSync } from "node:fs";
 import { requireJsonRecord } from "./json-record-assertions.mjs";
 
-/** @typedef {{ files: string[], diagnostics: Record<string, unknown> }} LedgerProgram */
+/** @typedef {{ config: string, files: string[], diagnostics: Record<string, unknown> }} LedgerProgram */
 /** @typedef {{ programs: Record<string, LedgerProgram> }} GeneratedLedger */
 
 /** @type {Record<string, LedgerProgram> | null} */
@@ -61,4 +61,14 @@ function strictCleanOwnerProgram(filePath) {
   return match ? match[0] : null;
 }
 
-export { strictCleanOwnerProgram, strictCleanOwnerState };
+/**
+ * Name the TypeScript config one checked program is bound to, or null when no
+ * such program is recorded.
+ * @param {string} programName
+ * @returns {string | null}
+ */
+function strictCleanOwnerConfig(programName) {
+  return ledgerPrograms()[programName]?.config ?? null;
+}
+
+export { strictCleanOwnerConfig, strictCleanOwnerProgram, strictCleanOwnerState };

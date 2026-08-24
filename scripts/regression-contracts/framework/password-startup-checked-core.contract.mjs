@@ -9,24 +9,22 @@ export const regressionMeta = Object.freeze({
 
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
-import { strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
+import { strictCleanOwnerConfig, strictCleanOwnerProgram, strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
 
-const [passwordSource, appSource, typecheckLedgerSource] = await Promise.all([
+const [passwordSource, appSource] = await Promise.all([
   fs.readFile("src/security/passwords.js", "utf8"),
   fs.readFile("src/core/app.js", "utf8"),
-  fs.readFile("scripts/typecheck-debt-ledger.json", "utf8"),
 ]);
-const typecheckLedger = JSON.parse(typecheckLedgerSource);
 
 for (const [filePath, source] of [
   ["src/security/passwords.js", passwordSource],
   ["src/core/app.js", appSource],
 ]) {
   assert.deepEqual(strictCleanOwnerState(filePath), { owned: true, diagnostics: 0 }, `${filePath} must stay strict-clean in its checked program`);
-  assert.ok(typecheckLedger.programs["server-tests"].files.includes(filePath), `${filePath} must stay in the strict server/tests program`);
+  assert.equal(strictCleanOwnerProgram(filePath), "server-tests", `${filePath} must stay in the strict server/tests program`);
   assert.doesNotMatch(source, /@ts-(?:ignore|expect-error)|\bany\b|as unknown as/, `${filePath} must not suppress or guess across its checked boundary`);
 }
-assert.equal(typecheckLedger.programs["server-tests"].config, "tsconfig.json");
+assert.equal(strictCleanOwnerConfig("server-tests"), "tsconfig.json", "the server/tests program must stay bound to the root tsconfig");
 
 assert.match(passwordSource, /@typedef \{"argon2id" \| "pbkdf2_sha256" \| "unknown"\} PasswordHashAlgorithm/);
 assert.match(passwordSource, /@typedef \{ParsedArgon2Hash \| ParsedPbkdf2Hash\} ParsedPasswordHash/);
