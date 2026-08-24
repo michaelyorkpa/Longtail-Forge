@@ -10,7 +10,7 @@ export const regressionMeta = Object.freeze({
 
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBody } from "../../test-support/source-scan.mjs";
 const { readTextAsync: readText } = createProjectTextReader();
 
 const workbenchJs = await readText("public/js/workbench.js");
@@ -22,12 +22,12 @@ let checks = 0;
 // The deep link consumes both the canonical spelling and the reported legacy
 // spelling, preserving unrelated query and hash state before focus work starts.
 assert.match(
-  functionBody(workbenchJs, "consumeTaskFocusDeepLink"),
+  extractFunctionBody(workbenchJs, "consumeTaskFocusDeepLink"),
   /params\.has\("taskId"\) \|\| params\.has\("taskID"\)[\s\S]*params\.get\("taskId"\) \|\| params\.get\("taskID"\)[\s\S]*params\.delete\("taskId"\)[\s\S]*params\.delete\("taskID"\)[\s\S]*window\.location\?\.pathname[\s\S]*window\.location\?\.hash[\s\S]*history\.replaceState/,
   "the deep link must consume taskId and taskID while preserving unrelated query parameters, pathname, and hash",
 );
 assert.match(
-  functionBody(workbenchJs, "loadWorkbench"),
+  extractFunctionBody(workbenchJs, "loadWorkbench"),
   /await applyTaskFocusDeepLink\(\)/,
   "the Workbench load must apply the task-focus deep link",
 );
@@ -35,7 +35,7 @@ checks += 2;
 
 // A readable task enters Task Focus through the existing path — no parallel
 // task-focus implementation and no extra fetch in the deep-link body itself.
-const deepLinkBody = functionBody(workbenchJs, "applyTaskFocusDeepLink");
+const deepLinkBody = extractFunctionBody(workbenchJs, "applyTaskFocusDeepLink");
 assert.match(deepLinkBody, /consumeTaskFocusDeepLink\(\)[\s\S]*if \(!present\)/, "the one-shot URL cleanup must happen before deciding whether focus work exists");
 assert.match(deepLinkBody, /moduleEnabled\("tasks"\)/, "the deep link must respect the Tasks module gate");
 assert.match(deepLinkBody, /candidateTaskId\(entry\) === taskId/, "the deep link should reuse a matching loaded candidate for context");
@@ -90,35 +90,3 @@ assert.match(
 checks += 4;
 
 console.log(`Workbench task-focus deep-link guardrail passed ${checks} checks.`);
-
-/**
- * Extract one named function's body text from a source file this module reads.
- * @param {string} source file text from the shared project text reader
- * @param {string} name the function name to locate
- */
-function functionBody(source, name) {
-  const start = source.indexOf(`function ${name}(`) >= 0
-    ? source.indexOf(`function ${name}(`)
-    : source.indexOf(`async function ${name}(`);
-  assert.notEqual(start, -1, `Missing function ${name}`);
-
-  const signatureEnd = source.indexOf(") {", start);
-  const openBrace = signatureEnd >= 0 ? signatureEnd + 2 : source.indexOf("{", start);
-  assert.notEqual(openBrace, -1, `Missing body for function ${name}`);
-
-  let depth = 0;
-  for (let index = openBrace; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      depth += 1;
-    }
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(openBrace, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not parse function ${name}`);
-}

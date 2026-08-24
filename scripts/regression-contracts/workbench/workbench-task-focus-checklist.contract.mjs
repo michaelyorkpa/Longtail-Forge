@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBody } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -23,58 +23,58 @@ assert.match(
 );
 
 assert.match(
-  functionBody(workbenchScript, "renderTaskFocusSurface"),
+  extractFunctionBody(workbenchScript, "renderTaskFocusSurface"),
   /createTaskFocusSummary\(active\)[\s\S]*createTaskDetailsSection\(active\)[\s\S]*createTaskFocusChecklistSection\(active\)/,
   "Task Focus should render Checklist after summary and read-only Task Details",
 );
 assert.match(
-  functionBody(workbenchScript, "createTaskFocusChecklistSection"),
+  extractFunctionBody(workbenchScript, "createTaskFocusChecklistSection"),
   /dataset: \{[\s\S]*workbenchTaskFocusChecklist: ""[\s\S]*workbenchTaskFocusChecklistMount: ""[\s\S]*workbenchTaskFocusChecklistStructure: "check-only"[\s\S]*body\.addEventListener\("change", handleTaskFocusChecklistChange\)[\s\S]*setWorkbenchDisclosureOpen\(details, items\.length > 0\);/,
   "Checklist should be a stable check-only mount that opens by default when populated",
 );
 assert.match(
-  functionBody(workbenchScript, "createTaskFocusChecklistBody"),
+  extractFunctionBody(workbenchScript, "createTaskFocusChecklistBody"),
   /message: "Edit task to add checklist items\."[\s\S]*title: "No checklist items"/,
   "Empty Task Focus checklists should collapse with the required edit-task message",
 );
 assert.doesNotMatch(
-  functionBody(workbenchScript, "createTaskFocusChecklistBody"),
+  extractFunctionBody(workbenchScript, "createTaskFocusChecklistBody"),
   /checklistAdd|taskChecklistAdd|checklist\/reorder|api\.(putJson|deleteJson)/,
   "Task Focus checklist body should not expose add, rename, reorder, or remove behavior",
 );
 assert.match(
-  functionBody(workbenchScript, "createTaskFocusChecklistItem"),
+  extractFunctionBody(workbenchScript, "createTaskFocusChecklistItem"),
   /type: "checkbox"[\s\S]*dataset: \{ workbenchTaskFocusChecklistToggle: "" \}[\s\S]*className: "workbench-task-checklist-label"/,
   "Task Focus checklist rows should render only a checkbox and read-only label",
 );
 assert.doesNotMatch(
-  functionBody(workbenchScript, "createTaskFocusChecklistItem"),
+  extractFunctionBody(workbenchScript, "createTaskFocusChecklistItem"),
   /createActionButton|<button|type: "text"|textarea|select|taskChecklistAction/,
   "Task Focus checklist rows should not render structure-editing controls",
 );
 
 assert.match(
-  functionBody(workbenchScript, "handleTaskFocusChecklistChange"),
+  extractFunctionBody(workbenchScript, "handleTaskFocusChecklistChange"),
   /const action = checked \? "check" : "uncheck";[\s\S]*api\.postJson\(\s*`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/checklist\/\$\{encodeURIComponent\(itemId\)\}\/\$\{action\}`[\s\S]*applyTaskFocusChecklistResult\(result\)[\s\S]*renderWorkbench\(\);/,
   "Checklist check/uncheck should dispatch through the existing Tasks-owned checklist mutation route",
 );
 assert.match(
-  functionBody(workbenchScript, "handleTaskFocusChecklistChange"),
+  extractFunctionBody(workbenchScript, "handleTaskFocusChecklistChange"),
   /catch \(error\)[\s\S]*checklistError: error\.message \|\| "Checklist item was not updated\."[\s\S]*setStatus\(state\.activeTaskFocus\.checklistError, \{ isError: true \}\);/,
   "Checklist permission or mutation failures should surface safely through Task Focus status and section copy",
 );
 assert.doesNotMatch(
-  functionBody(workbenchScript, "handleTaskFocusChecklistChange"),
+  extractFunctionBody(workbenchScript, "handleTaskFocusChecklistChange"),
   /api\.(putJson|deleteJson)\(|checklist\/reorder|\/checklist`, \{ label/,
   "Task Focus checklist mutation should be limited to check/uncheck",
 );
 assert.match(
-  functionBody(workbenchScript, "applyTaskFocusChecklistResult"),
+  extractFunctionBody(workbenchScript, "applyTaskFocusChecklistResult"),
   /result\.task \|\| \{[\s\S]*checklistItems: result\.items \|\| existingTask\.checklistItems \|\| \[\][\s\S]*checklistProgress: result\.checklistProgress \|\| existingTask\.checklistProgress[\s\S]*applyActiveTaskFocusTask\(nextTask\)/,
   "Checklist mutation results should refresh the focused task from the Tasks response shape",
 );
 assert.match(
-  functionBody(workbenchScript, "applyActiveTaskFocusTask"),
+  extractFunctionBody(workbenchScript, "applyActiveTaskFocusTask"),
   /status: nextTask\?\.status \|\| state\.activeTaskFocus\.status \|\| ""/,
   "Task Focus should refresh the selected task status from the returned Tasks payload",
 );
@@ -142,40 +142,3 @@ assert.match(
 );
 
 console.log("Workbench Task Focus checklist regression passed.");
-
-/**
- * Extract one named function's body text from a source file this module reads.
- * @param {string} source file text from the shared project text reader
- * @param {string} name the function name to locate
- */
-function functionBody(source, name) {
-  const starts = [
-    `async function ${name}(`,
-    `function ${name}(`,
-    `${name}: () => (`,
-  ];
-  const start = starts
-    .map((signature) => source.indexOf(signature))
-    .find((index) => index >= 0);
-  assert.notEqual(start, undefined, `Missing function ${name}`);
-
-  const signatureEnd = source.indexOf(") {", start);
-  const openBrace = signatureEnd >= 0 ? signatureEnd + 2 : source.indexOf("{", start);
-  assert.notEqual(openBrace, -1, `Missing body for function ${name}`);
-
-  let depth = 0;
-  for (let index = openBrace; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      depth += 1;
-    }
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(openBrace, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not parse function ${name}`);
-}

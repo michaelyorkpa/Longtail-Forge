@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBody } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -52,33 +52,33 @@ assert.match(
   "Workbench should expose a stable Inspector overflow panel hook, heading, and helper copy",
 );
 assert.match(
-  functionBody(workbenchScript, "renderWorkbench"),
+  extractFunctionBody(workbenchScript, "renderWorkbench"),
   /renderRecommendedAction\(\);[\s\S]*renderWorkbenchInspector\(\);/,
   "Workbench render should keep the Inspector synchronized with the current focus candidates",
 );
 assert.match(
-  functionBody(workbenchScript, "workbenchInspectorCandidates"),
+  extractFunctionBody(workbenchScript, "workbenchInspectorCandidates"),
   /for \(const candidate of recommendedOverflowCandidates\(\)\)[\s\S]*WORKBENCH_INSPECTOR_LIMIT/,
   "Focus Selection Inspector rows should come from permission-shaped overflow candidates after the top-five recommendation window",
 );
 assert.doesNotMatch(
-  functionBody(workbenchScript, "workbenchInspectorCandidates"),
+  extractFunctionBody(workbenchScript, "workbenchInspectorCandidates"),
   /api\.getJson|fetch\(/,
   "Inspector candidate selection should not fetch a separate unscoped record list in the browser",
 );
 
 assert.match(
-  functionBody(workbenchScript, "createWorkbenchInspectorItem"),
+  extractFunctionBody(workbenchScript, "createWorkbenchInspectorItem"),
   /const openMode = resolvedWorkbenchViewState\(\) === WORKBENCH_VIEW_STATE_FOCUS_SELECTION[\s\S]*\? "candidate-primary"[\s\S]*: "context-open";[\s\S]*workbenchInspectorOpenMode: openMode[\s\S]*addEventListener\("click", \(event\) => openCandidate\(candidate, event\.currentTarget, \{ mode: openMode \}\)\)/,
   "Focus Selection Inspector titles should choose candidates through the primary Workbench path while preserving a future context-open branch",
 );
 assert.match(
-  functionBody(workbenchScript, "candidateModuleAction"),
+  extractFunctionBody(workbenchScript, "candidateModuleAction"),
   /actionId: "notes\.view"[\s\S]*recordParam: "noteId"[\s\S]*actionId: "lists\.edit"[\s\S]*recordParam: "listId"/,
   "Inspector should open Notes in the registered view modal and reuse the Lists registered edit action for modal opens",
 );
 assert.match(
-  functionBody(workbenchScript, "openModuleActionCandidate"),
+  extractFunctionBody(workbenchScript, "openModuleActionCandidate"),
   /ensureWorkbenchModuleAction\(action\.actionId\)[\s\S]*window\.LongtailForge\.moduleActions\.open\(action\.actionId[\s\S]*source: "workbench"[\s\S]*sourceType: "work-candidate"[\s\S]*returnFocusTo: trigger \|\| document\.activeElement/,
   "Inspector module opens should dispatch through moduleActions with Workbench source context and focus return",
 );
@@ -88,18 +88,18 @@ assert.match(
   "Workbench should lazy-load Notes and Lists dialog adapters as modules to avoid classic-script lexical collisions",
 );
 assert.match(
-  functionBody(workbenchScript, "loadWorkbenchActionDependency"),
+  extractFunctionBody(workbenchScript, "loadWorkbenchActionDependency"),
   /dependency\.module[\s\S]*import\(key\)[\s\S]*document\.createElement\("script"\)/,
   "Workbench dependency loading should use dynamic import only for collision-prone module adapters while keeping normal script loading available",
 );
 
 assert.match(
-  functionBody(workbenchScript, "inspectorCandidateTitle"),
+  extractFunctionBody(workbenchScript, "inspectorCandidateTitle"),
   /!looksLikeRawId\(title\)[\s\S]*return title;[\s\S]*return label \? `\$\{label\} context` : "Work context";/,
   "Inspector visible titles should avoid raw IDs and use a safe fallback label",
 );
 assert.match(
-  functionBody(workbenchScript, "inspectorCandidateContext"),
+  extractFunctionBody(workbenchScript, "inspectorCandidateContext"),
   /!looksLikeRawId\(context\)[\s\S]*!looksLikeRawId\(reason\)[\s\S]*Ready to review/,
   "Inspector context copy should avoid raw IDs and body/preview content",
 );
@@ -144,35 +144,3 @@ assert.match(
 );
 
 console.log("Workbench Inspector panel regression passed.");
-
-/**
- * Extract one named function's body text from a source file this module reads.
- * @param {string} source file text from the shared project text reader
- * @param {string} name the function name to locate
- */
-function functionBody(source, name) {
-  const start = source.indexOf(`function ${name}(`) >= 0
-    ? source.indexOf(`function ${name}(`)
-    : source.indexOf(`async function ${name}(`);
-  assert.notEqual(start, -1, `Missing function ${name}`);
-
-  const signatureEnd = source.indexOf(") {", start);
-  const openBrace = signatureEnd >= 0 ? signatureEnd + 2 : source.indexOf("{", start);
-  assert.notEqual(openBrace, -1, `Missing body for function ${name}`);
-
-  let depth = 0;
-  for (let index = openBrace; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      depth += 1;
-    }
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(openBrace, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not parse function ${name}`);
-}

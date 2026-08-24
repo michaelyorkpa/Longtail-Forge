@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBody } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -17,42 +17,42 @@ assert.match(
   "Workbench should reference CSS and JS for Task Focus related-context UI",
 );
 assert.match(
-  functionBody(workbenchScript, "refreshTaskFocusRelatedContext"),
+  extractFunctionBody(workbenchScript, "refreshTaskFocusRelatedContext"),
   /\/api\/workbench\/task-focus\/\$\{encodeURIComponent\(taskId\)\}\/related-context[\s\S]*cache: "no-store"[\s\S]*normalizeTaskFocusRelatedContext\(result, taskId\)/,
   "Task Focus Inspector should load selected-task related context from the e-1 route",
 );
 assert.match(
-  functionBody(workbenchScript, "refreshActiveTaskFocus"),
+  extractFunctionBody(workbenchScript, "refreshActiveTaskFocus"),
   /api\.getJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}`[\s\S]*await refreshTaskFocusRelatedContext\(taskId\)/,
   "Selected task details should load before related context is fetched",
 );
 assert.match(
-  functionBody(workbenchScript, "renderTaskFocusInspector"),
+  extractFunctionBody(workbenchScript, "renderTaskFocusInspector"),
   /syncTaskFocusInspectorCollapseState\(taskFocusInspectorCollapsed, \{ enableCollapse: true \}\)[\s\S]*taskFocusRelatedContextState\(\)[\s\S]*createTaskFocusRelatedContextGroup\(group\)/,
   "Task Focus Inspector should render groups from the selected-task related-context state",
 );
 assert.doesNotMatch(
-  functionBody(workbenchScript, "renderTaskFocusInspector"),
+  extractFunctionBody(workbenchScript, "renderTaskFocusInspector"),
   /workbenchInspectorCandidates|recommendedOverflowCandidates/,
   "Task Focus Inspector must not render Focus Selection overflow candidates",
 );
 assert.match(
-  functionBody(workbenchScript, "createTaskFocusRelatedContextItem"),
+  extractFunctionBody(workbenchScript, "createTaskFocusRelatedContextItem"),
   /const context = relatedContextContextLabel\(item\)[\s\S]*workbenchRelatedContextAction[\s\S]*workbenchRelatedContextRecord[\s\S]*const badges = relatedContextBadges\(item\)[\s\S]*openTaskFocusRelatedContextItem\(item, event\.currentTarget\)/,
   "Related rows should render service-provided titles, source/reason labels, badges, and stable action hooks",
 );
 assert.match(
-  functionBody(workbenchScript, "openRelatedContextModuleAction"),
+  extractFunctionBody(workbenchScript, "openRelatedContextModuleAction"),
   /sourceTaskId: state\.activeTaskFocus\?\.taskId[\s\S]*sourceType: "task-focus-related-context"[\s\S]*window\.LongtailForge\.moduleActions\.open\(action\.moduleActionId/,
   "Related rows should dispatch through existing module actions with Task Focus source context",
 );
 assert.match(
-  functionBody(workbenchScript, "openRelatedContextModuleAction"),
+  extractFunctionBody(workbenchScript, "openRelatedContextModuleAction"),
   /action\.fallbackUrl[\s\S]*navigateFromWorkbench\(action\.fallbackUrl, "related-context-error-fallback"\)/,
   "Related rows should keep an explicit guarded fallback URL path when module action dispatch fails",
 );
 assert.match(
-  functionBody(workbenchScript, "ensureWorkbenchFilePreviewAction"),
+  extractFunctionBody(workbenchScript, "ensureWorkbenchFilePreviewAction"),
   /actionId !== "files\.preview"[\s\S]*filePreview\.openFilePreview[\s\S]*moduleActions\?\.register\?\.\(\{[\s\S]*actionId: "files\.preview"/,
   "Workbench should adapt files.preview to the already-loaded shared File Preview helper without loading the full Files page",
 );
@@ -63,17 +63,17 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  functionBody(workbenchScript, "createWorkbenchInspectorPanel"),
+  extractFunctionBody(workbenchScript, "createWorkbenchInspectorPanel"),
   /workbenchInspectorCollapseButton[\s\S]*icon: "down"[\s\S]*workbench-inspector-related-context-list[\s\S]*aria-labelledby/,
   "Task Focus Inspector should expose a visible caret/collapse control and stable related-context body",
 );
 assert.match(
-  functionBody(workbenchScript, "syncTaskFocusInspectorCollapseState"),
+  extractFunctionBody(workbenchScript, "syncTaskFocusInspectorCollapseState"),
   /workbenchInspectorCollapsed[\s\S]*workbenchInspectorList\.hidden = enableCollapse && collapsed[\s\S]*aria-expanded/,
   "Task Focus Inspector collapse should preserve the side panel while hiding only the list body",
 );
 assert.match(
-  functionBody(workbenchScript, "enterTaskFocus"),
+  extractFunctionBody(workbenchScript, "enterTaskFocus"),
   /taskFocusInspectorCollapsed = false/,
   "Task Focus Inspector should default open when a task is focused",
 );
@@ -117,34 +117,3 @@ assert.match(
 console.log("Workbench Task Focus related-context UI regression passed.");
 
 /** @param {string} source @param {string} name @returns {string} */
-function functionBody(source, name) {
-  const starts = [
-    `async function ${name}(`,
-    `function ${name}(`,
-    `${name}: () => (`,
-  ];
-  const start = starts
-    .map((signature) => source.indexOf(signature))
-    .find((index) => index >= 0);
-  assert.notEqual(start, undefined, `Missing function ${name}`);
-
-  const signatureEnd = source.indexOf(") {", start);
-  const openBrace = signatureEnd >= 0 ? signatureEnd + 2 : source.indexOf("{", start);
-  assert.notEqual(openBrace, -1, `Missing body for function ${name}`);
-
-  let depth = 0;
-  for (let index = openBrace; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      depth += 1;
-    }
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(openBrace, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not parse function ${name}`);
-}

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, escapeRegExp, extractFunctionBody } from "../../test-support/source-scan.mjs";
 // Consolidated under tags.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -23,11 +23,14 @@ assert.match(timeEntryDialog, /fields\.tags\.hidden = true/, "Time entry dialog 
 assert.match(timeEntryDialog, /fields\.tags\.hidden = false/, "Time entry dialog must reshow inline tag controls when the shared Tags helper is available");
 
 assert.match(stopWatch, /window\.LongtailForge\.tags\.mountPicker\(this\.tagsContainer,\s*\{[\s\S]*tags:\s*tagOptions,[\s\S]*selectedTagIds/, "Stopwatch save/finalize flow must mount the shared inline tag picker");
-assert.doesNotMatch(readFunctionBody(stopWatch, "mountTagPicker"), /tagOptions\.length === 0/, "Stopwatch tag picker must remain visible when no tags have been pre-created");
+// `mountTagPicker` is a class method here, not a function declaration, so no
+// function extractor can find it. The method body is cut by its own
+// indentation, which is what makes this assertion read the region it names.
+assert.doesNotMatch(classMethodBody(stopWatch, "mountTagPicker"), /tagOptions\.length === 0/, "Stopwatch tag picker must remain visible when no tags have been pre-created");
 assert.match(stopWatch, /tagIds:\s*this\.readTagIds\(\)/, "Stopwatch save payload must continue to include selected tag IDs");
 
 assert.match(clientsProjects, /window\.LongtailForge\.tags\.mountPicker\(container,\s*\{[\s\S]*tags:\s*tagOptions,[\s\S]*selectedTags:\s*tags/, "Clients/Projects workflows must mount the shared inline tag picker with origin-aware selected tags");
-assert.doesNotMatch(readFunctionBody(clientsProjects, "mountTagPicker"), /tagOptions\.length === 0/, "Clients/Projects tag picker must remain visible when no tags have been pre-created");
+assert.doesNotMatch(extractFunctionBody(clientsProjects, "mountTagPicker"), /tagOptions\.length === 0/, "Clients/Projects tag picker must remain visible when no tags have been pre-created");
 assert.match(clientsProjects, /createTagPickerField\("Client Tags", client\.tags, "client"\)/, "Client edit workflow must use the shared tag picker field");
 assert.match(clientsProjects, /createTagPickerField\("Project Tags", project\.tags, "project"\)/, "Project edit workflow must use the shared tag picker field");
 assert.match(clientsProjects, /createTagPickerField\("Project Tags", \[\], "project"\)/, "Project add workflow must use the shared tag picker field");
@@ -43,31 +46,29 @@ assert.match(helper, /options\.allowCreate !== false/, "Shared picker must defau
 console.log("Tag record workflow regression passed.");
 
 /**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} functionName the name to locate
+ * Extract one class method's body by its own indentation.
+ *
+ * The published function extractors cannot find a method: there is no
+ * `function` keyword to anchor to. The previous local helper matched the
+ * method name followed by an open paren anywhere in the file, which found a
+ * call site instead and made the assertion below vacuous.
+ * @param {string} source
+ * @param {string} methodName
+ * @returns {string}
  */
-function readFunctionBody(source, functionName) {
-  const marker = `${functionName}(`;
-  const start = source.indexOf(marker);
-  assert.notEqual(start, -1, `${functionName} function was not found`);
-
-  const bodyStart = source.indexOf("{", start);
-  assert.notEqual(bodyStart, -1, `${functionName} function body was not found`);
-
-  let depth = 0;
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(bodyStart, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`${functionName} function body did not close`);
+function classMethodBody(source, methodName) {
+  // Line based rather than offset based: these browser sources are checked out
+  // with Windows line endings, and a method is delimited by the indentation of
+  // its own closing brace rather than by anything a function extractor can
+  // anchor to.
+  const lines = source.split(/\r?\n/);
+  const declaration = new RegExp(`^(\\s+)${escapeRegExp(methodName)}\\s*\\(`);
+  const start = lines.findIndex((line) => declaration.test(line));
+  assert.notEqual(start, -1, `${methodName} should be declared as a class method`);
+  const indent = /^(\s+)/.exec(lines[start])?.[1] ?? "";
+  const closing = `${indent}}`;
+  let end = start + 1;
+  while (end < lines.length && lines[end] !== closing) end += 1;
+  assert.notEqual(end, lines.length, `${methodName} method body should close at its own indentation`);
+  return lines.slice(start, end + 1).join("\n");
 }

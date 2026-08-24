@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { extractFunctionBlock, extractFunctionBody } from "../../test-support/source-scan.mjs";
 import fs from "node:fs";
 import {
   PROGRAMS,
@@ -1605,6 +1606,232 @@ for (const ledgerOwner of discoveredScriptPaths().filter((path) => path !== ledg
     fs.readFileSync(ledgerOwner, "utf8").includes(rawLedgerRead),
     false,
     `${ledgerOwner} must read the strict ledger through the shared probe rather than indexing its programs directly`,
+  );
+}
+// 0.33.33.32.28.4.1 replaced sixteen local function-region extractors with the
+// two published ones, so those two now carry every precondition the sixteen
+// used to assert for themselves. Nothing proved them before. Each case below
+// is a shape that appears in the browser sources the migrated owners read.
+assert.equal(
+  extractFunctionBlock('function target(a) {\n  return a;\n}\n', "target"),
+  'function target(a) {\n  return a;\n}',
+  "extractFunctionBlock should cut a plain declaration through its close",
+);
+assert.equal(
+  extractFunctionBody('function target(a) {\n  return a;\n}\n', "target"),
+  '{\n  return a;\n}',
+  "extractFunctionBody should cut a plain declaration's brace through its close",
+);
+assert.equal(
+  extractFunctionBlock('async function target(a) {\n  return a;\n}\n', "target"),
+  'async function target(a) {\n  return a;\n}',
+  "extractFunctionBlock should keep the async prefix it matched",
+);
+assert.equal(
+  extractFunctionBody('async function target(a) {\n  return a;\n}\n', "target"),
+  '{\n  return a;\n}',
+  "extractFunctionBody should return the same body whether or not the declaration is async",
+);
+assert.equal(
+  extractFunctionBlock('function target(options = {}, other = { x: 1 }) {\n  return options;\n}\n', "target"),
+  'function target(options = {}, other = { x: 1 }) {\n  return options;\n}',
+  "extractFunctionBlock should not close on a brace inside a parameter default",
+);
+assert.equal(
+  extractFunctionBody('function target(options = {}, other = { x: 1 }) {\n  return options;\n}\n', "target"),
+  '{\n  return options;\n}',
+  "extractFunctionBody should open on the body brace rather than a parameter default",
+);
+assert.equal(
+  extractFunctionBlock('function target() {\n  return `a${"{"}b`;\n}\n', "target"),
+  'function target() {\n  return `a${"{"}b`;\n}',
+  "extractFunctionBlock should not close on a brace inside a template literal",
+);
+assert.equal(
+  extractFunctionBody('function target() {\n  return `a${"{"}b`;\n}\n', "target"),
+  '{\n  return `a${"{"}b`;\n}',
+  "extractFunctionBody should not close on a brace inside a template literal",
+);
+assert.equal(
+  extractFunctionBlock('const value = target(1);\nfunction target(a) {\n  return a;\n}\n', "target"),
+  'function target(a) {\n  return a;\n}',
+  "extractFunctionBlock should skip a call site and answer the declaration",
+);
+assert.equal(
+  extractFunctionBody('const value = target(1);\nfunction target(a) {\n  return a;\n}\n', "target"),
+  '{\n  return a;\n}',
+  "extractFunctionBody should skip a call site and answer the declaration",
+);
+assert.equal(
+  extractFunctionBlock('function target(a) {\n  function inner() {\n    return 1;\n  }\n  return inner() + a;\n}\n', "target"),
+  'function target(a) {\n  function inner() {\n    return 1;\n  }\n  return inner() + a;\n}',
+  "extractFunctionBlock should close on the outer function, not a nested one",
+);
+assert.equal(
+  extractFunctionBody('function target(a) {\n  function inner() {\n    return 1;\n  }\n  return inner() + a;\n}\n', "target"),
+  '{\n  function inner() {\n    return 1;\n  }\n  return inner() + a;\n}',
+  "extractFunctionBody should close on the outer function, not a nested one",
+);
+assert.equal(
+  extractFunctionBlock('function target(a) {\r\n  return a;\r\n}\r\n', "target"),
+  'function target(a) {\r\n  return a;\r\n}',
+  "extractFunctionBlock should read a source checked out with Windows line endings",
+);
+assert.equal(
+  extractFunctionBody('function target(a) {\r\n  return a;\r\n}\r\n', "target"),
+  '{\r\n  return a;\r\n}',
+  "extractFunctionBody should read a source checked out with Windows line endings",
+);
+assert.equal(
+  extractFunctionBlock('function target (a) {\n  return a;\n}\n', "target"),
+  'function target (a) {\n  return a;\n}',
+  "extractFunctionBlock should tolerate a space before the parameter list",
+);
+assert.equal(
+  extractFunctionBody('function target (a) {\n  return a;\n}\n', "target"),
+  '{\n  return a;\n}',
+  "extractFunctionBody should tolerate a space before the parameter list",
+);
+assert.equal(
+  extractFunctionBlock('function targetExtra(a) {\n  return a;\n}\nfunction target(b) {\n  return b;\n}\n', "target"),
+  'function target(b) {\n  return b;\n}',
+  "extractFunctionBlock should not answer a longer name that starts with the one asked for",
+);
+assert.equal(
+  extractFunctionBody('function targetExtra(a) {\n  return a;\n}\nfunction target(b) {\n  return b;\n}\n', "target"),
+  '{\n  return b;\n}',
+  "extractFunctionBody should not answer a longer name that starts with the one asked for",
+);
+assert.equal(
+  extractFunctionBlock('function target(\n  a,\n  b,\n) {\n  return a + b;\n}\n', "target"),
+  'function target(\n  a,\n  b,\n) {\n  return a + b;\n}',
+  "extractFunctionBlock should span a parameter list broken across lines",
+);
+assert.equal(
+  extractFunctionBody('function target(\n  a,\n  b,\n) {\n  return a + b;\n}\n', "target"),
+  '{\n  return a + b;\n}',
+  "extractFunctionBody should open after a parameter list broken across lines",
+);
+assert.equal(
+  extractFunctionBlock('function target() {\n  return "}";\n}\n', "target"),
+  'function target() {\n  return "}";\n}',
+  "extractFunctionBlock should not close on a brace inside a string literal",
+);
+assert.equal(
+  extractFunctionBody('function target() {\n  return "}";\n}\n', "target"),
+  '{\n  return "}";\n}',
+  "extractFunctionBody should not close on a brace inside a string literal",
+);
+// A bare call, and a name that is never declared, must both be refused. This is
+// the property the Tags record workflow's local extractor lacked: it answered a
+// call site, so the two negative assertions it fed had nothing to find and
+// passed for the wrong reason.
+assert.throws(
+  () => extractFunctionBlock("target(1);\n", "target"),
+  /target should exist/,
+  "extractFunctionBlock should refuse a source that only calls the name",
+);
+assert.throws(
+  () => extractFunctionBody("target(1);\n", "target"),
+  /target should exist/,
+  "extractFunctionBody should refuse a source that only calls the name",
+);
+assert.throws(
+  () => extractFunctionBlock('function other() {\n  return 1;\n}\n', "target"),
+  /target should exist/,
+  "extractFunctionBlock should refuse a source that never declares the name",
+);
+assert.throws(
+  () => extractFunctionBody('function other() {\n  return 1;\n}\n', "target"),
+  /target should exist/,
+  "extractFunctionBody should refuse a source that never declares the name",
+);
+assert.throws(
+  () => extractFunctionBlock('const target = (a) => {\n  return a;\n};\n', "target"),
+  /target should exist/,
+  "extractFunctionBlock should refuse an arrow function rather than guess at its region",
+);
+assert.throws(
+  () => extractFunctionBody('const target = (a) => {\n  return a;\n};\n', "target"),
+  /target should exist/,
+  "extractFunctionBody should refuse an arrow function rather than guess at its region",
+);
+// Two limitations, pinned as they behave rather than claimed correct. Both
+// predate this checkpoint and neither changed with it: every one of the 176
+// migrated extractions was proved to return exactly what that owner's own
+// helper returned, so no migrated assertion reads a different region than it
+// read before.
+//
+// First: both extractors anchor on the declaration text wherever it appears,
+// including inside a comment, so a commented mention ahead of the real
+// declaration widens the block to span both. Widening can only make a negative
+// assertion fail louder, but it can let a positive assertion match text that
+// lives in the comment.
+assert.equal(
+  extractFunctionBlock('// function target(x) is described here\nfunction target(a) {\n  return a;\n}\n', "target"),
+  'function target(x) is described here\nfunction target(a) {\n  return a;\n}',
+  "extractFunctionBlock currently anchors on a commented mention and widens the block",
+);
+assert.equal(
+  extractFunctionBody('// function target(x) is described here\nfunction target(a) {\n  return a;\n}\n', "target"),
+  '{\n  return a;\n}',
+  "extractFunctionBody skips the commented parameter list and still cuts the real body",
+);
+// Second: string and template literals are stepped over, but a regular
+// expression literal is not, so an unbalanced brace inside a character class
+// truncates the region. A truncated region is the dangerous direction for
+// `assert.doesNotMatch` - it can pass because the text it forbids fell outside
+// the cut - so `0.33.33.32.28.4` should narrow this before it migrates fifteen
+// more owners onto extractFunctionBlock.
+assert.equal(
+  extractFunctionBlock('function target() {\n  return /[}]/.test("x");\n}\n', "target"),
+  'function target() {\n  return /[}',
+  "extractFunctionBlock currently truncates on a brace inside a regular expression literal",
+);
+assert.equal(
+  extractFunctionBody('function target() {\n  return /[}]/.test("x");\n}\n', "target"),
+  '{\n  return /[}',
+  "extractFunctionBody currently truncates on a brace inside a regular expression literal",
+);
+// 0.33.33.32.28.4.1 migrated the family-B contract modules onto the
+// published source-slicing helpers. Each of these sixteen owners carried its
+// own function-region extractor, and every one of them found its target by
+// building a `function <name>` needle and walking braces from there. That
+// construction is what made the Tags record workflow read a call site instead
+// of the definition it named, which left both of its negative assertions
+// vacuous before any migration touched them. The published extractors anchor
+// on a declaration pattern instead, so they cannot match a call.
+//
+// The needle is assembled rather than spelled: a guard that writes out the
+// text it forbids matches itself.
+const localExtractorNeedle = `function $${"{"}`;
+for (const familyBOwner of [
+  "scripts/regression-contracts/files/files-edit-modal-save.contract.mjs",
+  "scripts/regression-contracts/files/files-edit-modal-shell.contract.mjs",
+  "scripts/regression-contracts/files/files-preview-modal.contract.mjs",
+  "scripts/regression-contracts/notes/notes-file-preview-actions.contract.mjs",
+  "scripts/regression-contracts/tags/tag-record-workflow.contract.mjs",
+  "scripts/regression-contracts/tasks/task-editor-workbench-handoff.contract.mjs",
+  "scripts/regression-contracts/views/ui.contract.mjs",
+  "scripts/regression-contracts/workbench/task-focus-deep-link.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-inspector-panel.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-remove-quick-notes.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-task-focus-checklist.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-task-focus-linked-note-view.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs",
+  "scripts/regressions/workbench/direct-task-completion.regression.mjs",
+]) {
+  const source = fs.readFileSync(familyBOwner, "utf8");
+  assert.ok(
+    source.includes("test-support/source-scan.mjs"),
+    `${familyBOwner} must cut function regions through the published source-scan helpers`,
+  );
+  assert.equal(
+    source.includes(localExtractorNeedle),
+    false,
+    `${familyBOwner} must not rebuild a local function-region extractor`,
   );
 }
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);

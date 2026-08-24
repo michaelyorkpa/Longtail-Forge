@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBody } from "../../test-support/source-scan.mjs";
 const { readTextAsync: readText } = createProjectTextReader();
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -89,7 +89,7 @@ checks += 2;
 
 // Navigation goes through the canonical Workbench deep-link contract — the
 // same taskId parameter the Workbench load handles — with no second path.
-const handlerBody = functionBody(taskDialogJs, "openTaskInWorkbench");
+const handlerBody = extractFunctionBody(taskDialogJs, "openTaskInWorkbench");
 assert.match(handlerBody, /new global\.URL\("workbench\.html", global\.location\.href\)/, "the handoff must target workbench.html");
 assert.match(handlerBody, /url\.searchParams\.set\("taskId", currentTaskId\)/, "the handoff must use the canonical taskId deep-link parameter");
 assert.match(handlerBody, /if \(!currentTaskId\)/, "the handoff must no-op without a persisted task");
@@ -102,36 +102,3 @@ assert.doesNotMatch(taskDialogJs, /workbench\.html\?/, "the handoff must build i
 checks += 5;
 
 console.log(`Task editor Workbench handoff guardrail passed ${checks} checks.`);
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} name the name to locate
- */
-function functionBody(source, name) {
-  const start = source.indexOf(`function ${name}(`) >= 0
-    ? source.indexOf(`function ${name}(`)
-    : source.indexOf(`async function ${name}(`);
-  assert.notEqual(start, -1, `Missing function ${name}`);
-
-  const signatureEnd = source.indexOf(") {", start);
-  const openBrace = signatureEnd >= 0 ? signatureEnd + 2 : source.indexOf("{", start);
-  assert.notEqual(openBrace, -1, `Missing body for function ${name}`);
-
-  let depth = 0;
-  for (let index = openBrace; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") {
-      depth += 1;
-    }
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(openBrace, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not parse function ${name}`);
-}

@@ -1,46 +1,12 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionBlock } from "../../test-support/source-scan.mjs";
 const { readText: read } = createProjectTextReader();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @param {string} source @param {string} name */
-function functionBlock(source, name) {
-  const start = source.indexOf(`function ${name}`);
-  assert.notEqual(start, -1, `${name} should exist`);
-  let braceStart = -1;
-  let parenDepth = 0;
-
-  for (let index = start; index < source.length; index += 1) {
-    if (source[index] === "(") {
-      parenDepth += 1;
-    } else if (source[index] === ")") {
-      parenDepth = Math.max(0, parenDepth - 1);
-    } else if (source[index] === "{" && parenDepth === 0) {
-      braceStart = index;
-      break;
-    }
-  }
-
-  assert.notEqual(braceStart, -1, `${name} should have a function body`);
-
-  let depth = 0;
-  for (let index = braceStart; index < source.length; index += 1) {
-    if (source[index] === "{") {
-      depth += 1;
-    } else if (source[index] === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`${name} body should close`);
-}
-
 const filesPage = read("views/protected/files.html");
 const filesScript = read("public/js/files.js");
 const filesStyles = read("public/css/longtail-forge.css");
@@ -49,22 +15,22 @@ const viewContract = read("docs/view-building-contract.md");
 assert.match(filesPage, /css\/longtail-forge\.css/, "Files page should reference row affordance and modal styling");
 assert.match(filesPage, /js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files page should reference the Files adapter");
 
-const fileRowBlock = functionBlock(filesScript, "fileRow");
-const tableBlock = functionBlock(filesScript, "createFilesTable");
-const wireRowsBlock = functionBlock(filesScript, "wireFilesTableRows");
-const wireRowBlock = functionBlock(filesScript, "wireFileTableRow");
-const actionIsolationBlock = functionBlock(filesScript, "isFileRowActionEvent");
-const buildBlock = functionBlock(filesScript, "buildFileEditorDialog");
+const fileRowBlock = extractFunctionBlock(filesScript, "fileRow");
+const tableBlock = extractFunctionBlock(filesScript, "createFilesTable");
+const wireRowsBlock = extractFunctionBlock(filesScript, "wireFilesTableRows");
+const wireRowBlock = extractFunctionBlock(filesScript, "wireFileTableRow");
+const actionIsolationBlock = extractFunctionBlock(filesScript, "isFileRowActionEvent");
+const buildBlock = extractFunctionBlock(filesScript, "buildFileEditorDialog");
 const controlBlock = [
-  functionBlock(filesScript, "bindFileEditorControlEvents"),
-  functionBlock(filesScript, "hydrateFileEditorContextControls"),
-  functionBlock(filesScript, "hydrateFileEditorProjectControl"),
-  functionBlock(filesScript, "setFileEditorControlsDisabled"),
-  functionBlock(filesScript, "syncFileEditorSaveState"),
+  extractFunctionBlock(filesScript, "bindFileEditorControlEvents"),
+  extractFunctionBlock(filesScript, "hydrateFileEditorContextControls"),
+  extractFunctionBlock(filesScript, "hydrateFileEditorProjectControl"),
+  extractFunctionBlock(filesScript, "setFileEditorControlsDisabled"),
+  extractFunctionBlock(filesScript, "syncFileEditorSaveState"),
 ].join("\n");
-const saveBlock = functionBlock(filesScript, "saveFileEditorContext");
-const markReviewedBlock = functionBlock(filesScript, "markFileReviewedFromContext");
-const payloadBlock = functionBlock(filesScript, "fileEditorContextPayload");
+const saveBlock = extractFunctionBlock(filesScript, "saveFileEditorContext");
+const markReviewedBlock = extractFunctionBlock(filesScript, "markFileReviewedFromContext");
+const payloadBlock = extractFunctionBlock(filesScript, "fileEditorContextPayload");
 
 assert.match(fileRowBlock, /const attachmentId = attachment\.fileAttachmentId \|\| attachment\.file_attachment_id \|\| ""/, "File rows should normalize the file attachment id");
 assert.match(fileRowBlock, /attachmentId,/, "File rows should expose the normalized attachment id");
@@ -113,7 +79,7 @@ assert.match(payloadBlock, /payload\.clientId = clientId/, "Business Client sele
 assert.match(payloadBlock, /payload\.projectId = projectId/, "Project selector hints should be sent when available");
 assert.doesNotMatch(payloadBlock, /fileName|displayName|originalFilename|fileId|storageProvider|storageKey|storagePath|hash|scan|quarantine|delete|download/i, "Save payload should not expose file metadata, storage data, scanner state, or file lifecycle operations");
 
-const targetQueryBlock = functionBlock(filesScript, "fileEditorTargetOptionQuery");
+const targetQueryBlock = extractFunctionBlock(filesScript, "fileEditorTargetOptionQuery");
 assert.doesNotMatch(targetQueryBlock, /\bmoduleId:\s*row\.moduleId\b|\btargetType:\s*row\.targetType\b/, "File Context target option query should allow cross-module targets such as Notes as well as Tasks");
 
 assert.match(viewContract, /0\.33\.5\.18\.11\.9[\s\S]*Enter[\s\S]*Space[\s\S]*PATCH [`']?\/api\/files\/attachments\/:fileAttachmentId\/context/, "View-building contract should document the Enter-only row activation and save-route boundary");

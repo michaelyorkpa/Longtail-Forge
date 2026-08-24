@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18742,
+    "activeAssertionCount": 18746,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19556,
+    "effectiveAssertionCount": 19560,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -4960,8 +4960,8 @@
     },
     {
       "area": "files",
-      "assertionCount": 636,
-      "contractAssertionCount": 635,
+      "assertionCount": 630,
+      "contractAssertionCount": 629,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/files/file-scanner-setup-docs.contract.mjs",
@@ -4985,11 +4985,11 @@
         },
         {
           "path": "scripts/regression-contracts/files/files-edit-modal-save.contract.mjs",
-          "assertionCount": 47
+          "assertionCount": 45
         },
         {
           "path": "scripts/regression-contracts/files/files-edit-modal-shell.contract.mjs",
-          "assertionCount": 39
+          "assertionCount": 37
         },
         {
           "path": "scripts/regression-contracts/files/files-filter-sidebar.contract.mjs",
@@ -4997,7 +4997,7 @@
         },
         {
           "path": "scripts/regression-contracts/files/files-preview-modal.contract.mjs",
-          "assertionCount": 38
+          "assertionCount": 36
         },
         {
           "path": "scripts/regression-contracts/files/files-row-attachment-actions.contract.mjs",
@@ -5285,11 +5285,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 217,
+      "assertionCount": 251,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 217,
+      "entryPointAssertionCount": 251,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -6057,8 +6057,8 @@
     },
     {
       "area": "notes",
-      "assertionCount": 222,
-      "contractAssertionCount": 221,
+      "assertionCount": 220,
+      "contractAssertionCount": 219,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/notes/notes-context-terminology.contract.mjs",
@@ -6078,7 +6078,7 @@
         },
         {
           "path": "scripts/regression-contracts/notes/notes-file-preview-actions.contract.mjs",
-          "assertionCount": 24
+          "assertionCount": 22
         },
         {
           "path": "scripts/regression-contracts/notes/notes-files-stacked-modal.contract.mjs",
@@ -6959,8 +6959,8 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 785,
-      "contractAssertionCount": 784,
+      "assertionCount": 783,
+      "contractAssertionCount": 782,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/tasks/task-checklist-editor-display.contract.mjs",
@@ -6972,7 +6972,7 @@
         },
         {
           "path": "scripts/regression-contracts/tasks/task-editor-workbench-handoff.contract.mjs",
-          "assertionCount": 17
+          "assertionCount": 15
         },
         {
           "path": "scripts/regression-contracts/tasks/task-list-canonical-ui.contract.mjs",
@@ -7422,8 +7422,8 @@
     },
     {
       "area": "views",
-      "assertionCount": 1007,
-      "contractAssertionCount": 993,
+      "assertionCount": 1005,
+      "contractAssertionCount": 991,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/views/accessibility.contract.mjs",
@@ -7511,7 +7511,7 @@
         },
         {
           "path": "scripts/regression-contracts/views/ui.contract.mjs",
-          "assertionCount": 51
+          "assertionCount": 49
         },
         {
           "path": "scripts/regression-contracts/views/view-builder-converted-surface-guardrails.contract.mjs",
@@ -7561,12 +7561,12 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 393,
-      "contractAssertionCount": 392,
+      "assertionCount": 376,
+      "contractAssertionCount": 375,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/workbench/task-focus-deep-link.contract.mjs",
-          "assertionCount": 18
+          "assertionCount": 16
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-collapsible-sections.contract.mjs",
@@ -7586,7 +7586,7 @@
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-inspector-panel.contract.mjs",
-          "assertionCount": 30
+          "assertionCount": 28
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-recommended-cycling.contract.mjs",
@@ -7598,7 +7598,7 @@
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-remove-quick-notes.contract.mjs",
-          "assertionCount": 13
+          "assertionCount": 10
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-split-focus-filters.contract.mjs",
@@ -7606,23 +7606,23 @@
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-task-focus-checklist.contract.mjs",
-          "assertionCount": 26
+          "assertionCount": 24
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-task-focus-linked-note-view.contract.mjs",
-          "assertionCount": 17
+          "assertionCount": 15
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs",
-          "assertionCount": 22
+          "assertionCount": 20
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",
-          "assertionCount": 36
+          "assertionCount": 34
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-task-focus-timer.contract.mjs",
-          "assertionCount": 50
+          "assertionCount": 48
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-task-ordering.contract.mjs",
@@ -7650,11 +7650,11 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 25,
+      "assertionCount": 24,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves Task completion closes directly, preserves recurrence continuity, and never promotes a completed Next Action into Workbench.",
-      "entryPointAssertionCount": 25,
+      "entryPointAssertionCount": 24,
       "id": "workbench.direct-task-completion",
       "legacy": false,
       "path": "scripts/regressions/workbench/direct-task-completion.regression.mjs",
