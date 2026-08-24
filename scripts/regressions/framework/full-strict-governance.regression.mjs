@@ -2190,8 +2190,8 @@ assert.throws(
 // 0.33.33.32.28.4.1 migrated the family-B contract modules onto the published
 // helpers, 0.33.33.32.28.4 migrated twelve more, and 0.33.33.32.28.4.2 the
 // thirteen Tasks contract modules, and 0.33.33.32.28.4.3 the eight Files
-// contract modules, and 0.33.33.32.28.4.4 the fourteen top-level regression
-// owners, so sixty-three owners now
+// contract modules, 0.33.33.32.28.4.4 the fourteen top-level regression owners,
+// and 0.33.33.32.28.4.5 the last ten module-area owners, so seventy-three now
 // depend on them. Each of these owners carried its
 // own function-region extractor, and every one of them found its target by
 // building a `function <name>` needle and walking braces from there. That
@@ -2219,7 +2219,15 @@ const rebuiltExtractors = (source) => {
   /** @type {string[]} */
   const offenders = [];
   for (const declaration of source.matchAll(/^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\(/gm)) {
-    if (extractFunctionBlock(source, declaration[1]).includes(localExtractorNeedle)) {
+    // A declaration the published extractor refuses is one the raw scan found
+    // inside a comment or a string; it is not a definition this rule is about.
+    let region = "";
+    try {
+      region = extractFunctionBlock(source, declaration[1]);
+    } catch {
+      continue;
+    }
+    if (region.includes(localExtractorNeedle)) {
       offenders.push(declaration[1]);
     }
   }
@@ -2289,6 +2297,16 @@ for (const familyBOwner of [
   "scripts/tasks-bulk-lifecycle-toolbar-regression.mjs",
   "scripts/tasks-bulk-nondestructive-toolbar-regression.mjs",
   "scripts/worker-runner-regression.mjs",
+  "scripts/regression-contracts/framework/reporting-closeout.contract.mjs",
+  "scripts/regression-contracts/lists/lists-declarative-readonly-surface.contract.mjs",
+  "scripts/regression-contracts/lists/lists-workflow-linked-layout.contract.mjs",
+  "scripts/regression-contracts/notes/notes-tasks-modal-footer-visual-parity.contract.mjs",
+  "scripts/regression-contracts/views/client-modal-footer-actions.contract.mjs",
+  "scripts/regression-contracts/views/mobile-app-shell-header.contract.mjs",
+  "scripts/regression-contracts/views/view-builder-converted-surface-guardrails.contract.mjs",
+  "scripts/regression-contracts/views/view-descriptor-declarative-guardrails.contract.mjs",
+  "scripts/regressions/database/demo-data-host-operation.regression.mjs",
+  "scripts/regressions/workbench/task-focus-exit-capture.regression.mjs",
 ]) {
   const source = fs.readFileSync(familyBOwner, "utf8");
   assert.ok(
@@ -2361,6 +2379,72 @@ for (const manifestOwner of [
     `${manifestOwner} must pass every parsed value through a published narrowing`,
   );
 }
+// The three helpers must anchor on the same declaration. A source carrying a
+// commented decoy, a quoted decoy, and a longer name sharing the prefix is the
+// combination that defeated the hand-written readers this rollup retired, so
+// the three are checked to agree on it rather than each checked alone.
+const decoyedSource = `// function target() { decoy }\nconst note = "function target() {}";\nfunction targetExtra() {}\nfunction target(a) {\n  return a;\n}\nfunction next() {}\n`;
+const decoyedBlock = extractFunctionBlock(decoyedSource, "target");
+const decoyedBody = extractFunctionBody(decoyedSource, "target");
+const decoyedSpan = extractFunctionSpan(decoyedSource, "target");
+assert.equal(decoyedBlock, `function target(a) {\n  return a;\n}`, "the block helper anchors past every decoy");
+assert.equal(decoyedBody, `{\n  return a;\n}`, "the body helper anchors past every decoy");
+assert.equal(decoyedSpan, `function target(a) {\n  return a;\n}`, "the span helper anchors past every decoy and stops at the next function");
+assert.ok(decoyedBlock.endsWith(decoyedBody), "the three helpers agree on the declaration they anchor");
+assert.ok(decoyedSpan.startsWith(decoyedBlock), "the span begins where the block begins");
+
+// 0.33.33.32.28.4.5 finished the helper consolidation. Seventy-three owners
+// cut function regions through the three published helpers, and exactly five
+// local readers remain - the family-A Workbench contract modules, which return
+// a body *without* its braces. That is a fourth region, not a variant of the
+// three, and five definitions do not justify publishing a contract for it.
+//
+// These assertions record that end state and keep it: the five are named, each
+// is checked to still be the brace-less reader it is kept for, and nothing
+// anywhere else in the scripts program may define a function-region extractor
+// again. The last rule supersedes the per-owner list above - a new owner cannot
+// be added without being migrated.
+const familyAReaders = [
+  "scripts/regression-contracts/workbench/workbench-collapsible-sections.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-in-place-open-work.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-recommended-cycling.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-remove-all-tasks-list.contract.mjs",
+  "scripts/regression-contracts/workbench/workbench-view-state.contract.mjs",
+];
+for (const familyAOwner of familyAReaders) {
+  const source = fs.readFileSync(familyAOwner, "utf8");
+  assert.ok(
+    source.includes("openBrace + 1"),
+    `${familyAOwner} should keep the brace-less body reader it is exempt for`,
+  );
+}
+const strayExtractors = discoveredScriptPaths()
+  .filter((scriptPath) => !familyAReaders.includes(scriptPath))
+  .filter((scriptPath) => rebuiltExtractors(fs.readFileSync(scriptPath, "utf8")).length > 0);
+assert.deepEqual(
+  strayExtractors,
+  [],
+  "no script outside the five recorded family-A readers may define a function-region extractor",
+);
+// The brace-less family-A region really is a different shape: the published
+// body carries its braces, which is why those five were not migrated onto it.
+const bracedSource = 'function target(a) {\n  return a;\n}\nfunction next() {}\n';
+const publishedBody = extractFunctionBody(bracedSource, "target");
+assert.ok(publishedBody.startsWith("{"), "the published body region opens with its brace");
+assert.ok(publishedBody.endsWith("}"), "the published body region closes with its brace");
+assert.equal(
+  publishedBody.slice(1, -1),
+  "\n  return a;\n",
+  "the family-A region is the published body without its braces, which is why it is a fourth shape rather than a variant",
+);
+// One family-A reader also answers an arrow-function property, `name: () => (`,
+// which every published extractor refuses on purpose. That is the second reason
+// those five cannot migrate.
+assert.throws(
+  () => extractFunctionBody('const surface = {\n  target: () => (1),\n};\n', "target"),
+  /target should exist/,
+  "the published extractors refuse an arrow-function property, which one family-A reader answers",
+);
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 
 /**

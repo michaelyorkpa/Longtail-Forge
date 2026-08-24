@@ -9,6 +9,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { extractFunctionBlock } from "../../test-support/source-scan.mjs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,8 +18,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", ".
 const navigationSource = await fs.readFile(path.join(root, "public/js/navigation.js"), "utf8");
 const frameworkCss = await fs.readFile(path.join(root, "public/css/longtail-forge.css"), "utf8");
 
-const buildSiteHeaderSource = extractFunction(navigationSource, "buildSiteHeader");
-const renderNavigationSource = extractFunction(navigationSource, "renderNavigation");
+const buildSiteHeaderSource = extractFunctionBlock(navigationSource, "buildSiteHeader");
+const renderNavigationSource = extractFunctionBlock(navigationSource, "renderNavigation");
 const mobileCss = extractCssBlock(frameworkCss, "@media (max-width: 700px)", ".site-nav");
 
 assert.match(
@@ -48,28 +49,6 @@ assert.match(navigationSource, /event\.key !== "Escape" \|\| !navDrawerIsOpen\(\
 assert.match(navigationSource, /document\.addEventListener\("focusin"/, "drawer focus containment must remain wired");
 assert.match(navigationSource, /document\.body\.classList\.toggle\("nav-drawer-open", isOpen\)/, "drawer scroll-lock state must remain wired");
 console.log("Mobile app-shell header regression passed.");
-
-/** @param {string} source @param {string} name @returns {string} */
-function extractFunction(source, name) {
-  const start = source.indexOf(`function ${name}(`);
-  assert.notEqual(start, -1, `Expected ${name} in navigation.js`);
-
-  const bodyStart = source.indexOf("{", start);
-  let depth = 0;
-
-  for (let index = bodyStart; index < source.length; index += 1) {
-    if (source[index] === "{") {
-      depth += 1;
-    } else if (source[index] === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(start, index + 1);
-      }
-    }
-  }
-
-  assert.fail(`Could not extract ${name} from navigation.js`);
-}
 
 /** @param {string} source @param {string} marker @param {string} requiredContent @returns {string} */
 function extractCssBlock(source, marker, requiredContent) {

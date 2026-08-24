@@ -1,4 +1,4 @@
-import { escapeRegExp } from "../../test-support/source-scan.mjs";
+import { escapeRegExp, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
@@ -42,10 +42,10 @@ assert.doesNotMatch(listsJs, /listsLinkedRecordsSurfaceDescriptor|renderDescript
 assert.match(listsJs, /function createListDetailsPanel\(list\)[\s\S]*view\.createInfoPanel\(\{[\s\S]*title:\s*"List Details"[\s\S]*collapsible:\s*true[\s\S]*open:\s*true[\s\S]*view\.createLinkedContextList\(\{[\s\S]*readonly:\s*true/, "Lists detail should use a collapsible List Details box with a read-only shared linked-context list");
 assert.match(listsJs, /function linkedContextItems\(list\)[\s\S]*unavailableLinkedRecordLabel\(targetType\)[\s\S]*removable:\s*false/, "Lists linked rows should adapt soft-read targets into safe read-only linked-context rows");
 assert.match(listsJs, /function unavailableLinkedRecordLabel\(targetType\)[\s\S]*`Unavailable \$\{typeLabel\.toLowerCase\(\)\}`/, "Unavailable linked targets should show safe fallback labels instead of raw IDs");
-assert.doesNotMatch(functionBlock(listsJs, "renderDetail"), /createLinkedRecordsPanel\(/, "Lists detail should not render the inline linked-record add/remove picker");
-assert.match(functionBlock(listsJs, "createListDialogShell"), /view\.createLinkedContextPicker\(\{[\s\S]*onRemove:\s*handleListEditorLinkedContextRemove[\s\S]*onUseTarget:\s*applyListEditorLinkTarget/, "The List editor should host the shared Linked Context picker");
-assert.match(functionBlock(listsJs, "createListDialogShell"), /view\.renderDescriptorFieldGrid[\s\S]*className:\s*"lists-editor-fields"/, "The List editor should render fields through the framework field-grid anatomy");
-assert.doesNotMatch(functionBlock(listsJs, "createListDialogShell"), /lists-form-grid|Paste record ID|field:\s*"task_picker"|field:\s*"task_search"|renderDescriptorLinkedRecordsPanel/, "The List editor should not rebuild the retired cramped/raw-ID picker");
+assert.doesNotMatch(extractFunctionSpan(listsJs, "renderDetail"), /createLinkedRecordsPanel\(/, "Lists detail should not render the inline linked-record add/remove picker");
+assert.match(extractFunctionSpan(listsJs, "createListDialogShell"), /view\.createLinkedContextPicker\(\{[\s\S]*onRemove:\s*handleListEditorLinkedContextRemove[\s\S]*onUseTarget:\s*applyListEditorLinkTarget/, "The List editor should host the shared Linked Context picker");
+assert.match(extractFunctionSpan(listsJs, "createListDialogShell"), /view\.renderDescriptorFieldGrid[\s\S]*className:\s*"lists-editor-fields"/, "The List editor should render fields through the framework field-grid anatomy");
+assert.doesNotMatch(extractFunctionSpan(listsJs, "createListDialogShell"), /lists-form-grid|Paste record ID|field:\s*"task_picker"|field:\s*"task_search"|renderDescriptorLinkedRecordsPanel/, "The List editor should not rebuild the retired cramped/raw-ID picker");
 assert.match(listsJs, /state\.editorStagedTargets = \[\.\.\.state\.editorStagedTargets, target\]/, "Create mode should stage linked targets until the new list exists");
 assert.match(listsJs, /for \(const target of state\.editorStagedTargets\)[\s\S]*api\.postJson\(`\/api\/lists\/\$\{encodeURIComponent\(savedListId\)\}\/links`/, "Creating a list should persist staged targets through the existing Lists link route");
 assert.match(listsRoutes, /get\("\/lists\/link-targets"[\s\S]*listsService\.listLinkTargets/, "Lists should expose its permission-filtered picker-target route");
@@ -78,16 +78,3 @@ assert.match(listsJs, /setBusinessControlsVisible\(usesBusinessScope\(\)\)/, "Bu
 assert.match(listsJs, /setContextControlsVisible\(usesBusinessScope\(\)\)/, "Personal and Family workspace context behavior should remain preserved");
 
 console.log("Lists workflow, linked records, and layout descriptor regression passed.");
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} functionName the name to locate
- */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const next = source.indexOf("\nfunction ", start + 1);
-  return source.slice(start, next === -1 ? source.length : next);
-}

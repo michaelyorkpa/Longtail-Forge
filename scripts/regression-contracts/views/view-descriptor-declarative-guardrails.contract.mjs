@@ -1,4 +1,4 @@
-import { escapeRegExp } from "../../test-support/source-scan.mjs";
+import { escapeRegExp, extractFunctionBlock } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { readdirSync } from "node:fs";
 import vm from "node:vm";
@@ -304,8 +304,8 @@ assert.doesNotMatch(filesJs, /files\.browse\.legacy|createFilesBrowseChrome/, "S
 assert.doesNotMatch(filesJs, /document\.createElement\(/, "Strict Files source should create elements through shared view helpers");
 assert.equal(countMatches(filesJs, /innerHTML/g), 0, "Strict Files source should not keep direct innerHTML writes after preview extraction");
 assert.equal(countMatches(filePreviewJs, /innerHTML/g), 1, "Shared preview source should only use innerHTML for route-sanitized Markdown preview content");
-assert.match(functionBlock(filePreviewJs, "renderFilePreviewMarkdown"), /content\.innerHTML = html \|\| ""/, "Markdown preview should keep the documented route-sanitized innerHTML escape hatch");
-assert.match(functionBlock(filesJs, "createFilesElement"), /requireFilesViewHelper\("createElement"\)[\s\S]*view\.createElement\(tagName, options\)/, "Files helper-backed fragments should use the shared createElement primitive");
+assert.match(extractFunctionBlock(filePreviewJs, "renderFilePreviewMarkdown"), /content\.innerHTML = html \|\| ""/, "Markdown preview should keep the documented route-sanitized innerHTML escape hatch");
+assert.match(extractFunctionBlock(filesJs, "createFilesElement"), /requireFilesViewHelper\("createElement"\)[\s\S]*view\.createElement\(tagName, options\)/, "Files helper-backed fragments should use the shared createElement primitive");
 for (const helper of [
   "renderSurface",
   "createListShell",
@@ -330,35 +330,35 @@ for (const behaviorId of [
 ]) {
   assert.match(filesJs, new RegExp(`view\\.registerBehavior\\("${escapeRegExp(behaviorId)}"`), `Strict declarative Files source should mount ${behaviorId} through descriptor behavior registration`);
 }
-assert.match(functionBlock(filesJs, "createFilesFilterChrome"), /return createFilesElement\("form"[\s\S]*createFilesElement\("button"[\s\S]*text: "Apply"/, "Files filters should be helper-backed behavior content");
-assert.match(functionBlock(filesJs, "createAdvancedTargetFilters"), /createFilesElement\("details"[\s\S]*createFilesElement\("summary", \{ text: "Advanced target filters" \}\)/, "Raw target filters should remain behind a helper-backed advanced disclosure");
-assert.match(functionBlock(filesJs, "createFilesResultsChrome"), /const tableMount = createFilesElement\("div"[\s\S]*dataset:\s*\{\s*fileTableMount:\s*""\s*\}[\s\S]*view\.createListShell/, "Files results should mount through the shared list shell");
-assert.match(functionBlock(filesJs, "createFilesTable"), /view\.createDataTable[\s\S]*emptyMessage:\s*"No file attachments match the current filters\."/,
+assert.match(extractFunctionBlock(filesJs, "createFilesFilterChrome"), /return createFilesElement\("form"[\s\S]*createFilesElement\("button"[\s\S]*text: "Apply"/, "Files filters should be helper-backed behavior content");
+assert.match(extractFunctionBlock(filesJs, "createAdvancedTargetFilters"), /createFilesElement\("details"[\s\S]*createFilesElement\("summary", \{ text: "Advanced target filters" \}\)/, "Raw target filters should remain behind a helper-backed advanced disclosure");
+assert.match(extractFunctionBlock(filesJs, "createFilesResultsChrome"), /const tableMount = createFilesElement\("div"[\s\S]*dataset:\s*\{\s*fileTableMount:\s*""\s*\}[\s\S]*view\.createListShell/, "Files results should mount through the shared list shell");
+assert.match(extractFunctionBlock(filesJs, "createFilesTable"), /view\.createDataTable[\s\S]*emptyMessage:\s*"No file attachments match the current filters\."/,
   "Files browse table should use the shared data table helper");
-assert.match(functionBlock(filesJs, "createFileActions"), /view\.createDetailActionStrip\(\{[\s\S]*className: "files-row-actions"[\s\S]*actions: rowActions/,
+assert.match(extractFunctionBlock(filesJs, "createFileActions"), /view\.createDetailActionStrip\(\{[\s\S]*className: "files-row-actions"[\s\S]*actions: rowActions/,
   "Files row actions should use the shared dense action strip");
-assert.match(functionBlock(filesJs, "buildFileEditorDialog"), /view\.renderDescriptorModalForm\(fileEditorModalDescriptor\(\)[\s\S]*createFileEditorMetadataSection[\s\S]*createFileEditorControlsSection/,
+assert.match(extractFunctionBlock(filesJs, "buildFileEditorDialog"), /view\.renderDescriptorModalForm\(fileEditorModalDescriptor\(\)[\s\S]*createFileEditorMetadataSection[\s\S]*createFileEditorControlsSection/,
   "File Context should use the shared modal form while keeping Files-owned body behavior");
-assert.match(functionBlock(filePreviewJs, "buildFilePreviewDialog"), /files-preview-body[\s\S]*view\.createModal[\s\S]*files-preview-dialog/,
+assert.match(extractFunctionBlock(filePreviewJs, "buildFilePreviewDialog"), /files-preview-body[\s\S]*view\.createModal[\s\S]*files-preview-dialog/,
   "Preview should use the shared modal shell");
 for (const routeCheck of /** @type {Array<[string, RegExp, string]>} */ ([
-  [functionBlock(filesJs, "loadFiles"), /params\.set\("limit", String\(FILES_PAGE_SIZE\)\)[\s\S]*\/api\/files\/attachments\?\$\{params\.toString\(\)\}/, "Files browse reads should stay behind the attachment route"],
-  [functionBlock(filesJs, "createDownloadAction"), /\/api\/files\/\$\{encodeURIComponent\(row\.fileId\)\}\/download/, "Files browse downloads should stay behind the Files download route"],
-  [functionBlock(filePreviewJs, "loadFilePreview"), /\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/preview[\s\S]*api\.getJson\(preview\.contentUrl/, "Files Preview should stay descriptor/content route-backed"],
-  [functionBlock(filesJs, "loadFileEditorTargetOptions"), /\/api\/files\/attachable-targets\?\$\{params\.toString\(\)\}/, "File Context target choices should stay provider-backed"],
-  [functionBlock(filesJs, "saveFileEditorContext"), /\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/context/, "File Context saves should stay attachment-context route-backed"],
-  [functionBlock(filesJs, "reportFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/report[\s\S]*FILE_REPORT_REASON/, "Files Report should use the existing Files route"],
-  [functionBlock(filesJs, "quarantineFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/quarantine[\s\S]*FILE_QUARANTINE_REASON/, "Files Review should use the existing quarantine route"],
-  [functionBlock(filesJs, "deleteFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/delete/, "Files Delete should use the existing Files route"],
-  [functionBlock(filesJs, "restoreFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/restore/, "Files Restore should use the existing Files route"],
+  [extractFunctionBlock(filesJs, "loadFiles"), /params\.set\("limit", String\(FILES_PAGE_SIZE\)\)[\s\S]*\/api\/files\/attachments\?\$\{params\.toString\(\)\}/, "Files browse reads should stay behind the attachment route"],
+  [extractFunctionBlock(filesJs, "createDownloadAction"), /\/api\/files\/\$\{encodeURIComponent\(row\.fileId\)\}\/download/, "Files browse downloads should stay behind the Files download route"],
+  [extractFunctionBlock(filePreviewJs, "loadFilePreview"), /\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/preview[\s\S]*api\.getJson\(preview\.contentUrl/, "Files Preview should stay descriptor/content route-backed"],
+  [extractFunctionBlock(filesJs, "loadFileEditorTargetOptions"), /\/api\/files\/attachable-targets\?\$\{params\.toString\(\)\}/, "File Context target choices should stay provider-backed"],
+  [extractFunctionBlock(filesJs, "saveFileEditorContext"), /\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/context/, "File Context saves should stay attachment-context route-backed"],
+  [extractFunctionBlock(filesJs, "reportFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/report[\s\S]*FILE_REPORT_REASON/, "Files Report should use the existing Files route"],
+  [extractFunctionBlock(filesJs, "quarantineFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/quarantine[\s\S]*FILE_QUARANTINE_REASON/, "Files Review should use the existing quarantine route"],
+  [extractFunctionBlock(filesJs, "deleteFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/delete/, "Files Delete should use the existing Files route"],
+  [extractFunctionBlock(filesJs, "restoreFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/restore/, "Files Restore should use the existing Files route"],
 ])) {
   assert.match(routeCheck[0], routeCheck[1], routeCheck[2]);
 }
-assert.match(functionBlock(filePreviewJs, "previewAvailabilityForRow"), /reviewPreviewAllowed[\s\S]*status !== "available"[\s\S]*kind === "unsupported"[\s\S]*too_large_for_preview[\s\S]*state:\s*"previewable"/,
+assert.match(extractFunctionBlock(filePreviewJs, "previewAvailabilityForRow"), /reviewPreviewAllowed[\s\S]*status !== "available"[\s\S]*kind === "unsupported"[\s\S]*too_large_for_preview[\s\S]*state:\s*"previewable"/,
   "Files should keep preview/download availability decisions as a documented escape hatch");
-assert.match(functionBlock(filesJs, "workspaceHasPermission"), /files\.manage_quarantine/,
+assert.match(extractFunctionBlock(filesJs, "workspaceHasPermission"), /files\.manage_quarantine/,
   "Files browse permission-shaped visibility should stay Files-owned");
-assert.match(functionBlock(filesJs, "hydrateFileEditorContextControls"), /business[\s\S]*clientSelect[\s\S]*hydrateFileEditorProjectControl/i,
+assert.match(extractFunctionBlock(filesJs, "hydrateFileEditorContextControls"), /business[\s\S]*clientSelect[\s\S]*hydrateFileEditorProjectControl/i,
   "File Context should keep Business-only Client and Project selector behavior Files-owned");
 assert.doesNotMatch(filesJs, /createFilesSummaryPanel|createFilesDetailPanel|createFilesPreviewPanel|createFilesMetadataPanel|selectedFile|data-file-selected-row|Inspector/,
   "Files browse should not reintroduce inline summary, detail, preview, metadata, selected-row, or Inspector behavior");
@@ -446,7 +446,7 @@ assert.match(clientsProjectsInventoryDoc, /Current as of 0\.33\.32\.24[\s\S]*str
   "Clients/Projects strict inventory should document the current active strict enforcement boundary");
 
 assert.equal(countMatches(fileAttachmentsJs, /document\.createElement/g), 1, "Attachment helper should only use direct DOM in its centralized fallback");
-assert.match(functionBlock(fileAttachmentsJs, "createAttachmentElement"), /document\.createElement\(tagName\)/, "Attachment helper fallback should centralize native element creation");
+assert.match(extractFunctionBlock(fileAttachmentsJs, "createAttachmentElement"), /document\.createElement\(tagName\)/, "Attachment helper fallback should centralize native element creation");
 for (const helper of [
   "createListShell",
   "createEmptyState",
@@ -455,35 +455,35 @@ for (const helper of [
 ]) {
   assert.match(fileAttachmentsJs, new RegExp(`view\\?\\.${helper}|view\\.${helper}`), `Strict declarative attachment helper source should consume ${helper}`);
 }
-assert.match(functionBlock(fileAttachmentsJs, "createAttachmentPanelShell"), /view\?\.createListShell[\s\S]*file-attachments-panel-shell[\s\S]*return createAttachmentElement\(view, "section"/,
+assert.match(extractFunctionBlock(fileAttachmentsJs, "createAttachmentPanelShell"), /view\?\.createListShell[\s\S]*file-attachments-panel-shell[\s\S]*return createAttachmentElement\(view, "section"/,
   "Attachment panel shell should use shared list-shell anatomy with a centralized fallback");
-assert.match(functionBlock(fileAttachmentsJs, "createUploadShell"), /view\?\.createListShell[\s\S]*file-attachment-upload-shell[\s\S]*return createAttachmentElement\(view, "div"/,
+assert.match(extractFunctionBlock(fileAttachmentsJs, "createUploadShell"), /view\?\.createListShell[\s\S]*file-attachment-upload-shell[\s\S]*return createAttachmentElement\(view, "div"/,
   "Upload shell should use shared list-shell anatomy with a centralized fallback");
-assert.match(functionBlock(fileAttachmentsJs, "createAttachmentActions"), /files\.removeAttachment[\s\S]*files\.report[\s\S]*files\.quarantine[\s\S]*files\.delete[\s\S]*files\.restore[\s\S]*view\?\.createDetailActionStrip[\s\S]*className: "file-attachment-actions"/,
+assert.match(extractFunctionBlock(fileAttachmentsJs, "createAttachmentActions"), /files\.removeAttachment[\s\S]*files\.report[\s\S]*files\.quarantine[\s\S]*files\.delete[\s\S]*files\.restore[\s\S]*view\?\.createDetailActionStrip[\s\S]*className: "file-attachment-actions"/,
   "Attachment actions should stay in a shared dense action shell with Files action IDs");
-assert.match(functionBlock(fileAttachmentsJs, "uploadFiles"), /postMultipartJson\("\/api\/files\/upload\/batch", buildUploadForm\(options, files\)\)/,
+assert.match(extractFunctionBlock(fileAttachmentsJs, "uploadFiles"), /postMultipartJson\("\/api\/files\/upload\/batch", buildUploadForm\(options, files\)\)/,
   "Attachment upload behavior should keep Files-owned streamed route calls");
-assert.match(functionBlock(fileAttachmentsJs, "buildUploadForm"), /appendFormField\(form, "visibility", options\.visibility\)[\s\S]*form\.append\("files", file, file\.name\)/,
+assert.match(extractFunctionBlock(fileAttachmentsJs, "buildUploadForm"), /appendFormField\(form, "visibility", options\.visibility\)[\s\S]*form\.append\("files", file, file\.name\)/,
   "Attachment upload behavior should keep Files-owned metadata and file payload construction");
 assert.doesNotMatch(fileAttachmentsJs, /FileReader|function readFileBase64/,
   "Attachment helper should not use FileReader for the normal browser upload path");
-assert.match(functionBlock(fileAttachmentsJs, "acceptedExtensions"), /archive[\s\S]*document[\s\S]*image[\s\S]*pdf[\s\S]*presentation[\s\S]*text/,
+assert.match(extractFunctionBlock(fileAttachmentsJs, "acceptedExtensions"), /archive[\s\S]*document[\s\S]*image[\s\S]*pdf[\s\S]*presentation[\s\S]*text/,
   "Accepted file categories should remain Files-owned");
 for (const routeCheck of /** @type {Array<[string, RegExp, string]>} */ ([
-  [functionBlock(fileAttachmentsJs, "refresh"), /\/api\/files\/attachments\?/, "Attachment refresh should use the Files attachment route"],
-  [functionBlock(fileAttachmentsJs, "createAttachmentDownloadAction"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/download/, "Attachment downloads should use the Files download route"],
-  [functionBlock(fileAttachmentsJs, "uploadFiles"), /\/api\/files\/upload\/batch/, "Attachment uploads should use the streamed Files batch route"],
-  [functionBlock(fileAttachmentsJs, "removeAttachment"), /\/api\/files\/attachments\/\$\{encodeURIComponent\(attachmentId\)\}\/remove/, "Attachment removal should use the Files attachment route"],
-  [functionBlock(fileAttachmentsJs, "reportFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/report/, "Attachment Report should use the Files route"],
-  [functionBlock(fileAttachmentsJs, "quarantineFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/quarantine/, "Attachment Review should use the quarantine route"],
-  [functionBlock(fileAttachmentsJs, "deleteFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/delete/, "Attachment Delete should use the Files route"],
-  [functionBlock(fileAttachmentsJs, "restoreFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/restore/, "Attachment Restore should use the Files route"],
+  [extractFunctionBlock(fileAttachmentsJs, "refresh"), /\/api\/files\/attachments\?/, "Attachment refresh should use the Files attachment route"],
+  [extractFunctionBlock(fileAttachmentsJs, "createAttachmentDownloadAction"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/download/, "Attachment downloads should use the Files download route"],
+  [extractFunctionBlock(fileAttachmentsJs, "uploadFiles"), /\/api\/files\/upload\/batch/, "Attachment uploads should use the streamed Files batch route"],
+  [extractFunctionBlock(fileAttachmentsJs, "removeAttachment"), /\/api\/files\/attachments\/\$\{encodeURIComponent\(attachmentId\)\}\/remove/, "Attachment removal should use the Files attachment route"],
+  [extractFunctionBlock(fileAttachmentsJs, "reportFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/report/, "Attachment Report should use the Files route"],
+  [extractFunctionBlock(fileAttachmentsJs, "quarantineFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/quarantine/, "Attachment Review should use the quarantine route"],
+  [extractFunctionBlock(fileAttachmentsJs, "deleteFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/delete/, "Attachment Delete should use the Files route"],
+  [extractFunctionBlock(fileAttachmentsJs, "restoreFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/restore/, "Attachment Restore should use the Files route"],
 ])) {
   assert.match(routeCheck[0], routeCheck[1], routeCheck[2]);
 }
-assert.match(functionBlock(fileAttachmentsJs, "emit"), /CustomEvent\(`longtailforge:file-attachments:/,
+assert.match(extractFunctionBlock(fileAttachmentsJs, "emit"), /CustomEvent\(`longtailforge:file-attachments:/,
   "Attachment helper should keep host callbacks/events as a documented escape hatch");
-assert.match(functionBlock(fileAttachmentsJs, "attachmentRecoveryMessage"), /recovery window[\s\S]*in review[\s\S]*review completes/,
+assert.match(extractFunctionBlock(fileAttachmentsJs, "attachmentRecoveryMessage"), /recovery window[\s\S]*in review[\s\S]*review completes/,
   "Attachment recovery states should stay Files-owned");
 assert.doesNotMatch(fileAttachmentsJs, /openFileEditor|createFilesMetadataPanel|Inspector|data-file-selected-row/,
   "Attachment helper should not become inline File Context, Metadata, or Inspector UI");
@@ -531,17 +531,9 @@ function objectTreeHasKey(value, fieldName) {
   return Object.values(value).some((entry) => objectTreeHasKey(entry, fieldName));
 }
 
-/** @param {string} source @param {string} functionName @returns {string} */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n\s*(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}
-
 /** @param {boolean} actionAvailable @returns {(surface: ViewSurfaceDescriptor) => ViewSurfaceDescriptor} */
 function loadUnavailableTopLevelActionDelivery(actionAvailable) {
-  const source = functionBlock(clientsProjectsJs, "withoutUnavailableTopLevelActions");
+  const source = extractFunctionBlock(clientsProjectsJs, "withoutUnavailableTopLevelActions");
   const context = vm.createContext({
     canCreateAnyProject: () => actionAvailable,
     canCreateTopLevelClient: () => actionAvailable,

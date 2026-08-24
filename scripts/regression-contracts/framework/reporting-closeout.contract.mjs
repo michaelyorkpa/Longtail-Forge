@@ -10,7 +10,7 @@ export const regressionMeta = Object.freeze({
 
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const permissionCatalog = readText("src/core/permissions/framework-permission-catalog.js");
@@ -52,7 +52,7 @@ assert.match(appShell, /modulesService\.listReportingReports\(session\.workspace
 assert.match(appShell, /addReportingNavigation\(reportingMenu\.items, reportingReports\)/);
 assert.match(appShell, /href: `reporting\.html\?report=\$\{encodeURIComponent\(report\.reportKey\)\}`/);
 assert.match(appShell, /requiredReportingReports: true/);
-assert.doesNotMatch(functionBlock(appShell, "addReportingNavigation"), /time-tracking|project-time-billing|time-project-billing/);
+assert.doesNotMatch(extractFunctionSpan(appShell, "addReportingNavigation"), /time-tracking|project-time-billing|time-project-billing/);
 
 assert.match(reportingHtml, /<main class="wide-page" data-reporting-host><\/main>/);
 assert.equal((reportingHtml.match(/<main\b/g) || []).length, 1, "Reporting HTML must keep one minimal host");
@@ -85,12 +85,4 @@ function between(source, startMarker, endMarker) {
   assert.notEqual(start, -1, `Missing ${startMarker}`);
   assert.notEqual(end, -1, `Missing ${endMarker}`);
   return source.slice(start, end);
-}
-
-/** @param {string} source @param {string} functionName @returns {string} */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `Missing function ${functionName}`);
-  const nextFunction = source.slice(start + 1).search(/\nfunction\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }

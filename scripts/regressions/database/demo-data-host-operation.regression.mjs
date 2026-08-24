@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { extractFunctionSpan } from "../../test-support/source-scan.mjs";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -535,11 +536,11 @@ WHERE note_id = (SELECT note_id FROM notes LIMIT 1);
   assert.match(operationSource, /\[ROLE_CREDENTIALS_FILE_ENV\]: roleCredentialsFile/);
   assert.match(operationSource, /expectedMode: 0o600/);
   assert.match(
-    functionBlock(operationSource, "prepareDemoHostContext"),
+    extractFunctionSpan(operationSource, "prepareDemoHostContext"),
     /assertDemoHostIdentity[\s\S]*readApplicationEnvironment[\s\S]*readRoleCredentials/,
   );
   assert.doesNotMatch(operationSource, /console\.log\(.*SUPER_ADMIN_PASSWORD/);
-  assert.doesNotMatch(functionBlock(operationSource, "minimalSeedEnvironment"), /SUPER_ADMIN_PASSWORD|appEnvironment/);
+  assert.doesNotMatch(extractFunctionSpan(operationSource, "minimalSeedEnvironment"), /SUPER_ADMIN_PASSWORD|appEnvironment/);
   assert.match(hostCliSource, /await fs\.realpath\(path\.resolve\(process\.argv\[1\]\)\)/);
   assert.match(hostCliSource, /if \(invokedScriptPath === scriptPath\)/);
   assert.match(helperSource, /exec \/usr\/local\/bin\/node \/opt\/longtail-forge\/current\/scripts\/demo-data-host\.mjs/);
@@ -647,14 +648,6 @@ async function writeHostRoleCredentials(file, passwords, binding = RT_LTF_DEMO_R
     passwords,
     version: 2,
   }, null, 2)}\n`, "utf8");
-}
-
-/** @param {string} source @param {string} functionName */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}(`);
-  assert.notEqual(start, -1, `Expected function ${functionName}`);
-  const next = source.indexOf("\nfunction ", start + 1);
-  return source.slice(start, next === -1 ? undefined : next);
 }
 
 async function readWorkflowSources() {

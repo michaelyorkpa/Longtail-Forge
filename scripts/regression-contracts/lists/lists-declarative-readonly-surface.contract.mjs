@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 // Consolidated under lists.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -42,7 +42,7 @@ assert.match(listsJs, /api\.putJson\(`\/api\/lists\/\$\{encodeURIComponent\(stat
 assert.match(listsJs, /createItemDialogShell\(/, "Lists item add/edit form is a framework-rendered modal");
 assert.match(listsJs, /createListDetailsPanel\(list\)/, "Lists detail should render a collapsible List Details panel");
 assert.match(listsJs, /view\.createLinkedContextList\(/, "Lists detail should render linked records through the shared read-only linked-context list");
-assert.doesNotMatch(functionBlock(listsJs, "renderDetail"), /createLinkedRecordsPanel\(/, "Lists detail should no longer host the inline linked-record add/remove panel");
+assert.doesNotMatch(extractFunctionSpan(listsJs, "renderDetail"), /createLinkedRecordsPanel\(/, "Lists detail should no longer host the inline linked-record add/remove panel");
 assert.match(listsJs, /createListDialogShell\(/, "Lists modal shell should remain imperative until the modal slice");
 
 assert.match(renderer, /function renderFieldShell\(field, view, options = \{\}\)[\s\S]*return view\.createField\(field, options\)/, "Renderer should route descriptor fields through the shared field factory");
@@ -50,19 +50,6 @@ assert.match(builder, /options\.fieldType === "select" \|\| options\.fieldType =
 assert.match(renderer, /data-view-input/, "Renderer should expose stable generic field input hooks");
 
 console.log("Lists declarative read-only surface regression passed.");
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} functionName the name to locate
- */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const next = source.indexOf("\nfunction ", start + 1);
-  return source.slice(start, next === -1 ? source.length : next);
-}
 
 /**
  * Extract the descriptor's summaryPanels region, up to the emptyState that

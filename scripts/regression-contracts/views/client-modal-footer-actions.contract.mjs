@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import { extractFunctionSpan } from "../../test-support/source-scan.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -69,7 +70,7 @@ for (const functionName of [
   "openAddProjectDialog",
 ]) {
   assert.doesNotMatch(
-    functionBlock(clientsScript, functionName),
+    extractFunctionSpan(clientsScript, functionName),
     /document\.createElement\("dialog"\)/,
     `${functionName} should not directly create dialog elements.`,
   );
@@ -83,11 +84,3 @@ assert.match(projectsHtml, /clients-projects\.js/);
 assert.match(workbenchScript, /src: "js\/clients-projects\.js"/);
 
 console.log("Client modal footer actions regression passed.");
-
-/** @param {string} source @param {string} functionName @returns {string} */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.indexOf("\nfunction ", start + 1);
-  return source.slice(start, nextFunction === -1 ? source.length : nextFunction);
-}
