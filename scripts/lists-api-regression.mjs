@@ -827,7 +827,7 @@ async function assertIntegrity() {
 /** @param {ListsApiApp} app @returns {Promise<ListsApiServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const server = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
+    const server = http.createServer(app);
     server.listen(0, "127.0.0.1", () => resolve(server));
   });
 }

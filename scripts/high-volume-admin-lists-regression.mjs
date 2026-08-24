@@ -342,7 +342,7 @@ async function request(baseUrl, method, url, options = {}) {
 /** @param {AdminApp} app @returns {Promise<AdminServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const server = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
+    const server = http.createServer(app);
     server.listen(0, "127.0.0.1", () => resolve(server));
   });
 }

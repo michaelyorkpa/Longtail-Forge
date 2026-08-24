@@ -399,7 +399,7 @@ async function readJson(relativePath) {
 /** @param {import("express").Application} app @returns {Promise<import("node:http").Server>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const server = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
+    const server = http.createServer(app);
     server.listen(0, "127.0.0.1", () => resolve(server));
   });
 }

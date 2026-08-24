@@ -604,7 +604,7 @@ async function assertIntegrity() {
 /** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
+    const nextServer = http.createServer(app);
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }

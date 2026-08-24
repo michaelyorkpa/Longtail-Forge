@@ -272,7 +272,7 @@ function listenerPort(listener) {
  */
 function createDashboardServer() {
   return new Promise((resolve) => {
-    const instance = http.createServer(/** @type {HttpRequestListener} */ (/** @type {unknown} */ (createApp())));
+    const instance = http.createServer(createApp());
     instance.listen(0, "127.0.0.1", () => resolve(instance));
   });
 }

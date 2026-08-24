@@ -725,7 +725,7 @@ async function checkAsync(name, assertion) {
 /** @param {SearchApp} app @returns {Promise<SearchServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const server = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
+    const server = http.createServer(app);
     server.listen(0, "127.0.0.1", () => resolve(server));
   });
 }

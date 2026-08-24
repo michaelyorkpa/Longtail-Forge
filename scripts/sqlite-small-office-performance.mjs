@@ -10,6 +10,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 
 /** @typedef {import("node:http").Server} HttpServer */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
 /** @typedef {(fixtures: PerformanceFixtures) => string} RoutePathBuilder */
 /** @typedef {(body: unknown) => number | null} RouteCounter */
 /** @typedef {"app-shell-bootstrap" | "tasks-list" | "task-detail" | "notes-list" | "note-detail" | "files-browse" | "search" | "notifications" | "workbench-bootstrap"} RouteId */
@@ -577,12 +578,12 @@ async function request(baseUrl, method, url, options = {}) {
 }
 
 /**
- * @param {unknown} app
+ * @param {HttpFixtureApp} app
  * @returns {Promise<HttpServer>}
  */
 function listen(app) {
   return new Promise((resolve) => {
-    const appServer = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
+    const appServer = http.createServer(app);
     appServer.listen(0, "127.0.0.1", () => resolve(appServer));
   });
 }

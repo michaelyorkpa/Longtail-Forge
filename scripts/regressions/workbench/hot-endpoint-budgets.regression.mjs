@@ -57,7 +57,7 @@ LIMIT 1;
     username: session.username,
   });
   server = await new Promise((resolve) => {
-    const instance = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (createApp())));
+    const instance = http.createServer(createApp());
     instance.listen(0, "127.0.0.1", () => resolve(instance));
   });
   assert.ok(server, "the budget fixture server should be listening");
