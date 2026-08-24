@@ -10,6 +10,7 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import {
   LICENSING_GATE_PATHS,
   formatLicensingGateReport,
@@ -24,7 +25,9 @@ import {
 const readme = readFileSync("README.md", "utf8");
 const hub = readFileSync("docs/licensing.md", "utf8");
 const index = readFileSync("docs/licensing/README.md", "utf8");
-const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
+/** @typedef {{ license: string }} PackageLicenseFields */
+/** @type {PackageLicenseFields} */
+const packageJson = requireJsonRecord(JSON.parse(readFileSync("package.json", "utf8")), "package.json");
 const license = readFileSync("LICENSE", "utf8");
 const legacyCleanup = readFileSync("scripts/legacy-cleanup-regression.mjs", "utf8");
 
@@ -124,6 +127,11 @@ assert.ok(
 
 console.log("Licensing and public-release warning gates passed.");
 
+/**
+ * Assert every relative Markdown link in one document resolves on disk.
+ * @param {string} sourcePath the document being checked, named on failure
+ * @param {string} source its file text
+ */
 function assertLocalMarkdownLinksResolve(sourcePath, source) {
   const links = [...source.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)].map((match) => match[1]);
   for (const link of links) {

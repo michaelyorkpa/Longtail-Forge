@@ -7,6 +7,10 @@ declare module "express" {
   export interface Router extends RouterContract {}
 
   export interface Application extends Router {
+    // An express application is itself a Node request listener, which is how
+    // `http.createServer(app)` works. The declaration omitted that, so a caller
+    // mounting the app that way had to cast. Declared rather than cast.
+    (request: import("node:http").IncomingMessage, response: import("node:http").ServerResponse): void;
     all(path: string | string[], ...handlers: unknown[]): this;
     disable(name: string): this;
     listen(port: number, host: string, callback?: () => void): import("node:http").Server;

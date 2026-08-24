@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "maximumActiveScripts": 347,
-  "minimumAssertionCount": 19525,
+  "minimumAssertionCount": 19535,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,
@@ -5581,6 +5581,87 @@
       ]
     },
     {
+      "sourceRegression": "legacy.runtime.configuration.contract",
+      "retiredInVersion": "0.33.33.32.27",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion in scripts/runtime-configuration-contract-regression.mjs required the live ROADMAP.md to no longer carry the 0.33.5.19 completed-history breadcrumb. The dead-breadcrumb class 0.33.33.32.13 first recorded and 0.33.33.32.26 retired five more of: the assertion required that the live ROADMAP.md no longer contain one specific historical breadcrumb literal. The live cursor is 0.33.33, the literal was removed many minor versions ago, and nothing writes it back. release.roadmap-cursor-floor owns the live-roadmap structural contract - it proves the cursor parses, never regresses below its floor, and that no regression pins an exact cursor or next-section value - and release.checkpoint-commits plus legacy.bump.version own the roadmap-to-archive handoff that removes a completed section from the live plan.",
+      "assertionDisposition": "No behavior lost coverage. The owner still proves the runtime configuration contract against live sources: the canonical module versions, .env.example and gitignore posture, the documented runtime-configuration surface, env-override precedence through config for workspace install mode and type limit, the preferred and legacy secure-notes secret names, the local file storage root, the durable throttle transaction boundary, and a child-process seam that materializes process.env and propagates a bad PORT as a startup failure. Its recorded assertion movement to tests/unit/runtime-configuration.test.mjs is still asserted here.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/runtime-configuration-contract-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.runtime.configuration.contract",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/runtime-configuration-contract-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.runtime.diagnostics.route",
+      "retiredInVersion": "0.33.33.32.27",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion in scripts/runtime-diagnostics-route-regression.mjs required the live ROADMAP.md to no longer carry the 0.33.5.19 completed-history breadcrumb. The dead-breadcrumb class 0.33.33.32.13 first recorded and 0.33.33.32.26 retired five more of: the assertion required that the live ROADMAP.md no longer contain one specific historical breadcrumb literal. The live cursor is 0.33.33, the literal was removed many minor versions ago, and nothing writes it back. release.roadmap-cursor-floor owns the live-roadmap structural contract - it proves the cursor parses, never regresses below its floor, and that no regression pins an exact cursor or next-section value - and release.checkpoint-commits plus legacy.bump.version own the roadmap-to-archive handoff that removes a completed section from the live plan.",
+      "assertionDisposition": "No behavior lost coverage. The owner still proves the protected route end to end against a real server: unauthenticated reads are refused with the published error envelope and a correlated request ID, a user without workspace_settings.manage is refused, a workspace settings manager reads the diagnostics tree with no-store caching, the whole serialized payload is proven to expose no secrets, scanner internals, signed URLs, or storage keys, and the documented permission boundary is asserted against docs/runtime-configuration.md.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/runtime-diagnostics-route-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.runtime.diagnostics.route",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/runtime-diagnostics-route-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.runtime.env.loading",
+      "retiredInVersion": "0.33.33.32.27",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion in scripts/runtime-env-loading-regression.mjs required the live ROADMAP.md to no longer carry the 0.33.5.19 completed-history breadcrumb. The dead-breadcrumb class 0.33.33.32.13 first recorded and 0.33.33.32.26 retired five more of: the assertion required that the live ROADMAP.md no longer contain one specific historical breadcrumb literal. The live cursor is 0.33.33, the literal was removed many minor versions ago, and nothing writes it back. release.roadmap-cursor-floor owns the live-roadmap structural contract - it proves the cursor parses, never regresses below its floor, and that no regression pins an exact cursor or next-section value - and release.checkpoint-commits plus legacy.bump.version own the roadmap-to-archive handoff that removes a completed section from the live plan.",
+      "assertionDisposition": "No behavior lost coverage. The owner still proves startup .env loading against live sources and a real child process: real .env files stay gitignored, server.js loads .env before importing app and config, the loader does not import config, process environment values win over .env values, the parsed/applied/skipped tally is exact, config materializes the loaded values, a process override still wins, and no browser or public file loads a server .env file.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/runtime-env-loading-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.runtime.env.loading",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/runtime-env-loading-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
       "sourceRegression": "legacy.search.adapter.rebuild.service.conversion",
       "retiredInVersion": "0.33.33.32.19",
       "retirementType": "historical-planning-pin",
@@ -5833,6 +5914,33 @@
       ],
       "verificationPerformed": [
         "node scripts/time-entries-repository-conversion-regression.mjs",
+        "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
+        "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
+        "npm run verify:slice"
+      ]
+    },
+    {
+      "sourceRegression": "legacy.user.theme.auto.mode",
+      "retiredInVersion": "0.33.33.32.27",
+      "retirementType": "historical-planning-pin",
+      "assertionCount": 1,
+      "rationale": "One assertion in scripts/user-theme-auto-mode-regression.mjs required the live ROADMAP.md to no longer carry the 0.33.5.21 completed-history breadcrumb. The dead-breadcrumb class 0.33.33.32.13 first recorded and 0.33.33.32.26 retired five more of: the assertion required that the live ROADMAP.md no longer contain one specific historical breadcrumb literal. The live cursor is 0.33.33, the literal was removed many minor versions ago, and nothing writes it back. release.roadmap-cursor-floor owns the live-roadmap structural contract - it proves the cursor parses, never regresses below its floor, and that no regression pins an exact cursor or next-section value - and release.checkpoint-commits plus legacy.bump.version own the roadmap-to-archive handoff that removes a completed section from the live plan.",
+      "assertionDisposition": "No behavior lost coverage. The owner still proves the theme auto-mode contract against the migration, the live sources, and a real database: the theme_auto_source column type, nullability, and default; settings defaults and normalization of unsupported modes and sources; the stored row after each save; the protected User Settings HTML carrying theme attributes before scripts, its critical CSS avoiding a white flash in both dark and OS-dark auto mode, and its no-store caching; and a database integrity check.",
+      "retiredEvidence": [
+        "ROADMAP.md"
+      ],
+      "sourcePaths": [
+        "scripts/user-theme-auto-mode-regression.mjs"
+      ],
+      "retainedCoverageOwners": [
+        "legacy.user.theme.auto.mode",
+        "release.historical-evidence-retirement",
+        "release.roadmap-cursor-floor",
+        "legacy.bump.version"
+      ],
+      "verificationPerformed": [
+        "node scripts/user-theme-auto-mode-regression.mjs",
+        "node scripts/regressions/release/roadmap-cursor-floor.regression.mjs",
         "node scripts/regressions/release/historical-evidence-retirement.regression.mjs",
         "node scripts/regressions/release/regression-manifest-generation.regression.mjs",
         "npm run verify:slice"

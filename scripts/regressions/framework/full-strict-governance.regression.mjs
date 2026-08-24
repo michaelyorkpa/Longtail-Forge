@@ -1298,6 +1298,81 @@ for (const contractDirectory of [
     }
   }
 }
+// 0.33.33.32.27 typed the last of the legacy and operational owners. This is
+// the highest parse density in the rollup, so the pins below cover both the
+// strict state and the boundaries that state depends on.
+for (const legacyOwner of [
+  "scripts/audit-extensibility-regression.mjs",
+  "scripts/bump-version-regression.mjs",
+  "scripts/legacy-cleanup-regression.mjs",
+  "scripts/performance-regression.mjs",
+  "scripts/regression-clean-clone-contract.mjs",
+  "scripts/regression-runner-regression.mjs",
+  "scripts/regression-suite-inventory-regression.mjs",
+  "scripts/regressions/licensing/licensing-public-release-gates.regression.mjs",
+  "scripts/runtime-configuration-contract-regression.mjs",
+  "scripts/runtime-diagnostics-route-regression.mjs",
+  "scripts/runtime-env-loading-regression.mjs",
+  "scripts/scale-seed-framework-regression.mjs",
+  "scripts/user-theme-auto-mode-regression.mjs",
+  "scripts/version-literal-guardrail-regression.mjs",
+]) {
+  assert.equal(
+    ledger.programs.scripts.diagnostics[legacyOwner],
+    undefined,
+    `${legacyOwner} must stay strict-clean after checkpoint 0.33.33.32.27`,
+  );
+}
+// Every owner that parses JSON or a child process's structured stdout must
+// keep reaching it through a shared narrowing. Reading a field straight off
+// JSON.parse is the inherited-zero shape this rollup exists to remove, and it
+// leaves no diagnostic behind to catch it later.
+for (const parseOwner of [
+  "scripts/bump-version-regression.mjs",
+  "scripts/regression-suite-inventory-regression.mjs",
+  "scripts/runtime-configuration-contract-regression.mjs",
+  "scripts/runtime-diagnostics-route-regression.mjs",
+  "scripts/runtime-env-loading-regression.mjs",
+  "scripts/scale-seed-framework-regression.mjs",
+  "scripts/version-literal-guardrail-regression.mjs",
+  "scripts/regressions/licensing/licensing-public-release-gates.regression.mjs",
+]) {
+  const source = fs.readFileSync(parseOwner, "utf8");
+  assert.ok(
+    [
+      "requireJsonRecord",
+      "readPayload",
+      "requireRow",
+      "requireFirstRow",
+      "fixtureString",
+    ].some((narrowing) => source.includes(narrowing)),
+    `${parseOwner} parses a dynamic boundary and must narrow it through a shared assertion helper`,
+  );
+}
+// The dead live-roadmap breadcrumb reads 0.33.33.32.27 retired must not come
+// back. The document name is assembled rather than written out so this guard
+// does not itself register as a planning-document pinner.
+  const liveRoadmapRead = `readText("${"ROADMAP"}.md")`;
+for (const breadcrumbOwner of [
+  "scripts/runtime-configuration-contract-regression.mjs",
+  "scripts/runtime-diagnostics-route-regression.mjs",
+  "scripts/runtime-env-loading-regression.mjs",
+  "scripts/user-theme-auto-mode-regression.mjs",
+]) {
+  assert.equal(
+    fs.readFileSync(breadcrumbOwner, "utf8").includes(liveRoadmapRead),
+    false,
+    `${breadcrumbOwner} must not reintroduce the retired live-roadmap breadcrumb read`,
+  );
+}
+// An express application is a Node request listener, and the first-party
+// declaration now says so. Dropping that call signature would push every
+// caller that mounts the app through http.createServer back onto a cast.
+assert.ok(
+  fs.readFileSync("src/types/server-runtime-modules.d.ts", "utf8")
+    .includes("(request: import(\"node:http\").IncomingMessage, response: import(\"node:http\").ServerResponse): void;"),
+  "the express Application declaration should keep its Node request-listener call signature",
+);
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 
 /**

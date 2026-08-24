@@ -6,13 +6,13 @@ import path from "node:path";
 import { appVersion } from "../src/core/version.js";
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const envExample = readText(".env.example");
 const gitignore = readText(".gitignore");
 const runtimeDocs = readText("docs/runtime-configuration.md");
-const roadmap = readText("ROADMAP.md");
 const configSource = readText("src/config.js");
 const appInfoRoutesSource = readText("src/routes/app-info.routes.js");
 const sessionRecordsSource = readText("src/security/session-records.js");
@@ -23,7 +23,21 @@ const authenticationThrottleRepositorySource = readText("src/repositories/authen
 const usersService = readText("src/services/users.service.js");
 const secureCrypto = readText("src/modules/notes/secure-crypto.js");
 const localStorageAdapter = readText("src/core/files/local-storage-adapter.js");
-const coveragePolicy = JSON.parse(readText("scripts/regression-coverage-exceptions.json"));
+/**
+ * The generated policy fields this owner reads. The file is parsed JSON, so
+ * it enters through the shared record narrowing rather than as `any`.
+ * @typedef {{
+ *   assertionMovements: readonly {
+ *     assertionCount: number,
+ *     movedTo: string,
+ *     retainedIntegrationOwner: string,
+ *     sourceRegression: string,
+ *   }[],
+ * }} CoveragePolicy
+ */
+
+/** @type {CoveragePolicy} */
+const coveragePolicy = requireJsonRecord(JSON.parse(readText("scripts/regression-coverage-exceptions.json")), "regression-coverage-exceptions.json");
 const fixture = await createDisposableDatabaseFixture("runtime-configuration-contract-regression");
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { closeDatabase } = await import("../src/db/provider.js");
@@ -137,7 +151,6 @@ assert.doesNotMatch(runtimeDocs, /\|\s*`SQLITE_COMMAND`\s*\|/, "runtime docs sho
 assert.match(runtimeDocs, /`SQLITE_COMMAND` is a legacy ignored setting[\s\S]*`better-sqlite3`/, "runtime docs should mark SQLITE_COMMAND as legacy/ignored");
 assert.match(runtimeDocs, /Reserved settings may appear in `config` for readout consistency[\s\S]*does not implement PostgreSQL/, "runtime docs should keep future settings dormant");
 assert.match(runtimeDocs, /Startup fails clearly when active settings are invalid/, "runtime docs should document validation");
-assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
 
 assert.match(configSource, /function createConfig\(env = process\.env\)/, "config should expose a testable runtime config builder");
 assert.match(configSource, /import \{ appVersion, normalizeReleaseBranch, qualifyAppVersion \} from "\.\/core\/version\.js";/, "runtime config should consume canonical and branch-qualified version helpers");
@@ -216,6 +229,20 @@ console.log("Runtime configuration contract regression passed.");
   await fixture.cleanup();
 }
 
+/**
+ * Materialize src/config.js in a clean child process and read back the five
+ * fields the child prints. The child's stdout is parsed JSON, so it crosses
+ * the boundary through the shared record narrowing; the field names below are
+ * exactly the ones the --eval source above prints.
+ * @param {Record<string, string>} [overrides] environment overrides for the child
+ * @returns {{
+ *   dataDir: string,
+ *   databaseFile: string,
+ *   environment: string,
+ *   initialWorkspaceName: string,
+ *   port: number,
+ * }}
+ */
 function readConfig(overrides = {}) {
   const child = spawnSync(process.execPath, ["--input-type=module", "--eval", `
     import { config } from "./src/config.js";
@@ -233,9 +260,14 @@ function readConfig(overrides = {}) {
   });
 
   assert.equal(child.status, 0, child.stderr || child.stdout);
-  return JSON.parse(child.stdout.trim());
+  return requireJsonRecord(JSON.parse(child.stdout.trim()), "child config stdout");
 }
 
+/**
+ * Assert importing src/config.js fails under one environment.
+ * @param {Record<string, string>} overrides environment overrides for the child
+ * @param {RegExp} pattern the failure text the child must print
+ */
 function assertConfigFails(overrides, pattern) {
   const child = spawnSync(process.execPath, ["--input-type=module", "--eval", `
     import "./src/config.js";
@@ -249,6 +281,11 @@ function assertConfigFails(overrides, pattern) {
   assert.match(child.stderr || child.stdout, pattern);
 }
 
+/**
+ * A copy of this process's environment with every runtime key removed, plus
+ * the caller's overrides.
+ * @param {Record<string, string>} [overrides]
+ */
 function cleanEnv(overrides = {}) {
   const env = { ...process.env };
   for (const key of Object.keys(env)) {

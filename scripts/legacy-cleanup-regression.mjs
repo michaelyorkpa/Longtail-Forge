@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fixtureString, workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-legacy-cleanup-regression-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-legacy-cleanup-test.db");
@@ -79,7 +80,16 @@ async function assertSettingsRejectLegacyAliases() {
   checks += 1;
 }
 
+/**
+ * Rebuild the writable module-setting payload from a settings read.
+ *
+ * The parameter is the producer's own output rather than a restated shape, so
+ * the helper cannot drift from what settingsService.read publishes and cannot
+ * erase what its caller already knows.
+ * @param {Awaited<ReturnType<typeof settingsService.read>>} settings
+ */
 function moduleSettingsPayload(settings) {
+  /** @type {Record<string, Record<string, unknown>>} */
   const payload = {};
 
   for (const moduleDefinition of settings.moduleSettings || []) {
@@ -153,11 +163,13 @@ async function readDefaultWorkspaceId() {
   return fixtureString(rows[0].workspace_id, "default workspace ID");
 }
 
+/** @param {string} workspaceId */
 async function readDefaultUserId(workspaceId) {
   const user = await readDefaultUser(workspaceId);
   return fixtureString(user.user_id, "default user ID");
 }
 
+/** @param {string} workspaceId */
 async function readDefaultUser(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, timezone
@@ -167,9 +179,15 @@ ORDER BY protected_user DESC, username
 LIMIT 1;
 `);
   assert.ok(rows[0]?.user_id, "expected initialized default user");
-  return rows[0];
+  return requireFirstRow(rows, "default user lookup");
 }
 
+/**
+ * Every file under one root whose extension the caller asked for.
+ * @param {string} root
+ * @param {{ includeExtensions: Set<string>, skipDirs: Set<string> }} options
+ * @returns {Promise<string[]>}
+ */
 async function listFiles(root, options) {
   const entries = await fs.readdir(root, { withFileTypes: true });
   const files = [];
@@ -192,13 +210,14 @@ async function listFiles(root, options) {
   return files;
 }
 
+/** @param {string} dir */
 async function removeTempDir(dir) {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
       await fs.rm(dir, { recursive: true, force: true });
       return;
     } catch (error) {
-      if (error.code !== "EBUSY" || attempt === 4) {
+      if (/** @type {NodeJS.ErrnoException} */ (error).code !== "EBUSY" || attempt === 4) {
         throw error;
       }
 

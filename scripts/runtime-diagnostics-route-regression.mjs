@@ -10,6 +10,15 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+import { fixtureString } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+// This owner mounts the app through http.createServer rather than app.listen,
+// so the request listener is what it actually requires of it.
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** @typedef {Awaited<ReturnType<typeof import("../src/services/runtime-diagnostics.service.js").runtimeDiagnosticsService.read>>} RuntimeDiagnostics */
 const { readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-runtime-diagnostics-"));
@@ -17,7 +26,6 @@ process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-runtime-diagnostics.db");
 process.env.SUPER_ADMIN_PASSWORD = "Runtime-Diagnostics-Test-123!";
 
-const roadmap = readText("ROADMAP.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
 const appSource = readText("src/core/app.js");
 const routeSource = readText("src/routes/runtime-diagnostics.routes.js");
@@ -46,27 +54,32 @@ try {
   await initializeDatabase();
   const fixtures = await seedFixtures();
   server = await listen(createApp());
-  const api = createApi(`http://127.0.0.1:${server.address().port}`);
+  const address = server.address();
+  assert.ok(address && typeof address === "object", "the fixture server should be listening on a TCP address");
+  const api = createApi(`http://127.0.0.1:${address.port}`);
 
   const unauthenticated = await api.get("/api/runtime-diagnostics");
   assert.equal(unauthenticated.status, 401, "runtime diagnostics should require login");
-  assert.equal(unauthenticated.body.error.code, "authentication_required");
-  assert.equal(unauthenticated.body.error.message, "Login required.");
-  assert.equal(unauthenticated.body.error.requestId, unauthenticated.headers.get("x-request-id"));
+  const unauthenticatedError = errorEnvelope(unauthenticated, "unauthenticated runtime diagnostics");
+  assert.equal(unauthenticatedError.code, "authentication_required");
+  assert.equal(unauthenticatedError.message, "Login required.");
+  assert.equal(unauthenticatedError.requestId, unauthenticated.headers.get("x-request-id"));
 
   const forbidden = await api.get("/api/runtime-diagnostics", { cookie: fixtures.unprivilegedSessionId });
   assert.equal(forbidden.status, 403, "runtime diagnostics should require workspace_settings.manage");
-  assert.equal(forbidden.body.error.code, "forbidden");
-  assert.equal(forbidden.body.error.message, "You do not have permission to perform that action.");
+  const forbiddenError = errorEnvelope(forbidden, "forbidden runtime diagnostics");
+  assert.equal(forbiddenError.code, "forbidden");
+  assert.equal(forbiddenError.message, "You do not have permission to perform that action.");
 
   const allowed = await api.get("/api/runtime-diagnostics", { cookie: fixtures.adminSessionId });
   assert.equal(allowed.status, 200, "workspace settings managers should read runtime diagnostics");
   assert.equal(allowed.headers.get("cache-control"), "no-store");
-  assertRuntimeDiagnostics(allowed.body.diagnostics);
+  /** @type {{ diagnostics: RuntimeDiagnostics }} */
+  const diagnosticsPayload = readPayload(allowed, ["diagnostics"], "runtime diagnostics");
+  assertRuntimeDiagnostics(diagnosticsPayload.diagnostics);
 
   assert.match(runtimeDocs, /`GET \/api\/runtime-diagnostics`/, "runtime docs should document the protected runtime diagnostics route");
   assert.match(runtimeDocs, /Runtime diagnostics[\s\S]*workspace_settings\.manage/i, "runtime docs should record the diagnostics permission boundary");
-  assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");
   assert.equal(integrityRows[0]?.integrity_check, "ok", "runtime diagnostics regression database should pass integrity check");
@@ -80,6 +93,12 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/**
+ * The diagnostics tree arrives as parsed JSON over HTTP, but its shape is the
+ * producing service's own return, so it is typed against that rather than a
+ * restated copy: a service that stops publishing a branch fails here.
+ * @param {RuntimeDiagnostics} diagnostics
+ */
 function assertRuntimeDiagnostics(diagnostics) {
   assert.equal(diagnostics.app.version, appVersion);
   assert.equal(diagnostics.runtime.environment, "development");
@@ -161,21 +180,22 @@ function assertRuntimeDiagnostics(diagnostics) {
 }
 
 async function seedFixtures() {
-  const admin = await db.get(`
+  const adminRow = await db.get(`
 SELECT user_id, username, home_workspace_id, active_workspace_id, timezone
 FROM users
 WHERE protected_user = 'yes'
 ORDER BY rowid
 LIMIT 1;
 `);
-  assert.ok(admin?.user_id, "fresh database should seed a protected admin");
+  assert.ok(adminRow?.user_id, "fresh database should seed a protected admin");
+  const admin = requireRow(adminRow, "protected admin lookup");
 
   const unprivilegedUser = {
     userId: `runtime-diagnostics-user-${randomUUID()}`,
     username: `runtime-diagnostics-${randomUUID()}@example.test`,
   };
   const now = new Date().toISOString();
-  const workspaceId = admin.active_workspace_id || admin.home_workspace_id;
+  const workspaceId = fixtureString(admin.active_workspace_id || admin.home_workspace_id, "protected admin workspace ID");
 
   await db.run(`
 INSERT INTO users (
@@ -238,10 +258,10 @@ VALUES (
   return {
     adminSessionId: (await createSession({
       active_workspace_id: workspaceId,
-      home_workspace_id: admin.home_workspace_id,
-      timezone: admin.timezone || "America/New_York",
-      user_id: admin.user_id,
-      username: admin.username,
+      home_workspace_id: fixtureString(admin.home_workspace_id, "protected admin home workspace ID"),
+      timezone: typeof admin.timezone === "string" && admin.timezone ? admin.timezone : "America/New_York",
+      user_id: fixtureString(admin.user_id, "protected admin user ID"),
+      username: fixtureString(admin.username, "protected admin username"),
     })).sessionId,
     unprivilegedSessionId: (await createSession({
       active_workspace_id: workspaceId,
@@ -253,9 +273,20 @@ VALUES (
   };
 }
 
+/**
+ * A minimal read-only JSON client over the fixture server. The response body
+ * stays `unknown` so every caller narrows it deliberately.
+ * @param {string} baseUrl
+ */
 function createApi(baseUrl) {
   return {
+    /**
+     * @param {string} url
+     * @param {{ cookie?: string }} [options]
+     * @returns {Promise<{ body: unknown, headers: Headers, status: number }>}
+     */
     async get(url, options = {}) {
+      /** @type {Record<string, string>} */
       const headers = {};
       if (options.cookie) {
         headers.Cookie = `longtail_forge_session=${options.cookie}`;
@@ -272,6 +303,7 @@ function createApi(baseUrl) {
   };
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve) => {
     const nextServer = http.createServer(app);
@@ -279,6 +311,7 @@ function listen(app) {
   });
 }
 
+/** @param {HttpFixtureServer} serverInstance @returns {Promise<void>} */
 function closeServer(serverInstance) {
   return new Promise((resolve, reject) => {
     serverInstance.close((error) => {
@@ -291,6 +324,20 @@ function closeServer(serverInstance) {
   });
 }
 
+/**
+ * The error envelope one refusal published, proven present before it is read.
+ * @param {{ body: unknown }} response
+ * @param {string} label
+ * @returns {{ code: unknown, message: unknown, requestId: unknown }}
+ */
+function errorEnvelope(response, label) {
+  const payload = readPayload(response, ["error"], label);
+  const error = payload.error;
+  assert.ok(error && typeof error === "object", `${label} error envelope should be an object`);
+  return /** @type {{ code: unknown, message: unknown, requestId: unknown }} */ (error);
+}
+
+/** @param {unknown} value */
 function normalizePath(value) {
   return String(value || "")
     .replaceAll("\\", "/")

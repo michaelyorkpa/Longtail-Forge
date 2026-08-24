@@ -6,6 +6,9 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireRow } from "./test-support/database-row-assertions.mjs";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
+import { fixtureString } from "./test-support/session-fixtures.mjs";
 const { readText } = createProjectTextReader();
 
 const root = process.cwd();
@@ -59,6 +62,23 @@ function assertRefusesImplicitInputs() {
   assert.match(unsafePath.stderr, /Refusing to seed non-disposable database path/, "unsafe-path error should name disposable/test-only requirement");
 }
 
+/**
+ * The fields of the seed script's --json result this owner reads. Not a whole
+ * schema for seed-scale.mjs: only what is asserted below, plus expectedCounts,
+ * which is compared whole against the seeded marker column rather than read.
+ * @typedef {{
+ *   actualCounts: Record<string, number>,
+ *   database: string,
+ *   expectedCounts: unknown,
+ *   ok: boolean,
+ *   permissionSanity: Record<string, boolean>,
+ *   profile: string,
+ *   provider: string,
+ *   searchSanity: Record<string, number>,
+ *   startup: { foreignKeysEnabled: boolean, workspaceModules: number },
+ * }} ScaleSeedResult
+ */
+
 function assertDevDemoSeedRuns() {
   const result = runSeed([
     "--profile",
@@ -73,7 +93,11 @@ function assertDevDemoSeedRuns() {
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const jsonLine = result.stdout.trim().split(/\r?\n/).findLast((line) => line.trim().startsWith("{"));
   assert.ok(jsonLine, "seed script should print a JSON result");
-  const parsed = JSON.parse(jsonLine);
+  // The seed script's structured stdout. Parsed JSON resolves `any`, so it
+  // crosses the boundary through the shared record narrowing and the shape
+  // below names exactly the fields this owner asserts on.
+  /** @type {ScaleSeedResult} */
+  const parsed = requireJsonRecord(JSON.parse(jsonLine), "seed script JSON result");
 
   assert.equal(parsed.ok, true);
   assert.equal(parsed.profile, "dev-demo");
@@ -97,6 +121,7 @@ function assertDevDemoSeedRuns() {
   return parsed;
 }
 
+/** @param {ScaleSeedResult} seedResult */
 async function assertSeededDatabase(seedResult) {
   process.env.LONGTAIL_DATABASE_PROVIDER = "sqlite";
   process.env.LONGTAIL_DATABASE_FILE = disposableDb;
@@ -106,33 +131,39 @@ async function assertSeededDatabase(seedResult) {
   const db = await import("../src/db/index.js");
   await db.initializeDatabase();
 
-  const marker = await db.getSql(`
+  const marker = requireRow(await db.getSql(`
 SELECT profile, expected_counts_json
 FROM scale_seed_runs
 LIMIT 1;
-`);
+`), "scale seed marker");
   assert.equal(marker.profile, "dev-demo", "seeded database should include the scale seed marker");
-  assert.deepEqual(JSON.parse(marker.expected_counts_json), seedResult.expectedCounts);
+  // A JSON-bearing database column. It is compared whole against the seed
+  // script's own expectedCounts rather than read field by field, so the parse
+  // result feeds deepEqual directly; only the column's text is narrowed.
+  assert.deepEqual(
+    JSON.parse(fixtureString(marker.expected_counts_json, "scale seed expected_counts_json")),
+    seedResult.expectedCounts,
+  );
 
-  const workspaceSettings = await db.getSql(`
+  const workspaceSettings = requireRow(await db.getSql(`
 SELECT audit_logging_enabled, audit_retention_days
 FROM workspace_settings
 LIMIT 1;
-`);
+`), "seeded workspace settings");
   assert.equal(Number(workspaceSettings.audit_logging_enabled), 1, "scale seed should keep audit logging enabled");
   assert.equal(Number(workspaceSettings.audit_retention_days), 365, "scale seed should keep seeded audit rows inside retention");
 
   const foreignKeyRows = await db.querySql("PRAGMA foreign_key_check;");
   assert.deepEqual(foreignKeyRows, [], "seeded database should pass SQLite foreign-key checks");
 
-  const searchRow = await db.getSql(`
+  const searchRow = requireRow(await db.getSql(`
 SELECT title
 FROM search_index
 WHERE module_id = 'tasks'
   AND record_type = 'task'
   AND title = 'Scale Task 000001'
 LIMIT 1;
-`);
+`), "seeded task search row");
   assert.equal(searchRow.title, "Scale Task 000001", "seeded search metadata should include task rows");
   await db.closeSqlite();
 }
@@ -152,6 +183,7 @@ function assertRefusesPreviouslySeededDatabase() {
   assert.match(rerun.stderr, /already contains a scale seed run/, "rerun refusal should explain the existing seed marker");
 }
 
+/** @param {readonly string[]} args */
 function runSeed(args) {
   return spawnSync(process.execPath, ["scripts/seed-scale.mjs", ...args], {
     cwd: root,
@@ -163,6 +195,11 @@ function runSeed(args) {
   });
 }
 
+/**
+ * This process's environment with the scale-seed keys removed, plus the
+ * caller's overrides.
+ * @param {Record<string, string>} [overrides]
+ */
 function cleanEnv(overrides = {}) {
   const env = { ...process.env, ...overrides };
   delete env.LTF_REGRESSION_BASELINE_DB;

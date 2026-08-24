@@ -69,6 +69,11 @@ for (const scriptPath of REGRESSION_SCRIPTS) {
 
 console.log("Regression clean-clone contract passed.");
 
+/**
+ * Assert one regression script depends on no gitignored local bookkeeping file.
+ * @param {string} filePath the script being checked, named on failure
+ * @param {string} source its file text
+ */
 function assertNoForbiddenLocalDocs(filePath, source) {
   for (const fileName of forbiddenLocalDocs) {
     assert.doesNotMatch(

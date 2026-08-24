@@ -11,6 +11,11 @@ let checks = 0;
 
 try {
 
+/**
+ * Run one named group of assertions and count it.
+ * @param {string} name the check description, used only for the passing tally
+ * @param {() => void} assertion the assertions to run
+ */
 function check(name, assertion) {
   assertion();
   checks += 1;
@@ -144,7 +149,12 @@ check("event summaries expose reusable resume-safe changed context", () => {
   });
   assert.equal(Object.hasOwn(updateContext, "previous_value"), false);
   assert.equal(Object.hasOwn(updateContext, "new_value"), false);
-  assert.equal(updateActivitySummary.changedContext.summary, "Description added: Write a reusable summary.");
+  // buildEventChangedContext genuinely answers null for any event whose name
+  // does not end in .updated, so the activity summary's changed context is
+  // asserted present rather than assumed.
+  const updateActivityChangedContext = updateActivitySummary.changedContext;
+  assert.ok(updateActivityChangedContext, "the update activity summary should carry changed context");
+  assert.equal(updateActivityChangedContext.summary, "Description added: Write a reusable summary.");
 });
 
 console.log(`Audit extensibility regression passed ${checks} checks.`);

@@ -78,6 +78,11 @@ async function measureDatabaseReadOverhead() {
   return performance.now() - start;
 }
 
+/**
+ * Median wall-clock cost of one awaited probe across repeated samples.
+ * @param {() => Promise<unknown>} fn the probe to measure
+ * @param {number} [iterations]
+ */
 async function measureMedian(fn, iterations = 5) {
   const samples = [];
 
