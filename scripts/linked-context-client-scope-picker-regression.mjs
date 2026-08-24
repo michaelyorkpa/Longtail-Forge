@@ -3,7 +3,12 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { fixtureString, workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} PickerSession */
+/** @typedef {import("../src/types/link-target-directory-contracts.js").LinkTargetCandidate} LinkTarget */
+
+/** @typedef {Awaited<ReturnType<typeof createBusinessFixtures>>} ScopeFixtures */
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readTextAsync: readText } = createProjectTextReader();
 
@@ -62,11 +67,17 @@ async function assertStaticContract() {
   assert.match(linkTargetDirectorySource, /targetMatchesClientContext/, "Link-target directory should filter external targets by the resolved client context");
   assert.match(clientProjectsProviderSource, /clientContext\?\.mode === "client" \|\| options\.clientContext\?\.mode === "workspace"/, "Project provider should drop client/workspace suffixes in scoped client contexts");
   assert.match(pickerContract, /0\.33\.6\.15\.1[\s\S]*client-context selector/, "Linked Context picker contract should document the client-context selector");
-  assertRoadmapCursorAtLeast("0.33.8", "Roadmap should remain on the current active branch after the Linked Context client-scope slice closes");
 }
 
+/** @param {PickerSession} session @param {{ workspace_id: string, workspace_name: unknown }} workspace */
 async function createBusinessFixtures(session, workspace) {
-  await setWorkspace(session.workspace_id, "business", workspace.workspace_name || "LC Scope Workspace");
+  // The workspace name is an open database column, and both the seed helper and
+  // the expected scope labels below read it as text, so it is proven here once
+  // and reused rather than narrowed twice.
+  const workspaceName = typeof workspace.workspace_name === "string" && workspace.workspace_name
+    ? workspace.workspace_name
+    : "LC Scope Workspace";
+  await setWorkspace(session.workspace_id, "business", workspaceName);
   const suffix = randomUUID().slice(0, 8);
   const parentClientId = `lc-scope-parent-${suffix}`;
   const childClientId = `lc-scope-child-${suffix}`;
@@ -75,7 +86,6 @@ async function createBusinessFixtures(session, workspace) {
   const parentProjectId = `lc-scope-parent-project-${suffix}`;
   const childProjectId = `lc-scope-child-project-${suffix}`;
   const unrelatedProjectId = `lc-scope-other-project-${suffix}`;
-  const workspaceName = workspace.workspace_name || "LC Scope Workspace";
 
   await clientsRepository.create(session.workspace_id, {
     id: parentClientId,
@@ -156,6 +166,7 @@ async function createBusinessFixtures(session, workspace) {
   };
 }
 
+/** @param {PickerSession} session @param {ScopeFixtures} fixtures */
 async function assertBusinessClientContextScopes(session, fixtures) {
   const allProjects = await notesService.listLinkTargets(session, {
     targetType: "project",
@@ -246,6 +257,7 @@ async function assertBusinessClientContextScopes(session, fixtures) {
   );
 }
 
+/** @param {PickerSession} session */
 async function assertPersonalFamilyClientContextHidden(session) {
   await setWorkspace(session.workspace_id, "family", "LC Scope Family Workspace");
   const suffix = randomUUID().slice(0, 8);
@@ -282,10 +294,21 @@ async function assertPersonalFamilyClientContextHidden(session) {
   );
 }
 
+/**
+ * Index picker targets by id, preserving whatever the caller passed.
+ *
+ * Generic rather than fixed to the published candidate contract because the
+ * picker service does not declare its return, so its targets arrive as inferred
+ * literals; fixing the parameter would erase what the caller already knows.
+ * @template {{ targetId: string }} TargetShape
+ * @param {readonly TargetShape[]} [targets]
+ * @returns {Map<string, TargetShape>}
+ */
 function indexTargets(targets = []) {
   return new Map(targets.map((target) => [target.targetId, target]));
 }
 
+/** @param {string} workspaceId @param {string} workspaceType @param {string} workspaceName */
 async function setWorkspace(workspaceId, workspaceType, workspaceName) {
   await runSql(`
 UPDATE workspaces
@@ -295,12 +318,16 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
+/** @returns {Promise<{ workspace_id: string, workspace_name: unknown }>} */
 async function readWorkspace() {
-  const rows = await querySql("SELECT workspace_id, name AS workspace_name FROM workspaces ORDER BY rowid LIMIT 1;");
-  assert.ok(rows[0]?.workspace_id, "workspace fixture is required");
-  return rows[0];
+  const row = requireFirstRow(await querySql("SELECT workspace_id, name AS workspace_name FROM workspaces ORDER BY rowid LIMIT 1;"), "the workspace fixture");
+  return {
+    workspace_id: fixtureString(row.workspace_id, "the workspace fixture id"),
+    workspace_name: row.workspace_name,
+  };
 }
 
+/** @param {string} workspaceId @returns {Promise<PickerSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -311,13 +338,7 @@ LIMIT 1;
 `);
   const user = rows[0];
   assert.ok(user?.user_id, "protected user fixture is required");
-  return {
-    display_name: user.display_name || user.username,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: workspaceId,
-  };
+  return workspaceSessionFixture({ ...user, workspace_id: workspaceId });
 }
 
 async function assertIntegrity() {

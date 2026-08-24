@@ -3,6 +3,10 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { fixtureString, workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} PickerSession */
+/** @typedef {import("../src/types/link-target-directory-contracts.js").LinkTargetCandidate} LinkTarget */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-linked-context-client-project-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-linked-context-client-project.db");
@@ -45,6 +49,7 @@ async function assertBrowserUsesProviderLabels() {
   assert.doesNotMatch(notesServiceJs, /filterReadableClients\(session, await clientsRepository\.readAll\(session\.workspace_id\)\)/, "Notes should not bypass Clients/Projects-owned client target ordering");
 }
 
+/** @param {PickerSession} session */
 async function assertBusinessClientTargets(session) {
   await setWorkspaceType(session.workspace_id, "business");
   const suffix = randomUUID().slice(0, 8);
@@ -101,6 +106,7 @@ async function assertBusinessClientTargets(session) {
   }
 }
 
+/** @param {PickerSession} session @param {{ workspace_id: string, workspace_name: unknown }} workspace */
 async function assertBusinessProjectTargets(session, workspace) {
   await setWorkspaceType(session.workspace_id, "business");
   const suffix = randomUUID().slice(0, 8);
@@ -176,6 +182,7 @@ async function assertBusinessProjectTargets(session, workspace) {
   }
 }
 
+/** @param {PickerSession} session */
 async function assertFamilyProjectTargets(session) {
   await setWorkspaceType(session.workspace_id, "family");
   const suffix = randomUUID().slice(0, 8);
@@ -214,12 +221,14 @@ async function assertFamilyProjectTargets(session) {
   }
 }
 
+/** @param {string | undefined} displayLabel @param {string} targetId */
 function assertCleanDisplayLabel(displayLabel, targetId) {
   assert.ok(displayLabel, "display label should be present");
   assert.doesNotMatch(displayLabel, /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i, "display label should not expose raw UUIDs");
   assert.equal(displayLabel.includes(targetId), false, "display label should not echo the target id");
 }
 
+/** @param {string} workspaceId @param {string} workspaceType */
 async function setWorkspaceType(workspaceId, workspaceType) {
   await runSql(`
 UPDATE workspaces
@@ -228,12 +237,16 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
+/** @returns {Promise<{ workspace_id: string, workspace_name: unknown }>} */
 async function readWorkspace() {
-  const rows = await querySql("SELECT workspace_id, name AS workspace_name FROM workspaces ORDER BY rowid LIMIT 1;");
-  assert.ok(rows[0]?.workspace_id, "workspace fixture is required");
-  return rows[0];
+  const row = requireFirstRow(await querySql("SELECT workspace_id, name AS workspace_name FROM workspaces ORDER BY rowid LIMIT 1;"), "the workspace fixture");
+  return {
+    workspace_id: fixtureString(row.workspace_id, "the workspace fixture id"),
+    workspace_name: row.workspace_name,
+  };
 }
 
+/** @param {string} workspaceId @returns {Promise<PickerSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -244,13 +257,7 @@ LIMIT 1;
 `);
   const user = rows[0];
   assert.ok(user?.user_id, "protected user fixture is required");
-  return {
-    display_name: user.display_name || user.username,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: workspaceId,
-  };
+  return workspaceSessionFixture({ ...user, workspace_id: workspaceId });
 }
 
 async function assertIntegrity() {

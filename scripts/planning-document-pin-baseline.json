@@ -55,7 +55,6 @@
     "legacy.file.multipart.batch.upload.helper",
     "legacy.file.multipart.upload.route",
     "legacy.file.upload.compatibility.error.hardening",
-    "legacy.linked.context.picker.shell",
     "legacy.migration.compatibility",
     "legacy.parameter.binding.conversion.wave",
     "legacy.parameter.binding.layer",

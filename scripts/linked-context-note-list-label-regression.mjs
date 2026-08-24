@@ -3,6 +3,12 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { fixtureString, workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} PickerSession */
+/** @typedef {import("../src/types/link-target-directory-contracts.js").LinkTargetCandidate} LinkTarget */
+
+/** @typedef {Awaited<ReturnType<typeof createFixtures>>} NoteListFixtures */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-linked-context-note-list-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-linked-context-note-list.db");
@@ -47,6 +53,7 @@ async function assertBrowserExposesNoteAndListTargets() {
   assert.match(notesJs, /list: "List"/, "Notes picker should label List targets");
 }
 
+/** @param {PickerSession} session */
 async function createFixtures(session) {
   const suffix = randomUUID().slice(0, 8);
   const clientId = `lcnl-client-${suffix}`;
@@ -121,6 +128,12 @@ async function createFixtures(session) {
     list_type: "procurement",
   });
 
+  // `listsRepository.create` resolves the row it read back, so it answers null
+  // when the write stored nothing, and every label assertion below reads these
+  // two records.
+  assert.ok(checklistList, "creating the checklist list should read the persisted record back");
+  assert.ok(procurementList, "creating the procurement list should read the persisted record back");
+
   return {
     activeNote: activeNote.note,
     alphaNote: alphaNote.note,
@@ -137,6 +150,7 @@ async function createFixtures(session) {
   };
 }
 
+/** @param {PickerSession} session @param {PickerSession} limitedSession @param {NoteListFixtures} fixtures */
 async function assertNoteTargets(session, limitedSession, fixtures) {
   const result = await notesService.listLinkTargets(session, { targetType: "note", q: `LCNL`, limit: 50 });
   const targetIds = [
@@ -178,6 +192,7 @@ async function assertNoteTargets(session, limitedSession, fixtures) {
   assert.equal(limitedHidden.targets.some((target) => /LCNL Hidden/.test(target.displayLabel || target.label || "")), false, "Hidden note labels should not leak through search results");
 }
 
+/** @param {PickerSession} session @param {NoteListFixtures} fixtures */
 async function assertListTargets(session, fixtures) {
   const result = await notesService.listLinkTargets(session, { targetType: "list", q: `LCNL`, limit: 50 });
   const targetIds = [
@@ -222,6 +237,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 `);
 }
 
+/** @param {PickerSession} session @param {NoteListFixtures} fixtures */
 async function assertLinkedRows(session, fixtures) {
   const linked = await notesService.create({
     title: `LCNL Linked Consumer ${fixtures.suffix}`,
@@ -248,6 +264,7 @@ async function assertLinkedRows(session, fixtures) {
   assert.equal(listLink.source_url, `lists.html?list=${encodeURIComponent(fixtures.checklistList.list_id)}`);
 }
 
+/** @param {PickerSession} session @param {{ title: string } & Record<string, unknown>} payload */
 async function createList(session, payload) {
   return listsRepository.create(session.workspace_id, {
     client_id: "",
@@ -261,17 +278,20 @@ async function createList(session, payload) {
   });
 }
 
+/** @param {string | undefined} label @param {string} targetId */
 function assertCleanLabel(label, targetId) {
   assert.ok(label, "label should be present");
   assert.doesNotMatch(label, /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i, "labels should not expose UUIDs");
   assert.equal(label.includes(targetId), false, "labels should not echo raw target ids");
 }
 
+/** @param {unknown} title @returns {string} */
 function compactTargetTitle(title) {
   const text = String(title || "").trim();
   return text.length > 20 ? `${text.slice(0, 17).trimEnd()}...` : text;
 }
 
+/** @param {string} workspaceId @param {string} workspaceType @param {string} workspaceName */
 async function setWorkspace(workspaceId, workspaceType, workspaceName) {
   await runSql(`
 UPDATE workspaces
@@ -281,12 +301,16 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
+/** @returns {Promise<{ workspace_id: string, workspace_name: unknown }>} */
 async function readWorkspace() {
-  const rows = await querySql("SELECT workspace_id, name AS workspace_name FROM workspaces ORDER BY rowid LIMIT 1;");
-  assert.ok(rows[0]?.workspace_id, "workspace fixture is required");
-  return rows[0];
+  const row = requireFirstRow(await querySql("SELECT workspace_id, name AS workspace_name FROM workspaces ORDER BY rowid LIMIT 1;"), "the workspace fixture");
+  return {
+    workspace_id: fixtureString(row.workspace_id, "the workspace fixture id"),
+    workspace_name: row.workspace_name,
+  };
 }
 
+/** @param {string} workspaceId @returns {Promise<PickerSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -297,16 +321,10 @@ LIMIT 1;
 `);
   const user = rows[0];
   assert.ok(user?.user_id, "protected user fixture is required");
-  return {
-    active_workspace_id: workspaceId,
-    display_name: user.display_name || user.username,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: workspaceId,
-  };
+  return workspaceSessionFixture({ ...user, workspace_id: workspaceId });
 }
 
+/** @param {string} workspaceId @returns {Promise<PickerSession>} */
 async function createClientUserSession(workspaceId) {
   const userId = randomUUID();
   const now = new Date().toISOString();
@@ -384,14 +402,11 @@ VALUES (
 );
 `);
 
-  return {
-    active_workspace_id: workspaceId,
-    display_name: "Limited Note List Target User",
-    timezone: "America/New_York",
+  return workspaceSessionFixture({
     user_id: userId,
     username: `limited-${userId}@example.test`,
     workspace_id: workspaceId,
-  };
+  });
 }
 
 async function assertIntegrity() {

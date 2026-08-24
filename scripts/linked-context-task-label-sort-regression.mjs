@@ -3,6 +3,10 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { fixtureString, workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} PickerSession */
+/** @typedef {import("../src/types/link-target-directory-contracts.js").LinkTargetCandidate} LinkTarget */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-linked-context-task-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-linked-context-task.db");
@@ -40,6 +44,7 @@ async function assertBrowserPreservesFullTaskLabels() {
   assert.match(viewBuilderJs, /"aria-label": pickerOptionalLabel\(option\.ariaLabel\) \|\| title/, "Shared picker options should expose provider aria labels");
 }
 
+/** @param {PickerSession} session */
 async function assertBusinessTaskTargets(session) {
   const suffix = randomUUID().slice(0, 8);
   const workspaceName = "LCTask Workspace Business";
@@ -146,6 +151,7 @@ async function assertBusinessTaskTargets(session) {
   assert.doesNotMatch(taskLink.secondary_label, /open|complete|archived/i, "linked task rows should not include task status suffixes");
 }
 
+/** @param {PickerSession} session */
 async function assertFamilyTaskTargets(session) {
   const suffix = randomUUID().slice(0, 8);
   const projectId = `task-label-family-project-${suffix}`;
@@ -197,6 +203,7 @@ async function assertFamilyTaskTargets(session) {
   }
 }
 
+/** @param {PickerSession} session @param {{ title: string } & Record<string, unknown>} task */
 async function createTask(session, task) {
   return tasksRepository.create(session.workspace_id, {
     client_id: "",
@@ -214,6 +221,13 @@ async function createTask(session, task) {
   });
 }
 
+/**
+ * The picker service does not declare its return, so its targets reach this
+ * owner as an inferred literal whose `targetType` has widened to `string` and no
+ * longer satisfies the published candidate contract. This helper therefore names
+ * the one member it reads. The gap is recorded against `0.33.33.36`.
+ * @param {{ displayLabel: string }} target @param {string} targetId
+ */
 function assertCleanTaskLabel(target, targetId) {
   assert.ok(target.displayLabel, "display label should be present");
   assert.doesNotMatch(target.displayLabel, /Task:|open|complete|archived/i, "task display label should not include type or status suffixes");
@@ -221,11 +235,13 @@ function assertCleanTaskLabel(target, targetId) {
   assert.equal(target.displayLabel.includes(targetId), false, "display label should not echo the target id");
 }
 
+/** @param {unknown} title @returns {string} */
 function truncateTaskTitle(title) {
   const text = String(title || "").trim();
   return text.length > 20 ? `${text.slice(0, 17).trimEnd()}...` : text;
 }
 
+/** @param {string} workspaceId @param {string} workspaceType @param {string} workspaceName */
 async function setWorkspace(workspaceId, workspaceType, workspaceName) {
   await runSql(`
 UPDATE workspaces
@@ -235,12 +251,16 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
+/** @returns {Promise<{ workspace_id: string, workspace_name: unknown }>} */
 async function readWorkspace() {
-  const rows = await querySql("SELECT workspace_id, name AS workspace_name FROM workspaces ORDER BY rowid LIMIT 1;");
-  assert.ok(rows[0]?.workspace_id, "workspace fixture is required");
-  return rows[0];
+  const row = requireFirstRow(await querySql("SELECT workspace_id, name AS workspace_name FROM workspaces ORDER BY rowid LIMIT 1;"), "the workspace fixture");
+  return {
+    workspace_id: fixtureString(row.workspace_id, "the workspace fixture id"),
+    workspace_name: row.workspace_name,
+  };
 }
 
+/** @param {string} workspaceId @returns {Promise<PickerSession>} */
 async function readProtectedSession(workspaceId) {
   const rows = await querySql(`
 SELECT user_id, username, display_name, timezone
@@ -251,13 +271,7 @@ LIMIT 1;
 `);
   const user = rows[0];
   assert.ok(user?.user_id, "protected user fixture is required");
-  return {
-    display_name: user.display_name || user.username,
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: workspaceId,
-  };
+  return workspaceSessionFixture({ ...user, workspace_id: workspaceId });
 }
 
 async function assertIntegrity() {

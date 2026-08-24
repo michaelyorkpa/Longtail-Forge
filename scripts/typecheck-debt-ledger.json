@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 373,
+      "errorCount": 298,
       "diagnostics": {
         "scripts/app-shell-navigation-regression.mjs": [
           {
@@ -3056,46 +3056,6 @@
           {
             "code": 7053,
             "count": 2
-          }
-        ],
-        "scripts/linked-context-client-project-label-sort-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 9
-          }
-        ],
-        "scripts/linked-context-client-scope-picker-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 10
-          }
-        ],
-        "scripts/linked-context-note-list-label-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 18
-          }
-        ],
-        "scripts/linked-context-picker-shell-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 6
-          }
-        ],
-        "scripts/linked-context-task-label-sort-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 11
-          }
-        ],
-        "scripts/linked-context-unavailable-fallback-regression.mjs": [
-          {
-            "code": 2339,
-            "count": 10
-          },
-          {
-            "code": 7006,
-            "count": 11
           }
         ],
         "scripts/module-actions-regression.mjs": [
@@ -3537,7 +3497,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 11507,
+    "errors": 11432,
     "explicitAny": 3
   },
   "explicitAnyByFile": {
