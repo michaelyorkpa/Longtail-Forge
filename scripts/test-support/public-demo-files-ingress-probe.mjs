@@ -77,7 +77,7 @@ app.use((/** @type {ProbeIngressRequest} */ request, /** @type {unknown} */ _res
 app.use("/api", filesRoutes);
 app.use(errorHandler);
 const server = await new Promise((resolve) => {
-  const listener = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
+  const listener = http.createServer(app);
   listener.listen(0, "127.0.0.1", () => resolve(listener));
 });
 

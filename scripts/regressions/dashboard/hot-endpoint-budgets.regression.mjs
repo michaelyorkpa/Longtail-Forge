@@ -61,7 +61,7 @@ try {
   });
   /** @type {import("node:http").Server} */
   const listening = await new Promise((resolve) => {
-    const instance = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (createApp())));
+    const instance = http.createServer(createApp());
     instance.listen(0, "127.0.0.1", () => resolve(instance));
   });
   server = listening;

@@ -1446,6 +1446,29 @@ for (const seedOwner of discoveredScriptPaths()) {
     `${seedOwner} must not reintroduce the spread-only createSession compatibility pattern`,
   );
 }
+// 0.33.33.32.28.2 retired the request-listener laundering casts. 0.33.33.32.27
+// declared that an express Application is a Node request listener, which is
+// what http.createServer requires, so the compensating cast became dead and 45
+// owners were carrying it. The needle is assembled from parts because a
+// source-text guard that spells its own forbidden pattern matches itself - the
+// fourth time this rollup would have hit that.
+const requestListenerCast = `${"Request"}${"Listener"}} */ (/** @type {unknown} */ (`;
+for (const listenerOwner of discoveredScriptPaths()) {
+  const source = fs.readFileSync(listenerOwner, "utf8");
+  assert.equal(
+    source.includes(requestListenerCast),
+    false,
+    `${listenerOwner} must not reintroduce the request-listener laundering cast; express Application is declared as a Node request listener`,
+  );
+}
+// The declaration that made those casts dead has to stay. 0.33.33.32.28 already
+// pins the call signature; this pins the consequence, so a future edit that
+// removes one without the other fails on both.
+assert.equal(
+  fs.readFileSync("scripts/sqlite-small-office-performance.mjs", "utf8").includes("@param {HttpFixtureApp} app"),
+  true,
+  "the small-office performance owner should keep typing its fixture app from the published contract rather than casting",
+);
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 
 /**

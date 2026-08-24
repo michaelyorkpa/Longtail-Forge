@@ -268,7 +268,7 @@ function assertSafeMetadataKeys(value) {
 /** @param {import("../../test-support/http-fixture-contracts.mjs").HttpFixtureApp} app @returns {Promise<import("../../test-support/http-fixture-contracts.mjs").HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
+    const nextServer = http.createServer(app);
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
 }

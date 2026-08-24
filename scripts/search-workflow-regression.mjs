@@ -575,7 +575,7 @@ function listenerPort(listening) {
  * @param {number} [attempts]
  */
 function listenOnFetchSafePort(app, resolve, attempts = 0) {
-  const nextServer = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
+  const nextServer = http.createServer(app);
 
   nextServer.listen(0, "127.0.0.1", () => {
     const port = listenerPort(nextServer);

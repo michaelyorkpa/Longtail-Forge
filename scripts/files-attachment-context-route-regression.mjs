@@ -725,7 +725,7 @@ async function request(baseUrl, method, url, body, options = {}) {
 
 /** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 async function listen(app) {
-  const serverInstance = http.createServer(/** @type {import("node:http").RequestListener} */ (/** @type {unknown} */ (app)));
+  const serverInstance = http.createServer(app);
   await new Promise((resolve) => {
     serverInstance.listen(0, "127.0.0.1", () => resolve(undefined));
   });
