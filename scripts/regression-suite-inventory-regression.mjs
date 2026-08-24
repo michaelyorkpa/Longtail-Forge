@@ -2,13 +2,28 @@ import { escapeRegExp } from "./test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { REGRESSION_BUCKETS, REGRESSION_ENTRIES, REGRESSION_SCRIPTS } from "./regression-suite.mjs";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
 
 const docs = readFileSync("docs/regression-suite.md", "utf8");
 const runner = readFileSync("scripts/run-regressions.mjs", "utf8");
 const suite = readFileSync("scripts/regression-suite.mjs", "utf8");
 const discovery = readFileSync("scripts/lib/regression-discovery.mjs", "utf8");
-const legacySnapshot = JSON.parse(readFileSync("scripts/regression-legacy-snapshot.json", "utf8"));
-const coveragePolicy = JSON.parse(readFileSync("scripts/regression-coverage-exceptions.json", "utf8"));
+/**
+ * The generated snapshot and policy fields this owner reads. Both files are
+ * parsed JSON, so they enter through the shared record narrowing and name
+ * only what is read here rather than claiming a whole schema.
+ * @typedef {{ scripts: readonly unknown[] }} LegacySnapshot
+ * @typedef {{ floorCredit?: boolean, runMode?: string }} RetiredScriptEntry
+ * @typedef {{
+ *   legacyMetadataException: { maximumScripts: number },
+ *   retiredScripts: readonly RetiredScriptEntry[],
+ * }} CoveragePolicy
+ */
+
+/** @type {LegacySnapshot} */
+const legacySnapshot = requireJsonRecord(JSON.parse(readFileSync("scripts/regression-legacy-snapshot.json", "utf8")), "regression-legacy-snapshot.json");
+/** @type {CoveragePolicy} */
+const coveragePolicy = requireJsonRecord(JSON.parse(readFileSync("scripts/regression-coverage-exceptions.json", "utf8")), "regression-coverage-exceptions.json");
 
 for (const entryPoint of [
   "scripts/run-regressions.mjs",
@@ -116,8 +131,12 @@ for (const bucket of REGRESSION_BUCKETS) {
   const retiredCredits = coveragePolicy.retiredScripts.filter((entry) => (
     entry.floorCredit === true && entry.runMode === bucketRunModes.get(bucket.name)
   )).length;
+  // A bucket without a recorded floor would otherwise compare against
+  // undefined and pass; name the bucket instead.
+  const bucketFloor = bucketFloors.get(bucket.name);
+  assert.ok(bucketFloor !== undefined, `${bucket.name} should have a recorded coverage floor`);
   assert.ok(
-    bucket.scripts.length + retiredCredits >= bucketFloors.get(bucket.name),
+    bucket.scripts.length + retiredCredits >= bucketFloor,
     bucket.name + " should retain its coverage floor without pinning safe reclassification",
   );
 }

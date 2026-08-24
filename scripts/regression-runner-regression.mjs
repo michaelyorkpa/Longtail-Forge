@@ -237,6 +237,7 @@ assert.deepEqual(
   "parallel scheduling should preserve stable script indexes for isolated fixture envs",
 );
 
+/** @type {string[]} */
 const scheduledAfterFailure = [];
 const failureResults = await runLimitedItems(["fail", "already-running", "must-not-start"], 2, async (script) => {
   scheduledAfterFailure.push(script);
@@ -259,7 +260,9 @@ assert.deepEqual(
 );
 
 assert.equal(ISOLATED_RETRY_LIMIT, 1, "isolated flakes should receive exactly one bounded retry");
+/** @type {string[]} */
 const recoveryInvocations = [];
+/** @type {string[]} */
 const retryNotifications = [];
 let activeRetries = 0;
 let maxActiveRetries = 0;
@@ -307,6 +310,7 @@ assert.ok(
   "unscheduled isolated scripts should resume only after the failed script recovers",
 );
 
+/** @type {string[]} */
 const persistentInvocations = [];
 const persistentResults = await runIsolatedItemsWithRetry(
   ["always-fails", "must-not-start"],
@@ -337,13 +341,18 @@ const seededBucketOrder = [
   { name: "isolated file storage regressions" },
   { name: "isolated database regressions" },
 ];
+/** @type {string[]} */
 const seededScheduledBuckets = [];
 const seededStaticFailure = await runRegressionBucketsFailFast(seededBucketOrder, async (bucket) => {
   seededScheduledBuckets.push(bucket.name);
   if (bucket.name === "static/source regressions") {
-    const failure = new Error("seeded static failure");
-    failure.results = [{ bucketName: bucket.name, exitCode: 1, script: "seeded-static-regression.mjs" }];
-    throw failure;
+    // runRegressionBucketsFailFast reads `results` off a thrown error; the
+    // orchestrator publishes that shape as BucketRunError. Object.assign builds
+    // it without a cast, so the seeded failure really is what the production
+    // path consumes.
+    throw Object.assign(new Error("seeded static failure"), {
+      results: [{ bucketName: bucket.name, exitCode: 1, script: "seeded-static-regression.mjs" }],
+    });
   }
   return [{ bucketName: bucket.name, exitCode: 0, script: `${bucket.name}.mjs` }];
 });
@@ -365,6 +374,7 @@ assert.deepEqual(
 
 console.log("Regression runner regression passed.");
 
+/** @param {string} name */
 function bucketByName(name) {
   const bucket = REGRESSION_BUCKETS.find((entry) => entry.name === name);
 
@@ -372,6 +382,7 @@ function bucketByName(name) {
   return bucket;
 }
 
+/** @param {number} milliseconds @returns {Promise<void>} */
 function delay(milliseconds) {
   return new Promise((resolve) => {
     setTimeout(resolve, milliseconds);

@@ -17,6 +17,11 @@ import {
   scanWorkspaceForCurrentVersion,
 } from "./test-support/version-literal-guardrail.mjs";
 import { createDisposableDatabaseFixture } from "./test-support/disposable-database.mjs";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
+
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HttpFixtureApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HttpFixtureServer */
+/** @typedef {import("./test-support/version-literal-guardrail.mjs").VersionLiteralViolation} VersionLiteralViolation */
 
 const root = process.cwd();
 const packageJson = JSON.parse(await fs.readFile("package.json", "utf8"));
@@ -138,9 +143,13 @@ assert.deepEqual(
 
 const server = await listen(createApp());
 try {
-  const response = await readJson(`http://127.0.0.1:${server.address().port}/api/app-info`);
+  const address = server.address();
+  assert.ok(address && typeof address === "object", "the fixture server should be listening on a TCP address");
+  const response = await readJson(`http://127.0.0.1:${address.port}/api/app-info`);
   assert.equal(response.statusCode, 200);
-  const appInfo = response.body;
+  // The route's body is parsed JSON, so it crosses the boundary through the
+  // shared payload narrowing and proves the envelope this owner reads.
+  const appInfo = readPayload(response, ["version"], "/api/app-info");
   assert.equal(appInfo.version, packageJson.version, "/api/app-info should report package metadata");
   assert.equal(appInfo.version, appVersion, "/api/app-info should report the runtime helper value");
 } finally {
@@ -153,6 +162,7 @@ console.log("Version literal guardrail regression passed.");
   await fixture.cleanup();
 }
 
+/** @param {HttpFixtureApp} app @returns {Promise<HttpFixtureServer>} */
 function listen(app) {
   return new Promise((resolve, reject) => {
     const server = app.listen(0, "127.0.0.1", () => resolve(server));
@@ -160,6 +170,12 @@ function listen(app) {
   });
 }
 
+/**
+ * Read one JSON route through the bare node:http client this owner already
+ * uses. The body stays `unknown` so the caller narrows it deliberately.
+ * @param {string} url
+ * @returns {Promise<{ body: unknown, statusCode: number | undefined }>}
+ */
 function readJson(url) {
   return new Promise((resolve, reject) => {
     get(url, (response) => {
@@ -179,12 +195,14 @@ function readJson(url) {
   });
 }
 
+/** @param {HttpFixtureServer} server @returns {Promise<void>} */
 function closeServer(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
   });
 }
 
+/** @param {readonly VersionLiteralViolation[]} violations */
 function formatViolations(violations) {
   if (violations.length === 0) {
     return "current-version literal guardrail should pass";

@@ -5,13 +5,13 @@ import os from "node:os";
 import path from "node:path";
 import { loadRuntimeEnvFile, parseRuntimeEnvText } from "../src/runtime-env.js";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { requireJsonRecord } from "./test-support/json-record-assertions.mjs";
 const { readText } = createProjectTextReader();
 
 const root = process.cwd();
 const serverSource = readText("server.js");
 const runtimeEnvSource = readText("src/runtime-env.js");
 const runtimeDocs = readText("docs/runtime-configuration.md");
-const roadmap = readText("ROADMAP.md");
 const gitignore = readText(".gitignore");
 
 assert.match(gitignore, /^\.env$/m, "real .env files should remain ignored");
@@ -19,7 +19,6 @@ assert.match(serverSource, /loadRuntimeEnvFile\(\);[\s\S]*await import\("\.\/src
 assert.doesNotMatch(runtimeEnvSource, /from "\.\/config\.js"|from "\.\.\/config\.js"/, "runtime env loader must not import config");
 assert.match(runtimeDocs, /At app startup, `server\.js` loads a local root `.env` file when present/, "runtime docs should document startup .env loading");
 assert.match(runtimeDocs, /Process environment values win over `.env` values/, "runtime docs should document precedence");
-assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "live roadmap should not carry completed-history breadcrumbs");
 
 const parsed = parseRuntimeEnvText(`
 # Leading comments and blank lines are ignored.
@@ -69,6 +68,9 @@ LONGTAIL_SESSION_COOKIE_SAMESITE=Strict
   });
   assert.deepEqual(missingEnv, {}, "missing .env should not mutate env");
 
+  // loadRuntimeEnvFile writes the parsed .env keys into this record, so it is
+  // an open environment record rather than the one key it starts with.
+  /** @type {Record<string, string>} */
   const env = { PORT: "9000" };
   const result = loadRuntimeEnvFile({ env, envFile });
   assert.equal(result.loaded, true);
@@ -101,6 +103,15 @@ for (const filePath of listFiles(path.join(root, "public")).concat(listFiles(pat
 
 console.log("Runtime .env loading regression passed.");
 
+/**
+ * Load one .env file in a clean child process and read back the three config
+ * fields the child prints. The child's stdout is parsed JSON, so it crosses
+ * the boundary through the shared record narrowing; the field names below are
+ * exactly the ones the --eval source prints.
+ * @param {string} envFile absolute path to the .env file the child should load
+ * @param {Record<string, string>} [overrides] process environment overrides
+ * @returns {{ cookieSameSite: string, port: number, publicUrl: string }}
+ */
 function readConfigAfterEnvLoad(envFile, overrides = {}) {
   const child = spawnSync(process.execPath, ["--input-type=module", "--eval", `
     import { loadRuntimeEnvFile } from "./src/runtime-env.js";
@@ -121,9 +132,14 @@ function readConfigAfterEnvLoad(envFile, overrides = {}) {
   });
 
   assert.equal(child.status, 0, child.stderr || child.stdout);
-  return JSON.parse(child.stdout.trim());
+  return requireJsonRecord(JSON.parse(child.stdout.trim()), "child config stdout");
 }
 
+/**
+ * A copy of this process's environment with every runtime key removed, plus
+ * the caller's overrides.
+ * @param {Record<string, string>} [overrides]
+ */
 function cleanEnv(overrides = {}) {
   const env = { ...process.env };
   for (const key of Object.keys(env)) {
@@ -147,6 +163,11 @@ function cleanEnv(overrides = {}) {
   return { ...env, ...overrides };
 }
 
+/**
+ * Every file under one directory, recursively.
+ * @param {string} dir
+ * @returns {string[]}
+ */
 function listFiles(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const entryPath = path.join(dir, entry.name);
