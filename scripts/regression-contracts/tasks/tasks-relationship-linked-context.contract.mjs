@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 // Consolidated under tasks.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -24,28 +24,28 @@ const linkedPanelRegression = readText("scripts/notes-linked-panel-regression.mj
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 
-const appendContext = functionBlock(tasksScript, "appendTaskContext");
-const contextBadge = functionBlock(tasksScript, "taskContextBadge");
-const contextFallback = functionBlock(tasksScript, "taskContextSummaryFallback");
-const blockingText = functionBlock(tasksScript, "blockingSummaryText");
-const writeParentFields = functionBlock(taskDialogScript, "writeParentTaskFields");
-const readParent = functionBlock(taskDialogScript, "readCurrentParentTaskId");
-const parentOptions = functionBlock(taskDialogScript, "parentTaskOptions");
-const syncParent = functionBlock(taskDialogScript, "syncParentTaskRelationship");
-const mountNotes = functionBlock(taskDialogScript, "mountTaskNotesPanel");
-const noteList = functionBlock(notesLinkedPanel, "noteList");
-const linkedNoteItem = functionBlock(notesLinkedPanel, "linkedNoteListItem");
-const linkedNoteSecondary = functionBlock(notesLinkedPanel, "linkedNoteSecondaryLabel");
-const createList = functionBlock(viewBuilder, "createLinkedContextList");
-const renderRows = functionBlock(viewBuilder, "renderLinkedContextRows");
-const addChild = functionBlock(tasksService, "addChildTask");
-const updateChild = functionBlock(tasksService, "updateChildTaskRelationship");
-const removeChild = functionBlock(tasksService, "removeChildTaskRelationship");
-const assertCanRelate = functionBlock(tasksService, "assertCanRelateTasks");
-const blockParent = functionBlock(tasksService, "blockParentForChild");
-const recoverParent = functionBlock(tasksService, "recoverParentIfNoBlockingChildren");
-const planBlockParent = functionBlock(taskBlockRecoveryEngine, "planParentBlockTransition");
-const planRecoverParent = functionBlock(taskBlockRecoveryEngine, "planParentRecoveryTransition");
+const appendContext = extractFunctionSpan(tasksScript, "appendTaskContext");
+const contextBadge = extractFunctionSpan(tasksScript, "taskContextBadge");
+const contextFallback = extractFunctionSpan(tasksScript, "taskContextSummaryFallback");
+const blockingText = extractFunctionSpan(tasksScript, "blockingSummaryText");
+const writeParentFields = extractFunctionSpan(taskDialogScript, "writeParentTaskFields");
+const readParent = extractFunctionSpan(taskDialogScript, "readCurrentParentTaskId");
+const parentOptions = extractFunctionSpan(taskDialogScript, "parentTaskOptions");
+const syncParent = extractFunctionSpan(taskDialogScript, "syncParentTaskRelationship");
+const mountNotes = extractFunctionSpan(taskDialogScript, "mountTaskNotesPanel");
+const noteList = extractFunctionSpan(notesLinkedPanel, "noteList");
+const linkedNoteItem = extractFunctionSpan(notesLinkedPanel, "linkedNoteListItem");
+const linkedNoteSecondary = extractFunctionSpan(notesLinkedPanel, "linkedNoteSecondaryLabel");
+const createList = extractFunctionSpan(viewBuilder, "createLinkedContextList");
+const renderRows = extractFunctionSpan(viewBuilder, "renderLinkedContextRows");
+const addChild = extractFunctionSpan(tasksService, "addChildTask");
+const updateChild = extractFunctionSpan(tasksService, "updateChildTaskRelationship");
+const removeChild = extractFunctionSpan(tasksService, "removeChildTaskRelationship");
+const assertCanRelate = extractFunctionSpan(tasksService, "assertCanRelateTasks");
+const blockParent = extractFunctionSpan(tasksService, "blockParentForChild");
+const recoverParent = extractFunctionSpan(tasksService, "recoverParentIfNoBlockingChildren");
+const planBlockParent = extractFunctionSpan(taskBlockRecoveryEngine, "planParentBlockTransition");
+const planRecoverParent = extractFunctionSpan(taskBlockRecoveryEngine, "planParentRecoveryTransition");
 
 assert.match(createList, /className:\s*\["view-linked-context-picker-list", options\.className\]/, "Framework should own reusable linked-context read-list anatomy");
 assert.match(createList, /renderLinkedContextRows\(rows,[\s\S]*options\.items \|\| options\.records \|\| options\.linkedItems/, "Linked context read lists should render normalized rows through the shared row helper");
@@ -95,16 +95,3 @@ assert.match(viewContract, /createLinkedContextList/, "View-building contract sh
 assert.match(declarativeGuide, /0\.33\.5\.18\.10\.4[\s\S]*createLinkedContextList/, "Declarative guide should document the 10.4 linked-context helper boundary");
 
 console.log("Tasks relationship and linked context regression passed.");
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} functionName the name to locate
- */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}

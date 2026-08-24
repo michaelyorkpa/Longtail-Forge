@@ -141,6 +141,34 @@ export function extractFunctionBody(source, functionName) {
 }
 
 /**
+ * Extract one named function's declaration through everything that follows it,
+ * up to the next top-level function declaration or the end of the source.
+ *
+ * This is a third region, wider than `extractFunctionBlock`: it deliberately
+ * includes whatever sits between a function and the next one — the trailing
+ * constants, lookup tables, and `class` declarations that several owners assert
+ * about together with the function that consumes them. A top-level `const` or
+ * `class` therefore does not end the span; only the next `function` does.
+ *
+ * `0.33.33.32.28.4.2` published this because thirteen Tasks contract modules
+ * had written the same region by hand, and their hand-written version located
+ * the declaration with a substring search — which answers a longer name that
+ * merely starts with the one asked for, and answers a mention inside a comment.
+ * This one anchors the declaration and searches masked source, so neither can
+ * happen.
+ * @param {string} source
+ * @param {string} functionName
+ * @returns {string}
+ */
+export function extractFunctionSpan(source, functionName) {
+  const masked = scannableSource(source);
+  const declaration = findDeclaration(masked, functionName);
+  const next = /\n(?:async\s+)?function\s+/.exec(masked.slice(declaration.index + 1));
+  const end = next ? declaration.index + 1 + next.index : source.length;
+  return source.slice(declaration.index, end);
+}
+
+/**
  * @param {string} masked
  * @param {string} functionName
  * @returns {RegExpExecArray}

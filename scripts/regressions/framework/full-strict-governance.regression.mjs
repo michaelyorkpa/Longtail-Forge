@@ -8,7 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import { extractFunctionBlock, extractFunctionBody } from "../../test-support/source-scan.mjs";
+import { extractFunctionBlock, extractFunctionBody, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 import fs from "node:fs";
 import {
   PROGRAMS,
@@ -1919,6 +1919,103 @@ assert.equal(
   '{\n  return /{a}/.test(s);\n}',
   "extractFunctionBody should read a regular expression opening a statement after return",
 );
+// 0.33.33.32.28.4.2 published `extractFunctionSpan`, the third region: a
+// declaration through everything that follows it, up to the next top-level
+// function or the end of the source. Thirteen Tasks contract modules had
+// written it by hand and asserted about the trailing constants it carries, so
+// every property their hand-written version depended on is pinned here, and so
+// is every property it got wrong.
+assert.equal(
+  extractFunctionSpan('function target() {\n  return 1;\n}\nconst trailing = 2;\nfunction next() {\n  return 3;\n}\n', "target"),
+  'function target() {\n  return 1;\n}\nconst trailing = 2;',
+  "extractFunctionSpan should carry the trailing declarations and stop at the next top-level function",
+);
+assert.equal(
+  extractFunctionSpan('function target() {\n  return 1;\n}\nconst table = { a: 1 };\nclass Thing {}\nfunction next() {}\n', "target"),
+  'function target() {\n  return 1;\n}\nconst table = { a: 1 };\nclass Thing {}',
+  "a top-level const or class should not end the span - only the next function does",
+);
+assert.equal(
+  extractFunctionSpan('function target() {\n  return 1;\n}\nconst trailing = 2;\n', "target"),
+  'function target() {\n  return 1;\n}\nconst trailing = 2;\n',
+  "extractFunctionSpan should run to the end of the source when no function follows",
+);
+assert.equal(
+  extractFunctionSpan('const before = 1;\nasync function target() {\n  return 1;\n}\nfunction next() {}\n', "target"),
+  'async function target() {\n  return 1;\n}',
+  "extractFunctionSpan should begin at the async keyword, not after it",
+);
+// The hand-written version located its declaration with a substring search,
+// which answers a longer name that merely starts with the one asked for. That
+// is not hypothetical: one Tasks owner asked for `open` and was reading
+// `openTaskEditor`, so its assertion had never once read the function it named.
+assert.equal(
+  extractFunctionSpan('function targetExtra() {\n  return 0;\n}\nfunction target() {\n  return 1;\n}\nfunction next() {}\n', "target"),
+  'function target() {\n  return 1;\n}',
+  "extractFunctionSpan should not answer a longer name that starts with the one asked for",
+);
+assert.equal(
+  extractFunctionSpan('// function target() { fake }\nfunction target() {\n  return 1;\n}\nfunction next() {}\n', "target"),
+  'function target() {\n  return 1;\n}',
+  "extractFunctionSpan should not begin at a declaration decoy inside a comment",
+);
+// The span deliberately reaches past the function's own closing brace, so what
+// ends it matters as much as what starts it. A nested function must not, and
+// neither must one that only looks top-level because it sits in a comment or a
+// template literal - the hand-written version searched raw text and could be
+// ended by either.
+assert.equal(
+  extractFunctionSpan('function target() {\n  function inner() {\n    return 1;\n  }\n  return inner();\n}\nfunction next() {}\n', "target"),
+  'function target() {\n  function inner() {\n    return 1;\n  }\n  return inner();\n}',
+  "a nested function should not end the span",
+);
+assert.equal(
+  extractFunctionSpan('function target() {\n  return 1;\n}\n// function decoy() {}\nconst trailing = 2;\nfunction next() {}\n', "target"),
+  'function target() {\n  return 1;\n}\n// function decoy() {}\nconst trailing = 2;',
+  "a function declaration inside a comment should not end the span",
+);
+assert.equal(
+  extractFunctionSpan('function target() {\n  return 1;\n}\nconst snippet = `\nfunction decoy() {}\n`;\nfunction next() {}\n', "target"),
+  'function target() {\n  return 1;\n}\nconst snippet = `\nfunction decoy() {}\n`;',
+  "a function declaration inside a template literal should not end the span",
+);
+assert.equal(
+  extractFunctionSpan('function target() {\n  return 1;\n}\nfunction  \nasync function next() {}\n', "target"),
+  'function target() {\n  return 1;\n}',
+  "an async function should end the span as readily as a plain one",
+);
+// Every function in `public/js/task-dialog.js` is indented inside a closure, so
+// no next declaration is ever found there and 58 of this checkpoint's 154 spans
+// run to the end of their file. That is the region those owners have always
+// asserted against; it is pinned rather than quietly changed.
+assert.equal(
+  extractFunctionSpan('function target() {\n  return 1;\n}\n  function indentedNext() {}\n', "target"),
+  'function target() {\n  return 1;\n}\n  function indentedNext() {}\n',
+  "an indented function should not end the span, which is why spans over closure-wrapped sources reach the end of the file",
+);
+assert.throws(
+  () => extractFunctionSpan('function other() {\n  return 1;\n}\n', "target"),
+  /target should exist/,
+  "extractFunctionSpan should refuse a source that never declares the name",
+);
+// Two properties the remaining family-C children need, both inherited from the
+// hand-written helper rather than introduced here. An `export` keyword is not
+// part of the span: it begins at `function`. And an exported function does not
+// end a span, because the terminator pattern anchors on a line-initial
+// `function` or `async function`. No subject in this checkpoint's thirteen
+// owners declares an exported function - 0 of 216 - so nothing here is
+// affected, but a family-C owner reading an ES module surface would find its
+// span running to the end of the file.
+assert.equal(
+  extractFunctionSpan('export function target() {\n  return 1;\n}\nfunction next() {}\n', "target"),
+  'function target() {\n  return 1;\n}',
+  "extractFunctionSpan should begin at the function keyword, leaving an export keyword outside the span",
+);
+assert.equal(
+  extractFunctionSpan('function target() {\n  return 1;\n}\nexport function next() {\n  return 2;\n}\n', "target"),
+  'function target() {\n  return 1;\n}\nexport function next() {\n  return 2;\n}\n',
+  "an exported function does not end a span, so a span over an ES module surface reaches the end of the file",
+);
 // The scanner refuses rather than guesses. The one lexical form it cannot read
 // is a regular expression immediately after a closing paren, because that
 // position is genuinely ambiguous and every occurrence in this repository is
@@ -1935,7 +2032,8 @@ assert.throws(
   "the scanner should refuse an unbalanced masked source from extractFunctionBlock as well",
 );
 // 0.33.33.32.28.4.1 migrated the family-B contract modules onto the published
-// helpers and 0.33.33.32.28.4 migrated twelve more owners, so twenty-eight now
+// helpers, 0.33.33.32.28.4 migrated twelve more, and 0.33.33.32.28.4.2 the
+// thirteen Tasks contract modules, so forty-one owners now
 // depend on them. Each of these owners carried its
 // own function-region extractor, and every one of them found its target by
 // building a `function <name>` needle and walking braces from there. That
@@ -1976,6 +2074,19 @@ for (const familyBOwner of [
   "scripts/regressions/framework/session-auth-warning.regression.mjs",
   "scripts/search-shell-regression.mjs",
   "scripts/separate-worker-end-to-end-regression.mjs",
+  "scripts/regression-contracts/tasks/task-checklist-editor-display.contract.mjs",
+  "scripts/regression-contracts/tasks/task-critical-quick-fixes.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-bulk-toolbar-shell.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-checklist-escape-hatch.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-declarative-readonly-surface.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-detail-read-panel.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-filter-sidebar-anatomy.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-lifecycle-action-descriptor.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-list-surface-boundary.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-readonly-list-binding.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-relationship-linked-context.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-tags-files-child-dialog.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-workflow-action-descriptor.contract.mjs",
 ]) {
   const source = fs.readFileSync(familyBOwner, "utf8");
   assert.ok(

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 // Consolidated under tasks.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -12,17 +12,17 @@ const tasksDocs = readText("docs/tasks-module.md");
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the Task child-dialog slice version");
 
-const createElements = functionBlock(taskDialog, "createTaskDialogElements");
-const tagsDialog = functionBlock(taskDialog, "createTaskTagsDialog");
-const filesDialog = functionBlock(taskDialog, "createTaskFilesDialog");
-const ensureDialog = functionBlock(taskDialog, "ensureDialog");
-const utilityBindings = functionBlock(taskDialog, "bindTaskUtilityDialogEvents");
-const openTags = functionBlock(taskDialog, "openTaskTagsDialog");
-const openFiles = functionBlock(taskDialog, "openTaskFilesDialog");
-const closeUtilities = functionBlock(taskDialog, "closeTaskUtilityDialogs");
-const tagMount = functionBlock(taskDialog, "mountTaskTagPicker");
-const fileMount = functionBlock(taskDialog, "mountTaskFileAttachments");
-const fieldNodes = functionBlock(taskDialog, "taskEditorFieldNodes");
+const createElements = extractFunctionSpan(taskDialog, "createTaskDialogElements");
+const tagsDialog = extractFunctionSpan(taskDialog, "createTaskTagsDialog");
+const filesDialog = extractFunctionSpan(taskDialog, "createTaskFilesDialog");
+const ensureDialog = extractFunctionSpan(taskDialog, "ensureDialog");
+const utilityBindings = extractFunctionSpan(taskDialog, "bindTaskUtilityDialogEvents");
+const openTags = extractFunctionSpan(taskDialog, "openTaskTagsDialog");
+const openFiles = extractFunctionSpan(taskDialog, "openTaskFilesDialog");
+const closeUtilities = extractFunctionSpan(taskDialog, "closeTaskUtilityDialogs");
+const tagMount = extractFunctionSpan(taskDialog, "mountTaskTagPicker");
+const fileMount = extractFunctionSpan(taskDialog, "mountTaskFileAttachments");
+const fieldNodes = extractFunctionSpan(taskDialog, "taskEditorFieldNodes");
 
 assert.match(createElements, /includeTags = options\.includeTags !== false[\s\S]*includeFiles = options\.includeFiles !== false[\s\S]*includeTags \? createTaskTagsDialog\(\)[\s\S]*includeFiles \? createTaskFilesDialog\(\)/, "Task dialog creation should include Tags and Files child dialog shells");
 assert.match(ensureDialog, /tagsDialog = document\.querySelector\("\[data-task-tags-dialog\]"\)[\s\S]*filesDialog = document\.querySelector\("\[data-task-files-dialog\]"\)/, "Task dialog should query Tags and Files child dialogs");
@@ -60,16 +60,3 @@ assert.match(tasksDocs, /Tags and Files footer utilities open stacked child dial
 assert.match(tasksDocs, /Save the task before adding files\./, "Tasks docs should preserve the Files save-first state");
 
 console.log("Tasks Tags and Files child-dialog regression passed.");
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} functionName the name to locate
- */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}

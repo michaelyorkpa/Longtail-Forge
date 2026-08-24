@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createProjectTextReader } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 // Consolidated under tasks.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
@@ -15,15 +15,15 @@ const viewContract = readText("docs/view-building-contract.md");
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the current app version");
 
-const detailBadgeHelper = functionBlock(viewBuilder, "createDetailBadgeRow");
-const detailHeaderHelper = functionBlock(viewBuilder, "createDetailHeader");
-const normalizeDetailBadges = functionBlock(viewBuilder, "normalizeDetailBadges");
-const metadataWriter = functionBlock(taskDialogScript, "writeTaskMetadataRibbon");
-const metadataBadge = functionBlock(taskDialogScript, "createMetadataBadge");
-const requireView = functionBlock(taskDialogScript, "requireTaskDialogView");
-const metadataRibbonField = functionBlock(taskDialogScript, "taskEditorMetadataRibbon");
-const taskRow = functionBlock(tasksScript, "createTaskRow");
-const fallbackSurface = functionBlock(tasksScript, "fallbackTasksViewSurfaceDescriptor");
+const detailBadgeHelper = extractFunctionSpan(viewBuilder, "createDetailBadgeRow");
+const detailHeaderHelper = extractFunctionSpan(viewBuilder, "createDetailHeader");
+const normalizeDetailBadges = extractFunctionSpan(viewBuilder, "normalizeDetailBadges");
+const metadataWriter = extractFunctionSpan(taskDialogScript, "writeTaskMetadataRibbon");
+const metadataBadge = extractFunctionSpan(taskDialogScript, "createMetadataBadge");
+const requireView = extractFunctionSpan(taskDialogScript, "requireTaskDialogView");
+const metadataRibbonField = extractFunctionSpan(taskDialogScript, "taskEditorMetadataRibbon");
+const taskRow = extractFunctionSpan(tasksScript, "createTaskRow");
+const fallbackSurface = extractFunctionSpan(tasksScript, "fallbackTasksViewSurfaceDescriptor");
 
 assert.match(detailBadgeHelper, /className:\s*\["view-detail-badges",\s*"surface-chip-row",\s*options\.className\]/, "Framework should own reusable detail badge row anatomy");
 assert.match(normalizeDetailBadges, /className:\s*"surface-chip"|createDetailBadge\(badge\)/, "Detail badge rows should normalize badges into shared surface chips");
@@ -55,16 +55,3 @@ assert.match(tasksDocs, /0\.33\.5\.18\.10\.3[\s\S]*detail badge row/, "Tasks doc
 assert.match(viewContract, /createDetailBadgeRow/, "View-building contract should document the detail badge row primitive");
 
 console.log("Tasks detail/read panel regression passed.");
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} functionName the name to locate
- */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`function ${functionName}`);
-  assert.notEqual(start, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
-}

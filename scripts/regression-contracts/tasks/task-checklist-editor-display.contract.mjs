@@ -1,4 +1,4 @@
-import { escapeRegExp } from "../../test-support/source-scan.mjs";
+import { escapeRegExp, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
 
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
@@ -10,14 +10,14 @@ const taskDialog = readText("public/js/task-dialog.js");
 const taskService = readText("src/modules/tasks/tasks.service.js");
 const tasksModule = readText("src/modules/tasks/module.js");
 const stylesheet = readText("public/css/longtail-forge.css");
-const checklistAddButton = functionBlock(taskDialog, "taskEditorChecklistAddButton");
-const checklistActionButton = functionBlock(taskDialog, "checklistActionButton");
-const checklistActionIcon = functionBlock(taskDialog, "checklistActionIcon");
-const checklistItemRow = functionBlock(taskDialog, "checklistItemRow");
-const openTaskEditor = functionBlock(taskDialog, "openTaskEditor");
-const attachTaskDetails = functionBlock(taskService, "attachTaskDetails");
-const taskSummaryRow = functionBlock(taskService, "taskSummaryRow");
-const writeChecklistFields = functionBlock(taskDialog, "writeChecklistFields");
+const checklistAddButton = extractFunctionSpan(taskDialog, "taskEditorChecklistAddButton");
+const checklistActionButton = extractFunctionSpan(taskDialog, "checklistActionButton");
+const checklistActionIcon = extractFunctionSpan(taskDialog, "checklistActionIcon");
+const checklistItemRow = extractFunctionSpan(taskDialog, "checklistItemRow");
+const openTaskEditor = extractFunctionSpan(taskDialog, "openTaskEditor");
+const attachTaskDetails = extractFunctionSpan(taskService, "attachTaskDetails");
+const taskSummaryRow = extractFunctionSpan(taskService, "taskSummaryRow");
+const writeChecklistFields = extractFunctionSpan(taskDialog, "writeChecklistFields");
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the checklist editor display version");
 
@@ -121,19 +121,4 @@ function assertPatterns(source, patterns, message) {
   for (const pattern of patterns) {
     assert.match(source, pattern, message);
   }
-}
-
-/**
- * Extract one named function from a source file this module reads, from its
- * declaration to the next top-level function declaration.
- * @param {string} source file text from the shared project text reader
- * @param {string} functionName the name to locate
- */
-function functionBlock(source, functionName) {
-  const start = source.indexOf(`async function ${functionName}`);
-  const fallbackStart = source.indexOf(`function ${functionName}`);
-  const blockStart = start >= 0 ? start : fallbackStart;
-  assert.notEqual(blockStart, -1, `${functionName} should exist`);
-  const nextFunction = source.slice(blockStart + 1).search(/\n(?:async\s+)?function\s+/);
-  return source.slice(blockStart, nextFunction === -1 ? source.length : blockStart + 1 + nextFunction);
 }
