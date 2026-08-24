@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import { readFileSync } from "node:fs";
 import { REGRESSION_BUCKETS, REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
@@ -25,11 +26,22 @@ import { DATA_FILES_SECURITY_STATIC_CONSOLIDATION } from "../../data-files-secur
  * @typedef {{ path: string }} LegacySnapshotScript
  * @typedef {{ decision: string, path: string, rationale: string, resources: Record<string, unknown>, sourceRunMode: string }} StaticAuditEntry
  * @typedef {{ decision: string, fallback: string, path: string, rationale: string, resources: Record<string, unknown> }} StaticExecutionAuditEntry
+ * @typedef {{ entries: FilesAuditEntry[], measurements: { baseline: Record<string, number>, postChange: Record<string, number>, quickWins20260731: Record<string, number>, stress: FilesStressMeasurement[] }, parallelRunMode: string, resourceDimensions: unknown, schemaVersion: number, sourceRunMode: string }} FilesIsolationAudit
+ * @typedef {import("../../lib/static-regression-execution.mjs").StaticExecutionAudit} PublishedStaticExecutionAudit
+ * @typedef {{ baseline: Record<string, number>, postChange: Record<string, number>[] }} StaticFullSuiteMeasurements
+ * @typedef {{ certifiedWorkers: number, fullRuns: Record<string, number>[] }} StaticExecutionMeasurements
+ * @typedef {{ entries: StaticAuditEntry[], execution: PublishedStaticExecutionAudit & { defaultResources: Record<string, string>, entries: StaticExecutionAuditEntry[], measurements: StaticExecutionMeasurements }, fullSuiteMeasurements: StaticFullSuiteMeasurements, measurements: Record<string, number>, resourceDimensions: unknown, schemaVersion: number, targetRunMode: string }} StaticIsolationAudit
+ * @typedef {{ scripts: LegacySnapshotScript[] }} LegacySnapshot
  */
 
-const audit = JSON.parse(readFileSync("scripts/regression-files-isolation-audit.json", "utf8"));
-const staticAudit = JSON.parse(readFileSync("scripts/regression-static-isolation-audit.json", "utf8"));
-const legacySnapshot = JSON.parse(readFileSync("scripts/regression-legacy-snapshot.json", "utf8"));
+// Three generated audits, all parsed JSON. Each crosses the boundary through
+// the shared record narrowing and names only what this owner asserts on.
+/** @type {FilesIsolationAudit} */
+const audit = requireJsonRecord(JSON.parse(readFileSync("scripts/regression-files-isolation-audit.json", "utf8")), "scripts/regression-files-isolation-audit.json");
+/** @type {StaticIsolationAudit} */
+const staticAudit = requireJsonRecord(JSON.parse(readFileSync("scripts/regression-static-isolation-audit.json", "utf8")), "scripts/regression-static-isolation-audit.json");
+/** @type {LegacySnapshot} */
+const legacySnapshot = requireJsonRecord(JSON.parse(readFileSync("scripts/regression-legacy-snapshot.json", "utf8")), "scripts/regression-legacy-snapshot.json");
 const runner = readFileSync("scripts/run-regressions.mjs", "utf8");
 const staticExecution = readFileSync("scripts/lib/static-regression-execution.mjs", "utf8");
 const scheduler = readFileSync("scripts/test-support/regression-runner-scheduler.mjs", "utf8");

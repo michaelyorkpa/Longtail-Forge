@@ -9,6 +9,7 @@ export const regressionMeta = Object.freeze({
 
 import { escapeRegExp } from "../../test-support/source-scan.mjs";
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import vm from "node:vm";
@@ -22,7 +23,10 @@ const fixture = await createDisposableDatabaseFixture("asset-cache-version-regre
 const { modulesService } = await import("../../../src/core/modules/modules.service.js");
 const { staticService } = await import("../../../src/services/static.service.js");
 
-const baseline = JSON.parse(await fs.readFile("scripts/asset-cache-legacy-baseline.json", "utf8"));
+// The frozen baseline is parsed JSON. Its shape is already published by the
+// guard library that consumes it, so it is named rather than restated.
+/** @type {import("../../lib/asset-cache-guard.mjs").LegacyAssetBaseline} */
+const baseline = requireJsonRecord(JSON.parse(await fs.readFile("scripts/asset-cache-legacy-baseline.json", "utf8")), "scripts/asset-cache-legacy-baseline.json");
 const liveFindings = await collectRawAssetVersionReferences();
 
 assert.equal(liveFindings.size, 0, "active source must not contain raw .css?v=/.js?v= cache keys (the inert-key retirement may only stay empty)");

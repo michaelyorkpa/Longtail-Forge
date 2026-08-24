@@ -9,14 +9,23 @@ export const regressionMeta = Object.freeze({
 
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
-import { strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
+import { strictCleanOwnerProgram, strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
 
 const migrationSource = await fs.readFile("src/db/migrations.js", "utf8");
-const typecheckLedger = JSON.parse(await fs.readFile("scripts/typecheck-debt-ledger.json", "utf8"));
 
-assert.deepEqual(strictCleanOwnerState("src/db/migrations.js"), { owned: true, diagnostics: 0 });
-assert.ok(typecheckLedger.programs["server-tests"].files.includes("src/db/migrations.js"));
-assert.equal(typecheckLedger.programs["server-tests"].diagnostics["src/db/migrations.js"], undefined);
+// The shared probe answers both questions this owner used to also ask by
+// hand of the raw ledger: whether a checked program owns the file, and
+// whether it carries any strict diagnostic there.
+assert.deepEqual(
+  strictCleanOwnerState("src/db/migrations.js"),
+  { owned: true, diagnostics: 0 },
+  "the migration runner must stay owned by a checked program and strict-clean",
+);
+assert.equal(
+  strictCleanOwnerProgram("src/db/migrations.js"),
+  "server-tests",
+  "the migration runner is server source and must stay in the server/test program",
+);
 assert.doesNotMatch(migrationSource, /@ts-(?:ignore|expect-error)|\bany\b|as unknown as/);
 
 for (const contractName of [

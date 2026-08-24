@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -25,8 +26,19 @@ import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 
 /** @typedef {import("../../lib/regression-discovery.mjs").RegressionSuiteBucket} RegressionSuiteBucket */
 
-const legacySnapshot = JSON.parse(await fs.readFile("scripts/regression-legacy-snapshot.json", "utf8"));
-const coveragePolicy = JSON.parse(await fs.readFile("scripts/regression-coverage-exceptions.json", "utf8"));
+/**
+ * The generated snapshot and policy fields this owner reads. Both are parsed
+ * JSON, so they enter through the shared record narrowing and name only what
+ * is asserted here rather than claiming a whole schema.
+ * @typedef {{ path: string }} LegacySnapshotScript
+ * @typedef {{ scripts: LegacySnapshotScript[] }} LegacySnapshot
+ * @typedef {{ legacyMetadataException: { maximumScripts: number } }} CoveragePolicy
+ */
+
+/** @type {LegacySnapshot} */
+const legacySnapshot = requireJsonRecord(JSON.parse(await fs.readFile("scripts/regression-legacy-snapshot.json", "utf8")), "scripts/regression-legacy-snapshot.json");
+/** @type {CoveragePolicy} */
+const coveragePolicy = requireJsonRecord(JSON.parse(await fs.readFile("scripts/regression-coverage-exceptions.json", "utf8")), "scripts/regression-coverage-exceptions.json");
 const discoveredPaths = new Set(REGRESSION_ENTRIES.map((entry) => entry.path));
 
 assert.ok(

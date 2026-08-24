@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -96,7 +97,7 @@ async function exerciseSuccessfulActivation(dataRoot) {
   assert.equal((await operate("finalize", dataRoot, operationId)).status, "activation-finalized");
   await assert.rejects(() => fs.access(path.join(dataRoot, PUBLIC_DEMO_ACTIVE_OPERATION)));
   const retained = path.join(dataRoot, `${PUBLIC_DEMO_PREVIOUS_PREFIX}${operationId}`);
-  assert.equal(JSON.parse(await fs.readFile(path.join(retained, "reset-operation.json"), "utf8")).phase, "completed");
+  assert.equal(await readOperationPhase(retained), "completed");
 }
 
 /** @param {string} dataRoot */
@@ -114,7 +115,7 @@ async function exerciseActivatedRecovery(dataRoot) {
     assert.equal(await fs.readFile(path.join(dataRoot, sidecar), "utf8"), `old-${sidecar}`);
     assert.equal(await fs.readFile(path.join(failed, sidecar), "utf8"), "new-" + sidecar);
   }
-  assert.equal(JSON.parse(await fs.readFile(path.join(failed, "reset-operation.json"), "utf8")).phase, "recovered");
+  assert.equal(await readOperationPhase(failed), "recovered");
   await assert.rejects(() => fs.access(path.join(dataRoot, PUBLIC_DEMO_ACTIVE_OPERATION)));
 }
 
@@ -185,9 +186,25 @@ async function exerciseInterruptedFinalization(dataRoot) {
   assert.equal((await operate("recover", dataRoot)).status, "completed-activation-reconciled");
   assert.equal(await readLabel(dataRoot), "new");
   const retained = path.join(dataRoot, `${PUBLIC_DEMO_PREVIOUS_PREFIX}${operationId}`);
-  assert.equal(JSON.parse(await fs.readFile(path.join(retained, "reset-operation.json"), "utf8")).phase, "completed");
+  assert.equal(await readOperationPhase(retained), "completed");
 }
 
+/**
+ * Read the phase off one retained or failed reset operation's marker.
+ *
+ * The marker is parsed JSON written by the reset operation itself, so it
+ * crosses the boundary here once rather than at each of the four assertions
+ * that used to read the field straight off JSON.parse.
+ * @param {string} operationDirectory
+ * @returns {Promise<unknown>} the recorded phase
+ */
+async function readOperationPhase(operationDirectory) {
+  const marker = requireJsonRecord(
+    JSON.parse(await fs.readFile(path.join(operationDirectory, "reset-operation.json"), "utf8")),
+    `${operationDirectory} reset-operation.json`,
+  );
+  return marker.phase;
+}
 /** @param {string} dataRoot */
 async function exerciseInterruptedRecoveryArchive(dataRoot) {
   const operationId = "20260807T120006Z-reset-recovery-archive";
@@ -202,7 +219,7 @@ async function exerciseInterruptedRecoveryArchive(dataRoot) {
   );
   assert.equal((await operate("recover", dataRoot)).status, "recovered-activation-reconciled");
   assert.equal(await readLabel(dataRoot), "old");
-  assert.equal(JSON.parse(await fs.readFile(path.join(failed, "reset-operation.json"), "utf8")).phase, "recovered");
+  assert.equal(await readOperationPhase(failed), "recovered");
 }
 
 /** @param {string} dataRoot */

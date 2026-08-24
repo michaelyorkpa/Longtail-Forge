@@ -18,6 +18,7 @@ import {
   validateShrinkOnly,
 } from "../../typecheck-governance.mjs";
 import { compareDottedVersions } from "../../lib/roadmap-cursor.mjs";
+import { strictCleanOwnerProgram, strictCleanOwnerState } from "../../test-support/typecheck-ledger.mjs";
 
 /** @typedef {{ code: number, count: number }} DiagnosticCount */
 /** @typedef {{ config: string, environment: string, files: string[], errorCount: number, diagnostics: Record<string, DiagnosticCount[]> }} ProgramState */
@@ -1509,6 +1510,50 @@ assert.equal(
   fs.readFileSync("scripts/lib/regression-change-routing.mjs", "utf8").includes(roundTripClone),
   false,
   "scripts/lib/regression-change-routing.mjs must not reintroduce the round-trip clone that widened its unknown inputs",
+);
+// 0.33.33.32.28.3.1 narrowed the generated policy, ledger, and audit reads.
+// Every one of these owners parses a file this repository itself writes, and
+// must keep crossing that boundary through a shared narrowing - or, where the
+// estate already publishes a probe for the artefact, through the probe.
+for (const generatedOwner of [
+  "scripts/regression-contracts/database/migration-runner-checked-boundary.contract.mjs",
+  "scripts/regressions/framework/asset-cache-version.regression.mjs",
+  "scripts/regressions/release/files-regression-isolation-audit.regression.mjs",
+  "scripts/regressions/release/public-demo-compose-reset.regression.mjs",
+  "scripts/regressions/release/regression-baseline-bypass-audit.regression.mjs",
+  "scripts/regressions/release/regression-discovery-runner.regression.mjs",
+  "scripts/regressions/release/regression-routing-commands.regression.mjs",
+  "scripts/test-support/typecheck-ledger.mjs",
+]) {
+  const source = fs.readFileSync(generatedOwner, "utf8");
+  assert.ok(
+    ["requireJsonRecord", "strictCleanOwnerState", "strictCleanOwnerProgram"].some((narrowing) => source.includes(narrowing)),
+    `${generatedOwner} parses a generated artefact and must narrow it through a shared assertion helper or read it through the shared probe`,
+  );
+}
+// The strict-ledger probe is now what several owners read the ledger through
+// rather than parsing it themselves, so its own behaviour is proven here
+// rather than assumed. A probe nothing checks is the same hazard as a
+// detector nothing checks.
+assert.deepEqual(
+  strictCleanOwnerState("src/db/migrations.js"),
+  { owned: true, diagnostics: 0 },
+  "the strict-ledger probe should report a checked, strict-clean file as owned with no diagnostics",
+);
+assert.deepEqual(
+  strictCleanOwnerState("src/db/this-file-does-not-exist.js"),
+  { owned: false, diagnostics: 0 },
+  "the strict-ledger probe should report an unknown path as unowned rather than throwing",
+);
+assert.equal(
+  strictCleanOwnerProgram("src/db/migrations.js"),
+  "server-tests",
+  "the strict-ledger probe should name the program that owns a file",
+);
+assert.equal(
+  strictCleanOwnerProgram("src/db/this-file-does-not-exist.js"),
+  null,
+  "the strict-ledger probe should answer null for a path no program owns",
 );
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 

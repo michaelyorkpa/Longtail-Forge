@@ -8,6 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
 import { readFileSync } from "node:fs";
 import {
   AREA_COMMANDS,
@@ -20,11 +21,15 @@ import { CANONICAL_REGRESSION_AREAS } from "../../lib/regression-metadata.mjs";
  * Recorded routing tables and the generated coverage-manifest row this owner
  * reads, named once so every table entry keeps its exact declared shape.
  * @typedef {{ area: string, path: string }} ManifestRegression
+ * @typedef {{ regressions: ManifestRegression[] }} CoverageManifest
  * @typedef {readonly [string, readonly string[], readonly string[], boolean]} PositiveRoute
  * @typedef {readonly [string, readonly string[], readonly string[]]} AdditiveRoute
  */
 
-const manifest = JSON.parse(readFileSync("scripts/regression-coverage-manifest.json", "utf8"));
+// The generated coverage manifest is parsed JSON; it enters through the
+// shared record narrowing and names only the rows this owner routes on.
+/** @type {CoverageManifest} */
+const manifest = requireJsonRecord(JSON.parse(readFileSync("scripts/regression-coverage-manifest.json", "utf8")), "scripts/regression-coverage-manifest.json");
 
 assert.deepEqual(Object.keys(AREA_COMMANDS).sort(), [...CANONICAL_REGRESSION_AREAS].sort(), "every canonical area must expose one package command");
 for (const [area, _command] of Object.entries(AREA_COMMANDS)) {

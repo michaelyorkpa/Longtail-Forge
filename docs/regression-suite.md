@@ -502,11 +502,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 347 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18735 |
+| Active regression assertions | 18739 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 74 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 19549 |
+| Effective assertion floor | 19553 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |
