@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.20` have since archived, closing 2,507 diagnostics across 126 files and leaving 636 across 76; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.21` have since archived, closing 2,629 diagnostics across 132 files and leaving 514 across 70; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.21` | Clients/Projects read anatomy and descriptor host | 122 | 6 | 1,363 |
 | `.32.22` | Clients/Projects hierarchy, repositories, assignment | 141 | 5 | 2,004 |
 | `.32.23` | Shared linked-context pickers and labels | 75 | 6 | 1,657 |
 | `.32.24` | View descriptor, app shell, module action owners | 124 | 10 | 1,723 |
@@ -99,17 +98,6 @@ Requirements shared by every child:
 
 
 
-
-#### 0.33.33.32.21 - Type Clients and Projects read anatomy and descriptor host
-
-**Model: High Effort - The read anatomy owner is the framework-versus-module boundary proof for this module.**
-
-Measured at 122 diagnostics across 6 files and 1,363 lines. No `JSON.parse`; one history-pinned owner.
-
-- [ ] Close the 122 diagnostics across `clients-projects-framework-read-anatomy`, `clients-projects-read-descriptor-host`, `clients-projects-strict-closeout`, `client-projects-canonical-payload`, `clients-projects-related-regions`, and `clients-projects-bulk-toolbar`.
-- [ ] Type descriptor host inputs, read anatomy regions, canonical payloads, and related-region records with named contracts.
-- [ ] Preserve the framework-owned anatomy versus module-owned data boundary, descriptor host null-and-skip behaviour, canonical payload field set, and bulk toolbar gating exactly.
-- [ ] Do not weaken the anatomy assertions to satisfy the compiler; this owner is the standing proof for the boundary `DECISIONS.md` records.
 
 #### 0.33.33.32.22 - Type Clients and Projects hierarchy, repositories, and assignment
 
@@ -196,6 +184,14 @@ Runs after `0.33.33.32.27`. This child has no diagnostics of its own, which is n
   - `SearchPermissionTarget` carries `[key: string]: unknown`, so `target.fields` — always built by `composePermissionSafeSearchRequest` from the validated declaration, with ten known members — reads as `unknown`.
   - The `searchTargets` finding has since been confirmed twice more. `0.33.33.32.20` narrowed the same open list locally in two Help owners, which now makes four owners across three children carrying a private record proof for one normalizing producer. That duplication is itself the evidence that the contract belongs in `src/types/`.
   - `SearchReference` was the third finding. `0.33.33.32.19` owned both of its producers and resolved it there: the base contract still describes what every indexer can rely on, and the new `SearchRecordIndexerReference` describes what `reindexSearchRecord` always publishes. Nothing is left for this child.
+- [ ] **Determine whether `SessionSeed` should become a truthful structural input contract.** `src/security/session-records.js` declares `prepareSessionRecord`'s input as `SessionSeed = Record<string, unknown>`, and `createSession` inherits it through `Parameters<typeof prepareSessionRecord>[0]`. The helper does not consume an open record: it reads exactly eight named fields — `active_workspace_id`, `home_workspace_id`, `user_id`, `username`, `timezone`, `ip_address`, `session_mode`, and `support_session_id` — and passes each through `sessionText`, `nullableSessionText`, or `normalizeTimezone`, all of which accept `unknown`. So the truthful input contract is those eight fields, each optional and each `unknown`-valued, and nothing else.
+  - The cost of the current declaration is paid at every call site that seeds a real session. `workspaceSessionFixture` answers `WorkspaceRequestSession & { display_name?: string }`, an interface intersection with no implicit index signature, so it is not assignable to `Record<string, unknown>` and each owner writes `createSession({ ...session })` to launder it through an object literal. Three owners carry that spread today — `notes-search-help`, `help-search`, and `help-workflow` — and the seam recurs in every owner typed hereafter that seeds a session from the shared fixture, so the count is expected to grow through `0.33.33.32.21` to `0.33.33.32.27`.
+  - **Do not add an index signature to `WorkspaceRequestSession` to satisfy the current annotation.** That would reopen a precise published session contract to make an imprecise helper annotation work, which is the `0.33.33.31.6.1` failure exactly: the helper's wrong contract forcing compensating changes on its callers. The correction, if this audit confirms it, belongs on `SessionSeed`.
+  - Confirm the write-input reading before changing anything, as `0.33.33.32.7` established for `TimeEntryWriteInput` and `0.33.33.32.19` for `SearchRecordIndexerReference`: check every production caller of `createSession` and `prepareSessionRecord`, not only the regression owners, and verify that none passes a field the eight-field contract would reject. If a production caller legitimately passes more, the open record is right and the spreads stay — record that finding rather than forcing the change.
+- [ ] **Disposition the retired scripts that are still on disk.** `0.33.33.32.21` measured this while inventorying its own pins: the manifest lists **19 retired script entries, 14 of which still exist under `scripts/`**. Twelve of those fourteen still contain `ROADMAP.md` or `CHANGELOG.md` reads, and the pin baseline excludes every one of them by construction, because its scan walks discovered manifest entries and a retired script is not discovered. This is the third blind-spot class in that scan, after the cursor-floor callers `0.33.33.32.14` found.
+  - The release acceptance is written about *active* regressions, and these are not active — `clients-projects-strict-closeout-regression.mjs` cannot even run, because it selects no disposable database and the regression-database safety guard refuses it before its first import. So the acceptance is not currently violated. The question this child owes is whether twelve dead files carrying dead planning-document pins should keep sitting in `scripts/`, not whether they breach a gate.
+  - Three of the fourteen still contribute diagnostics to the scripts program, so `0.33.33.32.28.1` cannot reach a permanent strict zero while ignoring them: they are either typed or deleted. `0.33.33.32.21` typed the one inside its own measured cohort rather than widen its scope; the remaining two belong to whichever child measures them.
+  - Prefer deletion to typing where the file is genuinely unreachable, and record each deletion against the retirement entry that already documents where its coverage went. Do not silently delete a file whose retirement record does not name a continuing owner.
 - [ ] Change no production behaviour. Type annotations, contract reconciliation, and boundary narrowing are in scope; runtime behaviour, routes, fixtures, and new regression owners are not.
 
 #### 0.33.33.32.28.1 - Prove the scripts program permanently strict-zero
