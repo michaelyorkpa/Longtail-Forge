@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import { requirePackageLock, requirePackageManifest } from "./test-support/package-manifest-assertions.mjs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
@@ -10,8 +11,8 @@ import Database from "better-sqlite3";
 
 const root = process.cwd();
 const require = createRequire(import.meta.url);
-const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
-const packageLock = JSON.parse(await fs.readFile(path.join(root, "package-lock.json"), "utf8"));
+const packageJson = requirePackageManifest(JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8")));
+const packageLock = requirePackageLock(JSON.parse(await fs.readFile(path.join(root, "package-lock.json"), "utf8")));
 const driverPackage = require("better-sqlite3/package.json");
 const driverRoot = path.dirname(require.resolve("better-sqlite3/package.json"));
 const selectedPlatformTarget = resolveSelectedPlatformTarget();

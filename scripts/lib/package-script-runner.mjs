@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { requirePackageManifest } from "../test-support/package-manifest-assertions.mjs";
 
-const packageJson = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
+const packageJson = requirePackageManifest(JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")));
 /** @type {Readonly<Record<string, string>>} */
 const PACKAGE_SCRIPTS = Object.freeze({ ...packageJson.scripts });
 

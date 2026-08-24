@@ -8,16 +8,17 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireDependencies, requireDevDependencies, requireEngines, requireLockEntry, requireLockPackages, requirePackageLock, requirePackageManifest } from "../../test-support/package-manifest-assertions.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { readRuntimeSourceEntries } from "../../test-support/source-scan.mjs";
 
-const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
-const packageLock = JSON.parse(readFileSync("package-lock.json", "utf8"));
-const rootLock = packageLock.packages[""];
-const playwrightTestLock = packageLock.packages["node_modules/@playwright/test"];
-const playwrightLock = packageLock.packages["node_modules/playwright"];
-const playwrightCoreLock = packageLock.packages["node_modules/playwright-core"];
+const packageJson = requirePackageManifest(JSON.parse(readFileSync("package.json", "utf8")));
+const packageLock = requirePackageLock(JSON.parse(readFileSync("package-lock.json", "utf8")));
+const rootLock = requireLockEntry(packageLock, "");
+const playwrightTestLock = requireLockEntry(packageLock, "node_modules/@playwright/test");
+const playwrightLock = requireLockEntry(packageLock, "node_modules/playwright");
+const playwrightCoreLock = requireLockEntry(packageLock, "node_modules/playwright-core");
 const dependencies = packageJson.dependencies || {};
 const devDependencies = packageJson.devDependencies || {};
 const scripts = packageJson.scripts || {};
@@ -26,18 +27,18 @@ const scripts = packageJson.scripts || {};
 // dependencies.
 assert.equal(devDependencies["@playwright/test"], "^1.62.1", "@playwright/test must use the reviewed 1.62.1 development baseline");
 assert.equal(dependencies["@playwright/test"], undefined, "@playwright/test must never ship as a runtime dependency");
-assert.equal(rootLock.devDependencies["@playwright/test"], "^1.62.1", "the lockfile root should match the Playwright package contract");
+assert.equal(requireDevDependencies(rootLock, "package-lock.json root")["@playwright/test"], "^1.62.1", "the lockfile root should match the Playwright package contract");
 assert.equal(playwrightTestLock.version, "1.62.1", "@playwright/test should resolve to the reviewed 1.62.1 baseline");
 assert.equal(playwrightTestLock.dev, true, "@playwright/test must remain development-only in the resolved graph");
-assert.equal(playwrightTestLock.dependencies.playwright, "1.62.1", "@playwright/test should depend on the matching Playwright runtime");
-assert.equal(playwrightTestLock.engines.node, ">=20", "Playwright's Node floor must remain compatible with the repository's Node 24 line");
+assert.equal(requireDependencies(playwrightTestLock, "@playwright/test lock entry").playwright, "1.62.1", "@playwright/test should depend on the matching Playwright runtime");
+assert.equal(requireEngines(playwrightTestLock, "@playwright/test lock entry").node, ">=20", "Playwright's Node floor must remain compatible with the repository's Node 24 line");
 assert.equal(playwrightLock.version, "1.62.1", "playwright should resolve to the reviewed 1.62.1 baseline");
 assert.equal(playwrightLock.dev, true, "playwright must remain development-only in the resolved graph");
-assert.equal(playwrightLock.dependencies["playwright-core"], "1.62.1", "playwright should depend on the matching core runtime");
+assert.equal(requireDependencies(playwrightLock, "playwright lock entry")["playwright-core"], "1.62.1", "playwright should depend on the matching core runtime");
 assert.equal(playwrightCoreLock.version, "1.62.1", "playwright-core should resolve to the reviewed 1.62.1 baseline");
 assert.equal(playwrightCoreLock.dev, true, "playwright-core must remain development-only in the resolved graph");
 assert.deepEqual(
-  Object.keys(packageLock.packages).filter((name) => /(?:experimental-ct|playwright-ct)/i.test(name)),
+  Object.keys(requireLockPackages(packageLock)).filter((name) => /(?:experimental-ct|playwright-ct)/i.test(name)),
   [],
   "the component-testing package family must not enter the resolved graph",
 );

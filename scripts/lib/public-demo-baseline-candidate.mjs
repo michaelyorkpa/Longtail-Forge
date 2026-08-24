@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
+import { requireJsonRecord } from "../test-support/json-record-assertions.mjs";
+import { requireManifestString, requirePackageManifest } from "../test-support/package-manifest-assertions.mjs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { verifyPassword } from "../../src/security/passwords.js";
@@ -332,7 +334,7 @@ async function preparePublicDemoCandidateContext({
     label: "public-demo role credential configuration",
     requireRoot,
   });
-  const packageJson = JSON.parse(await fs.readFile(path.join(resolvedReleaseDir, "package.json"), "utf8"));
+  const packageJson = requirePackageManifest(JSON.parse(await fs.readFile(path.join(resolvedReleaseDir, "package.json"), "utf8")));
   const roleFixtures = /** @type {SanitizedRoleFixtures} */ (await loadSanitizedDemoRoleFixtures({
     credentialBinding: RT_LTF_DEMO_ROLE_FIXTURE_BINDING,
     env: {
@@ -350,7 +352,7 @@ async function preparePublicDemoCandidateContext({
   await assertCandidateState(paths, { allowCandidate: action === "validate" });
   if (action === "validate") await assertRealDirectory(paths.candidateRoot, "public-demo candidate root");
   return Object.freeze({
-    appVersion: packageJson.version,
+    appVersion: requireManifestString(packageJson, "version", "release package.json"),
     forbiddenValues,
     paths,
     releaseDir: resolvedReleaseDir,
@@ -742,7 +744,12 @@ function assertCandidateMarker(marker, { anchorDate, appVersion, migrationIdenti
  */
 async function readCandidateMarker(markerFile) {
   try {
-    return JSON.parse(await fs.readFile(markerFile, "utf8"));
+    // The marker enters as a record rather than as `any`; the contract,
+    // candidate-contract, and target members it is read for are proven by the
+    // ownership check below, which is what its declared shape rests on.
+    return /** @type {PublicDemoCandidateMarker} */ (
+      requireJsonRecord(JSON.parse(await fs.readFile(markerFile, "utf8")), "public-demo candidate ownership marker")
+    );
   } catch {
     throw new Error("Public-demo candidate ownership marker is unreadable or invalid.");
   }

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { requirePackageManifest } from "../test-support/package-manifest-assertions.mjs";
 import { DATA_FILES_SECURITY_STATIC_CONSOLIDATION } from "../data-files-security-static-consolidation.mjs";
 import { FRAMEWORK_VIEW_STATIC_CONSOLIDATION } from "../framework-view-static-consolidation.mjs";
 import { WORKFLOW_MODULE_STATIC_CONSOLIDATION } from "../workflow-module-static-consolidation.mjs";
@@ -101,7 +102,10 @@ function generatedContentMatches(actual, expected) {
  * @returns {T}
  */
 function cloneJson(value) {
-  return JSON.parse(JSON.stringify(value));
+  // A round trip through the JSON serializer answers `any`, which satisfies
+  // the declared `T` without ever proving it. structuredClone keeps the clone
+  // and drops the widening.
+  return structuredClone(value);
 }
 
 /**
@@ -900,7 +904,7 @@ function vitestRunsInCheckFast(packageScripts) {
  * @returns {Record<string, string>}
  */
 function readPackageScripts() {
-  return JSON.parse(readFileSync("package.json", "utf8")).scripts || {};
+  return requirePackageManifest(JSON.parse(readFileSync("package.json", "utf8"))).scripts || {};
 }
 
 /**

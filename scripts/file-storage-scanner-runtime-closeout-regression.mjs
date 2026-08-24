@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 
 import { assertRoadmapCursorAtLeast } from "./lib/roadmap-cursor.mjs";
+import { requireDependencies, requirePackageManifest } from "./test-support/package-manifest-assertions.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
-const packageJson = JSON.parse(readText("package.json"));
+const packageJson = requirePackageManifest(JSON.parse(readText("package.json")));
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const runtimeDocs = readText("docs/runtime-configuration.md");
@@ -15,7 +16,7 @@ const moduleContract = readText("docs/module-contract.md");
 const moduleDevelopment = readText("docs/module-development.md");
 const envExample = readText(".env.example");
 
-assert.equal(Boolean(packageJson.dependencies.busboy), true, "Busboy should remain the multipart parser dependency");
+assert.equal(Boolean(requireDependencies(packageJson).busboy), true, "Busboy should remain the multipart parser dependency");
 assert.equal(Object.keys(packageJson.dependencies || {}).some((name) => /aws-sdk|client-s3/i.test(name)), false, "the branch should not add an S3 SDK dependency");
 
 assert.doesNotMatch(

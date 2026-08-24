@@ -8,6 +8,8 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { requireJsonRecord } from "../../test-support/json-record-assertions.mjs";
+import { requireDependencies, requireDevDependencies, requirePackageManifest, requireScripts } from "../../test-support/package-manifest-assertions.mjs";
 import { existsSync, statSync } from "node:fs";
 import { REGRESSION_ENTRIES } from "../../regression-suite.mjs";
 import { createProjectTextReader, escapeRegExp, sourceContainsInOrder } from "../../test-support/source-scan.mjs";
@@ -22,8 +24,8 @@ import { createProjectTextReader, escapeRegExp, sourceContainsInOrder } from "..
  */
 
 const { readJson, readText } = createProjectTextReader();
-const packageJson = JSON.parse(readText("package.json"));
-const scripts = packageJson.scripts;
+const packageJson = requirePackageManifest(JSON.parse(readText("package.json")));
+const scripts = requireScripts(packageJson);
 const consolidation = readJson("scripts/current-static-contract-consolidation.json");
 const coveragePolicy = readJson("scripts/regression-coverage-exceptions.json");
 
@@ -206,13 +208,17 @@ for (const testFile of [
 ]) assert.ok(statSync(testFile).isFile(), `${testFile} must remain in the fast unit suite`);
 
 assert.equal(existsSync("scripts/check-js.mjs"), false, "the duplicate syntax subprocess must stay retired");
-const legacySnapshot = JSON.parse(readText("scripts/regression-legacy-snapshot.json"));
-assert.ok(!legacySnapshot.scripts.some((/** @type {LegacySnapshotScript} */ { path }) => path === "scripts/check-js.mjs"));
-assert.ok(packageJson.devDependencies.typescript);
-assert.ok(packageJson.devDependencies.vitest);
-assert.ok(packageJson.dependencies.zod);
-assert.equal(packageJson.dependencies.typescript, undefined);
-assert.equal(packageJson.dependencies.vitest, undefined);
+const legacySnapshot = requireJsonRecord(JSON.parse(readText("scripts/regression-legacy-snapshot.json")), "regression legacy snapshot");
+// The snapshot is a checked-in baseline; the one member this owner reads is
+// proven to be the array it walks rather than indexed through unknown.
+const legacyScripts = legacySnapshot.scripts;
+assert.ok(Array.isArray(legacyScripts), "regression legacy snapshot should carry a scripts array");
+assert.ok(!legacyScripts.some((/** @type {LegacySnapshotScript} */ { path }) => path === "scripts/check-js.mjs"));
+assert.ok(requireDevDependencies(packageJson).typescript);
+assert.ok(requireDevDependencies(packageJson).vitest);
+assert.ok(requireDependencies(packageJson).zod);
+assert.equal(requireDependencies(packageJson).typescript, undefined);
+assert.equal(requireDependencies(packageJson).vitest, undefined);
 assert.equal(scripts["bare-metal:smoke"], undefined);
 
 const composeHelper = readText("scripts/release/longtail-forge-compose-deploy-host.example");

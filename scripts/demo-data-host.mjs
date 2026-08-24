@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from "node:fs/promises";
+import { requireManifestString, requirePackageManifest } from "./test-support/package-manifest-assertions.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_HELPER_ENV, assertProtectedFile, parseDemoDataArgs, parseDemoHelperConfig, prepareDemoHostContext, redactDemoError, resolveDemoPaths, runDemoDataOperation } from "./lib/demo-data-operation.mjs";
@@ -41,11 +42,11 @@ if (invokedScriptPath === scriptPath) {
       .filter(([key]) => /(PASSWORD|SECRET|TOKEN|MASTER_KEY|PRIVATE_KEY)/.test(key))
       .map(([, value]) => value));
     redactions.push(...[...roleFixtures.credentials.values()].map((fixture) => fixture.password));
-    const packageJson = JSON.parse(await fs.readFile(path.join(releaseDir, "package.json"), "utf8"));
+    const packageJson = requirePackageManifest(JSON.parse(await fs.readFile(path.join(releaseDir, "package.json"), "utf8")));
     const result = await runDemoDataOperation({
       ...args,
       appEnvironment,
-      appVersion: packageJson.version,
+      appVersion: requireManifestString(packageJson, "version", "release package.json"),
       config,
       paths,
       releaseDir,
