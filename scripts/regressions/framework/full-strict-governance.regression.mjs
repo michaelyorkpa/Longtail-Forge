@@ -1105,9 +1105,22 @@ for (const hierarchyOwner of [
 ]) {
   assert.equal(ledger.programs.scripts.diagnostics[hierarchyOwner], undefined, `${hierarchyOwner} must stay strict-clean after checkpoint 0.33.33.32.22`);
 }
-// Six owners built session records naming `ip` where every published session
-// contract names `ip_address`, so each set a field nothing reads and omitted
-// the one the contract declares. All of them seed through the shared fixture.
+// No published session contract declares a bare `ip` member; every one names
+// `ip_address`. Fixtures that set `ip` therefore set a field nothing reads and
+// omit the field the contract declares, and a double cast to the session type
+// hides that from the checker. 0.33.33.32.21 and 0.33.33.32.22 found seven such
+// fixtures in one module family; 0.33.33.32.22.1 audited the estate, classified
+// every remaining `ip:` member by its receiving contract, found seven more that
+// were all session-shaped, and corrected them. This guard is estate-wide rather
+// than a list of owners so the class cannot reopen anywhere.
+for (const scriptPath of discoveredScriptPaths()) {
+  const source = fs.readFileSync(scriptPath, "utf8");
+  assert.equal(
+    /^\s*ip: /m.test(source),
+    false,
+    `${scriptPath} must not set the misnamed ip session field; published session contracts name ip_address`,
+  );
+}
 for (const sessionOwner of [
   "scripts/client-project-hierarchy-branch-closeout-regression.mjs",
   "scripts/client-projects-bugfix-regression.mjs",
@@ -1117,7 +1130,6 @@ for (const sessionOwner of [
 ]) {
   const source = fs.readFileSync(sessionOwner, "utf8");
   assert.ok(source.includes("workspaceSessionFixture"), `${sessionOwner} should seed sessions through the shared workspace session fixture`);
-  assert.equal(/^\s*ip: "/m.test(source), false, `${sessionOwner} must not reintroduce the misnamed ip session field`);
 }
 // The Clients/Projects audit metadata is a JSON-bearing database column, so it
 // is proven to be text and narrowed to a record before the recorded action is
@@ -1142,6 +1154,17 @@ for (const budgetOwner of [
 }
 
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
+
+/**
+ * Every first-party script the scripts program checks.
+ *
+ * Read from the ledger's own file list so the sweep cannot drift from the
+ * program it governs, and so a new script is covered the moment it exists.
+ * @returns {string[]}
+ */
+function discoveredScriptPaths() {
+  return ledger.programs.scripts.files.filter((filePath) => filePath.endsWith(".mjs"));
+}
 
 /** @returns {GovernanceLedger} */
 function cloneLedger() {

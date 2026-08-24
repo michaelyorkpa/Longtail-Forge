@@ -14,6 +14,7 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 
 /** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TasksSession */
 
@@ -38,14 +39,7 @@ FROM users
 WHERE protected_user = 'yes'
 LIMIT 1;
 `))[0];
-  const session = /** @type {import("../../../src/types/task-server-contracts.d.ts").TaskServerSession} */ (/** @type {unknown} */ ({
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  }));
+  const session = workspaceSessionFixture(user);
 
   for (let index = 0; index < 30; index += 1) {
     await tasksService.create({
