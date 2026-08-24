@@ -58,6 +58,7 @@ assert.match(workbenchScript, /src: "js\/clients-projects\.js"/, "Workbench shou
 
 console.log("Clients/Projects bulk toolbar regression passed.");
 
+/** @param {string} source @param {string} functionName @returns {string} */
 function readFunctionBody(source, functionName) {
   const markers = [`function ${functionName}(`, `async function ${functionName}(`];
   const start = markers

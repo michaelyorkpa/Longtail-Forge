@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18722,
+    "activeAssertionCount": 18738,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19470,
+    "effectiveAssertionCount": 19486,
     "retiredAssertionCredit": 79,
     "vitest": [
       {
@@ -1531,11 +1531,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 27,
+      "assertionCount": 26,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy client projects canonical payload contract.",
-      "entryPointAssertionCount": 27,
+      "entryPointAssertionCount": 26,
       "id": "legacy.client.projects.canonical.payload",
       "legacy": true,
       "path": "scripts/client-projects-canonical-payload-regression.mjs",
@@ -1595,11 +1595,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 57,
+      "assertionCount": 63,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy clients projects framework read anatomy contract.",
-      "entryPointAssertionCount": 57,
+      "entryPointAssertionCount": 63,
       "id": "legacy.clients.projects.framework.read.anatomy",
       "legacy": true,
       "path": "scripts/clients-projects-framework-read-anatomy-regression.mjs",
@@ -1625,11 +1625,11 @@
     },
     {
       "area": "views",
-      "assertionCount": 62,
+      "assertionCount": 70,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy clients projects read descriptor host contract.",
-      "entryPointAssertionCount": 62,
+      "entryPointAssertionCount": 70,
       "id": "legacy.clients.projects.read.descriptor.host",
       "legacy": true,
       "path": "scripts/clients-projects-read-descriptor-host-regression.mjs",
@@ -4508,11 +4508,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 178,
+      "assertionCount": 181,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 178,
+      "entryPointAssertionCount": 181,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",

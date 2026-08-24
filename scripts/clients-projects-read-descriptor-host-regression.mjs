@@ -9,6 +9,9 @@ import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
+/** @typedef {import("../src/types/framework-contracts.js").ViewSurfaceDataSource} ViewSurfaceDataSource */
+/** @typedef {import("../src/types/framework-contracts.js").ViewSurfaceDescriptor} ViewSurfaceDescriptor */
+
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-clients-projects-descriptor-host-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-clients-projects-descriptor-host.db");
 process.env.SUPER_ADMIN_PASSWORD = "Clients-Projects-Descriptor-Host-Test-123!";
@@ -71,11 +74,10 @@ assert.doesNotMatch(clientsProjectsScript, /function openAddClientModal\(\)/, "A
 assert.doesNotMatch(clientsProjectsScript, /window\.LongtailForge\.moduleActions\?\.register/, "Adapter should not duplicate first-party module action registration");
 assert.match(clientsProjectsScript, /\/api\/client-projects/, "Dialog and option workflows should keep the shared /api/client-projects source");
 
+assert.ok(clientProjectsModule.viewSurfaces, "Clients/Projects should contribute view surfaces");
 const surfaces = new Map(clientProjectsModule.viewSurfaces.map((surface) => [surface.id, surface]));
-const clientsSurface = surfaces.get("client-projects.clients");
-const projectsSurface = surfaces.get("client-projects.projects");
-assert.ok(clientsSurface, "Clients descriptor should be declared separately");
-assert.ok(projectsSurface, "Projects descriptor should be declared separately");
+const clientsSurface = readSurface(surfaces.get("client-projects.clients"), "Clients descriptor should be declared separately");
+const projectsSurface = readSurface(surfaces.get("client-projects.projects"), "Projects descriptor should be declared separately");
 assert.notEqual(clientsSurface, projectsSurface, "Clients and Projects descriptors should not share one combined surface");
 
 assertDescriptor(clientsSurface, {
@@ -184,12 +186,12 @@ try {
 
   await assert.rejects(
     () => clientsService.listClients(sessionFor(personalWorkspaceId, personalUserId), { include_depth: "true" }),
-    (error) => error?.statusCode === 403 && /Clients are only available in Business workspaces/.test(error.message),
+    (error) => isForbiddenClientsRead(error),
     "Clients read should remain Business-only in Personal workspaces",
   );
   await assert.rejects(
     () => clientsService.listClients(sessionFor(familyWorkspaceId, familyUserId), { include_depth: "true" }),
-    (error) => error?.statusCode === 403 && /Clients are only available in Business workspaces/.test(error.message),
+    (error) => isForbiddenClientsRead(error),
     "Clients read should remain Business-only in Family workspaces",
   );
 
@@ -199,6 +201,28 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/**
+ * Prove one contributed read surface carries the data source this owner reads.
+ *
+ * `dataSource` is optional on the descriptor contract because not every
+ * surface reads from a route. Both of these do, and the route assertions below
+ * are the proof that each uses its own canonical list route rather than the
+ * combined option route, so the data source is proven present rather than read
+ * through.
+ * @param {ViewSurfaceDescriptor | undefined} surface
+ * @param {string} message
+ * @returns {ViewSurfaceDescriptor & { dataSource: ViewSurfaceDataSource }}
+ */
+function readSurface(surface, message) {
+  assert.ok(surface, message);
+  assert.ok(surface.dataSource, `${surface.id} should declare a data source`);
+  return /** @type {ViewSurfaceDescriptor & { dataSource: ViewSurfaceDataSource }} */ (surface);
+}
+
+/**
+ * @param {string} html
+ * @param {{ forbiddenHooks: RegExp, hostClass: string, label: string }} expectations
+ */
 function assertMinimalHost(html, { label, hostClass, forbiddenHooks }) {
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));
   assert.match(body, new RegExp(`<main class="wide-page client-projects-page ${hostClass}" data-client-projects-host><\\/main>`), `${label} host should be minimal`);
@@ -206,16 +230,29 @@ function assertMinimalHost(html, { label, hostClass, forbiddenHooks }) {
   assert.doesNotMatch(body, forbiddenHooks, `${label} host should not ship legacy page hooks outside the adapter bridge`);
 }
 
+/**
+ * @param {ViewSurfaceDescriptor & { dataSource: ViewSurfaceDataSource }} surface
+ * @param {{ filters: readonly string[], requiredBindings: readonly string[], route: string, viewId: string }} expectations
+ */
 function assertDescriptor(surface, { viewId, route, filters, requiredBindings }) {
   assert.equal(surface.moduleId, "client-projects", `${surface.id} should belong to the Clients/Projects module`);
   assert.equal(surface.viewId, viewId, `${surface.id} should bind to the ${viewId} protected view`);
   assert.equal(surface.layout, "table-page", `${surface.id} should use table-page read anatomy`);
   assert.equal(surface.dataSource.route, route, `${surface.id} should use its canonical list route`);
   assert.equal(surface.dataSource.method, "GET", `${surface.id} should read with GET`);
+  // The page header, index panel, table, and table hierarchy are optional on
+  // the descriptor contract because not every surface contributes them. These
+  // assertions are the standing proof that these two do, so each part is proven
+  // present rather than read through.
+  assert.ok(surface.pageHeader, `${surface.id} should contribute a page header`);
   assert.ok(surface.pageHeader.primaryAction?.behavior, `${surface.id} should expose a descriptor page action behavior`);
   assert.deepEqual((surface.filters || []).map((filter) => filter.field), filters, `${surface.id} should expose the expected server-owned filters`);
+  assert.ok(surface.indexPanel, `${surface.id} should contribute an index panel`);
   assert.equal(surface.indexPanel.itemDepthField, "depth", `${surface.id} should bind index hierarchy depth`);
+  assert.ok(surface.table, `${surface.id} should contribute a table`);
+  assert.ok(surface.table.hierarchy, `${surface.id} should contribute table hierarchy`);
   assert.equal(surface.table.hierarchy.depthField, "depth", `${surface.id} should bind table hierarchy depth`);
+  assert.ok(surface.table.columns, `${surface.id} should contribute table columns`);
   assert.ok(surface.table.columns.some((column) => column.formatter === "hierarchy-label"), `${surface.id} should use the hierarchy-label display hook`);
   assert.ok(surface.table.secondaryRows?.some((row) => row.formatter === "chip-list"), `${surface.id} should use the chip-list display hook in secondary table rows`);
   assert.ok(surface.table.rowActions?.some((action) => action.behavior), `${surface.id} should expose descriptor row action behavior`);
@@ -225,8 +262,12 @@ function assertDescriptor(surface, { viewId, route, filters, requiredBindings })
   }
 }
 
+/**
+ * @param {import("../src/types/framework-contracts.js").AppShellBootstrap} shell
+ * @param {{ clients: boolean, label: string, projects: boolean }} expectations
+ */
 function assertSurfaceDelivery(shell, { clients, projects, label }) {
-  const surfaceIds = new Set((shell.viewSurfaces || []).map((surface) => surface.id));
+  const surfaceIds = new Set((shell.viewSurfaces || []).map((surface) => shellSurfaceId(surface)));
 
   assert.equal(surfaceIds.has("client-projects.clients"), clients, `${label} bootstrap should ${clients ? "" : "not "}deliver the Clients descriptor`);
   assert.equal(surfaceIds.has("client-projects.projects"), projects, `${label} bootstrap should ${projects ? "" : "not "}deliver the Projects descriptor`);
@@ -291,6 +332,7 @@ WHERE workspace_id = ${sqlText(businessWorkspaceId)}
   await projectsRepository.create(businessWorkspaceId, "", workspaceProject);
 }
 
+/** @param {string} workspaceId @param {string} workspaceType @param {string} userId */
 async function ensureWorkspace(workspaceId, workspaceType, userId) {
   await runSql(`
 INSERT INTO workspaces (workspace_id, name, status, workspace_type, created_at, updated_at)
@@ -322,6 +364,7 @@ ON CONFLICT(workspace_id) DO UPDATE SET
   await ensureUser(workspaceId, userId);
 }
 
+/** @param {string} workspaceId @param {string} userId */
 async function ensureUser(workspaceId, userId) {
   const username = `${userId}@example.test`;
   const rows = await querySql(`
@@ -403,6 +446,36 @@ VALUES (
 `);
 }
 
+/**
+ * Prove a Clients read rejection is the Business-only refusal.
+ *
+ * The rejection enters as `unknown`, so the status code and message are proven
+ * present before they are read: a different failure would otherwise satisfy the
+ * predicate through two `undefined` comparisons.
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isForbiddenClientsRead(error) {
+  assert.ok(error instanceof Error, "the Clients read refusal should reject with an Error");
+  const statusCode = /** @type {{ statusCode?: unknown }} */ (error).statusCode;
+  return statusCode === 403 && /Clients are only available in Business workspaces/.test(error.message);
+}
+
+/**
+ * Read the id off one delivered view surface.
+ *
+ * The app-shell bootstrap publishes `viewSurfaces` as an open list, alongside
+ * `navigation` and `searchTargets`, which `0.33.33.32.13` confirmed is
+ * deliberate, so the entry is proven to be a record where it is read.
+ * @param {unknown} surface
+ * @returns {unknown}
+ */
+function shellSurfaceId(surface) {
+  assert.ok(surface && typeof surface === "object" && !Array.isArray(surface), "each delivered view surface should be a record");
+  return /** @type {{ id?: unknown }} */ (surface).id;
+}
+
+/** @param {string} workspaceId @param {string} userId */
 function sessionFor(workspaceId, userId) {
   return workspaceSessionFixture({
     active_workspace_id: workspaceId,

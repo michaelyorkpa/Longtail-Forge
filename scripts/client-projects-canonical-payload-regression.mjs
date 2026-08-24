@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-client-projects-canonical-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-client-projects-canonical.db");
@@ -29,6 +31,10 @@ try {
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} CanonicalPayloadSession */
+/** @typedef {Awaited<ReturnType<typeof createFixtures>>} CanonicalPayloadFixtures */
+
+/** @param {CanonicalPayloadSession} session */
 async function createFixtures(session) {
   const alpha = (await clientsService.createClient({ name: "Alpha Client" }, session)).client;
   const beta = (await clientsService.createClient({ name: "Beta Client" }, session)).client;
@@ -87,6 +93,7 @@ async function createFixtures(session) {
   };
 }
 
+/** @param {CanonicalPayloadSession} session @param {CanonicalPayloadFixtures} fixtures */
 async function assertCanonicalClientLists(session, fixtures) {
   const activeClients = (await clientsService.listClients(session, {
     include_depth: "true",
@@ -129,6 +136,7 @@ async function assertCanonicalClientLists(session, fixtures) {
   assert.equal(alphaNode.children[0].id, fixtures.alphaChild.id);
 }
 
+/** @param {CanonicalPayloadSession} session @param {CanonicalPayloadFixtures} fixtures */
 async function assertCanonicalProjectLists(session, fixtures) {
   const activeProjects = (await clientsService.listProjects(session, {
     include_depth: "true",
@@ -189,6 +197,7 @@ async function assertCanonicalProjectLists(session, fixtures) {
   assert.deepEqual(inactiveProjects.map((project) => project.id), [fixtures.inactiveProject.id]);
 }
 
+/** @param {CanonicalPayloadSession} session @param {CanonicalPayloadFixtures} fixtures */
 async function assertPermissionSafeClientProjects(session, fixtures) {
   const scopedSession = await createScopedProjectUserSession(session.workspace_id, fixtures.betaProject.id);
   const clientProjects = await clientsService.readClientProjects(scopedSession);
@@ -210,8 +219,23 @@ async function assertPermissionSafeClientProjects(session, fixtures) {
   );
 }
 
+/**
+ * The public API publishes its caller as an API-key session. The service reads
+ * only `workspace_id` from it and hands the same context to the canonical
+ * client and project reads, which is exactly what this assertion proves, but
+ * the fixture presents the contract the surface declares rather than a browser
+ * session it never receives in production.
+ * @param {CanonicalPayloadSession} session
+ * @returns {import("../src/types/http-contracts.js").ApiSession}
+ */
+function publicApiContext(session) {
+  return { ...session, api_key_id: "canonical-payload-public-api-key" };
+}
+
+/** @param {CanonicalPayloadSession} session */
 async function assertPublicApiUsesCanonicalLists(session) {
-  const clients = await publicApiService.listClients(session, {
+  const context = publicApiContext(session);
+  const clients = await publicApiService.listClients(context, {
     include_depth: "true",
     limit: "2",
     status: "All",
@@ -223,7 +247,7 @@ async function assertPublicApiUsesCanonicalLists(session) {
   assert.equal(clients.data[0].display_label, "Alpha Client");
   assert.equal(clients.data[1].display_label, "  - Alpha Child");
 
-  const projects = await publicApiService.listProjects(session, {
+  const projects = await publicApiService.listProjects(context, {
     client: "workspace",
     include_depth: "true",
   });
@@ -235,6 +259,7 @@ async function assertPublicApiUsesCanonicalLists(session) {
   );
 }
 
+/** @param {string} workspaceId @param {string} projectId @returns {Promise<CanonicalPayloadSession>} */
 async function createScopedProjectUserSession(workspaceId, projectId) {
   const userId = `canonical-project-user-${randomUUID()}`;
   const username = `${userId}@example.test`;
@@ -305,15 +330,13 @@ VALUES (
 );
 `);
 
-  return {
+  return workspaceSessionFixture({
     active_workspace_id: workspaceId,
     home_workspace_id: workspaceId,
-    ip: "127.0.0.1",
-    timezone: "America/New_York",
     user_id: userId,
     username,
     workspace_id: workspaceId,
-  };
+  });
 }
 
 async function readSeedSession() {
@@ -323,19 +346,9 @@ FROM users
 WHERE users.protected_user = 'yes'
 LIMIT 1;
 `);
-  const user = rows[0];
+  const user = requireFirstRow(rows, "the protected super admin");
 
-  assert.ok(user, "fresh database should seed a protected super admin");
-
-  return {
-    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
-    home_workspace_id: user.home_workspace_id,
-    ip: "127.0.0.1",
-    timezone: user.timezone || "America/New_York",
-    user_id: user.user_id,
-    username: user.username,
-    workspace_id: user.active_workspace_id || user.home_workspace_id,
-  };
+  return workspaceSessionFixture(user);
 }
 
 async function assertIntegrity() {

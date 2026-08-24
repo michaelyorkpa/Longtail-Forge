@@ -52,6 +52,7 @@ assert.match(css, /\.client-projects-related-region/, "Related Project regions s
 
 console.log("Clients/Projects related regions regression passed.");
 
+/** @param {string} source @param {string} functionName @returns {string} */
 function readFunctionBody(source, functionName) {
   const markers = [`function ${functionName}(`, `async function ${functionName}(`];
   const start = markers
