@@ -6,7 +6,32 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { readPayload } from "./test-support/http-payload-assertions.mjs";
 import { fixtureString, workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+
+/** @typedef {import("../src/types/framework-contracts.js").BrowserSearchResult} BrowserSearchResult */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureApp} HelpSearchApp */
+/** @typedef {import("./test-support/http-fixture-contracts.mjs").HttpFixtureServer} HelpSearchServer */
+
+/**
+ * What this owner's `fetch` fixture resolves. It carries no headers, so it is
+ * declared here rather than through the shared fetch-response contract.
+ * @typedef {{ body: unknown, status: number }} HelpSearchResponse
+ */
+
+/** @typedef {ReturnType<typeof createApi>} HelpSearchApi */
+
+/**
+ * The public echo of the parsed search query, as the search route publishes it.
+ * @typedef {{ recordTypes: string[], source: string | null }} HelpSearchQuery
+ */
+
+/** @typedef {{ query: HelpSearchQuery, results: BrowserSearchResult[] }} SearchEnvelope */
+
+/**
+ * One app-shell navigation entry or search target, as these owners read them.
+ * @typedef {{ href?: unknown, id?: unknown, items?: unknown[], label?: unknown, recordType?: unknown, sourceLabel?: unknown }} ShellItem
+ */
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-help-search-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-help-search-test.db");
@@ -23,7 +48,9 @@ const { searchService } = await import("../src/services/search.service.js");
 const { registerFrameworkHelpSearchIndexers } = await import("../src/core/help/search-indexers.js");
 const { activateModuleRuntime } = await import("../src/core/modules/module-runtime.js");
 
+/** @type {string[]} */
 const checks = [];
+/** @type {HelpSearchServer | undefined} */
 let server;
 let unregisterDeveloperExampleIndexer;
 
@@ -44,7 +71,7 @@ try {
     assert.ok(helpTypes.every((type) => type.sourceLabel === "Help"));
 
     const shell = await appShellService.bootstrap(session);
-    const visibleHelpTargets = shell.searchTargets.filter((target) => (
+    const visibleHelpTargets = shell.searchTargets.map(shellItem).filter((target) => (
       target.sourceLabel === "Help" &&
       target.recordType === "help_article"
     ));
@@ -88,17 +115,19 @@ try {
   });
 
   server = await listen(createApp());
-  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${listenerPort(server)}`;
   const api = createApi(baseUrl, session.sessionId);
 
   await check("GET /api/search returns Help articles without raw body text", async () => {
     const response = await api.get("/api/search?text=in-app%20product%20manual&recordType=help_article");
+    /** @type {SearchEnvelope} */
+    const responseBody = readPayload(response, ["query", "results"], "response");
 
     assert.equal(response.status, 200);
-    assert.deepEqual(response.body.query.recordTypes, ["help_article"]);
-    assert.ok(response.body.results.length >= 1);
+    assert.deepEqual(responseBody.query.recordTypes, ["help_article"]);
+    assert.ok(responseBody.results.length >= 1);
 
-    const helpResult = response.body.results.find((result) => result.recordId === "framework.help-center");
+    const helpResult = responseBody.results.find((result) => result.recordId === "framework.help-center");
 
     assert.ok(helpResult);
     assert.equal(helpResult.recordType, "help_article");
@@ -115,11 +144,13 @@ try {
 
   await check("GET /api/search source filter returns only Help articles", async () => {
     const response = await api.get("/api/search?source=Help&recordType=help_article");
+    /** @type {SearchEnvelope} */
+    const responseBody = readPayload(response, ["query", "results"], "response");
 
     assert.equal(response.status, 200);
-    assert.equal(response.body.query.source, "Help");
-    assert.ok(response.body.results.length >= 1);
-    assert.ok(response.body.results.every((result) => (
+    assert.equal(responseBody.query.source, "Help");
+    assert.ok(responseBody.results.length >= 1);
+    assert.ok(responseBody.results.every((result) => (
       result.source === "Help" &&
       result.recordType === "help_article"
     )));
@@ -181,7 +212,9 @@ LIMIT 1;
   assert.ok(user, "protected user fixture is required");
 
   const session = workspaceSessionFixture(user);
-  const created = await createSession(session);
+  // `createSession` seeds from an open record; the workspace session is spread
+  // into one rather than passed as the named contract it is.
+  const created = await createSession({ ...session });
 
   return {
     ...session,
@@ -189,6 +222,7 @@ LIMIT 1;
   };
 }
 
+/** @param {string} workspaceId */
 async function enableDeveloperExample(workspaceId) {
   await runSql(`
 UPDATE workspace_modules
@@ -201,6 +235,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 `);
 }
 
+/** @param {string} workspaceId */
 async function readHelpIndexRows(workspaceId) {
   return querySql(`
 SELECT module_id, record_type, record_id, title, summary, body, tags_text, source
@@ -211,17 +246,40 @@ ORDER BY module_id, record_id;
 `);
 }
 
+/** @param {string} name @param {() => void | Promise<void>} assertion */
 async function check(name, assertion) {
   await assertion();
   checks.push(name);
 }
 
+/**
+ * Prove one app-shell entry is a record before it is walked.
+ * @param {unknown} value
+ * @returns {ShellItem}
+ */
+function shellItem(value) {
+  assert.ok(value && typeof value === "object" && !Array.isArray(value), "each app-shell entry should be a record");
+  return /** @type {ShellItem} */ (value);
+}
+
+/**
+ * @param {string} baseUrl
+ * @param {string} sessionId
+ * @returns {{ get: (url: string) => Promise<HelpSearchResponse> }}
+ */
 function createApi(baseUrl, sessionId) {
   return {
     get: (url) => request(baseUrl, "GET", url, sessionId),
   };
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {string} method
+ * @param {string} url
+ * @param {string} sessionId
+ * @returns {Promise<HelpSearchResponse>}
+ */
 async function request(baseUrl, method, url, sessionId) {
   const response = await fetch(`${baseUrl}${url}`, {
     method,
@@ -231,6 +289,9 @@ async function request(baseUrl, method, url, sessionId) {
     redirect: "manual",
   });
   const text = await response.text();
+  // The parsed body stays `unknown`; every read below crosses that boundary
+  // through `readPayload`, which proves the envelope it names is present.
+  /** @type {unknown} */
   let parsedBody = null;
 
   try {
@@ -245,13 +306,22 @@ async function request(baseUrl, method, url, sessionId) {
   };
 }
 
+/** @param {HelpSearchApp} app @returns {Promise<HelpSearchServer>} */
 function listen(app) {
   return new Promise((resolve) => {
-    const server = http.createServer(app);
+    const server = http.createServer(/** @type {http.RequestListener} */ (/** @type {unknown} */ (app)));
     server.listen(0, "127.0.0.1", () => resolve(server));
   });
 }
 
+/** @param {HelpSearchServer} listening @returns {number} */
+function listenerPort(listening) {
+  const address = listening.address();
+  assert.ok(address && typeof address === "object", "the Help search fixture server should bind a TCP port");
+  return address.port;
+}
+
+/** @param {HelpSearchServer} server @returns {Promise<void>} */
 function closeServer(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => {

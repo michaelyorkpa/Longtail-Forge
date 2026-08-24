@@ -341,7 +341,7 @@ ORDER BY record_id;
     assert.equal(summary.counts.failed, 0);
     assert.deepEqual(rows.map((row) => row.record_id).sort(), [...expectedFrameworkArticles].sort());
     assert.ok(rows.every((row) => row.source === HELP_SEARCH_SOURCE));
-    assert.ok(rows.every((row) => row.body.length >= 120));
+    assert.ok(rows.every((row) => fixtureString(row.body, "Help search body").length >= 120));
     assert.ok(rows.some((row) => /Search results are permission-shaped/.test(fixtureString(row.body, "Help search body"))));
     assert.ok(rows.some((row) => /Protected internal files are the default/.test(fixtureString(row.body, "Help search body"))));
     assert.deepEqual(
@@ -349,7 +349,7 @@ ORDER BY record_id;
       ["lists.actions", "notes.actions", "tasks.actions", "tasks.reminders-calendar", "time-tracking.actions"],
     );
     assert.ok(moduleActionRows.every((row) => row.source === HELP_SEARCH_SOURCE));
-    assert.ok(moduleActionRows.every((row) => row.body.length >= 120));
+    assert.ok(moduleActionRows.every((row) => fixtureString(row.body, "Help module action body").length >= 120));
   });
 
   console.log(`Help content regression passed ${checks} checks.`);
@@ -372,6 +372,7 @@ LIMIT 1;
   return workspaceSessionFixture(user);
 }
 
+/** @param {string} name @param {() => void | Promise<void>} assertion */
 async function check(name, assertion) {
   await assertion();
   checks += 1;

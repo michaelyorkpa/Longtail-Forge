@@ -19,8 +19,18 @@ const { appShellService } = await import("../src/services/app-shell.service.js")
 const { helpService } = await import("../src/services/help.service.js");
 const { staticService } = await import("../src/services/static.service.js");
 
+/** @typedef {import("../src/types/help-static-contracts.js").HelpNavigationItem} HelpNavigationItem */
+
+/**
+ * One app-shell navigation entry, as this owner reads it. The bootstrap
+ * contract publishes `navigation` as an open list, which `0.33.33.32.13`
+ * confirmed is deliberate, so the shape is described where the walk happens.
+ * @typedef {{ href?: unknown, id?: unknown, items?: unknown[], label?: unknown }} ShellNavigationItem
+ */
+
 let checks = 0;
 
+/** @param {string} name @param {() => void | Promise<void>} assertion */
 async function check(name, assertion) {
   await assertion();
   checks += 1;
@@ -46,11 +56,12 @@ try {
 
   await check("app shell places Help in Settings between User and Log Out", async () => {
     const shell = await appShellService.bootstrap(session);
-    const settingsMenu = shell.navigation.find((item) => item.id === "settings");
+    const settingsMenu = shell.navigation.map(shellNavigationItem).find((item) => item.id === "settings");
 
     assert.ok(settingsMenu, "Settings menu should be present");
+    assert.ok(settingsMenu.items, "Settings menu should carry entries");
     assert.deepEqual(
-      settingsMenu.items.filter((item) => item.href).map((item) => `${item.label}:${item.href}`),
+      settingsMenu.items.map(shellNavigationItem).filter((item) => item.href).map((item) => `${item.label}:${item.href}`),
       ["User:user-settings.html", "Help:help.html"],
     );
   });
@@ -98,6 +109,9 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     assert.match(byId.article.bodyHtml, /<p>The Help Center is the in-app product manual/);
     assert.doesNotMatch(byId.article.bodyHtml, /<script|href="javascript:/i);
     assert.match(byId.article.body, /in-app product manual/);
+    // A Help article that belongs to no section publishes a null section, and
+    // this is the assertion proving the Help Center article is placed in one.
+    assert.ok(byId.article.section, "the Help Center article should belong to a section");
     assert.equal(byId.article.section.id, "framework.help-center");
     assert.equal(bySlug.article.slug, "help-center");
   });
@@ -179,6 +193,21 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
+/**
+ * Prove one app-shell navigation entry is a record before it is walked.
+ * @param {unknown} value
+ * @returns {ShellNavigationItem}
+ */
+function shellNavigationItem(value) {
+  assert.ok(value && typeof value === "object" && !Array.isArray(value), "each app-shell navigation entry should be a record");
+  return /** @type {ShellNavigationItem} */ (value);
+}
+
+/**
+ * @param {readonly HelpNavigationItem[] | undefined} items
+ * @param {string} articleId
+ * @returns {HelpNavigationItem | null}
+ */
 function findNavigationArticle(items, articleId) {
   for (const item of items || []) {
     if (item.type === "article" && item.id === articleId) {
@@ -192,6 +221,11 @@ function findNavigationArticle(items, articleId) {
   return null;
 }
 
+/**
+ * @param {readonly HelpNavigationItem[] | undefined} items
+ * @param {string} title
+ * @returns {HelpNavigationItem | null}
+ */
 function findNavigationGroup(items, title) {
   for (const item of items || []) {
     if (item.type === "group" && item.title === title) {

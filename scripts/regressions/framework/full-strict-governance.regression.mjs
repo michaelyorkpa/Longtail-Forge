@@ -1050,6 +1050,29 @@ assert.ok(
     .includes("the single-record indexer reference should carry"),
   "scripts/search-contract-regression.mjs should keep proving the record-indexer reference members",
 );
+for (const helpOwner of [
+  "scripts/help-center-surface-regression.mjs",
+  "scripts/help-content-regression.mjs",
+  "scripts/help-contract-regression.mjs",
+  "scripts/help-markdown-source-layout-regression.mjs",
+  "scripts/help-navigation-boundary-regression.mjs",
+  "scripts/help-search-regression.mjs",
+  "scripts/help-workflow-regression.mjs",
+]) {
+  assert.equal(ledger.programs.scripts.diagnostics[helpOwner], undefined, `${helpOwner} must stay strict-clean after checkpoint 0.33.33.32.20`);
+}
+// The recursive Help navigation walk answers to the published navigation node
+// rather than to inference, in both owners that carry it.
+for (const navigationOwner of [
+  "scripts/help-center-surface-regression.mjs",
+  "scripts/help-navigation-boundary-regression.mjs",
+]) {
+  assert.ok(
+    fs.readFileSync(navigationOwner, "utf8")
+      .includes('import("../src/types/help-static-contracts.js").HelpNavigationItem'),
+    `${navigationOwner} should keep walking navigation through the published node contract`,
+  );
+}
 // The 0.33.33.32.5 compatibility casts are retired: the published
 // TimeEntryWriteInput contract means no owner needs to launder a fixture
 // through `unknown` to reach timeEntriesRepository.create().

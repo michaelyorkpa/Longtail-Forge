@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 730,
+      "errorCount": 636,
       "diagnostics": {
         "scripts/app-shell-navigation-regression.mjs": [
           {
@@ -3174,116 +3174,6 @@
           {
             "code": 7006,
             "count": 8
-          }
-        ],
-        "scripts/help-center-surface-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 8
-          },
-          {
-            "code": 7022,
-            "count": 2
-          },
-          {
-            "code": 7023,
-            "count": 2
-          }
-        ],
-        "scripts/help-content-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/help-contract-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/help-markdown-source-layout-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 11
-          },
-          {
-            "code": 7023,
-            "count": 1
-          }
-        ],
-        "scripts/help-navigation-boundary-regression.mjs": [
-          {
-            "code": 7006,
-            "count": 6
-          },
-          {
-            "code": 7022,
-            "count": 2
-          },
-          {
-            "code": 7023,
-            "count": 2
-          }
-        ],
-        "scripts/help-search-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 16
-          }
-        ],
-        "scripts/help-workflow-regression.mjs": [
-          {
-            "code": 18046,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2531,
-            "count": 1
-          },
-          {
-            "code": 2810,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 25
           }
         ],
         "scripts/legacy-cleanup-regression.mjs": [
@@ -3789,7 +3679,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 11864,
+    "errors": 11770,
     "explicitAny": 3
   },
   "explicitAnyByFile": {

@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18712,
+    "activeAssertionCount": 18722,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 72,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19460,
+    "effectiveAssertionCount": 19470,
     "retiredAssertionCredit": 79,
     "vitest": [
       {
@@ -2441,11 +2441,11 @@
     },
     {
       "area": "docs",
-      "assertionCount": 73,
+      "assertionCount": 76,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy help center surface contract.",
-      "entryPointAssertionCount": 73,
+      "entryPointAssertionCount": 76,
       "id": "legacy.help.center.surface",
       "legacy": true,
       "path": "scripts/help-center-surface-regression.mjs",
@@ -2532,11 +2532,11 @@
     },
     {
       "area": "docs",
-      "assertionCount": 39,
+      "assertionCount": 41,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy help search contract.",
-      "entryPointAssertionCount": 39,
+      "entryPointAssertionCount": 41,
       "id": "legacy.help.search",
       "legacy": true,
       "path": "scripts/help-search-regression.mjs",
@@ -2550,11 +2550,11 @@
     },
     {
       "area": "docs",
-      "assertionCount": 34,
+      "assertionCount": 37,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy help workflow contract.",
-      "entryPointAssertionCount": 34,
+      "entryPointAssertionCount": 37,
       "id": "legacy.help.workflow",
       "legacy": true,
       "path": "scripts/help-workflow-regression.mjs",
@@ -4508,11 +4508,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 176,
+      "assertionCount": 178,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 176,
+      "entryPointAssertionCount": 178,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
