@@ -56,11 +56,10 @@ Planning rollup only; its numbered children below are the protected implementati
 
 Cohort boundary: this rollup owns everything left in the scripts program. That is the product estate `0.33.33.31` explicitly deferred here — Tasks, Notes, Lists, Time Tracking, Workbench, Search, Tags, Notifications, Help, Clients/Projects, linked context, and public API — plus the view-descriptor, app-shell, and module-action static owners, the product-area modules under `scripts/regression-contracts/`, and the remaining legacy and operational owners. Nothing in `public/js/` belongs here; the browser program is `0.33.33.38` through `0.33.33.41`.
 
-The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.21` have since archived, closing 2,629 diagnostics across 132 files and leaving 514 across 70; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
+The reslice follows the seams the estate already has — subsystem ownership and shared fixtures — not counts. Every one of the 202 files was assigned to exactly one child, and the children summed to the measured 3,150. `0.33.33.32.1` through `0.33.33.32.22` have since archived, closing 2,770 diagnostics across 137 files and leaving 373 across 65; `0.33.33.32.7` also removed four further diagnostics by correcting the TimeEntry write contract. Every remaining child below was remeasured against the live ledger before `0.33.33.32.11` began; all seventeen reconcile exactly to 1,753 across 134, and only `.32.25` moved, because `0.33.33.32.10` closed one module that belongs to it. `0.33.33.32.10.1` has since archived, correcting the resume-state resolver scope seam without moving either program's totals:
 
 | Child | Subject | Diagnostics | Files | Lines |
 | --- | --- | --- | --- | --- |
-| `.32.22` | Clients/Projects hierarchy, repositories, assignment | 141 | 5 | 2,004 |
 | `.32.23` | Shared linked-context pickers and labels | 75 | 6 | 1,657 |
 | `.32.24` | View descriptor, app shell, module action owners | 124 | 10 | 1,723 |
 | `.32.25` | Workbench and Time Tracking contract modules | 32 | 14 | 2,380 |
@@ -98,16 +97,6 @@ Requirements shared by every child:
 
 
 
-
-#### 0.33.33.32.22 - Type Clients and Projects hierarchy, repositories, and assignment
-
-**Model: High Effort - Hierarchy reparenting and default assignment are permission-relevant writes.**
-
-Measured at 141 diagnostics across 5 files and 2,004 lines, of which `client-project-hierarchy-branch-closeout` is 931 lines. Three `JSON.parse` sites; two history-pinned owners.
-
-- [ ] Close the 141 diagnostics across `client-project-hierarchy-branch-closeout`, `project-default-assignee`, `client-projects-repositories-conversion`, `framework-admin-low-count-repositories-conversion`, and `client-projects-bugfix`.
-- [ ] Type hierarchy nodes and reparent results, default assignee resolution, and the low-count admin repository rows with named contracts.
-- [ ] Preserve hierarchy depth and cycle refusals, descendant scope, default assignee fallback order, and the bugfix owner's specific reproductions exactly.
 
 #### 0.33.33.32.23 - Type the shared linked-context pickers and labels
 
