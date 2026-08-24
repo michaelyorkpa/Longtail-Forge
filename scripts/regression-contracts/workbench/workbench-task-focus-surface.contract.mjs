@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
-const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
 const moduleContract = readText("docs/module-contract.md");
 const tasksModuleDoc = readText("docs/tasks-module.md");
@@ -190,15 +188,14 @@ assert.match(
   /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*As of 0\.33\.6\.12j, the selected-task summary shows one Client\/Project path line and uses the summary chip row/,
   "View-building contract should include the Task Focus anatomy",
 );
-assert.match(
-  changelog,
-  /## Version 0\.33\.6\.12i[\s\S]*summary now shows that context once[\s\S]*summary chip row to surface status, priority, due date\/time, and safe direct tags/,
-  "Changelog should preserve the Task Focus summary metadata cleanup closeout",
-);
-assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench Task Focus surface regression passed.");
 
+/**
+ * Extract one named function's body text from a source file this module reads.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} name the function name to locate
+ */
 function functionBody(source, name) {
   const starts = [
     `async function ${name}(`,

@@ -15,6 +15,11 @@ const workbenchView = readText("views/protected/workbench.html");
 
 let checks = 0;
 
+/**
+ * Run one named group of assertions and count it.
+ * @param {string} name the check description, used only for the passing tally
+ * @param {() => void} assertion the assertions to run
+ */
 function check(name, assertion) {
   assertion();
   checks += 1;
@@ -132,6 +137,11 @@ check("time entry dialog sizing avoids horizontal modal overflow", () => {
 
 console.log(`Time Entries screen regression passed ${checks} checks.`);
 
+/**
+ * Extract one named array literal from the module descriptor source.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} propertyName the descriptor property whose array to read
+ */
 function readArrayLiteral(source, propertyName) {
   const marker = `${propertyName}: [`;
   const start = source.indexOf(marker);

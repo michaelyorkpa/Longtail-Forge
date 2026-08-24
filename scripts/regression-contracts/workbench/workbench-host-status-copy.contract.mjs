@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
-const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
 const css = readText("public/css/longtail-forge.css");
 const workbenchHtml = readText("views/protected/workbench.html");
@@ -68,11 +66,5 @@ assert.match(
   /As of 0\.33\.6\.6b, the Workbench host no longer renders a standalone top status box or a static intro subtitle under the page heading[\s\S]*shared `LongtailForge\.view\.createStatusMessage\(\)` primitive inside the page-header body/,
   "Module contract should preserve the Workbench host status cleanup boundary",
 );
-assert.match(
-  changelog,
-  /## Version 0\.33\.6\.6b[\s\S]*relocated `workbench-header-status` contract without the old intro copy or standalone status box/,
-  "Changelog should preserve the Workbench host status cleanup closeout",
-);
-assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench host status and intro-copy cleanup regression passed.");

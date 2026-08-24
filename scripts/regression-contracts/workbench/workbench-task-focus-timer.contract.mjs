@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
 
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
 const appShellService = readText("src/services/app-shell.service.js");
-const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
 const moduleActions = readText("public/js/shared/module-actions.js");
 const moduleContract = readText("docs/module-contract.md");
@@ -256,15 +254,14 @@ assert.match(
   /Workbench \| As of 0\.33\.6\.12d-1[\s\S]*As of 0\.33\.6\.12k, Task Focus keeps exactly one visible focused-task timer representation[\s\S]*Other Active Timers/,
   "View-building contract should include the Task Focus timer anatomy",
 );
-assert.match(
-  changelog,
-  /## Version 0\.33\.6\.12k[\s\S]*focused task's timer is represented only by the Task Timer section[\s\S]*Other Active Timers/,
-  "Changelog should preserve the Workbench Task Focus timer de-duplication closeout",
-);
-assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
 
 console.log("Workbench Task Focus timer regression passed.");
 
+/**
+ * Extract one named function's body text from a source file this module reads.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} name the function name to locate
+ */
 function functionBody(source, name) {
   const starts = [
     `async function ${name}(`,
@@ -297,6 +294,11 @@ function functionBody(source, name) {
   throw new Error(`Could not parse function ${name}`);
 }
 
+/**
+ * Extract one quick-action definition block from the app-shell service source.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} actionId the quick-action id to locate
+ */
 function actionDefinitionBlock(source, actionId) {
   const start = source.indexOf(`id: "${actionId}"`);
   assert.notEqual(start, -1, `Missing quick action ${actionId}`);

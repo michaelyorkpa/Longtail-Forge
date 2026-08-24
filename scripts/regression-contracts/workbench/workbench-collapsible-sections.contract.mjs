@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
-const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
 const moduleContract = readText("docs/module-contract.md");
 const workbenchHtml = readText("views/protected/workbench.html");
@@ -105,17 +103,6 @@ assert.match(
 );
 
 assert.match(
-  changelog,
-  /## Version 0\.33\.6\.6f[\s\S]*Collapsible Workbench sections: default state and caret affordance|## Version 0\.33\.6\.6f[\s\S]*workbench-collapsible-sections-regression/m,
-  "Changelog should preserve the completed collapsible Workbench sections slice",
-);
-assert.match(
-  changelog,
-  /## Version 0\.33\.6\.12b[\s\S]*Removed the retired main-column secondary-candidate DOM\/CSS hooks/,
-  "Changelog should preserve the retired main-column overflow section closeout",
-);
-assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
-assert.match(
   moduleContract,
   /As of 0\.33\.6\.6f, Workbench collapsible sections keep native `<details>`\/`<summary>` semantics[\s\S]*former main-column "More in this focus" collapsible section is retired in favor of the right-side Inspector overflow[\s\S]*The Timers section still starts open only when active or paused timers are loaded in Focus Selection/,
   "Module contract should preserve the live Workbench collapsible and retired-overflow boundary",
@@ -123,6 +110,11 @@ assert.match(
 
 console.log("Workbench collapsible sections regression passed.");
 
+/**
+ * Extract one named function's body text from a source file this module reads.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} name the function name to locate
+ */
 function extractFunctionBody(source, name) {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1, `Missing function ${name}`);

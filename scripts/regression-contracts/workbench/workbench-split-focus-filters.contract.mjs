@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
-const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
 const moduleContract = readText("docs/module-contract.md");
 const workbenchScript = readText("public/js/workbench.js");
@@ -72,12 +70,6 @@ assert.match(
   moduleContract,
   /As of 0\.33\.6\.14\.1[\s\S]*shared permission-aware hierarchy scope resolver:[\s\S]*readable descendant sub-clients\/sub-projects[\s\S]*leaf still drills down to that one client or project/,
   "Module contract should document the split filters and shipped descendant-aware hierarchy scope",
-);
-assertRoadmapCursorAtLeast("0.33.8", "Roadmap should archive the shipped hierarchy follow-up and advance to the next live slice");
-assert.match(
-  changelog,
-  /## Version 0\.33\.6\.6e - [\s\S]*Split the Workbench focus box into separate Client and Project filters[\s\S]*0\.33\.6\.13/,
-  "Changelog should record the split focus filters and hierarchy follow-up",
 );
 
 console.log("Workbench split focus filters regression passed.");

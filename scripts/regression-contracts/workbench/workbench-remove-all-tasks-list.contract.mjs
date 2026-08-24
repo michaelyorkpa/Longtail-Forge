@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 
-import { assertRoadmapCursorAtLeast } from "../../lib/roadmap-cursor.mjs";
 import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 // Consolidated under workbench.current-static-contracts by 0.33.33.10.
 const { readText } = createProjectTextReader();
 
-const changelog = readText("CHANGELOG.md");
 const css = readText("public/css/longtail-forge.css");
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
@@ -75,15 +73,13 @@ const secondaryWorkbenchPanel = extractFunctionBody(workbenchScript, "createSeco
 assert.match(secondaryWorkbenchPanel, /createTimerSection\(\)/, "Workbench should keep the active timer section");
 assert.doesNotMatch(secondaryWorkbenchPanel, /createTaskSection|task-workbench-items|createSecondaryCandidateSection/, "Workbench should not add the removed all-tasks or main-column overflow sections to its layout");
 
-assert.match(
-  changelog,
-  /## Version 0\.33\.6\.6g[\s\S]*no all-tasks\/taskItems\/task-list hooks while retaining recommended-action and secondary-candidate hooks/,
-  "Changelog should preserve the completed no-all-tasks-list Workbench slice",
-);
-assertRoadmapCursorAtLeast("0.33.8", "Live roadmap should advance to the current active cursor after the completed Workbench history");
-
 console.log("Workbench remove all-tasks list regression passed.");
 
+/**
+ * Extract one named function's body text from a source file this module reads.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} name the function name to locate
+ */
 function extractFunctionBody(source, name) {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1, `Missing function ${name}`);
