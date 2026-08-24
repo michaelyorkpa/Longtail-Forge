@@ -41,6 +41,12 @@ assert.match(functionBlock(notes, "transitionCreatedNoteToEdit"), /state\.editin
 
 console.log("Notes critical quick-fixes regression passed.");
 
+/**
+ * Extract one named function from a source file this module reads, from its
+ * declaration to the next top-level function declaration.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} functionName the name to locate
+ */
 function functionBlock(source, functionName) {
   const match = new RegExp(`(?:async\\s+)?function\\s+${functionName}\\(`).exec(source);
   assert.ok(match, `${functionName} should exist`);

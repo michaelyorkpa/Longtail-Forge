@@ -9,7 +9,6 @@ const taskDialog = readText("public/js/task-dialog.js");
 const tasksView = readText("views/protected/tasks.html");
 const workbenchView = readText("views/protected/workbench.html");
 const tasksDocs = readText("docs/tasks-module.md");
-const roadmap = readText("ROADMAP.md");
 
 assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report the Task child-dialog slice version");
 
@@ -59,10 +58,15 @@ assert.match(readText("public/js/workbench.js"), /src: "js\/task-dialog\.js"/, "
 assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks docs should retain the owning module heading");
 assert.match(tasksDocs, /Tags and Files footer utilities open stacked child dialogs/, "Tasks docs should document the shipped child-dialog behavior");
 assert.match(tasksDocs, /Save the task before adding files\./, "Tasks docs should preserve the Files save-first state");
-assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "live roadmap should not carry completed-history breadcrumbs");
 
 console.log("Tasks Tags and Files child-dialog regression passed.");
 
+/**
+ * Extract one named function from a source file this module reads, from its
+ * declaration to the next top-level function declaration.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} functionName the name to locate
+ */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);

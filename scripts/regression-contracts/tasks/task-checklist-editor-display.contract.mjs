@@ -111,12 +111,24 @@ assert.match(
 
 console.log("Task checklist editor display regression passed.");
 
+/**
+ * Assert every pattern matches the same source, under one shared message.
+ * @param {string} source file text from the shared project text reader
+ * @param {readonly RegExp[]} patterns the patterns that must all match
+ * @param {string} message assertion context shown on failure
+ */
 function assertPatterns(source, patterns, message) {
   for (const pattern of patterns) {
     assert.match(source, pattern, message);
   }
 }
 
+/**
+ * Extract one named function from a source file this module reads, from its
+ * declaration to the next top-level function declaration.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} functionName the name to locate
+ */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`async function ${functionName}`);
   const fallbackStart = source.indexOf(`function ${functionName}`);

@@ -87,6 +87,11 @@ assert.match(viewContract, /strict guardrail enforcement shipped in 0\.33\.5\.18
 
 console.log(`Tasks strict declarative guardrail regression passed. Remaining direct DOM calls are documented escape hatches: tasks.js=${countMatches(tasksScript, /document\.createElement/g)}, task-dialog.js=${countMatches(taskDialogScript, /document\.createElement/g)}.`);
 
+/**
+ * Count how many times one global pattern matches a source file.
+ * @param {string} source file text from the shared project text reader
+ * @param {RegExp} pattern a global pattern, as matchAll requires
+ */
 function countMatches(source, pattern) {
   return [...source.matchAll(pattern)].length;
 }

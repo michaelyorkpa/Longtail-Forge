@@ -3004,7 +3004,7 @@
         "scripts/workspace-storage-regression.mjs",
         "vitest.config.mjs"
       ],
-      "errorCount": 142,
+      "errorCount": 87,
       "diagnostics": {
         "scripts/audit-extensibility-regression.mjs": [
           {
@@ -3054,132 +3054,6 @@
           {
             "code": 7006,
             "count": 2
-          }
-        ],
-        "scripts/regression-contracts/lists/lists-declarative-readonly-surface.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 3
-          }
-        ],
-        "scripts/regression-contracts/lists/lists-workflow-linked-layout.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/notes/notes-critical-quick-fixes.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/notes/notes-file-preview-actions.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/notes/notes-tasks-modal-footer-visual-parity.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/tags/tag-record-workflow.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/tasks/task-checklist-editor-display.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
-        "scripts/regression-contracts/tasks/task-critical-quick-fixes.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/tasks/task-editor-workbench-handoff.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/tasks/tasks-bulk-toolbar-shell.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/tasks/tasks-checklist-escape-hatch.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/tasks/tasks-declarative-readonly-surface.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "scripts/regression-contracts/tasks/tasks-detail-read-panel.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/tasks/tasks-filter-sidebar-anatomy.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 5
-          }
-        ],
-        "scripts/regression-contracts/tasks/tasks-lifecycle-action-descriptor.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 4
-          }
-        ],
-        "scripts/regression-contracts/tasks/tasks-list-surface-boundary.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/tasks/tasks-readonly-list-binding.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/tasks/tasks-relationship-linked-context.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/tasks/tasks-strict-guardrail-inventory.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/tasks/tasks-tags-files-child-dialog.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 2
-          }
-        ],
-        "scripts/regression-contracts/tasks/tasks-workflow-action-descriptor.contract.mjs": [
-          {
-            "code": 7006,
-            "count": 4
           }
         ],
         "scripts/regression-runner-regression.mjs": [
@@ -3301,7 +3175,7 @@
   },
   "totals": {
     "files": 1046,
-    "errors": 11276,
+    "errors": 11221,
     "explicitAny": 3
   },
   "explicitAnyByFile": {

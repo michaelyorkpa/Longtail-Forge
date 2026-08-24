@@ -9,7 +9,6 @@ const listsModule = readText("src/modules/lists/module.js");
 const listsJs = readText("public/js/lists.js");
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
-const changelog = readText("CHANGELOG.md");
 
 assert.match(html, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Lists protected view should remain a minimal host");
 assert.match(html, /js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/lists\.js/, "Lists should load the renderer between the view builder and module script");
@@ -50,10 +49,14 @@ assert.match(renderer, /function renderFieldShell\(field, view, options = \{\}\)
 assert.match(builder, /options\.fieldType === "select" \|\| options\.fieldType === "multi-select"/, "Shared field factory should support descriptor select filters");
 assert.match(renderer, /data-view-input/, "Renderer should expose stable generic field input hooks");
 
-assert.match(changelog, /## Version 0\.33\.5\.16\.9 - /, "Changelog should include Lists declarative proof version");
-
 console.log("Lists declarative read-only surface regression passed.");
 
+/**
+ * Extract one named function from a source file this module reads, from its
+ * declaration to the next top-level function declaration.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} functionName the name to locate
+ */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);
@@ -61,6 +64,11 @@ function functionBlock(source, functionName) {
   return source.slice(start, next === -1 ? source.length : next);
 }
 
+/**
+ * Extract the descriptor's summaryPanels region, up to the emptyState that
+ * follows it.
+ * @param {string} source descriptor text from the shared project text reader
+ */
 function summaryPanelsBlock(source) {
   const start = source.indexOf("summaryPanels:");
   assert.notEqual(start, -1, "summaryPanels should exist");

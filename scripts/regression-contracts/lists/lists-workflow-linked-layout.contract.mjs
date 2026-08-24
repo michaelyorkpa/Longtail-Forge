@@ -11,7 +11,6 @@ const listsRoutes = readText("src/modules/lists/lists.routes.js");
 const listsService = readText("src/modules/lists/lists.service.js");
 const manifestContract = readText("src/core/modules/manifest-contract.js");
 const renderer = readText("public/js/shared/view-renderer.js");
-const changelog = readText("CHANGELOG.md");
 
 assert.match(listsModule, /version:\s*appVersion/, "Lists module should report the current app version");
 assert.match(listsModule, /actionStrip:\s*\{[\s\S]*id:\s*"duplicate-list"[\s\S]*behavior:\s*"lists\.workflow\.duplicate"[\s\S]*id:\s*"edit-list"[\s\S]*id:\s*"complete-list"[\s\S]*id:\s*"finalize-list"[\s\S]*id:\s*"reopen-list"[\s\S]*id:\s*"mark-reusable-list"[\s\S]*id:\s*"unmark-reusable-list"[\s\S]*id:\s*"archive-list"[\s\S]*id:\s*"delete-list"[\s\S]*id:\s*"restore-list"/, "Lists descriptor should declare workflow actions and behavior IDs");
@@ -78,10 +77,14 @@ assert.match(listsJs, /\/api\/lists\/\$\{listId\}\/links\/\$\{encodeURIComponent
 assert.match(listsJs, /setBusinessControlsVisible\(usesBusinessScope\(\)\)/, "Business client/project controls should remain workspace-scoped");
 assert.match(listsJs, /setContextControlsVisible\(usesBusinessScope\(\)\)/, "Personal and Family workspace context behavior should remain preserved");
 
-assert.match(changelog, /## Version 0\.33\.5\.16\.11 - /, "Changelog should include the Lists workflow/link descriptor version");
-
 console.log("Lists workflow, linked records, and layout descriptor regression passed.");
 
+/**
+ * Extract one named function from a source file this module reads, from its
+ * declaration to the next top-level function declaration.
+ * @param {string} source file text from the shared project text reader
+ * @param {string} functionName the name to locate
+ */
 function functionBlock(source, functionName) {
   const start = source.indexOf(`function ${functionName}`);
   assert.notEqual(start, -1, `${functionName} should exist`);

@@ -1235,13 +1235,50 @@ for (const contractModule of [
     `${contractModule} must stay strict-clean after checkpoint 0.33.33.32.25`,
   );
 }
-// Both area aggregators left the planning-document pin baseline at
-// 0.33.33.32.25. Every module under them must stay off archived release
-// prose and off the redundant cursor floor that release.roadmap-cursor-floor
-// already asserts once. Plain substring checks: a regex here would carry an
-// escaping surface, and 0.33.33.32.24 shipped a guard that a consumed escape
-// had already made unmatchable.
+// 0.33.33.32.26 typed the Tasks, Notes, Lists, and Tags declarative contract
+// modules. Pinned by path for the same reason as the 0.33.33.32.25 cohort:
+// these are side-effect modules with no regression id of their own.
+for (const contractModule of [
+  "scripts/regression-contracts/lists/lists-declarative-readonly-surface.contract.mjs",
+  "scripts/regression-contracts/lists/lists-workflow-linked-layout.contract.mjs",
+  "scripts/regression-contracts/notes/notes-critical-quick-fixes.contract.mjs",
+  "scripts/regression-contracts/notes/notes-file-preview-actions.contract.mjs",
+  "scripts/regression-contracts/notes/notes-tasks-modal-footer-visual-parity.contract.mjs",
+  "scripts/regression-contracts/tags/tag-record-workflow.contract.mjs",
+  "scripts/regression-contracts/tasks/task-checklist-editor-display.contract.mjs",
+  "scripts/regression-contracts/tasks/task-critical-quick-fixes.contract.mjs",
+  "scripts/regression-contracts/tasks/task-editor-workbench-handoff.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-bulk-toolbar-shell.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-checklist-escape-hatch.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-declarative-readonly-surface.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-detail-read-panel.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-filter-sidebar-anatomy.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-lifecycle-action-descriptor.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-list-surface-boundary.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-readonly-list-binding.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-relationship-linked-context.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-strict-guardrail-inventory.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-tags-files-child-dialog.contract.mjs",
+  "scripts/regression-contracts/tasks/tasks-workflow-action-descriptor.contract.mjs",
+]) {
+  assert.equal(
+    ledger.programs.scripts.diagnostics[contractModule],
+    undefined,
+    `${contractModule} must stay strict-clean after checkpoint 0.33.33.32.26`,
+  );
+}
+// Every area aggregator that has left the planning-document pin baseline is
+// covered here: the two from 0.33.33.32.25 and the four from 0.33.33.32.26.
+// Every module under them must stay off archived release prose, off live-roadmap
+// breadcrumb reads, and off the redundant cursor floor that
+// release.roadmap-cursor-floor already asserts once. Plain substring checks: a
+// regex here would carry an escaping surface, and 0.33.33.32.24 shipped a guard
+// that a consumed escape had already made unmatchable.
 for (const contractDirectory of [
+  "scripts/regression-contracts/lists",
+  "scripts/regression-contracts/notes",
+  "scripts/regression-contracts/tags",
+  "scripts/regression-contracts/tasks",
   "scripts/regression-contracts/time-tracking",
   "scripts/regression-contracts/workbench",
 ]) {
@@ -1256,7 +1293,7 @@ for (const contractDirectory of [
       assert.equal(
         source.includes(forbidden),
         false,
-        `${modulePath} must not read ${forbidden}; its area aggregator left the planning-document pin baseline at 0.33.33.32.25`,
+        `${modulePath} must not read ${forbidden}; its area aggregator has left the planning-document pin baseline and the baseline is shrink-only`,
       );
     }
   }
