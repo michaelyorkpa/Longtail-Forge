@@ -2642,9 +2642,8 @@ function collectViewScriptDelivery() {
       const html = fs.readFileSync(full, "utf8");
       for (const tag of html.matchAll(/<script\b([^>]*)\bsrc\s*=\s*"([^"]+)"([^>]*)>/g)) {
         const attributes = `${tag[1]} ${tag[3]}`;
-        const source = `public/${tag[2].replace(/^\//, "").replace(/^js\//, "js/")}`
-          .replace("public/js/", "public/js/");
-        const resolved = source.startsWith("public/js/") ? source : `public/${tag[2].replace(/^\//, "")}`;
+        // A view writes `js/name.js` or `/js/name.js`; both address `public/js/name.js`.
+        const resolved = `public/${tag[2].replace(/^\//, "")}`;
         if (/type\s*=\s*"module"/.test(attributes)) moduleSources.add(resolved);
         else classicSources.add(resolved);
       }
