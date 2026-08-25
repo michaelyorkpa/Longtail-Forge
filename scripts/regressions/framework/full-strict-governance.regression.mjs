@@ -2521,6 +2521,9 @@ for (const shellOwner of [
   "public/js/support-view.js",
   "public/js/support-view-audit.js",
   "public/js/api-keys.js",
+  "public/js/reporting.js",
+  "public/js/calendar.js",
+  "public/js/dashboard.js",
 ]) {
   const shellSource = fs.readFileSync(shellOwner, "utf8").split("\r\n").join("\n");
   const leaked = shellSource
@@ -2662,13 +2665,31 @@ const viewDelivery = collectViewScriptDelivery();
 const NATIVE_MODULE_ENTRIES = new Map([
   [
     "public/js/dashboard.entry.js",
-    "Dashboard is the one page delivered through a native ES-module entry; its top-level"
-      + " await is a syntax error in a classic script, so its declarations can only ever be"
-      + " module scoped.",
+    {
+      delivery: "view-module-tag",
+      reason: "Dashboard is the one page delivered through a native ES-module entry; its"
+        + " top-level await is a syntax error in a classic script, so its declarations can"
+        + " only ever be module scoped.",
+    },
+  ],
+  [
+    "public/js/tasks-dashboard.js",
+    {
+      delivery: "dynamic-import",
+      // Found by 0.33.33.33.5, which tried to wrap it. Its top-level await loads the
+      // renderer's dependencies before it registers a panel renderer, and the importing
+      // module waits for that. Wrapping it in a synchronous IIFE is a parse error, and an
+      // async IIFE would let import() resolve before registration, so the file is a
+      // native ES module by delivery and by construction.
+      reason: "Contributed to the Dashboard view and loaded through the ES-module bridge's"
+        + " dynamic import; its top-level await sequences dependency loading before panel"
+        + " registration, so it cannot be a classic script or a synchronous wrap.",
+    },
   ],
 ]);
 
-for (const [moduleEntry, reason] of NATIVE_MODULE_ENTRIES) {
+for (const [moduleEntry, record] of NATIVE_MODULE_ENTRIES) {
+  const reason = record.reason;
   assert.ok(reason.length > 0, `${moduleEntry} must record why it is a native module entry`);
   assert.ok(
     fs.existsSync(moduleEntry),
@@ -2693,15 +2714,31 @@ for (const [moduleEntry, reason] of NATIVE_MODULE_ENTRIES) {
       + " ES module, and top-level await is the proof of that. The proof is gone, so the"
       + " exemption is no longer earned.",
   );
-  assert.ok(
-    viewDelivery.moduleSources.has(moduleEntry),
-    `${moduleEntry} must be loaded by a <script type="module"> tag in a rendered view`,
-  );
+  // The negative proof applies to both delivery kinds: whatever loads the file, no view
+  // may load it as a classic script, because that would put every one of its top-level
+  // declarations into the shared scope.
   assert.ok(
     !viewDelivery.classicSources.has(moduleEntry),
     `${moduleEntry} is exempt as a native ES module but a view loads it as a classic script,`
       + " which would put every one of its top-level declarations into the shared scope",
   );
+  if (record.delivery === "view-module-tag") {
+    assert.ok(
+      viewDelivery.moduleSources.has(moduleEntry),
+      `${moduleEntry} is recorded as loaded by a <script type="module"> tag in a rendered view`,
+    );
+  } else {
+    // A dynamically imported module has no tag to point at, so the positive proof is that
+    // no view references it at all - it is reached only through the module bridge.
+    assert.ok(
+      !viewDelivery.moduleSources.has(moduleEntry),
+      `${moduleEntry} is recorded as reached only through dynamic import, but a view names it`,
+    );
+    assert.ok(
+      moduleEntry.startsWith("public/js/"),
+      `${moduleEntry} must be a browser asset the module bridge can import`,
+    );
+  }
 }
 
 // Every script here still declares names in the classic shared lexical environment. The
@@ -2716,11 +2753,7 @@ const SHARED_SCOPE_BACKLOG = new Set([
   "public/js/files.js",
   "public/js/time-entries.js",
   "public/js/stop-watch.js",
-  "public/js/reporting.js",
-  "public/js/dashboard.js",
   "public/js/tags.js",
-  "public/js/calendar.js",
-  "public/js/tasks-dashboard.js",
 ]);
 
 for (const backlogEntry of SHARED_SCOPE_BACKLOG) {
