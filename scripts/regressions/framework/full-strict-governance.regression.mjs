@@ -2714,6 +2714,34 @@ for (const [moduleEntry, record] of NATIVE_MODULE_ENTRIES) {
       + " ES module, and top-level await is the proof of that. The proof is gone, so the"
       + " exemption is no longer earned.",
   );
+  // Runtime module delivery is only half of the invariant. `0.33.33.33.5.1` found that
+  // TypeScript was still modelling both of these files as global scripts, because it
+  // decides module scope from syntax alone and neither carried a top-level import or
+  // export. Their declarations were therefore offered to the classic shared scope in the
+  // type system while being module scoped in the browser: a classic controller could be
+  // checked against a name that does not exist for it at runtime.
+  //
+  // The compiler's answer is deduced from its own output rather than re-implemented. A
+  // file with a top-level await that TypeScript does not treat as a module necessarily
+  // produces TS1375 ("await expressions are only allowed at the top level of a file when
+  // that file is a module"). Every entry here is required to have that await, so the
+  // absence of TS1375 in the generated ledger proves the compiler classifies it as a
+  // module. The export marker is asserted alongside it as the direct statement of intent.
+  assert.match(
+    maskedEntry,
+    /^\s*export\s*\{\s*\}\s*;/m,
+    `${moduleEntry} is a native ES module at runtime and must carry a top-level export marker`
+      + " so TypeScript models it with module scope too; without one its declarations join the"
+      + " classic shared scope in the type system only",
+  );
+  const moduleEntryDiagnostics = ledger.programs.browser.diagnostics[moduleEntry] || [];
+  const notAModuleDiagnostic = moduleEntryDiagnostics.find((entry) => entry.code === 1375);
+  assert.ok(
+    !notAModuleDiagnostic,
+    `${moduleEntry} still reports TS1375, which is the compiler stating it does not treat this`
+      + " file as a module. Runtime module delivery and TypeScript module scope must agree.",
+  );
+
   // The negative proof applies to both delivery kinds: whatever loads the file, no view
   // may load it as a classic script, because that would put every one of its top-level
   // declarations into the shared scope.
@@ -2740,6 +2768,21 @@ for (const [moduleEntry, record] of NATIVE_MODULE_ENTRIES) {
     );
   }
 }
+
+// The browser program must keep modelling the classic global scope. `moduleDetection`
+// set to "force" would make TypeScript treat every file as a module, which would make the
+// assertions above pass for the wrong reason and, far worse, would stop the compiler
+// modelling the shared script scope that `0.33.33.33` exists to measure. Each native
+// module earns its module scope with a marker of its own instead.
+/** @type {{compilerOptions?: {moduleDetection?: string}}} */
+const browserProgramConfig = JSON.parse(fs.readFileSync("tsconfig.public.json", "utf8"));
+assert.notEqual(
+  browserProgramConfig.compilerOptions?.moduleDetection,
+  "force",
+  "tsconfig.public.json must not force module detection: it would hide the classic shared"
+    + " global scope that the 0.33.33.33 inventory measures, and would grant module scope to"
+    + " files that have not proved they are delivered as modules",
+);
 
 // Every script here still declares names in the classic shared lexical environment. The
 // list may only shrink: a script that leaves it must not come back, and no classic script

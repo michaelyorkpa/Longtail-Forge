@@ -1,6 +1,13 @@
 // Dashboard is the first protected page loaded through one native ES-module
 // entry. The bridge keeps existing classic-compatible browser files working
 // while their globals are retired incrementally.
+// This file is a native ES module at runtime: the browser loads it as one and its
+// top-level await depends on that. TypeScript decides module scope from syntax alone,
+// so without an export marker it modelled this file as a global script and offered every
+// declaration below to the classic shared scope. The marker exports nothing; this module's
+// public behaviour is its explicit window.LongtailForge.* publication.
+export {};
+
 const namespace = window.LongtailForge = window.LongtailForge || {};
 const loadedScripts = new Map();
 const loadedStyles = new Map();
