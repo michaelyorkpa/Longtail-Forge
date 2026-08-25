@@ -2567,6 +2567,12 @@ for (const shellOwner of [
   "public/js/reporting.js",
   "public/js/calendar.js",
   "public/js/dashboard.js",
+  "public/js/tags.js",
+  "public/js/files.js",
+  "public/js/lists.js",
+  "public/js/tasks.js",
+  "public/js/clients-projects.js",
+  "public/js/notes.js",
 ]) {
   const shellSource = fs.readFileSync(shellOwner, "utf8").split("\r\n").join("\n");
   const leaked = shellSource
@@ -2622,6 +2628,47 @@ for (const publishedSurface of [
     `public/js/navigation.js must keep publishing ${publishedSurface}; scoping the script must not withdraw a surface other pages read`,
   );
 }
+// `0.33.33.33.6` introduced governed diagnostic reclassification: scoping a controller
+// changes which declaration an identifier resolves to, so a file can report the same debt
+// under different codes while its total falls. The door is deliberately narrow, and these
+// fixtures are what keep it narrow, because the records themselves are struck once spent
+// and the mechanism would otherwise sit untested.
+/** @param {Record<string, {diagnostics: Record<string, {code: number, count: number}[]>, files: string[]}>} programs */
+function governanceStateFixture(programs) {
+  return /** @type {Parameters<typeof validateShrinkOnly>[0]} */ ({
+    programs,
+    explicitAnyByFile: {},
+    totals: { files: 0, errors: 0, explicitAny: 0 },
+  });
+}
+const reclassificationBefore = governanceStateFixture({
+  browser: { files: ["public/js/a.js"], diagnostics: { "public/js/a.js": [{ code: 2339, count: 10 }] } },
+});
+const reclassificationAfter = governanceStateFixture({
+  browser: { files: ["public/js/a.js"], diagnostics: { "public/js/a.js": [{ code: 2339, count: 4 }, { code: 2322, count: 2 }] } },
+});
+// With no record, a code that rises fails even though the file's total fell 10 -> 6.
+assert.throws(
+  () => validateShrinkOnly(reclassificationBefore, reclassificationAfter),
+  /2322 increased 0 -> 2/,
+  "an unrecorded code may not rise, however much the rest of the file improved",
+);
+// An unrelated file gaining debt fails regardless of any reclassification elsewhere.
+const unrelatedGrowth = governanceStateFixture({
+  browser: {
+    files: ["public/js/a.js", "public/js/b.js"],
+    diagnostics: {
+      "public/js/a.js": [{ code: 2339, count: 4 }],
+      "public/js/b.js": [{ code: 7006, count: 1 }],
+    },
+  },
+});
+assert.throws(
+  () => validateShrinkOnly(reclassificationBefore, unrelatedGrowth),
+  /public\/js\/b\.js: 7006 increased 0 -> 1/,
+  "a new diagnostic in a file nothing scoped is new debt, not a reclassification",
+);
+
 // The shared-global inventory that `0.33.33.33` closes against.
 //
 // `TS2451` reaching zero is necessary but not sufficient, and `0.33.33.33.3` proved why:
@@ -2831,15 +2878,9 @@ assert.notEqual(
 // list may only shrink: a script that leaves it must not come back, and no classic script
 // outside it may start leaking. `0.33.33.33` closes when this list is empty.
 const SHARED_SCOPE_BACKLOG = new Set([
-  "public/js/notes.js",
   "public/js/workbench.js",
-  "public/js/tasks.js",
-  "public/js/lists.js",
-  "public/js/clients-projects.js",
-  "public/js/files.js",
   "public/js/time-entries.js",
   "public/js/stop-watch.js",
-  "public/js/tags.js",
 ]);
 
 for (const backlogEntry of SHARED_SCOPE_BACKLOG) {
