@@ -1,13 +1,13 @@
 {
   "schemaVersion": 2,
-  "maximumActiveScripts": 347,
-  "minimumAssertionCount": 19583,
+  "maximumActiveScripts": 348,
+  "minimumAssertionCount": 19610,
   "minimumAreaScripts": {
     "dashboard": 2,
     "database": 48,
     "docs": 11,
     "files": 45,
-    "framework": 88,
+    "framework": 89,
     "jobs": 8,
     "licensing": 1,
     "lists": 13,
