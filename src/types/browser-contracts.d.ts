@@ -146,6 +146,18 @@ export interface LongtailForgeBrowserNamespace {
    * been reaching for; the surface is named here rather than rediscovered.
    */
   loginPage?: { showRequiredPasswordChange: (currentPassword?: string) => void };
+  /**
+   * Published by `public/js/navigation.js` and read by the Workspace Settings
+   * controller after a rename.
+   *
+   * `0.33.33.33.1` scoped the navigation script and declared this on `Window`,
+   * because the consumer had been resolving the read against that script's
+   * top-level function through the shared global scope. `0.33.33.33.3` owns
+   * that consumer and moved the surface here: every other surface navigation
+   * publishes is a namespace member, and the only bare `window.*` it still
+   * owns is the deliberate `fetch` patch.
+   */
+  applyWorkspaceName?: (value: unknown) => void;
   records?: BrowserRecords;
   viewSurfaceDescriptor?: BrowserViewSurfaceDescriptorAdapter;
   viewResponseRecords?: BrowserViewResponseRecords;
@@ -157,17 +169,5 @@ export type BrowserErrorEnvelope = ApiErrorEnvelope;
 declare global {
   interface Window {
     LongtailForge?: LongtailForgeBrowserNamespace;
-    /**
-     * Published by `public/js/navigation.js` and read by the Workspace
-     * Settings controller after a rename.
-     *
-     * It is declared here because `0.33.33.33.1` scoped the app-shell
-     * navigation script: the consumer previously resolved this read against
-     * that script's top-level function through the shared global scope, which
-     * is an inherited zero rather than a contract. The surface is a bare
-     * `window.*` global rather than a `window.LongtailForge.*` one, and
-     * `0.33.33.33.3` owns the consumer that decides whether to move it.
-     */
-    applyWorkspaceName?: (value: unknown) => void;
   }
 }

@@ -348,6 +348,7 @@
         "tests/e2e/user-settings-appearance.spec.mjs",
         "tests/e2e/workbench-mobile-chip-layout.spec.mjs",
         "tests/e2e/workbench-mobile-inspector.spec.mjs",
+        "tests/e2e/workspace-rename-shell-label.spec.mjs",
         "tests/e2e/workspace-switch-landing.spec.mjs",
         "tests/time-tracking/time-tracking-billing.test.mjs",
         "tests/typecheck/browser-database-boundary.fixture.mjs",
@@ -470,7 +471,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 11128,
+      "errorCount": 11082,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -776,10 +777,6 @@
             "count": 1
           },
           {
-            "code": 2451,
-            "count": 3
-          },
-          {
             "code": 7005,
             "count": 1
           },
@@ -1008,12 +1005,8 @@
             "count": 3
           },
           {
-            "code": 2451,
-            "count": 2
-          },
-          {
             "code": 7005,
-            "count": 4
+            "count": 2
           },
           {
             "code": 7006,
@@ -1089,15 +1082,11 @@
           },
           {
             "code": 2339,
-            "count": 35
-          },
-          {
-            "code": 2451,
-            "count": 4
+            "count": 10
           },
           {
             "code": 7006,
-            "count": 41
+            "count": 34
           }
         ],
         "public/js/notes.js": [
@@ -2054,10 +2043,6 @@
             "count": 5
           },
           {
-            "code": 2741,
-            "count": 1
-          },
-          {
             "code": 7005,
             "count": 15
           },
@@ -2367,10 +2352,6 @@
           },
           {
             "code": 2349,
-            "count": 2
-          },
-          {
-            "code": 2451,
             "count": 2
           },
           {
@@ -2997,8 +2978,8 @@
     }
   },
   "totals": {
-    "files": 1046,
-    "errors": 11128,
+    "files": 1047,
+    "errors": 11082,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

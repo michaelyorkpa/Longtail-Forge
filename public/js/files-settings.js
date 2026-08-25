@@ -1,136 +1,138 @@
-const filesSettingsForm = document.querySelector("[data-module-settings-form='files']");
-const filesSettingsFields = document.querySelector('[data-settings-attachment="module"][data-settings-module-id="files"]');
-const filesSettingsAuxiliary = document.querySelector("[data-module-settings-legacy='files']");
-const filesSettingsStatus = document.querySelector("[data-module-settings-status]");
-const api = window.LongtailForge.api;
+(function attachFilesSettingsPage() {
+  const filesSettingsForm = document.querySelector("[data-module-settings-form='files']");
+  const filesSettingsFields = document.querySelector('[data-settings-attachment="module"][data-settings-module-id="files"]');
+  const filesSettingsAuxiliary = document.querySelector("[data-module-settings-legacy='files']");
+  const filesSettingsStatus = document.querySelector("[data-module-settings-status]");
+  const api = window.LongtailForge.api;
 
-let settingsCatalog = null;
-let accounting = {};
-const settingsPageController = window.LongtailForge.settingsPageController.create({
-  root: document.querySelector("[data-settings-host='module']"),
-  onSave: saveFilesSettings,
-});
+  let settingsCatalog = null;
+  let accounting = {};
+  const settingsPageController = window.LongtailForge.settingsPageController.create({
+    root: document.querySelector("[data-settings-host='module']"),
+    onSave: saveFilesSettings,
+  });
 
-mountAccountingReadout();
-filesSettingsForm?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  await saveFilesSettings();
-});
-loadFilesSettings();
+  mountAccountingReadout();
+  filesSettingsForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await saveFilesSettings();
+  });
+  loadFilesSettings();
 
-async function loadFilesSettings() {
-  setStatus("Loading Files settings...");
-  try {
-    const [catalog, result] = await Promise.all([
-      api.getJson("/api/settings/catalog", { cache: "no-store" }),
-      api.getJson("/api/files/settings", { cache: "no-store" }),
-    ]);
-    settingsCatalog = catalog;
-    accounting = result.accounting || {};
-    renderSettings();
-    setStatus("");
-    settingsPageController.setClean();
-  } catch (error) {
-    if (error.status === 401) {
-      window.location.replace("/login.html");
+  async function loadFilesSettings() {
+    setStatus("Loading Files settings...");
+    try {
+      const [catalog, result] = await Promise.all([
+        api.getJson("/api/settings/catalog", { cache: "no-store" }),
+        api.getJson("/api/files/settings", { cache: "no-store" }),
+      ]);
+      settingsCatalog = catalog;
+      accounting = result.accounting || {};
+      renderSettings();
+      setStatus("");
+      settingsPageController.setClean();
+    } catch (error) {
+      if (error.status === 401) {
+        window.location.replace("/login.html");
+        return;
+      }
+      setStatus(error.message || "Files settings could not be loaded.", true);
+    }
+  }
+
+  async function saveFilesSettings() {
+    if (!window.LongtailForge.settingsRenderer.validate(filesSettingsForm)) {
+      setStatus("Review the highlighted Files settings.", true);
+      return false;
+    }
+    const values = window.LongtailForge.settingsRenderer.collectPayload(filesSettingsForm).files || {};
+    setStatus("Saving Files settings...");
+    try {
+      const result = await api.putJson("/api/files/settings", {
+        allowedExtensions: parseExtensions(values["files.allowedExtensions"]),
+        blockedExtensions: parseExtensions(values["files.blockedExtensions"]),
+        fileTypePolicyMode: values["files.fileTypePolicyMode"] || "safe_default",
+        internalStorageLimitBytes: nullableInteger(values["files.internalStorageLimitBytes"]),
+        perUserStorageLimitBytes: nullableInteger(values["files.perUserStorageLimitBytes"]),
+      });
+      accounting = result.accounting || {};
+      settingsCatalog = await api.getJson("/api/settings/catalog", { cache: "no-store" });
+      renderSettings();
+      setStatus("Files settings saved.");
+      return true;
+    } catch (error) {
+      window.LongtailForge.settingsRenderer.showValidationErrors(filesSettingsForm, error);
+      setStatus(error.message || "Files settings were not saved.", true);
+      return false;
+    }
+  }
+
+  function renderSettings() {
+    window.LongtailForge.settingsRenderer.renderSections(
+      filesSettingsFields,
+      window.LongtailForge.settingsHost.attachmentSections(settingsCatalog, "module", "files"),
+      { emptyText: "No configurable Files settings are available." },
+    );
+    renderAccounting();
+  }
+
+  function mountAccountingReadout() {
+    if (!filesSettingsAuxiliary) {
       return;
     }
-    setStatus(error.message || "Files settings could not be loaded.", true);
+    const view = window.LongtailForge.view;
+    filesSettingsAuxiliary.appendChild(view.createElement("fieldset", {
+      className: "view-settings-section",
+      children: [
+        view.createElement("legend", { className: "view-settings-section-legend", text: "Storage Accounting" }),
+        view.createElement("div", { className: "settings-summary-grid", dataset: { storageAccounting: "" } }),
+      ],
+    }));
   }
-}
 
-async function saveFilesSettings() {
-  if (!window.LongtailForge.settingsRenderer.validate(filesSettingsForm)) {
-    setStatus("Review the highlighted Files settings.", true);
-    return false;
+  function renderAccounting() {
+    const container = filesSettingsAuxiliary?.querySelector("[data-storage-accounting]");
+    if (!container) {
+      return;
+    }
+    const totals = accounting.totals || {};
+    const view = window.LongtailForge.view;
+    const items = [
+      ["Internal files", totals.internalFileCount || 0],
+      ["Internal storage", formatBytes(totals.internalBytes || 0)],
+      ["External files", totals.externalFileCount || 0],
+      ["External reported", formatBytes(totals.externalReportedBytes || 0)],
+    ];
+    container.replaceChildren(...items.map(([label, value]) => view.createElement("div", {
+      className: "settings-summary-item",
+      children: [
+        view.createElement("span", { text: label }),
+        view.createElement("strong", { text: String(value) }),
+      ],
+    })));
   }
-  const values = window.LongtailForge.settingsRenderer.collectPayload(filesSettingsForm).files || {};
-  setStatus("Saving Files settings...");
-  try {
-    const result = await api.putJson("/api/files/settings", {
-      allowedExtensions: parseExtensions(values["files.allowedExtensions"]),
-      blockedExtensions: parseExtensions(values["files.blockedExtensions"]),
-      fileTypePolicyMode: values["files.fileTypePolicyMode"] || "safe_default",
-      internalStorageLimitBytes: nullableInteger(values["files.internalStorageLimitBytes"]),
-      perUserStorageLimitBytes: nullableInteger(values["files.perUserStorageLimitBytes"]),
-    });
-    accounting = result.accounting || {};
-    settingsCatalog = await api.getJson("/api/settings/catalog", { cache: "no-store" });
-    renderSettings();
-    setStatus("Files settings saved.");
-    return true;
-  } catch (error) {
-    window.LongtailForge.settingsRenderer.showValidationErrors(filesSettingsForm, error);
-    setStatus(error.message || "Files settings were not saved.", true);
-    return false;
+
+  function parseExtensions(value) {
+    return String(value || "").split(/[\s,]+/).map((item) => item.trim()).filter(Boolean);
   }
-}
 
-function renderSettings() {
-  window.LongtailForge.settingsRenderer.renderSections(
-    filesSettingsFields,
-    window.LongtailForge.settingsHost.attachmentSections(settingsCatalog, "module", "files"),
-    { emptyText: "No configurable Files settings are available." },
-  );
-  renderAccounting();
-}
-
-function mountAccountingReadout() {
-  if (!filesSettingsAuxiliary) {
-    return;
+  function nullableInteger(value) {
+    if (value === "" || value === null || value === undefined) {
+      return null;
+    }
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
   }
-  const view = window.LongtailForge.view;
-  filesSettingsAuxiliary.appendChild(view.createElement("fieldset", {
-    className: "view-settings-section",
-    children: [
-      view.createElement("legend", { className: "view-settings-section-legend", text: "Storage Accounting" }),
-      view.createElement("div", { className: "settings-summary-grid", dataset: { storageAccounting: "" } }),
-    ],
-  }));
-}
 
-function renderAccounting() {
-  const container = filesSettingsAuxiliary?.querySelector("[data-storage-accounting]");
-  if (!container) {
-    return;
+  function formatBytes(value) {
+    const bytes = Number(value || 0);
+    if (!bytes) return "0 B";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   }
-  const totals = accounting.totals || {};
-  const view = window.LongtailForge.view;
-  const items = [
-    ["Internal files", totals.internalFileCount || 0],
-    ["Internal storage", formatBytes(totals.internalBytes || 0)],
-    ["External files", totals.externalFileCount || 0],
-    ["External reported", formatBytes(totals.externalReportedBytes || 0)],
-  ];
-  container.replaceChildren(...items.map(([label, value]) => view.createElement("div", {
-    className: "settings-summary-item",
-    children: [
-      view.createElement("span", { text: label }),
-      view.createElement("strong", { text: String(value) }),
-    ],
-  })));
-}
 
-function parseExtensions(value) {
-  return String(value || "").split(/[\s,]+/).map((item) => item.trim()).filter(Boolean);
-}
-
-function nullableInteger(value) {
-  if (value === "" || value === null || value === undefined) {
-    return null;
+  function setStatus(message, isError = false) {
+    window.LongtailForge.status.set(filesSettingsStatus, message, isError ? { type: "error" } : {});
   }
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
-}
-
-function formatBytes(value) {
-  const bytes = Number(value || 0);
-  if (!bytes) return "0 B";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function setStatus(message, isError = false) {
-  window.LongtailForge.status.set(filesSettingsStatus, message, isError ? { type: "error" } : {});
-}
+})();
