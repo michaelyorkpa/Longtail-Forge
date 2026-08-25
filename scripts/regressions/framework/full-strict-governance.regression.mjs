@@ -2057,6 +2057,27 @@ assert.equal(
   'function target() {\n  function nested() {}\n  return nested;\n}',
   "a nested declaration is deeper than the span's owner and must not end it",
 );
+// Reading depth rather than column made function expressions matter. Under the column
+// rule an expression could only be mistaken for a declaration if it began a line; at the
+// same brace depth an assignment, an argument, and a named function expression all sit
+// exactly where a declaration would. Only statement position separates them.
+for (const [label, source, mustContain] of [
+  ["an assignment", 'function target() {}\nconst handler = function (event) {};\nfunction next() {}\n', "const handler = function (event) {};"],
+  ["a named function expression", 'function target() {}\nconst handler = function inner() {};\nfunction next() {}\n', "const handler = function inner() {};"],
+  ["a callback argument", 'function target() {}\nregister(function (event) {});\nfunction next() {}\n', "register(function (event) {});"],
+  ["an object property", 'function target() {}\nconst handlers = { onClick: function (event) {} };\nfunction next() {}\n', "onClick: function (event) {}"],
+  ["an exported declaration", 'function target() {}\nexport function exported() {}\nfunction next() {}\n', "export function exported() {}"],
+]) {
+  assert.ok(
+    extractFunctionSpan(source, "target").includes(mustContain),
+    `${label} is not a declaration in statement position and must not end a span`,
+  );
+}
+assert.equal(
+  extractFunctionSpan('function target() {}\nconst handler = function (event) {};\nfunction next() {}\n', "target"),
+  'function target() {}\nconst handler = function (event) {};',
+  "the span still ends at the next real declaration once the expression is passed over",
+);
 assert.throws(
   () => extractFunctionSpan('function other() {\n  return 1;\n}\n', "target"),
   /target should exist/,
