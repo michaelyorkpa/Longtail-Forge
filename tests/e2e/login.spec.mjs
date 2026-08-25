@@ -1,3 +1,5 @@
+/* global window */
+
 // Public-login visibility smoke: the forced password-change form must not
 // render until the authenticated login response or session state requires it.
 
@@ -16,7 +18,7 @@ test("login shows only the form appropriate to the authentication state", async 
   await expect(page.locator("[data-login-form]")).toBeVisible();
   await expect(page.locator("[data-required-password-form]")).toBeHidden();
 
-  await page.evaluate(() => /** @type {typeof globalThis & { showRequiredPasswordChange: (currentPassword: string) => void }} */ (globalThis).showRequiredPasswordChange("temporary-password"));
+  await page.evaluate(() => window.LongtailForge?.loginPage?.showRequiredPasswordChange("temporary-password"));
 
   await expect(page.locator("[data-login-form]")).toBeHidden();
   await expect(page.locator("[data-required-password-form]")).toBeVisible();
