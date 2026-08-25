@@ -1513,7 +1513,7 @@
     }
   }
 
-  window.applyWorkspaceName = applyWorkspaceName;
+  window.LongtailForge.applyWorkspaceName = applyWorkspaceName;
 
   function applyActiveWorkspaceLabel(fallbackName = DEFAULT_WORKSPACE_NAME) {
     if (!workspaceSelector) {

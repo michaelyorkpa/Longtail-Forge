@@ -2511,6 +2511,10 @@ for (const shellOwner of [
   "public/js/login.js",
   "public/js/splash.js",
   "public/js/account-recovery.js",
+  "public/js/workspace-settings.js",
+  "public/js/notes-settings.js",
+  "public/js/files-settings.js",
+  "public/js/module-settings.js",
 ]) {
   const shellSource = fs.readFileSync(shellOwner, "utf8").split("\r\n").join("\n");
   const leaked = shellSource
@@ -2523,10 +2527,19 @@ for (const shellOwner of [
   );
 }
 // The published surfaces are the reason the wrap is safe, so they are pinned by
-// name rather than by count. `applyWorkspaceName` is a bare `window.*` global
-// rather than a namespace member; it is declared on `Window` in
-// `src/types/browser-contracts.d.ts` and `0.33.33.33.3` owns the consumer that
-// decides whether to move it under `window.LongtailForge`.
+// name rather than by count. `0.33.33.33.3` scoped the four settings page
+// controllers and, owning the one consumer, moved `applyWorkspaceName` under
+// `window.LongtailForge`, so the only bare `window.*` navigation still owns is
+// the deliberate `fetch` patch.
+//
+// Those four controllers collided on `settingsPageController` and
+// `settingsCatalog`, which TypeScript reports, and on `normalizeSettings` and
+// `normalizeWorkspaceType`, which it does not: a duplicate `function`
+// declaration merges silently instead of raising TS2451. `clients-projects.js`
+// was being checked against the Workspace Settings copy of `normalizeSettings`
+// rather than its own, from a page it never co-loads with. A collision count
+// built from TS2451 therefore undercounts, and the guard below pins the
+// scoping rather than the count.
 // `0.33.33.33.2` published one surface of its own. Scoping `login.js` removed
 // the implicit global that `tests/e2e/login.spec.mjs` had been driving the
 // required-password-change transition through - a hook that lives in the test
@@ -2549,7 +2562,7 @@ for (const publishedSurface of [
   "window.LongtailForge.workspaceContext",
   "window.LongtailForge.userPreferences",
   "window.LongtailForge.supportView",
-  "window.applyWorkspaceName",
+  "window.LongtailForge.applyWorkspaceName",
   "window.fetch",
 ]) {
   assert.ok(

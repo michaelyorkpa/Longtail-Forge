@@ -67,26 +67,21 @@ Children are grouped by **measured load surface**, because that is what determin
 - [ ] Every child proves each affected page through its focused view contracts and Playwright coverage before the browser ledger is regenerated.
 - [ ] **`TS2451` reconciliation.** The rollup closes when all 104 redeclaration diagnostics are gone and no new lexical collision exists among the 29.
 
+**`0.33.33.33.3` has also archived**, scoping the four settings page controllers and moving `applyWorkspaceName` under `window.LongtailForge`. It found the thing the rollup's own acceptance evidence cannot see. **A duplicate `function` declaration does not raise `TS2451`; it merges silently.** The four owners collide on `settingsPageController` and `settingsCatalog`, which the compiler reports, and on `normalizeSettings` and `normalizeWorkspaceType`, which it does not - `normalizeSettings` had **four** top-level declarations, and `clients-projects.js` was being checked against the Workspace Settings copy, from a page it never co-loads with. Scoping two of the four moved `clients-projects.js` and `time-entries.js` without either being touched. **The 104-name/104-`TS2451` reconciliation therefore counts block-scoped collisions only and undercounts the real collision set; the rollup still closes at `TS2451` 0, but reaching 0 does not mean the estate has no remaining name collisions.** Two further rules for the children that follow: **a rendered gate can pass vacuously** - a rename spec written to prove the moved surface passed with the surface withdrawn entirely, because `refreshAppShell` repaints the same label, so the surface is now asserted directly; and **`git checkout --` restores from `HEAD`, not from the working tree**, which silently discarded two uncommitted changes mid-child, so seeded controls now restore from a copy. `TS2451` is now 88 and the browser program is 11,082.
+
 **`0.33.33.33.2` has also archived**, and it added one rule the remaining children must follow. **Scan `tests/` as well as `public/js/` for consumers of an owner's globals.** Its cross-consumption scan cleared all three owners and the whole regression suite passed; `tests/e2e/login.spec.mjs` then failed at the rendered gate because it drove a transition through `globalThis.showRequiredPasswordChange`. The detector had a second defect behind the first - it required the receiver and member to be adjacent, so it could not see `(globalThis).showRequiredPasswordChange` even once pointed at `tests/`. **A static clearance is not evidence until the rendered gate agrees.** The scan now tolerates any receiver spelling and, across the six owners scoped so far, finds exactly one real hook. `TS2451` is now 99.
 
 **`0.33.33.33.1` has archived**, scoping the three injected shell scripts and removing 137 names from the browser's shared global scope. It settled three things for the children that follow. **The `TS2451` count is now 100**, and the rollup still closes at 0. **The bare/isolated classification tests the first code line**, so an owner whose file opens with a constant above an existing IIFE reads as bare when it is nearly isolated - `shared/view-response-records.js` was 11 lines of work rather than a wrap, and the estate is still 29 owners. And **scoping a script surfaces the `window.X` reads that were resolving against its top-level names through the shared global scope**: `workspace-settings.js` gained two diagnostics the moment `navigation.js` was wrapped, because `window.applyWorkspaceName` had never been declared by anything. That is an inherited zero becoming visible, not a regression; the publisher now declares the surface and the consumer's child decides where it belongs. Every remaining child should expect the same class of finding and budget for it.
 
-**Reconciliation: the estate was 29 owners, each in exactly one child, no duplicate and no orphan. `0.33.33.33.1` and `0.33.33.33.2` have taken 6; the table below is the remaining 23.**
+**Reconciliation: the estate was 29 owners, each in exactly one child, no duplicate and no orphan. `0.33.33.33.1`, `0.33.33.33.2`, and `0.33.33.33.3` have taken 10; the table below is the remaining 19.**
 
 | Child | Load surface | Owners | Lines | Diagnostics |
 | --- | --- | --- | --- | --- |
-| `.33.3` | Settings page controllers | 4 | 1,654 | 464 |
 | `.33.4` | Administration and support pages | 6 | 2,888 | 889 |
 | `.33.5` | Reporting, calendar, and dynamically loaded surfaces | 4 | 2,093 | 385 |
 | `.33.6` | Record module page controllers | 6 | 16,483 | 3,629 |
 | `.33.7` | Time tracking and orchestration controllers | 3 | 6,406 | 1,315 |
-| **Remaining** | | **23** | **29,524** | **6,682** |
-
-#### 0.33.33.33.3 - Isolate the settings page controllers
-
-**Model: Medium Effort - Four owners that share four colliding names.**
-
-`workspace-settings.js`, `notes-settings.js`, `files-settings.js`, and `module-settings.js` (which loads on 4 pages). 1,654 lines and 464 diagnostics. They collide on `settingsPageController`, `settingsCatalog`, `normalizeSettings`, and `normalizeWorkspaceType` — a real shared-name cluster, which is why they are one child rather than four.
+| **Remaining** | | **19** | **27,870** | **6,218** |
 
 #### 0.33.33.33.4 - Isolate the administration and support pages
 
