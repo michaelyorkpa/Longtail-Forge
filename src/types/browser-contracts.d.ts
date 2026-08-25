@@ -138,6 +138,14 @@ export interface LongtailForgeBrowserNamespace {
   errors?: BrowserErrorContract;
   formatters?: BrowserFormatters;
   pageController?: BrowserPageController;
+  /**
+   * Published by `public/js/login.js`. The required-password-change form is
+   * only reached through a server response to a temporary password, so the
+   * login end-to-end spec drives that transition directly. `0.33.33.33.2`
+   * scoped the controller, which removed the implicit global the spec had
+   * been reaching for; the surface is named here rather than rediscovered.
+   */
+  loginPage?: { showRequiredPasswordChange: (currentPassword?: string) => void };
   records?: BrowserRecords;
   viewSurfaceDescriptor?: BrowserViewSurfaceDescriptorAdapter;
   viewResponseRecords?: BrowserViewResponseRecords;

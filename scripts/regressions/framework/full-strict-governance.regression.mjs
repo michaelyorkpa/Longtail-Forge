@@ -2497,10 +2497,20 @@ assert.throws(
 // can leak back out, or a surface other scripts depend on can stop being
 // published. Both are checked, because the second failure is silent - the
 // page still parses and the consumer simply finds `undefined` at runtime.
+//
+// `0.33.33.33.2` added the three pre-authentication page controllers. Scoping
+// `account-recovery.js` cleared two diagnostics rather than one: its
+// `const status` was colliding with the DOM's own `Window.status`, which is a
+// `string`, so `status.textContent = message` had been type-checked against a
+// string instead of against the element the code actually holds. A lexical
+// collision is not only noise; it can point the checker at a different entity.
 for (const shellOwner of [
   "public/js/footer.js",
   "public/js/navigation.js",
   "public/js/shared/view-response-records.js",
+  "public/js/login.js",
+  "public/js/splash.js",
+  "public/js/account-recovery.js",
 ]) {
   const shellSource = fs.readFileSync(shellOwner, "utf8").split("\r\n").join("\n");
   const leaked = shellSource
@@ -2509,7 +2519,7 @@ for (const shellOwner of [
   assert.deepEqual(
     leaked,
     [],
-    `${shellOwner} is injected into every page and must declare no name at top level: ${leaked.join(" | ")}`,
+    `${shellOwner} is an isolated browser controller and must declare no name at top level: ${leaked.join(" | ")}`,
   );
 }
 // The published surfaces are the reason the wrap is safe, so they are pinned by
@@ -2517,6 +2527,17 @@ for (const shellOwner of [
 // rather than a namespace member; it is declared on `Window` in
 // `src/types/browser-contracts.d.ts` and `0.33.33.33.3` owns the consumer that
 // decides whether to move it under `window.LongtailForge`.
+// `0.33.33.33.2` published one surface of its own. Scoping `login.js` removed
+// the implicit global that `tests/e2e/login.spec.mjs` had been driving the
+// required-password-change transition through - a hook that lives in the test
+// suite rather than in `public/js/`, which is why the child's first
+// cross-consumption scan missed it. The surface is named here so it cannot be
+// withdrawn silently a second time.
+const loginSource = fs.readFileSync("public/js/login.js", "utf8");
+assert.ok(
+  loginSource.includes("window.LongtailForge.loginPage = Object.freeze({ showRequiredPasswordChange })"),
+  "public/js/login.js must keep publishing window.LongtailForge.loginPage; tests/e2e/login.spec.mjs drives the required-password-change transition through it",
+);
 const navigationSource = fs.readFileSync("public/js/navigation.js", "utf8");
 for (const publishedSurface of [
   "window.LongtailForge.navigationIntent",
