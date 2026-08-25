@@ -214,13 +214,20 @@ function findNextSiblingFunction(masked, searchFrom) {
     if (previous !== undefined && /[\w$.]/.test(previous)) continue;
     declarationStart.lastIndex = index;
     if (!declarationStart.test(masked)) continue;
-    // An `export function` has never ended this span, and this correction is about brace
-    // depth rather than about which declarations terminate. Changing that too would move
-    // the region for server modules that assert about exported helpers, which is a
-    // different question from the one 0.33.33.33.6 uncovered.
+    // Only a declaration ends a span, never a function expression. Reading depth rather
+    // than column made this matter: under the old column-0 rule an expression could only
+    // be mistaken for a declaration if it began a line, whereas at the same brace depth
+    // `const handler = function (event) {}`, `register(function (event) {})`, and a named
+    // function expression all sit exactly where a declaration would.
+    //
+    // A declaration stands in statement position, so the last significant character before
+    // it is a `;`, a brace, or nothing at all. `=`, `(`, `,`, `:` and the rest introduce an
+    // expression. This also subsumes `export function`, which has never ended a span and
+    // still does not, because the character before its keyword is a letter.
     let beforeKeyword = index;
     while (beforeKeyword > 0 && /\s/.test(masked[beforeKeyword - 1])) beforeKeyword -= 1;
-    if (masked.slice(Math.max(0, beforeKeyword - 6), beforeKeyword) === "export") continue;
+    const precedingToken = beforeKeyword > 0 ? masked[beforeKeyword - 1] : "";
+    if (precedingToken !== "" && !/[;{}]/.test(precedingToken)) continue;
     // The span ends where the next declaration's line begins, not at its keyword, so a
     // bare script's span is byte-identical to the one this helper has always returned.
     let lineStart = index;
