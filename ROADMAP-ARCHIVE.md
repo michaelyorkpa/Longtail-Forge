@@ -1,5 +1,17 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.33.6.1.1 - Harden the span terminator against same-depth function expressions
+
+**Model: Low Effort** - One condition, five fixtures, and the hole `0.33.33.33.6.1` left open.
+
+Hardening pass over `0.33.33.33.6.1`, which moved the span terminator from column 0 to brace depth. That correction created a narrower hole it did not close: reading depth rather than column is what makes function *expressions* dangerous. No production source changes and no diagnostic movement - the browser program stays at **11,041**, `TS2451` at 64, and both typed programs at zero.
+
+- [x] **Depth-awareness is exactly what made expressions a risk.** Under the column rule a function expression could only be mistaken for a declaration if it began a line, which is rare enough to have never mattered. At the same brace depth, `const handler = function (event) {}`, `register(function (event) {})`, and a named function expression all sit exactly where a declaration would, so all three ended a span they had no business ending. Measured before the fix: **three of four expression forms falsely terminated**, the fourth surviving only because an object literal's brace happened to raise the depth.
+- [x] **Statement position is the whole distinction.** A declaration follows a `;`, a brace, or nothing at all; `=`, `(`, `,`, and `:` introduce an expression. That single condition fixes all four forms and **subsumes the `export function` special case** `0.33.33.33.6.1` had written separately, because the character before an exported declaration's keyword is a letter. The explicit export check is removed and pinned by fixture instead of by redundant code.
+- [x] **Nothing real moved, which is the point of a hardening pass.** The equivalence comparison is unchanged at **75 differing extractions out of 5,675**, all still the depth-boundary cases `0.33.33.33.6.1` classified; the suite still has **zero end-of-file spans across 290 resolvable extractions**; and all **38** span-using regressions pass. This closes a latent hole rather than changing an answer.
+- [x] **Five fixtures pin the distinction and one pins that it is not overcorrected** - the span still ends at the next real declaration once the expression is passed over. Reverting the statement-position condition fails them by their own message.
+- [x] Verified with `npm run verify:slice` under full-check escalation.
+
 ## Version 0.33.33.33.6.1 - Measure span boundaries by brace depth rather than by column
 
 **Model: Medium Effort** - A corrective raised by `0.33.33.33.6`'s first owner batch and delivered instead of it.
