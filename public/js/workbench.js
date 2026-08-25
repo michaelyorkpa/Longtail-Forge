@@ -104,6 +104,7 @@ let recommendedCycleNextButton = null;
 let recommendedCyclePreviousButton = null;
 let recommendedActionPanelElement = null;
 let secondaryWorkbenchPanelElement = null;
+/** @type {HTMLElement | null} */
 let statusText = null;
 let taskFocusActionMount = null;
 let taskFocusBody = null;

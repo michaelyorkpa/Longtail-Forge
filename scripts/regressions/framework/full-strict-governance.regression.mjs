@@ -8,7 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import { extractFunctionBlock, extractFunctionBody, extractFunctionSpan } from "../../test-support/source-scan.mjs";
+import { extractFunctionBlock, extractFunctionBody, extractFunctionSpan, scannableSource } from "../../test-support/source-scan.mjs";
 import fs from "node:fs";
 import {
   PROGRAMS,
@@ -2515,6 +2515,12 @@ for (const shellOwner of [
   "public/js/notes-settings.js",
   "public/js/files-settings.js",
   "public/js/module-settings.js",
+  "public/js/user-admin.js",
+  "public/js/role-assignments.js",
+  "public/js/audit-log.js",
+  "public/js/support-view.js",
+  "public/js/support-view-audit.js",
+  "public/js/api-keys.js",
 ]) {
   const shellSource = fs.readFileSync(shellOwner, "utf8").split("\r\n").join("\n");
   const leaked = shellSource
@@ -2570,7 +2576,124 @@ for (const publishedSurface of [
     `public/js/navigation.js must keep publishing ${publishedSurface}; scoping the script must not withdraw a surface other pages read`,
   );
 }
+// The direct shared-global inventory that `0.33.33.33` closes against.
+//
+// `TS2451` reaching zero is necessary but not sufficient, and `0.33.33.33.3` proved why:
+// it counts block-scoped redeclarations only, so a duplicate `function` declaration
+// raises nothing at all, and a name declared by exactly one remaining script raises
+// nothing either while still sitting in the shared lexical scope. The rollup therefore
+// closes against this inventory rather than against a diagnostic count.
+//
+// Top-level-ness is decided by brace depth through the published masker, not by column.
+// Several scripts open with an IIFE whose body is not indented, and a column-anchored
+// test reports every one of their declarations as leaked when the file is fully scoped.
+// The first version of this inventory did exactly that and named six false owners.
+/** @type {string[]} */
+const browserScriptFiles = [];
+(function collectBrowserScripts(directory) {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const full = `${directory}/${entry.name}`;
+    if (entry.isDirectory()) collectBrowserScripts(full);
+    else if (full.endsWith(".js")) browserScriptFiles.push(full);
+  }
+})("public/js");
+
+/** @param {string} source @returns {string[]} */
+function topLevelDeclaredNames(source) {
+  const masked = scannableSource(source);
+  /** @type {string[]} */
+  const names = [];
+  let depth = 0;
+  for (const line of masked.split("\n")) {
+    if (depth === 0) {
+      const declaration = /^\s*(?:export\s+)?(?:async\s+)?(?:const|let|var|function\*?|class)\s+([A-Za-z_$][\w$]*)/.exec(line);
+      if (declaration) names.push(declaration[1]);
+    }
+    for (const char of line) {
+      if (char === "{" || char === "(" || char === "[") depth += 1;
+      else if (char === "}" || char === ")" || char === "]") depth -= 1;
+    }
+  }
+  return names;
+}
+
+// Every script here still declares names in the browser's shared lexical scope. The list
+// may only shrink: a script that leaves it must not come back, and no script outside it
+// may start leaking. `0.33.33.33` closes when this list is empty.
+//
+// `dashboard.entry.js` is in this backlog and in no child's owner list. The rollup's
+// 29-owner estate was built from a first-code-line classifier, and this inventory is the
+// measurement that found the gap.
+const SHARED_SCOPE_BACKLOG = new Set([
+  "public/js/notes.js",
+  "public/js/workbench.js",
+  "public/js/tasks.js",
+  "public/js/lists.js",
+  "public/js/clients-projects.js",
+  "public/js/files.js",
+  "public/js/time-entries.js",
+  "public/js/stop-watch.js",
+  "public/js/reporting.js",
+  "public/js/dashboard.js",
+  "public/js/tags.js",
+  "public/js/calendar.js",
+  "public/js/dashboard.entry.js",
+  "public/js/tasks-dashboard.js",
+]);
+
+const leakingBrowserScripts = browserScriptFiles.filter((file) => (
+  topLevelDeclaredNames(fs.readFileSync(file, "utf8").split("\r\n").join("\n")).length > 0
+));
+const regressedBrowserScripts = leakingBrowserScripts.filter((file) => !SHARED_SCOPE_BACKLOG.has(file));
+assert.deepEqual(
+  regressedBrowserScripts,
+  [],
+  `these browser scripts declare names in the shared lexical scope and are not in the 0.33.33.33 backlog: ${regressedBrowserScripts.join(" | ")}`,
+);
+assert.ok(
+  leakingBrowserScripts.length <= SHARED_SCOPE_BACKLOG.size,
+  `the shared-scope backlog may only shrink: ${leakingBrowserScripts.length} scripts leak against a recorded ${SHARED_SCOPE_BACKLOG.size}`,
+);
+
+// Deliberate publications must have unique, explicit ownership. A surface written by two
+// scripts is co-owned by accident unless it is named here with the reason.
+const CO_PUBLISHED_SURFACES = new Set([
+  // Namespace bootstrap: every publisher opens the namespace with
+  // `window.LongtailForge = window.LongtailForge || {}`. That is the idiom, not a conflict.
+  "window.LongtailForge",
+  // Genuinely co-owned and unresolved. `files.js` merges into whatever is already present
+  // and `workbench.js` publishes its own, and neither states which one owns the surface.
+  // `0.33.33.33` does not close until this has a single owner.
+  "window.LongtailForge.filesDialog",
+  // Two independent guarded-fetch patches of the same host API, in `navigation.js` and
+  // `theme-init.js`. The closeout must name one owner.
+  "window.fetch",
+]);
+
+/** @type {Map<string, string[]>} */
+const surfacePublishers = new Map();
+for (const browserScript of browserScriptFiles) {
+  const masked = scannableSource(fs.readFileSync(browserScript, "utf8"));
+  for (const match of masked.matchAll(/\bwindow\.((?:[A-Za-z_$][\w$]*)(?:\.[A-Za-z_$][\w$]*)*)\s*=(?!=)/g)) {
+    const surface = `window.${match[1]}`;
+    // `window.location.href = ...` is navigation, not a publication.
+    if (surface.startsWith("window.location")) continue;
+    if (!surfacePublishers.has(surface)) surfacePublishers.set(surface, []);
+    const owners = surfacePublishers.get(surface) ?? [];
+    if (!owners.includes(browserScript)) owners.push(browserScript);
+  }
+}
+const unexpectedlyContestedSurfaces = [...surfacePublishers.entries()]
+  .filter(([surface, owners]) => owners.length > 1 && !CO_PUBLISHED_SURFACES.has(surface))
+  .map(([surface, owners]) => `${surface} <- ${owners.join(", ")}`);
+assert.deepEqual(
+  unexpectedlyContestedSurfaces,
+  [],
+  `these window surfaces have more than one publisher and no recorded owner: ${unexpectedlyContestedSurfaces.join(" | ")}`,
+);
+
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
+console.log(`Shared-global inventory: ${browserScriptFiles.length - leakingBrowserScripts.length}/${browserScriptFiles.length} browser scripts out of the shared lexical scope, ${leakingBrowserScripts.length} in the 0.33.33.33 backlog, ${surfacePublishers.size} published surfaces.`);
 
 /**
  * Every line in one source that sets an `ip` member inside an object literal
