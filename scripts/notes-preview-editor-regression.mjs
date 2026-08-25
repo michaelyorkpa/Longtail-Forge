@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import vm from "node:vm";
 import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
+import { extractFunctionBlock } from "./test-support/source-scan.mjs";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-preview-editor-"));
@@ -128,7 +129,10 @@ async function assertStaticBrowserContract() {
 
 /** @param {string} notesJs */
 function assertToolbarToggleDoesNotMoveMarkup(notesJs) {
-  const togglePreviewSource = notesJs.match(/function togglePreview\(\) \{[\s\S]*?\n\}/)?.[0] || "";
+  // Cut through the published helper rather than a hand-written regex. The previous
+  // pattern ended the region at a closing brace in column 0, which stopped being this
+  // function's own brace the moment `0.33.33.33.6` scoped `notes.js` inside a closure.
+  const togglePreviewSource = extractFunctionBlock(notesJs, "togglePreview");
 
   assert.match(togglePreviewSource, /preview\.hidden = !visible;/, "Preview toggle should continue toggling preview visibility");
   assert.match(togglePreviewSource, /updatePreviewLayoutState\(visible\);/, "Preview toggle should update only the editor layout state");

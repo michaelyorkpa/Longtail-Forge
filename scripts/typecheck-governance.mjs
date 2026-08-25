@@ -308,6 +308,70 @@ function diagnosticCountMap(state) {
   return counts;
 }
 
+/**
+ * Owners scoped by the checkpoint that is currently reclassifying. A reclassification is
+ * only credible if the file it names actually shared an identifier with one of these, so
+ * this list is what makes the re-binding claim checkable rather than asserted.
+ * @type {readonly string[]}
+ */
+const RECLASSIFYING_SCOPED_OWNERS = Object.freeze([]);
+
+/**
+ * Diagnostics moved between codes by lexical re-binding, never diagnostics added.
+ *
+ * Scoping a controller changes which declaration an identifier resolves to. A page that
+ * had been type-checked against another page's `state` literal starts resolving its own, so
+ * the same debt is reported under different codes.
+ *
+ * The shrink-only rule is written per code because that is a good proxy for "no new debt".
+ * It is only a proxy, and this is the case where it and the thing it stands for disagree.
+ * The door this opens is deliberately narrow:
+ *
+ *   - every entry names an exact file, an exact code, and the exact counts either side, so
+ *     an unrecorded code in a recorded file still fails and drift in a recorded one fails too;
+ *   - the file's own total must strictly fall;
+ *   - the program's total must not rise;
+ *   - the file must share a top-level identifier with an owner this checkpoint scoped, which
+ *     is the mechanical evidence that the movement is re-binding rather than new debt;
+ *   - a record with no increase left to explain is struck rather than left standing.
+ *
+ * There is no wildcard, no per-file blanket, and no allowance expressed as a proportion.
+ * This is not a place to park or defer typing work: `0.33.33.39` through `0.33.33.44` own
+ * reducing these diagnostics, and nothing here reduces one.
+ * @type {readonly {file: string, program: string, code: number, before: number, after: number, movement: string, checkpoint: string, reason: string}[]}
+ */
+const DIAGNOSTIC_RECLASSIFICATIONS = Object.freeze([]);
+
+/** @param {GovernanceState} state @param {string} programId @param {string} filePath */
+function fileDiagnosticTotal(state, programId, filePath) {
+  const entries = state.programs[programId]?.diagnostics?.[filePath] || [];
+  return entries.reduce((total, entry) => total + entry.count, 0);
+}
+
+/** @param {GovernanceState} state @param {string} programId */
+function programDiagnosticTotal(state, programId) {
+  return Object.values(state.programs[programId]?.diagnostics || {})
+    .reduce((total, entries) => total + entries.reduce((sum, entry) => sum + entry.count, 0), 0);
+}
+
+/**
+ * Top-level names a browser script declares, reading brace depth so an IIFE-wrapped owner
+ * still reports the names it used to share.
+ * @param {string} filePath
+ * @returns {Set<string>}
+ */
+function declaredIdentifiers(filePath) {
+  /** @type {Set<string>} */
+  const names = new Set();
+  if (!fs.existsSync(filePath)) return names;
+  const source = fs.readFileSync(filePath, "utf8").split("\r\n").join("\n");
+  for (const line of source.split("\n")) {
+    const declaration = /^\s*(?:const|let|var|function\*?|class)\s+([A-Za-z_$][\w$]*)/.exec(line);
+    if (declaration) names.add(declaration[1]);
+  }
+  return names;
+}
+
 /** @param {GovernanceState} previous @param {GovernanceState} current */
 function validateShrinkOnly(previous, current) {
   const previousFiles = new Set(Object.values(previous.programs).flatMap((program) => program.files));
@@ -315,9 +379,68 @@ function validateShrinkOnly(previous, current) {
   const previousCounts = diagnosticCountMap(previous);
   /** @type {string[]} */
   const errors = [];
+  /** @type {Set<string>} */
+  const reclassificationsUsed = new Set();
   for (const [key, count] of currentCounts) {
     const prior = previousCounts.get(key) || 0;
-    if (count > prior) errors.push(`${key.replaceAll("\u0000", ": ")} increased ${prior} -> ${count}`);
+    if (count <= prior) continue;
+    const [programId, filePath, codeText] = key.split("\u0000");
+    const code = Number(codeText);
+    const record = DIAGNOSTIC_RECLASSIFICATIONS.find((entry) => (
+      entry.file === filePath && entry.program === programId && entry.code === code
+    ));
+    if (!record) {
+      errors.push(`${key.replaceAll("\u0000", ": ")} increased ${prior} -> ${count}`);
+      continue;
+    }
+    reclassificationsUsed.add(`${programId}\u0000${filePath}\u0000${code}`);
+    if (record.before !== prior || record.after !== count) {
+      errors.push(
+        `${filePath}: ${code} is recorded as a ${record.movement} moving ${record.before} -> ${record.after},`
+        + ` but the tree moved it ${prior} -> ${count}. A reclassification records exact counts.`,
+      );
+      continue;
+    }
+    const fileBefore = fileDiagnosticTotal(previous, programId, filePath);
+    const fileAfter = fileDiagnosticTotal(current, programId, filePath);
+    if (fileAfter >= fileBefore) {
+      errors.push(
+        `${filePath}: ${code} is recorded as a ${record.movement}, but the file's total did not fall`
+        + ` (${fileBefore} -> ${fileAfter}). A reclassification moves debt between codes, never adds any.`,
+      );
+      continue;
+    }
+    const programBefore = programDiagnosticTotal(previous, programId);
+    const programAfter = programDiagnosticTotal(current, programId);
+    if (programAfter > programBefore) {
+      errors.push(
+        `${filePath}: ${code} is recorded as a ${record.movement}, but the ${programId} program total rose`
+        + ` (${programBefore} -> ${programAfter}).`,
+      );
+      continue;
+    }
+    const owners = RECLASSIFYING_SCOPED_OWNERS.filter((owner) => owner !== filePath);
+    const identifiers = declaredIdentifiers(filePath);
+    const shared = owners.some((owner) => {
+      for (const name of declaredIdentifiers(owner)) {
+        if (identifiers.has(name)) return true;
+      }
+      return false;
+    });
+    if (!shared && !RECLASSIFYING_SCOPED_OWNERS.includes(filePath)) {
+      errors.push(
+        `${filePath}: ${code} is recorded as a ${record.movement}, but the file neither was scoped by this`
+        + " checkpoint nor shares a top-level identifier with an owner it scoped, so nothing demonstrates"
+        + " the movement came from lexical re-binding.",
+      );
+    }
+  }
+  for (const record of DIAGNOSTIC_RECLASSIFICATIONS) {
+    if (reclassificationsUsed.has(`${record.program}\u0000${record.file}\u0000${record.code}`)) continue;
+    errors.push(
+      `${record.file}: ${record.code} is recorded as a ${record.movement} for ${record.checkpoint} but has no`
+      + " increase left to explain; a spent record must be struck rather than left standing",
+    );
   }
   for (const [filePath, count] of Object.entries(current.explicitAnyByFile)) {
     const prior = previous.explicitAnyByFile[filePath] || 0;

@@ -473,7 +473,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 11041,
+      "errorCount": 10528,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -651,10 +651,6 @@
             "count": 3
           },
           {
-            "code": 2451,
-            "count": 2
-          },
-          {
             "code": 2531,
             "count": 1
           },
@@ -668,7 +664,7 @@
           },
           {
             "code": 2739,
-            "count": 3
+            "count": 1
           },
           {
             "code": 7005,
@@ -797,10 +793,6 @@
             "count": 1
           },
           {
-            "code": 2451,
-            "count": 6
-          },
-          {
             "code": 7005,
             "count": 38
           },
@@ -908,27 +900,31 @@
           },
           {
             "code": 2322,
-            "count": 2
+            "count": 7
           },
           {
             "code": 2339,
-            "count": 295
+            "count": 224
           },
           {
-            "code": 2451,
-            "count": 13
+            "code": 2345,
+            "count": 2
           },
           {
             "code": 2551,
             "count": 1
           },
           {
+            "code": 2698,
+            "count": 1
+          },
+          {
             "code": 7005,
-            "count": 9
+            "count": 4
           },
           {
             "code": 7006,
-            "count": 186
+            "count": 176
           },
           {
             "code": 7031,
@@ -1089,20 +1085,16 @@
             "count": 52
           },
           {
+            "code": 2322,
+            "count": 8
+          },
+          {
             "code": 2339,
-            "count": 705
+            "count": 533
           },
           {
             "code": 2345,
-            "count": 13
-          },
-          {
-            "code": 2451,
-            "count": 14
-          },
-          {
-            "code": 2551,
-            "count": 1
+            "count": 17
           },
           {
             "code": 2740,
@@ -1110,11 +1102,11 @@
           },
           {
             "code": 7005,
-            "count": 5
+            "count": 7
           },
           {
             "code": 7006,
-            "count": 207
+            "count": 184
           },
           {
             "code": 7019,
@@ -1130,7 +1122,7 @@
           },
           {
             "code": 7053,
-            "count": 7
+            "count": 9
           }
         ],
         "public/js/notifications.js": [
@@ -1707,20 +1699,8 @@
             "count": 3
           },
           {
-            "code": 2349,
-            "count": 8
-          },
-          {
-            "code": 2451,
-            "count": 3
-          },
-          {
             "code": 2554,
             "count": 2
-          },
-          {
-            "code": 2721,
-            "count": 8
           },
           {
             "code": 7005,
@@ -1740,7 +1720,7 @@
           },
           {
             "code": 7034,
-            "count": 3
+            "count": 4
           }
         ],
         "public/js/support-view-audit.js": [
@@ -1806,11 +1786,7 @@
           },
           {
             "code": 2339,
-            "count": 37
-          },
-          {
-            "code": 2451,
-            "count": 1
+            "count": 34
           },
           {
             "code": 7005,
@@ -1818,7 +1794,7 @@
           },
           {
             "code": 7006,
-            "count": 20
+            "count": 19
           },
           {
             "code": 7019,
@@ -1925,40 +1901,36 @@
             "count": 37
           },
           {
+            "code": 2322,
+            "count": 2
+          },
+          {
             "code": 2339,
-            "count": 249
+            "count": 203
           },
           {
             "code": 2345,
-            "count": 2
+            "count": 6
           },
           {
             "code": 2349,
-            "count": 3
-          },
-          {
-            "code": 2451,
-            "count": 16
-          },
-          {
-            "code": 2551,
-            "count": 2
+            "count": 1
           },
           {
             "code": 2554,
             "count": 1
           },
           {
-            "code": 2588,
-            "count": 3
+            "code": 2698,
+            "count": 1
           },
           {
             "code": 7005,
-            "count": 25
+            "count": 12
           },
           {
             "code": 7006,
-            "count": 195
+            "count": 165
           },
           {
             "code": 7031,
@@ -1970,7 +1942,7 @@
           },
           {
             "code": 7053,
-            "count": 9
+            "count": 11
           }
         ],
         "public/js/theme-init.js": [
@@ -2011,10 +1983,6 @@
           {
             "code": 2345,
             "count": 1
-          },
-          {
-            "code": 2451,
-            "count": 5
           },
           {
             "code": 7005,
@@ -2235,23 +2203,23 @@
             "count": 150
           },
           {
+            "code": 18047,
+            "count": 3
+          },
+          {
             "code": 18048,
             "count": 53
           },
           {
             "code": 2322,
-            "count": 1
+            "count": 6
           },
           {
             "code": 2339,
-            "count": 373
+            "count": 274
           },
           {
             "code": 2345,
-            "count": 2
-          },
-          {
-            "code": 2451,
             "count": 4
           },
           {
@@ -2259,11 +2227,11 @@
             "count": 1
           },
           {
-            "code": 2588,
-            "count": 3
+            "code": 2698,
+            "count": 10
           },
           {
-            "code": 2698,
+            "code": 2739,
             "count": 1
           },
           {
@@ -2272,11 +2240,11 @@
           },
           {
             "code": 7005,
-            "count": 67
+            "count": 70
           },
           {
             "code": 7006,
-            "count": 180
+            "count": 174
           },
           {
             "code": 7023,
@@ -2292,11 +2260,11 @@
           },
           {
             "code": 7034,
-            "count": 33
+            "count": 34
           },
           {
             "code": 7053,
-            "count": 6
+            "count": 7
           }
         ],
         "public/js/workspace-settings.js": [
@@ -2946,7 +2914,7 @@
   },
   "totals": {
     "files": 1050,
-    "errors": 11041,
+    "errors": 10528,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
