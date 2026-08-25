@@ -18,7 +18,7 @@ import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs
 
 /** @typedef {import("../../../src/types/http-contracts.js").WorkspaceRequestSession} TimeTrackingSession */
 
-import { createProjectTextReader, extractClassMethodSpan, extractFunctionSpan } from "../../test-support/source-scan.mjs";
+import { createProjectTextReader, extractClassMethodBlock, extractFunctionSpan } from "../../test-support/source-scan.mjs";
 const { readTextAsync: readText } = createProjectTextReader();
 
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-timer-task-linking-"));
@@ -67,8 +67,8 @@ function assertStaticContract() {
   assert.match(extractFunctionSpan(activeTimersRepoSource, "convertManualToSource"), /db\.transaction[\s\S]*source_module_id IS NULL[\s\S]*source_type = 'manual'[\s\S]*UPDATE active_work_timers[\s\S]*active_timer_id = :activeTimerId/, "the repository should reclassify the same manual timer row transactionally");
   assert.match(timeTrackerView, /data-stopwatch-task[\s\S]*Start timer to link a task[\s\S]*data-stopwatch-link-task/, "the Time Tracker card should expose a disabled-until-running Task link control");
   assert.match(css, /\.timer-task-link-control\s*\{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto[\s\S]*@media \(max-width: 700px\)[\s\S]*\.timer-task-link-control\s*\{[\s\S]*grid-template-columns: 1fr/, "the Task link control should keep its select and action responsive at the canonical mobile breakpoint");
-  assert.match(extractClassMethodSpan(stopwatchSource, "linkRunningTimerToTask"), /\/api\/tasks\/\$\{encodeURIComponent\(task\.id\)\}\/timer\/link[\s\S]*timer_slot[\s\S]*loadActiveTimers\(\{ resetExisting: true \}\)[\s\S]*still running and is now linked/, "the browser should convert through Tasks, refresh compacted manual timers, and confirm continuity");
-  assert.match(extractClassMethodSpan(stopwatchSource, "populateTaskOptions"), /task\.project_id === projectId[\s\S]*Start timer to link a task[\s\S]*this\.persistedActiveTimerId/, "Task choices should be project-filtered and unavailable before server persistence");
+  assert.match(extractClassMethodBlock(stopwatchSource, "StopwatchTimer", "linkRunningTimerToTask"), /\/api\/tasks\/\$\{encodeURIComponent\(task\.id\)\}\/timer\/link[\s\S]*timer_slot[\s\S]*loadActiveTimers\(\{ resetExisting: true \}\)[\s\S]*still running and is now linked/, "the browser should convert through Tasks, refresh compacted manual timers, and confirm continuity");
+  assert.match(extractClassMethodBlock(stopwatchSource, "StopwatchTimer", "populateTaskOptions"), /task\.project_id === projectId[\s\S]*Start timer to link a task[\s\S]*this\.persistedActiveTimerId/, "Task choices should be project-filtered and unavailable before server persistence");
   assert.match(timeTrackingDocs, /As of \d+\.\d+\.\d+(?:\.\d+)?[\s\S]*transactionally reclassifies the existing `active_work_timers` row[\s\S]*`active_timer_id`[\s\S]*`created_at`[\s\S]*selected `task_id`/, "Time Tracking docs should record identity, duration, and attribution preservation");
   assert.match(tasksDocs, /As of \d+\.\d+\.\d+(?:\.\d+)?[\s\S]*`POST \/api\/tasks\/:taskId\/timer\/link`[\s\S]*Failed conversions compensate/, "Tasks docs should record the Tasks-owned conversion boundary");
   assert.match(timerHelp, /choose an active task[\s\S]*Link Task[\s\S]*remains running[\s\S]*original start[\s\S]*already has an active timer/, "Time Tracking Help should explain the current running-only linking workflow");

@@ -8,7 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import { extractClassMethodSpan, extractFunctionBlock, extractFunctionBody, extractFunctionSpan, scannableSource } from "../../test-support/source-scan.mjs";
+import { extractClassMethodBlock, extractFunctionBlock, extractFunctionBody, extractFunctionSpan, scannableSource } from "../../test-support/source-scan.mjs";
 import fs from "node:fs";
 import {
   PROGRAMS,
@@ -2079,35 +2079,82 @@ assert.equal(
   "the span still ends at the next real declaration once the expression is passed over",
 );
 
-// `0.33.33.33.7` published the class-body analogue for the same reason: `timer-task-linking`
-// cut stop-watch methods with a regex anchored on exactly two spaces, so scoping the
-// controller added a level and the region silently became "method not found". Depth, not
-// column, is what makes a method a sibling.
+// A class method name is not unique within a file, so `extractClassMethodBlock` requires
+// the class. `0.33.33.33.7` first published a name-only version and every one of the four
+// shapes below redirected it; because the brace walk anchors to whatever the start locator
+// found, a wrong start silently widens the region. These fixtures prove the start locator,
+// which the end-boundary fixtures alone could never do.
+for (const [shape, ambiguousSource] of [
+  ["a bare call with the same name", "function wrapper() {\n  target();\n}\n\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+  ["an ordinary function with the same name", "function target() {\n  return false;\n}\n\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+  ["an object-literal method with the same name", "const handlers = {\n  target() {\n    return false;\n  },\n};\n\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+  ["another class with the same method name", "class Other {\n  target() {\n    return false;\n  }\n}\n\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+]) {
+  const extracted = extractClassMethodBlock(ambiguousSource, "Example", "target");
+  assert.equal(extracted, "target() {\n    return 1;\n  }", `${shape} before the class must not be selected`);
+  assert.doesNotMatch(extracted, /return false;/, `${shape} must not leak into the extracted region`);
+}
+
+// Scoping a controller indents its class by one level and must change nothing else.
 assert.equal(
-  extractClassMethodSpan('class C {\n  target() {\n    return 1;\n  }\n  next() {}\n}\n', "target"),
-  'target() {\n    return 1;\n  }',
-  "a class method span ends at the next method at its own depth",
-);
-assert.equal(
-  extractClassMethodSpan('(function wrap() {\n  class C {\n    target() {\n      return 1;\n    }\n    next() {}\n  }\n})();\n', "target"),
-  'target() {\n      return 1;\n    }',
+  extractClassMethodBlock("(function wrap() {\n  class Example {\n    target() {\n      return 1;\n    }\n  }\n})();\n", "Example", "target"),
+  "target() {\n      return 1;\n    }",
   "the same method inside a scoped controller reads the same region, one indent level deeper",
 );
 assert.equal(
-  extractClassMethodSpan('class C {\n  async target() {\n    await this.other();\n  }\n  next() {}\n}\n', "target"),
-  'async target() {\n    await this.other();\n  }',
-  "an async method is found and its span still ends at the next method",
+  extractClassMethodBlock("class Example {\n  async target() {\n    await this.other();\n  }\n}\n", "Example", "target"),
+  "async target() {\n    await this.other();\n  }",
+  "an async instance method is supported",
+);
+assert.equal(
+  extractClassMethodBlock("class Example {\n  target({ a } = {}) {\n    return a;\n  }\n}\n", "Example", "target"),
+  "target({ a } = {}) {\n    return a;\n  }",
+  "a default parameter value containing braces does not end the region early",
 );
 assert.ok(
-  extractClassMethodSpan('class C {\n  target() {\n    this.next();\n    return 1;\n  }\n  next() {}\n}\n', "target")
+  extractClassMethodBlock("class Example {\n  target() {\n    this.target();\n    this.next();\n    return 1;\n  }\n  next() {}\n}\n", "Example", "target")
     .includes("this.next();"),
-  "a call to a sibling is not a declaration and must not end the span",
+  "calls inside the method body do not alter its boundaries",
 );
+
+// Masked syntax cannot create a false match.
+for (const [shape, maskedSource] of [
+  ["a line comment", "// class Example { target() { return 0; } }\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+  ["a block comment", "/* class Example { target() { return 0; } } */\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+  ["a string literal", "const s = \"class Example { target() { return 0; } }\";\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+  ["a template literal", "const s = `class Example { target() { return 0; } }`;\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+  ["a regular expression literal", "const r = /class Example \\{ target\\(\\) \\{/;\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+]) {
+  assert.equal(
+    extractClassMethodBlock(maskedSource, "Example", "target"),
+    "target() {\n    return 1;\n  }",
+    `class-shaped text inside ${shape} must not be matched`,
+  );
+}
+
+// The contract is ordinary and async identifier-named instance methods, and it says so by
+// refusing everything else rather than returning a near-miss.
+for (const [shape, unsupportedSource] of [
+  ["a getter", "class Example {\n  get target() {\n    return 1;\n  }\n}\n"],
+  ["a setter", "class Example {\n  set target(value) {\n    this.v = value;\n  }\n}\n"],
+  ["a generator", "class Example {\n  *target() {\n    yield 1;\n  }\n}\n"],
+  ["an async generator", "class Example {\n  async *target() {\n    yield 1;\n  }\n}\n"],
+  ["a private member", "class Example {\n  #target() {\n    return 1;\n  }\n}\n"],
+  ["a computed key", "class Example {\n  [\"target\"]() {\n    return 1;\n  }\n}\n"],
+  ["a static member", "class Example {\n  static target() {\n    return 1;\n  }\n}\n"],
+]) {
+  assert.throws(
+    () => extractClassMethodBlock(unsupportedSource, "Example", "target"),
+    /should exist as a direct class method/,
+    `${shape} is outside the supported contract and must not be returned as the method`,
+  );
+}
 assert.throws(
-  () => extractClassMethodSpan('class C {\n  // target() {}\n  other() {}\n}\n', "target"),
-  /target should exist/,
-  "a method named only inside a comment is not a declaration",
+  () => extractClassMethodBlock("class Example {\n  other() {}\n}\n", "Missing", "other"),
+  /class Missing should exist/,
+  "an absent class is reported as an absent class",
 );
+
 assert.throws(
   () => extractFunctionSpan('function other() {\n  return 1;\n}\n', "target"),
   /target should exist/,

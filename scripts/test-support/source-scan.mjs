@@ -168,72 +168,104 @@ export function extractFunctionSpan(source, functionName) {
 }
 
 /**
- * Extract one named class method's declaration through everything up to the next method
- * at the same brace depth, or the end of the source.
+ * Extract one named class's named method, from its declaration through the matching
+ * close of that method's own body.
  *
- * This is the class-body analogue of `extractFunctionSpan`, and it exists for the same
- * reason. `0.33.33.33.7` found `timer-task-linking` cutting stop-watch class methods with
- * a hand-written regex anchored on exactly two spaces of indentation. Scoping the
- * controller added one level and the pattern stopped matching, so the region silently
- * became "method not found". A method's depth, not its column, is what makes it a sibling.
+ * The class name is required because **a method name is not unique within a file**. A
+ * bare `target()` call, an ordinary `function target()`, an object literal's `target()`,
+ * and another class's `target()` are all indistinguishable from a class method if the
+ * search starts from the name alone. `0.33.33.33.7` published a name-only version and
+ * every one of those four forms redirected it; because the brace walk then anchors to
+ * whatever it found, a wrong start silently widens the region. That is the same
+ * false-region failure `0.33.33.32.28.4` and `0.33.33.33.6.1` exist to prevent, so the
+ * ambiguous contract is replaced rather than patched.
  *
- * Like the function helpers, this searches masked source, so a method-shaped line inside a
- * comment, a string, or a regular expression cannot be mistaken for the declaration.
+ * The region is located structurally, never by indentation or column:
+ *   1. the source is masked, so class- or method-shaped text inside a comment, a string,
+ *      a template literal, or a regular expression cannot be matched;
+ *   2. the named `class` declaration is located in the masked source;
+ *   3. that class's body is bounded by its own balanced braces;
+ *   4. the method is searched for only inside that range;
+ *   5. it must be a **direct** member of the class body rather than something nested
+ *      deeper inside another method;
+ *   6. the region ends at the matching close of the method's own body.
+ *
+ * **Supported syntax is deliberately narrow: ordinary and `async` identifier-named
+ * instance methods only** — `target() {}` and `async target() {}`. Getters, setters,
+ * generators, `async` generators, private `#name` members, computed `["name"]()` keys,
+ * and `static` members are **not** supported and will not be found. A narrow helper that
+ * says so is worth more than a broad one that quietly becomes a partial parser.
  * @param {string} source
+ * @param {string} className
  * @param {string} methodName
  * @returns {string}
  */
-export function extractClassMethodSpan(source, methodName) {
+export function extractClassMethodBlock(source, className, methodName) {
   const masked = scannableSource(source);
-  const pattern = new RegExp(`(?:^|[\\s;{}])((?:async\\s+)?${escapeRegExp(methodName)}\\s*\\()`, "m");
-  const match = pattern.exec(masked);
-  if (!match) {
-    throw new Error(`${methodName} should exist`);
+  const classDeclaration = new RegExp(`(?:^|[^\\w$.])class\\s+${escapeRegExp(className)}\\b`).exec(masked);
+  if (!classDeclaration) {
+    throw new Error(`class ${className} should exist`);
   }
-  const declarationIndex = match.index + match[0].length - match[1].length;
-  const end = findNextSiblingMethod(masked, declarationIndex + match[1].length);
-  return source.slice(declarationIndex, end === -1 ? source.length : end);
+  const bodyOpen = masked.indexOf("{", classDeclaration.index + classDeclaration[0].length);
+  if (bodyOpen === -1) {
+    throw new Error(`class ${className} should have a body`);
+  }
+  const bodyClose = findBalancedClose(masked, bodyOpen);
+
+  // A direct member sits exactly one brace inside the class body. Anything deeper belongs
+  // to another method, and anything shallower is outside the class entirely.
+  const member = new RegExp(`(?:async\\s+)?${escapeRegExp(methodName)}\\s*\\(`, "y");
+  let depth = 0;
+  for (let index = bodyOpen + 1; index < bodyClose; index += 1) {
+    const char = masked[index];
+    if (char === "{") { depth += 1; continue; }
+    if (char === "}") { depth -= 1; continue; }
+    if (depth !== 0) continue;
+    const previous = masked[index - 1];
+    if (previous !== undefined && /[\w$.]/.test(previous)) continue;
+    member.lastIndex = index;
+    if (!member.test(masked)) continue;
+    // The supported contract is ordinary and `async` instance methods. A generator or a
+    // private member is marked by the character immediately before the name, and an
+    // accessor or a static member by the word before it. None of these are supported, and
+    // an unsupported form must not be silently returned as though it were the method
+    // asked for - that is how a helper stops being truthful about its own contract.
+    if (previous === "*" || previous === "#") continue;
+    let beforeName = index;
+    while (beforeName > 0 && /\s/.test(masked[beforeName - 1])) beforeName -= 1;
+    const precedingWord = /([A-Za-z_$][\w$]*)$/.exec(masked.slice(0, beforeName));
+    if (precedingWord && ["get", "set", "static"].includes(precedingWord[1])) continue;
+    // The body brace is found after the parameter list closes, because a default
+    // parameter value can itself contain braces: `target({ a } = {}) {}`.
+    const parameterClose = findBalancedParenClose(masked, masked.indexOf("(", index));
+    const methodBodyOpen = masked.indexOf("{", parameterClose);
+    if (methodBodyOpen === -1) continue;
+    return source.slice(index, findBalancedClose(masked, methodBodyOpen) + 1);
+  }
+  throw new Error(`${className}.${methodName} should exist as a direct class method`);
 }
 
 /**
- * Index of the next class method at the same brace depth as the one whose header ends at
- * `searchFrom`, or `-1` for the deliberate end-of-source case.
- *
- * A method sits in statement position inside a class body, so the significant character
- * before it is a brace or a semicolon. That is the same test `extractFunctionSpan` uses to
- * separate a declaration from an expression, and it keeps a call such as `this.foo(` from
- * ending a span.
+ * Index of the parenthesis that closes the one at `openIndex`, walking masked source so a
+ * parenthesis inside a comment, a string, or a regular expression cannot close it.
  * @param {string} masked
- * @param {number} searchFrom
+ * @param {number} openIndex
  * @returns {number}
  */
-function findNextSiblingMethod(masked, searchFrom) {
+function findBalancedParenClose(masked, openIndex) {
+  if (openIndex === -1) {
+    throw new Error("Balanced parameter list should include an opening parenthesis.");
+  }
   let depth = 0;
-  for (let index = 0; index < searchFrom; index += 1) {
+  for (let index = openIndex; index < masked.length; index += 1) {
     const char = masked[index];
-    if (char === "{") depth += 1;
-    else if (char === "}") depth -= 1;
+    if (char === "(") depth += 1;
+    else if (char === ")") {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
   }
-  const declarationDepth = depth;
-  const methodStart = /(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/y;
-  for (let index = searchFrom; index < masked.length; index += 1) {
-    const char = masked[index];
-    if (char === "{") depth += 1;
-    else if (char === "}") depth -= 1;
-    if (depth !== declarationDepth) continue;
-    const previous = masked[index - 1];
-    if (previous !== undefined && /[\w$.]/.test(previous)) continue;
-    methodStart.lastIndex = index;
-    if (!methodStart.test(masked)) continue;
-    let beforeKeyword = index;
-    while (beforeKeyword > 0 && /\s/.test(masked[beforeKeyword - 1])) beforeKeyword -= 1;
-    const precedingToken = beforeKeyword > 0 ? masked[beforeKeyword - 1] : "";
-    if (precedingToken !== "" && !/[;{}]/.test(precedingToken)) continue;
-    let lineStart = index;
-    while (lineStart > searchFrom && /[ \t]/.test(masked[lineStart - 1])) lineStart -= 1;
-    return lineStart > searchFrom && masked[lineStart - 1] === "\n" ? lineStart - 1 : index;
-  }
-  return -1;
+  throw new Error("Balanced parameter list is missing its closing parenthesis.");
 }
 
 /**
