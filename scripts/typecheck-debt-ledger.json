@@ -2722,6 +2722,7 @@
         "scripts/regressions/framework/csrf-protection.regression.mjs",
         "scripts/regressions/framework/current-static-contracts.regression.mjs",
         "scripts/regressions/framework/express-5-http-contract.regression.mjs",
+        "scripts/regressions/framework/fetch-guard-composition.regression.mjs",
         "scripts/regressions/framework/full-strict-governance.regression.mjs",
         "scripts/regressions/framework/generic-settings-engine.regression.mjs",
         "scripts/regressions/framework/http-error-contract.regression.mjs",
@@ -2959,7 +2960,7 @@
     }
   },
   "totals": {
-    "files": 1048,
+    "files": 1049,
     "errors": 11049,
     "explicitAny": 0
   },

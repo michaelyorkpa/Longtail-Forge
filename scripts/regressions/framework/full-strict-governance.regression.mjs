@@ -2576,18 +2576,25 @@ for (const publishedSurface of [
     `public/js/navigation.js must keep publishing ${publishedSurface}; scoping the script must not withdraw a surface other pages read`,
   );
 }
-// The direct shared-global inventory that `0.33.33.33` closes against.
+// The shared-global inventory that `0.33.33.33` closes against.
 //
 // `TS2451` reaching zero is necessary but not sufficient, and `0.33.33.33.3` proved why:
 // it counts block-scoped redeclarations only, so a duplicate `function` declaration
 // raises nothing at all, and a name declared by exactly one remaining script raises
-// nothing either while still sitting in the shared lexical scope. The rollup therefore
-// closes against this inventory rather than against a diagnostic count.
+// nothing either while still sitting in the shared lexical scope.
 //
-// Top-level-ness is decided by brace depth through the published masker, not by column.
-// Several scripts open with an IIFE whose body is not indented, and a column-anchored
-// test reports every one of their declarations as leaked when the file is fully scoped.
-// The first version of this inventory did exactly that and named six false owners.
+// `0.33.33.33.4.1` corrected two things this inventory measured too broadly.
+//
+// First, delivery mode. Top-level-ness is measured by brace depth, never by column - a
+// script whose IIFE body is unindented declares nothing at depth 0 - but depth alone
+// does not decide whether a declaration is *shared*. A native ES module's top-level
+// declarations are module scoped and never enter the classic shared lexical
+// environment, so the invariant is about classic delivery, not about brace depth.
+//
+// Second, publication ownership. A surface written by two scripts is not automatically
+// a governance failure: a platform primitive can be an intentional ordered decorator
+// chain, and a migration can have a named, dated end. Each is recorded below with its
+// exact writers, reason, and disposition, rather than waved through by an allowlist.
 /** @type {string[]} */
 const browserScriptFiles = [];
 (function collectBrowserScripts(directory) {
@@ -2617,13 +2624,90 @@ function topLevelDeclaredNames(source) {
   return names;
 }
 
-// Every script here still declares names in the browser's shared lexical scope. The list
-// may only shrink: a script that leaves it must not come back, and no script outside it
-// may start leaking. `0.33.33.33` closes when this list is empty.
-//
-// `dashboard.entry.js` is in this backlog and in no child's owner list. The rollup's
-// 29-owner estate was built from a first-code-line classifier, and this inventory is the
-// measurement that found the gap.
+/** Every `<script src>` in the rendered views, split by whether it is module delivery. */
+function collectViewScriptDelivery() {
+  /** @type {Set<string>} */
+  const classicSources = new Set();
+  /** @type {Set<string>} */
+  const moduleSources = new Set();
+  /** @param {string} directory */
+  (function walkViews(directory) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const full = `${directory}/${entry.name}`;
+      if (entry.isDirectory()) {
+        walkViews(full);
+        continue;
+      }
+      if (!full.endsWith(".html")) continue;
+      const html = fs.readFileSync(full, "utf8");
+      for (const tag of html.matchAll(/<script\b([^>]*)\bsrc\s*=\s*"([^"]+)"([^>]*)>/g)) {
+        const attributes = `${tag[1]} ${tag[3]}`;
+        const source = `public/${tag[2].replace(/^\//, "").replace(/^js\//, "js/")}`
+          .replace("public/js/", "public/js/");
+        const resolved = source.startsWith("public/js/") ? source : `public/${tag[2].replace(/^\//, "")}`;
+        if (/type\s*=\s*"module"/.test(attributes)) moduleSources.add(resolved);
+        else classicSources.add(resolved);
+      }
+    }
+  })("views");
+  return { classicSources, moduleSources };
+}
+
+const viewDelivery = collectViewScriptDelivery();
+
+// A native ES-module entry is exempt from the classic shared-scope invariant, but the
+// exemption is proved on every run rather than asserted once. Each entry must be
+// structurally impossible to deliver as a classic script and must actually be delivered
+// as a module, so a change to either fact fails here instead of silently widening the
+// exemption.
+const NATIVE_MODULE_ENTRIES = new Map([
+  [
+    "public/js/dashboard.entry.js",
+    "Dashboard is the one page delivered through a native ES-module entry; its top-level"
+      + " await is a syntax error in a classic script, so its declarations can only ever be"
+      + " module scoped.",
+  ],
+]);
+
+for (const [moduleEntry, reason] of NATIVE_MODULE_ENTRIES) {
+  assert.ok(reason.length > 0, `${moduleEntry} must record why it is a native module entry`);
+  assert.ok(
+    fs.existsSync(moduleEntry),
+    `${moduleEntry} is recorded as a native ES-module entry but does not exist`,
+  );
+  const entrySource = fs.readFileSync(moduleEntry, "utf8").split("\r\n").join("\n");
+  const maskedEntry = scannableSource(entrySource);
+  // Top-level await is the structural proof: it cannot appear in a classic script, so
+  // this file cannot be delivered into the shared lexical environment at all.
+  let awaitDepth = 0;
+  let hasTopLevelAwait = false;
+  for (const line of maskedEntry.split("\n")) {
+    if (awaitDepth === 0 && /^\s*await\s/.test(line)) hasTopLevelAwait = true;
+    for (const char of line) {
+      if (char === "{" || char === "(" || char === "[") awaitDepth += 1;
+      else if (char === "}" || char === ")" || char === "]") awaitDepth -= 1;
+    }
+  }
+  assert.ok(
+    hasTopLevelAwait,
+    `${moduleEntry} is exempt from the classic shared-scope invariant because it is a native`
+      + " ES module, and top-level await is the proof of that. The proof is gone, so the"
+      + " exemption is no longer earned.",
+  );
+  assert.ok(
+    viewDelivery.moduleSources.has(moduleEntry),
+    `${moduleEntry} must be loaded by a <script type="module"> tag in a rendered view`,
+  );
+  assert.ok(
+    !viewDelivery.classicSources.has(moduleEntry),
+    `${moduleEntry} is exempt as a native ES module but a view loads it as a classic script,`
+      + " which would put every one of its top-level declarations into the shared scope",
+  );
+}
+
+// Every script here still declares names in the classic shared lexical environment. The
+// list may only shrink: a script that leaves it must not come back, and no classic script
+// outside it may start leaking. `0.33.33.33` closes when this list is empty.
 const SHARED_SCOPE_BACKLOG = new Set([
   "public/js/notes.js",
   "public/js/workbench.js",
@@ -2637,54 +2721,173 @@ const SHARED_SCOPE_BACKLOG = new Set([
   "public/js/dashboard.js",
   "public/js/tags.js",
   "public/js/calendar.js",
-  "public/js/dashboard.entry.js",
   "public/js/tasks-dashboard.js",
 ]);
 
+for (const backlogEntry of SHARED_SCOPE_BACKLOG) {
+  assert.ok(
+    !NATIVE_MODULE_ENTRIES.has(backlogEntry),
+    `${backlogEntry} cannot be both a native ES-module entry and a classic shared-scope owner`,
+  );
+}
+
 const leakingBrowserScripts = browserScriptFiles.filter((file) => (
-  topLevelDeclaredNames(fs.readFileSync(file, "utf8").split("\r\n").join("\n")).length > 0
+  !NATIVE_MODULE_ENTRIES.has(file)
+  && topLevelDeclaredNames(fs.readFileSync(file, "utf8").split("\r\n").join("\n")).length > 0
 ));
 const regressedBrowserScripts = leakingBrowserScripts.filter((file) => !SHARED_SCOPE_BACKLOG.has(file));
 assert.deepEqual(
   regressedBrowserScripts,
   [],
-  `these browser scripts declare names in the shared lexical scope and are not in the 0.33.33.33 backlog: ${regressedBrowserScripts.join(" | ")}`,
+  `these classic browser scripts declare names in the shared lexical environment and are not in the 0.33.33.33 backlog: ${regressedBrowserScripts.join(" | ")}`,
 );
 assert.ok(
   leakingBrowserScripts.length <= SHARED_SCOPE_BACKLOG.size,
-  `the shared-scope backlog may only shrink: ${leakingBrowserScripts.length} scripts leak against a recorded ${SHARED_SCOPE_BACKLOG.size}`,
+  `the shared-scope backlog may only shrink: ${leakingBrowserScripts.length} classic scripts leak against a recorded ${SHARED_SCOPE_BACKLOG.size}`,
 );
 
-// Deliberate publications must have unique, explicit ownership. A surface written by two
-// scripts is co-owned by accident unless it is named here with the reason.
-const CO_PUBLISHED_SURFACES = new Set([
-  // Namespace bootstrap: every publisher opens the namespace with
-  // `window.LongtailForge = window.LongtailForge || {}`. That is the idiom, not a conflict.
-  "window.LongtailForge",
-  // Genuinely co-owned and unresolved. `files.js` merges into whatever is already present
-  // and `workbench.js` publishes its own, and neither states which one owns the surface.
-  // `0.33.33.33` does not close until this has a single owner.
-  "window.LongtailForge.filesDialog",
-  // Two independent guarded-fetch patches of the same host API, in `navigation.js` and
-  // `theme-init.js`. The closeout must name one owner.
-  "window.fetch",
-]);
-
+// Publication ownership.
+//
+// The namespace root is not a surface. Every script that contributes to
+// `window.LongtailForge` opens it with an idempotent bootstrap, so the root is counted
+// separately and each bootstrap is checked for idempotency: a write that replaces the
+// namespace instead of extending it would silently discard every surface already on it.
 /** @type {Map<string, string[]>} */
 const surfacePublishers = new Map();
+/** @type {string[]} */
+const clobberingNamespaceWrites = [];
 for (const browserScript of browserScriptFiles) {
   const masked = scannableSource(fs.readFileSync(browserScript, "utf8"));
-  for (const match of masked.matchAll(/\bwindow\.((?:[A-Za-z_$][\w$]*)(?:\.[A-Za-z_$][\w$]*)*)\s*=(?!=)/g)) {
+  for (const match of masked.matchAll(/\bwindow\.((?:[A-Za-z_$][\w$]*)(?:\.[A-Za-z_$][\w$]*)*)\s*=(?!=)([^\n;]*)/g)) {
     const surface = `window.${match[1]}`;
     // `window.location.href = ...` is navigation, not a publication.
     if (surface.startsWith("window.location")) continue;
+    if (surface === "window.LongtailForge") {
+      // Idempotent bootstrap forms only: `window.LongtailForge || {}`, or a local
+      // namespace binding this file derived from it.
+      const assigned = match[2].trim();
+      const derivesFromNamespace = /window\.LongtailForge\s*\|\|/.test(assigned)
+        || (/^[A-Za-z_$][\w$]*;?$/.test(assigned) && /const\s+namespace\s*=\s*window\.LongtailForge\s*\|\|/.test(masked));
+      if (!derivesFromNamespace) clobberingNamespaceWrites.push(`${browserScript}: window.LongtailForge = ${assigned}`);
+      continue;
+    }
     if (!surfacePublishers.has(surface)) surfacePublishers.set(surface, []);
     const owners = surfacePublishers.get(surface) ?? [];
     if (!owners.includes(browserScript)) owners.push(browserScript);
   }
 }
+assert.deepEqual(
+  clobberingNamespaceWrites,
+  [],
+  `the LongtailForge namespace root may only be extended, never replaced: ${clobberingNamespaceWrites.join(" | ")}`,
+);
+
+// A published surface has exactly one owner unless it is recorded here. Each record
+// carries the exact surface, its exact writers, the architectural reason, and whether it
+// is permanent or scheduled for retirement. The recorded writers must match the tree
+// exactly in both directions: an extra writer fails, and a record that outlives its
+// writer fails so a retired exception cannot become permanent governance debt.
+/**
+ * @type {Map<string, {kind: string, writers: string[], reason: string, disposition: string}>}
+ */
+const MULTI_WRITER_SURFACES = new Map([
+  [
+    "window.fetch",
+    {
+      kind: "platform-primitive-composition",
+      // Order is the contract: theme-init installs the CSRF guard over the native fetch,
+      // and navigation then wraps whatever fetch is current, so mutations still carry a
+      // CSRF header underneath the 401 handling.
+      writers: ["public/js/theme-init.js", "public/js/navigation.js"],
+      reason: "An ordered decorator chain over a host primitive, not two application modules"
+        + " claiming one Longtail Forge surface. Each guard is idempotent, wraps the current"
+        + " fetch rather than a saved native reference, and is proved as a composition by"
+        + " scripts/regressions/framework/fetch-guard-composition.regression.mjs.",
+      disposition: "permanent",
+    },
+  ],
+  [
+    "window.LongtailForge.filesDialog",
+    {
+      kind: "temporary-migration",
+      writers: ["public/js/files.js", "public/js/workbench.js"],
+      reason: "Files is the canonical owner and publishes the whole editor and preview"
+        + " surface. Workbench conditionally merges a preview-only compatibility bridge for"
+        + " hosts where the Files controller is not loaded, and its own guard returns early"
+        + " when the canonical publisher is present.",
+      disposition: "retire in 0.33.33.34, which removes the Workbench bridge",
+    },
+  ],
+]);
+
+const CANONICAL_SURFACE_OWNERS = new Map([
+  ["window.LongtailForge.filesDialog", "public/js/files.js"],
+]);
+
+for (const [surface, record] of MULTI_WRITER_SURFACES) {
+  assert.ok(record.reason.length > 0, `${surface} must record why it has more than one writer`);
+  assert.ok(record.disposition.length > 0, `${surface} must record whether the exception is permanent or retiring`);
+  const actualWriters = surfacePublishers.get(surface) ?? [];
+  // Membership is compared as a set: the order the files happen to be walked in carries
+  // no meaning, and the order that does matter is proved from the rendered load order.
+  assert.deepEqual(
+    [...actualWriters].sort(),
+    [...record.writers].sort(),
+    `${surface} is recorded as a ${record.kind} written by ${record.writers.join(" then ")};`
+      + ` the tree has ${actualWriters.join(", ") || "no writer"}. A recorded exception must match`
+      + " the code exactly, so a new writer fails and a retired one must be struck from the record.",
+  );
+  const canonicalOwner = CANONICAL_SURFACE_OWNERS.get(surface);
+  if (canonicalOwner) {
+    assert.ok(
+      actualWriters.includes(canonicalOwner),
+      `${surface} names ${canonicalOwner} as its canonical owner, which must still publish it`,
+    );
+  }
+}
+
+// For a platform-primitive composition the writer order is the contract, and the order
+// is decided by the rendered pages rather than by the files. Every view that loads both
+// guards must load them in the recorded order, or navigation would capture the native
+// fetch and the CSRF guard would sit above it instead of underneath.
+const fetchComposition = MULTI_WRITER_SURFACES.get("window.fetch");
+if (fetchComposition) {
+  const [firstWriter, secondWriter] = fetchComposition.writers;
+  const firstTag = `${firstWriter.replace("public/", "")}`;
+  const secondTag = `${secondWriter.replace("public/", "")}`;
+  /** @type {string[]} */
+  const misorderedViews = [];
+  let viewsLoadingBoth = 0;
+  (function walkOrderedViews(directory) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const full = `${directory}/${entry.name}`;
+      if (entry.isDirectory()) {
+        walkOrderedViews(full);
+        continue;
+      }
+      if (!full.endsWith(".html")) continue;
+      const html = fs.readFileSync(full, "utf8");
+      const firstAt = html.indexOf(firstTag);
+      const secondAt = html.indexOf(secondTag);
+      if (firstAt === -1 || secondAt === -1) continue;
+      viewsLoadingBoth += 1;
+      if (firstAt > secondAt) misorderedViews.push(full);
+    }
+  })("views");
+  assert.deepEqual(
+    misorderedViews,
+    [],
+    `${firstTag} must load before ${secondTag} so the session-expiry guard wraps the CSRF guard`
+      + ` rather than the native fetch: ${misorderedViews.join(" | ")}`,
+  );
+  assert.ok(
+    viewsLoadingBoth > 0,
+    "no rendered view loads both fetch guards, so the recorded composition order proves nothing",
+  );
+}
+
 const unexpectedlyContestedSurfaces = [...surfacePublishers.entries()]
-  .filter(([surface, owners]) => owners.length > 1 && !CO_PUBLISHED_SURFACES.has(surface))
+  .filter(([surface, owners]) => owners.length > 1 && !MULTI_WRITER_SURFACES.has(surface))
   .map(([surface, owners]) => `${surface} <- ${owners.join(", ")}`);
 assert.deepEqual(
   unexpectedlyContestedSurfaces,
@@ -2693,7 +2896,7 @@ assert.deepEqual(
 );
 
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
-console.log(`Shared-global inventory: ${browserScriptFiles.length - leakingBrowserScripts.length}/${browserScriptFiles.length} browser scripts out of the shared lexical scope, ${leakingBrowserScripts.length} in the 0.33.33.33 backlog, ${surfacePublishers.size} published surfaces.`);
+console.log(`Shared-global inventory: ${browserScriptFiles.length - leakingBrowserScripts.length - NATIVE_MODULE_ENTRIES.size}/${browserScriptFiles.length - NATIVE_MODULE_ENTRIES.size} classic browser scripts out of the shared lexical environment, ${leakingBrowserScripts.length} in the 0.33.33.33 backlog, ${NATIVE_MODULE_ENTRIES.size} native ES-module entry exempt, ${surfacePublishers.size} published surfaces with ${MULTI_WRITER_SURFACES.size} recorded multi-writer exceptions.`);
 
 /**
  * Every line in one source that sets an `ip` member inside an object literal
