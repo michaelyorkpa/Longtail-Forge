@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.33.7 - Isolate the time tracking and orchestration controllers, and close 0.33.33.33
+
+**Model: High Effort** - The last three classic owners, and the parent rollup closure.
+
+Seventh and final child of `0.33.33.33`. `stop-watch.js`, `time-entries.js`, and `workbench.js` are scoped: **440 names leave the browser's shared global scope**. Every classic browser script is now isolated. The browser program stays at **10,528** and `TS2451` stays at **0** - this checkpoint moved no diagnostic at all.
+
+- [x] **Each owner was proved independently, and none of the three moved a single diagnostic.** Wrapping the last three controllers changed the browser total by zero and `TS2451` by zero, so **no reclassification record was needed**. That is the expected shape once the shared symbols are gone: by `0.33.33.33.6` every competing declaration had already been scoped, so there was nothing left to re-bind against.
+- [x] **Every changed line in the three owners is the same line, indented.** Each wrap passed the de-indent proof, and a diff audit afterwards found **zero unpaired lines** across all three files - every removal is matched by an identical addition differing only in leading whitespace, plus the two wrapper lines.
+- [x] **A third hand-written extractor was found, and this one was extracting nothing.** `timer-task-linking` cut stop-watch class methods with a regex anchored on exactly two spaces of indentation. Scoping the controller added a level, the pattern stopped matching, and the region became "method not found". The same file also carried a hand-written clone of `extractFunctionSpan`, unmasked and column-anchored. **Both are removed.**
+- [x] **The class-body analogue is now published rather than cloned.** No published helper covered class methods, so `extractClassMethodSpan` joins the others: masked source, brace depth rather than column, statement position so a call to a sibling cannot end a span. It is pinned by five fixtures - depth, the same method one level deeper inside a scoped controller, `async`, a sibling call, and a method named only in a comment - and the assertion it feeds was mutation-proved by seeding a change inside the method body.
+- [x] **The Workbench boundary with `0.33.33.34` was preserved exactly.** `WORKBENCH_MODULE_ACTION_DEPENDENCIES`, the `filesDialog` compatibility bridge, and the dynamic-import branch of the dependency loader all survive unchanged. Nothing from `0.33.33.34` was pulled forward to make Workbench cleaner, and the `filesDialog` record remains the dated temporary migration exception with Files as canonical owner.
+- [x] **`window.timeTrackerDebug` was preserved rather than tidied.** `stop-watch.js` publishes it and **nothing in the repository reads it** - not another browser script, not a spec, not a view. It is single-publisher, so it does not block closure. Renaming it into the namespace or deleting it is not scoping work, so it is recorded as a follow-up instead.
+- [x] **The parent rollup closes on measured evidence.** 75 of 75 classic scripts isolated, the backlog empty, `TS2451` 0, the delivery universe reconciled at 75 classic plus 2 native modules, both modules proved module-delivered and compiler-classified, two multi-publisher surfaces both classified, and no live or spent reclassification record left behind. The permanent governance fixtures remain and still reject an unrelated new diagnostic, a file-total rise, count drift, a spent record, and missing re-binding evidence.
+- [x] Proved through the rendered gates: **27 time-tracking, app-load, console, and overflow specs**, **27 Workbench, task-focus, blocked-recovery, bulk-assignment, and modal specs**, and **25 accessibility specs**.
+- [x] Verified with `npm run verify:slice` under full-check escalation.
+
 ## Version 0.33.33.33.6 - Isolate the record module page controllers
 
 **Model: High Effort** - Six independent transformations, one governance capability, and the rollup's TS2451 target reached.
