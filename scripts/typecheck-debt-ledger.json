@@ -316,6 +316,7 @@
         "tests/contracts/time-tracking-contracts.test.mjs",
         "tests/e2e/a11y-keyboard.spec.mjs",
         "tests/e2e/a11y.spec.mjs",
+        "tests/e2e/admin-support-console.spec.mjs",
         "tests/e2e/app-load.spec.mjs",
         "tests/e2e/auth.setup.mjs",
         "tests/e2e/browser-recovery.spec.mjs",
@@ -471,7 +472,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 11082,
+      "errorCount": 11049,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -537,10 +538,6 @@
           {
             "code": 2339,
             "count": 44
-          },
-          {
-            "code": 2451,
-            "count": 4
           },
           {
             "code": 2531,
@@ -926,7 +923,7 @@
           },
           {
             "code": 2339,
-            "count": 296
+            "count": 295
           },
           {
             "code": 2451,
@@ -1112,7 +1109,7 @@
           },
           {
             "code": 2451,
-            "count": 15
+            "count": 14
           },
           {
             "code": 2551,
@@ -1726,7 +1723,7 @@
           },
           {
             "code": 2451,
-            "count": 4
+            "count": 3
           },
           {
             "code": 2554,
@@ -1775,10 +1772,6 @@
             "count": 13
           },
           {
-            "code": 2451,
-            "count": 9
-          },
-          {
             "code": 7006,
             "count": 11
           }
@@ -1799,10 +1792,6 @@
           {
             "code": 2339,
             "count": 16
-          },
-          {
-            "code": 2451,
-            "count": 3
           },
           {
             "code": 7005,
@@ -1964,7 +1953,7 @@
           },
           {
             "code": 2451,
-            "count": 17
+            "count": 16
           },
           {
             "code": 2551,
@@ -2189,10 +2178,6 @@
             "count": 3
           },
           {
-            "code": 2451,
-            "count": 2
-          },
-          {
             "code": 2531,
             "count": 1
           },
@@ -2205,16 +2190,12 @@
             "count": 1
           },
           {
-            "code": 2630,
-            "count": 1
-          },
-          {
             "code": 7005,
-            "count": 30
+            "count": 26
           },
           {
             "code": 7006,
-            "count": 57
+            "count": 55
           },
           {
             "code": 7031,
@@ -2278,7 +2259,7 @@
           },
           {
             "code": 2339,
-            "count": 375
+            "count": 373
           },
           {
             "code": 2345,
@@ -2286,7 +2267,7 @@
           },
           {
             "code": 2451,
-            "count": 5
+            "count": 4
           },
           {
             "code": 2488,
@@ -2294,7 +2275,7 @@
           },
           {
             "code": 2588,
-            "count": 4
+            "count": 3
           },
           {
             "code": 2698,
@@ -2978,8 +2959,8 @@
     }
   },
   "totals": {
-    "files": 1047,
-    "errors": 11082,
+    "files": 1048,
+    "errors": 11049,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

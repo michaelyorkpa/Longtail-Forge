@@ -608,7 +608,7 @@ function maskNonCode(source) {
  * @param {string} source
  * @returns {string}
  */
-function scannableSource(source) {
+export function scannableSource(source) {
   const cached = maskCache.get(source);
   if (cached !== undefined) {
     return cached;

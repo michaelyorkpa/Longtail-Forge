@@ -706,7 +706,8 @@ async function loadOptions() {
   ]);
 
   state.clients = window.LongtailForge.clientProjectOptions.normalizeClients(clientProjects);
-  state.users = users.users || [];
+  const usersPayload = /** @type {{ users?: unknown[] }} */ (users);
+  state.users = usersPayload.users || [];
 }
 
 async function loadClientProjects() {
