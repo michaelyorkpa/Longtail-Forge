@@ -163,9 +163,71 @@ export function extractFunctionBody(source, functionName) {
 export function extractFunctionSpan(source, functionName) {
   const masked = scannableSource(source);
   const declaration = findDeclaration(masked, functionName);
-  const next = /\n(?:async\s+)?function\s+/.exec(masked.slice(declaration.index + 1));
-  const end = next ? declaration.index + 1 + next.index : source.length;
-  return source.slice(declaration.index, end);
+  const end = findNextSiblingFunction(masked, declaration.index + declaration[0].length);
+  return source.slice(declaration.index, end === -1 ? source.length : end);
+}
+
+/**
+ * Index of the next function declaration that is a sibling of the one starting at
+ * `declarationIndex` — the next one at the same brace depth — or `-1` for the
+ * deliberate end-of-source case.
+ *
+ * `0.33.33.32.28.4.2` published this span with "next top-level function" written as a
+ * `function` keyword at column 0. `0.33.33.33.6` found that this reads a file's layout
+ * rather than its structure: wrapping a controller in an IIFE indents every declaration
+ * by one level, so no candidate matched and every span silently ran to the end of the
+ * file. Across the browser owners already scoped by `0.33.33.33.1` through `.5`, 76 of 96
+ * sampled spans had become whole-file reads. A widened span turns a `doesNotMatch`
+ * assertion into a false failure and, far worse, turns a `match` assertion into a
+ * vacuous one.
+ *
+ * Sibling depth is the structural statement the column test was approximating: a
+ * function at depth 0 of a bare script and a function at depth 1 of an IIFE-wrapped
+ * script are the same thing. Nested helpers sit deeper and still do not end the span,
+ * and a `const` or `class` still does not end it either.
+ * @param {string} masked
+ * @param {number} searchFrom index just past the declaration's own header, so an
+ *   `async function` declaration cannot be terminated by its own `function` keyword
+ * @returns {number}
+ */
+function findNextSiblingFunction(masked, searchFrom) {
+  let depth = 0;
+  for (let index = 0; index < searchFrom; index += 1) {
+    const char = masked[index];
+    if (char === "{") depth += 1;
+    else if (char === "}") depth -= 1;
+  }
+  const declarationDepth = depth;
+
+  // Sticky so each test asks only "does a declaration begin exactly here".
+  // The terminator shape is unchanged from the published contract - `function` plus
+  // whitespace, optionally `async` - so this correction adds brace depth and nothing else.
+  const declarationStart = /(?:async\s+)?function\s+/y;
+  for (let index = searchFrom; index < masked.length; index += 1) {
+    const char = masked[index];
+    if (char === "{") depth += 1;
+    else if (char === "}") depth -= 1;
+    if (depth !== declarationDepth) continue;
+    // A declaration begins at a token boundary, so `myfunction` and `.function` are not
+    // candidates.
+    const previous = masked[index - 1];
+    if (previous !== undefined && /[\w$.]/.test(previous)) continue;
+    declarationStart.lastIndex = index;
+    if (!declarationStart.test(masked)) continue;
+    // An `export function` has never ended this span, and this correction is about brace
+    // depth rather than about which declarations terminate. Changing that too would move
+    // the region for server modules that assert about exported helpers, which is a
+    // different question from the one 0.33.33.33.6 uncovered.
+    let beforeKeyword = index;
+    while (beforeKeyword > 0 && /\s/.test(masked[beforeKeyword - 1])) beforeKeyword -= 1;
+    if (masked.slice(Math.max(0, beforeKeyword - 6), beforeKeyword) === "export") continue;
+    // The span ends where the next declaration's line begins, not at its keyword, so a
+    // bare script's span is byte-identical to the one this helper has always returned.
+    let lineStart = index;
+    while (lineStart > searchFrom && /[ \t]/.test(masked[lineStart - 1])) lineStart -= 1;
+    return lineStart > searchFrom && masked[lineStart - 1] === "\n" ? lineStart - 1 : index;
+  }
+  return -1;
 }
 
 /**

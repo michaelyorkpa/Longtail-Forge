@@ -52,7 +52,9 @@ assert.match(uploadResults, /createUploadResultItem/, "Upload result rows should
 
 const uploadResultItem = extractFunctionSpan(helper, "createUploadResultItem");
 assert.match(uploadResultItem, /data-file-upload-result/, "Upload result rows should expose success/error hooks");
-assert.match(uploadResultItem, /result\.ok \?[\s\S]*uploaded\.[\s\S]*Upload failed\./, "Upload result rows should keep success and failure copy");
+assert.match(uploadResultItem, /Upload failed\./, "Upload result rows should keep failure copy");
+assert.match(uploadResultItem, /uploaded\./, "Upload result rows should keep success copy");
+assert.match(uploadResultItem, /result\.ok \? "success" : "error"/, "Upload result rows should mark success and error states");
 
 const attachmentItem = extractFunctionSpan(helper, "attachmentItem");
 assert.match(attachmentItem, /attrs:\s*\{\s*"data-file-attachment-item": ""\s*\}/, "Attachment rows should expose a stable item hook");

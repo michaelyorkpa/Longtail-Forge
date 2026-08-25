@@ -2026,14 +2026,36 @@ assert.equal(
   'function target() {\n  return 1;\n}',
   "an async function should end the span as readily as a plain one",
 );
-// Every function in `public/js/task-dialog.js` is indented inside a closure, so
-// no next declaration is ever found there and 58 of this checkpoint's 154 spans
-// run to the end of their file. That is the region those owners have always
-// asserted against; it is pinned rather than quietly changed.
+// `0.33.33.32.28.4.2` pinned the opposite of this: an indented function did not end the
+// span, so every span over a closure-wrapped source ran to the end of its file. That was
+// deliberate - 58 of that checkpoint's 154 spans already asserted against the widened
+// region, and it was pinned rather than quietly changed.
+//
+// `0.33.33.33.6` made that pin untenable. Scoping the browser estate indents every
+// controller, so the rule was converting more spans into whole-file reads with each
+// child: 112 of the suite's 289 resolvable span extractions had become end-of-file reads
+// across 13 regressions. A widened span turns a `doesNotMatch` assertion into a false
+// failure - which is how this was found - and silently turns a `match` assertion into a
+// vacuous one.
+//
+// Indentation was never the question: a function at depth 0 of a bare script and one at
+// depth 1 of an IIFE-wrapped script are the same structural thing. The span now ends at
+// the next declaration at the *same brace depth*, indented or not, and no extraction in
+// the suite reaches end-of-file any more.
 assert.equal(
   extractFunctionSpan('function target() {\n  return 1;\n}\n  function indentedNext() {}\n', "target"),
-  'function target() {\n  return 1;\n}\n  function indentedNext() {}\n',
-  "an indented function should not end the span, which is why spans over closure-wrapped sources reach the end of the file",
+  'function target() {\n  return 1;\n}',
+  "an indented sibling ends the span, because depth rather than column decides what a sibling is",
+);
+assert.equal(
+  extractFunctionSpan('(function wrapper() {\n  function target() {\n    return 1;\n  }\n  function next() {}\n})();\n', "target"),
+  'function target() {\n    return 1;\n  }',
+  "a span inside a closure ends at the next declaration in that closure rather than at the end of the file",
+);
+assert.equal(
+  extractFunctionSpan('function target() {\n  function nested() {}\n  return nested;\n}\nfunction next() {}\n', "target"),
+  'function target() {\n  function nested() {}\n  return nested;\n}',
+  "a nested declaration is deeper than the span's owner and must not end it",
 );
 assert.throws(
   () => extractFunctionSpan('function other() {\n  return 1;\n}\n', "target"),
