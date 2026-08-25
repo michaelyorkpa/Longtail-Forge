@@ -168,6 +168,75 @@ export function extractFunctionSpan(source, functionName) {
 }
 
 /**
+ * Extract one named class method's declaration through everything up to the next method
+ * at the same brace depth, or the end of the source.
+ *
+ * This is the class-body analogue of `extractFunctionSpan`, and it exists for the same
+ * reason. `0.33.33.33.7` found `timer-task-linking` cutting stop-watch class methods with
+ * a hand-written regex anchored on exactly two spaces of indentation. Scoping the
+ * controller added one level and the pattern stopped matching, so the region silently
+ * became "method not found". A method's depth, not its column, is what makes it a sibling.
+ *
+ * Like the function helpers, this searches masked source, so a method-shaped line inside a
+ * comment, a string, or a regular expression cannot be mistaken for the declaration.
+ * @param {string} source
+ * @param {string} methodName
+ * @returns {string}
+ */
+export function extractClassMethodSpan(source, methodName) {
+  const masked = scannableSource(source);
+  const pattern = new RegExp(`(?:^|[\\s;{}])((?:async\\s+)?${escapeRegExp(methodName)}\\s*\\()`, "m");
+  const match = pattern.exec(masked);
+  if (!match) {
+    throw new Error(`${methodName} should exist`);
+  }
+  const declarationIndex = match.index + match[0].length - match[1].length;
+  const end = findNextSiblingMethod(masked, declarationIndex + match[1].length);
+  return source.slice(declarationIndex, end === -1 ? source.length : end);
+}
+
+/**
+ * Index of the next class method at the same brace depth as the one whose header ends at
+ * `searchFrom`, or `-1` for the deliberate end-of-source case.
+ *
+ * A method sits in statement position inside a class body, so the significant character
+ * before it is a brace or a semicolon. That is the same test `extractFunctionSpan` uses to
+ * separate a declaration from an expression, and it keeps a call such as `this.foo(` from
+ * ending a span.
+ * @param {string} masked
+ * @param {number} searchFrom
+ * @returns {number}
+ */
+function findNextSiblingMethod(masked, searchFrom) {
+  let depth = 0;
+  for (let index = 0; index < searchFrom; index += 1) {
+    const char = masked[index];
+    if (char === "{") depth += 1;
+    else if (char === "}") depth -= 1;
+  }
+  const declarationDepth = depth;
+  const methodStart = /(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/y;
+  for (let index = searchFrom; index < masked.length; index += 1) {
+    const char = masked[index];
+    if (char === "{") depth += 1;
+    else if (char === "}") depth -= 1;
+    if (depth !== declarationDepth) continue;
+    const previous = masked[index - 1];
+    if (previous !== undefined && /[\w$.]/.test(previous)) continue;
+    methodStart.lastIndex = index;
+    if (!methodStart.test(masked)) continue;
+    let beforeKeyword = index;
+    while (beforeKeyword > 0 && /\s/.test(masked[beforeKeyword - 1])) beforeKeyword -= 1;
+    const precedingToken = beforeKeyword > 0 ? masked[beforeKeyword - 1] : "";
+    if (precedingToken !== "" && !/[;{}]/.test(precedingToken)) continue;
+    let lineStart = index;
+    while (lineStart > searchFrom && /[ \t]/.test(masked[lineStart - 1])) lineStart -= 1;
+    return lineStart > searchFrom && masked[lineStart - 1] === "\n" ? lineStart - 1 : index;
+  }
+  return -1;
+}
+
+/**
  * Index of the next function declaration that is a sibling of the one starting at
  * `declarationIndex` — the next one at the same brace depth — or `-1` for the
  * deliberate end-of-source case.

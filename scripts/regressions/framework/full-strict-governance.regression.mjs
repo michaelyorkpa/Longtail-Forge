@@ -8,7 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import { extractFunctionBlock, extractFunctionBody, extractFunctionSpan, scannableSource } from "../../test-support/source-scan.mjs";
+import { extractClassMethodSpan, extractFunctionBlock, extractFunctionBody, extractFunctionSpan, scannableSource } from "../../test-support/source-scan.mjs";
 import fs from "node:fs";
 import {
   PROGRAMS,
@@ -2078,6 +2078,36 @@ assert.equal(
   'function target() {}\nconst handler = function (event) {};',
   "the span still ends at the next real declaration once the expression is passed over",
 );
+
+// `0.33.33.33.7` published the class-body analogue for the same reason: `timer-task-linking`
+// cut stop-watch methods with a regex anchored on exactly two spaces, so scoping the
+// controller added a level and the region silently became "method not found". Depth, not
+// column, is what makes a method a sibling.
+assert.equal(
+  extractClassMethodSpan('class C {\n  target() {\n    return 1;\n  }\n  next() {}\n}\n', "target"),
+  'target() {\n    return 1;\n  }',
+  "a class method span ends at the next method at its own depth",
+);
+assert.equal(
+  extractClassMethodSpan('(function wrap() {\n  class C {\n    target() {\n      return 1;\n    }\n    next() {}\n  }\n})();\n', "target"),
+  'target() {\n      return 1;\n    }',
+  "the same method inside a scoped controller reads the same region, one indent level deeper",
+);
+assert.equal(
+  extractClassMethodSpan('class C {\n  async target() {\n    await this.other();\n  }\n  next() {}\n}\n', "target"),
+  'async target() {\n    await this.other();\n  }',
+  "an async method is found and its span still ends at the next method",
+);
+assert.ok(
+  extractClassMethodSpan('class C {\n  target() {\n    this.next();\n    return 1;\n  }\n  next() {}\n}\n', "target")
+    .includes("this.next();"),
+  "a call to a sibling is not a declaration and must not end the span",
+);
+assert.throws(
+  () => extractClassMethodSpan('class C {\n  // target() {}\n  other() {}\n}\n', "target"),
+  /target should exist/,
+  "a method named only inside a comment is not a declaration",
+);
 assert.throws(
   () => extractFunctionSpan('function other() {\n  return 1;\n}\n', "target"),
   /target should exist/,
@@ -2573,6 +2603,9 @@ for (const shellOwner of [
   "public/js/tasks.js",
   "public/js/clients-projects.js",
   "public/js/notes.js",
+  "public/js/stop-watch.js",
+  "public/js/time-entries.js",
+  "public/js/workbench.js",
 ]) {
   const shellSource = fs.readFileSync(shellOwner, "utf8").split("\r\n").join("\n");
   const leaked = shellSource
@@ -2877,11 +2910,12 @@ assert.notEqual(
 // Every script here still declares names in the classic shared lexical environment. The
 // list may only shrink: a script that leaves it must not come back, and no classic script
 // outside it may start leaking. `0.33.33.33` closes when this list is empty.
-const SHARED_SCOPE_BACKLOG = new Set([
-  "public/js/workbench.js",
-  "public/js/time-entries.js",
-  "public/js/stop-watch.js",
-]);
+// `0.33.33.33.7` emptied this list: every classic browser script is now scoped. The set
+// stays because the invariant it enforces is permanent - a classic script that starts
+// declaring names in the shared lexical environment fails whether or not it was ever
+// an owner of this rollup.
+/** @type {Set<string>} */
+const SHARED_SCOPE_BACKLOG = new Set([]);
 
 for (const backlogEntry of SHARED_SCOPE_BACKLOG) {
   assert.ok(

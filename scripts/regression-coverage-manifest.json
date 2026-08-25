@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18816,
+    "activeAssertionCount": 18819,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19630,
+    "effectiveAssertionCount": 19633,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -5304,11 +5304,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 364,
+      "assertionCount": 369,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 364,
+      "entryPointAssertionCount": 369,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
@@ -7421,11 +7421,11 @@
     },
     {
       "area": "time-tracking",
-      "assertionCount": 51,
+      "assertionCount": 49,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves a running manual timer can become a permission-safe Task Timer without losing elapsed-time identity or final time-entry attribution.",
-      "entryPointAssertionCount": 51,
+      "entryPointAssertionCount": 49,
       "id": "time-tracking.timer-task-linking",
       "legacy": false,
       "path": "scripts/regressions/time-tracking/timer-task-linking.regression.mjs",
