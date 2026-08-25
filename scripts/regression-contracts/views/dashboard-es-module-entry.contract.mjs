@@ -100,6 +100,37 @@ assert.match(timeTrackingCss, /\.time-tracking-dashboard-content[\s\S]*\.time-tr
 assert.doesNotMatch(frameworkCss, /\.dashboard-page|\.dashboard-task-row|\.time-tracking-dashboard-content/);
 checks += 5;
 
+// `0.33.33.33.5.1` aligned TypeScript's lexical scope with the runtime one. Both entries
+// carry an empty export marker so the compiler models them as modules, matching how the
+// browser and ESLint already treat them. The marker must stay empty: these are
+// side-effect modules whose public behaviour is their `window.LongtailForge.*`
+// publication, and a real export would invent an API that nothing imports.
+for (const [label, moduleSource] of [["dashboard.entry.js", entry], ["tasks-dashboard.js", tasksDashboard]]) {
+  assert.match(moduleSource, /^\s*export\s*\{\s*\}\s*;/m, `${label} must carry the empty export marker`);
+  const exportStatements = [...moduleSource.matchAll(/^\s*export\b.*$/gm)].map((match) => match[0].trim());
+  assert.deepEqual(
+    exportStatements,
+    ["export {};"],
+    `${label} is a side-effect module and must export nothing beyond the empty marker: ${exportStatements.join(" | ")}`,
+  );
+  assert.doesNotMatch(moduleSource, /^\s*import\s/m, `${label} must not gain a static import`);
+  checks += 3;
+}
+
+// The ordering an async wrapper would have broken: the renderer's dependencies are
+// awaited at the top level before it registers anything, and the importing module waits
+// for that because the file is a real module rather than a wrapped script.
+const tasksDependencyAwait = tasksDashboard.indexOf("await bridge.importScripts([");
+const tasksFirstRegistration = tasksDashboard.indexOf("dashboard.registerPanelRenderer(");
+assert.ok(tasksDependencyAwait > -1, "tasks-dashboard.js must await its dependencies at the top level");
+assert.ok(tasksFirstRegistration > -1, "tasks-dashboard.js must register a panel renderer");
+assert.ok(
+  tasksDependencyAwait < tasksFirstRegistration,
+  "tasks-dashboard.js must finish awaiting its dependencies before it registers a renderer;"
+    + " a synchronous or async wrapper would let import() resolve before registration",
+);
+checks += 3;
+
 assert.doesNotMatch(workbenchHtml, /workbench\.entry\.js|type="module"/);
 assert.match(workbenchHtml, /js\/navigation\.js[\s\S]*js\/workbench\.js[\s\S]*js\/footer\.js/);
 checks += 2;
