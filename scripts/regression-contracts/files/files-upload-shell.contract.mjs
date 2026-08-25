@@ -39,7 +39,9 @@ assert.match(createUploadButton, /createAttachmentElement\(view, "button"[\s\S]*
 const uploadResultList = extractFunctionSpan(helper, "uploadResultList");
 assert.match(uploadResultList, /"data-file-upload-results": ""|fileUploadResults: ""/, "Per-file upload results should expose a stable data hook");
 assert.match(uploadResultList, /state\.uploadResults\.map\(\(result\) => createUploadResultItem\(view, result\)\)/, "Per-file upload results should remain visible after batch uploads");
-assert.match(uploadResultList, /result\.ok \?[\s\S]*uploaded\.[\s\S]*Upload failed\./, "Upload results should show success and failure rows");
+const uploadResultItemCopy = extractFunctionSpan(helper, "createUploadResultItem");
+assert.match(uploadResultItemCopy, /uploaded\./, "Upload results should show a success row");
+assert.match(uploadResultItemCopy, /Upload failed\./, "Upload results should show a failure row");
 
 const uploadStatusMessage = extractFunctionSpan(helper, "uploadStatusMessage");
 assert.match(uploadStatusMessage, /state\.isUploading[\s\S]*Uploading files/, "Upload status should show progress while uploading");

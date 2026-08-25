@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18807,
+    "activeAssertionCount": 18812,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19621,
+    "effectiveAssertionCount": 19626,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -4960,8 +4960,8 @@
     },
     {
       "area": "files",
-      "assertionCount": 622,
-      "contractAssertionCount": 621,
+      "assertionCount": 625,
+      "contractAssertionCount": 624,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/files/file-scanner-setup-docs.contract.mjs",
@@ -4973,7 +4973,7 @@
         },
         {
           "path": "scripts/regression-contracts/files/files-attachment-panel-shell.contract.mjs",
-          "assertionCount": 64
+          "assertionCount": 66
         },
         {
           "path": "scripts/regression-contracts/files/files-browse-compact-reset.contract.mjs",
@@ -5009,7 +5009,7 @@
         },
         {
           "path": "scripts/regression-contracts/files/files-upload-shell.contract.mjs",
-          "assertionCount": 46
+          "assertionCount": 47
         },
         {
           "path": "scripts/regression-contracts/files/files-visual-state-control-parity.contract.mjs",
@@ -5304,11 +5304,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 358,
+      "assertionCount": 360,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 358,
+      "entryPointAssertionCount": 360,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
