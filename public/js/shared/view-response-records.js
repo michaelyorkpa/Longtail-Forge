@@ -2,19 +2,19 @@
 
 /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewResponseRecords} BrowserViewResponseRecords */
 
-const COMPATIBILITY_RECORD_KEYS = Object.freeze([
-  "records",
-  "items",
-  "data",
-  "results",
-  "rows",
-  "tags",
-  "lists",
-  "tasks",
-]);
-
 /** @param {Window} global */
 (function attachViewResponseRecords(global) {
+  const COMPATIBILITY_RECORD_KEYS = Object.freeze([
+    "records",
+    "items",
+    "data",
+    "results",
+    "rows",
+    "tags",
+    "lists",
+    "tasks",
+  ]);
+
   const namespace = global.LongtailForge || {};
 
   /**

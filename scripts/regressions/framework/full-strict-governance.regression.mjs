@@ -2487,6 +2487,55 @@ assert.throws(
   /target should exist/,
   "the published extractors refuse an arrow-function property, which one family-A reader answers",
 );
+// 0.33.33.33.1 scoped the three classic scripts the app shell injects into
+// every rendered page. `footer.js` loads on 35 pages, `navigation.js` on 30,
+// and `src/services/static.service.js` injects `shared/view-response-records.js`
+// alongside four scripts that were already isolated. Between them they used to
+// declare 137 names in the browser's shared global scope.
+//
+// The guard is two-sided because wrapping can fail in two directions: a name
+// can leak back out, or a surface other scripts depend on can stop being
+// published. Both are checked, because the second failure is silent - the
+// page still parses and the consumer simply finds `undefined` at runtime.
+for (const shellOwner of [
+  "public/js/footer.js",
+  "public/js/navigation.js",
+  "public/js/shared/view-response-records.js",
+]) {
+  const shellSource = fs.readFileSync(shellOwner, "utf8").split("\r\n").join("\n");
+  const leaked = shellSource
+    .split("\n")
+    .filter((line) => /^(?:export\s+)?(?:async\s+)?(?:const|let|var|function\*?|class)\s/.test(line));
+  assert.deepEqual(
+    leaked,
+    [],
+    `${shellOwner} is injected into every page and must declare no name at top level: ${leaked.join(" | ")}`,
+  );
+}
+// The published surfaces are the reason the wrap is safe, so they are pinned by
+// name rather than by count. `applyWorkspaceName` is a bare `window.*` global
+// rather than a namespace member; it is declared on `Window` in
+// `src/types/browser-contracts.d.ts` and `0.33.33.33.3` owns the consumer that
+// decides whether to move it under `window.LongtailForge`.
+const navigationSource = fs.readFileSync("public/js/navigation.js", "utf8");
+for (const publishedSurface of [
+  "window.LongtailForge.navigationIntent",
+  "window.LongtailForge.getWorkspaceProjectsLabel",
+  "window.LongtailForge.refreshNotifications",
+  "window.LongtailForge.sessionAuthWarnings",
+  "window.LongtailForge.refreshAppShell",
+  "window.LongtailForge.workspaceContextReady",
+  "window.LongtailForge.workspaceContext",
+  "window.LongtailForge.userPreferences",
+  "window.LongtailForge.supportView",
+  "window.applyWorkspaceName",
+  "window.fetch",
+]) {
+  assert.ok(
+    navigationSource.includes(`${publishedSurface} =`),
+    `public/js/navigation.js must keep publishing ${publishedSurface}; scoping the script must not withdraw a surface other pages read`,
+  );
+}
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
 
 /**

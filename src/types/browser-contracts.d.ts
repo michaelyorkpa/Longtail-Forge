@@ -149,5 +149,17 @@ export type BrowserErrorEnvelope = ApiErrorEnvelope;
 declare global {
   interface Window {
     LongtailForge?: LongtailForgeBrowserNamespace;
+    /**
+     * Published by `public/js/navigation.js` and read by the Workspace
+     * Settings controller after a rename.
+     *
+     * It is declared here because `0.33.33.33.1` scoped the app-shell
+     * navigation script: the consumer previously resolved this read against
+     * that script's top-level function through the shared global scope, which
+     * is an inherited zero rather than a contract. The surface is a bare
+     * `window.*` global rather than a `window.LongtailForge.*` one, and
+     * `0.33.33.33.3` owns the consumer that decides whether to move it.
+     */
+    applyWorkspaceName?: (value: unknown) => void;
   }
 }

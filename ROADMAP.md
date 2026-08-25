@@ -67,27 +67,19 @@ Children are grouped by **measured load surface**, because that is what determin
 - [ ] Every child proves each affected page through its focused view contracts and Playwright coverage before the browser ledger is regenerated.
 - [ ] **`TS2451` reconciliation.** The rollup closes when all 104 redeclaration diagnostics are gone and no new lexical collision exists among the 29.
 
-**Reconciliation: 29 owners, each in exactly one child, no duplicate and no orphan.**
+**`0.33.33.33.1` has archived**, scoping the three injected shell scripts and removing 137 names from the browser's shared global scope. It settled three things for the children that follow. **The `TS2451` count is now 100**, and the rollup still closes at 0. **The bare/isolated classification tests the first code line**, so an owner whose file opens with a constant above an existing IIFE reads as bare when it is nearly isolated - `shared/view-response-records.js` was 11 lines of work rather than a wrap, and the estate is still 29 owners. And **scoping a script surfaces the `window.X` reads that were resolving against its top-level names through the shared global scope**: `workspace-settings.js` gained two diagnostics the moment `navigation.js` was wrapped, because `window.applyWorkspaceName` had never been declared by anything. That is an inherited zero becoming visible, not a regression; the publisher now declares the surface and the consumer's child decides where it belongs. Every remaining child should expect the same class of finding and budget for it.
+
+**Reconciliation: the estate was 29 owners, each in exactly one child, no duplicate and no orphan. `0.33.33.33.1` has taken 3; the table below is the remaining 26.**
 
 | Child | Load surface | Owners | Lines | Diagnostics |
 | --- | --- | --- | --- | --- |
-| `.33.1` | Shell injected into every page | 3 | 2,221 | 225 |
 | `.33.2` | Pre-authentication and entry pages | 3 | 464 | 73 |
 | `.33.3` | Settings page controllers | 4 | 1,654 | 464 |
 | `.33.4` | Administration and support pages | 6 | 2,888 | 889 |
 | `.33.5` | Reporting, calendar, and dynamically loaded surfaces | 4 | 2,093 | 385 |
 | `.33.6` | Record module page controllers | 6 | 16,483 | 3,629 |
 | `.33.7` | Time tracking and orchestration controllers | 3 | 6,406 | 1,315 |
-| **Total** | | **29** | **32,209** | **6,980** |
-
-#### 0.33.33.33.1 - Isolate the injected shell scripts
-
-**Model: Medium Effort - Three owners, but every page loads them.**
-
-`footer.js` (35 pages), `navigation.js` (30 pages), and `shared/view-response-records.js`, which `src/services/static.service.js` injects into every rendered page alongside four already-isolated shell scripts. Highest blast radius in the rollup and the only child whose failure mode is global, so it runs first and its proof is the widest.
-
-- [ ] Wrap all three, and record which of their names other scripts legitimately consume before scoping them.
-- [ ] `view-response-records.js` leaks one name, `COMPATIBILITY_RECORD_KEYS`, and is a shared contract file rather than a controller; wrap or justify explicitly rather than assuming either.
+| **Remaining** | | **26** | **29,988** | **6,755** |
 
 #### 0.33.33.33.2 - Isolate the pre-authentication pages
 
