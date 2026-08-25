@@ -333,6 +333,7 @@
         "tests/e2e/modal.spec.mjs",
         "tests/e2e/overflow.spec.mjs",
         "tests/e2e/public-legal.spec.mjs",
+        "tests/e2e/reporting-host-console.spec.mjs",
         "tests/e2e/settings-admin-navigation.spec.mjs",
         "tests/e2e/settings-universal-actions.spec.mjs",
         "tests/e2e/support-view.spec.mjs",
@@ -472,7 +473,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 11049,
+      "errorCount": 11047,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -712,10 +713,6 @@
             "count": 8
           },
           {
-            "code": 2451,
-            "count": 1
-          },
-          {
             "code": 7006,
             "count": 13
           }
@@ -732,10 +729,6 @@
           {
             "code": 2339,
             "count": 37
-          },
-          {
-            "code": 2451,
-            "count": 1
           },
           {
             "code": 7005,
@@ -2960,8 +2953,8 @@
     }
   },
   "totals": {
-    "files": 1049,
-    "errors": 11049,
+    "files": 1050,
+    "errors": 11047,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
