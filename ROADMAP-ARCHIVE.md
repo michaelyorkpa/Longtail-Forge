@@ -1,5 +1,46 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.33.6 - Isolate the record module page controllers
+
+**Model: High Effort** - Six independent transformations, one governance capability, and the rollup's TS2451 target reached.
+
+Sixth child of `0.33.33.33`, run as six independent transformations after `0.33.33.33.6.1` and `.6.1.1` cleared the span-helper defect that stopped the first attempt. `tags.js`, `files.js`, `lists.js`, `tasks.js`, `clients-projects.js`, and `notes.js` are scoped: **1,215 names leave the browser's shared global scope**. The browser program falls from **11,041 to 10,528** and **`TS2451` reaches 0**, which is the rollup's stated reconciliation target, reached before `0.33.33.33.7`. One child remains.
+
+- [x] **Each owner was proved before the next was touched.** Every wrap passed the de-indent proof, then its own focused static and rendered gates, then a per-owner diagnostic reconciliation classifying every file that moved. Two apparent gate failures were run down and shown to be pre-existing and unrelated - `run-timed-stage.mjs` is a CLI harness that needs arguments and fails identically on a clean tree, and `clients-projects-strict-closeout-regression` requires the isolated-database runner rather than a direct `node` invocation.
+- [x] **The corrective children did their job.** `lists-ui-workflow-regression`, whose false failure stopped the first attempt, passes against the wrapped owner, and all 38 span-using regressions pass against the wrapped tree.
+- [x] **One owner found a hand-written extractor of exactly the kind the estate forbids.** `notes-preview-editor-regression` cut a function region with `/function togglePreview\(\) \{[\s\S]*?\n\}/`, which ends at a closing brace in column 0 - the same assumption `0.33.33.33.6.1` had just removed from the published helper. It now uses `extractFunctionBlock`.
+- [x] **The checkpoint's finding is that the shrink-only rule and the thing it stands for can disagree.** Scoping changes which declaration an identifier resolves to, so five files began resolving their own `state` literal instead of another page's. **Twenty per-code counts rose while every one of those files' totals fell.** The rule is written per code because that is a good proxy for "no new debt"; here it is only a proxy.
+- [x] **Governed reclassification is the answer, and it is deliberately narrow.** A movement is permitted only when it names an exact file, an exact code, and the exact counts either side; the file's own total strictly falls; the program's total does not rise; and the file shares a top-level identifier with an owner this checkpoint scoped, which is the mechanical evidence that the movement is re-binding. There is no wildcard, no per-file blanket, and no proportional allowance. **It is not a place to park or defer typing work** - `0.33.33.39` through `0.33.33.44` own reducing these diagnostics and nothing here reduces one.
+- [x] **The records are struck once spent rather than left standing.** They were consumed by the single ledger write that landed this checkpoint and then removed, because a spent record is a standing permission and the estate has been clear that a record outliving its need is debt. The exact movement is recorded here instead:
+
+| File | Code | Before | After | File total |
+| --- | --- | --- | --- | --- |
+| `lists.js` | TS2322 | 2 | 7 | 695 → 604 |
+| `lists.js` | TS2345 | 0 | 2 | 695 → 604 |
+| `lists.js` | TS2698 | 0 | 1 | 695 → 604 |
+| `notes.js` | TS2322 | 0 | 8 | 1305 → 1111 |
+| `notes.js` | TS2345 | 13 | 17 | 1305 → 1111 |
+| `notes.js` | TS7005 | 5 | 7 | 1305 → 1111 |
+| `notes.js` | TS7053 | 7 | 9 | 1305 → 1111 |
+| `stop-watch.js` | TS7034 | 3 | 4 | 182 → 164 |
+| `tasks.js` | TS2322 | 0 | 2 | 660 → 557 |
+| `tasks.js` | TS2345 | 2 | 6 | 660 → 557 |
+| `tasks.js` | TS2698 | 0 | 1 | 660 → 557 |
+| `tasks.js` | TS7053 | 9 | 11 | 660 → 557 |
+| `workbench.js` | TS2322 | 1 | 6 | 891 → 804 |
+| `workbench.js` | TS2345 | 2 | 4 | 891 → 804 |
+| `workbench.js` | TS2698 | 1 | 10 | 891 → 804 |
+| `workbench.js` | TS2739 | 0 | 1 | 891 → 804 |
+| `workbench.js` | TS7005 | 67 | 70 | 891 → 804 |
+| `workbench.js` | TS7034 | 33 | 34 | 891 → 804 |
+| `workbench.js` | TS7053 | 6 | 7 | 891 → 804 |
+| `workbench.js` | TS18047 | 0 | 3 | 891 → 804 |
+
+- [x] **Five mutation controls, each failing by its own message.** An unrelated new diagnostic still fails; a record whose file total rose fails with `the file's total did not fall (65 -> 67)`; a record whose counts drift fails with `a reclassification records exact counts`; a record with no increase left to explain fails as spent; and a record with no link to a scoped owner fails because nothing demonstrates re-binding. Two permanent fixtures keep the mechanism tested now that its records are gone.
+- [x] **The inventory reports 72 of 75 classic browser scripts out of the shared lexical environment**, with only `workbench.js`, `time-entries.js`, and `stop-watch.js` left - the three `0.33.33.33.7` owners.
+- [x] Proved through the rendered gates: **36 console, modal, tag-picker, client-project, task, and overflow specs** plus **25 accessibility specs**.
+- [x] Verified with `npm run verify:slice` under full-check escalation.
+
 ## Version 0.33.33.33.6.1.1 - Harden the span terminator against same-depth function expressions
 
 **Model: Low Effort** - One condition, five fixtures, and the hole `0.33.33.33.6.1` left open.
