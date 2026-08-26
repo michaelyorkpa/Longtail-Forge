@@ -1,5 +1,34 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.35.1.1 - Move the module view-shell builds behind the workspace context
+
+**Model: High Effort** - Bootstrap ordering across four large module controllers, where a missed element binding fails silently.
+
+Notes, Lists, Files, and Tasks now build their workspace surface after the workspace context resolves, matching the shape `public/js/clients-projects.js` already had. The five descriptor fallbacks are untouched; `0.33.33.35.1.2` removes them.
+
+- [x] **The ordering change carried the element caching with it, which is why this was its own checkpoint.** Each `buildXViewShell()` was followed immediately by top-level `querySelector` bindings reading the DOM it had just built. Moving the build behind an `await` without moving those bindings would have stranded every one of them, silently. **48 bindings in `tasks.js`, 41 in `lists.js`, and 93 in `notes.js`** became `cacheTasksElements()`, `cacheListsElements()`, and `cacheNotesElements()`, and their listener blocks became `bindTasksEvents()`, `bindListsEvents()`, and `bindNotesEvents()`. `files.js` already had `cacheFilesElements()` and `bindFilesEvents()` and only needed its three calls moved into the awaited `initialize()`.
+- [x] **Notes and Lists keep a synchronous branch, and it is load-bearing rather than tidy.** Both are lazily imported by the module-action registry for a dialog-only use where `buildXViewShell()` returns early because the page has no host. That path reads no descriptor, so it warrants no wait - and it must not get one: the registry's dependency loader tests for `listsDialog.openListEditor` and `notesDialog.openNoteEditor` the moment the dynamic import resolves. Both namespace publications and all module-action registrations therefore stay synchronous too.
+- [x] **The five fallbacks stay in place.** They are the safety net that makes the ordering change provable on its own: with them present, a stranded binding shows as a broken control rather than as a blank surface, and a rejected context still reaches the existing `initialize()` error path through a surface that exists.
+- [x] **The cold-load path is proved, not asserted.** `tests/e2e/view-shell-cold-load.spec.mjs` forces the absent-context state and checks all four surfaces still render their descriptor-built anatomy.
+
+**Splitting declaration from assignment cost `const`'s narrowing, and paying that back was most of the type work.** `let x = null` infers `any`, so all 182 element bindings are annotated `Element | null` - exactly what `document.querySelector` already returned, which reproduces the previous diagnostics rather than papering over them. Four sites still lost narrowing because TypeScript will not carry a `let` narrowing into a deferred callback or across an intervening call: `listDialog` and `dialog` in the two modal `close` promises, and `collectionParentInput` after its guard in `populateCollectionParentOptions`. Each takes a local `const`. `notes.js`'s `editor` binding is declared with the shape `notesEditor.createPlainTextarea` returns, because `null` alone made it implicitly `any`.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | --- | --- |
+| Browser program diagnostics | 10,492 | **10,491** |
+| Top-level element bindings behind the context | 0 | **182** |
+| Modules building the shell synchronously | 4 | **0** |
+| Descriptor fallbacks | 5 | **5** (unchanged by design) |
+| Playwright end-to-end tests | 159 | **167** |
+
+**Getting the cold-load proof to actually prove something took three attempts, and the failures are the interesting part.** The first spec read `localStorage` after `page.goto` and found the context present - `navigation.js` writes it back during the very first load, so a post-navigation read says nothing about what the module script saw. The second cleared storage and reloaded, and raced the in-flight writes of the load it was clearing after. The third records and clears from an `addInitScript` that runs ahead of every page script, so the precondition is observed at the only moment that matters. A fourth correction moved the observation from a `window` property to `sessionStorage`: the spec belongs to the server/test program, which is permanently at zero strict diagnostics, and augmenting `Window` for a test would have put a declaration there to carry it. `document.documentElement` was tried first and does not exist yet at document-start.
+
+**The new spec passes with the fallbacks present, which is deliberate.** It is not a proof that this checkpoint changed anything - the four static contracts in the Notes, Lists, Tasks, and Files declarative-surface owners pin the ordering itself. It is the precondition `0.33.33.35.1.2` needs, written now so that the checkpoint which deletes the fallbacks inherits a guard rather than writing its own alongside the deletion it is meant to catch.
+
+Five regression owners were repointed: `notes-preview-editor` and `notes-tasks-modal-footer-visual-parity` pinned `const <name> = document.querySelector(...)` and now pin the assignment, and `personal-family-workspace-scope` pinned `await window.LongtailForge.workspaceContextReady` without the optional chaining this checkpoint added.
+
 ## Version 0.33.33.34 - Extract the Workbench module-action loader and Files bridge
 
 **Model: High Effort** - The loader is shared framework machinery whose dependency table controls several module controllers.

@@ -104,6 +104,8 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Model: High Effort** - Planning rollup only; the two numbered children below are the protected implementation checkpoints.
 
+**`0.33.33.35.1.1` has archived; `0.33.33.35.1.2` remains.**
+
 **Split on evidence during the post-`0.33.33.34` verification.** The original single child said to "use the established null-and-skip contract for unavailable server descriptors and delete the five fallbacks". That contract exists and `public/js/clients-projects.js` is the precedent, but the child omitted the precondition that makes it safe there, and the four owners do not currently meet it.
 
 `clients-projects.js` **awaits `workspaceContextReady` before it reads the descriptor** (`initializeClientProjectsPage`), so a `null` genuinely means "the server did not deliver this surface" and skipping is correct. All four `.35.1` owners do the opposite: `buildFilesViewShell()`, `buildTasksViewShell()`, `buildListsViewShell()`, and `buildNotesViewShell()` are called **synchronously at IIFE top level**, before any `await`, at `files.js:76`, `tasks.js:57`, `lists.js:60`, and `notes.js:118`.
@@ -119,17 +121,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] Both children run after `0.33.33.33.6`, which scoped all four owners, so each change happens inside a scoped file.
 - [ ] Neither child may make a module render a client-authored descriptor when the server delivered one, and neither may add a new client-side descriptor.
 
-#### 0.33.33.35.1.1 - Move the module view-shell builds behind the workspace context
-
-**Model: High Effort** - Bootstrap ordering across four large module controllers, where a missed element binding fails silently.
-
-Bring Notes, Lists, Files, and Tasks to the `clients-projects.js` bootstrap shape: await the workspace context, then build the view shell, then cache elements and bind events.
-
-- [ ] Move each `buildXViewShell()` call and every top-level DOM binding that depends on it behind `await window.LongtailForge.workspaceContextReady`, tolerating rejection the way `initializeClientProjectsPage` does.
-- [ ] **The five fallbacks stay in place for this child.** They are the safety net that makes the ordering change provable on its own: if a binding is stranded, the page still renders and the defect is visible as a broken control rather than as a blank surface.
-- [ ] Preserve current surface anatomy, behavior registration order, dialog-shell construction, and query-parameter handling on each page.
-- [ ] Prove the cold-load path explicitly - no stored `lf_workspace_context` - for all four pages, because that is the path the fallbacks currently hide.
-
 #### 0.33.33.35.1.2 - Delete the module-local descriptor fallbacks
 
 **Model: Medium Effort** - Module-owned behaviour removal once the ordering precondition is met.
@@ -139,6 +130,7 @@ The Notes, Lists, Files, and Tasks view-surface fallbacks and the nested Notes l
 - [ ] Use the established null-and-skip contract for unavailable server descriptors and delete the five fallbacks.
 - [ ] Return `null` from each `<module>ViewSurfaceDescriptor()` when the surface is absent and make every consumer skip, including the nested reads at `notes.js:403`, `:418`, `:1107`, `:1111`, `:1115`, `:1584` and `lists.js:652`, `:986`, `:1185`, `:1303`, which currently dereference the result without a guard.
 - [ ] **Six regression owners require these fallbacks to exist today** and must be inverted in the same change: `files-descriptor-host-regression.mjs:37`, `files/files-filter-sidebar.contract.mjs:25`, `lists/lists-declarative-readonly-surface.contract.mjs:30`, `notes/notes-declarative-readonly-surface.contract.mjs:37-38`, `tasks/tasks-declarative-readonly-surface.contract.mjs:30`, and `tasks/tasks-detail-read-panel.contract.mjs:26,47`.
+- [ ] **The cold-load guard is already in place.** `0.33.33.35.1.1` left `tests/e2e/view-shell-cold-load.spec.mjs`, which forces the absent-context state at document-start and asserts all four surfaces still render their descriptor-built anatomy. It passes today because the fallbacks answer for the absent descriptor; after this child it passes only if the server descriptor does. Do not weaken it to make the deletion land.
 - [ ] **`tasks-detail-read-panel.contract.mjs` reads the fallback as its source of truth** for the task-list region shape. Its subject moves to the server descriptor in `src/modules/tasks/module.js`, which is where that shape is actually owned; leaving it asserting a deleted client-side literal would be the wrong repair.
 - [ ] The four server descriptors all exist and stay authoritative: `files.browse` at `src/core/view-surfaces/framework-view-surfaces.js:15`, `lists.workspace` at `src/modules/lists/module.js:232`, `notes.workspace` at `src/modules/notes/module.js:84`, and `tasks.workspace` at `src/modules/tasks/module.js:108`.
 
