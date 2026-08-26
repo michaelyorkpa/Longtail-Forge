@@ -8,8 +8,11 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
+import { collectBrowserPublicationInventory, contestedSurfaces } from "../../test-support/browser-publication-inventory.mjs";
 import { extractClassMethodBlock, extractFunctionBlock, extractFunctionBody, extractFunctionSpan, scannableSource } from "../../test-support/source-scan.mjs";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
   PROGRAMS,
   collectSourcePolicy,
@@ -3004,63 +3007,262 @@ assert.ok(
   `the shared-scope backlog may only shrink: ${leakingBrowserScripts.length} classic scripts leak against a recorded ${SHARED_SCOPE_BACKLOG.size}`,
 );
 
+// The publication inventory is fixture-proved before it is trusted about the estate.
+// Every alias form the first-party code actually uses is covered, and so is every
+// false-positive class an expanding regex family could not separate: alias provenance
+// is the contract, never variable spelling.
+//
+// The fixture sources live here rather than in the repository tree. They contain
+// deliberate anti-patterns - a namespace clobber, a parameter that is not the global
+// object - and every `.js` file under `tests/` is a first-party file the debt ledger
+// tracks, so materialising them into a temporary directory keeps the estate honest.
+const publicationFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ltf-publication-fixtures-"));
+fs.mkdirSync(path.join(publicationFixtureRoot, "sources"));
+for (const [fixtureName, fixtureSource] of [
+  ["direct-writes.js", "// Direct namespace member, and a direct bare window surface.\nwindow.LongtailForge.directSurface = { ok: true };\nwindow.directBareSurface = { ok: true };\n"],
+  ["namespace-alias.js", "// Alias declared from window.LongtailForge, then written through.\nconst namespace = window.LongtailForge || {};\nnamespace.aliasSurface = { ok: true };\nwindow.LongtailForge = namespace;\n"],
+  ["iife-global-alias.js", "// Alias from an IIFE parameter proved to receive window, published through\n// Object.freeze, plus a merge over the existing surface.\n(function attachFixture(global) {\n  const root = global.LongtailForge || {};\n  root.frozenSurface = Object.freeze({ a: 1 });\n  root.mergedSurface = Object.freeze({\n    ...(root.mergedSurface || {}),\n    b: 2,\n  });\n  global.LongtailForge = root;\n})(window);\n"],
+  ["two-aliases.js", "// Two aliases in one file both resolve to the namespace.\n(function attachTwoAliases(global) {\n  const first = global.LongtailForge || {};\n  const second = global.LongtailForge || {};\n  first.firstAliasSurface = { ok: true };\n  second.secondAliasSurface = { ok: true };\n  global.LongtailForge = first;\n})(window);\n"],
+  ["false-positives.js", "// None of these publish anything.\n(function attachFalsePositives(notTheGlobal) {\n  const namespace = { view: null };\n  namespace.localOnly = 1;\n  const root = document.createElement(\"div\");\n  root.className = \"not-a-surface\";\n  const fromParameter = notTheGlobal.LongtailForge || {};\n  fromParameter.notPublished = 1;\n  const readOnly = window.LongtailForge.view;\n  window.LongtailForge.view.renderSurface(readOnly);\n  return { namespace, root, fromParameter };\n})({ LongtailForge: {} });\n"],
+  ["namespace-clobber.js", "// A namespace replacement through an alias that does not derive from the namespace.\n(function attachClobber(global) {\n  const replacement = { onlyThis: true };\n  global.LongtailForge = replacement;\n})(window);\n"],
+  ["direct-and-alias.js", "// Direct and alias writes resolving to the same surface, and one file writing the\n// same surface twice.\nconst sharedNamespace = window.LongtailForge || {};\nwindow.LongtailForge.sharedSurface = { first: true };\nsharedNamespace.sharedSurface = { second: true };\nsharedNamespace.repeatedSurface = { a: 1 };\nsharedNamespace.repeatedSurface = { b: 2 };\nwindow.LongtailForge = sharedNamespace;\n"],
+  ["binding-shadow.js", "// Binding identity, not spelling. The outer `root` is the namespace and publishes;\n// the inner `root` is a DOM element that merely shares the name and must not.\n(function attachBindingShadow(global) {\n  const root = global.LongtailForge || {};\n  root.shadowedOuterSurface = { ok: true };\n  function localScope() {\n    const root = document.createElement(\"div\");\n    root.shadowedInnerSurface = \"not published\";\n    return root;\n  }\n  localScope();\n  global.LongtailForge = root;\n})(window);\n"],
+  ["global-parameter-shadow.js", "// An inner parameter that shadows a proven global parameter is not the global object.\n(function attachGlobalShadow(global) {\n  function inner(global) {\n    global.shadowedBareSurface = { ok: true };\n  }\n  inner({});\n  global.provenBareSurface = { ok: true };\n})(window);\n"],
+  ["parameter-pairing.js", "// Parameters pair with arguments by index. The first received {} and is not the\n// global object; only the second, which received window, is.\n(function attachPairing(localObject, global) {\n  localObject.unpairedSurface = { ok: true };\n  global.pairedBareSurface = { ok: true };\n})({}, window);\n"],
+  ["previous-namespace-clobber.js", "// Mentioning the previous namespace is not deriving from it.\nwindow.LongtailForge = {\n  previous: window.LongtailForge,\n};\n"],
+  ["literal-element-access.js", "// A string-literal key is as static as a dotted member, directly and through an alias.\n(function attachLiteralElementAccess(global) {\n  const namespace = global.LongtailForge || {};\n  global.LongtailForge[\"directLiteralSurface\"] = { ok: true };\n  namespace[\"aliasLiteralSurface\"] = { ok: true };\n  global.LongtailForge = namespace;\n})(window);\n"],
+  ["computed-element-access.js", "// A computed key rooted at the namespace cannot be named, so it is recorded as an\n// unsupported rooted write rather than silently dropped.\n(function attachComputedElementAccess(global) {\n  const namespace = global.LongtailForge || {};\n  const key = \"computed\";\n  namespace[key] = { ok: true };\n  global.LongtailForge = namespace;\n})(window);\n"],
+]) {
+  fs.writeFileSync(path.join(publicationFixtureRoot, "sources", fixtureName), fixtureSource);
+}
+fs.writeFileSync(path.join(publicationFixtureRoot, "tsconfig.json"), "{\n  \"compilerOptions\": {\n    \"target\": \"es2023\",\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"allowJs\": true,\n    \"checkJs\": false,\n    \"noEmit\": true,\n    \"lib\": [\n      \"DOM\",\n      \"DOM.Iterable\",\n      \"ES2023\"\n    ],\n    \"types\": []\n  },\n  \"include\": [\n    \"sources/**/*.js\"\n  ]\n}");
+
+const publicationFixtures = collectBrowserPublicationInventory({
+  root: publicationFixtureRoot,
+  configFile: "tsconfig.json",
+  scanDirectory: "sources",
+});
+const fixtureSurfaces = [...publicationFixtures.surfaces.keys()].sort();
+assert.deepEqual(
+  fixtureSurfaces,
+  [
+    "window.LongtailForge.aliasLiteralSurface",
+    "window.LongtailForge.aliasSurface",
+    "window.LongtailForge.directLiteralSurface",
+    "window.LongtailForge.directSurface",
+    "window.LongtailForge.firstAliasSurface",
+    "window.LongtailForge.frozenSurface",
+    "window.LongtailForge.mergedSurface",
+    "window.LongtailForge.repeatedSurface",
+    "window.LongtailForge.secondAliasSurface",
+    "window.LongtailForge.shadowedOuterSurface",
+    "window.LongtailForge.sharedSurface",
+    "window.directBareSurface",
+    "window.pairedBareSurface",
+    "window.provenBareSurface",
+  ],
+  "the inventory must find every supported publication form and nothing else",
+);
+for (const [fixtureSurface, expectedForm] of [
+  ["window.LongtailForge.directSurface", "direct"],
+  ["window.directBareSurface", "direct"],
+  ["window.LongtailForge.aliasSurface", "alias"],
+  ["window.LongtailForge.frozenSurface", "alias"],
+  ["window.LongtailForge.mergedSurface", "alias"],
+  ["window.LongtailForge.firstAliasSurface", "alias"],
+  ["window.LongtailForge.secondAliasSurface", "alias"],
+  // Binding-scoped provenance: the outer `root` publishes, the inner one does not.
+  ["window.LongtailForge.shadowedOuterSurface", "alias"],
+  // A parameter is the global object only when the argument at its own index was.
+  ["window.provenBareSurface", "direct"],
+  ["window.pairedBareSurface", "direct"],
+  // A string-literal key resolves statically, so it is an ordinary publication.
+  ["window.LongtailForge.directLiteralSurface", "direct"],
+  ["window.LongtailForge.aliasLiteralSurface", "alias"],
+]) {
+  const entry = publicationFixtures.surfaces.get(fixtureSurface);
+  assert.equal(entry?.writers.length, 1, `${fixtureSurface} should have exactly one fixture writer`);
+  assert.equal(entry?.writers[0]?.form, expectedForm, `${fixtureSurface} should be discovered as a ${expectedForm} write`);
+}
+assert.equal(
+  publicationFixtures.surfaces.get("window.LongtailForge.repeatedSurface")?.writers.length,
+  1,
+  "repeated writes from one file must deduplicate to a single writer",
+);
+for (const absentSurface of [
+  "window.LongtailForge.localOnly",
+  "window.LongtailForge.notPublished",
+  "window.LongtailForge.className",
+  "window.LongtailForge.view",
+  // The inner `root` is a DOM element; sharing a name with the namespace alias is not
+  // sharing its binding.
+  "window.LongtailForge.shadowedInnerSurface",
+  // A shadowing parameter never received the global object.
+  "window.shadowedBareSurface",
+  // The first parameter was paired with {}, not with window.
+  "window.unpairedSurface",
+  // A computed key is recorded as unsupported, never invented as a named surface.
+  "window.LongtailForge.key",
+  "window.LongtailForge.computed",
+]) {
+  assert.ok(
+    !publicationFixtures.surfaces.has(absentSurface),
+    `${absentSurface} is a local object, a non-window parameter, or a read, and must not be counted as a publication`,
+  );
+}
+// A namespace-root write is safe only when what it assigns *is* the namespace. Both
+// clobber fixtures must be caught: one replaces the namespace with an unrelated object,
+// the other keeps a reference to the previous namespace inside a new one, which reads
+// like derivation and is not.
+const fixtureClobbers = publicationFixtures.namespaceRootWrites
+  .filter((entry) => !entry.derivesFromNamespace)
+  .map((entry) => path.basename(entry.file))
+  .sort();
+assert.deepEqual(
+  fixtureClobbers,
+  ["namespace-clobber.js", "previous-namespace-clobber.js"],
+  `exactly the two clobber fixtures must be detected; found ${fixtureClobbers.join(", ")}`,
+);
+const fixtureSafeRootWrites = publicationFixtures.namespaceRootWrites
+  .filter((entry) => entry.derivesFromNamespace)
+  .map((entry) => path.basename(entry.file))
+  .sort();
+assert.deepEqual(
+  fixtureSafeRootWrites,
+  [
+    "binding-shadow.js",
+    "computed-element-access.js",
+    "direct-and-alias.js",
+    "iife-global-alias.js",
+    "literal-element-access.js",
+    "namespace-alias.js",
+    "two-aliases.js",
+  ],
+  `every bootstrap form that does derive from the namespace must stay authorised; found ${fixtureSafeRootWrites.join(", ")}`,
+);
+
+// A rooted write that cannot be read statically is recorded, never dropped.
+assert.deepEqual(
+  publicationFixtures.unsupportedTargets.map((entry) => `${path.basename(entry.file)} ${entry.target}`),
+  ["computed-element-access.js window.LongtailForge[key]"],
+  "a computed key rooted at the namespace must be recorded as an unsupported rooted write",
+);
+assert.deepEqual(
+  publicationFixtures.deepWrites.map((entry) => `${path.basename(entry.file)} ${entry.target}`),
+  [],
+  "no fixture writes below a published surface",
+);
+const publicationFixtureRepeat = collectBrowserPublicationInventory({
+  root: publicationFixtureRoot,
+  configFile: "tsconfig.json",
+  scanDirectory: "sources",
+});
+assert.deepEqual(
+  [...publicationFixtureRepeat.surfaces.keys()].sort(),
+  fixtureSurfaces,
+  "the inventory must be deterministic across runs",
+);
+fs.rmSync(publicationFixtureRoot, { recursive: true, force: true });
 // Publication ownership.
 //
-// The namespace root is not a surface. Every script that contributes to
-// `window.LongtailForge` opens it with an idempotent bootstrap, so the root is counted
-// separately and each bootstrap is checked for idempotency: a write that replaces the
-// namespace instead of extending it would silently discard every surface already on it.
-/** @type {Map<string, string[]>} */
-const surfacePublishers = new Map();
-/** @type {string[]} */
-const clobberingNamespaceWrites = [];
-for (const browserScript of browserScriptFiles) {
-  const masked = scannableSource(fs.readFileSync(browserScript, "utf8"));
-  for (const match of masked.matchAll(/\bwindow\.((?:[A-Za-z_$][\w$]*)(?:\.[A-Za-z_$][\w$]*)*)\s*=(?!=)([^\n;]*)/g)) {
-    const surface = `window.${match[1]}`;
-    // `window.location.href = ...` is navigation, not a publication.
-    if (surface.startsWith("window.location")) continue;
-    if (surface === "window.LongtailForge") {
-      // Idempotent bootstrap forms only: `window.LongtailForge || {}`, or a local
-      // namespace binding this file derived from it.
-      const assigned = match[2].trim();
-      const derivesFromNamespace = /window\.LongtailForge\s*\|\|/.test(assigned)
-        || (/^[A-Za-z_$][\w$]*;?$/.test(assigned) && /const\s+namespace\s*=\s*window\.LongtailForge\s*\|\|/.test(masked));
-      if (!derivesFromNamespace) clobberingNamespaceWrites.push(`${browserScript}: window.LongtailForge = ${assigned}`);
-      continue;
-    }
-    if (!surfacePublishers.has(surface)) surfacePublishers.set(surface, []);
-    const owners = surfacePublishers.get(surface) ?? [];
-    if (!owners.includes(browserScript)) owners.push(browserScript);
-  }
-}
+// `0.33.33.33` closed against a scanner that recognised only direct
+// `window.<surface> = ...` assignments. The `0.33.33.34` preflight proved that model
+// incomplete: most of this namespace is published through an alias, and a third writer of
+// `window.LongtailForge.filesDialog` was invisible to it. `0.33.33.33.8` replaced the
+// text scan with an AST-backed inventory that resolves alias provenance, and the estate it
+// measures is 59 surfaces rather than 19.
+//
+// The inventory is the shared, published one so that a future audit and this guard cannot
+// disagree about what the tree publishes.
+const publicationInventory = collectBrowserPublicationInventory({});
+
+// The namespace root is a container, not an application surface. Every write to it must
+// still derive from the namespace, so alias-based code cannot hide a clobber.
+const clobberingNamespaceWrites = publicationInventory.namespaceRootWrites
+  .filter((entry) => !entry.derivesFromNamespace)
+  .map((entry) => `${entry.file}:${entry.line}: window.LongtailForge = ${entry.text}`);
 assert.deepEqual(
   clobberingNamespaceWrites,
   [],
   `the LongtailForge namespace root may only be extended, never replaced: ${clobberingNamespaceWrites.join(" | ")}`,
 );
 
-// A published surface has exactly one owner unless it is recorded here. Each record
-// carries the exact surface, its exact writers, the architectural reason, and whether it
-// is permanent or scheduled for retirement. The recorded writers must match the tree
-// exactly in both directions: an extra writer fails, and a record that outlives its
-// writer fails so a retired exception cannot become permanent governance debt.
+// A write rooted at the global object or the namespace that the inventory cannot resolve
+// statically - `window.LongtailForge[key] = ...` - is recorded rather than dropped, and so
+// is a write below a published surface. Both have exact baselines rather than an
+// allowance: the estate has none of either, so the truthful baseline is empty and any
+// addition fails. There is no wildcard here and no threshold; the lists shrink or fail.
+//
+// This bucket means "rooted but unnameable". It is deliberately narrower than the one
+// 0.33.33.33.8 first reported six entries in, which recorded any assignment target that
+// was not a dotted path regardless of what it was rooted at. All six of those were local
+// DOM writes through a `querySelector(...)` result - `element.dataset.x = ...` - which are
+// not publications at all and never affected the surface count.
+const rootedUnnameableWrites = publicationInventory.unsupportedTargets
+  .map((entry) => `${entry.file}:${entry.line}: ${entry.target}`);
+assert.deepEqual(
+  rootedUnnameableWrites,
+  [],
+  "a publication rooted at the global object or the LongtailForge namespace must be"
+    + ` statically nameable so it can be owned: ${rootedUnnameableWrites.join(" | ")}`,
+);
+const writesBelowSurfaces = publicationInventory.deepWrites
+  .map((entry) => `${entry.file}:${entry.line}: ${entry.target}`);
+assert.deepEqual(
+  writesBelowSurfaces,
+  [],
+  "a browser script may publish a surface but may not reach into one that is already"
+    + ` published: ${writesBelowSurfaces.join(" | ")}`,
+);
+
+// Every surface written by more than one file is named here with its exact writers, the
+// reason, and whether it retires. Writers are compared as an exact set in both directions,
+// so an unrecorded writer fails and a record that outlives a writer fails as stale. There
+// is no wildcard, no per-directory rule, and no writer-count ceiling.
 /**
- * @type {Map<string, {kind: string, writers: string[], reason: string, disposition: string}>}
+ * @typedef {object} MultiWriterRecord
+ * @property {string} kind
+ * @property {string[]} writers
+ * @property {string[] | null} order
+ * @property {Record<string, "declared" | "injected">} [delivery] how each ordered writer
+ *   reaches the page, which decides how its position can be proved
+ * @property {string} reason
+ * @property {string} disposition
  */
-const MULTI_WRITER_SURFACES = new Map([
+
+/** @type {Array<[string, MultiWriterRecord]>} */
+const MULTI_WRITER_RECORDS = [
   [
     "window.fetch",
     {
       kind: "platform-primitive-composition",
-      // Order is the contract: theme-init installs the CSRF guard over the native fetch,
-      // and navigation then wraps whatever fetch is current, so mutations still carry a
-      // CSRF header underneath the 401 handling.
-      writers: ["public/js/theme-init.js", "public/js/navigation.js"],
-      reason: "An ordered decorator chain over a host primitive, not two application modules"
-        + " claiming one Longtail Forge surface. Each guard is idempotent, wraps the current"
-        + " fetch rather than a saved native reference, and is proved as a composition by"
-        + " scripts/regressions/framework/fetch-guard-composition.regression.mjs.",
+      // 0.33.33.33.8 found a third guard the direct-assignment scanner never saw:
+      // browser-recovery.js writes through its own IIFE `global` parameter. It is
+      // injected immediately after <head> by src/services/static.service.js, so it runs
+      // before the two script tags and wraps the native fetch first.
+      writers: [
+        "public/js/navigation.js",
+        "public/js/shared/browser-recovery.js",
+        "public/js/theme-init.js",
+      ],
+      order: [
+        "public/js/shared/browser-recovery.js",
+        "public/js/theme-init.js",
+        "public/js/navigation.js",
+      ],
+      // How each writer reaches the page decides how its position can be proved. A page
+      // scan can never witness browser-recovery, because no page declares it: it is
+      // injected at <head> by src/services/static.service.js. Recording the mechanism is
+      // what stops the order proof from passing vacuously.
+      delivery: {
+        "public/js/navigation.js": "declared",
+        "public/js/shared/browser-recovery.js": "injected",
+        "public/js/theme-init.js": "declared",
+      },
+      reason: "An ordered decorator chain over a host primitive. Each guard wraps whatever"
+        + " fetch is current rather than a saved native reference, each brands itself so a"
+        + " repeat install is a no-op, and each adds one concern: 403 permission-denied"
+        + " recovery, CSRF, then 401 session expiry.",
       disposition: "permanent",
     },
   ],
@@ -3068,33 +3270,80 @@ const MULTI_WRITER_SURFACES = new Map([
     "window.LongtailForge.filesDialog",
     {
       kind: "temporary-migration",
-      writers: ["public/js/files.js", "public/js/workbench.js"],
+      // The writer list is three, not the two 0.33.33.33 recorded: shared/file-preview.js
+      // merges `openFilePreview` in through its `namespace` alias.
+      writers: [
+        "public/js/files.js",
+        "public/js/shared/file-preview.js",
+        "public/js/workbench.js",
+      ],
+      order: null,
       reason: "Files is the canonical owner and publishes the whole editor and preview"
-        + " surface. Workbench conditionally merges a preview-only compatibility bridge for"
-        + " hosts where the Files controller is not loaded, and its own guard returns early"
-        + " when the canonical publisher is present.",
-      disposition: "retire in 0.33.33.34, which removes the Workbench bridge",
+        + " surface. shared/file-preview.js merges its generic preview opener in through a"
+        + " namespace alias, and workbench.js merges a preview-only compatibility bridge"
+        + " when the Files controller is absent.",
+      disposition: "0.33.33.34 must reduce this to the canonical Files owner and strike this"
+        + " record; it may not close while any other writer remains",
     },
   ],
-]);
+  [
+    "window.LongtailForge.view",
+    {
+      kind: "ordered-application-composition",
+      writers: [
+        "public/js/shared/view-builder.js",
+        "public/js/shared/view-renderer.js",
+      ],
+      order: [
+        "public/js/shared/view-builder.js",
+        "public/js/shared/view-renderer.js",
+      ],
+      delivery: {
+        "public/js/shared/view-builder.js": "declared",
+        "public/js/shared/view-renderer.js": "declared",
+      },
+      // Measured by 0.33.33.33.8: 8 views load both and none loads them out of order;
+      // builder publishes 30 members and renderer 10 with zero overlap, so neither
+      // overwrites the other; renderer spreads the existing surface while builder does
+      // not, which is what makes the order contractual rather than incidental; renderer is
+      // never loaded without builder, while builder is loaded alone on 10 settings views.
+      reason: "view-builder publishes the base primitives and can stand alone; view-renderer"
+        + " extends the same surface with descriptor rendering and must load after it,"
+        + " because builder republishes without spreading and would discard renderer's"
+        + " members if the order were reversed.",
+      disposition: "permanent under the current architecture; 0.33.33.35 extracts"
+        + " responsibilities from both files but its own contract forbids adding to or"
+        + " reordering this frozen factory namespace, so no retirement is scheduled",
+    },
+  ],
+];
+const MULTI_WRITER_SURFACES = new Map(MULTI_WRITER_RECORDS);
 
 const CANONICAL_SURFACE_OWNERS = new Map([
   ["window.LongtailForge.filesDialog", "public/js/files.js"],
 ]);
 
+const contested = contestedSurfaces(publicationInventory);
+const contestedNames = contested.map((entry) => entry.surface).sort();
+assert.deepEqual(
+  contestedNames,
+  [...MULTI_WRITER_SURFACES.keys()].sort(),
+  `every surface with more than one writer must be recorded; the tree has ${contestedNames.join(", ")}`,
+);
+
 for (const [surface, record] of MULTI_WRITER_SURFACES) {
-  assert.ok(record.reason.length > 0, `${surface} must record why it has more than one writer`);
-  assert.ok(record.disposition.length > 0, `${surface} must record whether the exception is permanent or retiring`);
-  const actualWriters = surfacePublishers.get(surface) ?? [];
-  // Membership is compared as a set: the order the files happen to be walked in carries
-  // no meaning, and the order that does matter is proved from the rendered load order.
+  const entry = contested.find((candidate) => candidate.surface === surface);
+  assert.ok(entry, `${surface} is recorded as a ${record.kind} but no longer has more than one writer; a spent record must be struck`);
+  const actualWriters = (entry?.writers ?? []).map((writer) => writer.file).sort();
   assert.deepEqual(
-    [...actualWriters].sort(),
+    actualWriters,
     [...record.writers].sort(),
-    `${surface} is recorded as a ${record.kind} written by ${record.writers.join(" then ")};`
-      + ` the tree has ${actualWriters.join(", ") || "no writer"}. A recorded exception must match`
-      + " the code exactly, so a new writer fails and a retired one must be struck from the record.",
+    `${surface} is recorded as written by ${record.writers.join(", ")}; the tree has ${actualWriters.join(", ")}.`
+      + " A recorded exception must match the code exactly, so a new writer fails and a"
+      + " departed one must be struck from the record.",
   );
+  assert.ok(record.reason.length > 0, `${surface} must record why it has more than one writer`);
+  assert.ok(record.disposition.length > 0, `${surface} must record whether it is permanent or retiring`);
   const canonicalOwner = CANONICAL_SURFACE_OWNERS.get(surface);
   if (canonicalOwner) {
     assert.ok(
@@ -3104,57 +3353,155 @@ for (const [surface, record] of MULTI_WRITER_SURFACES) {
   }
 }
 
-// For a platform-primitive composition the writer order is the contract, and the order
-// is decided by the rendered pages rather than by the files. Every view that loads both
-// guards must load them in the recorded order, or navigation would capture the native
-// fetch and the CSRF guard would sit above it instead of underneath.
-const fetchComposition = MULTI_WRITER_SURFACES.get("window.fetch");
-if (fetchComposition) {
-  const [firstWriter, secondWriter] = fetchComposition.writers;
-  const firstTag = `${firstWriter.replace("public/", "")}`;
-  const secondTag = `${secondWriter.replace("public/", "")}`;
-  /** @type {string[]} */
-  const misorderedViews = [];
-  let viewsLoadingBoth = 0;
-  (function walkOrderedViews(directory) {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      const full = `${directory}/${entry.name}`;
-      if (entry.isDirectory()) {
-        walkOrderedViews(full);
-        continue;
-      }
-      if (!full.endsWith(".html")) continue;
-      const html = fs.readFileSync(full, "utf8");
-      const firstAt = html.indexOf(firstTag);
-      const secondAt = html.indexOf(secondTag);
-      if (firstAt === -1 || secondAt === -1) continue;
-      viewsLoadingBoth += 1;
-      if (firstAt > secondAt) misorderedViews.push(full);
-    }
-  })("views");
+// Where order is the contract, it is proved from how the writers are actually delivered.
+//
+// The first version of this loop skipped any page that did not declare every writer, so a
+// writer no page declares produced no witnesses and the record passed without proving
+// anything. `window.fetch` is exactly that case: browser-recovery.js is injected at
+// <head>, so a page scan alone can never see it. Each ordered record now states the
+// delivery mechanism of every writer, each mechanism has a proof appropriate to it, and
+// neither proof is allowed to be vacuous.
+const staticServiceSource = fs.readFileSync("src/services/static.service.js", "utf8");
+const headInjectionBlock = extractFunctionBlock(staticServiceSource, "injectErrorBoundaryScripts");
+
+/** @param {string} directory @param {string[]} out */
+function collectRenderedViews(directory, out) {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
+    const full = `${directory}/${entry.name}`;
+    if (entry.isDirectory()) collectRenderedViews(full, out);
+    else if (full.endsWith(".html")) out.push(full);
+  }
+}
+/** @type {string[]} */
+const renderedViews = [];
+collectRenderedViews("views", renderedViews);
+assert.ok(renderedViews.length > 0, "the ordered-composition proofs need rendered views to read");
+
+for (const [surface, record] of MULTI_WRITER_SURFACES) {
+  if (!record.order) continue;
+  const delivery = record.delivery ?? {};
   assert.deepEqual(
-    misorderedViews,
+    Object.keys(delivery).sort(),
+    [...record.order].sort(),
+    `${surface} records an order, so it must state how every one of its writers is delivered`,
+  );
+  const injectedWriters = record.order.filter((writer) => delivery[writer] === "injected");
+  const declaredWriters = record.order.filter((writer) => delivery[writer] === "declared");
+  assert.equal(
+    injectedWriters.length + declaredWriters.length,
+    record.order.length,
+    `${surface} records a writer whose delivery is neither "declared" nor "injected"`,
+  );
+  // Injection lands at the opening <head>, so an injected writer always precedes a
+  // declared one. A record that claims otherwise is describing something that cannot
+  // happen.
+  assert.deepEqual(
+    [...injectedWriters, ...declaredWriters],
+    record.order,
+    `${surface} records an injected writer after a declared one, which the delivery order`
+      + " makes impossible: injection is placed at <head>, ahead of every declared asset",
+  );
+
+  // Injected writers are proved against the injector, because no page declares them.
+  for (const writer of injectedWriters) {
+    const assetPath = writer.replace("public/", "/");
+    assert.ok(
+      headInjectionBlock.includes(`<script src="${assetPath}"></script>`),
+      `${surface} records ${writer} as injected, but src/services/static.service.js does not inject it`,
+    );
+    assert.ok(
+      headInjectionBlock.includes("<head") && headInjectionBlock.includes("'$1"),
+      `${surface} records ${writer} as injected ahead of declared assets, which holds only`
+        + " while the injector anchors its scripts to the opening <head> tag",
+    );
+    const declaringViews = renderedViews.filter((view) => fs.readFileSync(view, "utf8").includes(assetPath));
+    assert.deepEqual(
+      declaringViews,
+      [],
+      `${writer} is recorded as injected, so no view may also declare it: ${declaringViews.join(", ")}`,
+    );
+  }
+
+  // Declared writers are proved against the pages that actually deliver them.
+  /** @type {string[]} */
+  const misordered = [];
+  let viewsProvingOrder = 0;
+  for (const view of renderedViews) {
+    const html = fs.readFileSync(view, "utf8");
+    const positions = declaredWriters.map((writer) => html.indexOf(writer.replace("public/", "")));
+    if (positions.some((position) => position === -1)) continue;
+    viewsProvingOrder += 1;
+    for (let index = 1; index < positions.length; index += 1) {
+      if (positions[index - 1] > positions[index]) {
+        misordered.push(`${view} (${declaredWriters[index - 1]} after ${declaredWriters[index]})`);
+      }
+    }
+  }
+  assert.deepEqual(
+    misordered,
     [],
-    `${firstTag} must load before ${secondTag} so the session-expiry guard wraps the CSRF guard`
-      + ` rather than the native fetch: ${misorderedViews.join(" | ")}`,
+    `${surface} is an ordered composition and its writers must appear in the recorded order: ${misordered.join(" | ")}`,
   );
-  assert.ok(
-    viewsLoadingBoth > 0,
-    "no rendered view loads both fetch guards, so the recorded composition order proves nothing",
-  );
+  if (declaredWriters.length > 1) {
+    assert.ok(
+      viewsProvingOrder > 0,
+      `${surface} records an order over ${declaredWriters.join(" then ")} that no rendered view proves;`
+        + " an order proof with no witnesses is not a proof",
+    );
+  }
 }
 
-const unexpectedlyContestedSurfaces = [...surfacePublishers.entries()]
-  .filter(([surface, owners]) => owners.length > 1 && !MULTI_WRITER_SURFACES.has(surface))
-  .map(([surface, owners]) => `${surface} <- ${owners.join(", ")}`);
+// The view surface is a permanent ordered composition, so its composition semantics are
+// governed rather than described. These are the facts that make the order contractual: if
+// the renderer stopped preserving what the builder published, or the two started
+// publishing the same member, the order would no longer be the thing keeping the surface
+// whole.
+const VIEW_SURFACE = "window.LongtailForge.view";
+const viewComposition = publicationInventory.surfaces.get(VIEW_SURFACE);
+assert.ok(viewComposition, `${VIEW_SURFACE} must be published for its composition contract to mean anything`);
+const viewBase = viewComposition?.writers.find((writer) => writer.file === "public/js/shared/view-builder.js");
+const viewExtension = viewComposition?.writers.find((writer) => writer.file === "public/js/shared/view-renderer.js");
+assert.ok(viewBase && viewExtension, `${VIEW_SURFACE} must still be composed by view-builder.js and view-renderer.js`);
+assert.ok(
+  (viewBase?.members.length ?? 0) > 0,
+  "view-builder.js must publish the base member set of the view surface",
+);
+assert.ok(
+  (viewExtension?.members.length ?? 0) > 0,
+  "view-renderer.js must add its own members to the view surface rather than merely re-freezing it",
+);
+const viewMemberOverlap = (viewBase?.members ?? []).filter((member) => (viewExtension?.members ?? []).includes(member));
 assert.deepEqual(
-  unexpectedlyContestedSurfaces,
+  viewMemberOverlap,
   [],
-  `these window surfaces have more than one publisher and no recorded owner: ${unexpectedlyContestedSurfaces.join(" | ")}`,
+  "the two view writers must publish disjoint members; an overlapping member means one"
+    + ` writer silently replaces the other's: ${viewMemberOverlap.join(", ")}`,
+);
+assert.equal(
+  viewExtension?.preservesExisting,
+  true,
+  "view-renderer.js must spread the surface it is extending; without that it would discard"
+    + " every member view-builder.js published",
+);
+assert.equal(
+  viewBase?.preservesExisting,
+  false,
+  "view-builder.js republishes without spreading, which is exactly why it must load first;"
+    + " if that changed the recorded order would no longer be the contract it is recorded as",
+);
+const rendererWithoutBuilder = renderedViews.filter((view) => {
+  const html = fs.readFileSync(view, "utf8");
+  return html.includes("js/shared/view-renderer.js") && !html.includes("js/shared/view-builder.js");
+});
+assert.deepEqual(
+  rendererWithoutBuilder,
+  [],
+  "view-renderer.js extends a surface view-builder.js creates, so no view may load it"
+    + ` alone: ${rendererWithoutBuilder.join(", ")}`,
 );
 
 console.log(`Full-strict governance passed: ${ledger.totals.files} files, ${ledger.totals.errors} exact diagnostics, ${ledger.totals.explicitAny} explicit-any nodes, declarations clean.`);
-console.log(`Shared-global inventory: ${browserScriptFiles.length - leakingBrowserScripts.length - NATIVE_MODULE_ENTRIES.size}/${browserScriptFiles.length - NATIVE_MODULE_ENTRIES.size} classic browser scripts out of the shared lexical environment, ${leakingBrowserScripts.length} in the 0.33.33.33 backlog, ${NATIVE_MODULE_ENTRIES.size} native ES-module entry exempt, ${surfacePublishers.size} published surfaces with ${MULTI_WRITER_SURFACES.size} recorded multi-writer exceptions.`);
+console.log(`Shared-global inventory: ${browserScriptFiles.length - leakingBrowserScripts.length - NATIVE_MODULE_ENTRIES.size}/${browserScriptFiles.length - NATIVE_MODULE_ENTRIES.size} classic browser scripts out of the shared lexical environment, ${leakingBrowserScripts.length} in the 0.33.33.33 backlog, ${NATIVE_MODULE_ENTRIES.size} native ES-module entry exempt, ${publicationInventory.surfaces.size} published surfaces (AST-resolved, alias-aware) with ${MULTI_WRITER_SURFACES.size} recorded multi-writer records.`);
 
 /**
  * Every line in one source that sets an `ip` member inside an object literal
