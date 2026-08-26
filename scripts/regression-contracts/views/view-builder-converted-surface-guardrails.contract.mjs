@@ -71,7 +71,8 @@ assert.ok(
   "Workbench should load view-builder before view-renderer",
 );
 assert.doesNotMatch(workbenchHtml, /js\/clients-projects\.js/, "Workbench should lazy-load the shared Client/Project dialog code");
-assert.match(readText("public/js/workbench.js"), /src: "js\/clients-projects\.js"/, "Workbench should declare the Client/Project dialog as a lazy module-action dependency");
+// 0.33.33.34 moved the module-action dependency table into the shared registry.
+assert.match(readText("public/js/shared/module-actions.js"), /src: "js\/clients-projects\.js"/, "The registry should declare the Client/Project dialog as a lazy module-action dependency");
 assert.doesNotMatch(clientsHtml, /<dialog data-client-modal>/, "Clients page should not restore the static Add Client dialog");
 assert.match(clientsScript, /const view = window\.LongtailForge\?\.view/, "Client/Project dialogs should consume the shared view namespace");
 assert.match(extractFunctionSpan(clientsScript, "createModalCommitGroup"), /surface-modal-footer-group/, "Converted Client/Project footers should keep framework footer groups");

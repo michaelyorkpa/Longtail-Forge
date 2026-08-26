@@ -2,6 +2,10 @@
   const api = window.LongtailForge.api;
   const view = window.LongtailForge?.view;
   const filePreview = window.LongtailForge?.filePreview;
+  // 0.33.33.34 moved the record helpers and the action-shaped preview opener to the
+  // shared helper. This controller reads that half through its published contract so the
+  // delegation is checked; typing the rest of the `filePreview` surface is 0.33.33.42 work.
+  const filePreviewActions = /** @type {import("../../src/types/browser-contracts.js").BrowserFilePreviewActions} */ (filePreview);
   const state = {
     workspaceType: "business",
     attachments: [],
@@ -1042,32 +1046,19 @@
     return hostContext?.result || dialog;
   }
 
+  // Owned by the shared preview helper since 0.33.33.34, so a host page that cannot load
+  // this controller still opens the same dialog. Files keeps publishing it because Files
+  // owns the `filesDialog` namespace.
   function openFilePreviewAction(params = {}, hostContext = null) {
-    const attachmentOrRow = normalizeFileActionRecord(params);
-    if (!fileActionAttachmentId(attachmentOrRow)) {
-      throw new Error("File Preview requires an attachment record.");
-    }
-
-    const dialog = filePreview.openFilePreview(attachmentOrRow, {
-      trigger: params.returnFocusTo || params.trigger || hostContext?.trigger || null,
-    });
-
-    dialog.addEventListener("close", () => {
-      hostContext?.cancel?.({
-        actionId: "files.preview",
-        recordId: fileActionAttachmentId(attachmentOrRow),
-      });
-    }, { once: true });
-
-    return hostContext?.result || dialog;
+    return filePreviewActions.openFilePreviewAction(params, hostContext);
   }
 
   function normalizeFileActionRecord(params = {}) {
-    return params.row || params.attachment || params.fileAttachment || params.record || params.file || params;
+    return filePreviewActions.normalizeFileActionRecord(params);
   }
 
   function fileActionAttachmentId(attachmentOrRow = {}) {
-    return attachmentOrRow.attachmentId || attachmentOrRow.file_attachment_id || attachmentOrRow.attachment?.file_attachment_id || "";
+    return filePreviewActions.fileActionAttachmentId(attachmentOrRow);
   }
 
   function openFileEditor(attachmentOrRow = {}, options = {}) {

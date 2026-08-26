@@ -17,8 +17,15 @@ const workbenchView = readText("views/protected/workbench.html");
 
 assert.match(filePreviewScript, /namespace\.filePreview = Object\.freeze\(\{[\s\S]*normalizeFilePreviewRow[\s\S]*openFilePreview[\s\S]*previewAvailabilityForRow[\s\S]*previewKindForExtension[\s\S]*previewUnavailableLabel/,
   "Shared file preview helper should expose the preview modal and eligibility helpers");
-assert.match(filePreviewScript, /namespace\.filesDialog = Object\.freeze\(\{[\s\S]*openFilePreview/,
-  "Shared preview helper should preserve the canonical filesDialog.openFilePreview API");
+// 0.33.33.34 reduced `window.LongtailForge.filesDialog` to its canonical Files owner.
+// This helper had merged `openFilePreview` in through its namespace alias, a member
+// files.js already republishes and nothing in the tree read from `filesDialog`; it now
+// publishes the whole preview surface, including the action-shaped opener, under
+// `filePreview`.
+assert.match(filePreviewScript, /namespace\.filePreview = Object\.freeze\(\{[\s\S]*openFilePreview,\s*\n\s*openFilePreviewAction,/,
+  "Shared preview helper should publish the action-shaped opener alongside the preview API");
+assert.doesNotMatch(filePreviewScript, /namespace\.filesDialog =/,
+  "Shared preview helper must not write the Files dialog namespace it does not own");
 assert.match(filePreviewScript, /api\.getJson\(`\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/preview`[\s\S]*api\.getJson\(preview\.contentUrl/,
   "Shared preview helper should keep descriptor and content loading route-backed");
 assert.match(filePreviewScript, /content\.innerHTML = html \|\| ""/,
@@ -69,8 +76,8 @@ assert.match(tasksView, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file
   "Tasks view should load updated attachment actions and shared preview before Task Files dialogs");
 assert.match(workbenchView, /js\/shared\/file-attachments\.js[\s\S]*js\/shared\/file-preview\.js/,
   "Workbench should load updated attachment actions and shared preview for the lazy Task Files dialogs");
-assert.match(readText("public/js/workbench.js"), /src: "js\/task-dialog\.js"/,
-  "Workbench should lazy-load the task dialog after its static attachment and preview helpers");
+assert.match(readText("public/js/shared/module-actions.js"), /src: "js\/task-dialog\.js"/,
+  "The registry should lazy-load the task dialog after a host page's static attachment and preview helpers");
 
 assert.match(notesDocs, /As of 0\.33\.5\.21\.9\.3[\s\S]*shared Files Preview modal[\s\S]*icon-only action buttons/,
   "Notes docs should document preview and icon attachment actions");

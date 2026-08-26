@@ -42,51 +42,6 @@
       label: "Focus on a project",
     },
   };
-  const workbenchActionScriptLoads = new Map();
-  const WORKBENCH_MODULE_ACTION_DEPENDENCIES = {
-    "notes.view": [
-      { src: "js/shared/notification-subscriptions.js", test: () => window.LongtailForge?.notificationSubscriptions },
-      { src: "js/shared/notes-editor.js", test: () => window.LongtailForge?.notesEditor },
-      { module: true, src: "js/notes.js", test: () => window.LongtailForge?.notesDialog?.openNoteViewer },
-    ],
-    "notes.edit": [
-      { src: "js/shared/notification-subscriptions.js", test: () => window.LongtailForge?.notificationSubscriptions },
-      { src: "js/shared/notes-editor.js", test: () => window.LongtailForge?.notesEditor },
-      { module: true, src: "js/notes.js", test: () => window.LongtailForge?.notesDialog?.openNoteEditor },
-    ],
-    "lists.edit": [
-      { src: "js/shared/client-project-options.js", test: () => window.LongtailForge?.clientProjectOptions },
-      { module: true, src: "js/lists.js", test: () => window.LongtailForge?.listsDialog?.openListEditor },
-    ],
-    "tasks.add": [
-      { src: "js/shared/capture-prompt.js", test: () => window.LongtailForge?.capturePrompt },
-      { src: "js/task-resume-note-capture.js", test: () => window.LongtailForge?.taskResumeNoteCapture },
-      { src: "js/task-dialog.js", test: () => window.LongtailForge?.tasksDialog?.openTaskEditor },
-    ],
-    "tasks.edit": [
-      { src: "js/shared/capture-prompt.js", test: () => window.LongtailForge?.capturePrompt },
-      { src: "js/task-resume-note-capture.js", test: () => window.LongtailForge?.taskResumeNoteCapture },
-      { src: "js/task-dialog.js", test: () => window.LongtailForge?.tasksDialog?.openTaskEditor },
-    ],
-    "time-entries.add": [
-      { src: "js/time-entry-dialog.js", test: () => window.LongtailForge?.timeEntryDialog },
-    ],
-    "time-entries.edit": [
-      { src: "js/time-entry-dialog.js", test: () => window.LongtailForge?.timeEntryDialog },
-    ],
-    "clients.add": [
-      { src: "js/clients-projects.js", test: () => window.LongtailForge?.clientProjectDialog },
-    ],
-    "clients.edit": [
-      { src: "js/clients-projects.js", test: () => window.LongtailForge?.clientProjectDialog },
-    ],
-    "projects.add": [
-      { src: "js/clients-projects.js", test: () => window.LongtailForge?.clientProjectDialog },
-    ],
-    "projects.edit": [
-      { src: "js/clients-projects.js", test: () => window.LongtailForge?.clientProjectDialog },
-    ],
-  };
   const workbenchViewHelpers = window.LongtailForge.view;
   const api = window.LongtailForge.api;
   const modal = window.LongtailForge.modal;
@@ -2976,37 +2931,6 @@
     }
   }
 
-  function ensureWorkbenchFilePreviewAction(actionId) {
-    if (actionId !== "files.preview" || !window.LongtailForge?.filePreview?.openFilePreview) {
-      return;
-    }
-    if (window.LongtailForge.filesDialog?.openFilePreviewAction) {
-      return;
-    }
-
-    const existingFilesDialog = window.LongtailForge.filesDialog || {};
-    window.LongtailForge.filesDialog = Object.freeze({
-      ...existingFilesDialog,
-      openFilePreviewAction: (params = {}, hostContext = null) => {
-        const attachmentOrRow = params.attachment || params.row || params.file || params;
-        return window.LongtailForge.filePreview.openFilePreview(attachmentOrRow, {
-          trigger: params.returnFocusTo || hostContext?.trigger || null,
-        });
-      },
-    });
-    window.LongtailForge.moduleActions?.register?.({
-      actionId: "files.preview",
-      id: "files.preview",
-      label: "Preview File",
-      mode: "preview",
-      moduleId: "framework",
-      open: window.LongtailForge.filesDialog.openFilePreviewAction,
-      recordType: "file_attachment",
-      requiredPermissions: ["files.view"],
-      title: "Preview File",
-    });
-  }
-
   function openCandidateNavigationFallback(candidate) {
     const href = candidatePageFallback(candidate);
 
@@ -3222,49 +3146,18 @@
       /\b[0-9a-f]{24,}\b/i.test(text);
   }
 
+  // The dependency table and its loader moved to `public/js/shared/module-actions.js` at
+  // `0.33.33.34`; what stays here is the guard, because this is where an absent registry
+  // is actually observable. `files.preview` is one of the registry's own entries now: the
+  // preview opener it needs is published by the shared helper this page already loads.
   async function ensureWorkbenchModuleAction(actionId) {
-    ensureWorkbenchFilePreviewAction(actionId);
-    const dependencies = WORKBENCH_MODULE_ACTION_DEPENDENCIES[actionId] || [];
+    const moduleActions = window.LongtailForge?.moduleActions;
 
-    for (const dependency of dependencies) {
-      await loadWorkbenchActionDependency(dependency);
-    }
-
-    if (!window.LongtailForge?.moduleActions?.open) {
+    if (!moduleActions?.ensureDependencies || !moduleActions?.open) {
       throw new Error("Module action registry is unavailable.");
     }
-  }
 
-  function loadWorkbenchActionDependency(dependency) {
-    if (dependency.test?.()) {
-      return Promise.resolve();
-    }
-
-    const versionedSrc = window.LongtailForge?.assetVersion?.url(dependency.src) || dependency.src;
-    const key = new window.URL(versionedSrc, document.baseURI).href;
-    if (workbenchActionScriptLoads.has(key)) {
-      return workbenchActionScriptLoads.get(key);
-    }
-
-    const promise = dependency.module
-      ? import(key)
-      : new Promise((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = versionedSrc;
-          script.async = false;
-          script.addEventListener("load", () => resolve());
-          script.addEventListener("error", () => reject(new Error(`Could not load ${dependency.src}.`)));
-          document.body.appendChild(script);
-        });
-
-    const checkedPromise = promise.then(() => {
-      if (!dependency.test?.()) {
-        throw new Error(`Loaded ${dependency.src}, but the expected helper is unavailable.`);
-      }
-    });
-
-    workbenchActionScriptLoads.set(key, checkedPromise);
-    return checkedPromise;
+    await moduleActions.ensureDependencies(actionId);
   }
 
   async function handleFocusModeClick(event) {

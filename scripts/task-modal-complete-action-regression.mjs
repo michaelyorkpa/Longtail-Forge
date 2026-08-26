@@ -23,6 +23,8 @@ const taskDialogScript = readText("public/js/task-dialog.js");
 const tasksRoutesSource = readText("src/modules/tasks/tasks.routes.js");
 const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
 const workbenchScript = readText("public/js/workbench.js");
+// 0.33.33.34 moved the module-action dependency table into the shared registry.
+const moduleActionsScript = readText("public/js/shared/module-actions.js");
 const tasksView = readText("views/protected/tasks.html");
 const workbenchView = readText("views/protected/workbench.html");
 
@@ -79,7 +81,7 @@ function assertStaticContract() {
 
   assert.match(tasksView, /js\/task-dialog\.js/, "Tasks view should load the updated Task dialog cache key");
   assert.match(workbenchView, /js\/workbench\.js/, "Workbench should load the Workbench cache keys");
-  assert.match(workbenchScript, /src: "js\/task-dialog\.js"/, "Workbench should lazy-load the updated Task dialog");
+  assert.match(moduleActionsScript, /src: "js\/task-dialog\.js"/, "The registry should lazy-load the updated Task dialog");
   assert.doesNotMatch(roadmap, /Completed 0\.33\.5\.21 durable jobs and outbox foundation work is archived in `ROADMAP-ARCHIVE\.md`/,
     "live roadmap should not carry completed-history breadcrumbs");
   assert.match(docs, /As of 0\.33\.5\.21\.9\.2[\s\S]*Complete[\s\S]*dedicated `POST \/api\/tasks\/:taskId\/complete` route/,

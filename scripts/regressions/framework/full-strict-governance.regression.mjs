@@ -3230,6 +3230,12 @@ assert.deepEqual(
  * @property {string} disposition
  */
 
+// `window.LongtailForge.filesDialog` stood here as the one temporary-migration record
+// 0.33.33.33 closed with. 0.33.33.34 struck it: the shared preview helper stopped merging
+// `openFilePreview` in through its namespace alias and Workbench's compatibility bridge was
+// retired, leaving public/js/files.js as the sole writer. The inventory fails on a record
+// that outlives its writers as well as on an unrecorded surface, so the record had to go in
+// the same change as the writers.
 /** @type {Array<[string, MultiWriterRecord]>} */
 const MULTI_WRITER_RECORDS = [
   [
@@ -3267,26 +3273,6 @@ const MULTI_WRITER_RECORDS = [
     },
   ],
   [
-    "window.LongtailForge.filesDialog",
-    {
-      kind: "temporary-migration",
-      // The writer list is three, not the two 0.33.33.33 recorded: shared/file-preview.js
-      // merges `openFilePreview` in through its `namespace` alias.
-      writers: [
-        "public/js/files.js",
-        "public/js/shared/file-preview.js",
-        "public/js/workbench.js",
-      ],
-      order: null,
-      reason: "Files is the canonical owner and publishes the whole editor and preview"
-        + " surface. shared/file-preview.js merges its generic preview opener in through a"
-        + " namespace alias, and workbench.js merges a preview-only compatibility bridge"
-        + " when the Files controller is absent.",
-      disposition: "0.33.33.34 must reduce this to the canonical Files owner and strike this"
-        + " record; it may not close while any other writer remains",
-    },
-  ],
-  [
     "window.LongtailForge.view",
     {
       kind: "ordered-application-composition",
@@ -3319,9 +3305,11 @@ const MULTI_WRITER_RECORDS = [
 ];
 const MULTI_WRITER_SURFACES = new Map(MULTI_WRITER_RECORDS);
 
-const CANONICAL_SURFACE_OWNERS = new Map([
-  ["window.LongtailForge.filesDialog", "public/js/files.js"],
-]);
+// Empty since 0.33.33.34 struck the `filesDialog` record. The map is read inside the
+// multi-writer loop, so an owner recorded for a surface with one writer would assert
+// nothing; the mechanism stays for the next temporary migration that needs it.
+/** @type {Map<string, string>} */
+const CANONICAL_SURFACE_OWNERS = new Map();
 
 const contested = contestedSurfaces(publicationInventory);
 const contestedNames = contested.map((entry) => entry.surface).sort();

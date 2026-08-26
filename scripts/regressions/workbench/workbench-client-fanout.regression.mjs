@@ -34,6 +34,8 @@ const navigationSource = readFileSync(path.join(root, "public/js/navigation.js")
 const workbenchHtml = readFileSync(path.join(root, "views/protected/workbench.html"), "utf8");
 const appSource = readFileSync(path.join(root, "src/core/app.js"), "utf8");
 const cachedFetchSource = readFileSync(path.join(root, "public/js/shared/cached-fetch.js"), "utf8");
+// 0.33.33.34 moved the module-action dependency table into the shared registry.
+const moduleActionsSource = readFileSync(path.join(root, "public/js/shared/module-actions.js"), "utf8");
 
 // The cached-fetch helper runs in a sandbox with a scripted API so its
 // stale-while-revalidate and no-duplicate-fetch behavior is provable in Node.
@@ -109,7 +111,7 @@ try {
   // mechanism, and the remaining workbench scripts are deferred.
   for (const lazyScript of ["js/task-dialog.js", "js/time-entry-dialog.js", "js/clients-projects.js"]) {
     assert.equal(workbenchHtml.includes(`src="${lazyScript}"`), false, `${lazyScript} must not load statically on the workbench`);
-    assert.ok(workbenchSource.includes(`src: "${lazyScript}"`), `${lazyScript} must be a lazy module-action dependency`);
+    assert.ok(moduleActionsSource.includes(`src: "${lazyScript}"`), `${lazyScript} must be a lazy module-action dependency`);
   }
   const scriptTags = (workbenchHtml.match(/<script [^>]*src="js\/[^"]+"[^>]*>/g) || [])
     .filter((tag) => !tag.includes("js/theme-init.js"));

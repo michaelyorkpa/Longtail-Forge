@@ -1,5 +1,45 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.34 - Extract the Workbench module-action loader and Files bridge
+
+**Model: High Effort** - The loader is shared framework machinery whose dependency table controls several module controllers.
+
+Completed as one checkpoint after a remeasurement against the closed `0.33.33.33` tree. The preflight had been taken before `0.33.33.33.7` scoped `workbench.js`; two line ranges and one load-bearing claim were corrected before implementation.
+
+- [x] **The dependency table and its loader are published framework machinery.** `WORKBENCH_MODULE_ACTION_DEPENDENCIES` and `loadWorkbenchActionDependency` moved from `public/js/workbench.js` to `public/js/shared/module-actions.js`, which publishes `moduleActions.dependenciesFor(actionId)` and `moduleActions.ensureDependencies(actionId)` behind `ModuleActionDependency` and `ModuleActionDependencyLoader` in `src/types/browser-contracts.d.ts`. Which script publishes which opener is a property of the registry, not of the one surface that declared it first.
+- [x] **A dependency names the member its script must publish instead of carrying a closure.** `{ member, module, src, surface }` replaced `{ src, test: () => window.LongtailForge?.x?.y }`. This is not cosmetic: a closure that walks an unknown-typed namespace cannot be checked, and the debt ledger is **per-file and per-code shrink-only with no wildcard**, so a destination file whose total rises cannot be covered by a `DIAGNOSTIC_RECLASSIFICATIONS` record either. Turning the table into data is what let the move land annotated.
+- [x] **Asset versioning, ordering, dedupe, and failure messaging are preserved exactly.** Entries load in declaration order, satisfied ones are skipped, each versioned URL is loaded at most once through a shared map, `module: true` adapters still load through dynamic `import()`, and a loaded script that does not publish its member still fails with its own name. Workbench keeps the guard that reports an absent registry, because inside `module-actions.js` that guard would be vacuous - Workbench is where an absent registry is observable.
+- [x] **`window.LongtailForge.filesDialog` is back to one writer and the record is struck.** All three writers `0.33.33.33.8` recorded were addressed: Workbench's compatibility bridge is deleted, `shared/file-preview.js` stopped merging `openFilePreview` in through its namespace alias, and `public/js/files.js` is the sole writer. The action-shaped `openFilePreviewAction` moved into `shared/file-preview.js` - already static on Workbench, already lazily loadable, and the canonical framework preview helper - and `files.js` delegates to it. The `MULTI_WRITER_RECORDS` entry and its `CANONICAL_SURFACE_OWNERS` row went in the same change, because the inventory fails on a record that outlives its writers as well as on an unrecorded surface.
+- [x] **Nothing was reached by loading the Files page.** `workbench-task-focus-related-context-ui.contract.mjs` already asserted `workbench.js` never names `js/files.js`, and `files.js` self-initializes with a client/project options read and a file-attachments read. The `files.preview` dependency therefore names `js/shared/file-preview.js`, and the registry's own `files.preview` entry dispatches through `namespace.filePreview.openFilePreviewAction`.
+
+**The preflight was wrong about there being no second dependency table.** `public/js/footer.js:109` holds `quickActionDependencySets` - four sets in the identical shape - over `quickActionScriptLoads` and a `loadQuickActionScript` that was a byte-for-byte duplicate of the Workbench loader apart from its map name and one error string.
+
+**It stayed out on measured grounds rather than by omission.** `footer.js` is loaded by 35 views and `module-actions.js` by 9. The 26 views that load the footer without the registry are `account-recovery`, `api-keys`, `audit-log`, `calendar-settings`, `developer-example`, `files-settings`, `help`, `notes-settings`, `notifications`, `reporting`, `role-assignments`, `search`, `support-view`, `support-view-audit`, `tags`, `tasks-settings`, `time-tracker`, `time-tracking-settings`, `user-admin`, `user-settings`, `workbench-settings`, `workspace-settings`, and the four public views. Footer's `moduleActionBaseDependencies` set *bootstraps `js/shared/module-actions.js` itself*, so a loader published by that file cannot be what loads it. Deduplicating footer requires a new shared script delivered on all 35 views, which is a view-template and asset-delivery blast radius. The measurement is recorded so a later checkpoint inherits it.
+
+Closing state, measured on the final tree:
+
+| Condition | Before | After |
+| --- | --- | --- |
+| Browser program diagnostics | 10,528 | **10,492** |
+| `public/js/workbench.js` diagnostics / lines | 804 / 4,241 | **785 / 4,134** |
+| `public/js/files.js` diagnostics | 374 | **360** |
+| `public/js/shared/module-actions.js` diagnostics / lines | 76 / 387 | **76 / 552** |
+| `public/js/shared/file-preview.js` diagnostics / lines | 104 / 455 | **104 / 523** |
+| Application-owned publication surfaces | 59 | **59** |
+| Surfaces with more than one writer | 3 | **2** |
+| `window.LongtailForge.filesDialog` writers | 3 | **1** |
+| Live or spent diagnostic-reclassification records | 0 | **0** |
+
+The two shared files absorbed 233 lines of moved and new code at **zero added diagnostics**, which is the acceptance the ledger enforces rather than a claim about care taken.
+
+**Two findings worth carrying forward.**
+
+First, **a top-level JSDoc `@typedef` in a classic browser script is a duplicate identifier.** Any new one in `public/js/**` raises `TS2300`, because a global script's typedefs bind into the shared type environment exactly the way a top-level `const` binds into the shared lexical one - the thing `0.33.33.33` spent eight children removing from this estate. Both files' typedefs are declared inside their IIFEs. A file carrying a `// @ts-check` pragma does not show the collision, which is why the nine decorative pragmas the release acceptance still tracks had hidden it until now.
+
+Second, **fourteen regression owners pinned the dependency table through `workbench.js`.** Every one asserted `src: "js/<script>.js"` against the Workbench source as a proxy for "this dialog is lazily loaded". They now read `public/js/shared/module-actions.js`. `scripts/regressions/framework/asset-cache-version.regression.mjs` was the sharpest of them: it pins the literal `assetVersion?.url(dependency.src)` expression ahead of `script.src = versionedSrc`, so cache-busting cannot be quietly dropped. Rather than weaken that assertion to fit a refactor, `BrowserAssetVersion` was published and named on the namespace so the shared loader uses the identical expression its callers used - which also removed the unknown-typed reads `footer.js` had against the same helper.
+
+**Two `docs/module-contract.md` statements are now false and the correction is deferred to `0.33.33.48`.** The document describes `LongtailForge.filesDialog.openFilePreview()` as a live compatibility entry, which this checkpoint deleted, and describes the framework action dispatcher without the dependency loading it now owns. Both were written and then reverted: `npm run checkpoint:validate` rejects durable documentation in an internal checkpoint, and that gate is the branch contract rather than a preference, so the corrections are recorded as a `0.33.33.48` closeout item instead of carried here. The drafted replacements are: `filePreview` also owns the action-shaped `files.preview` opener and the record-unwrapping helpers both Files actions share, no longer writes into `LongtailForge.filesDialog`, and is what a host page loads through the registry's dependency table rather than synthesizing an opener of its own; and the dispatcher owns dependency loading through `moduleActions.dependenciesFor(actionId)` and `moduleActions.ensureDependencies(actionId)` over a typed table whose entries name the namespace member each script must publish, load in declaration order, skip satisfied entries, asset-version and de-duplicate each URL, and mark lexically colliding adapters `module: true` - with `public/js/footer.js` named as the one deliberate exception.
+
 ## Version 0.33.33.33.8 - Make browser publication ownership governance alias-aware and re-close 0.33.33.33
 
 **Model: High Effort** - Governance and inventory correction. No browser application file changed.

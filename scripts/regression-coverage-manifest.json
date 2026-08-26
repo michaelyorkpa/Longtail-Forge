@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18872,
+    "activeAssertionCount": 18880,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19686,
+    "effectiveAssertionCount": 19694,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -4350,11 +4350,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 39,
+      "assertionCount": 40,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy quick action opener rollout contract.",
-      "entryPointAssertionCount": 39,
+      "entryPointAssertionCount": 40,
       "id": "legacy.quick.action.opener.rollout",
       "legacy": true,
       "path": "scripts/quick-action-opener-rollout-regression.mjs",
@@ -6077,8 +6077,8 @@
     },
     {
       "area": "notes",
-      "assertionCount": 219,
-      "contractAssertionCount": 218,
+      "assertionCount": 220,
+      "contractAssertionCount": 219,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/notes/notes-context-terminology.contract.mjs",
@@ -6098,7 +6098,7 @@
         },
         {
           "path": "scripts/regression-contracts/notes/notes-file-preview-actions.contract.mjs",
-          "assertionCount": 22
+          "assertionCount": 23
         },
         {
           "path": "scripts/regression-contracts/notes/notes-files-stacked-modal.contract.mjs",
@@ -7581,8 +7581,8 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 376,
-      "contractAssertionCount": 375,
+      "assertionCount": 382,
+      "contractAssertionCount": 381,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/workbench/task-focus-deep-link.contract.mjs",
@@ -7606,7 +7606,7 @@
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-inspector-panel.contract.mjs",
-          "assertionCount": 28
+          "assertionCount": 31
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-recommended-cycling.contract.mjs",
@@ -7634,7 +7634,7 @@
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs",
-          "assertionCount": 20
+          "assertionCount": 23
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-task-focus-surface.contract.mjs",

@@ -9,10 +9,11 @@ const taskDialogScript = readText("public/js/task-dialog.js");
 const moduleActions = readText("public/js/shared/module-actions.js");
 const workbenchScript = readText("public/js/workbench.js");
 
+// 0.33.33.34 moved the module-action dependency table into the shared registry.
 assert.match(
-  workbenchScript,
+  moduleActions,
   /src: "js\/task-dialog\.js"/,
-  "Workbench should lazy-load the canonical Task dialog for the in-place open-work adapter",
+  "The registry should lazy-load the canonical Task dialog for the in-place open-work adapter",
 );
 
 assert.match(

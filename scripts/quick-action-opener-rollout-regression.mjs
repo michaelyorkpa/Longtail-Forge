@@ -10,6 +10,7 @@ const moduleActions = readText("public/js/shared/module-actions.js");
 const notesScript = readText("public/js/notes.js");
 const listsScript = readText("public/js/lists.js");
 const filesScript = readText("public/js/files.js");
+const filePreviewScript = readText("public/js/shared/file-preview.js");
 const notesView = readText("views/protected/notes.html");
 const listsView = readText("views/protected/lists.html");
 const filesView = readText("views/protected/files.html");
@@ -48,7 +49,7 @@ check("shared registry exposes first-party Notes, Lists, and Files actions", () 
   assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteViewer\(params, hostContext\)/);
   assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.listsDialog\.openListEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
   assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.filesDialog\.openFileEditorAction\(params, hostContext\)/);
-  assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.filesDialog\.openFilePreviewAction\(params, hostContext\)/);
+  assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.filePreview\.openFilePreviewAction\(params, hostContext\)/);
   assert.match(moduleActions, /moduleId === "framework"/);
 });
 
@@ -67,9 +68,12 @@ check("module adapters wrap existing canonical openers instead of duplicating fo
 
 check("Files registry stays attachment-scoped and does not invent a targetless upload modal", () => {
   assert.match(filesScript, /function openFileEditorAction\(params = \{\}, hostContext = null\)[\s\S]*openFileEditor\(attachmentOrRow/);
-  assert.match(filesScript, /function openFilePreviewAction\(params = \{\}, hostContext = null\)[\s\S]*filePreview\.openFilePreview\(attachmentOrRow/);
+  // 0.33.33.34 moved the preview opener to the shared helper so a host page that cannot
+  // load this controller still opens the same dialog. Files keeps publishing it.
+  assert.match(filesScript, /function openFilePreviewAction\(params = \{\}, hostContext = null\)[\s\S]*filePreviewActions\.openFilePreviewAction\(params, hostContext\)/);
+  assert.match(filePreviewScript, /function openFilePreviewAction\(params = \{\}, hostContext = null\)[\s\S]*openFilePreview\(attachmentOrRow/);
   assert.match(filesScript, /File Context requires an attachment record/);
-  assert.match(filesScript, /File Preview requires an attachment record/);
+  assert.match(filePreviewScript, /File Preview requires an attachment record/);
   assert.doesNotMatch(filesScript, /actionId: "files\.upload"/);
   assert.match(appShellService, /id: "file"[\s\S]*actionType: "fallback-link"[\s\S]*target-aware file upload capture ships/);
 });

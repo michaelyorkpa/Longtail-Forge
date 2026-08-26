@@ -11,7 +11,8 @@ const css = await fs.readFile(path.join(root, "public/css/longtail-forge.css"), 
 const clientsHtml = await fs.readFile(path.join(root, "views/protected/clients.html"), "utf8");
 const projectsHtml = await fs.readFile(path.join(root, "views/protected/projects.html"), "utf8");
 const workbenchHtml = await fs.readFile(path.join(root, "views/protected/workbench.html"), "utf8");
-const workbenchScript = await fs.readFile(path.join(root, "public/js/workbench.js"), "utf8");
+// 0.33.33.34 moved the module-action dependency table into the shared registry.
+const moduleActionsScript = await fs.readFile(path.join(root, "public/js/shared/module-actions.js"), "utf8");
 
 assert.match(
   clientsScript,
@@ -81,6 +82,6 @@ assert.match(projectsHtml, /js\/shared\/view-builder\.js/);
 assert.match(workbenchHtml, /js\/shared\/view-builder\.js/);
 assert.match(clientsHtml, /clients-projects\.js/);
 assert.match(projectsHtml, /clients-projects\.js/);
-assert.match(workbenchScript, /src: "js\/clients-projects\.js"/);
+assert.match(moduleActionsScript, /src: "js\/clients-projects\.js"/);
 
 console.log("Client modal footer actions regression passed.");

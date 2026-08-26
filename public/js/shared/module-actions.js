@@ -1,6 +1,79 @@
 (function () {
+  // Scoped inside the IIFE deliberately: a top-level JSDoc typedef in a classic script
+  // leaks into the shared type environment the way a top-level `const` leaks into the
+  // shared lexical one, which is the thing `0.33.33.33` removed from this estate.
+  /** @typedef {import("../../../src/types/browser-contracts.js").ModuleActionDependency} ModuleActionDependency */
+
   const namespace = window.LongtailForge || {};
   const registeredActions = new Map();
+  /** @type {Map<string, Promise<void>>} */
+  const dependencyScriptLoads = new Map();
+
+  /**
+   * Scripts a host page must load before the named action can be opened, in the order
+   * they must run.
+   *
+   * `0.33.33.34` moved this out of `public/js/workbench.js`, where it was a private
+   * constant read at one site. It is framework machinery: which script publishes which
+   * opener is a property of the registry, not of the one surface that happened to
+   * declare it first.
+   *
+   * Entries with `module: true` are loaded through dynamic `import()` rather than a
+   * classic `<script>` element, because those adapters would otherwise collide in the
+   * shared lexical environment.
+   * @type {Readonly<Record<string, readonly ModuleActionDependency[]>>}
+   */
+  const MODULE_ACTION_DEPENDENCIES = Object.freeze({
+    "notes.view": [
+      { src: "js/shared/notification-subscriptions.js", surface: "notificationSubscriptions" },
+      { src: "js/shared/notes-editor.js", surface: "notesEditor" },
+      { member: "openNoteViewer", module: true, src: "js/notes.js", surface: "notesDialog" },
+    ],
+    "notes.edit": [
+      { src: "js/shared/notification-subscriptions.js", surface: "notificationSubscriptions" },
+      { src: "js/shared/notes-editor.js", surface: "notesEditor" },
+      { member: "openNoteEditor", module: true, src: "js/notes.js", surface: "notesDialog" },
+    ],
+    "lists.edit": [
+      { src: "js/shared/client-project-options.js", surface: "clientProjectOptions" },
+      { member: "openListEditor", module: true, src: "js/lists.js", surface: "listsDialog" },
+    ],
+    "tasks.add": [
+      { src: "js/shared/capture-prompt.js", surface: "capturePrompt" },
+      { src: "js/task-resume-note-capture.js", surface: "taskResumeNoteCapture" },
+      { member: "openTaskEditor", src: "js/task-dialog.js", surface: "tasksDialog" },
+    ],
+    "tasks.edit": [
+      { src: "js/shared/capture-prompt.js", surface: "capturePrompt" },
+      { src: "js/task-resume-note-capture.js", surface: "taskResumeNoteCapture" },
+      { member: "openTaskEditor", src: "js/task-dialog.js", surface: "tasksDialog" },
+    ],
+    // Files publishes the whole editor and preview surface, but a host page must not
+    // load the Files page controller to preview one attachment: it self-initializes
+    // with its own fetches. The action-shaped opener therefore lives in the shared
+    // preview helper, which is what this entry loads.
+    "files.preview": [
+      { member: "openFilePreviewAction", src: "js/shared/file-preview.js", surface: "filePreview" },
+    ],
+    "time-entries.add": [
+      { src: "js/time-entry-dialog.js", surface: "timeEntryDialog" },
+    ],
+    "time-entries.edit": [
+      { src: "js/time-entry-dialog.js", surface: "timeEntryDialog" },
+    ],
+    "clients.add": [
+      { src: "js/clients-projects.js", surface: "clientProjectDialog" },
+    ],
+    "clients.edit": [
+      { src: "js/clients-projects.js", surface: "clientProjectDialog" },
+    ],
+    "projects.add": [
+      { src: "js/clients-projects.js", surface: "clientProjectDialog" },
+    ],
+    "projects.edit": [
+      { src: "js/clients-projects.js", surface: "clientProjectDialog" },
+    ],
+  });
 
   const FIRST_PARTY_ACTIONS = [
     {
@@ -186,7 +259,7 @@
       mode: "preview",
       recordType: "file_attachment",
       requiredPermissions: ["files.view"],
-      open: (params, hostContext) => namespace.filesDialog.openFilePreviewAction(params, hostContext),
+      open: (params, hostContext) => namespace.filePreview.openFilePreviewAction(params, hostContext),
     },
   ];
 
@@ -376,9 +449,101 @@
     };
   }
 
+  /**
+   * The namespace is late-bound: every entry in the dependency table names a member
+   * some other script publishes after this one has run. Reading it through an explicit
+   * unknown-typed lookup is what keeps the table data rather than a closure.
+   * @param {unknown} host
+   * @param {string} key
+   * @returns {unknown}
+   */
+  function publishedMember(host, key) {
+    if (!host || (typeof host !== "object" && typeof host !== "function")) {
+      return undefined;
+    }
+
+    return /** @type {Record<string, unknown>} */ (host)[key];
+  }
+
+  /**
+   * @param {ModuleActionDependency} dependency
+   * @returns {boolean}
+   */
+  function dependencyIsSatisfied(dependency) {
+    const surface = publishedMember(namespace, dependency.surface);
+
+    return Boolean(dependency.member ? publishedMember(surface, dependency.member) : surface);
+  }
+
+  /**
+   * @param {ModuleActionDependency} dependency
+   * @returns {Promise<void>}
+   */
+  function loadDependency(dependency) {
+    if (dependencyIsSatisfied(dependency)) {
+      return Promise.resolve();
+    }
+
+    const versionedSrc = window.LongtailForge?.assetVersion?.url(dependency.src) || dependency.src;
+    const key = new window.URL(versionedSrc, document.baseURI).href;
+    const inFlight = dependencyScriptLoads.get(key);
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const loaded = dependency.module
+      ? import(key).then(() => undefined)
+      : appendClassicScript(dependency, versionedSrc);
+
+    const checkedPromise = loaded.then(() => {
+      if (!dependencyIsSatisfied(dependency)) {
+        throw new Error(`Loaded ${dependency.src}, but the expected helper is unavailable.`);
+      }
+    });
+
+    dependencyScriptLoads.set(key, checkedPromise);
+    return checkedPromise;
+  }
+
+  /**
+   * @param {ModuleActionDependency} dependency
+   * @param {string} versionedSrc
+   * @returns {Promise<void>}
+   */
+  function appendClassicScript(dependency, versionedSrc) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = versionedSrc;
+      script.async = false;
+      script.addEventListener("load", () => resolve());
+      script.addEventListener("error", () => reject(new Error(`Could not load ${dependency.src}.`)));
+      document.body.appendChild(script);
+    });
+  }
+
+  /**
+   * @param {string} actionId
+   * @returns {ModuleActionDependency[]}
+   */
+  function dependenciesFor(actionId) {
+    return [...(MODULE_ACTION_DEPENDENCIES[actionId] || [])];
+  }
+
+  /**
+   * @param {string} actionId
+   * @returns {Promise<void>}
+   */
+  async function ensureDependencies(actionId) {
+    for (const dependency of dependenciesFor(actionId)) {
+      await loadDependency(dependency);
+    }
+  }
+
   FIRST_PARTY_ACTIONS.forEach(register);
 
   namespace.moduleActions = {
+    dependenciesFor,
+    ensureDependencies,
     list,
     open,
     register,
