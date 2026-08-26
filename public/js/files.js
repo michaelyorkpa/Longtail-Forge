@@ -73,14 +73,21 @@
     title: "Preview File",
   });
 
-  buildFilesViewShell();
-  cacheFilesElements();
-  bindFilesEvents();
-
   initialize();
 
+  // 0.33.33.35.1.1: the browse surface is built from a server-delivered descriptor, so the
+  // shell and every binding that reads the DOM it creates wait for the workspace context.
+  // Before this, the shell was built synchronously against a context hydrated from
+  // localStorage, which is empty on a cold load - the case the descriptor fallback covers.
   async function initialize() {
-    await window.LongtailForge.workspaceContextReady;
+    try {
+      await window.LongtailForge?.workspaceContextReady;
+    } catch {
+      // A rejected context must not strand the page; the descriptor fallback still renders.
+    }
+    buildFilesViewShell();
+    cacheFilesElements();
+    bindFilesEvents();
     applyWorkspaceContext();
     await loadFilterOptions();
     populateClientProjectFilters();

@@ -348,6 +348,7 @@
         "tests/e2e/task-editor-parent-save.spec.mjs",
         "tests/e2e/task-focus-exit-capture.spec.mjs",
         "tests/e2e/user-settings-appearance.spec.mjs",
+        "tests/e2e/view-shell-cold-load.spec.mjs",
         "tests/e2e/workbench-mobile-chip-layout.spec.mjs",
         "tests/e2e/workbench-mobile-inspector.spec.mjs",
         "tests/e2e/workspace-rename-shell-label.spec.mjs",
@@ -473,7 +474,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 10492,
+      "errorCount": 10491,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -778,7 +779,7 @@
           },
           {
             "code": 18048,
-            "count": 25
+            "count": 24
           },
           {
             "code": 2322,
@@ -2910,8 +2911,8 @@
     }
   },
   "totals": {
-    "files": 1051,
-    "errors": 10492,
+    "files": 1052,
+    "errors": 10491,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

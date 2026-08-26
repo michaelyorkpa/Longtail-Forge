@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18880,
+    "activeAssertionCount": 18890,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19694,
+    "effectiveAssertionCount": 19704,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -3093,11 +3093,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 32,
+      "assertionCount": 34,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy files descriptor host contract.",
-      "entryPointAssertionCount": 32,
+      "entryPointAssertionCount": 34,
       "id": "legacy.files.descriptor.host",
       "legacy": true,
       "path": "scripts/files-descriptor-host-regression.mjs",
@@ -6040,12 +6040,12 @@
     },
     {
       "area": "lists",
-      "assertionCount": 144,
-      "contractAssertionCount": 143,
+      "assertionCount": 147,
+      "contractAssertionCount": 146,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/lists/lists-declarative-readonly-surface.contract.mjs",
-          "assertionCount": 37
+          "assertionCount": 40
         },
         {
           "path": "scripts/regression-contracts/lists/lists-items-modals-descriptor.contract.mjs",
@@ -6077,8 +6077,8 @@
     },
     {
       "area": "notes",
-      "assertionCount": 220,
-      "contractAssertionCount": 219,
+      "assertionCount": 223,
+      "contractAssertionCount": 222,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/notes/notes-context-terminology.contract.mjs",
@@ -6090,7 +6090,7 @@
         },
         {
           "path": "scripts/regression-contracts/notes/notes-declarative-readonly-surface.contract.mjs",
-          "assertionCount": 82
+          "assertionCount": 85
         },
         {
           "path": "scripts/regression-contracts/notes/notes-developer-docs.contract.mjs",
@@ -6979,8 +6979,8 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 770,
-      "contractAssertionCount": 769,
+      "assertionCount": 772,
+      "contractAssertionCount": 771,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/tasks/task-checklist-editor-display.contract.mjs",
@@ -7028,7 +7028,7 @@
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-declarative-readonly-surface.contract.mjs",
-          "assertionCount": 38
+          "assertionCount": 40
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-detail-read-panel.contract.mjs",

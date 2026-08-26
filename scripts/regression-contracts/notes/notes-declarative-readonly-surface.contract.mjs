@@ -99,4 +99,29 @@ assert.match(notesJs, /\/api\/notes\/preview/, "Notes live preview route should 
 assert.match(notesJs, /body_html/, "Notes detail should render the server Markdown-rendered body_html");
 assert.match(notesJs, /collectionFilterOptions/, "Notes collection read logic should remain in the module");
 
+
+// 0.33.33.35.1.1 - the view shell waits for the workspace context.
+//
+// The shell is built from a server-delivered descriptor. The synchronous workspace context is
+// hydrated from localStorage, so it is legitimately empty on a first visit, in a private
+// window, after cleared site data, or straight after a logout; the protected view ships only
+// an empty host; and nothing re-renders when the context arrives. Building the shell before
+// the context therefore renders whatever the local fallback says rather than what the server
+// delivered. 0.33.33.35.1.2 removes those fallbacks and depends on this ordering holding.
+assert.match(
+  notesJs,
+  /async function initializeNotesWorkspace\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*buildNotesViewShell\(\)[\s\S]*cacheNotesElements\(\)[\s\S]*bindNotesEvents\(\)/,
+  "Notes should await the workspace context before building the shell and caching the DOM it creates",
+);
+assert.match(
+  notesJs,
+  /if \(isNotesWorkspaceSurface\) \{\s*\n\s*initializeNotesWorkspace\(\);\s*\n\s*\} else \{\s*\n\s*ensureNotesDialogShells\(\);\s*\n\s*cacheNotesElements\(\);\s*\n\s*bindNotesEvents\(\);/,
+  "The dialog-only path reads no descriptor and must keep its synchronous bootstrap for lazy module-action imports",
+);
+assert.doesNotMatch(
+  notesJs,
+  /^  buildNotesViewShell\(\);$/m,
+  "Notes must not build the workspace shell outside the context-aware bootstrap",
+);
+
 console.log("Notes declarative read-only surface regression passed.");

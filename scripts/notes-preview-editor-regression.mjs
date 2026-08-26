@@ -86,7 +86,7 @@ async function assertStaticBrowserContract() {
   assert.match(notesHtml, /js\/shared\/icons\.js/);
   assert.match(notesHtml, /js\/shared\/notes-editor\.js/);
   assert.match(notesHtml, /js\/notes\.js/);
-  assert.match(notesJs, /const markdownEditor = document\.querySelector\("\[data-note-markdown-editor\]"\);/);
+  assert.match(notesJs, /markdownEditor = document\.querySelector\("\[data-note-markdown-editor\]"\);/);
   assert.match(notesJs, /api\.postJson\("\/api\/notes\/preview"/);
   assert.match(notesJs, /previewRequestId/);
   assert.match(notesJs, /bodyInput\?\.addEventListener\("input", \(\) => renderPreview\(\)\)/);

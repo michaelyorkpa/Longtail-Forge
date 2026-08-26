@@ -49,6 +49,31 @@ assert.match(renderer, /function renderFieldShell\(field, view, options = \{\}\)
 assert.match(builder, /options\.fieldType === "select" \|\| options\.fieldType === "multi-select"/, "Shared field factory should support descriptor select filters");
 assert.match(renderer, /data-view-input/, "Renderer should expose stable generic field input hooks");
 
+
+// 0.33.33.35.1.1 - the view shell waits for the workspace context.
+//
+// The shell is built from a server-delivered descriptor. The synchronous workspace context is
+// hydrated from localStorage, so it is legitimately empty on a first visit, in a private
+// window, after cleared site data, or straight after a logout; the protected view ships only
+// an empty host; and nothing re-renders when the context arrives. Building the shell before
+// the context therefore renders whatever the local fallback says rather than what the server
+// delivered. 0.33.33.35.1.2 removes those fallbacks and depends on this ordering holding.
+assert.match(
+  listsJs,
+  /async function initializeListsWorkspace\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*buildListsViewShell\(\)[\s\S]*cacheListsElements\(\)[\s\S]*bindListsEvents\(\)/,
+  "Lists should await the workspace context before building the shell and caching the DOM it creates",
+);
+assert.match(
+  listsJs,
+  /if \(isListsWorkspaceSurface\) \{\s*\n\s*initializeListsWorkspace\(\);\s*\n\s*\} else \{\s*\n\s*ensureListsDialogShell\(\);\s*\n\s*cacheListsElements\(\);\s*\n\s*bindListsEvents\(\);/,
+  "The dialog-only path reads no descriptor and must keep its synchronous bootstrap for lazy module-action imports",
+);
+assert.doesNotMatch(
+  listsJs,
+  /^  buildListsViewShell\(\);$/m,
+  "Lists must not build the workspace shell outside the context-aware bootstrap",
+);
+
 console.log("Lists declarative read-only surface regression passed.");
 
 /**
