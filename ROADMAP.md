@@ -36,7 +36,7 @@ Branch delivery contract:
 - [ ] Preserve attested-baseline fail-closed proof, canonical-workspace fingerprinting, backup/restore/purge and migration-chain coverage, parameter-binding and module-import audits, permission/session/auth/Support View proofs, Files quota/scanner/streaming coverage, Playwright accessibility/console/overflow coverage, the four closeout regenerators, exact-SHA Nightly/promotion proof, CodeQL, and dependency review.
 - [ ] Do not split `view-builder.js` factories, `user-admin.js`, task-dialog subsystems, or any browser controller that remains an unwrapped classic script. Decomposition is allowed only at the verified seams named below or when typing exposes equivalent evidence and the roadmap is updated first.
 
-Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, `.28.6`, `.30`, `.30.2`, `.30.3`, `.30.7`, `.30.7.2`, `.31`, and `.32` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
+Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, `.28.6`, `.30`, `.30.2`, `.30.3`, `.30.7`, `.30.7.2`, `.31`, `.32`, and `.35.1` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
 
 Release-wide measurable acceptance:
 
@@ -86,19 +86,61 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Resliced on measurement.** The previous single checkpoint combined five changes with different owners, different consumers, and different risk. `public/js/shared/view-renderer.js` is **2,085 lines carrying 404 browser diagnostics**; `public/js/shared/view-builder.js` is **2,013 lines carrying 492**; the descriptor fallbacks are **11 references across four module controllers**, which are not view-framework files at all. Those are three independent seams: one deletes module-local behaviour, one extracts from the renderer, one extracts from the builder. Nothing measured ties them together beyond both framework files being shared, which is a reason to separate them rather than to batch them.
 
+**Re-verified after `0.33.33.34` closed.** Every measurement above still holds exactly: renderer 2,085 lines / 404 diagnostics, builder 2,013 / 492, and 11 descriptor-fallback references across four owners defining five fallbacks. `0.33.33.34` touched none of these files. Two things did change, and one child was split.
+
 - [ ] The frozen factory namespace rule holds across every child: no child may add to or reorder the frozen factory namespace.
 - [ ] Every child preserves server authority, action visibility, focus return, and current module surface anatomy.
+- [ ] **New shared files must enter the browser ledger at zero diagnostics.** `0.33.33.34` proved this constraint rather than assuming it: the ledger is per-file and per-code shrink-only with no wildcard, a new file's baseline is zero, and `DIAGNOSTIC_RECLASSIFICATIONS` cannot cover a destination whose total rises. Extraction and annotation are therefore one change, not two, for `.35.2` and `.35.3`. This shapes their effort more than their line counts do.
+- [ ] **A top-level JSDoc `@typedef` in a classic browser script is a duplicate identifier.** Both framework files are classic scripts, so any contract vocabulary a child declares locally belongs inside the IIFE. Recorded from `0.33.33.34`.
 
-**Reconciliation: three children, disjoint owners.** `.35.1` owns the four module controllers; `.35.2` owns `view-renderer.js`; `.35.3` owns `view-builder.js`. No file appears in two children.
+**Frozen-factory compliance, checked per child rather than assumed.** `view-builder.js` publishes 30 members to `window.LongtailForge.view` without spreading; `view-renderer.js` spreads and adds 10 disjoint members. `framework.full-strict-governance` asserts the writer list, the disjoint member sets, and that the renderer spreads while the builder does not.
 
-#### 0.33.33.35.1 - Delete the module-local descriptor fallbacks
+- `.35.2` extracts **no published member**. Descriptor-action permission and route interpolation (`normalizeAction`, `runDescriptorAction`, `confirmDescriptorAction`, `runRouteAction`, `interpolateRoute`, `assertActionPermissions`, `actionPermissionsAllowed`, `runBehaviorAction`), the search-options combobox (`setFieldOptions` through `setFieldOptionsError`), and data binding (`loadBoundRecords`, `appendFilterQuery`, `bindRecord`, `readDescriptorValue`, `readPath`) are all file-internal helpers. The namespace is untouched.
+- `.35.3` extracts **four published members** - `showModal`, `closeModal`, `closeChildModals`, `isTopModal` - so `view-builder.js` must keep publishing them by delegation. A new file publishing them would be a third writer of a two-writer permanent record and would fail governance.
 
-**Model: Medium Effort - Module-owned behaviour removal, not framework extraction.**
+**Reconciliation: four children, disjoint owners.** `.35.1.1` and `.35.1.2` own the four module controllers in sequence; `.35.2` owns `view-renderer.js`; `.35.3` owns `view-builder.js`. No file appears in two children.
 
-The Notes, Lists, Files, and Tasks view-surface fallbacks and the nested Notes linked-records fallback — 11 descriptor-fallback references across `notes.js`, `lists.js`, `files.js`, and `tasks.js`.
+#### 0.33.33.35.1 - Retire the module-local descriptor fallbacks
+
+**Model: High Effort** - Planning rollup only; the two numbered children below are the protected implementation checkpoints.
+
+**Split on evidence during the post-`0.33.33.34` verification.** The original single child said to "use the established null-and-skip contract for unavailable server descriptors and delete the five fallbacks". That contract exists and `public/js/clients-projects.js` is the precedent, but the child omitted the precondition that makes it safe there, and the four owners do not currently meet it.
+
+`clients-projects.js` **awaits `workspaceContextReady` before it reads the descriptor** (`initializeClientProjectsPage`), so a `null` genuinely means "the server did not deliver this surface" and skipping is correct. All four `.35.1` owners do the opposite: `buildFilesViewShell()`, `buildTasksViewShell()`, `buildListsViewShell()`, and `buildNotesViewShell()` are called **synchronously at IIFE top level**, before any `await`, at `files.js:76`, `tasks.js:57`, `lists.js:60`, and `notes.js:118`.
+
+**Three measured facts make deleting the fallbacks unsafe until that changes.**
+
+1. **The synchronous context can legitimately be empty.** `navigation.js:322` hydrates `window.LongtailForge.workspaceContext` from `localStorage["lf_workspace_context"]`. On a first visit, in a private window, after cleared site data, or straight after a logout - which removes that key at `navigation.js:821`, `:1659`, and `:1696` - the read returns null and `viewSurfaces` is `[]` when the shell is built.
+2. **The views ship only an empty host.** `views/protected/{notes,lists,files,tasks}.html` each declare `data-*-host` and nothing else; every element the controllers query is built by the descriptor render. With no fallback and no descriptor, the page stays empty.
+3. **Nothing re-renders when the context arrives.** `navigation.js:731` dispatches `longtailforge:workspace-context-updated`, and none of the four controllers listens for it. The blank state would be permanent for that page load, not a flash.
+
+**So the ordering change is the real work and it is a different blast radius from the deletion.** In all four controllers, `buildXViewShell()` is followed immediately by dozens of top-level `document.querySelector(...)` bindings that read the DOM the shell just built; moving the build behind an `await` strands every one of them unless the element caching moves with it. That is a bootstrap restructure of four controllers of 2,043 to 4,683 lines, and it is separable from - and must precede - removing the safety net that currently hides its failure mode.
+
+- [ ] Both children run after `0.33.33.33.6`, which scoped all four owners, so each change happens inside a scoped file.
+- [ ] Neither child may make a module render a client-authored descriptor when the server delivered one, and neither may add a new client-side descriptor.
+
+#### 0.33.33.35.1.1 - Move the module view-shell builds behind the workspace context
+
+**Model: High Effort** - Bootstrap ordering across four large module controllers, where a missed element binding fails silently.
+
+Bring Notes, Lists, Files, and Tasks to the `clients-projects.js` bootstrap shape: await the workspace context, then build the view shell, then cache elements and bind events.
+
+- [ ] Move each `buildXViewShell()` call and every top-level DOM binding that depends on it behind `await window.LongtailForge.workspaceContextReady`, tolerating rejection the way `initializeClientProjectsPage` does.
+- [ ] **The five fallbacks stay in place for this child.** They are the safety net that makes the ordering change provable on its own: if a binding is stranded, the page still renders and the defect is visible as a broken control rather than as a blank surface.
+- [ ] Preserve current surface anatomy, behavior registration order, dialog-shell construction, and query-parameter handling on each page.
+- [ ] Prove the cold-load path explicitly - no stored `lf_workspace_context` - for all four pages, because that is the path the fallbacks currently hide.
+
+#### 0.33.33.35.1.2 - Delete the module-local descriptor fallbacks
+
+**Model: Medium Effort** - Module-owned behaviour removal once the ordering precondition is met.
+
+The Notes, Lists, Files, and Tasks view-surface fallbacks and the nested Notes linked-records fallback - 11 descriptor-fallback references across `notes.js`, `lists.js`, `files.js`, and `tasks.js` defining five functions: `fallbackNotesViewSurfaceDescriptor`, `notesLinkedRecordsFallbackDescriptor`, `fallbackListsViewSurfaceDescriptor`, `fallbackFilesViewSurfaceDescriptor`, and `fallbackTasksViewSurfaceDescriptor`.
 
 - [ ] Use the established null-and-skip contract for unavailable server descriptors and delete the five fallbacks.
-- [ ] These four owners are also `0.33.33.33.6` owners; this child runs after that one so the deletion happens inside a scoped file.
+- [ ] Return `null` from each `<module>ViewSurfaceDescriptor()` when the surface is absent and make every consumer skip, including the nested reads at `notes.js:403`, `:418`, `:1107`, `:1111`, `:1115`, `:1584` and `lists.js:652`, `:986`, `:1185`, `:1303`, which currently dereference the result without a guard.
+- [ ] **Six regression owners require these fallbacks to exist today** and must be inverted in the same change: `files-descriptor-host-regression.mjs:37`, `files/files-filter-sidebar.contract.mjs:25`, `lists/lists-declarative-readonly-surface.contract.mjs:30`, `notes/notes-declarative-readonly-surface.contract.mjs:37-38`, `tasks/tasks-declarative-readonly-surface.contract.mjs:30`, and `tasks/tasks-detail-read-panel.contract.mjs:26,47`.
+- [ ] **`tasks-detail-read-panel.contract.mjs` reads the fallback as its source of truth** for the task-list region shape. Its subject moves to the server descriptor in `src/modules/tasks/module.js`, which is where that shape is actually owned; leaving it asserting a deleted client-side literal would be the wrong repair.
+- [ ] The four server descriptors all exist and stay authoritative: `files.browse` at `src/core/view-surfaces/framework-view-surfaces.js:15`, `lists.workspace` at `src/modules/lists/module.js:232`, `notes.workspace` at `src/modules/notes/module.js:84`, and `tasks.workspace` at `src/modules/tasks/module.js:108`.
 
 #### 0.33.33.35.2 - Extract the view-renderer responsibilities
 
@@ -106,6 +148,7 @@ The Notes, Lists, Files, and Tasks view-surface fallbacks and the nested Notes l
 
 - [ ] Extract descriptor-action permission and route interpolation, the search-options combobox, and data binding from `view-renderer.js` behind explicit contracts.
 - [ ] Permission and route interpolation is the security-relevant extraction and is proved separately from the two presentational ones.
+- [ ] No published `window.LongtailForge.view` member moves: all three extractions are file-internal helpers, so the frozen factory namespace is untouched by construction rather than by care.
 
 #### 0.33.33.35.3 - Extract the view-builder modal stack
 
@@ -113,6 +156,8 @@ The Notes, Lists, Files, and Tasks view-surface fallbacks and the nested Notes l
 
 - [ ] Extract only the modal stack from `view-builder.js`; keep the frozen factory namespace intact.
 - [ ] Preserve focus return and modal ordering behaviour.
+- [ ] **The seam is the stack, not the constructors, and the boundary is measured.** The stack - `modalStack` at `view-builder.js:4` plus `registerModalStack`, `normalizeModalParent`, `defaultModalParent`, `isDialogOpen`, `pushModalStackEntry`, `removeModalStackEntry`, `syncModalStackMetadata`, `showModal`, `closeModal`, `closeChildModals`, and `isTopModal` - depends on nothing but `global.document`. The constructors `createModal`, `createModalForm`, and `createModalFooter` depend on the builder's element factory (`createElement`, `createHeading`, `nextId`, `requiredText`, `modalSizeClass`) and stay. Extracting them would force either duplicated factory helpers or a second namespace writer, and the second breaks the frozen factory.
+- [ ] `view-builder.js` keeps publishing `showModal`, `closeModal`, `closeChildModals`, and `isTopModal` by delegation, so the writer list, member sets, and order are unchanged. `view-renderer.js` reaches the stack only through `view.showModal` and `view.createModalForm`, so it is not an owner of this child.
 
 ### 0.33.33.36 - Share the Notes/Lists linked-context picker
 
