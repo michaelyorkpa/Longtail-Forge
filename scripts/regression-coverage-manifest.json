@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18825,
+    "activeAssertionCount": 18872,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19639,
+    "effectiveAssertionCount": 19686,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -5285,11 +5285,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 14,
+      "assertionCount": 33,
       "contractAssertionCount": 0,
       "contractModules": [],
-      "description": "Proves the two window.fetch guards compose in order so protected mutations keep CSRF protection underneath the session-expiry handling.",
-      "entryPointAssertionCount": 14,
+      "description": "Proves the three window.fetch guards compose in delivery order so protected mutations keep CSRF protection underneath session-expiry handling and above permission-denied recovery.",
+      "entryPointAssertionCount": 33,
       "id": "framework.fetch-guard-composition",
       "legacy": false,
       "path": "scripts/regressions/framework/fetch-guard-composition.regression.mjs",
@@ -5298,17 +5298,18 @@
       "tags": [
         "authentication",
         "csrf",
+        "recovery",
         "session"
       ],
       "tier": "focused"
     },
     {
       "area": "framework",
-      "assertionCount": 375,
+      "assertionCount": 403,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 375,
+      "entryPointAssertionCount": 403,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",
