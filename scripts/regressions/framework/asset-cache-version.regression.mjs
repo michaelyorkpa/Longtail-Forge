@@ -102,7 +102,9 @@ assert.ok(
 
 const browserHelper = await fs.readFile("public/js/shared/asset-version.js", "utf8");
 const footerSource = await fs.readFile("public/js/footer.js", "utf8");
-const workbenchSource = await fs.readFile("public/js/workbench.js", "utf8");
+// 0.33.33.34 moved the Workbench dependency table and its loader into the shared registry;
+// footer.js keeps its own, because it runs on views that do not load the registry.
+const moduleActionsSource = await fs.readFile("public/js/shared/module-actions.js", "utf8");
 assert.match(browserHelper, /namespace\.assetVersion = Object\.freeze\(\{ url, value \}\)/);
 const browserContext = {
   document: { querySelector: () => ({ content: appVersion }) },
@@ -117,9 +119,9 @@ assert.equal(
   `js/example.js?v=${appVersion}`,
 );
 assert.match(footerSource, /assetVersion\?\.url\(dependency\.src\)[\s\S]*script\.src = versionedSrc/);
-assert.match(workbenchSource, /assetVersion\?\.url\(dependency\.src\)[\s\S]*script\.src = versionedSrc/);
+assert.match(moduleActionsSource, /assetVersion\?\.url\(dependency\.src\)[\s\S]*script\.src = versionedSrc/);
 assert.doesNotMatch(footerSource, /script\.src = dependency\.src/);
-assert.doesNotMatch(workbenchSource, /script\.src = dependency\.src/);
+assert.doesNotMatch(moduleActionsSource, /script\.src = dependency\.src/);
 
 console.log("Canonical asset cache version and raw-key guard passed.");
 const { closeDatabase } = await import("../../../src/db/provider.js");

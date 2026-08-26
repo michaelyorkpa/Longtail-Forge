@@ -30,10 +30,13 @@ assert.match(
   /openNoteViewer[\s\S]*openView: openNoteViewer[\s\S]*actionId: "notes\.view"[\s\S]*open: \(params, hostContext\) => openNoteViewer\(params, hostContext\)/,
   "Notes should register its reusable read modal action",
 );
+// 0.33.33.34 moved the module-action dependency table into the shared registry, where a
+// dependency names the namespace member its script must publish instead of carrying a
+// readiness closure.
 assert.match(
-  workbenchScript,
-  /"notes\.view": \[[\s\S]*js\/notes\.js[\s\S]*openNoteViewer/,
-  "Workbench should lazy-load Notes only for the Notes-owned read action",
+  moduleActionsSource,
+  /"notes\.view": \[[\s\S]*member: "openNoteViewer", module: true, src: "js\/notes\.js", surface: "notesDialog"/,
+  "The registry should lazy-load Notes only for the Notes-owned read action",
 );
 
 const openNoteViewerBody = extractFunctionBody(notesScript, "openNoteViewer");

@@ -9,7 +9,8 @@ const notesScript = readText("public/js/notes.js");
 const taskDialog = readText("public/js/task-dialog.js");
 const notesView = readText("views/protected/notes.html");
 const tasksView = readText("views/protected/tasks.html");
-const workbenchScript = readText("public/js/workbench.js");
+// 0.33.33.34 moved the module-action dependency table into the shared registry.
+const moduleActionsScript = readText("public/js/shared/module-actions.js");
 const tasksDocs = readText("docs/tasks-module.md");
 const notesDocs = readText("docs/notes-module.md");
 
@@ -39,7 +40,7 @@ assert.match(taskDecorateControls, /icons\.decorateButton\(fields\.cancel, \{ ic
 
 assert.match(notesView, /js\/notes\.js/, "Notes view should reference follow-bell browser wiring");
 assert.match(tasksView, /js\/task-dialog\.js/, "Tasks view should reference footer visual parity browser wiring");
-assert.match(workbenchScript, /src: "js\/task-dialog\.js"/, "Workbench should lazy-load the shared Task dialog browser wiring");
+assert.match(moduleActionsScript, /src: "js\/task-dialog\.js"/, "The registry should lazy-load the shared Task dialog browser wiring");
 assert.match(notesDocs, /^# Notes Module Developer Guide$/m, "Notes docs should retain the owning developer-guide heading");
 assert.match(notesDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Notes docs should document footer utility visual parity");
 assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks docs should retain the owning module heading");

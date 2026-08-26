@@ -41,6 +41,83 @@ export interface BrowserApi {
   putJson(url: string, body: unknown, options?: BrowserJsonRequestOptions): Promise<unknown>;
 }
 
+/**
+ * One lazily loaded script a module action needs before it can be opened.
+ *
+ * `0.33.33.34` moved this vocabulary out of `public/js/workbench.js`, where the same
+ * shape was expressed as a private constant whose readiness probe was a closure. A
+ * closure cannot be checked, so the descriptor names the namespace member the script
+ * must publish instead: `surface` alone for a script that publishes a whole helper,
+ * `surface` plus `member` for one that extends a namespace object another script owns.
+ */
+export interface ModuleActionDependency {
+  /** Member of `surface` that must exist once the script has run. */
+  member?: string;
+  /** Load through dynamic `import()` rather than a classic `<script>` element. */
+  module?: boolean;
+  /** Document-relative source path, before asset versioning is applied. */
+  src: string;
+  /** `LongtailForge` member the script publishes. */
+  surface: string;
+}
+
+/**
+ * The dependency-loading half of `LongtailForge.moduleActions`, published by
+ * `public/js/shared/module-actions.js`.
+ *
+ * Deliberately separate from the registry's own `list`/`open`/`register`: a host page
+ * loads dependencies before the registry can dispatch, so this half has to be usable
+ * while the action it is loading for is still unopenable.
+ */
+export interface ModuleActionDependencyLoader {
+  /** The declared dependencies for an action, or an empty list for an unknown one. */
+  dependenciesFor(actionId: string): ModuleActionDependency[];
+  /** Load an action's dependencies in declaration order, skipping satisfied ones. */
+  ensureDependencies(actionId: string): Promise<void>;
+}
+
+/**
+ * Published by `public/js/shared/asset-version.js`. Appends the running app version to
+ * an asset URL so a lazily loaded script is cache-busted the same way a declared one is.
+ * Named here by `0.33.33.34` so the shared dependency loader can apply versioning through
+ * the same expression its callers used, rather than probing an unknown-typed member.
+ */
+export interface BrowserAssetVersion {
+  url(assetUrl: string): string;
+  value: string;
+}
+
+/**
+ * A record a Files module action was invoked with.
+ *
+ * Hosts have passed the attachment under several keys over time, and the record itself is
+ * also accepted, so every carrier key is optional and recursive. Published by
+ * `0.33.33.34` because the unwrapping now happens in `public/js/shared/file-preview.js`
+ * while `public/js/files.js` still delegates to it.
+ */
+export interface BrowserFileActionRecord {
+  attachment?: BrowserFileActionRecord;
+  attachmentId?: string;
+  file?: BrowserFileActionRecord;
+  fileAttachment?: BrowserFileActionRecord;
+  fileName?: string;
+  file_attachment_id?: string;
+  record?: BrowserFileActionRecord;
+  returnFocusTo?: HTMLElement | null;
+  row?: BrowserFileActionRecord;
+  trigger?: HTMLElement | null;
+}
+
+/**
+ * The action-shaped half of `LongtailForge.filePreview`: the `files.preview` opener and
+ * the record helpers both Files actions unwrap their params with.
+ */
+export interface BrowserFilePreviewActions {
+  fileActionAttachmentId(attachmentOrRow?: BrowserFileActionRecord): string;
+  normalizeFileActionRecord(params?: BrowserFileActionRecord): BrowserFileActionRecord;
+  openFilePreviewAction(params?: BrowserFileActionRecord, hostContext?: unknown): unknown;
+}
+
 export interface BrowserRecord {
   clientId?: unknown;
   clientName?: unknown;
@@ -133,6 +210,7 @@ export interface BrowserPageController {
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
+  assetVersion?: BrowserAssetVersion;
   cachedFetch?: BrowserCachedFetch;
   controllers?: PageControllerRegistry;
   errors?: BrowserErrorContract;

@@ -6,13 +6,13 @@ const { readText } = createProjectTextReader();
 
 const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
-const workbenchScript = readText("public/js/workbench.js");
 const clientsProjectsScript = readText("public/js/clients-projects.js");
+// 0.33.33.34 moved the module-action dependency table into this shared registry.
 const moduleActionsScript = readText("public/js/shared/module-actions.js");
 
 assert.match(clientsHtml, /clients-projects\.js/, "Clients host should load the action-registration adapter cache key");
 assert.match(projectsHtml, /clients-projects\.js/, "Projects host should load the action-registration adapter cache key");
-assert.match(workbenchScript, /src: "js\/clients-projects\.js"/, "Workbench should lazy-load the action-registration adapter for module-triggered actions");
+assert.match(moduleActionsScript, /src: "js\/clients-projects\.js"/, "The registry should lazy-load the action-registration adapter for module-triggered actions");
 
 for (const [behaviorId, actionId] of [
   ["client-projects.clients.create", "clients.add"],

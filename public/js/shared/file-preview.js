@@ -1,4 +1,17 @@
 (function attachFilePreview(global) {
+  // Scoped inside the IIFE deliberately: a top-level JSDoc typedef in a classic script
+  // leaks into the shared type environment the way a top-level `const` leaks into the
+  // shared lexical one, which is the thing `0.33.33.33` removed from this estate.
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFileActionRecord} FileActionRecord */
+
+  /**
+   * The part of a module-action host context an opener settles against.
+   * @typedef {Object} FileActionHostContext
+   * @property {(detail?: Record<string, unknown>) => void} [cancel]
+   * @property {Promise<unknown>} [result]
+   * @property {HTMLElement | null} [trigger]
+   */
+
   const namespace = global.LongtailForge || {};
   const api = namespace.api;
   const TEXT_PREVIEW_MAX_BYTES = 512 * 1024;
@@ -240,6 +253,57 @@
     body?.replaceChildren(content);
   }
 
+  /**
+   * The `files.preview` module action, in the shape the registry dispatches: a params
+   * bag in, a host context to settle, and the dialog returned when there is no context.
+   *
+   * `0.33.33.34` moved this here from `public/js/files.js`. The Files page controller
+   * self-initializes with its own fetches, so a host page that only wants to preview an
+   * attachment cannot load it; before this move, Workbench synthesized a thinner opener
+   * of its own and merged it into the Files namespace, which is the temporary writer
+   * `0.33.33.33` closed with. Files still owns the namespace and delegates here.
+   * @param {FileActionRecord} [params]
+   * @param {FileActionHostContext | null} [hostContext]
+   * @returns {unknown}
+   */
+  function openFilePreviewAction(params = {}, hostContext = null) {
+    const attachmentOrRow = normalizeFileActionRecord(params);
+    if (!fileActionAttachmentId(attachmentOrRow)) {
+      throw new Error("File Preview requires an attachment record.");
+    }
+
+    const dialog = openFilePreview(attachmentOrRow, {
+      trigger: params.returnFocusTo || params.trigger || hostContext?.trigger || null,
+    });
+
+    dialog.addEventListener("close", () => {
+      hostContext?.cancel?.({
+        actionId: "files.preview",
+        recordId: fileActionAttachmentId(attachmentOrRow),
+      });
+    }, { once: true });
+
+    return hostContext?.result || dialog;
+  }
+
+  /**
+   * Hosts have passed the attachment under several keys; the record itself is also
+   * accepted. Preserved exactly as Files declared it so both actions unwrap alike.
+   * @param {FileActionRecord} [params]
+   * @returns {FileActionRecord}
+   */
+  function normalizeFileActionRecord(params = {}) {
+    return params.row || params.attachment || params.fileAttachment || params.record || params.file || params;
+  }
+
+  /**
+   * @param {FileActionRecord} [attachmentOrRow]
+   * @returns {string}
+   */
+  function fileActionAttachmentId(attachmentOrRow = {}) {
+    return attachmentOrRow.attachmentId || attachmentOrRow.file_attachment_id || attachmentOrRow.attachment?.file_attachment_id || "";
+  }
+
   function normalizeFilePreviewRow(attachmentOrRow = {}, options = {}) {
     if (attachmentOrRow?.attachment && attachmentOrRow.fileName) {
       return normalizeExistingPreviewRow(attachmentOrRow);
@@ -439,17 +503,21 @@
     return match ? match[1].toLowerCase() : "";
   }
 
+  // `filesDialog` is not written here. `0.33.33.33.8` recorded this file as the second
+  // of three writers of that namespace, and `0.33.33.34` reduced it to the canonical
+  // Files owner. The only member this file ever merged in was `openFilePreview`, which
+  // `public/js/files.js` already republishes and which nothing in the tree read from
+  // `filesDialog`. Host pages read the preview surface here.
   namespace.filePreview = Object.freeze({
+    fileActionAttachmentId,
+    normalizeFileActionRecord,
     normalizeFilePreviewRow,
     openFilePreview,
+    openFilePreviewAction,
     previewAvailabilityForRow,
     previewKindForExtension,
     previewStateMessage,
     previewUnavailableLabel,
-  });
-  namespace.filesDialog = Object.freeze({
-    ...(namespace.filesDialog || {}),
-    openFilePreview,
   });
   global.LongtailForge = namespace;
 })(window);

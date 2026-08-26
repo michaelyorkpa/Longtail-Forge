@@ -12,6 +12,10 @@ const viewContract = readText("docs/view-building-contract.md");
 const workbenchHtml = readText("views/protected/workbench.html");
 const workbenchScript = readText("public/js/workbench.js");
 const viewRenderer = readText("public/js/shared/view-renderer.js");
+// 0.33.33.34 moved the module-action dependency table and its loader out of
+// workbench.js and into the shared registry, so the lazy-loading contract these
+// assertions own is now read from its published owner.
+const moduleActionsScript = readText("public/js/shared/module-actions.js");
 
 assert.match(
   workbenchHtml,
@@ -83,14 +87,29 @@ assert.match(
   "Inspector module opens should dispatch through moduleActions with Workbench source context and focus return",
 );
 assert.match(
-  workbenchScript,
+  moduleActionsScript,
   /"notes\.edit": \[[\s\S]*module: true, src: "js\/notes\.js"[\s\S]*"lists\.edit": \[[\s\S]*module: true, src: "js\/lists\.js"/,
-  "Workbench should lazy-load Notes and Lists dialog adapters as modules to avoid classic-script lexical collisions",
+  "The registry should lazy-load Notes and Lists dialog adapters as modules to avoid classic-script lexical collisions",
 );
 assert.match(
-  extractFunctionBody(workbenchScript, "loadWorkbenchActionDependency"),
-  /dependency\.module[\s\S]*import\(key\)[\s\S]*document\.createElement\("script"\)/,
-  "Workbench dependency loading should use dynamic import only for collision-prone module adapters while keeping normal script loading available",
+  extractFunctionBody(moduleActionsScript, "loadDependency"),
+  /dependency\.module[\s\S]*import\(key\)[\s\S]*appendClassicScript\(dependency, versionedSrc\)/,
+  "Dependency loading should use dynamic import only for collision-prone module adapters while keeping normal script loading available",
+);
+assert.match(
+  extractFunctionBody(moduleActionsScript, "appendClassicScript"),
+  /document\.createElement\("script"\)[\s\S]*script\.async = false[\s\S]*Could not load \$\{dependency\.src\}/,
+  "Classic dependency loading should stay ordered and report the script it could not load",
+);
+assert.match(
+  extractFunctionBody(workbenchScript, "ensureWorkbenchModuleAction"),
+  /moduleActions\?\.ensureDependencies[\s\S]*Module action registry is unavailable\.[\s\S]*moduleActions\.ensureDependencies\(actionId\)/,
+  "Workbench should keep reporting an absent registry rather than failing on an undefined loader",
+);
+assert.doesNotMatch(
+  workbenchScript,
+  /WORKBENCH_MODULE_ACTION_DEPENDENCIES|loadWorkbenchActionDependency/,
+  "Workbench must not keep a private copy of the module-action dependency table or its loader",
 );
 
 assert.match(

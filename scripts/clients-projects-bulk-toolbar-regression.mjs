@@ -5,7 +5,8 @@ const { readText } = createProjectTextReader();
 
 const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
-const workbenchScript = readText("public/js/workbench.js");
+// 0.33.33.34 moved the module-action dependency table into the shared registry.
+const moduleActionsScript = readText("public/js/shared/module-actions.js");
 const clientProjectsModule = readText("src/modules/client-projects/module.js");
 const manifestContract = readText("src/core/modules/manifest-contract.js");
 const viewRenderer = readText("public/js/shared/view-renderer.js");
@@ -54,6 +55,6 @@ assert.match(css, /\.client-projects-bulk-region\s*\{[\s\S]*background:\s*transp
 assert.match(css, /\.view-data-table \.view-row-select\s*\{[\s\S]*width:\s*16px[\s\S]*height:\s*16px/, "Shared table selection checkboxes should have stable dimensions");
 assert.match(clientsHtml, /css\/longtail-forge\.css[\s\S]*view-renderer\.js[\s\S]*clients-projects\.js/, "Clients host should reference CSS, renderer, and adapter for bulk toolbar conversion");
 assert.match(projectsHtml, /css\/longtail-forge\.css[\s\S]*view-renderer\.js[\s\S]*clients-projects\.js/, "Projects host should reference CSS, renderer, and adapter for bulk toolbar conversion");
-assert.match(workbenchScript, /src: "js\/clients-projects\.js"/, "Workbench should lazy-load the updated Clients/Projects adapter for module-triggered actions");
+assert.match(moduleActionsScript, /src: "js\/clients-projects\.js"/, "The registry should lazy-load the updated Clients/Projects adapter for module-triggered actions");
 
 console.log("Clients/Projects bulk toolbar regression passed.");

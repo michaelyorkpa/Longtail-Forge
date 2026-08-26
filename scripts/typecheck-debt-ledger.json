@@ -473,7 +473,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 10528,
+      "errorCount": 10492,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -702,7 +702,7 @@
           },
           {
             "code": 2339,
-            "count": 8
+            "count": 6
           },
           {
             "code": 7006,
@@ -774,7 +774,7 @@
         "public/js/files.js": [
           {
             "code": 18046,
-            "count": 54
+            "count": 53
           },
           {
             "code": 18048,
@@ -786,7 +786,7 @@
           },
           {
             "code": 2339,
-            "count": 84
+            "count": 71
           },
           {
             "code": 2353,
@@ -828,7 +828,7 @@
           },
           {
             "code": 2339,
-            "count": 17
+            "count": 16
           },
           {
             "code": 2345,
@@ -2200,7 +2200,7 @@
         "public/js/workbench.js": [
           {
             "code": 18046,
-            "count": 150
+            "count": 148
           },
           {
             "code": 18047,
@@ -2208,7 +2208,7 @@
           },
           {
             "code": 18048,
-            "count": 53
+            "count": 52
           },
           {
             "code": 2322,
@@ -2216,7 +2216,7 @@
           },
           {
             "code": 2339,
-            "count": 274
+            "count": 262
           },
           {
             "code": 2345,
@@ -2235,16 +2235,12 @@
             "count": 1
           },
           {
-            "code": 2810,
-            "count": 1
-          },
-          {
             "code": 7005,
             "count": 70
           },
           {
             "code": 7006,
-            "count": 174
+            "count": 172
           },
           {
             "code": 7023,
@@ -2264,7 +2260,7 @@
           },
           {
             "code": 7053,
-            "count": 7
+            "count": 6
           }
         ],
         "public/js/workspace-settings.js": [
@@ -2915,7 +2911,7 @@
   },
   "totals": {
     "files": 1051,
-    "errors": 10528,
+    "errors": 10492,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

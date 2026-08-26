@@ -51,10 +51,30 @@ assert.match(
   /action\.fallbackUrl[\s\S]*navigateFromWorkbench\(action\.fallbackUrl, "related-context-error-fallback"\)/,
   "Related rows should keep an explicit guarded fallback URL path when module action dispatch fails",
 );
+// 0.33.33.34 retired the inline bridge this used to assert. files.preview is now a
+// first-party registry entry whose opener and dependency both name the shared preview
+// helper, so no host page synthesizes an opener or writes into the Files namespace.
+const moduleActionsScript = readText("public/js/shared/module-actions.js");
+const filePreviewScript = readText("public/js/shared/file-preview.js");
 assert.match(
-  extractFunctionBody(workbenchScript, "ensureWorkbenchFilePreviewAction"),
-  /actionId !== "files\.preview"[\s\S]*filePreview\.openFilePreview[\s\S]*moduleActions\?\.register\?\.\(\{[\s\S]*actionId: "files\.preview"/,
-  "Workbench should adapt files.preview to the already-loaded shared File Preview helper without loading the full Files page",
+  moduleActionsScript,
+  /"files\.preview": \[[\s\S]*member: "openFilePreviewAction", src: "js\/shared\/file-preview\.js", surface: "filePreview"/,
+  "files.preview should load the shared File Preview helper rather than the Files page controller",
+);
+assert.match(
+  moduleActionsScript,
+  /id: "files\.preview"[\s\S]*open: \(params, hostContext\) => namespace\.filePreview\.openFilePreviewAction\(params, hostContext\)/,
+  "files.preview should dispatch through the shared File Preview helper",
+);
+assert.match(
+  extractFunctionBody(filePreviewScript, "openFilePreviewAction"),
+  /File Preview requires an attachment record\.[\s\S]*openFilePreview\(attachmentOrRow[\s\S]*hostContext\?\.cancel\?\.\(\{[\s\S]*actionId: "files\.preview"/,
+  "The shared preview helper should own the action-shaped opener, including its host-context settle",
+);
+assert.doesNotMatch(
+  workbenchScript,
+  /filesDialog/,
+  "Workbench must not write or read the Files dialog namespace once the bridge is retired",
 );
 assert.doesNotMatch(
   workbenchScript,

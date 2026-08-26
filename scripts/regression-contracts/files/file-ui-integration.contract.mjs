@@ -62,12 +62,14 @@ assert.ok(
 );
 // The workbench lazy-loads the task dialog through the module-action
 // dependency mechanism; its attachment and notes helpers stay static so they
-// are always present before the dialog script executes.
-const workbenchScript = read("public/js/workbench.js");
+// are always present before the dialog script executes. 0.33.33.34 moved that
+// dependency table out of workbench.js and into the shared registry, so the
+// lazy-load assertion below reads its published owner.
+const moduleActionsScript = read("public/js/shared/module-actions.js");
 assert.ok(workbenchPage.includes("js/shared/file-attachments.js"), "Workbench must keep the task attachment helper static for the lazy task dialog.");
 assert.ok(workbenchPage.includes("js/shared/notes-linked-panel.js"), "Workbench must keep the task notes helper static for the lazy task dialog.");
 assert.ok(!workbenchPage.includes("js/task-dialog.js"), "Workbench must not load the task dialog statically.");
-assert.ok(workbenchScript.includes('src: "js/task-dialog.js"'), "Workbench must lazy-load the task dialog as a module-action dependency.");
+assert.ok(moduleActionsScript.includes('src: "js/task-dialog.js"'), "The module-action registry must lazy-load the task dialog as a dependency.");
 assert.ok(taskDialog.includes("namespace.fileAttachments.mount"), "Task dialog should mount shared file helper.");
 assert.ok(taskDialog.includes('moduleId: "tasks"'), "Task dialog should pass manifest module ID.");
 assert.ok(taskDialog.includes('targetType: "task"'), "Task dialog should pass manifest target type.");

@@ -53,7 +53,8 @@ assert.doesNotMatch(taskDialog, /className: \["task-footer-panel"|"surface-overl
 assert.match(tasksView, /css\/longtail-forge\.css/, "Tasks page should reference the child-dialog stylesheet cleanup");
 assert.match(tasksView, /js\/task-dialog\.js/, "Tasks page should reference the Task child-dialog browser wiring");
 assert.match(workbenchView, /css\/longtail-forge\.css/, "Workbench should reference the child-dialog stylesheet cleanup");
-assert.match(readText("public/js/workbench.js"), /src: "js\/task-dialog\.js"/, "Workbench should lazy-load the Task child-dialog browser wiring");
+// 0.33.33.34 moved the module-action dependency table into the shared registry.
+assert.match(readText("public/js/shared/module-actions.js"), /src: "js\/task-dialog\.js"/, "The registry should lazy-load the Task child-dialog browser wiring");
 
 assert.match(tasksDocs, /^# Tasks Module$/m, "Tasks docs should retain the owning module heading");
 assert.match(tasksDocs, /Tags and Files footer utilities open stacked child dialogs/, "Tasks docs should document the shipped child-dialog behavior");
