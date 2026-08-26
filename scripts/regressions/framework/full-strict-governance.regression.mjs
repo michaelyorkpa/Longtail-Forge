@@ -8,7 +8,7 @@ export const regressionMeta = Object.freeze({
 });
 
 import assert from "node:assert/strict";
-import { extractFunctionBlock, extractFunctionBody, extractFunctionSpan, scannableSource } from "../../test-support/source-scan.mjs";
+import { extractClassMethodBlock, extractFunctionBlock, extractFunctionBody, extractFunctionSpan, scannableSource } from "../../test-support/source-scan.mjs";
 import fs from "node:fs";
 import {
   PROGRAMS,
@@ -2078,6 +2078,101 @@ assert.equal(
   'function target() {}\nconst handler = function (event) {};',
   "the span still ends at the next real declaration once the expression is passed over",
 );
+
+// A class method name is not unique within a file, so `extractClassMethodBlock` requires
+// the class. `0.33.33.33.7` first published a name-only version and every one of the four
+// shapes below redirected it; because the brace walk anchors to whatever the start locator
+// found, a wrong start silently widens the region. These fixtures prove the start locator,
+// which the end-boundary fixtures alone could never do.
+for (const [shape, ambiguousSource] of [
+  ["a bare call with the same name", "function wrapper() {\n  target();\n}\n\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+  ["an ordinary function with the same name", "function target() {\n  return false;\n}\n\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+  ["an object-literal method with the same name", "const handlers = {\n  target() {\n    return false;\n  },\n};\n\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+  ["another class with the same method name", "class Other {\n  target() {\n    return false;\n  }\n}\n\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+]) {
+  const extracted = extractClassMethodBlock(ambiguousSource, "Example", "target");
+  assert.equal(extracted, "target() {\n    return 1;\n  }", `${shape} before the class must not be selected`);
+  assert.doesNotMatch(extracted, /return false;/, `${shape} must not leak into the extracted region`);
+}
+
+// Scoping a controller indents its class by one level and must change nothing else.
+assert.equal(
+  extractClassMethodBlock("(function wrap() {\n  class Example {\n    target() {\n      return 1;\n    }\n  }\n})();\n", "Example", "target"),
+  "target() {\n      return 1;\n    }",
+  "the same method inside a scoped controller reads the same region, one indent level deeper",
+);
+assert.equal(
+  extractClassMethodBlock("class Example {\n  async target() {\n    await this.other();\n  }\n}\n", "Example", "target"),
+  "async target() {\n    await this.other();\n  }",
+  "an async instance method is supported",
+);
+assert.equal(
+  extractClassMethodBlock("class Example {\n  target({ a } = {}) {\n    return a;\n  }\n}\n", "Example", "target"),
+  "target({ a } = {}) {\n    return a;\n  }",
+  "a default parameter value containing braces does not end the region early",
+);
+assert.ok(
+  extractClassMethodBlock("class Example {\n  target() {\n    this.target();\n    this.next();\n    return 1;\n  }\n  next() {}\n}\n", "Example", "target")
+    .includes("this.next();"),
+  "calls inside the method body do not alter its boundaries",
+);
+
+// Masked syntax cannot create a false match.
+for (const [shape, maskedSource] of [
+  ["a line comment", "// class Example { target() { return 0; } }\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+  ["a block comment", "/* class Example { target() { return 0; } } */\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+  ["a string literal", "const s = \"class Example { target() { return 0; } }\";\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+  ["a template literal", "const s = `class Example { target() { return 0; } }`;\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+  ["a regular expression literal", "const r = /class Example \\{ target\\(\\) \\{/;\nclass Example {\n  target() {\n    return 1;\n  }\n}\n"],
+]) {
+  assert.equal(
+    extractClassMethodBlock(maskedSource, "Example", "target"),
+    "target() {\n    return 1;\n  }",
+    `class-shaped text inside ${shape} must not be matched`,
+  );
+}
+
+// Brace depth alone does not prove class-element position. A call in a field initialiser
+// or in another method's parameter list also sits at class-body depth 0, and matching one
+// produced a region that was not a method at all: the field case widened through to the
+// real method and the parameter case returned a fragment. The same rule is what stops
+// `static async target()` being re-entered at the name after the `async` candidate was
+// refused, which is how an unsupported static member was previously returned.
+for (const [shape, positionSource] of [
+  ["a call in a field initialiser", "class Example {\n  field = target();\n\n  target() {\n    return 1;\n  }\n}\n"],
+  ["a call in another method's parameter list", "class Example {\n  other(value = target()) {}\n\n  target() {\n    return 1;\n  }\n}\n"],
+]) {
+  const extracted = extractClassMethodBlock(positionSource, "Example", "target");
+  assert.equal(extracted, "target() {\n    return 1;\n  }", `${shape} is not a class element and must not be selected`);
+}
+assert.throws(
+  () => extractClassMethodBlock("class Example {\n  static async target() {\n    return 1;\n  }\n}\n", "Example", "target"),
+  /should exist as a direct class method/,
+  "a static async member must not be re-entered at the method name after its prefix is refused",
+);
+// The contract is ordinary and async identifier-named instance methods, and it says so by
+// refusing everything else rather than returning a near-miss.
+for (const [shape, unsupportedSource] of [
+  ["a getter", "class Example {\n  get target() {\n    return 1;\n  }\n}\n"],
+  ["a setter", "class Example {\n  set target(value) {\n    this.v = value;\n  }\n}\n"],
+  ["a generator", "class Example {\n  *target() {\n    yield 1;\n  }\n}\n"],
+  ["an async generator", "class Example {\n  async *target() {\n    yield 1;\n  }\n}\n"],
+  ["a private member", "class Example {\n  #target() {\n    return 1;\n  }\n}\n"],
+  ["a computed key", "class Example {\n  [\"target\"]() {\n    return 1;\n  }\n}\n"],
+  ["a static member", "class Example {\n  static target() {\n    return 1;\n  }\n}\n"],
+]) {
+  assert.throws(
+    () => extractClassMethodBlock(unsupportedSource, "Example", "target"),
+    /should exist as a direct class method/,
+    `${shape} is outside the supported contract and must not be returned as the method`,
+  );
+}
+assert.throws(
+  () => extractClassMethodBlock("class Example {\n  other() {}\n}\n", "Missing", "other"),
+  /class Missing should exist/,
+  "an absent class is reported as an absent class",
+);
+
 assert.throws(
   () => extractFunctionSpan('function other() {\n  return 1;\n}\n', "target"),
   /target should exist/,
@@ -2573,6 +2668,9 @@ for (const shellOwner of [
   "public/js/tasks.js",
   "public/js/clients-projects.js",
   "public/js/notes.js",
+  "public/js/stop-watch.js",
+  "public/js/time-entries.js",
+  "public/js/workbench.js",
 ]) {
   const shellSource = fs.readFileSync(shellOwner, "utf8").split("\r\n").join("\n");
   const leaked = shellSource
@@ -2877,11 +2975,12 @@ assert.notEqual(
 // Every script here still declares names in the classic shared lexical environment. The
 // list may only shrink: a script that leaves it must not come back, and no classic script
 // outside it may start leaking. `0.33.33.33` closes when this list is empty.
-const SHARED_SCOPE_BACKLOG = new Set([
-  "public/js/workbench.js",
-  "public/js/time-entries.js",
-  "public/js/stop-watch.js",
-]);
+// `0.33.33.33.7` emptied this list: every classic browser script is now scoped. The set
+// stays because the invariant it enforces is permanent - a classic script that starts
+// declaring names in the shared lexical environment fails whether or not it was ever
+// an owner of this rollup.
+/** @type {Set<string>} */
+const SHARED_SCOPE_BACKLOG = new Set([]);
 
 for (const backlogEntry of SHARED_SCOPE_BACKLOG) {
   assert.ok(

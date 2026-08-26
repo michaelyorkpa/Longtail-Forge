@@ -168,6 +168,114 @@ export function extractFunctionSpan(source, functionName) {
 }
 
 /**
+ * Extract one named class's named method, from its declaration through the matching
+ * close of that method's own body.
+ *
+ * The class name is required because **a method name is not unique within a file**. A
+ * bare `target()` call, an ordinary `function target()`, an object literal's `target()`,
+ * and another class's `target()` are all indistinguishable from a class method if the
+ * search starts from the name alone. `0.33.33.33.7` published a name-only version and
+ * every one of those four forms redirected it; because the brace walk then anchors to
+ * whatever it found, a wrong start silently widens the region. That is the same
+ * false-region failure `0.33.33.32.28.4` and `0.33.33.33.6.1` exist to prevent, so the
+ * ambiguous contract is replaced rather than patched.
+ *
+ * The region is located structurally, never by indentation or column:
+ *   1. the source is masked, so class- or method-shaped text inside a comment, a string,
+ *      a template literal, or a regular expression cannot be matched;
+ *   2. the named `class` declaration is located in the masked source;
+ *   3. that class's body is bounded by its own balanced braces;
+ *   4. the method is searched for only inside that range;
+ *   5. it must be a **direct** member of the class body rather than something nested
+ *      deeper inside another method;
+ *   6. the region ends at the matching close of the method's own body.
+ *
+ * **Supported syntax is deliberately narrow: ordinary and `async` identifier-named
+ * instance methods only** — `target() {}` and `async target() {}`. Getters, setters,
+ * generators, `async` generators, private `#name` members, computed `["name"]()` keys,
+ * and `static` members are **not** supported and will not be found. A narrow helper that
+ * says so is worth more than a broad one that quietly becomes a partial parser.
+ * @param {string} source
+ * @param {string} className
+ * @param {string} methodName
+ * @returns {string}
+ */
+export function extractClassMethodBlock(source, className, methodName) {
+  const masked = scannableSource(source);
+  const classDeclaration = new RegExp(`(?:^|[^\\w$.])class\\s+${escapeRegExp(className)}\\b`).exec(masked);
+  if (!classDeclaration) {
+    throw new Error(`class ${className} should exist`);
+  }
+  const bodyOpen = masked.indexOf("{", classDeclaration.index + classDeclaration[0].length);
+  if (bodyOpen === -1) {
+    throw new Error(`class ${className} should have a body`);
+  }
+  const bodyClose = findBalancedClose(masked, bodyOpen);
+
+  // A direct member sits exactly one brace inside the class body. Anything deeper belongs
+  // to another method, and anything shallower is outside the class entirely.
+  const member = new RegExp(`(?:async\\s+)?${escapeRegExp(methodName)}\\s*\\(`, "y");
+  let depth = 0;
+  for (let index = bodyOpen + 1; index < bodyClose; index += 1) {
+    const char = masked[index];
+    if (char === "{") { depth += 1; continue; }
+    if (char === "}") { depth -= 1; continue; }
+    if (depth !== 0) continue;
+    // Brace depth alone does not prove a candidate is a class element. A call in a field
+    // initialiser (`field = target();`) or in another method's parameter list
+    // (`other(value = target())`) also sits at class-body depth 0, and matching one of
+    // those produces a region that is not a method at all.
+    //
+    // A class element begins where the previous element ended: at the class body's own
+    // `{`, at the `}` closing a previous method, or at the `;` terminating a previous
+    // field. Requiring that one structural fact is also what makes the unsupported forms
+    // impossible rather than merely listed - `get`, `set`, `static`, `*` and `#` all put
+    // something other than those three characters immediately before the name, and it is
+    // what stops `static async target()` being re-entered at `target` after the `async`
+    // candidate was rejected.
+    //
+    // The narrowing this implies is stated rather than hidden: a method preceded by a
+    // field that relies on automatic semicolon insertion is not found.
+    let beforeCandidate = index;
+    while (beforeCandidate > 0 && /\s/.test(masked[beforeCandidate - 1])) beforeCandidate -= 1;
+    const elementBoundary = beforeCandidate > 0 ? masked[beforeCandidate - 1] : "";
+    if (!"{};".includes(elementBoundary) || elementBoundary === "") continue;
+    member.lastIndex = index;
+    if (!member.test(masked)) continue;
+    // The body brace is found after the parameter list closes, because a default
+    // parameter value can itself contain braces: `target({ a } = {}) {}`.
+    const parameterClose = findBalancedParenClose(masked, masked.indexOf("(", index));
+    const methodBodyOpen = masked.indexOf("{", parameterClose);
+    if (methodBodyOpen === -1) continue;
+    return source.slice(index, findBalancedClose(masked, methodBodyOpen) + 1);
+  }
+  throw new Error(`${className}.${methodName} should exist as a direct class method`);
+}
+
+/**
+ * Index of the parenthesis that closes the one at `openIndex`, walking masked source so a
+ * parenthesis inside a comment, a string, or a regular expression cannot close it.
+ * @param {string} masked
+ * @param {number} openIndex
+ * @returns {number}
+ */
+function findBalancedParenClose(masked, openIndex) {
+  if (openIndex === -1) {
+    throw new Error("Balanced parameter list should include an opening parenthesis.");
+  }
+  let depth = 0;
+  for (let index = openIndex; index < masked.length; index += 1) {
+    const char = masked[index];
+    if (char === "(") depth += 1;
+    else if (char === ")") {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  throw new Error("Balanced parameter list is missing its closing parenthesis.");
+}
+
+/**
  * Index of the next function declaration that is a sibling of the one starting at
  * `declarationIndex` — the next one at the same brace depth — or `-1` for the
  * deliberate end-of-source case.

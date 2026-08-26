@@ -510,11 +510,11 @@ The active-script and legacy ceilings only move downward. Assertion, area, relea
 | Required active release-gate IDs | 46 |
 | Active regression ceiling | 348 |
 | Legacy regression ceiling | 209 |
-| Active regression assertions | 18816 |
+| Active regression assertions | 18825 |
 | Vitest owner assertions | 101 |
 | Direct owner assertions | 74 |
 | Credited reviewed assertion reductions | 496 |
-| Effective assertion floor | 19630 |
+| Effective assertion floor | 19639 |
 | Release-gate ratchet floor | 86 |
 
 | Canonical area | Active | Credits | Ratchet floor |
@@ -566,6 +566,9 @@ The runner no longer uses hand-maintained arrays as its source of truth. Discove
 
 Static regressions read repository text through `scripts/test-support/source-scan.mjs`. Its project reader resolves repository-relative paths from the checkout root, reads UTF-8 text synchronously or asynchronously, caches each normalized path per reader, rejects absolute and parent-traversal paths, and provides the single `escapeRegExp` implementation. Do not recreate local `readText`, `readProjectFile`, or `escapeRegExp` helpers in regression programs.
 
+Function and class regions come from the published helpers rather than from local regexes. `extractFunctionBlock` returns a declaration through its matching close, `extractFunctionBody` returns the body alone, and `extractFunctionSpan` returns a declaration through everything up to the next sibling declaration. Since `0.33.33.33.6.1` a sibling is decided by brace depth rather than by source column, and since `0.33.33.33.6.1.1` only a declaration in statement position can end a span, so a same-depth function expression cannot.
+
+`extractClassMethodBlock(source, className, methodName)` returns one class method, from its declaration through the matching close of its own body. **The class name is required because a method name is not unique within a file**: a bare call, an ordinary function, an object-literal method, and another class can all carry the same name, and a start locator that searches on the name alone will select whichever comes first. Because the brace walk then anchors to whatever was found, a wrong start silently widens the region rather than failing. The helper therefore locates the named class, bounds its body by balanced braces, and requires the method to be a **class element**, not merely something at class-body brace depth. Depth alone is not enough: a call in a field initialiser (`field = target();`) or in another method parameter list (`other(value = target())`) also sits at depth 0. A class element begins where the previous one ended, so the significant character before the candidate must be the class body opening `{`, the `}` closing a previous method, or the `;` terminating a previous field. That one structural fact is also what makes the unsupported forms impossible rather than merely listed, and what stops `static async target()` being re-entered at the name once its prefix is refused. **The narrowing it implies is stated rather than hidden: a method preceded by a field relying on automatic semicolon insertion is not found.** **Its supported contract is deliberately narrow: ordinary and `async` identifier-named instance methods only.** Getters, setters, generators, async generators, private `#` members, computed keys, and `static` members are not supported and are refused rather than returned as a near-miss.
 Browser-runtime source regressions use `scripts/test-support/fake-dom.mjs` for their deliberately bounded non-rendered DOM contract. It supports the tree, text, attributes/dataset, class-list, focus, modal, listener/once/cancellation, and reviewed tag/class/ID/attribute/descendant/comma/attribute-negation selector behavior exercised by those regressions. Unsupported selector shapes fail explicitly. This harness is not a browser emulator and does not replace Playwright rendering, accessibility, focus, console, or overflow coverage.
 
 ### Fast-fail bucket order
