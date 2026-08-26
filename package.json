@@ -125,7 +125,7 @@
     "@types/node": "^26.2.0",
     "eslint": "^10.8.1",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "allowScripts": {
     "better-sqlite3@13.0.3": true
