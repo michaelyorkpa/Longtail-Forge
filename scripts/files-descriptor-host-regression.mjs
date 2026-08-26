@@ -36,6 +36,24 @@ assert.match(filesScript, /files\.browse\.results/, "Files adapter should regist
 assert.doesNotMatch(filesScript, /files\.browse\.legacy|createFilesBrowseChrome/, "Strict Files adapter should not preserve the legacy full-page browse fallback behavior");
 assert.match(filesScript, /fallbackFilesViewSurfaceDescriptor/, "Files adapter should keep a safe fallback descriptor for early bootstrap timing");
 assert.match(filesScript, /\/api\/files\/attachments/, "Files adapter should continue to use the service-owned attachments route");
+// 0.33.33.35.1.1 - the view shell waits for the workspace context.
+//
+// The shell is built from a server-delivered descriptor. The synchronous workspace context is
+// hydrated from localStorage, so it is legitimately empty on a first visit, in a private
+// window, after cleared site data, or straight after a logout; the protected view ships only
+// an empty host; and nothing re-renders when the context arrives. Building the shell before
+// the context therefore renders whatever the local fallback says rather than what the server
+// delivered. 0.33.33.35.1.2 removes those fallbacks and depends on this ordering holding.
+assert.match(
+  filesScript,
+  /async function initialize\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*buildFilesViewShell\(\)[\s\S]*cacheFilesElements\(\)[\s\S]*bindFilesEvents\(\)/,
+  "Files should await the workspace context before building the shell and caching the DOM it creates",
+);
+assert.doesNotMatch(
+  filesScript,
+  /^  buildFilesViewShell\(\);$/m,
+  "Files must not build the browse shell outside the context-aware bootstrap",
+);
 
 assert.match(frameworkSurfaceSource, /id:\s*"files\.browse"/, "Framework descriptor registry should declare files.browse");
 assert.match(frameworkSurfaceSource, /moduleId:\s*FRAMEWORK_VIEW_SURFACE_MODULE_ID/, "Files descriptor should use the framework surface module id");

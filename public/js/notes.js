@@ -115,169 +115,394 @@
   const notesWorkspaceHost = document.querySelector("[data-notes-host]");
   const isNotesWorkspaceSurface = Boolean(notesWorkspaceHost);
 
-  buildNotesViewShell();
-  if (!isNotesWorkspaceSurface) {
+  // 0.33.33.35.1.1: the workspace surface is built from a server-delivered descriptor, so
+  // the shell and every binding that reads the DOM it creates wait for the workspace
+  // context. Before this, the shell was built synchronously against a context hydrated
+  // from localStorage, which is empty on a cold load - the case the fallback covers.
+  //
+  // The dialog-only path reads no descriptor - buildNotesViewShell() returns early without a
+  // host - so it keeps its synchronous bootstrap. That is the path the registry uses when
+  // it lazily imports this controller for a module action, and it must stay immediate.
+  if (isNotesWorkspaceSurface) {
+    initializeNotesWorkspace();
+  } else {
     ensureNotesDialogShells();
+    cacheNotesElements();
+    bindNotesEvents();
   }
 
-  const statusMessage = document.querySelector("[data-notes-status]");
-  const filtersForm = document.querySelector("[data-notes-filters]");
-  const statusFilter = document.querySelector("[data-note-filter-status]");
-  const visibilityFilter = document.querySelector("[data-note-filter-visibility]");
-  const securityFilter = document.querySelector("[data-note-filter-security]");
-  const typeFilter = document.querySelector("[data-note-filter-type]");
-  const collectionFilter = document.querySelector("[data-note-filter-collection]");
-  const contextFilter = document.querySelector("[data-note-filter-context]");
-  const ownerFilter = document.querySelector("[data-note-filter-owner]");
-  const tagFilter = document.querySelector("[data-note-filter-tags]");
-  const updatedFilter = document.querySelector("[data-note-filter-updated]");
-  const sortSelect = document.querySelector("[data-note-sort]");
-  const notesList = document.querySelector("[data-notes-list]");
-  const detailPanel = document.querySelector("[data-note-detail]");
-  const createButton = document.querySelector("[data-note-create]");
-  const prevButton = document.querySelector("[data-notes-prev]");
-  const nextButton = document.querySelector("[data-notes-next]");
-  const pageLabel = document.querySelector("[data-notes-page]");
-  const collectionPanel = document.querySelector("[data-notes-collections-panel]");
-  const collectionLibraryFilter = document.querySelector("[data-note-collection-library-filter]");
-  const collectionActionsMount = document.querySelector("[data-note-collection-actions]");
-  const dialog = document.querySelector("[data-note-dialog]");
-  const form = document.querySelector("[data-note-form]");
-  const dialogTitle = document.querySelector("[data-note-dialog-title]");
-  const notificationToggle = document.querySelector("[data-note-notification-toggle]");
-  const titleInput = document.querySelector("[data-note-title]");
-  const libraryInput = document.querySelector("[data-note-library]");
-  const collectionInput = document.querySelector("[data-note-collection]");
-  const typeInput = document.querySelector("[data-note-type]");
-  const visibilityInput = document.querySelector("[data-note-visibility]");
-  const securityInput = document.querySelector("[data-note-security]");
-  const secureWarning = document.querySelector("[data-note-secure-warning]");
-  const contextClientInput = document.querySelector("[data-note-context-client]");
-  const contextTargetTypeInput = document.querySelector("[data-note-context-target-type]");
-  const contextSearchInput = document.querySelector("[data-note-context-search]");
-  const contextResultsInput = document.querySelector("[data-note-context-results]");
-  const contextApplyButton = document.querySelector("[data-note-context-apply]");
-  const contextList = document.querySelector("[data-note-context-list]");
-  const contextSelectedMessage = document.querySelector("[data-note-context-selected]");
-  const clientInput = document.querySelector("[data-note-client-id]");
-  const projectInput = document.querySelector("[data-note-project-id]");
-  const primaryClientField = document.querySelector("[data-note-primary-client-field]");
-  const primaryProjectField = document.querySelector("[data-note-primary-project-field]");
-  const taskInput = document.querySelector("[data-note-task-id]");
-  const userInput = document.querySelector("[data-note-user-id]");
-  const suggestionMessage = document.querySelector("[data-note-library-suggestion]");
-  const detailsGroup = document.querySelector("[data-note-details-group]");
-  const tagsDialog = document.querySelector("[data-note-tags-dialog]");
-  const tagsEditor = document.querySelector("[data-note-tags-editor]");
-  const tagsDialogCloseButton = document.querySelector("[data-note-tags-dialog-close]");
-  const filesDialog = document.querySelector("[data-note-files-dialog]");
-  const filesEditor = document.querySelector("[data-note-files-editor]");
-  const filesDialogCloseButton = document.querySelector("[data-note-files-dialog-close]");
-  const filesSaveFirstWarning = document.querySelector("[data-note-files-save-first-warning]");
-  const tagsToggle = document.querySelector("[data-note-tags-toggle]");
-  const filesToggle = document.querySelector("[data-note-files-toggle]");
-  const copyLinkButton = document.querySelector("[data-copy-note-link]");
-  const bodyInput = document.querySelector("[data-note-body]");
-  const markdownEditor = document.querySelector("[data-note-markdown-editor]");
-  const previewToggle = document.querySelector("[data-note-preview-toggle]");
-  const preview = document.querySelector("[data-note-preview]");
-  const formStatus = document.querySelector("[data-note-form-status]");
-  const cancelButton = document.querySelector("[data-note-cancel]");
-  const saveButton = document.querySelector("[data-note-save]");
-  const saveCloseButton = document.querySelector("[data-note-save-close]");
-  const bulkToolbar = document.querySelector("[data-note-bulk-toolbar]");
-  const bulkEditButton = document.querySelector("[data-note-bulk-edit]");
-  const bulkClearButton = document.querySelector("[data-note-bulk-clear]");
-  const bulkDialog = document.querySelector("[data-note-bulk-dialog]");
-  const bulkForm = document.querySelector("[data-note-bulk-form]");
-  const bulkCancelButton = document.querySelector("[data-note-bulk-cancel]");
-  const bulkApplyButton = document.querySelector("[data-note-bulk-apply]");
-  const bulkLibraryInput = document.querySelector("[data-note-bulk-library]");
-  const bulkCollectionInput = document.querySelector("[data-note-bulk-collection]");
-  const bulkTypeInput = document.querySelector("[data-note-bulk-type]");
-  const bulkVisibilityInput = document.querySelector("[data-note-bulk-visibility]");
-  const bulkTagActionInput = document.querySelector("[data-note-bulk-tag-action]");
-  const bulkTagsEditor = document.querySelector("[data-note-bulk-tags]");
-  const bulkFormStatus = document.querySelector("[data-note-bulk-form-status]");
-  const collectionDialog = document.querySelector("[data-note-collection-dialog]");
-  const collectionForm = document.querySelector("[data-note-collection-form]");
-  const collectionDialogTitle = document.querySelector("[data-note-collection-dialog-title]");
-  const collectionDialogCloseButton = document.querySelector("[data-note-collection-dialog-close]");
-  const collectionTitleInput = document.querySelector("[data-note-collection-title]");
-  const collectionLibraryInput = document.querySelector("[data-note-collection-library]");
-  const collectionParentInput = document.querySelector("[data-note-collection-parent]");
-  const collectionFormStatus = document.querySelector("[data-note-collection-form-status]");
-  const collectionCancelButton = document.querySelector("[data-note-collection-cancel]");
-  const collectionSaveButton = document.querySelector("[data-note-collection-save]");
-  const collectionActionsDialog = document.querySelector("[data-note-collection-actions-dialog]");
-  const collectionActionsDialogTitle = document.querySelector("[data-note-collection-actions-dialog-title]");
-  const collectionActionsDialogBody = document.querySelector("[data-note-collection-actions-dialog-body]");
-  const collectionActionsDialogCloseButton = document.querySelector("[data-note-collection-actions-dialog-close]");
+  async function initializeNotesWorkspace() {
+    try {
+      await window.LongtailForge?.workspaceContextReady;
+    } catch {
+      // A rejected context must not strand the page; the descriptor fallback still renders,
+      // and initialize() below reports the failure through the surface it just built.
+    }
+    buildNotesViewShell();
+    cacheNotesElements();
+    bindNotesEvents();
+    await initialize();
+  }
 
-  const editor = window.LongtailForge.notesEditor?.createPlainTextarea(bodyInput);
+  /** @type {Element | null} */
+  let statusMessage = null;
+  /** @type {Element | null} */
+  let filtersForm = null;
+  /** @type {Element | null} */
+  let statusFilter = null;
+  /** @type {Element | null} */
+  let visibilityFilter = null;
+  /** @type {Element | null} */
+  let securityFilter = null;
+  /** @type {Element | null} */
+  let typeFilter = null;
+  /** @type {Element | null} */
+  let collectionFilter = null;
+  /** @type {Element | null} */
+  let contextFilter = null;
+  /** @type {Element | null} */
+  let ownerFilter = null;
+  /** @type {Element | null} */
+  let tagFilter = null;
+  /** @type {Element | null} */
+  let updatedFilter = null;
+  /** @type {Element | null} */
+  let sortSelect = null;
+  /** @type {Element | null} */
+  let notesList = null;
+  /** @type {Element | null} */
+  let detailPanel = null;
+  /** @type {Element | null} */
+  let createButton = null;
+  /** @type {Element | null} */
+  let prevButton = null;
+  /** @type {Element | null} */
+  let nextButton = null;
+  /** @type {Element | null} */
+  let pageLabel = null;
+  /** @type {Element | null} */
+  let collectionPanel = null;
+  /** @type {Element | null} */
+  let collectionLibraryFilter = null;
+  /** @type {Element | null} */
+  let collectionActionsMount = null;
+  /** @type {Element | null} */
+  let dialog = null;
+  /** @type {Element | null} */
+  let form = null;
+  /** @type {Element | null} */
+  let dialogTitle = null;
+  /** @type {Element | null} */
+  let notificationToggle = null;
+  /** @type {Element | null} */
+  let titleInput = null;
+  /** @type {Element | null} */
+  let libraryInput = null;
+  /** @type {Element | null} */
+  let collectionInput = null;
+  /** @type {Element | null} */
+  let typeInput = null;
+  /** @type {Element | null} */
+  let visibilityInput = null;
+  /** @type {Element | null} */
+  let securityInput = null;
+  /** @type {Element | null} */
+  let secureWarning = null;
+  /** @type {Element | null} */
+  let contextClientInput = null;
+  /** @type {Element | null} */
+  let contextTargetTypeInput = null;
+  /** @type {Element | null} */
+  let contextSearchInput = null;
+  /** @type {Element | null} */
+  let contextResultsInput = null;
+  /** @type {Element | null} */
+  let contextApplyButton = null;
+  /** @type {Element | null} */
+  let contextList = null;
+  /** @type {Element | null} */
+  let contextSelectedMessage = null;
+  /** @type {Element | null} */
+  let clientInput = null;
+  /** @type {Element | null} */
+  let projectInput = null;
+  /** @type {Element | null} */
+  let primaryClientField = null;
+  /** @type {Element | null} */
+  let primaryProjectField = null;
+  /** @type {Element | null} */
+  let taskInput = null;
+  /** @type {Element | null} */
+  let userInput = null;
+  /** @type {Element | null} */
+  let suggestionMessage = null;
+  /** @type {Element | null} */
+  let detailsGroup = null;
+  /** @type {Element | null} */
+  let tagsDialog = null;
+  /** @type {Element | null} */
+  let tagsEditor = null;
+  /** @type {Element | null} */
+  let tagsDialogCloseButton = null;
+  /** @type {Element | null} */
+  let filesDialog = null;
+  /** @type {Element | null} */
+  let filesEditor = null;
+  /** @type {Element | null} */
+  let filesDialogCloseButton = null;
+  /** @type {Element | null} */
+  let filesSaveFirstWarning = null;
+  /** @type {Element | null} */
+  let tagsToggle = null;
+  /** @type {Element | null} */
+  let filesToggle = null;
+  /** @type {Element | null} */
+  let copyLinkButton = null;
+  /** @type {Element | null} */
+  let bodyInput = null;
+  /** @type {Element | null} */
+  let markdownEditor = null;
+  /** @type {Element | null} */
+  let previewToggle = null;
+  /** @type {Element | null} */
+  let preview = null;
+  /** @type {Element | null} */
+  let formStatus = null;
+  /** @type {Element | null} */
+  let cancelButton = null;
+  /** @type {Element | null} */
+  let saveButton = null;
+  /** @type {Element | null} */
+  let saveCloseButton = null;
+  /** @type {Element | null} */
+  let bulkToolbar = null;
+  /** @type {Element | null} */
+  let bulkEditButton = null;
+  /** @type {Element | null} */
+  let bulkClearButton = null;
+  /** @type {Element | null} */
+  let bulkDialog = null;
+  /** @type {Element | null} */
+  let bulkForm = null;
+  /** @type {Element | null} */
+  let bulkCancelButton = null;
+  /** @type {Element | null} */
+  let bulkApplyButton = null;
+  /** @type {Element | null} */
+  let bulkLibraryInput = null;
+  /** @type {Element | null} */
+  let bulkCollectionInput = null;
+  /** @type {Element | null} */
+  let bulkTypeInput = null;
+  /** @type {Element | null} */
+  let bulkVisibilityInput = null;
+  /** @type {Element | null} */
+  let bulkTagActionInput = null;
+  /** @type {Element | null} */
+  let bulkTagsEditor = null;
+  /** @type {Element | null} */
+  let bulkFormStatus = null;
+  /** @type {Element | null} */
+  let collectionDialog = null;
+  /** @type {Element | null} */
+  let collectionForm = null;
+  /** @type {Element | null} */
+  let collectionDialogTitle = null;
+  /** @type {Element | null} */
+  let collectionDialogCloseButton = null;
+  /** @type {Element | null} */
+  let collectionTitleInput = null;
+  /** @type {Element | null} */
+  let collectionLibraryInput = null;
+  /** @type {Element | null} */
+  let collectionParentInput = null;
+  /** @type {Element | null} */
+  let collectionFormStatus = null;
+  /** @type {Element | null} */
+  let collectionCancelButton = null;
+  /** @type {Element | null} */
+  let collectionSaveButton = null;
+  /** @type {Element | null} */
+  let collectionActionsDialog = null;
+  /** @type {Element | null} */
+  let collectionActionsDialogTitle = null;
+  /** @type {Element | null} */
+  let collectionActionsDialogBody = null;
+  /** @type {Element | null} */
+  let collectionActionsDialogCloseButton = null;
 
-  createButton?.addEventListener("click", () => openEditor());
-  collectionActionsDialogCloseButton?.addEventListener("click", closeCollectionActionsDialog);
-  collectionLibraryFilter?.addEventListener("change", () => selectBucket(collectionLibraryFilter.value));
-  collectionFilter?.addEventListener("change", () => selectCollection(collectionFilter.value));
-  filtersForm?.addEventListener("change", () => {
-    state.page = 1;
-    state.selectedCollectionId = collectionFilter?.value || "";
-    updateCollectionPanelSelection();
-    updateUrlCollection();
-    void reloadNotesFromStart();
-  });
-  sortSelect?.addEventListener("change", () => {
-    state.page = 1;
-    void reloadNotesFromStart();
-  });
-  prevButton?.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    void loadPreviousNotesPage();
-  });
-  nextButton?.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    void loadNextNotesPage();
-  });
-  form?.addEventListener("submit", saveNote);
-  saveCloseButton?.addEventListener("click", saveAndCloseNote);
-  notificationToggle?.addEventListener("click", toggleNoteNotificationFollow);
-  cancelButton?.addEventListener("click", cancelEditor);
-  bulkEditButton?.addEventListener("click", openBulkEditor);
-  bulkClearButton?.addEventListener("click", clearBulkSelection);
-  bulkForm?.addEventListener("submit", applyBulkEdit);
-  bulkCancelButton?.addEventListener("click", closeBulkEditor);
-  bulkLibraryInput?.addEventListener("change", populateBulkCollectionOptions);
-  collectionForm?.addEventListener("submit", saveCollection);
-  collectionDialogCloseButton?.addEventListener("click", closeCollectionDialog);
-  collectionCancelButton?.addEventListener("click", closeCollectionDialog);
-  collectionLibraryInput?.addEventListener("change", () => populateCollectionParentOptions());
-  libraryInput?.addEventListener("change", () => {
-    state.libraryManuallyChanged = true;
-    populateNoteCollectionOptions();
-    updateLibrarySuggestion();
-  });
-  securityInput?.addEventListener("change", updateSecureUiState);
-  previewToggle?.addEventListener("click", togglePreview);
-  bodyInput?.addEventListener("input", () => renderPreview());
-  clientInput?.addEventListener("change", handlePrimaryClientChange);
-  projectInput?.addEventListener("change", handlePrimaryProjectChange);
-  [taskInput, userInput].forEach((input) => input?.addEventListener("input", updateLibrarySuggestion));
-  contextTargetTypeInput?.addEventListener("change", () => loadEditorLinkTargets());
-  contextClientInput?.addEventListener("change", handleEditorLinkClientContextChange);
-  contextSearchInput?.addEventListener("input", () => queueEditorLinkTargetSearch());
-  contextApplyButton?.addEventListener("click", () => applyEditorLinkTarget());
-  document.querySelector("[data-note-editor-toolbar]")?.addEventListener("click", handleEditorCommand);
-  tagsToggle?.addEventListener("click", openTagsDialog);
-  tagsDialogCloseButton?.addEventListener("click", closeTagsDialog);
-  tagsDialog?.addEventListener("close", handleTagsDialogClose);
-  filesToggle?.addEventListener("click", openFilesDialog);
-  filesDialogCloseButton?.addEventListener("click", closeFilesDialog);
-  filesDialog?.addEventListener("close", handleFilesDialogClose);
-  copyLinkButton?.addEventListener("click", copyCurrentNoteLink);
-  dialog?.addEventListener("close", handleEditorDialogClose);
+  /**
+   * The plain Markdown controller for the note body, or null when the body control is absent.
+   * Declared with the shape `notesEditor.createPlainTextarea` returns because `0.33.33.35.1.1`
+   * split this binding's declaration from its assignment.
+   * @type {{ applyCommand: (commandName: string) => void, getValue: () => string, setValue: (value: string) => void } | null}
+   */
+  let editor = null;
+
+  function cacheNotesElements() {
+    statusMessage = document.querySelector("[data-notes-status]");
+    filtersForm = document.querySelector("[data-notes-filters]");
+    statusFilter = document.querySelector("[data-note-filter-status]");
+    visibilityFilter = document.querySelector("[data-note-filter-visibility]");
+    securityFilter = document.querySelector("[data-note-filter-security]");
+    typeFilter = document.querySelector("[data-note-filter-type]");
+    collectionFilter = document.querySelector("[data-note-filter-collection]");
+    contextFilter = document.querySelector("[data-note-filter-context]");
+    ownerFilter = document.querySelector("[data-note-filter-owner]");
+    tagFilter = document.querySelector("[data-note-filter-tags]");
+    updatedFilter = document.querySelector("[data-note-filter-updated]");
+    sortSelect = document.querySelector("[data-note-sort]");
+    notesList = document.querySelector("[data-notes-list]");
+    detailPanel = document.querySelector("[data-note-detail]");
+    createButton = document.querySelector("[data-note-create]");
+    prevButton = document.querySelector("[data-notes-prev]");
+    nextButton = document.querySelector("[data-notes-next]");
+    pageLabel = document.querySelector("[data-notes-page]");
+    collectionPanel = document.querySelector("[data-notes-collections-panel]");
+    collectionLibraryFilter = document.querySelector("[data-note-collection-library-filter]");
+    collectionActionsMount = document.querySelector("[data-note-collection-actions]");
+    dialog = document.querySelector("[data-note-dialog]");
+    form = document.querySelector("[data-note-form]");
+    dialogTitle = document.querySelector("[data-note-dialog-title]");
+    notificationToggle = document.querySelector("[data-note-notification-toggle]");
+    titleInput = document.querySelector("[data-note-title]");
+    libraryInput = document.querySelector("[data-note-library]");
+    collectionInput = document.querySelector("[data-note-collection]");
+    typeInput = document.querySelector("[data-note-type]");
+    visibilityInput = document.querySelector("[data-note-visibility]");
+    securityInput = document.querySelector("[data-note-security]");
+    secureWarning = document.querySelector("[data-note-secure-warning]");
+    contextClientInput = document.querySelector("[data-note-context-client]");
+    contextTargetTypeInput = document.querySelector("[data-note-context-target-type]");
+    contextSearchInput = document.querySelector("[data-note-context-search]");
+    contextResultsInput = document.querySelector("[data-note-context-results]");
+    contextApplyButton = document.querySelector("[data-note-context-apply]");
+    contextList = document.querySelector("[data-note-context-list]");
+    contextSelectedMessage = document.querySelector("[data-note-context-selected]");
+    clientInput = document.querySelector("[data-note-client-id]");
+    projectInput = document.querySelector("[data-note-project-id]");
+    primaryClientField = document.querySelector("[data-note-primary-client-field]");
+    primaryProjectField = document.querySelector("[data-note-primary-project-field]");
+    taskInput = document.querySelector("[data-note-task-id]");
+    userInput = document.querySelector("[data-note-user-id]");
+    suggestionMessage = document.querySelector("[data-note-library-suggestion]");
+    detailsGroup = document.querySelector("[data-note-details-group]");
+    tagsDialog = document.querySelector("[data-note-tags-dialog]");
+    tagsEditor = document.querySelector("[data-note-tags-editor]");
+    tagsDialogCloseButton = document.querySelector("[data-note-tags-dialog-close]");
+    filesDialog = document.querySelector("[data-note-files-dialog]");
+    filesEditor = document.querySelector("[data-note-files-editor]");
+    filesDialogCloseButton = document.querySelector("[data-note-files-dialog-close]");
+    filesSaveFirstWarning = document.querySelector("[data-note-files-save-first-warning]");
+    tagsToggle = document.querySelector("[data-note-tags-toggle]");
+    filesToggle = document.querySelector("[data-note-files-toggle]");
+    copyLinkButton = document.querySelector("[data-copy-note-link]");
+    bodyInput = document.querySelector("[data-note-body]");
+    markdownEditor = document.querySelector("[data-note-markdown-editor]");
+    previewToggle = document.querySelector("[data-note-preview-toggle]");
+    preview = document.querySelector("[data-note-preview]");
+    formStatus = document.querySelector("[data-note-form-status]");
+    cancelButton = document.querySelector("[data-note-cancel]");
+    saveButton = document.querySelector("[data-note-save]");
+    saveCloseButton = document.querySelector("[data-note-save-close]");
+    bulkToolbar = document.querySelector("[data-note-bulk-toolbar]");
+    bulkEditButton = document.querySelector("[data-note-bulk-edit]");
+    bulkClearButton = document.querySelector("[data-note-bulk-clear]");
+    bulkDialog = document.querySelector("[data-note-bulk-dialog]");
+    bulkForm = document.querySelector("[data-note-bulk-form]");
+    bulkCancelButton = document.querySelector("[data-note-bulk-cancel]");
+    bulkApplyButton = document.querySelector("[data-note-bulk-apply]");
+    bulkLibraryInput = document.querySelector("[data-note-bulk-library]");
+    bulkCollectionInput = document.querySelector("[data-note-bulk-collection]");
+    bulkTypeInput = document.querySelector("[data-note-bulk-type]");
+    bulkVisibilityInput = document.querySelector("[data-note-bulk-visibility]");
+    bulkTagActionInput = document.querySelector("[data-note-bulk-tag-action]");
+    bulkTagsEditor = document.querySelector("[data-note-bulk-tags]");
+    bulkFormStatus = document.querySelector("[data-note-bulk-form-status]");
+    collectionDialog = document.querySelector("[data-note-collection-dialog]");
+    collectionForm = document.querySelector("[data-note-collection-form]");
+    collectionDialogTitle = document.querySelector("[data-note-collection-dialog-title]");
+    collectionDialogCloseButton = document.querySelector("[data-note-collection-dialog-close]");
+    collectionTitleInput = document.querySelector("[data-note-collection-title]");
+    collectionLibraryInput = document.querySelector("[data-note-collection-library]");
+    collectionParentInput = document.querySelector("[data-note-collection-parent]");
+    collectionFormStatus = document.querySelector("[data-note-collection-form-status]");
+    collectionCancelButton = document.querySelector("[data-note-collection-cancel]");
+    collectionSaveButton = document.querySelector("[data-note-collection-save]");
+    collectionActionsDialog = document.querySelector("[data-note-collection-actions-dialog]");
+    collectionActionsDialogTitle = document.querySelector("[data-note-collection-actions-dialog-title]");
+    collectionActionsDialogBody = document.querySelector("[data-note-collection-actions-dialog-body]");
+    collectionActionsDialogCloseButton = document.querySelector("[data-note-collection-actions-dialog-close]");
+
+    editor = window.LongtailForge.notesEditor?.createPlainTextarea(bodyInput);
+  }
+
+  function bindNotesEvents() {
+    createButton?.addEventListener("click", () => openEditor());
+    collectionActionsDialogCloseButton?.addEventListener("click", closeCollectionActionsDialog);
+    const collectionLibraryControl = collectionLibraryFilter;
+    const collectionControl = collectionFilter;
+    collectionLibraryControl?.addEventListener("change", () => selectBucket(collectionLibraryControl.value));
+    collectionControl?.addEventListener("change", () => selectCollection(collectionControl.value));
+    filtersForm?.addEventListener("change", () => {
+      state.page = 1;
+      state.selectedCollectionId = collectionFilter?.value || "";
+      updateCollectionPanelSelection();
+      updateUrlCollection();
+      void reloadNotesFromStart();
+    });
+    sortSelect?.addEventListener("change", () => {
+      state.page = 1;
+      void reloadNotesFromStart();
+    });
+    prevButton?.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void loadPreviousNotesPage();
+    });
+    nextButton?.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void loadNextNotesPage();
+    });
+    form?.addEventListener("submit", saveNote);
+    saveCloseButton?.addEventListener("click", saveAndCloseNote);
+    notificationToggle?.addEventListener("click", toggleNoteNotificationFollow);
+    cancelButton?.addEventListener("click", cancelEditor);
+    bulkEditButton?.addEventListener("click", openBulkEditor);
+    bulkClearButton?.addEventListener("click", clearBulkSelection);
+    bulkForm?.addEventListener("submit", applyBulkEdit);
+    bulkCancelButton?.addEventListener("click", closeBulkEditor);
+    bulkLibraryInput?.addEventListener("change", populateBulkCollectionOptions);
+    collectionForm?.addEventListener("submit", saveCollection);
+    collectionDialogCloseButton?.addEventListener("click", closeCollectionDialog);
+    collectionCancelButton?.addEventListener("click", closeCollectionDialog);
+    collectionLibraryInput?.addEventListener("change", () => populateCollectionParentOptions());
+    libraryInput?.addEventListener("change", () => {
+      state.libraryManuallyChanged = true;
+      populateNoteCollectionOptions();
+      updateLibrarySuggestion();
+    });
+    securityInput?.addEventListener("change", updateSecureUiState);
+    previewToggle?.addEventListener("click", togglePreview);
+    bodyInput?.addEventListener("input", () => renderPreview());
+    clientInput?.addEventListener("change", handlePrimaryClientChange);
+    projectInput?.addEventListener("change", handlePrimaryProjectChange);
+    [taskInput, userInput].forEach((input) => input?.addEventListener("input", updateLibrarySuggestion));
+    contextTargetTypeInput?.addEventListener("change", () => loadEditorLinkTargets());
+    contextClientInput?.addEventListener("change", handleEditorLinkClientContextChange);
+    contextSearchInput?.addEventListener("input", () => queueEditorLinkTargetSearch());
+    contextApplyButton?.addEventListener("click", () => applyEditorLinkTarget());
+    document.querySelector("[data-note-editor-toolbar]")?.addEventListener("click", handleEditorCommand);
+    tagsToggle?.addEventListener("click", openTagsDialog);
+    tagsDialogCloseButton?.addEventListener("click", closeTagsDialog);
+    tagsDialog?.addEventListener("close", handleTagsDialogClose);
+    filesToggle?.addEventListener("click", openFilesDialog);
+    filesDialogCloseButton?.addEventListener("click", closeFilesDialog);
+    filesDialog?.addEventListener("close", handleFilesDialogClose);
+    copyLinkButton?.addEventListener("click", copyCurrentNoteLink);
+    dialog?.addEventListener("close", handleEditorDialogClose);
+  }
 
   const notesDialogApi = Object.freeze({
     openAdd: (params = {}, hostContext = null) => openNoteEditor({ ...params, mode: "add" }, hostContext),
@@ -329,9 +554,6 @@
     title: "View Note",
   });
 
-  if (isNotesWorkspaceSurface) {
-    initialize();
-  }
 
   function buildNotesViewShell() {
     const host = document.querySelector("[data-notes-host]");
@@ -2341,8 +2563,9 @@
     renderEditorContextSelection();
     await loadEditorLinkTargets();
     updateLibrarySuggestion();
+    const openDialog = dialog;
     const closeResult = new Promise((resolve) => {
-      dialog?.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
+      openDialog?.addEventListener("close", () => resolve(openDialog.returnValue || "closed"), { once: true });
     });
     view.showModal(dialog, { trigger: options.trigger || options.hostContext?.trigger || null });
     titleInput.focus();
@@ -4406,7 +4629,8 @@
   }
 
   function populateCollectionParentOptions(currentCollection = null, preferredParent = null) {
-    if (!collectionParentInput) {
+    const parentInput = collectionParentInput;
+    if (!parentInput) {
       return;
     }
 
@@ -4423,12 +4647,12 @@
         .map((collection) => createOption(collection.note_library_collection_id, collectionOptionLabel(collection))),
     ];
 
-    collectionParentInput.replaceChildren(...options);
-    collectionParentInput.value = preferredParent?.note_library_collection_id ||
+    parentInput.replaceChildren(...options);
+    parentInput.value = preferredParent?.note_library_collection_id ||
       currentCollection?.parent_collection_id ||
       "";
-    if (![...collectionParentInput.options].some((option) => option.value === collectionParentInput.value)) {
-      collectionParentInput.value = "";
+    if (![...parentInput.options].some((option) => option.value === parentInput.value)) {
+      parentInput.value = "";
     }
   }
 

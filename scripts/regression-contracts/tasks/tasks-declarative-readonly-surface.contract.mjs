@@ -57,6 +57,26 @@ assert.match(styles, /\.view-slideout-sidebar-main > \.tasks-main-list-region\s*
 
 assert.match(declarativeGuide, /\| Tasks \| tasks \| tasks\.html \| tasks\.workspace \| strict \|/, "Declarative guide should inventory Tasks as a strict descriptor surface");
 
+
+// 0.33.33.35.1.1 - the view shell waits for the workspace context.
+//
+// The shell is built from a server-delivered descriptor. The synchronous workspace context is
+// hydrated from localStorage, so it is legitimately empty on a first visit, in a private
+// window, after cleared site data, or straight after a logout; the protected view ships only
+// an empty host; and nothing re-renders when the context arrives. Building the shell before
+// the context therefore renders whatever the local fallback says rather than what the server
+// delivered. 0.33.33.35.1.2 removes those fallbacks and depends on this ordering holding.
+assert.match(
+  tasksScript,
+  /async function initializeTasksPage\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*buildTasksViewShell\(\)[\s\S]*cacheTasksElements\(\)[\s\S]*bindTasksEvents\(\)/,
+  "Tasks should await the workspace context before building the shell and caching the DOM it creates",
+);
+assert.doesNotMatch(
+  tasksScript,
+  /^  buildTasksViewShell\(\);$/m,
+  "Tasks must not build the workspace shell outside the context-aware bootstrap",
+);
+
 console.log("Tasks declarative read-only surface regression passed.");
 
 /**

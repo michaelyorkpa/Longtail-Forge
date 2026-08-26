@@ -54,97 +54,213 @@
   const taskNestingDepths = new WeakMap();
   const recurrenceContinuityTrackers = new Map();
 
-  buildTasksViewShell();
-  window.LongtailForge.tasksDialog?.configure?.();
+  // 0.33.33.35.1.1: the workspace surface is built from a server-delivered descriptor, so
+  // the shell and every binding that reads the DOM it creates wait for the workspace
+  // context. Before this, the shell was built synchronously against a context hydrated
+  // from localStorage, which is empty on a cold load - the case the fallback covers.
+  initializeTasksPage();
 
-  const taskStatus = document.querySelector("[data-task-status]");
-  const taskList = document.querySelector("[data-task-list]");
-  const addTaskButton = document.querySelector("[data-add-task]");
-  const taskDialog = document.querySelector("[data-task-dialog]");
-  const copyTaskLinkButton = document.querySelector("[data-copy-task-link]");
-  const taskViewSelector = document.querySelector("[data-task-view-selector]");
-  const sortInput = document.querySelector("[data-task-sort]");
-  const statusFilter = document.querySelector("[data-task-status-filter]");
-  const assigneeFilter = document.querySelector("[data-task-assignee-filter]");
-  const clientFilter = document.querySelector("[data-task-client-filter]");
-  const projectFilter = document.querySelector("[data-task-project-filter]");
-  const tagFilterControl = document.querySelector("[data-task-tag-filter-control]");
-  const tagFilter = document.querySelector("[data-task-tag-filter]");
-  const resetTaskFiltersButton = document.querySelector("[data-task-reset-filters]");
-  const selectAllInput = document.querySelector("[data-task-select-all]");
-  const loadMoreTasksButton = document.querySelector("[data-task-load-more]");
-  const taskPagination = document.querySelector("[data-task-pagination]");
-  const taskPageSummary = document.querySelector("[data-task-page-summary]");
-  const bulkToolbar = document.querySelector("[data-task-bulk-toolbar]");
-  const bulkStatusControl = document.querySelector("[data-task-bulk-status-control]");
-  const bulkStatusInput = document.querySelector("[data-task-bulk-status]");
-  const bulkBlockedReasonControl = document.querySelector("[data-task-bulk-blocked-reason-control]");
-  const bulkBlockedReasonInput = document.querySelector("[data-task-bulk-blocked-reason]");
-  const bulkPriorityControl = document.querySelector("[data-task-bulk-priority-control]");
-  const bulkPriorityInput = document.querySelector("[data-task-bulk-priority]");
-  const bulkClientControl = document.querySelector("[data-task-bulk-client-control]");
-  const bulkClientInput = document.querySelector("[data-task-bulk-client]");
-  const bulkProjectControl = document.querySelector("[data-task-bulk-project-control]");
-  const bulkProjectInput = document.querySelector("[data-task-bulk-project]");
-  const bulkDueDateControl = document.querySelector("[data-task-bulk-due-date-control]");
-  const bulkDueDateInput = document.querySelector("[data-task-bulk-due-date]");
-  const bulkClearDueDateInput = document.querySelector("[data-task-bulk-clear-due-date]");
-  const bulkDueTimeControl = document.querySelector("[data-task-bulk-due-time-control]");
-  const bulkDueTimeInput = document.querySelector("[data-task-bulk-due-time]");
-  const bulkClearDueTimeInput = document.querySelector("[data-task-bulk-clear-due-time]");
-  const bulkAssigneeControl = document.querySelector("[data-task-bulk-assignee-control]");
-  const bulkAssigneesControl = document.querySelector("[data-task-bulk-assignees]");
-  const bulkTagActionControl = document.querySelector("[data-task-bulk-tag-action-control]");
-  const bulkTagActionInput = document.querySelector("[data-task-bulk-tag-action]");
-  const bulkTagsControl = document.querySelector("[data-task-bulk-tags-control]");
-  const bulkTagsInput = document.querySelector("[data-task-bulk-tags]");
-  const bulkLifecycleControl = document.querySelector("[data-task-bulk-lifecycle-control]");
-  const bulkLifecycleInput = document.querySelector("[data-task-bulk-lifecycle]");
-  const bulkApplyButton = document.querySelector("[data-task-bulk-apply]");
-  const bulkSelectionCount = document.querySelector("[data-task-bulk-selection-count]");
-  const recurringInput = document.querySelector("[data-task-recurring]");
-  const recurrenceDetailsButton = document.querySelector("[data-task-recurrence-details]");
-  const recurrenceDialog = document.querySelector("[data-task-recurrence-dialog]");
+  async function initializeTasksPage() {
+    try {
+      await window.LongtailForge?.workspaceContextReady;
+    } catch {
+      // A rejected context must not strand the page; the descriptor fallback still renders.
+    }
+    buildTasksViewShell();
+    window.LongtailForge.tasksDialog?.configure?.();
+    cacheTasksElements();
+    bindTasksEvents();
+    await loadTasks();
+  }
+
+  /** @type {Element | null} */
+  let taskStatus = null;
+  /** @type {Element | null} */
+  let taskList = null;
+  /** @type {Element | null} */
+  let addTaskButton = null;
+  /** @type {Element | null} */
+  let taskDialog = null;
+  /** @type {Element | null} */
+  let copyTaskLinkButton = null;
+  /** @type {Element | null} */
+  let taskViewSelector = null;
+  /** @type {Element | null} */
+  let sortInput = null;
+  /** @type {Element | null} */
+  let statusFilter = null;
+  /** @type {Element | null} */
+  let assigneeFilter = null;
+  /** @type {Element | null} */
+  let clientFilter = null;
+  /** @type {Element | null} */
+  let projectFilter = null;
+  /** @type {Element | null} */
+  let tagFilterControl = null;
+  /** @type {Element | null} */
+  let tagFilter = null;
+  /** @type {Element | null} */
+  let resetTaskFiltersButton = null;
+  /** @type {Element | null} */
+  let selectAllInput = null;
+  /** @type {Element | null} */
+  let loadMoreTasksButton = null;
+  /** @type {Element | null} */
+  let taskPagination = null;
+  /** @type {Element | null} */
+  let taskPageSummary = null;
+  /** @type {Element | null} */
+  let bulkToolbar = null;
+  /** @type {Element | null} */
+  let bulkStatusControl = null;
+  /** @type {Element | null} */
+  let bulkStatusInput = null;
+  /** @type {Element | null} */
+  let bulkBlockedReasonControl = null;
+  /** @type {Element | null} */
+  let bulkBlockedReasonInput = null;
+  /** @type {Element | null} */
+  let bulkPriorityControl = null;
+  /** @type {Element | null} */
+  let bulkPriorityInput = null;
+  /** @type {Element | null} */
+  let bulkClientControl = null;
+  /** @type {Element | null} */
+  let bulkClientInput = null;
+  /** @type {Element | null} */
+  let bulkProjectControl = null;
+  /** @type {Element | null} */
+  let bulkProjectInput = null;
+  /** @type {Element | null} */
+  let bulkDueDateControl = null;
+  /** @type {Element | null} */
+  let bulkDueDateInput = null;
+  /** @type {Element | null} */
+  let bulkClearDueDateInput = null;
+  /** @type {Element | null} */
+  let bulkDueTimeControl = null;
+  /** @type {Element | null} */
+  let bulkDueTimeInput = null;
+  /** @type {Element | null} */
+  let bulkClearDueTimeInput = null;
+  /** @type {Element | null} */
+  let bulkAssigneeControl = null;
+  /** @type {Element | null} */
+  let bulkAssigneesControl = null;
+  /** @type {Element | null} */
+  let bulkTagActionControl = null;
+  /** @type {Element | null} */
+  let bulkTagActionInput = null;
+  /** @type {Element | null} */
+  let bulkTagsControl = null;
+  /** @type {Element | null} */
+  let bulkTagsInput = null;
+  /** @type {Element | null} */
+  let bulkLifecycleControl = null;
+  /** @type {Element | null} */
+  let bulkLifecycleInput = null;
+  /** @type {Element | null} */
+  let bulkApplyButton = null;
+  /** @type {Element | null} */
+  let bulkSelectionCount = null;
+  /** @type {Element | null} */
+  let recurringInput = null;
+  /** @type {Element | null} */
+  let recurrenceDetailsButton = null;
+  /** @type {Element | null} */
+  let recurrenceDialog = null;
 
   const api = window.LongtailForge.api;
   const pageController = window.LongtailForge.pageController;
   const modal = window.LongtailForge.modal;
 
-  addTaskButton?.addEventListener("click", () => openTaskDialog());
-  taskViewSelector?.addEventListener("change", handleTaskViewChange);
-  resetTaskFiltersButton?.addEventListener("click", resetAdvancedTaskFilters);
-  bulkStatusInput?.addEventListener("change", updateBulkControls);
-  bulkBlockedReasonInput?.addEventListener("input", updateBulkControls);
-  bulkPriorityInput?.addEventListener("change", updateBulkControls);
-  bulkClientInput?.addEventListener("change", handleBulkClientChange);
-  bulkProjectInput?.addEventListener("change", handleBulkProjectChange);
-  bulkDueDateInput?.addEventListener("change", updateBulkControls);
-  bulkClearDueDateInput?.addEventListener("change", updateBulkControls);
-  bulkDueTimeInput?.addEventListener("change", updateBulkControls);
-  bulkClearDueTimeInput?.addEventListener("change", updateBulkControls);
-  bulkAssigneesControl?.addEventListener("change", updateBulkControls);
-  bulkTagActionInput?.addEventListener("change", updateBulkControls);
-  bulkTagsInput?.addEventListener("change", updateBulkControls);
-  bulkLifecycleInput?.addEventListener("change", updateBulkControls);
-  bulkApplyButton?.addEventListener("click", applyBulkAction);
-  selectAllInput?.addEventListener("change", toggleVisibleSelection);
-  loadMoreTasksButton?.addEventListener("click", loadMoreTasks);
-  [sortInput, statusFilter, assigneeFilter, projectFilter, tagFilter].forEach((input) => {
-    input?.addEventListener("change", async () => {
+  function cacheTasksElements() {
+    taskStatus = document.querySelector("[data-task-status]");
+    taskList = document.querySelector("[data-task-list]");
+    addTaskButton = document.querySelector("[data-add-task]");
+    taskDialog = document.querySelector("[data-task-dialog]");
+    copyTaskLinkButton = document.querySelector("[data-copy-task-link]");
+    taskViewSelector = document.querySelector("[data-task-view-selector]");
+    sortInput = document.querySelector("[data-task-sort]");
+    statusFilter = document.querySelector("[data-task-status-filter]");
+    assigneeFilter = document.querySelector("[data-task-assignee-filter]");
+    clientFilter = document.querySelector("[data-task-client-filter]");
+    projectFilter = document.querySelector("[data-task-project-filter]");
+    tagFilterControl = document.querySelector("[data-task-tag-filter-control]");
+    tagFilter = document.querySelector("[data-task-tag-filter]");
+    resetTaskFiltersButton = document.querySelector("[data-task-reset-filters]");
+    selectAllInput = document.querySelector("[data-task-select-all]");
+    loadMoreTasksButton = document.querySelector("[data-task-load-more]");
+    taskPagination = document.querySelector("[data-task-pagination]");
+    taskPageSummary = document.querySelector("[data-task-page-summary]");
+    bulkToolbar = document.querySelector("[data-task-bulk-toolbar]");
+    bulkStatusControl = document.querySelector("[data-task-bulk-status-control]");
+    bulkStatusInput = document.querySelector("[data-task-bulk-status]");
+    bulkBlockedReasonControl = document.querySelector("[data-task-bulk-blocked-reason-control]");
+    bulkBlockedReasonInput = document.querySelector("[data-task-bulk-blocked-reason]");
+    bulkPriorityControl = document.querySelector("[data-task-bulk-priority-control]");
+    bulkPriorityInput = document.querySelector("[data-task-bulk-priority]");
+    bulkClientControl = document.querySelector("[data-task-bulk-client-control]");
+    bulkClientInput = document.querySelector("[data-task-bulk-client]");
+    bulkProjectControl = document.querySelector("[data-task-bulk-project-control]");
+    bulkProjectInput = document.querySelector("[data-task-bulk-project]");
+    bulkDueDateControl = document.querySelector("[data-task-bulk-due-date-control]");
+    bulkDueDateInput = document.querySelector("[data-task-bulk-due-date]");
+    bulkClearDueDateInput = document.querySelector("[data-task-bulk-clear-due-date]");
+    bulkDueTimeControl = document.querySelector("[data-task-bulk-due-time-control]");
+    bulkDueTimeInput = document.querySelector("[data-task-bulk-due-time]");
+    bulkClearDueTimeInput = document.querySelector("[data-task-bulk-clear-due-time]");
+    bulkAssigneeControl = document.querySelector("[data-task-bulk-assignee-control]");
+    bulkAssigneesControl = document.querySelector("[data-task-bulk-assignees]");
+    bulkTagActionControl = document.querySelector("[data-task-bulk-tag-action-control]");
+    bulkTagActionInput = document.querySelector("[data-task-bulk-tag-action]");
+    bulkTagsControl = document.querySelector("[data-task-bulk-tags-control]");
+    bulkTagsInput = document.querySelector("[data-task-bulk-tags]");
+    bulkLifecycleControl = document.querySelector("[data-task-bulk-lifecycle-control]");
+    bulkLifecycleInput = document.querySelector("[data-task-bulk-lifecycle]");
+    bulkApplyButton = document.querySelector("[data-task-bulk-apply]");
+    bulkSelectionCount = document.querySelector("[data-task-bulk-selection-count]");
+    recurringInput = document.querySelector("[data-task-recurring]");
+    recurrenceDetailsButton = document.querySelector("[data-task-recurrence-details]");
+    recurrenceDialog = document.querySelector("[data-task-recurrence-dialog]");
+  }
+
+  function bindTasksEvents() {
+    addTaskButton?.addEventListener("click", () => openTaskDialog());
+    taskViewSelector?.addEventListener("change", handleTaskViewChange);
+    resetTaskFiltersButton?.addEventListener("click", resetAdvancedTaskFilters);
+    bulkStatusInput?.addEventListener("change", updateBulkControls);
+    bulkBlockedReasonInput?.addEventListener("input", updateBulkControls);
+    bulkPriorityInput?.addEventListener("change", updateBulkControls);
+    bulkClientInput?.addEventListener("change", handleBulkClientChange);
+    bulkProjectInput?.addEventListener("change", handleBulkProjectChange);
+    bulkDueDateInput?.addEventListener("change", updateBulkControls);
+    bulkClearDueDateInput?.addEventListener("change", updateBulkControls);
+    bulkDueTimeInput?.addEventListener("change", updateBulkControls);
+    bulkClearDueTimeInput?.addEventListener("change", updateBulkControls);
+    bulkAssigneesControl?.addEventListener("change", updateBulkControls);
+    bulkTagActionInput?.addEventListener("change", updateBulkControls);
+    bulkTagsInput?.addEventListener("change", updateBulkControls);
+    bulkLifecycleInput?.addEventListener("change", updateBulkControls);
+    bulkApplyButton?.addEventListener("click", applyBulkAction);
+    selectAllInput?.addEventListener("change", toggleVisibleSelection);
+    loadMoreTasksButton?.addEventListener("click", loadMoreTasks);
+    [sortInput, statusFilter, assigneeFilter, projectFilter, tagFilter].forEach((input) => {
+      input?.addEventListener("change", async () => {
+        saveFilterState();
+        await reloadTaskList();
+      });
+    });
+    clientFilter?.addEventListener("change", async () => {
+      // Narrow the Project dropdown to the newly selected client and drop any now-incompatible
+      // project selection BEFORE the reload builds the query, otherwise the request would pair a
+      // new client with a stale cross-client project and return nothing.
+      reconcileProjectFilterForClient();
       saveFilterState();
       await reloadTaskList();
     });
-  });
-  clientFilter?.addEventListener("change", async () => {
-    // Narrow the Project dropdown to the newly selected client and drop any now-incompatible
-    // project selection BEFORE the reload builds the query, otherwise the request would pair a
-    // new client with a stale cross-client project and return nothing.
-    reconcileProjectFilterForClient();
-    saveFilterState();
-    await reloadTaskList();
-  });
+  }
 
-  loadTasks();
 
   function buildTasksViewShell() {
     const host = document.querySelector("[data-tasks-host]");

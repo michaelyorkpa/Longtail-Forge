@@ -57,70 +57,183 @@
     workspaceType: "business",
   };
 
-  buildListsViewShell();
-  if (!isListsWorkspaceSurface) {
+  // 0.33.33.35.1.1: the workspace surface is built from a server-delivered descriptor, so
+  // the shell and every binding that reads the DOM it creates wait for the workspace
+  // context. Before this, the shell was built synchronously against a context hydrated
+  // from localStorage, which is empty on a cold load - the case the fallback covers.
+  //
+  // The dialog-only path reads no descriptor - buildListsViewShell() returns early without a
+  // host - so it keeps its synchronous bootstrap. That is the path the registry uses when
+  // it lazily imports this controller for a module action, and it must stay immediate.
+  if (isListsWorkspaceSurface) {
+    initializeListsWorkspace();
+  } else {
     ensureListsDialogShell();
+    cacheListsElements();
+    bindListsEvents();
   }
 
-  const pageTitle = document.querySelector("[data-lists-title]");
-  const createButton = document.querySelector("[data-list-create]");
-  const statusMessage = document.querySelector("[data-lists-status]");
-  const filtersForm = document.querySelector("[data-lists-filters]");
-  const statusFilter = document.querySelector("[data-list-filter-status]");
-  const typeFilter = document.querySelector("[data-list-filter-type]");
-  const reusableFilter = document.querySelector("[data-list-filter-reusable]");
-  const clientFilter = document.querySelector("[data-list-filter-client]");
-  const projectFilter = document.querySelector("[data-list-filter-project]");
-  const assigneeFilter = document.querySelector("[data-list-filter-assignee]");
-  const neededFilter = document.querySelector("[data-list-filter-needed]");
-  const archiveFilter = document.querySelector("[data-list-filter-archive]");
-  const sortSelect = document.querySelector("[data-list-sort]");
-  const indexPanel = document.querySelector("[data-lists-index-panel]");
-  const countLabel = document.querySelector("[data-lists-count]");
-  const listMount = document.querySelector("[data-lists-list]");
-  const detailPanel = document.querySelector("[data-list-detail]");
-  const listDialog = document.querySelector("[data-list-dialog]");
-  const listForm = document.querySelector("[data-list-form]");
-  const listDialogTitle = document.querySelector("[data-list-dialog-title]");
-  const listDialogClose = document.querySelector("[data-list-dialog-close]");
-  const listTitleInput = document.querySelector("[data-list-title]");
-  const listTypeInput = document.querySelector("[data-list-type]");
-  const listClientInput = document.querySelector("[data-list-client]");
-  const listProjectInput = document.querySelector("[data-list-project]");
-  const listDescriptionInput = document.querySelector("[data-list-description]");
-  const listLinkPicker = document.querySelector("[data-list-link-picker]");
-  const listLinkTargetTypeInput = document.querySelector("[data-list-link-target-type]");
-  const listLinkSearchInput = document.querySelector("[data-list-link-search]");
-  const listLinkResultsInput = document.querySelector("[data-list-link-results]");
-  const listLinkApplyButton = document.querySelector("[data-list-link-apply]");
-  const listFormStatus = document.querySelector("[data-list-form-status]");
-  const listCancelButton = document.querySelector("[data-list-cancel]");
-  const listSaveButton = document.querySelector("[data-list-save]");
-  const itemDialog = document.querySelector("[data-list-item-dialog]");
-  const itemDialogForm = document.querySelector("[data-list-item-form]");
-  const itemDialogTitle = document.querySelector("[data-list-item-dialog-title]");
-  const itemDialogClose = document.querySelector("[data-list-item-dialog-close]");
-  const itemDialogCancel = document.querySelector("[data-list-item-cancel]");
-  const itemDialogSave = document.querySelector("[data-list-item-save]");
-  const itemDialogFormStatus = document.querySelector("[data-list-item-form-status]");
-
-  if (!createButton?.dataset.surfaceAction) {
-    createButton?.addEventListener("click", () => openListDialog());
+  async function initializeListsWorkspace() {
+    try {
+      await window.LongtailForge?.workspaceContextReady;
+    } catch {
+      // A rejected context must not strand the page; the descriptor fallback still renders,
+      // and initialize() below reports the failure through the surface it just built.
+    }
+    buildListsViewShell();
+    cacheListsElements();
+    bindListsEvents();
+    await initialize();
   }
-  filtersForm?.addEventListener("change", () => refreshLists());
-  sortSelect?.addEventListener("change", () => refreshLists());
-  listForm?.addEventListener("submit", saveList);
-  listDialogClose?.addEventListener("click", cancelListDialog);
-  listCancelButton?.addEventListener("click", cancelListDialog);
-  listDialog?.addEventListener("close", handleListDialogClose);
-  itemDialogForm?.addEventListener("submit", saveItem);
-  itemDialogClose?.addEventListener("click", closeItemDialog);
-  itemDialogCancel?.addEventListener("click", closeItemDialog);
-  listClientInput?.addEventListener("change", () => populateProjectOptions(listProjectInput, listClientInput.value));
-  listProjectInput?.addEventListener("change", syncClientFromProject);
-  listTypeInput?.addEventListener("change", () => setContextControlsVisible(shouldShowContextControls(listTypeInput.value)));
-  detailPanel?.addEventListener("click", handleDetailClick);
-  detailPanel?.addEventListener("submit", handleDetailSubmit);
+
+  /** @type {Element | null} */
+  let pageTitle = null;
+  /** @type {Element | null} */
+  let createButton = null;
+  /** @type {Element | null} */
+  let statusMessage = null;
+  /** @type {Element | null} */
+  let filtersForm = null;
+  /** @type {Element | null} */
+  let statusFilter = null;
+  /** @type {Element | null} */
+  let typeFilter = null;
+  /** @type {Element | null} */
+  let reusableFilter = null;
+  /** @type {Element | null} */
+  let clientFilter = null;
+  /** @type {Element | null} */
+  let projectFilter = null;
+  /** @type {Element | null} */
+  let assigneeFilter = null;
+  /** @type {Element | null} */
+  let neededFilter = null;
+  /** @type {Element | null} */
+  let archiveFilter = null;
+  /** @type {Element | null} */
+  let sortSelect = null;
+  /** @type {Element | null} */
+  let indexPanel = null;
+  /** @type {Element | null} */
+  let countLabel = null;
+  /** @type {Element | null} */
+  let listMount = null;
+  /** @type {Element | null} */
+  let detailPanel = null;
+  /** @type {Element | null} */
+  let listDialog = null;
+  /** @type {Element | null} */
+  let listForm = null;
+  /** @type {Element | null} */
+  let listDialogTitle = null;
+  /** @type {Element | null} */
+  let listDialogClose = null;
+  /** @type {Element | null} */
+  let listTitleInput = null;
+  /** @type {Element | null} */
+  let listTypeInput = null;
+  /** @type {Element | null} */
+  let listClientInput = null;
+  /** @type {Element | null} */
+  let listProjectInput = null;
+  /** @type {Element | null} */
+  let listDescriptionInput = null;
+  /** @type {Element | null} */
+  let listLinkPicker = null;
+  /** @type {Element | null} */
+  let listLinkTargetTypeInput = null;
+  /** @type {Element | null} */
+  let listLinkSearchInput = null;
+  /** @type {Element | null} */
+  let listLinkResultsInput = null;
+  /** @type {Element | null} */
+  let listLinkApplyButton = null;
+  /** @type {Element | null} */
+  let listFormStatus = null;
+  /** @type {Element | null} */
+  let listCancelButton = null;
+  /** @type {Element | null} */
+  let listSaveButton = null;
+  /** @type {Element | null} */
+  let itemDialog = null;
+  /** @type {Element | null} */
+  let itemDialogForm = null;
+  /** @type {Element | null} */
+  let itemDialogTitle = null;
+  /** @type {Element | null} */
+  let itemDialogClose = null;
+  /** @type {Element | null} */
+  let itemDialogCancel = null;
+  /** @type {Element | null} */
+  let itemDialogSave = null;
+  /** @type {Element | null} */
+  let itemDialogFormStatus = null;
+
+  function cacheListsElements() {
+    pageTitle = document.querySelector("[data-lists-title]");
+    createButton = document.querySelector("[data-list-create]");
+    statusMessage = document.querySelector("[data-lists-status]");
+    filtersForm = document.querySelector("[data-lists-filters]");
+    statusFilter = document.querySelector("[data-list-filter-status]");
+    typeFilter = document.querySelector("[data-list-filter-type]");
+    reusableFilter = document.querySelector("[data-list-filter-reusable]");
+    clientFilter = document.querySelector("[data-list-filter-client]");
+    projectFilter = document.querySelector("[data-list-filter-project]");
+    assigneeFilter = document.querySelector("[data-list-filter-assignee]");
+    neededFilter = document.querySelector("[data-list-filter-needed]");
+    archiveFilter = document.querySelector("[data-list-filter-archive]");
+    sortSelect = document.querySelector("[data-list-sort]");
+    indexPanel = document.querySelector("[data-lists-index-panel]");
+    countLabel = document.querySelector("[data-lists-count]");
+    listMount = document.querySelector("[data-lists-list]");
+    detailPanel = document.querySelector("[data-list-detail]");
+    listDialog = document.querySelector("[data-list-dialog]");
+    listForm = document.querySelector("[data-list-form]");
+    listDialogTitle = document.querySelector("[data-list-dialog-title]");
+    listDialogClose = document.querySelector("[data-list-dialog-close]");
+    listTitleInput = document.querySelector("[data-list-title]");
+    listTypeInput = document.querySelector("[data-list-type]");
+    listClientInput = document.querySelector("[data-list-client]");
+    listProjectInput = document.querySelector("[data-list-project]");
+    listDescriptionInput = document.querySelector("[data-list-description]");
+    listLinkPicker = document.querySelector("[data-list-link-picker]");
+    listLinkTargetTypeInput = document.querySelector("[data-list-link-target-type]");
+    listLinkSearchInput = document.querySelector("[data-list-link-search]");
+    listLinkResultsInput = document.querySelector("[data-list-link-results]");
+    listLinkApplyButton = document.querySelector("[data-list-link-apply]");
+    listFormStatus = document.querySelector("[data-list-form-status]");
+    listCancelButton = document.querySelector("[data-list-cancel]");
+    listSaveButton = document.querySelector("[data-list-save]");
+    itemDialog = document.querySelector("[data-list-item-dialog]");
+    itemDialogForm = document.querySelector("[data-list-item-form]");
+    itemDialogTitle = document.querySelector("[data-list-item-dialog-title]");
+    itemDialogClose = document.querySelector("[data-list-item-dialog-close]");
+    itemDialogCancel = document.querySelector("[data-list-item-cancel]");
+    itemDialogSave = document.querySelector("[data-list-item-save]");
+    itemDialogFormStatus = document.querySelector("[data-list-item-form-status]");
+  }
+
+  function bindListsEvents() {
+    if (!createButton?.dataset.surfaceAction) {
+      createButton?.addEventListener("click", () => openListDialog());
+    }
+    filtersForm?.addEventListener("change", () => refreshLists());
+    sortSelect?.addEventListener("change", () => refreshLists());
+    listForm?.addEventListener("submit", saveList);
+    listDialogClose?.addEventListener("click", cancelListDialog);
+    listCancelButton?.addEventListener("click", cancelListDialog);
+    listDialog?.addEventListener("close", handleListDialogClose);
+    itemDialogForm?.addEventListener("submit", saveItem);
+    itemDialogClose?.addEventListener("click", closeItemDialog);
+    itemDialogCancel?.addEventListener("click", closeItemDialog);
+    const listClientControl = listClientInput;
+    const listTypeControl = listTypeInput;
+    listClientControl?.addEventListener("change", () => populateProjectOptions(listProjectInput, listClientControl.value));
+    listProjectInput?.addEventListener("change", syncClientFromProject);
+    listTypeControl?.addEventListener("change", () => setContextControlsVisible(shouldShowContextControls(listTypeControl.value)));
+    detailPanel?.addEventListener("click", handleDetailClick);
+    detailPanel?.addEventListener("submit", handleDetailSubmit);
+  }
 
   const listsDialogApi = Object.freeze({
     openAdd: (params = {}, hostContext = null) => openListEditor({ ...params, mode: "add" }, hostContext),
@@ -158,9 +271,6 @@
     title: "Edit List",
   });
 
-  if (isListsWorkspaceSurface) {
-    initialize();
-  }
 
   function buildListsViewShell() {
     const host = document.querySelector("[data-lists-host]");
@@ -1890,8 +2000,9 @@
     listFormStatus.textContent = "";
     listSaveButton.textContent = list ? "Save List" : "Create List";
     configureListEditorPicker(list);
+    const openDialog = listDialog;
     const closeResult = new Promise((resolve) => {
-      listDialog?.addEventListener("close", () => resolve(listDialog.returnValue || "closed"), { once: true });
+      openDialog?.addEventListener("close", () => resolve(openDialog.returnValue || "closed"), { once: true });
     });
     view.showModal(listDialog, { trigger: options.trigger || null });
     listTitleInput.focus();

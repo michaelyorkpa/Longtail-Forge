@@ -243,7 +243,9 @@ WHERE note_id = ${sqlText(personalDefault.note.note_id)};
     assert.match(filesPage, /data-files-host/);
     assert.match(filesPage, /js\/shared\/client-project-options\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/files\.js/);
     assert.match(filesScript, /dataset\.fileBusinessControl/);
-    assert.match(filesScript, /await window\.LongtailForge\.workspaceContextReady/);
+    // 0.33.33.35.1.1 made this await tolerate an absent namespace, the way
+    // clients-projects.js already did, because the view shell now depends on it.
+    assert.match(filesScript, /await window\.LongtailForge\?\.workspaceContextReady/);
     assert.match(filesScript, /clientId: usesBusinessScope\(\) \? clientFilter\?\.value : ""/);
     assert.match(filesScript, /targetLabel/);
     assert.match(filesScript, /clientLabel/);
