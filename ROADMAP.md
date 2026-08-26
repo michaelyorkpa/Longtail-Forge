@@ -84,12 +84,28 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Model: High Effort** - The loader is shared framework machinery whose dependency table controls several module controllers.
 
-**Remeasured and kept as one checkpoint.** The seam is genuinely singular: one table, `WORKBENCH_MODULE_ACTION_DEPENDENCIES` at `public/js/workbench.js:45`, read at exactly one site, `workbench.js:3225`; one destination, `public/js/shared/module-actions.js`, which is 387 lines and already IIFE-isolated; and one stub, the `window.LongtailForge.filesDialog` bridge built at `workbench.js:2981-3001`. There is no second dependency table and no second consumer, so there is nothing to slice along.
+**Remeasured after `0.33.33.33` closed, and kept as one checkpoint.** The earlier preflight was measured before `0.33.33.33.7` scoped `workbench.js`; three of its facts have been corrected against the final tree.
+
+| Preflight fact | Corrected measurement |
+| --- | --- |
+| Table at `workbench.js:45`, read at `workbench.js:3225` | `workbench.js:46`, read at `workbench.js:3227` |
+| Files bridge at `workbench.js:2981-3001` | `workbench.js:2979-3006` |
+| Destination `public/js/shared/module-actions.js`, 387 lines, already IIFE-isolated | unchanged |
+| "There is no second dependency table and no second consumer" | **wrong** - see below |
+
+**There is a second dependency table.** `public/js/footer.js:109` holds `quickActionDependencySets`, four sets in the identical `{ src, test, module? }` shape, loaded by `loadQuickActionScript` at `footer.js:370` - a byte-for-byte duplicate of `loadWorkbenchActionDependency` apart from its Map name and one error string - over its own `quickActionScriptLoads` Map. `ensureQuickActionDependencies` at `footer.js:358` duplicates `ensureWorkbenchModuleAction` minus the Files bridge call.
+
+**It stays out of this checkpoint, and that is a measured decision rather than an omission.** `footer.js` is loaded by 35 views and `module-actions.js` by 9; the 26 views that load the footer without the registry are listed in this checkpoint's archive entry. Footer's `moduleActionBaseDependencies` set *bootstraps `js/shared/module-actions.js` itself*, so a loader published by `module-actions.js` cannot be the thing that loads `module-actions.js`. Deduplicating footer therefore requires a new shared script delivered on all 35 views - a view-template and asset-delivery blast radius, not this one. The duplicate is recorded here so a later checkpoint inherits the measurement rather than rediscovering it.
+
+The seam this checkpoint does own is singular: one table read at exactly one site, one destination, and one stub.
 
 - [ ] Move the hard-coded action dependency table and loader to `public/js/shared/` behind a typed stable contract.
 - [ ] Remove Workbench's inline `filesDialog` stub once the canonical File Context/preview helper is loadable. **This retires the one temporary application-surface exception `0.33.33.33` closes with.** `files.js` is the canonical owner; when the Workbench writer goes, the `window.LongtailForge.filesDialog` record in `scripts/regressions/framework/full-strict-governance.regression.mjs` must be struck in the same change, because the inventory fails on a record that outlives its writer as well as on an unrecorded one.
+- [ ] **The reduction is three writers to one, not two to one.** The `0.33.33.33.8` record names `public/js/files.js`, `public/js/shared/file-preview.js`, and `public/js/workbench.js`; the record cannot be struck while the `shared/file-preview.js` merge remains, so that writer is in scope alongside the Workbench one. Nothing in the tree reads `filesDialog.openFilePreview`, the member that merge contributes, and `files.js` already republishes it.
+- [ ] **Workbench may not reach `files.preview` by loading the Files page.** `scripts/regression-contracts/workbench/workbench-task-focus-related-context-ui.contract.mjs` asserts `workbench.js` never names `js/files.js`, and `files.js` self-initializes with two page fetches on load. The action-shaped preview opener therefore moves to `public/js/shared/file-preview.js`, the framework preview helper that is already loadable and already static on Workbench, and `files.js` delegates to it while remaining the sole writer of the namespace.
 - [ ] Preserve asset versioning, lazy loading, module enablement, failure messaging, and action registration.
 - [ ] Do not broaden the loader into a plugin system or change Workbench workflow behavior.
+- [ ] **The extracted code must land fully typed.** The debt ledger is per-file and per-code shrink-only with no wildcard, and `DIAGNOSTIC_RECLASSIFICATIONS` cannot cover a destination file whose total rises. Moving an unannotated loader into `module-actions.js` fails the gate, so the move and its JSDoc are one change.
 - [ ] **Ordering: runs after `0.33.33.33.7`**, which scopes `workbench.js`. Moving a table out of a file whose lexical environment is about to change would have to be proved twice.
 
 ### 0.33.33.35 - Isolate view-renderer and view-builder responsibilities
