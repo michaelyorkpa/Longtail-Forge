@@ -221,20 +221,27 @@ export function extractClassMethodBlock(source, className, methodName) {
     if (char === "{") { depth += 1; continue; }
     if (char === "}") { depth -= 1; continue; }
     if (depth !== 0) continue;
-    const previous = masked[index - 1];
-    if (previous !== undefined && /[\w$.]/.test(previous)) continue;
+    // Brace depth alone does not prove a candidate is a class element. A call in a field
+    // initialiser (`field = target();`) or in another method's parameter list
+    // (`other(value = target())`) also sits at class-body depth 0, and matching one of
+    // those produces a region that is not a method at all.
+    //
+    // A class element begins where the previous element ended: at the class body's own
+    // `{`, at the `}` closing a previous method, or at the `;` terminating a previous
+    // field. Requiring that one structural fact is also what makes the unsupported forms
+    // impossible rather than merely listed - `get`, `set`, `static`, `*` and `#` all put
+    // something other than those three characters immediately before the name, and it is
+    // what stops `static async target()` being re-entered at `target` after the `async`
+    // candidate was rejected.
+    //
+    // The narrowing this implies is stated rather than hidden: a method preceded by a
+    // field that relies on automatic semicolon insertion is not found.
+    let beforeCandidate = index;
+    while (beforeCandidate > 0 && /\s/.test(masked[beforeCandidate - 1])) beforeCandidate -= 1;
+    const elementBoundary = beforeCandidate > 0 ? masked[beforeCandidate - 1] : "";
+    if (!"{};".includes(elementBoundary) || elementBoundary === "") continue;
     member.lastIndex = index;
     if (!member.test(masked)) continue;
-    // The supported contract is ordinary and `async` instance methods. A generator or a
-    // private member is marked by the character immediately before the name, and an
-    // accessor or a static member by the word before it. None of these are supported, and
-    // an unsupported form must not be silently returned as though it were the method
-    // asked for - that is how a helper stops being truthful about its own contract.
-    if (previous === "*" || previous === "#") continue;
-    let beforeName = index;
-    while (beforeName > 0 && /\s/.test(masked[beforeName - 1])) beforeName -= 1;
-    const precedingWord = /([A-Za-z_$][\w$]*)$/.exec(masked.slice(0, beforeName));
-    if (precedingWord && ["get", "set", "static"].includes(precedingWord[1])) continue;
     // The body brace is found after the parameter list closes, because a default
     // parameter value can itself contain braces: `target({ a } = {}) {}`.
     const parameterClose = findBalancedParenClose(masked, masked.indexOf("(", index));

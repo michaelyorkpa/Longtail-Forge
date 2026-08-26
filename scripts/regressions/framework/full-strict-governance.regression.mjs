@@ -2132,6 +2132,24 @@ for (const [shape, maskedSource] of [
   );
 }
 
+// Brace depth alone does not prove class-element position. A call in a field initialiser
+// or in another method's parameter list also sits at class-body depth 0, and matching one
+// produced a region that was not a method at all: the field case widened through to the
+// real method and the parameter case returned a fragment. The same rule is what stops
+// `static async target()` being re-entered at the name after the `async` candidate was
+// refused, which is how an unsupported static member was previously returned.
+for (const [shape, positionSource] of [
+  ["a call in a field initialiser", "class Example {\n  field = target();\n\n  target() {\n    return 1;\n  }\n}\n"],
+  ["a call in another method's parameter list", "class Example {\n  other(value = target()) {}\n\n  target() {\n    return 1;\n  }\n}\n"],
+]) {
+  const extracted = extractClassMethodBlock(positionSource, "Example", "target");
+  assert.equal(extracted, "target() {\n    return 1;\n  }", `${shape} is not a class element and must not be selected`);
+}
+assert.throws(
+  () => extractClassMethodBlock("class Example {\n  static async target() {\n    return 1;\n  }\n}\n", "Example", "target"),
+  /should exist as a direct class method/,
+  "a static async member must not be re-entered at the method name after its prefix is refused",
+);
 // The contract is ordinary and async identifier-named instance methods, and it says so by
 // refusing everything else rather than returning a near-miss.
 for (const [shape, unsupportedSource] of [
