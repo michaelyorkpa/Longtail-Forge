@@ -54,7 +54,9 @@ Release-wide measurable acceptance:
 
 ### 0.33.33.33 - Isolate classic browser controllers with IIFEs
 
-**CLOSED by `0.33.33.33.7`.** The rollup and its seven children have archived. Every classic browser script is out of the shared lexical environment and the acceptance evidence is recorded in `ROADMAP-ARCHIVE.md`.
+**CLOSED by `0.33.33.33.8`.** The rollup and its eight children have archived. Every classic browser script is out of the shared lexical environment and the acceptance evidence is recorded in `ROADMAP-ARCHIVE.md`.
+
+**This rollup was reopened once.** `0.33.33.33.7` closed it against the publication scanner available at the time, which discovered only direct `window.<surface> = ...` assignments. The `0.33.33.34` preflight found that model incomplete: most of the namespace is published through an alias, so the recorded inventory of 19 surfaces was a large undercount and a contested surface plus a third `window.fetch` guard were invisible. **The controller isolation work was correct and is unchanged; the publication ownership evidence was not complete.** `0.33.33.33.8` replaced the scanner with an AST-backed alias-aware inventory, re-measured the estate, and re-closed the rollup on the corrected numbers without changing any browser application file.
 
 Closing state, measured on the final tree rather than restated:
 
@@ -64,10 +66,17 @@ Closing state, measured on the final tree rather than restated:
 | Shared-classic lexical backlog | **empty** |
 | `TS2451` | **0** |
 | Browser delivery universe | **75 classic + 2 native modules = 77** |
-| Application-owned surfaces with more than one publisher | **2, both classified** |
+| Application-owned publication surfaces (AST-resolved, alias-aware) | **59** |
+| Surfaces with more than one writer | **3, all classified** |
 | Live or spent diagnostic-reclassification records | **0** |
 
-The two native modules, `dashboard.entry.js` and `tasks-dashboard.js`, each carry a top-level `await` and an export marker, are loaded only as modules, and are loaded classically by nothing. The two multi-publisher surfaces are `window.fetch`, the permanent ordered composition of the CSRF and session-expiry guards, and `window.LongtailForge.filesDialog`, the temporary Files compatibility bridge that `0.33.33.34` owns retiring.
+The two native modules, `dashboard.entry.js` and `tasks-dashboard.js`, each carry a top-level `await` and an export marker, are loaded only as modules, and are loaded classically by nothing.
+
+The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
+
+- **`window.fetch` - permanent ordered platform composition, three writers.** `shared/browser-recovery.js` is injected immediately after `<head>` and wraps the native fetch with 403 permission-denied recovery, `theme-init.js` then adds CSRF, and `navigation.js` then adds 401 session expiry. The third guard writes through its own IIFE parameter and was invisible to the previous scanner, so the rollup had recorded two writers where the tree has three. Because no page declares the injected guard, the record states how each writer is delivered and each mechanism carries its own proof; an order proof with no witnesses now fails.
+- **`window.LongtailForge.filesDialog` - temporary migration, three writers.** Files is the canonical owner; `shared/file-preview.js` merges its preview opener in through a namespace alias, and `workbench.js` merges a preview-only compatibility bridge. `0.33.33.34` must reduce this to the canonical owner and strike the record, and may not close while another writer remains.
+- **`window.LongtailForge.view` - permanent ordered application composition, two writers.** `view-builder.js` publishes 30 base members and is loaded alone on 10 settings views; `view-renderer.js` adds 10 further members with zero overlap and is never loaded without the builder. Builder republishes without spreading the existing surface, so reversing the order would discard the renderer's members, which is what makes the order contractual rather than incidental. `0.33.33.35` extracts responsibilities from both files, but its own contract forbids adding to or reordering this frozen factory namespace, so no retirement is scheduled. These composition facts are read from the AST alongside the writers and governed, not merely described: the member sets must stay disjoint and the renderer must keep spreading the surface it extends.
 
 **What this rollup leaves behind for later checkpoints.** The browser compiler ledger stays active at **10,528** diagnostics; reducing it belongs to `0.33.33.39` through `0.33.33.44`. `window.timeTrackerDebug` remains a bare, un-namespaced `window.*` surface published by `stop-watch.js` with no consumer anywhere in the repository - single-publisher, so it does not block closure, and left untouched because removing or renaming it is not scoping work.
 
