@@ -103,8 +103,15 @@ import {
 /** @typedef {import("../../types/notes-domain-contracts.js").NotesServiceWritableNote} NotesServiceWritableNote */
 /** @typedef {import("../../types/notes-domain-contracts.js").NotesWorkspaceSession} NotesWorkspaceSession */
 /** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetAccessCache} LinkTargetAccessCache */
+/** @typedef {import("../../types/link-target-directory-contracts.js").LinkTarget} LinkTarget */
+/** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetType} LinkTargetType */
 
 const NOTES_MODULE_ID = "notes";
+/**
+ * The runtime spelling of the published `LinkTargetType` union. These seven members and that
+ * union are the same list; `isLinkTargetType` is what lets the compiler see that.
+ * @type {ReadonlySet<string>}
+ */
 const LINK_TARGET_TYPES = new Set(["workspace", "client", "project", "task", "note", "list", "user"]);
 const LINK_TARGET_CLIENT_SCOPED_TYPES = new Set(["client", "project", "task", "note", "list"]);
 const NOTE_TYPE_VALUES = new Set([...Object.values(NOTE_TYPES), ...Object.values(LEGACY_NOTE_TYPES)]);
@@ -933,6 +940,15 @@ async function listResumeContext(session, query = {}) {
 /**
  * @param {NotesWorkspaceSession} session
  * @param {NotesServiceQuery} query
+ *
+ * The return is deliberately left to inference. Every element is fully populated at runtime,
+ * but the merged array mixes this module's `LinkTarget` output with whatever
+ * `linkTargetDirectory.list` returns, and that directory still *declares*
+ * `LinkTargetCandidate[]` - the mostly-optional member - even though its providers populate
+ * every field. Annotating the union here would resolve member access to the weaker branch and
+ * make three behavioural regressions read fields as possibly-undefined. `0.33.33.36` records
+ * that as the remaining half of the seam: strengthening the directory's declared return to
+ * `LinkTarget[]` is a published-contract change across every provider, not a producer fix.
  */
 async function listLinkTargets(session, query = {}) {
   await permissionsService.assertCanInAnyScope(session, NOTE_PERMISSIONS.VIEW);
@@ -1726,8 +1742,9 @@ async function canAccessNoteTarget(session, target, seenTargets = new Set()) {
 }
 
 /**
+ * @param {LinkTargetType} targetType
  * @param {NotesWorkspaceSession} session
- * @param {NotesServiceLinkTargetType} targetType
+ * @returns {Promise<LinkTarget[]>}
  */
 async function listTargetsByType(session, targetType) {
   if (!(await canReadLinkTargetType(session, targetType))) {
@@ -1736,8 +1753,7 @@ async function listTargetsByType(session, targetType) {
 
   if (targetType === "workspace") {
     const workspace = await workspacesRepository.readById(session.workspace_id);
-    return [shapeLinkTarget({
-      target_type: "workspace",
+    return [shapeLinkTargetCandidate("workspace", {
       target_id: session.workspace_id,
       label: workspace?.workspace_name || "Workspace",
       subtitle: "Workspace",
@@ -1754,8 +1770,7 @@ async function listTargetsByType(session, targetType) {
       const displayLabel = noteTargetPickerDisplayLabel(note, targetContext);
       const secondaryLabel = noteTargetSecondaryLabel(note, collectionsById, targetContext);
 
-      return shapeLinkTarget({
-        target_type: "note",
+      return shapeLinkTargetCandidate("note", {
         target_id: note.note_id,
         label: noteTitle,
         display_label: displayLabel,
@@ -2690,8 +2705,31 @@ async function readTargetSummary(session, target = {}) {
 }
 
 /** @param {string} value @returns {value is NotesServiceLinkTargetType} */
+/**
+ * Membership test for the published target-type union, declared as the type predicate it has
+ * always been. `0.33.33.36` added the predicate rather than a cast: the set it checks holds
+ * exactly the seven members `LinkTargetType` declares, so a value that passes really is one.
+ * The `typeof` check is the behaviour `Set.has` already had for a non-string.
+ * @param {unknown} value
+ * @returns {value is LinkTargetType}
+ */
 function isLinkTargetType(value) {
-  return LINK_TARGET_TYPES.has(value);
+  return typeof value === "string" && LINK_TARGET_TYPES.has(value);
+}
+
+/**
+ * Build a published candidate whose target type is known at the call site.
+ *
+ * `shapeLinkTarget` stays deliberately tolerant - it accepts either casing and falls back to an
+ * empty type - so its own return cannot promise the union. This wrapper carries the narrow type
+ * in a parameter and applies the same value it passed in, which is how the producer satisfies
+ * `LinkTargetCandidate` without a cast and without changing what is emitted.
+ * @param {LinkTargetType} targetType
+ * @param {Record<string, unknown>} target
+ * @returns {LinkTarget}
+ */
+function shapeLinkTargetCandidate(targetType, target) {
+  return { ...shapeLinkTarget({ ...target, target_type: targetType }), targetType };
 }
 
 /**
