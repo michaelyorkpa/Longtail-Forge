@@ -68,6 +68,8 @@ import { assertLinkedContextTargetContract } from "../../core/linked-context/pro
 /** @typedef {import("../../types/lists-item-contracts.js").ListsItemProgressSummary} ListsItemProgressSummary */
 /** @typedef {import("../../types/lists-item-contracts.js").ListsItemRecord} ListsItemRecord */
 /** @typedef {import("../../types/framework-contracts.js").LinkedContextProviderContribution} LinkedContextProviderContribution */
+/** @typedef {import("../../types/link-target-directory-contracts.js").LinkTargetType} LinkTargetType */
+/** @typedef {LinkedContextProviderContribution & { targetType: LinkTargetType }} ListLinkTargetProvider */
 /** @typedef {Record<string, unknown>} ListsRawQuery */
 /** @typedef {{ includeItems?: boolean, includeDeletedItems?: boolean, includeDeleted?: boolean }} ListsReadOptions */
 /** @typedef {{ action: string, changeType: string, eventName: string, operation: string, options?: ListsReadOptions, patch: (previousList: ListsRecord, now: string) => Partial<ListsRecord> }} ListsTransition */
@@ -84,6 +86,12 @@ const LIST_TYPE_SET = new Set(LIST_TYPE_VALUES);
 const LIST_STATUS_SET = new Set(LIST_STATUS_VALUES);
 /** @type {Set<string>} */
 const PURCHASE_STATUS_SET = new Set(LIST_ITEM_PURCHASE_STATUS_VALUES);
+/**
+ * The four published target types Lists offers. A subset of `LinkTargetType`;
+ * `isListLinkTargetProvider` is what lets the compiler see the membership this set already
+ * enforced at runtime.
+ * @type {ReadonlySet<string>}
+ */
 const LIST_LINK_TARGET_TYPES = new Set(["client", "note", "project", "task"]);
 const catalogItemsService = createCatalogItemsService({
   assertCanAccessList,
@@ -460,7 +468,26 @@ async function listLinks(listId, session) {
   return { links: await readPermissionSafeLinks(session, listRecord) };
 }
 
-/** @param {WorkspaceRequestSession} session @param {ListsRawQuery} [query] */
+/**
+ * Whether a contributed provider offers one of the published target types Lists supports.
+ *
+ * Declared as a predicate rather than a boolean so the filter below narrows the provider it
+ * keeps. `0.33.33.36` added the predicate; the membership test itself is unchanged.
+ * @param {LinkedContextProviderContribution} provider
+ * @returns {provider is ListLinkTargetProvider}
+ */
+function isListLinkTargetProvider(provider) {
+  return typeof provider.targetType === "string" && LIST_LINK_TARGET_TYPES.has(provider.targetType);
+}
+
+/**
+ * Lists serves the framework linked-context provider contract, not the Notes candidate contract.
+ * `0.33.33.36` declared the shape it already produces rather than converting it: the two producers
+ * agree on nothing but the subject, and normalising them would be a behaviour change.
+ * @param {WorkspaceRequestSession} session
+ * @param {ListsRawQuery} [query]
+ * @returns {Promise<{ providers: { id: string, label: string, moduleId: string, providerId: string, targetType: string }[], targets: LinkedTargetSummary[] }>}
+ */
 async function listLinkTargets(session, query = {}) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   await permissionsService.assertCanInAnyScope(session, LIST_PERMISSIONS.MANAGE_LINKS, {
@@ -469,7 +496,7 @@ async function listLinkTargets(session, query = {}) {
   });
 
   const activeProviders = (await modulesService.listActiveLinkedContextProviders(session.workspace_id, session))
-    .filter((provider) => LIST_LINK_TARGET_TYPES.has(provider.targetType));
+    .filter(isListLinkTargetProvider);
   const targetType = normalizeOptionalText(query.targetType || query.target_type) || activeProviders[0]?.targetType || "";
 
   if (!targetType || !activeProviders.some((provider) => provider.targetType === targetType)) {
@@ -482,7 +509,7 @@ async function listLinkTargets(session, query = {}) {
   if (!provider) {
     throw new AppError("Linked target provider is not available for this list.", 400);
   }
-  const targets = await listLinkTargetsByType(session, targetType, provider);
+  const targets = await listLinkTargetsByType(session, provider.targetType, provider);
 
   return {
     providers: activeProviders.map((entry) => ({
@@ -922,7 +949,12 @@ async function readLinkedTargetRecordsByType(session, targetType, targetIds = []
   return summaries;
 }
 
-/** @param {ListsServiceSession} session @param {string} targetType @param {LinkedContextProviderContribution} provider */
+/**
+ * @param {ListsServiceSession} session
+ * @param {LinkTargetType} targetType
+ * @param {LinkedContextProviderContribution} provider
+ * @returns {Promise<LinkedTargetSummary[]>}
+ */
 async function listLinkTargetsByType(session, targetType, provider) {
   if (targetType === "client") {
     const clients = await permissionsService.filterReadableClients(
