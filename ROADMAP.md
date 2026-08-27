@@ -97,60 +97,17 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Frozen-factory compliance, checked per child rather than assumed.** `view-builder.js` publishes 30 members to `window.LongtailForge.view` without spreading; `view-renderer.js` spreads and adds 10 disjoint members. `framework.full-strict-governance` asserts the writer list, the disjoint member sets, and that the renderer spreads while the builder does not.
 
-- `.35.2` extracts **no published member**, and that still holds - but its symbol list was corrected when re-verified after `0.33.33.35.1`: five of the fifteen named symbols cannot move, and extraction needs a delivery decision first. See the child for the measured boundary and the open question. The frozen namespace is untouched either way.
+- `.35.2` **has archived**. It moved no published member and left the frozen factory's writers and member sets exactly as they were, extracting into three sibling surfaces instead. The delivery question it raised is settled for the rollup: a classic-script extraction publishes a narrow single-consumer sibling surface and is injected at `<head>` by `static.service.js`, the way `view-surface-descriptor.js` and `view-response-records.js` already are.
 - `.35.3` extracts **four published members** - `showModal`, `closeModal`, `closeChildModals`, `isTopModal` - so `view-builder.js` must keep publishing them by delegation. A new file publishing them would be a third writer of a two-writer permanent record and would fail governance.
 
 **Reconciliation: four children, disjoint owners.** `.35.1.1` and `.35.1.2` owned the four module controllers in sequence and have both archived, closing the `.35.1` rollup; `.35.2` owns `view-renderer.js`; `.35.3` owns `view-builder.js`. No file appears in two children.
-
-#### 0.33.33.35.2 - Extract the view-renderer responsibilities
-
-**Model: High Effort - 2,085 lines with descriptor, permission, and combobox behaviour in one file.**
-
-**Blocked on one decision. Re-verified against the post-`0.33.33.35.1` tree; the measurements hold but the symbol list does not, and the delivery mechanism needs an explicit call.**
-
-`public/js/shared/view-renderer.js` is still **2,085 lines carrying 404 diagnostics**, unchanged - `0.33.33.35.1` never touched it, and its last commit predates the whole rollup. The renderer still publishes exactly **10 members**, and **none of the named symbols is one of them**, so the internal-only property the seam was chosen for still holds.
-
-**The 15-symbol boundary does not hold as a movable set. Five of the fifteen must stay.**
-
-| Symbol | Why it cannot move |
-| --- | --- |
-| `readDescriptorValue`, `readPath` | **13 callers across the file.** A 20-line generic value reader used by index items, chips, hierarchy labels, table rows, summary panels, field grids, and `renderSurface` itself. Moving it relocates a ubiquitous utility rather than a responsibility, and puts 13 renderer call sites through another module. |
-| `runDescriptorAction` | The dispatch orchestrator, not a permission helper. It owns `state.actionError`, calls `state.surface.refresh`, `openDescriptorModal`, `surfaceOwnsRenderedData`, and `rerenderState` - all renderer-owned. Extracting it would produce a callback-laden shell, not a boundary. |
-| `runBehaviorAction` | Reads the `behaviors` registry, which is **the state behind the published `registerBehavior`**. Moving it puts published-member state in another file. That respects the frozen factory's letter and not its intent. |
-| `normalizeAction` | Presentation: it builds button props and closes over `runDescriptorAction`. Six renderer callers. |
-
-**The corrected boundary is 20 symbols in three clusters, all still unpublished.**
-
-| Cluster | Symbols | Lines | Diagnostics to zero |
-| --- | --- | --- | --- |
-| Action security core | `actionPermissionsAllowed`, `assertActionPermissions`, `interpolateRoute`, `runRouteAction`, `confirmDescriptorAction` | 64 | 17 |
-| Search-options combobox | `setFieldOptions` through `setFieldOptionsError`, twelve functions plus `searchOptionsCounter` | 272 | 34 |
-| Descriptor data binding | `loadBoundRecords`, `appendFilterQuery`, `bindRecord` | 47 | 12 |
-| **Total moved** | **20** | **383** | **63** |
-
-The renderer would fall to **1,702 lines and 341 diagnostics**. The combobox is the cleanest seam in the file: three entry points, all from `flushMounts`, and one outbound helper. Two audits came back clean and are recorded so a later attempt does not repeat them: the moving code carries **no descriptor keys, product option sets, or default shell structure**, and of **54 renderer-subject assertions across 21 owners, zero have a match that crosses a moving region** - the `0.33.33.35.1.2` cross-region hazard does not recur here.
-
-**The blocking question is delivery, not boundary.** Every classic browser script is IIFE-isolated by `0.33.33.33`, and this branch forbids converting browser delivery to ES modules. **The only channel between two classic scripts is `window.LongtailForge`.** So moving a function out of `view-renderer.js` requires publishing it, and each extracted file raises the application-owned surface count by one.
-
-**There is direct precedent, from these same two files.** `public/js/shared/view-surface-descriptor.js` publishes `viewSurfaceDescriptor` for a single consumer, `view-builder.js`; `public/js/shared/view-response-records.js` publishes `viewResponseRecords` for a single consumer, `view-renderer.js`. Both were carved out of the view framework by earlier checkpoints, both sit at zero or one diagnostic, and **20 of the estate's 62 written surfaces have one or zero consumers**, so a narrow single-consumer surface is the estate's normal shape for a framework seam rather than an anomaly. Governance does not pin the surface count; it pins writer sets, contested-surface records, root clobbering, and deep writes, none of which a new sibling surface touches. `window.LongtailForge.view` itself would be untouched: no member moves, no writer is added, nothing is reordered.
-
-- [ ] **Decide before implementing: may `0.33.33.35.2` add published sibling surfaces?** Extraction cannot happen in this branch without them. Three clusters means up to three new surfaces, or fewer if they are grouped. The alternatives are to isolate the three responsibilities **in place** behind explicit in-file contracts and typing - which reduces debt and clarifies ownership but moves no code - or to defer extraction until browser delivery changes, which this branch forbids.
-- [ ] Extract descriptor-action permission and route interpolation, the search-options combobox, and data binding from `view-renderer.js` behind explicit contracts, using the corrected 20-symbol boundary above.
-- [ ] Permission and route interpolation is the security-relevant extraction and is proved separately from the two presentational ones.
-- [ ] No published `window.LongtailForge.view` member moves, and the frozen factory is neither expanded nor reordered.
-- [ ] Nothing extracted may carry descriptor structure, fallback shell markup, default descriptor shapes, or product labels and option sets. `0.33.33.35.1.2` made the server descriptor the only source of truth; the renderer renders what it is handed and must not learn what a descriptor ought to contain.
-- [ ] Nothing extracted may acquire bootstrap concerns - loading workspace context, awaiting `workspaceContextReady`, fetching the app-shell bootstrap, or manufacturing a shell when it fails. `0.33.33.35.1.1` separated those and they stay separated.
-- [ ] The cold-bootstrap empty-host case inherited from `0.33.33.35.1.2` is a framework concern and is **not** to be solved here with fallback rendering or module-local unavailable states.
-- [ ] Extracted files enter the browser ledger at zero diagnostics. Type the seam rather than weakening it: no new explicit `any`, no broad `unknown` used as an escape, no suppression comments.
-- [ ] **Do not repoint a source-location assertion to a new filename when that merely preserves a weak contract.** Five assertions in `view-shared-capabilities-regression.mjs` are bare `function <name>` location checks; the same file already proves the option-source contract by executing it. Retarget to behaviour or ownership, and leave owners untouched where the move does not affect them.
-
-**`0.33.33.35.3` inherits the same decision.** Its four published members stay published by `view-builder.js` through delegation, but the extracted modal-stack file must itself be reachable by the builder, so it too must publish a sibling surface. The decision above settles both children.
 
 #### 0.33.33.35.3 - Extract the view-builder modal stack
 
 **Model: Medium Effort - One extraction from a 2,013-line file.**
 
 - [ ] Extract only the modal stack from `view-builder.js`; keep the frozen factory namespace intact.
+- [ ] Use the mechanism `.35.2` settled: one narrow sibling surface, single writer, injected at `<head>`, entering the ledger at zero diagnostics with its contract published in `src/types/browser-contracts.d.ts`. Audit bare symbol references as well as call syntax - `.35.2` missed ten `filter(name)` sites that only the linter caught.
 - [ ] Preserve focus return and modal ordering behaviour.
 - [ ] **The seam is the stack, not the constructors, and the boundary is measured.** The stack - `modalStack` at `view-builder.js:4` plus `registerModalStack`, `normalizeModalParent`, `defaultModalParent`, `isDialogOpen`, `pushModalStackEntry`, `removeModalStackEntry`, `syncModalStackMetadata`, `showModal`, `closeModal`, `closeChildModals`, and `isTopModal` - depends on nothing but `global.document`. The constructors `createModal`, `createModalForm`, and `createModalFooter` depend on the builder's element factory (`createElement`, `createHeading`, `nextId`, `requiredText`, `modalSizeClass`) and stay. Extracting them would force either duplicated factory helpers or a second namespace writer, and the second breaks the frozen factory.
 - [ ] `view-builder.js` keeps publishing `showModal`, `closeModal`, `closeChildModals`, and `isTopModal` by delegation, so the writer list, member sets, and order are unchanged. `view-renderer.js` reaches the stack only through `view.showModal` and `view.createModalForm`, so it is not an owner of this child.

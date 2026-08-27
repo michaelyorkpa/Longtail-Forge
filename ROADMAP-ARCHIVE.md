@@ -1,5 +1,45 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.35.2 - Extract the view-renderer responsibilities
+
+**Model: High Effort - 2,085 lines with descriptor, permission, and combobox behaviour in one file.**
+
+Three responsibilities left `public/js/shared/view-renderer.js` for sibling modules, each publishing one narrow frozen surface consumed by the renderer alone.
+
+| New module | Surface | Members | Lines | Diagnostics |
+| --- | --- | --- | --- | --- |
+| `view-action-security.js` | `viewActionSecurity` | 5 | 171 | **0** |
+| `view-search-options.js` | `viewSearchOptions` | 5 | 512 | **0** |
+| `view-data-binding.js` | `viewDataBinding` | 4 | 172 | **0** |
+
+- [x] **`window.LongtailForge.view` is untouched.** The builder still publishes 30 members and the renderer still spreads and adds 10; no member moved, no writer was added, and the ordered-composition record passes unchanged. A regression now asserts that none of the three new files writes that surface, so the property is enforced rather than observed.
+- [x] **The boundary is the corrected one.** Five of the roadmap's original fifteen stayed, for the reasons the pre-implementation re-verification recorded. Two symbols moved that the correction had not listed - `readPath` followed data binding and `normalizeSelectOptions` followed option hydration - because each belongs to the responsibility that owns it, and leaving them behind would have forced either duplication or callback plumbing.
+- [x] **Collaborators are handed in, never acquired.** Both extracted action entry points take the API client from the renderer and `interpolateRoute` takes the value reader, so no extracted module resolves a collaborator or learns descriptor semantics. `viewActionSecurity` reads already-resolved workspace permissions and nothing else; none of the three participates in bootstrap.
+- [x] **No descriptor authority was recreated.** Nothing extracted carries descriptor structure, default shapes, fallback markup, or product labels, and a regression pins that the binding module has not become a second source of truth. `0.33.33.35.1.2` made the server descriptor the only one and this checkpoint kept it that way.
+- [x] **Delivery follows the established precedent.** The three files are injected at `<head>` by `src/services/static.service.js` beside the descriptor and response-record adapters, so no view template changed and load order is guaranteed on every protected page.
+
+**The seam was typed rather than silenced, and typing it caught real looseness.** Contract types are published in `src/types/browser-contracts.d.ts` and consumed from both sides. Meeting them exposed four defects in the renderer that had been invisible while the code was untyped and local: `requireApiClient` resolved to `{}` rather than the published API contract; surface state inferred `never[]` for records and `null` for its two error slots; the descriptor value reader's `fallback` parameter did not satisfy the reader contract; and `renderItemCollection` applied its `Array.isArray` guard to one call while using the result of a second identical call. Each was fixed at the source rather than worked around, and no `any`, broad `unknown` escape, or suppression was introduced.
+
+**The call-site audit missed a form, and the linter caught it.** `actionPermissionsAllowed` is passed by reference to ten `actions.filter(...)` sites, which a `name(` search does not see. It keeps a one-line local delegate to the published rule so those sites read unchanged. **A symbol audit that only looks for call syntax is incomplete; bare references have to be searched too.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | --- | --- |
+| Browser program diagnostics | 10,485 | **10,407** |
+| `view-renderer.js` lines / diagnostics | 2,085 / 404 | **1,698 / 326** |
+| Published surfaces | 59 | **62** |
+| Multi-writer records | 2 | **2** |
+| `LongtailForge.view` writers / members | 2 / 30 + 10 | **2 / 30 + 10** |
+| Classic scripts out of the shared lexical environment | 75 / 75 | **78 / 78** |
+| Playwright end-to-end tests | 167 | **167**, green |
+
+**Six regression owners changed, and the distinction between retargeting and repointing was the point.** Five VM harnesses now load the three modules, because they execute the renderer and it reaches them at call time. The rest were retargeted to what they actually own: `view-shared-capabilities` traded five bare `function <name>` location checks for ownership assertions naming the file that publishes each capability plus the frozen-factory guard; `view-renderer-actions` now pins the security *ordering* - confirm, then permissions, then dispatch - rather than a call shape; and `view-renderer-data-binding` followed the behaviour to the module that owns it and gained a descriptor-authority guard. **A weak source-location contract was not preserved by pointing it at a new filename.**
+
+**The audits run before implementing came back clean and stayed clean.** Of 54 renderer-subject assertions across 21 owners, none had a match crossing a moving region, so the `0.33.33.35.1.2` cross-region hazard did not recur; and the moving code carried no descriptor keys or product option sets, which is why the descriptor-authority constraint cost nothing to honour.
+
+**`0.33.33.35.3` inherits the settled mechanism.** Its extracted modal stack publishes a sibling surface the same way, while `view-builder.js` keeps publishing `showModal`, `closeModal`, `closeChildModals`, and `isTopModal` by delegation so the frozen factory's writer list and member sets stay exactly as they are.
+
 ## Version 0.33.33.35.1.2 - Delete the module-local descriptor fallbacks
 
 **Model: Medium Effort** - Module-owned behaviour removal once the ordering precondition is met.
