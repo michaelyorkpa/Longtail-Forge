@@ -1,5 +1,48 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.35.1.2 - Delete the module-local descriptor fallbacks
+
+**Model: Medium Effort** - Module-owned behaviour removal once the ordering precondition is met.
+
+Closes the `0.33.33.35.1` rollup. Notes, Lists, Files, and Tasks each carried a hand-written copy of the view surface the server already delivers; all five are gone and the server descriptor is the only source.
+
+- [x] **All five implementations are deleted, not merely unreferenced.** `fallbackNotesViewSurfaceDescriptor`, `notesLinkedRecordsFallbackDescriptor`, `fallbackListsViewSurfaceDescriptor`, `fallbackFilesViewSurfaceDescriptor`, and `fallbackTasksViewSurfaceDescriptor`, plus the two `descriptorSelect` literal builders only they used. **`public/js` loses 323 net lines** and no name from that set survives anywhere in the repository.
+- [x] **Null-and-skip, with every consumer handled.** Each `<module>ViewSurfaceDescriptor()` returns `null` when the surface is absent; the four shell builders guard; the nested reads in `notes.js` and `lists.js` take optional chaining; `renderLinksPanel` returns `null` without a linked-records descriptor and its caller filters, because `replaceChildren` rejects `null`.
+- [x] **The four controllers wait for the workspace context before reading a missing descriptor as null.** That is `0.33.33.35.1.1`'s ordering, still pinned by its four static contracts. It is what makes `null` mean "not delivered" rather than "not yet".
+- [x] **Checked against what the server sends, not against the source.** Booting the harness and reading `/api/app-shell/bootstrap` shows all four surfaces delivered with **top-level key sets identical to the fallbacks they replace**, plus `viewPath`. Nothing is lost when the server answers.
+- [x] **Notes and Lists keep their dialog shells outside the descriptor guard**, because they own those dialogs whether or not a workspace surface arrived, and a module action can still open an editor on such a page.
+- [x] **The dialog namespace publications stay synchronous.** `notesDialog` at `notes.js:515` and `listsDialog` at `lists.js:244` are outside the async bootstrap (`notes.js:134-145`, `lists.js:76-87`), so the registry's lazy import still finds `openNoteEditor` / `openListEditor` the moment it resolves.
+- [x] **No new namespace writer and no compatibility shim.** The published surface count holds at **59** with the same **two** multi-writer records.
+- [x] **Cold load renders, and the proof has teeth.** `tests/e2e/view-shell-cold-load.spec.mjs` passes with the fallbacks gone. A throwaway probe that strips `viewSurfaces` from the bootstrap confirmed the descriptor anatomy then disappears, so the spec fails when the server does not answer - it is no longer vacuous the way it necessarily was while the fallbacks stood.
+
+**Eight test-owned shadow copies of the deleted markup were found, two more than the roadmap listed.** This was the failure mode most likely to turn a deleted production fallback into a test-owned shadow specification, so the audit was run as its own pass rather than left to whatever the suite happened to catch.
+
+| Owner | What it read | Retargeted to |
+| --- | --- | --- |
+| `files-descriptor-host`, `files-filter-sidebar`, `lists-declarative-readonly-surface`, `notes-declarative-readonly-surface`, `tasks-declarative-readonly-surface` | required a fallback to exist | forbid one, and require the resolver to end in `\|\| null` |
+| `tasks-detail-read-panel` | the fallback function span | struck - it duplicated the manifest assertion on the very next line |
+| `notes-declarative-readonly-surface`, `notes-ui-workflow` | `layout: "slide-out-sidebar"` in `notes.js` | the manifest surface each already asserted |
+| `notes-context-terminology` | `title: "Linked Context"` in `notes.js` | the manifest assertion on the line above |
+| `notes-declarative-readonly-surface` | `view-collapsible-index--unscrolled` in `notes.js` | `src/modules/notes/module.js:116`, which declares it |
+| `notes-ui-workflow` | the Note Kind option set in `notes.js` | `src/modules/notes/module.js`, which declares and serves it |
+| `lists-ui-workflow` | the `"Normal lists"` filter label in `lists.js` | `src/modules/lists/module.js:305` |
+| `notes-modal-stack-guardrails` | Tags/Files utility labels, file-wide | scoped to `createNoteDialogShell` |
+
+**The last one is the instructive failure.** Its `label: "Tags" ... iconOnly: false ... role: "utility"` match ran across the whole file, so it began at a `label:` inside the fallback and ended in the live shell hundreds of lines below - passing in a key order the real code never had. Deleting the fallback broke it, which is how a five-year-old accidental cross-region match finally surfaced. It is now scoped to the function that builds those buttons and ordered as that function declares them.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | --- | --- |
+| Browser program diagnostics | 10,491 | **10,485** |
+| Descriptor fallbacks in `public/js` | 5 | **0** |
+| Net lines in `public/js` | - | **-323** |
+| Published surfaces / multi-writer records | 59 / 2 | **59 / 2** |
+| Test-owned shadow copies of fallback markup | 8 | **0** |
+| Playwright end-to-end tests | 167 | **167**, green |
+
+**One behaviour change worth naming.** On a first-ever visit where `/api/app-shell/bootstrap` itself fails, the page now renders nothing rather than a fallback shell it could not populate. `loadAppShellBootstrap` resolves `null` rather than rejecting, and a warm client still renders from the stored last-known-good server context, so this is the only reachable empty-host path. It matches the null-and-skip contract `public/js/clients-projects.js` already followed. If a framework-level "workspace surface unavailable" state is ever wanted, it belongs to the framework rather than to four module copies - which is the whole reason these fallbacks are gone.
+
 ## Version 0.33.33.35.1.1 - Move the module view-shell builds behind the workspace context
 
 **Model: High Effort** - Bootstrap ordering across four large module controllers, where a missed element binding fails silently.
