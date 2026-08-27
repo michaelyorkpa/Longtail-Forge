@@ -1,5 +1,33 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.36 - Close the linked-context producer contract
+
+**Model: High Effort** - Linked-context scope and safe labels cross module hierarchy and permission boundaries.
+
+Both producers already validated their discriminator at runtime by set membership, and neither said so in a type. This checkpoint declared what they were already doing. **No cast, no assertion, no suppression, and no behaviour change.**
+
+- [x] **Provenance was traced before any type was tightened.** Notes: every `shapeLinkTarget` call inside `listTargetsByType` supplies a literal - `"workspace"` and `"note"` - and the only other call site is `readLinkedContextSummary`, whose types come from a four-literal internal constructor and which is not on the producer path. Lists: the discriminator is a query value or the first active provider, both already gated against `LIST_LINK_TARGET_TYPES` and rejected with a 400 otherwise. **Neither producer can receive an unvalidated discriminator on the path being typed.**
+- [x] **The seam is a predicate, not a cast.** `isLinkTargetType` became the type predicate it always was: the set it checks holds exactly the seven members `LinkTargetType` declares, and the added `typeof` guard is the behaviour `Set.has` already had for a non-string. Lists' provider filter became a predicate the same way, so the providers it keeps carry a narrow `targetType` and `listLinkTargetsByType` takes that provider's own value - the same value, since `find` matched on equality.
+- [x] **`shapeLinkTargetCandidate` carries the narrow type in a parameter** and applies the value it was handed, so the producer satisfies the contract without the tolerant shaper having to promise a union it cannot.
+- [x] **Permission models, ordering, filtering, and emitted values are untouched.** Zero permission lines and zero ordering lines appear in the diff.
+
+**The published member the preflight named was one notch too weak, and the tree said so.** `listTargetsByType` returns **`LinkTarget[]`**, not `LinkTargetCandidate[]`. `shapeLinkTarget` populates every field the contract declares, and `LinkTarget = Required<Omit<LinkTargetCandidate, "unavailable">>` is the already-published member for exactly that. Declaring the weaker one made three *behavioural* regressions read present fields as possibly-undefined - which is the signal the branch rule predicts: a behavioural test that has to change means the change is wrong, not the test.
+
+**Lists was not converted to the Notes contract.** It returns `LinkedTargetSummary[]`, the shape it already produces through the framework linked-context provider contract, and it still does not touch `linkTargetDirectory`. The two producers agree on the subject and nothing else; normalising them would have been the consolidation this checkpoint withdrew.
+
+| Condition | Before | After |
+| --- | --- | --- |
+| Browser / server / scripts diagnostics | 10,377 / 0 / 0 | **10,377 / 0 / 0** |
+| Files changed | - | **2**, both services |
+| Runtime lines added | - | **10** |
+| Casts or assertions introduced | - | **0** |
+| Permission or ordering lines touched | - | **0** |
+| Linked-context regression owners | 20 | **20 green, 20 unchanged** |
+
+**One seam is left open deliberately, and it is recorded at the code rather than only here.** `listLinkTargets` merges this module's output with `linkTargetDirectory.list`, and **the directory still declares `LinkTargetCandidate[]` - the mostly-optional member - although its providers populate every field**. Annotating that union resolves member access to the weaker branch and degrades the same three behavioural regressions. Strengthening the directory's declared return to `LinkTarget[]` is a published-contract change across every provider, not a producer fix, so the public return stays inferred and precise until a checkpoint owns that work.
+
+**The withdrawn picker consolidation stays withdrawn.** Nothing here touches the browser controllers, the four-line debounce, the permission models, or the ordering comparators.
+
 ## Version 0.33.33.35.3 - Extract the view-builder modal stack
 
 **Model: Medium Effort - One extraction from a 2,013-line file.**

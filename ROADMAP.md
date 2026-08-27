@@ -86,41 +86,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **What this rollup leaves behind for later checkpoints.** The browser compiler ledger stays active at **10,528** diagnostics; reducing it belongs to `0.33.33.39` through `0.33.33.44`. `window.timeTrackerDebug` remains a bare, un-namespaced `window.*` surface published by `stop-watch.js` with no consumer anywhere in the repository - single-publisher, so it does not block closure, and left untouched because removing or renaming it is not scoping work.
 
-### 0.33.33.36 - Close the linked-context producer contract
-
-**Model: High Effort** - Linked-context scope and safe labels cross module hierarchy and permission boundaries.
-
-**Resliced on measurement against the post-`0.33.33.35` tree. The producer half held exactly; the picker-consolidation half did not, and is withdrawn.**
-
-**The `0.33.33.32.23` producer gap re-verified, line for line.** `src/types/link-target-directory-contracts.d.ts` publishes `LinkTargetCandidate` (line 21) and declares the directory returning `Promise<LinkTargetCandidate[]>` (line 65). `notesService.listLinkTargets` at `src/modules/notes/notes.service.js:937` still carries `@param` entries and **no `@returns`**, and still composes its result from the directory provider and the local `listTargetsByType` at line 1732. `shapeLinkTarget` computes `const targetType = target.target_type || target.targetType || ""` from an untyped argument, so the inferred `targetType` is `string` rather than the published `LinkTargetType` union and a consumer still cannot annotate against the contract without a cast. **`0.33.33.35` touched neither service.**
-
-**There is a second producer the previous plan never named.** `listsService.listLinkTargets` at `src/modules/lists/lists.service.js:464`, with `listLinkTargetsByType` at line 926, is an independent implementation carrying the same untyped-return gap. **Lists does not use `linkTargetDirectory` at all**; it shapes through `assertLinkedContextTargetContract` against a `LinkedContextProviderContribution`. The gap is therefore two producers, not one.
-
-**The picker is already shared, and what remains is not duplication.** `createLinkedContextPicker` is a published member of the frozen `LongtailForge.view` factory and **both modules already call it** - `public/js/notes.js:1238` and `public/js/lists.js:612`. What sits around those calls was measured rather than assumed:
-
-| | Notes | Lists |
-| --- | --- | --- |
-| Link-target functions | 20 | 8 |
-| Lines | 260 | 108 |
-| Functions with no counterpart in the other module | **14** | **2** |
-
-Of the six functions that pair by name, exactly one is genuinely duplicated - `queueEditorLinkTargetSearch` and `queueListEditorLinkTargetSearch`, **98% identical and four lines long**, a debounce. The other five pair at **18% to 34% textual similarity**: they are different implementations of different behaviour, not two copies of one. Consolidating them would mean inventing a shared abstraction over two things that do not agree, which is the opposite of removing duplication.
-
-**Two findings make consolidation actively wrong rather than merely unwarranted.**
-
-- **The two producers do not share a permission model.** Notes gates on `NOTE_PERMISSIONS.VIEW`. Lists gates on `LIST_PERMISSIONS.MANAGE_LINKS` *and* asserts module-write enablement first. Merging them is a permission-boundary change wearing a refactor's clothes, and this branch does not authorise one.
-- **A regression already enforces that the two diverge.** `linked-context-client-project-label-sort-regression.mjs:49` asserts Notes must *not* reach `filterReadableClients(session, await clientsRepository.readAll(...))` directly, because Clients/Projects owns that ordering - while `lists.service.js:926` does exactly that through its provider contract. The divergence is deliberate and currently protected.
-
-**The scope is therefore the producer contract, on both producers.**
-
-- [ ] **Close the producer gap on `notesService.listLinkTargets`.** Declare its return as `{ targets: LinkTargetCandidate[] }` and type `listTargetsByType` and `shapeLinkTarget` to match, so `targetType` narrows to the published `LinkTargetType` union.
-- [ ] **Close the same gap on `listsService.listLinkTargets`** and `listLinkTargetsByType`, against the same published contract. A second consumer that still needs a cast leaves the seam half-closed.
-- [ ] Preserve client/project descendant scope, unavailable/hidden labels, workspace type behaviour, and saved selection rules. Neither producer's permission model changes.
-- [ ] Keep module-owned payload meaning and save behaviour where they are. **No behaviour moves between Notes and Lists in this checkpoint.**
-- [ ] **Do not consolidate the browser pickers.** The widget is already shared through the frozen factory; the surrounding code is two different behaviours; and the four genuinely duplicated lines are a debounce. If a later checkpoint wants that debounce shared, it needs a two-surface justification of its own.
-- [ ] **Twenty regression owners are coupled to linked context.** Typing a return changes no behaviour, so the expectation is that all twenty pass untouched; any that fails is asserting an inferred type rather than a contract and should be retargeted, not repointed.
-- [ ] Nothing here reintroduces a client-side descriptor copy, fallback shell markup, or a product-rule default. `0.33.33.35.1.2` made the server descriptor the only source of truth.
-
 ### 0.33.33.37 - Share the Task action legality core
 
 **Model: High Effort** - Lifecycle legality is shared; visibility, enablement messaging, and DOM state are not.
@@ -155,6 +120,7 @@ Different return types, different inputs, different responsibilities. **Consolid
 
 **The most important correction: `TS7006` is 29% of the browser program and no shared contract can collapse it.** Implicit-any parameters are removed by annotating each function's parameters in the controller that declares them, which is `0.33.33.39` through `0.33.33.44` work. A `.38` that claimed to collapse "most" cascades would be measuring the wrong thing.
 
+- [ ] **Inherited from `0.33.33.36`: `linkTargetDirectory.list` declares `LinkTargetCandidate[]` while its providers populate every field.** The mostly-optional member is weaker than what the directory actually returns, so a consumer that annotates the merged linked-target array resolves member access to the weak branch and reads present fields as possibly-undefined. Strengthening the declared return to `LinkTarget[]` is a published-contract change across every provider and belongs with contract work, not with a producer fix.
 - [ ] **Each child publishes contract vocabulary and helpers. Adoption is `0.33.33.39` through `.44`.** A child may adopt its own helpers in shared framework files it already owns, but no child converts a module controller.
 - [ ] **Do not invent a broad shared shape because many diagnostics disappear.** The 630-diagnostic state literal is one page's state, not a shared contract; per-page state shapes belong to the module children. `.38.3` publishes the pattern, not the pages' shapes.
 - [ ] Keep contracts in declaration/JSDoc surfaces and preserve response shaping on the server.
