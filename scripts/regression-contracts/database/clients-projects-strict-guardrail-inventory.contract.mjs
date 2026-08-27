@@ -45,8 +45,11 @@ assert.match(viewBuilder, /view-index-list-item--hierarchy/, "Index primitive sh
 assert.match(viewBuilder, /view-data-table-row--hierarchy/, "Data-table primitive should expose hierarchy row metadata");
 assert.match(viewBuilder, /function createDataSecondaryRow[\s\S]*view-data-table-secondary-row[\s\S]*normalizedColumnIndex/, "Data-table primitive should support secondary row rendering");
 assert.match(viewRenderer, /mountType: "fieldOptions"[\s\S]*optionsSource/, "Renderer should mount option-source hydration for filter fields");
-assert.match(viewRenderer, /setOptions: \(options, optionsConfig = \{\}\) => setFieldOptions/, "Renderer should expose setOptions to module-owned option behaviors");
-assert.match(viewRenderer, /mountSearchOptions: \(options, optionsConfig = \{\}\) => mountSearchOptions/, "Renderer should expose search suggestion mounting to module-owned option behaviors");
+// 0.33.33.35.2 moved option hydration into LongtailForge.viewSearchOptions. The renderer
+// still builds the behavior context, so what this owns is that module behaviors are handed
+// the helpers - now resolved through the published contract.
+assert.match(viewRenderer, /setOptions: \(options, optionsConfig = \{\}\) => requireSearchOptions\(\)\s*\n?\s*\.setFieldOptions/, "Renderer should expose setOptions to module-owned option behaviors");
+assert.match(viewRenderer, /mountSearchOptions: \(options, optionsConfig = \{\}\) => requireSearchOptions\(\)\.mountSearchOptions/, "Renderer should expose search suggestion mounting to module-owned option behaviors");
 assert.match(viewRenderer, /function renderTablePageSlideOutLayout[\s\S]*Open filters[\s\S]*renderSidebarPanels/, "Renderer should move table-page filters into the shared slide-out surface");
 assert.match(viewRenderer, /function renderHierarchyLabel[\s\S]*view-hierarchy-label/, "Renderer should expose the hierarchy-label display hook");
 assert.match(viewRenderer, /function renderChipList[\s\S]*view-table-chip-list/, "Renderer should expose the chip-list display hook");

@@ -7,11 +7,24 @@ const { readText } = createProjectTextReader();
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
+// 0.33.33.35.2 moved permission/route security, field option hydration, and
+// descriptor data binding into sibling modules. The renderer reaches them through the
+// namespace at call time, so every context that executes it has to provide them too.
+const viewActionSecuritySource = readText("public/js/shared/view-action-security.js");
+const viewSearchOptionsSource = readText("public/js/shared/view-search-options.js");
+const viewDataBindingSource = readText("public/js/shared/view-data-binding.js");
 const responseRecords = readText("public/js/shared/view-response-records.js");
 const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
 
 assert.match(renderer, /function registerBehavior\(id, handler\)/, "Renderer should expose behavior registration");
-assert.match(renderer, /runRouteAction\(action, state, record\)/, "Renderer should route declarative route actions");
+// 0.33.33.35.2 moved permission checking, confirmation, and route interpolation into
+// LongtailForge.viewActionSecurity. The renderer keeps the dispatch, so what this owns now is
+// the order: confirm, then assert permissions, then run the route - never the reverse.
+assert.match(
+  renderer,
+  /actionSecurity\.confirmDescriptorAction\(action\)[\s\S]*actionSecurity\.assertActionPermissions\(action\)[\s\S]*actionSecurity\.runRouteAction\(action, \{[\s\S]*api: requireApiClient\(\)[\s\S]*readValue: readDescriptorValue/,
+  "Renderer should confirm, then check permissions, then dispatch declarative route actions through the published security contract",
+);
 assert.match(renderer, /requiredPermissions/, "Renderer should read action permission metadata");
 assert.match(renderer, /Missing view behavior handler/, "Missing behavior handlers should fail visibly");
 assert.match(renderer, /openDescriptorModal\(state, modalId, record\)/, "Renderer should own descriptor modal opening");
@@ -71,6 +84,9 @@ const context = createFakeBrowserContext({
 vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, context, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, context, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, context, { filename: "view-data-binding.js" });
 vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
 
 /** @typedef {import("./test-support/fake-dom.mjs").FakeNode} FakeNode */

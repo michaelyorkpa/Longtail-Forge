@@ -8,16 +8,44 @@ const { readText } = createProjectTextReader();
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
+// 0.33.33.35.2 moved permission/route security, field option hydration, and
+// descriptor data binding into sibling modules. The renderer reaches them through the
+// namespace at call time, so every context that executes it has to provide them too.
+const viewActionSecuritySource = readText("public/js/shared/view-action-security.js");
+const viewSearchOptionsSource = readText("public/js/shared/view-search-options.js");
+const viewDataBindingSource = readText("public/js/shared/view-data-binding.js");
 const responseRecords = readText("public/js/shared/view-response-records.js");
 const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
 const staticService = readText("src/services/static.service.js");
 
-assert.match(renderer, /api\.getJson\(route, \{ cache: "no-store" \}\)/, "Renderer should fetch dataSource routes through shared api-client");
-assert.match(renderer, /appendFilterQuery\(descriptor\.dataSource\.route/, "Renderer should derive the fetch route from the descriptor dataSource route");
+// 0.33.33.35.2 moved descriptor data binding into LongtailForge.viewDataBinding. These
+// assertions follow the behaviour to the file that now owns it rather than to a new filename:
+// the renderer's remaining obligation is to route through the published contract and to hand
+// it the shared api client, which is asserted immediately below.
+assert.match(viewDataBindingSource, /api\.getJson\(route, \{ cache: "no-store" \}\)/, "Data binding should fetch dataSource routes through the supplied api client");
+assert.match(viewDataBindingSource, /appendFilterQuery\(dataSource\.route \|\| "", descriptor\.filters, filterValues\)/, "Data binding should derive the fetch route from the descriptor dataSource route");
+assert.match(viewDataBindingSource, /bindRecord\(record, dataSource\.fieldBindings \|\| \{\}\)/, "Data binding should map records through descriptor fieldBindings");
+assert.match(viewDataBindingSource, /responseRecords\.read\(body, dataSource\.recordsKey\)/, "Data binding should select response records through the checked declared-key adapter");
+assert.doesNotMatch(viewDataBindingSource, /extractRecords|Object\.values\(body\)|\["records", "items", "data"/, "Data binding should not guess response envelope keys");
+
+// Neither file may reach past the shared api client.
 assert.doesNotMatch(renderer, /\bfetch\(/, "Renderer should not bypass shared api-client with direct fetch");
-assert.match(renderer, /bindRecord\(record, descriptor\.dataSource\.fieldBindings/, "Renderer should map records through descriptor fieldBindings");
-assert.match(renderer, /responseRecords\.read\(body, descriptor\.dataSource\.recordsKey\)/, "Renderer should select response records through the checked declared-key adapter");
-assert.doesNotMatch(renderer, /extractRecords|Object\.values\(body\)|\["records", "items", "data"/, "Renderer should not guess response envelope keys");
+assert.doesNotMatch(viewDataBindingSource, /\bfetch\(/, "Data binding should not bypass the supplied api client with direct fetch");
+
+// The renderer keeps acquisition: it resolves the api client and hands it over.
+assert.match(
+  renderer,
+  /requireDataBinding\(\)\s*\n?\s*\.loadBoundRecords\(descriptor, state\.filterValues, requireApiClient\(\)\)/,
+  "Renderer should load bound records through the published data-binding contract with the shared api client",
+);
+
+// Data binding carries no descriptor authority: 0.33.33.35.1.2 made the server descriptor the
+// only source of truth, and an extracted renderer helper must not become a second one.
+assert.doesNotMatch(
+  viewDataBindingSource,
+  /sidebarPanels|pageHeader|sidebarLabel:|layout: "/,
+  "Data binding must not carry descriptor structure or default shell shapes",
+);
 assert.match(renderer, /Object\.defineProperty\(surface, "refresh"/, "Rendered surfaces should expose a descriptor-driven refresh path");
 assert.match(staticService, /app-shell-bootstrap\.js[\s\S]*view-surface-descriptor\.js[\s\S]*view-response-records\.js/, "The checked descriptor and response adapters should load before page assets");
 
@@ -54,6 +82,9 @@ const context = createFakeBrowserContext({ responses: [
 vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, context, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, context, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, context, { filename: "view-data-binding.js" });
 vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
 
 /** @typedef {import("../../test-support/fake-dom.mjs").FakeNode} FakeNode */
@@ -106,6 +137,9 @@ const errorContext = createFakeBrowserContext({ responses: [new Error("Data unav
 vm.runInNewContext(surfaceDescriptor, errorContext, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, errorContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, errorContext, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, errorContext, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, errorContext, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, errorContext, { filename: "view-data-binding.js" });
 vm.runInNewContext(renderer, errorContext, { filename: "view-renderer.js" });
 const errorHost = errorContext.document.createElement("main");
 const errorSurface = /** @type {DataBindingViewSurface} */ (errorContext.window.LongtailForge.view).renderSurface(descriptor(), errorHost);
@@ -126,6 +160,9 @@ const noSelectionContext = createFakeBrowserContext({ responses: [
 vm.runInNewContext(surfaceDescriptor, noSelectionContext, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, noSelectionContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, noSelectionContext, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, noSelectionContext, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, noSelectionContext, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, noSelectionContext, { filename: "view-data-binding.js" });
 vm.runInNewContext(renderer, noSelectionContext, { filename: "view-renderer.js" });
 const noSelectionHost = noSelectionContext.document.createElement("main");
 const noSelectionSurface = /** @type {DataBindingViewSurface} */ (noSelectionContext.window.LongtailForge.view).renderSurface(noInitialSelectionDescriptor(), noSelectionHost);

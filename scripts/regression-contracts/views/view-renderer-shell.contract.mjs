@@ -8,6 +8,12 @@ const { readText } = createProjectTextReader();
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
+// 0.33.33.35.2 moved permission/route security, field option hydration, and
+// descriptor data binding into sibling modules. The renderer reaches them through the
+// namespace at call time, so every context that executes it has to provide them too.
+const viewActionSecuritySource = readText("public/js/shared/view-action-security.js");
+const viewSearchOptionsSource = readText("public/js/shared/view-search-options.js");
+const viewDataBindingSource = readText("public/js/shared/view-data-binding.js");
 const responseRecords = readText("public/js/shared/view-response-records.js");
 const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
 const css = readText("public/css/longtail-forge.css");
@@ -52,6 +58,9 @@ const context = createFakeBrowserContext();
 vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, context, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, context, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, context, { filename: "view-data-binding.js" });
 vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
 const { view } = /** @type {FakeLongtailForgeGlobal & { view: RendererViewSurface }} */ (context.window.LongtailForge);
 assert.equal(typeof view.renderSurface, "function", "LongtailForge.view.renderSurface should be exposed");

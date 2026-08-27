@@ -26,6 +26,12 @@ const { readText } = createProjectTextReader();
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
+// 0.33.33.35.2 moved permission/route security, field option hydration, and
+// descriptor data binding into sibling modules. The renderer reaches them through the
+// namespace at call time, so every context that executes it has to provide them too.
+const viewActionSecuritySource = readText("public/js/shared/view-action-security.js");
+const viewSearchOptionsSource = readText("public/js/shared/view-search-options.js");
+const viewDataBindingSource = readText("public/js/shared/view-data-binding.js");
 const responseRecords = readText("public/js/shared/view-response-records.js");
 const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
 const css = readText("public/css/longtail-forge.css");
@@ -113,6 +119,9 @@ const clientsContext = createFakeBrowserContext({
 vm.runInNewContext(surfaceDescriptor, clientsContext, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, clientsContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, clientsContext, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, clientsContext, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, clientsContext, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, clientsContext, { filename: "view-data-binding.js" });
 vm.runInNewContext(renderer, clientsContext, { filename: "view-renderer.js" });
 
 /** @typedef {import("./test-support/fake-dom.mjs").FakeNode} FakeNode */
@@ -179,6 +188,9 @@ const projectsContext = createFakeBrowserContext({
 vm.runInNewContext(surfaceDescriptor, projectsContext, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, projectsContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, projectsContext, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, projectsContext, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, projectsContext, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, projectsContext, { filename: "view-data-binding.js" });
 vm.runInNewContext(renderer, projectsContext, { filename: "view-renderer.js" });
 
 /** @type {DispatchedBehavior[]} */

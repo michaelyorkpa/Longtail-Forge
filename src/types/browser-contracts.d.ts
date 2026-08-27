@@ -118,6 +118,95 @@ export interface BrowserFilePreviewActions {
   openFilePreviewAction(params?: BrowserFileActionRecord, hostContext?: unknown): unknown;
 }
 
+/**
+ * `LongtailForge.viewActionSecurity`, published by `public/js/shared/view-action-security.js`.
+ *
+ * The security-relevant half of descriptor action dispatch, extracted from the view renderer by
+ * `0.33.33.35.2`. The renderer keeps the dispatch; this decides whether an action may run and
+ * what URL it runs against. Both collaborators are passed in so the module acquires nothing and
+ * stays ignorant of descriptor semantics.
+ */
+export interface BrowserViewActionSecurity {
+  /** Whether every permission the action requires is granted in the current workspace. */
+  actionPermissionsAllowed(action?: BrowserSecuredAction): boolean;
+  /** Throws when the action's required permissions are not granted. */
+  assertActionPermissions(action: BrowserSecuredAction): void;
+  /** Confirm a guarded action through the framework modal, falling back to the host confirm. */
+  confirmDescriptorAction(action: BrowserSecuredAction): Promise<boolean>;
+  /** Replace `{field}` route tokens using the supplied reader; unresolved tokens are left intact. */
+  interpolateRoute(route: unknown, record: unknown, readValue: BrowserDescriptorValueReader): unknown;
+  /** Run a descriptor route action; settling surface state is the caller's concern. */
+  runRouteAction(
+    action: BrowserSecuredAction,
+    context: { api: BrowserApi; readValue: BrowserDescriptorValueReader; record?: unknown },
+  ): Promise<void>;
+}
+
+/** The parts of a descriptor action `viewActionSecurity` reads. */
+export interface BrowserSecuredAction {
+  confirm?: unknown;
+  id?: string;
+  label?: string;
+  method?: string;
+  payload?: unknown;
+  requiredPermissions?: unknown;
+  route?: string;
+}
+
+/** Reads one descriptor field out of a record. Supplied by the caller, never resolved. */
+export type BrowserDescriptorValueReader = (record: unknown, field: string, fallback?: unknown) => unknown;
+
+/**
+ * `LongtailForge.viewSearchOptions`, published by `public/js/shared/view-search-options.js`.
+ *
+ * Option hydration for descriptor fields: native `<select>` population and the search-suggestion
+ * combobox that stands in for a select on free-text controls. Extracted by `0.33.33.35.2`. The
+ * control types are structural because the renderer drives real DOM and the framework
+ * regressions drive a fake one.
+ */
+export interface BrowserViewSearchOptions {
+  /** Mount the suggestion combobox on a text control, replacing any previous mount. */
+  mountSearchOptions(control: unknown, options?: unknown[], config?: BrowserSearchOptionsConfig): void;
+  /** Normalize pair-array, object, and scalar option shapes into one row shape. */
+  normalizeSelectOptions(options?: unknown[]): Record<string, unknown>[];
+  /** Route option hydration by control type. */
+  setFieldOptions(control: unknown, options?: unknown[], selectedValue?: unknown, optionsConfig?: BrowserSearchOptionsConfig): void;
+  /** Put a control into its options-unavailable state without inventing option content. */
+  setFieldOptionsError(control: unknown, message?: string): void;
+  /** Populate a native select. */
+  setSelectOptions(control: unknown, options?: unknown[], selectedValue?: unknown): void;
+}
+
+export interface BrowserSearchOptionsConfig {
+  emptyMessage?: string;
+  maxResults?: number;
+  minChars?: number;
+  selectedValue?: unknown;
+  submitMode?: string;
+}
+
+/**
+ * `LongtailForge.viewDataBinding`, published by `public/js/shared/view-data-binding.js`.
+ *
+ * Turns a descriptor's `dataSource` into records: filtered route, response envelope, field
+ * bindings. Extracted by `0.33.33.35.2`. It holds no descriptor defaults and takes its API
+ * client from the caller.
+ */
+export interface BrowserViewDataBinding {
+  /** Append active filter values to a route; unset values never reach the query. */
+  appendFilterQuery(route: string, filters: unknown[] | undefined, filterValues: Record<string, unknown> | null | undefined): string;
+  /** Map one response row onto the descriptor's declared field bindings. */
+  bindRecord(record: unknown, fieldBindings: Record<string, string>): Record<string, unknown>;
+  /** Load and bind the records a descriptor's `dataSource` declares. */
+  loadBoundRecords(
+    descriptor: unknown,
+    filterValues: Record<string, unknown> | null | undefined,
+    api: BrowserApi,
+  ): Promise<Record<string, unknown>[]>;
+  /** Read a dotted path out of a source object. */
+  readPath(source: unknown, path: unknown): unknown;
+}
+
 export interface BrowserRecord {
   clientId?: unknown;
   clientName?: unknown;
