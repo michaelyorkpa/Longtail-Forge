@@ -1,5 +1,39 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.35.3 - Extract the view-builder modal stack
+
+**Model: Medium Effort - One extraction from a 2,013-line file.**
+
+Closes the `0.33.33.35` rollup. The modal stack - which dialogs are open, which is on top, which belong to which parent, and what happens to focus when one closes - left `public/js/shared/view-builder.js` for `LongtailForge.viewModalStack`, a narrow single-writer sibling consumed by the builder alone.
+
+- [x] **`window.LongtailForge.view` is untouched.** The builder still publishes all 30 members, still does not spread, and still publishes `showModal`, `closeModal`, `closeChildModals`, and `isTopModal` - now as four thin delegates with unchanged signatures. Writer list, member sets, and the ordered-composition record are exactly as they were, and a regression asserts the extracted module never writes that factory.
+- [x] **The preflight completed the roadmap's symbol list rather than contradicting it.** The stack is **12 functions and 2 state declarations**, not the 11 functions recorded: `modalEntries`, the per-dialog `WeakMap`, and `updateModalStackEntry`, which only `registerModalStack` calls, both belong to the same cohesive responsibility. The cluster is **contiguous at lines 1133-1285 with no non-cluster code inside it**.
+- [x] **The roadmap's central claim held.** The stack depends on nothing but the dialogs it is handed and a single read of `global.document?.activeElement` for focus return.
+- [x] **The constructors stay.** `createModal`, `createModalForm`, and `createModalFooter` are built from the builder's element factory - `createElement`, `createHeading`, `nextId`, `requiredText`, `modalSizeClass`, `normalizeActions` - and were measured to depend on **no stack state at all**, so nothing had to be duplicated or plumbed across the boundary.
+- [x] **The published surface exposes only what the builder delegates.** Four members. `registerModalStack` and the entry bookkeeping stay private: the builder has no reason to reach them and a wider surface would invite one.
+- [x] **Modal semantics are unchanged.** Nothing was rewritten and typing the seam exposed no defect to fix. Ordering, parentage, top-modal determination, child closing, DOM cleanup, and focus return moved exactly as they were.
+
+**The `0.33.33.35.2` reference-audit lesson earned its keep immediately.** Searching every form rather than call syntax showed that the only references to the four published members outside the cluster are the **bare ones in the publication block** - precisely the form a `symbolName(` search cannot see, and precisely what the four delegates now satisfy. Had the audit been call-syntax only, the publication block would have been left pointing at deleted functions.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | --- | --- |
+| Browser program diagnostics | 10,407 | **10,377** |
+| `view-builder.js` lines / diagnostics | 2,013 / 492 | **1,911 / 462** |
+| `view-modal-stack.js` lines / diagnostics | - | **320 / 0** |
+| Published surfaces | 62 | **63** |
+| Multi-writer records | 2 | **2** |
+| `LongtailForge.view` writers / members | 2 / 30 + 10 | **2 / 30 + 10** |
+| Classic scripts out of the shared lexical environment | 78 / 78 | **79 / 79** |
+| Playwright end-to-end tests | 167 | **167**, green |
+
+Delivery reuses the mechanism `.35.2` settled - injected at `<head>` by `src/services/static.service.js` - so **no view template changed**.
+
+**Ten regression owners now load the module into the fifteen contexts that execute the builder.** In `notes-modal-stack-guardrails` the source-location assertions became ownership ones: the module owns the stack and publishes exactly the four members the builder delegates, the builder still publishes and delegates each of them, the frozen factory still carries all four, and the constructors stay put. Its nested-dialog behavioural proof - parent at stack level 1, child at level 2, parent losing top-ness while the child is open - is unchanged and still passes, as do the end-to-end focus-containment and focus-return-on-Escape specs, which are what actually pin the semantics.
+
+**One assertion of this checkpoint's own was too broad and had to be tightened**: a `doesNotMatch` forbidding the constructor names in the extracted module matched the module's own doc comment explaining why they stay in the builder. It now forbids their *definitions*. A negative source assertion has to name the construct it forbids, not the word.
+
 ## Version 0.33.33.35.2 - Extract the view-renderer responsibilities
 
 **Model: High Effort - 2,085 lines with descriptor, permission, and combobox behaviour in one file.**
