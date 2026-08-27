@@ -27,7 +27,19 @@ assert.match(listsModule, /dataSource:\s*\{[\s\S]*route:\s*"\/api\/lists"[\s\S]*
 assert.match(listsJs, /view\.renderSurface\(renderDescriptor, host\)/, "Lists browser script should ask the framework renderer to fill the host");
 assert.match(listsJs, /listsViewSurfaceDescriptor\(\)/, "Lists browser script should resolve the delivered descriptor");
 assert.match(listsJs, /workspaceContext\?\.viewSurfaces/, "Lists browser script should prefer app-shell delivered descriptors");
-assert.match(listsJs, /fallbackListsViewSurfaceDescriptor/, "Lists browser script should keep a startup fallback while app-shell context loads");
+// 0.33.33.35.1.2 deleted the module-local descriptor fallbacks. The server surface is the
+// only source now, so this owner asserts the absence of a local copy rather than its presence,
+// and the descriptor's shape is owned where it is declared - in the module/framework source.
+assert.doesNotMatch(
+  listsJs,
+  /function fallback\w*ViewSurfaceDescriptor\(|LinkedRecordsFallbackDescriptor\(/,
+  "Lists must not reintroduce a local descriptor fallback",
+);
+assert.match(
+  listsJs,
+  /surface\.id === "lists.workspace"[^\n]*\|\| null;/,
+  "Lists should resolve to null when the server did not deliver its surface",
+);
 assert.match(listsJs, /decorateListsDeclarativeSurface/, "Lists browser script should decorate generic descriptor anatomy with legacy hooks");
 assert.match(listsJs, /data-view-sidebar-panel=\"lists-filters\"/, "Lists browser decoration should resolve the filter panel from the drawer");
 assert.match(listsJs, /data-view-sidebar-panel=\"lists-index\"/, "Lists browser decoration should resolve the selector panel from the drawer");

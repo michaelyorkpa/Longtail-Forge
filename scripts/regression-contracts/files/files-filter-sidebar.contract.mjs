@@ -22,7 +22,19 @@ assert.match(frameworkSurfaceSource, /route:\s*"\/api\/files\/attachments"/, "Fi
 assert.match(filesScript, /view\.registerBehavior\("files\.browse\.filters"/, "Files adapter should register the filter behavior");
 assert.match(filesScript, /view\.registerBehavior\("files\.browse\.results"/, "Files adapter should register the results behavior");
 assert.match(filesScript, /view\.renderSurface\(\{ \.\.\.activeFilesViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Files adapter should render the descriptor shell without renderer-owned data fetching");
-assert.match(filesScript, /fallbackFilesViewSurfaceDescriptor/, "Files adapter should keep a fallback descriptor for early bootstrap timing");
+// 0.33.33.35.1.2 deleted the module-local descriptor fallbacks. The server surface is the
+// only source now, so this owner asserts the absence of a local copy rather than its presence,
+// and the descriptor's shape is owned where it is declared - in the module/framework source.
+assert.doesNotMatch(
+  filesScript,
+  /function fallback\w*ViewSurfaceDescriptor\(|LinkedRecordsFallbackDescriptor\(/,
+  "Files must not reintroduce a local descriptor fallback",
+);
+assert.match(
+  filesScript,
+  /surface\.id === "files.browse"[^\n]*\|\| null;/,
+  "Files should resolve to null when the server did not deliver its surface",
+);
 
 const filterChrome = extractFunctionSpan(filesScript, "createFilesFilterChrome");
 assert.match(filterChrome, /createFilterLabel\("Filename"[\s\S]*createFilterLabel\("Status"[\s\S]*createBusinessFilterLabel\("Client", createClientSelect\(\)\)[\s\S]*createFilterLabel\("Project", createProjectSelect\(\)\)[\s\S]*createAdvancedTargetFilters\(\)/, "Files filters should expose readable filename/status/client/project controls before advanced target filters");

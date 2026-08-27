@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18890,
+    "activeAssertionCount": 18891,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19704,
+    "effectiveAssertionCount": 19705,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -3093,11 +3093,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 34,
+      "assertionCount": 35,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy files descriptor host contract.",
-      "entryPointAssertionCount": 34,
+      "entryPointAssertionCount": 35,
       "id": "legacy.files.descriptor.host",
       "legacy": true,
       "path": "scripts/files-descriptor-host-regression.mjs",
@@ -4098,11 +4098,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 251,
+      "assertionCount": 250,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes ui workflow contract.",
-      "entryPointAssertionCount": 251,
+      "entryPointAssertionCount": 250,
       "id": "legacy.notes.ui.workflow",
       "legacy": true,
       "path": "scripts/notes-ui-workflow-regression.mjs",
@@ -4960,8 +4960,8 @@
     },
     {
       "area": "files",
-      "assertionCount": 625,
-      "contractAssertionCount": 624,
+      "assertionCount": 626,
+      "contractAssertionCount": 625,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/files/file-scanner-setup-docs.contract.mjs",
@@ -4993,7 +4993,7 @@
         },
         {
           "path": "scripts/regression-contracts/files/files-filter-sidebar.contract.mjs",
-          "assertionCount": 37
+          "assertionCount": 38
         },
         {
           "path": "scripts/regression-contracts/files/files-preview-modal.contract.mjs",
@@ -6040,12 +6040,12 @@
     },
     {
       "area": "lists",
-      "assertionCount": 147,
-      "contractAssertionCount": 146,
+      "assertionCount": 148,
+      "contractAssertionCount": 147,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/lists/lists-declarative-readonly-surface.contract.mjs",
-          "assertionCount": 40
+          "assertionCount": 41
         },
         {
           "path": "scripts/regression-contracts/lists/lists-items-modals-descriptor.contract.mjs",
@@ -6077,12 +6077,12 @@
     },
     {
       "area": "notes",
-      "assertionCount": 223,
-      "contractAssertionCount": 222,
+      "assertionCount": 222,
+      "contractAssertionCount": 221,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/notes/notes-context-terminology.contract.mjs",
-          "assertionCount": 24
+          "assertionCount": 23
         },
         {
           "path": "scripts/regression-contracts/notes/notes-critical-quick-fixes.contract.mjs",
@@ -7028,11 +7028,11 @@
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-declarative-readonly-surface.contract.mjs",
-          "assertionCount": 40
+          "assertionCount": 41
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-detail-read-panel.contract.mjs",
-          "assertionCount": 22
+          "assertionCount": 21
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-filter-sidebar-anatomy.contract.mjs",

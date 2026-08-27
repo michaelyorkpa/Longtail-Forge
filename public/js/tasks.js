@@ -271,8 +271,12 @@
       throw new Error("Tasks requires LongtailForge.view to build the protected workspace.");
     }
 
-    registerTasksViewBehaviors();
     activeTasksViewDescriptor = tasksViewSurfaceDescriptor();
+    if (!activeTasksViewDescriptor) {
+      return;
+    }
+
+    registerTasksViewBehaviors();
     const surface = view.renderSurface({ ...activeTasksViewDescriptor, dataSource: null, modals: [] }, host);
     decorateTasksDeclarativeSurface(surface);
   }
@@ -313,69 +317,13 @@
     });
   }
 
+  // 0.33.33.35.1.2: null means the server did not deliver this surface, which is the whole
+  // contract now - there is no local descriptor to fall back to. 0.33.33.35.1.1 made this
+  // readable by moving the shell build behind the workspace context, so an absent surface is
+  // an answer rather than a not-yet.
   function tasksViewSurfaceDescriptor() {
     const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
-    return surfaces.find((surface) => surface.id === "tasks.workspace" && surface.moduleId === "tasks")
-      || fallbackTasksViewSurfaceDescriptor();
-  }
-
-  function fallbackTasksViewSurfaceDescriptor() {
-    return {
-      id: "tasks.workspace",
-      moduleId: "tasks",
-      viewId: "tasks",
-      layout: "slide-out-sidebar",
-      sidebarLabel: "Task filters",
-      pageHeader: {
-        title: "Tasks",
-        primaryAction: {
-          id: "create-task",
-          label: "Add Task",
-          role: "primary",
-          behavior: "tasks.create",
-        },
-      },
-      sidebarPanels: [
-        {
-          id: "tasks-view-selector",
-          type: "navigation",
-          title: "Saved Task Views",
-          behavior: "tasks.sidebar.view-selector",
-          collapsible: false,
-          className: "tasks-view-selector-panel",
-          ariaLabel: "Saved task views",
-        },
-        {
-          id: "tasks-filters",
-          type: "navigation",
-          title: "Sorting and Filters",
-          behavior: "tasks.sidebar.filters",
-          open: false,
-          className: "tasks-filters-panel",
-          ariaLabel: "Sorting and task filters",
-        },
-      ],
-      detail: {
-        regions: [
-          {
-            id: "tasks-main-list",
-            behavior: "tasks.main.list",
-            className: "tasks-main-list-region",
-            ariaLabel: "Task list",
-          },
-        ],
-      },
-      dataSource: {
-        route: "/api/tasks",
-        method: "GET",
-        recordsKey: "tasks",
-        fieldBindings: {
-          id: "task_id",
-          title: "title",
-          status: "status",
-        },
-      },
-    };
+    return surfaces.find((surface) => surface.id === "tasks.workspace" && surface.moduleId === "tasks") || null;
   }
 
   function decorateTasksDeclarativeSurface(surface) {

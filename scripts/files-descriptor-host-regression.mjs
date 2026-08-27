@@ -34,7 +34,19 @@ assert.match(filesScript, /view\.renderSurface\(\{ \.\.\.activeFilesViewDescript
 assert.match(filesScript, /files\.browse\.filters/, "Files adapter should register the browse filter behavior");
 assert.match(filesScript, /files\.browse\.results/, "Files adapter should register the browse results behavior");
 assert.doesNotMatch(filesScript, /files\.browse\.legacy|createFilesBrowseChrome/, "Strict Files adapter should not preserve the legacy full-page browse fallback behavior");
-assert.match(filesScript, /fallbackFilesViewSurfaceDescriptor/, "Files adapter should keep a safe fallback descriptor for early bootstrap timing");
+// 0.33.33.35.1.2 deleted the module-local descriptor fallbacks. The server surface is the
+// only source now, so this owner asserts the absence of a local copy rather than its presence,
+// and the descriptor's shape is owned where it is declared - in the module/framework source.
+assert.doesNotMatch(
+  filesScript,
+  /function fallback\w*ViewSurfaceDescriptor\(|LinkedRecordsFallbackDescriptor\(/,
+  "Files must not reintroduce a local descriptor fallback",
+);
+assert.match(
+  filesScript,
+  /surface\.id === "files.browse"[^\n]*\|\| null;/,
+  "Files should resolve to null when the server did not deliver its surface",
+);
 assert.match(filesScript, /\/api\/files\/attachments/, "Files adapter should continue to use the service-owned attachments route");
 // 0.33.33.35.1.1 - the view shell waits for the workspace context.
 //

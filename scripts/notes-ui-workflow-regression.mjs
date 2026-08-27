@@ -124,7 +124,8 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /notesViewSurfaceDescriptor/);
   assert.match(notesModuleSource, /layout:\s*"slide-out-sidebar"/);
   assert.doesNotMatch(notesModuleSource, /layout:\s*"sidebar-detail"/);
-  assert.match(notesJs, /layout:\s*"slide-out-sidebar"/);
+  // 0.33.33.35.1.2: notes.js no longer carries a descriptor literal of its own; the layout is
+  // owned by the manifest surface asserted on the line above.
   assert.match(notesJs, /decorateNotesDeclarativeSurface/);
   assert.match(notesJs, /view\.registerBehavior\("notes\.sidebar\.library"[\s\S]*container\.replaceChildren\(createNotesLibraryChrome\(\)\)/);
   assert.match(notesJs, /createNotesLibraryChrome/);
@@ -168,7 +169,12 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /createNoteContextPanel/);
   assert.match(notesJs, /createNoteEditorToolbar/);
   // Note Kind options stay module-owned and exclude the linked-target kinds.
-  const noteKindOptions = notesJs.match(/field: "noteType",[^\n]*?options: (\[\[.*?\]\]) \}/)?.[1] || "";
+  //
+  // 0.33.33.35.1.2: this read notes.js, where the options literal lived only inside the
+  // deleted descriptor fallback. The manifest surface is where the option set is declared
+  // and served from, so that is what it reads now - otherwise deleting a client fallback
+  // would have left a test-owned shadow copy of a live product rule.
+  const noteKindOptions = notesModuleSource.match(/field: "noteType",[^\n]*?options: (\[\[.*?\]\]) \}/)?.[1] || "";
   assert.match(noteKindOptions, /\["decision", "Decision"\]/);
   assert.match(noteKindOptions, /\["procedure", "Procedure"\]/);
   assert.match(noteKindOptions, /\["log", "Log"\]/);

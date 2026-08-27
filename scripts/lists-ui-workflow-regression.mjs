@@ -59,6 +59,7 @@ async function assertProtectedView(session) {
   const result = await staticService.read("/lists.html", session);
   const html = result.contents.toString("utf8");
   const listsJs = await fs.readFile(path.join(process.cwd(), "public/js/lists.js"), "utf8");
+  const listsModuleSource = await fs.readFile(path.join(process.cwd(), "src/modules/lists/module.js"), "utf8");
   const styles = await fs.readFile(path.join(process.cwd(), "public/css/longtail-forge.css"), "utf8");
   const listsStyles = styles.slice(styles.indexOf(".lists-filters-panel"), styles.indexOf(".client-item"));
 
@@ -85,7 +86,9 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /dataset\.listsTitle/);
   assert.match(listsJs, /dataset\.listCreate/);
   assert.match(listsJs, /"listFilterStatus"/);
-  assert.match(listsJs, /Normal lists/);
+  // 0.33.33.35.1.2: this filter option label lived only in the deleted lists.js fallback
+  // descriptor. The manifest surface declares the option set, so that is what it reads now.
+  assert.match(listsModuleSource, /\["no", "Normal lists", true\]/);
   assert.match(listsJs, /"listFilterAssignee"/);
   assert.match(listsJs, /"listFilterNeeded"/);
   assert.match(listsJs, /"listFilterArchive"/);
