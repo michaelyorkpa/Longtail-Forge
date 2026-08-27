@@ -235,6 +235,36 @@ export interface BrowserModalStackOptions {
   trigger?: unknown;
 }
 
+/**
+ * `LongtailForge.taskLifecycleLegality`, published by
+ * `public/js/shared/task-lifecycle-legality.js`.
+ *
+ * Given a status, and a timer where one applies, which lifecycle transitions are legal.
+ * Extracted by `0.33.33.37` from the three task surfaces, which had the same rule written eleven
+ * times in two spellings. The primitives are deliberately small: Tasks, Workbench, and Task
+ * Dialog compose them differently on purpose, and this module holds no permission rule, no
+ * message copy, and no descriptor structure.
+ */
+export interface BrowserTaskLifecycleLegality {
+  /** The statuses from which a task is still actionable. */
+  activeStatuses(): BrowserTaskLifecycleStatus[];
+  /** Whether a task in this status may still be completed. */
+  canCompleteStatus(status: unknown): boolean;
+  /** Whether a task has reached an end state. */
+  isTerminalStatus(status: unknown): boolean;
+  /** Whether a timer satisfies an action's declared timer visibility. */
+  timerMatchesVisibility(timer: { timer_status?: string } | null | undefined, visibility: unknown): boolean;
+}
+
+/**
+ * The browser-facing task lifecycle vocabulary.
+ *
+ * Declared separately from `TaskLifecycleStatus` in `task-block-recovery-contracts.d.ts`, whose
+ * trailing `string` member collapses that union to `string`. Narrowing the server type belongs to
+ * its own consumer; `0.33.33.37` did not reach into it.
+ */
+export type BrowserTaskLifecycleStatus = "open" | "in_progress" | "blocked" | "complete" | "archived";
+
 export interface BrowserRecord {
   clientId?: unknown;
   clientName?: unknown;

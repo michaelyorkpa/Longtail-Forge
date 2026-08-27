@@ -1,4 +1,8 @@
 (function attachTasksPage() {
+  // 0.33.33.37 moved status-and-timer legality into LongtailForge.taskLifecycleLegality. Row
+  // visibility resolution stays here - it is a Tasks responsibility, not duplication.
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskLifecycleLegality} BrowserTaskLifecycleLegality */
+
   const TASK_FILTER_STORAGE_KEY = "lf_tasks_filters_v1";
   const DEFAULT_TASK_VIEW = "my";
   const TASK_LIST_PAGE_SIZE = 100;
@@ -1371,7 +1375,7 @@
           timerStatus: "running",
           timerVisibility: "none",
           requiredPermissions: ["tasks.view", "time_entries.create"],
-          visibleStatuses: ["open", "in_progress", "blocked"],
+          visibleStatuses: requireTaskLifecycleLegality().activeStatuses(),
         },
         {
           id: "pause-task-timer",
@@ -1382,7 +1386,7 @@
           timerStatus: "paused",
           timerVisibility: "running",
           requiredPermissions: ["tasks.view", "time_entries.create"],
-          visibleStatuses: ["open", "in_progress", "blocked"],
+          visibleStatuses: requireTaskLifecycleLegality().activeStatuses(),
         },
         {
           id: "resume-task-timer",
@@ -1393,10 +1397,19 @@
           timerStatus: "running",
           timerVisibility: "paused",
           requiredPermissions: ["tasks.view", "time_entries.create"],
-          visibleStatuses: ["open", "in_progress", "blocked"],
+          visibleStatuses: requireTaskLifecycleLegality().activeStatuses(),
         },
       ],
     };
+  }
+
+  /** @returns {BrowserTaskLifecycleLegality} */
+  function requireTaskLifecycleLegality() {
+    const legality = /** @type {BrowserTaskLifecycleLegality | undefined} */ (window.LongtailForge?.taskLifecycleLegality);
+    if (typeof legality?.timerMatchesVisibility !== "function") {
+      throw new Error("Task actions require LongtailForge.taskLifecycleLegality.");
+    }
+    return legality;
   }
 
   function taskWorkflowActionVisible(action, task) {
@@ -1409,18 +1422,8 @@
       return false;
     }
 
-    const timer = taskTimerForTask(task);
-    if (action.timerVisibility === "none") {
-      return !timer;
-    }
-    if (action.timerVisibility === "running") {
-      return timer?.timer_status === "running";
-    }
-    if (action.timerVisibility === "paused") {
-      return Boolean(timer && timer.timer_status !== "running");
-    }
-
-    return true;
+    return requireTaskLifecycleLegality()
+      .timerMatchesVisibility(taskTimerForTask(task), action.timerVisibility);
   }
 
   function taskTimerSurfaceAvailable() {
@@ -1542,7 +1545,7 @@
           role: "secondary",
           behavior: "tasks.lifecycle.complete",
           requiredPermissions: ["tasks.complete"],
-          visibleStatuses: ["open", "in_progress", "blocked"],
+          visibleStatuses: requireTaskLifecycleLegality().activeStatuses(),
         },
         {
           id: "reopen-task",
@@ -2827,7 +2830,7 @@
       return status === "archived" || status === "all";
     }
 
-    return !["complete", "archived"].includes(status);
+    return !requireTaskLifecycleLegality().isTerminalStatus(status);
   }
 
   function setStatusFilterValue(value) {

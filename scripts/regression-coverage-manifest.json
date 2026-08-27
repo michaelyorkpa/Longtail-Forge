@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18900,
+    "activeAssertionCount": 18901,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19714,
+    "effectiveAssertionCount": 19715,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -8333,11 +8333,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 31,
+      "assertionCount": 32,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy task modal complete action contract.",
-      "entryPointAssertionCount": 31,
+      "entryPointAssertionCount": 32,
       "id": "legacy.task.modal.complete.action",
       "legacy": true,
       "path": "scripts/task-modal-complete-action-regression.mjs",

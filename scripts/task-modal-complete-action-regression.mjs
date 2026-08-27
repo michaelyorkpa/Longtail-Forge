@@ -25,6 +25,9 @@ const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
 const workbenchScript = readText("public/js/workbench.js");
 // 0.33.33.34 moved the module-action dependency table into the shared registry.
 const moduleActionsScript = readText("public/js/shared/module-actions.js");
+// 0.33.33.37 moved status legality into LongtailForge.taskLifecycleLegality; the dialog still
+// composes it with its own permission and saved-task checks.
+const taskLifecycleLegality = readText("public/js/shared/task-lifecycle-legality.js");
 const tasksView = readText("views/protected/tasks.html");
 const workbenchView = readText("views/protected/workbench.html");
 
@@ -56,8 +59,9 @@ function assertStaticContract() {
   assert.doesNotMatch(taskDialogScript, /function taskEditorModalDescriptor[\s\S]*footerActions: \[[\s\S]*id: "complete"/, "Task editor footer should no longer declare the Complete action");
   assert.match(taskDialogScript, /complete:\s*dialog\.querySelector\("\[data-complete-task\]"\)/, "Task dialog should keep a Complete button hook");
   assert.match(taskDialogScript, /fields\.complete\?\.addEventListener\("click", saveAndCompleteTask\)/, "Complete action should dispatch to the save-and-complete handler");
-  assert.match(taskDialogScript, /TASK_COMPLETE_VISIBLE_STATUSES = new Set\(\["open", "in_progress", "blocked"\]\)/, "Complete action should be visible only for active task statuses");
-  assert.match(taskDialogScript, /currentTaskId[\s\S]*TASK_COMPLETE_VISIBLE_STATUSES\.has\(status\)[\s\S]*hasTaskCompletePermission\(\)/, "Complete action should require a saved active task and completion permission");
+  assert.match(taskLifecycleLegality, /const ACTIVE_STATUSES = Object\.freeze\(\["open", "in_progress", "blocked"\]\)/, "Complete action should be visible only for active task statuses");
+  assert.match(taskLifecycleLegality, /function canCompleteStatus\(status\)[\s\S]*ACTIVE_STATUS_SET\.has\(status\)/, "Completability should be decided from the shared active-status vocabulary");
+  assert.match(taskDialogScript, /currentTaskId[\s\S]*canCompleteStatus\(status\)[\s\S]*hasTaskCompletePermission\(\)/, "Complete action should require a saved active task and completion permission");
   assert.match(taskDialogScript, /permissions\.has\("tasks\.complete"\)/, "Complete action should check tasks.complete before showing");
   assert.match(taskDialogScript, /complete\.dataset\.completeTask = ""[\s\S]*complete\.hidden = true/, "Complete header button should start hidden until state gating passes");
   assert.match(taskDialogScript, /taskFormChangeState\(\)\.hasChanges[\s\S]*saveTaskForm\(\{[\s\S]*closeOnSuccess: false,[\s\S]*statusMessage: "Saving task before completion\.\.\."/,

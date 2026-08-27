@@ -86,23 +86,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **What this rollup leaves behind for later checkpoints.** The browser compiler ledger stays active at **10,528** diagnostics; reducing it belongs to `0.33.33.39` through `0.33.33.44`. `window.timeTrackerDebug` remains a bare, un-namespaced `window.*` surface published by `stop-watch.js` with no consumer anywhere in the repository - single-publisher, so it does not block closure, and left untouched because removing or renaming it is not scoping work.
 
-### 0.33.33.37 - Share the Task action legality core
-
-**Model: High Effort** - Lifecycle legality is shared; visibility, enablement messaging, and DOM state are not.
-
-**The "three copies" premise did not survive measurement, and the checkpoint is narrowed rather than resliced.** The three surfaces implement three different things:
-
-- `public/js/tasks.js` — `taskWorkflowActionVisible(action, task)` returns a **boolean visibility** decision driven by a *descriptor* (`action.visibleStatuses`, `action.timerVisibility`) plus live timer state, for a list row.
-- `public/js/workbench.js` — `taskFocusLifecycleDisabledReason(action, active)` returns a **human-readable disabled reason string** driven by Task Focus session state (`isLoading`, `error`, `taskId`) that does not exist on the Tasks list.
-- `public/js/task-dialog.js` — `updateCompleteTaskActionState()` and `updateBlockTaskActionState()` are **imperative DOM state updaters** reading predicates from the dialog's own closure.
-
-Different return types, different inputs, different responsibilities. **Consolidating them into one policy module and proving "identical action matrices" would force an equality that does not exist** and would have to invent a reason string for the Tasks list or a session for the dialog. What is genuinely shared is smaller and real: given a task status, and a timer where one applies, which lifecycle transitions are legal.
-
-- [ ] Extract only the **status-and-timer legality core** into one typed shared contract, and have all three surfaces consume it.
-- [ ] Keep visibility resolution local to Tasks, disabled-reason messaging local to Workbench, and DOM state updating local to Task Dialog. These are surface responsibilities, not duplication.
-- [ ] **Prove each surface's action matrix is unchanged** — not that the three matrices are identical. Record the legitimate differences rather than removing them.
-- [ ] Ordering: runs after `0.33.33.33.6` and `0.33.33.33.7`, which scope all three files.
-
 ### 0.33.33.38 - Add typed DOM, response, and page-state browser contracts
 
 **Model: High Effort** - Planning rollup only; its numbered children below are the protected implementation checkpoints.
@@ -120,7 +103,10 @@ Different return types, different inputs, different responsibilities. **Consolid
 
 **The most important correction: `TS7006` is 29% of the browser program and no shared contract can collapse it.** Implicit-any parameters are removed by annotating each function's parameters in the controller that declares them, which is `0.33.33.39` through `0.33.33.44` work. A `.38` that claimed to collapse "most" cascades would be measuring the wrong thing.
 
-- [ ] **Inherited from `0.33.33.36`: `linkTargetDirectory.list` declares `LinkTargetCandidate[]` while its providers populate every field.** The mostly-optional member is weaker than what the directory actually returns, so a consumer that annotates the merged linked-target array resolves member access to the weak branch and reads present fields as possibly-undefined. Strengthening the declared return to `LinkTarget[]` is a published-contract change across every provider and belongs with contract work, not with a producer fix.
+- [ ] **Inherited from `0.33.33.37`: `TaskLifecycleStatus` in `src/types/task-block-recovery-contracts.d.ts` ends in `| string`, which collapses the union to `string` and discriminates nothing.** `0.33.33.37` published the browser vocabulary separately rather than narrow a server type whose only consumer is `task-block-recovery-engine.js`. Narrowing it is a small change with one consumer; confirm no caller depends on the widened form before doing it.
+- [ ] **Inherited from `0.33.33.36`: decide whether `linkTargetDirectory.list: LinkTargetCandidate[]` is intentional provider vocabulary or stale looseness - and answer that before changing it.** `0.33.33.36` found that a consumer annotating the merged linked-target array against the mostly-optional member resolves access to the weak branch and reads present fields as possibly-undefined, which is why that producer left its public return inferred. **The fix is not automatically to strengthen the directory to `LinkTarget[]` because every built-in provider happens to fill every field today.** Establish first why both types are published at all, and whether `LinkTargetCandidate` deliberately represents a provider or extensibility boundary, partially populated targets, targets whose availability is not yet resolved, the optional `unavailable` semantics, legacy-provider compatibility, providers that are permitted to return incomplete candidates, or an intermediate shape normalised into a full `LinkTarget` later. If any of those is intentional the directory is correct as it stands and the consumer seam is what needs a different answer.
+  - **Two pieces of evidence already point at intentional, and neither is conclusive.** `src/modules/notes/link-target-directory.service.js:33` holds a frozen `providers` registry, so a provider boundary exists rather than a single built-in implementation; and `safeUnavailableTarget` in `notes.service.js` returns a deliberately **partial** shape carrying `unavailable: true` and `is_available: false`, which is the availability-not-yet-established case. The published `LinkTarget` also excludes `unavailable` from its required set (`Required<Omit<LinkTargetCandidate, "unavailable">>`), which reads like a resolved-target type sitting deliberately above an unresolved-candidate one.
+  - **If, and only if, no intentional weaker boundary exists**, `.38` may strengthen the declared return - with evidence gathered across **every provider and every consumer**, not from the built-ins alone.
 - [ ] **Each child publishes contract vocabulary and helpers. Adoption is `0.33.33.39` through `.44`.** A child may adopt its own helpers in shared framework files it already owns, but no child converts a module controller.
 - [ ] **Do not invent a broad shared shape because many diagnostics disappear.** The 630-diagnostic state literal is one page's state, not a shared contract; per-page state shapes belong to the module children. `.38.3` publishes the pattern, not the pages' shapes.
 - [ ] Keep contracts in declaration/JSDoc surfaces and preserve response shaping on the server.

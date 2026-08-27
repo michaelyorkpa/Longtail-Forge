@@ -449,6 +449,7 @@
         "public/js/shared/status.js",
         "public/js/shared/tags.js",
         "public/js/shared/task-calendar.js",
+        "public/js/shared/task-lifecycle-legality.js",
         "public/js/shared/timezones.js",
         "public/js/shared/view-action-security.js",
         "public/js/shared/view-builder.js",
@@ -478,7 +479,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 10377,
+      "errorCount": 10375,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1903,7 +1904,7 @@
           },
           {
             "code": 2339,
-            "count": 203
+            "count": 201
           },
           {
             "code": 2345,
@@ -2907,8 +2908,8 @@
     }
   },
   "totals": {
-    "files": 1056,
-    "errors": 10377,
+    "files": 1057,
+    "errors": 10375,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

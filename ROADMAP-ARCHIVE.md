@@ -1,5 +1,36 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.37 - Share the Task action legality core
+
+**Model: High Effort** - Lifecycle legality is shared; visibility, enablement messaging, and DOM state are not.
+
+The status-and-timer legality rule now lives once, in `LongtailForge.taskLifecycleLegality` - a narrow single-writer sibling injected at `<head>` on the mechanism `0.33.33.35.2` settled, with three consumers.
+
+- [x] **The shared kernel was a duplicated vocabulary, not duplicated logic.** The active set `["open", "in_progress", "blocked"]` was written out **six times** and its complement `["complete", "archived"]` **five more** - the same rule spelled both ways across three files. All three surfaces also read `timer_status`, so the timer half was shared too rather than being a Tasks-only concern.
+- [x] **Only legality moved.** Tasks still resolves boolean row visibility from its action descriptors, Workbench still produces its own disabled-reason copy from Task Focus session state, and Task Dialog still updates DOM state from its own closure. Three responsibilities, three return types - not three copies, and not consolidated.
+- [x] **The primitives are small on purpose.** Workbench treats an already-blocked task as a reason not to block; Task Dialog turns the same status into a Resume affordance. Both are correct, so the module publishes `isTerminalStatus`, `canCompleteStatus`, `activeStatuses`, and `timerMatchesVisibility` rather than a composed can-block answer that would force one surface's reading onto the other.
+- [x] **Each surface's action matrix is unchanged, and the differences were preserved rather than removed.** The end-to-end blocked-recovery, direct-completion, and task-focus specs pass untouched.
+
+**The published `TaskLifecycleStatus` was not adopted, and that was the `0.33.33.36` lesson repeating.** `src/types/task-block-recovery-contracts.d.ts` declares `"open" | "in_progress" | "blocked" | "complete" | "archived" | string` - **the trailing `string` collapses the union to `string`**, so it discriminates nothing. Narrowing it reaches `task-block-recovery-engine.js`, its only consumer, so the browser-facing vocabulary is published separately as `BrowserTaskLifecycleStatus` and the server type is left alone. *A type is not fit merely because its name is.*
+
+**`visibleStatuses` is a client-side literal, not a server descriptor field** - `src/modules/tasks/module.js` declares none - so nothing here recreates the descriptor authority `0.33.33.35.1.2` removed.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | --- | --- |
+| Browser program diagnostics | 10,377 | **10,375** |
+| `task-lifecycle-legality.js` lines / diagnostics | - | **112 / 0** |
+| Duplicated status-set literals | **11** | **0** |
+| Published surfaces | 63 | **64** |
+| Multi-writer records | 2 | **2** |
+| Classic scripts out of the shared lexical environment | 79 / 79 | **80 / 80** |
+| Playwright end-to-end tests | 167 | **167**, green |
+
+**Three source assertions across two owners followed the expression that moved, and each kept the contract it always had.** `task-modal-complete-action` asserted the active-status vocabulary against `task-dialog.js`; that assertion now reads the module that owns the vocabulary, while the dialog keeps the assertion about *its* composition - legality with a saved task and completion permission. `task-critical-quick-fixes` pinned two filter expressions that legitimately changed shape. **No behavioural test changed**, which is the standard `0.33.33.36` set: a behavioural test that has to change means the change is wrong.
+
+**Deferred, with owners.** The degenerate `TaskLifecycleStatus` union belongs to whichever checkpoint owns `task-block-recovery-engine`; it is recorded here rather than fixed opportunistically. The `linkTargetDirectory.list` vocabulary question remains with `0.33.33.38`.
+
 ## Version 0.33.33.36 - Close the linked-context producer contract
 
 **Model: High Effort** - Linked-context scope and safe labels cross module hierarchy and permission boundaries.
