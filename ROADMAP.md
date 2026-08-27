@@ -36,6 +36,12 @@ Branch delivery contract:
 - [ ] Preserve attested-baseline fail-closed proof, canonical-workspace fingerprinting, backup/restore/purge and migration-chain coverage, parameter-binding and module-import audits, permission/session/auth/Support View proofs, Files quota/scanner/streaming coverage, Playwright accessibility/console/overflow coverage, the four closeout regenerators, exact-SHA Nightly/promotion proof, CodeQL, and dependency review.
 - [ ] Do not split `view-builder.js` factories, `user-admin.js`, task-dialog subsystems, or any browser controller that remains an unwrapped classic script. Decomposition is allowed only at the verified seams named below or when typing exposes equivalent evidence and the roadmap is updated first.
 
+Source-contract discipline (branch-wide, from `0.33.33.35`):
+
+- [ ] **A reference audit searches for the symbol in every form it can take, not for call syntax.** `0.33.33.35.2` searched `symbolName(` and missed ten `.filter(actionPermissionsAllowed)` sites, because a bare reference carries no parenthesis; `0.33.33.35.3` then found that the only outside references to four members it moved were the bare ones in a publication block. Check direct invocation, bare reference or callback, alias, destructuring, property assignment, membership in an array, map, or registry, namespace publication, and any test, source contract, or documentation assertion naming it. A symbol that survives under one form and not another fails at runtime rather than at the boundary.
+- [ ] **A negative source assertion forbids a construct, not a word.** `0.33.33.35.3` wrote a `doesNotMatch` meant to prove the modal constructors had not moved, and it matched their names inside the new module's own comment explaining why they had stayed. Assert against the form the contract actually names: a definition (`function X(`), a publication (`namespace.X =`), or a call or import, scoped to that construct. Bare identifier-absence is only correct when no comment, doc, test, or unrelated mention may legitimately carry the name.
+- [ ] **Retarget a source contract to what it owns; do not repoint it at a new filename.** When extraction moves code, an assertion that merely pinned its location is a weak contract that survived by accident. Move it to the behaviour, ownership, publication, or dependency claim it was standing in for - `0.33.33.35.2` and `0.33.33.35.3` both did this - and delete it when a stronger assertion already covers the same ground.
+
 Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, `.28.6`, `.30`, `.30.2`, `.30.3`, `.30.7`, `.30.7.2`, `.31`, `.32`, and `.35.1` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
 
 Release-wide measurable acceptance:
@@ -80,17 +86,40 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **What this rollup leaves behind for later checkpoints.** The browser compiler ledger stays active at **10,528** diagnostics; reducing it belongs to `0.33.33.39` through `0.33.33.44`. `window.timeTrackerDebug` remains a bare, un-namespaced `window.*` surface published by `stop-watch.js` with no consumer anywhere in the repository - single-publisher, so it does not block closure, and left untouched because removing or renaming it is not scoping work.
 
-### 0.33.33.36 - Share the Notes/Lists linked-context picker
+### 0.33.33.36 - Close the linked-context producer contract
 
 **Model: High Effort** - Linked-context scope and safe labels cross module hierarchy and permission boundaries.
 
-**The `0.33.33.32.23` producer gap was re-verified against the current tree and still holds.** `src/types/link-target-directory-contracts.d.ts` publishes `LinkTargetCandidate` (line 21) and declares the directory returning `Promise<LinkTargetCandidate[]>` (line 65), so the published contract is still the right one. `notesService.listLinkTargets` at `src/modules/notes/notes.service.js:937` still carries a JSDoc block with `@param` entries and **no `@returns`**, and still composes its result from the directory provider and the local `listTargetsByType` at line 1732. The inferred union still widens `targetType` from the published `LinkTargetType` union to `string`, so a consumer still cannot annotate against the published contract without a cast. No third consumer has appeared; Notes and Lists remain the only two.
+**Resliced on measurement against the post-`0.33.33.35` tree. The producer half held exactly; the picker-consolidation half did not, and is withdrawn.**
 
-- [ ] **Close the producer gap before consolidating.** Declare `listLinkTargets`'s return as `{ targets: LinkTargetCandidate[] }` and type `listTargetsByType` to match. The shared picker will otherwise inherit the untyped seam it is meant to remove.
-- [ ] Replace the duplicated Notes and Lists implementations with one shared typed picker contract.
-- [ ] Preserve client/project descendant scope, unavailable/hidden labels, workspace type behavior, and saved selection rules.
-- [ ] Keep module-owned payload meaning and save behavior outside the shared helper.
-- [ ] Remove both old implementations only after Notes and Lists browser regressions pass.
+**The `0.33.33.32.23` producer gap re-verified, line for line.** `src/types/link-target-directory-contracts.d.ts` publishes `LinkTargetCandidate` (line 21) and declares the directory returning `Promise<LinkTargetCandidate[]>` (line 65). `notesService.listLinkTargets` at `src/modules/notes/notes.service.js:937` still carries `@param` entries and **no `@returns`**, and still composes its result from the directory provider and the local `listTargetsByType` at line 1732. `shapeLinkTarget` computes `const targetType = target.target_type || target.targetType || ""` from an untyped argument, so the inferred `targetType` is `string` rather than the published `LinkTargetType` union and a consumer still cannot annotate against the contract without a cast. **`0.33.33.35` touched neither service.**
+
+**There is a second producer the previous plan never named.** `listsService.listLinkTargets` at `src/modules/lists/lists.service.js:464`, with `listLinkTargetsByType` at line 926, is an independent implementation carrying the same untyped-return gap. **Lists does not use `linkTargetDirectory` at all**; it shapes through `assertLinkedContextTargetContract` against a `LinkedContextProviderContribution`. The gap is therefore two producers, not one.
+
+**The picker is already shared, and what remains is not duplication.** `createLinkedContextPicker` is a published member of the frozen `LongtailForge.view` factory and **both modules already call it** - `public/js/notes.js:1238` and `public/js/lists.js:612`. What sits around those calls was measured rather than assumed:
+
+| | Notes | Lists |
+| --- | --- | --- |
+| Link-target functions | 20 | 8 |
+| Lines | 260 | 108 |
+| Functions with no counterpart in the other module | **14** | **2** |
+
+Of the six functions that pair by name, exactly one is genuinely duplicated - `queueEditorLinkTargetSearch` and `queueListEditorLinkTargetSearch`, **98% identical and four lines long**, a debounce. The other five pair at **18% to 34% textual similarity**: they are different implementations of different behaviour, not two copies of one. Consolidating them would mean inventing a shared abstraction over two things that do not agree, which is the opposite of removing duplication.
+
+**Two findings make consolidation actively wrong rather than merely unwarranted.**
+
+- **The two producers do not share a permission model.** Notes gates on `NOTE_PERMISSIONS.VIEW`. Lists gates on `LIST_PERMISSIONS.MANAGE_LINKS` *and* asserts module-write enablement first. Merging them is a permission-boundary change wearing a refactor's clothes, and this branch does not authorise one.
+- **A regression already enforces that the two diverge.** `linked-context-client-project-label-sort-regression.mjs:49` asserts Notes must *not* reach `filterReadableClients(session, await clientsRepository.readAll(...))` directly, because Clients/Projects owns that ordering - while `lists.service.js:926` does exactly that through its provider contract. The divergence is deliberate and currently protected.
+
+**The scope is therefore the producer contract, on both producers.**
+
+- [ ] **Close the producer gap on `notesService.listLinkTargets`.** Declare its return as `{ targets: LinkTargetCandidate[] }` and type `listTargetsByType` and `shapeLinkTarget` to match, so `targetType` narrows to the published `LinkTargetType` union.
+- [ ] **Close the same gap on `listsService.listLinkTargets`** and `listLinkTargetsByType`, against the same published contract. A second consumer that still needs a cast leaves the seam half-closed.
+- [ ] Preserve client/project descendant scope, unavailable/hidden labels, workspace type behaviour, and saved selection rules. Neither producer's permission model changes.
+- [ ] Keep module-owned payload meaning and save behaviour where they are. **No behaviour moves between Notes and Lists in this checkpoint.**
+- [ ] **Do not consolidate the browser pickers.** The widget is already shared through the frozen factory; the surrounding code is two different behaviours; and the four genuinely duplicated lines are a debounce. If a later checkpoint wants that debounce shared, it needs a two-surface justification of its own.
+- [ ] **Twenty regression owners are coupled to linked context.** Typing a return changes no behaviour, so the expectation is that all twenty pass untouched; any that fails is asserting an inferred type rather than a contract and should be retargeted, not repointed.
+- [ ] Nothing here reintroduces a client-side descriptor copy, fallback shell markup, or a product-rule default. `0.33.33.35.1.2` made the server descriptor the only source of truth.
 
 ### 0.33.33.37 - Share the Task action legality core
 
