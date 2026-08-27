@@ -1,4 +1,8 @@
 (function attachWorkbenchPage() {
+  // 0.33.33.37 moved status legality into LongtailForge.taskLifecycleLegality. The disabled-reason
+  // messages stay here: they are Task Focus session copy, not a legality rule.
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskLifecycleLegality} BrowserTaskLifecycleLegality */
+
   const WORKBENCH_CARD_STATE_KEY = "lf_workbench_cards_v1";
   const WORKBENCH_CLIENT_FOCUS_KEY = "lf_workbench_client_focus_v1";
   const WORKBENCH_FOCUS_MODE_KEY = "lf_workbench_focus_mode_v1";
@@ -1740,6 +1744,15 @@
     return button;
   }
 
+  /** @returns {BrowserTaskLifecycleLegality} */
+  function requireTaskLifecycleLegality() {
+    const legality = /** @type {BrowserTaskLifecycleLegality | undefined} */ (window.LongtailForge?.taskLifecycleLegality);
+    if (typeof legality?.isTerminalStatus !== "function") {
+      throw new Error("Task actions require LongtailForge.taskLifecycleLegality.");
+    }
+    return legality;
+  }
+
   function taskFocusLifecycleDisabledReason(action, active = state.activeTaskFocus) {
     const task = active?.task || null;
     const status = String(task?.status || "").trim();
@@ -1753,13 +1766,14 @@
     if (active.error) {
       return "Task details could not be loaded.";
     }
-    if (action === "complete" && ["complete", "archived"].includes(status)) {
+    const legality = requireTaskLifecycleLegality();
+    if (action === "complete" && legality.isTerminalStatus(status)) {
       return "Task is already complete or archived.";
     }
     if (action === "block" && status === "blocked") {
       return "Task is already blocked.";
     }
-    if (action === "block" && ["complete", "archived"].includes(status)) {
+    if (action === "block" && legality.isTerminalStatus(status)) {
       return "Completed and archived tasks cannot be blocked.";
     }
 

@@ -48,7 +48,7 @@ assert.match(tags, /input\.addEventListener\("keydown", async \(event\) => \{[\s
 
 assert.match(
   extractFunctionSpan(taskDialog, "parentTaskOptions"),
-  /taskId \|\| !\["complete", "archived"\]\.includes\(task\.status\)[\s\S]*!selectedClientId \|\| !task\.client_id \|\| task\.client_id === selectedClientId[\s\S]*selectedProjectId[\s\S]*childrenByParent[\s\S]*appendBranch[\s\S]*optionLabel/,
+  /taskId \|\| !requireTaskLifecycleLegality\(\)\.isTerminalStatus\(task\.status\)[\s\S]*!selectedClientId \|\| !task\.client_id \|\| task\.client_id === selectedClientId[\s\S]*selectedProjectId[\s\S]*childrenByParent[\s\S]*appendBranch[\s\S]*optionLabel/,
   "parent choices should preserve scope filters and render parent-before-child hierarchy labels",
 );
 const inheritance = extractFunctionSpan(taskDialog, "applySelectedParentTaskInheritance");
@@ -77,7 +77,7 @@ assert.match(extractFunctionSpan(taskDialog, "updateBlockedReasonState"), /field
 assert.match(extractFunctionSpan(taskDialog, "handleTaskStatusChange"), /nextStatus !== "blocked"[\s\S]*promptAndBlockCurrentTask[\s\S]*statusBefore: previousTaskEditorStatus/, "changing the editor status to Blocked should use the shared capture transition");
 assert.match(extractFunctionSpan(taskDialog, "performBlockCapture"), /previousReason\.trim\(\)[\s\S]*if \(!blockedReason\)[\s\S]*prompt: "Why is the task now blocked\?"[\s\S]*if \(!result\.confirmed\)[\s\S]*fields\.status\.value = priorStatus[\s\S]*saveTaskForm\([\s\S]*Blocking task/, "Continue should persist Blocked and its reason while Cancel restores the prior editor status, with an existing reason suppressing the prompt");
 assert.match(extractFunctionSpan(taskDialog, "createTaskEditorDialog"), /const block = view\.createActionButton\([\s\S]*icon: "pause"[\s\S]*iconOnly: true[\s\S]*children: \[block, complete,[\s\S]*block\.dataset\.blockTask/, "the edit header should place the icon-only Block/Resume action immediately left of Complete");
-assert.match(extractFunctionSpan(taskDialog, "updateBlockTaskActionState"), /isBlocked[\s\S]*!\["complete", "archived"\]\.includes\(status\)[\s\S]*hasTaskEditPermission[\s\S]*icon: isBlocked \? "start" : "pause"[\s\S]*label/, "the header action should be edit-only, permission-gated, Play/Resume while Blocked, Pause/Block while active, and hidden only for terminal states");
+assert.match(extractFunctionSpan(taskDialog, "updateBlockTaskActionState"), /isBlocked[\s\S]*!requireTaskLifecycleLegality\(\)\.isTerminalStatus\(status\)[\s\S]*hasTaskEditPermission[\s\S]*icon: isBlocked \? "start" : "pause"[\s\S]*label/, "the header action should be edit-only, permission-gated, Play/Resume while Blocked, Pause/Block while active, and hidden only for terminal states");
 assert.match(extractFunctionSpan(taskDialog, "resumeBlockedTask"), /fields\.status\.value = "in_progress"[\s\S]*fields\.blockedReason\.value = ""[\s\S]*saveTaskForm\([\s\S]*Resuming task/, "the header Play action should persist Blocked work as In Progress and clear its Blocked Reason");
 assert.match(extractFunctionSpan(taskDialog, "applyChecklistResult"), /syncTaskStatusField\(currentTask\)[\s\S]*updateBlockedReasonState\(\)[\s\S]*writeTaskMetadataRibbon\(currentTask\)/, "checklist mutations should synchronize the open editor lifecycle controls with the authoritative Task response");
 assert.match(extractFunctionSpan(taskDialog, "saveTaskForm"), /currentTask\?\.status === "blocked"[\s\S]*await refreshTaskTimers\(\)/, "saving Blocked in the canonical editor should reload its automatically paused timer state");

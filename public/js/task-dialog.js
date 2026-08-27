@@ -1,4 +1,7 @@
 (function attachTaskDialog(global) {
+  // 0.33.33.37 moved status legality into LongtailForge.taskLifecycleLegality. DOM state
+  // updating stays here: it is this dialog's responsibility, not duplication.
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskLifecycleLegality} BrowserTaskLifecycleLegality */
   const namespace = global.LongtailForge || {};
   const api = namespace.api;
   const modal = namespace.modal;
@@ -24,7 +27,7 @@
   let initialTaskFormSnapshot = null;
   let previousTaskEditorStatus = "open";
   let activeBlockCapture = null;
-  const TASK_COMPLETE_VISIBLE_STATUSES = new Set(["open", "in_progress", "blocked"]);
+
 
   function configure(options = {}) {
     context = {
@@ -868,7 +871,7 @@
 
     const candidates = (context?.tasks || [])
       .filter((task) => task?.task_id && task.task_id !== taskId)
-      .filter((task) => taskId || !["complete", "archived"].includes(task.status))
+      .filter((task) => taskId || !requireTaskLifecycleLegality().isTerminalStatus(task.status))
       .filter((task) => !selectedClientId || !task.client_id || task.client_id === selectedClientId)
       .filter((task) => !selectedProjectId || !task.project_id || task.project_id === selectedProjectId);
 
@@ -1415,6 +1418,15 @@
     });
   }
 
+  /** @returns {BrowserTaskLifecycleLegality} */
+  function requireTaskLifecycleLegality() {
+    const legality = /** @type {BrowserTaskLifecycleLegality | undefined} */ (window.LongtailForge?.taskLifecycleLegality);
+    if (typeof legality?.isTerminalStatus !== "function") {
+      throw new Error("Task actions require LongtailForge.taskLifecycleLegality.");
+    }
+    return legality;
+  }
+
   function updateCompleteTaskActionState() {
     if (!fields.complete) {
       return;
@@ -1434,7 +1446,7 @@
     const isBlocked = status === "blocked";
     const visible = Boolean(
       currentTaskId &&
-      !["complete", "archived"].includes(status) &&
+      !requireTaskLifecycleLegality().isTerminalStatus(status) &&
       hasTaskEditPermission(),
     );
     const label = isBlocked ? "Resume task" : "Block task";
@@ -1454,7 +1466,7 @@
     const status = fields.status?.value || currentTask?.status || "";
     return Boolean(
       currentTaskId &&
-      TASK_COMPLETE_VISIBLE_STATUSES.has(status) &&
+      requireTaskLifecycleLegality().canCompleteStatus(status) &&
       hasTaskCompletePermission(),
     );
   }
