@@ -453,6 +453,7 @@
         "public/js/shared/view-action-security.js",
         "public/js/shared/view-builder.js",
         "public/js/shared/view-data-binding.js",
+        "public/js/shared/view-modal-stack.js",
         "public/js/shared/view-renderer.js",
         "public/js/shared/view-response-records.js",
         "public/js/shared/view-search-options.js",
@@ -477,7 +478,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 10407,
+      "errorCount": 10377,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1620,19 +1621,19 @@
         "public/js/shared/view-builder.js": [
           {
             "code": 2339,
-            "count": 363
+            "count": 353
           },
           {
             "code": 7005,
-            "count": 7
+            "count": 1
           },
           {
             "code": 7006,
-            "count": 114
+            "count": 101
           },
           {
             "code": 7034,
-            "count": 2
+            "count": 1
           },
           {
             "code": 7053,
@@ -2906,8 +2907,8 @@
     }
   },
   "totals": {
-    "files": 1055,
-    "errors": 10407,
+    "files": 1056,
+    "errors": 10377,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

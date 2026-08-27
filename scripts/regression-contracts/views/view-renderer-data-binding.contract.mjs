@@ -7,6 +7,9 @@ import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const builder = readText("public/js/shared/view-builder.js");
+// 0.33.33.35.3 moved the modal stack into LongtailForge.viewModalStack. The builder
+// delegates to it at call time, so every context that executes the builder provides it.
+const viewModalStackSource = readText("public/js/shared/view-modal-stack.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 // 0.33.33.35.2 moved permission/route security, field option hydration, and
 // descriptor data binding into sibling modules. The renderer reaches them through the
@@ -80,6 +83,7 @@ const context = createFakeBrowserContext({ responses: [
   { records: [{ record_id: "compatibility-decoy" }], samples: [] },
 ], iconButton: { iconClass: false, iconOnlyText: true } });
 vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
+vm.runInNewContext(viewModalStackSource, context, { filename: "view-modal-stack.js" });
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
 vm.runInNewContext(viewActionSecuritySource, context, { filename: "view-action-security.js" });
@@ -135,6 +139,7 @@ assert.match(surface.textContent, /No sample records/, "Empty responses should r
 
 const errorContext = createFakeBrowserContext({ responses: [new Error("Data unavailable")], iconButton: { iconClass: false, iconOnlyText: true } });
 vm.runInNewContext(surfaceDescriptor, errorContext, { filename: "view-surface-descriptor.js" });
+vm.runInNewContext(viewModalStackSource, errorContext, { filename: "view-modal-stack.js" });
 vm.runInNewContext(builder, errorContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, errorContext, { filename: "view-response-records.js" });
 vm.runInNewContext(viewActionSecuritySource, errorContext, { filename: "view-action-security.js" });
@@ -158,6 +163,7 @@ const noSelectionContext = createFakeBrowserContext({ responses: [
   },
 ], iconButton: { iconClass: false, iconOnlyText: true } });
 vm.runInNewContext(surfaceDescriptor, noSelectionContext, { filename: "view-surface-descriptor.js" });
+vm.runInNewContext(viewModalStackSource, noSelectionContext, { filename: "view-modal-stack.js" });
 vm.runInNewContext(builder, noSelectionContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, noSelectionContext, { filename: "view-response-records.js" });
 vm.runInNewContext(viewActionSecuritySource, noSelectionContext, { filename: "view-action-security.js" });

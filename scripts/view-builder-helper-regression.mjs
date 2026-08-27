@@ -6,6 +6,9 @@ import { createProjectTextReader } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const helper = readText("public/js/shared/view-builder.js");
+// 0.33.33.35.3 moved the modal stack into LongtailForge.viewModalStack. The builder
+// delegates to it at call time, so every context that executes the builder provides it.
+const viewModalStackSource = readText("public/js/shared/view-modal-stack.js");
 const css = readText("public/css/longtail-forge.css");
 const viewContract = readText("docs/view-building-contract.md");
 
@@ -30,6 +33,7 @@ assert.match(helper, /root\.view = Object\.freeze/, "view builder namespace shou
  */
 
 const context = createFakeBrowserContext();
+vm.runInNewContext(viewModalStackSource, context, { filename: "view-modal-stack.js" });
 vm.runInNewContext(helper, context, { filename: "view-builder.js" });
 const view = /** @type {ViewBuilderHelpers} */ (context.window.LongtailForge.view);
 

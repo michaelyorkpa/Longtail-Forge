@@ -76,41 +76,9 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 - **`window.fetch` - permanent ordered platform composition, three writers.** `shared/browser-recovery.js` is injected immediately after `<head>` and wraps the native fetch with 403 permission-denied recovery, `theme-init.js` then adds CSRF, and `navigation.js` then adds 401 session expiry. The third guard writes through its own IIFE parameter and was invisible to the previous scanner, so the rollup had recorded two writers where the tree has three. Because no page declares the injected guard, the record states how each writer is delivered and each mechanism carries its own proof; an order proof with no witnesses now fails.
 - **`window.LongtailForge.filesDialog` - temporary migration, three writers. Retired by `0.33.33.34`.** Files was the canonical owner; `shared/file-preview.js` merged its preview opener in through a namespace alias, and `workbench.js` merged a preview-only compatibility bridge. `0.33.33.34` removed both other writers, moved the action-shaped preview opener into the shared helper, and struck the record. The surface has one writer, and the estate now carries two multi-writer records rather than three.
-- **`window.LongtailForge.view` - permanent ordered application composition, two writers.** `view-builder.js` publishes 30 base members and is loaded alone on 10 settings views; `view-renderer.js` adds 10 further members with zero overlap and is never loaded without the builder. Builder republishes without spreading the existing surface, so reversing the order would discard the renderer's members, which is what makes the order contractual rather than incidental. `0.33.33.35` extracts responsibilities from both files, but its own contract forbids adding to or reordering this frozen factory namespace, so no retirement is scheduled. These composition facts are read from the AST alongside the writers and governed, not merely described: the member sets must stay disjoint and the renderer must keep spreading the surface it extends.
+- **`window.LongtailForge.view` - permanent ordered application composition, two writers.** `view-builder.js` publishes 30 base members and is loaded alone on 10 settings views; `view-renderer.js` adds 10 further members with zero overlap and is never loaded without the builder. Builder republishes without spreading the existing surface, so reversing the order would discard the renderer's members, which is what makes the order contractual rather than incidental. `0.33.33.35` has archived: it extracted responsibilities from both files into four sibling surfaces and left this record untouched - same two writers, same 30 and 10 members, same order - which is what its contract required. No retirement is scheduled. These composition facts are read from the AST alongside the writers and governed, not merely described: the member sets must stay disjoint and the renderer must keep spreading the surface it extends.
 
 **What this rollup leaves behind for later checkpoints.** The browser compiler ledger stays active at **10,528** diagnostics; reducing it belongs to `0.33.33.39` through `0.33.33.44`. `window.timeTrackerDebug` remains a bare, un-namespaced `window.*` surface published by `stop-watch.js` with no consumer anywhere in the repository - single-publisher, so it does not block closure, and left untouched because removing or renaming it is not scoping work.
-
-### 0.33.33.35 - Isolate view-renderer and view-builder responsibilities
-
-**Model: High Effort** - Planning rollup only; its numbered children below are the protected implementation checkpoints.
-
-**Resliced on measurement.** The previous single checkpoint combined five changes with different owners, different consumers, and different risk. `public/js/shared/view-renderer.js` is **2,085 lines carrying 404 browser diagnostics**; `public/js/shared/view-builder.js` is **2,013 lines carrying 492**; the descriptor fallbacks are **11 references across four module controllers**, which are not view-framework files at all. Those are three independent seams: one deletes module-local behaviour, one extracts from the renderer, one extracts from the builder. Nothing measured ties them together beyond both framework files being shared, which is a reason to separate them rather than to batch them.
-
-**`0.33.33.35.1` has archived; `.35.2` and `.35.3` remain.** The module controllers now render only what the server delivers, so a `.35.2` or `.35.3` regression can no longer be masked by a client-side descriptor copy.
-
-**Re-verified after `0.33.33.34` closed.** Every measurement above still holds exactly: renderer 2,085 lines / 404 diagnostics, builder 2,013 / 492, and 11 descriptor-fallback references across four owners defining five fallbacks. `0.33.33.34` touched none of these files. Two things did change, and one child was split.
-
-- [ ] The frozen factory namespace rule holds across every child: no child may add to or reorder the frozen factory namespace.
-- [ ] Every child preserves server authority, action visibility, focus return, and current module surface anatomy.
-- [ ] **New shared files must enter the browser ledger at zero diagnostics.** `0.33.33.34` proved this constraint rather than assuming it: the ledger is per-file and per-code shrink-only with no wildcard, a new file's baseline is zero, and `DIAGNOSTIC_RECLASSIFICATIONS` cannot cover a destination whose total rises. Extraction and annotation are therefore one change, not two, for `.35.2` and `.35.3`. This shapes their effort more than their line counts do.
-- [ ] **A top-level JSDoc `@typedef` in a classic browser script is a duplicate identifier.** Both framework files are classic scripts, so any contract vocabulary a child declares locally belongs inside the IIFE. Recorded from `0.33.33.34`.
-
-**Frozen-factory compliance, checked per child rather than assumed.** `view-builder.js` publishes 30 members to `window.LongtailForge.view` without spreading; `view-renderer.js` spreads and adds 10 disjoint members. `framework.full-strict-governance` asserts the writer list, the disjoint member sets, and that the renderer spreads while the builder does not.
-
-- `.35.2` **has archived**. It moved no published member and left the frozen factory's writers and member sets exactly as they were, extracting into three sibling surfaces instead. The delivery question it raised is settled for the rollup: a classic-script extraction publishes a narrow single-consumer sibling surface and is injected at `<head>` by `static.service.js`, the way `view-surface-descriptor.js` and `view-response-records.js` already are.
-- `.35.3` extracts **four published members** - `showModal`, `closeModal`, `closeChildModals`, `isTopModal` - so `view-builder.js` must keep publishing them by delegation. A new file publishing them would be a third writer of a two-writer permanent record and would fail governance.
-
-**Reconciliation: four children, disjoint owners.** `.35.1.1` and `.35.1.2` owned the four module controllers in sequence and have both archived, closing the `.35.1` rollup; `.35.2` owns `view-renderer.js`; `.35.3` owns `view-builder.js`. No file appears in two children.
-
-#### 0.33.33.35.3 - Extract the view-builder modal stack
-
-**Model: Medium Effort - One extraction from a 2,013-line file.**
-
-- [ ] Extract only the modal stack from `view-builder.js`; keep the frozen factory namespace intact.
-- [ ] Use the mechanism `.35.2` settled: one narrow sibling surface, single writer, injected at `<head>`, entering the ledger at zero diagnostics with its contract published in `src/types/browser-contracts.d.ts`. Audit bare symbol references as well as call syntax - `.35.2` missed ten `filter(name)` sites that only the linter caught.
-- [ ] Preserve focus return and modal ordering behaviour.
-- [ ] **The seam is the stack, not the constructors, and the boundary is measured.** The stack - `modalStack` at `view-builder.js:4` plus `registerModalStack`, `normalizeModalParent`, `defaultModalParent`, `isDialogOpen`, `pushModalStackEntry`, `removeModalStackEntry`, `syncModalStackMetadata`, `showModal`, `closeModal`, `closeChildModals`, and `isTopModal` - depends on nothing but `global.document`. The constructors `createModal`, `createModalForm`, and `createModalFooter` depend on the builder's element factory (`createElement`, `createHeading`, `nextId`, `requiredText`, `modalSizeClass`) and stay. Extracting them would force either duplicated factory helpers or a second namespace writer, and the second breaks the frozen factory.
-- [ ] `view-builder.js` keeps publishing `showModal`, `closeModal`, `closeChildModals`, and `isTopModal` by delegation, so the writer list, member sets, and order are unchanged. `view-renderer.js` reaches the stack only through `view.showModal` and `view.createModalForm`, so it is not an owner of this child.
 
 ### 0.33.33.36 - Share the Notes/Lists linked-context picker
 
@@ -196,7 +164,7 @@ Different return types, different inputs, different responsibilities. **Consolid
 
 **Model: High Effort** - Shared browser helpers have broad fan-in and include descriptor, recovery, modal, API, and shell behavior.
 
-Today's measurement: the already-isolated shared cohort is **47 files, 21,550 lines, 4,123 diagnostics**, and includes `view-renderer.js` (404) and `view-builder.js` (492), both of which `0.33.33.35` changes first.
+Today's measurement: the already-isolated shared cohort is **47 files, 21,550 lines, 4,123 diagnostics**, and included `view-renderer.js` (404) and `view-builder.js` (492). **`0.33.33.35` has since run**: the renderer is **1,698 lines / 326** and the builder **1,911 / 462**, and the cohort gained four extracted siblings - `view-action-security.js`, `view-search-options.js`, `view-data-binding.js`, and `view-modal-stack.js` - **all at zero**. The `0.33.33.38` remeasurement gate re-derives this cohort anyway; these figures replace the pre-`.35` ones so the reslice does not start from a stale count.
 
 - [ ] Close full-strict debt in `public/js/shared/`, app-shell/bootstrap, navigation, dialogs, formatters, records, and view helpers.
 - [ ] Use the `0.33.33.38` DOM/response/state contracts and narrow event targets explicitly.

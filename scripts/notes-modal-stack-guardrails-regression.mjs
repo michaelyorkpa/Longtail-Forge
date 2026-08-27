@@ -8,6 +8,9 @@ const { readText } = createProjectTextReader();
 const notesHtml = readText("views/protected/notes.html");
 const notesJs = readText("public/js/notes.js");
 const viewBuilderJs = readText("public/js/shared/view-builder.js");
+// 0.33.33.35.3 moved the modal stack into LongtailForge.viewModalStack. The builder
+// delegates to it at call time, so every context that executes the builder provides it.
+const viewModalStackSource = readText("public/js/shared/view-modal-stack.js");
 const viewRendererJs = readText("public/js/shared/view-renderer.js");
 
 assert.match(notesHtml, /js\/shared\/view-builder\.js/, "Notes should reference the shared view builder stack helper");
@@ -28,13 +31,27 @@ assert.match(notesJs, /view\.closeModal\(dialog, options\.returnValue \|\| ""\)/
 assert.match(notesJs, /view\.showModal\(collectionDialog, \{ parent: null \}\)/, "Collection dialogs should use the shared modal stack helper without inheriting the action-modal parent");
 assert.match(notesJs, /view\.closeModal\(collectionDialog\)/, "Collection dialogs should close through the shared modal stack helper");
 
-assert.match(viewBuilderJs, /const modalStack = \[\]/, "View builder should own a modal stack");
-assert.match(viewBuilderJs, /function showModal\(dialog, options = \{\}\)/, "View builder should expose showModal");
-assert.match(viewBuilderJs, /function closeModal\(dialog, value = ""\)/, "View builder should expose closeModal");
-assert.match(viewBuilderJs, /function closeChildModals\(parent, value = "parent-closed"\)/, "View builder should close child modals when a parent closes");
-assert.match(viewBuilderJs, /function isTopModal\(dialog\)/, "View builder should expose top-modal checks");
-assert.match(viewBuilderJs, /event\.target === dialog && !isTopModal\(dialog\)/, "Backdrop-style clicks on non-top dialogs should be guarded");
-assert.match(viewBuilderJs, /"cancel"[\s\S]*!isTopModal\(dialog\)[\s\S]*event\.preventDefault\(\)/, "Escape/cancel on non-top dialogs should be guarded");
+// 0.33.33.35.3 moved the modal stack into LongtailForge.viewModalStack. These read as
+// ownership rather than as source location: the stack state and lifecycle live in the extracted
+// module, the builder still publishes the same four members on the frozen view factory and
+// delegates each of them, and the extracted module never writes that factory. The behavioural
+// proof further down executes real nested dialogs and is what actually pins the semantics.
+assert.match(viewModalStackSource, /const modalStack = \[\]/, "The modal-stack module should own the stack");
+assert.match(viewModalStackSource, /const modalEntries = new WeakMap\(\)/, "The modal-stack module should own its per-dialog entries");
+assert.match(viewModalStackSource, /namespace\.viewModalStack = Object\.freeze\(\{\s*\n\s*closeChildModals,\s*\n\s*closeModal,\s*\n\s*isTopModal,\s*\n\s*showModal,\s*\n\s*\}\)/, "The modal-stack module should publish exactly what the builder delegates");
+assert.doesNotMatch(viewModalStackSource, /\.view\s*=/, "The modal-stack module must not write the frozen LongtailForge.view factory");
+assert.doesNotMatch(viewModalStackSource, /function createModal(Form|Footer)?\(/, "Modal constructors stay in the builder with its element factory");
+
+for (const member of ["showModal", "closeModal", "closeChildModals", "isTopModal"]) {
+  assert.match(
+    viewBuilderJs,
+    new RegExp(`function ${member}\\([^)]*\\) \\{[\\s\\S]{0,120}?requireModalStack\\(\\)\\.${member}\\(`),
+    `View builder should keep publishing ${member} and delegate it to the modal-stack module`,
+  );
+}
+assert.match(viewBuilderJs, /root\.view = Object\.freeze\(\{[\s\S]*closeChildModals,[\s\S]*closeModal,[\s\S]*isTopModal,[\s\S]*showModal,/, "The frozen view factory should still carry all four modal members");
+assert.match(viewModalStackSource, /event\.target === dialog && !isTopModal\(dialog\)/, "Backdrop-style clicks on non-top dialogs should be guarded");
+assert.match(viewModalStackSource, /"cancel"[\s\S]*!isTopModal\(dialog\)[\s\S]*event\.preventDefault\?\.\(\)/, "Escape/cancel on non-top dialogs should be guarded");
 assert.match(viewRendererJs, /state\.view\.showModal\(dialog\)/, "Descriptor modal opening should route through the shared stack helper");
 
 /** @typedef {import("./test-support/fake-dom.mjs").FakeNode} FakeNode */
@@ -44,6 +61,7 @@ assert.match(viewRendererJs, /state\.view\.showModal\(dialog\)/, "Descriptor mod
  */
 
 const context = createFakeBrowserContext({ globals: { WeakMap } });
+vm.runInNewContext(viewModalStackSource, context, { filename: "view-modal-stack.js" });
 vm.runInNewContext(viewBuilderJs, context, { filename: "view-builder.js" });
 const view = /** @type {ModalStackSurface} */ (context.window.LongtailForge.view);
 

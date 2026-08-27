@@ -1,8 +1,13 @@
 (function attachViewBuilder(global) {
+  // 0.33.33.35.3 moved the modal stack - which dialogs are open, which is on top, parentage,
+  // and focus return - into LongtailForge.viewModalStack. This file still publishes showModal,
+  // closeModal, closeChildModals, and isTopModal on the frozen view factory and delegates each
+  // there, so the factory's writer list and member sets are untouched. The modal constructors
+  // stay here because they are built from this file's element factory.
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewModalStack} BrowserViewModalStack */
+
   const root = global.LongtailForge || {};
   let idCounter = 0;
-  const modalStack = [];
-  const modalEntries = new WeakMap();
 
   function nextId(prefix) {
     idCounter += 1;
@@ -1130,158 +1135,51 @@
     return size === "wide" ? "view-modal--wide" : "";
   }
 
-  function registerModalStack(dialog, options = {}) {
-    if (!dialog || typeof dialog.addEventListener !== "function") {
-      throw new Error("Modal stack guardrails require a dialog element.");
+  /** @returns {BrowserViewModalStack} */
+  function requireModalStack() {
+    const modalStack = /** @type {BrowserViewModalStack | undefined} */ (root.viewModalStack);
+    if (typeof modalStack?.showModal !== "function") {
+      throw new Error("View modals require LongtailForge.viewModalStack.");
     }
-
-    const existingEntry = modalEntries.get(dialog);
-    if (existingEntry) {
-      updateModalStackEntry(existingEntry, options);
-      return existingEntry;
-    }
-
-    const entry = {
-      dialog,
-      parent: normalizeModalParent(options.parent),
-      returnFocus: options.returnFocus !== false,
-      trigger: options.trigger || null,
-    };
-    modalEntries.set(dialog, entry);
-    dialog.dataset.viewModalStack = "";
-
-    dialog.addEventListener("cancel", (event) => {
-      if (!isTopModal(dialog)) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    });
-
-    dialog.addEventListener("click", (event) => {
-      if (event.target === dialog && !isTopModal(dialog)) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    });
-
-    dialog.addEventListener("close", () => {
-      closeChildModals(dialog, "parent-closed");
-      removeModalStackEntry(dialog);
-      if (entry.returnFocus && entry.trigger && typeof entry.trigger.focus === "function" && entry.trigger.isConnected !== false) {
-        entry.trigger.focus();
-      }
-    });
-
-    return entry;
+    return modalStack;
   }
 
-  function updateModalStackEntry(entry, options = {}) {
-    if (Object.prototype.hasOwnProperty.call(options, "parent")) {
-      entry.parent = normalizeModalParent(options.parent);
-    }
-    if (options.trigger) {
-      entry.trigger = options.trigger;
-    }
-    entry.returnFocus = options.returnFocus !== false;
-  }
-
-  function normalizeModalParent(parent) {
-    return parent && parent.nodeType === 1 ? parent : null;
-  }
-
-  function defaultModalParent(dialog) {
-    const top = modalStack[modalStack.length - 1]?.dialog || null;
-    return top && top !== dialog ? top : null;
-  }
-
-  function isDialogOpen(dialog) {
-    if (!dialog) {
-      return false;
-    }
-    return Boolean(dialog.open || (typeof dialog.hasAttribute === "function" && dialog.hasAttribute("open")));
-  }
-
-  function pushModalStackEntry(entry) {
-    removeModalStackEntry(entry.dialog, { sync: false });
-    modalStack.push(entry);
-    syncModalStackMetadata();
-  }
-
-  function removeModalStackEntry(dialog, options = {}) {
-    const index = modalStack.findIndex((entry) => entry.dialog === dialog);
-    if (index >= 0) {
-      modalStack.splice(index, 1);
-    }
-    if (options.sync !== false) {
-      syncModalStackMetadata();
-    }
-  }
-
-  function syncModalStackMetadata() {
-    modalStack.forEach((entry, index) => {
-      entry.dialog.dataset.viewModalStackLevel = String(index + 1);
-      if (index === modalStack.length - 1) {
-        entry.dialog.dataset.viewModalStackTop = "true";
-      } else {
-        delete entry.dialog.dataset.viewModalStackTop;
-      }
-    });
-  }
-
+  /**
+   * The four published modal-stack members. Their implementation lives in
+   * LongtailForge.viewModalStack since 0.33.33.35.3; this file keeps publishing them so the
+   * frozen view factory keeps exactly the writers and members it has always had.
+   * @param {unknown} dialog
+   * @param {import("../../../src/types/browser-contracts.js").BrowserModalStackOptions} [options]
+   * @returns {unknown}
+   */
   function showModal(dialog, options = {}) {
-    const parent = Object.prototype.hasOwnProperty.call(options, "parent")
-      ? normalizeModalParent(options.parent)
-      : defaultModalParent(dialog);
-    const entry = registerModalStack(dialog, { ...options, parent });
-    entry.trigger = options.trigger || entry.trigger || global.document?.activeElement || null;
-    entry.parent = parent;
-    pushModalStackEntry(entry);
-
-    if (!isDialogOpen(dialog)) {
-      if (typeof dialog.showModal === "function") {
-        dialog.showModal();
-      } else {
-        dialog.setAttribute("open", "");
-        dialog.open = true;
-      }
-    }
-
-    return dialog;
+    return requireModalStack().showModal(dialog, options);
   }
 
+  /**
+   * @param {unknown} dialog
+   * @param {string} [value]
+   * @returns {void}
+   */
   function closeModal(dialog, value = "") {
-    if (!dialog) {
-      return;
-    }
-
-    closeChildModals(dialog, "parent-closed");
-    if (isDialogOpen(dialog)) {
-      if (typeof dialog.close === "function") {
-        dialog.close(value);
-      } else {
-        dialog.removeAttribute?.("open");
-        dialog.open = false;
-        removeModalStackEntry(dialog);
-      }
-      return;
-    }
-
-    removeModalStackEntry(dialog);
+    requireModalStack().closeModal(dialog, value);
   }
 
+  /**
+   * @param {unknown} parent
+   * @param {string} [value]
+   * @returns {void}
+   */
   function closeChildModals(parent, value = "parent-closed") {
-    if (!parent) {
-      return;
-    }
-
-    [...modalStack]
-      .reverse()
-      .filter((entry) => entry.parent === parent)
-      .forEach((entry) => closeModal(entry.dialog, value));
+    requireModalStack().closeChildModals(parent, value);
   }
 
+  /**
+   * @param {unknown} dialog
+   * @returns {boolean}
+   */
   function isTopModal(dialog) {
-    return Boolean(dialog && modalStack[modalStack.length - 1]?.dialog === dialog);
+    return requireModalStack().isTopModal(dialog);
   }
 
   function createModal(options = {}) {
