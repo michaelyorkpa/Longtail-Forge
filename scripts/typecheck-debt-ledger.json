@@ -450,9 +450,12 @@
         "public/js/shared/tags.js",
         "public/js/shared/task-calendar.js",
         "public/js/shared/timezones.js",
+        "public/js/shared/view-action-security.js",
         "public/js/shared/view-builder.js",
+        "public/js/shared/view-data-binding.js",
         "public/js/shared/view-renderer.js",
         "public/js/shared/view-response-records.js",
+        "public/js/shared/view-search-options.js",
         "public/js/shared/view-surface-descriptor.js",
         "public/js/splash.js",
         "public/js/stop-watch.js",
@@ -474,7 +477,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 10485,
+      "errorCount": 10407,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1638,16 +1641,8 @@
         ],
         "public/js/shared/view-renderer.js": [
           {
-            "code": 2322,
-            "count": 1
-          },
-          {
             "code": 2339,
-            "count": 161
-          },
-          {
-            "code": 2345,
-            "count": 6
+            "count": 136
           },
           {
             "code": 7005,
@@ -1655,7 +1650,7 @@
           },
           {
             "code": 7006,
-            "count": 228
+            "count": 185
           },
           {
             "code": 7034,
@@ -1663,7 +1658,7 @@
           },
           {
             "code": 7053,
-            "count": 6
+            "count": 3
           }
         ],
         "public/js/shared/view-surface-descriptor.js": [
@@ -2911,8 +2906,8 @@
     }
   },
   "totals": {
-    "files": 1052,
-    "errors": 10485,
+    "files": 1055,
+    "errors": 10407,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -11,22 +11,35 @@ const { validateModuleManifest } = await import("../src/core/modules/manifest-co
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
+// 0.33.33.35.2 moved permission/route security, field option hydration, and
+// descriptor data binding into sibling modules. The renderer reaches them through the
+// namespace at call time, so every context that executes it has to provide them too.
+const viewActionSecuritySource = readText("public/js/shared/view-action-security.js");
+const viewSearchOptionsSource = readText("public/js/shared/view-search-options.js");
+const viewDataBindingSource = readText("public/js/shared/view-data-binding.js");
 const responseRecords = readText("public/js/shared/view-response-records.js");
 const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
 const contract = readText("src/core/modules/manifest-contract.js");
 
 // --- Source guards: the three shared capabilities live in the framework, not modules. ---
-assert.match(renderer, /function appendFilterQuery/, "Renderer should build dataSource query params from filters");
+assert.match(viewDataBindingSource, /function appendFilterQuery/, "Data binding should build dataSource query params from filters");
+assert.match(viewDataBindingSource, /namespace\.viewDataBinding = Object\.freeze\(\{[\s\S]*appendFilterQuery,[\s\S]*loadBoundRecords,/, "Data binding should publish its capability contract");
 assert.match(renderer, /function renderRegions/, "Renderer should render descriptor mount regions");
 assert.match(renderer, /function flushMounts/, "Renderer should flush region mount behaviors");
 assert.match(renderer, /mountType: "fieldOptions"/, "Renderer should mount descriptor option-source behaviors for filter fields");
-assert.match(renderer, /function setFieldOptions/, "Renderer should route descriptor option-source hydration by control type");
-assert.match(renderer, /function setSelectOptions/, "Renderer should hydrate descriptor select options through a shared helper");
-assert.match(renderer, /function mountSearchOptions/, "Renderer should hydrate descriptor search suggestions through a shared popover helper");
+assert.match(viewSearchOptionsSource, /function setFieldOptions/, "Search options should route descriptor option-source hydration by control type");
+assert.match(viewSearchOptionsSource, /function setSelectOptions/, "Search options should hydrate descriptor select options through a shared helper");
+assert.match(viewSearchOptionsSource, /function mountSearchOptions/, "Search options should hydrate descriptor search suggestions through a shared popover helper");
+assert.match(viewSearchOptionsSource, /namespace\.viewSearchOptions = Object\.freeze\(\{[\s\S]*mountSearchOptions,[\s\S]*setFieldOptions,/, "Search options should publish its capability contract");
 assert.match(renderer, /function tableColumnRenderer/, "Renderer should route table display hooks through framework-owned formatters");
 assert.match(renderer, /function renderItemRow/, "Renderer should render rich item rows");
 assert.match(renderer, /function evaluateVisibleWhen/, "Renderer should evaluate row-action visibility predicates");
-assert.match(renderer, /function interpolateRoute/, "Renderer should interpolate row-action route tokens");
+assert.match(viewActionSecuritySource, /function interpolateRoute/, "Action security should interpolate row-action route tokens");
+assert.match(viewActionSecuritySource, /namespace\.viewActionSecurity = Object\.freeze\(\{[\s\S]*assertActionPermissions,[\s\S]*interpolateRoute,/, "Action security should publish its capability contract");
+// None of the three writes to LongtailForge.view: the frozen factory namespace is untouched.
+for (const [label, source] of [["action security", viewActionSecuritySource], ["search options", viewSearchOptionsSource], ["data binding", viewDataBindingSource]]) {
+  assert.doesNotMatch(source, /\.view\s*=/, `${label} must not write the frozen LongtailForge.view factory`);
+}
 assert.match(contract, /function validateRegionsDescriptor/, "Manifest contract should validate descriptor regions");
 
 // --- Manifest validation of the new descriptor fields. ---
@@ -65,6 +78,9 @@ const context = createFakeBrowserContext({ responses: [
 vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, context, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, context, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, context, { filename: "view-data-binding.js" });
 vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
 
 /** @typedef {import("./test-support/fake-dom.mjs").FakeNode} FakeNode */
@@ -166,6 +182,9 @@ const regionOnlyContext = createFakeBrowserContext({ responses: [], iconButton: 
 vm.runInNewContext(surfaceDescriptor, regionOnlyContext, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, regionOnlyContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, regionOnlyContext, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, regionOnlyContext, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, regionOnlyContext, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, regionOnlyContext, { filename: "view-data-binding.js" });
 vm.runInNewContext(renderer, regionOnlyContext, { filename: "view-renderer.js" });
 /** @type {CapabilityViewSurface} */ (regionOnlyContext.window.LongtailForge.view).registerBehavior("caps.regionOnly", /** @param {CapabilityContext} ctx */ (ctx) => {
   appendParagraph(ctx.container, "REGION_ONLY_MOUNT", regionOnlyContext.document);
@@ -186,6 +205,9 @@ const missingContext = createFakeBrowserContext({ responses: [{ records: [{ reco
 vm.runInNewContext(surfaceDescriptor, missingContext, { filename: "view-surface-descriptor.js" });
 vm.runInNewContext(builder, missingContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, missingContext, { filename: "view-response-records.js" });
+vm.runInNewContext(viewActionSecuritySource, missingContext, { filename: "view-action-security.js" });
+vm.runInNewContext(viewSearchOptionsSource, missingContext, { filename: "view-search-options.js" });
+vm.runInNewContext(viewDataBindingSource, missingContext, { filename: "view-data-binding.js" });
 vm.runInNewContext(renderer, missingContext, { filename: "view-renderer.js" });
 const missingHost = missingContext.document.createElement("main");
 const missingSurface = /** @type {CapabilityViewSurface} */ (missingContext.window.LongtailForge.view).renderSurface({

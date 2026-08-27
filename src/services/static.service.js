@@ -245,13 +245,16 @@ function injectErrorBoundaryScripts(contents) {
     && contents.includes('src="/js/shared/app-shell-bootstrap.js"')
     && contents.includes('src="/js/shared/view-surface-descriptor.js"')
     && contents.includes('src="/js/shared/view-response-records.js"')
+    && contents.includes('src="/js/shared/view-action-security.js"')
+    && contents.includes('src="/js/shared/view-search-options.js"')
+    && contents.includes('src="/js/shared/view-data-binding.js"')
   ) {
     return contents;
   }
 
   return contents.replace(
     /(<head\b[^>]*>)/i,
-    '$1\n    <script src="/js/shared/error-contract.js"></script>\n    <script src="/js/shared/browser-recovery.js"></script>\n    <script src="/js/shared/app-shell-bootstrap.js"></script>\n    <script src="/js/shared/view-surface-descriptor.js"></script>\n    <script src="/js/shared/view-response-records.js"></script>',
+    '$1\n    <script src="/js/shared/error-contract.js"></script>\n    <script src="/js/shared/browser-recovery.js"></script>\n    <script src="/js/shared/app-shell-bootstrap.js"></script>\n    <script src="/js/shared/view-surface-descriptor.js"></script>\n    <script src="/js/shared/view-response-records.js"></script>\n    <script src="/js/shared/view-action-security.js"></script>\n    <script src="/js/shared/view-search-options.js"></script>\n    <script src="/js/shared/view-data-binding.js"></script>',
   );
 }
 

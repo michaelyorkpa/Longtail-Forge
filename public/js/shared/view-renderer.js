@@ -1,7 +1,15 @@
 (function attachViewRenderer(global) {
+  // 0.33.33.35.2 moved three responsibilities out of this file behind published contracts:
+  // permission/route security, field option hydration, and descriptor data binding. They are
+  // reached lazily through the namespace, the way every classic script reaches a sibling, and
+  // none of them publishes onto the frozen `LongtailForge.view` factory.
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewActionSecurity} BrowserViewActionSecurity */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewDataBinding} BrowserViewDataBinding */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewSearchOptions} BrowserViewSearchOptions */
+
   const root = global.LongtailForge || {};
   const behaviors = new Map();
-  let searchOptionsCounter = 0;
 
   function registerBehavior(id, handler) {
     const behaviorId = String(id || "").trim();
@@ -26,11 +34,14 @@
 
     const state = {
       descriptor,
+      /** @type {unknown} */
       actionError: null,
+      /** @type {unknown} */
       error: null,
       filterValues: initialFilterValues(descriptor),
       loading: Boolean(descriptor.dataSource?.route),
       pendingMounts: [],
+      /** @type {Record<string, unknown>[]} */
       records: [],
       selectedRecord: null,
       selectedRecordId: "",
@@ -64,7 +75,8 @@
         state.error = null;
         renderInto(body, renderLayout(descriptor, view, state));
         try {
-          state.records = await loadBoundRecords(descriptor, state.filterValues);
+          state.records = await requireDataBinding()
+            .loadBoundRecords(descriptor, state.filterValues, requireApiClient());
           state.selectedRecord = initialSelectedRecord(descriptor, state);
           state.selectedRecordId = recordId(state.selectedRecord);
         } catch (error) {
@@ -1095,7 +1107,7 @@
       const handler = behaviors.get(mount.region.behavior);
       if (!handler) {
         if (mount.mountType === "fieldOptions") {
-          setFieldOptionsError(mount.control, `Missing view behavior handler: ${mount.region.behavior}`);
+          requireSearchOptions().setFieldOptionsError(mount.control, `Missing view behavior handler: ${mount.region.behavior}`);
         } else {
           mount.container.appendChild(state.view.createElement("p", {
             className: ["view-region-error", "view-status-message"],
@@ -1116,25 +1128,27 @@
           record: mount.record,
           refresh: state.surface.refresh,
           region: mount.region,
-          mountSearchOptions: (options, optionsConfig = {}) => mountSearchOptions(mount.control, options, {
+          mountSearchOptions: (options, optionsConfig = {}) => requireSearchOptions().mountSearchOptions(mount.control, options, {
             ...optionsConfig,
             selectedValue: mount.selectedValue,
           }),
-          setOptions: (options, optionsConfig = {}) => setFieldOptions(mount.control, options, mount.selectedValue, optionsConfig),
+          setOptions: (options, optionsConfig = {}) => requireSearchOptions()
+            .setFieldOptions(mount.control, options, mount.selectedValue, optionsConfig),
           workspaceContext: root.workspaceContext || {},
         });
         if (mount.mountType === "fieldOptions") {
           Promise.resolve(result)
             .then((options) => {
               if (Array.isArray(options)) {
-                setFieldOptions(mount.control, options, mount.selectedValue);
+                requireSearchOptions().setFieldOptions(mount.control, options, mount.selectedValue);
               }
             })
-            .catch((error) => setFieldOptionsError(mount.control, error?.message || "Options could not be loaded."));
+            .catch((error) => requireSearchOptions()
+              .setFieldOptionsError(mount.control, error?.message || "Options could not be loaded."));
         }
       } catch (error) {
         if (mount.mountType === "fieldOptions") {
-          setFieldOptionsError(mount.control, error?.message || "Options could not be loaded.");
+          requireSearchOptions().setFieldOptionsError(mount.control, error?.message || "Options could not be loaded.");
         } else {
           mount.container.appendChild(state.view.createElement("p", {
             className: ["view-region-error", "view-status-message"],
@@ -1144,290 +1158,6 @@
         }
       }
     }
-  }
-
-  function setFieldOptions(control, options = [], selectedValue = undefined, optionsConfig = {}) {
-    if (control?.tagName === "SELECT") {
-      setSelectOptions(control, options, selectedValue);
-      return;
-    }
-    mountSearchOptions(control, options, {
-      ...optionsConfig,
-      selectedValue,
-    });
-  }
-
-  function setSelectOptions(control, options = [], selectedValue = undefined) {
-    if (!control || control.tagName !== "SELECT") {
-      return;
-    }
-    const selectedValues = control.multiple
-      ? new Set((Array.isArray(selectedValue)
-        ? selectedValue
-        : selectedValue === undefined || selectedValue === null
-          ? [...control.selectedOptions].map((option) => option.value)
-          : [selectedValue]).map((value) => String(value)))
-      : null;
-    const selected = selectedValue !== undefined && selectedValue !== null ? String(selectedValue) : control.value;
-    const optionNodes = normalizeSelectOptions(options).map((option) => {
-      const optionElement = document.createElement("option");
-      optionElement.textContent = String(option.label ?? option.value ?? "");
-      optionElement.value = String(option.value ?? "");
-      optionElement.selected = selectedValues
-        ? selectedValues.has(optionElement.value) || (selectedValues.size === 0 && option.selected)
-        : option.selected;
-      return optionElement;
-    });
-    control.replaceChildren(...optionNodes);
-    if (!control.multiple && selected && optionNodes.some((option) => option.value === selected)) {
-      control.value = selected;
-    }
-    control.disabled = false;
-    delete control.dataset.viewOptionsError;
-  }
-
-  function mountSearchOptions(control, options = [], config = {}) {
-    if (!control || control.tagName !== "INPUT") {
-      return;
-    }
-
-    const normalizedOptions = normalizeSelectOptions(options)
-      .filter((option) => option && (option.label !== "" || option.value !== ""));
-    const submitMode = config.submitMode || "input";
-    const minChars = Number.isFinite(config.minChars) ? config.minChars : 1;
-    const maxResults = Number.isInteger(config.maxResults) ? config.maxResults : 8;
-    const emptyMessage = config.emptyMessage || "No matching options.";
-
-    if (typeof control._viewSearchOptionsCleanup === "function") {
-      control._viewSearchOptionsCleanup();
-    }
-
-    const popup = document.createElement("div");
-    const popupId = `view-search-options-${++searchOptionsCounter}`;
-    popup.id = popupId;
-    popup.className = "view-search-options";
-    popup.hidden = true;
-    popup.setAttribute("role", "listbox");
-
-    if (document.body?.appendChild) {
-      document.body.appendChild(popup);
-    }
-
-    control.autocomplete = "off";
-    control.dataset.viewSearchOptions = "true";
-    control.dataset.viewSearchSubmitMode = submitMode;
-    control.setAttribute("aria-autocomplete", "list");
-    control.setAttribute("aria-controls", popupId);
-    control.setAttribute("aria-expanded", "false");
-    control.removeAttribute("aria-invalid");
-    delete control.dataset.viewOptionsError;
-
-    const selectedValue = config.selectedValue !== undefined && config.selectedValue !== null
-      ? String(config.selectedValue)
-      : "";
-    if (selectedValue) {
-      const selectedOption = normalizedOptions.find((option) => String(option.value ?? "") === selectedValue);
-      if (selectedOption) {
-        selectSearchOption(control, selectedOption, { notify: false });
-      }
-    }
-
-    const renderOptions = () => {
-      const query = String(control.value || "").trim().toLowerCase();
-      if (query.length < minChars) {
-        hideSearchOptions(control, popup);
-        return;
-      }
-
-      const matches = normalizedOptions
-        .filter((option) => searchOptionText(option).includes(query))
-        .slice(0, maxResults);
-
-      if (matches.length === 0) {
-        const empty = document.createElement("div");
-        empty.className = "view-search-option-empty";
-        empty.textContent = emptyMessage;
-        popup.replaceChildren(empty);
-      } else {
-        popup.replaceChildren(...matches.map((option) => createSearchOptionButton(control, popup, option)));
-      }
-
-      showSearchOptions(control, popup);
-    };
-
-    const handleInput = () => {
-      const selectedLabel = control.dataset.viewSearchOptionLabel || "";
-      const hadSelectedValue = Boolean(control.dataset.viewSearchOptionValue);
-      if (hadSelectedValue && control.value !== selectedLabel) {
-        delete control.dataset.viewSearchOptionValue;
-        delete control.dataset.viewSearchOptionLabel;
-        if (!control.value) {
-          dispatchFieldEvent(control, "change");
-        }
-      }
-      renderOptions();
-    };
-    const handleFocus = () => renderOptions();
-    const handleBlur = () => {
-      global.setTimeout?.(() => hideSearchOptions(control, popup), 120);
-    };
-    const handleKeydown = (event) => {
-      if (event.key === "Escape") {
-        hideSearchOptions(control, popup);
-        return;
-      }
-      if (event.key !== "Enter" || popup.hidden) {
-        return;
-      }
-      const firstOption = popup.querySelector?.(".view-search-option");
-      if (!firstOption) {
-        return;
-      }
-      event.preventDefault?.();
-      firstOption.click?.();
-    };
-    const reposition = () => positionSearchOptions(control, popup);
-
-    control.addEventListener("input", handleInput);
-    control.addEventListener("focus", handleFocus);
-    control.addEventListener("blur", handleBlur);
-    control.addEventListener("keydown", handleKeydown);
-    if (typeof global.addEventListener === "function") {
-      global.addEventListener("resize", reposition);
-      global.addEventListener("scroll", reposition, true);
-    }
-
-    control._viewSearchOptionsCleanup = () => {
-      if (typeof global.removeEventListener === "function") {
-        global.removeEventListener("resize", reposition);
-        global.removeEventListener("scroll", reposition, true);
-      }
-      if (popup.parentNode?.removeChild) {
-        popup.parentNode.removeChild(popup);
-      }
-      delete control._viewSearchOptionsCleanup;
-    };
-  }
-
-  function createSearchOptionButton(control, popup, option) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "view-search-option";
-    button.setAttribute("role", "option");
-    button.dataset.viewSearchOptionValue = String(option.value ?? "");
-    if (option.color) {
-      const swatch = document.createElement("span");
-      swatch.className = "view-search-option-swatch";
-      swatch.style.background = String(option.color);
-      button.appendChild(swatch);
-    }
-    const label = document.createElement("span");
-    label.textContent = String(option.label ?? option.value ?? "");
-    button.appendChild(label);
-    button.addEventListener("mousedown", (event) => event.preventDefault());
-    button.addEventListener("click", () => {
-      selectSearchOption(control, option);
-      hideSearchOptions(control, popup);
-    });
-    return button;
-  }
-
-  function selectSearchOption(control, option, { notify = true } = {}) {
-    const label = String(option.label ?? option.value ?? "");
-    const value = String(option.value ?? "");
-    control.value = label;
-    control.dataset.viewSearchOptionValue = value;
-    control.dataset.viewSearchOptionLabel = label;
-    if (notify) {
-      dispatchFieldEvent(control, "input");
-      dispatchFieldEvent(control, "change");
-      global.setTimeout?.(() => cleanupDetachedSearchOptions(control), 0);
-    }
-  }
-
-  function cleanupDetachedSearchOptions(control) {
-    if (typeof document.body?.contains !== "function" || document.body.contains(control)) {
-      return;
-    }
-    control._viewSearchOptionsCleanup?.();
-  }
-
-  function showSearchOptions(control, popup) {
-    popup.hidden = false;
-    control.setAttribute("aria-expanded", "true");
-    positionSearchOptions(control, popup);
-  }
-
-  function hideSearchOptions(control, popup) {
-    popup.hidden = true;
-    control.setAttribute("aria-expanded", "false");
-  }
-
-  function positionSearchOptions(control, popup) {
-    if (popup.hidden || typeof control.getBoundingClientRect !== "function") {
-      return;
-    }
-    const rect = control.getBoundingClientRect();
-    const viewportWidth = global.innerWidth || document.documentElement?.clientWidth || rect.right || 320;
-    const viewportHeight = global.innerHeight || document.documentElement?.clientHeight || rect.bottom || 480;
-    const spacing = 6;
-    const width = Math.max(rect.width || 0, 180);
-    const below = viewportHeight - rect.bottom - spacing;
-    const above = rect.top - spacing;
-    const openAbove = below < 140 && above > below;
-    const availableHeight = Math.max(96, Math.min(260, openAbove ? above - spacing : below - spacing));
-    const left = Math.min(
-      Math.max(8, rect.left || 8),
-      Math.max(8, viewportWidth - width - 8),
-    );
-    if (!popup.style) {
-      popup.style = {};
-    }
-    popup.style.left = `${left}px`;
-    popup.style.top = `${openAbove ? Math.max(8, rect.top - availableHeight - spacing) : rect.bottom + spacing}px`;
-    popup.style.width = `${width}px`;
-    popup.style.maxHeight = `${availableHeight}px`;
-  }
-
-  function searchOptionText(option) {
-    const keywords = Array.isArray(option.keywords)
-      ? option.keywords
-      : String(option.keywords || "").split(/\s+/);
-    return [
-      option.label,
-      option.value,
-      ...keywords,
-    ].filter(Boolean).join(" ").toLowerCase();
-  }
-
-  function dispatchFieldEvent(control, eventName) {
-    if (typeof control.dispatchEvent !== "function") {
-      return;
-    }
-    if (typeof global.Event === "function") {
-      control.dispatchEvent(new global.Event(eventName, { bubbles: true }));
-      return;
-    }
-    control.dispatchEvent({ type: eventName, bubbles: true });
-  }
-
-  function setFieldOptionsError(control, message) {
-    if (!control) {
-      return;
-    }
-    if (control.tagName !== "SELECT") {
-      control.dataset.viewOptionsError = message || "Options unavailable.";
-      control.setAttribute("aria-invalid", "true");
-      return;
-    }
-    if (!control.options.length) {
-      const optionElement = document.createElement("option");
-      optionElement.textContent = "Options unavailable";
-      optionElement.value = "";
-      control.appendChild(optionElement);
-    }
-    control.disabled = true;
-    control.dataset.viewOptionsError = message || "Options unavailable.";
   }
 
   function renderDetailHeader(header, view, record) {
@@ -1482,9 +1212,10 @@
 
   function renderItemCollection(itemRows, view, state) {
     const record = state.selectedRecord;
-    const items = Array.isArray(readDescriptorValue(record, itemRows?.itemsField || "items", []))
-      ? readDescriptorValue(record, itemRows?.itemsField || "items", [])
-      : [];
+    // Read once and narrow: the value reader is contract-typed since 0.33.33.35.2, so the
+    // guard has to apply to the value that is actually used rather than to a second call.
+    const declaredItems = readDescriptorValue(record, itemRows?.itemsField || "items", []);
+    const items = Array.isArray(declaredItems) ? declaredItems : [];
 
     if (!itemRows || items.length === 0) {
       return null;
@@ -1727,106 +1458,19 @@
     return view.createField(field, options);
   }
 
-  function normalizeSelectOptions(options = []) {
-    if (!Array.isArray(options)) {
-      return [];
-    }
-
-    return options.map((option) => {
-      if (Array.isArray(option)) {
-        return {
-          value: option[0] ?? "",
-          label: option[1] ?? option[0] ?? "",
-          selected: Boolean(option[2]),
-        };
-      }
-      if (option && typeof option === "object") {
-        const value = option.value ?? option.id ?? "";
-        return {
-          ...option,
-          value,
-          label: option.label ?? option.text ?? value,
-          selected: Boolean(option.selected || option.default),
-        };
-      }
-      return {
-        value: option ?? "",
-        label: option ?? "",
-        selected: false,
-      };
-    });
-  }
-
-  async function loadBoundRecords(descriptor, filterValues = {}) {
-    const api = requireApiClient();
-    const responseRecords = requireViewResponseRecords();
-    const route = appendFilterQuery(descriptor.dataSource.route, descriptor.filters, filterValues);
-    const body = await api.getJson(route, { cache: "no-store" });
-    return responseRecords.read(body, descriptor.dataSource.recordsKey)
-      .map((record) => bindRecord(record, descriptor.dataSource.fieldBindings || {}));
-  }
-
-  function appendFilterQuery(route, filters, filterValues) {
-    if (!Array.isArray(filters) || filters.length === 0 || !filterValues) {
-      return route;
-    }
-
-    const params = [];
-    for (const filter of filters) {
-      const key = filter.queryKey || filter.field || filter.id;
-      const valueKey = filter.field || filter.id;
-      if (!key || !valueKey) {
-        continue;
-      }
-      const value = filterValues[valueKey];
-      if (value === undefined || value === null || value === "" || value === false) {
-        continue;
-      }
-      params.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
-    }
-
-    if (params.length === 0) {
-      return route;
-    }
-    return `${route}${route.includes("?") ? "&" : "?"}${params.join("&")}`;
-  }
-
-  function bindRecord(record, fieldBindings) {
-    const bound = { _source: record };
-
-    for (const [fieldName, sourcePath] of Object.entries(fieldBindings)) {
-      bound[fieldName] = readPath(record, sourcePath);
-    }
-
-    for (const [fieldName, value] of Object.entries(record || {})) {
-      if (bound[fieldName] === undefined) {
-        bound[fieldName] = value;
-      }
-    }
-
-    return bound;
-  }
-
+  /**
+   * @param {unknown} record
+   * @param {string} fieldName
+   * @param {unknown} [fallback]
+   * @returns {unknown}
+   */
   function readDescriptorValue(record, fieldName, fallback = "") {
     if (!fieldName) {
       return fallback;
     }
 
-    const value = readPath(record, fieldName);
+    const value = requireDataBinding().readPath(record, fieldName);
     return value === undefined || value === null ? fallback : value;
-  }
-
-  function readPath(source, path) {
-    if (!path || !source || typeof source !== "object") {
-      return undefined;
-    }
-
-    return String(path).split(".").reduce((value, key) => {
-      if (value === undefined || value === null) {
-        return undefined;
-      }
-      return value[key];
-    }, source);
   }
 
   function renderPlaceholder(title, emptyState, view) {
@@ -1857,13 +1501,19 @@
     const record = recordOverride !== undefined ? recordOverride : state.selectedRecord;
     try {
       state.actionError = null;
-      if (action.confirm && !(await confirmDescriptorAction(action))) {
+      const actionSecurity = requireActionSecurity();
+      if (action.confirm && !(await actionSecurity.confirmDescriptorAction(action))) {
         return;
       }
-      assertActionPermissions(action);
+      actionSecurity.assertActionPermissions(action);
 
       if (action.route) {
-        await runRouteAction(action, state, record);
+        await actionSecurity.runRouteAction(action, {
+          api: requireApiClient(),
+          readValue: readDescriptorValue,
+          record,
+        });
+        state.actionError = null;
         await state.surface.refresh();
         return;
       }
@@ -1883,75 +1533,6 @@
         rerenderState(state);
       }
     }
-  }
-
-  async function confirmDescriptorAction(action) {
-    const message = typeof action.confirm === "string"
-      ? action.confirm
-      : `Continue with ${action.label || action.id || "this action"}?`;
-    if (root.modal?.confirm) {
-      return root.modal.confirm({ title: action.label || "Confirm action", message });
-    }
-    if (typeof global.confirm === "function") {
-      return global.confirm(message);
-    }
-    return true;
-  }
-
-  async function runRouteAction(action, state, record = null) {
-    const api = requireApiClient();
-    const method = String(action.method || "POST").toUpperCase();
-    const route = interpolateRoute(action.route, record);
-
-    if (method === "GET") {
-      await api.getJson(route, { cache: "no-store" });
-    } else if (method === "POST") {
-      await api.postJson(route, action.payload || {});
-    } else if (method === "PUT") {
-      await api.putJson(route, action.payload || {});
-    } else if (method === "PATCH") {
-      if (typeof api.patchJson !== "function") {
-        throw new Error("PATCH route actions require LongtailForge.api.patchJson.");
-      }
-      await api.patchJson(route, action.payload || {});
-    } else if (method === "DELETE") {
-      await api.deleteJson(route);
-    } else {
-      throw new Error(`Unsupported action method: ${method}`);
-    }
-
-    state.actionError = null;
-  }
-
-  function interpolateRoute(route, record) {
-    if (typeof route !== "string" || !record) {
-      return route;
-    }
-    return route.replace(/\{([\w.]+)\}/g, (match, field) => {
-      const value = readDescriptorValue(record, field, undefined);
-      return value === undefined || value === null ? match : encodeURIComponent(String(value));
-    });
-  }
-
-  function assertActionPermissions(action) {
-    if (!actionPermissionsAllowed(action)) {
-      throw new Error("You do not have permission to run this action.");
-    }
-  }
-
-  function actionPermissionsAllowed(action = {}) {
-    const requiredPermissions = action.requiredPermissions || [];
-    if (!Array.isArray(requiredPermissions) || requiredPermissions.length === 0) {
-      return true;
-    }
-
-    const grantedPermissions = root.workspaceContext?.permissionIds || root.workspaceContext?.permissions;
-    if (!Array.isArray(grantedPermissions)) {
-      return true;
-    }
-
-    const granted = new Set(grantedPermissions);
-    return requiredPermissions.every((permissionId) => granted.has(permissionId));
   }
 
   async function runBehaviorAction(action, state, recordOverride = null) {
@@ -2052,20 +1633,52 @@
     return view;
   }
 
+  /**
+   * Predicate form of the published permission check.
+   *
+   * Kept local because ten `actions.filter(...)` sites pass it by reference; the rule itself
+   * lives in `LongtailForge.viewActionSecurity` and this only forwards to it.
+   * @param {{ requiredPermissions?: unknown }} action
+   * @returns {boolean}
+   */
+  function actionPermissionsAllowed(action) {
+    return requireActionSecurity().actionPermissionsAllowed(action);
+  }
+
+  /** @returns {BrowserViewActionSecurity} */
+  function requireActionSecurity() {
+    const actionSecurity = /** @type {BrowserViewActionSecurity | undefined} */ (root.viewActionSecurity);
+    if (typeof actionSecurity?.runRouteAction !== "function") {
+      throw new Error("View surface actions require LongtailForge.viewActionSecurity.");
+    }
+    return actionSecurity;
+  }
+
+  /** @returns {BrowserViewSearchOptions} */
+  function requireSearchOptions() {
+    const searchOptions = /** @type {BrowserViewSearchOptions | undefined} */ (root.viewSearchOptions);
+    if (typeof searchOptions?.setFieldOptions !== "function") {
+      throw new Error("View surface fields require LongtailForge.viewSearchOptions.");
+    }
+    return searchOptions;
+  }
+
+  /** @returns {BrowserViewDataBinding} */
+  function requireDataBinding() {
+    const dataBinding = /** @type {BrowserViewDataBinding | undefined} */ (root.viewDataBinding);
+    if (typeof dataBinding?.loadBoundRecords !== "function") {
+      throw new Error("View surface data binding requires LongtailForge.viewDataBinding.");
+    }
+    return dataBinding;
+  }
+
+  /** @returns {BrowserApi} */
   function requireApiClient() {
-    const api = root.api || {};
-    if (typeof api.getJson !== "function") {
+    const api = /** @type {BrowserApi | undefined} */ (root.api);
+    if (typeof api?.getJson !== "function") {
       throw new Error("View surface data binding requires LongtailForge.api.getJson.");
     }
     return api;
-  }
-
-  function requireViewResponseRecords() {
-    const responseRecords = root.viewResponseRecords || {};
-    if (typeof responseRecords.read !== "function") {
-      throw new Error("View surface data binding requires LongtailForge.viewResponseRecords.read.");
-    }
-    return responseRecords;
   }
 
   root.view = Object.freeze({

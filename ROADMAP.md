@@ -97,24 +97,17 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Frozen-factory compliance, checked per child rather than assumed.** `view-builder.js` publishes 30 members to `window.LongtailForge.view` without spreading; `view-renderer.js` spreads and adds 10 disjoint members. `framework.full-strict-governance` asserts the writer list, the disjoint member sets, and that the renderer spreads while the builder does not.
 
-- `.35.2` extracts **no published member**. Descriptor-action permission and route interpolation (`normalizeAction`, `runDescriptorAction`, `confirmDescriptorAction`, `runRouteAction`, `interpolateRoute`, `assertActionPermissions`, `actionPermissionsAllowed`, `runBehaviorAction`), the search-options combobox (`setFieldOptions` through `setFieldOptionsError`), and data binding (`loadBoundRecords`, `appendFilterQuery`, `bindRecord`, `readDescriptorValue`, `readPath`) are all file-internal helpers. The namespace is untouched.
+- `.35.2` **has archived**. It moved no published member and left the frozen factory's writers and member sets exactly as they were, extracting into three sibling surfaces instead. The delivery question it raised is settled for the rollup: a classic-script extraction publishes a narrow single-consumer sibling surface and is injected at `<head>` by `static.service.js`, the way `view-surface-descriptor.js` and `view-response-records.js` already are.
 - `.35.3` extracts **four published members** - `showModal`, `closeModal`, `closeChildModals`, `isTopModal` - so `view-builder.js` must keep publishing them by delegation. A new file publishing them would be a third writer of a two-writer permanent record and would fail governance.
 
 **Reconciliation: four children, disjoint owners.** `.35.1.1` and `.35.1.2` owned the four module controllers in sequence and have both archived, closing the `.35.1` rollup; `.35.2` owns `view-renderer.js`; `.35.3` owns `view-builder.js`. No file appears in two children.
-
-#### 0.33.33.35.2 - Extract the view-renderer responsibilities
-
-**Model: High Effort - 2,085 lines with descriptor, permission, and combobox behaviour in one file.**
-
-- [ ] Extract descriptor-action permission and route interpolation, the search-options combobox, and data binding from `view-renderer.js` behind explicit contracts.
-- [ ] Permission and route interpolation is the security-relevant extraction and is proved separately from the two presentational ones.
-- [ ] No published `window.LongtailForge.view` member moves: all three extractions are file-internal helpers, so the frozen factory namespace is untouched by construction rather than by care.
 
 #### 0.33.33.35.3 - Extract the view-builder modal stack
 
 **Model: Medium Effort - One extraction from a 2,013-line file.**
 
 - [ ] Extract only the modal stack from `view-builder.js`; keep the frozen factory namespace intact.
+- [ ] Use the mechanism `.35.2` settled: one narrow sibling surface, single writer, injected at `<head>`, entering the ledger at zero diagnostics with its contract published in `src/types/browser-contracts.d.ts`. Audit bare symbol references as well as call syntax - `.35.2` missed ten `filter(name)` sites that only the linter caught.
 - [ ] Preserve focus return and modal ordering behaviour.
 - [ ] **The seam is the stack, not the constructors, and the boundary is measured.** The stack - `modalStack` at `view-builder.js:4` plus `registerModalStack`, `normalizeModalParent`, `defaultModalParent`, `isDialogOpen`, `pushModalStackEntry`, `removeModalStackEntry`, `syncModalStackMetadata`, `showModal`, `closeModal`, `closeChildModals`, and `isTopModal` - depends on nothing but `global.document`. The constructors `createModal`, `createModalForm`, and `createModalFooter` depend on the builder's element factory (`createElement`, `createHeading`, `nextId`, `requiredText`, `modalSizeClass`) and stay. Extracting them would force either duplicated factory helpers or a second namespace writer, and the second breaks the frozen factory.
 - [ ] `view-builder.js` keeps publishing `showModal`, `closeModal`, `closeChildModals`, and `isTopModal` by delegation, so the writer list, member sets, and order are unchanged. `view-renderer.js` reaches the stack only through `view.showModal` and `view.createModalForm`, so it is not an owner of this child.
