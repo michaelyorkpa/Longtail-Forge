@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 18898,
+    "activeAssertionCount": 18900,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19712,
+    "effectiveAssertionCount": 19714,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -3949,11 +3949,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 36,
+      "assertionCount": 38,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes modal stack guardrails contract.",
-      "entryPointAssertionCount": 36,
+      "entryPointAssertionCount": 38,
       "id": "legacy.notes.modal.stack.guardrails",
       "legacy": true,
       "path": "scripts/notes-modal-stack-guardrails-regression.mjs",

@@ -10,6 +10,9 @@ const fixture = await createDisposableDatabaseFixture("view-shared-capabilities-
 const { validateModuleManifest } = await import("../src/core/modules/manifest-contract.js");
 
 const builder = readText("public/js/shared/view-builder.js");
+// 0.33.33.35.3 moved the modal stack into LongtailForge.viewModalStack. The builder
+// delegates to it at call time, so every context that executes the builder provides it.
+const viewModalStackSource = readText("public/js/shared/view-modal-stack.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 // 0.33.33.35.2 moved permission/route security, field option hydration, and
 // descriptor data binding into sibling modules. The renderer reaches them through the
@@ -76,6 +79,7 @@ const context = createFakeBrowserContext({ responses: [
   { records: [{ record_id: "r1", name: "Record One", depth: 1, parent_id: "root", path: "root/r1", tags: [{ name: "Focus" }], children: [{ label: "Item A", qty: "x2", note: "hello", state: "open" }] }] },
 ], iconButton: { iconClass: false, iconOnlyText: true } });
 vm.runInNewContext(surfaceDescriptor, context, { filename: "view-surface-descriptor.js" });
+vm.runInNewContext(viewModalStackSource, context, { filename: "view-modal-stack.js" });
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, context, { filename: "view-response-records.js" });
 vm.runInNewContext(viewActionSecuritySource, context, { filename: "view-action-security.js" });
@@ -180,6 +184,7 @@ assert.doesNotMatch(surface.textContent, /Reopen/, "Row actions failing visibleW
 // Region-only detail surfaces should not invent an item collection placeholder.
 const regionOnlyContext = createFakeBrowserContext({ responses: [], iconButton: { iconClass: false, iconOnlyText: true } });
 vm.runInNewContext(surfaceDescriptor, regionOnlyContext, { filename: "view-surface-descriptor.js" });
+vm.runInNewContext(viewModalStackSource, regionOnlyContext, { filename: "view-modal-stack.js" });
 vm.runInNewContext(builder, regionOnlyContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, regionOnlyContext, { filename: "view-response-records.js" });
 vm.runInNewContext(viewActionSecuritySource, regionOnlyContext, { filename: "view-action-security.js" });
@@ -203,6 +208,7 @@ assert.doesNotMatch(regionOnlySurface.textContent, /Items|No records loaded/, "R
 // Missing mount behavior fails visibly without breaking the surface.
 const missingContext = createFakeBrowserContext({ responses: [{ records: [{ record_id: "r1", name: "Record One" }] }], iconButton: { iconClass: false, iconOnlyText: true } });
 vm.runInNewContext(surfaceDescriptor, missingContext, { filename: "view-surface-descriptor.js" });
+vm.runInNewContext(viewModalStackSource, missingContext, { filename: "view-modal-stack.js" });
 vm.runInNewContext(builder, missingContext, { filename: "view-builder.js" });
 vm.runInNewContext(responseRecords, missingContext, { filename: "view-response-records.js" });
 vm.runInNewContext(viewActionSecuritySource, missingContext, { filename: "view-action-security.js" });

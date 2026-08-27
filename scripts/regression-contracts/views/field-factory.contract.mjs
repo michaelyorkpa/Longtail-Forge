@@ -16,6 +16,9 @@ import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const builderSource = readText("public/js/shared/view-builder.js");
+// 0.33.33.35.3 moved the modal stack into LongtailForge.viewModalStack. The builder
+// delegates to it at call time, so every context that executes the builder provides it.
+const viewModalStackSource = readText("public/js/shared/view-modal-stack.js");
 const rendererSource = readText("public/js/shared/view-renderer.js");
 const reportingSource = readText("public/js/reporting.js");
 const settingsRendererSource = readText("public/js/shared/settings-renderer.js");
@@ -49,6 +52,7 @@ const settingsViews = [
  */
 
 const context = createFakeBrowserContext({ globals: { Date, Object, Set, String } });
+vm.runInNewContext(viewModalStackSource, context, { filename: "view-modal-stack.js" });
 vm.runInNewContext(builderSource, context, { filename: "view-builder.js" });
 const view = /** @type {FieldFactorySurface} */ (context.window.LongtailForge.view);
 

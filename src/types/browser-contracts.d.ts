@@ -207,6 +207,34 @@ export interface BrowserViewDataBinding {
   readPath(source: unknown, path: unknown): unknown;
 }
 
+/**
+ * `LongtailForge.viewModalStack`, published by `public/js/shared/view-modal-stack.js`.
+ *
+ * The modal stack extracted from the view builder by `0.33.33.35.3`: which dialogs are open,
+ * which is on top, which belong to which parent, and what happens to focus when one closes.
+ *
+ * `view-builder.js` keeps publishing these four on the frozen `LongtailForge.view` factory and
+ * delegates each here, so the public factory contract is unchanged. The modal *constructors*
+ * stay in the builder, which is what lets this depend on nothing but the dialogs it is handed.
+ * Entry bookkeeping and registration stay private to the module.
+ */
+export interface BrowserViewModalStack {
+  /** Close every dialog opened from this one, deepest first. */
+  closeChildModals(parent: unknown, value?: string): void;
+  /** Close a dialog and everything it opened. */
+  closeModal(dialog: unknown, value?: string): void;
+  /** Whether this dialog is currently the top of the stack. */
+  isTopModal(dialog: unknown): boolean;
+  /** Open a dialog on top of the stack, honouring an explicitly passed parent even when null. */
+  showModal(dialog: unknown, options?: BrowserModalStackOptions): unknown;
+}
+
+export interface BrowserModalStackOptions {
+  parent?: unknown;
+  returnFocus?: boolean;
+  trigger?: unknown;
+}
+
 export interface BrowserRecord {
   clientId?: unknown;
   clientName?: unknown;
