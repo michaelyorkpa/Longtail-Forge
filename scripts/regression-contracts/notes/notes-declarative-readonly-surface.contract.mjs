@@ -34,8 +34,21 @@ assert.match(notesJs, /buildNotesViewShell/, "notes.js should build the framewor
 assert.match(notesJs, /view\.renderSurface\(\{ \.\.\.descriptor, dataSource: null, modals: \[\] \}, host\)/, "notes.js should render the descriptor shell without letting the renderer fetch data or render duplicate modals");
 assert.match(notesJs, /notesViewSurfaceDescriptor/, "notes.js should resolve the delivered descriptor");
 assert.match(notesJs, /workspaceContext\?\.viewSurfaces/, "notes.js should prefer the app-shell delivered descriptor");
-assert.match(notesJs, /fallbackNotesViewSurfaceDescriptor/, "notes.js should keep a startup fallback descriptor");
-assert.match(notesJs, /layout:\s*"slide-out-sidebar"/, "Notes fallback descriptor should use the slide-out sidebar layout");
+// 0.33.33.35.1.2 deleted the module-local descriptor fallbacks. The server surface is the
+// only source now, so this owner asserts the absence of a local copy rather than its presence,
+// and the descriptor's shape is owned where it is declared - in the module/framework source.
+assert.doesNotMatch(
+  notesJs,
+  /function fallback\w*ViewSurfaceDescriptor\(|LinkedRecordsFallbackDescriptor\(/,
+  "Notes must not reintroduce a local descriptor fallback",
+);
+assert.match(
+  notesJs,
+  /\.id === "notes\.workspace"[^\n]*\|\| null;/,
+  "Notes should resolve to null when the server did not deliver its surface",
+);
+// The slide-out layout assertion that stood here read notes.js, where only the deleted
+// fallback carried that literal. Its owner is the manifest surface, asserted above.
 assert.match(notesJs, /decorateNotesDeclarativeSurface/, "notes.js should decorate the framework shell with legacy hooks");
 assert.match(notesJs, /view\.registerBehavior\("notes\.sidebar\.library"[\s\S]*container\.replaceChildren\(createNotesLibraryChrome\(\)\)/, "Notes module should mount Library chrome through a sidebar panel behavior");
 assert.match(notesJs, /view\.registerBehavior\("notes\.sidebar\.notes-list-footer"[\s\S]*container\.replaceChildren\(createNotesListSortControl\(\), createNotesPagination\(\)\)/, "Notes module should mount Notes List footer controls through a sidebar panel behavior");
@@ -81,7 +94,9 @@ assert.match(stylesheet, /\.notes-empty-state--sidebar-hint\s*\{[\s\S]*justify-c
 assert.match(stylesheet, /\.notes-empty-state-icon\s*\{[\s\S]*display:\s*inline-grid;[\s\S]*border:\s*1px solid var\(--color-border\);/, "Blank note detail prompt should frame the inline filter icon");
 assert.match(stylesheet, /\.wide-page\s*\{[\s\S]*margin:\s*0 auto 48px;/, "Wide work surfaces should anchor to the top of the content area");
 assert.match(stylesheet, /\.view-stacked \.view-collapsible-index--unscrolled \.view-collapsible-index-body\s*\{[\s\S]*max-height:\s*none;[\s\S]*overflow:\s*visible;/, "A framework modifier (not a module class) should opt a static index panel out of the notes-list scroll cap");
-assert.match(notesJs, /view-collapsible-index--unscrolled/, "Notes Library panel should opt out of the scroll cap via the framework modifier class");
+// 0.33.33.35.1.2: this read notes.js, where the class was carried only by the deleted
+// fallback's Library panel. The manifest surface declares it, so that is the owner.
+assert.match(notesModule, /className: "notes-library-panel view-collapsible-index--unscrolled"/, "Notes Library panel should opt out of the scroll cap via the framework modifier class");
 assert.doesNotMatch(stylesheet, /\.view-stacked[^,{]*\.notes-/, "Framework stacked rules should not reference Notes module classes");
 assert.match(stylesheet, /\.view-stacked\s*\{[\s\S]*gap:\s*0;/, "Framework stacked panels should not leave white space between navigation and detail panels");
 assert.match(stylesheet, /\.view-filter-panel-title\s*\{[\s\S]*font-weight:\s*700;/, "The Filters heading should match the bold Library/Notes List headings");

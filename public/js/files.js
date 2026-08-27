@@ -101,6 +101,9 @@
     }
 
     activeFilesViewDescriptor = filesViewSurfaceDescriptor();
+    if (!activeFilesViewDescriptor) {
+      return;
+    }
 
     requireFilesViewHelper("renderSurface");
 
@@ -122,71 +125,13 @@
     });
   }
 
+  // 0.33.33.35.1.2: null means the server did not deliver this surface, which is the whole
+  // contract now - there is no local descriptor to fall back to. 0.33.33.35.1.1 made this
+  // readable by moving the shell build behind the workspace context, so an absent surface is
+  // an answer rather than a not-yet.
   function filesViewSurfaceDescriptor() {
     const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
-    return surfaces.find((surface) => surface.id === "files.browse" && surface.moduleId === "framework")
-      || fallbackFilesViewSurfaceDescriptor();
-  }
-
-  function fallbackFilesViewSurfaceDescriptor() {
-    return {
-      id: "files.browse",
-      moduleId: "framework",
-      viewId: "files",
-      layout: "slide-out-sidebar",
-      sidebarLabel: "File filters",
-      pageHeader: {
-        title: "Files",
-        description: "Browse file attachments visible in this workspace.",
-      },
-      sidebarPanels: [
-        {
-          id: "files-browse-filters",
-          type: "navigation",
-          title: "Filters",
-          behavior: "files.browse.filters",
-          open: true,
-          className: "files-filters-panel",
-          ariaLabel: "Files filters",
-        },
-      ],
-      detail: {
-        regions: [
-          {
-            id: "files-browse-results",
-            behavior: "files.browse.results",
-            className: "files-browse-results-region",
-            ariaLabel: "Files browse results",
-          },
-        ],
-      },
-      dataSource: {
-        route: "/api/files/attachments",
-        method: "GET",
-        recordsKey: "attachments",
-        fieldBindings: {
-          id: "fileAttachmentId",
-          fileId: "fileId",
-          title: "file.displayName",
-          displayName: "file.displayName",
-          filename: "file.originalFilename",
-          extension: "file.extension",
-          mimeType: "file.mimeTypeDetected",
-          fileSizeBytes: "file.fileSizeBytes",
-          moduleId: "moduleId",
-          targetType: "targetType",
-          targetLabel: "targetLabel",
-          clientLabel: "clientLabel",
-          projectLabel: "projectLabel",
-          status: "file.status",
-          scanStatus: "file.scanStatus",
-          uploadedAt: "file.createdAt",
-          uploadedByLabel: "file.uploadedByLabel",
-          deletedAt: "file.deletedAt",
-          attachedAt: "createdAt",
-        },
-      },
-    };
+    return surfaces.find((surface) => surface.id === "files.browse" && surface.moduleId === "framework") || null;
   }
 
   function cacheFilesElements() {

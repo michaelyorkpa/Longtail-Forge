@@ -563,12 +563,17 @@
     if (!view) {
       throw new Error("Notes requires LongtailForge.view to build the protected workspace.");
     }
-    registerNotesViewBehaviors();
     const descriptor = notesViewSurfaceDescriptor();
-    // The renderer auto-renders descriptor.modals into the surface; Notes builds and owns its own
-    // dialogs (createNoteDialogShell/createCollectionDialogShell), so suppress the framework duplicates.
-    const surface = view.renderSurface({ ...descriptor, dataSource: null, modals: [] }, host);
-    decorateNotesDeclarativeSurface(surface);
+    if (descriptor) {
+      registerNotesViewBehaviors();
+      // The renderer auto-renders descriptor.modals into the surface; Notes builds and owns its own
+      // dialogs (createNoteDialogShell/createCollectionDialogShell), so suppress the framework duplicates.
+      const surface = view.renderSurface({ ...descriptor, dataSource: null, modals: [] }, host);
+      decorateNotesDeclarativeSurface(surface);
+    }
+
+    // Notes owns its dialogs whether or not the server delivered a workspace surface, so a
+    // module action can still open the editor on a page whose surface was not delivered.
     document.body.append(
       createNoteDialogShell(),
       createNoteTagsDialogShell(),
@@ -622,7 +627,7 @@
   }
 
   function notesActionStripDescriptor() {
-    return notesViewSurfaceDescriptor().detail?.actionStrip || notesWorkflowActionStripDescriptor();
+    return notesViewSurfaceDescriptor()?.detail?.actionStrip || notesWorkflowActionStripDescriptor();
   }
 
   function notesWorkflowActionStripDescriptor() {
@@ -637,24 +642,7 @@
   }
 
   function notesLinkedRecordsDescriptor() {
-    return notesViewSurfaceDescriptor().detail?.linkedRecords || notesLinkedRecordsFallbackDescriptor();
-  }
-
-  function notesLinkedRecordsFallbackDescriptor() {
-    return {
-      title: "Linked Context",
-      recordsField: "links",
-      emptyState: { message: "No linked context." },
-      fields: [
-        { field: "target_type", type: "select", label: "Type", behavior: "notes.link.target-type" },
-        { field: "target_search", type: "search", label: "Search records", placeholder: "Search records", autocomplete: "off", behavior: "notes.link.search" },
-        { field: "target_results", type: "select", label: "Record", required: true, behavior: "notes.link.results" },
-      ],
-      actions: [
-        { id: "add-link", label: "Add Link", role: "primary", behavior: "notes.link.add" },
-        { id: "remove-link", label: "Remove", role: "destructive", behavior: "notes.link.remove" },
-      ],
-    };
+    return notesViewSurfaceDescriptor()?.detail?.linkedRecords || null;
   }
 
   function createNoteActionStrip(note) {
@@ -922,11 +910,14 @@
     };
   }
 
+  // 0.33.33.35.1.2: null means the server did not deliver this surface, which is the whole
+  // contract now - there is no local descriptor to fall back to. 0.33.33.35.1.1 made this
+  // readable by moving the shell build behind the workspace context, so an absent surface is
+  // an answer rather than a not-yet.
   function notesViewSurfaceDescriptor() {
     const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
-    const surface = surfaces.find((candidate) => candidate.id === "notes.workspace" && candidate.moduleId === "notes")
-      || fallbackNotesViewSurfaceDescriptor();
-    return scopeNotesVisibilityContributions(surface);
+    const surface = surfaces.find((candidate) => candidate.id === "notes.workspace" && candidate.moduleId === "notes") || null;
+    return surface ? scopeNotesVisibilityContributions(surface) : null;
   }
 
   function scopeNotesVisibilityContributions(surface = {}) {
@@ -964,131 +955,6 @@
         fields: scopeFields(modal.fields),
       } : modal),
     };
-  }
-
-  function fallbackNotesViewSurfaceDescriptor() {
-    return {
-      id: "notes.workspace",
-      moduleId: "notes",
-      viewId: "notes",
-      layout: "slide-out-sidebar",
-      sidebarLabel: "Notes navigation",
-      pageHeader: {
-        title: "Notes",
-        primaryAction: {
-          id: "create-note",
-          label: "Create Note",
-          role: "primary",
-          behavior: "notes.create",
-        },
-      },
-      sidebarPanels: [
-        {
-          id: "notes-filters",
-          type: "filters",
-          title: "Filters",
-            open: false,
-          className: "notes-filters-panel",
-        },
-        {
-          id: "notes-library",
-          type: "navigation",
-          title: "Library",
-          behavior: "notes.sidebar.library",
-          open: true,
-          className: "notes-library-panel view-collapsible-index--unscrolled",
-          ariaLabel: "Notes Library",
-        },
-        {
-          id: "notes-list",
-          type: "index",
-          title: "Notes List",
-          open: true,
-          className: "notes-index-panel",
-          footer: {
-            id: "notes-list-footer",
-            behavior: "notes.sidebar.notes-list-footer",
-          },
-        },
-      ],
-      filters: [
-        notesDescriptorSelect("status", "Status", [["active", "Active", true], ["pinned", "Pinned"], ["archived", "Archived"], ["all", "All visible"]]),
-        notesDescriptorSelect("visibility", "Visibility", [["all", "All visible", true], ["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"], ["public", "Public"]]),
-        notesDescriptorSelect("security", "Security", [["all", "All", true], ["normal", "Normal"], ["secure", "Secure"]]),
-        notesDescriptorSelect("noteType", "Note Kind", [["all", "All kinds", true], ...Object.entries(NOTE_KIND_LABELS).filter(([value]) => !LEGACY_NOTE_KINDS.has(value)).map(([value, label]) => [value, label])]),
-        { id: "context-filter", field: "context", type: "search", label: "Context" },
-        { id: "owner-filter", field: "owner", type: "search", label: "Owner" },
-        { id: "tags-filter", field: "tags", type: "search", label: "Tags", optionsSource: "notes.filters.tags" },
-        { id: "updated-filter", field: "updatedSince", type: "date", label: "Updated Since" },
-      ],
-      indexPanel: {
-        title: "Notes",
-        emptyState: { message: "No notes match the current filters." },
-      },
-      detail: {
-        header: { titleField: "title", metaField: "library" },
-        actionStrip: notesWorkflowActionStripDescriptor(),
-        linkedRecords: notesLinkedRecordsFallbackDescriptor(),
-        emptyState: { message: "Select a note to read its details." },
-      },
-      modals: [
-        {
-          id: "note-editor",
-          title: "Note",
-          fields: [
-            { id: "note-title", field: "title", type: "text", label: "Title", required: true },
-            { id: "note-library", field: "library", type: "select", label: "Library", options: [["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"]] },
-            { id: "note-collection", field: "collection", type: "select", label: "Collection", options: [["", "Uncategorized"]] },
-            { id: "note-kind", field: "noteType", type: "select", label: "Note Kind", options: [["general", "General"], ["meeting", "Meeting"], ["research", "Research"], ["decision", "Decision"], ["procedure", "Procedure"], ["reference", "Reference"], ["idea", "Idea"], ["log", "Log"]] },
-            { id: "note-visibility", field: "visibility", type: "select", label: "Visibility", options: [["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"], ["public", "Public"]] },
-            { id: "note-security", field: "security", type: "select", label: "Security", options: [["normal", "Normal"], ["secure", "Secure"]] },
-          ],
-          footerActions: [
-            { id: "cancel-note", label: "Cancel", role: "secondary", behavior: "notes.editor.cancel" },
-            { id: "save-close-note", label: "Save & Close", role: "secondary", behavior: "notes.editor.save-close" },
-            { id: "save-note", label: "Save Note", role: "primary", behavior: "notes.editor.save" },
-          ],
-        },
-        {
-          id: "note-bulk-editor",
-          title: "Bulk Edit Notes",
-          fields: [
-            { id: "note-bulk-library", field: "library", type: "select", label: "Library", options: [["", "No change"], ["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"]] },
-            { id: "note-bulk-collection", field: "collection", type: "select", label: "Collection", options: [["", "No change"], ["__uncategorized", "Uncategorized"]] },
-            { id: "note-bulk-kind", field: "noteType", type: "select", label: "Note Kind", options: [["", "No change"], ["general", "General"], ["meeting", "Meeting"], ["research", "Research"], ["decision", "Decision"], ["procedure", "Procedure"], ["reference", "Reference"], ["idea", "Idea"], ["log", "Log"]] },
-            { id: "note-bulk-visibility", field: "visibility", type: "select", label: "Visibility", options: [["", "No change"], ["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"], ["public", "Public"]] },
-            { id: "note-bulk-tag-action", field: "tagAction", type: "select", label: "Tag Action", options: [["", "No change"], ["add", "Add tags"], ["remove", "Remove tags"], ["replace", "Replace direct tags"]] },
-          ],
-          footerActions: [
-            { id: "cancel-note-bulk", label: "Cancel", role: "secondary", behavior: "notes.bulk.cancel" },
-            { id: "apply-note-bulk", label: "Apply Changes", role: "primary", behavior: "notes.bulk.apply" },
-          ],
-        },
-        {
-          id: "note-collection",
-          title: "Collection",
-          fields: [
-            { id: "collection-name", field: "title", type: "text", label: "Name", required: true },
-            { id: "collection-library", field: "library", type: "select", label: "Library", options: [["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"]] },
-            { id: "collection-parent", field: "parent", type: "select", label: "Parent", options: [["", "Root collection"]] },
-          ],
-          footerActions: [
-            { id: "cancel-collection", label: "Cancel", role: "secondary", behavior: "notes.collection.cancel" },
-            { id: "save-collection", label: "Save Collection", role: "primary", behavior: "notes.collection.save" },
-          ],
-        },
-      ],
-      dataSource: {
-        route: "/api/notes",
-        method: "GET",
-        recordsKey: "notes",
-        fieldBindings: { id: "note_id", title: "title" },
-      },
-    };
-  }
-
-  function notesDescriptorSelect(field, label, options) {
-    return { id: `${field}-filter`, field, type: "select", label, options };
   }
 
   function decorateNotesDeclarativeSurface(surface) {
@@ -1326,15 +1192,15 @@
   }
 
   function notesEditorModalDescriptor() {
-    return notesViewSurfaceDescriptor().modals?.find((modal) => modal.id === "note-editor") || {};
+    return notesViewSurfaceDescriptor()?.modals?.find((modal) => modal.id === "note-editor") || {};
   }
 
   function notesBulkEditorModalDescriptor() {
-    return notesViewSurfaceDescriptor().modals?.find((modal) => modal.id === "note-bulk-editor") || {};
+    return notesViewSurfaceDescriptor()?.modals?.find((modal) => modal.id === "note-bulk-editor") || {};
   }
 
   function notesCollectionModalDescriptor() {
-    return notesViewSurfaceDescriptor().modals?.find((modal) => modal.id === "note-collection") || {};
+    return notesViewSurfaceDescriptor()?.modals?.find((modal) => modal.id === "note-collection") || {};
   }
 
   function modalFieldOptions(modal, fieldName) {
@@ -1375,7 +1241,7 @@
       providers: linkTargetProviderOptions(),
       records: [],
       linkedItems: [],
-      emptyMessage: notesLinkedRecordsDescriptor().emptyState?.message || "No linked context.",
+      emptyMessage: notesLinkedRecordsDescriptor()?.emptyState?.message || "No linked context.",
       onClientContextChange: handleEditorLinkClientContextChange,
       onRemove: handleEditorLinkedContextRemove,
       showClientContext: true,
@@ -1803,7 +1669,7 @@
 
     if (visibilityFilter && !personalWorkspace) {
       const selectedValue = visibilityFilter.value || "all";
-      const options = notesViewSurfaceDescriptor().filters
+      const options = notesViewSurfaceDescriptor()?.filters
         ?.find((filter) => filter.field === "visibility")?.options || [];
       visibilityFilter.replaceChildren(...options.map((option) => {
         const [value, label] = Array.isArray(option) ? option : [option.value, option.label];
@@ -2469,7 +2335,7 @@
 
     // Client/Project/Task/User context lives in the Linked Context panel; the metadata row carries all
     // note-level metadata (incl. Created/Updated/Owner) so it is not duplicated here.
-    detailPanel.replaceChildren(header, collectionBreadcrumb, tags, tagsRule, body, links, files, revisions);
+    detailPanel.replaceChildren(...[header, collectionBreadcrumb, tags, tagsRule, body, links, files, revisions].filter(Boolean));
     mountFilesPanel(note, files.querySelector("[data-note-files-mount]"));
     loadRevisions(note, revisions.querySelector("[data-note-revisions-list]"));
   }
@@ -3874,6 +3740,10 @@
 
   function renderLinksPanel(note) {
     const descriptor = notesLinkedRecordsDescriptor();
+    if (!descriptor) {
+      return null;
+    }
+
     const locked = note.status === "archived";
     const typeField = noteFieldLabel("Type", noteSelect("noteLinkTargetType", []));
     const searchField = noteFieldLabel("Search records", noteInput("noteLinkSearch", { type: "search" }));
@@ -3967,7 +3837,7 @@
     if (items.length === 0) {
       return [view.createElement("p", {
         className: "notes-empty-state",
-        text: notesLinkedRecordsDescriptor().emptyState?.message || "No linked context.",
+        text: notesLinkedRecordsDescriptor()?.emptyState?.message || "No linked context.",
       })];
     }
     return items;

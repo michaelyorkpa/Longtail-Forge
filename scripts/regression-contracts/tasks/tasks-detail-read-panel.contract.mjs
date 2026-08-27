@@ -23,7 +23,6 @@ const metadataBadge = extractFunctionSpan(taskDialogScript, "createMetadataBadge
 const requireView = extractFunctionSpan(taskDialogScript, "requireTaskDialogView");
 const metadataRibbonField = extractFunctionSpan(taskDialogScript, "taskEditorMetadataRibbon");
 const taskRow = extractFunctionSpan(tasksScript, "createTaskRow");
-const fallbackSurface = extractFunctionSpan(tasksScript, "fallbackTasksViewSurfaceDescriptor");
 
 assert.match(detailBadgeHelper, /className:\s*\["view-detail-badges",\s*"surface-chip-row",\s*options\.className\]/, "Framework should own reusable detail badge row anatomy");
 assert.match(normalizeDetailBadges, /className:\s*"surface-chip"|createDetailBadge\(badge\)/, "Detail badge rows should normalize badges into shared surface chips");
@@ -44,7 +43,8 @@ assert.match(metadataWriter, /selectedText\(fields\.client\) \|\| "No client"/, 
 assert.match(metadataWriter, /selectedText\(fields\.project\) \|\| "No project"/, "Task metadata should use readable Project labels or a safe fallback");
 assert.doesNotMatch(`${metadataWriter}\n${metadataBadge}`, /\b(?:task|client|project|workspace|assignee)_id\b|assignee_ids/, "Task metadata badges should not surface raw ids in normal UI");
 
-assert.match(fallbackSurface, /layout:\s*"slide-out-sidebar"[\s\S]*id:\s*"tasks-main-list"[\s\S]*ariaLabel:\s*"Task list"/, "Tasks fallback surface should keep the task list as the main detail region");
+// 0.33.33.35.1.2: the client-side fallback this line read has been deleted. It duplicated the
+// manifest assertion immediately below, which is where the region shape is actually owned.
 assert.match(tasksModule, /id:\s*"tasks\.workspace"[\s\S]*layout:\s*"slide-out-sidebar"[\s\S]*id:\s*"tasks-main-list"[\s\S]*ariaLabel:\s*"Task list"/, "Tasks manifest surface should keep the task list as the primary view");
 assert.match(taskRow, /titleButton\.addEventListener\("click", \(\) => openTaskDialog\(task\)\)/, "Task row titles should still open the canonical modal detail/editor");
 assert.doesNotMatch(tasksView, /data-task-detail-column|data-task-read-panel|task-detail-column/, "Tasks host should not add a persistent task detail column");

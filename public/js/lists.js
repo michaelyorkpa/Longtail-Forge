@@ -280,18 +280,22 @@
     if (!view) {
       throw new Error("Lists requires LongtailForge.view to build the protected workspace.");
     }
-    registerListsViewBehaviors();
-
     activeListsViewDescriptor = listsViewSurfaceDescriptor();
-    // The renderer auto-renders descriptor.modals into the surface; Lists builds and owns its own
-    // dialog (createListDialogShell), so suppress the framework duplicate modal shells.
-    const renderDescriptor = {
-      ...activeListsViewDescriptor,
-      dataSource: null,
-      modals: [],
-    };
-    const surface = view.renderSurface(renderDescriptor, host);
-    decorateListsDeclarativeSurface(surface, renderDescriptor);
+    if (activeListsViewDescriptor) {
+      registerListsViewBehaviors();
+      // The renderer auto-renders descriptor.modals into the surface; Lists builds and owns its own
+      // dialog (createListDialogShell), so suppress the framework duplicate modal shells.
+      const renderDescriptor = {
+        ...activeListsViewDescriptor,
+        dataSource: null,
+        modals: [],
+      };
+      const surface = view.renderSurface(renderDescriptor, host);
+      decorateListsDeclarativeSurface(surface, renderDescriptor);
+    }
+
+    // Lists owns its dialogs whether or not the server delivered a workspace surface, so a
+    // module action can still open the editor on a page whose surface was not delivered.
     document.body.appendChild(createListDialogShell());
     document.body.appendChild(createItemDialogShell());
   }
@@ -413,93 +417,13 @@
     return state.lists.find((entry) => entry.list_id === listId) || selectedList();
   }
 
+  // 0.33.33.35.1.2: null means the server did not deliver this surface, which is the whole
+  // contract now - there is no local descriptor to fall back to. 0.33.33.35.1.1 made this
+  // readable by moving the shell build behind the workspace context, so an absent surface is
+  // an answer rather than a not-yet.
   function listsViewSurfaceDescriptor() {
     const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
-    return surfaces.find((surface) => surface.id === "lists.workspace" && surface.moduleId === "lists") || fallbackListsViewSurfaceDescriptor();
-  }
-
-  function fallbackListsViewSurfaceDescriptor() {
-    return {
-      id: "lists.workspace",
-      moduleId: "lists",
-      viewId: "lists",
-      layout: "slide-out-sidebar",
-      sidebarLabel: "Lists navigation",
-      pageHeader: {
-        title: "Lists",
-        primaryAction: {
-          id: "create-list",
-          label: "Create List",
-          role: "primary",
-          behavior: "lists.create",
-        },
-      },
-      sidebarPanels: [
-        {
-          id: "lists-filters",
-          type: "filters",
-          title: "Filters",
-          open: false,
-          className: "lists-filters-panel",
-        },
-        {
-          id: "lists-index",
-          type: "index",
-          title: "List Selector",
-          open: true,
-        },
-      ],
-      filters: [
-        descriptorSelect("status", "Status", [["active", "Active", true], ["completed", "Completed"], ["finalized", "Finalized"], ["archived", "Archived"], ["deleted", "Deleted"], ["all", "All visible"]]),
-        descriptorSelect("listType", "Type", [["all", "All types", true], ...Object.entries(LIST_TYPE_LABELS).map(([value, label]) => [value, label])]),
-        descriptorSelect("reusable", "Reusable", [["no", "Normal lists", true], ["yes", "Reusable only"], ["all", "All"]]),
-        descriptorSelect("clientId", "Client", [["all", "All clients", true]]),
-        descriptorSelect("projectId", "Project", [["all", "All projects", true]]),
-        descriptorSelect("assigneeId", "Assigned", [["all", "All assignees", true]]),
-        { id: "needed-filter", field: "neededByDate", type: "date", label: "Needed By" },
-        descriptorSelect("archiveState", "Archived State", [["current", "Current", true], ["archived", "Archived"], ["deleted", "Deleted"], ["all", "All states"]]),
-        descriptorSelect("sort", "Sort", [["updated_desc", "Updated", true], ["title_asc", "Title"], ["type_asc", "Type"], ["status_asc", "Status"], ["needed_asc", "Needed Date"], ["finalized_desc", "Finalized Date"]]),
-      ],
-      indexPanel: {
-        title: "List Selector",
-        initialSelection: "none",
-        collapseOnSelect: true,
-        emptyState: {
-          message: "No lists match the current filters.",
-        },
-      },
-      detail: {
-        header: {
-          title: "Selected list",
-          description: "Choose a list to inspect.",
-        },
-        summaryPanels: [
-          {
-            title: "List Details",
-            description: "Description and read-only linked records.",
-          },
-          { title: "Next", description: "List progress and next action context." },
-          { title: "Source", description: "Template and working-copy context." },
-          { title: "Costs", description: "Estimated and actual item costs." },
-        ],
-        actionStrip: listsWorkflowActionStripDescriptor(),
-        emptyState: {
-          message: "Select a list to review its context.",
-        },
-        itemForm: listsItemFormDescriptor(),
-        itemRows: listsItemRowsDescriptor(),
-      },
-      modals: [listsModalDescriptor()],
-      dataSource: {
-        route: "/api/lists",
-        method: "GET",
-        recordsKey: "lists",
-        fieldBindings: {
-          id: "list_id",
-          title: "title",
-        },
-      },
-    };
+    return surfaces.find((surface) => surface.id === "lists.workspace" && surface.moduleId === "lists") || null;
   }
 
   function listsWorkflowActionStripDescriptor() {
@@ -585,16 +509,6 @@
         { id: "cancel-list", label: "Cancel", role: "secondary", behavior: "lists.modal.cancel" },
         { id: "save-list", label: "Save List", role: "primary", behavior: "lists.modal.save" },
       ],
-    };
-  }
-
-  function descriptorSelect(field, label, options) {
-    return {
-      id: `${field}-filter`,
-      field,
-      type: "select",
-      label,
-      options,
     };
   }
 
@@ -759,7 +673,7 @@
   }
 
   function listsEditorModalDescriptor() {
-    return listsViewSurfaceDescriptor().modals?.find((modal) => modal.id === "list-editor") || listsModalDescriptor();
+    return listsViewSurfaceDescriptor()?.modals?.find((modal) => modal.id === "list-editor") || listsModalDescriptor();
   }
 
   function decorateListEditorField(grid, fieldName, dataName, wrapperDataName = "") {
@@ -1093,7 +1007,7 @@
   }
 
   function listsActionStripSurfaceDescriptor() {
-    return listsViewSurfaceDescriptor().detail?.actionStrip || listsWorkflowActionStripDescriptor();
+    return listsViewSurfaceDescriptor()?.detail?.actionStrip || listsWorkflowActionStripDescriptor();
   }
 
   function detailActionButtons(list, locked) {
@@ -1292,7 +1206,7 @@
   }
 
   function listsItemFormSurfaceDescriptor() {
-    return listsViewSurfaceDescriptor().detail?.itemForm || listsItemFormDescriptor();
+    return listsViewSurfaceDescriptor()?.detail?.itemForm || listsItemFormDescriptor();
   }
 
   function itemFormField(fieldName) {
@@ -1410,7 +1324,7 @@
   }
 
   function listsItemRowsSurfaceDescriptor() {
-    return listsViewSurfaceDescriptor().detail?.itemRows || listsItemRowsDescriptor();
+    return listsViewSurfaceDescriptor()?.detail?.itemRows || listsItemRowsDescriptor();
   }
 
   function linkedContextItems(list) {

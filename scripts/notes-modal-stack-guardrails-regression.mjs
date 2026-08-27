@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import vm from "node:vm";
 
 import { createFakeBrowserContext, createFakeEvent } from "./test-support/fake-dom.mjs";
-import { createProjectTextReader } from "./test-support/source-scan.mjs";
+import { createProjectTextReader, extractFunctionSpan } from "./test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const notesHtml = readText("views/protected/notes.html");
@@ -15,8 +15,13 @@ assert.match(notesHtml, /js\/shared\/view-renderer\.js/, "Notes should reference
 assert.match(notesHtml, /css\/longtail-forge\.css/, "Notes should reference stacked modal warning styles");
 assert.match(notesHtml, /js\/notes\.js/, "Notes should reference the Notes modal wiring");
 
-assert.match(notesJs, /label: "Tags"[\s\S]*iconOnly: false[\s\S]*role: "utility"[\s\S]*text: "Tags"[\s\S]*title: "Tags"/, "Tags utility should use the concise icon plus text label");
-assert.match(notesJs, /label: "Files"[\s\S]*iconOnly: false[\s\S]*role: "utility"[\s\S]*text: "Files"[\s\S]*title: "Files"/, "Files utility should use the concise icon plus text label");
+// 0.33.33.35.1.2: these matched across the whole file, so they spanned from a `label:` inside
+// the deleted descriptor fallback into the live shell below it - passing for the wrong
+// reason and in an order the real code never had. They are scoped to the shell that builds
+// the buttons, in the order it declares them.
+const noteDialogShell = extractFunctionSpan(notesJs, "createNoteDialogShell");
+assert.match(noteDialogShell, /icon: "tag",[\s\S]*iconOnly: false,[\s\S]*label: "Tags",[\s\S]*role: "utility",[\s\S]*text: "Tags",[\s\S]*title: "Tags"/, "Tags utility should use the concise icon plus text label");
+assert.match(noteDialogShell, /icon: "file",[\s\S]*iconOnly: false,[\s\S]*label: "Files",[\s\S]*role: "utility",[\s\S]*text: "Files",[\s\S]*title: "Files"/, "Files utility should use the concise icon plus text label");
 assert.doesNotMatch(notesJs, /Note tags|Note files/, "Notes utility buttons should not expose the old longer labels");
 assert.match(notesJs, /view\.showModal\(dialog, \{ trigger: options\.trigger \|\| options\.hostContext\?\.trigger \|\| null \}\)/, "The Add/Edit Note dialog should open through the shared modal stack helper with focus-return trigger context");
 assert.match(notesJs, /view\.closeModal\(dialog, options\.returnValue \|\| ""\)/, "Closing or saving the Add/Edit Note dialog should close child modals safely");

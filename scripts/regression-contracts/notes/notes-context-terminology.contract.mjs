@@ -52,7 +52,8 @@ assert.match(notesDocs, /Normal Notes UI must not display raw target IDs or UUID
 assert.match(notesDocs, /Audit Logs may still display raw IDs/);
 
 assert.match(notesModule, /linkedRecords:\s*\{[\s\S]*title:\s*"Linked Context"[\s\S]*No linked context\./);
-assert.match(notesJs, /title:\s*"Linked Context"/);
+// 0.33.33.35.1.2: the notes.js copy of this title lived only in the deleted linked-records
+// fallback. The manifest assertion on the line above owns it.
 assert.match(viewBuilder, /placeholder:\s*options\.searchPlaceholder \|\| "Search linked context"/);
 assert.match(notesJs, /searchInput\.dataset\.noteContextSearch = ""/);
 assert.match(notesJs, /function unavailableTargetLabel/);

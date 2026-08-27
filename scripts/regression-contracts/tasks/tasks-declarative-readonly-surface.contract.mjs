@@ -27,7 +27,19 @@ assertNoProtectedAnatomy(tasksView, "views/protected/tasks.html");
 assert.match(tasksScript, /buildTasksViewShell\(\);[\s\S]*tasksDialog\?\.configure\?\.\(\)/, "Tasks adapter should build the descriptor shell before querying task hooks");
 assert.match(tasksScript, /view\.renderSurface\(\{ \.\.\.activeTasksViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Tasks adapter should render the descriptor shell without converting read data or modal internals yet");
 assert.match(tasksScript, /workspaceContext\?\.viewSurfaces/, "Tasks adapter should prefer bootstrapped descriptor data");
-assert.match(tasksScript, /function fallbackTasksViewSurfaceDescriptor\(\)/, "Tasks adapter should keep a local fallback descriptor for startup resilience");
+// 0.33.33.35.1.2 deleted the module-local descriptor fallbacks. The server surface is the
+// only source now, so this owner asserts the absence of a local copy rather than its presence,
+// and the descriptor's shape is owned where it is declared - in the module/framework source.
+assert.doesNotMatch(
+  tasksScript,
+  /function fallback\w*ViewSurfaceDescriptor\(|LinkedRecordsFallbackDescriptor\(/,
+  "Tasks must not reintroduce a local descriptor fallback",
+);
+assert.match(
+  tasksScript,
+  /surface\.id === "tasks.workspace"[^\n]*\|\| null;/,
+  "Tasks should resolve to null when the server did not deliver its surface",
+);
 assert.match(tasksScript, /view\.registerBehavior\("tasks\.create"/, "Tasks adapter should register the create action behavior");
 assert.match(tasksScript, /view\.registerBehavior\("tasks\.sidebar\.view-selector"/, "Tasks adapter should register the task view selector behavior");
 assert.match(tasksScript, /view\.registerBehavior\("tasks\.sidebar\.filters"/, "Tasks adapter should register the sidebar filter behavior");
