@@ -935,6 +935,66 @@ export interface BrowserViewDescriptorRenderers {
   renderSurface(deliveredDescriptor: unknown, host: unknown): BrowserViewSurfaceElement;
 }
 
+/**
+ * `LongtailForge.settingsHost`, published by `public/js/shared/settings-host.js`.
+ *
+ * Mounts the settings host a page declares through `data-settings-host`, and reads the
+ * attachment sections a delivered catalog carries. The module **self-mounts at load** when the
+ * page has a host element, so both members are also reachable for the placements that mount
+ * themselves.
+ */
+export interface BrowserSettingsHost {
+  /**
+   * The attachment sections a catalog carries for a placement.
+   *
+   * The catalog is the body of `GET /api/settings/catalog` and is read defensively - a missing
+   * `attachments`, a missing placement, and a non-array entry all yield an empty array - so it
+   * stays `unknown` here. Validating what the returned entries contain is `0.33.33.38.4`'s
+   * work, not this contract's.
+   */
+  attachmentSections(catalog: unknown, placement: string, moduleId?: string): unknown[];
+  /**
+   * Mount the host, returning the element it was given. Mounting is idempotent through
+   * `data-settings-host-mounted`, and an unrecognised placement throws.
+   */
+  mount<Element extends HTMLElement | null | undefined>(hostElement: Element): Element;
+}
+
+/**
+ * `LongtailForge.settingsPageController`, published by
+ * `public/js/shared/settings-page-controller.js`.
+ */
+export interface BrowserSettingsPageController {
+  /**
+   * Wire a settings page's dirty-state tracking, save and revert buttons, and unsaved-changes
+   * navigation guard. Throws when neither `root` nor a `[data-settings-host]` element resolves.
+   */
+  create(options?: BrowserSettingsPageControllerOptions): BrowserSettingsPageControllerHandle;
+}
+
+export interface BrowserSettingsPageControllerOptions {
+  /**
+   * Falls back to the page's `[data-settings-host]` element. `Element` rather than
+   * `HTMLElement` because the controller only ever queries it and listens on it.
+   */
+  root?: Element | null;
+  onDirtyChange?: (dirty: boolean) => unknown;
+  onRevert?: () => unknown;
+  /** Returning `false` leaves the page dirty; anything else marks it clean. */
+  onSave?: () => unknown;
+}
+
+/**
+ * What `create` returns. All three members are published, and the contract describes the
+ * surface rather than the subset consumers currently call - only `setClean` is used externally
+ * today.
+ */
+export interface BrowserSettingsPageControllerHandle {
+  isDirty(): boolean;
+  setClean(): void;
+  updateDirtyState(): void;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
@@ -965,6 +1025,8 @@ export interface LongtailForgeBrowserNamespace {
    */
   applyWorkspaceName?: (value: unknown) => void;
   records?: BrowserRecords;
+  settingsHost?: BrowserSettingsHost;
+  settingsPageController?: BrowserSettingsPageController;
   /**
    * The frozen view factory, written by `view-builder.js` and extended by `view-renderer.js`.
    * Optional because the namespace itself can be absent, not because the factory is.

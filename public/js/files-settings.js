@@ -6,7 +6,7 @@
 
   let settingsCatalog = null;
   let accounting = {};
-  const settingsPageController = window.LongtailForge.settingsPageController.create({
+  const settingsPageController = requireSettingsPageController().create({
     root: document.querySelector("[data-settings-host='module']"),
     onSave: saveFilesSettings,
   });
@@ -36,6 +36,32 @@
     }
     return apiClient;
   }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserSettingsHost} BrowserSettingsHost */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserSettingsPageController} BrowserSettingsPageController */
+
+  /**
+   * The settings host this page cannot render without. Every page that loads this script also
+   * loads `shared/settings-host.js` ahead of it, so a missing host is a delivery failure and
+   * the checked read fails exactly where the raw read failed before.
+   * @returns {BrowserSettingsHost}
+   */
+  function requireSettingsHost() {
+    const host = window.LongtailForge?.settingsHost;
+    if (!host) {
+      throw new Error("Files settings requires LongtailForge.settingsHost.");
+    }
+    return host;
+  }
+
+  /** @returns {BrowserSettingsPageController} */
+  function requireSettingsPageController() {
+    const controller = window.LongtailForge?.settingsPageController;
+    if (!controller) {
+      throw new Error("Files settings requires LongtailForge.settingsPageController.");
+    }
+    return controller;
+  }
+
   async function loadFilesSettings() {
     const api = requireApi();
     setStatus("Loading Files settings...");
@@ -106,7 +132,7 @@
   function renderSettings() {
     window.LongtailForge.settingsRenderer.renderSections(
       filesSettingsFields,
-      window.LongtailForge.settingsHost.attachmentSections(settingsCatalog, "module", "files"),
+      requireSettingsHost().attachmentSections(settingsCatalog, "module", "files"),
       { emptyText: "No configurable Files settings are available." },
     );
     renderAccounting();

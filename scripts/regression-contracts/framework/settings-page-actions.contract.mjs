@@ -103,7 +103,9 @@ assert.match(permissionsService, /async function isWorkspaceAdministrator\(sessi
 assert.match(settingsRepository, /savedSettings\.workspaceType !== workspace\.workspace_type/);
 assert.doesNotMatch(settingsRepository, /SET name = :workspaceName,\s*workspace_type = :workspaceType/);
 for (const source of [workspace, user, modulePage, files]) {
-  assert.match(source, /settingsPageController\.create/);
+  // `0.33.33.38.2.2.2` moved the surface behind a checked read. The contract is that every
+  // settings page creates its page controller, not how the controller was acquired.
+  assert.match(source, /requireSettingsPageController\(\)\.create\(/);
 }
 assert.match(user, /async function saveAllSettings/);
 assert.match(user, /putJson\("\/api\/user\/settings"/);

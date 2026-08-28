@@ -51,6 +51,32 @@
     }
     return apiClient;
   }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserSettingsHost} BrowserSettingsHost */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserSettingsPageController} BrowserSettingsPageController */
+
+  /**
+   * The settings host this page cannot render without. Every page that loads this script also
+   * loads `shared/settings-host.js` ahead of it, so a missing host is a delivery failure and
+   * the checked read fails exactly where the raw read failed before.
+   * @returns {BrowserSettingsHost}
+   */
+  function requireSettingsHost() {
+    const host = window.LongtailForge?.settingsHost;
+    if (!host) {
+      throw new Error("Notes settings requires LongtailForge.settingsHost.");
+    }
+    return host;
+  }
+
+  /** @returns {BrowserSettingsPageController} */
+  function requireSettingsPageController() {
+    const controller = window.LongtailForge?.settingsPageController;
+    if (!controller) {
+      throw new Error("Notes settings requires LongtailForge.settingsPageController.");
+    }
+    return controller;
+  }
+
   function requireView() {
     const factory = window.LongtailForge?.view;
     if (!factory) {
@@ -69,7 +95,7 @@
     statusFilter: "all",
   };
 
-  const settingsPageController = window.LongtailForge.settingsPageController.create({
+  const settingsPageController = requireSettingsPageController().create({
     root: notesSettingsHost,
     onSave: async () => true,
   });
@@ -99,7 +125,7 @@
 
       window.LongtailForge.settingsRenderer.renderSections(
         notesSettingsFields,
-        window.LongtailForge.settingsHost.attachmentSections(settingsCatalog, "module", "notes"),
+        requireSettingsHost().attachmentSections(settingsCatalog, "module", "notes"),
         { emptyText: "No configurable Notes settings are available." },
       );
       await loadCatalogs();
