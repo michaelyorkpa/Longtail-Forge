@@ -43,7 +43,7 @@ Source-contract discipline (branch-wide, from `0.33.33.35`):
 - [ ] **The scope of the evidence must match the scope of the claim.** `0.33.33.37` reported "duplicated status literals 11 to 0" from an audit of the three files its own checkpoint description named, while `task-resume-note-capture.js` and `tasks-dashboard.js` still held the active-status set. The measurement was right and the claim was too wide. A repository-wide elimination claim requires a repository-wide search; an audit deliberately scoped to named owners reports itself that way - "11 to 0 across the three `0.33.33.37` owners" - and names what it did not look at.
 - [ ] **Retarget a source contract to what it owns; do not repoint it at a new filename.** When extraction moves code, an assertion that merely pinned its location is a weak contract that survived by accident. Move it to the behaviour, ownership, publication, or dependency claim it was standing in for - `0.33.33.35.2` and `0.33.33.35.3` both did this - and delete it when a stronger assertion already covers the same ground.
 
-Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, `.28.6`, `.30`, `.30.2`, `.30.3`, `.30.7`, `.30.7.2`, `.31`, `.32`, and `.35.1` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
+Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, `.28.6`, `.30`, `.30.2`, `.30.3`, `.30.7`, `.30.7.2`, `.31`, `.32`, `.35.1`, and `.38.2` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives. **A resliced child must be declared at a heading depth checkpoint governance recognises - `###` or `####`, and no deeper.** `0.33.33.38.2` first wrote its children at `#####`, and `checkpoint:validate` reported every one of them as an undeclared checkpoint: validation visibility is part of declaring ownership, not a formatting preference.
 
 Release-wide measurable acceptance:
 
@@ -141,6 +141,8 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.2 - Adopt the checked namespace read, then close the declaration
 
+**A planning rollup, and its children are declared at the same heading depth as every other `0.33.33.38` child.** The `0.33.33.38.2.1` planning commit was the first to carry a third-level identifier, and checkpoint validation recognises a live declaration only at `###` or `####` - a deeper heading left every child of this rollup unable to be committed against its own identifier. The rollup is listed with the other resliced parents above.
+
 **Model: High Effort - RESLICED against the landed post-`0.33.33.38.1` tree. The previous shape - "declare the remaining 48 members and settle the index signature" - addresses 212 of the 808 diagnostics its own family holds, and it is the wrong unit of work.**
 
 **The namespace family is three causes, not one.** Reclassified against the landed tree, the 808 diagnostics attributable to a namespace member or to the namespace itself split as:
@@ -153,29 +155,59 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **596 of the 808 need adoption, not declaration.** The old child's premise - that undeclared members are the problem - survives for a quarter of its own family.
 
+**Corrected by the `0.33.33.38.2.1` preflight: the adoption figure was too high, because a root-optionality diagnostic is only adoption work when the member on that line is already declared.** 198 of the 323 root diagnostics sit on a line reaching an *undeclared* member, so acquiring the root there trades one diagnostic for another and resolves nothing until `.38.2.2` declares the member. **The genuine already-declared adoption set is 375**, and those 198 move to `.38.2.2`.
+
 **`LongtailForge.api` is not a contract problem at all, and that is the checkpoint's largest single finding.** Its 226 diagnostics across 29 files are **entirely member optionality**: 148 through an aliased `const api = window.LongtailForge?.api` and 78 through `window.LongtailForge.api` directly. `api` has been a declared member since before this rollup and `BrowserApi` is accurate. **Not one of the 226 comes from a method return.** The five methods return `Promise<unknown>` because a fetch body is an untrusted wire value; those consumer narrowings live in the `unknown` family and belong to `.38.4`. **Typing `getJson`'s return to move a number would recreate the inherited-`any` shape the scripts program spent four children removing, wearing a JSDoc annotation.**
 
 - [ ] **Order matters and is fixed by dependency, not by size.** Adoption of the root and the already-declared members can run immediately and needs no new contract. Undeclared members must be declared *and* adopted in one change each, on the rule `0.33.33.38.1` proved: declaring an existing consumed member retypes reads that already exist, and the monotonic ledger rejects the movement unless the consumers narrow in the same commit.
 - [ ] **No child may weaken a contract to move a number.** No cast, no non-null assertion, no suppression, no permissive index signature, no `any`.
 - [ ] **Classify every acquisition site before converting it, exactly as `0.33.33.38.1` did.** A consumer that legitimately runs without a surface keeps its optionality; four consumers and `file-attachments.js` did, and that was correct.
 
-##### 0.33.33.38.2.1 - Adopt the checked read for the namespace root and its declared members
+#### 0.33.33.38.2.1 - Adopt the checked read for `LongtailForge.api`
 
-**596 diagnostics, no new contract, and the pattern already exists.**
+**Model: High Effort - RESLICED. The 596-diagnostic figure was two different mistakes, and the preflight measured both.**
 
-- [ ] Convert required consumers of `LongtailForge` itself and of the five already-declared members - `api`, `pageController`, `records`, `errors`, `formatters` - to the lazy `requireX()` acquisition `0.33.33.37` established and `0.33.33.38.1` proved at scale.
-- [ ] **`api` alone is 226 diagnostics across 29 files** and may need to be its own child once the conversion is measured on two or three files first. Measure before committing to one unit.
-- [ ] Leave every `Promise<unknown>` return exactly as it is. The consumer narrowing that follows is `.38.4`.
+**The first: 209 of them are not this child's work.** The "namespace root is optional" cohort is 323 diagnostics, but a root diagnostic is only fixed by acquisition if the member on that line is *already declared*. **198 of the 323 sit on a line reaching for an undeclared member** - `modal` 27, `settingsRenderer` 22, `tags` 21, `timezones` 15, `icons` 13, `moduleActions` 13, and the rest - and acquiring the root there converts a "possibly undefined" into a "property does not exist on `{}`" without removing anything. **Those diagnostics resolve when `0.33.33.38.2.2` declares their members, and they belong to that child.** The remaining 11 could not be attributed to any member.
 
-##### 0.33.33.38.2.2 - Declare and adopt the multi-consumer members
+**The second: what is left is not one semantics.** Measured against the landed tree, the genuine already-declared adoption set is **375 diagnostics**, and `api` is **312 of them - 83%**. The other six members hold 63 between them, and they do not share a dependency contract:
 
-**30 members, 210 diagnostics, and each needs a real contract read from its writer.**
+| Member | Unguarded required | Optional-chained (graceful) | Optional root read | Delivery probe | Diagnostics |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `api` | 104 sites / 35 files | - | - | 2 sites / 1 file | **312** |
+| `pageController` | 20 / 11 | 1 / 1 | - | 2 / 1 | 35 |
+| `records` | 10 / 5 | 3 / 2 | - | - | 15 |
+| `cachedFetch` | 5 / 3 | 2 / 1 | - | - | 7 |
+| `errors` | 1 / 1 | **11 / 10** | - | - | 3 |
+| `formatters` | 3 / 3 | 1 / 1 | 2 / 2 | - | 2 |
+| `appShellBootstrap` | 2 / 2 | - | - | - | 1 |
+
+**`errors` is predominantly optional** - eleven optional-chained uses across ten files against a single unguarded one - so converting it to a required dependency would invert its contract to move three diagnostics. **`cachedFetch` carries both semantics inside one file**: `workbench.js` aliases the member unguarded and then reads every value as `cachedFetch?.readCached(...) || null`, because a cold cache is an ordinary warm-render outcome. **`formatters` shows three different read forms across five sites.** Each of those needs a per-site judgement, which is the opposite of a mechanical sweep.
+
+**`api`, by contrast, is uniform.** Every one of its 104 reads outside `footer.js` is unguarded - `const api = window.LongtailForge.api;` or `window.LongtailForge.api.getJson(...)` - so the dependency is already required at every site. The two exceptions are `footer.js` delivery probes (`test: () => window.LongtailForge?.api`) whose whole purpose is to observe absence, and they stay exactly as they are.
+
+- [ ] Convert `api`'s required consumers to the lazy `requireApi()` acquisition `0.33.33.37` established and `0.33.33.38.1` proved across 180 sites. **Acquire at the point of use, so a missing client still fails when it fails today.**
+- [ ] **`shared/cached-fetch.js` and `shared/view-renderer.js` reach the member through a local `/** @type {BrowserApi} */` cast.** Those casts exist because the namespace read was not narrowed; a checked acquisition removes the reason for them. That is inside this child because `api` is the member being adopted - it is not licence to sweep casts off other surfaces.
+- [ ] **Do not touch the five `Promise<unknown>` returns.** A fetch body is an untrusted wire value; `BrowserApi` is accurate and none of the 312 diagnostics comes from a method return. The consumer narrowing that follows an awaited body is `0.33.33.38.4`, and folding it in here would recreate the inherited-`any` shape wearing a JSDoc annotation.
+- [ ] Declare nothing. `api` has been a declared member since before this rollup.
+
+#### 0.33.33.38.2.6 - Classify and adopt the six small declared members
+
+**63 diagnostics across `pageController`, `records`, `cachedFetch`, `errors`, `formatters`, and `appShellBootstrap` - and the classification is the work, not the conversion.**
+
+- [ ] **Classify every site before converting any.** The table above is a starting measurement, not a verdict: an unguarded read proves only that the author did not write `?.`, and a graceful chain proves the path is meant to survive absence. `0.33.33.38.1` preserved four graceful consumers and a complete DOM fallback for exactly this reason.
+- [ ] Where a member is genuinely optional, **the correct change is to make the root read optional too** - `window.LongtailForge?.cachedFetch` - which removes the diagnostic without making anything required. Where it is required, use the lazy checked accessor. **Do not convert graceful degradation into a thrown dependency error to move a number.**
+- [ ] `errors` and `formatters` may end with fewer conversions than sites. That is a correct outcome.
+- [ ] Run after `.38.2.1`, so the pattern is settled and the small members are judged on their own evidence rather than swept along with `api`.
+
+#### 0.33.33.38.2.2 - Declare and adopt the multi-consumer members
+
+**30 members, 210 diagnostics of their own plus the 198 root-optionality diagnostics the `.38.2.1` preflight moved here, and each needs a real contract read from its writer.** Those 198 are on lines that already reach these members; they resolve as the declarations land, so measure them as part of each member's cohort rather than as a separate cleanup.
 
 - [ ] `modal` (37 diagnostics, 14 files), `icons` (27, 4), `settingsRenderer` (22, 5), `workspaceContext` (17, 5), `taskCalendar` (14, 2), `timezones` (12, 4), `moduleActions` (11, 3), `tasksDialog` (11, 2), `status` (10, 7), and the rest. **Every one has exactly one writer**, so none introduces a multi-writer question.
 - [ ] Author each interface from its publishing module, not from its consumers. `0.33.33.38.1` found four members whose runtime was *stronger* than a plausible declaration - a flat `HTMLElement` would have hidden `.close()`, `.value`, and the whole `viewParts` channel.
 - [ ] Slice by blast radius when the measurement says so: `modal` at 14 consumer files is not the same unit of work as `taskCalendar` at 2.
 
-##### 0.33.33.38.2.3 - Close declaration coverage for the quiet tail
+#### 0.33.33.38.2.3 - Close declaration coverage for the quiet tail
 
 **18 members, 2 diagnostics - a governance change wearing a typing change's clothes.**
 
@@ -183,7 +215,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Do not justify this child by diagnostic count.** Its value is that the namespace stops drifting, which is why it belongs next to the governance child rather than to the typing ones.
 - [ ] Five members have no consumer at all (`billing`, `helpPageReady`, `overlayHost`, `sessionAuthWarnings`, `supportView`). Establish whether each is a live seam or a ghost before declaring it; a declaration with no runtime owner is its own kind of drift.
 
-##### 0.33.33.38.2.4 - Namespace governance
+#### 0.33.33.38.2.4 - Namespace governance
 
 **The namespace has no durable owner, which is how 49 members drifted out of the declaration while four checkpoints added to it.**
 
@@ -191,7 +223,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] Enforce four things and keep their vocabulary distinct: **every published surface has a declaration** or a recorded exception; **every declared member has a runtime writer** or is marked type-only; **every surface has one canonical writer** unless it is a recorded multi-writer case; and **no unresolvable rooted write** exists, which the inventory already reports.
 - [ ] **A unique surface is not a publication occurrence.** The estate is **64 unique surfaces across 67 publication occurrences**, and the difference is two governed multi-writer surfaces - `window.fetch` with three writers and `LongtailForge.view` with two. Test names and failure messages must not let those be read as the same number.
 
-##### 0.33.33.38.2.5 - Remove the namespace index signature
+#### 0.33.33.38.2.5 - Remove the namespace index signature
 
 **Runs last, because until every legitimate surface is declared it would break the estate rather than govern it.**
 
@@ -241,7 +273,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Excluded, and deliberately not absorbed.** The cold app-shell bootstrap unavailable-host path stays a framework-level deferred concern; it is not solved by weakening a descriptor or recreating a client fallback. The footer duplicate loader stays a separate measured concern; shared-script vocabulary being reviewed here is not a reason to pull in delivery architecture.
 
-**Implementation order.** `.38.1` is landed. `.38.2.1` runs next and needs no new contract; `.38.2.2` follows it; `.38.2.3` and `.38.2.4` run together; `.38.2.5` runs last, because removing the catch-all before the declarations exist would break the estate rather than govern it. `.38.3` and `.38.4` are remeasured against the ledger after `.38.2` archives. `.38.5` touches the server program only and is independent of all of it.
+**Implementation order.** `.38.1` is landed. `.38.2.1` - now `api` alone - runs next and needs no new contract; `.38.2.6` classifies the six small declared members after it; `.38.2.2` follows, carrying the 198 root diagnostics that depend on its declarations; `.38.2.3` and `.38.2.4` run together; `.38.2.5` runs last, because removing the catch-all before the declarations exist would break the estate rather than govern it. `.38.3` and `.38.4` are remeasured against the ledger after `.38.2` archives. `.38.5` touches the server program only and is independent of all of it.
 
 **The finding `.38.1` produced applies to every remaining child of this rollup.** Publication and adoption are separable when a checkpoint adds a *new* surface with *new* consumers, which is why `0.33.33.35.2`, `.35.3`, and `.37` worked that way. **They are not separable when a checkpoint declares an *existing* namespace member**, because that retypes reads which already exist rather than adding any. `.38.2` declares 48 more existing members and must be sliced on that basis; `.38.3` and `.38.4` should be re-examined for the same property before they are drawn.
 
