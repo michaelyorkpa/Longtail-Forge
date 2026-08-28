@@ -479,7 +479,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 9661,
+      "errorCount": 9647,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1620,7 +1620,7 @@
         "public/js/shared/view-renderer.js": [
           {
             "code": 2339,
-            "count": 136
+            "count": 122
           },
           {
             "code": 7005,
@@ -2885,7 +2885,7 @@
   },
   "totals": {
     "files": 1057,
-    "errors": 9661,
+    "errors": 9647,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

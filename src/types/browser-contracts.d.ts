@@ -495,6 +495,8 @@ export type BrowserViewLinkedContextPickerElement = BrowserViewElementWithParts<
  */
 export type BrowserViewSurfaceElement = HTMLElement & {
   readonly openModal: (modalId: unknown, record?: unknown) => unknown;
+  /** Re-runs the descriptor's data source and repaints the surface. */
+  readonly refresh: () => Promise<unknown>;
   readonly viewState: Record<string, unknown>;
 };
 

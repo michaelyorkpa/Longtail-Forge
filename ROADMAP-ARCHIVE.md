@@ -28,14 +28,16 @@ Closing state:
 
 | Condition | Before | After |
 | --- | --- | --- |
-| Browser program diagnostics | 10,375 | **9,661** |
-| `LongtailForge.view` attributable diagnostics | **529** | **13**, all inside `view-renderer.js` itself |
+| Browser program diagnostics | 10,375 | **9,647** |
+| `LongtailForge.view` attributable diagnostics | **529** | **0** |
 | Declared namespace members | 13 | **14** |
 | Unique published surfaces / publication occurrences | 64 / 67 | **64 / 67** |
 | Multi-writer surfaces | 2 | **2** |
 | `view` factory members / writers | 40 / 2 | **40 / 2** |
 | Regressions | 348 | **348**, green |
 | Playwright end-to-end tests | 167 | **167**, green |
+
+**The closeout audit found the renderer had been missed, and it was the same defect the checkpoint exists to remove.** `view-renderer.js` acquired the primitives as `const view = root.view || {};`, whose empty branch answered every member read - the un-narrowed form every other consumer had been converted away from. The member loop that follows already threw when the factory was absent, so checking it one line earlier is the same message from the same call: **the same observable behaviour, and thirteen diagnostics that were about to be deferred to `0.33.33.39` were this checkpoint's own work.** The three channels `renderSurface` installs with `Object.defineProperty` - `refresh`, `openModal`, `viewState` - are declared and narrowed by a predicate that checks for them, the same way the builder's `viewParts` records are.
 
 **Thirty-two source assertions across 29 owners followed the expression that moved, and every one was retargeted rather than repointed.** They had pinned the *receiver* - `view.renderSurface(`, `view.registerBehavior(` - while the contract they stand for is which helper the surface consumes. Each now asserts the call rather than the acquisition. `workbench-guided-ui` kept its real claim, that the helper binding carries a Workbench-specific name and never the generic one. **One behavioural ordering contract was honoured by moving the acquisition, not the assertion**: `notes-ui-workflow` and `notes-primary-context` both require `openEditor` to hydrate before anything else, so the checked read sits after the hydration rather than before it.
 

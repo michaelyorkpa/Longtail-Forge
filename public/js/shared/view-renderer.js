@@ -1,4 +1,6 @@
 (function attachViewRenderer(global) {
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceElement} BrowserViewSurfaceElement */
   // 0.33.33.35.2 moved three responsibilities out of this file behind published contracts:
   // permission/route security, field option hydration, and descriptor data binding. They are
   // reached lazily through the namespace, the way every classic script reaches a sibling, and
@@ -46,7 +48,10 @@
       selectedRecord: null,
       selectedRecordId: "",
       slideOutSidebarOpen: false,
+      /** @type {HTMLElement | null} */
       surface: null,
+      /** @type {HTMLElement | null} */
+      body: null,
       view,
     };
     let inFlightRefresh = null;
@@ -117,6 +122,10 @@
       enumerable: false,
       value: state,
     });
+
+    if (!isSurfaceElement(surface)) {
+      throw new Error("View surfaces must carry their refresh, modal, and state channels.");
+    }
 
     host.appendChild(surface);
     flushMounts(state);
@@ -1608,8 +1617,33 @@
     parent.appendChild(replacementNode);
   }
 
+  /**
+   * The builder primitives this renderer is written against.
+   *
+   * `root.view || {}` produced a union whose empty branch answered every member read, which is
+   * the un-narrowed acquisition `0.33.33.38.1` removed from every other consumer. An absent
+   * factory failed the first member check and threw; it now fails one line earlier with the
+   * same message from the same call, which is the same observable behaviour.
+   * @returns {BrowserViewFactory}
+   */
+  /**
+   * Whether the three channels `renderSurface` installs are present.
+   *
+   * They are attached with `Object.defineProperty`, which keeps them off the element's type the
+   * same way `viewParts` is kept off a builder result. This checks for them rather than
+   * asserting them, so the published return contract is earned.
+   * @param {HTMLElement} element
+   * @returns {element is BrowserViewSurfaceElement}
+   */
+  function isSurfaceElement(element) {
+    return "refresh" in element && "openModal" in element && "viewState" in element;
+  }
+
   function requireViewPrimitives() {
-    const view = root.view || {};
+    const view = root.view;
+    if (!view) {
+      throw new Error("View surface rendering requires LongtailForge.view primitives.");
+    }
     for (const helperName of [
       "createCollapsibleIndexPanel",
       "createDataTable",
