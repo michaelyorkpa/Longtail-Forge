@@ -100,6 +100,8 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | DOM subtype and lookup nullability | **1,479** | `TS2339` 861, `TS18047` 612, `TS2531` 6 | `.38.3` |
 | Values entering as `unknown` | **1,035** | `TS18046` | `.38.2` + `.38.4` |
 | Undeclared / optional namespace surface | **908** | `TS18048` 549, `TS2339` 359 | `.38.1` + `.38.2` |
+
+**Landed after `0.33.33.38.1`: 9,647 diagnostics.** Unannotated parameters 4,718, page-local state 1,982, DOM subtype and lookup 1,484, `unknown` 531, namespace surface 764, assorted 168. The excluded families' owners are unchanged; their small movements are diagnostics genuinely eliminated rather than reassigned.
 | Assorted remaining codes | **170** | `TS2345` 55, `TS2322` 40, `TS2698` 16, ... | per controller |
 
 **The correction that matters most: 1,561 of the `{}` cohort are parameters, not page state.** The previous slice read `Property 'className' does not exist on type '{}'` at `view-builder.js:20` as under-inferred state and gave the whole 2,628-strong `{}` cohort to a page-state child. The declaration is `function createElement(tagName, options = {})`. **A parameter whose only type information is a `{}` default is the same defect as `TS7006`** - the default is why TypeScript prints `{}` instead of `any` - and it is removed the same way, by annotating the function in the controller that declares it. Adding those to the 3,079 explicit `TS7006` makes **unannotated parameters 4,745 diagnostics, 46% of the browser program, and none of it is contract work.** The old `.38.3`'s claimed 4,374-diagnostic family does not exist.
@@ -137,16 +139,68 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - **`linkTargetDirectory.list` never declared `LinkTargetCandidate[]`.** It returns `(await provider.list(...)).map(shapeLinkTarget)`, and a type probe against the real project reports its inferred return as `LinkTarget[]`; `notesService.listLinkTargets(...).targets` is assignable to `LinkTarget[]` as well. The probe was proved live by a deliberately impossible annotation, which failed as `Type 'LinkTarget[]' is not assignable to type 'number[]'` - **the compiler naming the inferred type is the evidence.** The `0.33.33.36` note recorded the directory as *declaring* the weak type; it does not, and that half of the note is withdrawn.
 - **Nothing here is to be deduplicated.** This is a weaker input contract with a stronger normalised output and a total normaliser between them, which is exactly the shape that must survive.
 
-#### 0.33.33.38.2 - Declare the remaining published surfaces and settle the index signature
+#### 0.33.33.38.2 - Adopt the checked namespace read, then close the declaration
 
-**Model: High Effort - PROVISIONAL. Requires its own preflight against the post-`0.33.33.38.1` tree before any of it is implemented.**
+**Model: High Effort - RESLICED against the landed post-`0.33.33.38.1` tree. The previous shape - "declare the remaining 48 members and settle the index signature" - addresses 212 of the 808 diagnostics its own family holds, and it is the wrong unit of work.**
 
-**`0.33.33.38.1` is a hard remeasurement barrier, and nothing below is preauthorised scope.** Declaring `view` changes what the compiler can see across nine controllers, and a diagnostic that is a namespace symptom today may survive as a DOM, parameter, or genuine `unknown` error tomorrow - or disappear entirely. **The "48 remaining members" and "414 attributable" figures below are pre-`.38.1` measurements retained as a starting point, explicitly not as a child boundary.** Rebuild the namespace inventory from the post-`.38.1` tree, re-attribute diagnostics per surviving member, and re-decide whether declaration, index-signature disposition, and governance are one child or three. If the measurement disagrees with the shape below, the shape is what changes.
+**The namespace family is three causes, not one.** Reclassified against the landed tree, the 808 diagnostics attributable to a namespace member or to the namespace itself split as:
 
-- [ ] Declare the remaining published namespace members, and wire the six orphaned interfaces `0.33.33.34`-`.37` already authored so their consumers stop casting locally.
-- [ ] **Establish what `[key: string]: unknown` is for before touching it.** Every one of the 62 members published today is first-party framework or module code, but this repository's stated extensibility model is that modules and plugins contribute declaratively, and an index signature is how a namespace stays open to a contribution it does not know about. Determine whether it is **intentional extensibility**, **compatibility vocabulary**, or **accidental looseness** - and answer it from the contribution seams, not from the fact that removing it would make numbers move. If it is intentional, keep it and declare the first-party members alongside it; the two are not in conflict.
-- [ ] Add a governance regression that every published surface is a declared member, built on the existing AST inventory in `scripts/test-support/browser-publication-inventory.mjs`. **`LongtailForgeBrowserNamespace` has no regression owner today**, which is why 49 members drifted out of the declaration while four checkpoints added to it.
-- [ ] **The 549 `TS18048` diagnostics are the namespace's optionality, and most of them are correct.** `LongtailForge?` is optional because the namespace genuinely can be absent, and the `requireX()` guard `0.33.33.37` used is the honest answer at the consumer. Do not remove the optionality to remove the errors; publish the guard pattern and leave adoption to `.39`-`.44`.
+| Cause | Diagnostics | What actually fixes it |
+| --- | --- | --- |
+| **The namespace root is optional** - `window.LongtailForge?` | **323** | checked acquisition at the consumer; no declaration touches it |
+| **A *declared* member is optional** - `api` 226, `pageController` 20, `records` 9, `errors` 7, `formatters` 7 | **273** | checked acquisition; these members are **already declared** |
+| **The member is undeclared** - 48 members, largest `modal` 37, `icons` 27, `settingsRenderer` 22 | **212** | declaration, then adoption |
+
+**596 of the 808 need adoption, not declaration.** The old child's premise - that undeclared members are the problem - survives for a quarter of its own family.
+
+**`LongtailForge.api` is not a contract problem at all, and that is the checkpoint's largest single finding.** Its 226 diagnostics across 29 files are **entirely member optionality**: 148 through an aliased `const api = window.LongtailForge?.api` and 78 through `window.LongtailForge.api` directly. `api` has been a declared member since before this rollup and `BrowserApi` is accurate. **Not one of the 226 comes from a method return.** The five methods return `Promise<unknown>` because a fetch body is an untrusted wire value; those consumer narrowings live in the `unknown` family and belong to `.38.4`. **Typing `getJson`'s return to move a number would recreate the inherited-`any` shape the scripts program spent four children removing, wearing a JSDoc annotation.**
+
+- [ ] **Order matters and is fixed by dependency, not by size.** Adoption of the root and the already-declared members can run immediately and needs no new contract. Undeclared members must be declared *and* adopted in one change each, on the rule `0.33.33.38.1` proved: declaring an existing consumed member retypes reads that already exist, and the monotonic ledger rejects the movement unless the consumers narrow in the same commit.
+- [ ] **No child may weaken a contract to move a number.** No cast, no non-null assertion, no suppression, no permissive index signature, no `any`.
+- [ ] **Classify every acquisition site before converting it, exactly as `0.33.33.38.1` did.** A consumer that legitimately runs without a surface keeps its optionality; four consumers and `file-attachments.js` did, and that was correct.
+
+##### 0.33.33.38.2.1 - Adopt the checked read for the namespace root and its declared members
+
+**596 diagnostics, no new contract, and the pattern already exists.**
+
+- [ ] Convert required consumers of `LongtailForge` itself and of the five already-declared members - `api`, `pageController`, `records`, `errors`, `formatters` - to the lazy `requireX()` acquisition `0.33.33.37` established and `0.33.33.38.1` proved at scale.
+- [ ] **`api` alone is 226 diagnostics across 29 files** and may need to be its own child once the conversion is measured on two or three files first. Measure before committing to one unit.
+- [ ] Leave every `Promise<unknown>` return exactly as it is. The consumer narrowing that follows is `.38.4`.
+
+##### 0.33.33.38.2.2 - Declare and adopt the multi-consumer members
+
+**30 members, 210 diagnostics, and each needs a real contract read from its writer.**
+
+- [ ] `modal` (37 diagnostics, 14 files), `icons` (27, 4), `settingsRenderer` (22, 5), `workspaceContext` (17, 5), `taskCalendar` (14, 2), `timezones` (12, 4), `moduleActions` (11, 3), `tasksDialog` (11, 2), `status` (10, 7), and the rest. **Every one has exactly one writer**, so none introduces a multi-writer question.
+- [ ] Author each interface from its publishing module, not from its consumers. `0.33.33.38.1` found four members whose runtime was *stronger* than a plausible declaration - a flat `HTMLElement` would have hidden `.close()`, `.value`, and the whole `viewParts` channel.
+- [ ] Slice by blast radius when the measurement says so: `modal` at 14 consumer files is not the same unit of work as `taskCalendar` at 2.
+
+##### 0.33.33.38.2.3 - Close declaration coverage for the quiet tail
+
+**18 members, 2 diagnostics - a governance change wearing a typing change's clothes.**
+
+- [ ] The single- and zero-consumer members produce almost no diagnostics because their one consumer already narrows locally or guards. `viewActionSecurity`, `viewSearchOptions`, `viewDataBinding`, `viewModalStack`, and `filePreview` **already have accurate published interfaces and are cast locally at their single consumer** - wiring them is mechanical and removes the cast.
+- [ ] **Do not justify this child by diagnostic count.** Its value is that the namespace stops drifting, which is why it belongs next to the governance child rather than to the typing ones.
+- [ ] Five members have no consumer at all (`billing`, `helpPageReady`, `overlayHost`, `sessionAuthWarnings`, `supportView`). Establish whether each is a live seam or a ghost before declaring it; a declaration with no runtime owner is its own kind of drift.
+
+##### 0.33.33.38.2.4 - Namespace governance
+
+**The namespace has no durable owner, which is how 49 members drifted out of the declaration while four checkpoints added to it.**
+
+- [ ] Build on the existing AST inventory in `scripts/test-support/browser-publication-inventory.mjs`. **Do not build a parallel framework.**
+- [ ] Enforce four things and keep their vocabulary distinct: **every published surface has a declaration** or a recorded exception; **every declared member has a runtime writer** or is marked type-only; **every surface has one canonical writer** unless it is a recorded multi-writer case; and **no unresolvable rooted write** exists, which the inventory already reports.
+- [ ] **A unique surface is not a publication occurrence.** The estate is **64 unique surfaces across 67 publication occurrences**, and the difference is two governed multi-writer surfaces - `window.fetch` with three writers and `LongtailForge.view` with two. Test names and failure messages must not let those be read as the same number.
+
+##### 0.33.33.38.2.5 - Remove the namespace index signature
+
+**Runs last, because until every legitimate surface is declared it would break the estate rather than govern it.**
+
+**The evidence says the catch-all is bootstrap looseness, and the seams confirm it.** `[key: string]: unknown` entered in `dabf9257`, "Add browser typecheck utility tier", with no extensibility rationale recorded. Against a dynamic contract: the AST inventory reports **0 unresolvable rooted writes, 0 deep writes, and no computed top-level name anywhere in the estate** - every one of the 62 members is a static identifier, so the namespace is fully statically enumerable. Module contributions are server-side catalog data and publish nothing onto the browser namespace. Governance already treats an unresolvable rooted write as a failure rather than a supported form.
+
+- [ ] Removing the catch-all makes an undeclared publication a compile error, which is the behaviour the estate already wants. **Confirm once more against every contribution seam before removing it**, and record what was checked.
+- [ ] **Never propose `[key: string]: any` or any other permissive signature as the alternative.** The choice is a declared member or a compile error.
+
+**Excluded from this whole family.** The `unknown` consumer boundaries are `.38.4`; DOM subtype and lookup is `.38.3`; `TaskLifecycleStatus` is `.38.5`. The 6,868 diagnostics in the unannotated-parameter, page-local-state, and assorted families keep their `0.33.33.39` through `.44` owners and **must not be absorbed here**.
 
 #### 0.33.33.38.3 - Publish checked DOM lookup and event-target contracts
 
@@ -187,7 +241,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Excluded, and deliberately not absorbed.** The cold app-shell bootstrap unavailable-host path stays a framework-level deferred concern; it is not solved by weakening a descriptor or recreating a client fallback. The footer duplicate loader stays a separate measured concern; shared-script vocabulary being reviewed here is not a reason to pull in delivery architecture.
 
-**Implementation order.** `.38.1` - in its corrected declaration-plus-adoption form - then remeasure, then `.38.2`, then `.38.3` and `.38.4` against the reclassified ledger. `.38.5` touches the server program only and is independent of all four.
+**Implementation order.** `.38.1` is landed. `.38.2.1` runs next and needs no new contract; `.38.2.2` follows it; `.38.2.3` and `.38.2.4` run together; `.38.2.5` runs last, because removing the catch-all before the declarations exist would break the estate rather than govern it. `.38.3` and `.38.4` are remeasured against the ledger after `.38.2` archives. `.38.5` touches the server program only and is independent of all of it.
 
 **The finding `.38.1` produced applies to every remaining child of this rollup.** Publication and adoption are separable when a checkpoint adds a *new* surface with *new* consumers, which is why `0.33.33.35.2`, `.35.3`, and `.37` worked that way. **They are not separable when a checkpoint declares an *existing* namespace member**, because that retypes reads which already exist rather than adding any. `.38.2` declares 48 more existing members and must be sliced on that basis; `.38.3` and `.38.4` should be re-examined for the same property before they are drawn.
 
