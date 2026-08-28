@@ -6,7 +6,6 @@
   const notesSettingsAuxiliary = document.querySelector("[data-module-settings-legacy='notes']");
   const notesSettingsStatus = document.querySelector("[data-module-settings-status]");
   const notesSettingsHost = document.querySelector("[data-settings-host='module']");
-  const api = window.LongtailForge.api;
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
 
   /**
@@ -34,6 +33,24 @@
     return control;
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const apiClient = window.LongtailForge?.api;
+    if (!apiClient) {
+      throw new Error("Notes settings requires LongtailForge.api.");
+    }
+    return apiClient;
+  }
   function requireView() {
     const factory = window.LongtailForge?.view;
     if (!factory) {
@@ -61,6 +78,7 @@
   loadNotesSettings();
 
   async function loadNotesSettings() {
+    const api = requireApi();
     setPageStatus("Loading Notes settings...");
     try {
       const [settings, settingsCatalog] = await Promise.all([
@@ -97,6 +115,7 @@
   }
 
   async function loadCatalogs() {
+    const api = requireApi();
     const result = await api.getJson("/api/notes/settings/catalogs", { cache: "no-store" });
     state.catalogs = Array.isArray(result.catalogs) ? result.catalogs : [];
     state.canManageSecurity = result.capabilities?.manageSecurity === true;
@@ -308,6 +327,7 @@
   }
 
   async function openCatalogSecurityDialog(catalog, requestedAction) {
+    const api = requireApi();
     const transitionAction = requestedAction === "retry" ? catalog.securityTransitionAction : requestedAction;
     setCatalogStatus("Loading catalog security preview...");
     try {
@@ -320,6 +340,7 @@
   }
 
   function showCatalogSecurityConfirmation(catalog, requestedAction, preflight) {
+    const api = requireApi();
     const view = requireView();
     const removing = preflight.action === "remove";
     const passwordField = removing
@@ -417,6 +438,7 @@
   }
 
   async function runBulkCatalogAction(action) {
+    const api = requireApi();
     const catalogIds = [...state.selectedCatalogIds];
     if (catalogIds.length === 0) {
       return;
@@ -443,6 +465,7 @@
   }
 
   function openCatalogEditor(catalog = null) {
+    const api = requireApi();
     const view = requireView();
     const titleField = view.createField({ field: "title", type: "text", label: "Name", required: true }, { value: catalog?.title || "" });
     const descriptionField = view.createField({ field: "description", type: "textarea", label: "Description", rows: 3 }, { value: catalog?.description || "" });

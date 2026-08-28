@@ -1,6 +1,5 @@
 (function attachTimeEntryDialog(global) {
   const namespace = global.LongtailForge || {};
-  const api = namespace.api;
   const pageController = namespace.pageController;
 
   let context = null;
@@ -11,6 +10,24 @@
   let selectedEntry = null;
   let tagPicker = null;
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const apiClient = namespace?.api;
+    if (!apiClient) {
+      throw new Error("The time entry dialog requires LongtailForge.api.");
+    }
+    return apiClient;
+  }
   function configure(options = {}) {
     context = {
       hostContext: null,
@@ -42,6 +59,7 @@
   }
 
   async function prepareContext({ entryId = "", hostContext = null, mode = "add", params = {} } = {}) {
+    const api = requireApi();
     await namespace.timezones?.loadSessionTimezone?.();
     await namespace.workspaceContextReady;
     const [clientProjectData, entriesData, tagOptions] = await Promise.all([
@@ -213,6 +231,7 @@
   }
 
   async function saveEntry(event) {
+    const api = requireApi();
     event.preventDefault();
     const client = getClient(fields.client.value);
     const project = getProject(fields.client.value, fields.project.value);

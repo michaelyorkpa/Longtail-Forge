@@ -81,7 +81,7 @@ check("bulk tag workflow uses the Tags-owned assignment endpoint", () => {
   assert.match(timeEntriesScript, /selectedEntryIds/);
   assert.match(timeEntriesScript, /function createSelectionCell/);
   assert.match(timeEntriesScript, /function applyBulkTagAction/);
-  assert.match(timeEntriesScript, /api\.postJson\("\/api\/tags\/bulk-assignments"/);
+  assert.match(timeEntriesScript, /\.postJson\("\/api\/tags\/bulk-assignments"/);
   assert.match(timeEntriesScript, /targetType: "time_entry"/);
   assert.match(timeEntriesScript, /bulkTagPicker\?\.readTagIds/);
   assert.match(timeEntriesScript, /bulkTagPicker\?\.setSelected/);

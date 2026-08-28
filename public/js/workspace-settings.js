@@ -69,13 +69,31 @@
     await saveSettings();
   });
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const apiClient = window.LongtailForge?.api;
+    if (!apiClient) {
+      throw new Error("Workspace settings requires LongtailForge.api.");
+    }
+    return apiClient;
+  }
   async function loadSettingsForm() {
     setWorkspaceSettingsStatus("Loading workspace settings...");
 
     try {
       const [settingsResponse, catalog] = await Promise.all([
-        window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }),
-        window.LongtailForge.api.getJson("/api/settings/catalog", { cache: "no-store" }),
+        requireApi().getJson("/api/settings", { cache: "no-store" }),
+        requireApi().getJson("/api/settings/catalog", { cache: "no-store" }),
       ]);
       const settings = normalizeSettings(settingsResponse);
       settingsCatalog = catalog;
@@ -101,7 +119,7 @@
     renderRuntimeDiagnosticsLoading();
 
     try {
-      const result = await window.LongtailForge.api.getJson("/api/runtime-diagnostics", { cache: "no-store" });
+      const result = await requireApi().getJson("/api/runtime-diagnostics", { cache: "no-store" });
       renderRuntimeDiagnostics(result.diagnostics || {});
     } catch (error) {
       renderRuntimeDiagnosticsError(error);
@@ -112,7 +130,7 @@
     if (!workspaceBackupSummary) return;
     renderWorkspaceBackupSummary(null, "Loading latest backup...");
     try {
-      const result = await window.LongtailForge.api.getJson("/api/settings/workspace-backups/latest", { cache: "no-store" });
+      const result = await requireApi().getJson("/api/settings/workspace-backups/latest", { cache: "no-store" });
       renderWorkspaceBackupSummary(result.backup || null);
     } catch (error) {
       renderWorkspaceBackupError(error);
@@ -124,7 +142,7 @@
     createWorkspaceBackupButton.disabled = true;
     renderWorkspaceBackupMessage("Creating and validating a protected workspace package...");
     try {
-      const result = await window.LongtailForge.api.postJson("/api/settings/workspace-backups", {});
+      const result = await requireApi().postJson("/api/settings/workspace-backups", {});
       renderWorkspaceBackupSummary(result.backup || null);
       renderWorkspaceBackupMessage("Workspace backup created and checksum-verified.", "success");
     } catch (error) {
@@ -138,7 +156,7 @@
     if (!workspaceDeletionSummary) return;
     renderWorkspaceDeletionSummary(null, "Loading deletion state...");
     try {
-      const result = await window.LongtailForge.api.getJson("/api/settings/workspace-deletion", { cache: "no-store" });
+      const result = await requireApi().getJson("/api/settings/workspace-deletion", { cache: "no-store" });
       renderWorkspaceDeletionSummary(result.deletion || null);
     } catch (error) {
       openWorkspaceDeletionButton.hidden = true;
@@ -204,8 +222,8 @@
       : "Scheduling workspace deletion...";
     try {
       const result = workspaceDeletionDialogMode === "cancel"
-        ? await window.LongtailForge.api.postJson("/api/settings/workspace-deletion/cancel", {})
-        : await window.LongtailForge.api.postJson("/api/settings/workspace-deletion/request", {
+        ? await requireApi().postJson("/api/settings/workspace-deletion/cancel", {})
+        : await requireApi().postJson("/api/settings/workspace-deletion/request", {
           acknowledgement: workspaceDeletionAcknowledgementInput.value,
           workspaceName: workspaceDeletionNameInput.value,
         });
@@ -299,9 +317,9 @@
     setWorkspaceSettingsStatus("Saving workspace settings...");
 
     try {
-      const result = await window.LongtailForge.api.putJson("/api/settings", settings);
+      const result = await requireApi().putJson("/api/settings", settings);
       const savedSettings = normalizeSettings(result.data);
-      settingsCatalog = await window.LongtailForge.api.getJson("/api/settings/catalog", { cache: "no-store" });
+      settingsCatalog = await requireApi().getJson("/api/settings/catalog", { cache: "no-store" });
       workspaceNameInput.value = savedSettings.workspaceName;
       setWorkspaceTypeValue(savedSettings.workspaceType);
       renderModuleSettings(settingsCatalog);
@@ -444,7 +462,7 @@
         params.set("cursor", options.cursor);
       }
 
-      const result = await window.LongtailForge.api.getJson(`/api/jobs/status?${params.toString()}`, { cache: "no-store" });
+      const result = await requireApi().getJson(`/api/jobs/status?${params.toString()}`, { cache: "no-store" });
       renderJobObservability(result.jobs || {}, { append: Boolean(options.append) });
     } catch (error) {
       renderJobObservabilityError(error);
@@ -783,7 +801,7 @@
     }
 
     try {
-      const result = await window.LongtailForge.api.getJson("/api/users", { cache: "no-store" });
+      const result = await requireApi().getJson("/api/users", { cache: "no-store" });
       renderWorkspaceUsers(result.users || []);
     } catch (error) {
       workspaceUsersList.replaceChildren(createWorkspaceUsersPlaceholder(error.message || "Workspace users could not be loaded."));

@@ -1,5 +1,37 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.1 - Adopt the checked `LongtailForge.api` read
+
+**Model: High Effort** - Nothing here is a contract change. `api` has been a declared namespace member with an accurate `BrowserApi` interface since before this rollup, and **not one of its 312 diagnostics came from a method return.**
+
+- [x] **All 312 were member optionality.** An estate-wide reference audit found **106 runtime references**: 104 unguarded reads across 35 files that already assume the client exists, and 2 delivery probes. Each required consumer now takes the client through a lazy `requireApi()` at the existing point of use - **119 per-function acquisitions** replacing the module-scope aliases and **86 direct reads** converted at the site that already dereferenced them - so a missing client still fails exactly where it failed before.
+- [x] **Three optional paths were found and preserved rather than converted.** `footer.js` keeps its two delivery probes, whose whole purpose is to observe whether the client was delivered; `view-renderer.js` keeps `api: root.api || {}`, where a behaviour handler is handed a defensive fallback; `api-client.js` keeps its writer. **Two local `BrowserApi` casts in `cached-fetch.js` and `view-renderer.js` existed only because the consumers could not reach the accurate declaration through the namespace, and both are gone.**
+- [x] **The five `Promise<unknown>` returns are untouched.** A namespace member can be accurately required while the body a network boundary returns stays intentionally unknown. Narrowing those is `0.33.33.38.4`'s work, and folding it in here would have recreated the inherited-`any` shape wearing a JSDoc annotation.
+
+**Two consumers passed the client as a shorthand property with no member access, so the per-function sweep never saw them - a bare reference carries no dot.** `eslint no-undef` did, which is the mechanical proof the reference audit needed and the same lesson `0.33.33.35.2` recorded. **The accessor also had to be seated above the JSDoc of the function it was inserted before**, because the first attempt split four comment blocks from their functions - the `0.33.33.36` orphaning defect, caught by ten new diagnostics rather than by review.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | --- | --- |
+| Browser program diagnostics | 9,647 | **9,327** |
+| `LongtailForge.api` attributable diagnostics | **312** across 29 files | **0** |
+| Raw required `api` reads | **104** | **0** |
+| Local `BrowserApi` casts | **2** | **0** |
+| Delivery probes preserved | 2 | **2** |
+| Namespace family (canonical root-cause count) | 764 | **486** |
+| Declared-member optionality | 273 | **47** |
+| Unique surfaces / occurrences / multi-writer | 64 / 67 / 2 | **64 / 67 / 2** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**Three source assertions followed the expression that moved, and each was retargeted to what it owns.** Two pinned the receiver rather than the route or the record they are about. The third forbade the **word** `fetch` in a file that may not load data, and a comment explaining why a wire body is untrusted tripped it - **a negative source assertion forbids a construct**, so it now forbids the calls and the storage objects themselves rather than the word.
+
+**The closeout audit found 73 diagnostics still attributed to `api`, and every one was a measurement artefact rather than adoption debt.** They sat on a variable named `client` - a customer record - which the per-member attributor mapped to `api` because the generated accessor in the same file had borrowed that name for its local. **The attributor is file-scoped, not lexically scoped, so a shared identifier collides across functions.** The accessor's local is now `apiClient`, which removes the collision at its source and leaves `api` at zero attributable diagnostics. The first rename attempt replaced `if (!client)` and `return client` everywhere and broke seven unrelated functions; the landed one is scoped to the accessor's own block.
+
+**Two accountings of the namespace family exist and they are not interchangeable.** The canonical root-cause table assigns every diagnostic to exactly one family - namespace is **486**. The member-attribution view answers a different question, *which member does this diagnostic mention*, and reaches across families through alias resolution: **227 of its entries are canonically `unknown`, `state`, `params`, or `assorted`**, and it never names 144 canonical namespace diagnostics at all. **The view is not a decomposition of the family and must never be presented as one.**
+
+**Refreshed starting measurements for the children this one feeds.** `0.33.33.38.2.6` is **47 diagnostics, not 63** - `pageController` 20, `records` 9, `errors` 7, `formatters` 7, `cachedFetch` 2, and `appShellBootstrap` now **0**. `0.33.33.38.2.2` is unchanged at 212 of its own plus the 198 root-optionality diagnostics that wait on its declarations, and the 11 reaching `settingsHost` and `settingsPageController` still wait on the inventory blind spot recorded against `0.33.33.38.2.4`.
+
 ## Version 0.33.33.38.1 - Declare the `LongtailForge.view` factory and adopt its checked read
 
 **Model: High Effort** - The declaration and its consumers landed together, because measurement proved they are not separable.

@@ -18,13 +18,31 @@
 
   loadSettings();
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const apiClient = window.LongtailForge?.api;
+    if (!apiClient) {
+      throw new Error("Module settings requires LongtailForge.api.");
+    }
+    return apiClient;
+  }
   async function loadSettings() {
     setStatus("Loading settings...");
 
     try {
       const [settingsResponse, catalog] = await Promise.all([
-        window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }),
-        window.LongtailForge.api.getJson("/api/settings/catalog", { cache: "no-store" }),
+        requireApi().getJson("/api/settings", { cache: "no-store" }),
+        requireApi().getJson("/api/settings/catalog", { cache: "no-store" }),
       ]);
       currentSettings = normalizeSettings(settingsResponse);
       settingsCatalog = catalog;
@@ -57,9 +75,9 @@
     setStatus("Saving settings...");
 
     try {
-      const result = await window.LongtailForge.api.putJson("/api/settings", payload);
+      const result = await requireApi().putJson("/api/settings", payload);
       currentSettings = normalizeSettings(result.data || result);
-      settingsCatalog = await window.LongtailForge.api.getJson("/api/settings/catalog", { cache: "no-store" });
+      settingsCatalog = await requireApi().getJson("/api/settings/catalog", { cache: "no-store" });
       renderModuleSettings();
       flashSavedState();
       return true;

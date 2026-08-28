@@ -1,5 +1,4 @@
 (function attachListsPage() {
-  const api = window.LongtailForge.api;
 
   const LIST_TYPE_LABELS = {
     bill_of_materials: "Bill of Materials",
@@ -72,6 +71,24 @@
     return factory;
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const apiClient = window.LongtailForge?.api;
+    if (!apiClient) {
+      throw new Error("Lists requires LongtailForge.api.");
+    }
+    return apiClient;
+  }
   function requireView() {
     const factory = window.LongtailForge?.view;
     if (!factory) {
@@ -781,6 +798,7 @@
   }
 
   async function loadClientProjects() {
+    const api = requireApi();
     try {
       return await api.getJson("/api/client-projects?view=options", { cache: "no-store" });
     } catch {
@@ -789,6 +807,7 @@
   }
 
   async function loadUsers() {
+    const api = requireApi();
     try {
       return await api.getJson("/api/users", { cache: "no-store" });
     } catch {
@@ -797,6 +816,7 @@
   }
 
   async function loadLists() {
+    const api = requireApi();
     const result = await api.getJson(`/api/lists?${buildListQueryParams()}`, { cache: "no-store" });
     const summaries = result.lists || [];
     const details = await Promise.all(summaries.map((list) => loadListDetail(list.list_id || list.id, list)));
@@ -804,6 +824,7 @@
   }
 
   async function loadListDetail(listId, fallback = null) {
+    const api = requireApi();
     try {
       const result = await api.getJson(`/api/lists/${encodeURIComponent(listId)}?includeDeleted=true&includeDeletedItems=true`, {
         cache: "no-store",
@@ -1233,6 +1254,7 @@
   }
 
   async function saveItem(event) {
+    const api = requireApi();
     event.preventDefault();
     const form = event.target;
     const listId = form.dataset.listId;
@@ -1536,6 +1558,7 @@
   }
 
   async function runAction(action, list, itemId, linkId = "") {
+    const api = requireApi();
     const listId = encodeURIComponent(list.list_id);
     const itemPath = itemId ? `/items/${encodeURIComponent(itemId)}` : "";
 
@@ -1583,6 +1606,7 @@
   }
 
   async function moveItem(list, itemId, direction) {
+    const api = requireApi();
     const items = visibleItems(list);
     const index = items.findIndex((item) => item.list_item_id === itemId);
     const targetIndex = index + direction;
@@ -1603,6 +1627,7 @@
   }
 
   async function handleDetailSubmit(event) {
+    const api = requireApi();
     if (event.target.matches("[data-list-link-form]")) {
       event.preventDefault();
       const form = event.target;
@@ -1645,6 +1670,7 @@
   }
 
   async function loadItemSuggestions(list) {
+    const api = requireApi();
     if (!list?.list_id) {
       return [];
     }
@@ -1757,6 +1783,7 @@
   }
 
   async function loadListEditorLinkTargets() {
+    const api = requireApi();
     const parts = listEditorPickerParts();
     const targetType = listLinkTargetTypeInput?.value || "task";
     if (!parts.setRecords || !canManageListLinks()) {
@@ -1806,6 +1833,7 @@
   }
 
   async function applyListEditorLinkTarget() {
+    const api = requireApi();
     const target = selectedListEditorLinkTarget();
     if (!target?.targetType || !target.targetId || listEditorHasLinkTarget(target)) {
       listFormStatus.textContent = target ? "Linked record is already added." : "Choose a linked record first.";
@@ -1844,6 +1872,7 @@
   }
 
   async function removeListEditorLink(link = {}) {
+    const api = requireApi();
     const linkId = link.list_link_id || link.id || "";
     if (!state.editingListId || !linkId) {
       return;
@@ -2022,6 +2051,7 @@
   }
 
   async function saveList(event) {
+    const api = requireApi();
     event.preventDefault();
     const payload = {
       client_id: usesBusinessScope() ? listClientInput.value : "",

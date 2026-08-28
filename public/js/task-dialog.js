@@ -3,7 +3,6 @@
   // updating stays here: it is this dialog's responsibility, not duplication.
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskLifecycleLegality} BrowserTaskLifecycleLegality */
   const namespace = global.LongtailForge || {};
-  const api = namespace.api;
   const modal = namespace.modal;
   const pageController = namespace.pageController;
 
@@ -29,6 +28,24 @@
   let activeBlockCapture = null;
 
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const apiClient = namespace?.api;
+    if (!apiClient) {
+      throw new Error("Task Dialog requires LongtailForge.api.");
+    }
+    return apiClient;
+  }
   function configure(options = {}) {
     context = {
       currentUserId: "",
@@ -50,6 +67,7 @@
   }
 
   async function openTaskEditor(params = {}, hostContext = null) {
+    const api = requireApi();
     const request = normalizeTaskEditorRequest(params, hostContext);
     currentTaskEditorRequest = request;
 
@@ -233,6 +251,7 @@
   }
 
   async function prepareStandaloneContext({ hostContext = null, taskId = "" } = {}) {
+    const api = requireApi();
     await namespace.workspaceContextReady;
     await namespace.timezones?.loadSessionTimezone?.();
     const [taskResult, tasksResult, timersResult, tagOptions] = await Promise.all([
@@ -670,6 +689,7 @@
   }
 
   async function saveTaskForm({ closeOnSuccess = true, statusMessage = "" } = {}) {
+    const api = requireApi();
     const payload = readTaskFormPayload();
     const editingTask = currentTask || (context?.tasks || []).find((task) => task.task_id === currentTaskId);
     const wasEditing = Boolean(currentTaskId);
@@ -753,6 +773,7 @@
   }
 
   async function saveAndCompleteTask(event) {
+    const api = requireApi();
     event?.preventDefault();
     if (!canCompleteCurrentTask()) {
       setStatus("Task cannot be completed from this state.", { isError: true });
@@ -856,6 +877,7 @@
   }
 
   async function readCurrentParentTaskId(taskId) {
+    const api = requireApi();
     try {
       const result = await api.getJson(`/api/tasks/${encodeURIComponent(taskId)}/relationships`, { cache: "no-store" });
       const parent = (result.relationships || []).find((relationship) => relationship.direction === "parent");
@@ -932,6 +954,7 @@
   }
 
   async function syncParentTaskRelationship(taskId) {
+    const api = requireApi();
     if (!taskId || !fields.parentTask) {
       return;
     }
@@ -1263,6 +1286,7 @@
   }
 
   async function loadTaskTimers() {
+    const api = requireApi();
     try {
       return await api.getJson("/api/tasks/timers", { cache: "no-store" });
     } catch {
@@ -1278,6 +1302,7 @@
   }
 
   async function saveTaskTimer(timerStatus) {
+    const api = requireApi();
     const task = currentTask;
 
     if (!task) {
@@ -1307,6 +1332,7 @@
   }
 
   async function finalizeTaskTimer(event) {
+    const api = requireApi();
     const task = currentTask;
     const timer = task ? currentTaskTimer(task.task_id) : null;
 
@@ -1333,6 +1359,7 @@
   }
 
   async function resetTaskTimer() {
+    const api = requireApi();
     const task = currentTask;
 
     if (!task) {
@@ -1571,6 +1598,7 @@
   }
 
   async function addChecklistItem() {
+    const api = requireApi();
     if (!currentTaskId || !fields.checklistInput) {
       return;
     }
@@ -1619,6 +1647,7 @@
   }
 
   async function handleChecklistChange(event) {
+    const api = requireApi();
     const checkbox = event.target.closest("[data-task-checklist-toggle]");
     if (!checkbox || !currentTaskId) {
       return;
@@ -1665,6 +1694,7 @@
   }
 
   async function saveChecklistItemLabel(row, itemId) {
+    const api = requireApi();
     const input = row.querySelector("[data-task-checklist-label]");
     const label = input?.value.trim() || "";
 
@@ -1684,6 +1714,7 @@
   }
 
   async function deleteChecklistItem(row, itemId) {
+    const api = requireApi();
     const label = row.querySelector("[data-task-checklist-label]")?.value || "this checklist item";
     const confirmed = await modal.confirm({
       title: "Remove checklist item",
@@ -1707,6 +1738,7 @@
   }
 
   async function moveChecklistItem(itemId, direction) {
+    const api = requireApi();
     const items = [...(currentTask?.checklistItems || [])];
     const index = items.findIndex((item) => item.task_checklist_item_id === itemId);
     const nextIndex = direction === "up" ? index - 1 : index + 1;
@@ -1941,6 +1973,7 @@
   }
 
   async function skipRecurrenceToCurrent(event) {
+    const api = requireApi();
     event?.preventDefault();
     const recovery = currentTask?.recurrenceRecovery;
     if (!currentTaskId || !recovery?.available || recovery.blockedByActiveTimer) {
@@ -2028,6 +2061,7 @@
   }
 
   async function pollRecurrenceContinuity(taskId, options = {}) {
+    const api = requireApi();
     const attempts = Math.max(1, Number.parseInt(options.attempts, 10) || 7);
     const delayMs = Math.max(100, Number.parseInt(options.delayMs, 10) || 1500);
     let continuity = options.initialContinuity || null;

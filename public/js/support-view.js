@@ -20,10 +20,28 @@
   entryForm.addEventListener("submit", startSupportView);
   targetSelect.addEventListener("change", renderWorkspaceOptions);
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const apiClient = window.LongtailForge?.api;
+    if (!apiClient) {
+      throw new Error("Support view requires LongtailForge.api.");
+    }
+    return apiClient;
+  }
   async function initialize() {
     setStatus("Loading available support targets...");
     try {
-      const result = await window.LongtailForge.api.getJson("/api/support-view/targets", { cache: "no-store" });
+      const result = await requireApi().getJson("/api/support-view/targets", { cache: "no-store" });
       targets = Array.isArray(result.targets) ? result.targets : [];
       expiresInSeconds = Number.parseInt(result.expiresInSeconds, 10) || 0;
       actorText.textContent = `Administrator: ${result.actor?.label || result.actor?.username || "Current administrator"}`;
@@ -73,7 +91,7 @@
     const returnPath = readSafeReturnPath();
 
     try {
-      await window.LongtailForge.api.postJson("/api/support-view/start", {
+      await requireApi().postJson("/api/support-view/start", {
         currentPassword: passwordInput.value,
         confirmedReadOnly: confirmationInput.checked,
         effectiveUserId: targetSelect.value,
