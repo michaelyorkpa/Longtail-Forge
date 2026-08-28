@@ -224,28 +224,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Every one of the 50 has exactly one writer**, so nothing here raises a multi-writer question.
 
-#### 0.33.33.38.2.2.2 - Declare the settings host and page controller
-
-**RESLICED by its own writer-first preflight, which found both a wrong size and a wrong member.**
-
-**`status` does not belong here and never did.** `shared/status.js` is 46 lines publishing `{ clear, set }` - a **plain object literal, not frozen**, unlike every other member of the proposed cohort - and its responsibility is *set or clear a status message on a DOM element*, with an optional auto-clear timer. It has no settings vocabulary in it. Two of its seven consumers, `role-assignments.js` and `calendar-settings.js`, are not settings pages at all. **It was grouped here by consumer overlap, which `0.33.33.35` already established is not evidence of shared ownership.** It moves to `0.33.33.38.2.2.8` with its own 20 diagnostics.
-
-**`settingsRenderer` is split out too, and for a different reason than `status` was.** It is not mis-grouped - it is a genuinely larger contract. Its ten published members include `normalizeContributions`, which takes the settings catalog straight off the wire and produces a **normalized module definition with six fields, each of whose settings is normalized again** - and `grep src/types/*.d.ts` finds **no existing contract for any of that vocabulary**. So that child must design a normalized-module type and a normalized-setting type before it can declare the surface at all, which is contract archaeology rather than the mechanical derivation the other two need. It becomes `0.33.33.38.2.2.9` with its 44 diagnostics.
-
-**2 members, 22 canonical namespace diagnostics** - `settingsHost` 12 and `settingsPageController` 10 - across the same eight settings pages, both required-uniform with no optional read, no guarded chain, and no probe. **Three published members between them**, and both contracts fall straight out of their writers.
-
-`settingsRenderer` (22 diagnostics / 5 files), `status` (10 / 7), `settingsHost` (6 / 5), and `settingsPageController` (5 / 5). Every read is unguarded: **no optional read, no guarded chain, no probe anywhere in the cohort**, and the consumer sets overlap almost exactly across the five settings pages.
-- [ ] **Remeasured after `0.33.33.38.2.2.1`: unchanged at 43 namespace and 43 `unknown`.** Four writers - `shared/settings-renderer.js`, `shared/status.js`, `shared/settings-host.js`, and `shared/settings-page-controller.js` - one each. `settingsRenderer`, `settingsHost`, and `settingsPageController` share the same five settings pages; `status` adds `calendar-settings.js` and `role-assignments.js`. **None of the four has an interface yet**, so unlike `.1` this child designs four contracts as well as wiring them, and it should read each from its writer rather than from its consumers.
-
-- [ ] Declare each from its writer, then take the checked read at the point of use on the `0.33.33.37` pattern.
-- [ ] **Nothing is excluded to `0.33.33.38.4`.** The 33 diagnostics this cohort was told to defer are `TS18046` on the undeclared members themselves and resolve with the declarations.
-- [ ] **Both contracts were recorded from the writer rather than from the consumers.** `shared/settings-page-controller.js` (161 lines) freezes `{ create }`, where `create({ root?, onSave?, onRevert?, onDirtyChange? })` returns a frozen `{ isDirty(), setClean(), updateDirtyState() }` and throws without a settings host. `shared/settings-host.js` (827 lines) freezes `{ attachmentSections, mount }` and **self-mounts at load**.
-- [ ] **Declare what `create` returns, not the subset consumers happen to call.** Only `setClean` is used externally today; `isDirty` and `updateDirtyState` are published all the same, and a contract that omitted them would describe the callers rather than the surface.
-- [ ] **`attachmentSections` keeps a genuine `unknown` boundary and that is the correct outcome.** Its `catalog` argument arrives from `api.getJson("/api/settings/catalog")` and the function is written defensively against it - `catalog?.attachments || {}`, then `Array.isArray(...) ? ... : []`. **`unknown` in, `unknown[]` out is the runtime truth**, and consumer-side validation of that array is `0.33.33.38.4`'s. Do not guess a structural type because the server happens to send one shape today.
-- [ ] **Keep the two interfaces separate.** Same consumer pages is not shared ownership; the writers are separate and the responsibilities are host mounting and page dirty-state.
-- [ ] **Both were invisible until `0.33.33.38.2.7`**, and they get the same archaeology as every other member rather than a tooling footnote.
-- [ ] **Delivery is proved, not inferred from unguarded reads.** All eight consumer pages - `files-settings`, `notes-settings`, `user-settings`, `workspace-settings`, `tasks-settings`, `time-tracking-settings`, `workbench-settings`, and `developer-example` - load both writers, and both precede the consumer script in the page.
-
 #### 0.33.33.38.2.2.9 - `LongtailForge.settingsRenderer`
 
 **1 member, 44 canonical namespace diagnostics, 5 consumer files, and the only settings surface that has to invent vocabulary before it can be declared.**
@@ -255,6 +233,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **The contribution vocabulary does not exist yet and must be designed from the writer.** `normalizeContributions(moduleSettings, options)` accepts the settings catalog as delivered and returns modules normalized to `{ moduleId, name, displayName, status, canDisable, settings }`, each setting normalized again by `normalizeSetting`. **No `src/types` declaration describes any of it.** Search the existing `0.33.33` contract vocabulary before writing new types, and do not import a server contract into browser vocabulary because its shape looks convenient.
 - [ ] **The input is a wire body and the output is constructed.** Keep the parameter `unknown` and let the normalized return be the strong half - that asymmetry *is* the contract, and it is the same shape `0.33.33.36` proved for `LinkTargetCandidate` against `LinkTarget`.
 - [ ] Split from `0.33.33.38.2.2.2` **not because it is mis-grouped but because it is larger**: ten published members against three, and design work where the other two need derivation.
+- [ ] **Remeasured after `0.33.33.38.2.2.2`: unchanged at 44 canonical namespace diagnostics across the same five consumer files**, with three regression owners naming the surface. Its two former cohort members reached zero, so nothing about this child's size came from them.
 
 #### 0.33.33.38.2.2.8 - `LongtailForge.status`
 
@@ -353,7 +332,9 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.4 - Publish narrowing contracts for the genuine dynamic boundaries
 
-**Model: High Effort - 407 genuine runtime boundaries, corrected twice: down from the 1,038 the first slice claimed, and again by the `0.33.33.38.2.2.2` preflight, which found 124 of the `unknown` family were undeclared namespace members rather than untrusted values.**
+**Model: High Effort - 408 genuine runtime boundaries, corrected twice and then grown by one: down from the 1,038 the first slice claimed, corrected again by the `0.33.33.38.2.2.2` preflight, which found 124 of the `unknown` family were undeclared namespace members rather than untrusted values, and then **increased by one when that same checkpoint's accurate typing exposed a boundary nobody had been able to see**.**
+
+- [ ] **Carry-forward from `0.33.33.38.2.2.2`: `workspace-settings.js` reads `moduleId` and `lifecycle` off the array `settingsHost.attachmentSections` returns.** That array is part of the `GET /api/settings/catalog` body, so declaring the surface truthfully as `unknown[]` made the trust boundary visible; the consumer now narrows with a predicate before sorting. **The diagnostic moved to its true owner - it is not evidence that the contract should be weakened**, and the baseline is 408 rather than 407 because of it. Expect this number to move again as later `.38.2.2` children declare their surfaces; each such move is a boundary becoming visible, not new debt.
 
 - [ ] Add named API response and descriptor handoff contracts with `unknown` narrowing at the network and view boundaries.
 - [ ] **`BrowserApi` already returns `Promise<unknown>` from all five methods, and that is correct.** A fetch body is an untrusted runtime value; the contract is right and the consumer is what needs a narrowing step. **Do not type `getJson`'s return to remove errors** - that would recreate the inherited-`any` shape the scripts program spent four children removing, wearing a JSDoc annotation.

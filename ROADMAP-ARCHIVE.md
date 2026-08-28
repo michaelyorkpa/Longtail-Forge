@@ -1,5 +1,30 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.2 - Declare the settings host and page controller
+
+**Model: Medium Effort** - Two surfaces, three published members, and both contracts derived from their writers rather than from what the five settings pages happen to call.
+
+- [x] **`BrowserSettingsPageController` declares what `create` returns, not the subset consumers use.** Only `setClean` is called externally today; `isDirty` and `updateDirtyState` are published all the same, and a contract naming only the consumed member would have described the callers rather than the surface.
+- [x] **`attachmentSections` keeps a genuine `unknown` boundary, and declaring it exposed that boundary at the one consumer that reads fields off the result.** Its `catalog` argument arrives from `GET /api/settings/catalog` and the writer is defensive against it - `catalog?.attachments || {}`, then `Array.isArray(...) ? ... : []` - so **`unknown` in and `unknown[]` out is the runtime truth**. `workspace-settings.js` now narrows the array with a predicate before sorting on `moduleId` and `lifecycle`, which is **the validation an untrusted array demands, not a stronger contract**.
+- [x] **The interface was too strong in one place and the writer said so.** `create`'s `root` was drafted as `HTMLElement`; the controller only ever queries the element and listens on it, so **`Element` is the truthful requirement**. Consumers hand it a `document.querySelector` result, and the correction came from reading the writer rather than from making the error go away.
+- [x] **Delivery was proved, not inferred from unguarded reads.** All eight consumer pages - the five settings pages plus `tasks-settings`, `time-tracking-settings`, `workbench-settings`, and `developer-example` - load both writers **ahead of** the consumer script, so the checked read fails exactly where the raw read failed before.
+
+**`settingsRenderer` was split out during the preflight, and for a different reason than `status` was.** `status` was mis-grouped - a 46-line DOM helper with two non-settings consumers, gathered here by consumer overlap. `settingsRenderer` is correctly grouped and simply **larger**: ten published members, and `normalizeContributions` turns the delivered catalog into a normalized module shape whose vocabulary **no `src/types` declaration describes**. That child designs contracts; this one derived two.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 9,327 | **9,301** |
+| Declared namespace members | 19 | **21** |
+| Undeclared namespace members | 45 | **43** |
+| `settingsHost` / `settingsPageController` diagnostics | 12 / 10 | **0 / 0** |
+| Runtime writers changed | - | **0** |
+| Unique surfaces / publication occurrences | 66 / 69 | **66 / 69** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**One source assertion followed the expression that moved.** `settings-page-actions.contract.mjs` pinned `settingsPageController.create`; the contract is that every settings page creates a page controller, not how the controller was acquired, so it now names the call rather than the receiver.
+
 ## Version 0.33.33.38.2.2.1 - Wire the five already-interfaced namespace surfaces
 
 **Model: Medium Effort** - The lowest-risk proof of the declaration-and-wiring mechanism, chosen first for exactly that reason.
