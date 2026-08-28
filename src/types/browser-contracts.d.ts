@@ -1091,6 +1091,80 @@ export interface BrowserModalDialogs {
   confirm(options?: BrowserModalConfirmOptions): Promise<boolean>;
 }
 
+export interface BrowserIconOptions {
+  /**
+   * When `false` the icon is labelled instead of hidden, and `label` becomes required - the
+   * writer throws without one. Defaults to `true`.
+   */
+  decorative?: boolean;
+  /** The `aria-label` for a non-decorative icon. */
+  label?: string;
+  /** Width and height in pixels. Defaults to `20`. */
+  size?: number;
+  /** Defaults to `2`. */
+  strokeWidth?: number;
+}
+
+export interface BrowserIconButtonOptions {
+  /** A name from `names`. Passed straight to `createIcon`, which throws on an unknown one. */
+  icon?: string;
+  /** Defaults to `true` unless `text` is supplied. */
+  iconOnly?: boolean;
+  /** The accessible label. Either this or `text` is required; the writer throws without both. */
+  label?: string;
+  /** `"after"` puts the text before the icon. Anything else puts the icon first. */
+  position?: string;
+  /** Passed through to the icon. */
+  size?: number;
+  /** Visible button text. */
+  text?: string;
+  /** Defaults to `label` when the button is icon-only. */
+  title?: string;
+  /** `"danger"`, `"secondary"`, and `"link"` each add a class; anything else adds none. */
+  variant?: string;
+}
+
+export interface BrowserIconCreateButtonOptions extends BrowserIconButtonOptions {
+  /** Assigned to `button.type`. Defaults to `"button"`. */
+  type?: string;
+}
+
+/**
+ * `LongtailForge.icons`, published by `public/js/shared/icons.js`.
+ *
+ * The SVG icon registry and the button decorations built from it.
+ *
+ * **Every one of the 54 reads in the estate is guarded**, and that is the contract as much as
+ * the signatures are: 53 fall back to a plain button or plain text when the surface is absent,
+ * and the one that cannot - `task-dialog.js`'s checklist actions - throws its own error. The
+ * declaration describes the shape; it does not make the surface required.
+ *
+ * **Nothing here is asynchronous and nothing returns `null`.** Each member either returns the
+ * element it built or throws: `createIcon` on an unknown name and on a non-decorative icon with
+ * no label, `createIconButton` with neither a label nor text, `decorateButton` on anything that
+ * is not a `button` element.
+ *
+ * Published as a plain object rather than a frozen one; only `names` is frozen.
+ */
+export interface BrowserIcons {
+  /**
+   * Build one registry icon as an `<svg>`. **Throws** on a name the registry does not hold, so
+   * `name` is `string` rather than a union of `names`: callers compute it, and the runtime -
+   * not the type - is what rejects an unknown one.
+   */
+  createIcon(name: string, options?: BrowserIconOptions): SVGSVGElement;
+  /** Build a new `button` around an icon. **Throws** without a label or visible text. */
+  createIconButton(options?: BrowserIconCreateButtonOptions): HTMLButtonElement;
+  /**
+   * Rebuild an existing button's content around an icon and return **the same element**. The
+   * parameter is `HTMLButtonElement` because the writer demands one and throws otherwise; the
+   * runtime guard exists for callers that cannot prove it, not to widen the contract.
+   */
+  decorateButton(button: HTMLButtonElement, options?: BrowserIconButtonOptions): HTMLButtonElement;
+  /** Every registry name, frozen at publication. */
+  readonly names: readonly string[];
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
@@ -1099,6 +1173,7 @@ export interface LongtailForgeBrowserNamespace {
   controllers?: PageControllerRegistry;
   errors?: BrowserErrorContract;
   formatters?: BrowserFormatters;
+  icons?: BrowserIcons;
   modal?: BrowserModalDialogs;
   pageController?: BrowserPageController;
   /**

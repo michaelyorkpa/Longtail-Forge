@@ -479,7 +479,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 9217,
+      "errorCount": 9164,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -638,7 +638,7 @@
           },
           {
             "code": 2339,
-            "count": 168
+            "count": 166
           },
           {
             "code": 2345,
@@ -776,7 +776,7 @@
           },
           {
             "code": 2339,
-            "count": 68
+            "count": 66
           },
           {
             "code": 2353,
@@ -818,7 +818,7 @@
           },
           {
             "code": 2339,
-            "count": 14
+            "count": 12
           },
           {
             "code": 2345,
@@ -1004,7 +1004,7 @@
           },
           {
             "code": 2339,
-            "count": 71
+            "count": 69
           },
           {
             "code": 2345,
@@ -1080,7 +1080,7 @@
           },
           {
             "code": 2339,
-            "count": 529
+            "count": 526
           },
           {
             "code": 2345,
@@ -1118,7 +1118,7 @@
         "public/js/notifications.js": [
           {
             "code": 2339,
-            "count": 26
+            "count": 24
           },
           {
             "code": 2349,
@@ -1296,7 +1296,7 @@
           },
           {
             "code": 2339,
-            "count": 18
+            "count": 17
           },
           {
             "code": 7005,
@@ -1322,7 +1322,7 @@
           },
           {
             "code": 2339,
-            "count": 53
+            "count": 52
           },
           {
             "code": 7005,
@@ -1554,7 +1554,7 @@
         "public/js/shared/task-calendar.js": [
           {
             "code": 2339,
-            "count": 20
+            "count": 18
           },
           {
             "code": 7006,
@@ -1570,7 +1570,7 @@
         "public/js/shared/view-builder.js": [
           {
             "code": 2339,
-            "count": 353
+            "count": 351
           },
           {
             "code": 7005,
@@ -1592,7 +1592,7 @@
         "public/js/shared/view-renderer.js": [
           {
             "code": 2339,
-            "count": 122
+            "count": 120
           },
           {
             "code": 7005,
@@ -1638,7 +1638,7 @@
           },
           {
             "code": 2339,
-            "count": 28
+            "count": 22
           },
           {
             "code": 2345,
@@ -1728,7 +1728,7 @@
           },
           {
             "code": 2339,
-            "count": 34
+            "count": 32
           },
           {
             "code": 7005,
@@ -1762,7 +1762,7 @@
           },
           {
             "code": 2339,
-            "count": 523
+            "count": 506
           },
           {
             "code": 2345,
@@ -1844,7 +1844,7 @@
           },
           {
             "code": 2339,
-            "count": 164
+            "count": 161
           },
           {
             "code": 2345,
@@ -1916,7 +1916,7 @@
           },
           {
             "code": 2339,
-            "count": 51
+            "count": 49
           },
           {
             "code": 2345,
@@ -2150,7 +2150,7 @@
           },
           {
             "code": 2339,
-            "count": 258
+            "count": 256
           },
           {
             "code": 2345,
@@ -2845,7 +2845,7 @@
   },
   "totals": {
     "files": 1057,
-    "errors": 9217,
+    "errors": 9164,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
