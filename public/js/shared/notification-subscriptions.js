@@ -13,11 +13,11 @@
    * @returns {BrowserApi}
    */
   function requireApi() {
-    const client = root?.api;
-    if (!client) {
+    const apiClient = root?.api;
+    if (!apiClient) {
       throw new Error("Notification subscriptions requires LongtailForge.api.");
     }
-    return client;
+    return apiClient;
   }
   function taskTarget(taskId) {
     return {

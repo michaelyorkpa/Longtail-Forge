@@ -23,11 +23,11 @@
    * @returns {BrowserApi}
    */
   function requireApi() {
-    const client = root?.api;
-    if (!client) {
+    const apiClient = root?.api;
+    if (!apiClient) {
       throw new Error("View surface rendering requires LongtailForge.api.");
     }
-    return client;
+    return apiClient;
   }
   function registerBehavior(id, handler) {
     const behaviorId = String(id || "").trim();

@@ -26,11 +26,11 @@
    * @returns {BrowserApi}
    */
   function requireApi() {
-    const client = namespace?.api;
-    if (!client) {
+    const apiClient = namespace?.api;
+    if (!apiClient) {
       throw new Error("Cached fetch requires LongtailForge.api.");
     }
-    return client;
+    return apiClient;
   }
   /** @param {string} cacheKey */
   function readCached(cacheKey) {

@@ -49,11 +49,11 @@
    * @returns {BrowserApi}
    */
   function requireApi() {
-    const client = window.LongtailForge?.api;
-    if (!client) {
+    const apiClient = window.LongtailForge?.api;
+    if (!apiClient) {
       throw new Error("Role assignments requires LongtailForge.api.");
     }
-    return client;
+    return apiClient;
   }
   async function loadRoleOptions() {
     setBusy(true);

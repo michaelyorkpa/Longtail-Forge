@@ -24,11 +24,11 @@ const loadedStyles = new Map();
  * @returns {BrowserApi}
  */
 function requireApi() {
-  const client = namespace?.api;
-  if (!client) {
+  const apiClient = namespace?.api;
+  if (!apiClient) {
     throw new Error("The Dashboard bridge requires LongtailForge.api.");
   }
-  return client;
+  return apiClient;
 }
 function versionedAssetUrl(assetPath) {
   const url = new URL(String(assetPath || ""), document.baseURI);

@@ -17,11 +17,11 @@
    * @returns {BrowserApi}
    */
   function requireApi() {
-    const client = namespace?.api;
-    if (!client) {
+    const apiClient = namespace?.api;
+    if (!apiClient) {
       throw new Error("File attachments requires LongtailForge.api.");
     }
-    return client;
+    return apiClient;
   }
   function mount(container, options = {}) {
     if (!container) {

@@ -22,11 +22,11 @@
    * @returns {BrowserApi}
    */
   function requireApi() {
-    const client = namespace?.api;
-    if (!client) {
+    const apiClient = namespace?.api;
+    if (!apiClient) {
       throw new Error("The time entry dialog requires LongtailForge.api.");
     }
-    return client;
+    return apiClient;
   }
   function configure(options = {}) {
     context = {

@@ -48,11 +48,11 @@
    * @returns {BrowserApi}
    */
   function requireApi() {
-    const client = window.LongtailForge?.api;
-    if (!client) {
+    const apiClient = window.LongtailForge?.api;
+    if (!apiClient) {
       throw new Error("Notes requires LongtailForge.api.");
     }
-    return client;
+    return apiClient;
   }
   function requireView() {
     const factory = window.LongtailForge?.view;

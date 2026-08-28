@@ -28,11 +28,11 @@
    * @returns {BrowserApi}
    */
   function requireApi() {
-    const client = namespace?.api;
-    if (!client) {
+    const apiClient = namespace?.api;
+    if (!apiClient) {
       throw new Error("The time tracking timer dialog requires LongtailForge.api.");
     }
-    return client;
+    return apiClient;
   }
   async function openCreate(params = {}, hostContext = null) {
     await prepareContext({ hostContext, params });

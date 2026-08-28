@@ -15,11 +15,11 @@
    * @returns {BrowserApi}
    */
   function requireApi() {
-    const client = namespace?.api;
-    if (!client) {
+    const apiClient = namespace?.api;
+    if (!apiClient) {
       throw new Error("Task resume note capture requires LongtailForge.api.");
     }
-    return client;
+    return apiClient;
   }
   function taskIdFrom(options = {}) {
     return String(options.taskId || options.task?.task_id || "").trim();

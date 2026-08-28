@@ -65,11 +65,11 @@
    * @returns {BrowserApi}
    */
   function requireApi() {
-    const client = window.LongtailForge?.api;
-    if (!client) {
+    const apiClient = window.LongtailForge?.api;
+    if (!apiClient) {
       throw new Error("The support view audit requires LongtailForge.api.");
     }
-    return client;
+    return apiClient;
   }
   async function initialize() {
     await window.LongtailForge.timezones.loadSessionTimezone();

@@ -23,11 +23,11 @@
    * @returns {BrowserApi}
    */
   function requireApi() {
-    const client = window.LongtailForge?.api;
-    if (!client) {
+    const apiClient = window.LongtailForge?.api;
+    if (!apiClient) {
       throw new Error("The time tracking dashboard requires LongtailForge.api.");
     }
-    return client;
+    return apiClient;
   }
   function renderActiveTimersPanel(contribution, context) {
     const body = createPanelBody(context, "Loading active timers...");
