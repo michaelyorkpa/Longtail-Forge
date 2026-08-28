@@ -479,7 +479,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 9301,
+      "errorCount": 9281,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -566,7 +566,7 @@
         "public/js/calendar-settings.js": [
           {
             "code": 18046,
-            "count": 12
+            "count": 11
           },
           {
             "code": 18047,
@@ -574,7 +574,7 @@
           },
           {
             "code": 18048,
-            "count": 3
+            "count": 2
           },
           {
             "code": 2322,
@@ -746,11 +746,11 @@
         "public/js/files-settings.js": [
           {
             "code": 18046,
-            "count": 10
+            "count": 9
           },
           {
             "code": 18048,
-            "count": 5
+            "count": 4
           },
           {
             "code": 2339,
@@ -974,11 +974,11 @@
         "public/js/module-settings.js": [
           {
             "code": 18046,
-            "count": 10
+            "count": 9
           },
           {
             "code": 18048,
-            "count": 6
+            "count": 5
           },
           {
             "code": 2339,
@@ -1050,7 +1050,7 @@
         "public/js/notes-settings.js": [
           {
             "code": 18046,
-            "count": 23
+            "count": 21
           },
           {
             "code": 18047,
@@ -1058,7 +1058,7 @@
           },
           {
             "code": 18048,
-            "count": 4
+            "count": 2
           },
           {
             "code": 2339,
@@ -1162,7 +1162,7 @@
         "public/js/role-assignments.js": [
           {
             "code": 18046,
-            "count": 13
+            "count": 12
           },
           {
             "code": 18047,
@@ -1170,7 +1170,7 @@
           },
           {
             "code": 18048,
-            "count": 4
+            "count": 3
           },
           {
             "code": 2339,
@@ -2108,7 +2108,7 @@
         "public/js/user-settings.js": [
           {
             "code": 18046,
-            "count": 20
+            "count": 19
           },
           {
             "code": 18047,
@@ -2116,7 +2116,7 @@
           },
           {
             "code": 18048,
-            "count": 14
+            "count": 13
           },
           {
             "code": 2339,
@@ -2212,7 +2212,7 @@
         "public/js/workspace-settings.js": [
           {
             "code": 18046,
-            "count": 18
+            "count": 15
           },
           {
             "code": 18047,
@@ -2220,7 +2220,7 @@
           },
           {
             "code": 18048,
-            "count": 11
+            "count": 8
           },
           {
             "code": 2339,
@@ -2857,7 +2857,7 @@
   },
   "totals": {
     "files": 1057,
-    "errors": 9301,
+    "errors": 9281,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -10,13 +10,13 @@ const projectField = document.querySelector("[data-calendar-subscription-project
 const projectSelect = document.querySelector("[data-calendar-subscription-project]");
 const createButton = document.querySelector("[data-create-calendar-subscription]");
 const availability = document.querySelector("[data-calendar-subscription-availability]");
-const createStatus = document.querySelector("[data-calendar-subscription-create-status]");
+const createStatus = asStatusElement(document.querySelector("[data-calendar-subscription-create-status]"));
 const secretPanel = document.querySelector("[data-calendar-subscription-secret-panel]");
 const secretDetail = document.querySelector("[data-calendar-subscription-secret-detail]");
 const secretInput = document.querySelector("[data-calendar-subscription-url]");
 const revealButton = document.querySelector("[data-reveal-calendar-subscription]");
 const copyButton = document.querySelector("[data-copy-calendar-subscription]");
-const secretStatus = document.querySelector("[data-calendar-subscription-secret-status]");
+const secretStatus = asStatusElement(document.querySelector("[data-calendar-subscription-secret-status]"));
 const subscriptionList = document.querySelector("[data-calendar-subscription-list]");
 const listStatus = document.querySelector("[data-calendar-subscription-list-status]");
 
@@ -57,6 +57,32 @@ function requireApi() {
   }
   return apiClient;
 }
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserStatusMessage} BrowserStatusMessage */
+
+/**
+ * The status-message helpers this page cannot report through without. Every page that loads
+ * this script also loads `shared/status.js` ahead of it, so the checked read fails exactly
+ * where the raw read failed before.
+ * @returns {BrowserStatusMessage}
+ */
+function requireStatusMessage() {
+  const status = window.LongtailForge?.status;
+  if (!status) {
+    throw new Error("Calendar settings requires LongtailForge.status.");
+  }
+  return status;
+}
+
+/**
+ * A status element the message helpers can drive. They set `hidden`, which only an
+ * `HTMLElement` has; anything else was already a silent no-op and stays one.
+ * @param {Element | null} node
+ * @returns {HTMLElement | null}
+ */
+function asStatusElement(node) {
+  return node && "hidden" in node ? /** @type {HTMLElement} */ (node) : null;
+}
+
 async function initialize() {
   const api = requireApi();
   setStatus(listStatus, "Loading calendar subscriptions...");
@@ -578,7 +604,7 @@ function formatDate(value) {
 }
 
 function setStatus(element, message, options = {}) {
-  window.LongtailForge.status.set(element, message, options);
+  requireStatusMessage().set(element, message, options);
 }
 
 function handleApiError(error, statusElement, fallbackMessage) {

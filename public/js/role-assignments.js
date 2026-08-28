@@ -2,7 +2,7 @@
   const lookupForm = document.querySelector("[data-role-account-lookup]");
   const accountEmailInput = document.querySelector("[data-role-account-email]");
   const findAccountButton = document.querySelector("[data-find-role-account]");
-  const statusElement = document.querySelector("[data-role-assignment-status]");
+  const statusElement = asStatusElement(document.querySelector("[data-role-assignment-status]"));
   const targetSection = document.querySelector("[data-role-target]");
   const targetHeading = document.querySelector("[data-role-target-heading]");
   const targetAccount = document.querySelector("[data-role-target-account]");
@@ -55,6 +55,32 @@
     }
     return apiClient;
   }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserStatusMessage} BrowserStatusMessage */
+
+  /**
+   * The status-message helpers this page cannot report through without. Every page that loads
+   * this script also loads `shared/status.js` ahead of it, so the checked read fails exactly
+   * where the raw read failed before.
+   * @returns {BrowserStatusMessage}
+   */
+  function requireStatusMessage() {
+    const status = window.LongtailForge?.status;
+    if (!status) {
+      throw new Error("Role assignments requires LongtailForge.status.");
+    }
+    return status;
+  }
+
+  /**
+   * A status element the message helpers can drive. They set `hidden`, which only an
+   * `HTMLElement` has; anything else was already a silent no-op and stays one.
+   * @param {Element | null} node
+   * @returns {HTMLElement | null}
+   */
+  function asStatusElement(node) {
+    return node && "hidden" in node ? /** @type {HTMLElement} */ (node) : null;
+  }
+
   async function loadRoleOptions() {
     setBusy(true);
     setStatus("Loading available roles...");
@@ -351,7 +377,7 @@
   }
 
   function setStatus(message, isError = false) {
-    window.LongtailForge.status.set(statusElement, message, {
+    requireStatusMessage().set(statusElement, message, {
       type: isError ? "error" : "",
     });
   }

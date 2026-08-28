@@ -37,7 +37,7 @@ const deleteAccountButton = document.querySelector("[data-delete-account]");
 const workspaceRemovalDialog = document.querySelector("[data-workspace-removal-dialog]");
 const workspaceRemovalList = document.querySelector("[data-workspace-removal-list]");
 const closeWorkspaceRemovalButton = document.querySelector("[data-close-workspace-removal]");
-const userSettingsStatus = document.querySelector("[data-user-settings-status]");
+const userSettingsStatus = asStatusElement(document.querySelector("[data-user-settings-status]"));
 let workspaceCreationTypes = [];
 let currentWorkspaces = [];
 let activeWorkspaceId = "";
@@ -141,6 +141,32 @@ function requireSettingsPageController() {
     throw new Error("User settings requires LongtailForge.settingsPageController.");
   }
   return controller;
+}
+
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserStatusMessage} BrowserStatusMessage */
+
+/**
+ * The status-message helpers this page cannot report through without. Every page that loads
+ * this script also loads `shared/status.js` ahead of it, so the checked read fails exactly
+ * where the raw read failed before.
+ * @returns {BrowserStatusMessage}
+ */
+function requireStatusMessage() {
+  const status = window.LongtailForge?.status;
+  if (!status) {
+    throw new Error("User settings requires LongtailForge.status.");
+  }
+  return status;
+}
+
+/**
+ * A status element the message helpers can drive. They set `hidden`, which only an
+ * `HTMLElement` has; anything else was already a silent no-op and stays one.
+ * @param {Element | null} node
+ * @returns {HTMLElement | null}
+ */
+function asStatusElement(node) {
+  return node && "hidden" in node ? /** @type {HTMLElement} */ (node) : null;
 }
 
 async function deleteAccount() {
@@ -745,7 +771,7 @@ function setUserSettingsStatus(message, isError = false, options = {}) {
     ? isError
     : { ...options, type: isError ? "error" : options.type || "" };
 
-  window.LongtailForge.status.set(
+  requireStatusMessage().set(
     userSettingsStatus,
     message,
     statusOptions,

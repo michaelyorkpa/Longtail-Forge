@@ -4,7 +4,7 @@
 
   const notesSettingsFields = document.querySelector('[data-settings-attachment="module"][data-settings-module-id="notes"]');
   const notesSettingsAuxiliary = document.querySelector("[data-module-settings-legacy='notes']");
-  const notesSettingsStatus = document.querySelector("[data-module-settings-status]");
+  const notesSettingsStatus = asStatusElement(document.querySelector("[data-module-settings-status]"));
   const notesSettingsHost = document.querySelector("[data-settings-host='module']");
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
 
@@ -75,6 +75,32 @@
       throw new Error("Notes settings requires LongtailForge.settingsPageController.");
     }
     return controller;
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserStatusMessage} BrowserStatusMessage */
+
+  /**
+   * The status-message helpers this page cannot report through without. Every page that loads
+   * this script also loads `shared/status.js` ahead of it, so the checked read fails exactly
+   * where the raw read failed before.
+   * @returns {BrowserStatusMessage}
+   */
+  function requireStatusMessage() {
+    const status = window.LongtailForge?.status;
+    if (!status) {
+      throw new Error("Notes settings requires LongtailForge.status.");
+    }
+    return status;
+  }
+
+  /**
+   * A status element the message helpers can drive. They set `hidden`, which only an
+   * `HTMLElement` has; anything else was already a silent no-op and stays one.
+   * @param {Element | null} node
+   * @returns {HTMLElement | null}
+   */
+  function asStatusElement(node) {
+    return node && "hidden" in node ? /** @type {HTMLElement} */ (node) : null;
   }
 
   function requireView() {
@@ -623,11 +649,11 @@
   }
 
   function setCatalogStatus(message, options = {}) {
-    const element = notesSettingsAuxiliary?.querySelector("[data-notes-catalog-status]");
-    window.LongtailForge.status.set(element, message, options.isError ? { type: "error" } : options);
+    const element = asStatusElement(notesSettingsAuxiliary?.querySelector("[data-notes-catalog-status]") || null);
+    requireStatusMessage().set(element, message, options.isError ? { type: "error" } : options);
   }
 
   function setPageStatus(message, options = {}) {
-    window.LongtailForge.status.set(notesSettingsStatus, message, options.isError ? { type: "error" } : options);
+    requireStatusMessage().set(notesSettingsStatus, message, options.isError ? { type: "error" } : options);
   }
 })();
