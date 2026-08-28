@@ -172,9 +172,30 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] `errors` and `formatters` may end with fewer conversions than sites. That is a correct outcome.
 - [ ] Run after `.38.2.1`, so the pattern is settled and the small members are judged on their own evidence rather than swept along with `api`.
 
+#### 0.33.33.38.2.7 - Teach the publication inventory the logical-assignment root
+
+**Model: Medium Effort - a prerequisite, not a cleanup. `0.33.33.38.2.2` decides which surfaces exist and how to group them by reading this inventory, and the instrument was incomplete.**
+
+**The blind spot was found by reconciliation, not by review.** `0.33.33.38.2.1` had 11 root-optionality diagnostics it could not attribute to any member. All 11 reached `settingsPageController` and `settingsHost` - both published, both consumed across five settings pages, and **both invisible to every surface count the estate reports**. `shared/settings-page-controller.js` and `shared/settings-host.js` are the only two scripts that bind the root as `const root = global.LongtailForge ||= {}`, and the classifier resolved `namespace || {}`, `namespace ?? {}`, and the `ns = ns || {}` bootstrap but not the logical-assignment form - which evaluates to its **left** operand rather than its right.
+
+- [x] **Proved fail-first.** A fixture publishing through `global.LongtailForge ||= {}` was added and shown to fail against the unmodified classifier before a line of it changed, so the test demonstrates the defect rather than blessing the fix.
+- [x] **Recognition was extended, not loosened.** `||=` and `??=` are accepted only with an empty-object right-hand side, for the same reason `||` and `??` already are: `ns ||= other` is not the namespace. Unresolvable rooted writes stay unsupported, and the estate still reports **0 unsupported writes, 0 deep writes, and no computed top-level member name**.
+- [x] **Sibling forms audited rather than speculated about.** The estate uses `LongtailForge || {}` 50 times and `LongtailForge ||= {}` twice; `?? {}` and `??= {}` appear nowhere, and no script binds the root without a fallback. `??=` is accepted because it is the same construct under the existing model, not to be comprehensive.
+
+**The corrected estate, and it is the authoritative starting point for `0.33.33.38.2.2`:**
+
+| | Before | After |
+| --- | ---: | ---: |
+| Unique published surfaces | 64 | **66** |
+| Namespace members / bare-window surfaces | 62 / 2 | **64 / 2** |
+| Publication occurrences | 67 | **69** |
+| Multi-writer surfaces | 2 | **2** |
+| Declared / undeclared members | 14 / 48 | **14 / 50** |
+| Unsupported or unresolvable rooted writes | 0 | **0** |
+
 #### 0.33.33.38.2.2 - Declare and adopt the multi-consumer members
 
-**32 members, 210 diagnostics of their own plus the 209 root-optionality diagnostics the `.38.2.1` preflight moved here, and each needs a real contract read from its writer.** Those 209 are on lines that already reach these members; they resolve as the declarations land, so measure them as part of each member's cohort rather than as a separate cleanup. **Two of the members - `settingsHost` and `settingsPageController` - were invisible to the publication inventory until the `.38.2.1` reconciliation found them**, so remeasure this child's cohort list from a corrected inventory rather than from the 48-member figure.
+**Remeasure from the corrected inventory before slicing: 50 undeclared members, not 48, and 32 of them multi-consumer. 210 diagnostics of their own plus the 209 root-optionality diagnostics the `.38.2.1` preflight moved here, and each needs a real contract read from its writer.** Those 209 are on lines that already reach these members; they resolve as the declarations land, so measure them as part of each member's cohort rather than as a separate cleanup. **Two of the members - `settingsHost` and `settingsPageController` - were invisible to the publication inventory until the `.38.2.1` reconciliation found them**, so remeasure this child's cohort list from a corrected inventory rather than from the 48-member figure.
 
 - [ ] `modal` (37 diagnostics, 14 files), `icons` (27, 4), `settingsRenderer` (22, 5), `workspaceContext` (17, 5), `taskCalendar` (14, 2), `timezones` (12, 4), `moduleActions` (11, 3), `tasksDialog` (11, 2), `status` (10, 7), and the rest. **Every one has exactly one writer**, so none introduces a multi-writer question.
 - [ ] Author each interface from its publishing module, not from its consumers. `0.33.33.38.1` found four members whose runtime was *stronger* than a plausible declaration - a flat `HTMLElement` would have hidden `.close()`, `.value`, and the whole `viewParts` channel.
@@ -193,9 +214,9 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 **The namespace has no durable owner, which is how 49 members drifted out of the declaration while four checkpoints added to it.**
 
 - [ ] Build on the existing AST inventory in `scripts/test-support/browser-publication-inventory.mjs`. **Do not build a parallel framework.**
-- [ ] **Fix the measured blind spot first: the inventory does not resolve `const root = global.LongtailForge ||= {}`.** `shared/settings-host.js` and `shared/settings-page-controller.js` are the only two scripts that bind the root that way, and both of their publications - `settingsHost` and `settingsPageController` - are consumed across five settings pages while being reported by no surface count. **Governance that cannot see a published surface cannot govern it**, and the number it publishes was wrong by two before the `.38.2.1` reconciliation looked. Prove the fix by making it fail: add a fixture that publishes through `||=` and confirm the inventory records it.
+- [ ] **The logical-assignment blind spot is fixed by `0.33.33.38.2.7`, which had to run before `.38.2.2` could count anything.** What remains here is the governance the corrected instrument makes possible. Historical record of the defect: `shared/settings-host.js` and `shared/settings-page-controller.js` are the only two scripts that bind the root that way, and both of their publications - `settingsHost` and `settingsPageController` - are consumed across five settings pages while being reported by no surface count. **Governance that cannot see a published surface cannot govern it**, and the number it publishes was wrong by two before the `.38.2.1` reconciliation looked. Prove the fix by making it fail: add a fixture that publishes through `||=` and confirm the inventory records it.
 - [ ] Enforce four things and keep their vocabulary distinct: **every published surface has a declaration** or a recorded exception; **every declared member has a runtime writer** or is marked type-only; **every surface has one canonical writer** unless it is a recorded multi-writer case; and **no unresolvable rooted write** exists, which the inventory already reports.
-- [ ] **A unique surface is not a publication occurrence.** The estate is **64 unique surfaces across 67 publication occurrences**, and the difference is two governed multi-writer surfaces - `window.fetch` with three writers and `LongtailForge.view` with two. Test names and failure messages must not let those be read as the same number.
+- [ ] **A unique surface is not a publication occurrence.** The estate is **66 unique surfaces across 69 publication occurrences**, and the difference is two governed multi-writer surfaces - `window.fetch` with three writers and `LongtailForge.view` with two. Test names and failure messages must not let those be read as the same number.
 
 #### 0.33.33.38.2.5 - Remove the namespace index signature
 
@@ -247,7 +268,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Excluded, and deliberately not absorbed.** The cold app-shell bootstrap unavailable-host path stays a framework-level deferred concern; it is not solved by weakening a descriptor or recreating a client fallback. The footer duplicate loader stays a separate measured concern; shared-script vocabulary being reviewed here is not a reason to pull in delivery architecture.
 
-**Implementation order.** `.38.1` is landed. `.38.2.1` - now `api` alone - runs next and needs no new contract; `.38.2.6` classifies the six small declared members after it; `.38.2.2` follows, carrying the 198 root diagnostics that depend on its declarations; `.38.2.3` and `.38.2.4` run together; `.38.2.5` runs last, because removing the catch-all before the declarations exist would break the estate rather than govern it. `.38.3` and `.38.4` are remeasured against the ledger after `.38.2` archives. `.38.5` touches the server program only and is independent of all of it.
+**Implementation order.** `.38.1` and `.38.2.1` are landed. **`.38.2.7` corrects the publication inventory and must precede `.38.2.2`**, which reads that inventory to decide which surfaces exist; `.38.2.6` classifies the six small declared members; `.38.2.2` then follows, carrying the root diagnostics that depend on its declarations; `.38.2.3` and `.38.2.4` run together; `.38.2.5` runs last, because removing the catch-all before the declarations exist would break the estate rather than govern it. `.38.3` and `.38.4` are remeasured against the ledger after `.38.2` archives. `.38.5` touches the server program only and is independent of all of it.
 
 **The finding `.38.1` produced applies to every remaining child of this rollup.** Publication and adoption are separable when a checkpoint adds a *new* surface with *new* consumers, which is why `0.33.33.35.2`, `.35.3`, and `.37` worked that way. **They are not separable when a checkpoint declares an *existing* namespace member**, because that retypes reads which already exist rather than adding any. `.38.2` declares 48 more existing members and must be sliced on that basis; `.38.3` and `.38.4` should be re-examined for the same property before they are drawn.
 
