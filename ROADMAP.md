@@ -245,15 +245,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Do not weaken the contract to avoid the writer.** Declaring `scope` as `Document` alone would reject the element callers that exist today, and leaving the normalized return `unknown` would discard a total normalizer's guarantee. The drafted contract is correct; what is missing is the writer typing underneath it.
 - [ ] **One real defect was found, and this checkpoint owns it.** `user-settings.js` passes `showSaveAction: false` to `renderSections` and `renderGroupedSections` at two sites; **the renderer never reads it**. It is dead configuration of exactly the kind `0.33.33.38.1` found in `createStatusMessage`. **It stays here rather than being swept up by whichever child happens to touch `user-settings.js` first** - it is a defect in this surface's contract, and it is recorded so a blocked checkpoint does not lose it.
 
-#### 0.33.33.38.2.2.3 - `LongtailForge.modal`
-
-**64 canonical namespace diagnostics across 16 files - the largest single surface, and the widest blast radius.**
-
-29 unguarded required reads and **2 delivery probes** in `footer.js`. **The 31 diagnostics previously deferred to `0.33.33.38.4` are `TS18046` on the undeclared member itself** and resolve with the declaration, so this child owns 64 rather than 33.
-
-- [ ] Its own child because 16 consumer files is a different verification problem from a five-page cohort, not because 33 is a large number.
-- [ ] Preserve the two probes exactly, the way `0.33.33.38.2.1` preserved `api`'s.
-
 #### 0.33.33.38.2.2.4 - `LongtailForge.icons` and `LongtailForge.tags`
 
 **57 canonical namespace diagnostics, 0 `unknown`, and a guard pattern that is the work.**

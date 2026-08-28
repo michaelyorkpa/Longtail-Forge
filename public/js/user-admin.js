@@ -151,6 +151,22 @@
     }
     return apiClient;
   }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Every page that
+   * loads this script also loads `shared/modal.js`, so the checked read fails exactly where the
+   * raw read failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = window.LongtailForge?.modal;
+    if (!dialogs) {
+      throw new Error("User administration requires LongtailForge.modal.");
+    }
+    return dialogs;
+  }
+
   async function loadUsers() {
     setUserAdminStatus("Loading users...");
 
@@ -585,7 +601,7 @@
       return;
     }
 
-    const confirmed = await window.LongtailForge.modal.confirm({
+    const confirmed = await requireModalDialogs().confirm({
       title: "Revoke session?",
       message: session.isCurrent
         ? "Revoke your current session? You will need to sign in again."
@@ -613,7 +629,7 @@
   }
 
   async function revokeAllUserSessions(user) {
-    const confirmed = await window.LongtailForge.modal.confirm({
+    const confirmed = await requireModalDialogs().confirm({
       title: "Log out workspace sessions?",
       message: `Log out every ${user.username} session connected to this workspace?`,
       confirmLabel: "Log Out Sessions",
@@ -1168,7 +1184,7 @@
   }
 
   async function deleteUser(user) {
-    const shouldDelete = await window.LongtailForge.modal.confirm({
+    const shouldDelete = await requireModalDialogs().confirm({
       title: "Delete user?",
       message: `Delete ${user.username} from this workspace? This removes the user's current-workspace access. If no other workspace access remains, the account credentials are retired. The email address, display name, contributions, and attribution remain in workspace history.`,
       confirmLabel: "Delete",

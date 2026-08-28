@@ -3,7 +3,21 @@
   // updating stays here: it is this dialog's responsibility, not duplication.
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskLifecycleLegality} BrowserTaskLifecycleLegality */
   const namespace = global.LongtailForge || {};
-  const modal = namespace.modal;
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Acquired per call
+   * rather than once at module scope, so a missing surface still fails at exactly the moment it
+   * failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = namespace?.modal;
+    if (!dialogs) {
+      throw new Error("Task dialog requires LongtailForge.modal.");
+    }
+    return dialogs;
+  }
   const pageController = namespace.pageController;
 
   let context = null;
@@ -689,6 +703,7 @@
   }
 
   async function saveTaskForm({ closeOnSuccess = true, statusMessage = "" } = {}) {
+    const modal = requireModalDialogs();
     const api = requireApi();
     const payload = readTaskFormPayload();
     const editingTask = currentTask || (context?.tasks || []).find((task) => task.task_id === currentTaskId);
@@ -1359,6 +1374,7 @@
   }
 
   async function resetTaskTimer() {
+    const modal = requireModalDialogs();
     const api = requireApi();
     const task = currentTask;
 
@@ -1714,6 +1730,7 @@
   }
 
   async function deleteChecklistItem(row, itemId) {
+    const modal = requireModalDialogs();
     const api = requireApi();
     const label = row.querySelector("[data-task-checklist-label]")?.value || "this checklist item";
     const confirmed = await modal.confirm({
@@ -1973,6 +1990,7 @@
   }
 
   async function skipRecurrenceToCurrent(event) {
+    const modal = requireModalDialogs();
     const api = requireApi();
     event?.preventDefault();
     const recovery = currentTask?.recurrenceRecovery;

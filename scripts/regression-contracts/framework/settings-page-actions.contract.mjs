@@ -109,7 +109,7 @@ for (const source of [workspace, user, modulePage, files]) {
 }
 assert.match(user, /async function saveAllSettings/);
 assert.match(user, /putJson\("\/api\/user\/settings"/);
-assert.match(user, /modal\.confirm\([\s\S]*contributions, and attribution are retained[\s\S]*deleteJson\("\/api\/user\/account"\)/);
+assert.match(user, /requireModalDialogs\(\)\.confirm\([\s\S]*contributions, and attribution are retained[\s\S]*deleteJson\("\/api\/user\/account"\)/);
 assert.match(user, /saveUserPreferences/);
 assert.doesNotMatch(user, /themeForm\.addEventListener\("change", async/);
 assert.match(userAdmin, /currentUserId = String\(usersBody\.currentUserId \|\| ""\)/);

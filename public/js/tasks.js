@@ -233,7 +233,21 @@
   let recurrenceDialog = null;
 
   const pageController = window.LongtailForge.pageController;
-  const modal = window.LongtailForge.modal;
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Acquired per call
+   * rather than once at module scope, so a missing surface still fails at exactly the moment it
+   * failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = window.LongtailForge?.modal;
+    if (!dialogs) {
+      throw new Error("Tasks requires LongtailForge.modal.");
+    }
+    return dialogs;
+  }
 
   function cacheTasksElements() {
     taskStatus = document.querySelector("[data-task-status]");
@@ -2174,6 +2188,7 @@
   }
 
   async function confirmTaskLifecycleAction(action, task) {
+    const modal = requireModalDialogs();
     const confirmOptions = typeof action.confirm === "object" ? action.confirm : {};
     const message = typeof confirmOptions.message === "function"
       ? confirmOptions.message(task)
@@ -2625,6 +2640,7 @@
   }
 
   async function confirmMixedBulkActions(actions, taskIds) {
+    const modal = requireModalDialogs();
     const warnings = mixedBulkActionWarnings(actions, taskIds);
 
     if (actions.some((action) => action.action === "archive")) {
@@ -2648,6 +2664,7 @@
   }
 
   async function confirmBulkArchive(actions, taskIds, warnings = []) {
+    const modal = requireModalDialogs();
     const archiveAction = actions.find((action) => action.action === "archive");
     const archiveCount = archiveAction?.task_ids?.length || taskIds.length;
     const archiveText = `Archive ${archiveCount} selected task${archiveCount === 1 ? "" : "s"}? Archived tasks move to the Archived view and can be restored later.`;

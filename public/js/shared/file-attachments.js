@@ -23,6 +23,22 @@
     }
     return apiClient;
   }
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Every page that
+   * loads this script also loads `shared/modal.js`, so the checked read fails exactly where the
+   * raw read failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = global.LongtailForge?.modal;
+    if (!dialogs) {
+      throw new Error("File attachments requires LongtailForge.modal.");
+    }
+    return dialogs;
+  }
+
   function mount(container, options = {}) {
     if (!container) {
       throw new Error("Attachment container is required.");
@@ -842,7 +858,7 @@
       return;
     }
 
-    const confirmed = await global.LongtailForge.modal.confirm({
+    const confirmed = await requireModalDialogs().confirm({
       title: "Report file?",
       message: `Report "${file.displayName || file.originalFilename || "this file"}" for review? Downloads will be paused until a workspace admin reviews it.`,
       confirmLabel: "Report File",
@@ -875,7 +891,7 @@
       return;
     }
 
-    const confirmed = await global.LongtailForge.modal.confirm({
+    const confirmed = await requireModalDialogs().confirm({
       title: "Move file to review?",
       message: `Move "${file.displayName || file.originalFilename || "this file"}" to review? Downloads will remain unavailable until the file is restored.`,
       confirmLabel: "Move to Review",
@@ -905,7 +921,7 @@
       return;
     }
 
-    const confirmed = await global.LongtailForge.modal.confirm({
+    const confirmed = await requireModalDialogs().confirm({
       title: "Delete file?",
       message: `Delete "${file.displayName || file.originalFilename || "this file"}"? The file will be unavailable from attachments, but workspace admins can restore it during the retention window.`,
       confirmLabel: "Delete File",

@@ -49,6 +49,22 @@
     }
     return apiClient;
   }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Every page that
+   * loads this script also loads `shared/modal.js`, so the checked read fails exactly where the
+   * raw read failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = window.LongtailForge?.modal;
+    if (!dialogs) {
+      throw new Error("API keys requires LongtailForge.modal.");
+    }
+    return dialogs;
+  }
+
   async function loadApiKeys() {
     setApiKeyStatus("Loading API keys...");
 
@@ -230,7 +246,7 @@
   }
 
   async function revokeApiKey(apiKey) {
-    const shouldRevoke = await window.LongtailForge.modal.confirm({
+    const shouldRevoke = await requireModalDialogs().confirm({
       title: "Revoke API key?",
       message: `Revoke ${apiKey.name}? Integrations using this key will stop working.`,
       confirmLabel: "Revoke",

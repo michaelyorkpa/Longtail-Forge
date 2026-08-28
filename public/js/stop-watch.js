@@ -34,6 +34,22 @@
     }
     return apiClient;
   }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Every page that
+   * loads this script also loads `shared/modal.js`, so the checked read fails exactly where the
+   * raw read failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = window.LongtailForge?.modal;
+    if (!dialogs) {
+      throw new Error("The stop watch requires LongtailForge.modal.");
+    }
+    return dialogs;
+  }
+
   function workspaceUsesBillableFlag() {
     return window.LongtailForge?.workspaceContext?.workspaceType === "business";
   }
@@ -139,7 +155,7 @@
         ? `${timerLabels[0]} has unsaved time.`
         : `${timerLabels.join(", ")} have unsaved time.`;
 
-    return window.LongtailForge.modal.confirm({
+    return requireModalDialogs().confirm({
       title: "Remove timers?",
       message: `${detail} Removing timers will discard that time.`,
       confirmLabel: "Remove",
@@ -454,7 +470,7 @@
             source: "time-tracker-task-link",
           },
         }));
-        await window.LongtailForge.modal.alert({
+        await requireModalDialogs().alert({
           title: "Task timer linked",
           message: `The timer is still running and is now linked to ${task.label || "the selected task"}.`,
         });
@@ -653,7 +669,7 @@
         return true;
       }
 
-      const shouldContinue = await window.LongtailForge.modal.confirm({
+      const shouldContinue = await requireModalDialogs().confirm({
         title: "Discard timer?",
         message: `${actionLabel} will stop and discard this timer's elapsed time. Continue?`,
         confirmLabel: "Discard",

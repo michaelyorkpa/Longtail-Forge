@@ -1,5 +1,37 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.3 - Declare the `LongtailForge.modal` dialogs
+
+**Model: Medium Effort** - the widest surface in the rollup, 29 required reads across 16 files, and a 135-line writer that made the contract unambiguous.
+
+- [x] **`Promise<boolean>` came from tracing every completion path, not from the method names.** `resolve` is called exactly once, from a `close` listener registered `{ once: true }`; `resolvedValue` starts at `false` and is only ever assigned from an action's `value`. **There is no `reject` anywhere in the file** and no path resolves `undefined` or `null`, so the promise is total and the boolean is exhaustive. A guessed `Promise<void>` for `alert` and a guessed rejection for cancel would both have been wrong.
+- [x] **`alert`'s return is declared even though every caller discards it.** Same rule `0.33.33.38.2.2.2` applied to the page controller's `isDirty` and `0.33.33.38.2.2.8` applied to `clear`: **a contract describes the surface, not the callers.**
+- [x] **No `0.33.33.38.4` boundary and no `0.33.33.39` debt.** Both option bags are destructured with literal defaults in the signature, so nothing hid behind an empty-object parameter, and neither method touches a wire body. **The writer's parameter debt was checked rather than assumed absent**, which is what blocked `settingsRenderer`.
+- [x] **Three consumers bound the surface to a local before using it, and a dotted search does not see that.** `task-dialog.js`, `tasks.js`, and `workbench.js` each held `const modal = <ns>.modal;` - the bare-alias form the branch rules name and the same one `0.33.33.38.2.1` was caught by. They acquire per function now, in the nine functions that use the dialogs.
+- [x] **Both `footer.js` delivery probes are preserved verbatim.** `test: () => window.LongtailForge?.modal` asks whether the dependency was delivered; **converting a probe into `requireModalDialogs()` would destroy the question it exists to ask.**
+- [x] **Delivery was proved rather than inferred from unguarded reads.** Every page loading a modal consumer loads `shared/modal.js` **ahead of** it, so the checked read fails exactly where the raw read failed before and missing-dependency timing is unchanged.
+
+**The object is published plain rather than frozen and stays that way**, and `public/js/shared/modal.js` is byte-identical - a declaration describes shape, not mutability.
+
+**The interface is named for what the surface does, not for the word `modal`.** `viewModalStack` manages the lifecycle of dialogs a page already owns and `view.createModal` constructs a dialog element; **this surface asks a question and disposes of everything it made**, so `BrowserModalDialogs` says that and the three do not collide.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 9,281 | **9,217** |
+| Declared namespace members | 22 | **23** |
+| Undeclared namespace members | 42 | **41** |
+| `modal` attributable diagnostics | 64 | **0** |
+| Explicit `any` | 0 | **0** |
+| Runtime writers changed | - | **0** |
+| Unique surfaces / publication occurrences | 66 / 69 | **66 / 69** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**The 64 includes the 31 diagnostics that had been deferred to `0.33.33.38.4`, and the preflight's reason for reclaiming them held.** They were `TS18046` on the undeclared member itself, which is an index-signature symptom rather than a wire boundary; **the code was never the cause**, and all 31 closed with the declaration.
+
+**Ten source assertions followed the expression that moved, and the sweep that moved them was wrong twice before it was right.** The first pass rewrote script *paths* - `js/shared/modal.js` became `js/shared/requireModalDialogs().js` in three files - and the second rewrote assertions against the three consumers that acquire into a local, whose call sites still read `modal.confirm`. Both were caught by running the contracts rather than by reading the patch, and **a mechanical multi-site edit gets verified site by site**.
+
 ## Version 0.33.33.38.2.2.8 - Declare the `LongtailForge.status` message surface
 
 **Model: Medium Effort** - 46 lines of writer, two published members, and the first surface in this rollup with nothing underneath it.

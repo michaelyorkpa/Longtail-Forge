@@ -54,6 +54,22 @@
     }
     return apiClient;
   }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Every page that
+   * loads this script also loads `shared/modal.js`, so the checked read fails exactly where the
+   * raw read failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = window.LongtailForge?.modal;
+    if (!dialogs) {
+      throw new Error("Notes requires LongtailForge.modal.");
+    }
+    return dialogs;
+  }
+
   function requireView() {
     const factory = window.LongtailForge?.view;
     if (!factory) {
@@ -3832,7 +3848,7 @@
   }
 
   async function archiveCollection(collection) {
-    const confirmed = await window.LongtailForge.modal.confirm({
+    const confirmed = await requireModalDialogs().confirm({
       title: "Archive collection",
       message: `Archive "${collection.title}"? Notes stay in the collection and are not archived.`,
       confirmLabel: "Archive",
@@ -3846,7 +3862,7 @@
   }
 
   async function deleteEmptyCollection(collection) {
-    const confirmed = await window.LongtailForge.modal.confirm({
+    const confirmed = await requireModalDialogs().confirm({
       title: "Delete empty collection",
       message: `Delete "${collection.title}" if it has no notes and no active child collections?`,
       confirmLabel: "Delete Empty",

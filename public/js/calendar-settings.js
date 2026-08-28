@@ -83,6 +83,22 @@ function asStatusElement(node) {
   return node && "hidden" in node ? /** @type {HTMLElement} */ (node) : null;
 }
 
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+/**
+ * The alert and confirmation dialogs this file cannot ask a question without. Every page that
+ * loads this script also loads `shared/modal.js`, so the checked read fails exactly where the
+ * raw read failed before.
+ * @returns {BrowserModalDialogs}
+ */
+function requireModalDialogs() {
+  const dialogs = window.LongtailForge?.modal;
+  if (!dialogs) {
+    throw new Error("Calendar settings requires LongtailForge.modal.");
+  }
+  return dialogs;
+}
+
 async function initialize() {
   const api = requireApi();
   setStatus(listStatus, "Loading calendar subscriptions...");
@@ -211,7 +227,7 @@ async function handleSubscriptionAction(event) {
 
 async function rotateSubscription(subscription, trigger) {
   const api = requireApi();
-  const confirmed = await window.LongtailForge.modal.confirm({
+  const confirmed = await requireModalDialogs().confirm({
     title: "Rotate calendar subscription URL?",
     message: `The current URL for ${subscription.name} will stop working immediately. Calendar apps using it will not receive updates until the replacement URL is installed.`,
     confirmLabel: "Rotate URL",
@@ -246,7 +262,7 @@ async function rotateSubscription(subscription, trigger) {
 async function removeSubscription(subscription, trigger) {
   const api = requireApi();
   const isActive = subscription.status === "active";
-  const confirmed = await window.LongtailForge.modal.confirm({
+  const confirmed = await requireModalDialogs().confirm({
     title: isActive ? "Revoke calendar subscription?" : "Delete calendar subscription?",
     message: isActive
       ? `Revoke ${subscription.name}? Its private URL will stop working immediately and the subscription will be removed from this list.`

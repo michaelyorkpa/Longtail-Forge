@@ -81,6 +81,22 @@
     return node && "hidden" in node ? /** @type {HTMLElement} */ (node) : null;
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Every page that
+   * loads this script also loads `shared/modal.js`, so the checked read fails exactly where the
+   * raw read failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = window.LongtailForge?.modal;
+    if (!dialogs) {
+      throw new Error("Role assignments requires LongtailForge.modal.");
+    }
+    return dialogs;
+  }
+
   async function loadRoleOptions() {
     setBusy(true);
     setStatus("Loading available roles...");
@@ -150,7 +166,7 @@
       return;
     }
 
-    const confirmed = await window.LongtailForge.modal.confirm({
+    const confirmed = await requireModalDialogs().confirm({
       title: "Add role assignment?",
       message: `Add ${descriptor.roleLabel} for ${target.username} at ${descriptor.scopeLabel}?`,
       confirmLabel: "Add Assignment",
@@ -168,7 +184,7 @@
     const descriptor = describeAssignment(assignment);
     if (!target?.assignmentRevision || !descriptor) return;
 
-    const confirmed = await window.LongtailForge.modal.confirm({
+    const confirmed = await requireModalDialogs().confirm({
       title: "Remove role assignment?",
       message: `Remove ${descriptor.roleLabel} for ${target.username} at ${descriptor.scopeLabel}?`,
       confirmLabel: "Remove Assignment",

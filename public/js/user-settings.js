@@ -169,8 +169,24 @@ function asStatusElement(node) {
   return node && "hidden" in node ? /** @type {HTMLElement} */ (node) : null;
 }
 
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+/**
+ * The alert and confirmation dialogs this file cannot ask a question without. Every page that
+ * loads this script also loads `shared/modal.js`, so the checked read fails exactly where the
+ * raw read failed before.
+ * @returns {BrowserModalDialogs}
+ */
+function requireModalDialogs() {
+  const dialogs = window.LongtailForge?.modal;
+  if (!dialogs) {
+    throw new Error("User settings requires LongtailForge.modal.");
+  }
+  return dialogs;
+}
+
 async function deleteAccount() {
-  const confirmed = await window.LongtailForge.modal.confirm({
+  const confirmed = await requireModalDialogs().confirm({
     title: "Delete your account?",
     message: "This permanently retires your password, sessions, API keys, roles, and access to every workspace. Your email address, display name, contributions, and attribution are retained in workspace history. This cannot be undone.",
     confirmLabel: "Delete Account",

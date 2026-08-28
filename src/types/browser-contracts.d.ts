@@ -1039,6 +1039,58 @@ export interface BrowserStatusMessage {
   ): void;
 }
 
+export interface BrowserModalAlertOptions {
+  /** Defaults to `"OK"`. */
+  confirmLabel?: string;
+  /** Defaults to the empty string. */
+  message?: string;
+  /** Defaults to `"Notice"`. */
+  title?: string;
+}
+
+export interface BrowserModalConfirmOptions {
+  /** Defaults to `"Cancel"`. */
+  cancelLabel?: string;
+  /** Defaults to `"Continue"`. */
+  confirmLabel?: string;
+  /** Styles the confirm button as destructive. Defaults to `false`. */
+  danger?: boolean;
+  /** Defaults to `"Continue?"`. */
+  message?: string;
+  /** Defaults to `"Confirm action"`. */
+  title?: string;
+}
+
+/**
+ * `LongtailForge.modal`, published by `public/js/shared/modal.js`.
+ *
+ * The application's alert and confirmation dialogs: each call builds its own `<dialog>`, shows
+ * it modally, restores focus to whatever was active, and removes the element on close.
+ *
+ * **This is not `viewModalStack` and not `view.createModal`.** Those manage the lifecycle of
+ * dialogs a page already owns and construct dialog elements respectively; this one answers a
+ * question and disposes of everything it made.
+ *
+ * **Both methods resolve `boolean` and neither ever rejects.** The writer resolves exactly once,
+ * from a `close` listener registered `{ once: true }`, with a value that starts at `false` and
+ * is only ever set from an action's `value` - `true` for a confirm or an acknowledgement,
+ * `false` for cancel, for the `cancel` event, and for Escape. There is no `reject` anywhere in
+ * the file, and no path resolves `undefined` or `null`.
+ *
+ * Published as a plain object rather than a frozen one, which the declaration describes but
+ * does not change.
+ */
+export interface BrowserModalDialogs {
+  /**
+   * Acknowledge a message. **Resolves `true` when the button is used and `false` when the
+   * dialog is dismissed** - declared because the writer returns it, even though no caller
+   * currently reads it.
+   */
+  alert(options?: BrowserModalAlertOptions): Promise<boolean>;
+  /** Resolves `true` for confirm, `false` for cancel, the `cancel` event, or Escape. */
+  confirm(options?: BrowserModalConfirmOptions): Promise<boolean>;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
@@ -1047,6 +1099,7 @@ export interface LongtailForgeBrowserNamespace {
   controllers?: PageControllerRegistry;
   errors?: BrowserErrorContract;
   formatters?: BrowserFormatters;
+  modal?: BrowserModalDialogs;
   pageController?: BrowserPageController;
   /**
    * Published by `public/js/login.js`. The required-password-change form is

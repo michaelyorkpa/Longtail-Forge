@@ -80,6 +80,22 @@
     }
     return apiClient;
   }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Every page that
+   * loads this script also loads `shared/modal.js`, so the checked read fails exactly where the
+   * raw read failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = window.LongtailForge?.modal;
+    if (!dialogs) {
+      throw new Error("Clients/Projects requires LongtailForge.modal.");
+    }
+    return dialogs;
+  }
+
   async function initializeClientProjectsPage() {
     try {
       await window.LongtailForge?.workspaceContextReady;
@@ -1961,7 +1977,7 @@
     }
 
     if ((oldClient.parent_client_id || "") !== (client.parent_client_id || "")) {
-      const confirmed = await window.LongtailForge.modal.confirm({
+      const confirmed = await requireModalDialogs().confirm({
         title: "Move client?",
         message: "Move this client in the client hierarchy? Existing records keep their saved client and project names; future rollups follow the updated hierarchy.",
         confirmLabel: "Move",
@@ -2312,7 +2328,7 @@
       project.tagIds = tagPicker.readTagIds();
 
       if ((oldProject.client_id || "") !== (project.client_id || "") || (oldProject.parent_project_id || "") !== (project.parent_project_id || "")) {
-        const confirmed = await window.LongtailForge.modal.confirm({
+        const confirmed = await requireModalDialogs().confirm({
           title: "Move project?",
           message: "Move this project in the client/project hierarchy? Existing time entries assigned to this project will be updated to the new client and project names.",
           confirmLabel: "Move",
@@ -2348,7 +2364,7 @@
 
     const deleteButton = createClientProjectActionButton("Archive", "archive", { danger: true });
     deleteButton.addEventListener("click", async () => {
-      const shouldDelete = await window.LongtailForge.modal.confirm({
+      const shouldDelete = await requireModalDialogs().confirm({
         title: "Archive project?",
         message: `Archive project "${project.name}"?`,
         confirmLabel: "Archive",
