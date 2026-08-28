@@ -218,21 +218,12 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Every one of the 50 has exactly one writer**, so nothing here raises a multi-writer question.
 
-#### 0.33.33.38.2.2.1 - Wire the five surfaces that already have accurate interfaces
-
-**5 members, 0 diagnostics, 5 local casts removed. The lowest-risk proof of the wiring mechanism.**
-
-`taskLifecycleLegality` (`BrowserTaskLifecycleLegality`), `viewActionSecurity`, `viewDataBinding`, `viewModalStack`, and `viewSearchOptions` each have an accurate interface `0.33.33.34` through `.37` authored and merged, and each is reached by a **local `/** @type {X | undefined} */` cast** because the namespace does not expose it. **No contract needs designing and no diagnostic needs moving** - the interfaces are already right and their consumers already narrow, which is exactly why the cohort carries zero debt.
-
-- [ ] Declare each as a namespace member and delete the cast the declaration makes redundant.
-- [ ] Four are single-consumer required reads; `taskLifecycleLegality` is three optional-chained reads inside the `requireTaskLifecycleLegality()` accessors `0.33.33.37` wrote. **The work is identical in both cases** - the cast goes, the guard stays.
-- [ ] **This closes the orphaned-interface pattern `0.33.33.38.1` recorded**: an interface that exists but is not reachable through the namespace makes every consumer rediscover it.
-
 #### 0.33.33.38.2.2.2 - Declare the settings family
 
 **4 members, 43 canonical namespace diagnostics, and the only cohort measured as required-uniform.**
 
 `settingsRenderer` (22 diagnostics / 5 files), `status` (10 / 7), `settingsHost` (6 / 5), and `settingsPageController` (5 / 5). Every read is unguarded: **no optional read, no guarded chain, no probe anywhere in the cohort**, and the consumer sets overlap almost exactly across the five settings pages.
+- [ ] **Remeasured after `0.33.33.38.2.2.1`: unchanged at 43 namespace and 43 `unknown`.** Four writers - `shared/settings-renderer.js`, `shared/status.js`, `shared/settings-host.js`, and `shared/settings-page-controller.js` - one each. `settingsRenderer`, `settingsHost`, and `settingsPageController` share the same five settings pages; `status` adds `calendar-settings.js` and `role-assignments.js`. **None of the four has an interface yet**, so unlike `.1` this child designs four contracts as well as wiring them, and it should read each from its writer rather than from its consumers.
 
 - [ ] Declare each from its writer, then take the checked read at the point of use on the `0.33.33.37` pattern.
 - [ ] **Excluded to `0.33.33.38.4`: 43 `unknown` diagnostics** - `settingsRenderer` 22, `status` 10, `settingsHost` 6, `settingsPageController` 5. The two halves are the same size, which is the clearest illustration in the estate of why attribution cannot size a child.

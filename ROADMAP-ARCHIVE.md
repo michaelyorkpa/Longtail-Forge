@@ -1,5 +1,31 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.1 - Wire the five already-interfaced namespace surfaces
+
+**Model: Medium Effort** - The lowest-risk proof of the declaration-and-wiring mechanism, chosen first for exactly that reason.
+
+`taskLifecycleLegality`, `viewActionSecurity`, `viewDataBinding`, `viewModalStack`, and `viewSearchOptions` were published with accurate interfaces by `0.33.33.34` through `.37` and reached through a **local cast at every consumer**, because the namespace did not name them. This declares the interfaces that already exist rather than restating them.
+
+- [x] **The preflight held on every measure, and the cast was never the narrowing.** Each surface has exactly one writer publishing through the alias form, all five are head-injected on the mechanism `0.33.33.35.2` settled, and every consumer wraps the read in the same checked accessor: a `| undefined` cast, a `typeof x?.member !== "function"` throw, and a return. **The throw is what narrows.** Removing the cast leaves it intact and the consumer simply stops supplying a type the namespace can now supply - which is the difference between *"safe because the cast said so"* and *"safe because the code checked"*.
+- [x] **A text search read one surface wrong and the AST inventory corrected it.** `viewSearchOptions` appeared to have two writers; the second was `control.dataset?.viewSearchOptions` in `view-renderer.js` - **a dataset key, not a publication**. All five are single-writer alias publications, which the inventory confirms and a grep could not.
+- [x] **Seven casts across five files, and nothing else.** No runtime file changed, no writer moved, no interface duplicated inside the namespace declaration, no non-null assertion or suppression introduced, no unrelated member declared, and the index signature untouched.
+
+**Diagnostics are unchanged at 9,327, and that is the correct outcome.** This cohort carried none - its consumers already narrowed - so there was never a number to move. **The value is that five surfaces stop being rediscovered locally**, which is the orphaned-interface pattern `0.33.33.38.1` recorded and could not fix from inside its own boundary.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Declared namespace members | 14 | **19** |
+| Undeclared namespace members | 50 | **45** |
+| Local casts reconstructing these five contracts | **7** | **0** |
+| Runtime writers / publication form | 1 each, alias | **unchanged** |
+| Unique surfaces / publication occurrences | 66 / 69 | **66 / 69** |
+| Browser program diagnostics | 9,327 | **9,327** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**No source contract needed retargeting**, because none of the five was pinned by its cast rather than by its behaviour - the first slice in this rollup where that was true.
+
 ## Version 0.33.33.38.2.1 - Adopt the checked `LongtailForge.api` read
 
 **Model: High Effort** - Nothing here is a contract change. `api` has been a declared namespace member with an accurate `BrowserApi` interface since before this rollup, and **not one of its 312 diagnostics came from a method return.**
