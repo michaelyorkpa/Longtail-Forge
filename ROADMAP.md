@@ -245,15 +245,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Do not weaken the contract to avoid the writer.** Declaring `scope` as `Document` alone would reject the element callers that exist today, and leaving the normalized return `unknown` would discard a total normalizer's guarantee. The drafted contract is correct; what is missing is the writer typing underneath it.
 - [ ] **One real defect was found, and this checkpoint owns it.** `user-settings.js` passes `showSaveAction: false` to `renderSections` and `renderGroupedSections` at two sites; **the renderer never reads it**. It is dead configuration of exactly the kind `0.33.33.38.1` found in `createStatusMessage`. **It stays here rather than being swept up by whichever child happens to touch `user-settings.js` first** - it is a defect in this surface's contract, and it is recorded so a blocked checkpoint does not lose it.
 
-#### 0.33.33.38.2.2.8 - `LongtailForge.status`
-
-**1 member, 20 canonical namespace diagnostics, 7 consumer files, and no settings vocabulary anywhere in it.**
-
-`shared/status.js` publishes `{ clear, set }` as a plain object literal. `set(element, message = "", options = {})` writes text into a DOM element, toggles `is-error` and `is-success`, and optionally schedules a clear through a `WeakMap` of timers; `clear(element)` undoes it. Both guard `if (!element) return` and both return nothing. **There is no async path, no wire body, and no untrusted value anywhere in the file** - all 20 of its diagnostics are the undeclared member, and declaring it closes every one.
-
-- [ ] **Name the interface for what it does, not for the property.** `status` is a generic word that collides with task lifecycle status, HTTP status, and page-local status state; the runtime responsibility is a status *message element*, and the contract should say so.
-- [ ] It is the smallest genuinely self-contained surface left, which makes it a good confidence check on writer-first interface design before the larger ones.
-
 #### 0.33.33.38.2.2.3 - `LongtailForge.modal`
 
 **64 canonical namespace diagnostics across 16 files - the largest single surface, and the widest blast radius.**

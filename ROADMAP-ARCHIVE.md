@@ -1,5 +1,32 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.8 - Declare the `LongtailForge.status` message surface
+
+**Model: Medium Effort** - 46 lines of writer, two published members, and the first surface in this rollup with nothing underneath it.
+
+- [x] **The vocabulary is genuinely open and the writer said so.** `set` compares `options.type` against `"error"` and `"success"` and **ignores anything else**, and `role-assignments.js` passes `""` deliberately for exactly that neutral case. Declaring `"error" | "success"` would have rejected a legal call, so `type` is `string` with the two recognised members documented. **Runtime decided the vocabulary, not the shape that would have looked tidier.**
+- [x] **`clear` is declared even though no consumer calls it.** It is published, and a contract describes the surface rather than the callers - the same rule `0.33.33.38.2.2.2` followed for the page controller's `isDirty` and `updateDirtyState`.
+- [x] **The element is `HTMLElement` because `set` writes `hidden`.** The seven consumers were passing unnarrowed `querySelector` results, so each narrows once where the element is acquired. **A node without `hidden` was already a silent no-op and stays one**, so nothing observable changes.
+- [x] **Delivery was proved rather than inferred.** All ten reads are unguarded, and every consumer page - including `role-assignments.html`, which is not a settings page - loads `shared/status.js` **ahead of** the consumer script.
+
+**The interface is named for the responsibility, not the property.** `status` collides with task lifecycle status, HTTP status, and every page's own status state; what this surface does is write and clear a **status message on the DOM**, and `BrowserStatusMessage` says that.
+
+**The object is published plain rather than frozen, and stays that way.** Every neighbouring namespace surface freezes; a declaration describes shape, not mutability, and freezing it for consistency would have been a runtime change smuggled into contract recovery.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 9,301 | **9,281** |
+| Declared namespace members | 21 | **22** |
+| Undeclared namespace members | 43 | **42** |
+| `status` attributable diagnostics | 20 | **0** |
+| Runtime writers changed | - | **0** |
+| Unique surfaces / publication occurrences | 66 / 69 | **66 / 69** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**No new `0.33.33.38.4` boundary appeared, which is what the preflight predicted.** This surface has no API body, no parsed JSON, and no contribution payload - the only reason it was chosen ahead of `modal` after `settingsRenderer` proved that a declaration downstream of an untyped writer cannot land. **No source contract needed retargeting.**
+
 ## Version 0.33.33.38.2.2.2 - Declare the settings host and page controller
 
 **Model: Medium Effort** - Two surfaces, three published members, and both contracts derived from their writers rather than from what the five settings pages happen to call.
