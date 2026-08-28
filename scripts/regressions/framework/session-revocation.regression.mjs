@@ -200,7 +200,7 @@ ORDER BY created_at;
   assert.match(sessionServiceSource, /createHmac\("sha256", SESSION_REFERENCE_SECRET\)/, "browser references should be one-way and process scoped");
   assert.doesNotMatch(sessionServiceSource, /sessionId:\s*row\.session_id/, "managed payloads must not expose bearer session IDs");
   assert.match(userAdminSource, /Manage Sessions/);
-  assert.match(userAdminSource, /modal\.confirm/);
+  assert.match(userAdminSource, /requireModalDialogs\(\)\.confirm/);
   assert.match(userAdminSource, /\/sessions\/\$\{encodeURIComponent\(session\.sessionReference\)\}/);
   assert.match(userAdminView, /data-user-session-list/);
   assert.match(userAdminView, /Session credentials are never displayed/);

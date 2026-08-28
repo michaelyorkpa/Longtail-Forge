@@ -71,6 +71,22 @@
     }
     return apiClient;
   }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Every page that
+   * loads this script also loads `shared/modal.js`, so the checked read fails exactly where the
+   * raw read failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = window.LongtailForge?.modal;
+    if (!dialogs) {
+      throw new Error("Time entries requires LongtailForge.modal.");
+    }
+    return dialogs;
+  }
+
   async function loadTimeEntryData() {
     setTimeEntryStatus("Loading entries...");
 
@@ -339,7 +355,7 @@
   }
 
   async function deleteEntry(entry) {
-    const shouldDelete = await window.LongtailForge.modal.confirm({
+    const shouldDelete = await requireModalDialogs().confirm({
       title: "Delete entry?",
       message: `Delete the ${formatDate(entry.endTime)} entry for ${entry.clientName || entry.projectName}?`,
       confirmLabel: "Delete",

@@ -14,7 +14,7 @@ assert.match(
 );
 assert.match(
   clientsProjects,
-  /const confirmed = await window\.LongtailForge\.modal\.confirm\(\{[\s\S]*confirmLabel: "Move"/,
+  /const confirmed = await requireModalDialogs\(\)\.confirm\(\{[\s\S]*confirmLabel: "Move"/,
   "Project hierarchy edits must continue to ask for move confirmation",
 );
 assert.match(

@@ -62,7 +62,21 @@
     }
     return factory;
   }
-  const modal = window.LongtailForge.modal;
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
+
+  /**
+   * The alert and confirmation dialogs this file cannot ask a question without. Acquired per call
+   * rather than once at module scope, so a missing surface still fails at exactly the moment it
+   * failed before.
+   * @returns {BrowserModalDialogs}
+   */
+  function requireModalDialogs() {
+    const dialogs = window.LongtailForge?.modal;
+    if (!dialogs) {
+      throw new Error("Workbench requires LongtailForge.modal.");
+    }
+    return dialogs;
+  }
   const workbenchHost = document.querySelector("[data-workbench-host]");
 
   let focusModeList = null;
@@ -3520,6 +3534,7 @@
   }
 
   async function resetFocusedTaskTimer() {
+    const modal = requireModalDialogs();
     const api = requireApi();
     const taskId = state.activeTaskFocus?.taskId || "";
     const taskTitle = taskFocusTitle();
@@ -3699,6 +3714,7 @@
   }
 
   async function discardTimer(timer) {
+    const modal = requireModalDialogs();
     const api = requireApi();
     const confirmed = await modal.confirm({
       title: "Discard timer",

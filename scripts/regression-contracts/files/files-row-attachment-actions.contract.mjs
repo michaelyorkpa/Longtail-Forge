@@ -46,13 +46,13 @@ assert.match(extractFunctionSpan(filesScript, "buildFileEditorDialog"), /action:
 assert.match(extractFunctionSpan(filePreviewScript, "previewAvailabilityForRow"), /state: "download_only"/, "Unsupported files should remain download-only instead of opening a detail panel");
 
 const rowReport = extractFunctionSpan(filesScript, "reportFile");
-assert.match(rowReport, /modal\.confirm/, "Report should preserve explicit confirmation");
+assert.match(rowReport, /requireModalDialogs\(\)\.confirm/, "Report should preserve explicit confirmation");
 assert.match(rowReport, /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/report/, "Report should call the existing Files report route");
 assert.match(rowReport, /attachmentId[\s\S]*reason: FILE_REPORT_REASON/, "Report should send the selected attachment context and allowed report reason");
 assert.match(rowReport, /loadFiles\(\)/, "Report should refresh the Files listing after mutation");
 
 const rowQuarantine = extractFunctionSpan(filesScript, "quarantineFile");
-assert.match(rowQuarantine, /modal\.confirm/, "Quarantine should preserve explicit confirmation");
+assert.match(rowQuarantine, /requireModalDialogs\(\)\.confirm/, "Quarantine should preserve explicit confirmation");
 assert.match(rowQuarantine, /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/quarantine/, "Quarantine should call the existing Files quarantine route");
 assert.match(rowQuarantine, /reason: FILE_QUARANTINE_REASON/, "Quarantine should send the manual quarantine reason");
 assert.match(rowQuarantine, /loadFiles\(\)/, "Quarantine should refresh the Files listing after mutation");
