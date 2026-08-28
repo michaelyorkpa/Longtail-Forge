@@ -214,26 +214,48 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Both measuring instruments were wrong until `0.33.33.38.2.7` and the lexical-attribution correction landed**, and each error pointed the same way - at surfaces and diagnostics this child would have mis-sized. The map below is the first one built with an inventory that sees every publication form and an attribution model that resolves bindings rather than spellings.
 
-**The sizing rule, and it is not optional.** Member attribution is **not** implementation ownership. Of the **417** diagnostics attributed to the 50 undeclared members, **293 are canonically namespace-family and belong here**; **124 are canonically `unknown` and belong to `0.33.33.38.4`**. Declaring a member closes its namespace half and does nothing to the value its methods return. `modal` attributes 64 and this child owns **33**; `settingsRenderer` attributes 44 and this child owns **22**. **A child sized on the attribution total is sized wrong, and broadening a declaration to absorb the `unknown` half would turn untrusted data into typed data at the namespace layer.**
+**The sizing rule, corrected by the `0.33.33.38.2.2.2` writer-first preflight, and the correction runs the other way.** The rule that member attribution is not implementation ownership still stands. What was wrong was the assumption that the `unknown` half of each member's attribution belonged to `0.33.33.38.4`.
+
+**All 124 of those diagnostics read `TS18046: 'window.LongtailForge.<member>' is of type 'unknown'` - the member itself is unknown because it is undeclared.** They are index-signature symptoms, they resolve the moment the member is declared, and they are this rollup's work. The canonical classifier had been assigning every `TS18046` to the `unknown` family by its compiler code, which is the same mistake in miniature that the whole `0.33.33.38` reslice corrected: **a diagnostic's code is not its cause.**
+
+**The canonical table moves accordingly and the total does not.** Namespace surface **511 to 635**, `unknown` **531 to 407**. The 407 that remain are catch clauses, awaited wire bodies, and parsed JSON - **none of them attributed to an undeclared member**, which is the evidence that the split is real rather than convenient. `0.33.33.38.4`'s scope shrinks by 124 and every `.38.2.2` child grows by its share.
+
+**`modal` owns 64, not 33. `settingsRenderer` owns 44, not 22.** The rule that still holds is the one about strength: **do not broaden a declaration to absorb a genuine wire boundary**, and the 407 remain exactly where they were.
 
 **Every one of the 50 has exactly one writer**, so nothing here raises a multi-writer question.
 
-#### 0.33.33.38.2.2.2 - Declare the settings family
+#### 0.33.33.38.2.2.2 - Declare the settings host, page controller, and renderer
 
-**4 members, 43 canonical namespace diagnostics, and the only cohort measured as required-uniform.**
+**RESLICED by its own writer-first preflight, which found both a wrong size and a wrong member.**
+
+**`status` does not belong here and never did.** `shared/status.js` is 46 lines publishing `{ clear, set }` - a **plain object literal, not frozen**, unlike every other member of the proposed cohort - and its responsibility is *set or clear a status message on a DOM element*, with an optional auto-clear timer. It has no settings vocabulary in it. Two of its seven consumers, `role-assignments.js` and `calendar-settings.js`, are not settings pages at all. **It was grouped here by consumer overlap, which `0.33.33.35` already established is not evidence of shared ownership.** It moves to `0.33.33.38.2.2.8` with its own 20 diagnostics.
+
+**3 members, 66 canonical namespace diagnostics** - `settingsRenderer` 44, `settingsHost` 12, `settingsPageController` 10 - across the same five settings pages, all required-uniform with no optional read, no guarded chain, and no probe.
 
 `settingsRenderer` (22 diagnostics / 5 files), `status` (10 / 7), `settingsHost` (6 / 5), and `settingsPageController` (5 / 5). Every read is unguarded: **no optional read, no guarded chain, no probe anywhere in the cohort**, and the consumer sets overlap almost exactly across the five settings pages.
 - [ ] **Remeasured after `0.33.33.38.2.2.1`: unchanged at 43 namespace and 43 `unknown`.** Four writers - `shared/settings-renderer.js`, `shared/status.js`, `shared/settings-host.js`, and `shared/settings-page-controller.js` - one each. `settingsRenderer`, `settingsHost`, and `settingsPageController` share the same five settings pages; `status` adds `calendar-settings.js` and `role-assignments.js`. **None of the four has an interface yet**, so unlike `.1` this child designs four contracts as well as wiring them, and it should read each from its writer rather than from its consumers.
 
 - [ ] Declare each from its writer, then take the checked read at the point of use on the `0.33.33.37` pattern.
-- [ ] **Excluded to `0.33.33.38.4`: 43 `unknown` diagnostics** - `settingsRenderer` 22, `status` 10, `settingsHost` 6, `settingsPageController` 5. The two halves are the same size, which is the clearest illustration in the estate of why attribution cannot size a child.
+- [ ] **Nothing is excluded to `0.33.33.38.4`.** The 33 diagnostics this cohort was told to defer are `TS18046` on the undeclared members themselves and resolve with the declarations.
+- [ ] **The three writers publish very different amounts, and the preflight recorded each from its writer rather than from its consumers.** `shared/settings-page-controller.js` (161 lines) freezes `{ create }`, where `create({ root?, onSave?, onRevert?, onDirtyChange? })` returns a frozen `{ isDirty(), setClean(), updateDirtyState() }` and throws without a settings host; consumers call only `create` and `setClean`. `shared/settings-host.js` (827 lines) freezes `{ attachmentSections, mount }` and **self-mounts at load**. `shared/settings-renderer.js` (563 lines) freezes ten members including `collectPayload`, `validate`, and `normalizeContributions`, which carry framework contribution payloads.
+- [ ] **Keep the three interfaces separate.** Same five consumer pages is not shared ownership; the writers are separate and the responsibilities are renderer, host, and page controller.
 - [ ] **`settingsHost` and `settingsPageController` were invisible until `0.33.33.38.2.7`**, and they get the same archaeology as every other member rather than a tooling footnote.
+- [ ] **`settingsRenderer` may still deserve its own child.** Ten published members against three for the other two combined, and its contribution-payload members are the only place in the cohort where a genuine `unknown` boundary might survive the declaration. Decide that when its interface is drafted, not before.
+
+#### 0.33.33.38.2.2.8 - `LongtailForge.status`
+
+**1 member, 20 canonical namespace diagnostics, 7 consumer files, and no settings vocabulary anywhere in it.**
+
+`shared/status.js` publishes `{ clear, set }` as a plain object literal. `set(element, message = "", options = {})` writes text into a DOM element, toggles `is-error` and `is-success`, and optionally schedules a clear through a `WeakMap` of timers; `clear(element)` undoes it. Both guard `if (!element) return` and both return nothing. **There is no async path, no wire body, and no untrusted value anywhere in the file** - all 20 of its diagnostics are the undeclared member, and declaring it closes every one.
+
+- [ ] **Name the interface for what it does, not for the property.** `status` is a generic word that collides with task lifecycle status, HTTP status, and page-local status state; the runtime responsibility is a status *message element*, and the contract should say so.
+- [ ] It is the smallest genuinely self-contained surface left, which makes it a good confidence check on writer-first interface design before the larger ones.
 
 #### 0.33.33.38.2.2.3 - `LongtailForge.modal`
 
-**33 canonical namespace diagnostics across 16 files - the largest single surface, and the widest blast radius.**
+**64 canonical namespace diagnostics across 16 files - the largest single surface, and the widest blast radius.**
 
-29 unguarded required reads and **2 delivery probes** in `footer.js`. **31 further attributed diagnostics are canonically `unknown` and are excluded to `0.33.33.38.4`.**
+29 unguarded required reads and **2 delivery probes** in `footer.js`. **The 31 diagnostics previously deferred to `0.33.33.38.4` are `TS18046` on the undeclared member itself** and resolve with the declaration, so this child owns 64 rather than 33.
 
 - [ ] Its own child because 16 consumer files is a different verification problem from a five-page cohort, not because 33 is a large number.
 - [ ] Preserve the two probes exactly, the way `0.33.33.38.2.1` preserved `api`'s.
@@ -258,12 +280,12 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.2.2.6 - The mixed remainder, which needs its own preflight
 
-**~137 canonical namespace diagnostics across the remaining 36 members, and they do not yet form a cohort.**
+**185 canonical namespace diagnostics across the remaining 36 members under the corrected classifier, and they do not yet form a cohort.**
 
 `moduleActions` 18, `timezones` 15, `tasksDialog` 13, `clientProjectOptions` 12, `taskCalendar` 9, `dashboard` 9, `notificationSubscriptions` 8, `notificationPreferences` 6, and about 28 members carrying five or fewer each. Their delivery verdicts disagree: `taskCalendar` has **no unguarded read at all**, `moduleActions` is 15 guarded against 5 required, `timezones` is 17 required against 6 guarded.
 
 - [ ] **Do not group these because each is small.** Preflight them after `.1` through `.5` land, when the mechanism is settled and the remaining estate has been remeasured.
-- [ ] **Excluded to `0.33.33.38.4`: ~50 `unknown` diagnostics** across this remainder.
+- [ ] **Nothing is excluded to `0.33.33.38.4` here either.** The `unknown` diagnostics this remainder appeared to defer are `TS18046` on its own undeclared members and are counted above.
 
 #### 0.33.33.38.2.2.7 - Zero-consumer surfaces: decide before declaring
 
@@ -317,11 +339,11 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.4 - Publish narrowing contracts for the genuine dynamic boundaries
 
-**Model: High Effort - roughly 350 diagnostics, corrected down from the 1,038 the previous slice claimed.**
+**Model: High Effort - 407 genuine runtime boundaries, corrected twice: down from the 1,038 the first slice claimed, and again by the `0.33.33.38.2.2.2` preflight, which found 124 of the `unknown` family were undeclared namespace members rather than untrusted values.**
 
 - [ ] Add named API response and descriptor handoff contracts with `unknown` narrowing at the network and view boundaries.
 - [ ] **`BrowserApi` already returns `Promise<unknown>` from all five methods, and that is correct.** A fetch body is an untrusted runtime value; the contract is right and the consumer is what needs a narrowing step. **Do not type `getJson`'s return to remove errors** - that would recreate the inherited-`any` shape the scripts program spent four children removing, wearing a JSDoc annotation.
-- [ ] Of the 1,035 `unknown` diagnostics, the honest boundary cohort is **147 catch clauses**, **111 awaited network payloads**, and **roughly 100 others**; the remaining **677 are namespace reads** and belong to `.38.1` and `.38.2`. Remeasure after those land rather than working from this split.
+- [ ] **The scope is 407, and every one of them is a real boundary.** Catch clauses, awaited wire bodies, and parsed JSON - and **none is attributable to an undeclared namespace member**, which is what makes the boundary with `0.33.33.38.2.2` hard rather than a judgement call. A `TS18046` whose subject is an undeclared member is namespace work no matter what code the compiler emitted; a `TS18046` on a value that is still unshaped after its member is declared is this child's.
 - [ ] Read the producer before publishing any contract, and do not tighten a deliberately extensible contract to remove errors.
 
 #### 0.33.33.38.5 - Narrow the server task lifecycle status vocabulary
