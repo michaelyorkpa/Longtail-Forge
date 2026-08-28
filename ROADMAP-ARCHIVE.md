@@ -1,5 +1,44 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.1 - Declare the `LongtailForge.view` factory and adopt its checked read
+
+**Model: High Effort** - The declaration and its consumers landed together, because measurement proved they are not separable.
+
+The frozen factory is now declared: 30 builder members, 10 renderer members, the eight `viewParts` records, and every option bag, reusing `BrowserModalStackOptions` and `BrowserViewSurfaceDescriptor` rather than restating them. **No writer was added or removed, no member moved, and publication order is unchanged** - 64 published surfaces across 67 publication occurrences and two multi-writer surfaces, exactly as before.
+
+- [x] **Declaring an existing namespace member is not a publication; it is a retyping.** `0.33.33.35.2`, `.35.3`, and `.37` published *new* surfaces with *new* consumers, so publication and adoption were separable. This member had roughly five hundred existing reads, and the monotonic ledger reads their reclassification as new debt unless the consumers narrow in the same change. The declaration-only attempt measured 10,375 to 10,331 with `TS18046` down 503 and `TS18048` up 520: **the cascade was never the unknown-ness, it was the optionality underneath it.**
+- [x] **Every acquisition site was classified, not converted.** Notes, Lists, Tasks, Files, Clients/Projects, both settings pages, Workbench, Settings Host, Settings Renderer, Task Calendar, File Preview, and Task Dialog dereference the factory and take a checked read at the point of use, on the `0.33.33.37` `requireView()` pattern - **lazy, so a missing factory still fails at exactly the moment it failed before.** Calendar, Dashboard, Reporting, and Task Calendar's body renderer keep their graceful early returns, and `file-attachments.js` keeps its complete DOM fallback. **Those optional relationships are real and were preserved rather than converted to satisfy the compiler.**
+- [x] **The renderer half stays `Partial`, because the estate makes it partial.** Only 8 of the 18 page templates that load `view-builder.js` also load `view-renderer.js`, and no page loads the renderer without the builder. Consumers that need the descriptor renderers narrow through a **type predicate that checks the members they use**, so the narrowing is earned rather than asserted. No cast, no non-null assertion, and no suppression anywhere in the change.
+- [x] **The namespace index signature was left alone.** `[key: string]: unknown` remains a `0.33.33.38.2` question; this checkpoint added exactly one declared member and nothing else.
+
+**Four accuracy findings came out of writing the declaration, and each one made it stronger rather than quieter.**
+
+| Member | Declared as | Why |
+| --- | --- | --- |
+| `createElement` | overloaded like `document.createElement` | the body **is** `document.createElement(tagName)`; a flat `HTMLElement` was weaker than the runtime and produced nine false diagnostics |
+| `createModal`, `createModalForm` | `HTMLDialogElement` | they build a `<dialog>`, so the eight consumers calling `.close()` are correct |
+| `createActionButton` | `HTMLButtonElement` | both paths produce a button and the shared tail assigns `button.type` |
+| `createField().viewParts.control` | `HTMLInputElement \| HTMLSelectElement \| HTMLTextAreaElement` | `.value` is available on all three, which a flat `HTMLElement` hid |
+
+**`assignViewParts` uses `Object.defineProperty`, so eight builders attach a frozen non-enumerable `viewParts` record that was entirely invisible to the compiler** - `field.viewParts.control` is how every consumer already read them. `renderSurface` attaches `openModal` and `viewState` the same way.
+
+**Three real caller defects the declaration exposed, fixed by deleting what was never read.** `calendar.js` and `dashboard.js` passed `dataset` to `createStatusMessage` and `notes.js` passed `attrs`; the function builds its own attributes and consumes neither, and nothing reads the attributes those callers believed they were setting. **Two source assertions pinned one of them through a greedy `[\s\S]*` that ran past the call into a later `dashboardStatus` mention** - they would have kept passing after the fix, for a reason they never intended. Both were retargeted to the construct they name and **proved by a seeded control**: with the status message built any other way, both fail.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | --- | --- |
+| Browser program diagnostics | 10,375 | **9,661** |
+| `LongtailForge.view` attributable diagnostics | **529** | **13**, all inside `view-renderer.js` itself |
+| Declared namespace members | 13 | **14** |
+| Unique published surfaces / publication occurrences | 64 / 67 | **64 / 67** |
+| Multi-writer surfaces | 2 | **2** |
+| `view` factory members / writers | 40 / 2 | **40 / 2** |
+| Regressions | 348 | **348**, green |
+| Playwright end-to-end tests | 167 | **167**, green |
+
+**Thirty-two source assertions across 29 owners followed the expression that moved, and every one was retargeted rather than repointed.** They had pinned the *receiver* - `view.renderSurface(`, `view.registerBehavior(` - while the contract they stand for is which helper the surface consumes. Each now asserts the call rather than the acquisition. `workbench-guided-ui` kept its real claim, that the helper binding carries a Workbench-specific name and never the generic one. **One behavioural ordering contract was honoured by moving the acquisition, not the assertion**: `notes-ui-workflow` and `notes-primary-context` both require `openEditor` to hydrate before anything else, so the checked read sits after the hydration rather than before it.
+
 ## Version 0.33.33.37 - Share the Task action legality core
 
 **Model: High Effort** - Lifecycle legality is shared; visibility, enablement messaging, and DOM state are not.
