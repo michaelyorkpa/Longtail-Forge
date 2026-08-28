@@ -163,40 +163,9 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **No child may weaken a contract to move a number.** No cast, no non-null assertion, no suppression, no permissive index signature, no `any`.
 - [ ] **Classify every acquisition site before converting it, exactly as `0.33.33.38.1` did.** A consumer that legitimately runs without a surface keeps its optionality; four consumers and `file-attachments.js` did, and that was correct.
 
-#### 0.33.33.38.2.1 - Adopt the checked read for `LongtailForge.api`
-
-**Model: High Effort - RESLICED. The 596-diagnostic figure was two different mistakes, and the preflight measured both.**
-
-**The first: 209 of them are not this child's work.** The "namespace root is optional" cohort is 323 diagnostics, but a root diagnostic is only fixed by acquisition if the member on that line is *already declared*. **198 of the 323 sit on a line reaching for an undeclared member** - `modal` 27, `settingsRenderer` 22, `tags` 21, `timezones` 15, `icons` 13, `moduleActions` 13, and the rest - and acquiring the root there converts a "possibly undefined" into a "property does not exist on `{}`" without removing anything. **Those diagnostics resolve when `0.33.33.38.2.2` declares their members, and they belong to that child.** The remaining 11 reconcile too, and they found a governance defect.
-
-**All 11 reach `settingsPageController` (5 sites) and `settingsHost` (6 sites) - two surfaces the publication inventory does not report at all.** Both are published: `shared/settings-page-controller.js:160` writes `root.settingsPageController` and `shared/settings-host.js:52` writes `root.settingsHost`. They are invisible because those are the only two browser scripts that bind the namespace root as **`const root = global.LongtailForge ||= {}`**, and the inventory's binding classifier resolves `namespace || {}` and the namespace expression itself but not the logical-assignment form. **The estate is 66 unique published surfaces across 69 publication occurrences, not 64 across 67**, and 50 members are undeclared rather than 48.
-
-The 11 diagnostics themselves are ordinary `.38.2.2` work - they reach undeclared members, so they resolve when those members are declared - and **the `.38.2.1` boundary is unaffected**. The inventory blind spot is `.38.2.4`'s, and it is recorded there.
-
-**The second: what is left is not one semantics.** Measured against the landed tree, the genuine already-declared adoption set is **375 diagnostics**, and `api` is **312 of them - 83%**. The other six members hold 63 between them, and they do not share a dependency contract:
-
-| Member | Unguarded required | Optional-chained (graceful) | Optional root read | Delivery probe | Diagnostics |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| `api` | 104 sites / 35 files | - | - | 2 sites / 1 file | **312** |
-| `pageController` | 20 / 11 | 1 / 1 | - | 2 / 1 | 35 |
-| `records` | 10 / 5 | 3 / 2 | - | - | 15 |
-| `cachedFetch` | 5 / 3 | 2 / 1 | - | - | 7 |
-| `errors` | 1 / 1 | **11 / 10** | - | - | 3 |
-| `formatters` | 3 / 3 | 1 / 1 | 2 / 2 | - | 2 |
-| `appShellBootstrap` | 2 / 2 | - | - | - | 1 |
-
-**`errors` is predominantly optional** - eleven optional-chained uses across ten files against a single unguarded one - so converting it to a required dependency would invert its contract to move three diagnostics. **`cachedFetch` carries both semantics inside one file**: `workbench.js` aliases the member unguarded and then reads every value as `cachedFetch?.readCached(...) || null`, because a cold cache is an ordinary warm-render outcome. **`formatters` shows three different read forms across five sites.** Each of those needs a per-site judgement, which is the opposite of a mechanical sweep.
-
-**`api`, by contrast, is uniform.** Every one of its 104 reads outside `footer.js` is unguarded - `const api = window.LongtailForge.api;` or `window.LongtailForge.api.getJson(...)` - so the dependency is already required at every site. The two exceptions are `footer.js` delivery probes (`test: () => window.LongtailForge?.api`) whose whole purpose is to observe absence, and they stay exactly as they are.
-
-- [ ] Convert `api`'s required consumers to the lazy `requireApi()` acquisition `0.33.33.37` established and `0.33.33.38.1` proved across 180 sites. **Acquire at the point of use, so a missing client still fails when it fails today.**
-- [ ] **`shared/cached-fetch.js` and `shared/view-renderer.js` reach the member through a local `/** @type {BrowserApi} */` cast.** Those casts exist because the namespace read was not narrowed; a checked acquisition removes the reason for them. That is inside this child because `api` is the member being adopted - it is not licence to sweep casts off other surfaces.
-- [ ] **Do not touch the five `Promise<unknown>` returns.** A fetch body is an untrusted wire value; `BrowserApi` is accurate and none of the 312 diagnostics comes from a method return. The consumer narrowing that follows an awaited body is `0.33.33.38.4`, and folding it in here would recreate the inherited-`any` shape wearing a JSDoc annotation.
-- [ ] Declare nothing. `api` has been a declared member since before this rollup.
-
 #### 0.33.33.38.2.6 - Classify and adopt the six small declared members
 
-**63 diagnostics across `pageController`, `records`, `cachedFetch`, `errors`, `formatters`, and `appShellBootstrap` - and the classification is the work, not the conversion.**
+**45 diagnostics across `pageController` 20, `records` 9, `errors` 7, `formatters` 7, and `cachedFetch` 2 - and the classification is the work, not the conversion.** Remeasured after `0.33.33.38.2.1`: the family fell from 63, and **`appShellBootstrap` reached zero without being touched**, which is what a neighbouring adoption doing its job looks like. Remeasure again before slicing.
 
 - [ ] **Classify every site before converting any.** The table above is a starting measurement, not a verdict: an unguarded read proves only that the author did not write `?.`, and a graceful chain proves the path is meant to survive absence. `0.33.33.38.1` preserved four graceful consumers and a complete DOM fallback for exactly this reason.
 - [ ] Where a member is genuinely optional, **the correct change is to make the root read optional too** - `window.LongtailForge?.cachedFetch` - which removes the diagnostic without making anything required. Where it is required, use the lazy checked accessor. **Do not convert graceful degradation into a thrown dependency error to move a number.**
