@@ -269,6 +269,16 @@ export function collectBrowserPublicationInventory({
       if (operatorKind === "EqualsToken" || operatorKind === "FirstAssignment") {
         return classifyExpression(right, scope);
       }
+      // `window.LongtailForge ||= {}` is the same bootstrap written with logical assignment,
+      // and it evaluates to the *left* operand rather than the right. Recognising only the
+      // long form hid two published surfaces - `settingsHost` and `settingsPageController` -
+      // from every count this inventory feeds, which `0.33.33.38.2.1` found by reconciling
+      // eleven diagnostics that reached members no surface list contained. The empty-object
+      // right-hand side is required for the same reason it is required above: `ns ||= other`
+      // is not the namespace.
+      if (operatorKind === "BarBarEqualsToken" || operatorKind === "QuestionQuestionEqualsToken") {
+        return isEmptyObjectLiteral(unwrapParentheses(right)) ? classifyExpression(left, scope) : "other";
+      }
     }
     return "other";
   };

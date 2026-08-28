@@ -3031,6 +3031,7 @@ for (const [fixtureName, fixtureSource] of [
   ["parameter-pairing.js", "// Parameters pair with arguments by index. The first received {} and is not the\n// global object; only the second, which received window, is.\n(function attachPairing(localObject, global) {\n  localObject.unpairedSurface = { ok: true };\n  global.pairedBareSurface = { ok: true };\n})({}, window);\n"],
   ["previous-namespace-clobber.js", "// Mentioning the previous namespace is not deriving from it.\nwindow.LongtailForge = {\n  previous: window.LongtailForge,\n};\n"],
   ["literal-element-access.js", "// A string-literal key is as static as a dotted member, directly and through an alias.\n(function attachLiteralElementAccess(global) {\n  const namespace = global.LongtailForge || {};\n  global.LongtailForge[\"directLiteralSurface\"] = { ok: true };\n  namespace[\"aliasLiteralSurface\"] = { ok: true };\n  global.LongtailForge = namespace;\n})(window);\n"],
+  ["logical-assignment-root.js", "// The bootstrap root written with logical assignment. `ns ||= {}` evaluates to the\n// namespace exactly as `ns = ns || {}` does, and two shared scripts bind the root that way.\n(function attachLogicalAssignmentRoot(global) {\n  const root = global.LongtailForge ||= {};\n  root.logicalAssignmentSurface = { ok: true };\n})(window);\n"],
   ["computed-element-access.js", "// A computed key rooted at the namespace cannot be named, so it is recorded as an\n// unsupported rooted write rather than silently dropped.\n(function attachComputedElementAccess(global) {\n  const namespace = global.LongtailForge || {};\n  const key = \"computed\";\n  namespace[key] = { ok: true };\n  global.LongtailForge = namespace;\n})(window);\n"],
 ]) {
   fs.writeFileSync(path.join(publicationFixtureRoot, "sources", fixtureName), fixtureSource);
@@ -3052,6 +3053,7 @@ assert.deepEqual(
     "window.LongtailForge.directSurface",
     "window.LongtailForge.firstAliasSurface",
     "window.LongtailForge.frozenSurface",
+    "window.LongtailForge.logicalAssignmentSurface",
     "window.LongtailForge.mergedSurface",
     "window.LongtailForge.repeatedSurface",
     "window.LongtailForge.secondAliasSurface",
