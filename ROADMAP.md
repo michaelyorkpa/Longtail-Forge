@@ -40,6 +40,7 @@ Source-contract discipline (branch-wide, from `0.33.33.35`):
 
 - [ ] **A reference audit searches for the symbol in every form it can take, not for call syntax.** `0.33.33.35.2` searched `symbolName(` and missed ten `.filter(actionPermissionsAllowed)` sites, because a bare reference carries no parenthesis; `0.33.33.35.3` then found that the only outside references to four members it moved were the bare ones in a publication block. Check direct invocation, bare reference or callback, alias, destructuring, property assignment, membership in an array, map, or registry, namespace publication, and any test, source contract, or documentation assertion naming it. A symbol that survives under one form and not another fails at runtime rather than at the boundary.
 - [ ] **A negative source assertion forbids a construct, not a word.** `0.33.33.35.3` wrote a `doesNotMatch` meant to prove the modal constructors had not moved, and it matched their names inside the new module's own comment explaining why they had stayed. Assert against the form the contract actually names: a definition (`function X(`), a publication (`namespace.X =`), or a call or import, scoped to that construct. Bare identifier-absence is only correct when no comment, doc, test, or unrelated mention may legitimately carry the name.
+- [ ] **The scope of the evidence must match the scope of the claim.** `0.33.33.37` reported "duplicated status literals 11 to 0" from an audit of the three files its own checkpoint description named, while `task-resume-note-capture.js` and `tasks-dashboard.js` still held the active-status set. The measurement was right and the claim was too wide. A repository-wide elimination claim requires a repository-wide search; an audit deliberately scoped to named owners reports itself that way - "11 to 0 across the three `0.33.33.37` owners" - and names what it did not look at.
 - [ ] **Retarget a source contract to what it owns; do not repoint it at a new filename.** When extraction moves code, an assertion that merely pinned its location is a weak contract that survived by accident. Move it to the behaviour, ownership, publication, or dependency claim it was standing in for - `0.33.33.35.2` and `0.33.33.35.3` both did this - and delete it when a stronger assertion already covers the same ground.
 
 Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, `.28.6`, `.30`, `.30.2`, `.30.3`, `.30.7`, `.30.7.2`, `.31`, `.32`, and `.35.1` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
@@ -113,6 +114,21 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Each child publishes contract vocabulary; adoption is `0.33.33.39` through `.44`.** A child may adopt its own contracts in shared framework files it already owns. No child converts a module controller.
 - [ ] **Report measured effect separately from hypothesis.** Each child states the diagnostics it was predicted to address and the delta it actually produced.
 
+**The three families this rollup excludes are assigned, not orphaned.** "Not `.38`" is a disposition only once each diagnostic has a named owner, and every one of the 6,953 excluded diagnostics falls inside a file that `0.33.33.39` through `.44` already own and are already required to reduce to zero. The split below is the measured distribution across those owners, so the `0.33.33.38` remeasurement gate re-derives their child boundaries from a real starting partition rather than from a residual.
+
+| Owner | Unannotated parameters | Page-local state | Assorted |
+| --- | --- | --- | --- |
+| `0.33.33.39` shared browser framework | 1,738 | 135 | 28 |
+| `0.33.33.40` Notes | 379 | 138 | 27 |
+| `0.33.33.41` Tasks and Task Dialog | 556 | 691 | 23 |
+| `0.33.33.42` Workbench | 319 | 215 | 22 |
+| `0.33.33.43` Lists, Files, Clients/Projects | 765 | 246 | 26 |
+| `0.33.33.44` remaining page controllers | 988 | 613 | 44 |
+| **Total** | **4,745** | **2,038** | **170** |
+
+- [ ] **The assorted family is split by controller and is not one owner's problem.** Its 170 diagnostics are `TS2345` 55, `TS2322` 40, `TS2698` 16 and a long tail; each is a local mismatch in the file that holds it, and each is closed by that file's typing child rather than by a shared contract.
+- [ ] **These figures are a partition, not a forecast.** `0.33.33.38.1` changes what the compiler can see, so the mandatory remeasurement gate re-derives every one of them before `.39` through `.44` are sliced.
+
 **Resolved and withdrawn: the `LinkTargetCandidate` versus `LinkTarget` question inherited from `0.33.33.36`.** The distinction is **intentional, correctly placed, and already correctly expressed** - the item is closed with no change to make.
 
 - `LinkTargetCandidate` is **provider input vocabulary**. It is declared on `LinkTargetProvider.list` and `.read` in `link-target-directory-contracts.d.ts` and on all four module providers. A provider must supply `targetType` and `targetId`; every other member is optional, which is what a provider is permitted to omit.
@@ -132,7 +148,9 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.2 - Declare the remaining published surfaces and settle the index signature
 
-**Model: High Effort - 414 further attributable diagnostics, 48 undeclared members, and one open-world question.**
+**Model: High Effort - PROVISIONAL. Requires its own preflight against the post-`0.33.33.38.1` tree before any of it is implemented.**
+
+**`0.33.33.38.1` is a hard remeasurement barrier, and nothing below is preauthorised scope.** Declaring `view` changes what the compiler can see across nine controllers, and a diagnostic that is a namespace symptom today may survive as a DOM, parameter, or genuine `unknown` error tomorrow - or disappear entirely. **The "48 remaining members" and "414 attributable" figures below are pre-`.38.1` measurements retained as a starting point, explicitly not as a child boundary.** Rebuild the namespace inventory from the post-`.38.1` tree, re-attribute diagnostics per surviving member, and re-decide whether declaration, index-signature disposition, and governance are one child or three. If the measurement disagrees with the shape below, the shape is what changes.
 
 - [ ] Declare the remaining published namespace members, and wire the six orphaned interfaces `0.33.33.34`-`.37` already authored so their consumers stop casting locally.
 - [ ] **Establish what `[key: string]: unknown` is for before touching it.** Every one of the 62 members published today is first-party framework or module code, but this repository's stated extensibility model is that modules and plugins contribute declaratively, and an index signature is how a namespace stays open to a contribution it does not know about. Determine whether it is **intentional extensibility**, **compatibility vocabulary**, or **accidental looseness** - and answer it from the contribution seams, not from the fact that removing it would make numbers move. If it is intentional, keep it and declare the first-party members alongside it; the two are not in conflict.
