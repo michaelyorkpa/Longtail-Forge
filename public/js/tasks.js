@@ -9,7 +9,47 @@
   const BULK_CLIENT_ALL_VALUE = "__all_clients__";
   const QUICK_FILTERS = new Set(["my", "unassigned", "overdue", "today", "week", "complete", "archived"]);
   const TASK_VIEW_VALUES = new Set(["all", ...QUICK_FILTERS]);
-  const view = window.LongtailForge?.view;
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+
+  /**
+   * The view factory this controller cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing factory still
+   * fails at exactly the moment it failed before `0.33.33.38.1` declared it.
+   * @returns {BrowserViewFactory}
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
+  
+  /**
+   * Whether this page received `view-renderer.js` as well as `view-builder.js`.
+   *
+   * Ten of the eighteen builder pages do not load the renderer, so its members are
+   * genuinely partial on the shared factory type. This predicate checks the ones
+   * Tasks uses, so the narrowing is earned rather than asserted.
+   * @param {BrowserViewFactory} factory
+   * @returns {factory is BrowserViewFactory & BrowserViewDescriptorRenderers}
+   */
+  function hasDescriptorRenderers(factory) {
+    return typeof factory.registerBehavior === "function"
+      && typeof factory.renderSurface === "function";
+  }
+  
+  /** @returns {BrowserViewFactory & BrowserViewDescriptorRenderers} */
+  function requireDescriptorRenderers() {
+    const factory = requireView();
+    if (!hasDescriptorRenderers(factory)) {
+      throw new Error("Tasks requires the LongtailForge.view descriptor renderers.");
+    }
+    return factory;
+  }
+
+  function requireView() {
+    const factory = window.LongtailForge?.view;
+    if (!factory) {
+      throw new Error("Tasks requires LongtailForge.view.");
+    }
+    return factory;
+  }
   const TASK_LIFECYCLE_BEHAVIOR_HANDLERS = Object.freeze({
     "tasks.lifecycle.complete": ({ record, trigger }) => postTaskAction(record, "complete", trigger),
     "tasks.lifecycle.reopen": ({ record }) => postTaskAction(record, "reopen"),
@@ -271,34 +311,31 @@
     if (!host || host.querySelector("[data-task-list]")) {
       return;
     }
-    if (!view) {
-      throw new Error("Tasks requires LongtailForge.view to build the protected workspace.");
-    }
-
     activeTasksViewDescriptor = tasksViewSurfaceDescriptor();
     if (!activeTasksViewDescriptor) {
       return;
     }
 
     registerTasksViewBehaviors();
-    const surface = view.renderSurface({ ...activeTasksViewDescriptor, dataSource: null, modals: [] }, host);
+    const surface = requireDescriptorRenderers().renderSurface({ ...activeTasksViewDescriptor, dataSource: null, modals: [] }, host);
     decorateTasksDeclarativeSurface(surface);
   }
 
   function registerTasksViewBehaviors() {
+    const view = requireView();
     if (typeof view?.registerBehavior !== "function") {
       return;
     }
-    view.registerBehavior("tasks.create", () => openTaskDialog());
+    requireDescriptorRenderers().registerBehavior("tasks.create", () => openTaskDialog());
     registerTaskLifecycleBehaviors();
     registerTaskWorkflowBehaviors();
-    view.registerBehavior("tasks.sidebar.view-selector", ({ container }) => {
+    requireDescriptorRenderers().registerBehavior("tasks.sidebar.view-selector", ({ container }) => {
       container.replaceChildren(createTaskViewSelectorChrome());
     });
-    view.registerBehavior("tasks.sidebar.filters", ({ container }) => {
+    requireDescriptorRenderers().registerBehavior("tasks.sidebar.filters", ({ container }) => {
       container.replaceChildren(createTaskFilterChrome());
     });
-    view.registerBehavior("tasks.main.list", ({ container }) => {
+    requireDescriptorRenderers().registerBehavior("tasks.main.list", ({ container }) => {
       container.replaceChildren(createTaskMainListChrome());
     });
   }
@@ -307,7 +344,7 @@
     taskLifecycleActionStripDescriptor().actions.forEach((action) => {
       const handler = TASK_LIFECYCLE_BEHAVIOR_HANDLERS[action.behavior];
       if (handler) {
-        view.registerBehavior(action.behavior, handler);
+        requireDescriptorRenderers().registerBehavior(action.behavior, handler);
       }
     });
   }
@@ -316,7 +353,7 @@
     taskWorkflowActionMenuDescriptor().actions.forEach((action) => {
       const handler = TASK_WORKFLOW_BEHAVIOR_HANDLERS[action.behavior];
       if (handler) {
-        view.registerBehavior(action.behavior, handler);
+        requireDescriptorRenderers().registerBehavior(action.behavior, handler);
       }
     });
   }
@@ -346,6 +383,7 @@
   }
 
   function createTaskViewSelectorChrome() {
+    const view = requireView();
     return view.createElement("div", {
       className: "task-view-selector-control",
       attrs: { "data-task-view-selector-control": "" },
@@ -369,6 +407,7 @@
   }
 
   function createTaskFilterChrome() {
+    const view = requireView();
     return view.createElement("div", {
       className: "task-page-toolbar",
       attrs: {
@@ -434,6 +473,7 @@
   }
 
   function createTaskMainListChrome() {
+    const view = requireView();
     if (typeof view?.createListShell !== "function") {
       throw new Error("Tasks list surface requires LongtailForge.view.createListShell.");
     }
@@ -503,6 +543,7 @@
   }
 
   function createTaskBulkToolbarChrome() {
+    const view = requireView();
     if (typeof view?.createBulkActionToolbar !== "function") {
       throw new Error("Tasks bulk actions require LongtailForge.view.createBulkActionToolbar.");
     }
@@ -520,6 +561,7 @@
   }
 
   function taskBulkToolbarControls() {
+    const view = requireView();
     return [
       taskControlLabel("Status", taskSelect({ "data-task-bulk-status": "" }, [
         ["", "-", true],
@@ -614,6 +656,7 @@
   }
 
   function taskControlLabel(label, controls, options = {}) {
+    const view = requireView();
     return view.createElement("label", {
       className: options.className,
       attrs: options.attrs,
@@ -623,6 +666,7 @@
   }
 
   function taskSelect(attrs, options = []) {
+    const view = requireView();
     return view.createElement("select", {
       attrs,
       children: taskOptions(options),
@@ -630,6 +674,7 @@
   }
 
   function taskOptions(options = []) {
+    const view = requireView();
     return options.map(([value, label, selected = false]) => view.createElement("option", {
       attrs: {
         value,
@@ -640,6 +685,7 @@
   }
 
   function taskCheckboxLine(label, attrs = {}) {
+    const view = requireView();
     return view.createElement("span", {
       className: "checkbox-line",
       children: [
@@ -1061,6 +1107,7 @@
   }
 
   function renderBulkAssigneeOptions() {
+    const view = requireView();
     if (!bulkAssigneesControl) {
       return;
     }
@@ -1107,6 +1154,7 @@
   }
 
   function renderTasks() {
+    const view = requireView();
     const tasks = state.tasks;
 
     syncSelectionToTasks(tasks);
@@ -1297,6 +1345,7 @@
   }
 
   function createTaskWorkflowActionMenu(task) {
+    const view = requireView();
     const actions = taskWorkflowActionsForTask(task).map((action) => taskWorkflowActionButton(action, task));
 
     if (actions.length === 0) {
@@ -1431,6 +1480,7 @@
   }
 
   function taskWorkflowActionButton(action, task) {
+    const view = requireView();
     const disabledReason = taskWorkflowDisabledReason(action, task);
     const options = {
       label: action.label,
@@ -1513,6 +1563,7 @@
   }
 
   function createTaskLifecycleActionStrip(task) {
+    const view = requireView();
     const actions = taskLifecycleActionsForTask(task).map((action) => taskLifecycleActionButton(action, task));
 
     if (typeof view?.createDetailActionStrip === "function") {
@@ -1614,6 +1665,7 @@
   }
 
   function taskLifecycleActionButton(action, task) {
+    const view = requireView();
     const disabledReason = taskLifecycleDisabledReason(action, task);
     const options = {
       label: action.label,
@@ -1865,6 +1917,7 @@
   }
 
   function appendTaskContext(container, task) {
+    const view = requireView();
     const chips = [];
 
     appendParentTaskChip(container, task);

@@ -3,7 +3,41 @@
 // register option hydration and result rendering outside the data-only catalog.
 (function attachReportingPage() {
   const reportingHost = document.querySelector("[data-reporting-host]");
-  const reportingView = window.LongtailForge?.view;
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+
+  /**
+   * The view factory this path cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing factory still
+   * fails at exactly the moment it failed before `0.33.33.38.1` declared it. The
+   * graceful path that legitimately runs without the factory keeps its own optional read.
+   * @returns {BrowserViewFactory}
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFieldElement} BrowserViewFieldElement */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFieldControl} BrowserViewFieldControl */
+
+  /**
+   * The control a field rendered. `viewParts.control` is null only on the radio path, where a
+   * descriptor carrying no options renders a legend and no inputs; every caller here builds a
+   * field that has one.
+   * @param {BrowserViewFieldElement} field
+   * @returns {BrowserViewFieldControl}
+   */
+  function fieldControl(field) {
+    const control = field.viewParts.control;
+    if (!control) {
+      throw new Error("Reporting fields require a rendered control.");
+    }
+    return control;
+  }
+
+  function requireView() {
+    const factory = window.LongtailForge?.view;
+    if (!factory) {
+      throw new Error("Reporting requires LongtailForge.view.");
+    }
+    return factory;
+  }
   const reportRenderers = new Map();
   const rendererAssetLoads = new Map();
   const reportingState = {
@@ -47,6 +81,7 @@
   }
 
   function buildReportingHost() {
+    const reportingView = window.LongtailForge?.view;
     if (!reportingHost || !reportingView) {
       return;
     }
@@ -63,7 +98,7 @@
       controlAttrs: { "aria-label": "Report" },
       controlDataset: { reportingSelector: "" },
     });
-    reportSelector = selectorField.viewParts.control;
+    reportSelector = fieldControl(selectorField);
     reportSelectorPanel = reportingView.createInfoPanel({
       ariaLabel: "Report selection",
       title: "Choose a report",
@@ -97,6 +132,7 @@
   }
 
   async function loadReportCatalog() {
+    const reportingView = window.LongtailForge?.view;
     if (!reportingHost || !reportingView) {
       return;
     }
@@ -131,6 +167,7 @@
   }
 
   function renderReportSelector() {
+    const reportingView = requireView();
     reportSelector.replaceChildren(...reportingState.reports.map((report) => reportingView.createElement("option", {
       attrs: { value: report.reportKey },
       text: report.label || "Report",
@@ -139,6 +176,7 @@
   }
 
   function renderEmptyCatalog() {
+    const reportingView = requireView();
     reportingState.selectedReport = null;
     reportingState.renderer = null;
     reportFilterPanel.hidden = true;
@@ -208,6 +246,7 @@
   }
 
   function createReportFilterPanel(fields) {
+    const reportingView = requireView();
     const panel = reportingView.createFilterPanel({
       title: "Filters",
       ariaLabel: "Report filters",
@@ -229,6 +268,7 @@
   }
 
   function createReportFilterField(filter) {
+    const reportingView = requireView();
     if (filter.type === "custom-date-range") {
       return createCustomDateRangeField(filter);
     }
@@ -256,7 +296,7 @@
       dataset: { reportingFilter: filter.id },
       controlDataset: { reportingFilterControl: filter.id },
     });
-    const control = wrapper.viewParts.control;
+    const control = fieldControl(wrapper);
     const fieldState = {
       controls: new Map([[filter.queryKeys[0], control]]),
       filter,
@@ -274,11 +314,12 @@
   }
 
   function createCustomDateRangeField(filter) {
+    const reportingView = requireView();
     const [startKey, endKey] = filter.queryKeys;
     const startField = createDateField(filter.id, startKey, "Start Date");
     const endField = createDateField(filter.id, endKey, "End Date");
-    const startInput = startField.viewParts.control;
-    const endInput = endField.viewParts.control;
+    const startInput = fieldControl(startField);
+    const endInput = fieldControl(endField);
     const wrapper = reportingView.createElement("fieldset", {
       dataset: { reportingFilter: filter.id },
       children: [
@@ -299,6 +340,7 @@
   }
 
   function createDateField(filterId, queryKey, label) {
+    const reportingView = requireView();
     return reportingView.createField({
       field: queryKey,
       type: "date",
@@ -312,6 +354,7 @@
   }
 
   function createOption(value, label, options = {}) {
+    const reportingView = requireView();
     const option = reportingView.createElement("option", {
       attrs: { value },
       text: label,
@@ -345,7 +388,7 @@
     return {
       report: reportingState.selectedReport,
       queryParams: new URLSearchParams(window.location.search),
-      view: reportingView,
+      view: window.LongtailForge?.view,
       getFilterControl,
       getFilterValue,
       setFilterDisabled,
@@ -645,6 +688,7 @@
   }
 
   function renderExecutionResult(rendered) {
+    const reportingView = requireView();
     if (rendered?.state === "empty") {
       setReportingStatus("");
       reportResultsHost.replaceChildren(reportingView.createEmptyState({
@@ -670,6 +714,7 @@
   }
 
   function renderReportingError(message, options = {}) {
+    const reportingView = requireView();
     setReportingStatus(message, { isError: true });
     reportResultsHost?.replaceChildren(reportingView.createEmptyState({
       title: options.title || "Report unavailable",

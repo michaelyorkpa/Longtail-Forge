@@ -5,7 +5,23 @@
 // through the canonical Task editor.
 (function attachCalendarPage() {
   const calendarHost = document.querySelector("[data-calendar-host]");
-  const calendarView = window.LongtailForge?.view;
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+
+  /**
+   * The view factory this path cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing factory still
+   * fails at exactly the moment it failed before `0.33.33.38.1` declared it. The
+   * graceful path that legitimately runs without the factory keeps its own optional read.
+   * @returns {BrowserViewFactory}
+   */
+  function requireView() {
+    const factory = window.LongtailForge?.view;
+    if (!factory) {
+      throw new Error("Calendar requires LongtailForge.view.");
+    }
+    return factory;
+  }
   const taskCalendar = window.LongtailForge?.taskCalendar;
 
   const CALENDAR_VIEW_OPTIONS = [
@@ -49,6 +65,7 @@
   initializeCalendar();
 
   async function initializeCalendar() {
+    const calendarView = window.LongtailForge?.view;
     if (!calendarHost || !calendarView || !taskCalendar) {
       return;
     }
@@ -89,6 +106,7 @@
   }
 
   function buildCalendarHost() {
+    const calendarView = requireView();
     if (!calendarHost || !calendarView) {
       return;
     }
@@ -100,7 +118,6 @@
 
     calendarStatus = calendarView.createStatusMessage({
       className: "calendar-status",
-      dataset: { calendarStatus: "" },
       hidden: true,
     });
 
@@ -170,6 +187,7 @@
   }
 
   function createCalendarFilterPanel() {
+    const calendarView = requireView();
     calendarClientFilter = calendarView.createElement("select", {
       attrs: { "aria-label": "Client filter" },
       dataset: { calendarClientFilter: "" },
@@ -297,6 +315,7 @@
   }
 
   function populateCalendarFilters() {
+    const calendarView = requireView();
     if (calendarClientFilter) {
       calendarClientFilter.replaceChildren(
         createCalendarOption("", "All clients"),
@@ -341,6 +360,7 @@
   }
 
   function createCalendarOption(value, label) {
+    const calendarView = requireView();
     return calendarView.createElement("option", {
       attrs: { value },
       text: label,
@@ -348,6 +368,7 @@
   }
 
   function createViewSwitchButton(option) {
+    const calendarView = requireView();
     const button = calendarView.createElement("button", {
       className: "calendar-view-button",
       text: option.label,
@@ -377,6 +398,7 @@
   }
 
   async function loadCalendarWindow() {
+    const calendarView = window.LongtailForge?.view;
     if (!calendarHost || !calendarView || !taskCalendar) {
       return;
     }

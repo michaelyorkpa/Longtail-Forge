@@ -1,6 +1,49 @@
 (function attachNotesPage() {
   const api = window.LongtailForge.api;
-  const view = window.LongtailForge.view;
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+
+  /**
+   * The view factory this controller cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing factory still
+   * fails at exactly the moment it failed before `0.33.33.38.1` declared it.
+   * @returns {BrowserViewFactory}
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
+  
+  /**
+   * Whether this page received `view-renderer.js` as well as `view-builder.js`.
+   *
+   * Ten of the eighteen builder pages do not load the renderer, so its members are
+   * genuinely partial on the shared factory type. This predicate checks the ones
+   * Notes uses, so the narrowing is earned rather than asserted.
+   * @param {BrowserViewFactory} factory
+   * @returns {factory is BrowserViewFactory & BrowserViewDescriptorRenderers}
+   */
+  function hasDescriptorRenderers(factory) {
+    return typeof factory.registerBehavior === "function"
+      && typeof factory.renderDescriptorActionMenu === "function"
+      && typeof factory.renderDescriptorLinkedRecordsPanel === "function"
+      && typeof factory.renderDescriptorModalForm === "function"
+      && typeof factory.renderSurface === "function";
+  }
+  
+  /** @returns {BrowserViewFactory & BrowserViewDescriptorRenderers} */
+  function requireDescriptorRenderers() {
+    const factory = requireView();
+    if (!hasDescriptorRenderers(factory)) {
+      throw new Error("Notes requires the LongtailForge.view descriptor renderers.");
+    }
+    return factory;
+  }
+
+  function requireView() {
+    const factory = window.LongtailForge?.view;
+    if (!factory) {
+      throw new Error("Notes requires LongtailForge.view.");
+    }
+    return factory;
+  }
   const PAGE_SIZE = 12;
   const BUCKET_LABELS = {
     active_work: "Active Work",
@@ -560,15 +603,12 @@
     if (!host || host.querySelector("[data-notes-list]")) {
       return;
     }
-    if (!view) {
-      throw new Error("Notes requires LongtailForge.view to build the protected workspace.");
-    }
     const descriptor = notesViewSurfaceDescriptor();
     if (descriptor) {
       registerNotesViewBehaviors();
       // The renderer auto-renders descriptor.modals into the surface; Notes builds and owns its own
       // dialogs (createNoteDialogShell/createCollectionDialogShell), so suppress the framework duplicates.
-      const surface = view.renderSurface({ ...descriptor, dataSource: null, modals: [] }, host);
+      const surface = requireDescriptorRenderers().renderSurface({ ...descriptor, dataSource: null, modals: [] }, host);
       decorateNotesDeclarativeSurface(surface);
     }
 
@@ -602,19 +642,20 @@
   }
 
   function registerNotesViewBehaviors() {
+    const view = requireView();
     if (typeof view.registerBehavior !== "function") {
       return;
     }
-    view.registerBehavior("notes.create", () => openEditor());
-    view.registerBehavior("notes.sidebar.library", ({ container }) => {
+    requireDescriptorRenderers().registerBehavior("notes.create", () => openEditor());
+    requireDescriptorRenderers().registerBehavior("notes.sidebar.library", ({ container }) => {
       container.replaceChildren(createNotesLibraryChrome());
     });
-    view.registerBehavior("notes.sidebar.notes-list-footer", ({ container }) => {
+    requireDescriptorRenderers().registerBehavior("notes.sidebar.notes-list-footer", ({ container }) => {
       container.replaceChildren(createNotesListSortControl(), createNotesPagination());
     });
-    view.registerBehavior("notes.filters.tags", hydrateNoteTagFilterOptions);
+    requireDescriptorRenderers().registerBehavior("notes.filters.tags", hydrateNoteTagFilterOptions);
     Object.keys(NOTE_WORKFLOW_HANDLERS).forEach((behaviorId) => {
-      view.registerBehavior(behaviorId, ({ record }) => runNoteWorkflow(behaviorId, record || state.selectedNote));
+      requireDescriptorRenderers().registerBehavior(behaviorId, ({ record }) => runNoteWorkflow(behaviorId, record || state.selectedNote));
     });
   }
 
@@ -647,7 +688,7 @@
 
   function createNoteActionStrip(note) {
     const label = notesActionStripDescriptor().label || "Note actions";
-    return view.renderDescriptorActionMenu(detailActionButtons(note), {
+    return requireDescriptorRenderers().renderDescriptorActionMenu(detailActionButtons(note), {
       summaryLabel: "...",
       ariaLabel: label,
       title: label,
@@ -677,6 +718,7 @@
   }
 
   function noteWorkflowActionButton(action, note) {
+    const view = requireView();
     const button = view.createActionButton({
       label: action.label || action.id,
       role: action.role,
@@ -706,6 +748,7 @@
   }
 
   async function openNoteViewer(params = {}, hostContext = null) {
+    const view = requireView();
     const noteId = readNoteEditorId(params);
 
     if (!noteId) {
@@ -754,6 +797,7 @@
   }
 
   function createNoteViewDialog(noteId) {
+    const view = requireView();
     let dialog = null;
     const body = view.createElement("div", {
       className: "notes-view-body",
@@ -792,6 +836,7 @@
   }
 
   function renderNoteViewDialog(dialog, note = {}, params = {}, hostContext = null) {
+    const view = requireView();
     const noteId = note.note_id || note.id || readNoteEditorId(params);
     const title = note.title || "Untitled note";
 
@@ -844,6 +889,7 @@
   }
 
   function openNoteViewEditHandoff(dialog, noteId, params = {}, hostContext = null) {
+    const view = requireView();
     if (!noteId) {
       return;
     }
@@ -958,6 +1004,7 @@
   }
 
   function decorateNotesDeclarativeSurface(surface) {
+    const view = requireView();
     const createAction = surface.querySelector('[data-surface-action="notes.create"], [data-surface-action="create-note"]');
     if (createAction) {
       createAction.dataset.noteCreate = "";
@@ -1051,6 +1098,7 @@
   }
 
   function createNotesLibraryChrome() {
+    const view = requireView();
     const wrap = view.createElement("div", { className: "notes-library-chrome" });
 
     const collections = view.createElement("section", {
@@ -1093,6 +1141,7 @@
   }
 
   function createNotesListChrome() {
+    const view = requireView();
     const wrap = view.createElement("div", { className: "notes-index-chrome" });
     const list = view.createElement("div", { className: "notes-list" });
     list.dataset.notesList = "";
@@ -1101,7 +1150,38 @@
     return wrap;
   }
 
+  /**
+   * A control inside the bulk form. The form declares each of these fields, so a missing one is
+   * a defect rather than a state to render around.
+   * @param {import("../../src/types/browser-contracts.js").BrowserViewModalFormElement} dialog
+   * @param {string} name
+   * @returns {HTMLElement}
+   */
+  /**
+   * @param {Element | null} node
+   * @returns {node is HTMLElement}
+   */
+  function isHtmlElement(node) {
+    return node !== null && "dataset" in node;
+  }
+
+  /**
+   * A control inside the bulk form. The form declares each of these fields, so a missing one
+   * is a defect rather than a state to render around.
+   * @param {import("../../src/types/browser-contracts.js").BrowserViewModalFormElement} dialog
+   * @param {string} name
+   * @returns {HTMLElement}
+   */
+  function bulkFormControl(dialog, name) {
+    const control = dialog.viewParts.form.querySelector(`[data-view-input="${name}"]`);
+    if (!isHtmlElement(control)) {
+      throw new Error(`Notes bulk editing requires the ${name} control.`);
+    }
+    return control;
+  }
+
   function createNotesBulkToolbar() {
+    const view = requireView();
     if (typeof view?.createBulkActionToolbar !== "function") {
       throw new Error("Notes bulk editing requires LongtailForge.view.createBulkActionToolbar.");
     }
@@ -1130,6 +1210,7 @@
   }
 
   function createNotesListSortControl() {
+    const view = requireView();
     const label = view.createElement("label", { className: "notes-list-sort", text: "Sort" });
     const select = view.createElement("select");
 
@@ -1146,6 +1227,7 @@
   }
 
   function createNotesPagination() {
+    const view = requireView();
     const pagination = view.createElement("div", { className: "notes-pagination" });
     const prev = notesIconButton({
       icon: "previous",
@@ -1168,6 +1250,7 @@
   }
 
   function notesIconButton(options) {
+    const view = requireView();
     if (window.LongtailForge.icons?.createIconButton) {
       return window.LongtailForge.icons.createIconButton({
         ...options,
@@ -1188,6 +1271,7 @@
   }
 
   function notesOptionElement(value, label) {
+    const view = requireView();
     return view.createElement("option", { text: label, attrs: { value } });
   }
 
@@ -1209,22 +1293,26 @@
   }
 
   function noteFieldLabel(labelText, control) {
+    const view = requireView();
     return view.createElement("label", { children: [labelText, control] });
   }
 
   function noteInput(dataName, attrs = {}) {
+    const view = requireView();
     const input = view.createElement("input", { attrs: { type: attrs.type || "text", required: Boolean(attrs.required) } });
     input.dataset[dataName] = "";
     return input;
   }
 
   function noteTextarea(dataName, attrs = {}) {
+    const view = requireView();
     const textarea = view.createElement("textarea", { attrs: { rows: attrs.rows || 10 } });
     textarea.dataset[dataName] = "";
     return textarea;
   }
 
   function noteSelect(dataName, options) {
+    const view = requireView();
     const select = view.createElement("select");
     select.dataset[dataName] = "";
     options.forEach(([value, label]) => select.appendChild(notesOptionElement(value, label)));
@@ -1232,6 +1320,7 @@
   }
 
   function createNoteContextPanel() {
+    const view = requireView();
     const panel = view.createElement("details", { className: "notes-context-panel surface-modal-group" });
     panel.appendChild(view.createElement("summary", { className: "surface-modal-section-heading", text: "Linked Context" }));
 
@@ -1267,6 +1356,7 @@
   }
 
   function createPrimaryContextSection() {
+    const view = requireView();
     const clientSelect = noteSelect("noteClientId", []);
     const projectSelect = noteSelect("noteProjectId", []);
     const clientField = noteFieldLabel("Client", clientSelect);
@@ -1289,6 +1379,7 @@
   }
 
   function createNoteEditorToolbar() {
+    const view = requireView();
     const toolbar = view.createElement("div", { className: "notes-editor-toolbar" });
     toolbar.dataset.noteEditorToolbar = "";
     NOTE_EDITOR_TOOLBAR_ACTIONS.forEach((action) => {
@@ -1298,6 +1389,7 @@
   }
 
   function createNoteEditorToolbarButton(action) {
+    const view = requireView();
     const button = view.createActionButton({
       ariaLabel: action.label,
       className: "notes-editor-toolbar-button",
@@ -1320,6 +1412,7 @@
   }
 
   function createNoteMarkdownEditorSection(toolbar, bodyField, preview) {
+    const view = requireView();
     const body = view.createElement("div", {
       className: "notes-markdown-editor-body",
       children: [bodyField, preview],
@@ -1335,6 +1428,7 @@
   }
 
   function createNoteDialogShell() {
+    const view = requireView();
     const modal = notesEditorModalDescriptor();
     const cancel = view.createActionButton({
       action: "cancel-note",
@@ -1408,7 +1502,7 @@
     copyLink.dataset.copyNoteLink = "";
     copyLink.hidden = true;
 
-    const dialog = view.renderDescriptorModalForm(modal, {
+    const dialog = requireDescriptorRenderers().renderDescriptorModalForm(modal, {
       title: modal.title || "Note",
       className: "notes-editor-dialog",
       formClassName: "notes-editor-form",
@@ -1483,6 +1577,7 @@
   }
 
   function createNoteBulkDialogShell() {
+    const view = requireView();
     const modal = notesBulkEditorModalDescriptor();
     const cancel = view.createActionButton({
       action: "cancel-note-bulk",
@@ -1505,7 +1600,7 @@
     });
     apply.dataset.noteBulkApply = "";
 
-    const dialog = view.renderDescriptorModalForm(modal, {
+    const dialog = requireDescriptorRenderers().renderDescriptorModalForm(modal, {
       title: modal.title || "Bulk Edit Notes",
       className: "notes-bulk-dialog",
       formClassName: "notes-bulk-form",
@@ -1515,18 +1610,19 @@
     dialog.dataset.noteBulkDialog = "";
     dialog.viewParts.form.dataset.noteBulkForm = "";
     dialog.viewParts.body.classList.add("notes-form-grid", "notes-bulk-grid");
-    dialog.viewParts.form.querySelector('[data-view-input="library"]').dataset.noteBulkLibrary = "";
-    dialog.viewParts.form.querySelector('[data-view-input="collection"]').dataset.noteBulkCollection = "";
-    dialog.viewParts.form.querySelector('[data-view-input="noteType"]').dataset.noteBulkType = "";
+    bulkFormControl(dialog, "library").dataset.noteBulkLibrary = "";
+    bulkFormControl(dialog, "collection").dataset.noteBulkCollection = "";
+    bulkFormControl(dialog, "noteType").dataset.noteBulkType = "";
     const bulkVisibility = dialog.viewParts.form.querySelector('[data-view-input="visibility"]');
     if (bulkVisibility) {
       bulkVisibility.dataset.noteBulkVisibility = "";
     }
-    dialog.viewParts.form.querySelector('[data-view-input="tagAction"]').dataset.noteBulkTagAction = "";
+    bulkFormControl(dialog, "tagAction").dataset.noteBulkTagAction = "";
     const tagsMount = view.createElement("div", { className: "notes-bulk-tags-field" });
     tagsMount.dataset.noteBulkTags = "";
     dialog.viewParts.body.appendChild(tagsMount);
-    const status = view.createStatusMessage({ attrs: { "aria-live": "polite" } });
+    // `createStatusMessage` sets its own aria-live, defaulting to polite for a status role.
+    const status = view.createStatusMessage();
     status.dataset.noteBulkFormStatus = "";
     const footer = dialog.viewParts.footer;
     dialog.viewParts.form.insertBefore(status, footer);
@@ -1534,6 +1630,7 @@
   }
 
   function createNoteTagsDialogShell() {
+    const view = requireView();
     const tagsMount = view.createElement("div");
     tagsMount.dataset.noteTagsEditor = "";
     const close = view.createActionButton({ label: "Done", role: "primary" });
@@ -1549,6 +1646,7 @@
   }
 
   function createNoteFilesDialogShell() {
+    const view = requireView();
     const saveFirstWarning = view.createElement("p", {
       className: "notes-files-save-first-warning",
       text: "Save the note before adding files.",
@@ -1570,13 +1668,14 @@
   }
 
   function createCollectionDialogShell() {
+    const view = requireView();
     const modal = notesCollectionModalDescriptor();
     const cancel = view.createActionButton({ label: "Cancel", role: "secondary" });
     cancel.dataset.noteCollectionCancel = "";
     const save = view.createActionButton({ label: modal.footerActions?.find((action) => action.id === "save-collection")?.label || "Save Collection", type: "submit", role: "primary" });
     save.dataset.noteCollectionSave = "";
 
-    const dialog = view.renderDescriptorModalForm(modal, {
+    const dialog = requireDescriptorRenderers().renderDescriptorModalForm(modal, {
       title: modal.title || "Collection",
       className: "notes-collection-dialog",
       formClassName: "notes-collection-form",
@@ -1611,6 +1710,7 @@
   }
 
   function createCollectionActionsDialogShell() {
+    const view = requireView();
     const body = view.createElement("div", { className: "notes-collection-actions-modal-body" });
     body.dataset.noteCollectionActionsDialogBody = "";
     const close = view.createActionButton({ label: "Close", role: "secondary" });
@@ -1882,6 +1982,7 @@
   }
 
   function collectionActions(collection) {
+    const view = requireView();
     const trigger = notesIconButton({
       icon: "more",
       label: "Collection actions",
@@ -1894,6 +1995,7 @@
   }
 
   function openCollectionActionsDialog(collection = null, trigger = null) {
+    const view = requireView();
     if (!collectionActionsDialog || !collectionActionsDialogBody) {
       return;
     }
@@ -1929,6 +2031,7 @@
   }
 
   function closeCollectionActionsDialog() {
+    const view = requireView();
     view.closeModal(collectionActionsDialog);
   }
 
@@ -1946,6 +2049,7 @@
   }
 
   function collectionDialogAction(label, onClick, options = {}) {
+    const view = requireView();
     return view.createActionButton({
       label,
       role: options.role || "secondary",
@@ -2084,6 +2188,7 @@
   }
 
   async function openBulkEditor() {
+    const view = requireView();
     if (!bulkDialog || state.selectedNoteIds.size === 0) {
       return;
     }
@@ -2109,6 +2214,7 @@
   }
 
   function closeBulkEditor() {
+    const view = requireView();
     view.closeModal(bulkDialog);
   }
 
@@ -2303,6 +2409,7 @@
   }
 
   function renderDetail(note) {
+    const view = requireView();
     const title = view.createElement("h2", { text: note.title || "Untitled note" });
     const titleRow = view.createElement("div", { className: "notes-detail-title-row", children: [title, createNoteActionStrip(note)] });
     const titleRule = view.createElement("hr", { className: "notes-detail-rule" });
@@ -2335,7 +2442,8 @@
 
     // Client/Project/Task/User context lives in the Linked Context panel; the metadata row carries all
     // note-level metadata (incl. Created/Updated/Owner) so it is not duplicated here.
-    detailPanel.replaceChildren(...[header, collectionBreadcrumb, tags, tagsRule, body, links, files, revisions].filter(Boolean));
+    detailPanel.replaceChildren(...[header, collectionBreadcrumb, tags, tagsRule, body, links, files, revisions]
+      .filter((node) => node !== null && node !== undefined));
     mountFilesPanel(note, files.querySelector("[data-note-files-mount]"));
     loadRevisions(note, revisions.querySelector("[data-note-revisions-list]"));
   }
@@ -2373,6 +2481,7 @@
 
   async function openEditor(note = null, options = {}) {
     note = await hydrateEditorNote(note);
+    const view = requireView();
     const defaults = options.defaults || {};
     state.editingNoteId = note?.note_id || "";
     state.editorHostContext = options.hostContext || null;
@@ -2512,6 +2621,7 @@
   }
 
   function closeEditor(options = {}) {
+    const view = requireView();
     if (options.cancelHost) {
       cancelNoteEditorHostContext({
         actionId: state.editingNoteId ? "notes.edit" : "notes.add",
@@ -3389,6 +3499,7 @@
   }
 
   function renderEditorContextPanel() {
+    const view = requireView();
     if (!contextList) {
       return;
     }
@@ -3636,6 +3747,7 @@
   }
 
   function openCollectionDialog(mode, options = {}) {
+    const view = requireView();
     const collection = options.collection || null;
     const parent = options.parent || null;
     const libraryBucket = collection?.library_bucket || parent?.library_bucket || defaultLibraryForCreate();
@@ -3654,6 +3766,7 @@
   }
 
   function closeCollectionDialog() {
+    const view = requireView();
     view.closeModal(collectionDialog);
     if (collectionLibraryInput) {
       collectionLibraryInput.disabled = false;
@@ -3739,18 +3852,19 @@
   }
 
   function renderLinksPanel(note) {
+    const view = requireView();
     const descriptor = notesLinkedRecordsDescriptor();
     if (!descriptor) {
       return null;
     }
 
     const locked = note.status === "archived";
-    const typeField = noteFieldLabel("Type", noteSelect("noteLinkTargetType", []));
-    const searchField = noteFieldLabel("Search records", noteInput("noteLinkSearch", { type: "search" }));
-    const resultsField = noteFieldLabel("Record", noteSelect("noteLinkResults", []));
-    const targetType = typeField.querySelector("select");
-    const targetSearch = searchField.querySelector("input");
-    const targetResults = resultsField.querySelector("select");
+    const targetType = noteSelect("noteLinkTargetType", []);
+    const targetSearch = noteInput("noteLinkSearch", { type: "search" });
+    const targetResults = noteSelect("noteLinkResults", []);
+    const typeField = noteFieldLabel("Type", targetType);
+    const searchField = noteFieldLabel("Search records", targetSearch);
+    const resultsField = noteFieldLabel("Record", targetResults);
     let searchTimer = null;
 
     populateLinkTargetTypeSelect(targetType);
@@ -3769,7 +3883,7 @@
     });
     add.dataset.noteLinkAdd = "";
 
-    const section = view.renderDescriptorLinkedRecordsPanel(descriptor, {
+    const section = requireDescriptorRenderers().renderDescriptorLinkedRecordsPanel(descriptor, {
       className: "notes-links-panel",
       collapsible: true,
       open: false,
@@ -3827,6 +3941,7 @@
   }
 
   function linkRecordNodes(note) {
+    const view = requireView();
     const primaryContext = notePrimaryContextItem(note);
     const links = note.links || [];
     const items = [
@@ -3844,6 +3959,7 @@
   }
 
   function notePrimaryContextItem(note = {}) {
+    const view = requireView();
     const summary = notePrimaryContextSummary(note);
 
     if (!summary) {
@@ -3875,6 +3991,7 @@
   }
 
   function linkItem(note, link) {
+    const view = requireView();
     const sourceUrl = link.sourceUrl || link.source_url || "";
     const targetType = link.targetType || link.target_type || "";
     const title = view.createElement(sourceUrl ? "a" : "strong", {
@@ -3903,6 +4020,7 @@
   }
 
   function renderFilesPanel(note = {}) {
+    const view = requireView();
     // Collapsible (collapsed by default), boxed to match the Linked Context and Revisions sections
     // (`notes-detail-section`). The embedded file-attachments component drops its own surface chrome and
     // redundant heading inside this panel (see `.notes-files-panel` CSS) so there is a single outer box.
@@ -3950,6 +4068,7 @@
   }
 
   function renderRevisionsPanel(note) {
+    const view = requireView();
     const summary = view.createElement("summary", { text: "Revisions" });
     const list = view.createElement("div", { text: "Loading revisions..." });
 
@@ -4082,6 +4201,7 @@
   }
 
   function openTagsDialog() {
+    const view = requireView();
     if (!tagsDialog) {
       return;
     }
@@ -4093,6 +4213,7 @@
   }
 
   function closeTagsDialog() {
+    const view = requireView();
     if (!tagsDialog) {
       return;
     }
@@ -4105,6 +4226,7 @@
   }
 
   function openFilesDialog() {
+    const view = requireView();
     if (!filesDialog || filesToggle?.hidden) {
       return;
     }
@@ -4119,6 +4241,7 @@
   }
 
   function closeFilesDialog() {
+    const view = requireView();
     if (!filesDialog) {
       return;
     }

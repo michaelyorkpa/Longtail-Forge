@@ -223,7 +223,7 @@ for (const helper of [
   "renderDescriptorInlineActions",
   "renderDescriptorModalForm",
 ]) {
-  assert.match(listsJs, new RegExp(`view\\.${helper}`), `Strict declarative Lists source should consume ${helper}`);
+  assert.match(listsJs, new RegExp(`\\.${helper}\\(`), `Strict declarative Lists source should consume ${helper}`);
 }
 assert.doesNotMatch(listsJs, /className:\s*["'`][^"'`]*(modal-actions|form-actions|list-table-wrap|lists-workspace)[^"'`]*/, "Strict declarative Lists source should not create one-off layout/footer class shells");
 assert.doesNotMatch(listsJs, /classList\.add\([^)]*(modal-actions|form-actions|list-table-wrap)[^)]*\)/, "Strict declarative Lists source should not add one-off layout/footer classes");
@@ -254,7 +254,7 @@ for (const helper of [
   "renderDescriptorLinkedRecordsPanel",
   "renderDescriptorModalForm",
 ]) {
-  assert.match(notesJs, new RegExp(`view\\.${helper}`), `Strict declarative Notes source should consume ${helper}`);
+  assert.match(notesJs, new RegExp(`\\.${helper}\\(`), `Strict declarative Notes source should consume ${helper}`);
 }
 assert.doesNotMatch(notesJs, /className:\s*["'`][^"'`]*(modal-actions|form-actions|list-table-wrap|notes-workspace)[^"'`]*/, "Strict declarative Notes source should not create one-off layout/footer class shells");
 
@@ -281,13 +281,13 @@ for (const helper of [
   "createDetailActionStrip",
   "createDetailActionMenu",
 ]) {
-  assert.match(tasksJs, new RegExp(`view\\.${helper}`), `Strict declarative Tasks source should consume ${helper}`);
+  assert.match(tasksJs, new RegExp(`\\.${helper}\\(`), `Strict declarative Tasks source should consume ${helper}`);
 }
 for (const helper of [
   "renderDescriptorModalForm",
   "createElement",
 ]) {
-  assert.match(taskDialogJs, new RegExp(`view\\.${helper}`), `Strict declarative Task dialog source should consume ${helper}`);
+  assert.match(taskDialogJs, new RegExp(`\\.${helper}\\(`), `Strict declarative Task dialog source should consume ${helper}`);
 }
 assert.match(taskDialogJs, /createDetailBadgeRow/, "Strict declarative Task dialog source should consume createDetailBadgeRow");
 assert.match(tasksJs, /function createTaskRow\(task\)[\s\S]*document\.createElement\("tr"\)[\s\S]*appendTaskMetadata\(metaBand, task\)[\s\S]*appendTaskContext\(metaBand, task\)/, "Task row-specific content should remain the documented strict escape hatch");
@@ -315,7 +315,7 @@ for (const helper of [
   "renderDescriptorModalForm",
   "createFieldGrid",
 ]) {
-  assert.match(filesJs, new RegExp(`view\\.${helper}`), `Strict declarative Files source should consume ${helper}`);
+  assert.match(filesJs, new RegExp(`\\.${helper}\\(`), `Strict declarative Files source should consume ${helper}`);
 }
 for (const helper of [
   "createActionButton",
@@ -328,7 +328,7 @@ for (const behaviorId of [
   "files.browse.filters",
   "files.browse.results",
 ]) {
-  assert.match(filesJs, new RegExp(`view\\.registerBehavior\\("${escapeRegExp(behaviorId)}"`), `Strict declarative Files source should mount ${behaviorId} through descriptor behavior registration`);
+  assert.match(filesJs, new RegExp(`\\.registerBehavior\\("${escapeRegExp(behaviorId)}"`), `Strict declarative Files source should mount ${behaviorId} through descriptor behavior registration`);
 }
 assert.match(extractFunctionBlock(filesJs, "createFilesFilterChrome"), /return createFilesElement\("form"[\s\S]*createFilesElement\("button"[\s\S]*text: "Apply"/, "Files filters should be helper-backed behavior content");
 assert.match(extractFunctionBlock(filesJs, "createAdvancedTargetFilters"), /createFilesElement\("details"[\s\S]*createFilesElement\("summary", \{ text: "Advanced target filters" \}\)/, "Raw target filters should remain behind a helper-backed advanced disclosure");
@@ -337,7 +337,7 @@ assert.match(extractFunctionBlock(filesJs, "createFilesTable"), /view\.createDat
   "Files browse table should use the shared data table helper");
 assert.match(extractFunctionBlock(filesJs, "createFileActions"), /view\.createDetailActionStrip\(\{[\s\S]*className: "files-row-actions"[\s\S]*actions: rowActions/,
   "Files row actions should use the shared dense action strip");
-assert.match(extractFunctionBlock(filesJs, "buildFileEditorDialog"), /view\.renderDescriptorModalForm\(fileEditorModalDescriptor\(\)[\s\S]*createFileEditorMetadataSection[\s\S]*createFileEditorControlsSection/,
+assert.match(extractFunctionBlock(filesJs, "buildFileEditorDialog"), /renderDescriptorModalForm\(fileEditorModalDescriptor\(\)[\s\S]*createFileEditorMetadataSection[\s\S]*createFileEditorControlsSection/,
   "File Context should use the shared modal form while keeping Files-owned body behavior");
 assert.match(extractFunctionBlock(filePreviewJs, "buildFilePreviewDialog"), /files-preview-body[\s\S]*view\.createModal[\s\S]*files-preview-dialog/,
   "Preview should use the shared modal shell");
@@ -428,11 +428,11 @@ for (const helper of [
   "createDetailActionStrip",
   "createModal",
 ]) {
-  assert.match(clientsProjectsJs, new RegExp(`view\\.${helper}|requireView\\(\\)\\.${helper}`), `Strict declarative Clients/Projects source should consume ${helper}`);
+  assert.match(clientsProjectsJs, new RegExp(`\\.${helper}\\(`), `Strict declarative Clients/Projects source should consume ${helper}`);
 }
 assert.match(clientsProjectsJs, /registerClientProjectsModuleActionBehavior\("client-projects\.clients\.create", "clients\.add"\)[\s\S]*registerClientProjectsModuleActionBehavior\("client-projects\.projects\.edit", "projects\.edit"\)/,
   "Clients/Projects page actions should stay registered behavior handlers");
-assert.match(clientsProjectsJs, /view\.registerBehavior\("client-projects\.clients\.tags", hydrateTagFilterOptions\)[\s\S]*view\.registerBehavior\("client-projects\.projects\.clients", hydrateProjectClientFilterOptions\)/,
+assert.match(clientsProjectsJs, /registerBehavior\("client-projects\.clients\.tags", hydrateTagFilterOptions\)[\s\S]*registerBehavior\("client-projects\.projects\.clients", hydrateProjectClientFilterOptions\)/,
   "Clients/Projects filter options should stay registered module-owned hydration handlers");
 assert.match(clientsProjectsJs, /hydrateTagFilterOptions\(\{ mountSearchOptions, setOptions \}[\s\S]*submitMode:\s*"option-or-input"/,
   "Clients/Projects tag filters should hydrate Notes-style searchable suggestions while preserving canonical tag id submission for selected suggestions");

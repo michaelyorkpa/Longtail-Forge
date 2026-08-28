@@ -1,4 +1,5 @@
 (function attachFilePreview(global) {
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
   // Scoped inside the IIFE deliberately: a top-level JSDoc typedef in a classic script
   // leaks into the shared type environment the way a top-level `const` leaks into the
   // shared lexical one, which is the thing `0.33.33.33` removed from this estate.
@@ -27,7 +28,7 @@
     requireFilePreviewViewHelper("createModal");
     requireFilePreviewViewHelper("showModal");
 
-    const view = currentView();
+    const view = requireView();
     const row = normalizeFilePreviewRow(attachmentOrRow, options);
     const trigger = options.trigger && typeof options.trigger.focus === "function"
       ? options.trigger
@@ -54,7 +55,7 @@
   }
 
   function buildFilePreviewDialog(row) {
-    const view = currentView();
+    const view = requireView();
     let dialog = null;
     const body = view.createElement("div", {
       className: "files-preview-body",
@@ -183,7 +184,7 @@
   }
 
   function renderFilePreviewImage(dialog, preview) {
-    const view = currentView();
+    const view = requireView();
     const image = createFilePreviewElement("img", {
       attrs: {
         alt: preview.filename ? `Preview of ${preview.filename}` : "File preview",
@@ -214,7 +215,7 @@
   }
 
   function renderFilePreviewMarkdown(dialog, html) {
-    const view = currentView();
+    const view = requireView();
     const content = view.createElement("div", {
       className: "files-preview-markdown notes-preview",
       attrs: { "data-file-preview-markdown": "" },
@@ -236,7 +237,7 @@
   }
 
   function createFilePreviewStatus(message, isError = false) {
-    return currentView().createElement("p", {
+    return requireView().createElement("p", {
       className: ["files-preview-status", isError ? "error-text" : ""],
       attrs: { role: "status" },
       text: message,
@@ -447,7 +448,7 @@
   }
 
   function createFilePreviewElement(tagName, options = {}) {
-    const view = currentView();
+    const view = requireView();
     if (view?.createElement) {
       return view.createElement(tagName, options);
     }
@@ -491,6 +492,21 @@
 
   function currentView() {
     return namespace.view;
+  }
+
+  /**
+   * The view factory the preview dialog cannot run without.
+   *
+   * `currentView` stays optional because `requireFilePreviewViewHelper` asks it whether a
+   * helper is missing; every path that builds the dialog takes the checked one instead.
+   * @returns {BrowserViewFactory}
+   */
+  function requireView() {
+    const factory = namespace.view;
+    if (!factory) {
+      throw new Error("File preview requires LongtailForge.view.");
+    }
+    return factory;
   }
 
   function readableFileName(file = {}) {

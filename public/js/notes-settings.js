@@ -7,7 +7,40 @@
   const notesSettingsStatus = document.querySelector("[data-module-settings-status]");
   const notesSettingsHost = document.querySelector("[data-settings-host='module']");
   const api = window.LongtailForge.api;
-  const view = window.LongtailForge.view;
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+
+  /**
+   * The view factory this controller cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing factory still
+   * fails at exactly the moment it failed before `0.33.33.38.1` declared it.
+   * @returns {BrowserViewFactory}
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFieldElement} BrowserViewFieldElement */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFieldControl} BrowserViewFieldControl */
+
+  /**
+   * The control a field rendered. `viewParts.control` is null only on the radio path, where a
+   * descriptor carrying no options renders a legend and no inputs; every caller here builds a
+   * field that has one.
+   * @param {BrowserViewFieldElement} field
+   * @returns {BrowserViewFieldControl}
+   */
+  function fieldControl(field) {
+    const control = field.viewParts.control;
+    if (!control) {
+      throw new Error("Notes settings fields require a rendered control.");
+    }
+    return control;
+  }
+
+  function requireView() {
+    const factory = window.LongtailForge?.view;
+    if (!factory) {
+      throw new Error("Notes settings require LongtailForge.view.");
+    }
+    return factory;
+  }
 
   const state = {
     /** @type {NoteCatalogSettingsRow[]} */
@@ -75,6 +108,7 @@
   }
 
   function mountCatalogManager() {
+    const view = requireView();
     if (!notesSettingsAuxiliary) {
       return;
     }
@@ -89,9 +123,9 @@
         { value: "archived", label: "Archived" },
       ],
     }, { value: state.statusFilter });
-    statusField.viewParts.control.dataset.notesCatalogStatusFilter = "";
-    statusField.viewParts.control.addEventListener("change", () => {
-      state.statusFilter = statusField.viewParts.control.value || "all";
+    fieldControl(statusField).dataset.notesCatalogStatusFilter = "";
+    fieldControl(statusField).addEventListener("change", () => {
+      state.statusFilter = fieldControl(statusField).value || "all";
       renderCatalogManager();
     });
 
@@ -128,6 +162,7 @@
   }
 
   function renderCatalogManager() {
+    const view = requireView();
     const bulkMount = notesSettingsAuxiliary?.querySelector("[data-notes-catalog-bulk]");
     const tableMount = notesSettingsAuxiliary?.querySelector("[data-notes-catalog-table]");
     if (!bulkMount || !tableMount) {
@@ -189,6 +224,7 @@
   }
 
   function catalogActions(catalog) {
+    const view = requireView();
     const editButton = view.createActionButton({
       label: "Edit",
       role: "utility",
@@ -222,6 +258,7 @@
   }
 
   function catalogSecurityAction(catalog) {
+    const view = requireView();
     if (!state.canManageSecurity || catalog.status !== "active" || catalog.securityTransitionState === "securing") {
       return null;
     }
@@ -247,6 +284,7 @@
   }
 
   function catalogSecurityStatus(catalog) {
+    const view = requireView();
     const labels = [];
     if (catalog.securityInherited) {
       labels.push("Secure (inherited)");
@@ -282,6 +320,7 @@
   }
 
   function showCatalogSecurityConfirmation(catalog, requestedAction, preflight) {
+    const view = requireView();
     const removing = preflight.action === "remove";
     const passwordField = removing
       ? view.createField({ field: "currentPassword", type: "password", label: "Current password", required: true, autocomplete: "current-password" })
@@ -319,9 +358,12 @@
     dialog.viewParts.form.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!dialog.viewParts.form.reportValidity()) return;
-      if (removing && confirmationField.viewParts.control.value.trim() !== catalog.catalogId) {
+      if (!confirmationField || !passwordField) {
+      throw new Error("Catalog security confirmation requires both fields.");
+    }
+    if (removing && fieldControl(confirmationField).value.trim() !== catalog.catalogId) {
         setCatalogStatus("The catalog ID confirmation does not match.", { isError: true });
-        confirmationField.viewParts.control.focus();
+        fieldControl(confirmationField).focus();
         return;
       }
 
@@ -331,8 +373,8 @@
         confirmAffectedNoteCount: preflight.affectedNoteCount || 0,
         ...(removing ? {
           confirmAction: "remove_security",
-          confirmCatalogId: confirmationField.viewParts.control.value.trim(),
-          currentPassword: passwordField.viewParts.control.value,
+          confirmCatalogId: fieldControl(confirmationField).value.trim(),
+          currentPassword: fieldControl(passwordField).value,
         } : {}),
       };
       try {
@@ -349,7 +391,10 @@
     notesSettingsHost.appendChild(dialog);
     if (typeof dialog.showModal === "function") dialog.showModal();
     else dialog.setAttribute("open", "");
-    (passwordField || confirmationField)?.viewParts.control.focus();
+    const focusField = passwordField || confirmationField;
+    if (focusField) {
+      fieldControl(focusField).focus();
+    }
   }
 
   function scheduleCatalogRefresh() {
@@ -365,6 +410,7 @@
   }
 
   function catalogBulkButton(label, action, disabled) {
+    const view = requireView();
     const button = view.createActionButton({ label, role: action === "archive" ? "destructive" : "primary", type: "button", disabled });
     button.addEventListener("click", () => runBulkCatalogAction(action));
     return button;
@@ -397,6 +443,7 @@
   }
 
   function openCatalogEditor(catalog = null) {
+    const view = requireView();
     const titleField = view.createField({ field: "title", type: "text", label: "Name", required: true }, { value: catalog?.title || "" });
     const descriptionField = view.createField({ field: "description", type: "textarea", label: "Description", rows: 3 }, { value: catalog?.description || "" });
     const libraryField = view.createField({
@@ -417,8 +464,8 @@
       fields: [titleField, descriptionField, libraryField, parentField, sortOrderField],
       actions: [cancelButton, saveButton],
     });
-    const parentControl = parentField.viewParts.control;
-    const libraryControl = libraryField.viewParts.control;
+    const parentControl = fieldControl(parentField);
+    const libraryControl = fieldControl(libraryField);
 
     const populateParents = () => {
       const excludedIds = catalog ? catalogDescendantIds(catalog.catalogId) : new Set();
@@ -440,11 +487,11 @@
       }
       saveButton.disabled = true;
       const payload = {
-        title: titleField.viewParts.control.value,
-        description: descriptionField.viewParts.control.value,
+        title: fieldControl(titleField).value,
+        description: fieldControl(descriptionField).value,
         libraryBucket: libraryControl.value,
         parentCollectionId: parentControl.value || null,
-        sortOrder: Number(sortOrderField.viewParts.control.value || 0),
+        sortOrder: Number(fieldControl(sortOrderField).value || 0),
       };
       try {
         if (catalog) {
@@ -467,7 +514,7 @@
     } else {
       dialog.setAttribute("open", "");
     }
-    titleField.viewParts.control.focus();
+    fieldControl(titleField).focus();
   }
 
   function closeDialog(dialog) {
@@ -495,6 +542,7 @@
   }
 
   function statusChip(status) {
+    const view = requireView();
     return view.createElement("span", { className: "surface-chip", text: status === "archived" ? "Archived" : "Active" });
   }
 

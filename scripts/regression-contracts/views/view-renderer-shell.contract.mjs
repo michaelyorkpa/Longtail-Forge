@@ -40,7 +40,7 @@ for (const helperName of [
   "createEmptyState",
   "createElement",
 ]) {
-  assert.match(renderer, new RegExp(`view\\.${helperName}`), `Renderer should use LongtailForge.view.${helperName}`);
+  assert.match(renderer, new RegExp(`\\.${helperName}\\(`), `Renderer should use LongtailForge.view.${helperName}`);
 }
 
 /** @typedef {import("../../test-support/fake-dom.mjs").FakeNode} FakeNode */

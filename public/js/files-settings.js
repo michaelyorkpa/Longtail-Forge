@@ -67,6 +67,23 @@
     }
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+
+  /**
+   * The view factory this controller cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing factory still
+   * fails at exactly the moment it failed before `0.33.33.38.1` declared it.
+   * @returns {BrowserViewFactory}
+   */
+  function requireView() {
+    const factory = window.LongtailForge?.view;
+    if (!factory) {
+      throw new Error("Files settings require LongtailForge.view.");
+    }
+    return factory;
+  }
+
   function renderSettings() {
     window.LongtailForge.settingsRenderer.renderSections(
       filesSettingsFields,
@@ -80,7 +97,7 @@
     if (!filesSettingsAuxiliary) {
       return;
     }
-    const view = window.LongtailForge.view;
+    const view = requireView();
     filesSettingsAuxiliary.appendChild(view.createElement("fieldset", {
       className: "view-settings-section",
       children: [
@@ -96,7 +113,7 @@
       return;
     }
     const totals = accounting.totals || {};
-    const view = window.LongtailForge.view;
+    const view = requireView();
     const items = [
       ["Internal files", totals.internalFileCount || 0],
       ["Internal storage", formatBytes(totals.internalBytes || 0)],

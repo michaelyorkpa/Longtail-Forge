@@ -137,7 +137,7 @@
       ...options,
       append: true,
       title: undefined,
-    })).filter(Boolean);
+    })).filter((section) => section !== null && section !== undefined);
     sections.forEach((section) => section.classList.add("settings-grouped-module"));
     container.appendChild(group);
     return sections;

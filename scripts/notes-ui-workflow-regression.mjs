@@ -120,14 +120,14 @@ async function assertProtectedView(session) {
     notesJs.indexOf("let state = {") < notesJs.indexOf("buildNotesViewShell();"),
     "Notes state should initialize before the shell builds provider-backed dialog controls",
   );
-  assert.match(notesJs, /view\.renderSurface/);
+  assert.match(notesJs, /renderSurface/);
   assert.match(notesJs, /notesViewSurfaceDescriptor/);
   assert.match(notesModuleSource, /layout:\s*"slide-out-sidebar"/);
   assert.doesNotMatch(notesModuleSource, /layout:\s*"sidebar-detail"/);
   // 0.33.33.35.1.2: notes.js no longer carries a descriptor literal of its own; the layout is
   // owned by the manifest surface asserted on the line above.
   assert.match(notesJs, /decorateNotesDeclarativeSurface/);
-  assert.match(notesJs, /view\.registerBehavior\("notes\.sidebar\.library"[\s\S]*container\.replaceChildren\(createNotesLibraryChrome\(\)\)/);
+  assert.match(notesJs, /registerBehavior\("notes\.sidebar\.library"[\s\S]*container\.replaceChildren\(createNotesLibraryChrome\(\)\)/);
   assert.match(notesJs, /createNotesLibraryChrome/);
   assert.match(notesJs, /createNotesListChrome/);
   assert.match(notesJs, /createNotesPagination/);
@@ -161,7 +161,7 @@ async function assertProtectedView(session) {
     notesJs,
     /document\.body\.append\([\s\S]*createNoteDialogShell\(\),[\s\S]*createNoteTagsDialogShell\(\),[\s\S]*createNoteFilesDialogShell\(\),[\s\S]*createCollectionDialogShell\(\),[\s\S]*createCollectionActionsDialogShell\(\),[\s\S]*\)/,
   );
-  assert.match(notesJs, /view\.renderDescriptorModalForm/);
+  assert.match(notesJs, /renderDescriptorModalForm/);
   assert.match(notesJs, /notesEditorModalDescriptor/);
   assert.match(notesJs, /notesCollectionModalDescriptor/);
   assert.match(notesJs, /dialog\.dataset\.noteDialog = ""/);
@@ -191,14 +191,14 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /"notes\.workflow\.edit": \(note\) => openEditor\(note\)/, "Edit workflow should map to the editor");
   assert.match(notesJs, /"notes\.workflow\.archive": \(note\) => archiveNote\(note\)/, "Archive workflow should map to the archive handler");
   assert.match(notesJs, /"notes\.workflow\.restore": \(note\) => restoreNote\(note\)/, "Restore workflow should map to the restore handler");
-  assert.match(notesJs, /view\.renderDescriptorActionMenu\(detailActionButtons\(note\)/, "Notes detail should render the workflow actions through the framework overflow-menu helper");
+  assert.match(notesJs, /renderDescriptorActionMenu\(detailActionButtons\(note\)/, "Notes detail should render the workflow actions through the framework overflow-menu helper");
   assert.match(notesJs, /button\.dataset\.noteAction = action\.id/, "Action menu buttons should carry their declarative action id");
   assert.doesNotMatch(notesJs, /function detailActionsMenu/, "The hand-built <details> actions menu should be replaced by the framework action menu");
 
   // 0.33.5.18.5.2 declarative linked-records panel.
   assert.match(notesModuleSource, /linkedRecords:\s*\{[\s\S]*?recordsField:\s*"links"[\s\S]*?behavior:\s*"notes\.link\.add"[\s\S]*?behavior:\s*"notes\.link\.remove"/, "Notes descriptor should declare the linked-records panel with add/remove behaviors");
   assert.match(notesModuleSource, /linkedRecords:\s*\{[\s\S]*?requiredPermissions:\s*\[NOTE_PERMISSIONS\.MANAGE_LINKS\]/, "Linked-records actions should require the manage-links permission");
-  assert.match(notesJs, /view\.renderDescriptorLinkedRecordsPanel\(descriptor/, "Notes linked-records panel should render through the framework helper");
+  assert.match(notesJs, /renderDescriptorLinkedRecordsPanel\(descriptor/, "Notes linked-records panel should render through the framework helper");
   assert.match(notesJs, /function linkRecordNodes\(note\)/, "Notes should build linked-record rows via linkRecordNodes");
   assert.match(notesJs, /notesLinkedRecordsDescriptor\(\)/, "Notes should resolve the delivered linked-records descriptor");
   assert.match(notesModuleSource, /linkedRecords:\s*\{[\s\S]*title:\s*"Linked Context"[\s\S]*No linked context\./, "Notes linked-records descriptor should use Linked Context in visible copy");
@@ -208,7 +208,7 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(notesJs, /const section = document\.createElement\("section"\);\s*const list = document\.createElement\("div"\);\s*const form = document\.createElement\("form"\)/, "The linked-records panel should no longer hand-build its section/form anatomy");
 
   // 0.33.5.18.5.3 anatomy cleanup + strict guardrails.
-  assert.match(notesJs, /view\.renderDescriptorModalForm\(modal, \{/, "Note dialogs should be built through the framework modal-form helper");
+  assert.match(notesJs, /renderDescriptorModalForm\(modal, \{/, "Note dialogs should be built through the framework modal-form helper");
   assert.doesNotMatch(notesJs, /view\.createModalForm/, "Notes should no longer call the low-level createModalForm primitive directly");
   assert.doesNotMatch(notesJs, /document\.createElement\("(dialog|table|details)"\)/, "Notes should not hand-build dialog/table/details framework anatomy");
   assert.match(notesJs, /view\.createElement\("details"/, "The collections menu and revisions panel should use the framework element builder for disclosures");
@@ -295,7 +295,7 @@ async function assertProtectedView(session) {
   // 0.33.5.18.6.4.4 Notes List footer sorting.
   assert.match(notesJs, /const DEFAULT_NOTE_SORT = "updated_desc"/, "Notes List default sort should be updated newest first");
   assert.match(notesJs, /const NOTES_LIST_SORT_OPTIONS = \[[\s\S]*\["title_asc", "Alphabetical \(A-Z\)"\][\s\S]*\["title_desc", "Alphabetical \(Z-A\)"\][\s\S]*\["created_desc", "Date Created \(Newest First\)"\][\s\S]*\["created_asc", "Date Created \(Oldest First\)"\][\s\S]*\["updated_desc", "Date Updated \(Newest First\)", true\][\s\S]*\["updated_asc", "Date Updated \(Oldest First\)"\][\s\S]*\["library_collection_updated_desc", "Library \/ Collection, then Date Updated"\][\s\S]*\["note_kind_updated_desc", "Note Kind, then Date Updated"\][\s\S]*\["primary_context_updated_desc", "Primary Context, then Date Updated"\]/, "Notes List sort options should match the required labels and default");
-  assert.match(notesJs, /view\.registerBehavior\("notes\.sidebar\.notes-list-footer"[\s\S]*container\.replaceChildren\(createNotesListSortControl\(\), createNotesPagination\(\)\)/, "Notes List sort should live in the footer before pagination");
+  assert.match(notesJs, /registerBehavior\("notes\.sidebar\.notes-list-footer"[\s\S]*container\.replaceChildren\(createNotesListSortControl\(\), createNotesPagination\(\)\)/, "Notes List sort should live in the footer before pagination");
   assert.match(notesJs, /function createNotesListSortControl\(\)[\s\S]*className: "notes-list-sort"[\s\S]*select\.dataset\.noteSort = ""[\s\S]*select\.value = DEFAULT_NOTE_SORT/, "Notes List footer should render the sort dropdown");
   assert.match(notesJs, /sortSelect\?\.addEventListener\("change", \(\) => \{\s*state\.page = 1;\s*void reloadNotesFromStart\(\);\s*\}\)/, "Changing Notes List sort should reset to page 1 and reload the server-shaped list");
   assert.doesNotMatch(notesJs, /notesDescriptorSelect\("sort"/, "Sort should no longer be a Filters field in the browser fallback descriptor");

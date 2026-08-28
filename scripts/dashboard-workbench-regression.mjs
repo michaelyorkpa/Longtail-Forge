@@ -364,9 +364,13 @@ assert.match(
   /createPageHeader\(\{[\s\S]*title: "Dashboard"/,
   "dashboard browser script must build the page header through LongtailForge.view",
 );
+// `0.33.33.38.1`: the previous pattern ran `[\s\S]*` from the call to the next mention of
+// `dashboardStatus`, which the later `dashboardStatus.hidden` assignment satisfied on its own -
+// so it would have kept passing with no status message built here at all. It now asserts the
+// construct it names: the status box is built by the view factory and held in `dashboardStatus`.
 assert.match(
   files.dashboard,
-  /createStatusMessage\(\{[\s\S]*dashboardStatus/,
+  /dashboardStatus = dashboardView\.createStatusMessage\(/,
   "dashboard browser script must build dashboard status through LongtailForge.view",
 );
 assert.match(

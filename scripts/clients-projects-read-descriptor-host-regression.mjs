@@ -54,7 +54,7 @@ assert.match(projectsHtml, /view-builder\.js[\s\S]*view-renderer\.js[\s\S]*clien
 
 assert.doesNotMatch(clientsProjectsScript, /function ensureClientProjectsPageHost\(\)/, "Adapter should no longer recreate page/filter/status/list anatomy inside minimal hosts");
 assert.match(clientsProjectsScript, /async function initializeClientProjectsPage\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*activeClientProjectsReadSurface = renderClientProjectsReadSurface\(\)/, "Adapter should wait for app-shell viewSurfaces before rendering descriptor pages");
-assert.match(clientsProjectsScript, /function renderClientProjectsReadSurface\(\)[\s\S]*view\.renderSurface\(activeClientProjectsReadDescriptor, host\)/, "Adapter should render Clients/Projects pages through the descriptor renderer");
+assert.match(clientsProjectsScript, /function renderClientProjectsReadSurface\(\)[\s\S]*renderSurface\(activeClientProjectsReadDescriptor, host\)/, "Adapter should render Clients/Projects pages through the descriptor renderer");
 assert.match(
   clientsProjectsScript,
   /await loadPageData\(\{ applyQueryActions: false \}\)[\s\S]*activeClientProjectsReadSurface = renderClientProjectsReadSurface\(\)[\s\S]*applyClientProjectQueryActions\(\)/,

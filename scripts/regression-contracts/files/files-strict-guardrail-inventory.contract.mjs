@@ -60,7 +60,7 @@ assert.match(extractFunctionSpan(filesScript, "createReportAction"), /view\.crea
   "Files Report action should use shared action button anatomy");
 assert.match(extractFunctionSpan(filesScript, "createQuarantineAction"), /view\.createActionButton[\s\S]*action:\s*"files\.quarantine"/,
   "Files Review action should keep the existing quarantine action ID through shared anatomy");
-assert.match(fileEditorDialog, /view\.renderDescriptorModalForm\(fileEditorModalDescriptor\(\)[\s\S]*createFileEditorMetadataSection[\s\S]*createFileEditorControlsSection/,
+assert.match(fileEditorDialog, /renderDescriptorModalForm\(fileEditorModalDescriptor\(\)[\s\S]*createFileEditorMetadataSection[\s\S]*createFileEditorControlsSection/,
   "File Context should use the shared modal form while keeping Files-owned body behavior");
 assert.match(extractFunctionSpan(filesScript, "fileEditorModalDescriptor"), /id:\s*"files\.file-context"/,
   "File Context descriptor should keep the Files-owned modal ID");

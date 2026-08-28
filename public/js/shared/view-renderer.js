@@ -1,4 +1,6 @@
 (function attachViewRenderer(global) {
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceElement} BrowserViewSurfaceElement */
   // 0.33.33.35.2 moved three responsibilities out of this file behind published contracts:
   // permission/route security, field option hydration, and descriptor data binding. They are
   // reached lazily through the namespace, the way every classic script reaches a sibling, and
@@ -46,7 +48,10 @@
       selectedRecord: null,
       selectedRecordId: "",
       slideOutSidebarOpen: false,
+      /** @type {HTMLElement | null} */
       surface: null,
+      /** @type {HTMLElement | null} */
+      body: null,
       view,
     };
     let inFlightRefresh = null;
@@ -117,6 +122,10 @@
       enumerable: false,
       value: state,
     });
+
+    if (!isSurfaceElement(surface)) {
+      throw new Error("View surfaces must carry their refresh, modal, and state channels.");
+    }
 
     host.appendChild(surface);
     flushMounts(state);
@@ -361,16 +370,18 @@
     wireSlideOutSidebar(state, elements);
     syncSlideOutSidebarState(state, elements, { focus: false });
 
+    // `isOpen` was an enumerable accessor installed with `Object.defineProperty`, which is the
+    // same property a literal getter declares once the object is frozen - and unlike the
+    // defineProperty form it is part of the object's type.
     const controller = {
       close: (syncOptions = {}) => setSlideOutSidebarOpen(state, elements, false, syncOptions),
+      get isOpen() {
+        return Boolean(state.slideOutSidebarOpen);
+      },
       open: (syncOptions = {}) => setSlideOutSidebarOpen(state, elements, true, syncOptions),
       sync: (syncOptions = {}) => syncSlideOutSidebarState(state, elements, syncOptions),
       toggle: (syncOptions = {}) => setSlideOutSidebarOpen(state, elements, !state.slideOutSidebarOpen, syncOptions),
     };
-    Object.defineProperty(controller, "isOpen", {
-      enumerable: true,
-      get: () => Boolean(state.slideOutSidebarOpen),
-    });
     return Object.freeze(controller);
   }
 
@@ -1606,8 +1617,33 @@
     parent.appendChild(replacementNode);
   }
 
+  /**
+   * The builder primitives this renderer is written against.
+   *
+   * `root.view || {}` produced a union whose empty branch answered every member read, which is
+   * the un-narrowed acquisition `0.33.33.38.1` removed from every other consumer. An absent
+   * factory failed the first member check and threw; it now fails one line earlier with the
+   * same message from the same call, which is the same observable behaviour.
+   * @returns {BrowserViewFactory}
+   */
+  /**
+   * Whether the three channels `renderSurface` installs are present.
+   *
+   * They are attached with `Object.defineProperty`, which keeps them off the element's type the
+   * same way `viewParts` is kept off a builder result. This checks for them rather than
+   * asserting them, so the published return contract is earned.
+   * @param {HTMLElement} element
+   * @returns {element is BrowserViewSurfaceElement}
+   */
+  function isSurfaceElement(element) {
+    return "refresh" in element && "openModal" in element && "viewState" in element;
+  }
+
   function requireViewPrimitives() {
-    const view = root.view || {};
+    const view = root.view;
+    if (!view) {
+      throw new Error("View surface rendering requires LongtailForge.view primitives.");
+    }
     for (const helperName of [
       "createCollapsibleIndexPanel",
       "createDataTable",
@@ -1681,18 +1717,24 @@
     return api;
   }
 
-  root.view = Object.freeze({
-    ...(root.view || {}),
-    createSlideOutSidebarController,
-    registerBehavior,
-    renderDescriptorActionMenu,
-    renderDescriptorActionStrip,
-    renderDescriptorDataTable,
-    renderDescriptorFieldGrid,
-    renderDescriptorInlineActions,
-    renderDescriptorLinkedRecordsPanel,
-    renderDescriptorModalForm,
-    renderSurface,
-  });
+  // The renderer extends the builder's factory and cannot stand in for it: every function above
+  // calls requireViewPrimitives() first, so a renderer-only object was a factory no caller could
+  // use. The extension is now guarded by the thing it extends, which also lets the spread name
+  // that surface directly - the || {} it replaces was contributing nothing a spread does not.
+  if (root.view) {
+    root.view = Object.freeze({
+      ...root.view,
+      createSlideOutSidebarController,
+      registerBehavior,
+      renderDescriptorActionMenu,
+      renderDescriptorActionStrip,
+      renderDescriptorDataTable,
+      renderDescriptorFieldGrid,
+      renderDescriptorInlineActions,
+      renderDescriptorLinkedRecordsPanel,
+      renderDescriptorModalForm,
+      renderSurface,
+    });
+  }
   global.LongtailForge = root;
 })(window);

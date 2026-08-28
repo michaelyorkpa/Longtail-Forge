@@ -19,9 +19,9 @@ assert.match(frameworkSurfaceSource, /sidebarPanels:[\s\S]*id:\s*"files-browse-f
 assert.match(frameworkSurfaceSource, /detail:[\s\S]*id:\s*"files-browse-results"[\s\S]*behavior:\s*"files\.browse\.results"/, "Files descriptor should mount browse results in the slide-out main region");
 assert.match(frameworkSurfaceSource, /route:\s*"\/api\/files\/attachments"/, "Files descriptor should preserve the service-owned attachments read route");
 
-assert.match(filesScript, /view\.registerBehavior\("files\.browse\.filters"/, "Files adapter should register the filter behavior");
-assert.match(filesScript, /view\.registerBehavior\("files\.browse\.results"/, "Files adapter should register the results behavior");
-assert.match(filesScript, /view\.renderSurface\(\{ \.\.\.activeFilesViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Files adapter should render the descriptor shell without renderer-owned data fetching");
+assert.match(filesScript, /registerBehavior\("files\.browse\.filters"/, "Files adapter should register the filter behavior");
+assert.match(filesScript, /registerBehavior\("files\.browse\.results"/, "Files adapter should register the results behavior");
+assert.match(filesScript, /renderSurface\(\{ \.\.\.activeFilesViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Files adapter should render the descriptor shell without renderer-owned data fetching");
 // 0.33.33.35.1.2 deleted the module-local descriptor fallbacks. The server surface is the
 // only source now, so this owner asserts the absence of a local copy rather than its presence,
 // and the descriptor's shape is owned where it is declared - in the module/framework source.

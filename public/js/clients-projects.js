@@ -1,6 +1,6 @@
 (function attachClientsProjectsPage() {
   // Clients & Projects is the main editor for client, project, and billing metadata.
-  const view = window.LongtailForge?.view;
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
   const pageMode = document.body.dataset.clientProjectPage || "combined";
   const isClientsPage = pageMode === "clients";
   const isProjectsPage = pageMode === "projects";
@@ -76,13 +76,14 @@
   }
 
   function registerClientProjectsViewBehaviors() {
+    const view = requireView();
     if (clientProjectsViewBehaviorsRegistered || typeof view?.registerBehavior !== "function") {
       return;
     }
 
     clientProjectsViewBehaviorsRegistered = true;
     registerClientProjectsModuleActionBehavior("client-projects.clients.create", "clients.add");
-    view.registerBehavior("client-projects.clients.create-child", (context = {}) => {
+    requireDescriptorRenderers().registerBehavior("client-projects.clients.create-child", (context = {}) => {
       const params = clientProjectActionParams(context);
       return openClientProjectModuleAction("clients.add", {
         ...params,
@@ -93,15 +94,15 @@
     registerClientProjectsModuleActionBehavior("client-projects.clients.edit", "clients.edit");
     registerClientProjectsModuleActionBehavior("client-projects.projects.create", "projects.add");
     registerClientProjectsModuleActionBehavior("client-projects.projects.edit", "projects.edit");
-    view.registerBehavior("client-projects.clients.tags", hydrateTagFilterOptions);
-    view.registerBehavior("client-projects.projects.tags", hydrateTagFilterOptions);
-    view.registerBehavior("client-projects.projects.clients", hydrateProjectClientFilterOptions);
-    view.registerBehavior("client-projects.clients.bulk", mountClientBulkToolbar);
-    view.registerBehavior("client-projects.projects.bulk", mountProjectBulkToolbar);
+    requireDescriptorRenderers().registerBehavior("client-projects.clients.tags", hydrateTagFilterOptions);
+    requireDescriptorRenderers().registerBehavior("client-projects.projects.tags", hydrateTagFilterOptions);
+    requireDescriptorRenderers().registerBehavior("client-projects.projects.clients", hydrateProjectClientFilterOptions);
+    requireDescriptorRenderers().registerBehavior("client-projects.clients.bulk", mountClientBulkToolbar);
+    requireDescriptorRenderers().registerBehavior("client-projects.projects.bulk", mountProjectBulkToolbar);
   }
 
   function registerClientProjectsModuleActionBehavior(behaviorId, actionId) {
-    view.registerBehavior(behaviorId, (context = {}) => openClientProjectModuleAction(
+    requireDescriptorRenderers().registerBehavior(behaviorId, (context = {}) => openClientProjectModuleAction(
       actionId,
       clientProjectActionParams(context),
     ));
@@ -151,6 +152,7 @@
   }
 
   function renderClientProjectsReadSurface() {
+    const view = requireView();
     if ((!isClientsPage && !isProjectsPage) || typeof view?.renderSurface !== "function") {
       return null;
     }
@@ -165,7 +167,7 @@
       return null;
     }
 
-    return view.renderSurface(activeClientProjectsReadDescriptor, host);
+    return requireDescriptorRenderers().renderSurface(activeClientProjectsReadDescriptor, host);
   }
 
   function clientProjectsViewSurfaceDescriptor() {
@@ -393,11 +395,62 @@
     });
   }
 
-  function requireView() {
-    if (!view) {
-      throw new Error("Client/Project dialogs require LongtailForge.view.");
+  /**
+   * The view factory this controller cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing factory still
+   * fails at exactly the moment it failed before `0.33.33.38.1` declared it.
+   * @returns {BrowserViewFactory}
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
+  
+  /**
+   * Whether this page received `view-renderer.js` as well as `view-builder.js`.
+   *
+   * Ten of the eighteen builder pages do not load the renderer, so its members are
+   * genuinely partial on the shared factory type. This predicate checks the ones
+   * Client/Project surfaces uses, so the narrowing is earned rather than asserted.
+   * @param {BrowserViewFactory} factory
+   * @returns {factory is BrowserViewFactory & BrowserViewDescriptorRenderers}
+   */
+  function hasDescriptorRenderers(factory) {
+    return typeof factory.registerBehavior === "function"
+      && typeof factory.renderSurface === "function";
+  }
+  
+  /** @returns {BrowserViewFactory & BrowserViewDescriptorRenderers} */
+  function requireDescriptorRenderers() {
+    const factory = requireView();
+    if (!hasDescriptorRenderers(factory)) {
+      throw new Error("Client/Project surfaces requires the LongtailForge.view descriptor renderers.");
     }
-    return view;
+    return factory;
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFieldElement} BrowserViewFieldElement */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFieldControl} BrowserViewFieldControl */
+
+  /**
+   * The control a field rendered. `viewParts.control` is null only on the radio path, where a
+   * descriptor carrying no options renders a legend and no inputs; every caller here builds a
+   * field that has one.
+   * @param {BrowserViewFieldElement} field
+   * @returns {BrowserViewFieldControl}
+   */
+  function fieldControl(field) {
+    const control = field.viewParts.control;
+    if (!control) {
+      throw new Error("Client/Project fields require a rendered control.");
+    }
+    return control;
+  }
+
+  function requireView() {
+    const factory = window.LongtailForge?.view;
+    if (!factory) {
+      throw new Error("Client/Project surfaces require LongtailForge.view.");
+    }
+    return factory;
   }
 
   function createModalAction(label, options = {}) {
@@ -436,7 +489,9 @@
     });
   }
 
+  /** @param {HTMLElement} dialog @param {HTMLElement | null} [focusTarget] */
   function showDialog(dialog, focusTarget = null) {
+    const view = requireView();
     document.body.appendChild(dialog);
 
     if (typeof view?.showModal === "function") {
@@ -873,6 +928,10 @@
     return inputs;
   }
 
+  /**
+   * @param {string} recordType
+   * @param {import("../../src/types/browser-contracts.js").BrowserViewBulkActionToolbarElement | null} [toolbar]
+   */
   function syncClientProjectsBulkToolbar(recordType, toolbar = null) {
     const selectedCount = recordType === "project" ? getSelectedProjectIds().length : getSelectedClientIds().length;
     const toolbars = toolbar ? [toolbar] : [...document.querySelectorAll(`[data-client-projects-bulk-toolbar="${recordType}"]`)];
@@ -1063,14 +1122,14 @@
       type: "text",
       width: "full",
     });
-    const nameInput = nameField.viewParts.control;
+    const nameInput = fieldControl(nameField);
     const parentField = modalView.createField({
       field: "parentClientId",
       label: "Parent Client",
       type: "select",
       width: "full",
     });
-    const parentSelect = parentField.viewParts.control;
+    const parentSelect = fieldControl(parentField);
     const tagContainer = modalView.createElement("div", {
       className: "client-add-tags-field",
       attrs: { "data-view-field-width": "full" },

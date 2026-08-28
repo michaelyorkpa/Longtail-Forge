@@ -29,7 +29,7 @@ const taskViewChrome = extractFunctionSpan(tasksScript, "createTaskViewSelectorC
 const filterChrome = extractFunctionSpan(tasksScript, "createTaskFilterChrome");
 const bulkChrome = extractFunctionSpan(tasksScript, "createTaskBulkToolbarChrome");
 
-assert.match(tasksScript, /view\.renderSurface\(\{ \.\.\.activeTasksViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Tasks should still use the framework-rendered page shell");
+assert.match(tasksScript, /renderSurface\(\{ \.\.\.activeTasksViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Tasks should still use the framework-rendered page shell");
 assert.match(tasksModule, /sidebarPanels:\s*\[[\s\S]*id:\s*"tasks-view-selector"[\s\S]*id:\s*"tasks-filters"/, "Tasks descriptor should own sidebar panel placement through the framework");
 assert.match(tasksModule, /detail:\s*\{[\s\S]*regions:\s*\[[\s\S]*id:\s*"tasks-main-list"[\s\S]*behavior:\s*"tasks\.main\.list"/, "Tasks descriptor should mount the main list through a framework region");
 assert.match(mainChrome, /view\.createListShell\(\{[\s\S]*toolbar:\s*createTaskBulkToolbarChrome\(\)[\s\S]*statusAttrs:\s*\{\s*"data-task-status":\s*""\s*\}[\s\S]*children:\s*list/, "Tasks main list should use the framework list shell with a status mount and bulk toolbar slot");

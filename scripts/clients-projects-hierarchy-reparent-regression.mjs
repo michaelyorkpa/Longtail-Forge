@@ -56,7 +56,7 @@ assert.match(
 
 assert.match(
   clientsProjectsScript,
-  /function renderClientProjectsReadSurface\(\)[\s\S]*view\.renderSurface\(activeClientProjectsReadDescriptor, host\)/,
+  /function renderClientProjectsReadSurface\(\)[\s\S]*renderSurface\(activeClientProjectsReadDescriptor, host\)/,
   "Converted Clients/Projects pages should mount descriptor reads through the shared renderer",
 );
 assert.match(

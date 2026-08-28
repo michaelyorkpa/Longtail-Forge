@@ -46,7 +46,22 @@
       label: "Focus on a project",
     },
   };
-  const workbenchViewHelpers = window.LongtailForge.view;
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+
+  /**
+   * The view factory this controller cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing factory still
+   * fails at exactly the moment it failed before `0.33.33.38.1` declared it.
+   * @returns {BrowserViewFactory}
+   */
+  function requireView() {
+    const factory = window.LongtailForge?.view;
+    if (!factory) {
+      throw new Error("Workbench requires LongtailForge.view.");
+    }
+    return factory;
+  }
   const api = window.LongtailForge.api;
   const modal = window.LongtailForge.modal;
   const workbenchHost = document.querySelector("[data-workbench-host]");
@@ -144,6 +159,7 @@
   loadWorkbench();
 
   function buildWorkbenchHost() {
+    const workbenchViewHelpers = window.LongtailForge?.view;
     if (!workbenchHost || !workbenchViewHelpers) {
       return;
     }
@@ -185,6 +201,7 @@
   }
 
   function createWorkbenchShell() {
+    const workbenchViewHelpers = requireView();
     workbenchInspectorBackdrop = workbenchViewHelpers.createElement("div", {
       className: "view-slideout-sidebar-backdrop",
       attrs: {
@@ -212,6 +229,7 @@
   }
 
   function createWorkbenchInspectorPanel() {
+    const workbenchViewHelpers = requireView();
     workbenchInspectorCloseButton = workbenchViewHelpers.createActionButton({
       className: "workbench-inspector-close-button",
       icon: "close",
@@ -283,6 +301,7 @@
   }
 
   function initializeWorkbenchInspectorSlideOut() {
+    const workbenchViewHelpers = requireView();
     if (
       !workbenchInspectorBackdrop
       || !workbenchInspectorCloseButton
@@ -331,6 +350,7 @@
   }
 
   function createTaskFocusPanel() {
+    const workbenchViewHelpers = requireView();
     taskFocusActionMount = workbenchViewHelpers.createElement("div", {
       className: "workbench-task-focus-action-mount",
       dataset: { workbenchTaskFocusActions: "" },
@@ -366,6 +386,7 @@
   }
 
   function createGuidedFocusPanel() {
+    const workbenchViewHelpers = requireView();
     focusModeList = workbenchViewHelpers.createElement("div", {
       className: "workbench-focus-question-list",
       attrs: {
@@ -443,6 +464,7 @@
   // owns all calendar logic, Workbench only links to its week view. Icon-only
   // in the panel's top-right, aligned like the Task modal's heading utilities.
   function createCalendarWeekLink() {
+    const workbenchViewHelpers = requireView();
     calendarWeekLinkElement = workbenchViewHelpers.createElement("a", {
       className: ["button-link", "icon-button", "workbench-calendar-link"],
       attrs: {
@@ -479,6 +501,7 @@
   }
 
   function createRecommendedActionPanel() {
+    const workbenchViewHelpers = requireView();
     recommendedActionBody = workbenchViewHelpers.createElement("div", {
       className: "workbench-recommended-body",
       dataset: { workbenchRecommendedAction: "" },
@@ -538,6 +561,7 @@
   }
 
   function createSecondaryWorkbenchPanel() {
+    const workbenchViewHelpers = requireView();
     secondaryWorkbenchPanelElement = workbenchViewHelpers.createElement("section", {
       className: "workbench-secondary-panel",
       attrs: { "aria-label": "Workbench module lists" },
@@ -556,6 +580,7 @@
   }
 
   function createTimerSection() {
+    const workbenchViewHelpers = requireView();
     timerCountText = workbenchViewHelpers.createElement("span", {
       className: "workbench-count",
       dataset: { workbenchTimerCount: "" },
@@ -577,7 +602,12 @@
     return timerSectionElement;
   }
 
+  /**
+   * @param {{ body?: HTMLElement[], cardId: string, count?: HTMLElement | null,
+   *   defaultOpen?: boolean, rendererId: string, title: string }} options
+   */
   function createWorkbenchCardSection({ body = [], cardId, count = null, defaultOpen = true, rendererId, title }) {
+    const workbenchViewHelpers = requireView();
     const section = workbenchViewHelpers.createElement("details", {
       className: ["workbench-section", "surface-main-panel"],
       dataset: {
@@ -602,7 +632,12 @@
     return section;
   }
 
+  /**
+   * @param {{ bodyId?: string, count?: HTMLElement | null, subtitle?: HTMLElement | null,
+   *   title: string }} options
+   */
   function createWorkbenchSectionSummary({ bodyId = "", count = null, subtitle = null, title }) {
+    const workbenchViewHelpers = requireView();
     const attrs = { "aria-expanded": "false" };
 
     if (bodyId) {
@@ -1120,6 +1155,7 @@
   }
 
   function renderFocusModes() {
+    const workbenchViewHelpers = requireView();
     focusModeList.replaceChildren();
     populateFocusScopeOptions();
 
@@ -1340,6 +1376,7 @@
   }
 
   function createTaskFocusRelatedContextGroup(group = {}) {
+    const workbenchViewHelpers = requireView();
     const count = Number.parseInt(group.count, 10) || (group.items || []).length;
     const header = workbenchViewHelpers.createElement("div", {
       className: "workbench-inspector-group-heading",
@@ -1368,6 +1405,7 @@
   }
 
   function createTaskFocusRelatedContextItem(item = {}) {
+    const workbenchViewHelpers = requireView();
     const title = relatedContextTitle(item);
     const context = relatedContextContextLabel(item);
     const canOpen = relatedContextCanOpen(item);
@@ -1436,6 +1474,7 @@
   }
 
   function createWorkbenchInspectorItem(candidate) {
+    const workbenchViewHelpers = requireView();
     const title = inspectorCandidateTitle(candidate);
     const context = inspectorCandidateContext(candidate);
     const openMode = resolvedWorkbenchViewState() === WORKBENCH_VIEW_STATE_FOCUS_SELECTION
@@ -1530,6 +1569,7 @@
   }
 
   function createRecommendedCandidateCard(candidate, candidateIndex = 0) {
+    const workbenchViewHelpers = requireView();
     const actionButtonElement = workbenchViewHelpers.createActionButton({
       label: candidateActionLabel(candidate),
       onClick: (event) => openCandidate(candidate, event?.currentTarget || null, { mode: "candidate-primary" }),
@@ -1568,6 +1608,7 @@
   }
 
   function recommendedCandidateResumeNote(candidate = {}) {
+    const workbenchViewHelpers = requireView();
     const resumeNote = safeCandidateText(
       candidate.handoffNote || candidate.metadata?.resume_note || candidate.metadata?.resumeNote,
       "",
@@ -1616,6 +1657,7 @@
   }
 
   function recommendedEmptyState() {
+    const workbenchViewHelpers = requireView();
     if (state.focusModeId === PROJECT_FOCUS_MODE_ID && !state.selectedProjectId) {
       return workbenchViewHelpers.createEmptyState({
         actions: [{
@@ -1675,6 +1717,7 @@
   }
 
   function createTaskFocusActionStrip(active) {
+    const workbenchViewHelpers = requireView();
     const isBlocked = String(active?.task?.status || "").trim() === "blocked";
     const blockOrResumeAction = isBlocked
       ? {
@@ -1721,6 +1764,7 @@
   }
 
   function createTaskFocusActionButton({ active, disabledReason = "", icon, id, label, onClick }) {
+    const workbenchViewHelpers = requireView();
     const taskId = active?.taskId || "";
     const disabled = !taskId || Boolean(disabledReason);
     const title = disabledReason || (!taskId ? "Choose a task before using this action." : label);
@@ -1781,6 +1825,7 @@
   }
 
   function createTaskFocusSummary(active) {
+    const workbenchViewHelpers = requireView();
     const task = active?.task || {};
     const title = taskFocusTitle(active);
     const meta = taskFocusContextLabel(task, active);
@@ -1829,6 +1874,7 @@
   }
 
   function taskFocusLeadText(task, _active) {
+    const workbenchViewHelpers = requireView();
     const text = safeTaskFocusText(
       task.next_action || task.resume_note || task.description || "",
       "Ready to work.",
@@ -1841,6 +1887,7 @@
   }
 
   function createTaskDetailsSection(active) {
+    const workbenchViewHelpers = requireView();
     const details = workbenchViewHelpers.createElement("details", {
       className: ["workbench-section", "surface-main-panel", "workbench-task-details-section"],
       dataset: {
@@ -1867,6 +1914,7 @@
   }
 
   function createTaskFocusChecklistSection(active) {
+    const workbenchViewHelpers = requireView();
     const task = active?.task || {};
     const items = taskFocusChecklistItems(task);
     const bodyId = "workbench-task-focus-checklist-body";
@@ -1905,6 +1953,7 @@
   }
 
   function createTaskFocusTimerSection(active) {
+    const workbenchViewHelpers = requireView();
     const timer = currentTaskFocusTimer(active);
     const bodyId = "workbench-task-focus-timer-body";
     const count = workbenchViewHelpers.createElement("span", {
@@ -1954,6 +2003,7 @@
   }
 
   function createTaskFocusTimerControls(active, timer, eligibility) {
+    const workbenchViewHelpers = requireView();
     const duration = workbenchViewHelpers.createElement("strong", {
       className: "workbench-duration",
       dataset: { workbenchTaskFocusTimerDisplay: "" },
@@ -2103,6 +2153,7 @@
   }
 
   function createTaskFocusChecklistBody(active, items) {
+    const workbenchViewHelpers = requireView();
     if (active?.isLoading) {
       return [emptyState("Checklist is loading.")];
     }
@@ -2139,6 +2190,7 @@
   }
 
   function createTaskFocusChecklistItem(item, active) {
+    const workbenchViewHelpers = requireView();
     const itemId = String(item?.task_checklist_item_id || "");
     const labelText = safeTaskFocusText(item?.label, "Checklist item");
     const checkbox = workbenchViewHelpers.createElement("input", {
@@ -2208,6 +2260,7 @@
   }
 
   function createTaskDetailFields(active) {
+    const workbenchViewHelpers = requireView();
     const task = active?.task || {};
     if (active?.isLoading) {
       return [emptyState("Task details are loading.")];
@@ -2240,6 +2293,7 @@
   }
 
   function createTaskDetailField(label, value, key, options = {}) {
+    const workbenchViewHelpers = requireView();
     return workbenchViewHelpers.createElement("article", {
       className: ["workbench-task-detail-field", options.multiline ? "is-multiline" : ""],
       dataset: { workbenchTaskDetailField: key },
@@ -2345,6 +2399,7 @@
     return candidate.primaryAction?.label || "Review";
   }
 
+  /** @param {EventTarget | null} [trigger] */
   async function openCandidate(candidate, trigger = null, options = {}) {
     const mode = options.mode || "candidate-primary";
     const taskId = candidateTaskId(candidate);
@@ -2808,6 +2863,7 @@
     focusModeList?.querySelector("button")?.focus?.();
   }
 
+  /** @param {EventTarget | null} [trigger] */
   async function openTaskCandidate(candidate, taskId, trigger = null, editorOptions = {}) {
     if (!moduleEnabled("tasks")) {
       setStatus("Tasks are not available in this workspace.", { isError: true });
@@ -2863,6 +2919,7 @@
     setStatus("Task Focus is currently available for task candidates only. This work type needs an explicit page fallback.", { isError: true });
   }
 
+  /** @param {EventTarget | null} [trigger] */
   async function openModuleActionCandidate(candidate, action, trigger = null) {
     if (action.moduleId && !moduleEnabled(action.moduleId)) {
       setStatus(`${action.moduleLabel} is not available in this workspace.`, { isError: true });
@@ -2893,6 +2950,7 @@
     }
   }
 
+  /** @param {EventTarget | null} [trigger] */
   async function openTaskFocusRelatedContextItem(item = {}, trigger = null) {
     const action = item.action || {};
 
@@ -2910,6 +2968,7 @@
     setStatus("This related item does not have a safe opener yet.", { isError: true });
   }
 
+  /** @param {EventTarget | null} [trigger] */
   async function openRelatedContextModuleAction(item = {}, action = {}, trigger = null) {
     const sourceLabel = relatedContextSourceLabel(item);
     const params = {

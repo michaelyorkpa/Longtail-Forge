@@ -39,8 +39,8 @@ for (const helperName of [
   "createInlineActionRow",
   "createModalForm",
 ]) {
-  assert.match(renderer, new RegExp(`view\\.${helperName}`), `Declarative renderer should use LongtailForge.view.${helperName}`);
-  assert.doesNotMatch(listsJs, new RegExp(`view\\.${helperName}`), `Converted Lists should not call LongtailForge.view.${helperName} directly after descriptor migration`);
+  assert.match(renderer, new RegExp(`\\.${helperName}\\(`), `Declarative renderer should use LongtailForge.view.${helperName}`);
+  assert.doesNotMatch(listsJs, new RegExp(`\\.${helperName}\\(`), `Converted Lists should not call LongtailForge.view.${helperName} directly after descriptor migration`);
 }
 
 for (const helperName of [
@@ -50,7 +50,7 @@ for (const helperName of [
   "renderDescriptorInlineActions",
   "renderDescriptorModalForm",
 ]) {
-  assert.match(listsJs, new RegExp(`view\\.${helperName}`), `Converted Lists should use LongtailForge.view.${helperName}`);
+  assert.match(listsJs, new RegExp(`\\.${helperName}\\(`), `Converted Lists should use LongtailForge.view.${helperName}`);
 }
 
 for (const html of [clientsHtml, projectsHtml]) {
@@ -74,7 +74,9 @@ assert.doesNotMatch(workbenchHtml, /js\/clients-projects\.js/, "Workbench should
 // 0.33.33.34 moved the module-action dependency table into the shared registry.
 assert.match(readText("public/js/shared/module-actions.js"), /src: "js\/clients-projects\.js"/, "The registry should declare the Client/Project dialog as a lazy module-action dependency");
 assert.doesNotMatch(clientsHtml, /<dialog data-client-modal>/, "Clients page should not restore the static Add Client dialog");
-assert.match(clientsScript, /const view = window\.LongtailForge\?\.view/, "Client/Project dialogs should consume the shared view namespace");
+// 0.33.33.38.1 moved the acquisition behind a checked read; the contract is that the dialogs
+// take the shared factory rather than build their own, which requireView() is.
+assert.match(clientsScript, /const factory = window\.LongtailForge\?\.view;/, "Client/Project dialogs should consume the shared view namespace");
 assert.match(extractFunctionSpan(clientsScript, "createModalCommitGroup"), /surface-modal-footer-group/, "Converted Client/Project footers should keep framework footer groups");
 assert.match(extractFunctionSpan(clientsScript, "createModalAction"), /surface-modal-footer-action/, "Converted Client/Project actions should keep framework footer action classes");
 

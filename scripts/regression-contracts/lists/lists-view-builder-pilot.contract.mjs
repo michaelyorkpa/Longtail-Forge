@@ -37,9 +37,9 @@ for (const helper of [
   "createModalForm",
   "createEmptyState",
 ]) {
-  assert.match(renderer, new RegExp(`view\\.${helper}`), `Declarative renderer should consume LongtailForge.view.${helper}`);
+  assert.match(renderer, new RegExp(`\\.${helper}\\(`), `Declarative renderer should consume LongtailForge.view.${helper}`);
 }
-assert.match(listsJs, /view\.createActionButton/, "Lists behavior adapter should still use LongtailForge.view.createActionButton for module-specific controls");
+assert.match(listsJs, /\.createActionButton\(/, "Lists behavior adapter should still use LongtailForge.view.createActionButton for module-specific controls");
 
 for (const helper of [
   "renderDescriptorActionMenu",
@@ -48,7 +48,7 @@ for (const helper of [
   "renderDescriptorInlineActions",
   "renderDescriptorModalForm",
 ]) {
-  assert.match(listsJs, new RegExp(`view\\.${helper}`), `Lists declarative adapter should consume LongtailForge.view.${helper}`);
+  assert.match(listsJs, new RegExp(`\\.${helper}\\(`), `Lists declarative adapter should consume LongtailForge.view.${helper}`);
 }
 
 for (const hook of [

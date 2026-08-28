@@ -354,7 +354,7 @@
         includeFiles: !filesDialog,
         includeRecurrence: !recurrenceDialog,
         includeTags: !tagsDialog,
-      }));
+      }).filter((element) => element !== null && element !== undefined));
       dialog = document.querySelector("[data-task-dialog]");
       recurrenceDialog = document.querySelector("[data-task-recurrence-dialog]");
       tagsDialog = document.querySelector("[data-task-tags-dialog]");
@@ -2799,10 +2799,27 @@
     return dialog;
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
+
+  /**
+   * Whether this page received `view-renderer.js` as well as `view-builder.js`. Ten of the
+   * eighteen builder pages do not, so `renderDescriptorModalForm` is genuinely partial on the
+   * shared factory type and this predicate earns the narrowing rather than asserting it.
+   * @param {BrowserViewFactory} factory
+   * @returns {factory is BrowserViewFactory & BrowserViewDescriptorRenderers}
+   */
+  function hasDescriptorRenderers(factory) {
+    return typeof factory.renderDescriptorModalForm === "function";
+  }
+
   function requireTaskDialogView() {
     const view = namespace.view;
     if (!view?.renderDescriptorModalForm || !view?.createModal || !view?.createModalForm || !view?.showModal || !view?.closeModal || !view?.createActionButton || !view?.createElement || !view?.createDetailBadgeRow) {
       throw new Error("Task dialog requires LongtailForge.view modal helpers.");
+    }
+    if (!hasDescriptorRenderers(view)) {
+      throw new Error("Task dialog requires LongtailForge.view.renderDescriptorModalForm.");
     }
     return view;
   }

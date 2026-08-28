@@ -1,11 +1,49 @@
 (function attachSettingsHost(global) {
   const root = global.LongtailForge ||= {};
-  const view = root.view;
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
   const LEAVE_WORKSPACE_WARNING = "Leaving a workspace removes only your membership. The workspace and its data are not deleted. A Workspace Administrator or Super Admin must restore your access if you need to return.";
 
-  if (!view?.createElement || !view?.createField || !view?.createFieldGrid || !view?.createActionButton) {
-    throw new Error("Settings hosts require LongtailForge.view.");
+  /**
+   * The four primitives every settings host builds from. The check and its message are the
+   * ones this module already ran at load; `0.33.33.38.1` only made the result a declared type.
+   * @returns {BrowserViewFactory}
+   */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFieldElement} BrowserViewFieldElement */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFieldControl} BrowserViewFieldControl */
+
+  /**
+   * Only an input has a writable `type`; a select reports its own and a textarea has none.
+   * @param {BrowserViewFieldControl} control
+   * @returns {control is HTMLInputElement}
+   */
+  function isInputControl(control) {
+    return control.tagName === "INPUT";
   }
+
+  /**
+   * The control a field rendered. `viewParts.control` is null only on the radio path, where a
+   * descriptor carrying no options renders a legend and no inputs; every caller here builds a
+   * field that has one.
+   * @param {BrowserViewFieldElement} field
+   * @returns {BrowserViewFieldControl}
+   */
+  function fieldControl(field) {
+    const control = field.viewParts.control;
+    if (!control) {
+      throw new Error("Settings host fields require a rendered control.");
+    }
+    return control;
+  }
+
+  function requireView() {
+    const factory = root.view;
+    if (!factory?.createElement || !factory?.createField || !factory?.createFieldGrid || !factory?.createActionButton) {
+      throw new Error("Settings hosts require LongtailForge.view.");
+    }
+    return factory;
+  }
+
+  const view = requireView();
 
   const api = Object.freeze({
     attachmentSections,
@@ -641,8 +679,12 @@
     if (options.hidden) {
       fieldElement.hidden = true;
     }
-    if (options.inputType) {
-      fieldElement.viewParts.control.type = options.inputType;
+    const typedControl = options.inputType ? fieldControl(fieldElement) : null;
+    if (typedControl) {
+      if (!isInputControl(typedControl)) {
+        throw new Error("Settings host input types apply to input controls only.");
+      }
+      typedControl.type = options.inputType;
     }
     if (options.optionClassName) {
       fieldElement.querySelectorAll("label").forEach((label) => label.classList.add(options.optionClassName));

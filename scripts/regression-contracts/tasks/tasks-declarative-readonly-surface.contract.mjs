@@ -25,7 +25,7 @@ assert.match(tasksView, /js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-ren
 assertNoProtectedAnatomy(tasksView, "views/protected/tasks.html");
 
 assert.match(tasksScript, /buildTasksViewShell\(\);[\s\S]*tasksDialog\?\.configure\?\.\(\)/, "Tasks adapter should build the descriptor shell before querying task hooks");
-assert.match(tasksScript, /view\.renderSurface\(\{ \.\.\.activeTasksViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Tasks adapter should render the descriptor shell without converting read data or modal internals yet");
+assert.match(tasksScript, /renderSurface\(\{ \.\.\.activeTasksViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Tasks adapter should render the descriptor shell without converting read data or modal internals yet");
 assert.match(tasksScript, /workspaceContext\?\.viewSurfaces/, "Tasks adapter should prefer bootstrapped descriptor data");
 // 0.33.33.35.1.2 deleted the module-local descriptor fallbacks. The server surface is the
 // only source now, so this owner asserts the absence of a local copy rather than its presence,
@@ -40,10 +40,10 @@ assert.match(
   /surface\.id === "tasks.workspace"[^\n]*\|\| null;/,
   "Tasks should resolve to null when the server did not deliver its surface",
 );
-assert.match(tasksScript, /view\.registerBehavior\("tasks\.create"/, "Tasks adapter should register the create action behavior");
-assert.match(tasksScript, /view\.registerBehavior\("tasks\.sidebar\.view-selector"/, "Tasks adapter should register the task view selector behavior");
-assert.match(tasksScript, /view\.registerBehavior\("tasks\.sidebar\.filters"/, "Tasks adapter should register the sidebar filter behavior");
-assert.match(tasksScript, /view\.registerBehavior\("tasks\.main\.list"[\s\S]*container\.replaceChildren\(createTaskMainListChrome\(\)\)/, "Tasks adapter should mount the task list through a descriptor detail-region behavior");
+assert.match(tasksScript, /registerBehavior\("tasks\.create"/, "Tasks adapter should register the create action behavior");
+assert.match(tasksScript, /registerBehavior\("tasks\.sidebar\.view-selector"/, "Tasks adapter should register the task view selector behavior");
+assert.match(tasksScript, /registerBehavior\("tasks\.sidebar\.filters"/, "Tasks adapter should register the sidebar filter behavior");
+assert.match(tasksScript, /registerBehavior\("tasks\.main\.list"[\s\S]*container\.replaceChildren\(createTaskMainListChrome\(\)\)/, "Tasks adapter should mount the task list through a descriptor detail-region behavior");
 assert.match(tasksScript, /const main = surface\.querySelector\("\.view-slideout-sidebar-main"\)/, "Tasks adapter should target the slide-out main panel for the task list");
 assert.doesNotMatch(tasksScript, /main\.replaceChildren\(createTaskMainListChrome\(\)\)/, "Tasks adapter should not replace the framework-owned main panel");
 

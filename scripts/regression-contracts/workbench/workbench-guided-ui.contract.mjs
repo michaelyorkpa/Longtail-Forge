@@ -21,12 +21,12 @@ assert.match(
 );
 assert.match(
   workbenchScript,
-  /const workbenchViewHelpers = window\.LongtailForge\.view;/,
+  /const workbenchViewHelpers = (?:requireView\(\)|window\.LongtailForge\??\.view);/,
   "Workbench should keep its view helper binding scoped to a Workbench-specific name",
 );
 assert.doesNotMatch(
   workbenchScript,
-  /const view = window\.LongtailForge\.view;/,
+  /const view = (?:requireView\(\)|window\.LongtailForge\??\.view);/,
   "Workbench must not redeclare the generic classic-script view binding used by other protected scripts",
 );
 assert.doesNotMatch(
