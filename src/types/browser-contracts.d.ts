@@ -995,6 +995,50 @@ export interface BrowserSettingsPageControllerHandle {
   updateDirtyState(): void;
 }
 
+/**
+ * Options `LongtailForge.status.set` reads. Nothing else in the bag is consulted.
+ */
+export interface BrowserStatusMessageOptions {
+  /**
+   * Milliseconds after which the message clears itself. Ignored when the message is empty, and
+   * the pending timer is cancelled by the next `set` or `clear` on the same element.
+   */
+  clearAfter?: number;
+  /** An older spelling of `type: "error"`; the writer honours both. */
+  isError?: boolean;
+  /**
+   * `"error"` and `"success"` add their tone class. **Any other value renders neutral rather
+   * than being rejected** - `role-assignments.js` passes `""` deliberately for exactly that - so
+   * this is open vocabulary with two recognised members, not a closed union.
+   */
+  type?: string;
+}
+
+/**
+ * `LongtailForge.status`, published by `public/js/shared/status.js`.
+ *
+ * Writes and clears the message on a status element, with an optional self-clearing timer held
+ * in a `WeakMap` keyed by that element. **The runtime property is named `status`, but the
+ * responsibility is a status *message* on the DOM** - it is unrelated to task lifecycle status,
+ * HTTP status, or any page's own status state, and the contract is named for what it does.
+ *
+ * Published as a plain object rather than a frozen one, which the declaration describes but
+ * does not change.
+ */
+export interface BrowserStatusMessage {
+  /** Empty the element, hide it, drop both tone classes, and cancel any pending timer. */
+  clear(element: HTMLElement | null | undefined): void;
+  /**
+   * Show a message. An absent element is a no-op rather than an error, and an empty message
+   * hides the element.
+   */
+  set(
+    element: HTMLElement | null | undefined,
+    message?: string,
+    options?: BrowserStatusMessageOptions,
+  ): void;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
@@ -1027,6 +1071,7 @@ export interface LongtailForgeBrowserNamespace {
   records?: BrowserRecords;
   settingsHost?: BrowserSettingsHost;
   settingsPageController?: BrowserSettingsPageController;
+  status?: BrowserStatusMessage;
   /**
    * The frozen view factory, written by `view-builder.js` and extended by `view-renderer.js`.
    * Optional because the namespace itself can be absent, not because the factory is.

@@ -12,14 +12,14 @@
   const workspaceUsersDialog = document.querySelector("[data-workspace-users-dialog]");
   const workspaceUsersList = document.querySelector("[data-workspace-users-list]");
   const closeWorkspaceUsersButton = document.querySelector("[data-close-workspace-users]");
-  const workspaceSettingsStatus = document.querySelector("[data-workspace-settings-status]");
+  const workspaceSettingsStatus = asStatusElement(document.querySelector("[data-workspace-settings-status]"));
   const runtimeDiagnosticsSummary = document.querySelector("[data-runtime-diagnostics-summary]");
   const runtimeDiagnosticsWarnings = document.querySelector("[data-runtime-diagnostics-warnings]");
   const jobObservabilitySummary = document.querySelector("[data-job-observability-summary]");
   const jobObservabilityFailures = document.querySelector("[data-job-observability-failures]");
   const jobObservabilityMoreButton = document.querySelector("[data-job-observability-more]");
   const workspaceBackupSummary = document.querySelector("[data-workspace-backup-summary]");
-  const workspaceBackupStatus = document.querySelector("[data-workspace-backup-status]");
+  const workspaceBackupStatus = asStatusElement(document.querySelector("[data-workspace-backup-status]"));
   const createWorkspaceBackupButton = document.querySelector("[data-create-workspace-backup]");
   const workspaceDeletionSummary = document.querySelector("[data-workspace-deletion-summary]");
   const workspaceDeletionStatus = document.querySelector("[data-workspace-deletion-status]");
@@ -111,6 +111,32 @@
       throw new Error("Workspace settings requires LongtailForge.settingsPageController.");
     }
     return controller;
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserStatusMessage} BrowserStatusMessage */
+
+  /**
+   * The status-message helpers this page cannot report through without. Every page that loads
+   * this script also loads `shared/status.js` ahead of it, so the checked read fails exactly
+   * where the raw read failed before.
+   * @returns {BrowserStatusMessage}
+   */
+  function requireStatusMessage() {
+    const status = window.LongtailForge?.status;
+    if (!status) {
+      throw new Error("Workspace settings requires LongtailForge.status.");
+    }
+    return status;
+  }
+
+  /**
+   * A status element the message helpers can drive. They set `hidden`, which only an
+   * `HTMLElement` has; anything else was already a silent no-op and stays one.
+   * @param {Element | null} node
+   * @returns {HTMLElement | null}
+   */
+  function asStatusElement(node) {
+    return node && "hidden" in node ? /** @type {HTMLElement} */ (node) : null;
   }
 
   async function loadSettingsForm() {
@@ -885,14 +911,14 @@
   }
 
   function flashSavedState() {
-    window.LongtailForge.status.set(workspaceSettingsStatus, "Workspace settings saved.", {
+    requireStatusMessage().set(workspaceSettingsStatus, "Workspace settings saved.", {
       type: "success",
       clearAfter: 1600,
     });
   }
 
   function setWorkspaceSettingsStatus(message) {
-    window.LongtailForge.status.set(workspaceSettingsStatus, message);
+    requireStatusMessage().set(workspaceSettingsStatus, message);
   }
 
   function handleApiError(error, fallbackMessage) {
@@ -901,6 +927,6 @@
       return;
     }
 
-    window.LongtailForge.status.set(workspaceSettingsStatus, error?.message || fallbackMessage, { type: "error" });
+    requireStatusMessage().set(workspaceSettingsStatus, error?.message || fallbackMessage, { type: "error" });
   }
 })();
