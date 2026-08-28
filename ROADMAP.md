@@ -137,14 +137,38 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - **`linkTargetDirectory.list` never declared `LinkTargetCandidate[]`.** It returns `(await provider.list(...)).map(shapeLinkTarget)`, and a type probe against the real project reports its inferred return as `LinkTarget[]`; `notesService.listLinkTargets(...).targets` is assignable to `LinkTarget[]` as well. The probe was proved live by a deliberately impossible annotation, which failed as `Type 'LinkTarget[]' is not assignable to type 'number[]'` - **the compiler naming the inferred type is the evidence.** The `0.33.33.36` note recorded the directory as *declaring* the weak type; it does not, and that half of the note is withdrawn.
 - **Nothing here is to be deduplicated.** This is a weaker input contract with a stronger normalised output and a total normaliser between them, which is exactly the shape that must survive.
 
-#### 0.33.33.38.1 - Declare the `LongtailForge.view` factory contract
+#### 0.33.33.38.1 - Declare the `LongtailForge.view` factory contract and adopt its checked read
 
-**Model: High Effort - 529 diagnostics attributable, the largest single addressable contract in the browser program.**
+**Model: High Effort - RESLICED after the declaration was authored in full and measured. The declaration-only boundary does not hold, and the evidence is on `agent/0.33.33.38.1-declaration-evidence` rather than described from memory.**
 
-- [ ] Author the interface for the frozen `LongtailForge.view` factory - 30 members from `view-builder.js` and 10 spread by `view-renderer.js` - and declare it as a namespace member. **Declaration only: no writer is added, no member moves, no runtime value changes.**
-- [ ] Read each member's implementation before declaring its signature. A member that genuinely accepts or returns an open value keeps that in its declaration; do not close a parameter to remove an error.
-- [ ] Run first, because `view` cascades through nine controllers and the DOM and `unknown` cohorts cannot be measured honestly until it is declared. **Regenerate the ledger and reclassify before `.38.3` and `.38.4` are implemented.**
-- [ ] Report the measured delta against the 529 attribution, and say plainly where the two disagree.
+**What was tried.** The complete factory was declared: 30 builder members, 10 renderer members, the eight `viewParts` records, and every option bag, reusing `BrowserModalStackOptions` and `BrowserViewSurfaceDescriptor` rather than restating them. No runtime file was touched - no writer added, no member moved, no publication order changed.
+
+**What it measured.** Browser diagnostics **10,375 to 10,331**, a net of 44. Underneath that: **`TS18046` fell 503** while **`TS18048` rose 520**, `TS18047` rose 52, and `TS2722` rose 25. Reclassified by root cause the `unknown` family fell from 1,035 to 532 and the namespace family rose from 908 to **1,249**. **The cascade was never the unknown-ness; it was the optionality underneath it.** `const view = window.LongtailForge?.view` produced `unknown` before and produces `BrowserViewFactory | undefined` after, and an accurate declaration converts a vague error into a precise one at the same site.
+
+**Why the boundary fails, and it is a rule rather than an accident.** `0.33.33.35.2`, `.35.3`, and `.37` all published *new* surfaces with *new* consumers, so publication and adoption were genuinely separable. **Declaring an existing namespace member adds no read - it retypes roughly five hundred that already exist.** The monotonic per-file, per-code ledger reads that movement as new debt and rejects it at **16 file-and-code pairs**, and every file that reads `view` is among them. There is no smaller subset that lands: the files that gain diagnostics are exactly the files the declaration reaches. `DIAGNOSTIC_RECLASSIFICATIONS` does not apply - its gate is a shared top-level identifier with a `0.33.33.33` scoped owner, which is lexical re-binding evidence and not this.
+
+- [ ] **The corrected child is declaration plus checked acquisition, together.** Declare the factory, then convert the **15 acquisition sites across 12 files** to a checked read on the `0.33.33.37` `requireX()` pattern, covering the **21 files** that touch `LongtailForge.view`. That is one coherent contract transition: the member becomes declared and every reader stops treating it as absent-or-unknown in the same change.
+- [ ] **This crosses into nine module controllers, and that is why it is being reported rather than assumed.** The rollup's rule is that no child converts a module controller; adding a six-line checked accessor is not conversion, but it is a larger child than the rollup authorised and it needs to be approved as such.
+- [ ] **Do not reach for the alternatives that would make it smaller.** Declaring `view` non-optional would be a declaration stronger than the runtime - the namespace is absent on pages that load no view script. Leaving the reads untyped keeps 529 diagnostics attributed to a symptom rather than a cause. Neither is acceptable.
+
+**Archaeology already done, so `.38.1` does not repeat it.**
+
+- **The factory is 40 members over two writers.** `view-builder.js` publishes 30 and freezes; `view-renderer.js` spreads `...(root.view || {})` and adds 10. Both are unchanged by this finding.
+- **The renderer half is genuinely optional. Of the 18 page templates that load `view-builder.js`, only 8 also load `view-renderer.js`, and no page loads the renderer without the builder.** One global type serves all of them, so the primitives are required and the descriptor renderers are `Partial`. That is measured, not defensive.
+- **`assignViewParts` uses `Object.defineProperty`, so the parts hang off a frozen non-enumerable `viewParts`** - `field.viewParts.control`, which is how every consumer already reads them. Eight builders attach one: field, field grid, bulk toolbar, list shell, modal, modal form, linked-context list, and linked-context picker. `renderSurface` attaches `openModal` and `viewState` the same way.
+- **Option members are `unknown` where the implementation coerces.** `createElement` reads `options.text` through `String(...)` and `options.hidden` for truthiness, so `unknown` is the accurate input type - the same reason `BrowserApi` returns `Promise<unknown>` - and `id` is a real `string` because it is assigned straight to `element.id`.
+
+**Two accuracy findings are already folded into the evidence commit.**
+
+- **`createElement` must be overloaded exactly as `document.createElement` is**, because the body *is* `document.createElement(tagName)`. A flat `HTMLElement` return was weaker than the runtime and produced nine false diagnostics - `input.select?.()` in `capture-prompt.js` among them. The overload resolved all nine.
+- **`createModal` and `createModalForm` build a `<dialog>`**, so their return is `HTMLDialogElement` and the eight consumers calling `.close()` are correct.
+
+**Three genuine caller defects the declaration exposed, each real and none of them typing noise.** `createStatusMessage` builds its own `attrs` and passes no `dataset`, yet `calendar.js:103` passes `dataset: { calendarStatus: "" }`, `dashboard.js:42` passes `dataset: { dashboardStatus: "" }`, and `notes.js:1529` passes `attrs: { "aria-live": "polite" }` - which the function already sets by default. **All three are silently discarded**, and nothing reads the attributes they believe they are setting.
+
+- [ ] Fix them by deleting the dead options, which preserves behaviour exactly because they never had any.
+- [ ] **Two source assertions pin one of them and must be retargeted, not repointed.** `scripts/dashboard-workbench-regression.mjs:369` and `scripts/regression-contracts/views/dashboard-calendar-embed.contract.mjs:46` both match `/createStatusMessage\(\{[\s\S]*dashboardStatus/`. The greedy span reaches past the call into the later `dashboardStatus.hidden` assignment, so **the assertion would keep passing after the dead option is deleted, for a reason it never intended** - the regex-spanning-unrelated-blocks hazard, found again. Retarget each to the contract it stands for: that the dashboard status message is created hidden and toggled by message content.
+
+**Terminology the governance design must keep separate.** The inventory reports **64 unique published surfaces** - 62 `LongtailForge.*` members and 2 bare-window writes - across **67 publication occurrences**. The 3 extra occurrences are the two governed multi-writer surfaces: `window.fetch` has **3** writers (`navigation.js`, `shared/browser-recovery.js`, `theme-init.js`) and `LongtailForge.view` has **2**. **Two surfaces are multi-writer; five writes are involved.** Nothing should describe 64 records as 64 writes, or "2 multi-writer" as "2 writers".
 
 #### 0.33.33.38.2 - Declare the remaining published surfaces and settle the index signature
 
@@ -196,7 +220,9 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Excluded, and deliberately not absorbed.** The cold app-shell bootstrap unavailable-host path stays a framework-level deferred concern; it is not solved by weakening a descriptor or recreating a client fallback. The footer duplicate loader stays a separate measured concern; shared-script vocabulary being reviewed here is not a reason to pull in delivery architecture.
 
-**Implementation order.** `.38.1`, then remeasure, then `.38.2`, then `.38.3` and `.38.4` against the reclassified ledger. `.38.5` touches the server program only and is independent of all four.
+**Implementation order.** `.38.1` - in its corrected declaration-plus-adoption form - then remeasure, then `.38.2`, then `.38.3` and `.38.4` against the reclassified ledger. `.38.5` touches the server program only and is independent of all four.
+
+**The finding `.38.1` produced applies to every remaining child of this rollup.** Publication and adoption are separable when a checkpoint adds a *new* surface with *new* consumers, which is why `0.33.33.35.2`, `.35.3`, and `.37` worked that way. **They are not separable when a checkpoint declares an *existing* namespace member**, because that retypes reads which already exist rather than adding any. `.38.2` declares 48 more existing members and must be sliced on that basis; `.38.3` and `.38.4` should be re-examined for the same property before they are drawn.
 
 ### 0.33.33.39 - Type shared browser framework code
 
