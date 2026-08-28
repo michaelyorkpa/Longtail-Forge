@@ -1,5 +1,4 @@
 (function attachNotesPage() {
-  const api = window.LongtailForge.api;
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
 
   /**
@@ -37,6 +36,24 @@
     return factory;
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = window.LongtailForge?.api;
+    if (!client) {
+      throw new Error("Notes requires LongtailForge.api.");
+    }
+    return client;
+  }
   function requireView() {
     const factory = window.LongtailForge?.view;
     if (!factory) {
@@ -748,6 +765,7 @@
   }
 
   async function openNoteViewer(params = {}, hostContext = null) {
+    const api = requireApi();
     const view = requireView();
     const noteId = readNoteEditorId(params);
 
@@ -1782,6 +1800,7 @@
   }
 
   async function loadNotes(cursor = state.notesCurrentCursor || "") {
+    const api = requireApi();
     const query = buildNotesListQuery(cursor);
     const result = await api.getJson(`/api/notes?${query.toString()}`, { cache: "no-store" });
     state.notes = result.notes || [];
@@ -1898,6 +1917,7 @@
   }
 
   async function loadCollections() {
+    const api = requireApi();
     const params = new URLSearchParams();
 
     if (state.activeBucket === "archive") {
@@ -2188,6 +2208,7 @@
   }
 
   async function openBulkEditor() {
+    const api = requireApi();
     const view = requireView();
     if (!bulkDialog || state.selectedNoteIds.size === 0) {
       return;
@@ -2268,6 +2289,7 @@
   }
 
   async function applyBulkEdit(event) {
+    const api = requireApi();
     event.preventDefault();
     if (state.selectedNoteIds.size === 0) {
       setBulkFormStatus("Select at least one note to update.", true);
@@ -2363,6 +2385,7 @@
   }
 
   async function refreshSelectedNoteAfterBulk(updatedNoteIds = []) {
+    const api = requireApi();
     const selectedId = state.selectedNote?.note_id || "";
     const updatedIds = updatedNoteIds instanceof Set
       ? updatedNoteIds
@@ -2384,6 +2407,7 @@
   }
 
   async function selectNote(noteId) {
+    const api = requireApi();
     setStatus("Loading note...");
 
     try {
@@ -2548,6 +2572,7 @@
   }
 
   async function hydrateEditorNote(note = null) {
+    const api = requireApi();
     const noteId = note?.note_id || "";
     if (!noteId) {
       return note;
@@ -2804,6 +2829,7 @@
   }
 
   async function saveNoteForm({ closeOnSuccess = true } = {}) {
+    const api = requireApi();
     saveButton.disabled = true;
     saveCloseButton.disabled = true;
     setEditorFormStatus("Saving note...");
@@ -3122,6 +3148,7 @@
   }
 
   async function fetchLinkTargets({ targetType = "all", search = "", limit = 20, clientScope = LINK_CLIENT_CONTEXT_ALL, clientId = "" } = {}) {
+    const api = requireApi();
     const params = new URLSearchParams({
       targetType,
       limit: String(limit),
@@ -3607,6 +3634,7 @@
   }
 
   async function removeEditorNoteLink(note, link) {
+    const api = requireApi();
     const noteId = note?.note_id || state.editingNoteId;
     const noteLinkId = link.noteLinkId || link.note_link_id;
 
@@ -3625,6 +3653,7 @@
   }
 
   async function addEditorNoteLink(target = {}) {
+    const api = requireApi();
     const noteId = state.editingNoteId;
 
     if (!noteId || !target.targetType || !target.targetId) {
@@ -3657,6 +3686,7 @@
   }
 
   async function refreshEditorNote(noteId) {
+    const api = requireApi();
     const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
 
     state.editorNote = result.note;
@@ -3711,6 +3741,7 @@
   }
 
   async function renderPreview() {
+    const api = requireApi();
     if (preview.hidden) {
       return;
     }
@@ -3774,6 +3805,7 @@
   }
 
   async function saveCollection(event) {
+    const api = requireApi();
     event.preventDefault();
     collectionSaveButton.disabled = true;
     collectionFormStatus.textContent = "Saving collection...";
@@ -3829,6 +3861,7 @@
   }
 
   async function mutateCollection(url) {
+    const api = requireApi();
     setStatus("Saving collection...");
 
     try {
@@ -4009,11 +4042,13 @@
   }
 
   async function addNoteLink(note, payload) {
+    const api = requireApi();
     await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/links`, payload);
     await selectNote(note.note_id);
   }
 
   async function removeNoteLink(note, link) {
+    const api = requireApi();
     const noteLinkId = link.noteLinkId || link.note_link_id;
     await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/links/${encodeURIComponent(noteLinkId)}/remove`, {});
     await selectNote(note.note_id);
@@ -4083,6 +4118,7 @@
   }
 
   async function loadRevisions(note, list) {
+    const api = requireApi();
     if (!list) {
       return;
     }
@@ -4097,6 +4133,7 @@
   }
 
   function revisionItem(note, revision) {
+    const api = requireApi();
     const item = document.createElement("article");
     const title = document.createElement("strong");
     const meta = document.createElement("p");
@@ -4254,6 +4291,7 @@
   }
 
   async function mutateNote(url) {
+    const api = requireApi();
     setStatus("Saving note...");
 
     try {
@@ -4780,6 +4818,7 @@
   }
 
   async function loadMarkdownRenderingPreference() {
+    const api = requireApi();
     try {
       const settings = await api.getJson("/api/user/settings", { cache: "no-store" });
       state.openExternalLinksNewTab = settings.openExternalLinksNewTab === true;

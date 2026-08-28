@@ -2,8 +2,25 @@
 
 (function attachNotesLinkedPanel(global) {
   const namespace = global.LongtailForge = global.LongtailForge || {};
-  const api = namespace.api;
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = namespace?.api;
+    if (!client) {
+      throw new Error("The linked notes panel requires LongtailForge.api.");
+    }
+    return client;
+  }
   function mount(container, options = {}) {
     if (!container) {
       throw new Error("Notes linked panel container is required.");
@@ -30,6 +47,7 @@
   }
 
   async function refresh(container, state) {
+    const api = requireApi();
     const { options } = state;
 
     if (!options.targetType || !options.targetId) {
@@ -254,6 +272,7 @@
   }
 
   async function loadSelectableNotes(state, select, search = "") {
+    const api = requireApi();
     select.disabled = true;
     select.replaceChildren(new global.Option("Loading notes...", ""));
 
@@ -284,6 +303,7 @@
   }
 
   async function linkExistingNote(container, state, noteId) {
+    const api = requireApi();
     if (!noteId) {
       return;
     }
@@ -303,6 +323,7 @@
   }
 
   async function unlinkNote(container, state, note) {
+    const api = requireApi();
     const link = (note.links || []).find((item) =>
       (item.targetType || item.target_type) === state.options.targetType &&
       (item.targetId || item.target_id) === state.options.targetId);

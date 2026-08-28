@@ -43,6 +43,24 @@
     return factory;
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = window.LongtailForge?.api;
+    if (!client) {
+      throw new Error("Tasks requires LongtailForge.api.");
+    }
+    return client;
+  }
   function requireView() {
     const factory = window.LongtailForge?.view;
     if (!factory) {
@@ -214,7 +232,6 @@
   /** @type {Element | null} */
   let recurrenceDialog = null;
 
-  const api = window.LongtailForge.api;
   const pageController = window.LongtailForge.pageController;
   const modal = window.LongtailForge.modal;
 
@@ -829,6 +846,7 @@
   }
 
   async function loadCanonicalTasks(cursor = "") {
+    const api = requireApi();
     const query = buildTaskQuery(cursor);
     return api.getJson(query ? `/api/tasks?${query}` : "/api/tasks", { cache: "no-store" });
   }
@@ -1752,6 +1770,7 @@
   }
 
   async function runTaskLifecycleAction(action, task, trigger = null) {
+    const api = requireApi();
     const handler = TASK_LIFECYCLE_BEHAVIOR_HANDLERS[action.behavior];
     if (!handler) {
       setStatus(`Missing task lifecycle behavior: ${action.behavior}`, { isError: true });
@@ -1772,6 +1791,7 @@
   }
 
   async function runTaskWorkflowAction(action, task, trigger = null) {
+    const api = requireApi();
     const handler = TASK_WORKFLOW_BEHAVIOR_HANDLERS[action.behavior];
     if (!handler) {
       setStatus(`Missing task workflow behavior: ${action.behavior}`, { isError: true });
@@ -1813,6 +1833,7 @@
   }
 
   async function saveTaskTimerAction(task, timerStatus) {
+    const api = requireApi();
     if (!task?.task_id) {
       setStatus("Task timer action is unavailable.", { isError: true });
       return;
@@ -2060,6 +2081,7 @@
   }
 
   async function loadAttachmentCounts(tasks) {
+    const api = requireApi();
     const targetIds = tasks.map((task) => task.task_id).filter(Boolean);
 
     if (targetIds.length === 0) {
@@ -2080,6 +2102,7 @@
   }
 
   async function loadNoteCounts(tasks) {
+    const api = requireApi();
     const counts = {};
 
     await Promise.all(tasks.map(async (task) => {
@@ -2170,6 +2193,7 @@
   }
 
   async function postTaskAction(task, action) {
+    const api = requireApi();
     setStatus(`${formatToken(action)} task...`);
 
     try {
@@ -2190,6 +2214,7 @@
   }
 
   async function updateTaskLifecycleStatus(task, payload) {
+    const api = requireApi();
     setStatus(`${formatToken(payload.status)} task...`);
 
     try {
@@ -2329,6 +2354,7 @@
   }
 
   async function loadTaskTimers() {
+    const api = requireApi();
     try {
       return await api.getJson("/api/tasks/timers", { cache: "no-store" });
     } catch {
@@ -2360,6 +2386,7 @@
   }
 
   async function applyBulkAction(event) {
+    const api = requireApi();
     if (!await captureBulkBlockedReason(event?.currentTarget || bulkApplyButton)) {
       return;
     }

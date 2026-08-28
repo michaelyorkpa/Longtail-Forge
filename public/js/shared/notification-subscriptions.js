@@ -1,6 +1,24 @@
 (function attachNotificationSubscriptions(global) {
   const root = global.LongtailForge || {};
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = root?.api;
+    if (!client) {
+      throw new Error("Notification subscriptions requires LongtailForge.api.");
+    }
+    return client;
+  }
   function taskTarget(taskId) {
     return {
       moduleId: "tasks",
@@ -33,15 +51,15 @@
   }
 
   async function readStatus(target) {
-    return root.api.getJson(`/api/notifications/subscriptions?${targetParams(target)}`, { cache: "no-store" });
+    return requireApi().getJson(`/api/notifications/subscriptions?${targetParams(target)}`, { cache: "no-store" });
   }
 
   async function follow(target) {
-    return root.api.postJson("/api/notifications/subscriptions", normalizeTargetPayload(target));
+    return requireApi().postJson("/api/notifications/subscriptions", normalizeTargetPayload(target));
   }
 
   async function unfollow(target) {
-    return root.api.deleteJson(`/api/notifications/subscriptions?${targetParams(target)}`);
+    return requireApi().deleteJson(`/api/notifications/subscriptions?${targetParams(target)}`);
   }
 
   function normalizeTargetPayload(target) {

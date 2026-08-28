@@ -87,11 +87,29 @@
     loadAuditLogs();
   });
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = window.LongtailForge?.api;
+    if (!client) {
+      throw new Error("The audit log requires LongtailForge.api.");
+    }
+    return client;
+  }
   async function loadAuditLogs() {
     setStatus("Loading audit log...");
 
     try {
-      const result = await window.LongtailForge.api.getJson(`${getAuditEndpoint()}?${buildPageParams().toString()}`, {
+      const result = await requireApi().getJson(`${getAuditEndpoint()}?${buildPageParams().toString()}`, {
         cache: "no-store",
       });
       auditLogs = Array.isArray(result.auditLogs) ? result.auditLogs.map(normalizeAuditLog) : [];

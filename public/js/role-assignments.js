@@ -37,12 +37,30 @@
     await confirmAddAssignment();
   });
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = window.LongtailForge?.api;
+    if (!client) {
+      throw new Error("Role assignments requires LongtailForge.api.");
+    }
+    return client;
+  }
   async function loadRoleOptions() {
     setBusy(true);
     setStatus("Loading available roles...");
 
     try {
-      const body = await window.LongtailForge.api.getJson("/api/roles", { cache: "no-store" });
+      const body = await requireApi().getJson("/api/roles", { cache: "no-store" });
       roleOptions = Array.isArray(body.roles) ? body.roles : [];
       renderRoleOptions();
       setStatus(roleOptions.length ? "" : "No role assignments are available in this workspace.");
@@ -65,7 +83,7 @@
     setStatus("Finding account...");
 
     try {
-      const body = await window.LongtailForge.api.postJson("/api/role-assignments/lookup", {
+      const body = await requireApi().postJson("/api/role-assignments/lookup", {
         username,
       });
 
@@ -150,7 +168,7 @@
     setStatus("Updating role assignments...");
 
     try {
-      const body = await window.LongtailForge.api.putJson(
+      const body = await requireApi().putJson(
         `/api/users/${encodeURIComponent(target.userId)}/role-assignments`,
         {
           assignmentRevision: target.assignmentRevision,

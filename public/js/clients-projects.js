@@ -62,6 +62,24 @@
 
   initializeClientProjectsPage();
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = window.LongtailForge?.api;
+    if (!client) {
+      throw new Error("Clients/Projects requires LongtailForge.api.");
+    }
+    return client;
+  }
   async function initializeClientProjectsPage() {
     try {
       await window.LongtailForge?.workspaceContextReady;
@@ -510,8 +528,8 @@
 
     try {
       const [settingsData, clientsData, loadedTags] = await Promise.all([
-        window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }),
-        window.LongtailForge.api.getJson("/api/client-projects?include=reminderPolicy", { cache: "no-store" }),
+        requireApi().getJson("/api/settings", { cache: "no-store" }),
+        requireApi().getJson("/api/client-projects?include=reminderPolicy", { cache: "no-store" }),
         loadTagOptions(),
       ]);
 
@@ -532,8 +550,8 @@
     await window.LongtailForge.workspaceContextReady;
 
     const [settingsData, clientsData, loadedTags] = await Promise.all([
-      window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }),
-      window.LongtailForge.api.getJson("/api/client-projects?include=reminderPolicy", { cache: "no-store" }),
+      requireApi().getJson("/api/settings", { cache: "no-store" }),
+      requireApi().getJson("/api/client-projects?include=reminderPolicy", { cache: "no-store" }),
       loadTagOptions(),
     ]);
 
@@ -1046,7 +1064,7 @@
         };
 
         try {
-          await window.LongtailForge.api.putJson(
+          await requireApi().putJson(
             `/api/clients/${encodeURIComponent(client.id)}`,
             nextClient,
           );
@@ -1390,7 +1408,7 @@
         };
 
         try {
-          await window.LongtailForge.api.putJson(
+          await requireApi().putJson(
             `/api/projects/${encodeURIComponent(project.id)}`,
             nextProject,
           );
@@ -2940,7 +2958,7 @@
   async function createClientRecord(client, action, viewState = {}) {
     return persistClientProjectChange(action, viewState, async () => {
       const initialProjects = Array.isArray(client.projects) ? client.projects : [];
-      const result = await window.LongtailForge.api.postJson("/api/clients", {
+      const result = await requireApi().postJson("/api/clients", {
         ...client,
         action,
       });
@@ -2962,7 +2980,7 @@
           project_name: initialProject.name,
           details: action.details,
         };
-        const projectResult = await window.LongtailForge.api.postJson(
+        const projectResult = await requireApi().postJson(
           `/api/clients/${encodeURIComponent(result.client.id)}/projects`,
           {
             ...initialProject,
@@ -2976,7 +2994,7 @@
 
   async function saveClientRecord(client, action, viewState = {}) {
     return persistClientProjectChange(action, viewState, async () => {
-      await window.LongtailForge.api.putJson(
+      await requireApi().putJson(
         `/api/clients/${encodeURIComponent(client.id)}`,
         withOptionalTagPayload(client, {
           action,
@@ -2991,7 +3009,7 @@
         ? "/api/projects"
         : `/api/clients/${encodeURIComponent(client.id)}/projects`;
 
-      const result = await window.LongtailForge.api.postJson(
+      const result = await requireApi().postJson(
         url,
         withOptionalTagPayload(project, {
           action,
@@ -3008,7 +3026,7 @@
 
   async function saveProjectRecord(project, action, viewState = {}) {
     return persistClientProjectChange(action, viewState, async () => {
-      await window.LongtailForge.api.putJson(
+      await requireApi().putJson(
         `/api/projects/${encodeURIComponent(project.id)}`,
         withOptionalTagPayload(project, {
           confirm_downstream_update: action.confirm_downstream_update === true,
@@ -3040,7 +3058,7 @@
 
   async function archiveProjectRecord(project, action, viewState = {}) {
     return persistClientProjectChange(action, viewState, async () => {
-      await window.LongtailForge.api.deleteJson(
+      await requireApi().deleteJson(
         `/api/projects/${encodeURIComponent(project.id)}`,
       );
     });
@@ -3101,7 +3119,7 @@
   }
 
   async function refreshClientProjectData() {
-    const result = await window.LongtailForge.api.getJson("/api/client-projects?include=reminderPolicy", {
+    const result = await requireApi().getJson("/api/client-projects?include=reminderPolicy", {
       cache: "no-store",
     });
 

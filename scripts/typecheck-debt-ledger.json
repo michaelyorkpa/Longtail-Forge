@@ -479,7 +479,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 9647,
+      "errorCount": 9327,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -506,7 +506,7 @@
           },
           {
             "code": 18048,
-            "count": 7
+            "count": 1
           },
           {
             "code": 2339,
@@ -540,7 +540,7 @@
           },
           {
             "code": 18048,
-            "count": 7
+            "count": 5
           },
           {
             "code": 2339,
@@ -574,7 +574,7 @@
           },
           {
             "code": 18048,
-            "count": 10
+            "count": 3
           },
           {
             "code": 2322,
@@ -638,7 +638,7 @@
           },
           {
             "code": 18048,
-            "count": 43
+            "count": 17
           },
           {
             "code": 2322,
@@ -704,7 +704,7 @@
           },
           {
             "code": 18048,
-            "count": 3
+            "count": 1
           },
           {
             "code": 2339,
@@ -716,10 +716,6 @@
           }
         ],
         "public/js/dashboard.js": [
-          {
-            "code": 18048,
-            "count": 4
-          },
           {
             "code": 2339,
             "count": 32
@@ -754,7 +750,7 @@
           },
           {
             "code": 18048,
-            "count": 12
+            "count": 7
           },
           {
             "code": 2339,
@@ -780,7 +776,7 @@
           },
           {
             "code": 18048,
-            "count": 24
+            "count": 14
           },
           {
             "code": 2322,
@@ -898,7 +894,7 @@
           },
           {
             "code": 18048,
-            "count": 35
+            "count": 7
           },
           {
             "code": 2322,
@@ -982,7 +978,7 @@
           },
           {
             "code": 18048,
-            "count": 17
+            "count": 9
           },
           {
             "code": 2339,
@@ -1012,7 +1008,7 @@
           },
           {
             "code": 18048,
-            "count": 9
+            "count": 7
           },
           {
             "code": 2339,
@@ -1062,7 +1058,7 @@
           },
           {
             "code": 18048,
-            "count": 15
+            "count": 6
           },
           {
             "code": 2339,
@@ -1084,7 +1080,7 @@
           },
           {
             "code": 18048,
-            "count": 51
+            "count": 25
           },
           {
             "code": 2322,
@@ -1174,7 +1170,7 @@
           },
           {
             "code": 18048,
-            "count": 10
+            "count": 4
           },
           {
             "code": 2339,
@@ -1308,7 +1304,7 @@
           },
           {
             "code": 18048,
-            "count": 9
+            "count": 3
           },
           {
             "code": 2339,
@@ -1335,10 +1331,6 @@
           {
             "code": 18046,
             "count": 4
-          },
-          {
-            "code": 18048,
-            "count": 2
           },
           {
             "code": 2339,
@@ -1441,10 +1433,6 @@
             "count": 4
           },
           {
-            "code": 18048,
-            "count": 4
-          },
-          {
             "code": 2339,
             "count": 16
           },
@@ -1472,10 +1460,6 @@
           }
         ],
         "public/js/shared/notification-subscriptions.js": [
-          {
-            "code": 18048,
-            "count": 3
-          },
           {
             "code": 7006,
             "count": 7
@@ -1662,7 +1646,7 @@
           },
           {
             "code": 18048,
-            "count": 27
+            "count": 11
           },
           {
             "code": 2339,
@@ -1708,7 +1692,7 @@
           },
           {
             "code": 18048,
-            "count": 5
+            "count": 3
           },
           {
             "code": 2339,
@@ -1727,10 +1711,6 @@
           {
             "code": 18047,
             "count": 26
-          },
-          {
-            "code": 18048,
-            "count": 4
           },
           {
             "code": 2339,
@@ -1790,7 +1770,7 @@
           },
           {
             "code": 18048,
-            "count": 22
+            "count": 1
           },
           {
             "code": 2339,
@@ -1831,10 +1811,6 @@
             "count": 1
           },
           {
-            "code": 18048,
-            "count": 3
-          },
-          {
             "code": 2339,
             "count": 17
           },
@@ -1872,7 +1848,7 @@
           },
           {
             "code": 18048,
-            "count": 37
+            "count": 28
           },
           {
             "code": 2322,
@@ -1948,7 +1924,7 @@
           },
           {
             "code": 18048,
-            "count": 38
+            "count": 34
           },
           {
             "code": 2339,
@@ -1982,7 +1958,7 @@
           },
           {
             "code": 18048,
-            "count": 6
+            "count": 2
           },
           {
             "code": 2339,
@@ -2006,10 +1982,6 @@
           }
         ],
         "public/js/time-tracking-dashboard.js": [
-          {
-            "code": 18048,
-            "count": 2
-          },
           {
             "code": 2339,
             "count": 16
@@ -2056,7 +2028,7 @@
           },
           {
             "code": 18048,
-            "count": 6
+            "count": 1
           },
           {
             "code": 2339,
@@ -2090,7 +2062,7 @@
           },
           {
             "code": 18048,
-            "count": 43
+            "count": 7
           },
           {
             "code": 2322,
@@ -2144,7 +2116,7 @@
           },
           {
             "code": 18048,
-            "count": 30
+            "count": 16
           },
           {
             "code": 2339,
@@ -2182,7 +2154,7 @@
           },
           {
             "code": 18048,
-            "count": 51
+            "count": 31
           },
           {
             "code": 2322,
@@ -2248,7 +2220,7 @@
           },
           {
             "code": 18048,
-            "count": 37
+            "count": 13
           },
           {
             "code": 2339,
@@ -2885,7 +2857,7 @@
   },
   "totals": {
     "files": 1057,
-    "errors": 9647,
+    "errors": 9327,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

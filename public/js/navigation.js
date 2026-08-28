@@ -60,6 +60,24 @@
   window.LongtailForge = window.LongtailForge || {};
   window.LongtailForge.navigationIntent = navigationIntent;
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = window.LongtailForge?.api;
+    if (!client) {
+      throw new Error("Navigation requires LongtailForge.api.");
+    }
+    return client;
+  }
   function createNavigationIntentController() {
     let exitGuard = null;
     let pendingIntent = null;
@@ -812,7 +830,7 @@
     exitButton.textContent = "Ending...";
 
     try {
-      await window.LongtailForge.api.postJson("/api/support-view/exit", {});
+      await requireApi().postJson("/api/support-view/exit", {});
       const returnPath = normalizeSupportViewReturnPath(
         window.sessionStorage.getItem(SUPPORT_VIEW_RETURN_PATH_KEY),
       );

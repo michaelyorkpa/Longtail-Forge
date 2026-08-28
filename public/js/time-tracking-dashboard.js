@@ -11,6 +11,24 @@
   dashboard.registerPanelRenderer("time-tracking.active-timers", renderActiveTimersPanel);
   dashboard.registerPanelRenderer("time-tracking.recent-time", renderRecentTimePanel);
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = window.LongtailForge?.api;
+    if (!client) {
+      throw new Error("The time tracking dashboard requires LongtailForge.api.");
+    }
+    return client;
+  }
   function renderActiveTimersPanel(contribution, context) {
     const body = createPanelBody(context, "Loading active timers...");
     const panel = context.createPanel({
@@ -59,7 +77,7 @@
     const loadRoute = window.LongtailForge?.dashboardBootstrap?.loadRoute;
     return typeof loadRoute === "function"
       ? loadRoute(route)
-      : window.LongtailForge.api.getJson(route, { cache: "no-store" });
+      : requireApi().getJson(route, { cache: "no-store" });
   }
 
   function createActiveTimersContent(data, context) {

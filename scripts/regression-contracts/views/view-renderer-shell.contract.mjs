@@ -22,7 +22,10 @@ const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js"
 const css = readText("public/css/longtail-forge.css");
 const footerScript = readText("public/js/footer.js");
 
-assert.doesNotMatch(renderer, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "view renderer shell must not own data loading or browser storage");
+// `0.33.33.38.2.1`: the previous pattern forbade the *word* `fetch`, which a comment
+// explaining why a wire body is untrusted tripped. It now forbids the calls and the
+// storage objects themselves.
+assert.doesNotMatch(renderer, /\bfetch\(|new XMLHttpRequest|\blocalStorage\.|\bsessionStorage\./, "view renderer shell must not own data loading or browser storage");
 assert.doesNotMatch(renderer, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view renderer must not inject HTML strings");
 assert.match(renderer, /root\.view = Object\.freeze\(\{[\s\S]*renderSurface/, "renderer should extend the frozen LongtailForge.view namespace");
 

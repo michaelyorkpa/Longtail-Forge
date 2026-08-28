@@ -2,7 +2,6 @@
 
 (function attachTimeTrackingTimerDialog(global) {
   const namespace = global.LongtailForge || {};
-  const api = namespace.api;
   const pageController = namespace.pageController;
 
   const TIMER_ACTION_ID = "time-tracking.timer.create";
@@ -17,12 +16,31 @@
   let activeManualTimers = [];
   let dialogSettled = false;
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = namespace?.api;
+    if (!client) {
+      throw new Error("The time tracking timer dialog requires LongtailForge.api.");
+    }
+    return client;
+  }
   async function openCreate(params = {}, hostContext = null) {
     await prepareContext({ hostContext, params });
     return openDialog(params);
   }
 
   async function prepareContext({ hostContext = null, params = {} } = {}) {
+    const api = requireApi();
     await namespace.workspaceContextReady;
     const [clientProjectData, taskOptionsData, activeTimersData] = await Promise.all([
       api.getJson("/api/client-projects?view=options", { cache: "no-store" }),
@@ -42,6 +60,7 @@
   }
 
   async function loadTaskOptions() {
+    const api = requireApi();
     if (!workspaceHasTasks()) {
       return { options: { tasks: [] } };
     }
@@ -241,6 +260,7 @@
   }
 
   function startTaskTimer(task) {
+    const api = requireApi();
     const now = new Date().toISOString();
 
     return api.putJson(`/api/tasks/${encodeURIComponent(task.id)}/timer`, {
@@ -254,6 +274,7 @@
   }
 
   function startManualTimer({ client, project }) {
+    const api = requireApi();
     const timerSlot = nextManualTimerSlot();
     if (!timerSlot) {
       throw new Error("All manual timer slots are already in use.");

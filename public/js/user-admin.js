@@ -133,18 +133,36 @@
     }
   });
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = window.LongtailForge?.api;
+    if (!client) {
+      throw new Error("User administration requires LongtailForge.api.");
+    }
+    return client;
+  }
   async function loadUsers() {
     setUserAdminStatus("Loading users...");
 
     try {
       const [usersBody, rolesBody, clientProjectBody, workspacesBody, settingsBody, permissionResourcesBody, addUserOptionsBody] = await Promise.all([
-        window.LongtailForge.api.getJson("/api/users", { cache: "no-store" }),
-        window.LongtailForge.api.getJson("/api/roles", { cache: "no-store" }),
-        window.LongtailForge.api.getJson("/api/client-projects?view=options&includeInactive=1", { cache: "no-store" }),
-        window.LongtailForge.api.getJson("/api/workspaces", { cache: "no-store" }),
-        window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }),
-        window.LongtailForge.api.getJson("/api/users/permission-resources", { cache: "no-store" }),
-        window.LongtailForge.api.getJson("/api/users/add-options", { cache: "no-store" }),
+        requireApi().getJson("/api/users", { cache: "no-store" }),
+        requireApi().getJson("/api/roles", { cache: "no-store" }),
+        requireApi().getJson("/api/client-projects?view=options&includeInactive=1", { cache: "no-store" }),
+        requireApi().getJson("/api/workspaces", { cache: "no-store" }),
+        requireApi().getJson("/api/settings", { cache: "no-store" }),
+        requireApi().getJson("/api/users/permission-resources", { cache: "no-store" }),
+        requireApi().getJson("/api/users/add-options", { cache: "no-store" }),
       ]);
 
       roles = rolesBody.roles || [];
@@ -225,7 +243,7 @@
     setUserAdminStatus(accountLookup?.match ? "Adding existing account..." : "Creating account...");
 
     try {
-      const body = await window.LongtailForge.api.postJson("/api/users", {
+      const body = await requireApi().postJson("/api/users", {
         assignments,
         username,
         workspaceId,
@@ -275,7 +293,7 @@
     const query = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : "";
 
     try {
-      const body = await window.LongtailForge.api.getJson(`/api/users/add-options${query}`, { cache: "no-store" });
+      const body = await requireApi().getJson(`/api/users/add-options${query}`, { cache: "no-store" });
       applyAddUserOptions(body);
     } catch (error) {
       addUserCanCreate = false;
@@ -353,7 +371,7 @@
     newUserAccountStatus.textContent = "Searching for an exact account match...";
 
     try {
-      const body = await window.LongtailForge.api.postJson("/api/users/lookup", { username, workspaceId });
+      const body = await requireApi().postJson("/api/users/lookup", { username, workspaceId });
       accountLookup = { match: body.match || null, username, workspaceId };
       newUserAccountStatus.textContent = body.match
         ? body.match.alreadyActive
@@ -490,7 +508,7 @@
 
     try {
       const [body] = await Promise.all([
-        window.LongtailForge.api.getJson(
+        requireApi().getJson(
           `/api/users/${encodeURIComponent(user.user_id)}/role-assignments`,
           { cache: "no-store" },
         ),
@@ -519,7 +537,7 @@
     userSessionList.replaceChildren(createSessionStatusItem("Loading active sessions..."));
 
     try {
-      const body = await window.LongtailForge.api.getJson(
+      const body = await requireApi().getJson(
         `/api/users/${encodeURIComponent(user.user_id)}/sessions`,
         { cache: "no-store" },
       );
@@ -581,7 +599,7 @@
     }
 
     try {
-      await window.LongtailForge.api.deleteJson(
+      await requireApi().deleteJson(
         `/api/users/${encodeURIComponent(user.user_id)}/sessions/${encodeURIComponent(session.sessionReference)}`,
       );
       setUserAdminStatus("Session revoked.");
@@ -607,7 +625,7 @@
     }
 
     try {
-      const body = await window.LongtailForge.api.deleteJson(
+      const body = await requireApi().deleteJson(
         `/api/users/${encodeURIComponent(user.user_id)}/sessions`,
       );
       setUserAdminStatus(`Revoked ${body.revokedCount || 0} session${body.revokedCount === 1 ? "" : "s"}.`);
@@ -661,7 +679,7 @@
     setUserAdminStatus("Saving user...");
 
     try {
-      const body = await window.LongtailForge.api.putJson(
+      const body = await requireApi().putJson(
         `/api/users/${encodeURIComponent(user.user_id)}/update`,
         {
           username,
@@ -671,7 +689,7 @@
           workspaceMemberships: readSelectedWorkspaceMemberships(),
         },
       );
-      await window.LongtailForge.api.putJson(
+      await requireApi().putJson(
         `/api/users/${encodeURIComponent(user.user_id)}/role-assignments`,
         { assignments: pendingRoleAssignments },
       );
@@ -1174,8 +1192,8 @@
 
     try {
       const body = method === "DELETE"
-        ? await window.LongtailForge.api.deleteJson(url)
-        : await window.LongtailForge.api.putJson(url, undefined);
+        ? await requireApi().deleteJson(url)
+        : await requireApi().putJson(url, undefined);
 
       onSuccess(body);
       renderUsers(body.users || []);

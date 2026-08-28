@@ -14,7 +14,6 @@
    */
 
   const namespace = global.LongtailForge || {};
-  const api = namespace.api;
   const TEXT_PREVIEW_MAX_BYTES = 512 * 1024;
   const IMAGE_PREVIEW_EXTENSIONS = new Set(["gif", "jpg", "jpeg", "png"]);
   const MARKDOWN_PREVIEW_EXTENSIONS = new Set(["md"]);
@@ -22,6 +21,24 @@
 
   let activeFilePreviewDialog = null;
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = namespace?.api;
+    if (!client) {
+      throw new Error("File preview requires LongtailForge.api.");
+    }
+    return client;
+  }
   function openFilePreview(attachmentOrRow = {}, options = {}) {
     requireFilePreviewViewHelper("createActionButton");
     requireFilePreviewViewHelper("closeModal");
@@ -126,6 +143,7 @@
   }
 
   async function loadFilePreview(dialog, row) {
+    const api = requireApi();
     if (!row.attachmentId) {
       renderFilePreviewUnavailable(dialog, "Preview is not available for this file.");
       return;

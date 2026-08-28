@@ -1,5 +1,4 @@
 (function attachFilesPage() {
-  const api = window.LongtailForge.api;
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
 
   /**
@@ -35,6 +34,24 @@
     return factory;
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = window.LongtailForge?.api;
+    if (!client) {
+      throw new Error("Files requires LongtailForge.api.");
+    }
+    return client;
+  }
   function requireView() {
     const factory = window.LongtailForge?.view;
     if (!factory) {
@@ -347,6 +364,7 @@
   }
 
   async function loadFilterOptions() {
+    const api = requireApi();
     try {
       const clientProjects = await api.getJson("/api/client-projects?view=options", { cache: "no-store" });
       const normalizedClients = window.LongtailForge.clientProjectOptions?.normalizeClients?.(clientProjects) || [];
@@ -432,6 +450,7 @@
   }
 
   async function loadFiles(options = {}) {
+    const api = requireApi();
     setStatus("Loading file attachments...");
     updateFilesPagination({ loading: true });
 
@@ -1321,6 +1340,7 @@
   }
 
   async function loadFileEditorTargetOptions(dialog, row) {
+    const api = requireApi();
     const requestId = ++fileEditorOptionRequestId;
     const params = fileEditorTargetOptionQuery(dialog, row);
 
@@ -1589,6 +1609,7 @@
   }
 
   async function saveFileEditorContext(dialog, row, options = {}) {
+    const api = requireApi();
     const view = requireView();
     if (!row.attachmentId) {
       setFileEditorStatus(dialog, "Attachment context could not be saved.", true);
@@ -1624,6 +1645,7 @@
   }
 
   async function markFileReviewedFromContext(dialog, row, options = {}) {
+    const api = requireApi();
     const view = requireView();
     if (!row.fileId || !row.reviewable) {
       setFileEditorStatus(dialog, "This file cannot be marked reviewed from File Context.", true);
@@ -1813,6 +1835,7 @@
   }
 
   async function reportFile(fileId, file = {}, attachmentId = "") {
+    const api = requireApi();
     const confirmed = await window.LongtailForge.modal.confirm({
       title: "Report file?",
       message: `Report "${file.displayName || file.originalFilename || "this file"}" for review? Downloads will be paused until a workspace admin reviews it.`,
@@ -1838,6 +1861,7 @@
   }
 
   async function quarantineFile(fileId, file = {}) {
+    const api = requireApi();
     const confirmed = await window.LongtailForge.modal.confirm({
       title: "Move file to review?",
       message: `Move "${file.displayName || file.originalFilename || "this file"}" to review? Downloads will remain unavailable until the file is restored.`,
@@ -1860,6 +1884,7 @@
   }
 
   async function deleteFile(fileId, file = {}) {
+    const api = requireApi();
     const confirmed = await window.LongtailForge.modal.confirm({
       title: "Delete file?",
       message: `Delete "${file.displayName || file.originalFilename || "this file"}"? The file will be unavailable from attachments, but workspace admins can restore it during the retention window.`,
@@ -1882,6 +1907,7 @@
   }
 
   async function restoreFile(fileId) {
+    const api = requireApi();
     setStatus("Restoring file...");
 
     try {

@@ -3,6 +3,24 @@
   const pendingTaskIds = new Set();
   const capturedTaskIds = new Set();
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = namespace?.api;
+    if (!client) {
+      throw new Error("Task resume note capture requires LongtailForge.api.");
+    }
+    return client;
+  }
   function taskIdFrom(options = {}) {
     return String(options.taskId || options.task?.task_id || "").trim();
   }
@@ -12,7 +30,7 @@
   }
 
   async function readCurrentTask(taskId) {
-    const result = await namespace.api.getJson(`/api/tasks/${encodeURIComponent(taskId)}`, {
+    const result = await requireApi().getJson(`/api/tasks/${encodeURIComponent(taskId)}`, {
       cache: "no-store",
     });
     return result?.task || null;
@@ -46,7 +64,7 @@
         return { consumed: false, reason: "no-note", task };
       }
 
-      const updated = await namespace.api.putJson(`/api/tasks/${encodeURIComponent(taskId)}`, {
+      const updated = await requireApi().putJson(`/api/tasks/${encodeURIComponent(taskId)}`, {
         resume_note_action: "consume",
       });
       const updatedTask = updated?.task || null;
@@ -98,7 +116,7 @@
         return { captured: false, reason: "dismissed", task };
       }
 
-      const updated = await namespace.api.putJson(`/api/tasks/${encodeURIComponent(taskId)}`, {
+      const updated = await requireApi().putJson(`/api/tasks/${encodeURIComponent(taskId)}`, {
         resume_note: result.value,
         resume_note_action: "capture",
       });

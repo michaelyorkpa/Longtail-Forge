@@ -16,6 +16,22 @@
   // must not use this helper. Cache keys must include the workspace id so a
   // workspace switch never serves another workspace's payload.
 
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = namespace?.api;
+    if (!client) {
+      throw new Error("Cached fetch requires LongtailForge.api.");
+    }
+    return client;
+  }
   /** @param {string} cacheKey */
   function readCached(cacheKey) {
     try {
@@ -57,10 +73,10 @@
    * @returns {Promise<CachedFetchResult>}
    */
   async function getJson(url, { cacheKey, onUpdate } = {}) {
+    const api = requireApi();
     const key = String(cacheKey || url);
     const cached = readCached(key);
     const revalidated = (async () => {
-      const api = /** @type {BrowserApi} */ (namespace.api);
       const fresh = await api.getJson(url, { cache: "no-cache" });
       const serialized = JSON.stringify({ data: fresh });
 

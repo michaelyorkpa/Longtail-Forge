@@ -1,7 +1,6 @@
 /* global CSS */
 
 (function attachCalendarSettingsPage() {
-const api = window.LongtailForge.api;
 const createForm = document.querySelector("[data-calendar-subscription-create-form]");
 const nameInput = document.querySelector("[data-calendar-subscription-name]");
 const scopeSelect = document.querySelector("[data-calendar-subscription-scope]");
@@ -40,7 +39,26 @@ window.addEventListener("pagehide", clearSecret);
 
 initialize();
 
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+/**
+ * The API client this file cannot run without.
+ *
+ * Acquired per call rather than once at module scope, so a missing client still fails at
+ * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+ * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+ * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+ * @returns {BrowserApi}
+ */
+function requireApi() {
+  const client = window.LongtailForge?.api;
+  if (!client) {
+    throw new Error("Calendar settings requires LongtailForge.api.");
+  }
+  return client;
+}
 async function initialize() {
+  const api = requireApi();
   setStatus(listStatus, "Loading calendar subscriptions...");
   setCreateBusy(true);
 
@@ -82,6 +100,7 @@ async function readWorkspaceContext() {
 }
 
 async function createSubscription(event) {
+  const api = requireApi();
   event.preventDefault();
   const payload = readCreatePayload();
   if (!payload) {
@@ -139,6 +158,7 @@ function readCreatePayload() {
 }
 
 async function reloadSubscriptions(focus = null) {
+  const api = requireApi();
   const body = await api.getJson("/api/private-feeds/calendar-subscriptions", { cache: "no-store" });
   state.subscriptions = normalizeSubscriptions(body.subscriptions);
   renderSubscriptions();
@@ -164,6 +184,7 @@ async function handleSubscriptionAction(event) {
 }
 
 async function rotateSubscription(subscription, trigger) {
+  const api = requireApi();
   const confirmed = await window.LongtailForge.modal.confirm({
     title: "Rotate calendar subscription URL?",
     message: `The current URL for ${subscription.name} will stop working immediately. Calendar apps using it will not receive updates until the replacement URL is installed.`,
@@ -197,6 +218,7 @@ async function rotateSubscription(subscription, trigger) {
 }
 
 async function removeSubscription(subscription, trigger) {
+  const api = requireApi();
   const isActive = subscription.status === "active";
   const confirmed = await window.LongtailForge.modal.confirm({
     title: isActive ? "Revoke calendar subscription?" : "Delete calendar subscription?",

@@ -62,7 +62,6 @@
     }
     return factory;
   }
-  const api = window.LongtailForge.api;
   const modal = window.LongtailForge.modal;
   const workbenchHost = document.querySelector("[data-workbench-host]");
 
@@ -158,6 +157,24 @@
   });
   loadWorkbench();
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = window.LongtailForge?.api;
+    if (!client) {
+      throw new Error("Workbench requires LongtailForge.api.");
+    }
+    return client;
+  }
   function buildWorkbenchHost() {
     const workbenchViewHelpers = window.LongtailForge?.view;
     if (!workbenchHost || !workbenchViewHelpers) {
@@ -665,6 +682,7 @@
   }
 
   async function loadWorkbench() {
+    const api = requireApi();
     setStatus("Loading Workbench...");
 
     try {
@@ -872,6 +890,7 @@
   }
 
   async function loadTimerCardData(card) {
+    const api = requireApi();
     const data = await api.getJson(card.listRoute, { cache: "no-store" });
 
     return {
@@ -880,6 +899,7 @@
   }
 
   async function loadTaskOptionsData(card) {
+    const api = requireApi();
     const data = await api.getJson(card.listRoute, { cache: "no-store" });
 
     return {
@@ -897,6 +917,7 @@
   }
 
   async function loadFocusCandidatesForState() {
+    const api = requireApi();
     if (state.focusModeId === PROJECT_FOCUS_MODE_ID && !state.selectedProjectId) {
       return {
         focusContext: null,
@@ -1092,6 +1113,7 @@
   }
 
   async function recoverPendingTaskFocusDrift() {
+    const api = requireApi();
     const marker = readPendingTaskFocusDrift();
     if (!marker) return false;
     clearPendingTaskFocusDrift();
@@ -2482,6 +2504,7 @@
   }
 
   async function refreshActiveTaskFocus() {
+    const api = requireApi();
     const taskId = state.activeTaskFocus?.taskId || "";
 
     if (!taskId) {
@@ -2542,6 +2565,7 @@
   }
 
   async function refreshTaskFocusRelatedContext(taskId = state.activeTaskFocus?.taskId || "") {
+    const api = requireApi();
     if (!taskId || !state.activeTaskFocus || state.activeTaskFocus.taskId !== taskId) {
       return;
     }
@@ -2697,6 +2721,7 @@
   }
 
   async function completeFocusedTask() {
+    const api = requireApi();
     const taskId = state.activeTaskFocus?.taskId || "";
 
     if (!taskId) {
@@ -2743,6 +2768,7 @@
   }
 
   async function resumeFocusedTask() {
+    const api = requireApi();
     const taskId = state.activeTaskFocus?.taskId || "";
 
     if (!taskId) {
@@ -2774,6 +2800,7 @@
   }
 
   async function handleTaskFocusChecklistChange(event) {
+    const api = requireApi();
     const checkbox = event.target.closest("[data-workbench-task-focus-checklist-toggle]");
     const taskId = state.activeTaskFocus?.taskId || "";
     const itemId = checkbox?.closest("[data-workbench-task-focus-checklist-item]")?.dataset.taskChecklistItem || "";
@@ -3404,6 +3431,7 @@
   }
 
   async function updateTimerStatus(timer, timerStatus) {
+    const api = requireApi();
     setStatus(timerStatus === "running" ? "Starting timer..." : "Pausing timer...");
     try {
       await api.putJson(`/api/workbench/timers/${encodeURIComponent(timer.timer_slot)}/status`, {
@@ -3418,6 +3446,7 @@
   }
 
   async function saveTaskTimer(taskId, timerStatus, elapsedSeconds, activeTimerId = "") {
+    const api = requireApi();
     setStatus(timerStatus === "running" ? "Starting task timer..." : "Pausing task timer...");
     try {
       const result = await api.putJson(`/api/tasks/${encodeURIComponent(taskId)}/timer`, {
@@ -3435,6 +3464,7 @@
   }
 
   async function saveFocusedTaskTimer(timerStatus) {
+    const api = requireApi();
     const taskId = state.activeTaskFocus?.taskId || "";
     const timer = currentTaskFocusTimer();
 
@@ -3466,6 +3496,7 @@
   }
 
   async function finalizeFocusedTaskTimer(event) {
+    const api = requireApi();
     const taskId = state.activeTaskFocus?.taskId || "";
     const timer = currentTaskFocusTimer();
 
@@ -3489,6 +3520,7 @@
   }
 
   async function resetFocusedTaskTimer() {
+    const api = requireApi();
     const taskId = state.activeTaskFocus?.taskId || "";
     const taskTitle = taskFocusTitle();
 
@@ -3595,6 +3627,7 @@
   }
 
   async function finalizeTimer(timer) {
+    const api = requireApi();
     if (timer.source_type === "task" && timer.source_enabled && timer.source_id) {
       await finalizeSourceTaskTimer(timer);
       return;
@@ -3627,6 +3660,7 @@
   }
 
   async function finalizeSourceTaskTimer(timer) {
+    const api = requireApi();
     const durationSeconds = Math.max(1, readElapsedSeconds(timer));
 
     setStatus("Saving task timer...");
@@ -3665,6 +3699,7 @@
   }
 
   async function discardTimer(timer) {
+    const api = requireApi();
     const confirmed = await modal.confirm({
       title: "Discard timer",
       message: `Discard "${timer.source_label || timer.description || "this timer"}"?`,

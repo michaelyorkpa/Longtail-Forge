@@ -13,6 +13,22 @@
   const root = global.LongtailForge || {};
   const behaviors = new Map();
 
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = root?.api;
+    if (!client) {
+      throw new Error("View surface rendering requires LongtailForge.api.");
+    }
+    return client;
+  }
   function registerBehavior(id, handler) {
     const behaviorId = String(id || "").trim();
     if (!behaviorId) {
@@ -1710,7 +1726,7 @@
 
   /** @returns {BrowserApi} */
   function requireApiClient() {
-    const api = /** @type {BrowserApi | undefined} */ (root.api);
+    const api = requireApi();
     if (typeof api?.getJson !== "function") {
       throw new Error("View surface data binding requires LongtailForge.api.getJson.");
     }

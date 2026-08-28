@@ -3,7 +3,6 @@
   const filesSettingsFields = document.querySelector('[data-settings-attachment="module"][data-settings-module-id="files"]');
   const filesSettingsAuxiliary = document.querySelector("[data-module-settings-legacy='files']");
   const filesSettingsStatus = document.querySelector("[data-module-settings-status]");
-  const api = window.LongtailForge.api;
 
   let settingsCatalog = null;
   let accounting = {};
@@ -19,7 +18,26 @@
   });
   loadFilesSettings();
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = window.LongtailForge?.api;
+    if (!client) {
+      throw new Error("Files settings requires LongtailForge.api.");
+    }
+    return client;
+  }
   async function loadFilesSettings() {
+    const api = requireApi();
     setStatus("Loading Files settings...");
     try {
       const [catalog, result] = await Promise.all([
@@ -41,6 +59,7 @@
   }
 
   async function saveFilesSettings() {
+    const api = requireApi();
     if (!window.LongtailForge.settingsRenderer.validate(filesSettingsForm)) {
       setStatus("Review the highlighted Files settings.", true);
       return false;

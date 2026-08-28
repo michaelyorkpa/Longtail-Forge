@@ -71,7 +71,10 @@ assert.match(
 );
 assert.match(
   clientsProjectsScript,
-  /const projectResult = await window\.LongtailForge\.api\.postJson\([\s\S]*Object\.assign\(initialProject, projectResult\.project\)/,
+  // `0.33.33.38.2.1` moved the client behind a checked read. The contract is that the
+  // optimistic project is replaced by the canonical server record, not how the
+  // client was acquired, so the assertion names the call and the assignment.
+  /const projectResult = await requireApi\(\)\.postJson\([\s\S]*Object\.assign\(initialProject, projectResult\.project\)/,
   "Nested Client/Project creation should replace the optimistic project with the canonical server record",
 );
 assert.doesNotMatch(clientsHtml, /data-client-modal|data-client-form|data-new-client-name/, "Clients host should not include static or compatibility Add Client form hooks");

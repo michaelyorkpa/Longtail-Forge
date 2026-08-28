@@ -16,6 +16,24 @@
     loaded: false,
   };
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = window.LongtailForge?.api;
+    if (!client) {
+      throw new Error("The stop watch requires LongtailForge.api.");
+    }
+    return client;
+  }
   function workspaceUsesBillableFlag() {
     return window.LongtailForge?.workspaceContext?.workspaceType === "business";
   }
@@ -142,7 +160,7 @@
 
   async function loadClientProjectData() {
     try {
-      const data = await window.LongtailForge.api.getJson("/api/client-projects?view=options", {
+      const data = await requireApi().getJson("/api/client-projects?view=options", {
         cache: "no-store",
       });
       clients = normalizeClientProjectOptions(data);
@@ -155,7 +173,7 @@
 
   async function loadActiveTimers(options = {}) {
     try {
-      const data = await window.LongtailForge.api.getJson("/api/active-timers", {
+      const data = await requireApi().getJson("/api/active-timers", {
         cache: "no-store",
       });
       const activeTimers = Array.isArray(data.timers) ? data.timers : [];
@@ -193,7 +211,7 @@
     }
 
     try {
-      const data = await window.LongtailForge.api.getJson("/api/tasks?status=active&limit=200", {
+      const data = await requireApi().getJson("/api/tasks?status=active&limit=200", {
         cache: "no-store",
       });
       taskOptions = normalizeTaskOptions(data);
@@ -421,7 +439,7 @@
       this.setStatus("Linking timer to task...");
 
       try {
-        const result = await window.LongtailForge.api.postJson(
+        const result = await requireApi().postJson(
           `/api/tasks/${encodeURIComponent(task.id)}/timer/link`,
           { timer_slot: String(this.timerNumber) },
         );
@@ -533,12 +551,12 @@
 
       try {
         if (this.persistedActiveTimerId) {
-          await window.LongtailForge.api.postJson(
+          await requireApi().postJson(
             `/api/active-timers/${encodeURIComponent(this.timerNumber)}/finalize`,
             entry,
           );
         } else {
-          await window.LongtailForge.api.postJson("/api/time-entries", entry);
+          await requireApi().postJson("/api/time-entries", entry);
         }
         this.setStatus("Saved.", "saved");
         saved = true;
@@ -891,7 +909,7 @@
       };
 
       try {
-        const result = await window.LongtailForge.api.putJson(
+        const result = await requireApi().putJson(
           `/api/active-timers/${encodeURIComponent(this.timerNumber)}`,
           payload,
         );
@@ -910,7 +928,7 @@
       }
 
       try {
-        await window.LongtailForge.api.deleteJson(
+        await requireApi().deleteJson(
           `/api/active-timers/${encodeURIComponent(this.timerNumber)}`,
         );
       } catch (error) {

@@ -12,6 +12,24 @@ const namespace = window.LongtailForge = window.LongtailForge || {};
 const loadedScripts = new Map();
 const loadedStyles = new Map();
 
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+/**
+ * The API client this file cannot run without.
+ *
+ * Acquired per call rather than once at module scope, so a missing client still fails at
+ * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+ * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+ * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+ * @returns {BrowserApi}
+ */
+function requireApi() {
+  const client = namespace?.api;
+  if (!client) {
+    throw new Error("The Dashboard bridge requires LongtailForge.api.");
+  }
+  return client;
+}
 function versionedAssetUrl(assetPath) {
   const url = new URL(String(assetPath || ""), document.baseURI);
 
@@ -140,7 +158,7 @@ async function loadDashboardManifest() {
   const workspaceId = String(namespace.workspaceContext?.workspaceId || "").trim();
 
   if (!workspaceId) {
-    const revalidated = namespace.api.getJson("/api/dashboard", { cache: "no-store" });
+    const revalidated = requireApi().getJson("/api/dashboard", { cache: "no-store" });
     return {
       data: await revalidated,
       fromCache: false,
@@ -171,7 +189,7 @@ function loadDashboardRoute(routeValue) {
   }
 
   if (!dashboardDataPromises.has(route)) {
-    dashboardDataPromises.set(route, namespace.api.getJson(route, { cache: "no-store" }));
+    dashboardDataPromises.set(route, requireApi().getJson(route, { cache: "no-store" }));
   }
 
   return dashboardDataPromises.get(route);

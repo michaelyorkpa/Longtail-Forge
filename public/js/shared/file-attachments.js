@@ -2,10 +2,27 @@
 
 (function attachFileAttachments(global) {
   const namespace = global.LongtailForge || {};
-  const api = namespace.api;
   const FILE_REPORT_REASON = "security";
   const FILE_QUARANTINE_REASON = "manual_quarantine";
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+
+  /**
+   * The API client this file cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing client still fails at
+   * exactly the moment it failed before `0.33.33.38.1` declared the namespace it lives on.
+   * The five methods keep returning `Promise<unknown>`: a fetch body is an untrusted wire
+   * value, and narrowing one is `0.33.33.38.4`'s work rather than this file's.
+   * @returns {BrowserApi}
+   */
+  function requireApi() {
+    const client = namespace?.api;
+    if (!client) {
+      throw new Error("File attachments requires LongtailForge.api.");
+    }
+    return client;
+  }
   function mount(container, options = {}) {
     if (!container) {
       throw new Error("Attachment container is required.");
@@ -77,6 +94,7 @@
   }
 
   async function refresh(container, state) {
+    const api = requireApi();
     const { options } = state;
 
     if (!options.moduleId || !options.targetType || !options.targetId) {
@@ -797,6 +815,7 @@
   }
 
   async function removeAttachment(container, state, attachment) {
+    const api = requireApi();
     const attachmentId = attachment.fileAttachmentId || attachment.file_attachment_id;
 
     if (!attachmentId) {
@@ -814,6 +833,7 @@
   }
 
   async function reportFile(container, state, attachment) {
+    const api = requireApi();
     const fileId = attachment.fileId || attachment.file_id;
     const file = attachment.file || {};
     const attachmentId = attachment.fileAttachmentId || attachment.file_attachment_id;
@@ -847,6 +867,7 @@
   }
 
   async function quarantineFile(container, state, attachment) {
+    const api = requireApi();
     const fileId = attachment.fileId || attachment.file_id;
     const file = attachment.file || {};
 
@@ -876,6 +897,7 @@
   }
 
   async function deleteFile(container, state, attachment) {
+    const api = requireApi();
     const fileId = attachment.fileId || attachment.file_id;
     const file = attachment.file || {};
 
@@ -905,6 +927,7 @@
   }
 
   async function restoreFile(container, state, attachment) {
+    const api = requireApi();
     const fileId = attachment.fileId || attachment.file_id;
 
     if (!fileId) {
