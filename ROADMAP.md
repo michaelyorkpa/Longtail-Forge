@@ -40,10 +40,11 @@ Source-contract discipline (branch-wide, from `0.33.33.35`):
 
 - [ ] **A reference audit searches for the symbol in every form it can take, not for call syntax.** `0.33.33.35.2` searched `symbolName(` and missed ten `.filter(actionPermissionsAllowed)` sites, because a bare reference carries no parenthesis; `0.33.33.35.3` then found that the only outside references to four members it moved were the bare ones in a publication block. Check direct invocation, bare reference or callback, alias, destructuring, property assignment, membership in an array, map, or registry, namespace publication, and any test, source contract, or documentation assertion naming it. A symbol that survives under one form and not another fails at runtime rather than at the boundary.
 - [ ] **A negative source assertion forbids a construct, not a word.** `0.33.33.35.3` wrote a `doesNotMatch` meant to prove the modal constructors had not moved, and it matched their names inside the new module's own comment explaining why they had stayed. Assert against the form the contract actually names: a definition (`function X(`), a publication (`namespace.X =`), or a call or import, scoped to that construct. Bare identifier-absence is only correct when no comment, doc, test, or unrelated mention may legitimately carry the name.
+- [ ] **A measurement that resolves an identifier must resolve its binding, not its spelling.** `0.33.33.38.2.1` attributed 73 diagnostics to `LongtailForge.api` that had nothing to do with it: they sat on a variable named `client` - a customer record - and the attribution was file-scoped, so one function's binding spoke for every function's. Renaming the accessor's local made the false attribution disappear **without making the measurement correct**, which is the trap. A tool that reads the estate follows lexical scope the way the publication inventory already does, or it is measuring names rather than code.
 - [ ] **The scope of the evidence must match the scope of the claim.** `0.33.33.37` reported "duplicated status literals 11 to 0" from an audit of the three files its own checkpoint description named, while `task-resume-note-capture.js` and `tasks-dashboard.js` still held the active-status set. The measurement was right and the claim was too wide. A repository-wide elimination claim requires a repository-wide search; an audit deliberately scoped to named owners reports itself that way - "11 to 0 across the three `0.33.33.37` owners" - and names what it did not look at.
 - [ ] **Retarget a source contract to what it owns; do not repoint it at a new filename.** When extraction moves code, an assertion that merely pinned its location is a weak contract that survived by accident. Move it to the behaviour, ownership, publication, or dependency claim it was standing in for - `0.33.33.35.2` and `0.33.33.35.3` both did this - and delete it when a stronger assertion already covers the same ground.
 
-Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, `.28.6`, `.30`, `.30.2`, `.30.3`, `.30.7`, `.30.7.2`, `.31`, `.32`, `.35.1`, and `.38.2` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives. **A resliced child must be declared at a heading depth checkpoint governance recognises - `###` or `####`, and no deeper.** `0.33.33.38.2` first wrote its children at `#####`, and `checkpoint:validate` reported every one of them as an undeclared checkpoint: validation visibility is part of declaring ownership, not a formatting preference.
+Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, `.28.6`, `.30`, `.30.2`, `.30.3`, `.30.7`, `.30.7.2`, `.31`, `.32`, `.35.1`, `.38.2`, and `.38.2.2` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives. **A resliced child must be declared at a heading depth checkpoint governance recognises - `###` or `####`, and no deeper.** `0.33.33.38.2` first wrote its children at `#####`, and `checkpoint:validate` reported every one of them as an undeclared checkpoint: validation visibility is part of declaring ownership, not a formatting preference.
 
 Release-wide measurable acceptance:
 
@@ -101,7 +102,21 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Values entering as `unknown` | **1,035** | `TS18046` | `.38.2` + `.38.4` |
 | Undeclared / optional namespace surface | **908** | `TS18048` 549, `TS2339` 359 | `.38.1` + `.38.2` |
 
-**Landed after `0.33.33.38.1`: 9,647 diagnostics.** Unannotated parameters 4,718, page-local state 1,982, DOM subtype and lookup 1,484, `unknown` 531, namespace surface 764, assorted 168. The excluded families' owners are unchanged; their small movements are diagnostics genuinely eliminated rather than reassigned.
+**Landed after `0.33.33.38.2.1`, measured with the corrected classifier: 9,327 diagnostics.** Unannotated parameters 4,718, page-local state 1,915, DOM subtype and lookup 1,484, `unknown` 531, namespace surface 511, assorted 168.
+
+**The `0.33.33.39`-`.44` debt budgets, refreshed from the current tree.** Every non-contract diagnostic still has a named owner and none was silently moved to make a total reconcile.
+
+| Owner | Unannotated parameters | Page-local state | Assorted | Total |
+| --- | ---: | ---: | ---: | ---: |
+| `0.33.33.39` shared browser framework | 1,733 | 113 | 27 | 1,873 |
+| `0.33.33.40` Notes | 378 | 129 | 27 | 534 |
+| `0.33.33.41` Tasks and Task Dialog | 556 | 665 | 23 | 1,244 |
+| `0.33.33.42` Workbench | 311 | 210 | 21 | 542 |
+| `0.33.33.43` Lists, Files, Clients/Projects | 754 | 219 | 26 | 999 |
+| `0.33.33.44` remaining page controllers | 986 | 579 | 44 | 1,609 |
+| **Total** | **4,718** | **1,915** | **168** | **6,801** |
+
+**Three kinds of change separate this from the original baseline, and they are not the same kind.** Some diagnostics were **genuinely eliminated** by `0.33.33.38.1` and `.38.2.1` - page-local state fell across every owner as declaring `view` and `api` gave their consumers real types. Some were **reclassified by better tooling**: the lexical resolver moved 25 diagnostics out of page-local state and into the namespace family, because a text-adjacency heuristic had been reading an identifier's spelling rather than its binding. **No budget was adjusted to make a total balance.**
 | Assorted remaining codes | **170** | `TS2345` 55, `TS2322` 40, `TS2698` 16, ... | per controller |
 
 **The correction that matters most: 1,561 of the `{}` cohort are parameters, not page state.** The previous slice read `Property 'className' does not exist on type '{}'` at `view-builder.js:20` as under-inferred state and gave the whole 2,628-strong `{}` cohort to a page-state child. The declaration is `function createElement(tagName, options = {})`. **A parameter whose only type information is a `{}` default is the same defect as `TS7006`** - the default is why TypeScript prints `{}` instead of `any` - and it is removed the same way, by annotating the function in the controller that declares it. Adding those to the 3,079 explicit `TS7006` makes **unannotated parameters 4,745 diagnostics, 46% of the browser program, and none of it is contract work.** The old `.38.3`'s claimed 4,374-diagnostic family does not exist.
@@ -193,21 +208,91 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Declared / undeclared members | 14 / 48 | **14 / 50** |
 | Unsupported or unresolvable rooted writes | 0 | **0** |
 
-#### 0.33.33.38.2.2 - Declare and adopt the multi-consumer members
+#### 0.33.33.38.2.2 - Declare and adopt the undeclared namespace members
 
-**Remeasure from the corrected inventory before slicing: 50 undeclared members, not 48, and 32 of them multi-consumer. 210 diagnostics of their own plus the 209 root-optionality diagnostics the `.38.2.1` preflight moved here, and each needs a real contract read from its writer.** Those 209 are on lines that already reach these members; they resolve as the declarations land, so measure them as part of each member's cohort rather than as a separate cleanup. **Two of the members - `settingsHost` and `settingsPageController` - were invisible to the publication inventory until the `.38.2.1` reconciliation found them**, so remeasure this child's cohort list from a corrected inventory rather than from the 48-member figure.
+**Model: High Effort** - Planning rollup only. Its numbered children below are the protected implementation checkpoints, drawn from the first namespace map this branch has been able to trust.
 
-- [ ] `modal` (37 diagnostics, 14 files), `icons` (27, 4), `settingsRenderer` (22, 5), `workspaceContext` (17, 5), `taskCalendar` (14, 2), `timezones` (12, 4), `moduleActions` (11, 3), `tasksDialog` (11, 2), `status` (10, 7), and the rest. **Every one has exactly one writer**, so none introduces a multi-writer question.
-- [ ] Author each interface from its publishing module, not from its consumers. `0.33.33.38.1` found four members whose runtime was *stronger* than a plausible declaration - a flat `HTMLElement` would have hidden `.close()`, `.value`, and the whole `viewParts` channel.
-- [ ] Slice by blast radius when the measurement says so: `modal` at 14 consumer files is not the same unit of work as `taskCalendar` at 2.
+**Both measuring instruments were wrong until `0.33.33.38.2.7` and the lexical-attribution correction landed**, and each error pointed the same way - at surfaces and diagnostics this child would have mis-sized. The map below is the first one built with an inventory that sees every publication form and an attribution model that resolves bindings rather than spellings.
+
+**The sizing rule, and it is not optional.** Member attribution is **not** implementation ownership. Of the **417** diagnostics attributed to the 50 undeclared members, **293 are canonically namespace-family and belong here**; **124 are canonically `unknown` and belong to `0.33.33.38.4`**. Declaring a member closes its namespace half and does nothing to the value its methods return. `modal` attributes 64 and this child owns **33**; `settingsRenderer` attributes 44 and this child owns **22**. **A child sized on the attribution total is sized wrong, and broadening a declaration to absorb the `unknown` half would turn untrusted data into typed data at the namespace layer.**
+
+**Every one of the 50 has exactly one writer**, so nothing here raises a multi-writer question.
+
+#### 0.33.33.38.2.2.1 - Wire the five surfaces that already have accurate interfaces
+
+**5 members, 0 diagnostics, 5 local casts removed. The lowest-risk proof of the wiring mechanism.**
+
+`taskLifecycleLegality` (`BrowserTaskLifecycleLegality`), `viewActionSecurity`, `viewDataBinding`, `viewModalStack`, and `viewSearchOptions` each have an accurate interface `0.33.33.34` through `.37` authored and merged, and each is reached by a **local `/** @type {X | undefined} */` cast** because the namespace does not expose it. **No contract needs designing and no diagnostic needs moving** - the interfaces are already right and their consumers already narrow, which is exactly why the cohort carries zero debt.
+
+- [ ] Declare each as a namespace member and delete the cast the declaration makes redundant.
+- [ ] Four are single-consumer required reads; `taskLifecycleLegality` is three optional-chained reads inside the `requireTaskLifecycleLegality()` accessors `0.33.33.37` wrote. **The work is identical in both cases** - the cast goes, the guard stays.
+- [ ] **This closes the orphaned-interface pattern `0.33.33.38.1` recorded**: an interface that exists but is not reachable through the namespace makes every consumer rediscover it.
+
+#### 0.33.33.38.2.2.2 - Declare the settings family
+
+**4 members, 43 canonical namespace diagnostics, and the only cohort measured as required-uniform.**
+
+`settingsRenderer` (22 diagnostics / 5 files), `status` (10 / 7), `settingsHost` (6 / 5), and `settingsPageController` (5 / 5). Every read is unguarded: **no optional read, no guarded chain, no probe anywhere in the cohort**, and the consumer sets overlap almost exactly across the five settings pages.
+
+- [ ] Declare each from its writer, then take the checked read at the point of use on the `0.33.33.37` pattern.
+- [ ] **Excluded to `0.33.33.38.4`: 43 `unknown` diagnostics** - `settingsRenderer` 22, `status` 10, `settingsHost` 6, `settingsPageController` 5. The two halves are the same size, which is the clearest illustration in the estate of why attribution cannot size a child.
+- [ ] **`settingsHost` and `settingsPageController` were invisible until `0.33.33.38.2.7`**, and they get the same archaeology as every other member rather than a tooling footnote.
+
+#### 0.33.33.38.2.2.3 - `LongtailForge.modal`
+
+**33 canonical namespace diagnostics across 16 files - the largest single surface, and the widest blast radius.**
+
+29 unguarded required reads and **2 delivery probes** in `footer.js`. **31 further attributed diagnostics are canonically `unknown` and are excluded to `0.33.33.38.4`.**
+
+- [ ] Its own child because 16 consumer files is a different verification problem from a five-page cohort, not because 33 is a large number.
+- [ ] Preserve the two probes exactly, the way `0.33.33.38.2.1` preserved `api`'s.
+
+#### 0.33.33.38.2.2.4 - `LongtailForge.icons` and `LongtailForge.tags`
+
+**57 canonical namespace diagnostics, 0 `unknown`, and a guard pattern that is the work.**
+
+`icons` is 36 diagnostics across 17 files - **13 required reads against 19 guarded ones and 2 probes**. `tags` is 21 across 11 files - **22 required against 29 guarded and 2 probes**. Neither is uniform, and in both the guarded reads outnumber the required ones.
+
+- [ ] **Classify every site before converting any.** A guarded read is evidence the path is meant to survive absence; `0.33.33.38.2.1` preserved three such paths and was right to.
+- [ ] Grouped because they share that shape - decoration helpers with real optional consumers - and nothing else in the estate does. **Split them if the per-site classification disagrees.**
+
+#### 0.33.33.38.2.2.5 - The workspace-context pair
+
+**25 canonical namespace diagnostics, and an optional-dominant contract.**
+
+`workspaceContext` (14 / 24 files) and `workspaceContextReady` (11 / 17). Across both, **57 reads are optional-chained and only 20 are unguarded** - the widest consumer footprint in the estate and the most deliberately absence-tolerant.
+
+- [ ] **Do not convert this cohort to required delivery.** The right change for most sites is an optional root read, not a checked accessor. `0.33.33.35.1.1` built the cold-load bootstrap around this surface being absent.
+- [ ] Paired because `workspaceContextReady` is the promise that gates `workspaceContext`; declaring one without the other leaves the seam half-typed.
+
+#### 0.33.33.38.2.2.6 - The mixed remainder, which needs its own preflight
+
+**~137 canonical namespace diagnostics across the remaining 36 members, and they do not yet form a cohort.**
+
+`moduleActions` 18, `timezones` 15, `tasksDialog` 13, `clientProjectOptions` 12, `taskCalendar` 9, `dashboard` 9, `notificationSubscriptions` 8, `notificationPreferences` 6, and about 28 members carrying five or fewer each. Their delivery verdicts disagree: `taskCalendar` has **no unguarded read at all**, `moduleActions` is 15 guarded against 5 required, `timezones` is 17 required against 6 guarded.
+
+- [ ] **Do not group these because each is small.** Preflight them after `.1` through `.5` land, when the mechanism is settled and the remaining estate has been remeasured.
+- [ ] **Excluded to `0.33.33.38.4`: ~50 `unknown` diagnostics** across this remainder.
+
+#### 0.33.33.38.2.2.7 - Zero-consumer surfaces: decide before declaring
+
+**5 members, 2 diagnostics, and no repository evidence that any of them is live.**
+
+`billing` (`shared/billing.js:356`), `helpPageReady` (`help.js`), `overlayHost` (`shared/overlay-host.js:221`), `sessionAuthWarnings` and `supportView` (both `navigation.js`).
+
+- [ ] **`billing` has no reader anywhere in the repository** - not in `public/js`, not in tests, not in the end-to-end specs. **`helpPageReady` has none either**, and neither is referenced by any Playwright spec, so neither is a test-synchronisation hook.
+- [ ] `overlayHost` is pinned by `views/overlay-host.contract.mjs`, which asserts the **shape of its publication** rather than any consumer, and `sessionAuthWarnings` and `supportView` appear only in the governance surface list.
+- [ ] **Declaration coverage is not a reason to declare any of them.** Establish whether each is a live seam, an external hook, a compatibility surface, or a dead global - and **where the repository cannot settle it, record the uncertainty rather than declaring by default.** For a genuinely dead publication, removal is the more accurate answer than a permanent declaration.
+
+**Implementation order, and why.** **`.1` first**: five accurate interfaces already exist, the cohort carries **zero diagnostics**, and every consumer already narrows - so it proves the declaration-and-wiring mechanism with no ledger movement to reconcile and no delivery question to answer. **`.2` second**: the only required-uniform cohort, one mechanism, five overlapping consumer files. **`.3`** next, taking the widest single surface once the mechanism has been proved twice. **`.4`** and **`.5`** after that, because both are classification exercises rather than conversions and both benefit from the settled pattern. **`.6`** last, after its own preflight against the remeasured estate. **`.7`** is archaeology and can run at any point; it blocks nothing.
 
 #### 0.33.33.38.2.3 - Close declaration coverage for the quiet tail
 
 **18 members, 2 diagnostics - a governance change wearing a typing change's clothes.**
 
-- [ ] The single- and zero-consumer members produce almost no diagnostics because their one consumer already narrows locally or guards. `viewActionSecurity`, `viewSearchOptions`, `viewDataBinding`, `viewModalStack`, and `filePreview` **already have accurate published interfaces and are cast locally at their single consumer** - wiring them is mechanical and removes the cast.
+- [ ] The single- and zero-consumer members produce almost no diagnostics - **14 and 2** respectively under corrected attribution - because their one consumer already narrows locally or guards. `viewActionSecurity`, `viewSearchOptions`, `viewDataBinding`, `viewModalStack`, and `filePreview` **already have accurate published interfaces and are cast locally at their single consumer** - wiring them is mechanical and removes the cast.
 - [ ] **Do not justify this child by diagnostic count.** Its value is that the namespace stops drifting, which is why it belongs next to the governance child rather than to the typing ones.
-- [ ] Five members have no consumer at all (`billing`, `helpPageReady`, `overlayHost`, `sessionAuthWarnings`, `supportView`). Establish whether each is a live seam or a ghost before declaring it; a declaration with no runtime owner is its own kind of drift.
+- [ ] Five members have no consumer at all: `billing` (`shared/billing.js`), `helpPageReady` (`help.js`), `overlayHost` (`shared/overlay-host.js`), and `sessionAuthWarnings` and `supportView` (both `navigation.js`). **Four produce zero diagnostics and `supportView` produces two.** Establish whether each is a live seam, an external hook, a compatibility surface, or a ghost **before** declaring it - and where repository evidence cannot settle it, **record the uncertainty rather than declaring by default.** A declaration with no runtime owner is its own kind of drift, and declaration coverage is not a reason to immortalise a dead global.
 
 #### 0.33.33.38.2.4 - Namespace governance
 
@@ -216,6 +301,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] Build on the existing AST inventory in `scripts/test-support/browser-publication-inventory.mjs`. **Do not build a parallel framework.**
 - [ ] **The logical-assignment blind spot is fixed by `0.33.33.38.2.7`, which had to run before `.38.2.2` could count anything.** What remains here is the governance the corrected instrument makes possible. Historical record of the defect: `shared/settings-host.js` and `shared/settings-page-controller.js` are the only two scripts that bind the root that way, and both of their publications - `settingsHost` and `settingsPageController` - are consumed across five settings pages while being reported by no surface count. **Governance that cannot see a published surface cannot govern it**, and the number it publishes was wrong by two before the `.38.2.1` reconciliation looked. Prove the fix by making it fail: add a fixture that publishes through `||=` and confirm the inventory records it.
 - [ ] Enforce four things and keep their vocabulary distinct: **every published surface has a declaration** or a recorded exception; **every declared member has a runtime writer** or is marked type-only; **every surface has one canonical writer** unless it is a recorded multi-writer case; and **no unresolvable rooted write** exists, which the inventory already reports.
+- [ ] **Decide explicitly whether namespace-member diagnostic attribution becomes durable repository tooling or stays a planning instrument.** The lexically scoped analyser that drew `0.33.33.38.2.2` is **not a repository artefact** - it is analysis code, and keeping it that way was right for a one-off map rather than manufacturing permanent machinery to house temporary work. **If it becomes durable it must inherit what was proved**: lexical binding identity, same-name bindings in separate scopes that do not cross, nested shadowing, shorthand references, aliases, supported closure captures, no identifier-spelling heuristic, and a fail-first fixture for each known failure mode. **If it does not, say so, and make sure no governance rule depends on it** - enforcement must rest on repository-owned AST inventories and contracts, never invisibly on an external script.
 - [ ] **A unique surface is not a publication occurrence.** The estate is **66 unique surfaces across 69 publication occurrences**, and the difference is two governed multi-writer surfaces - `window.fetch` with three writers and `LongtailForge.view` with two. Test names and failure messages must not let those be read as the same number.
 
 #### 0.33.33.38.2.5 - Remove the namespace index signature
