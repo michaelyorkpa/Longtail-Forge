@@ -1812,7 +1812,7 @@
 
   /** @returns {BrowserTaskLifecycleLegality} */
   function requireTaskLifecycleLegality() {
-    const legality = /** @type {BrowserTaskLifecycleLegality | undefined} */ (window.LongtailForge?.taskLifecycleLegality);
+    const legality = window.LongtailForge?.taskLifecycleLegality;
     if (typeof legality?.isTerminalStatus !== "function") {
       throw new Error("Task actions require LongtailForge.taskLifecycleLegality.");
     }

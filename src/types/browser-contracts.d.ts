@@ -969,7 +969,19 @@ export interface LongtailForgeBrowserNamespace {
    * The frozen view factory, written by `view-builder.js` and extended by `view-renderer.js`.
    * Optional because the namespace itself can be absent, not because the factory is.
    */
+  /**
+   * The five surfaces below were published with accurate interfaces by `0.33.33.34` through
+   * `.37` and reached through a local cast at every consumer, because the namespace did not
+   * name them. `0.33.33.38.2.2.1` wires the interfaces that already exist rather than
+   * restating them: each consumer keeps the checked accessor that does the real narrowing and
+   * simply stops supplying its own type.
+   */
+  taskLifecycleLegality?: BrowserTaskLifecycleLegality;
   view?: BrowserViewFactory;
+  viewActionSecurity?: BrowserViewActionSecurity;
+  viewDataBinding?: BrowserViewDataBinding;
+  viewModalStack?: BrowserViewModalStack;
+  viewSearchOptions?: BrowserViewSearchOptions;
   viewSurfaceDescriptor?: BrowserViewSurfaceDescriptorAdapter;
   viewResponseRecords?: BrowserViewResponseRecords;
   [key: string]: unknown;

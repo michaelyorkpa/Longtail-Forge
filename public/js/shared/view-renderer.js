@@ -1699,7 +1699,7 @@
 
   /** @returns {BrowserViewActionSecurity} */
   function requireActionSecurity() {
-    const actionSecurity = /** @type {BrowserViewActionSecurity | undefined} */ (root.viewActionSecurity);
+    const actionSecurity = root.viewActionSecurity;
     if (typeof actionSecurity?.runRouteAction !== "function") {
       throw new Error("View surface actions require LongtailForge.viewActionSecurity.");
     }
@@ -1708,7 +1708,7 @@
 
   /** @returns {BrowserViewSearchOptions} */
   function requireSearchOptions() {
-    const searchOptions = /** @type {BrowserViewSearchOptions | undefined} */ (root.viewSearchOptions);
+    const searchOptions = root.viewSearchOptions;
     if (typeof searchOptions?.setFieldOptions !== "function") {
       throw new Error("View surface fields require LongtailForge.viewSearchOptions.");
     }
@@ -1717,7 +1717,7 @@
 
   /** @returns {BrowserViewDataBinding} */
   function requireDataBinding() {
-    const dataBinding = /** @type {BrowserViewDataBinding | undefined} */ (root.viewDataBinding);
+    const dataBinding = root.viewDataBinding;
     if (typeof dataBinding?.loadBoundRecords !== "function") {
       throw new Error("View surface data binding requires LongtailForge.viewDataBinding.");
     }

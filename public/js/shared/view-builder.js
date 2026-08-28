@@ -1137,7 +1137,7 @@
 
   /** @returns {BrowserViewModalStack} */
   function requireModalStack() {
-    const modalStack = /** @type {BrowserViewModalStack | undefined} */ (root.viewModalStack);
+    const modalStack = root.viewModalStack;
     if (typeof modalStack?.showModal !== "function") {
       throw new Error("View modals require LongtailForge.viewModalStack.");
     }
