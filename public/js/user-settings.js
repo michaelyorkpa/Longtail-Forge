@@ -47,7 +47,7 @@ let workspaceNameEditedByUser = false;
 let systemThemeModeQuery = null;
 let systemThemeModeListenerAttached = false;
 let settingsCatalog = null;
-const settingsPageController = window.LongtailForge.settingsPageController.create({
+const settingsPageController = requireSettingsPageController().create({
   root: document.querySelector("[data-settings-host='user']"),
   onSave: saveAllSettings,
   onRevert: applyPendingPreferencePreview,
@@ -117,6 +117,32 @@ function requireApi() {
   }
   return apiClient;
 }
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserSettingsHost} BrowserSettingsHost */
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserSettingsPageController} BrowserSettingsPageController */
+
+/**
+ * The settings host this page cannot render without. Every page that loads this script also
+ * loads `shared/settings-host.js` ahead of it, so a missing host is a delivery failure and
+ * the checked read fails exactly where the raw read failed before.
+ * @returns {BrowserSettingsHost}
+ */
+function requireSettingsHost() {
+  const host = window.LongtailForge?.settingsHost;
+  if (!host) {
+    throw new Error("User settings requires LongtailForge.settingsHost.");
+  }
+  return host;
+}
+
+/** @returns {BrowserSettingsPageController} */
+function requireSettingsPageController() {
+  const controller = window.LongtailForge?.settingsPageController;
+  if (!controller) {
+    throw new Error("User settings requires LongtailForge.settingsPageController.");
+  }
+  return controller;
+}
+
 async function deleteAccount() {
   const confirmed = await window.LongtailForge.modal.confirm({
     title: "Delete your account?",
@@ -440,7 +466,7 @@ function renderCreateWorkspaceModuleSettings() {
 function renderUserSettingsContributions() {
   window.LongtailForge.settingsRenderer.renderSections(
     userSettingsContributionContainer,
-    window.LongtailForge.settingsHost.attachmentSections(settingsCatalog, "user"),
+    requireSettingsHost().attachmentSections(settingsCatalog, "user"),
     { hideEmpty: true, showSaveAction: false },
   );
 }

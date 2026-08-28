@@ -40,7 +40,7 @@
   let settingsCatalog = null;
   let workspaceDeletionState = null;
   let workspaceDeletionDialogMode = "request";
-  const settingsPageController = window.LongtailForge.settingsPageController.create({
+  const settingsPageController = requireSettingsPageController().create({
     root: document.querySelector("[data-settings-host='workspace']"),
     onSave: saveSettings,
   });
@@ -87,6 +87,32 @@
     }
     return apiClient;
   }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserSettingsHost} BrowserSettingsHost */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserSettingsPageController} BrowserSettingsPageController */
+
+  /**
+   * The settings host this page cannot render without. Every page that loads this script also
+   * loads `shared/settings-host.js` ahead of it, so a missing host is a delivery failure and
+   * the checked read fails exactly where the raw read failed before.
+   * @returns {BrowserSettingsHost}
+   */
+  function requireSettingsHost() {
+    const host = window.LongtailForge?.settingsHost;
+    if (!host) {
+      throw new Error("Workspace settings requires LongtailForge.settingsHost.");
+    }
+    return host;
+  }
+
+  /** @returns {BrowserSettingsPageController} */
+  function requireSettingsPageController() {
+    const controller = window.LongtailForge?.settingsPageController;
+    if (!controller) {
+      throw new Error("Workspace settings requires LongtailForge.settingsPageController.");
+    }
+    return controller;
+  }
+
   async function loadSettingsForm() {
     setWorkspaceSettingsStatus("Loading workspace settings...");
 
@@ -362,8 +388,19 @@
     };
   }
 
+  /**
+   * An attachment section carries whatever `GET /api/settings/catalog` delivered, so the two
+   * fields this page sorts on are read through a check rather than assumed.
+   * @param {unknown} section
+   * @returns {section is { moduleId?: unknown, lifecycle?: unknown }}
+   */
+  function isAttachmentSection(section) {
+    return typeof section === "object" && section !== null;
+  }
+
   function renderModuleSettings(catalog) {
-    const sections = window.LongtailForge.settingsHost.attachmentSections(catalog, "workspace");
+    const sections = requireSettingsHost().attachmentSections(catalog, "workspace")
+      .filter(isAttachmentSection);
     const clientProjects = sections.filter((section) => section.moduleId === "client-projects");
     const optionalModules = sections
       .filter((section) => section.moduleId !== "client-projects" && section.lifecycle === true)

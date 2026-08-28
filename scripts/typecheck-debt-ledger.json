@@ -479,7 +479,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 9327,
+      "errorCount": 9301,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -746,11 +746,11 @@
         "public/js/files-settings.js": [
           {
             "code": 18046,
-            "count": 12
+            "count": 10
           },
           {
             "code": 18048,
-            "count": 7
+            "count": 5
           },
           {
             "code": 2339,
@@ -974,11 +974,11 @@
         "public/js/module-settings.js": [
           {
             "code": 18046,
-            "count": 12
+            "count": 10
           },
           {
             "code": 18048,
-            "count": 9
+            "count": 6
           },
           {
             "code": 2339,
@@ -990,7 +990,7 @@
           },
           {
             "code": 7006,
-            "count": 7
+            "count": 5
           },
           {
             "code": 7034,
@@ -1050,7 +1050,7 @@
         "public/js/notes-settings.js": [
           {
             "code": 18046,
-            "count": 25
+            "count": 23
           },
           {
             "code": 18047,
@@ -1058,7 +1058,7 @@
           },
           {
             "code": 18048,
-            "count": 6
+            "count": 4
           },
           {
             "code": 2339,
@@ -2108,7 +2108,7 @@
         "public/js/user-settings.js": [
           {
             "code": 18046,
-            "count": 22
+            "count": 20
           },
           {
             "code": 18047,
@@ -2116,7 +2116,7 @@
           },
           {
             "code": 18048,
-            "count": 16
+            "count": 14
           },
           {
             "code": 2339,
@@ -2212,7 +2212,7 @@
         "public/js/workspace-settings.js": [
           {
             "code": 18046,
-            "count": 20
+            "count": 18
           },
           {
             "code": 18047,
@@ -2220,7 +2220,7 @@
           },
           {
             "code": 18048,
-            "count": 13
+            "count": 11
           },
           {
             "code": 2339,
@@ -2244,7 +2244,7 @@
           },
           {
             "code": 7006,
-            "count": 44
+            "count": 41
           },
           {
             "code": 7034,
@@ -2857,7 +2857,7 @@
   },
   "totals": {
     "files": 1057,
-    "errors": 9327,
+    "errors": 9301,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
