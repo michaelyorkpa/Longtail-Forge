@@ -14,7 +14,7 @@ assert.match(tasksModule, /version:\s*appVersion/, "Tasks module should report t
 assert.match(tasksModule, /detail:\s*\{[\s\S]*regions:\s*\[[\s\S]*id:\s*"tasks-main-list"[\s\S]*behavior:\s*"tasks\.main\.list"[\s\S]*className:\s*"tasks-main-list-region"[\s\S]*ariaLabel:\s*"Task list"/, "Tasks descriptor should bind the task list to a labeled main-panel detail region");
 assert.match(tasksModule, /sidebarPanels:\s*\[[\s\S]*id:\s*"tasks-view-selector"[\s\S]*id:\s*"tasks-filters"/, "Tasks descriptor should keep list controls in ordered sidebar panels");
 
-assert.match(tasksScript, /view\.registerBehavior\("tasks\.main\.list"[\s\S]*container\.replaceChildren\(createTaskMainListChrome\(\)\)/, "Tasks adapter should mount the current list chrome through the descriptor region");
+assert.match(tasksScript, /registerBehavior\("tasks\.main\.list"[\s\S]*container\.replaceChildren\(createTaskMainListChrome\(\)\)/, "Tasks adapter should mount the current list chrome through the descriptor region");
 assert.doesNotMatch(tasksScript, /main\.replaceChildren\(createTaskMainListChrome\(\)\)/, "Tasks adapter should not replace the framework-owned main panel");
 assert.match(tasksScript, /main\.classList\.add\("tasks-main-list-panel"\)[\s\S]*main\.dataset\.tasksMainPanel = ""/, "Tasks adapter may keep compatibility hooks on the framework main panel");
 

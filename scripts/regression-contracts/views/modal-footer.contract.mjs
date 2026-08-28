@@ -35,7 +35,7 @@ assert.match(styles, /\.view-modal-form > \.surface-modal-footer\s*\{[\s\S]*posi
 assert.match(surfaceContract, /Adaptive Footer Labels/, "surface contract must document adaptive footer labels");
 assert.match(uiGuide, /adaptive visible text/, "UI guide must document adaptive visible text rules");
 
-assert.match(taskDialogScript, /view\.renderDescriptorModalForm\(descriptor, \{[\s\S]*utilityActions: taskEditorUtilityActions\(descriptor\)[\s\S]*actions: taskEditorCommitActions\(descriptor\)/, "Tasks editor should render through the framework modal footer helper");
+assert.match(taskDialogScript, /renderDescriptorModalForm\(descriptor, \{[\s\S]*utilityActions: taskEditorUtilityActions\(descriptor\)[\s\S]*actions: taskEditorCommitActions\(descriptor\)/, "Tasks editor should render through the framework modal footer helper");
 assert.match(taskDialogScript, /dialog\.viewParts\.footer\.classList\.add\("form-actions", "task-modal-actions", "surface-modal-footer--dense"\)/, "Tasks editor should apply the shared dense modal footer shell to the framework footer");
 assert.match(taskDialogScript, /dialog\.viewParts\.footer\.dataset\.modalFooter = ""/, "Tasks editor should keep the modal footer hook on the framework footer");
 assert.match(taskDialogScript, /function taskEditorUtilityActions\(descriptor\)[\s\S]*view\.createActionButton\(\{[\s\S]*action: action\.id[\s\S]*className: "surface-modal-footer-action"[\s\S]*role: action\.role[\s\S]*button\.dataset\.taskTagsToggle[\s\S]*button\.dataset\.taskFilesToggle[\s\S]*button\.dataset\.copyTaskLink[\s\S]*button\.hidden = true/, "Tasks utility footer actions should be framework action buttons with module-owned hooks");

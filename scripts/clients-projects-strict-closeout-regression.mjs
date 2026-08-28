@@ -70,8 +70,8 @@ for (const forbidden of [
   assert.doesNotMatch(clientsProjectsScript, new RegExp(escapeRegExp(forbidden)), `Clients/Projects strict adapter should not keep ${forbidden}`);
 }
 
-assert.match(clientsProjectsScript, /view\.registerBehavior\("client-projects\.clients\.bulk", mountClientBulkToolbar\)/, "Client bulk behavior should remain module-registered");
-assert.match(clientsProjectsScript, /view\.registerBehavior\("client-projects\.projects\.bulk", mountProjectBulkToolbar\)/, "Project bulk behavior should remain module-registered");
+assert.match(clientsProjectsScript, /registerBehavior\("client-projects\.clients\.bulk", mountClientBulkToolbar\)/, "Client bulk behavior should remain module-registered");
+assert.match(clientsProjectsScript, /registerBehavior\("client-projects\.projects\.bulk", mountProjectBulkToolbar\)/, "Project bulk behavior should remain module-registered");
 assert.match(clientsProjectsScript, /\/api\/client-projects/, "Dialog and bulk data refresh should keep the existing client-projects route");
 assert.match(clientsProjectsScript, /\/api\/clients/, "Client saves should keep existing Client route calls");
 assert.match(clientsProjectsScript, /\/api\/projects/, "Project saves should keep existing Project route calls");

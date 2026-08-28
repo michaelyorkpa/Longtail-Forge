@@ -31,7 +31,7 @@ assert.match(notesModule, /route:\s*"\/api\/notes"/, "Notes descriptor should ke
 
 // Browser adapter wiring: framework renders the shell, notes.js mounts the chrome and read content.
 assert.match(notesJs, /buildNotesViewShell/, "notes.js should build the framework view shell");
-assert.match(notesJs, /view\.renderSurface\(\{ \.\.\.descriptor, dataSource: null, modals: \[\] \}, host\)/, "notes.js should render the descriptor shell without letting the renderer fetch data or render duplicate modals");
+assert.match(notesJs, /renderSurface\(\{ \.\.\.descriptor, dataSource: null, modals: \[\] \}, host\)/, "notes.js should render the descriptor shell without letting the renderer fetch data or render duplicate modals");
 assert.match(notesJs, /notesViewSurfaceDescriptor/, "notes.js should resolve the delivered descriptor");
 assert.match(notesJs, /workspaceContext\?\.viewSurfaces/, "notes.js should prefer the app-shell delivered descriptor");
 // 0.33.33.35.1.2 deleted the module-local descriptor fallbacks. The server surface is the
@@ -50,9 +50,9 @@ assert.match(
 // The slide-out layout assertion that stood here read notes.js, where only the deleted
 // fallback carried that literal. Its owner is the manifest surface, asserted above.
 assert.match(notesJs, /decorateNotesDeclarativeSurface/, "notes.js should decorate the framework shell with legacy hooks");
-assert.match(notesJs, /view\.registerBehavior\("notes\.sidebar\.library"[\s\S]*container\.replaceChildren\(createNotesLibraryChrome\(\)\)/, "Notes module should mount Library chrome through a sidebar panel behavior");
-assert.match(notesJs, /view\.registerBehavior\("notes\.sidebar\.notes-list-footer"[\s\S]*container\.replaceChildren\(createNotesListSortControl\(\), createNotesPagination\(\)\)/, "Notes module should mount Notes List footer controls through a sidebar panel behavior");
-assert.match(notesJs, /view\.registerBehavior\("notes\.filters\.tags", hydrateNoteTagFilterOptions\)/, "Notes module should hydrate tag filter suggestions through a module-owned behavior");
+assert.match(notesJs, /registerBehavior\("notes\.sidebar\.library"[\s\S]*container\.replaceChildren\(createNotesLibraryChrome\(\)\)/, "Notes module should mount Library chrome through a sidebar panel behavior");
+assert.match(notesJs, /registerBehavior\("notes\.sidebar\.notes-list-footer"[\s\S]*container\.replaceChildren\(createNotesListSortControl\(\), createNotesPagination\(\)\)/, "Notes module should mount Notes List footer controls through a sidebar panel behavior");
+assert.match(notesJs, /registerBehavior\("notes\.filters\.tags", hydrateNoteTagFilterOptions\)/, "Notes module should hydrate tag filter suggestions through a module-owned behavior");
 assert.match(notesJs, /hydrateNoteTagFilterOptions\(\{ mountSearchOptions, setOptions \}[\s\S]*submitMode:\s*"option-or-input"/, "Notes tag filter suggestions should preserve free-text search with selected no-tags support");
 assert.match(notesJs, /surface\.querySelector\('\[data-view-sidebar-panel="notes-list"\]'\)/, "Notes module should target the framework Notes List sidebar panel");
 assert.match(notesJs, /surface\.querySelector\("\.view-slideout-sidebar-main"\)[\s\S]*surface\.querySelector\("\.view-sidebar-detail-primary"\)/, "Notes detail should prefer the slide-out sidebar primary region and keep compatibility fallbacks");

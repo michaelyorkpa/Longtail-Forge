@@ -33,7 +33,52 @@
   };
   const LIST_LINK_TARGET_ORDER = ["task", "note", "project", "client"];
 
-  const view = window.LongtailForge?.view;
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+
+  /**
+   * The view factory this controller cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing factory still
+   * fails at exactly the moment it failed before `0.33.33.38.1` declared it.
+   * @returns {BrowserViewFactory}
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
+  
+  /**
+   * Whether this page received `view-renderer.js` as well as `view-builder.js`.
+   *
+   * Ten of the eighteen builder pages do not load the renderer, so its members are
+   * genuinely partial on the shared factory type. This predicate checks the ones
+   * Lists uses, so the narrowing is earned rather than asserted.
+   * @param {BrowserViewFactory} factory
+   * @returns {factory is BrowserViewFactory & BrowserViewDescriptorRenderers}
+   */
+  function hasDescriptorRenderers(factory) {
+    return typeof factory.registerBehavior === "function"
+      && typeof factory.renderDescriptorActionMenu === "function"
+      && typeof factory.renderDescriptorDataTable === "function"
+      && typeof factory.renderDescriptorFieldGrid === "function"
+      && typeof factory.renderDescriptorInlineActions === "function"
+      && typeof factory.renderDescriptorModalForm === "function"
+      && typeof factory.renderSurface === "function";
+  }
+  
+  /** @returns {BrowserViewFactory & BrowserViewDescriptorRenderers} */
+  function requireDescriptorRenderers() {
+    const factory = requireView();
+    if (!hasDescriptorRenderers(factory)) {
+      throw new Error("Lists requires the LongtailForge.view descriptor renderers.");
+    }
+    return factory;
+  }
+
+  function requireView() {
+    const factory = window.LongtailForge?.view;
+    if (!factory) {
+      throw new Error("Lists requires LongtailForge.view.");
+    }
+    return factory;
+  }
   let activeListsViewDescriptor = null;
   const listsWorkspaceHost = document.querySelector("[data-lists-host]");
   const isListsWorkspaceSurface = Boolean(listsWorkspaceHost);
@@ -277,9 +322,6 @@
     if (!host || host.querySelector("[data-lists-title]")) {
       return;
     }
-    if (!view) {
-      throw new Error("Lists requires LongtailForge.view to build the protected workspace.");
-    }
     activeListsViewDescriptor = listsViewSurfaceDescriptor();
     if (activeListsViewDescriptor) {
       registerListsViewBehaviors();
@@ -290,7 +332,7 @@
         dataSource: null,
         modals: [],
       };
-      const surface = view.renderSurface(renderDescriptor, host);
+      const surface = requireDescriptorRenderers().renderSurface(renderDescriptor, host);
       decorateListsDeclarativeSurface(surface, renderDescriptor);
     }
 
@@ -307,6 +349,7 @@
   }
 
   function registerListsViewBehaviors() {
+    const view = requireView();
     if (typeof view.registerBehavior !== "function") {
       return;
     }
@@ -332,7 +375,7 @@
     };
 
     Object.entries(behaviorActions).forEach(([behaviorId, action]) => {
-      view.registerBehavior(behaviorId, ({ record }) => runRegisteredListBehavior(action, record));
+      requireDescriptorRenderers().registerBehavior(behaviorId, ({ record }) => runRegisteredListBehavior(action, record));
     });
   }
 
@@ -513,6 +556,7 @@
   }
 
   function decorateListsDeclarativeSurface(surface, descriptor = activeListsViewDescriptor) {
+    const view = requireView();
     const pageHeading = surface.querySelector(".view-page-title");
     if (pageHeading) {
       pageHeading.dataset.listsTitle = "";
@@ -597,8 +641,9 @@
   }
 
   function createListDialogShell() {
+    const view = requireView();
     const modal = listsEditorModalDescriptor();
-    const editorFields = view.renderDescriptorFieldGrid({ fields: modal.fields || [] }, {
+    const editorFields = requireDescriptorRenderers().renderDescriptorFieldGrid({ fields: modal.fields || [] }, {
       surface: false,
       className: "lists-editor-fields",
     });
@@ -646,7 +691,7 @@
     const save = view.createActionButton({ label: saveAction.label || "Save List", type: "submit", role: saveAction.role || "primary" });
     save.dataset.listSave = "";
 
-    const dialog = view.renderDescriptorModalForm(modal, {
+    const dialog = requireDescriptorRenderers().renderDescriptorModalForm(modal, {
       className: "lists-dialog",
       formClassName: "lists-form",
       fields: [editorFields, linkedRecordsSection, formStatus],
@@ -828,6 +873,7 @@
   }
 
   function renderLists() {
+    const view = requireView();
     const lists = state.lists;
     if (countLabel) {
       countLabel.textContent = listSelectorTitle();
@@ -858,6 +904,7 @@
   }
 
   function listIndexItem(list) {
+    const view = requireView();
     const typeLabel = LIST_TYPE_LABELS[list.list_type] || list.list_type || "";
     const needed = nextNeededDate(list);
     const chips = [
@@ -933,6 +980,7 @@
   }
 
   function renderDetail(list) {
+    const view = requireView();
     if (!list) {
       renderDetailPrompt("Select a list.");
       return;
@@ -952,11 +1000,13 @@
 
     // Detail order: identity -> details context -> what to do next -> provenance (only when meaningful) ->
     // Items heading + Add Item -> the items table -> the cost rollup beneath the items it totals.
-    article.append(...[header, listDetails, nextAction, sourceContext, itemsHeader, items, costSummary].filter(Boolean));
+    article.append(...[header, listDetails, nextAction, sourceContext, itemsHeader, items, costSummary]
+      .filter((node) => node !== null && node !== undefined));
     detailPanel.replaceChildren(article);
   }
 
   function createListDetailHeader(list, locked) {
+    const view = requireView();
     // Mirrors the Notes detail header: a title row (title + badges on the left, a 3-dot action menu on
     // the right), a rule, then a compact labeled meta line. Keeping the actions in a "..." menu stops the
     // wide action row from overlapping the detail content.
@@ -976,7 +1026,7 @@
 
   function createListActionStrip(list, locked) {
     const label = listsActionStripSurfaceDescriptor().label || "List actions";
-    return view.renderDescriptorActionMenu(detailActionButtons(list, locked), {
+    return requireDescriptorRenderers().renderDescriptorActionMenu(detailActionButtons(list, locked), {
       summaryLabel: "...",
       ariaLabel: label,
       title: label,
@@ -984,6 +1034,7 @@
   }
 
   function createListDetailsPanel(list) {
+    const view = requireView();
     const panel = view.createInfoPanel({
       title: "List Details",
       className: "lists-details-panel",
@@ -1051,10 +1102,12 @@
   }
 
   function createItemsHeader(list, locked) {
+    const view = requireView();
     // The item form now lives in a modal; the detail just carries an "Items" heading and an Add Item button
     // that opens it (or a read-only notice when the list is locked).
     const descriptor = listsItemFormSurfaceDescriptor();
     const title = view.createElement("h3", { text: descriptor.title || "Items" });
+    /** @type {HTMLElement[]} */
     const children = [title];
     if (locked) {
       children.push(view.createElement("p", { className: "lists-locked-note", text: readOnlyStateMessage(list) }));
@@ -1071,10 +1124,11 @@
   // The add/edit item form is a framework-rendered modal (createModalForm via renderDescriptorModalForm);
   // the module supplies the fields from the descriptor and owns the data, validation, and save routes.
   function createItemDialogShell() {
+    const view = requireView();
     const descriptor = listsItemFormSurfaceDescriptor();
     const name = createItemFieldFromDescriptor(itemFormField("item_name"));
     const catalogItemId = createItemFieldFromDescriptor(itemFormField("catalog_item_id"));
-    const sideBySide = view.renderDescriptorFieldGrid({ fields: [] }, {
+    const sideBySide = requireDescriptorRenderers().renderDescriptorFieldGrid({ fields: [] }, {
       surface: false,
       className: "lists-item-fields",
       fields: ["quantity", "unit", "needed_by_date", "assigned_user_id", "purchase_status"]
@@ -1086,7 +1140,7 @@
       className: "surface-modal-section-heading",
       text: "Details",
     });
-    const advancedFields = view.renderDescriptorFieldGrid({ fields: advancedDescriptorFields }, {
+    const advancedFields = requireDescriptorRenderers().renderDescriptorFieldGrid({ fields: advancedDescriptorFields }, {
       surface: false,
       className: ["lists-item-advanced-fields", "surface-modal-section-body"],
       fields: advancedDescriptorFields.map((field) => createItemFieldFromDescriptor(field)),
@@ -1103,7 +1157,7 @@
     const save = view.createActionButton({ label: saveAction.label || "Add Item", type: "submit", role: saveAction.role || "primary" });
     save.dataset.listItemSave = "";
 
-    const dialog = view.renderDescriptorModalForm(descriptor, {
+    const dialog = requireDescriptorRenderers().renderDescriptorModalForm(descriptor, {
       title: descriptor.title || "Item",
       size: "wide",
       className: "lists-item-dialog",
@@ -1222,6 +1276,7 @@
   }
 
   function buildItemFieldNode(field) {
+    const view = requireView();
     if (field.field === "item_name") {
       return createItemNameField(field);
     }
@@ -1308,7 +1363,7 @@
   function createItemsTable(list, locked) {
     const items = visibleItems(list);
     const descriptor = listsItemRowsSurfaceDescriptor();
-    const table = view.renderDescriptorDataTable(descriptor, {
+    const table = requireDescriptorRenderers().renderDescriptorDataTable(descriptor, {
       rows: [],
       emptyMessage: descriptor.emptyState?.message || "No items yet.",
       className: "lists-items-table-wrap",
@@ -1316,7 +1371,7 @@
     });
     const tbody = table.querySelector("tbody");
 
-    if (items.length > 0) {
+    if (items.length > 0 && tbody) {
       tbody.replaceChildren(...items.map((item, index) => createItemRow(list, item, index, items.length, locked)));
     }
 
@@ -1396,11 +1451,11 @@
     const actionById = new Map(listsItemRowsSurfaceDescriptor().actions.map((action) => [action.id, action]));
     const rowActionButton = (id, options) => itemRowActionButton(actionById.get(id), list, item, index, total, locked, options);
     const ariaLabel = `${item.item_name || "Item"} actions`;
-    const menu = view.renderDescriptorActionMenu(
+    const menu = requireDescriptorRenderers().renderDescriptorActionMenu(
       [rowActionButton("edit-item", { menu: true }), rowActionButton("delete-item", { menu: true })],
       { summaryLabel: "...", ariaLabel, title: "Item actions" },
     );
-    return view.renderDescriptorInlineActions(
+    return requireDescriptorRenderers().renderDescriptorInlineActions(
       [rowActionButton("move-item-up"), rowActionButton("move-item-down"), menu],
       { className: "lists-item-actions", ariaLabel },
     );
@@ -1899,6 +1954,7 @@
   }
 
   function openListDialog(list = null, options = {}) {
+    const view = requireView();
     const defaults = options.defaults || {};
     state.editingListId = list?.list_id || "";
     state.editorList = list;
@@ -1924,6 +1980,7 @@
   }
 
   function closeListDialog(options = {}) {
+    const view = requireView();
     if (options.cancelHost) {
       cancelListDialogHostContext({
         actionId: state.editingListId ? "lists.edit" : "lists.add",
@@ -2128,6 +2185,7 @@
   }
 
   function renderListPlaceholder(message) {
+    const view = requireView();
     const placeholder = view.createElement("p", {
       className: "view-index-list-empty",
       text: message,
@@ -2150,6 +2208,7 @@
   }
 
   function renderDetailPrompt(message) {
+    const view = requireView();
     const prompt = view.createEmptyState({
       message,
       className: "lists-empty-state",
@@ -2160,6 +2219,7 @@
   }
 
   function actionButton(label, action, listId, variant = "", options = {}) {
+    const view = requireView();
     const button = view.createActionButton({
       label,
       text: options.icon ? "" : undefined,
@@ -2200,6 +2260,7 @@
   }
 
   function createNextActionStrip(list) {
+    const view = requireView();
     const section = view.createInfoPanel({
       title: "Next",
       message: nextActionText(list),
@@ -2217,6 +2278,7 @@
   }
 
   function createCostSummaryPanel(list) {
+    const view = requireView();
     const costText = listCostSummary(list);
     const section = view.createInfoPanel({
       title: "Costs",
@@ -2266,6 +2328,7 @@
   }
 
   function createSourceContextPanel(list) {
+    const view = requireView();
     const sourceContext = sourceContextLabel(list);
     const section = view.createInfoPanel({
       title: list.is_reusable ? "Reusable workflow" : "Source",

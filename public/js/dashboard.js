@@ -1,7 +1,23 @@
 // Dashboard renders the workspace overview through contribution-backed panels.
 (function attachDashboardPage() {
   const dashboardHost = document.querySelector("[data-dashboard-host]");
-  const dashboardView = window.LongtailForge?.view;
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+
+  /**
+   * The view factory this path cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing factory still
+   * fails at exactly the moment it failed before `0.33.33.38.1` declared it. The
+   * graceful path that legitimately runs without the factory keeps its own optional read.
+   * @returns {BrowserViewFactory}
+   */
+  function requireView() {
+    const factory = window.LongtailForge?.view;
+    if (!factory) {
+      throw new Error("Dashboard requires LongtailForge.view.");
+    }
+    return factory;
+  }
   const dashboardBootstrap = window.LongtailForge?.dashboardBootstrap;
 
   let dashboardData = null;
@@ -29,6 +45,7 @@
   loadDashboardData();
 
   function buildDashboardHost() {
+    const dashboardView = window.LongtailForge?.view;
     if (!dashboardHost || !dashboardView) {
       return;
     }
@@ -39,7 +56,6 @@
 
     dashboardStatus = dashboardView.createStatusMessage({
       className: "dashboard-status",
-      dataset: { dashboardStatus: "" },
       hidden: true,
     });
     dashboardPulseRegion = dashboardView.createElement("section", {
@@ -160,6 +176,7 @@
   }
 
   function renderDashboardRegions() {
+    const dashboardView = requireView();
     if (!dashboardRegionContainer) {
       return;
     }
@@ -195,6 +212,7 @@
   }
 
   function renderWorkspacePulse() {
+    const dashboardView = requireView();
     if (!dashboardPulseRegion) {
       return;
     }
@@ -250,6 +268,7 @@
   }
 
   function renderSetupWarnings() {
+    const dashboardView = requireView();
     if (!dashboardWarningsRegion) {
       return;
     }
@@ -280,6 +299,7 @@
   }
 
   function renderRegisteredDashboardPanels() {
+    const dashboardView = requireView();
     if (dashboardRegionBodies.size === 0) {
       return;
     }
@@ -366,6 +386,7 @@
   }
 
   function createDashboardRegionEmptyState(emptyState = {}, fallback = {}) {
+    const dashboardView = requireView();
     return dashboardView.createEmptyState({
       className: fallback.className || "",
       headingLevel: 3,
@@ -389,13 +410,14 @@
       findContribution: findDashboardContribution,
       loadContributionData,
       setStatus: setDashboardStatus,
-      view: dashboardView,
+      view: window.LongtailForge?.view,
       createPanel: (options = {}) => createDashboardPanel(contribution, options),
       createDashboardPanel,
     };
   }
 
   function createDashboardPanel(contribution = {}, options = {}) {
+    const dashboardView = requireView();
     const panel = dashboardView.createElement("article", {
       className: ["dashboard-panel", "surface-main-panel", options.className],
       attrs: {

@@ -1,6 +1,47 @@
 (function attachFilesPage() {
   const api = window.LongtailForge.api;
-  const view = window.LongtailForge?.view;
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+
+  /**
+   * The view factory this controller cannot run without.
+   *
+   * Acquired per call rather than once at module scope, so a missing factory still
+   * fails at exactly the moment it failed before `0.33.33.38.1` declared it.
+   * @returns {BrowserViewFactory}
+   */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
+  
+  /**
+   * Whether this page received `view-renderer.js` as well as `view-builder.js`.
+   *
+   * Ten of the eighteen builder pages do not load the renderer, so its members are
+   * genuinely partial on the shared factory type. This predicate checks the ones
+   * Files uses, so the narrowing is earned rather than asserted.
+   * @param {BrowserViewFactory} factory
+   * @returns {factory is BrowserViewFactory & BrowserViewDescriptorRenderers}
+   */
+  function hasDescriptorRenderers(factory) {
+    return typeof factory.registerBehavior === "function"
+      && typeof factory.renderDescriptorModalForm === "function"
+      && typeof factory.renderSurface === "function";
+  }
+  
+  /** @returns {BrowserViewFactory & BrowserViewDescriptorRenderers} */
+  function requireDescriptorRenderers() {
+    const factory = requireView();
+    if (!hasDescriptorRenderers(factory)) {
+      throw new Error("Files requires the LongtailForge.view descriptor renderers.");
+    }
+    return factory;
+  }
+
+  function requireView() {
+    const factory = window.LongtailForge?.view;
+    if (!factory) {
+      throw new Error("Files requires LongtailForge.view.");
+    }
+    return factory;
+  }
   const filePreview = window.LongtailForge?.filePreview;
   // 0.33.33.34 moved the record helpers and the action-shaped preview opener to the
   // shared helper. This controller reads that half through its published contract so the
@@ -108,19 +149,20 @@
     requireFilesViewHelper("renderSurface");
 
     registerFilesViewBehaviors();
-    view.renderSurface({ ...activeFilesViewDescriptor, dataSource: null, modals: [] }, host);
+    requireDescriptorRenderers().renderSurface({ ...activeFilesViewDescriptor, dataSource: null, modals: [] }, host);
   }
 
   function registerFilesViewBehaviors() {
+    const view = requireView();
     if (filesBehaviorRegistered || typeof view?.registerBehavior !== "function") {
       return;
     }
 
     filesBehaviorRegistered = true;
-    view.registerBehavior("files.browse.filters", ({ container }) => {
+    requireDescriptorRenderers().registerBehavior("files.browse.filters", ({ container }) => {
       container.replaceChildren(createFilesFilterChrome());
     });
-    view.registerBehavior("files.browse.results", ({ container }) => {
+    requireDescriptorRenderers().registerBehavior("files.browse.results", ({ container }) => {
       container.replaceChildren(createFilesResultsChrome());
     });
   }
@@ -170,6 +212,7 @@
   }
 
   function createFilesResultsChrome() {
+    const view = requireView();
     requireFilesViewHelper("createListShell");
     const tableMount = createFilesElement("div", {
       dataset: { fileTableMount: "" },
@@ -551,6 +594,7 @@
   }
 
   function createFilesTable(rows) {
+    const view = requireView();
     requireFilesViewHelper("createDataTable");
     const table = view.createDataTable({
       className: "files-table-wrap",
@@ -776,6 +820,7 @@
   }
 
   function createFileActions(row) {
+    const view = requireView();
     requireFilesViewHelper("createDetailActionStrip");
     const rowActions = [];
 
@@ -811,6 +856,7 @@
   }
 
   function createPreviewAction(row) {
+    const view = requireView();
     const button = view.createActionButton({
       icon: "eye",
       iconOnly: true,
@@ -880,6 +926,7 @@
   }
 
   function createReportAction(row) {
+    const view = requireView();
     const button = view.createActionButton({
       icon: "alert",
       iconOnly: true,
@@ -900,6 +947,7 @@
   }
 
   function createQuarantineAction(row) {
+    const view = requireView();
     const button = view.createActionButton({
       icon: "shield-alert",
       iconOnly: true,
@@ -921,6 +969,7 @@
   }
 
   function createDeleteAction(row) {
+    const view = requireView();
     const button = view.createActionButton({
       icon: "delete",
       iconOnly: true,
@@ -941,6 +990,7 @@
   }
 
   function createRestoreAction(row) {
+    const view = requireView();
     const button = view.createActionButton({
       icon: "restore",
       iconOnly: true,
@@ -1014,6 +1064,7 @@
   }
 
   function openFileEditor(attachmentOrRow = {}, options = {}) {
+    const view = requireView();
     requireFilesViewHelper("renderDescriptorModalForm");
     requireFilesViewHelper("createActionButton");
     requireFilesViewHelper("closeModal");
@@ -1052,6 +1103,7 @@
   }
 
   function buildFileEditorDialog(row, options = {}) {
+    const view = requireView();
     let dialog = null;
     const previewButton = view.createActionButton({
       action: "files.preview",
@@ -1114,7 +1166,7 @@
     markReviewedButton.disabled = !row.reviewable;
     closeButton.dataset.fileContextClose = "";
     saveButton.dataset.fileContextSave = "";
-    dialog = view.renderDescriptorModalForm(fileEditorModalDescriptor(), {
+    dialog = requireDescriptorRenderers().renderDescriptorModalForm(fileEditorModalDescriptor(), {
       title: "File Context",
       className: "files-file-context-dialog",
       formClassName: "files-file-context-form",
@@ -1150,6 +1202,7 @@
   }
 
   function createFileEditorMetadataSection(row) {
+    const view = requireView();
     return view.createElement("section", {
       className: "files-file-context-metadata surface-modal-group",
       attrs: { "aria-label": "File metadata" },
@@ -1162,6 +1215,7 @@
   }
 
   function createFileEditorMetadataList(row) {
+    const view = requireView();
     const metadataRows = [
       ["File name", row.fileName, "file-name"],
       ["File type", row.fileTypeLabel, "file-type"],
@@ -1183,6 +1237,7 @@
   }
 
   function createReadOnlyMetadataRow(label, value, key) {
+    const view = requireView();
     return view.createElement("div", {
       className: "files-file-context-metadata-row",
       dataset: { fileContextMetadataKey: key },
@@ -1194,6 +1249,7 @@
   }
 
   function createFileEditorControlsSection() {
+    const view = requireView();
     const targetSelect = createFileContextSelect("fileContextTarget", "target");
     const clientSelect = createFileContextSelect("fileContextClient", usesBusinessScope() ? "clientId" : "");
     const projectSelect = createFileContextSelect("fileContextProject", "projectId");
@@ -1225,6 +1281,7 @@
   }
 
   function createFileContextField(label, control) {
+    const view = requireView();
     return view.createElement("label", {
       attrs: { "data-view-field-width": "full" },
       children: [
@@ -1242,6 +1299,7 @@
   }
 
   function createFileEditorStatus() {
+    const view = requireView();
     return view.createElement("p", {
       className: "files-file-context-status",
       attrs: { "aria-live": "polite", role: "status" },
@@ -1531,6 +1589,7 @@
   }
 
   async function saveFileEditorContext(dialog, row, options = {}) {
+    const view = requireView();
     if (!row.attachmentId) {
       setFileEditorStatus(dialog, "Attachment context could not be saved.", true);
       return;
@@ -1565,6 +1624,7 @@
   }
 
   async function markFileReviewedFromContext(dialog, row, options = {}) {
+    const view = requireView();
     if (!row.fileId || !row.reviewable) {
       setFileEditorStatus(dialog, "This file cannot be marked reviewed from File Context.", true);
       return;
@@ -1980,12 +2040,13 @@
   }
 
   function createFilesElement(tagName, options = {}) {
+    const view = requireView();
     requireFilesViewHelper("createElement");
     return view.createElement(tagName, options);
   }
 
   function requireFilesViewHelper(name) {
-    const helper = view?.[name];
+    const helper = requireView()[name];
 
     if (typeof helper !== "function") {
       throw new Error(`Files browse requires LongtailForge.view.${name}.`);

@@ -41,9 +41,11 @@ assert.doesNotMatch(
   /\.calendar-status\[hidden\]|\.dashboard-status\[hidden\]/,
   "page-specific [hidden] status fixes must not reappear now that the shared rule exists",
 );
+// `0.33.33.38.1`: the previous pattern spanned past the call to reach `dashboardStatus`
+// elsewhere in the file. `[^}]*` keeps it inside the one object literal it is about.
 assert.match(
   dashboardJs,
-  /createStatusMessage\(\{[\s\S]*?dashboardStatus[\s\S]*?hidden: true/,
+  /dashboardStatus = dashboardView\.createStatusMessage\(\{[^}]*hidden: true/,
   "dashboard must build its status box hidden by default",
 );
 assert.match(

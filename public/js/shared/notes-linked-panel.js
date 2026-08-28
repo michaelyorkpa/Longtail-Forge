@@ -125,7 +125,8 @@
         className: "notes-linked-panel-list",
         emptyMessage: state.options.emptyMessage || "No linked notes yet.",
         items: state.notes.map((note) => linkedNoteListItem(state, note)),
-        onRemove: (item) => unlinkNote(container, state, item.note),
+        onRemove: (/** @type {{ note: { [key: string]: unknown } }} */ item) =>
+          unlinkNote(container, state, item.note),
         removeAction: "unlink-note",
         removeLabel: "Unlink note",
         readonly: isReadonly(state),
@@ -136,6 +137,11 @@
     return list;
   }
 
+  /**
+   * The item the linked-context list hands back to `onRemove`, so its `note` needs a type.
+   * @param {{ [key: string]: unknown }} state
+   * @param {{ [key: string]: unknown, id?: unknown, label?: unknown }} note
+   */
   function linkedNoteListItem(state, note) {
     return {
       className: "notes-linked-panel-item",
@@ -147,7 +153,7 @@
       note,
       removable: canUnlink(state, note),
       secondaryLabel: linkedNoteSecondaryLabel(note),
-      sourceUrl: note.sourceUrl || `notes.html?note=${encodeURIComponent(note.id || "")}`,
+      sourceUrl: note.sourceUrl || `notes.html?note=${encodeURIComponent(String(note.id || ""))}`,
       targetId: note.id || "",
       targetType: "note",
     };

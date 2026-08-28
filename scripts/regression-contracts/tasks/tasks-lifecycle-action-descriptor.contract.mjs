@@ -27,7 +27,7 @@ const confirmLifecycleAction = extractFunctionSpan(tasksScript, "confirmTaskLife
 const updateLifecycleStatus = extractFunctionSpan(tasksScript, "updateTaskLifecycleStatus");
 const postTaskAction = extractFunctionSpan(tasksScript, "postTaskAction");
 
-assert.match(registerBehaviors, /taskLifecycleActionStripDescriptor\(\)\.actions\.forEach[\s\S]*view\.registerBehavior\(action\.behavior, handler\)/, "Lifecycle behaviors should be registered through the view behavior registry");
+assert.match(registerBehaviors, /taskLifecycleActionStripDescriptor\(\)\.actions\.forEach[\s\S]*registerBehavior\(action\.behavior, handler\)/, "Lifecycle behaviors should be registered through the view behavior registry");
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.complete": \(\{ record, trigger \}\) => postTaskAction\(record, "complete", trigger\)/, "Complete should dispatch through the Tasks-owned complete handler with focus-return context");
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.reopen": \(\{ record \}\) => postTaskAction\(record, "reopen"\)/, "Reopen should dispatch through the Tasks-owned reopen handler");
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.archive": \(\{ record \}\) => postTaskAction\(record, "archive"\)/, "Archive should dispatch through the Tasks-owned archive handler");

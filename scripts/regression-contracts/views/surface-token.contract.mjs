@@ -72,7 +72,7 @@ assert.match(surfaceContract, /Surface Inventory/, "surface contract must includ
 assert.match(surfaceContract, /Compatibility Aliases/, "surface contract must document token alias handling");
 assert.match(surfaceContract, /Ownership Boundary/, "surface contract must document framework versus module ownership");
 
-assert.match(taskDialogScript, /view\.renderDescriptorModalForm\(descriptor, \{[\s\S]*className: "task-detail-dialog"/, "Tasks modal converted area should request the framework surface modal shell");
+assert.match(taskDialogScript, /renderDescriptorModalForm\(descriptor, \{[\s\S]*className: "task-detail-dialog"/, "Tasks modal converted area should request the framework surface modal shell");
 
 for (const { className, pattern } of [
   {

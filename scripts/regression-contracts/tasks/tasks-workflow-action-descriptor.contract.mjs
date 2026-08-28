@@ -33,7 +33,7 @@ const openTaskEditor = extractFunctionSpan(taskDialogScript, "openTaskEditor");
 const openEditor = extractFunctionSpan(taskDialogScript, "open");
 const focusTarget = extractFunctionSpan(taskDialogScript, "focusTaskEditorTarget");
 
-assert.match(registerWorkflows, /taskWorkflowActionMenuDescriptor\(\)\.actions\.forEach[\s\S]*view\.registerBehavior\(action\.behavior, handler\)/, "Workflow behaviors should be registered through the view behavior registry");
+assert.match(registerWorkflows, /taskWorkflowActionMenuDescriptor\(\)\.actions\.forEach[\s\S]*registerBehavior\(action\.behavior, handler\)/, "Workflow behaviors should be registered through the view behavior registry");
 assert.match(workflowHandlers, /"tasks\.workflow\.assign"[\s\S]*openTaskDialogForWorkflow\(record, action, trigger\)/, "Assign should dispatch to the canonical task editor");
 assert.match(workflowHandlers, /"tasks\.workflow\.due-date"[\s\S]*openTaskDialogForWorkflow\(record, action, trigger\)/, "Due date should dispatch to the canonical task editor");
 assert.match(workflowHandlers, /"tasks\.workflow\.due-time"[\s\S]*openTaskDialogForWorkflow\(record, action, trigger\)/, "Due time should dispatch to the canonical task editor");

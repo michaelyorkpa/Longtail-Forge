@@ -32,7 +32,7 @@ for (const helper of [
   "renderDescriptorModalForm",
 ]) {
   assert.match(renderer, new RegExp(helper), `Renderer should expose ${helper}`);
-  assert.match(listsJs, new RegExp(`view\\.${helper}`), `Lists should consume ${helper}`);
+  assert.match(listsJs, new RegExp(`\\.${helper}\\(`), `Lists should consume ${helper}`);
 }
 
 assert.match(listsJs, /registerListsViewBehaviors/, "Lists should register descriptor behavior handlers");
@@ -44,7 +44,7 @@ assert.match(listsJs, /function linkedContextItems\(list\)[\s\S]*unavailableLink
 assert.match(listsJs, /function unavailableLinkedRecordLabel\(targetType\)[\s\S]*`Unavailable \$\{typeLabel\.toLowerCase\(\)\}`/, "Unavailable linked targets should show safe fallback labels instead of raw IDs");
 assert.doesNotMatch(extractFunctionSpan(listsJs, "renderDetail"), /createLinkedRecordsPanel\(/, "Lists detail should not render the inline linked-record add/remove picker");
 assert.match(extractFunctionSpan(listsJs, "createListDialogShell"), /view\.createLinkedContextPicker\(\{[\s\S]*onRemove:\s*handleListEditorLinkedContextRemove[\s\S]*onUseTarget:\s*applyListEditorLinkTarget/, "The List editor should host the shared Linked Context picker");
-assert.match(extractFunctionSpan(listsJs, "createListDialogShell"), /view\.renderDescriptorFieldGrid[\s\S]*className:\s*"lists-editor-fields"/, "The List editor should render fields through the framework field-grid anatomy");
+assert.match(extractFunctionSpan(listsJs, "createListDialogShell"), /renderDescriptorFieldGrid[\s\S]*className:\s*"lists-editor-fields"/, "The List editor should render fields through the framework field-grid anatomy");
 assert.doesNotMatch(extractFunctionSpan(listsJs, "createListDialogShell"), /lists-form-grid|Paste record ID|field:\s*"task_picker"|field:\s*"task_search"|renderDescriptorLinkedRecordsPanel/, "The List editor should not rebuild the retired cramped/raw-ID picker");
 assert.match(listsJs, /state\.editorStagedTargets = \[\.\.\.state\.editorStagedTargets, target\]/, "Create mode should stage linked targets until the new list exists");
 assert.match(listsJs, /for \(const target of state\.editorStagedTargets\)[\s\S]*api\.postJson\(`\/api\/lists\/\$\{encodeURIComponent\(savedListId\)\}\/links`/, "Creating a list should persist staged targets through the existing Lists link route");

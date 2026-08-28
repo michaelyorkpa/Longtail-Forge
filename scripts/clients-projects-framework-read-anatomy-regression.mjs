@@ -56,7 +56,7 @@ assert.match(
   /async function initializeClientProjectsPage\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*await loadPageData\(\{ applyQueryActions: false \}\)[\s\S]*activeClientProjectsReadSurface = renderClientProjectsReadSurface\(\)[\s\S]*applyClientProjectQueryActions\(\)/,
   "Adapter should wait for app-shell viewSurfaces and server-shaped capabilities before rendering descriptor read pages",
 );
-assert.match(clientsProjectsScript, /function renderClientProjectsReadSurface\(\)[\s\S]*view\.renderSurface\(activeClientProjectsReadDescriptor, host\)/, "Adapter should render the descriptor surface into the minimal host");
+assert.match(clientsProjectsScript, /function renderClientProjectsReadSurface\(\)[\s\S]*renderSurface\(activeClientProjectsReadDescriptor, host\)/, "Adapter should render the descriptor surface into the minimal host");
 assert.match(clientsProjectsScript, /function openAddClientActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("clients\.add"/, "Add Client query opener should dispatch the registered module action");
 assert.match(clientsProjectsScript, /function openEditClientActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("clients\.edit", \{ clientId: client\.id \}/, "Client detail query opener should dispatch the registered module action");
 assert.match(clientsProjectsScript, /function openAddProjectActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("projects\.add"/, "Add Project query opener should dispatch the registered module action");

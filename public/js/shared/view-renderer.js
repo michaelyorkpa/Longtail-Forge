@@ -361,16 +361,18 @@
     wireSlideOutSidebar(state, elements);
     syncSlideOutSidebarState(state, elements, { focus: false });
 
+    // `isOpen` was an enumerable accessor installed with `Object.defineProperty`, which is the
+    // same property a literal getter declares once the object is frozen - and unlike the
+    // defineProperty form it is part of the object's type.
     const controller = {
       close: (syncOptions = {}) => setSlideOutSidebarOpen(state, elements, false, syncOptions),
+      get isOpen() {
+        return Boolean(state.slideOutSidebarOpen);
+      },
       open: (syncOptions = {}) => setSlideOutSidebarOpen(state, elements, true, syncOptions),
       sync: (syncOptions = {}) => syncSlideOutSidebarState(state, elements, syncOptions),
       toggle: (syncOptions = {}) => setSlideOutSidebarOpen(state, elements, !state.slideOutSidebarOpen, syncOptions),
     };
-    Object.defineProperty(controller, "isOpen", {
-      enumerable: true,
-      get: () => Boolean(state.slideOutSidebarOpen),
-    });
     return Object.freeze(controller);
   }
 
@@ -1681,18 +1683,24 @@
     return api;
   }
 
-  root.view = Object.freeze({
-    ...(root.view || {}),
-    createSlideOutSidebarController,
-    registerBehavior,
-    renderDescriptorActionMenu,
-    renderDescriptorActionStrip,
-    renderDescriptorDataTable,
-    renderDescriptorFieldGrid,
-    renderDescriptorInlineActions,
-    renderDescriptorLinkedRecordsPanel,
-    renderDescriptorModalForm,
-    renderSurface,
-  });
+  // The renderer extends the builder's factory and cannot stand in for it: every function above
+  // calls requireViewPrimitives() first, so a renderer-only object was a factory no caller could
+  // use. The extension is now guarded by the thing it extends, which also lets the spread name
+  // that surface directly - the || {} it replaces was contributing nothing a spread does not.
+  if (root.view) {
+    root.view = Object.freeze({
+      ...root.view,
+      createSlideOutSidebarController,
+      registerBehavior,
+      renderDescriptorActionMenu,
+      renderDescriptorActionStrip,
+      renderDescriptorDataTable,
+      renderDescriptorFieldGrid,
+      renderDescriptorInlineActions,
+      renderDescriptorLinkedRecordsPanel,
+      renderDescriptorModalForm,
+      renderSurface,
+    });
+  }
   global.LongtailForge = root;
 })(window);

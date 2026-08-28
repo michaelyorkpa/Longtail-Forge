@@ -34,7 +34,7 @@ assert.match(listsJs, /listsItemFormSurfaceDescriptor\(\)/, "Lists item form sho
 assert.match(listsJs, /createItemFieldFromDescriptor/, "Lists item fields should be bound from descriptor fields");
 assert.match(listsJs, /listsItemRowsSurfaceDescriptor\(\)\.actions\.map/, "Lists item row actions should be placed from descriptor actions");
 assert.match(listsJs, /listsEditorModalDescriptor\(\)/, "Lists modal shell should consume the descriptor modal block");
-assert.match(listsJs, /view\.renderDescriptorFieldGrid\(\{ fields: modal\.fields \|\| \[\] \}[\s\S]*className:\s*"lists-editor-fields"/, "Lists editor fields should use the shared field-grid renderer");
+assert.match(listsJs, /renderDescriptorFieldGrid\(\{ fields: modal\.fields \|\| \[\] \}[\s\S]*className:\s*"lists-editor-fields"/, "Lists editor fields should use the shared field-grid renderer");
 assert.match(listsJs, /view\.createLinkedContextPicker\(\{[\s\S]*ariaLabel:\s*"List linked records"/, "Lists editor should host the shared linked-context picker");
 assert.match(listsJs, /className:\s*"surface-modal-heading"[\s\S]*className:\s*"surface-modal-heading-actions"/, "Lists add\/edit modals should use the shared framework heading anatomy");
 assert.match(listsJs, /className:\s*\[\s*"lists-item-advanced",\s*"surface-modal-group"\s*\][\s\S]*className:\s*"surface-modal-section-heading"[\s\S]*className:\s*\[\s*"lists-item-advanced-fields",\s*"surface-modal-section-body"\s*\]/, "The item editor Details disclosure should use the shared modal group and section anatomy");

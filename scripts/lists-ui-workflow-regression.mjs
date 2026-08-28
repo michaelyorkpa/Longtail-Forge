@@ -77,7 +77,7 @@ async function assertProtectedView(session) {
   assert.ok(html.includes(`css/longtail-forge.css?v=${appVersion}`));
 
   assert.match(listsJs, /buildListsViewShell/);
-  assert.match(listsJs, /view\.renderSurface\(renderDescriptor, host\)/);
+  assert.match(listsJs, /renderSurface\(renderDescriptor, host\)/);
   assert.match(listsJs, /listsViewSurfaceDescriptor/);
   assert.match(listsJs, /decorateListsDeclarativeSurface/);
   assert.match(listsJs, /registerListsViewBehaviors/);
@@ -177,8 +177,8 @@ async function assertProtectedView(session) {
 
   // 0.33.5.18.5.8 Lists main page refinement.
   assert.match(listsJs, /function createListDetailHeader/, "Lists detail should use a Notes-style header (title row + rule + meta)");
-  assert.match(listsJs, /view\.renderDescriptorActionMenu\(detailActionButtons/, "Lists detail actions should render as a 3-dot overflow menu");
-  assert.doesNotMatch(listsJs, /view\.renderDescriptorActionStrip/, "Lists detail actions should no longer use the inline action strip");
+  assert.match(listsJs, /renderDescriptorActionMenu\(detailActionButtons/, "Lists detail actions should render as a 3-dot overflow menu");
+  assert.doesNotMatch(listsJs, /renderDescriptorActionStrip\(/, "Lists detail actions should no longer use the inline action strip");
   assert.match(listsJs, /function detailMetaItems/, "Lists detail meta should render as compact labeled spans like Notes");
   assert.match(listsJs, /function shouldShowSourceContext/, "The Source panel should be gated so it is omitted for plain independent lists");
   assert.match(listsJs, /shouldShowSourceContext\(list\) \? createSourceContextPanel\(list\) : null/, "renderDetail should only mount the Source panel when it is meaningful");
@@ -202,7 +202,7 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /function createItemsHeader/, "The detail should render an Items header with an Add Item button");
   assert.match(listsJs, /add\.dataset\.listAction = "add-item"/, "The Add Item button should open the item modal via the add-item action");
   assert.match(listsJs, /function createItemDialogShell/, "The add/edit item form should be a framework-rendered modal");
-  assert.match(listsJs, /view\.renderDescriptorModalForm\(descriptor, \{[\s\S]*size: "wide"/, "The item modal should be built via renderDescriptorModalForm (framework renders, module supplies fields)");
+  assert.match(listsJs, /renderDescriptorModalForm\(descriptor, \{[\s\S]*size: "wide"/, "The item modal should be built via renderDescriptorModalForm (framework renders, module supplies fields)");
   assert.match(listsJs, /function openItemDialog/, "Add and Edit should open the shared item modal");
   assert.match(listsJs, /function saveItem/, "The item modal should own its save submit");
   assert.match(listsJs, /await openItemDialog\(list, list\?\.items\?\.find/, "Edit item should open the modal pre-filled");
@@ -225,7 +225,7 @@ async function assertProtectedView(session) {
 
   // 0.33.5.18.5.10 follow-up: tighter table + row action overflow menu.
   assert.match(listsJs, /function createItemRowActions/, "Row actions should be built by a dedicated helper");
-  assert.match(listsJs, /view\.renderDescriptorActionMenu\([\s\S]*rowActionButton\("edit-item", \{ menu: true \}\), rowActionButton\("delete-item", \{ menu: true \}\)/, "Edit and Delete should fold into a row '...' overflow menu");
+  assert.match(listsJs, /renderDescriptorActionMenu\([\s\S]*rowActionButton\("edit-item", \{ menu: true \}\), rowActionButton\("delete-item", \{ menu: true \}\)/, "Edit and Delete should fold into a row '...' overflow menu");
   assert.match(listsJs, /renderDescriptorInlineActions\(\s*\[rowActionButton\("move-item-up"\), rowActionButton\("move-item-down"\), menu\]/, "Up and Down should stay inline, ahead of the '...' menu");
 
   assert.match(styles, /\.view-split-list-detail/);

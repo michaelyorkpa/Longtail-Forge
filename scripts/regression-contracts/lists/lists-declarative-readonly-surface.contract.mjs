@@ -24,7 +24,7 @@ assert.match(listsModule, /summaryPanels:\s*\[[\s\S]*title:\s*"List Details"[\s\
 assert.doesNotMatch(summaryPanelsBlock(listsModule), /title:\s*"Linked Records"/, "Lists descriptor should not keep a separate Linked Records summary panel");
 assert.match(listsModule, /dataSource:\s*\{[\s\S]*route:\s*"\/api\/lists"[\s\S]*fieldBindings:/, "Lists descriptor should keep the canonical list read route");
 
-assert.match(listsJs, /view\.renderSurface\(renderDescriptor, host\)/, "Lists browser script should ask the framework renderer to fill the host");
+assert.match(listsJs, /renderSurface\(renderDescriptor, host\)/, "Lists browser script should ask the framework renderer to fill the host");
 assert.match(listsJs, /listsViewSurfaceDescriptor\(\)/, "Lists browser script should resolve the delivered descriptor");
 assert.match(listsJs, /workspaceContext\?\.viewSurfaces/, "Lists browser script should prefer app-shell delivered descriptors");
 // 0.33.33.35.1.2 deleted the module-local descriptor fallbacks. The server surface is the

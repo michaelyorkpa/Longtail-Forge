@@ -9,6 +9,23 @@
   const CALENDAR_VIEW_IDS = new Set(["day", "week", "month"]);
   const MONTH_TASK_LIMIT = 3;
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+
+  /**
+   * The view factory this path cannot run without.
+   *
+   * `viewBuilder` stays optional because `renderCalendarBody` legitimately runs without the
+   * factory; every other path here dereferences it, so it acquires a checked one.
+   * @returns {BrowserViewFactory}
+   */
+  function requireView() {
+    const factory = viewBuilder();
+    if (!factory) {
+      throw new Error("Task calendar rendering requires LongtailForge.view.");
+    }
+    return factory;
+  }
+
   function viewBuilder() {
     return root.view;
   }
@@ -146,7 +163,7 @@
   }
 
   function createWeekdayHeaderRow() {
-    const view = viewBuilder();
+    const view = requireView();
     return view.createElement("div", {
       className: "calendar-weekday-row",
       attrs: { "aria-hidden": "true" },
@@ -158,7 +175,7 @@
   }
 
   function createDayGrid(viewId, range, tasksByDate, remindersByDate, onOpenTask) {
-    const view = viewBuilder();
+    const view = requireView();
     const todayKey = dateKeyOf(new Date());
     const grid = view.createElement("div", {
       className: ["calendar-grid", viewId === "week" ? "calendar-grid--week" : "calendar-grid--month"],
@@ -238,7 +255,7 @@
   }
 
   function createDayView(dayKey, tasksByDate, remindersByDate, onOpenTask) {
-    const view = viewBuilder();
+    const view = requireView();
     const dayTasks = tasksByDate.get(dayKey) || [];
     const dayReminders = remindersByDate.get(dayKey) || [];
     const children = [];
@@ -274,7 +291,7 @@
   }
 
   function createTaskEntry(task, onOpenTask, options = {}) {
-    const view = viewBuilder();
+    const view = requireView();
     const isVirtual = task.virtual === true;
     const timeLabel = task.due_time ? formatDueTime(task.due_time) : "";
     const contextLabel = [task.client_name, task.project_name].filter(Boolean).join(" / ");
@@ -325,7 +342,7 @@
   }
 
   function createReminderIndicator(reminders) {
-    const view = viewBuilder();
+    const view = requireView();
     const summary = reminders
       .map((marker) => `${formatReminderTime(marker.reminder_at_utc)} ${marker.title}`)
       .join("\n");
@@ -352,7 +369,7 @@
   }
 
   function createReminderRow(marker, onOpenTask) {
-    const view = viewBuilder();
+    const view = requireView();
     const row = view.createElement("button", {
       className: "calendar-reminder-row",
       attrs: {

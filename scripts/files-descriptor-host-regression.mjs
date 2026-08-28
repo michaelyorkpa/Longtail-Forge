@@ -30,7 +30,7 @@ assert.match(filesHtml, /<main class="wide-page files-page" data-files-host><\/m
 assert.match(filesHtml, /js\/shared\/client-project-options\.js[\s\S]*js\/shared\/view-builder\.js[\s\S]*js\/shared\/view-renderer\.js[\s\S]*js\/shared\/file-preview\.js[\s\S]*js\/files\.js/, "Files host should load client/project helpers plus the view builder, renderer, and shared preview before the Files adapter");
 assertNoProtectedAnatomy(filesHtml, "views/protected/files.html");
 
-assert.match(filesScript, /view\.renderSurface\(\{ \.\.\.activeFilesViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Files adapter should render the descriptor shell without letting the renderer fetch the browse data yet");
+assert.match(filesScript, /renderSurface\(\{ \.\.\.activeFilesViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Files adapter should render the descriptor shell without letting the renderer fetch the browse data yet");
 assert.match(filesScript, /files\.browse\.filters/, "Files adapter should register the browse filter behavior");
 assert.match(filesScript, /files\.browse\.results/, "Files adapter should register the browse results behavior");
 assert.doesNotMatch(filesScript, /files\.browse\.legacy|createFilesBrowseChrome/, "Strict Files adapter should not preserve the legacy full-page browse fallback behavior");

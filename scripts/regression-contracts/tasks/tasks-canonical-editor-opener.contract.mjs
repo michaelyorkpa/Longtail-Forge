@@ -27,7 +27,7 @@ assert.match(moduleActions, /id: "tasks\.add"[\s\S]*open: \(params, hostContext\
 assert.match(moduleActions, /id: "tasks\.edit"[\s\S]*open: \(params, hostContext\) => namespace\.tasksDialog\.openTaskEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/, "Framework task edit action should call the canonical opener");
 assert.match(moduleActions, /const trigger = document\.activeElement[\s\S]*trigger,/, "Module actions should expose the triggering control for focus return");
 
-assert.match(tasksScript, /view\.registerBehavior\("tasks\.create", \(\) => openTaskDialog\(\)\)/, "Tasks descriptor create behavior should open the shared task editor wrapper");
+assert.match(tasksScript, /registerBehavior\("tasks\.create", \(\) => openTaskDialog\(\)\)/, "Tasks descriptor create behavior should open the shared task editor wrapper");
 assert.match(tasksScript, /function openTaskDialog\(task = null, options = \{\}\)[\s\S]*tasksDialog\.openTaskEditor\(\{[\s\S]*defaults: options\.defaults \|\| \{\}[\s\S]*mode: task && options\.duplicate !== true \? "edit" : "add"[\s\S]*returnFocusTo: options\.returnFocusTo \|\| document\.activeElement[\s\S]*task,[\s\S]*\}, options\.hostContext \|\| null\)/, "Tasks page should use the canonical task editor opener for add/edit/duplicate/focus flows");
 assert.doesNotMatch(tasksScript, /tasksDialog\.open\(\{/, "Tasks page should not call the low-level task dialog open path directly");
 
