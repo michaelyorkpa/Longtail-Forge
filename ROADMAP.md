@@ -40,6 +40,7 @@ Source-contract discipline (branch-wide, from `0.33.33.35`):
 
 - [ ] **A reference audit searches for the symbol in every form it can take, not for call syntax.** `0.33.33.35.2` searched `symbolName(` and missed ten `.filter(actionPermissionsAllowed)` sites, because a bare reference carries no parenthesis; `0.33.33.35.3` then found that the only outside references to four members it moved were the bare ones in a publication block. Check direct invocation, bare reference or callback, alias, destructuring, property assignment, membership in an array, map, or registry, namespace publication, and any test, source contract, or documentation assertion naming it. A symbol that survives under one form and not another fails at runtime rather than at the boundary.
 - [ ] **A negative source assertion forbids a construct, not a word.** `0.33.33.35.3` wrote a `doesNotMatch` meant to prove the modal constructors had not moved, and it matched their names inside the new module's own comment explaining why they had stayed. Assert against the form the contract actually names: a definition (`function X(`), a publication (`namespace.X =`), or a call or import, scoped to that construct. Bare identifier-absence is only correct when no comment, doc, test, or unrelated mention may legitimately carry the name.
+- [ ] **The scope of the evidence must match the scope of the claim.** `0.33.33.37` reported "duplicated status literals 11 to 0" from an audit of the three files its own checkpoint description named, while `task-resume-note-capture.js` and `tasks-dashboard.js` still held the active-status set. The measurement was right and the claim was too wide. A repository-wide elimination claim requires a repository-wide search; an audit deliberately scoped to named owners reports itself that way - "11 to 0 across the three `0.33.33.37` owners" - and names what it did not look at.
 - [ ] **Retarget a source contract to what it owns; do not repoint it at a new filename.** When extraction moves code, an assertion that merely pinned its location is a weak contract that survived by accident. Move it to the behaviour, ownership, publication, or dependency claim it was standing in for - `0.33.33.35.2` and `0.33.33.35.3` both did this - and delete it when a stronger assertion already covers the same ground.
 
 Resliced checkpoint rule: parent identifiers `0.33.33.16`, `.17`, `.18`, `.21`, `.22`, `.25`, `.26`, `.28`, `.28.5`, `.28.6`, `.30`, `.30.2`, `.30.3`, `.30.7`, `.30.7.2`, `.31`, `.32`, and `.35.1` are planning rollups only. Their numeric child sections are the protected implementation checkpoints; completing and archiving the final child closes the parent without a separate parent pull request. Later checkpoint numbering remains unchanged. A corrective child added after a parent's earlier children archived (for example `0.33.33.25.6` through `0.33.33.25.10`) reopens that parent until the new final child archives.
@@ -86,60 +87,116 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **What this rollup leaves behind for later checkpoints.** The browser compiler ledger stays active at **10,528** diagnostics; reducing it belongs to `0.33.33.39` through `0.33.33.44`. `window.timeTrackerDebug` remains a bare, un-namespaced `window.*` surface published by `stop-watch.js` with no consumer anywhere in the repository - single-publisher, so it does not block closure, and left untouched because removing or renaming it is not scoping work.
 
-### 0.33.33.38 - Add typed DOM, response, and page-state browser contracts
+### 0.33.33.38 - Publish the browser contracts whose causes are genuinely shared
 
 **Model: High Effort** - Planning rollup only; its numbered children below are the protected implementation checkpoints.
 
-**Resliced on a root-cause measurement of the browser ledger.** The 11,134 diagnostics were classified by compiler code, and `TS2339` — 4,423 of them, the largest family — was further classified by the *receiver type* the property was missing from. The result contradicts the previous single checkpoint's premise that these contracts "collapse most browser error cascades":
+**Resliced a second time, against post-`0.33.33.37` HEAD, because the previous slice classified `TS2339` by the *receiver type the compiler printed* rather than by the *declaration that produced it*.** Those are not the same thing, and where they disagree the printed type is the symptom. The browser program is now **10,375** diagnostics; every one of them is classified below into exactly one root family, with no duplicate and no orphan.
 
-| Root family | Diagnostics | Owner |
-| --- | --- | --- |
-| Under-inferred page state: `{}` (2,628), a concrete `never[]`-bearing state literal (630), `never` (277), plus `TS7005`/`TS7034`/`TS7031`/`TS7053` (839) | **4,374** | `.38.3` |
-| DOM subtype and event target: `Element` (833), `EventTarget` (10), plus most nullability `TS18047`/`TS18048` (1,326) | **2,169** | `.38.1` |
-| Values entering as `unknown`: `TS18046` | **1,038** | `.38.2` |
-| **Implicit-any parameters: `TS7006`** | **3,222** | **not `.38`** |
-| Lexical redeclaration: `TS2451` | **104** | `0.33.33.33` |
-| Assorted remaining codes | **227** | per-controller |
+| Root family | Diagnostics | Codes | Owner |
+| --- | --- | --- | --- |
+| **Unannotated function parameters** | **4,745** | `TS7006` 3,079, `TS2339` 1,561, `TS7031` 100, `TS7019` 5 | **not `.38`** - `0.33.33.39`-`.44` |
+| Under-inferred page-local state | **2,038** | `TS2339` 1,145, `TS7005` 478, `TS7034` 161, `TS18047/8` 166, `TS7053` 77, `TS7023/4/8` 11 | **not `.38`** - per controller |
+| DOM subtype and lookup nullability | **1,479** | `TS2339` 861, `TS18047` 612, `TS2531` 6 | `.38.3` |
+| Values entering as `unknown` | **1,035** | `TS18046` | `.38.2` + `.38.4` |
+| Undeclared / optional namespace surface | **908** | `TS18048` 549, `TS2339` 359 | `.38.1` + `.38.2` |
+| Assorted remaining codes | **170** | `TS2345` 55, `TS2322` 40, `TS2698` 16, ... | per controller |
 
-**The most important correction: `TS7006` is 29% of the browser program and no shared contract can collapse it.** Implicit-any parameters are removed by annotating each function's parameters in the controller that declares them, which is `0.33.33.39` through `0.33.33.44` work. A `.38` that claimed to collapse "most" cascades would be measuring the wrong thing.
+**The correction that matters most: 1,561 of the `{}` cohort are parameters, not page state.** The previous slice read `Property 'className' does not exist on type '{}'` at `view-builder.js:20` as under-inferred state and gave the whole 2,628-strong `{}` cohort to a page-state child. The declaration is `function createElement(tagName, options = {})`. **A parameter whose only type information is a `{}` default is the same defect as `TS7006`** - the default is why TypeScript prints `{}` instead of `any` - and it is removed the same way, by annotating the function in the controller that declares it. Adding those to the 3,079 explicit `TS7006` makes **unannotated parameters 4,745 diagnostics, 46% of the browser program, and none of it is contract work.** The old `.38.3`'s claimed 4,374-diagnostic family does not exist.
 
-- [ ] **Inherited from `0.33.33.37`: `TaskLifecycleStatus` in `src/types/task-block-recovery-contracts.d.ts` ends in `| string`, which collapses the union to `string` and discriminates nothing.** `0.33.33.37` published the browser vocabulary separately rather than narrow a server type whose only consumer is `task-block-recovery-engine.js`. Narrowing it is a small change with one consumer; confirm no caller depends on the widened form before doing it.
-- [ ] **Inherited from `0.33.33.36`: decide whether `linkTargetDirectory.list: LinkTargetCandidate[]` is intentional provider vocabulary or stale looseness - and answer that before changing it.** `0.33.33.36` found that a consumer annotating the merged linked-target array against the mostly-optional member resolves access to the weak branch and reads present fields as possibly-undefined, which is why that producer left its public return inferred. **The fix is not automatically to strengthen the directory to `LinkTarget[]` because every built-in provider happens to fill every field today.** Establish first why both types are published at all, and whether `LinkTargetCandidate` deliberately represents a provider or extensibility boundary, partially populated targets, targets whose availability is not yet resolved, the optional `unavailable` semantics, legacy-provider compatibility, providers that are permitted to return incomplete candidates, or an intermediate shape normalised into a full `LinkTarget` later. If any of those is intentional the directory is correct as it stands and the consumer seam is what needs a different answer.
-  - **Two pieces of evidence already point at intentional, and neither is conclusive.** `src/modules/notes/link-target-directory.service.js:33` holds a frozen `providers` registry, so a provider boundary exists rather than a single built-in implementation; and `safeUnavailableTarget` in `notes.service.js` returns a deliberately **partial** shape carrying `unavailable: true` and `is_available: false`, which is the availability-not-yet-established case. The published `LinkTarget` also excludes `unavailable` from its required set (`Required<Omit<LinkTargetCandidate, "unavailable">>`), which reads like a resolved-target type sitting deliberately above an unresolved-candidate one.
-  - **If, and only if, no intentional weaker boundary exists**, `.38` may strengthen the declared return - with evidence gathered across **every provider and every consumer**, not from the built-ins alone.
-- [ ] **Each child publishes contract vocabulary and helpers. Adoption is `0.33.33.39` through `.44`.** A child may adopt its own helpers in shared framework files it already owns, but no child converts a module controller.
-- [ ] **Do not invent a broad shared shape because many diagnostics disappear.** The 630-diagnostic state literal is one page's state, not a shared contract; per-page state shapes belong to the module children. `.38.3` publishes the pattern, not the pages' shapes.
-- [ ] Keep contracts in declaration/JSDoc surfaces and preserve response shaping on the server.
+**The second correction: `{}` and `unknown` are one root cause, not two.** `LongtailForgeBrowserNamespace` ends in `[key: string]: unknown`. Reading an undeclared member through optional chaining narrows `unknown` to `{}` and reports `TS2339`; reading it without optional chaining reports `TS18046`. Reduced to four lines, `interface NS { [key: string]: unknown }` with `w.NS?.unlisted.x` produces `TS2339: Property 'x' does not exist on type '{}'` and `w.NS!.unlisted.x` produces the `unknown` error, from the same declaration. Splitting them across two children would have split one cause across two owners.
 
-#### 0.33.33.38.1 - Publish checked DOM lookup and event-target contracts
+**The third correction: the previous slice had no child for the largest genuinely shared contract in the estate.** `scripts/test-support/browser-publication-inventory.mjs` reports **64 published surfaces - 62 namespace members and 2 bare-window writes**. `LongtailForgeBrowserNamespace` declares **13**. The other **49 resolve through the index signature**, and **943 diagnostics are attributable to a namespace member** by direct read or single-hop alias. `LongtailForge.view` alone accounts for **529** of them, because `const view = window.LongtailForge.view` and `const workbenchViewHelpers = window.LongtailForge.view` each start a file-wide cascade from one untyped read.
 
-**Model: High Effort - 2,169 diagnostics are addressable by this family.**
+- [ ] **`0.33.33.34` through `.37` published six contract interfaces that were never wired to the namespace, and that is a pattern to close rather than to repeat.** `BrowserViewActionSecurity`, `BrowserViewSearchOptions`, `BrowserViewDataBinding`, `BrowserViewModalStack`, `BrowserTaskLifecycleLegality`, and `BrowserFilePreviewActions` are each declared in `browser-contracts.d.ts` and referenced only by a local `/** @type {X | undefined} */` cast in the consumer. Each cast is honest - it is checked against a real interface - but the namespace still says `unknown`, so every other consumer of the same surface starts over. `BrowserAssetVersion` shows the finished shape: it is a declared namespace member and needs no cast anywhere.
+- [ ] **A `.d.ts` declaration is not a namespace writer.** Declaring `view` adds no writer to `window.LongtailForge.view`, moves none of its 30 members, and changes no runtime value. The frozen-factory constraint governs publication, and these children publish nothing.
+- [ ] **No diagnostic-debt trade.** No explicit `any`, no suppression, no unchecked cast, no `unknown`-to-assertion gymnastics, and no contract widened or narrowed to make a number move.
+- [ ] **Each child publishes contract vocabulary; adoption is `0.33.33.39` through `.44`.** A child may adopt its own contracts in shared framework files it already owns. No child converts a module controller.
+- [ ] **Report measured effect separately from hypothesis.** Each child states the diagnostics it was predicted to address and the delta it actually produced.
 
-- [ ] Add checked DOM lookup/assert helpers that return the correct element subtype or fail explicitly; do not turn required elements into optional no-ops.
-- [ ] Add explicit event-target narrowing rather than casting at each listener.
-- [ ] Report how much of the 833 `Element` and 1,326 nullability cohort each helper can truthfully own; the nullability cohort is not all DOM and must be split honestly.
+**The three families this rollup excludes are assigned, not orphaned.** "Not `.38`" is a disposition only once each diagnostic has a named owner, and every one of the 6,953 excluded diagnostics falls inside a file that `0.33.33.39` through `.44` already own and are already required to reduce to zero. The split below is the measured distribution across those owners, so the `0.33.33.38` remeasurement gate re-derives their child boundaries from a real starting partition rather than from a residual.
 
-#### 0.33.33.38.2 - Publish response and handoff contracts entering as unknown
+| Owner | Unannotated parameters | Page-local state | Assorted |
+| --- | --- | --- | --- |
+| `0.33.33.39` shared browser framework | 1,738 | 135 | 28 |
+| `0.33.33.40` Notes | 379 | 138 | 27 |
+| `0.33.33.41` Tasks and Task Dialog | 556 | 691 | 23 |
+| `0.33.33.42` Workbench | 319 | 215 | 22 |
+| `0.33.33.43` Lists, Files, Clients/Projects | 765 | 246 | 26 |
+| `0.33.33.44` remaining page controllers | 988 | 613 | 44 |
+| **Total** | **4,745** | **2,038** | **170** |
 
-**Model: High Effort - 1,038 `unknown` diagnostics, and the boundary rule this branch already enforces.**
+- [ ] **The assorted family is split by controller and is not one owner's problem.** Its 170 diagnostics are `TS2345` 55, `TS2322` 40, `TS2698` 16 and a long tail; each is a local mismatch in the file that holds it, and each is closed by that file's typing child rather than by a shared contract.
+- [ ] **These figures are a partition, not a forecast.** `0.33.33.38.1` changes what the compiler can see, so the mandatory remeasurement gate re-derives every one of them before `.39` through `.44` are sliced.
 
-- [ ] Add named API response and descriptor handoff contracts with `unknown` narrowing at network and view boundaries.
-- [ ] **Every dynamic boundary enters as `unknown`**: fetch bodies, bootstrap payloads, DOM datasets, descriptor handoffs, storage reads, parsed JSON, and external globals. A JSDoc annotation over an `any`-producing boundary is not proof — this is the inherited-zero shape the scripts program spent four children removing.
+**Resolved and withdrawn: the `LinkTargetCandidate` versus `LinkTarget` question inherited from `0.33.33.36`.** The distinction is **intentional, correctly placed, and already correctly expressed** - the item is closed with no change to make.
+
+- `LinkTargetCandidate` is **provider input vocabulary**. It is declared on `LinkTargetProvider.list` and `.read` in `link-target-directory-contracts.d.ts` and on all four module providers. A provider must supply `targetType` and `targetId`; every other member is optional, which is what a provider is permitted to omit.
+- `LinkTarget` is **framework-normalised output**: `Required<Omit<LinkTargetCandidate, "unavailable">>` plus an optional `unavailable`.
+- `shapeLinkTarget` in `src/core/linked-context/link-target-shape.js` is the **transition between them**, and it is total - it assigns all twenty-four required members with an explicit fallback for each. `safeUnavailableLinkTarget` routes through it too, so even the unavailable path returns a complete `LinkTarget` carrying `unavailable: true`.
+- **`linkTargetDirectory.list` never declared `LinkTargetCandidate[]`.** It returns `(await provider.list(...)).map(shapeLinkTarget)`, and a type probe against the real project reports its inferred return as `LinkTarget[]`; `notesService.listLinkTargets(...).targets` is assignable to `LinkTarget[]` as well. The probe was proved live by a deliberately impossible annotation, which failed as `Type 'LinkTarget[]' is not assignable to type 'number[]'` - **the compiler naming the inferred type is the evidence.** The `0.33.33.36` note recorded the directory as *declaring* the weak type; it does not, and that half of the note is withdrawn.
+- **Nothing here is to be deduplicated.** This is a weaker input contract with a stronger normalised output and a total normaliser between them, which is exactly the shape that must survive.
+
+#### 0.33.33.38.1 - Declare the `LongtailForge.view` factory contract
+
+**Model: High Effort - 529 diagnostics attributable, the largest single addressable contract in the browser program.**
+
+- [ ] Author the interface for the frozen `LongtailForge.view` factory - 30 members from `view-builder.js` and 10 spread by `view-renderer.js` - and declare it as a namespace member. **Declaration only: no writer is added, no member moves, no runtime value changes.**
+- [ ] Read each member's implementation before declaring its signature. A member that genuinely accepts or returns an open value keeps that in its declaration; do not close a parameter to remove an error.
+- [ ] Run first, because `view` cascades through nine controllers and the DOM and `unknown` cohorts cannot be measured honestly until it is declared. **Regenerate the ledger and reclassify before `.38.3` and `.38.4` are implemented.**
+- [ ] Report the measured delta against the 529 attribution, and say plainly where the two disagree.
+
+#### 0.33.33.38.2 - Declare the remaining published surfaces and settle the index signature
+
+**Model: High Effort - PROVISIONAL. Requires its own preflight against the post-`0.33.33.38.1` tree before any of it is implemented.**
+
+**`0.33.33.38.1` is a hard remeasurement barrier, and nothing below is preauthorised scope.** Declaring `view` changes what the compiler can see across nine controllers, and a diagnostic that is a namespace symptom today may survive as a DOM, parameter, or genuine `unknown` error tomorrow - or disappear entirely. **The "48 remaining members" and "414 attributable" figures below are pre-`.38.1` measurements retained as a starting point, explicitly not as a child boundary.** Rebuild the namespace inventory from the post-`.38.1` tree, re-attribute diagnostics per surviving member, and re-decide whether declaration, index-signature disposition, and governance are one child or three. If the measurement disagrees with the shape below, the shape is what changes.
+
+- [ ] Declare the remaining published namespace members, and wire the six orphaned interfaces `0.33.33.34`-`.37` already authored so their consumers stop casting locally.
+- [ ] **Establish what `[key: string]: unknown` is for before touching it.** Every one of the 62 members published today is first-party framework or module code, but this repository's stated extensibility model is that modules and plugins contribute declaratively, and an index signature is how a namespace stays open to a contribution it does not know about. Determine whether it is **intentional extensibility**, **compatibility vocabulary**, or **accidental looseness** - and answer it from the contribution seams, not from the fact that removing it would make numbers move. If it is intentional, keep it and declare the first-party members alongside it; the two are not in conflict.
+- [ ] Add a governance regression that every published surface is a declared member, built on the existing AST inventory in `scripts/test-support/browser-publication-inventory.mjs`. **`LongtailForgeBrowserNamespace` has no regression owner today**, which is why 49 members drifted out of the declaration while four checkpoints added to it.
+- [ ] **The 549 `TS18048` diagnostics are the namespace's optionality, and most of them are correct.** `LongtailForge?` is optional because the namespace genuinely can be absent, and the `requireX()` guard `0.33.33.37` used is the honest answer at the consumer. Do not remove the optionality to remove the errors; publish the guard pattern and leave adoption to `.39`-`.44`.
+
+#### 0.33.33.38.3 - Publish checked DOM lookup and event-target contracts
+
+**Model: High Effort - 1,479 diagnostics measured, corrected down from the 2,169 the previous slice claimed.**
+
+- [ ] Add checked DOM lookup and assert helpers that return the correct element subtype or fail explicitly. Do not turn a required element into an optional no-op.
+- [ ] Add explicit event-target narrowing rather than a cast at each listener. `EventTarget` is only 10 diagnostics; the 861 are `Element` where a subtype is needed.
+- [ ] **The nullability cohort splits three ways and only two are yours.** Of 1,327 `TS18047`/`TS18048`: **549 are the namespace surface** (`.38.2`), **449 are DOM lookup results**, **265 are the declared-null element caches** the `cacheXElements()` pattern produces, and 64 are neither. The previous slice assigned the whole cohort to DOM.
+- [ ] The declared-null caches are a different shape from a lookup result and may need a different answer; measure them separately rather than forcing one helper over both.
+
+#### 0.33.33.38.4 - Publish narrowing contracts for the genuine dynamic boundaries
+
+**Model: High Effort - roughly 350 diagnostics, corrected down from the 1,038 the previous slice claimed.**
+
+- [ ] Add named API response and descriptor handoff contracts with `unknown` narrowing at the network and view boundaries.
+- [ ] **`BrowserApi` already returns `Promise<unknown>` from all five methods, and that is correct.** A fetch body is an untrusted runtime value; the contract is right and the consumer is what needs a narrowing step. **Do not type `getJson`'s return to remove errors** - that would recreate the inherited-`any` shape the scripts program spent four children removing, wearing a JSDoc annotation.
+- [ ] Of the 1,035 `unknown` diagnostics, the honest boundary cohort is **147 catch clauses**, **111 awaited network payloads**, and **roughly 100 others**; the remaining **677 are namespace reads** and belong to `.38.1` and `.38.2`. Remeasure after those land rather than working from this split.
 - [ ] Read the producer before publishing any contract, and do not tighten a deliberately extensible contract to remove errors.
 
-#### 0.33.33.38.3 - Publish page-state contract patterns
+#### 0.33.33.38.5 - Narrow the server task lifecycle status vocabulary
 
-**Model: High Effort - The largest addressable family at 4,374 diagnostics, and the easiest to over-reach.**
+**Model: Medium Effort - 16 measured sites in one module, and a proven runtime guarantee.** Inherited from `0.33.33.37`.
 
-- [ ] Add page-state typedef patterns that prevent `{}`, `never[]`, and nullable-element cascades without inventing runtime data.
-- [ ] Publish the pattern and any genuinely shared state fragments; leave each page's own state shape to that page's typing child.
-- [ ] Record which of the 4,374 the pattern can own once adopted, separating measured effect from hypothesis.
+**The openness is accidental, and the evidence is threefold.** `TaskLifecycleStatus` in `src/types/task-block-recovery-contracts.d.ts` reads `"open" | "in_progress" | "blocked" | "complete" | "archived" | string`, and the trailing member collapses the union to `string`, so the five literals are documentation rather than type. Against that:
 
-**Staging rule for `0.33.33.39` through `0.33.33.44`.** These six keep their architectural ownership boundaries and **are deliberately not sliced into implementation children yet**. `0.33.33.38` exists to collapse cascades, and `0.33.33.33` rescopes 2,415 lexical names in the files that hold 63% of the browser debt; any diagnostic partition drawn today would be measuring a tree that neither has touched. The figures recorded below are today's measurement, kept as a starting point and explicitly not as child boundaries.
+- **Every sibling type in the same file is closed.** `TaskBlockRecoveryPatch.status` is `"blocked" | "open"`, and `kind`, `reason`, `searchReason`, and `ChildStatusRollupEffect` are all closed unions. The author writes closed unions where they are meant.
+- **The runtime is closed and validated.** `normalizeStatus` at `tasks.service.js:3066` is `STATUSES.has(status) ? status : "open"` - an unrecognised status is coerced, not stored - and `STATUSES` at `:85` is the same five values.
+- **The engine is tolerant of anything but treats nothing extra as valid.** `normalizedStatus` is `String(value ?? "")` and every question it answers is set membership, so an unknown status is simply not terminal and not blocked. That is a safe default, not a supported vocabulary member. A deliberately open contract would have been written to keep its literals - this one does not.
 
-- [ ] **Mandatory remeasurement gate.** After `0.33.33.38` archives, regenerate the browser ledger and reclassify the remaining debt by root family and owner *before* any of `.39` through `.44` is sliced. That reslice reconciles the full remaining browser debt exactly — every diagnostic in exactly one child, no duplicate and no orphan — in the same way `0.33.33.32` reconciled its 202 files.
-- [ ] **No child may absorb an unexpectedly larger cohort because the old roadmap grouped it there.** If measurement disagrees with the grouping below, the grouping is what changes.
-- [ ] Ordering: all six run after `0.33.33.33` (scoping), `0.33.33.35` (framework extraction), and `0.33.33.38` (contracts), because each changes what these owners contain.
+**The cost is measured, not estimated.** The server-tests program is at zero errors. Narrowing the type produces exactly **16**: `task-block-recovery-engine.js` 1, `tasks.service.js` 11, `tests/unit/task-block-recovery-engine.test.mjs` 4. Every one is `TaskRecord.status: string` or a plain `string` reaching a parameter that now wants the union.
+
+- [ ] Narrow the union and satisfy all 16 sites by **making the existing runtime validation visible to TypeScript** - a predicate at the boundary where a persisted row becomes a lifecycle status. `0.33.33.36`'s standard applies exactly: the runtime value is valid, and TypeScript can see why. **No cast, no assertion, no suppression.**
+- [ ] Do not narrow `TaskRecord.status` itself as a shortcut; that reaches far past this checkpoint. If the predicate cannot be placed without doing so, stop and report rather than widening the scope.
+- [ ] Retarget nothing in the four test sites that is behavioural. They construct records with `status: "..."` literals; if a behavioural assertion has to change, the change is wrong.
+- [ ] **Do not merge the server vocabulary with the browser one.** `BrowserTaskLifecycleLegality`'s closed browser vocabulary and this server type describe different layers, and `0.33.33.37` published them separately on purpose. Narrowing this one does not make them the same contract.
+
+**Withdrawn: the previous `0.33.33.38.3` page-state child.** Its 4,374-diagnostic family was 1,561 unannotated parameters, which belong to `.39`-`.44`, plus 2,038 of page-local state that the rollup already forbids `.38` from inventing shapes for, plus 775 double-counted with the DOM and nullability cohorts. There is no shared contract left underneath it. The one genuinely shared thing that classification was reaching for is the namespace declaration, which `.38.1` and `.38.2` now own with measurement behind it.
+
+**Excluded, and deliberately not absorbed.** The cold app-shell bootstrap unavailable-host path stays a framework-level deferred concern; it is not solved by weakening a descriptor or recreating a client fallback. The footer duplicate loader stays a separate measured concern; shared-script vocabulary being reviewed here is not a reason to pull in delivery architecture.
+
+**Implementation order.** `.38.1`, then remeasure, then `.38.2`, then `.38.3` and `.38.4` against the reclassified ledger. `.38.5` touches the server program only and is independent of all four.
 
 ### 0.33.33.39 - Type shared browser framework code
 

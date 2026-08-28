@@ -21,7 +21,7 @@ Closing state:
 | --- | --- | --- |
 | Browser program diagnostics | 10,377 | **10,375** |
 | `task-lifecycle-legality.js` lines / diagnostics | - | **112 / 0** |
-| Duplicated status-set literals | **11** | **0** |
+| Duplicated status-set literals, three named surfaces | **11** | **0** |
 | Published surfaces | 63 | **64** |
 | Multi-writer records | 2 | **2** |
 | Classic scripts out of the shared lexical environment | 79 / 79 | **80 / 80** |
@@ -30,6 +30,8 @@ Closing state:
 **Three source assertions across two owners followed the expression that moved, and each kept the contract it always had.** `task-modal-complete-action` asserted the active-status vocabulary against `task-dialog.js`; that assertion now reads the module that owns the vocabulary, while the dialog keeps the assertion about *its* composition - legality with a saved task and completion permission. `task-critical-quick-fixes` pinned two filter expressions that legitimately changed shape. **No behavioural test changed**, which is the standard `0.33.33.36` set: a behavioural test that has to change means the change is wrong.
 
 **Deferred, with owners.** The degenerate `TaskLifecycleStatus` union belongs to whichever checkpoint owns `task-block-recovery-engine`; it is recorded here rather than fixed opportunistically. The `linkTargetDirectory.list` vocabulary question remains with `0.33.33.38`.
+
+**Corrected by the `0.33.33.38` preflight: the eleven-to-zero count is true of the three named surfaces and not of the estate.** A search across all of `public/js` finds the active-status set written twice more, at `task-resume-note-capture.js:22` and `tasks-dashboard.js:121`, in two files this checkpoint never named. `0.33.33.37` scoped its audit to the three files the roadmap listed, which is how it missed them. **A reference audit is scoped to the estate, not to the checkpoint description** - the same rule as searching for a symbol rather than for `symbolName(`. Both consumers are recorded for `0.33.33.39`-`.44` adoption.
 
 ## Version 0.33.33.36 - Close the linked-context producer contract
 
