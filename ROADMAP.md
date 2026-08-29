@@ -109,19 +109,26 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Restated after `0.33.33.38.2.2.4` corrected the classifier twice.** Against the landed post-`icons` tree the canonical families are **unannotated parameters 4,713, page-local state 1,863, DOM subtype and lookup 1,484, genuine `unknown` 408, namespace surface 528, assorted 168 - 9,164 in total.** The two corrections are described in the branch rules above; between them they moved 52 diagnostics out of page-local state into namespace and stopped `TS18046` on an undeclared member being counted as a trust boundary. **`state` is 52 lower than any figure published before that reconciliation, and whichever checkpoint owns page-local state should size itself against 1,863.**
 
-**The `0.33.33.39`-`.44` debt budgets, refreshed from the current tree.** Every non-contract diagnostic still has a named owner and none was silently moved to make a total reconcile.
+**The `0.33.33.39`-`.44` debt budgets, re-derived from the corrected canonical classifier.** Every non-contract diagnostic still has exactly one named owner, the owner sums are asserted against the family totals, and none was moved to make a total reconcile.
 
 | Owner | Unannotated parameters | Page-local state | Assorted | Total |
 | --- | ---: | ---: | ---: | ---: |
-| `0.33.33.39` shared browser framework | 1,733 | 113 | 27 | 1,873 |
+| `0.33.33.39` shared browser framework | 1,733 | 97 | 27 | 1,857 |
 | `0.33.33.40` Notes | 378 | 129 | 27 | 534 |
-| `0.33.33.41` Tasks and Task Dialog | 556 | 665 | 23 | 1,244 |
+| `0.33.33.41` Tasks and Task Dialog | 556 | 642 | 23 | 1,221 |
 | `0.33.33.42` Workbench | 311 | 210 | 21 | 542 |
 | `0.33.33.43` Lists, Files, Clients/Projects | 754 | 219 | 26 | 999 |
-| `0.33.33.44` remaining page controllers | 986 | 579 | 44 | 1,609 |
-| **Total** | **4,718** | **1,915** | **168** | **6,801** |
+| `0.33.33.44` remaining page controllers | 981 | 566 | 44 | 1,591 |
+| **Total** | **4,713** | **1,863** | **168** | **6,744** |
 
-**Three kinds of change separate this from the original baseline, and they are not the same kind.** Some diagnostics were **genuinely eliminated** by `0.33.33.38.1` and `.38.2.1` - page-local state fell across every owner as declaring `view` and `api` gave their consumers real types. Some were **reclassified by better tooling**: the lexical resolver moved 25 diagnostics out of page-local state and into the namespace family, because a text-adjacency heuristic had been reading an identifier's spelling rather than its binding. **No budget was adjusted to make a total balance.**
+**Every movement from the previous table is one of three things, and each was measured rather than inferred.** The previous figures were produced by a classifier carrying two defects, and `owners.py` carried its own copy of both because it restated the classifier instead of importing it. **There is one classifier now**, and the budget table is derived from it.
+
+- **Genuinely eliminated by landed `0.33.33.38` code: 5 parameters, all in `0.33.33.44`** (986 to 981). They are callback parameters at `module-settings.js` and `workspace-settings.js` that gained contextual types the moment `0.33.33.38.2.2.2` declared `settingsHost.attachmentSections`. **That is real debt removed**, and the owner's budget falls accordingly.
+- **Previously misclassified: 52 page-local-state diagnostics, across `0.33.33.39` (113 to 97), `0.33.33.41` (665 to 642), and `0.33.33.44` (579 to 566).** These are namespace reads written through the IIFE's own root alias, which the old classifier recognised only when the root was spelled `LongtailForge`. **They were never page-local state and no `0.33.33.38` child eliminated them.** The proof is that the corrected total is **1,863 at the post-`0.33.33.38.2.1` tree and 1,863 today** - constant across `status`, `modal`, and `icons`.
+- **Unchanged: everything else.** `0.33.33.40`, `.42`, and `.43` are identical in all three families, and `assorted` is 168 throughout.
+
+**No future owner's budget was reduced because a broken classifier credited `0.33.33.38` with removing something.** The only reduction of that kind on the table is the five parameters above, and they were traced to the specific child and the specific declaration that removed them.
+
 | Assorted remaining codes | **170** | `TS2345` 55, `TS2322` 40, `TS2698` 16, ... | per controller |
 
 **The correction that matters most: 1,561 of the `{}` cohort are parameters, not page state.** The previous slice read `Property 'className' does not exist on type '{}'` at `view-builder.js:20` as under-inferred state and gave the whole 2,628-strong `{}` cohort to a page-state child. The declaration is `function createElement(tagName, options = {})`. **A parameter whose only type information is a `{}` default is the same defect as `TS7006`** - the default is why TypeScript prints `{}` instead of `any` - and it is removed the same way, by annotating the function in the controller that declares it. Adding those to the 3,079 explicit `TS7006` makes **unannotated parameters 4,745 diagnostics, 46% of the browser program, and none of it is contract work.** The old `.38.3`'s claimed 4,374-diagnostic family does not exist.
