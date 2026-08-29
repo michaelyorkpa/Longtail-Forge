@@ -287,7 +287,7 @@
   }
 
   function createTimeEntryActionButton(label, icon, options = {}) {
-    if (window.LongtailForge.icons?.createIconButton) {
+    if (window.LongtailForge?.icons?.createIconButton) {
       return window.LongtailForge.icons.createIconButton({
         icon,
         label,

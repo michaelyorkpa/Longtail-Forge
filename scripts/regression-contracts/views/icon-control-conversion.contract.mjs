@@ -14,7 +14,7 @@ const css = readText("public/css/longtail-forge.css");
   assert.match(iconHelper, new RegExp(`${iconName}:\\s*Object\\.freeze`), `shared icon helper must include ${iconName} for Tasks row actions`);
 });
 
-assert.match(tasks, /window\.LongtailForge\.icons\?\.createIconButton/, "Tasks row actions must use the shared icon button helper");
+assert.match(tasks, /window\.LongtailForge\??\.icons\?\.createIconButton/, "Tasks row actions must use the shared icon button helper");
 assert.match(tasks, /function taskActionIcon\(label\)/, "Tasks row action icons must be mapped through semantic labels");
 assert.match(tasks, /label === "Archive" \? "danger" : ""/, "Tasks archive row action must preserve danger styling");
 assert.match(tasks, /title:\s*options\.title \|\| label/, "Tasks icon-only row actions must preserve title text");

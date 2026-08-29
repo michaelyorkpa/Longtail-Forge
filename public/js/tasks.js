@@ -2040,7 +2040,7 @@
   }
 
   function actionButton(label, handler, options = {}) {
-    const button = window.LongtailForge.icons?.createIconButton
+    const button = window.LongtailForge?.icons?.createIconButton
       ? window.LongtailForge.icons.createIconButton({
         icon: options.icon || taskActionIcon(label),
         label,
@@ -2050,7 +2050,7 @@
       : document.createElement("button");
 
     button.type = "button";
-    if (!window.LongtailForge.icons?.createIconButton) {
+    if (!window.LongtailForge?.icons?.createIconButton) {
       button.textContent = label;
     }
     button.addEventListener("click", handler);

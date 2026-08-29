@@ -208,14 +208,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Take one semantic class at a time and one surface at a time.** The classes want different mechanisms, and a member name is not a semantics: `cachedFetch` sits in both A and B inside a single file.
 - [ ] **Class E is not adoptable and must not be swept in.** Those 148 resolve when their member is declared, and adopting the root there trades one diagnostic for another - the rule `0.33.33.38.2.1` established and remeasured.
 
-#### 0.33.33.38.2.6.1 - Class A: the `icons` root reads
-
-**13 diagnostics across 6 files - `clients-projects.js`, `files.js`, `notes.js`, `tags.js`, `tasks.js`, `time-entries.js`.** Every one optional-chains `icons` and reads the namespace root without a chain, so the root read is the only part of those expressions that does not say what the code means.
-
-- [ ] **Make the root read match the member's already-intentional optionality.** `footer.js` injects `shared/icons.js` lazily and probes for it, and all 54 `icons` reads in the estate are guard-dominated, so absence is a real state and the fallbacks are real behaviour. **Do not introduce a checked accessor here**; there is nothing for one to make explicit.
-- [ ] **Edit only the site that tests the surface and let the compiler narrow the rest.** Prove it fail-first on one guard before touching the others.
-- [ ] **`tags.js` is the one file where this changes what the file tolerates.** The `icons` pair is its only unguarded root read, so it becomes root-tolerant; the other five already write or read the root unguarded elsewhere, which makes the new chain unreachable in practice there. **State that difference in the closeout rather than claiming the slice changes nothing at all.**
-
 #### 0.33.33.38.2.6.2 - The rest of the declared-member root estate
 
 **28 diagnostics: 26 class-B and the 2 class-A sites `0.33.33.38.2.6.1` deliberately left behind.**

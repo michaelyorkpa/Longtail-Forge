@@ -1285,7 +1285,7 @@
 
   function notesIconButton(options) {
     const view = requireView();
-    if (window.LongtailForge.icons?.createIconButton) {
+    if (window.LongtailForge?.icons?.createIconButton) {
       return window.LongtailForge.icons.createIconButton({
         ...options,
         text: "",
