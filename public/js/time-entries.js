@@ -55,6 +55,29 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserFormatters} BrowserFormatters */
+
+  /**
+   * The value formatters this page cannot render an invoice status without.
+   *
+   * Acquired at the point of use, so a missing surface still fails at exactly the moment it
+   * failed before `0.33.33.38.2.6.6` made the read checked. `time-entries.html` loads
+   * `shared/formatters.js` ahead of this script.
+   *
+   * `time-tracking-dashboard.js` and `time-tracking-reporting.js` read the same surface through
+   * `|| {}` and fall back, and they are right to: both are module-contributed scripts injected
+   * into views by capability and permission, and **the dashboard view never receives
+   * `shared/formatters.js` at all**. `reporting.js` guards it for the same reason.
+   * @returns {BrowserFormatters}
+   */
+  function requireFormatters() {
+    const formatters = window.LongtailForge?.formatters;
+    if (!formatters) {
+      throw new Error("Time Entries requires LongtailForge.formatters.");
+    }
+    return formatters;
+  }
+
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserRecords} BrowserRecords */
 
   /**
@@ -813,7 +836,7 @@
   }
 
   function formatInvoiceStatus(status) {
-    return window.LongtailForge.formatters.entryStatus(status);
+    return requireFormatters().entryStatus(status);
   }
 
   function formatEntryStatus(entry) {
