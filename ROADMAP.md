@@ -208,14 +208,23 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Take one semantic class at a time and one surface at a time.** The classes want different mechanisms, and a member name is not a semantics: `cachedFetch` sits in both A and B inside a single file.
 - [ ] **Class E is not adoptable and must not be swept in.** Those 148 resolve when their member is declared, and adopting the root there trades one diagnostic for another - the rule `0.33.33.38.2.1` established and remeasured.
 
-#### 0.33.33.38.2.6.2 - The rest of the declared-member root estate
+#### 0.33.33.38.2.6.2 - Class B: `LongtailForge.pageController`
 
-**28 diagnostics: 26 class-B and the 2 class-A sites `0.33.33.38.2.6.1` deliberately left behind.**
+**15 diagnostics across 6 files - `clients-projects.js`, `stop-watch.js`, `tasks.js`, `time-entries.js`, `user-admin.js`, `workbench.js`.** The largest single-surface, single-mechanism group in class B, and its interface `BrowserPageController` already declares all five published members accurately.
 
-- [ ] **`cachedFetch` is mixed within one file and that is why its two class-A sites do not travel with `icons`.** `workbench.js:821` and `:825` optional-chain the member; `workbench.js:788`, `:927`, and `:970` require it, one of them through a local alias. **A surface whose own consumer disagrees with itself needs its own preflight**, not a cohort drawn from a sibling's evidence.
-- [ ] **Class B is a different mechanism, not a bigger version of class A.** `pageController.register(...)`, `records.matchesClient(...)`, and `formatters.entryStatus(...)` are dependencies the page cannot run without; the correct change is the lazy checked accessor `0.33.33.38.1` and `.38.2.1` established. **Do not convert a required dependency to an optional chain to remove a diagnostic** - that deletes the failure, not the debt.
-- [ ] **`shared/billing.js` holds four of the `records` sites and has no consumer at all.** `0.33.33.38.2.2.7` is deciding whether that publication is live; **settle that before adopting reads inside it**, or this child will make a dead file more correct.
-- [ ] **`appShellBootstrap` and `formatters` carry one diagnostic each and are not automatically this child's.** Do not sweep a surface in because it shares a mechanism; delivery and ownership are per surface.
+- [ ] **Reuse the existing interface. This child is acquisition, not declaration.** If the declaration turns out to be stale, stop and report rather than fixing two problems in one change.
+- [ ] **Prove delivery per page before converting anything.** Every consumer page must load `shared/page-controller.js` ahead of the consumer script; where it does, a missing surface is already a broken page and checked acquisition fails at the same moment.
+- [ ] **Acquire at the existing execution point, which is not uniform here.** Six sites are module-scope `register(...)` calls and one is a module-scope alias in `tasks.js`; those have always failed at script load. **Do not move them into a function to tidy the shape** - that would delay a failure the page currently takes at load.
+- [ ] **`shared/module-actions.js:389` guards `namespace.pageController?.setStatus` and is not this cohort's.** A shared member name is not a shared semantics; leave the one genuinely optional read alone.
+
+#### 0.33.33.38.2.6.3 - The declared-member root remainder
+
+**13 diagnostics: 11 class-B across four surfaces, and the 2 class-A `cachedFetch` sites.** What is left after `pageController` disagrees with itself in ways that make one cohort wrong.
+
+- [ ] **`cachedFetch` sits in both semantic classes inside a single file, and that is its whole preflight question.** Two sites optional-chain the member and three require it, one through a local alias. **A surface whose own consumer disagrees with itself is not adoptable from a sibling's evidence** - establish which paths are genuinely cache-optional before converting anything.
+- [ ] **`records` is blocked behind archaeology, not behind difficulty.** Four of its six sites are in `shared/billing.js`, which has no consumer anywhere in the repository; `0.33.33.38.2.2.7` is deciding whether that publication is live. **Settle that first**, or this child makes possibly-dead code more correct. Its other two sites are in `time-entries.js` and could move separately if the evidence supports it.
+- [ ] **`appShellBootstrap` and `formatters` carry one diagnostic each.** Do not sweep a surface in because it shares a mechanism; delivery and ownership are per surface, and a one-site cohort is allowed to be a one-site cohort.
+- [ ] **Class E is still 148 and still not adoptable.** It drains as `0.33.33.38.2.2` declares members - `icons` and `pageController` both arrived in class A and B that way - so **remeasure before drawing any child from it.**
 
 #### 0.33.33.38.2.7 - Teach the publication inventory the logical-assignment root
 
