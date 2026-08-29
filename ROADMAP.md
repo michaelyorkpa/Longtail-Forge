@@ -44,6 +44,7 @@ Source-contract discipline (branch-wide, from `0.33.33.35`):
 - [ ] **The scope of the evidence must match the scope of the claim.** `0.33.33.37` reported "duplicated status literals 11 to 0" from an audit of the three files its own checkpoint description named, while `task-resume-note-capture.js` and `tasks-dashboard.js` still held the active-status set. The measurement was right and the claim was too wide. A repository-wide elimination claim requires a repository-wide search; an audit deliberately scoped to named owners reports itself that way - "11 to 0 across the three `0.33.33.37` owners" - and names what it did not look at.
 - [ ] **Retarget a source contract to what it owns; do not repoint it at a new filename.** When extraction moves code, an assertion that merely pinned its location is a weak contract that survived by accident. Move it to the behaviour, ownership, publication, or dependency claim it was standing in for - `0.33.33.35.2` and `0.33.33.35.3` both did this - and delete it when a stronger assertion already covers the same ground.
 - [ ] **Compare a changed file against its own `HEAD` convention, not against an aggregate.** `0.33.33.38.2.2.3` compared `git diff --numstat` against `--ignore-cr-at-eol` in aggregate and the totals disagreed; even a joined per-path view still missed `scripts/regression-contracts/tasks/tasks-timer-utility-escape-hatch.contract.mjs`, which had flipped line endings wholesale and was reporting **132 / 132**. Checking each changed file against the line endings its own `HEAD` blob uses found it immediately. **An equivalence check is only as good as the unit it compares**, and an aggregate total can net two errors against each other.
+- [ ] **A checkpoint trailer names the checkpoint that owns the change, and validation cannot check that for you.** `0.33.33.38.2.6.1` was first committed under `0.33.33.38.2.3` - a live identifier owning entirely different work - and **`checkpoint:validate` passed**, because it verifies that a declared checkpoint exists, not that the declared checkpoint is the right one. **Existence is not ownership.** Before writing a trailer, read the section it names and confirm it describes the change; a validator that passes on the wrong identifier is behaving correctly and proving nothing.
 - [ ] **A ratified model that no tool implements is not a model.** `0.33.33.38.2.2` decided that a `TS18046` on an *undeclared* namespace member is namespace work rather than a trust boundary, and **the canonical classifier was never changed to match**; three closeouts later `0.33.33.38.2.2.4` had to reconcile a 72 diagnostic gap that simple subtraction exposed - `modal` removed 64 namespace diagnostics and the estate reported 72 more `unknown`. **When a measurement decision is ratified, change the instrument in the same commit, and re-derive an already-published table from it to prove the change was faithful.** Correcting it reproduced the `0.33.33.38.2.2.8` table exactly, which is what made the fix trustworthy rather than merely plausible.
 - [ ] **A classifier resolves the namespace root by binding, not by the word `LongtailForge`.** The same reconciliation found `namespace.icons` and `root.icons` - the IIFE alias used throughout `public/js/shared` and `task-dialog.js` - falling through to page-local state, which had inflated `state` and deflated `namespace` by 52 estate-wide. **This is the third time a measurement has been caught reading a spelling instead of a binding**, after `0.33.33.38.2.1`'s alias attribution and `0.33.33.38.2.7`'s publication inventory. Any new estate tool resolves aliases before it counts anything, and proves it by making the unaliased and aliased forms produce the same answer.
 
@@ -190,14 +191,39 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **No child may weaken a contract to move a number.** No cast, no non-null assertion, no suppression, no permissive index signature, no `any`.
 - [ ] **Classify every acquisition site before converting it, exactly as `0.33.33.38.1` did.** A consumer that legitimately runs without a surface keeps its optionality; four consumers and `file-attachments.js` did, and that was correct.
 
-#### 0.33.33.38.2.6 - Classify and adopt the six small declared members
+#### 0.33.33.38.2.6 - Adopt the root read at the declared members
 
-**45 diagnostics across `pageController` 20, `records` 9, `errors` 7, `formatters` 7, and `cachedFetch` 2 - and the classification is the work, not the conversion.** Remeasured after `0.33.33.38.2.1`: the family fell from 63, and **`appShellBootstrap` reached zero without being touched**, which is what a neighbouring adoption doing its job looks like. Remeasure again before slicing.
+**Model: Medium Effort - RESLICED once the estate was classified by semantics rather than by symptom.**
 
-- [ ] **Classify every site before converting any.** The table above is a starting measurement, not a verdict: an unguarded read proves only that the author did not write `?.`, and a graceful chain proves the path is meant to survive absence. `0.33.33.38.1` preserved four graceful consumers and a complete DOM fallback for exactly this reason.
-- [ ] Where a member is genuinely optional, **the correct change is to make the root read optional too** - `window.LongtailForge?.cachedFetch` - which removes the diagnostic without making anything required. Where it is required, use the lazy checked accessor. **Do not convert graceful degradation into a thrown dependency error to move a number.**
-- [ ] `errors` and `formatters` may end with fewer conversions than sites. That is a correct outcome.
-- [ ] Run after `.38.2.1`, so the pattern is settled and the small members are judged on their own evidence rather than swept along with `api`.
+**All 189 root-optionality diagnostics are `TS18048` and all are canonically namespace**, which is precisely why one syntactic fix would have been wrong. Classified by what each site already does when the surface is absent:
+
+| Class | Diagnostics | Surfaces | What it wants |
+| --- | ---: | --- | --- |
+| **A** - member intentionally optional | 15 | `icons` 13, `cachedFetch` 2 | an optional root read |
+| **B** - member genuinely required | 26 | `pageController` 15, `records` 6, `cachedFetch` 3, `appShellBootstrap` 1, `formatters` 1 | lazy checked acquisition |
+| **E** - parked behind an undeclared member | 148 | 25 members | nothing until `0.33.33.38.2.2` declares them |
+
+**`icons` joined this child by being declared.** It was undeclared when this section was first written, so its 13 root sites sat in class E; `0.33.33.38.2.2.4` moved them into class A, which is the mechanism `0.33.33.38.2` describes working as intended. **Expect the class-E column to keep draining into A and B as `.38.2.2` declares members**, and remeasure before drawing any child from it.
+
+- [ ] **Take one semantic class at a time and one surface at a time.** The classes want different mechanisms, and a member name is not a semantics: `cachedFetch` sits in both A and B inside a single file.
+- [ ] **Class E is not adoptable and must not be swept in.** Those 148 resolve when their member is declared, and adopting the root there trades one diagnostic for another - the rule `0.33.33.38.2.1` established and remeasured.
+
+#### 0.33.33.38.2.6.1 - Class A: the `icons` root reads
+
+**13 diagnostics across 6 files - `clients-projects.js`, `files.js`, `notes.js`, `tags.js`, `tasks.js`, `time-entries.js`.** Every one optional-chains `icons` and reads the namespace root without a chain, so the root read is the only part of those expressions that does not say what the code means.
+
+- [ ] **Make the root read match the member's already-intentional optionality.** `footer.js` injects `shared/icons.js` lazily and probes for it, and all 54 `icons` reads in the estate are guard-dominated, so absence is a real state and the fallbacks are real behaviour. **Do not introduce a checked accessor here**; there is nothing for one to make explicit.
+- [ ] **Edit only the site that tests the surface and let the compiler narrow the rest.** Prove it fail-first on one guard before touching the others.
+- [ ] **`tags.js` is the one file where this changes what the file tolerates.** The `icons` pair is its only unguarded root read, so it becomes root-tolerant; the other five already write or read the root unguarded elsewhere, which makes the new chain unreachable in practice there. **State that difference in the closeout rather than claiming the slice changes nothing at all.**
+
+#### 0.33.33.38.2.6.2 - The rest of the declared-member root estate
+
+**28 diagnostics: 26 class-B and the 2 class-A sites `0.33.33.38.2.6.1` deliberately left behind.**
+
+- [ ] **`cachedFetch` is mixed within one file and that is why its two class-A sites do not travel with `icons`.** `workbench.js:821` and `:825` optional-chain the member; `workbench.js:788`, `:927`, and `:970` require it, one of them through a local alias. **A surface whose own consumer disagrees with itself needs its own preflight**, not a cohort drawn from a sibling's evidence.
+- [ ] **Class B is a different mechanism, not a bigger version of class A.** `pageController.register(...)`, `records.matchesClient(...)`, and `formatters.entryStatus(...)` are dependencies the page cannot run without; the correct change is the lazy checked accessor `0.33.33.38.1` and `.38.2.1` established. **Do not convert a required dependency to an optional chain to remove a diagnostic** - that deletes the failure, not the debt.
+- [ ] **`shared/billing.js` holds four of the `records` sites and has no consumer at all.** `0.33.33.38.2.2.7` is deciding whether that publication is live; **settle that before adopting reads inside it**, or this child will make a dead file more correct.
+- [ ] **`appShellBootstrap` and `formatters` carry one diagnostic each and are not automatically this child's.** Do not sweep a surface in because it shares a mechanism; delivery and ownership are per surface.
 
 #### 0.33.33.38.2.7 - Teach the publication inventory the logical-assignment root
 
