@@ -20,6 +20,24 @@
    */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
   
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserPageController} BrowserPageController */
+
+  /**
+   * The page controller registry this page cannot run without.
+   *
+   * Acquired at the point of use rather than stored at module scope, so a missing surface still
+   * fails at exactly the moment it failed before `0.33.33.38.2.6.2` made the read checked. Every
+   * page that loads this script loads `shared/page-controller.js` ahead of it.
+   * @returns {BrowserPageController}
+   */
+  function requirePageController() {
+    const controller = window.LongtailForge?.pageController;
+    if (!controller) {
+      throw new Error("Tasks requires LongtailForge.pageController.");
+    }
+    return controller;
+  }
+
   /**
    * Whether this page received `view-renderer.js` as well as `view-builder.js`.
    *
@@ -232,7 +250,7 @@
   /** @type {Element | null} */
   let recurrenceDialog = null;
 
-  const pageController = window.LongtailForge.pageController;
+  const pageController = requirePageController();
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
 
   /**
@@ -3112,7 +3130,7 @@
     pageController.setStatus(taskStatus, message, options);
   }
 
-  window.LongtailForge.pageController.register("tasks", {
+  requirePageController().register("tasks", {
     snapshot: () => ({
       taskCount: state.tasks.length,
       visibleTaskCount: state.tasks.length,

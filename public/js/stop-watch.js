@@ -18,6 +18,24 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserPageController} BrowserPageController */
+
+  /**
+   * The page controller registry this page cannot run without.
+   *
+   * Acquired at the point of use rather than stored at module scope, so a missing surface still
+   * fails at exactly the moment it failed before `0.33.33.38.2.6.2` made the read checked. Every
+   * page that loads this script loads `shared/page-controller.js` ahead of it.
+   * @returns {BrowserPageController}
+   */
+  function requirePageController() {
+    const controller = window.LongtailForge?.pageController;
+    if (!controller) {
+      throw new Error("The Time Tracker stopwatch requires LongtailForge.pageController.");
+    }
+    return controller;
+  }
+
   /**
    * The API client this file cannot run without.
    *
@@ -1299,7 +1317,7 @@
   }
 
   function createOption(value, label) {
-    return window.LongtailForge.pageController.createOption(value, label);
+    return requirePageController().createOption(value, label);
   }
 
   function formatTime(milliseconds) {
@@ -1319,7 +1337,7 @@
     return value.charAt(0).toUpperCase() + value.slice(1);
   }
 
-  window.LongtailForge.pageController.register("time-tracker", {
+  requirePageController().register("time-tracker", {
     snapshot: () => ({
       clientCount: clients.length,
       persistedTimersLoaded: timerPersistence.loaded,

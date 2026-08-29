@@ -112,7 +112,8 @@ check("time-entry audit URLs target the unified Time Entries screen", () => {
 });
 
 check("unified page registers a Time Entries smoke controller", () => {
-  assert.match(timeEntriesScript, /pageController\.register\("time-entries"/);
+  // The claim is that this page registers a smoke controller, not how the surface was acquired.
+  assert.match(timeEntriesScript, /(?:pageController|requirePageController\(\))\.register\("time-entries"/);
   assert.match(timeEntriesScript, /pageId: "time-entries"/);
   assert.match(timeEntriesScript, /toolbar controls exist/);
   assert.match(timeEntriesScript, /bulk tag controls exist/);
