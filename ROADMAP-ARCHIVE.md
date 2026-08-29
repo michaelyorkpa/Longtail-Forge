@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.6.4 - Adopt the checked `records` read at its live consumer
+
+**Model: Low Effort** - two sites, one file, and a delivery measurement that settled the question the syntax could not.
+
+- [x] **Delivery decided it, and unusually clearly.** `shared/records.js` is loaded by **exactly one page in the repository** - `time-entries.html` - and it precedes `time-entries.js` there. Neither site has a guard or a fallback, so on the only page that runs them the dependency is real and a missing surface is already a broken page.
+- [x] **Its guarded neighbours are right to guard, and leaving them alone was the finding rather than an omission.** `shared/page-controller.js:44` and `time-entry-dialog.js:433` and `:441` test the same members and fall back - because **six of the seven pages that load the page controller never receive `records.js` at all**. The same surface is genuinely required in one file and genuinely optional in another; **a shared member name is not a shared semantics.**
+- [x] **The accessor is its own rather than the page controller's.** `time-entries.js` already held `requirePageController()` from `0.33.33.38.2.6.2`, and reusing it would have been convenient and wrong: `records` reaches one page and the page controller reaches seven. **Two surfaces that ship differently do not share an acquisition.**
+- [x] **The declaration was verified, not assumed.** `shared/records.js` carries `// @ts-check` and full JSDoc on every function, and `BrowserRecords` already declares all five published members with matching signatures - so this child added no declaration and changed no writer.
+- [x] **Four diagnostics closed rather than the two targeted** - two on the namespace root and two on `window.LongtailForge.records` being possibly undefined in the same expressions. An accessor returning a non-optional `BrowserRecords` answers both, the same shape `0.33.33.38.2.6.2` measured at fifteen sites.
+
+**`shared/billing.js` was not touched and its eleven diagnostics are unchanged.** Its four `records` reads would each have closed with one line, and that is exactly why they were left: **no page in the repository loads that file**, `0.33.33.38.2.2.7` decides whether the publication should remain, and **a dead file should be removed rather than beautifully typed.** If archaeology proves it live, those four rejoin a `records` acquisition owner then.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 9,120 | **9,116** |
+| Namespace surface family | 484 | **480** |
+| Root-optionality estate | 161 | **159** |
+| Class B remaining | 11 | **9** |
+| `shared/billing.js` diagnostics | 89 | **89** |
+| `TS7006` (the `0.33.33.39` budget) | 3,052 | **3,052** |
+| genuine `unknown` | 408 | **408** |
+| `0.33.33.39`-`.44` budgets | 4,713 / 1,863 / 168 | **unchanged** |
+| Declared / undeclared members | 24 / 40 | **24 / 40** |
+| Runtime writers changed | - | **0** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**No source contract names this surface**, so nothing needed retargeting - the first root child in three with no assertion to move. The reference audit was run in a form that could actually match the files, after `0.33.33.38.2.6.1` learned that lesson the hard way.
+
 ## Version 0.33.33.38.2.6.2 - Adopt the checked `pageController` read
 
 **Model: Low Effort** - class B, one surface, fifteen sites, and a result larger than the cohort because a checked accessor answers three questions at once.
