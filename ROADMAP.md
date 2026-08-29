@@ -218,17 +218,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Do not split it by TypeScript symptom.** Both classes are `TS18048`; the runtime contract is what separates them.
 - [ ] Prove delivery on `workbench.html` before requiring anything.
 
-#### 0.33.33.38.2.6.4 - `LongtailForge.records` at its live consumer
-
-**2 diagnostics at `time-entries.js:766` and `:770`, and they are the only actionable `records` sites in the estate.**
-
-`shared/records.js` publishes five members, is **fully annotated with `// @ts-check` and JSDoc**, and `BrowserRecords` already declares all five accurately - so this child is acquisition, not declaration.
-
-- [ ] **Delivery decides this one, and it is unusually clear.** `shared/records.js` is loaded by **exactly one page**, `time-entries.html`, ahead of `time-entries.js`. **On that page the dependency is real**; there is no guard and no fallback at either site.
-- [ ] **Its guarded neighbours are right to guard, and that is not a contradiction.** `shared/page-controller.js:44` and `time-entry-dialog.js:433` and `:441` test the same members and fall back - because **six of the seven pages that load the page controller never receive `records.js` at all**. Leave every one of them alone.
-- [ ] **`shared/billing.js` is excluded and stays excluded.** Its four `records` sites are in a file **no page in the repository loads**. `0.33.33.38.2.2.7` decides whether that publication should remain; **do not make possibly-dead billing code more correct before it does.** If archaeology proves it live, those four sites rejoin a `records` acquisition owner then.
-- [ ] **Use a narrow `requireRecords()`, not the page controller's accessor.** `time-entries.js` already holds one for a different surface with different delivery; **two surfaces that ship differently do not share an acquisition.**
-
 #### 0.33.33.38.2.6.5 - `LongtailForge.appShellBootstrap`
 
 **1 diagnostic at `navigation.js:714`** - `const bootstrapAdapter = window.LongtailForge.appShellBootstrap;`, inside `loadAppShellBootstrap`.
