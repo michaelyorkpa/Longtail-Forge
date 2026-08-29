@@ -1,5 +1,54 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.4 - Declare the `LongtailForge.icons` helpers
+
+**Model: Medium Effort** - four published members, 17 consumer files, and **zero consumer changes**, because the estate had already decided how this surface is used.
+
+- [x] **The adoption model came from a guard-dominance audit, not from a read count.** Asking whether any earlier line in the enclosing function tests the surface found **54 guarded reads and 0 unguarded ones**. A line-local classifier had reported 13 required reads; every one of them sat on the line *after* its own guard. **The instrument was proved by removing one guard and watching that site, and only that site, flip to required** - then restoring it.
+- [x] **The guards are there because the script is lazily injected.** `footer.js` loads `js/shared/icons.js` on demand for quick actions and probes for it twice, so **absence is a real state on a real page**. Fifty-three reads fall back to a plain button or plain text; **one cannot**, and `task-dialog.js:2573` already throws its own dependency error - the checked-read shape, hand-written, in the only place that needs it. **No accessor was added anywhere**, because there was nothing left for one to make explicit.
+- [x] **The writer's nine unannotated parameters stayed with `0.33.33.39`, and that is a measurement rather than an intention.** `shared/icons.js` holds exactly its 28 diagnostics before and after - `{2339: 18, 7006: 9, 7053: 1}` in the ledger, unchanged - and the **estate-wide `TS7006` total is 3,052 both sides**. **This is not the `settingsRenderer` failure mode**: there the published `collectPayload(scope = document)` inferred a type too narrow for its own callers, so the writer had to be annotated before the publication could typecheck. Here the inferred parameter types are wide enough for a truthful contract, and the debt is genuinely independent.
+- [x] **Four surface aliases exist and a dotted search finds none of them** - `stop-watch.js:1235`, `task-dialog.js:528`, `workbench.js:510`, `shared/task-calendar.js:357`. All four are followed by a guard, so none needed converting; without them the estate count is simply wrong.
+- [x] **`createIcon`'s `name` is `string` rather than a union of `names`.** The registry is closed and the writer throws on a miss, but callers compute the name - `checklistActionIcon(action)`, and the view factory's descriptor `icon` - so a union would reject calls the runtime accepts today. **Runtime decided the vocabulary**, the same way it did for `status.type`.
+- [x] **`decorateButton` takes `HTMLButtonElement` because the writer demands one and throws otherwise.** Its runtime guard exists for callers that cannot prove it, not to widen the contract; declaring `Element` to spare the callers would have described them instead of the surface.
+- [x] **`names` is declared even though nothing reads it.** It is published, and a contract describes the surface rather than the callers - the rule `0.33.33.38.2.2.2`, `.8`, and `.3` each followed.
+
+**One consumer needed a single annotation, and it is the whole adoption cost.** `notes.js`'s `openCollectionActionsDialog(collection = null, trigger = null)` inferred `trigger` as `null` from its default; once `createIconButton` returned a real `HTMLButtonElement`, its one caller - which always passes one - stopped typechecking. **That parameter carried no diagnostic of its own**, so annotating it moves nothing out of `0.33.33.39`'s budget; without it the ledger would have gone `notes.js: 2345 increased 17 -> 18`, and the surface would have been mistyped to hide a caller's mistake.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 9,217 | **9,164** |
+| Declared namespace members | 23 | **24** |
+| Undeclared namespace members | 41 | **40** |
+| Diagnostics from `icons` being undeclared | 53 | **0** |
+| `shared/icons.js` diagnostics | 28 | **28** |
+| Estate-wide `TS7006` (the `0.33.33.39` budget) | 3,052 | **3,052** |
+| Explicit `any` | 0 | **0** |
+| Consumers converted | - | **0** |
+| Runtime writers changed | - | **0** |
+| Unique surfaces / publication occurrences | 66 / 69 | **66 / 69** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+Canonical root families: `params` 4,713 unchanged, `state` **1,863 unchanged**, `dom` 1,484 unchanged, genuine `unknown` **408 unchanged**, `namespace` **581 to 528**, `assorted` 168 unchanged.
+
+**`unknown` did not move, which is the evidence that the preflight's zero-trust-boundary reading was right.** Nothing in this writer is asynchronous, nothing parses a body, and every member either returns the element it built or throws. **All 53 came out of `namespace` and nothing else moved**, which is what a declaration-only child should look like.
+
+**Those family figures are restated, because closing this child found two defects in the canonical classifier and the first draft of this table carried both.** The reconciliation was forced by a simple question the numbers could not answer: `modal` removed 64 namespace diagnostics, yet the estate reported 72 more `unknown` and 72 fewer `namespace` than subtraction allowed.
+
+- **The classifier still assigned every `TS18046` to `unknown` by its compiler code.** `0.33.33.38.2.2` had already ratified the opposite - a `TS18046` on an *undeclared* member is an index-signature symptom that resolves when the member is declared - and **the tool was never changed to match the decision**. Correcting it reproduced the `0.33.33.38.2.2.8` closeout table exactly, to the diagnostic, which is the evidence that the ratified model was right and the instrument had drifted from it.
+- **The classifier recognised the namespace root only when it was spelled `LongtailForge`.** `namespace.icons` and `root.icons` - the IIFE's own alias, used throughout `public/js/shared` and `task-dialog.js` - fell through to page-local state. **That is measuring the spelling rather than the binding**, the same defect `0.33.33.38.2.1` was caught by, and it had been inflating `state` and deflating `namespace` by 52 across the whole estate.
+
+**The nine diagnostics this child first reported as page-local-state eliminations were never page-local state.** They are the nine `icons` reads written through a root alias - `shared/file-attachments.js`, `shared/file-preview.js`, `shared/view-builder.js`, `shared/view-renderer.js`, and `task-dialog.js` - and after the correction all 53 resolve out of `namespace`. **No future checkpoint's page-local-state budget was reduced by this child**, and any budget that had been credited with those nine was being credited with a measurement error.
+
+**Thirteen diagnostics still sit on lines that name `icons`, and not one of them is this surface's.** All thirteen read `TS18048: 'window.LongtailForge' is possibly 'undefined'`, the attribution model resolves every one of them to the **root** rather than to a member, and they fall in six files - `clients-projects.js`, `files.js`, `notes.js`, `tags.js`, `tasks.js`, and `time-entries.js`. **At every one of the thirteen the member read is already optional-chained and the root read is not**; the files that write `window.LongtailForge?.icons` produce none.
+
+**They belong to `0.33.33.38.2`'s root-optionality cohort and they join its actionable half now.** That checkpoint's own rule is that a root diagnostic on a line reaching an *undeclared* member resolves nothing until the member is declared - so these thirteen were parked, and declaring `icons` is exactly what unparks them. **The right change there is an optional root read, not a checked accessor**: the member is optional at all thirteen sites and the fallback is real, so acquiring `icons` as required to zero a number would delete behaviour this child spent its whole preflight proving.
+
+The closeout claim is therefore exact: **`icons` member-declaration debt is zero, and thirteen expressions naming the surface retain independently owned namespace-root optionality debt.**
+
+**No source contract needed retargeting.** Thirteen contracts read `shared/icons.js` itself and none asserts a consumer expression - the opposite of `0.33.33.38.2.2.3`, where ten pinned the receiver at the call site. **Nothing moved, so nothing had to follow it.**
+
 ## Version 0.33.33.38.2.2.3 - Declare the `LongtailForge.modal` dialogs
 
 **Model: Medium Effort** - the widest surface in the rollup, 29 required reads across 16 files, and a 135-line writer that made the contract unambiguous.

@@ -2030,6 +2030,10 @@
     return view.createElement("span", { className: "notes-collection-actions", children: [trigger] });
   }
 
+  /**
+   * @param {HTMLButtonElement | null} [trigger] The button that opened the dialog, so focus
+   * returns to it on close. Its one caller always supplies one.
+   */
   function openCollectionActionsDialog(collection = null, trigger = null) {
     const view = requireView();
     if (!collectionActionsDialog || !collectionActionsDialogBody) {
