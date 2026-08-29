@@ -55,6 +55,28 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserRecords} BrowserRecords */
+
+  /**
+   * The record matchers this page cannot filter without.
+   *
+   * Acquired at the point of use, so a missing surface still fails at exactly the moment it
+   * failed before `0.33.33.38.2.6.4` made the read checked. `time-entries.html` is the only page
+   * that loads `shared/records.js`, and it loads it ahead of this script.
+   *
+   * `shared/page-controller.js` and `time-entry-dialog.js` guard the same members and fall back,
+   * and they are right to: six of the seven pages that load the page controller never receive
+   * `records.js` at all. **This page does, so here the dependency is real.**
+   * @returns {BrowserRecords}
+   */
+  function requireRecords() {
+    const records = window.LongtailForge?.records;
+    if (!records) {
+      throw new Error("Time Entries requires LongtailForge.records.");
+    }
+    return records;
+  }
+
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserPageController} BrowserPageController */
 
   /**
@@ -763,11 +785,11 @@
   }
 
   function matchesClient(entry, client) {
-    return window.LongtailForge.records.matchesClient(entry, client);
+    return requireRecords().matchesClient(entry, client);
   }
 
   function matchesProject(entry, project) {
-    return window.LongtailForge.records.matchesProject(entry, project);
+    return requireRecords().matchesProject(entry, project);
   }
 
   function parseDateInput(value) {
