@@ -912,7 +912,7 @@
 
   function createDownloadOnlyMarker(row) {
     const label = filePreview.previewUnavailableLabel(row);
-    const icon = window.LongtailForge.icons?.createIcon?.("eye", { decorative: true });
+    const icon = window.LongtailForge?.icons?.createIcon?.("eye", { decorative: true });
     const marker = createFilesElement("span", {
       className: "action-button icon-button files-row-action files-row-preview-unavailable",
       attrs: {
@@ -936,7 +936,7 @@
 
   function createDownloadAction(row) {
     const label = `Download ${row.fileName}`;
-    const icon = window.LongtailForge.icons?.createIcon?.("download", { decorative: true });
+    const icon = window.LongtailForge?.icons?.createIcon?.("download", { decorative: true });
     const link = createFilesElement("a", {
       className: "button-link action-button view-action-button icon-button files-row-action",
       attrs: {
