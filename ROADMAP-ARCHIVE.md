@@ -1,5 +1,34 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.6.1 - Make the namespace root optional where `icons` already is
+
+**Model: Low Effort** - thirteen diagnostics, eight edited lines, and the smallest truthful cohort the root-optionality estate contains.
+
+- [x] **Eight lines, not thirteen, because the compiler narrows the rest.** A fail-first probe changed only the guard at `clients-projects.js:1828` and **both that line and the guarded call beneath it resolved**. The same shape held at the seven other test sites, so the five guarded calls needed no edit at all.
+- [x] **Nothing became required and nothing became optional that was not.** All 54 `icons` reads in the estate are still guard-dominated, both `footer.js` probes are untouched, and no accessor was introduced. The change is one character at each of eight sites.
+- [x] **The `0.33.33.39` budget did not move.** `TS7006` is 3,052 either side, the ledger records **0 increases and 6 decreases**, all `TS18048`, and genuine `unknown` is 408 either side - so no `0.33.33.38.4` boundary moved either.
+
+**The behavioural claim is narrow, and stating it narrowly is the point.** No intended feature or fallback behaviour changed. In five of the six files the new chain is unreachable in practice, because they already assign into `window.LongtailForge` or read it unguarded elsewhere and an absent root crashes them first. **`tags.js` is the exception**: lines 153 and 154 were its only unguarded root reads, so **that one file now tolerates namespace-root absence** - consistently with the `icons` dependency it had already made optional. It would be wrong to close this slice by calling it "no runtime difference".
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 9,164 | **9,151** |
+| Namespace surface family | 528 | **515** |
+| Root-optionality estate | 189 | **176** |
+| Class A remaining | 15 | **2** |
+| `TS7006` (the `0.33.33.39` budget) | 3,052 | **3,052** |
+| genuine `unknown` | 408 | **408** |
+| Declared / undeclared members | 24 / 40 | **24 / 40** |
+| Unique surfaces / publication occurrences | 66 / 69 | **66 / 69** |
+| Runtime writers changed | - | **0** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**One assertion pinned the receiver spelling rather than the call it names, and the suite found it after a reference search had not.** `icon-control-conversion.contract.mjs` claims Tasks row actions use the shared icon button helper; root optionality was never part of that claim. It now matches the call through either root form and **still rejects a bare local and a different function** - proved by making each of those four cases pass or fail on purpose. The first search missed it because the shell mangled the regex escaping, which is the ordinary way a reference audit under-reports: **a search only counts as evidence in a form that can actually match the file**, and the source-contract suite is the backstop that does not depend on getting that right.
+
+**This slice was first committed under the wrong checkpoint identifier and `checkpoint:validate` passed anyway.** The trailer read `0.33.33.38.2.3`, a live section owning entirely different work. The validator verifies that a declared checkpoint exists, not that it is the right one, so **its passing proved nothing about ownership** - recorded as a branch rule rather than left as a footnote here.
+
 ## Version 0.33.33.38.2.2.4 - Declare the `LongtailForge.icons` helpers
 
 **Model: Medium Effort** - four published members, 17 consumer files, and **zero consumer changes**, because the estate had already decided how this surface is used.
