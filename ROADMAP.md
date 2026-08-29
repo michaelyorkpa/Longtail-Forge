@@ -208,15 +208,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Take one semantic class at a time and one surface at a time.** The classes want different mechanisms, and a member name is not a semantics: `cachedFetch` sits in both A and B inside a single file.
 - [ ] **Class E is not adoptable and must not be swept in.** Those 148 resolve when their member is declared, and adopting the root there trades one diagnostic for another - the rule `0.33.33.38.2.1` established and remeasured.
 
-#### 0.33.33.38.2.6.2 - Class B: `LongtailForge.pageController`
-
-**15 diagnostics across 6 files - `clients-projects.js`, `stop-watch.js`, `tasks.js`, `time-entries.js`, `user-admin.js`, `workbench.js`.** The largest single-surface, single-mechanism group in class B, and its interface `BrowserPageController` already declares all five published members accurately.
-
-- [ ] **Reuse the existing interface. This child is acquisition, not declaration.** If the declaration turns out to be stale, stop and report rather than fixing two problems in one change.
-- [ ] **Prove delivery per page before converting anything.** Every consumer page must load `shared/page-controller.js` ahead of the consumer script; where it does, a missing surface is already a broken page and checked acquisition fails at the same moment.
-- [ ] **Acquire at the existing execution point, which is not uniform here.** Six sites are module-scope `register(...)` calls and one is a module-scope alias in `tasks.js`; those have always failed at script load. **Do not move them into a function to tidy the shape** - that would delay a failure the page currently takes at load.
-- [ ] **`shared/module-actions.js:389` guards `namespace.pageController?.setStatus` and is not this cohort's.** A shared member name is not a shared semantics; leave the one genuinely optional read alone.
-
 #### 0.33.33.38.2.6.3 - The declared-member root remainder
 
 **13 diagnostics: 11 class-B across four surfaces, and the 2 class-A `cachedFetch` sites.** What is left after `pageController` disagrees with itself in ways that make one cohort wrong.

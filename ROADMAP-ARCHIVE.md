@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.6.2 - Adopt the checked `pageController` read
+
+**Model: Low Effort** - class B, one surface, fifteen sites, and a result larger than the cohort because a checked accessor answers three questions at once.
+
+- [x] **All fifteen are genuinely required, and delivery proves it rather than the code's tone.** Every site dereferences the surface without a guard and has no fallback, and **all seven consumer pages load `shared/page-controller.js` ahead of the consumer script** - `clients.html`, `projects.html`, `tasks.html`, `time-tracker.html`, `time-entries.html`, `user-admin.html`, and `workbench.html`. A missing surface is already a broken page.
+- [x] **The accessor is called at the existing execution point, which mattered more here than usual.** Six of the fifteen are module-scope `register(...)` calls and one is a module-scope alias in `tasks.js`; those have always failed at script load and still do. The thirteen inside functions still fail when the function runs. **Nothing moved earlier and nothing moved later.**
+- [x] **Thirty-one diagnostics closed rather than the fifteen targeted, and all thirty-one are this surface at these sites** - fifteen `'window.LongtailForge' is possibly 'undefined'`, fourteen `'window.LongtailForge.pageController' is possibly 'undefined'` on the same expressions, and two on the `tasks.js` alias local. **An accessor returning a non-optional `BrowserPageController` resolves the root, the member, and the alias in one change.** The root estate fell by exactly the fifteen it owned.
+- [x] **The one genuinely optional read was left alone.** `shared/module-actions.js:389` guards `namespace.pageController?.setStatus` and falls through when it is absent. It is not in this cohort, it was not touched, and **a shared member name is not a shared semantics.**
+- [x] **The interface was reused, not rewritten.** `BrowserPageController` already declared all five published members accurately, so this child added no declaration and changed no writer.
+
+**Three neighbouring class-B surfaces were deliberately left behind, each for its own reason.** `records` because four of its six sites are in `shared/billing.js`, whose publication `0.33.33.38.2.2.7` has not yet established is live at all - **adopting there would make possibly-dead code more correct**. `cachedFetch` because it sits in **both** semantic classes inside a single file. `appShellBootstrap` and `formatters` because one diagnostic each is not evidence of shared delivery or ownership.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 9,151 | **9,120** |
+| Namespace surface family | 515 | **484** |
+| Root-optionality estate | 176 | **161** |
+| Class B remaining | 26 | **11** |
+| `TS7006` (the `0.33.33.39` budget) | 3,052 | **3,052** |
+| genuine `unknown` | 408 | **408** |
+| `0.33.33.39`-`.44` budgets | 4,713 / 1,863 / 168 | **unchanged** |
+| Declared / undeclared members | 24 / 40 | **24 / 40** |
+| Unique surfaces / publication occurrences | 66 / 69 | **66 / 69** |
+| Runtime writers changed | - | **0** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**One assertion pinned the acquisition form rather than the registration it names.** `time-entries-screen.contract.mjs` claims the page registers a smoke controller; how the surface was acquired was never part of that claim. It now matches either form and **still rejects a different page id, a bare `register(` call, and an unrelated receiver** - proved by running all five cases. **That is the second consecutive child whose only contract change was a receiver spelling**, which is worth noticing: an assertion that pins the receiver is testing the acquisition, not the behaviour, and it will keep failing every time adoption reaches its file.
+
 ## Version 0.33.33.38.2.6.1 - Make the namespace root optional where `icons` already is
 
 **Model: Low Effort** - thirteen diagnostics, eight edited lines, and the smallest truthful cohort the root-optionality estate contains.
