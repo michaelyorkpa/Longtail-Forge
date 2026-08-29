@@ -208,14 +208,39 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Take one semantic class at a time and one surface at a time.** The classes want different mechanisms, and a member name is not a semantics: `cachedFetch` sits in both A and B inside a single file.
 - [ ] **Class E is not adoptable and must not be swept in.** Those 148 resolve when their member is declared, and adopting the root there trades one diagnostic for another - the rule `0.33.33.38.2.1` established and remeasured.
 
-#### 0.33.33.38.2.6.3 - The declared-member root remainder
+#### 0.33.33.38.2.6.3 - `LongtailForge.cachedFetch`
 
-**13 diagnostics: 11 class-B across four surfaces, and the 2 class-A `cachedFetch` sites.** What is left after `pageController` disagrees with itself in ways that make one cohort wrong.
+**5 diagnostics in one file, and the surface sits in both semantic classes at once - which is the whole preflight question, not an inconvenience.**
 
-- [ ] **`cachedFetch` sits in both semantic classes inside a single file, and that is its whole preflight question.** Two sites optional-chain the member and three require it, one through a local alias. **A surface whose own consumer disagrees with itself is not adoptable from a sibling's evidence** - establish which paths are genuinely cache-optional before converting anything.
-- [ ] **`records` is blocked behind archaeology, not behind difficulty.** Four of its six sites are in `shared/billing.js`, which has no consumer anywhere in the repository; `0.33.33.38.2.2.7` is deciding whether that publication is live. **Settle that first**, or this child makes possibly-dead code more correct. Its other two sites are in `time-entries.js` and could move separately if the evidence supports it.
-- [ ] **`appShellBootstrap` and `formatters` carry one diagnostic each.** Do not sweep a surface in because it shares a mechanism; delivery and ownership are per surface, and a one-site cohort is allowed to be a one-site cohort.
-- [ ] **Class E is still 148 and still not adoptable.** It drains as `0.33.33.38.2.2` declares members - `icons` and `pageController` both arrived in class A and B that way - so **remeasure before drawing any child from it.**
+`workbench.js:821` and `:825` optional-chain the member around cache reads and writes; `:806`, `:945`, and `:988` require it, one of them through a local alias. **A surface whose own consumer disagrees with itself is not adoptable from a sibling's evidence.**
+
+- [ ] **Establish which paths are genuinely cache-optional before converting anything.** A cache read that tolerates absence and a fetch that does not are different contracts wearing one member name, and the optional two may be deliberate degradation rather than defensive noise.
+- [ ] **Do not split it by TypeScript symptom.** Both classes are `TS18048`; the runtime contract is what separates them.
+- [ ] Prove delivery on `workbench.html` before requiring anything.
+
+#### 0.33.33.38.2.6.4 - `LongtailForge.records` at its live consumer
+
+**2 diagnostics at `time-entries.js:766` and `:770`, and they are the only actionable `records` sites in the estate.**
+
+`shared/records.js` publishes five members, is **fully annotated with `// @ts-check` and JSDoc**, and `BrowserRecords` already declares all five accurately - so this child is acquisition, not declaration.
+
+- [ ] **Delivery decides this one, and it is unusually clear.** `shared/records.js` is loaded by **exactly one page**, `time-entries.html`, ahead of `time-entries.js`. **On that page the dependency is real**; there is no guard and no fallback at either site.
+- [ ] **Its guarded neighbours are right to guard, and that is not a contradiction.** `shared/page-controller.js:44` and `time-entry-dialog.js:433` and `:441` test the same members and fall back - because **six of the seven pages that load the page controller never receive `records.js` at all**. Leave every one of them alone.
+- [ ] **`shared/billing.js` is excluded and stays excluded.** Its four `records` sites are in a file **no page in the repository loads**. `0.33.33.38.2.2.7` decides whether that publication should remain; **do not make possibly-dead billing code more correct before it does.** If archaeology proves it live, those four sites rejoin a `records` acquisition owner then.
+- [ ] **Use a narrow `requireRecords()`, not the page controller's accessor.** `time-entries.js` already holds one for a different surface with different delivery; **two surfaces that ship differently do not share an acquisition.**
+
+#### 0.33.33.38.2.6.5 - `LongtailForge.appShellBootstrap`
+
+**1 diagnostic at `navigation.js:714`** - `const bootstrapAdapter = window.LongtailForge.appShellBootstrap;`, inside `loadAppShellBootstrap`.
+
+- [ ] **A one-site cohort is allowed to be a one-site cohort.** Do not sweep it in with another surface because it shares a mechanism; delivery and ownership are per surface.
+- [ ] The writer already throws its own error two lines later when the adapter has no `normalize`. **Establish what that existing check means for the acquisition** before adding a second one.
+
+#### 0.33.33.38.2.6.6 - `LongtailForge.formatters`
+
+**1 diagnostic at `time-entries.js:794`** - `return window.LongtailForge.formatters.entryStatus(status);`.
+
+- [ ] **Prove delivery per page as its own question.** `formatters` is declared and accurate, but this child inherits nothing from `records` beyond sharing a file.
 
 #### 0.33.33.38.2.7 - Teach the publication inventory the logical-assignment root
 
