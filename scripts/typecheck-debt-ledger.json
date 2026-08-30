@@ -478,7 +478,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 9012,
+      "errorCount": 8977,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -527,7 +527,7 @@
         "public/js/audit-log.js": [
           {
             "code": 18046,
-            "count": 9
+            "count": 5
           },
           {
             "code": 18047,
@@ -535,7 +535,7 @@
           },
           {
             "code": 18048,
-            "count": 5
+            "count": 1
           },
           {
             "code": 2339,
@@ -1003,7 +1003,7 @@
           },
           {
             "code": 2339,
-            "count": 69
+            "count": 68
           },
           {
             "code": 2345,
@@ -1457,7 +1457,7 @@
         "public/js/shared/settings-host.js": [
           {
             "code": 2339,
-            "count": 26
+            "count": 25
           },
           {
             "code": 7006,
@@ -1645,7 +1645,7 @@
         "public/js/support-view-audit.js": [
           {
             "code": 18046,
-            "count": 9
+            "count": 7
           },
           {
             "code": 18047,
@@ -1653,7 +1653,7 @@
           },
           {
             "code": 18048,
-            "count": 3
+            "count": 1
           },
           {
             "code": 2339,
@@ -1731,7 +1731,7 @@
           },
           {
             "code": 2339,
-            "count": 504
+            "count": 503
           },
           {
             "code": 2345,
@@ -1809,7 +1809,7 @@
           },
           {
             "code": 2339,
-            "count": 161
+            "count": 159
           },
           {
             "code": 2345,
@@ -1869,7 +1869,7 @@
         "public/js/time-entries.js": [
           {
             "code": 18046,
-            "count": 14
+            "count": 9
           },
           {
             "code": 18047,
@@ -1877,7 +1877,7 @@
           },
           {
             "code": 18048,
-            "count": 17
+            "count": 12
           },
           {
             "code": 2339,
@@ -1903,7 +1903,7 @@
         "public/js/time-entry-dialog.js": [
           {
             "code": 18046,
-            "count": 9
+            "count": 5
           },
           {
             "code": 18047,
@@ -1915,7 +1915,7 @@
           },
           {
             "code": 2339,
-            "count": 119
+            "count": 118
           },
           {
             "code": 2698,
@@ -2057,7 +2057,7 @@
         "public/js/user-settings.js": [
           {
             "code": 18046,
-            "count": 18
+            "count": 17
           },
           {
             "code": 18047,
@@ -2065,11 +2065,11 @@
           },
           {
             "code": 18048,
-            "count": 12
+            "count": 11
           },
           {
             "code": 2339,
-            "count": 58
+            "count": 57
           },
           {
             "code": 2551,
@@ -2806,7 +2806,7 @@
   },
   "totals": {
     "files": 1056,
-    "errors": 9012,
+    "errors": 8977,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

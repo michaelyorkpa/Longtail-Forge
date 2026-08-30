@@ -53,6 +53,27 @@
   bulkApplyButton?.addEventListener("click", applyBulkTagAction);
   selectAllInput?.addEventListener("change", toggleVisibleSelection);
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTimezones} BrowserTimezones */
+
+  /**
+   * The timezone state and formatters this page cannot render dates without.
+   *
+   * Acquired at the point of use, so a missing surface still fails at exactly the moment it
+   * failed before `0.33.33.38.2.2.6.2` made the read checked. Every page that loads this script
+   * loads `shared/timezones.js` ahead of it.
+   *
+   * `navigation.js`, `shared/settings-host.js`, `tasks.js`, and `task-dialog.js` read the same
+   * surface optionally and fall back, and they keep doing so: absence is a real state there.
+   * @returns {BrowserTimezones}
+   */
+  function requireTimezones() {
+    const timezones = window.LongtailForge?.timezones;
+    if (!timezones) {
+      throw new Error("Time Entries requires LongtailForge.timezones.");
+    }
+    return timezones;
+  }
+
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserFormatters} BrowserFormatters */
@@ -194,7 +215,7 @@
   }
 
   async function initializeTimeEntries() {
-    await window.LongtailForge.timezones.loadSessionTimezone();
+    await requireTimezones().loadSessionTimezone();
     await window.LongtailForge.workspaceContextReady;
     await loadTimeEntryData();
     openAddFromUrl();
@@ -717,7 +738,7 @@
     }
 
     const exclusiveEndDate = new Date(
-      window.LongtailForge.timezones.zonedDateTimeToUtcIso(addDateInputDays(filterEndDateInput.value, 1), "00:00:00"),
+      requireTimezones().zonedDateTimeToUtcIso(addDateInputDays(filterEndDateInput.value, 1), "00:00:00"),
     );
     return { start: startDate, end: exclusiveEndDate };
   }
@@ -820,14 +841,14 @@
       return null;
     }
 
-    const date = new Date(window.LongtailForge.timezones.zonedDateTimeToUtcIso(value, "00:00:00"));
+    const date = new Date(requireTimezones().zonedDateTimeToUtcIso(value, "00:00:00"));
 
     return Number.isFinite(date.getTime()) ? date : null;
   }
 
   function formatDate(date) {
     return Number.isFinite(date.getTime())
-      ? window.LongtailForge.timezones.formatDate(date)
+      ? requireTimezones().formatDate(date)
       : "";
   }
 
@@ -874,7 +895,7 @@
   }
 
   function formatDateInput(date) {
-    return window.LongtailForge.timezones.formatDateInput(date);
+    return requireTimezones().formatDateInput(date);
   }
 
   function formatDuration(totalSeconds) {

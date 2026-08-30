@@ -1,5 +1,36 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.6.2 - Declare the `LongtailForge.timezones` surface
+
+**Model: Medium Effort** - twelve published members, seventeen adopted reads across five files, and the child that tested whether a writer carrying parameter debt can still publish a truthful contract.
+
+- [x] **The `0.33.33.39` gate holds, and it was measured rather than predicted.** `shared/timezones.js` carries **17 unannotated parameters, twelve of them on published methods**, and after drafting the contract and wiring the member it carries **exactly the same 17** - none fixed, none moved, none added - with the estate `TS7006` total unchanged at 2,983. **This is the `icons` outcome rather than the `settingsRenderer` one**, and the difference is directional: an implicit-`any` parameter is *wide enough* to satisfy a narrower declared contract, where `collectPayload(scope = document)`'s inferred `Document` was *too narrow* for its own callers.
+- [x] **There is no `0.33.33.38.4` boundary despite a member that fetches.** `loadSessionTimezone` calls `/api/session` and **returns the module's own `userTimezone` on every path** - non-OK response, unparseable body, thrown error, and success, where the parsed timezone is passed *into* `setUserTimezone` rather than back out. The whole body sits in one `try`, so it never rejects. **Genuine `unknown` is 379 either side.**
+- [x] **The normalizer is what makes the getters strong.** `normalizeTimezone` coerces with `String(...)`, validates by constructing an `Intl.DateTimeFormat` for the candidate, and falls back to `"America/New_York"` - so every published getter returns a **non-empty valid zone name**. It takes `unknown` because it accepts anything and returns `string` because it always does. **The zone is not a closed union**: the runtime preserves any name `Intl` accepts, so declaring one would have rejected valid input.
+- [x] **The guarded consumers were left exactly as they were.** `navigation.js`, `shared/settings-host.js`, `tasks.js`, and `task-dialog.js` read the surface optionally and fall back; all four **resolved on the declaration alone** with no adoption at all.
+
+**One site was converted and then reverted, and the reason is the point.** `user-settings.js:445` sits inside its own `if (window.LongtailForge?.timezones)` guard and carried **no diagnostic**. A mechanical sweep converted it; requiring a surface the author deliberately made optional would have been scope creep wearing a consistency argument, so it went back. **Seventeen sites needed adoption and exactly seventeen were adopted.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 9,012 | **8,977** |
+| Namespace surface family | 483 | **448** |
+| genuine `unknown` | 379 | **379** |
+| Declared / undeclared members | 25 / 38 | **26 / 37** |
+| Class-E root diagnostics | 147 | **135** |
+| `TS7006` (the `0.33.33.39` budget) | 2,983 | **2,983** |
+| `0.33.33.39`-`.44` budgets | 4,641 / 1,858 / 167 | **unchanged** |
+| `shared/timezones.js` diagnostics | 17 | **17** |
+| Runtime writers changed | - | **0** |
+| Unique surfaces / publication occurrences | 65 / 68 | **65 / 68** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**35 diagnostics, the largest single-child reduction in this rollup** - and the declaration did what `0.33.33.38.1` predicted rather than simply deleting errors: sixteen vague `TS18046 unknown` reads became precise `TS18048` optionality, which the seventeen adopted acquisitions then closed.
+
+**No source contract needed retargeting, and that is a consequence of the adoption boundary rather than luck.** All six assertions naming this surface target either the writer - byte-identical - or `settings-host.js` and `navigation.js`, the two guarded consumers this child deliberately did not touch.
+
 ## Version 0.33.33.38.2.2.6.1 - Declare the `LongtailForge.capturePrompt` dialog
 
 **Model: Low Effort** - one published member, two consumers adopted, one left alone, and a writer that was chosen precisely because both blocker classes were structurally absent.
