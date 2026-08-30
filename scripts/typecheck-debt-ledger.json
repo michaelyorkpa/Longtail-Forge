@@ -423,7 +423,6 @@
         "public/js/shared/api-client.js",
         "public/js/shared/app-shell-bootstrap.js",
         "public/js/shared/asset-version.js",
-        "public/js/shared/billing.js",
         "public/js/shared/browser-recovery.js",
         "public/js/shared/cached-fetch.js",
         "public/js/shared/capture-prompt.js",
@@ -479,7 +478,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 9106,
+      "errorCount": 9017,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1214,32 +1213,6 @@
           },
           {
             "code": 7006,
-            "count": 1
-          }
-        ],
-        "public/js/shared/billing.js": [
-          {
-            "code": 18047,
-            "count": 4
-          },
-          {
-            "code": 18048,
-            "count": 11
-          },
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 2349,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 69
-          },
-          {
-            "code": 7053,
             "count": 1
           }
         ],
@@ -2836,8 +2809,8 @@
     }
   },
   "totals": {
-    "files": 1057,
-    "errors": 9106,
+    "files": 1056,
+    "errors": 9017,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
