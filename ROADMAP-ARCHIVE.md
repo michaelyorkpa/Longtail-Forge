@@ -1,5 +1,38 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.6.3 - Adopt `cachedFetch` under both of its runtime policies
+
+**Model: Low Effort** - one surface, two policies, and the child that closes the declared-member root estate down to its one blocked remainder.
+
+- [x] **The two policies are a division of responsibility, not a contradiction, and the consumer already wrote them that way.** `readCached` and `writeCached` are sessionStorage convenience: `renderWarmWorkbench` optional-chains both uses and falls back to `null`, and the registry helpers do the same with a no-op write. `getJson` is the data path: both call sites `await` it unguarded. **The three cache reads join the optionality their own uses already have; the two data reads acquire.** Requiring the surface at the cache sites would have deleted a warm-render path meant to survive its absence.
+- [x] **Site 806 was decided by its uses, not by its own syntax.** `const cachedFetch = window.LongtailForge.cachedFetch;` looked required and is not - lines 807 and 808 both write `cachedFetch?.readCached(...) || null`. **An unguarded alias declaration is not evidence of a required dependency**, which is the same trap the `0.33.33.38.2.6.1` guard-dominance audit was built to avoid.
+- [x] **Delivery was proved for the data path.** `workbench.html` loads `shared/cached-fetch.js` as a deferred script at line 16 and `workbench.js` at 32; deferred scripts execute in document order, so the writer publishes first. The writer's own `requireApi()` already throws when *its* dependency is missing - **the same pattern this branch established, inside the surface being adopted.**
+- [x] **Acquisition sits where failure already lands.** Inside `loadClientProjectData`'s existing `try`, which already recovers to `{ clients: [], workspaceProjects: [] }`, and uncaught in `loadFocusModes`, which already does not recover. **Neither moved.**
+- [x] **Seven diagnostics closed rather than the five targeted** - five on the namespace root and two on the member in the `getJson` expressions.
+
+**`dashboard.entry.js` is a required consumer and was deliberately not touched.** It reads `namespace.cachedFetch.getJson(...)` through a root alias, so it carries no root diagnostic, and **its delivery is its own**: an awaited `importScript("/js/shared/cached-fetch.js")` three statements before the call. **A consumer without a diagnostic is still a consumer**, and it was classified rather than skipped.
+
+**`BrowserCachedFetch` was verified member by member against the writer.** All four match, `readCached` returns `unknown`, and `getJson` returns `Promise<CachedFetchResult>` whose `data` is `unknown`. **No network return was narrowed** - that boundary stays `0.33.33.38.4`'s, and the estate-wide `TS18046` count is unchanged at 480 either side.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 9,113 | **9,106** |
+| Namespace surface family | 477 | **470** |
+| Root-optionality estate | 157 | **152** |
+| Class A (intentionally optional) | 2 | **0** |
+| Class B (genuinely required) | 7 | **4**, all blocked billing |
+| `TS7006` (the `0.33.33.39` budget) | 3,052 | **3,052** |
+| genuine `unknown` | 408 | **408** |
+| `0.33.33.39`-`.44` budgets | 4,713 / 1,863 / 168 | **unchanged** |
+| Runtime writers changed | - | **0** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**Three source assertions name `cachedFetch.getJson("<route>")` as a behaviour claim about which helper fetches what, and a named local keeps that shape literally true** - so this is the first root child in four with no assertion to retarget. The previous three each had one pinning a receiver; here the assertions already named the call, and the implementation was chosen on its merits rather than to satisfy them.
+
+**This closes the declared-member root estate apart from one blocked group.** Class A is empty, and the only class-B diagnostics left are the four `records` reads in `shared/billing.js` - a file no page in the repository loads, waiting on `0.33.33.38.2.2.7` to decide whether it should exist at all.
+
 ## Version 0.33.33.38.2.6.5 - Make the app-shell bootstrap root read safe
 
 **Model: Low Effort** - one character, no accessor, and the first class-B child where adding one would have been the wrong answer.
