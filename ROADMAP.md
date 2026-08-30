@@ -329,15 +329,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Preflight each child writer-first and do not promise a child from a sibling's clearance.** Two members published by the same writer share a risk profile; two members with the same diagnostic count share nothing.
 - [ ] **The 78 class-E root diagnostics resolve as their members are declared**, and they are not separate work. `0.33.33.38.2.6` closed declared-member root debt to zero; these are the parked half, and they drain child by child.
 
-#### 0.33.33.38.2.2.6.2 - `LongtailForge.timezones`
-
-**12 published members, 12 namespace and 15 root diagnostics - the largest remaining prize in the rollup, and a pure published contract despite one member that fetches.**
-
-`shared/timezones.js` publishes twelve members of which **eleven are pure formatters and normalizers**. The twelfth, `loadSessionTimezone`, calls `/api/session` - and **returns the module's own normalized `userTimezone` on every path**: on a non-OK response, on a parse failure, on a thrown error, and on success, where the parsed body is passed through `setUserTimezone` rather than returned. **No published member ever hands back wire data.**
-
-- [ ] **This is the case the previous partition was drawn to catch and got backwards.** A file-level `fetch(` search called this writer wire-touching; per published member it is not. **The test is what the surface returns, not what the file does.**
-- [ ] **The open question is writer parameter debt, not trust.** 17 unannotated parameters, owned by `0.33.33.39`. Probe it the way `0.33.33.38.2.2.4` did for `icons`: draft the contract, wire it, and measure whether the writer needs annotating. **If it does, this is `settingsRenderer`'s shape and the child stops.**
-
 #### 0.33.33.38.2.2.6.3 - The dashboard ES-module trio
 
 **3 members - `dashboard`, `dashboardBootstrap`, `esModuleBridge` - 17 namespace diagnostics, 0 root, and every published member pure.**
