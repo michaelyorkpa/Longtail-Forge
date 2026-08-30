@@ -711,7 +711,7 @@
         throw new Error("App shell bootstrap was unavailable.");
       }
 
-      const bootstrapAdapter = window.LongtailForge.appShellBootstrap;
+      const bootstrapAdapter = window.LongtailForge?.appShellBootstrap;
       if (!bootstrapAdapter?.normalize) {
         throw new Error("App shell bootstrap adapter was unavailable.");
       }

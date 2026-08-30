@@ -1,5 +1,34 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.6.5 - Make the app-shell bootstrap root read safe
+
+**Model: Low Effort** - one character, no accessor, and the first class-B child where adding one would have been the wrong answer.
+
+- [x] **The consumer already owns this failure, and the code says so.** `loadAppShellBootstrap` reads the adapter and validates it in the **immediately following statement** - `if (!bootstrapAdapter?.normalize) throw new Error("App shell bootstrap adapter was unavailable.")`. **The optional chain in that guard is the evidence**: the author already intended it to cover an absent adapter, not merely a malformed one. Making the root read safe lets the root-absent case reach the guard that was written for it.
+- [x] **A checked accessor was considered and rejected on the evidence.** It would have **duplicated the validation**, left the existing `?.` dead, and replaced a deliberate error with a new one for a state the guard already covers. Every previous class-B child needed an accessor; **preferring one here for consistency would have been reading the symptom rather than the code.**
+- [x] **The failure anatomy changes and the application behaviour does not, and both are worth saying.** Today an absent root throws a `TypeError` at the read; afterwards the read yields `undefined` and the next statement throws the explicit error. **Nothing observable happens between them**, and **both exceptions are caught by the same bare `catch`**, which awaits `loadWorkspaceSettings()` and `loadSessionWorkspaces()` and returns `null`. Dependency failure is still synchronous within the same call before any subsequent work, now through the function's own explicit validation path. **It is not byte-for-byte identical and this closeout does not claim it is.**
+- [x] **Delivery was proved, not assumed.** `injectErrorBoundaryScripts` puts `shared/app-shell-bootstrap.js` **third in the framework preamble in every page's `<head>`**, after `error-contract.js` and `browser-recovery.js` and before all declared page assets. No page declares it itself, which is why a `<script>`-tag search finds nothing - and `navigation.js` is the **only consumer in the estate**.
+- [x] **The declaration was verified.** `shared/app-shell-bootstrap.js` is `// @ts-check`'d, `normalize` is annotated `unknown` in and `AppShellBootstrap` out, and it is published `Object.freeze({ normalize })`. `BrowserAppShellBootstrapAdapter` matches exactly - **acquisition only, no declaration and no writer change.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 9,114 | **9,113** |
+| Namespace surface family | 478 | **477** |
+| Root-optionality estate | 158 | **157** |
+| Class B remaining | 8 | **7** |
+| `TS7006` (the `0.33.33.39` budget) | 3,052 | **3,052** |
+| genuine `unknown` | 408 | **408** |
+| `0.33.33.39`-`.44` budgets | 4,713 / 1,863 / 168 | **unchanged** |
+| Runtime writers changed | - | **0** |
+| Accessors added | - | **0** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**One assertion pinned the receiver spelling, found before editing rather than by the suite.** `app-shell-bootstrap-boundary.regression.mjs` claims navigation normalizes the unknown response before reading app-shell fields; the receiver was never that claim. It now names the guard and the error as well, and **the retarget is strictly stronger**: it accepts either root form but **rejects guard removal and a changed error message**, neither of which the old regex noticed. That was proved by running all five cases.
+
+**Three consecutive root children have now found an assertion pinning a receiver.** The pattern is stable enough to predict: **an assertion that names how a surface was reached will fail the next time adoption reaches its file**, and what it usually meant to own is the validation or the call.
+
 ## Version 0.33.33.38.2.6.6 - Adopt the checked `formatters` read at its one required site
 
 **Model: Low Effort** - one site, and the interesting part is why the other three consumers stay exactly as they are.

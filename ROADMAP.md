@@ -218,13 +218,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Do not split it by TypeScript symptom.** Both classes are `TS18048`; the runtime contract is what separates them.
 - [ ] Prove delivery on `workbench.html` before requiring anything.
 
-#### 0.33.33.38.2.6.5 - `LongtailForge.appShellBootstrap`
-
-**1 diagnostic at `navigation.js:714`** - `const bootstrapAdapter = window.LongtailForge.appShellBootstrap;`, inside `loadAppShellBootstrap`.
-
-- [ ] **A one-site cohort is allowed to be a one-site cohort.** Do not sweep it in with another surface because it shares a mechanism; delivery and ownership are per surface.
-- [ ] The writer already throws its own error two lines later when the adapter has no `normalize`. **Establish what that existing check means for the acquisition** before adding a second one.
-
 #### 0.33.33.38.2.7 - Teach the publication inventory the logical-assignment root
 
 **Model: Medium Effort - a prerequisite, not a cleanup. `0.33.33.38.2.2` decides which surfaces exist and how to group them by reading this inventory, and the instrument was incomplete.**
