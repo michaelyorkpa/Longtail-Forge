@@ -13,6 +13,25 @@ if (!bridge?.importScripts) {
   throw new Error("Tasks Dashboard requires the ES-module compatibility bridge.");
 }
 
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserEsModuleBridge} BrowserEsModuleBridge */
+
+/**
+ * The dashboard asset loader this module cannot open the Task editor without.
+ *
+ * The module-scope guard above already throws when the bridge is absent, so this can only fail
+ * if the namespace is torn down afterwards - but the guard narrows `bridge` at module scope and
+ * not inside this handler, and asserting what the compiler cannot see is what this branch does
+ * not do. Acquired at the point of use, failing where the raw read failed before.
+ * @returns {BrowserEsModuleBridge}
+ */
+function requireEsModuleBridge() {
+  const esModuleBridge = window.LongtailForge?.esModuleBridge;
+  if (!esModuleBridge) {
+    throw new Error("Tasks Dashboard requires the ES-module compatibility bridge.");
+  }
+  return esModuleBridge;
+}
+
 await bridge.importScripts([
   "/js/shared/task-calendar.js",
   "/js/shared/capture-prompt.js",
@@ -161,7 +180,7 @@ function renderTasksCalendarContribution(contribution, context) {
     }
 
     try {
-      await bridge.importScript("/js/task-dialog.js");
+      await requireEsModuleBridge().importScript("/js/task-dialog.js");
       const opener = window.LongtailForge?.tasksDialog?.openTaskEditor;
 
       if (typeof opener !== "function") {

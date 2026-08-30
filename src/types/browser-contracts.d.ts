@@ -1285,6 +1285,57 @@ export interface BrowserTimezones {
   zonedDateTimeToUtcIso(dateValue: string, timeValue: string, timezone?: string): string;
 }
 
+/**
+ * `LongtailForge.esModuleBridge`, published by `public/js/dashboard.entry.js`.
+ *
+ * The dashboard's asset loader. `dashboard.html` carries **one** script tag - the entry module -
+ * and everything else the page runs, including `dashboard.js`, is loaded through these five
+ * functions.
+ *
+ * **The bridge is frozen onto the namespace before the module's first top-level `await`**, so any
+ * classic script it goes on to load observes a fully published surface. Nothing can see it half
+ * built, because the only code that runs after the assignment and before the first `await` is the
+ * assignment itself.
+ *
+ * **Every path is local-asset only.** `versionedAssetUrl` refuses any URL that leaves this origin
+ * or falls outside `/css/` and `/js/`, and the script and style loaders each refuse an extension
+ * that does not match. Those refusals are thrown, not returned.
+ */
+export interface BrowserEsModuleBridge {
+  /**
+   * Load one contribution list. Styles and scripts are dispatched by `type` and **anything else
+   * is skipped**; a non-array argument is treated as empty.
+   *
+   * The parameter is `unknown` because the writer only checks that the argument is an array and
+   * then reads `type` and `path` defensively off each entry. The shape it is *meant* to receive
+   * is `BrowserAssetContribution` from `framework-contracts`, and naming that here instead would
+   * be **stronger than the runtime** - it would reject the parsed manifest its caller actually
+   * holds and push validation onto a consumer this contract does not own.
+   */
+  loadContributedAssets(assets?: unknown): Promise<void>;
+  /**
+   * Dynamically import one browser script, deduplicated by resolved URL.
+   *
+   * **Resolves the imported module namespace**, which is `unknown` because the specifier is
+   * chosen at runtime - not because anything untrusted was parsed. Callers await it for
+   * sequencing rather than reading anything off it. **Rejects** on a non-local path, on a path
+   * that is not `.js`, and on an import failure.
+   */
+  importScript(assetPath?: unknown): Promise<unknown>;
+  /** Import several scripts concurrently. **Requires an array** and rejects if any one fails. */
+  importScripts(assetPaths: readonly unknown[]): Promise<void>;
+  /**
+   * Append one stylesheet `<link>`, deduplicated by resolved URL. **Resolves with the `load`
+   * event** and rejects when the stylesheet fails or the path is not `.css`.
+   */
+  loadStyle(assetPath?: unknown): Promise<Event>;
+  /**
+   * Resolve a local asset path against the document base and stamp the current asset version.
+   * **Throws** for anything off-origin or outside `/css/` and `/js/`.
+   */
+  versionedAssetUrl(assetPath?: unknown): string;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
@@ -1293,6 +1344,7 @@ export interface LongtailForgeBrowserNamespace {
   capturePrompt?: BrowserCapturePrompt;
   controllers?: PageControllerRegistry;
   errors?: BrowserErrorContract;
+  esModuleBridge?: BrowserEsModuleBridge;
   formatters?: BrowserFormatters;
   icons?: BrowserIcons;
   modal?: BrowserModalDialogs;

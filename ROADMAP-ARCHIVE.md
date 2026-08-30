@@ -1,5 +1,33 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.6.3 - Declare the `LongtailForge.esModuleBridge` loader
+
+**Model: Medium Effort** - five frozen functions, one adopted site, and the first surface in this rollup whose writer the browser loads as a module rather than a classic script.
+
+- [x] **Publication timing was proved against the top-level `await`, not against script order.** `dashboard.html` carries **one** script tag; the entry module assigns the namespace root on its first statement and freezes the bridge onto it at **line 104, eight lines before its first top-level `await` at 112**. **Nothing can observe a half-built bridge**, because the only code between the assignment and the first `await` is the assignment. "Module script first" would not have been an argument.
+- [x] **`loadContributedAssets` takes `unknown`, and refusing the stronger type is the finding.** `BrowserAssetContribution` already exists in `framework-contracts.d.ts`, is browser-visible, and carries exactly the `path` and `type` this function reads - **but the writer validates only array-ness and then reads both fields defensively off each entry.** Naming that contract here would have been **stronger than the runtime** and would have pushed validation onto a consumer holding a parsed manifest this surface does not own. The comment names the intended shape; the parameter says what the runtime accepts.
+- [x] **No `0.33.33.38.4` boundary, and the reason is directional.** `importScript` resolves the imported **module namespace**, which is `unknown` because the specifier is chosen at runtime - **not because anything untrusted was parsed** - and callers `await` it for sequencing without reading anything off it. `loadStyle` resolves the `load` event; `versionedAssetUrl` returns a string and throws for anything off-origin or outside `/css/` and `/js/`; the two plural loaders return `Promise<void>`. **Nothing untrusted comes back out.** Genuine `unknown` is 379 either side.
+- [x] **Both writers are byte-identical and `0.33.33.39` keeps all its debt.** `dashboard.entry.js` holds its 21 diagnostics either side and the estate `TS7006` total is 2,983.
+
+**Adoption was one site, and it was not a policy.** `dashboard.js` and `tasks-dashboard.js` both already hold the checked-read pattern hand-written, and the declaration alone resolved every use but one: `tasks-dashboard.js:164` reads the bridge inside a handler the module-scope guard does not narrow into. **Rewriting that guard to narrow the binding as well as the member was tried first and did not help**, so the site acquires instead - because asserting what the compiler cannot see is what this branch does not do.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,977 | **8,973** |
+| Namespace surface family | 448 | **444** |
+| genuine `unknown` | 379 | **379** |
+| Declared / undeclared members | 26 / 37 | **27 / 36** |
+| Class-E root diagnostics | 135 | **135** |
+| `TS7006` (the `0.33.33.39` budget) | 2,983 | **2,983** |
+| `dashboard.entry.js` diagnostics | 21 | **21** |
+| Runtime writers changed | - | **0** |
+| Module semantics | export marker, 5 top-level awaits | **unchanged** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**Two source assertions pinned the receiver rather than the behaviour they name**, and both claim the Task editor loads only when a calendar item is opened. They now match either acquisition form and **still reject an eager load, a different asset, and a path that never reaches `openTaskEditor`** - proved across five cases. **The second was missed by the first reference search because its regex sits on a different line from its `assert.match(` call**, which is a new way for that audit to under-report and worth naming: a multi-line assertion hides its own pattern from a line-oriented search.
+
 ## Version 0.33.33.38.2.2.6.2 - Declare the `LongtailForge.timezones` surface
 
 **Model: Medium Effort** - twelve published members, seventeen adopted reads across five files, and the child that tested whether a writer carrying parameter debt can still publish a truthful contract.

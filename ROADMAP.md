@@ -329,17 +329,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Preflight each child writer-first and do not promise a child from a sibling's clearance.** Two members published by the same writer share a risk profile; two members with the same diagnostic count share nothing.
 - [ ] **The 78 class-E root diagnostics resolve as their members are declared**, and they are not separate work. `0.33.33.38.2.6` closed declared-member root debt to zero; these are the parked half, and they drain child by child.
 
-#### 0.33.33.38.2.2.6.3 - `LongtailForge.esModuleBridge`
-
-**5 published functions from an ES module, and the delivery mechanism every other dashboard asset depends on.**
-
-`dashboard.entry.js` is a **native ES module** - `dashboard.html` loads it with `<script type="module">` and it is the page's **only** script tag. It publishes `Object.freeze({ importScript, importScripts, loadContributedAssets, loadStyle, versionedAssetUrl })` and then uses those functions to load every classic script the dashboard needs, including `dashboard.js`.
-
-- [ ] **Prove publication timing against the top-level `await`, not against script order.** The module assigns the namespace root on its first statement and freezes the bridge onto it **before** its first top-level `await`. **"Module script first" does not imply "publication first"** in a module that awaits, so the ordering has to be read rather than assumed.
-- [ ] **Both consumers already hold the checked-read pattern, hand-written.** `dashboard.js:162` tests `typeof loader !== "function"` and throws; `tasks-dashboard.js:12` tests `!bridge?.importScripts` and throws. **This child may legitimately be declaration only** - ask whether any acquisition is actually needed before adding one.
-- [ ] **`loadContributedAssets` is the risk, and the existing vocabulary is a trap.** `BrowserAssetContribution` already exists in `src/types/framework-contracts.d.ts` and is browser-visible, with exactly the `path` and `type` this function reads. **But the writer validates only the array-ness and defends on each element** - `Array.isArray(assets) ? assets : []`, then `asset?.type`, `asset?.path`. Declaring the parameter as that contract would be **stronger than the runtime** and would push validation onto a consumer holding parsed wire data. Name the intended shape in the comment; type the parameter as the runtime accepts it.
-- [ ] **Nothing untrusted comes back out.** `loadContributedAssets` and `importScripts` return `Promise<void>`; the boundary question is inbound only.
-
 #### 0.33.33.38.2.2.6.7 - `LongtailForge.dashboardBootstrap`
 
 **4 published members from the same ES module, and the first surface in the estate that publishes live mutable state rather than functions.**
