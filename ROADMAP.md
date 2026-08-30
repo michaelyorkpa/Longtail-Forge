@@ -329,14 +329,35 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Preflight each child writer-first and do not promise a child from a sibling's clearance.** Two members published by the same writer share a risk profile; two members with the same diagnostic count share nothing.
 - [ ] **The 78 class-E root diagnostics resolve as their members are declared**, and they are not separate work. `0.33.33.38.2.6` closed declared-member root debt to zero; these are the parked half, and they drain child by child.
 
-#### 0.33.33.38.2.2.6.3 - The dashboard ES-module trio
+#### 0.33.33.38.2.2.6.3 - `LongtailForge.esModuleBridge`
 
-**3 members - `dashboard`, `dashboardBootstrap`, `esModuleBridge` - 17 namespace diagnostics, 0 root, and every published member pure.**
+**5 published functions from an ES module, and the delivery mechanism every other dashboard asset depends on.**
 
-**Two of the three are published by `dashboard.entry.js`, an ES module** rather than a classic script - a delivery model no child in this rollup has typed. `esModuleBridge` exists to bridge exactly that boundary.
+`dashboard.entry.js` is a **native ES module** - `dashboard.html` loads it with `<script type="module">` and it is the page's **only** script tag. It publishes `Object.freeze({ importScript, importScripts, loadContributedAssets, loadStyle, versionedAssetUrl })` and then uses those functions to load every classic script the dashboard needs, including `dashboard.js`.
 
-- [ ] **Preflight the module boundary before the contracts.** `importScript`/`importScripts` delivery and execution ordering are prerequisites, not details.
-- [ ] Ten published members between them, none reaching the network.
+- [ ] **Prove publication timing against the top-level `await`, not against script order.** The module assigns the namespace root on its first statement and freezes the bridge onto it **before** its first top-level `await`. **"Module script first" does not imply "publication first"** in a module that awaits, so the ordering has to be read rather than assumed.
+- [ ] **Both consumers already hold the checked-read pattern, hand-written.** `dashboard.js:162` tests `typeof loader !== "function"` and throws; `tasks-dashboard.js:12` tests `!bridge?.importScripts` and throws. **This child may legitimately be declaration only** - ask whether any acquisition is actually needed before adding one.
+- [ ] **`loadContributedAssets` is the risk, and the existing vocabulary is a trap.** `BrowserAssetContribution` already exists in `src/types/framework-contracts.d.ts` and is browser-visible, with exactly the `path` and `type` this function reads. **But the writer validates only the array-ness and defends on each element** - `Array.isArray(assets) ? assets : []`, then `asset?.type`, `asset?.path`. Declaring the parameter as that contract would be **stronger than the runtime** and would push validation onto a consumer holding parsed wire data. Name the intended shape in the comment; type the parameter as the runtime accepts it.
+- [ ] **Nothing untrusted comes back out.** `loadContributedAssets` and `importScripts` return `Promise<void>`; the boundary question is inbound only.
+
+#### 0.33.33.38.2.2.6.7 - `LongtailForge.dashboardBootstrap`
+
+**4 published members from the same ES module, and the first surface in the estate that publishes live mutable state rather than functions.**
+
+`Object.freeze({ dataPromises, loadRoute, manifestPromise, routeForPanel })` - where `dataPromises` is a **live `Map`** and `manifestPromise` is an **in-flight `Promise`** created during module evaluation.
+
+- [ ] **Decide whether live handles should be declared at all, and say why either way.** Every surface recovered so far publishes functions; a `Map` other code mutates and a promise created once at startup are a different kind of contract. **A declaration that names a mutable container also names who may mutate it**, and this rollup has not had to answer that yet.
+- [ ] **`manifestPromise`'s resolved shape comes off the wire.** It is `loadDashboardManifest()`, which resolves `cachedFetch.getJson("/api/dashboard", ...)`. **Expect a genuine `0.33.33.38.4` boundary here** - and do not weaken the promise to hide it.
+- [ ] Keep it separate from `0.33.33.38.2.2.6.3`. Sharing a writer is not sharing a contract.
+
+#### 0.33.33.38.2.2.6.8 - `LongtailForge.dashboard`
+
+**1 published member from a classic script, published by spread-merge - which is a governance question before it is a typing one.**
+
+`dashboard.js` writes `namespace.dashboard = { ...(namespace.dashboard || {}), registerPanelRenderer }`.
+
+- [ ] **Settle whether more than one writer exists or was merely anticipated.** The spread reads as an invitation to other publishers; the publication inventory currently reports one writer. **`0.33.33.38.2.4` owns multi-writer governance**, and declaring a merged surface without settling that would freeze an assumption rather than a contract.
+- [ ] **`dashboard.js` is loaded by the bridge, not by a script tag**, so its execution ordering is a consequence of `0.33.33.38.2.2.6.3`. Preflight it after the bridge lands.
 
 #### 0.33.33.38.2.2.6.4 - The wide pure surfaces
 
