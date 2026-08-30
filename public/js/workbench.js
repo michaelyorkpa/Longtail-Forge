@@ -48,6 +48,29 @@
   };
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserCachedFetch} BrowserCachedFetch */
+
+  /**
+   * The stale-while-revalidate helper the Workbench data path cannot load without.
+   *
+   * Acquired at the point of use, so a missing surface still fails at exactly the moment it
+   * failed before `0.33.33.38.2.6.3` made the read checked - inside `loadClientProjectData`'s
+   * own `try`, which already recovers, and uncaught in `loadFocusModes`, which already does not.
+   *
+   * **The cache reads deliberately do not use this.** `readCached` and `writeCached` are
+   * convenience: `renderWarmWorkbench` and the registry helpers optional-chain them and fall
+   * back to `null` or a no-op, and requiring the surface there would delete a warm-render path
+   * that is meant to survive its absence.
+   * @returns {BrowserCachedFetch}
+   */
+  function requireCachedFetch() {
+    const cachedFetch = window.LongtailForge?.cachedFetch;
+    if (!cachedFetch) {
+      throw new Error("Workbench requires LongtailForge.cachedFetch.");
+    }
+    return cachedFetch;
+  }
+
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserPageController} BrowserPageController */
 
   /**
@@ -803,7 +826,7 @@
   // it, and every value is reconciled when the fan-out resolves.
   function renderWarmWorkbench() {
     updateCalendarWeekLinkVisibility();
-    const cachedFetch = window.LongtailForge.cachedFetch;
+    const cachedFetch = window.LongtailForge?.cachedFetch;
     const cachedClientProjects = cachedFetch?.readCached(workbenchCacheKey("client-project-options")) || null;
     const cachedFocusModes = cachedFetch?.readCached(workbenchCacheKey("focus-modes")) || null;
     const cachedRegistry = readCachedWorkbenchRegistry();
@@ -836,11 +859,11 @@
   }
 
   function readCachedWorkbenchRegistry() {
-    return window.LongtailForge.cachedFetch?.readCached(workbenchCacheKey("registry")) || null;
+    return window.LongtailForge?.cachedFetch?.readCached(workbenchCacheKey("registry")) || null;
   }
 
   function writeCachedWorkbenchRegistry(registry) {
-    window.LongtailForge.cachedFetch?.writeCached(workbenchCacheKey("registry"), registry || {});
+    window.LongtailForge?.cachedFetch?.writeCached(workbenchCacheKey("registry"), registry || {});
   }
 
   function workbenchRegistryCardsChanged(cachedRegistry, freshRegistry) {
@@ -942,7 +965,8 @@
   // The warm render consumes the sessionStorage copy; the fan-out resolves with
   // the fresh payload (falling back to the cached copy if revalidation fails).
   async function loadFocusModes() {
-    const result = await window.LongtailForge.cachedFetch.getJson("/api/workbench/focus-modes", {
+    const cachedFetch = requireCachedFetch();
+    const result = await cachedFetch.getJson("/api/workbench/focus-modes", {
       cacheKey: workbenchCacheKey("focus-modes"),
     });
     return result.revalidated.catch(() => result.data);
@@ -985,7 +1009,8 @@
 
   async function loadClientProjectData() {
     try {
-      const result = await window.LongtailForge.cachedFetch.getJson("/api/client-projects?view=options", {
+      const cachedFetch = requireCachedFetch();
+      const result = await cachedFetch.getJson("/api/client-projects?view=options", {
         cacheKey: workbenchCacheKey("client-project-options"),
       });
       return await result.revalidated.catch(() => result.data);
