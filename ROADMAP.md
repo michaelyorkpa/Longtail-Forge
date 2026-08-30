@@ -208,16 +208,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Take one semantic class at a time and one surface at a time.** The classes want different mechanisms, and a member name is not a semantics: `cachedFetch` sits in both A and B inside a single file.
 - [ ] **Class E is not adoptable and must not be swept in.** Those 148 resolve when their member is declared, and adopting the root there trades one diagnostic for another - the rule `0.33.33.38.2.1` established and remeasured.
 
-#### 0.33.33.38.2.6.3 - `LongtailForge.cachedFetch`
-
-**5 diagnostics in one file, and the surface sits in both semantic classes at once - which is the whole preflight question, not an inconvenience.**
-
-`workbench.js:821` and `:825` optional-chain the member around cache reads and writes; `:806`, `:945`, and `:988` require it, one of them through a local alias. **A surface whose own consumer disagrees with itself is not adoptable from a sibling's evidence.**
-
-- [ ] **Establish which paths are genuinely cache-optional before converting anything.** A cache read that tolerates absence and a fetch that does not are different contracts wearing one member name, and the optional two may be deliberate degradation rather than defensive noise.
-- [ ] **Do not split it by TypeScript symptom.** Both classes are `TS18048`; the runtime contract is what separates them.
-- [ ] Prove delivery on `workbench.html` before requiring anything.
-
 #### 0.33.33.38.2.7 - Teach the publication inventory the logical-assignment root
 
 **Model: Medium Effort - a prerequisite, not a cleanup. `0.33.33.38.2.2` decides which surfaces exist and how to group them by reading this inventory, and the instrument was incomplete.**
