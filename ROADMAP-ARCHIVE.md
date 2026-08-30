@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.6.7 - Declare the `LongtailForge.dashboardBootstrap` shared load state
+
+**Model: Medium Effort** - the first surface in this rollup that publishes live handles rather than functions, and the one where archaeology decided the contract rather than the runtime types deciding it.
+
+- [x] **`dataPromises` is a mutable `Map` because mutation authority is genuinely shared.** The entry module seeds it through `loadRoute`, and **`dashboard.js:489` and `time-tracking-dashboard.js:70` both `set` into the same map under the same route keys** - so a panel already requested is never requested twice, whichever file asked first. **A `ReadonlyMap` would have described an architecture this page does not have** and would have broken three call sites that are meant to participate.
+- [x] **That conclusion reversed a first reading, and how it was wrong is the lesson.** A search for `dataPromises.set` found nothing and would have concluded that consumers only observe. **Both consumers alias the map into a local and mutate through the alias** - `dashboardDataPromises`, `effortSummaryPromises` - so the search read the spelling rather than the binding. **This branch has now been caught by that trap four times**, and here it would have **inverted the contract** rather than miscounted a total.
+- [x] **`manifestPromise` reuses `CachedFetchResult` because both of its branches build that shape.** It is created once during module evaluation and never replaced; the workspace-scoped path returns `cachedFetch.getJson` directly and the unscoped path assembles `{ data, fromCache, revalidated }` by hand. **`data` stays `unknown`** - narrowing a manifest body is `0.33.33.38.4`'s work - and genuine `unknown` is **379 either side**. It **can reject**: the API client is acquired inside it and the cached-fetch read is unguarded.
+- [x] **Declaration only. No consumer needed adoption.** All three already optional-chain the surface and **fall back to a private `new Map()`** when it is absent, so the shared cache degrades to per-file caching rather than failing. That is a deliberate optional policy and it was left exactly as it was.
+
+**The surface is a coherent contract rather than a place live variables escaped to.** Four members that describe one thing - the manifest request the page started before any panel script existed, the route-keyed cache of in-flight panel requests, the function that fills it, and the function that addresses it - and three consumers that use them together.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,973 | **8,965** |
+| Namespace surface family | 444 | **437** |
+| Page-local state | 1,858 | **1,857** |
+| genuine `unknown` | 379 | **379** |
+| Declared / undeclared members | 27 / 36 | **28 / 35** |
+| `TS7006` | 2,983 | **2,983** |
+| `dashboard.entry.js` diagnostics | 21 | **21** |
+| Runtime writers changed | - | **0** |
+| Consumers changed | - | **0** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**One of the eight closed diagnostics was carried in `0.33.33.39`'s page-local-state budget, which falls from 1,779 to 1,778.** That is a **genuine elimination rather than a transfer** - the read resolved because the member is now declared - and it is recorded here so the budget can be restated in planning rather than banked silently.
+
+**Five source contracts name this surface and none needed retargeting**, because they pin the existing consumer shapes - `dashboardBootstrap?.dataPromises || new Map()`, `root.dashboardBootstrap?.loadRoute` - and **this child changed no consumer.** Only two files changed at all: the declaration and the ledger.
+
 ## Version 0.33.33.38.2.2.6.3 - Declare the `LongtailForge.esModuleBridge` loader
 
 **Model: Medium Effort** - five frozen functions, one adopted site, and the first surface in this rollup whose writer the browser loads as a module rather than a classic script.
