@@ -98,7 +98,9 @@ assert.doesNotMatch(
 );
 assert.match(
   tasksDashboard,
-  /async function openTask\(taskId, trigger, occurrence = null\)[\s\S]*await bridge\.importScript\("\/js\/task-dialog\.js"\)[\s\S]*openTaskEditor/,
+  // The claim is that the Task editor loads only when a calendar item is opened, not how the
+  // bridge was acquired at that point.
+  /async function openTask\(taskId, trigger, occurrence = null\)[\s\S]*await (?:bridge|requireEsModuleBridge\(\))\.importScript\("\/js\/task-dialog\.js"\)[\s\S]*openTaskEditor/,
   "the Task editor must load only when a Dashboard calendar item is opened",
 );
 assert.match(tasksDashboard, /templateId = String\(occurrence[\s\S]*instanceDate = String\(occurrence[\s\S]*await opener\(\{[\s\S]*instanceDate,[\s\S]*templateId,/, "planned Dashboard occurrences must carry their recurrence identity into the lazy Task editor");

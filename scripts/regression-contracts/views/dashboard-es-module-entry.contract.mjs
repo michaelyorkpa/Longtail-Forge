@@ -80,7 +80,7 @@ for (const assetPath of [
 }
 assert.match(tasksDashboard, /await bridge\.importScripts\(\[[\s\S]*"\/js\/shared\/task-calendar\.js"/);
 assert.doesNotMatch(tasksDashboard.slice(0, tasksDashboard.indexOf("function renderTasksNeedsAttentionContribution")), /task-dialog\.js/);
-assert.match(tasksDashboard, /async function openTask\(taskId, trigger, occurrence = null\)[\s\S]*await bridge\.importScript\("\/js\/task-dialog\.js"\)/);
+assert.match(tasksDashboard, /async function openTask\(taskId, trigger, occurrence = null\)[\s\S]*await (?:bridge|requireEsModuleBridge\(\))\.importScript\("\/js\/task-dialog\.js"\)/);
 assert.match(tasksDashboard, /await opener\(\{[\s\S]*instanceDate,[\s\S]*taskId,[\s\S]*templateId,/);
 assert.match(tasksDashboard, /dashboard\.registerPanelRenderer\("tasks\.calendar"/);
 assert.match(tasksDashboard, /taskCalendar\.fetchCalendarWindow\(range, \{[\s\S]*statuses: \["open", "in_progress", "blocked"\]/, "Dashboard calendar must request only active task statuses");
