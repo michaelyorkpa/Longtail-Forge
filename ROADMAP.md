@@ -108,19 +108,23 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Landed after `0.33.33.38.2.1`, measured with the classifier as it then stood: 9,327 diagnostics.** Unannotated parameters 4,718, page-local state 1,915, DOM subtype and lookup 1,484, `unknown` 531, namespace surface 511, assorted 168.
 
-**Restated after `0.33.33.38.2.2.4` corrected the classifier twice.** Against the landed post-`icons` tree the canonical families are **unannotated parameters 4,713, page-local state 1,863, DOM subtype and lookup 1,484, genuine `unknown` 408, namespace surface 528, assorted 168 - 9,164 in total.** The two corrections are described in the branch rules above; between them they moved 52 diagnostics out of page-local state into namespace and stopped `TS18046` on an undeclared member being counted as a trust boundary. **`state` is 52 lower than any figure published before that reconciliation, and whichever checkpoint owns page-local state should size itself against 1,863.**
+**Restated after `0.33.33.38.2.2.4` corrected the classifier twice.** Against the landed post-`icons` tree the canonical families were **unannotated parameters 4,713, page-local state 1,863, DOM subtype and lookup 1,484, genuine `unknown` 408, namespace surface 528, assorted 168 - 9,164 in total.** **Against the landed post-`billing`-removal tree they are 4,641 / 1,858 / 1,484 / 408 / 459 / 167 - 9,017 in total**, with `unknown` unmoved throughout. The two corrections are described in the branch rules above; between them they moved 52 diagnostics out of page-local state into namespace and stopped `TS18046` on an undeclared member being counted as a trust boundary. **`state` is 52 lower than any figure published before that reconciliation, and whichever checkpoint owns page-local state should size itself against 1,863.**
 
 **The `0.33.33.39`-`.44` debt budgets, re-derived from the corrected canonical classifier.** Every non-contract diagnostic still has exactly one named owner, the owner sums are asserted against the family totals, and none was moved to make a total reconcile.
 
 | Owner | Unannotated parameters | Page-local state | Assorted | Total |
 | --- | ---: | ---: | ---: | ---: |
-| `0.33.33.39` shared browser framework | 1,733 | 97 | 27 | 1,857 |
+| `0.33.33.39` shared browser framework | **1,661** | **92** | **26** | **1,779** |
 | `0.33.33.40` Notes | 378 | 129 | 27 | 534 |
 | `0.33.33.41` Tasks and Task Dialog | 556 | 642 | 23 | 1,221 |
 | `0.33.33.42` Workbench | 311 | 210 | 21 | 542 |
 | `0.33.33.43` Lists, Files, Clients/Projects | 754 | 219 | 26 | 999 |
 | `0.33.33.44` remaining page controllers | 981 | 566 | 44 | 1,591 |
-| **Total** | **4,713** | **1,863** | **168** | **6,744** |
+| **Total** | **4,641** | **1,858** | **167** | **6,666** |
+
+**`0.33.33.39` fell by 78 because dead source ceased to exist, not because `0.33.33.38` typed anything it owned.** `0.33.33.38.2.2.7` deleted `public/js/shared/billing.js` - a 385-line browser billing implementation whose page delivery was removed by commit `922df3cc` when the responsibility moved to `src/modules/time-tracking/time-tracking-billing.service.js`. **Its 89 diagnostics did not move owner and were not fixed; the file that produced them is gone.** Seventy-two were unannotated parameters, five page-local state, and one assorted - all `0.33.33.39`'s - and the remaining eleven were namespace surface, which `0.33.33.38` owned. **`0.33.33.40` through `.44` are unchanged in every family.**
+
+**This is the distinction the branch keeps having to make.** A budget may fall because debt was genuinely eliminated, because a classifier defect was corrected, or because the work landed - and the three are not interchangeable. **Deleting a ghost is the first kind**, and recording it as anything else would credit a typing checkpoint with work it never did.
 
 **Every movement from the previous table is one of three things, and each was measured rather than inferred.** The previous figures were produced by a classifier carrying two defects, and `owners.py` carried its own copy of both because it restated the classifier instead of importing it. **There is one classifier now**, and the budget table is derived from it.
 
