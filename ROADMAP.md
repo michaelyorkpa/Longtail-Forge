@@ -325,15 +325,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Preflight each child writer-first and do not promise a child from a sibling's clearance.** Two members published by the same writer share a risk profile; two members with the same diagnostic count share nothing.
 - [ ] **The 78 class-E root diagnostics resolve as their members are declared**, and they are not separate work. `0.33.33.38.2.6` closed declared-member root debt to zero; these are the parked half, and they drain child by child.
 
-#### 0.33.33.38.2.2.6.1 - `LongtailForge.capturePrompt`
-
-**1 member, 3 namespace and 1 root diagnostic, 4 consumers - and the only remainder writer with no parameter debt at all.**
-
-`shared/capture-prompt.js` is 88 lines publishing `{ open }`. It builds its dialog from the view factory, resolves a promise with a writer-constructed `{ confirmed, value }`, and **touches no network**. Its 11 diagnostics include **zero unannotated parameters**, so no `0.33.33.39` entanglement is even possible.
-
-- [ ] **Take this one first.** It is the smallest coherent contract in the rollup and the only one where both `0.33.33.39` and `0.33.33.38.4` are structurally ruled out rather than merely unobserved.
-- [ ] Derive the resolved shape from the writer's own `resolve` calls, the way `0.33.33.38.2.2.3` derived `modal`'s.
-
 #### 0.33.33.38.2.2.6.2 - The small no-wire shared writers
 
 **3 members - `notificationSubscriptions`, `taskResumeNoteCapture`, `notesEditor` - 7 namespace and 9 root diagnostics.**
