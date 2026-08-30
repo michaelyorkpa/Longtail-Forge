@@ -1,5 +1,41 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.6.1 - Declare the `LongtailForge.capturePrompt` dialog
+
+**Model: Low Effort** - one published member, two consumers adopted, one left alone, and a writer that was chosen precisely because both blocker classes were structurally absent.
+
+- [x] **The contract came from tracing every completion path.** `open` **never rejects and always resolves an object**: `resolve` is called exactly once from a `close` listener registered `{ once: true }`, with a result that starts `{ confirmed: false, value: "" }` and is only replaced when the form submits a non-empty trimmed value. Cancel, Escape, and every other dismissal reach that same listener. **Submitting an empty field does not resolve at all** - the writer reports validity and leaves the dialog open - so a confirmed result is never empty, which the type cannot say and the declaration's comment does.
+- [x] **The ten option-bag members are read with literal defaults**, so nothing hid behind an empty-object parameter. `parent` and `trigger` are declared as the writer treats them: **forwarded verbatim to `view.showModal`**, which owns the modal stack, rather than restating that option bag's third member which this surface never passes.
+- [x] **The writer keeps its own checked view acquisition**, throwing `"Capture prompts require LongtailForge.view modal helpers."` when the five modal helpers it needs are not all present. **So this declaration exposes no view optionality**, and `0.33.33.38.1`'s partial renderer contributions are untouched.
+- [x] **Its writer has no unannotated parameters, and that is the precise claim.** `open(options = {})` takes an inferred type, so there is no `TS7006` here and the estate total is 2,983 either side. **The writer does carry 11 params-family diagnostics**, every one a read off that `= {}` default and every one still `0.33.33.39`'s. **None was introduced by the declaration and none blocks the contract** - they are the same eleven option reads the contract was derived from, which is why declaring the member left them untouched. The reason this child went first stands, since no network means no `0.33.33.38.4` boundary and the writer needed no annotation for the publication to typecheck - but **"zero parameter debt" was the wrong shorthand for it**, and the roadmap said so before this child measured it.
+- [x] **`task-dialog.js` needed no change at all.** It already held this branch's checked-read pattern, hand-written - `if (!capturePrompt?.open) throw new Error("Blocking a task requires the shared capture prompt.")` - and the declaration simply lets its guard narrow. **Two of the three consumers were adopted; the third was already correct.**
+- [x] **Delivery was proved per page.** `shared/capture-prompt.js` has static script tags on `calendar.html`, `tasks.html`, and `workbench.html`, each ahead of every consumer, plus a `footer.js` probe for the lazy quick-action path which is **preserved**.
+
+**Five diagnostics closed, not the four the map predicted** - the `tasks.js` site carried both a root and a member diagnostic on one expression, which the member-attribution view counts once.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 9,017 | **9,012** |
+| Namespace surface family | 488 | **483** |
+| genuine `unknown` | 379 | **379** |
+| Declared / undeclared members | 24 / 39 | **25 / 38** |
+| Class-E root diagnostics | 148 | **147** |
+| `TS7006` (the `0.33.33.39` budget) | 2,983 | **2,983** |
+| `shared/capture-prompt.js` diagnostics | 11 | **11** |
+| Runtime writers changed | - | **0** |
+| Unique surfaces / publication occurrences | 65 / 68 | **65 / 68** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**Those `unknown` and `namespace` figures are restated, because closing this child found a third instance of the defect the branch has now hit twice before.** `member_of` resolved a diagnostic's subject by spelling: `'namespace.timezones' is of type 'unknown'` names a member through the IIFE's own root alias, `attribute_at` deliberately reports that alias as no member at all, and the diagnostic fell through to the `unknown` family. **29 diagnostics across twelve members were counted as `0.33.33.38.4` debt that are undeclared-member symptoms.**
+
+**`0.33.33.38.4`'s baseline is 379, not 408**, and it was 379 before this child as well as after - **the family did not move, and the appearance that it had was the instrument, not the code.** The correction lands as planning rather than inside this implementation.
+
+**Three times now the same mistake has been caught in a different tool** - `0.33.33.38.2.1`'s alias attribution, `0.33.33.38.2.2.4`'s `canonical`, and `member_of` here. The rule was already written down after the second. **What it needs is not another restatement but a single resolver every measurement calls**, which is `0.33.33.38.2.4`'s to build.
+
+**No source contract needed retargeting.** `task-critical-quick-fixes.contract.mjs` asserts on the writer's own `open` span and the writer is byte-identical; `task-resume-context-regression.mjs` runs the consumer in a `vm` sandbox with a stubbed `window.LongtailForge`, which the checked read satisfies; and the two end-to-end specs target the dialog by `data-capture-prompt` and by role and name, which are behaviour.
+
 ## Version 0.33.33.38.2.2.7 - Remove the superseded browser billing implementation
 
 **Model: Medium Effort** - seven zero-consumer surfaces investigated, **one removed**, and the child that closes declared-member root-optionality debt by deleting the code that was holding it open.

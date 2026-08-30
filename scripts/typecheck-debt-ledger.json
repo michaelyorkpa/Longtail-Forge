@@ -478,7 +478,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 9017,
+      "errorCount": 9012,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1731,7 +1731,7 @@
           },
           {
             "code": 2339,
-            "count": 506
+            "count": 504
           },
           {
             "code": 2345,
@@ -1764,10 +1764,6 @@
         ],
         "public/js/task-resume-note-capture.js": [
           {
-            "code": 18046,
-            "count": 1
-          },
-          {
             "code": 2339,
             "count": 17
           },
@@ -1797,7 +1793,7 @@
         "public/js/tasks.js": [
           {
             "code": 18046,
-            "count": 50
+            "count": 49
           },
           {
             "code": 18047,
@@ -1805,7 +1801,7 @@
           },
           {
             "code": 18048,
-            "count": 19
+            "count": 18
           },
           {
             "code": 2322,
@@ -2810,7 +2806,7 @@
   },
   "totals": {
     "files": 1056,
-    "errors": 9017,
+    "errors": 9012,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

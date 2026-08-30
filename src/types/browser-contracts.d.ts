@@ -1165,11 +1165,76 @@ export interface BrowserIcons {
   readonly names: readonly string[];
 }
 
+export interface BrowserCapturePromptOptions {
+  /** The cancel button's label. Defaults to `"Cancel"`. */
+  cancelLabel?: string;
+  /** Appended to the dialog's own class list. */
+  className?: string;
+  /** The submit button's label. Defaults to `"Continue"`. */
+  confirmLabel?: string;
+  /** The field label. Defaults to `"Details"`. */
+  label?: string;
+  /** `false` renders a single-line `input`; anything else renders a `textarea`. */
+  multiline?: boolean;
+  /** Forwarded verbatim to `view.showModal`, which owns the modal stack. */
+  parent?: unknown;
+  /** The dialog title. Defaults to `"Add context"`. */
+  prompt?: string;
+  /** Rows for the multiline form. Defaults to `3`; ignored when `multiline` is `false`. */
+  rows?: number;
+  /** Forwarded verbatim to `view.showModal`. Defaults to `document.activeElement`. */
+  trigger?: unknown;
+  /** The initial field value. Defaults to the empty string. */
+  value?: string;
+}
+
+/**
+ * What `open` resolves with. **The writer constructs this object on every path**, so both
+ * members are always present.
+ */
+export interface BrowserCapturePromptResult {
+  /** `true` only when the form was submitted with a non-empty value. */
+  confirmed: boolean;
+  /**
+   * The trimmed entry when `confirmed`, and the empty string otherwise. **Submitting an empty
+   * field does not resolve at all** - the writer reports validity and leaves the dialog open -
+   * so a confirmed result is never empty, which the type cannot say and this comment can.
+   */
+  value: string;
+}
+
+/**
+ * `LongtailForge.capturePrompt`, published by `public/js/shared/capture-prompt.js`.
+ *
+ * A single-field modal that asks for one piece of text - a blocked reason, a resume note - and
+ * resolves what the person entered.
+ *
+ * **`open` never rejects and always resolves an object.** `resolve` is called exactly once, from
+ * a `close` listener registered `{ once: true }`, with a result that starts as
+ * `{ confirmed: false, value: "" }` and is only replaced when the form submits a non-empty
+ * trimmed value. Cancel, Escape, and any other dismissal all reach that same listener.
+ *
+ * **This is not `modal` and not `view.createModalForm`.** `modal` asks a yes/no question and
+ * returns a boolean; `createModalForm` builds a dialog element. This one collects a value and
+ * disposes of everything it made.
+ *
+ * The writer acquires `LongtailForge.view` through its own checked read and throws
+ * `"Capture prompts require LongtailForge.view modal helpers."` when the five modal helpers it
+ * needs are not all present, so **this declaration exposes no view optionality.**
+ *
+ * Published as a plain object rather than a frozen one, which the declaration describes but does
+ * not change.
+ */
+export interface BrowserCapturePrompt {
+  open(options?: BrowserCapturePromptOptions): Promise<BrowserCapturePromptResult>;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
   assetVersion?: BrowserAssetVersion;
   cachedFetch?: BrowserCachedFetch;
+  capturePrompt?: BrowserCapturePrompt;
   controllers?: PageControllerRegistry;
   errors?: BrowserErrorContract;
   formatters?: BrowserFormatters;
