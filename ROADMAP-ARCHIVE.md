@@ -1,5 +1,48 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.7 - Remove the superseded browser billing implementation
+
+**Model: Medium Effort** - seven zero-consumer surfaces investigated, **one removed**, and the child that closes declared-member root-optionality debt by deleting the code that was holding it open.
+
+**The cohort was seven, not the five the roadmap listed.** The corrected inventory adds `controllers` and `loginPage`, and **two of the original five are not zero-consumer at all**: `supportView` is read by `navigation.js:864` and `controllers` by `page-controller.js:11` - the inventory counts consumers *other than the writer file*, so a self-consumed surface reads as unconsumed. **That is a property of the instrument, not of the code**, and it had to be checked before anything was deleted.
+
+| Surface | Delivered? | Internal consumer | Test consumer | Documented / public | Historical intent | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| `billing` | **no** - script tags removed | none | none | none | superseded by the server service | **conclusively dead** |
+| `loginPage` | yes | none | `tests/e2e/login.spec.mjs:21` | governance rationale in the declaration | e2e transition hook | live supported surface |
+| `overlayHost` | yes | none | publication-shape contract | **`docs/module-development.md:284`, `docs/ui-surface-contract.md:110`** | module-facing panel helper | compatibility / public hook |
+| `supportView` | yes | **`navigation.js:864`** | none | - | live support-view state | live supported surface |
+| `controllers` | yes | **`page-controller.js:11`** | none | - | the registry `register()` fills | live supported surface |
+| `sessionAuthWarnings` | yes | feature live at `:358` and `:845` | release-gate regression asserts the publication | - | framework session-warning owner | **uncertain - preserve** |
+| `helpPageReady` | yes | none | none | none | `*Ready` sentinel from `0.32.9` | **uncertain - preserve** |
+
+- [x] **`billing` is dead on positive evidence, not on absence.** Commit `922df3cc` **removed both `<script src="js/shared/billing.js">` tags from `views/protected/reporting.html`** when billing computation moved server-side, and the replacement is `src/modules/time-tracking/time-tracking-billing.service.js` - 979 lines carrying the same vocabulary. No page, no dynamic loader, no `importScript`, no module contribution, no test, no contract, no document references the file or its 26-member surface.
+- [x] **This is why its four `records` reads were blocked rather than adopted.** `requireRecords()` would have made dead code type-correct and permanent. **The file was waiting on a decision about whether it should exist, and the answer is no** - which is the outcome `0.33.33.38.2.6.4` deliberately left available by not touching it.
+- [x] **The deletion boundary is the whole file.** One IIFE, one publication, and no live helper shared with anything else.
+- [x] **`helpPageReady` was not removed, and the reasoning matters.** Its sibling `notificationsPageReady` has a real consumer in `notification-load-guard.js`; `helpPageReady` was introduced by `ead7a360` to the same pattern and its guard was never built. **A `*Ready` sentinel is exactly the shape of an external automation hook, and absence of an internal reader is not proof of death** - so it is recorded as uncertain rather than deleted by confidence.
+- [x] **`sessionAuthWarnings` was not removed either.** The underlying feature is live - `showSessionAuthWarning` is called at `navigation.js:358` and `:845` - and a release-gate regression asserts the publication as "the framework session-warning owner". **Only the namespace exposure has no reader**, and removing it would contradict an explicit governance claim.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 9,106 | **9,017** |
+| Unannotated parameters | 4,713 | **4,641** |
+| Page-local state | 1,863 | **1,858** |
+| Namespace surface | 470 | **459** |
+| Assorted | 168 | **167** |
+| genuine `unknown` | 408 | **408** |
+| Unique surfaces / publication occurrences | 66 / 69 | **65 / 68** |
+| Declared / undeclared members | 24 / 40 | **24 / 39** |
+| Root-optionality estate | 152 | **148** |
+| **Class A / Class B** | 0 / 4 | **0 / 0** |
+| Files / lines removed | - | **1 / 385** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**All 89 removed diagnostics are dead-code elimination rather than reclassification** - 72 unannotated parameters, 11 namespace, 5 page-local state, 1 assorted - and every one belonged to `0.33.33.39`'s budget, which falls from 1,857 to **1,779**. That correction lands as planning rather than inside this deletion.
+
+**Declared-member root-optionality debt is now fully closed.** Classes A and B are both empty. The 148 diagnostics that remain are all parked behind undeclared members and belong to `0.33.33.38.2.2`, not to root adoption.
+
 ## Version 0.33.33.38.2.6.3 - Adopt `cachedFetch` under both of its runtime policies
 
 **Model: Low Effort** - one surface, two policies, and the child that closes the declared-member root estate down to its one blocked remainder.

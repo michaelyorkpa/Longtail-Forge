@@ -315,22 +315,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Do not group these because each is small.** Preflight them after `.1` through `.5` land, when the mechanism is settled and the remaining estate has been remeasured.
 - [ ] **Nothing is excluded to `0.33.33.38.4` here either.** The `unknown` diagnostics this remainder appeared to defer are `TS18046` on its own undeclared members and are counted above.
 
-#### 0.33.33.38.2.2.7 - Zero-consumer surfaces: decide before declaring
-
-**5 members, 2 diagnostics, and no repository evidence that any of them is live.**
-
-`billing` (`shared/billing.js:356`), `helpPageReady` (`help.js`), `overlayHost` (`shared/overlay-host.js:221`), `sessionAuthWarnings` and `supportView` (both `navigation.js`).
-
-- [ ] **`billing` has no reader anywhere in the repository** - not in `public/js`, not in tests, not in the end-to-end specs. **`helpPageReady` has none either**, and neither is referenced by any Playwright spec, so neither is a test-synchronisation hook.
-- [ ] `overlayHost` is pinned by `views/overlay-host.contract.mjs`, which asserts the **shape of its publication** rather than any consumer, and `sessionAuthWarnings` and `supportView` appear only in the governance surface list.
-- [ ] **Declaration coverage is not a reason to declare any of them.** Establish whether each is a live seam, an external hook, a compatibility surface, or a dead global - and **where the repository cannot settle it, record the uncertainty rather than declaring by default.** For a genuinely dead publication, removal is the more accurate answer than a permanent declaration.
-
-**Implementation order, and why - rewritten after `.8` and `.3` landed, because the tree reordered it twice and both times the writer decided.** **`.1` first**: five accurate interfaces already exist, the cohort carries **zero diagnostics**, and every consumer already narrows - so it proves the declaration-and-wiring mechanism with no ledger movement to reconcile and no delivery question to answer. **`.2` second**: the only required-uniform cohort, one mechanism, five overlapping consumer files - and its preflight split `settingsRenderer` out to `.9`. **`.8` third**, taken ahead of `.3` once `.9` proved that a declaration downstream of an untyped writer cannot land. **`.3`** fourth, taking the widest single surface once the mechanism had been proved three times.
-
-**`.4` next**, and it is the smallest remaining step rather than a classification exercise: every read is already guarded, so it declares a member and changes no consumer. **`.10` and `.5` after that**, each with its own writer-first preflight - `.10` because its writer looks like `settingsRenderer`'s and `.5` because its promise has a tri-state resolution and its context object carries wire fields no local construction covers. **`.6`** last, after its own preflight against the remeasured estate, and it must settle `refreshAppShell` with `.5` before either lands. **`.7`** is archaeology and can run at any point; it blocks nothing.
-
-**The ordering rule this rollup has actually been following**: take the child whose writer answers the most questions on its own, and let a preflight that finds an untyped writer underneath a surface reorder the rest. Size never predicted difficulty here - `modal` was the widest child and the easiest, and `settingsRenderer` is neither.
-
 #### 0.33.33.38.2.3 - Close declaration coverage for the quiet tail
 
 **18 members, 2 diagnostics - a governance change wearing a typing change's clothes.**
