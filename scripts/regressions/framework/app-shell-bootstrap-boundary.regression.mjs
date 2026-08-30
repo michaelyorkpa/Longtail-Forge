@@ -37,8 +37,8 @@ assert.doesNotMatch(
 );
 assert.match(
   navigationSource,
-  /const bootstrapAdapter = window\.LongtailForge\.appShellBootstrap;[\s\S]*bootstrapAdapter\.normalize\(await response\.json\(\)\)/,
-  "navigation must normalize the unknown response before reading app-shell fields",
+  /const bootstrapAdapter = window\.LongtailForge\??\.appShellBootstrap;[\s\S]*if \(!bootstrapAdapter\?\.normalize\) \{[\s\S]*App shell bootstrap adapter was unavailable\.[\s\S]*bootstrapAdapter\.normalize\(await response\.json\(\)\)/,
+  "navigation must reject a missing or malformed adapter through one guard, then normalize the unknown response before reading app-shell fields",
 );
 assert.match(
   staticServiceSource,
