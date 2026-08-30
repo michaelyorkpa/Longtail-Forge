@@ -1,5 +1,33 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.6.6 - Adopt the checked `formatters` read at its one required site
+
+**Model: Low Effort** - one site, and the interesting part is why the other three consumers stay exactly as they are.
+
+- [x] **Delivery decided it, and it splits the estate rather than unifying it.** `shared/formatters.js` is loaded by **two pages in the repository** - `reporting.html` and `time-entries.html` - and on `time-entries.html` it precedes `time-entries.js`. `formatInvoiceStatus` has no guard and no fallback, so there the dependency is real.
+- [x] **The three optional consumers are right to be optional, and module delivery proves it rather than style.** `time-tracking-dashboard.js` and `time-tracking-reporting.js` read the surface through `|| {}` and fall back; both are **module-contributed scripts injected into views by workspace capability and permission**, declared in `src/modules/time-tracking/module.js`, and **no module contribution ships `shared/formatters.js`** - so the dashboard view never receives it at all. Their fallbacks are load-bearing. `reporting.js` guards it too. **None was touched.**
+- [x] **The declaration was verified rather than assumed.** `shared/formatters.js` carries `// @ts-check` and JSDoc on every function, and `BrowserFormatters` declares all six published members - `currency`, `dateInput`, `entryStatus`, `hours`, `monthLabel`, `name` - with matching signatures. Every member returns a string on every path and none throws. **Acquisition only; no declaration and no writer change.**
+- [x] **Two diagnostics closed rather than the one targeted** - one on the namespace root and one on `window.LongtailForge.formatters` in the same expression. That is the same shape `0.33.33.38.2.6.2` measured at fifteen sites and `.6.4` at two.
+
+**This is the third accessor in `time-entries.js` and it is deliberately its own.** `pageController` reaches seven pages, `records` reaches one, and `formatters` reaches two. **Surfaces that ship differently do not share an acquisition**, and the convenience of a fourth helper wrapping all three would have hidden exactly the difference that decides each of them.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 9,116 | **9,114** |
+| Namespace surface family | 480 | **478** |
+| Root-optionality estate | 159 | **158** |
+| Class B remaining | 9 | **8** |
+| `TS7006` (the `0.33.33.39` budget) | 3,052 | **3,052** |
+| genuine `unknown` | 408 | **408** |
+| `0.33.33.39`-`.44` budgets | 4,713 / 1,863 / 168 | **unchanged** |
+| Declared / undeclared members | 24 / 40 | **24 / 40** |
+| Runtime writers changed | - | **0** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**No source contract names the surface or the operation**, and that was established before editing rather than by waiting for the suite - the five matches for "formatters" in `scripts` all belong to view-descriptor table column formatters and a `billing-formatters` module id. **Two consecutive root children found a receiver-pinning assertion; this one looked first and found none.**
+
 ## Version 0.33.33.38.2.6.4 - Adopt the checked `records` read at its live consumer
 
 **Model: Low Effort** - two sites, one file, and a delivery measurement that settled the question the syntax could not.
