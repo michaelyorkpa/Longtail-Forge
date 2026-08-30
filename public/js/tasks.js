@@ -1,6 +1,24 @@
 (function attachTasksPage() {
   // 0.33.33.37 moved status-and-timer legality into LongtailForge.taskLifecycleLegality. Row
   // visibility resolution stays here - it is a Tasks responsibility, not duplication.
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserCapturePrompt} BrowserCapturePrompt */
+
+  /**
+   * The single-field capture dialog this path cannot ask its question without.
+   *
+   * Acquired at the point of use, so a missing surface still fails at exactly the moment it
+   * failed before `0.33.33.38.2.2.6.1` made the read checked. Every page that runs this script
+   * loads `shared/capture-prompt.js` ahead of it.
+   * @returns {BrowserCapturePrompt}
+   */
+  function requireCapturePrompt() {
+    const capturePrompt = window.LongtailForge?.capturePrompt;
+    if (!capturePrompt) {
+      throw new Error("Tasks requires LongtailForge.capturePrompt.");
+    }
+    return capturePrompt;
+  }
+
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskLifecycleLegality} BrowserTaskLifecycleLegality */
 
   const TASK_FILTER_STORAGE_KEY = "lf_tasks_filters_v1";
@@ -2475,7 +2493,7 @@
       return true;
     }
 
-    const result = await window.LongtailForge.capturePrompt.open({
+    const result = await requireCapturePrompt().open({
       cancelLabel: "Cancel",
       confirmLabel: "Continue",
       label: "Blocked reason",

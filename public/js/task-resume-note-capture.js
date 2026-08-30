@@ -3,6 +3,24 @@
   const pendingTaskIds = new Set();
   const capturedTaskIds = new Set();
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserCapturePrompt} BrowserCapturePrompt */
+
+  /**
+   * The single-field capture dialog this path cannot ask its question without.
+   *
+   * Acquired at the point of use, so a missing surface still fails at exactly the moment it
+   * failed before `0.33.33.38.2.2.6.1` made the read checked. Every page that runs this script
+   * loads `shared/capture-prompt.js` ahead of it.
+   * @returns {BrowserCapturePrompt}
+   */
+  function requireCapturePrompt() {
+    const capturePrompt = window.LongtailForge?.capturePrompt;
+    if (!capturePrompt) {
+      throw new Error("Resume-note capture requires LongtailForge.capturePrompt.");
+    }
+    return capturePrompt;
+  }
+
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
   /**
@@ -103,7 +121,7 @@
         return { captured: false, reason: "existing-note", task };
       }
 
-      const result = await namespace.capturePrompt.open({
+      const result = await requireCapturePrompt().open({
         prompt: "Add resume note?",
         label: "Resume note",
         multiline: false,
