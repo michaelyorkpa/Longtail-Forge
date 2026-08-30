@@ -160,6 +160,8 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | `0.33.33.44` remaining page controllers | 988 | 613 | 44 |
 | **Total** | **4,745** | **2,038** | **170** |
 
+**That table is the original pre-`0.33.33.38` partition and is kept as the historical starting point, not as the current budget.** The authoritative figures live with the `0.33.33.39`-`.44` budget table above and are **4,641 / 1,858 / 167**, re-derived from the tree after the classifier corrections and the `billing` deletion. **Two owner tables reading as current is how a stale number survives**, so this one now says which it is.
+
 - [ ] **The assorted family is split by controller and is not one owner's problem.** Its 170 diagnostics are `TS2345` 55, `TS2322` 40, `TS2698` 16 and a long tail; each is a local mismatch in the file that holds it, and each is closed by that file's typing child rather than by a shared contract.
 - [ ] **These figures are a partition, not a forecast.** `0.33.33.38.1` changes what the compiler can see, so the mandatory remeasurement gate re-derives every one of them before `.39` through `.44` are sliced.
 
@@ -320,45 +322,52 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Moved to `0.33.33.38.2.3`:** `filePreview` - which that child already names - and the eight single-consumer members `clientProjectDialog`, `filesDialog`, `navigationIntent`, `notificationsPageReady`, `quickActionRefresh`, `recovery`, `refreshNotifications`, and `reporting`. **7 namespace and 10 root diagnostics between them**, which is the quiet tail that child exists for.
 
+**Redrawn after `0.33.33.38.2.2.6.1`, because the first partition was measured with a detector that could not see the transport this repository actually uses.** It searched for `fetch(` and `response.json()` and missed every writer reaching the network through `LongtailForge.api` - so two surfaces were filed as no-wire that are not, and four were filed as wire-touching whose **published members never return wire data at all**. The corrected model asks the question per published member rather than per file.
+
 **The children are drawn by writer risk, because that is what every preflight in this rollup has actually turned on.** `icons` landed because its writer's parameter debt was independent; `settingsRenderer` did not because its writer's was not; `tags` did not because its writer crosses the network. **Grouping by consumer count or diagnostic size would have predicted none of those three.**
 
 - [ ] **Preflight each child writer-first and do not promise a child from a sibling's clearance.** Two members published by the same writer share a risk profile; two members with the same diagnostic count share nothing.
 - [ ] **The 78 class-E root diagnostics resolve as their members are declared**, and they are not separate work. `0.33.33.38.2.6` closed declared-member root debt to zero; these are the parked half, and they drain child by child.
 
-#### 0.33.33.38.2.2.6.2 - The small no-wire shared writers
+#### 0.33.33.38.2.2.6.2 - `LongtailForge.timezones`
 
-**3 members - `notificationSubscriptions`, `taskResumeNoteCapture`, `notesEditor` - 7 namespace and 9 root diagnostics.**
+**12 published members, 12 namespace and 15 root diagnostics - the largest remaining prize in the rollup, and a pure published contract despite one member that fetches.**
 
-Writers: `shared/notification-subscriptions.js` (82 lines, 5 published members, 7 parameter diagnostics), `task-resume-note-capture.js` (3), `shared/notes-editor.js` (22). **None reaches the network.**
+`shared/timezones.js` publishes twelve members of which **eleven are pure formatters and normalizers**. The twelfth, `loadSessionTimezone`, calls `/api/session` - and **returns the module's own normalized `userTimezone` on every path**: on a non-OK response, on a parse failure, on a thrown error, and on success, where the parsed body is passed through `setUserTimezone` rather than returned. **No published member ever hands back wire data.**
 
-- [ ] **Confirm the no-wire reading per writer before drafting.** The measurement looked for `fetch(`, `response.json()`, and `api.getJson`; a member that returns a value obtained elsewhere still needs its own trace.
-- [ ] `notificationSubscriptions` publishes five members against the other two's smaller surfaces - **split it out if its contract turns out to carry the child.**
+- [ ] **This is the case the previous partition was drawn to catch and got backwards.** A file-level `fetch(` search called this writer wire-touching; per published member it is not. **The test is what the surface returns, not what the file does.**
+- [ ] **The open question is writer parameter debt, not trust.** 17 unannotated parameters, owned by `0.33.33.39`. Probe it the way `0.33.33.38.2.2.4` did for `icons`: draft the contract, wire it, and measure whether the writer needs annotating. **If it does, this is `settingsRenderer`'s shape and the child stops.**
 
 #### 0.33.33.38.2.2.6.3 - The dashboard ES-module trio
 
-**3 members - `dashboard`, `dashboardBootstrap`, `esModuleBridge` - 17 namespace diagnostics, 0 root.**
+**3 members - `dashboard`, `dashboardBootstrap`, `esModuleBridge` - 17 namespace diagnostics, 0 root, and every published member pure.**
 
-**Two of the three are published by `dashboard.entry.js`, which is an ES module**, not a classic script - a delivery model no child in this rollup has typed yet. `esModuleBridge` exists to bridge exactly that boundary.
+**Two of the three are published by `dashboard.entry.js`, an ES module** rather than a classic script - a delivery model no child in this rollup has typed. `esModuleBridge` exists to bridge exactly that boundary.
 
-- [ ] **Preflight the module boundary before the contracts.** `importScript`/`importScripts` delivery, execution ordering, and what the bridge is for are prerequisites, not details.
-- [ ] Keep it separate from the classic-script children **because the delivery model differs, not because the files do.**
+- [ ] **Preflight the module boundary before the contracts.** `importScript`/`importScripts` delivery and execution ordering are prerequisites, not details.
+- [ ] Ten published members between them, none reaching the network.
 
-#### 0.33.33.38.2.2.6.4 - The mid-size no-wire shared writers
+#### 0.33.33.38.2.2.6.4 - The wide pure surfaces
 
-**2 members - `moduleActions` and `clientProjectOptions` - 18 namespace and 25 root diagnostics across 9 consumers each. The widest reach left in the rollup.**
+**2 surfaces - `moduleActions` (5 members) and `clientProjectOptions` (2) - 18 namespace and 25 root diagnostics across 9 consumers each. No published member reaches the network.**
 
-Writers carry 48 and 41 parameter diagnostics respectively and **neither reaches the network**.
+- [ ] **`moduleActions` already has one genuinely optional consumer** - `shared/module-actions.js:389` guards `namespace.pageController?.setStatus` and falls through - so classify every site the way `0.33.33.38.2.6.3` did for `cachedFetch`.
+- [ ] Writer parameter debt is 48 and 41. **Nine consumers each is the largest blast radius left; prove delivery per page.**
 
-- [ ] **`moduleActions` already has one genuinely optional consumer** - `shared/module-actions.js:389` guards `namespace.pageController?.setStatus` and falls through - so expect mixed delivery and classify every site the way `0.33.33.38.2.6.3` did for `cachedFetch`.
-- [ ] Nine consumers each is the largest blast radius here; **prove delivery per page before requiring anything.**
+#### 0.33.33.38.2.2.6.5 - The narrow pure surfaces
 
-#### 0.33.33.38.2.2.6.5 - The wire-touching writers, one preflight each
+**6 surfaces publishing 11 members between them, none reaching the network: `notesEditor` (6 members), `fileAttachments`, `listsDialog`, `notesDialog`, `notesLinkedPanel`, and `userPreferences` (1 each).**
 
-**12 members whose writers reach the network: `taskCalendar`, `timezones`, `tasksDialog`, `notificationPreferences`, `timeEntryDialog`, `fileAttachments`, `listsDialog`, `notesDialog`, `notesLinkedPanel`, `timeTrackingTimerDialog`, `getWorkspaceProjectsLabel`, and `userPreferences` - 41 namespace and 43 root diagnostics.**
+- [ ] **Four of these are published by page controllers with heavy parameter debt** - `notes.js` 192, `lists.js` 176, `shared/file-attachments.js` 132, `navigation.js` 65 - owned by `0.33.33.40` through `.44`. **`icons` proved that debt is usually independent and `settingsRenderer` proved it sometimes is not**, so probe per writer rather than per cohort.
+- [ ] **Their combined namespace debt is small**; the value here is declaration coverage rather than diagnostic reduction, which is the honest reason to run it late.
 
-- [ ] **A writer that fetches is not automatically blocked, and this rollup must not assume it is.** `tags` was blocked because its *published* members return parsed bodies; a writer that fetches privately and publishes constructed values is not. **The test is what the surface returns, not what the file does.**
-- [ ] **Five of these are published by page controllers with heavy parameter debt** - `notesDialog` 192, `listsDialog` 176, `tasksDialog` 160, `fileAttachments` 132, `getWorkspaceProjectsLabel` and `userPreferences` 65 - owned by `0.33.33.40` through `.44`. **`icons` proved that debt is usually independent; `settingsRenderer` proved it sometimes is not.** Measure per writer.
-- [ ] **Do not draw a cohort from this group until at least one of its members has been preflighted end to end.** It is a holding pen with a shared risk factor, not a plan.
+#### 0.33.33.38.2.2.6.6 - The wire-exposed surfaces, one return trace each
+
+**8 surfaces with at least one published member that reaches the network: `notificationSubscriptions` (3 of 5), `notificationPreferences` (3 of 8), `taskCalendar` (1 of 9), `taskResumeNoteCapture` (2 of 2), and `tasksDialog`, `timeEntryDialog`, `timeTrackingTimerDialog`, `getWorkspaceProjectsLabel` (1 of 1 each).**
+
+- [ ] **Reaching the network is not the blocker; returning unvalidated wire data is.** `timezones` fetches and publishes only constructed values, which is why it is `0.33.33.38.2.2.6.2` and not here. **Trace each network-touching member's returns before grouping any of these**, and expect the answer to differ within a single surface.
+- [ ] **A surface may split by member.** `taskCalendar` is eight pure members and one fetch; `notificationPreferences` is five and three. **Nothing requires a child to take a whole surface** if the contract divides cleanly.
+- [ ] **This is a holding pen with a shared question, not a plan.** Do not draw a cohort from it until at least one member has been traced end to end.
 
 #### 0.33.33.38.2.3 - Close declaration coverage for the quiet tail
 
@@ -375,6 +384,9 @@ Writers carry 48 and 41 parameter diagnostics respectively and **neither reaches
 **The namespace has no durable owner, which is how 49 members drifted out of the declaration while four checkpoints added to it.**
 
 - [ ] Build on the existing AST inventory in `scripts/test-support/browser-publication-inventory.mjs`. **Do not build a parallel framework.**
+- [ ] **This checkpoint owns one repository-owned namespace resolver that every durable measurement calls, and the reason is now three-for-three.** The same spelling-versus-binding mistake has been found in three independent implementations: `0.33.33.38.2.1`'s lexical member attribution, `0.33.33.38.2.2.4`'s canonical classifier, and `0.33.33.38.2.2.6.1`'s subject resolution. **The rule was written down after the second one and the third still happened**, because a rule cannot be shared - only an implementation can. It must resolve the forms this repository actually uses: `window.LongtailForge`, `global.LongtailForge`, local root aliases, lexical scope and shadowing, and the logical-assignment root binding `0.33.33.38.2.7` had to teach the inventory. **Do not promise general flow analysis.**
+- [ ] **The larger finding is that the estate's numbers have no in-repo producer at all.** The canonical root-family table, the member attribution, the `0.33.33.39`-`.44` budgets, and the root-optionality classes are all computed by analysis scripts that live outside the repository and that CI never runs. What the repository owns today is the shrink-only ledger in `scripts/typecheck-governance.mjs`, which enforces **no new debt per file per code**, and the publication inventory, which enforces surface ownership. **Neither knows what a diagnostic means.** That is why a classification defect can persist across three checkpoints without a single test failing.
+- [ ] **Inventory before consolidating.** Only `browser-publication-inventory.mjs` resolves identity structurally today; the regression scripts that mention `LongtailForge` assert text and do not duplicate the resolver. **The duplication to remove is between the repository and the analysis scripts**, not among the regressions - and the acceptance test is that a durable number can be reproduced by a repository command.
 - [ ] **The logical-assignment blind spot is fixed by `0.33.33.38.2.7`, which had to run before `.38.2.2` could count anything.** What remains here is the governance the corrected instrument makes possible. Historical record of the defect: `shared/settings-host.js` and `shared/settings-page-controller.js` are the only two scripts that bind the root that way, and both of their publications - `settingsHost` and `settingsPageController` - are consumed across five settings pages while being reported by no surface count. **Governance that cannot see a published surface cannot govern it**, and the number it publishes was wrong by two before the `.38.2.1` reconciliation looked. Prove the fix by making it fail: add a fixture that publishes through `||=` and confirm the inventory records it.
 - [ ] Enforce four things and keep their vocabulary distinct: **every published surface has a declaration** or a recorded exception; **every declared member has a runtime writer** or is marked type-only; **every surface has one canonical writer** unless it is a recorded multi-writer case; and **no unresolvable rooted write** exists, which the inventory already reports.
 - [ ] **Decide explicitly whether namespace-member diagnostic attribution becomes durable repository tooling or stays a planning instrument.** The lexically scoped analyser that drew `0.33.33.38.2.2` is **not a repository artefact** - it is analysis code, and keeping it that way was right for a one-off map rather than manufacturing permanent machinery to house temporary work. **If it becomes durable it must inherit what was proved**: lexical binding identity, same-name bindings in separate scopes that do not cross, nested shadowing, shorthand references, aliases, supported closure captures, no identifier-spelling heuristic, and a fail-first fixture for each known failure mode. **If it does not, say so, and make sure no governance rule depends on it** - enforcement must rest on repository-owned AST inventories and contracts, never invisibly on an external script.
@@ -401,6 +413,10 @@ Writers carry 48 and 41 parameter diagnostics respectively and **neither reaches
 - [ ] The declared-null caches are a different shape from a lookup result and may need a different answer; measure them separately rather than forcing one helper over both.
 
 #### 0.33.33.38.4 - Publish narrowing contracts for the genuine dynamic boundaries
+
+**Corrected to 379 by `0.33.33.38.2.2.6.1`, and the 29 that left were never this checkpoint's.** The attributor resolved a diagnostic's subject by spelling: `'namespace.timezones' is of type 'unknown'` names a member through the IIFE's own root alias, the resolver reports that alias as no member at all, and the diagnostic fell through to the `unknown` family. **29 diagnostics across twelve members were counted here that are undeclared-member namespace symptoms.** The family did not move when `capturePrompt` landed - it was 379 before and after - and the appearance that it had was the instrument.
+
+**The boundary, restated because a code keeps being mistaken for a cause:** a `TS18046` belongs to this checkpoint **only when the runtime value is still unknown after namespace and member identity are resolved.** An undeclared member that happens to emit `TS18046` is namespace work no matter what the compiler printed.
 
 **Model: High Effort - 408 genuine runtime boundaries, corrected twice and then grown by one: down from the 1,038 the first slice claimed, corrected again by the `0.33.33.38.2.2.2` preflight, which found 124 of the `unknown` family were undeclared namespace members rather than untrusted values, and then **increased by one when that same checkpoint's accurate typing exposed a boundary nobody had been able to see**.**
 
