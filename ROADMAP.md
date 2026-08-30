@@ -310,18 +310,70 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Truthful typing is expected to expose `unknown`, not to reach zero.** The constructed object spreads `shell.workspaceContext`, which `AppShellBootstrap` in `src/types/framework-contracts.d.ts` declares as `Record<string, unknown>`. Nine fields are constructed locally and are typeable now - `enabledModules`, `navigation`, `permissionHints`, `quickActions`, `searchTargets`, `viewSurfaces`, `userId`, and `username` - but the fields consumers actually read through those aliases, **`workspaceType`, `workspaceName`, `workspaceId`, `canRebuild`, `publicDemo`, `capabilities`, `tools`, `targets`, and `rawPermissions`, are not among them** and arrive off the wire. **A residue of genuine `unknown` is the correct outcome here**, owned by `0.33.33.38.4`, and a child that promises zero is promising to guess a server shape.
 - [ ] **Preflight this one against the writer before drawing its cohorts**, the way `settingsRenderer` and `modal` were. The shape above is recorded so that preflight starts from evidence rather than from the member names.
 
-#### 0.33.33.38.2.2.6 - The mixed remainder, which needs its own preflight
+#### 0.33.33.38.2.2.6 - The undeclared remainder, resliced by writer risk
 
-**185 canonical namespace diagnostics across the remaining 36 members under the corrected classifier, and they do not yet form a cohort.**
+**Model: High Effort - RESLICED. Planning rollup only; its numbered children below are the implementation checkpoints.**
 
-`moduleActions` 18, `timezones` 15, `tasksDialog` 13, `clientProjectOptions` 12, `taskCalendar` 9, `dashboard` 9, `notificationSubscriptions` 8, `notificationPreferences` 6, and about 28 members carrying five or fewer each. Their delivery verdicts disagree: `taskCalendar` has **no unguarded read at all**, `moduleActions` is 15 guarded against 5 required, `timezones` is 17 required against 6 guarded.
+**The label "mixed remainder" stopped being useful once the estate was measured against a clean tree.** Of the 39 undeclared members, **nine are owned elsewhere** and **nine more belong to `0.33.33.38.2.3`**, which leaves **21 members carrying 86 canonical namespace diagnostics and 78 class-E root diagnostics**. Crucially: **zero genuine `unknown`.** Nothing here is deferred to `0.33.33.38.4` today, though declaring a wire-touching writer may expose some - which is exactly what the children below are drawn to find out one at a time.
 
-- [ ] **Do not group these because each is small.** Preflight them after `.1` through `.5` land, when the mechanism is settled and the remaining estate has been remeasured.
-- [ ] **Nothing is excluded to `0.33.33.38.4` here either.** The `unknown` diagnostics this remainder appeared to defer are `TS18046` on its own undeclared members and are counted above.
+**Owned elsewhere and not this rollup's:** `tags` (`.38.2.2.10`), `settingsRenderer` (`.38.2.2.9`), `workspaceContext` and `workspaceContextReady` (`.38.2.2.5`), `refreshAppShell` (**contested between `.38.2.2.5` and this rollup - settle it before either lands**), and the four surfaces `0.33.33.38.2.2.7` preserved with recorded verdicts: `overlayHost`, `supportView`, `sessionAuthWarnings`, `helpPageReady`.
+
+**Moved to `0.33.33.38.2.3`:** `filePreview` - which that child already names - and the eight single-consumer members `clientProjectDialog`, `filesDialog`, `navigationIntent`, `notificationsPageReady`, `quickActionRefresh`, `recovery`, `refreshNotifications`, and `reporting`. **7 namespace and 10 root diagnostics between them**, which is the quiet tail that child exists for.
+
+**The children are drawn by writer risk, because that is what every preflight in this rollup has actually turned on.** `icons` landed because its writer's parameter debt was independent; `settingsRenderer` did not because its writer's was not; `tags` did not because its writer crosses the network. **Grouping by consumer count or diagnostic size would have predicted none of those three.**
+
+- [ ] **Preflight each child writer-first and do not promise a child from a sibling's clearance.** Two members published by the same writer share a risk profile; two members with the same diagnostic count share nothing.
+- [ ] **The 78 class-E root diagnostics resolve as their members are declared**, and they are not separate work. `0.33.33.38.2.6` closed declared-member root debt to zero; these are the parked half, and they drain child by child.
+
+#### 0.33.33.38.2.2.6.1 - `LongtailForge.capturePrompt`
+
+**1 member, 3 namespace and 1 root diagnostic, 4 consumers - and the only remainder writer with no parameter debt at all.**
+
+`shared/capture-prompt.js` is 88 lines publishing `{ open }`. It builds its dialog from the view factory, resolves a promise with a writer-constructed `{ confirmed, value }`, and **touches no network**. Its 11 diagnostics include **zero unannotated parameters**, so no `0.33.33.39` entanglement is even possible.
+
+- [ ] **Take this one first.** It is the smallest coherent contract in the rollup and the only one where both `0.33.33.39` and `0.33.33.38.4` are structurally ruled out rather than merely unobserved.
+- [ ] Derive the resolved shape from the writer's own `resolve` calls, the way `0.33.33.38.2.2.3` derived `modal`'s.
+
+#### 0.33.33.38.2.2.6.2 - The small no-wire shared writers
+
+**3 members - `notificationSubscriptions`, `taskResumeNoteCapture`, `notesEditor` - 7 namespace and 9 root diagnostics.**
+
+Writers: `shared/notification-subscriptions.js` (82 lines, 5 published members, 7 parameter diagnostics), `task-resume-note-capture.js` (3), `shared/notes-editor.js` (22). **None reaches the network.**
+
+- [ ] **Confirm the no-wire reading per writer before drafting.** The measurement looked for `fetch(`, `response.json()`, and `api.getJson`; a member that returns a value obtained elsewhere still needs its own trace.
+- [ ] `notificationSubscriptions` publishes five members against the other two's smaller surfaces - **split it out if its contract turns out to carry the child.**
+
+#### 0.33.33.38.2.2.6.3 - The dashboard ES-module trio
+
+**3 members - `dashboard`, `dashboardBootstrap`, `esModuleBridge` - 17 namespace diagnostics, 0 root.**
+
+**Two of the three are published by `dashboard.entry.js`, which is an ES module**, not a classic script - a delivery model no child in this rollup has typed yet. `esModuleBridge` exists to bridge exactly that boundary.
+
+- [ ] **Preflight the module boundary before the contracts.** `importScript`/`importScripts` delivery, execution ordering, and what the bridge is for are prerequisites, not details.
+- [ ] Keep it separate from the classic-script children **because the delivery model differs, not because the files do.**
+
+#### 0.33.33.38.2.2.6.4 - The mid-size no-wire shared writers
+
+**2 members - `moduleActions` and `clientProjectOptions` - 18 namespace and 25 root diagnostics across 9 consumers each. The widest reach left in the rollup.**
+
+Writers carry 48 and 41 parameter diagnostics respectively and **neither reaches the network**.
+
+- [ ] **`moduleActions` already has one genuinely optional consumer** - `shared/module-actions.js:389` guards `namespace.pageController?.setStatus` and falls through - so expect mixed delivery and classify every site the way `0.33.33.38.2.6.3` did for `cachedFetch`.
+- [ ] Nine consumers each is the largest blast radius here; **prove delivery per page before requiring anything.**
+
+#### 0.33.33.38.2.2.6.5 - The wire-touching writers, one preflight each
+
+**12 members whose writers reach the network: `taskCalendar`, `timezones`, `tasksDialog`, `notificationPreferences`, `timeEntryDialog`, `fileAttachments`, `listsDialog`, `notesDialog`, `notesLinkedPanel`, `timeTrackingTimerDialog`, `getWorkspaceProjectsLabel`, and `userPreferences` - 41 namespace and 43 root diagnostics.**
+
+- [ ] **A writer that fetches is not automatically blocked, and this rollup must not assume it is.** `tags` was blocked because its *published* members return parsed bodies; a writer that fetches privately and publishes constructed values is not. **The test is what the surface returns, not what the file does.**
+- [ ] **Five of these are published by page controllers with heavy parameter debt** - `notesDialog` 192, `listsDialog` 176, `tasksDialog` 160, `fileAttachments` 132, `getWorkspaceProjectsLabel` and `userPreferences` 65 - owned by `0.33.33.40` through `.44`. **`icons` proved that debt is usually independent; `settingsRenderer` proved it sometimes is not.** Measure per writer.
+- [ ] **Do not draw a cohort from this group until at least one of its members has been preflighted end to end.** It is a holding pen with a shared risk factor, not a plan.
 
 #### 0.33.33.38.2.3 - Close declaration coverage for the quiet tail
 
-**18 members, 2 diagnostics - a governance change wearing a typing change's clothes.**
+**Restated against the post-`0.33.33.38.2.2.7` tree: `filePreview` plus eight single-consumer members - `clientProjectDialog`, `filesDialog`, `navigationIntent`, `notificationsPageReady`, `quickActionRefresh`, `recovery`, `refreshNotifications`, `reporting` - carrying 7 namespace and 10 root diagnostics between them, and the four zero-consumer surfaces `0.33.33.38.2.2.7` preserved with verdicts.** A governance change wearing a typing change's clothes.
+
+**`billing` is gone and is not this child's to declare.** `0.33.33.38.2.2.7` established it was superseded and deleted it; the four that remain - `overlayHost`, `supportView`, `sessionAuthWarnings`, `helpPageReady` - each carry a recorded verdict, and **two of them are recorded as uncertain rather than live.** Declaring an uncertain surface here would be the drift this child exists to stop.
 
 - [ ] The single- and zero-consumer members produce almost no diagnostics - **14 and 2** respectively under corrected attribution - because their one consumer already narrows locally or guards. `viewActionSecurity`, `viewSearchOptions`, `viewDataBinding`, `viewModalStack`, and `filePreview` **already have accurate published interfaces and are cast locally at their single consumer** - wiring them is mechanical and removes the cast.
 - [ ] **Do not justify this child by diagnostic count.** Its value is that the namespace stops drifting, which is why it belongs next to the governance child rather than to the typing ones.
