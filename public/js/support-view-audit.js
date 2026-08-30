@@ -53,6 +53,27 @@
     }
   });
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTimezones} BrowserTimezones */
+
+  /**
+   * The timezone state and formatters this page cannot render dates without.
+   *
+   * Acquired at the point of use, so a missing surface still fails at exactly the moment it
+   * failed before `0.33.33.38.2.2.6.2` made the read checked. Every page that loads this script
+   * loads `shared/timezones.js` ahead of it.
+   *
+   * `navigation.js`, `shared/settings-host.js`, `tasks.js`, and `task-dialog.js` read the same
+   * surface optionally and fall back, and they keep doing so: absence is a real state there.
+   * @returns {BrowserTimezones}
+   */
+  function requireTimezones() {
+    const timezones = window.LongtailForge?.timezones;
+    if (!timezones) {
+      throw new Error("Support View audit requires LongtailForge.timezones.");
+    }
+    return timezones;
+  }
+
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
   /**
@@ -72,7 +93,7 @@
     return apiClient;
   }
   async function initialize() {
-    await window.LongtailForge.timezones.loadSessionTimezone();
+    await requireTimezones().loadSessionTimezone();
     await window.LongtailForge.workspaceContextReady;
     await loadAudit();
   }
@@ -176,7 +197,7 @@
     events.forEach((event) => {
       const row = document.createElement("tr");
       row.append(
-        cell(window.LongtailForge.timezones.formatDateTime(event.occurredAt) || "Unknown"),
+        cell(requireTimezones().formatDateTime(event.occurredAt) || "Unknown"),
         cell(event.actorLabel),
         cell(event.effectiveUserLabel),
         cell(event.workspaceName),

@@ -87,6 +87,27 @@
     loadAuditLogs();
   });
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTimezones} BrowserTimezones */
+
+  /**
+   * The timezone state and formatters this page cannot render dates without.
+   *
+   * Acquired at the point of use, so a missing surface still fails at exactly the moment it
+   * failed before `0.33.33.38.2.2.6.2` made the read checked. Every page that loads this script
+   * loads `shared/timezones.js` ahead of it.
+   *
+   * `navigation.js`, `shared/settings-host.js`, `tasks.js`, and `task-dialog.js` read the same
+   * surface optionally and fall back, and they keep doing so: absence is a real state there.
+   * @returns {BrowserTimezones}
+   */
+  function requireTimezones() {
+    const timezones = window.LongtailForge?.timezones;
+    if (!timezones) {
+      throw new Error("Audit Log requires LongtailForge.timezones.");
+    }
+    return timezones;
+  }
+
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
   /**
@@ -133,7 +154,7 @@
   }
 
   async function initializeAuditLog() {
-    await window.LongtailForge.timezones.loadSessionTimezone();
+    await requireTimezones().loadSessionTimezone();
     await window.LongtailForge.workspaceContextReady;
     if (new URLSearchParams(window.location.search).get("view") === "security") {
       auditViewSelect.value = "security";
@@ -236,11 +257,11 @@
     const timezone = showUtcInput.checked ? "UTC" : undefined;
 
     if (dateFromInput.value) {
-      params.set("dateFrom", window.LongtailForge.timezones.zonedDateTimeToUtcIso(dateFromInput.value, "00:00:00", timezone));
+      params.set("dateFrom", requireTimezones().zonedDateTimeToUtcIso(dateFromInput.value, "00:00:00", timezone));
     }
 
     if (dateToInput.value) {
-      params.set("dateTo", window.LongtailForge.timezones.zonedDateTimeToUtcIso(dateToInput.value, "23:59:59", timezone));
+      params.set("dateTo", requireTimezones().zonedDateTimeToUtcIso(dateToInput.value, "23:59:59", timezone));
     }
 
     if (userFilterSelect.value) {
@@ -640,7 +661,7 @@
   function formatDateTime(value) {
     const timezone = showUtcInput.checked ? "UTC" : undefined;
 
-    return window.LongtailForge.timezones.formatDateTime(value, timezone) || "None";
+    return requireTimezones().formatDateTime(value, timezone) || "None";
   }
 
   function setStatus(message) {

@@ -1229,6 +1229,62 @@ export interface BrowserCapturePrompt {
   open(options?: BrowserCapturePromptOptions): Promise<BrowserCapturePromptResult>;
 }
 
+export interface BrowserTimezoneOption {
+  /** `"<zone> (UTC +HH:MM)"`, built from the offset at the date the list was asked for. */
+  label: string;
+  /** A normalized IANA zone name. */
+  value: string;
+}
+
+export interface BrowserLocalDateRange {
+  /** The zone's `23:59:59` on that date, as UTC. */
+  end: Date;
+  /** The zone's `00:00:00` on that date, as UTC. */
+  start: Date;
+}
+
+/**
+ * `LongtailForge.timezones`, published by `public/js/shared/timezones.js`.
+ *
+ * The workspace's timezone state and the formatters built on it.
+ *
+ * **Every member that takes a `timezone` defaults to the module's current user timezone and
+ * normalizes whatever it is given**, so a caller cannot put an invalid zone into a formatter:
+ * `normalizeTimezone` coerces with `String(...)`, validates by constructing an
+ * `Intl.DateTimeFormat` for it, and falls back to `"America/New_York"`. **The normalized value is
+ * therefore always a non-empty valid zone name**, which is why the getters return `string` rather
+ * than something nullable.
+ *
+ * **`loadSessionTimezone` reaches the network and still returns nothing from it.** It fetches
+ * `/api/session`, and on every path - non-OK response, unparseable body, thrown error, or success
+ * - it returns the module's own `userTimezone`. On success the parsed body's timezone is passed
+ * *into* `setUserTimezone`, never back out. **The whole body sits inside one `try`, so it never
+ * rejects.** That is why this surface has no `0.33.33.38.4` boundary despite calling `fetch`.
+ *
+ * Published as a plain object rather than a frozen one.
+ */
+export interface BrowserTimezones {
+  formatDate(date: Date, timezone?: string): string;
+  formatDateInput(date: Date, timezone?: string): string;
+  /** Accepts what `new Date(...)` accepts; returns the empty string for an unusable value. */
+  formatDateTime(value: Date | string | number, timezone?: string): string;
+  formatTimeInput(date: Date, timezone?: string): string;
+  /** `"UTC +HH:MM"` for that zone at that instant. */
+  formatUtcOffset(date: Date, timezone: string): string;
+  getUserTimezone(): string;
+  /** Every zone `Intl` reports, plus `UTC`, sorted and labelled with the offset at `date`. */
+  listSupportedTimezones(date?: Date): BrowserTimezoneOption[];
+  /** **Resolves the module's timezone, never the session body.** Does not reject. */
+  loadSessionTimezone(): Promise<string>;
+  localDateRangeToUtc(dateValue: string, timezone?: string): BrowserLocalDateRange;
+  /** `unknown` in because it coerces anything; a valid zone name out, always. */
+  normalizeTimezone(timezone: unknown): string;
+  /** Normalizes, stores to `localStorage`, and returns what it stored. */
+  setUserTimezone(timezone: unknown): string;
+  /** The empty string when the date and time cannot be parsed. */
+  zonedDateTimeToUtcIso(dateValue: string, timeValue: string, timezone?: string): string;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
@@ -1265,6 +1321,7 @@ export interface LongtailForgeBrowserNamespace {
   settingsHost?: BrowserSettingsHost;
   settingsPageController?: BrowserSettingsPageController;
   status?: BrowserStatusMessage;
+  timezones?: BrowserTimezones;
   /**
    * The frozen view factory, written by `view-builder.js` and extended by `view-renderer.js`.
    * Optional because the namespace itself can be absent, not because the factory is.
