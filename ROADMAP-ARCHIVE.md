@@ -1,5 +1,36 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.6.4.1 - Declare the `LongtailForge.moduleActions` registry
+
+**Model: Medium Effort** - the largest blast radius left in this rollup, and the surface where the honest contract was the one that declined to name something.
+
+- [x] **`0.33.33.34` had already named half of it, and nothing pointed at the name.** `ModuleActionDependencyLoader` describes `dependenciesFor` and `ensureDependencies` exactly, is exported, and had **zero references anywhere in the repository** - a declaration with no referent, which is the hazard `0.33.33.38.2.2.7` went looking for in runtime code and found here in the type environment instead. `BrowserModuleActions` **extends** it rather than restating it: those two members were always members of this one object, and `.34`'s split is a statement about *when* a host may call them.
+- [x] **`register` deliberately does not name the descriptor it accepts, and that is the finding.** Eleven call sites in eight module files register actions, and the fields they supply - `canOpen`, `open`, `mode`, `recordType`, `requiredModules` - are **the module-contribution vocabulary of this framework.** Naming it here would settle an extensibility contract on the evidence of whichever modules happen to ship today. The registry validates only that an id and an `open` function are present and **returns `null` otherwise**, so `action?: unknown` is what the runtime accepts. **No consumer reads the return value**, so the weak type costs nothing.
+- [x] **Naming the host options was tried and withdrawn, and the ledger is what caught it.** `ModuleActionHostOptions` typed the five members `open` reads behind `typeof` guards. But `refresh` is **supplied by the host and called by the module dialog** - `await hostContext.refresh(detail)` at four sites - so its parameter has to be `unknown`, and that made `footer.js`'s own refresh callback stop compiling. **The file's total still fell, so only the per-file-per-code ledger saw it**: `TS2345` rose 1 to 2. Buying consumer assistance with narrowing work that belongs to `0.33.33.38.4` is not a trade this branch makes; the members are named in prose and the parameter says `unknown`.
+- [x] **`ModuleActionSummary` is built at two sites that construct the identical shape** - the elements of `list()` and the `action` a host context carries - which is what makes it a vocabulary the surface owns rather than one invented for the declaration. **Only `actionId` and `id` are `string`**: `register` pins them after spreading the caller's descriptor, and every other field is whatever the registering module supplied, unvalidated. Naming those `string` would have described the defaults rather than the runtime.
+
+**Five consumer sites adopted, and all five were the same shape.** `ensureWorkbenchModuleAction` and `ensureQuickActionDependencies` already **threw** when the registry was absent, then left their callers to re-read the global - asking the reader, and the compiler, to trust a check made in another function. Each now returns the registry it proved present. **The throw, its message, its timing, and the lazy failure are unchanged**; no probe became a `require`, and no optional policy became a required acquisition, because the requirement was already written as a `throw`.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,965 | **8,935** |
+| Namespace surface family | 437 | **407** |
+| Unannotated parameters | 4,641 | **4,641** |
+| Page-local state | 1,857 | **1,857** |
+| genuine `unknown` | 379 | **379** |
+| Assorted | 167 | **167** |
+| Declared / undeclared members | 28 / 35 | **29 / 34** |
+| `moduleActions` diagnostics | 30 | **0** |
+| `shared/module-actions.js` (the writer) | 76 | **76** |
+| Runtime writers changed | - | **0** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**All thirty closed diagnostics came out of the namespace family and no other family moved by one**, so `0.33.33.39` through `.44` are untouched - no budget was stolen and none was donated. The writer holds its 76 diagnostics exactly, which is the `icons` outcome again: its implicit-`any` parameters are wide enough that a declared consumer contract asks nothing new of them.
+
+**Six source assertions pinned `window.LongtailForge.moduleActions.open` rather than the call they describe** - the fifth appearance of this defect class on this branch. They now admit either acquisition form and **still reject an open outside its own function, a different action, a different surface, and a path that never returns focus**, proved across six cases. **The audit that found them only worked after regex escaping was normalized away**: a first search for the receiver missed all six, because the contracts spell it `window\.LongtailForge\.moduleActions\.open\(` and the search did not.
+
 ## Version 0.33.33.38.2.2.6.7 - Declare the `LongtailForge.dashboardBootstrap` shared load state
 
 **Model: Medium Effort** - the first surface in this rollup that publishes live handles rather than functions, and the one where archaeology decided the contract rather than the runtime types deciding it.

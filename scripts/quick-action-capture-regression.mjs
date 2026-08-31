@@ -79,7 +79,7 @@ check("QAC dispatches modal actions through the module action registry with safe
   assert.match(footer, /"lists\.add": \[[\s\S]*\.\.\.moduleActionBaseDependencies[\s\S]*module: true, src: "js\/lists\.js"/);
   assert.match(footer, /function loadQuickActionScript\(dependency\)[\s\S]*dependency\.module[\s\S]*import\(key\)[\s\S]*document\.createElement\("script"\)/);
   assert.match(footer, /ensureQuickActionDependencies\(action\.moduleActionId\)/);
-  assert.match(footer, /window\.LongtailForge\.moduleActions\.open\(action\.moduleActionId, \{[\s\S]*source: "quick-action-capture"/);
+  assert.match(footer, /(?:window\.LongtailForge\.)?moduleActions\.open\(action\.moduleActionId, \{[\s\S]*source: "quick-action-capture"/);
   assert.match(footer, /function readQuickActionPageContext\(\)[\s\S]*path: window\.location\.pathname[\s\S]*query: window\.location\.search[\s\S]*title:/);
   assert.match(moduleActions, /trigger\.focus\(\)/);
   assert.match(moduleActions, /complete: \(detail = \{\}\) => finish\(true, detail\)/);

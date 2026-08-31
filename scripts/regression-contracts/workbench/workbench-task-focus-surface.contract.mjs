@@ -61,7 +61,7 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "openTaskCandidate"),
-  /window\.LongtailForge\.moduleActions\.open\("tasks\.edit"/,
+  /(?:window\.LongtailForge\.)?moduleActions\.open\("tasks\.edit"/,
   "Task Focus Edit should open the canonical registered Tasks edit modal",
 );
 assert.match(

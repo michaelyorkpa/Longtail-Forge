@@ -83,7 +83,7 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "openModuleActionCandidate"),
-  /ensureWorkbenchModuleAction\(action\.actionId\)[\s\S]*window\.LongtailForge\.moduleActions\.open\(action\.actionId[\s\S]*source: "workbench"[\s\S]*sourceType: "work-candidate"[\s\S]*returnFocusTo: trigger \|\| document\.activeElement/,
+  /ensureWorkbenchModuleAction\(action\.actionId\)[\s\S]*(?:window\.LongtailForge\.)?moduleActions\.open\(action\.actionId[\s\S]*source: "workbench"[\s\S]*sourceType: "work-candidate"[\s\S]*returnFocusTo: trigger \|\| document\.activeElement/,
   "Inspector module opens should dispatch through moduleActions with Workbench source context and focus return",
 );
 assert.match(

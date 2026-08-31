@@ -342,13 +342,12 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Settle whether more than one writer exists or was merely anticipated.** The spread reads as an invitation to other publishers; the publication inventory currently reports one writer. **`0.33.33.38.2.4` owns multi-writer governance**, and declaring a merged surface without settling that would freeze an assumption rather than a contract.
 - [ ] **`dashboard.js` is loaded by the bridge, not by a script tag**, so its execution ordering is a consequence of `0.33.33.38.2.2.6.3`. Preflight it after the bridge lands.
 
-#### 0.33.33.38.2.2.6.4 - The wide pure surfaces
+#### 0.33.33.38.2.2.6.4.2 - `LongtailForge.clientProjectOptions`
 
-**2 surfaces - `moduleActions` (5 members) and `clientProjectOptions` (2) - 18 namespace and 25 root diagnostics across 9 consumers each. No published member reaches the network.**
+**2 published members, 9 consumers, no published member reaching the network.** `0.33.33.38.2.2.6.4.1` took `moduleActions` and left this surface unstarted.
 
-- [ ] **`moduleActions` already has one genuinely optional consumer** - `shared/module-actions.js:389` guards `namespace.pageController?.setStatus` and falls through - so classify every site the way `0.33.33.38.2.6.3` did for `cachedFetch`.
-- [ ] Writer parameter debt is 48 and 41. **Nine consumers each is the largest blast radius left; prove delivery per page.**
-- [ ] **`clientProjectOptions` is a vocabulary-design child, not a declaration child.** `normalizeClients` is a total normalizer whose output shape is assembled across six helper functions - identity, labels, status, billing, hierarchy, and nested projects - so declaring it means **naming a client vocabulary the repository does not currently have anywhere.** That is the shape that made `settingsRenderer` a blocked surface. **Run it after `moduleActions`, and expect the type to be the deliverable rather than a by-product.**
+- [ ] **`clientProjectOptions` is a vocabulary-design child, not a declaration child.** `normalizeClients` is a total normalizer whose output shape is assembled across six helper functions - identity, labels, status, billing, hierarchy, and nested projects - so declaring it means **naming a client vocabulary the repository does not currently have anywhere.** That is the shape that made `settingsRenderer` a blocked surface. **Expect the type to be the deliverable rather than a by-product.**
+- [ ] Writer parameter debt is 41. **Nine consumers is the largest blast radius left; prove delivery per page.**
 
 #### 0.33.33.38.2.2.6.5 - The narrow pure surfaces
 

@@ -324,8 +324,8 @@
     setQuickActionStatus(shell.status, `Opening ${action.label}...`);
 
     try {
-      await ensureQuickActionDependencies(action.moduleActionId);
-      await window.LongtailForge.moduleActions.open(action.moduleActionId, {
+      const moduleActions = await ensureQuickActionDependencies(action.moduleActionId);
+      await moduleActions.open(action.moduleActionId, {
         context: {
           currentPage: readQuickActionPageContext(),
           source: "quick-action-capture",
@@ -355,6 +355,9 @@
     }));
   }
 
+  // Loads the quick action's scripts, then returns the registry those scripts published.
+  // The check was already here and already threw; it now hands back what it proved rather
+  // than leaving its caller to re-read the global on trust.
   async function ensureQuickActionDependencies(moduleActionId) {
     const dependencies = quickActionDependencySets[moduleActionId] || [];
 
@@ -362,9 +365,13 @@
       await loadQuickActionScript(dependency);
     }
 
-    if (!window.LongtailForge?.moduleActions?.open) {
+    const moduleActions = window.LongtailForge?.moduleActions;
+
+    if (!moduleActions?.open) {
       throw new Error("Quick action registry is unavailable.");
     }
+
+    return moduleActions;
   }
 
   function loadQuickActionScript(dependency) {

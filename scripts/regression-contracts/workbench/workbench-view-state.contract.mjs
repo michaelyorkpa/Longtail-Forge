@@ -115,7 +115,7 @@ assert.match(
 );
 assert.match(
   functionBody(workbenchScript, "openTaskCandidate"),
-  /window\.LongtailForge\.moduleActions\.open\("tasks\.edit"/,
+  /(?:window\.LongtailForge\.)?moduleActions\.open\("tasks\.edit"/,
   "The explicit context-open path should retain the canonical Task editor opener",
 );
 

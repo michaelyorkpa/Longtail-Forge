@@ -43,7 +43,7 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "openRelatedContextModuleAction"),
-  /sourceTaskId: state\.activeTaskFocus\?\.taskId[\s\S]*sourceType: "task-focus-related-context"[\s\S]*window\.LongtailForge\.moduleActions\.open\(action\.moduleActionId/,
+  /sourceTaskId: state\.activeTaskFocus\?\.taskId[\s\S]*sourceType: "task-focus-related-context"[\s\S]*(?:window\.LongtailForge\.)?moduleActions\.open\(action\.moduleActionId/,
   "Related rows should dispatch through existing module actions with Task Focus source context",
 );
 assert.match(

@@ -1373,6 +1373,86 @@ export interface BrowserDashboardBootstrap {
   routeForPanel(panel?: unknown): string;
 }
 
+/**
+ * One registered module action as the registry describes it to a host, built by
+ * `public/js/shared/module-actions.js` at two sites - the elements of `list()` and the
+ * `action` a host context carries - which construct the identical shape.
+ *
+ * **Only the two identifiers are `string`.** `register` pins `actionId` and `id` after
+ * spreading the caller's descriptor, so nothing can overwrite them. Every other field is
+ * whatever the registering module supplied: the registry sets defaults, spreads the
+ * descriptor over them, and **never validates what came back**. Naming those fields
+ * `string` would describe the defaults rather than the runtime. The three list fields are
+ * `unknown[]` for the same reason - they are `[...action.requiredModules]`, so the registry
+ * copies whatever iterable it was given.
+ */
+export interface ModuleActionSummary {
+  actionId: string;
+  id: string;
+  label: unknown;
+  mode: unknown;
+  moduleId: unknown;
+  recordType: unknown;
+  requiredModules: unknown[];
+  requiredPermissions: unknown[];
+  requiredWorkspaceCapabilities: unknown[];
+  title: unknown;
+}
+
+/**
+ * What `open` resolves to. **The registry owns this shape** - it is settled by the host
+ * context rather than returned by the module - which is why `actionId` and `completed` are
+ * precise. `detail` is not: it is whatever the dialog passed to `complete`/`cancel`, or the
+ * opener's own return value.
+ *
+ * **Every consumer reads `completed` and nothing else.**
+ */
+export interface ModuleActionOutcome {
+  actionId: string;
+  completed: boolean;
+  detail: unknown;
+}
+
+/**
+ * `LongtailForge.moduleActions`, published by `public/js/shared/module-actions.js`.
+ *
+ * The registry through which one page opens another module's dialog without loading that
+ * module's page controller. It extends `ModuleActionDependencyLoader`, which `0.33.33.34`
+ * named for the loading half: those two members were always members of this one object, and
+ * the split is a statement about when a host may call them, not about where they live.
+ *
+ * **`register` deliberately does not name the descriptor it accepts.** Eleven call sites in
+ * eight module files register actions, and the fields they supply - `canOpen`, `open`,
+ * `mode`, `recordType`, `requiredModules` and the rest - are **the module-contribution
+ * vocabulary of this framework.** Naming it here would settle a contract that belongs to a
+ * checkpoint about extensibility, on the evidence of whichever modules happen to ship today.
+ * The registry itself validates only that an id and an `open` function are present, and
+ * **returns `null` when either is missing**; the comment names the intended shape, the type
+ * says what the runtime accepts. **No consumer reads the return value.**
+ */
+export interface BrowserModuleActions extends ModuleActionDependencyLoader {
+  /** Registered actions the workspace can currently use, or all of them. */
+  list(options?: { includeUnavailable?: boolean }): ModuleActionSummary[];
+  /**
+   * Open a registered action's dialog and resolve once it settles.
+   *
+   * **Rejects** for an unregistered action, one unavailable in this workspace, one whose
+   * `canOpen` refuses, one with no opener, and any error the opener throws - which it
+   * re-throws after reporting it through the host's status channel.
+   *
+   * `options` carries the host's `onCancel`, `onComplete`, `refresh`, `setStatus` and
+   * `statusElement`, each read behind a `typeof` guard and none of them validated.
+   * **Naming that shape was tried and withdrawn**, because `refresh` is supplied by the host
+   * but *called by the module dialog*, with a detail value neither of them validates. Typing
+   * the parameter honestly as `unknown` made a host's own refresh callback stop compiling -
+   * so the declaration would have been buying consumer assistance with narrowing work that
+   * belongs to `0.33.33.38.4`. The members are named here instead.
+   */
+  open(actionId: string, params?: unknown, options?: unknown): Promise<ModuleActionOutcome>;
+  /** Register an action, or return `null` for a descriptor with no id or no opener. */
+  register(action?: unknown): unknown;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
@@ -1386,6 +1466,7 @@ export interface LongtailForgeBrowserNamespace {
   formatters?: BrowserFormatters;
   icons?: BrowserIcons;
   modal?: BrowserModalDialogs;
+  moduleActions?: BrowserModuleActions;
   pageController?: BrowserPageController;
   /**
    * Published by `public/js/login.js`. The required-password-change form is
