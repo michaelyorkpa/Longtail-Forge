@@ -83,6 +83,7 @@
   const state = {
     workspaceType: "business",
     attachments: [],
+    /** @type {import("../../src/types/browser-contracts.js").NormalizedClientOption[]} */
     clients: [],
     pagination: {
       hasMore: false,

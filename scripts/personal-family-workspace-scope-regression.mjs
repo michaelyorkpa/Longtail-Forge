@@ -254,7 +254,8 @@ WHERE note_id = ${sqlText(personalDefault.note.note_id)};
     assert.match(listsPage, /js\/shared\/view-builder\.js/);
     assert.match(listsPage, /js\/lists\.js/);
     assert.doesNotMatch(listsScript, /usesBusinessScope\(\) \? loadClientProjects\(\) : Promise\.resolve/);
-    assert.match(listsScript, /state\.clients = window\.LongtailForge\.clientProjectOptions\.normalizeClients\(clientProjects\)/);
+    // Lists still fills its client state from the shared helper; the acquisition form is not the claim.
+  assert.match(listsScript, /state\.clients = (?:window\.LongtailForge\.clientProjectOptions|requireClientProjectOptions\(\))\.normalizeClients\(clientProjects\)/);
     assert.match(listsScript, /return !usesBusinessScope\(\) \|\| \["procurement", "parts", "supplies", "bill_of_materials"]/);
 
     assert.match(notesScript, /workspaceType: ""/);

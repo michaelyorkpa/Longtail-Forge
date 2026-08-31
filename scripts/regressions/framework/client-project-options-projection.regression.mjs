@@ -216,7 +216,8 @@ function assertSourceUsesSharedHelper(sourcePath) {
   const source = readFileSync(path.join(root, sourcePath), "utf8");
   assert.match(
     source,
-    /clientProjectOptions\.normalizeClients/,
+    // The claim is that the shared helper does the normalizing, not how the page reached it.
+    /(?:clientProjectOptions|requireClientProjectOptions\(\))\.normalizeClients/,
     `${sourcePath} should normalize clients through the shared hierarchy helper.`,
   );
 }
@@ -231,7 +232,7 @@ function assertTimerUsesSharedProjectOptions(sourcePath) {
   );
   assert.match(
     source,
-    /function projectOptionLabel\(project\) \{[\s\S]*clientProjectOptions\.optionLabel\(project\)/,
+    /function projectOptionLabel\(project\) \{[\s\S]*(?:clientProjectOptions|requireClientProjectOptions\(\))\.optionLabel\(project\)/,
     `${sourcePath} should read project labels through the shared Clients/Projects option contract.`,
   );
   assert.doesNotMatch(

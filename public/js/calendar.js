@@ -46,6 +46,7 @@
     clientId: "",
     projectId: "",
     statuses: [...DEFAULT_CALENDAR_STATUSES],
+    /** @type {import("../../src/types/browser-contracts.js").NormalizedClientOption[]} */
     clients: [],
     projects: [],
   };

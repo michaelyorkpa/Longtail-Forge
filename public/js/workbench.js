@@ -158,6 +158,7 @@
   let timerList = null;
 
   let state = {
+    /** @type {import("../../src/types/browser-contracts.js").NormalizedClientOption[]} */
     clients: [],
     currentUserId: "",
     focusCandidates: [],
@@ -4149,12 +4150,24 @@
     return [...descendants];
   }
 
+  // Every page that loads this controller also loads `js/shared/client-project-options.js`,
+  // so this reads a dependency the page guarantees rather than probing for one.
+  function requireClientProjectOptions() {
+    const clientProjectOptions = window.LongtailForge?.clientProjectOptions;
+
+    if (!clientProjectOptions) {
+      throw new Error("Workbench requires the client and project option helper.");
+    }
+
+    return clientProjectOptions;
+  }
+
   function normalizeClientProjectOptions(data) {
-    return window.LongtailForge.clientProjectOptions.normalizeClients(data);
+    return requireClientProjectOptions().normalizeClients(data);
   }
 
   function clientOptionLabel(client) {
-    return window.LongtailForge.clientProjectOptions.optionLabel(client);
+    return requireClientProjectOptions().optionLabel(client);
   }
 
   function selectedClientCandidateScopeId() {

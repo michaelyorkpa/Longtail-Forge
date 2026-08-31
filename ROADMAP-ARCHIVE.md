@@ -1,5 +1,47 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.6.4.2 - Declare the `LongtailForge.clientProjectOptions` vocabulary
+
+**Model: Medium Effort** - the first surface in this rollup whose contract had to name a shape rather than describe one, and the child that proved input and output are different vocabularies.
+
+- [x] **Input and output are deliberately different types, and the runtime is what says so.** `data` is `unknown` because it is a wire body - every one of the six pages hands it a `response.json()` or an `api.getJson` result - and the writer reads it defensively, keeping only what survives `Array.isArray`. The output is named strongly because **the writer constructs every field of it**: identifiers are `String(...).trim()`ed and accept either casing the API uses, `status` is derived from a case-insensitive test, money is parsed to a finite number or `null`, and the two override shapes are rebuilt field by field. That is the same untrusted-in / normalized-out split `timezones` already uses; **requiring one type for both would have been the error.**
+- [x] **The output is not the client record, and the difference is the point.** `normalizeClient` **spreads the input before overwriting its own fields**, so a normalized client also carries whatever else the API sent. `NormalizedClientOption` deliberately does not describe that: **no consumer in the estate reads a pass-through field** - proved by declaring the closed shape and finding no "property does not exist" anywhere - and naming today's API columns would have frozen a server shape this helper does not own.
+- [x] **`optionLabel` names three fields rather than a record type, because it is called with both.** Four sites pass a project and five pass a client. Typing the parameter `unknown` was tried first and **broke the writer's own defensive read** - the same failure `ModuleActionHostOptions` produced one child earlier - so the parameter names exactly the three fields the implementation touches. That **also closed a diagnostic inside the writer**, which is the first time in this rollup that declaring a consumer contract improved the writer.
+- [x] **Four page-local `clients: []` fields had to be annotated, and that is a genuine seam rather than a convenience.** TypeScript infers `never[]` for them, and **nothing is assignable to `never[]`**, so any truthful return type breaks the assignment: without the four annotations this contract cannot land at all. They are one line each and **close no diagnostic by themselves** - what closes is every read of that state, which the compiler could not resolve while the element type was `never`.
+
+**All sixty-six closures were derived from the two trees rather than calculated by subtraction**, after the discovery that the classifier resolves bindings from the working tree and will silently invent movement if a snapshot is classified against different source. Both trees were typechecked and classified against themselves, and the diagnostics were matched by file, code and message so the added lines could not distort the count.
+
+| Cause | Count |
+| --- | ---: |
+| Namespace family - declaring and adopting the surface | **28** |
+| Page-local state eliminated by contextual typing | **29** |
+| Unannotated parameters eliminated by contextual typing | **9** |
+| **Total** | **66** |
+
+Gross removed was 67 and gross added 1: **`footer.js`'s one `TS7053` is the same diagnostic re-worded**, because the type TypeScript prints in the message now names the declared surface. The namespace 28 divides as **13 `TS18046`** - the surface's own undeclared-member reads - plus **8 `TS18048`** and **7 `TS2339`** that its consumers were carrying. **The 29 state closures fall in exactly the four files whose `clients: []` was annotated** - `lists.js` 15, `workbench.js` 7, `files.js` 5, `calendar.js` 2 - which is the arithmetic proof that the annotations, and not something else, are what eliminated them.
+
+**The estate moved outside `0.33.33.38`, and it moved by elimination.** Thirty-eight diagnostics left `0.33.33.39`, `.42`, `.43` and `.44` - **no owner's number rose, nothing changed owner, and nothing was suppressed.** They resolved because four state fields now have a precise element type and because the writer's `optionLabel` parameter is now contextually typed. **Genuine `unknown` is 379 either side and `assorted` is 167 either side.** This is the largest budget movement any child in this rollup has caused and it is recorded here rather than banked. By owner and file: **`0.33.33.39`** one unannotated parameter in the writer itself, closed by contextually typing `optionLabel`; **`0.33.33.42`** twelve in `workbench.js`; **`0.33.33.43`** twenty-two across `lists.js` and `files.js`; **`0.33.33.44`** three net in `calendar.js`.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,935 | **8,869** |
+| Namespace surface family | 407 | **379** |
+| Unannotated parameters | 4,641 | **4,632** |
+| Page-local state | 1,857 | **1,828** |
+| genuine `unknown` | 379 | **379** |
+| Assorted | 167 | **167** |
+| `0.33.33.39` / `.42` / `.43` / `.44` | 1,778 / 543 / 999 / 1,590 | **1,777 / 531 / 977 / 1,587** |
+| Declared / undeclared members | 29 / 34 | **30 / 33** |
+| `clientProjectOptions` diagnostics | 13 | **0** |
+| Writers of the surface | 1 | **1**, unchanged file |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**Thirteen consumer sites adopted, and the delivery proof came first.** All six pages that load a consumer also load `js/shared/client-project-options.js`, and the timer dialog reaches it through the quick-action dependency table - so these are required reads, not optional policy. **The two sites that already optional-chain with an `|| []` fallback were left exactly as they were**, because a proved dependency elsewhere is not a reason to make an existing fallback mandatory.
+
+**Three source assertions needed retargeting and the fail-first proof caught a mistake in the first attempt.** `clientProjectOptions(?:\(\))?` looked like it admitted the new acquisition form and does not: `requireClientProjectOptions()` **capitalizes the C**, so the alternation had to name the accessor. The corrected patterns match either form and still reject a private reimplementation, a different member, a label taken from the wrong record, and an assignment that bypasses the helper.
+
 ## Version 0.33.33.38.2.2.6.4.1 - Declare the `LongtailForge.moduleActions` registry
 
 **Model: Medium Effort** - the largest blast radius left in this rollup, and the surface where the honest contract was the one that declined to name something.

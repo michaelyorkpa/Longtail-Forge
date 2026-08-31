@@ -360,8 +360,20 @@
     }
   }
 
+  // Every page that loads this controller also loads `js/shared/client-project-options.js`,
+  // so this reads a dependency the page guarantees rather than probing for one.
+  function requireClientProjectOptions() {
+    const clientProjectOptions = namespace?.clientProjectOptions;
+
+    if (!clientProjectOptions) {
+      throw new Error("The time entry dialog requires the client and project option helper.");
+    }
+
+    return clientProjectOptions;
+  }
+
   function normalizeClients(data, options = {}) {
-    return namespace.clientProjectOptions.normalizeClients(data, options);
+    return requireClientProjectOptions().normalizeClients(data, options);
   }
 
   function normalizeTimeEntries(data) {
@@ -385,7 +397,7 @@
   }
 
   function clientOptionLabel(client) {
-    return namespace.clientProjectOptions.optionLabel(client);
+    return requireClientProjectOptions().optionLabel(client);
   }
 
   function findClientIdForEntry(entry) {

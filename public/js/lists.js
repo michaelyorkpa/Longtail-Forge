@@ -101,6 +101,7 @@
   const isListsWorkspaceSurface = Boolean(listsWorkspaceHost);
 
   let state = {
+    /** @type {import("../../src/types/browser-contracts.js").NormalizedClientOption[]} */
     clients: [],
     currentUserId: "",
     dialogDataReady: null,
@@ -786,13 +787,25 @@
     setContextControlsVisible(usesBusinessScope());
   }
 
+  // Every page that loads this controller also loads `js/shared/client-project-options.js`,
+  // so this reads a dependency the page guarantees rather than probing for one.
+  function requireClientProjectOptions() {
+    const clientProjectOptions = window.LongtailForge?.clientProjectOptions;
+
+    if (!clientProjectOptions) {
+      throw new Error("Lists requires the client and project option helper.");
+    }
+
+    return clientProjectOptions;
+  }
+
   async function loadOptions() {
     const [clientProjects, users] = await Promise.all([
       loadClientProjects(),
       loadUsers(),
     ]);
 
-    state.clients = window.LongtailForge.clientProjectOptions.normalizeClients(clientProjects);
+    state.clients = requireClientProjectOptions().normalizeClients(clientProjects);
     const usersPayload = /** @type {{ users?: unknown[] }} */ (users);
     state.users = usersPayload.users || [];
   }

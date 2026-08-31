@@ -478,7 +478,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8935,
+      "errorCount": 8869,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -603,7 +603,7 @@
           },
           {
             "code": 2339,
-            "count": 21
+            "count": 16
           },
           {
             "code": 7005,
@@ -611,7 +611,7 @@
           },
           {
             "code": 7006,
-            "count": 10
+            "count": 9
           },
           {
             "code": 7034,
@@ -775,7 +775,7 @@
           },
           {
             "code": 2339,
-            "count": 64
+            "count": 55
           },
           {
             "code": 2353,
@@ -787,7 +787,7 @@
           },
           {
             "code": 7006,
-            "count": 140
+            "count": 139
           },
           {
             "code": 7019,
@@ -873,7 +873,7 @@
         "public/js/lists.js": [
           {
             "code": 18046,
-            "count": 22
+            "count": 21
           },
           {
             "code": 18047,
@@ -881,7 +881,7 @@
           },
           {
             "code": 18048,
-            "count": 7
+            "count": 6
           },
           {
             "code": 2322,
@@ -889,7 +889,7 @@
           },
           {
             "code": 2339,
-            "count": 221
+            "count": 206
           },
           {
             "code": 2345,
@@ -909,7 +909,7 @@
           },
           {
             "code": 7006,
-            "count": 173
+            "count": 172
           },
           {
             "code": 7031,
@@ -1251,7 +1251,7 @@
           },
           {
             "code": 7006,
-            "count": 41
+            "count": 40
           },
           {
             "code": 7034,
@@ -1595,7 +1595,7 @@
         "public/js/stop-watch.js": [
           {
             "code": 18046,
-            "count": 6
+            "count": 3
           },
           {
             "code": 18047,
@@ -1603,7 +1603,7 @@
           },
           {
             "code": 18048,
-            "count": 4
+            "count": 1
           },
           {
             "code": 2339,
@@ -1865,7 +1865,7 @@
         "public/js/time-entries.js": [
           {
             "code": 18046,
-            "count": 9
+            "count": 7
           },
           {
             "code": 18047,
@@ -1873,7 +1873,7 @@
           },
           {
             "code": 18048,
-            "count": 12
+            "count": 10
           },
           {
             "code": 2339,
@@ -1899,7 +1899,7 @@
         "public/js/time-entry-dialog.js": [
           {
             "code": 18046,
-            "count": 5
+            "count": 3
           },
           {
             "code": 18047,
@@ -1969,7 +1969,7 @@
         "public/js/time-tracking-timer-dialog.js": [
           {
             "code": 18046,
-            "count": 4
+            "count": 1
           },
           {
             "code": 18047,
@@ -2091,7 +2091,7 @@
         "public/js/workbench.js": [
           {
             "code": 18046,
-            "count": 34
+            "count": 32
           },
           {
             "code": 18047,
@@ -2099,7 +2099,7 @@
           },
           {
             "code": 18048,
-            "count": 15
+            "count": 13
           },
           {
             "code": 2322,
@@ -2107,7 +2107,7 @@
           },
           {
             "code": 2339,
-            "count": 253
+            "count": 246
           },
           {
             "code": 2345,
@@ -2131,7 +2131,7 @@
           },
           {
             "code": 7006,
-            "count": 169
+            "count": 164
           },
           {
             "code": 7023,
@@ -2802,7 +2802,7 @@
   },
   "totals": {
     "files": 1056,
-    "errors": 8935,
+    "errors": 8869,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
