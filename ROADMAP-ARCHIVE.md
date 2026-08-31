@@ -1,5 +1,46 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.4.3 - Declaration coverage becomes enforceable
+
+**Model: Medium Effort** - four invariants, one of them a backlog rather than a rule, and a fixture that passed for a week's worth of reasons that turned out to be a stray control character.
+
+- [x] **Nothing related publication to declaration before this.** The inventory enforced that the root is never clobbered, that no rooted write is unnameable, that nothing writes below a published surface, and that every multi-writer surface has a record. **It never asked whether a published surface is declared**, which is exactly how 33 members are published with no contract while every check stays green.
+- [x] **The undeclared backlog names all 33 and is asserted by identity, not by count.** A count-based allowance would let a newly declared member pay for a newly undeclared one; naming them means **a new undeclared publication fails immediately, and an entry that has since been declared fails until it is struck.** Declaring them is `0.33.33.38.2.2`'s work and its descendants', and this child declared none of them.
+- [x] **Two of the four invariants are currently vacuous, and that is worth stating rather than hiding.** Every declared member has a runtime writer, so there are **no type-only exceptions and no stale declarations**; and every surface but the two recorded multi-writer ones has exactly one canonical writer. The records exist and are asserted by identity so the distinction is available the moment it is needed - a type-only entry that gains a writer fails, and a multi-writer record whose writer set drifts fails.
+- [x] **The counting vocabulary is asserted apart.** 65 unique publication surfaces, 68 publication occurrences, 63 known `LongtailForge` members, 30 declared, 63 published. The fixture proves they are different measurements by publishing one surface from two files, and the estate mutation that adds a second writer moves occurrences 68 to 69 while unique surfaces stay 65. **Reporting one of these as another is how an earlier reconciliation went wrong**, so no summary here prints a single number for the estate.
+- [x] **Member-level diagnostic attribution stays durable reporting, and no governance rule depends on it.** `0.33.33.38.2.4.2` already produces it deterministically at no extra cost, so it is kept - but every invariant here is derived from the AST inventory and the declaration text, and an assertion refuses a coverage module that consumes diagnostics at all. **If the browser program reached zero diagnostics tomorrow, all four invariants would still hold and still be enforceable.**
+
+Each invariant was proved by mutating the real tree and restoring it byte-identical:
+
+| Mutation | Invariant that fired |
+| --- | --- |
+| Publish a new `brandNewSurface` | published-without-declaration, and surfaces 65 to 66 |
+| Delete the `icons` declaration | published-without-declaration reports `icons` |
+| Declare `neverPublished` | declared-without-runtime-writer |
+| Add a second writer to `status` | canonical-writer, and occurrences 68 to 69 |
+| Write through a computed key | unresolvable rooted write |
+
+**One fixture passed for the wrong reason and only a deliberate break exposed it.** The assertion refusing a diagnostics-consuming coverage module was written through a Python string that turned `\b` into a literal **backspace byte**, so its regex was `/...|diagnostics\x08/` and matched nothing at all. It passed on a tree that plainly violated it. This is the fourth appearance of the escaping hazard on this branch, and the first where the corrupted pattern was inside a *guard* rather than a search - a guard that cannot fail is worse than no guard, because it reads as coverage.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Unique publication surfaces | 65 | **65** |
+| Publication occurrences | 68 | **68** |
+| Known / declared `LongtailForge` members | 63 / 30 | **63 / 30** |
+| Undeclared published members | 33, ungoverned | **33, named and shrink-only** |
+| Declared members without a writer | unmeasured | **0** |
+| Unresolvable rooted writes | 0 | **0** |
+| Browser program diagnostics | 8,869 | **8,869** |
+| Canonical families | 4,632 / 1,823 / 1,484 / 378 / 385 / 167 | **unchanged** |
+| Compiler spawn sites | 1 | **1** |
+| Application runtime files changed | - | **0** |
+| CI workflow files changed | - | **0** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**No runtime file changed and no declaration was added**, which is the point: this child makes the drift visible and fails on new drift, and leaves closing the backlog to the checkpoints that own those surfaces.
+
 ## Version 0.33.33.38.2.4.2 - A durable command that classifies its own tree
 
 **Model: High Effort** - the child that gave the estate's semantic numbers a repository producer, and found six wrong ones on the way.

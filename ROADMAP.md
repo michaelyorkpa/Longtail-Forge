@@ -388,15 +388,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **This is not a debt-reduction checkpoint and must not be justified as one.** The three surfaces it unblocks carry **five diagnostics between them** - `dashboard` 0, `notesDialog` 3, `listsDialog` 2. The larger adoptable bucket elsewhere is **122 bare-root `window.LongtailForge` reads** owned by `0.33.33.38.2.6`, which needs nothing from here. **What this checkpoint buys is that the estate's numbers become reproducible and that declaration coverage becomes enforceable** - and the evidence it is needed is that two independent staleness defects were found in the analysis tooling in a single session.
 
-#### 0.33.33.38.2.4.3 - Declaration coverage becomes enforceable
-
-**Depends on `.2` only for reporting; can land independently of `.4`. CI consequence, no runtime consequence.**
-
-- [ ] **Nothing today relates publication to declaration.** The publication inventory enforces that the root is never clobbered, that no rooted write is unnameable, that nothing writes below a published surface, and that every multi-writer surface has a record. **It never asks whether a published surface is declared**, which is exactly how 33 members are undeclared with every check green.
-- [ ] Enforce four things and keep their vocabulary distinct: **every published surface has a declaration** or a recorded exception; **every declared member has a runtime writer** or is marked type-only; **every surface has one canonical writer** unless it is a recorded multi-writer case; and **no unresolvable rooted write** exists, which the inventory already reports.
-- [ ] **A unique surface is not a publication occurrence.** The estate is 65 surfaces across 68 occurrences. Test names and failure messages must not let those be read as the same number.
-- [ ] **Decide explicitly whether namespace-member diagnostic attribution becomes durable tooling or stays a planning instrument**, and if it does not, make sure no governance rule depends on it. Enforcement must rest on repository-owned AST inventories, never invisibly on an external script.
-
 #### 0.33.33.38.2.4.4 - Additive publication semantics, and the three surfaces waiting on them
 
 **Depends on `.1`. Unblocks `0.33.33.38.2.2.6.8` `dashboard`, and the `notesDialog` and `listsDialog` halves of `0.33.33.38.2.2.6.5`. Supplies the evidence `0.33.33.38.2.5` needs before it can dispose of the top-level index signature.**
