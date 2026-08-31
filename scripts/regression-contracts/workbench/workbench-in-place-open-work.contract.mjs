@@ -52,7 +52,7 @@ assert.match(
 );
 assert.match(
   openTaskCandidateBody,
-  /window\.LongtailForge\.moduleActions\.open\("tasks\.edit", \{[\s\S]*source: "workbench"[\s\S]*sourceType: "work-candidate"[\s\S]*candidateId: candidate\.candidateId \|\| ""[\s\S]*recordId: taskId[\s\S]*returnFocusTo: trigger \|\| document\.activeElement[\s\S]*taskId,[\s\S]*\}, \{ refresh: loadWorkbench, setStatus \}\)/,
+  /(?:window\.LongtailForge\.)?moduleActions\.open\("tasks\.edit", \{[\s\S]*source: "workbench"[\s\S]*sourceType: "work-candidate"[\s\S]*candidateId: candidate\.candidateId \|\| ""[\s\S]*recordId: taskId[\s\S]*returnFocusTo: trigger \|\| document\.activeElement[\s\S]*taskId,[\s\S]*\}, \{ refresh: loadWorkbench, setStatus \}\)/,
   "Task candidate opening should reuse the canonical registered Task edit action with refresh and focus-return context",
 );
 assert.match(

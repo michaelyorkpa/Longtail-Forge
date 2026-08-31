@@ -2956,8 +2956,8 @@
 
     setStatus("Opening task...");
     try {
-      await ensureWorkbenchModuleAction("tasks.edit");
-      const result = await window.LongtailForge.moduleActions.open("tasks.edit", {
+      const moduleActions = await ensureWorkbenchModuleAction("tasks.edit");
+      const result = await moduleActions.open("tasks.edit", {
         context: {
           source: "workbench",
           sourceType: "work-candidate",
@@ -3012,8 +3012,8 @@
 
     setStatus(`Opening ${action.moduleLabel.toLowerCase()}...`);
     try {
-      await ensureWorkbenchModuleAction(action.actionId);
-      const result = await window.LongtailForge.moduleActions.open(action.actionId, {
+      const moduleActions = await ensureWorkbenchModuleAction(action.actionId);
+      const result = await moduleActions.open(action.actionId, {
         ...(action.params || {}),
         context: {
           source: "workbench",
@@ -3068,8 +3068,8 @@
 
     setStatus(`Opening ${sourceLabel.toLowerCase()}...`);
     try {
-      await ensureWorkbenchModuleAction(action.moduleActionId);
-      const result = await window.LongtailForge.moduleActions.open(action.moduleActionId, params, {
+      const moduleActions = await ensureWorkbenchModuleAction(action.moduleActionId);
+      const result = await moduleActions.open(action.moduleActionId, params, {
         refresh: loadWorkbench,
         setStatus,
       });
@@ -3307,6 +3307,9 @@
   // `0.33.33.34`; what stays here is the guard, because this is where an absent registry
   // is actually observable. `files.preview` is one of the registry's own entries now: the
   // preview opener it needs is published by the shared helper this page already loads.
+  // Returns the registry it just proved present. The four callers all opened the action
+  // by re-reading the global, which asks the reader - and the compiler - to trust a check
+  // made in another function. The throw, its message, and its timing are unchanged.
   async function ensureWorkbenchModuleAction(actionId) {
     const moduleActions = window.LongtailForge?.moduleActions;
 
@@ -3315,6 +3318,7 @@
     }
 
     await moduleActions.ensureDependencies(actionId);
+    return moduleActions;
   }
 
   async function handleFocusModeClick(event) {
@@ -3626,8 +3630,8 @@
   async function openAddTaskAction() {
     setStatus("Opening task form...");
     try {
-      await ensureWorkbenchModuleAction("tasks.add");
-      const result = await window.LongtailForge.moduleActions.open("tasks.add", {
+      const moduleActions = await ensureWorkbenchModuleAction("tasks.add");
+      const result = await moduleActions.open("tasks.add", {
         context: { source: "workbench" },
       }, { refresh: loadWorkbench, setStatus });
       if (result.completed) {
