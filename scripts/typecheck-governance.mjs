@@ -1,6 +1,7 @@
 // @ts-check
 
 import { spawnSync } from "node:child_process";
+import { classifyBrowserDiagnostics } from "./test-support/browser-diagnostic-classification.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -13,8 +14,28 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const ledgerPath = path.join(rootDir, "scripts", "typecheck-debt-ledger.json");
 const declarationPrefix = "src/types/";
 
+/**
+ * Located diagnostics from the compiler runs this process performed, kept per program.
+ *
+ * **This is what makes `0.33.33.38.2.4.2` structural rather than procedural.** The
+ * classifier is handed the diagnostics of the run that just happened, and reads the tree
+ * that run read, in the same process - so there is no snapshot to pair with the wrong
+ * source. Classifying a saved diagnostics file against a different tree silently invents
+ * family and owner movement, and did once; here there is nothing to save.
+ * @type {Map<string, ParsedDiagnostic[]>}
+ */
+const locatedDiagnostics = new Map();
+
 /** @typedef {{ id: string, config: string, environment: string, roots: readonly string[] }} ProgramDefinition */
-/** @typedef {{ filePath: string, code: number }} ParsedDiagnostic */
+/**
+ * One compiler diagnostic, with the identity a classifier needs.
+ *
+ * The ledger only ever reads `filePath` and `code` and is unchanged by the rest. Position
+ * and message are carried because `0.33.33.38.2.4.2` classifies **these** diagnostics,
+ * produced by **this** invocation, against the tree the compiler just read - the pairing
+ * that stops a snapshot being classified against different source.
+ * @typedef {{ filePath: string, code: number, line: number, column: number, message: string }} ParsedDiagnostic
+ */
 /** @type {readonly ProgramDefinition[]} */
 const PROGRAMS = Object.freeze([
   Object.freeze({ id: "server-tests", config: "tsconfig.json", environment: "node", roots: ["server.js", "worker.js", "src/", "tests/"] }),
@@ -57,8 +78,12 @@ function collectProgram(definition) {
   const owned = new Set(files);
   /** @type {Map<string, number>} */
   const grouped = new Map();
+  /** @type {ParsedDiagnostic[]} */
+  const located = [];
+  locatedDiagnostics.set(definition.id, located);
   for (const diagnostic of runCompiler(definition.config)) {
     if (diagnostic.filePath !== "$global" && !owned.has(diagnostic.filePath)) continue;
+    located.push(diagnostic);
     const key = `${diagnostic.filePath}\u0000${diagnostic.code}`;
     grouped.set(key, (grouped.get(key) || 0) + 1);
   }
@@ -84,13 +109,19 @@ function runCompiler(configPath) {
   /** @type {ParsedDiagnostic[]} */
   const diagnostics = [];
   for (const line of `${result.stdout || ""}\n${result.stderr || ""}`.split(/\r?\n/)) {
-    const located = line.match(/^(.*?)\(\d+,\d+\): error TS(\d+):/);
+    const located = line.match(/^(.*?)\((\d+),(\d+)\): error TS(\d+): (.*)$/);
     if (located) {
-      diagnostics.push({ filePath: located[1].replaceAll(String.fromCharCode(92), "/"), code: Number(located[2]) });
+      diagnostics.push({
+        filePath: located[1].replaceAll(String.fromCharCode(92), "/"),
+        code: Number(located[4]),
+        line: Number(located[2]),
+        column: Number(located[3]),
+        message: located[5],
+      });
       continue;
     }
-    const global = line.match(/^error TS(\d+):/);
-    if (global) diagnostics.push({ filePath: "$global", code: Number(global[1]) });
+    const global = line.match(/^error TS(\d+): (.*)$/);
+    if (global) diagnostics.push({ filePath: "$global", code: Number(global[1]), line: 0, column: 0, message: global[2] });
   }
   if (result.status === 0 && diagnostics.length > 0) throw new Error(`${configPath} reported diagnostics with a successful exit`);
   if (result.status !== 0 && diagnostics.length === 0) throw new Error(`${configPath} failed without parseable diagnostics:\n${result.stderr || result.stdout}`);
@@ -457,6 +488,47 @@ function validateShrinkOnly(previous, current) {
   if (errors.length > 0) throw new Error(`Full-strict debt may only shrink:\n${errors.join("\n")}`);
 }
 
+/**
+ * The semantic half of the report: what the governed diagnostics are *about*.
+ *
+ * The ledger stays exactly as it was - per file per code, shrink-only, and the authority on
+ * debt monotonicity. This adds meaning beside it rather than replacing it, because neither
+ * the ledger nor the publication inventory knows what a diagnostic means, which is how a
+ * classification defect survived three checkpoints with every check green.
+ */
+function printClassification() {
+  const diagnostics = (locatedDiagnostics.get("browser") ?? []).filter((entry) => entry.filePath !== "$global");
+  const classification = classifyBrowserDiagnostics({ diagnostics, root: rootDir });
+  const { families, owners } = classification;
+  const familyTotal = Object.values(families).reduce((total, count) => total + count, 0);
+  if (familyTotal !== diagnostics.length) {
+    throw new Error(`Canonical families cover ${familyTotal} of ${diagnostics.length} browser diagnostics`);
+  }
+  const ownerSums = { params: 0, state: 0, assorted: 0 };
+  for (const bucket of Object.values(owners)) {
+    ownerSums.params += bucket.params;
+    ownerSums.state += bucket.state;
+    ownerSums.assorted += bucket.assorted;
+  }
+  for (const family of /** @type {const} */ (["params", "state", "assorted"])) {
+    if (ownerSums[family] !== families[family]) {
+      throw new Error(`Owner budgets hold ${ownerSums[family]} ${family} diagnostics against a family total of ${families[family]}`);
+    }
+  }
+  console.log("Canonical browser families:"
+    + ` params ${families.params}, state ${families.state}, dom ${families.dom},`
+    + ` unknown ${families.unknown}, namespace ${families.namespace}, assorted ${families.assorted}`
+    + ` - ${familyTotal} total.`);
+  for (const [owner, bucket] of Object.entries(owners)) {
+    console.log(`  ${owner}: ${bucket.params} params, ${bucket.state} state, ${bucket.assorted} assorted - ${bucket.total}.`);
+  }
+  const { adoptable, parked, parkedByMember, bareRoot } = classification.rootOptionality;
+  console.log(`Root optionality: ${bareRoot} bare-root reads, ${adoptable} on a declared member,`
+    + ` ${parked} parked behind ${Object.keys(parkedByMember).length} undeclared members`
+    + ` (${classification.declaredMembers.length} declared of ${classification.knownMembers.length} known).`);
+  return classification;
+}
+
 /** @param {GovernanceState} state */
 function printSummary(state) {
   for (const [id, program] of Object.entries(state.programs)) {
@@ -489,6 +561,7 @@ function verifyLedger(state) {
 async function main() {
   const state = collectGovernanceState();
   printSummary(state);
+  if (!process.argv.includes("--no-classify")) printClassification();
   if (process.argv.includes("--write")) writeLedger(state);
   else verifyLedger(state);
 }
@@ -500,4 +573,4 @@ if (path.resolve(process.argv[1] || "") === fileURLToPath(import.meta.url)) {
   });
 }
 
-export { PROGRAMS, collectGovernanceState, collectSourcePolicy, countExplicitAnyAnnotations, firstPartyJavaScriptFiles, isFirstPartyDirectoryName, validateShrinkOnly };
+export { PROGRAMS, collectGovernanceState, collectSourcePolicy, countExplicitAnyAnnotations, firstPartyJavaScriptFiles, isFirstPartyDirectoryName, locatedDiagnostics, printClassification, validateShrinkOnly };

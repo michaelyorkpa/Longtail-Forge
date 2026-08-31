@@ -10,6 +10,7 @@ export const regressionMeta = Object.freeze({
 import assert from "node:assert/strict";
 import { collectBrowserPublicationInventory, contestedSurfaces } from "../../test-support/browser-publication-inventory.mjs";
 import { createNamespaceResolver } from "../../test-support/browser-namespace-resolver.mjs";
+import { classifyBrowserDiagnostics, declaredNamespaceMembers } from "../../test-support/browser-diagnostic-classification.mjs";
 import { extractClassMethodBlock, extractFunctionBlock, extractFunctionBody, extractFunctionSpan, scannableSource } from "../../test-support/source-scan.mjs";
 import { createRequire } from "node:module";
 import fs from "node:fs";
@@ -3008,6 +3009,230 @@ assert.ok(
   leakingBrowserScripts.length <= SHARED_SCOPE_BACKLOG.size,
   `the shared-scope backlog may only shrink: ${leakingBrowserScripts.length} classic scripts leak against a recorded ${SHARED_SCOPE_BACKLOG.size}`,
 );
+
+// `0.33.33.38.2.4.2` made the estate's semantic numbers a repository command. These prove the
+// properties that make them trustworthy, and each one exists because its absence already
+// produced a wrong number that nothing caught.
+//
+// The classifier runs against a small fixture tree rather than the estate, so the assertions
+// are about *behaviour* and stay readable; the reconciliation against the real estate is
+// asserted by the command itself, which throws if the families do not cover every governed
+// diagnostic or the owner budgets do not sum to their families.
+{
+  const governanceSourceText = fs.readFileSync("scripts/typecheck-governance.mjs", "utf8");
+
+  // ARCHITECTURE - one compiler run, classified in the same process. The invariant of this
+  // child is that the diagnostics and the tree cannot be mismatched, and the way that is
+  // guaranteed is that there is nothing to mismatch: the classifier is handed the run that
+  // just happened. A second spawn, or a snapshot path argument, would reopen the defect.
+  assert.equal(
+    (governanceSourceText.match(/spawnSync\(/g) || []).length,
+    1,
+    "typecheck governance must run the compiler through exactly one spawn site",
+  );
+  assert.match(
+    governanceSourceText,
+    /locatedDiagnostics\.set\(definition\.id, located\)/,
+    "the compiler run must keep its own located diagnostics for classification",
+  );
+  assert.match(
+    governanceSourceText,
+    /classifyBrowserDiagnostics\(\{ diagnostics, root: rootDir \}\)/,
+    "classification must consume this process's diagnostics and this tree, not a snapshot",
+  );
+  const classificationSourceText = fs.readFileSync("scripts/test-support/browser-diagnostic-classification.mjs", "utf8");
+  assert.doesNotMatch(
+    classificationSourceText,
+    /spawnSync|require\("typescript\/unstable\/sync"\)\.API\b.*tsc/,
+    "the classifier must not start a compiler run of its own",
+  );
+
+  // FIDELITY - the widened diagnostic keeps everything classification needs. Before this
+  // child the parse threw away line, column and message and kept only file and code, which
+  // is exactly why the ledger could enforce monotonicity while knowing nothing about meaning.
+  const fidelityLine = "public/js/shared/icons.js(12,34): error TS2339: Property 'render' does not exist on type '{}'.";
+  const fidelityMatch = fidelityLine.match(/^(.*?)\((\d+),(\d+)\): error TS(\d+): (.*)$/);
+  assert.ok(fidelityMatch, "the governance diagnostic pattern must match a located diagnostic");
+  assert.deepEqual(
+    {
+      filePath: fidelityMatch[1],
+      line: Number(fidelityMatch[2]),
+      column: Number(fidelityMatch[3]),
+      code: Number(fidelityMatch[4]),
+      message: fidelityMatch[5],
+    },
+    {
+      filePath: "public/js/shared/icons.js",
+      line: 12,
+      column: 34,
+      code: 2339,
+      message: "Property 'render' does not exist on type '{}'.",
+    },
+  );
+
+  // LIVE DECLARATION - the defect this replaces was a frozen set holding one member while the
+  // declaration held thirty. `declaredNamespaceMembers` reads the declaration it is given, and
+  // the classifier reads the declaration in the tree it is classifying.
+  assert.deepEqual(
+    [...declaredNamespaceMembers([
+      "export interface LongtailForgeBrowserNamespace {",
+      "  [key: string]: unknown;",
+      "  alpha?: BrowserAlpha;",
+      "  beta?: BrowserBeta;",
+      "}",
+    ].join("\n"))].sort(),
+    ["alpha", "beta", "key"].filter((name) => name !== "key"),
+    "declared members come from the declaration text itself",
+  );
+  assert.doesNotMatch(
+    classificationSourceText,
+    /rootsites\.json|nsmap\.json|const DECLARED_MEMBERS/,
+    "the declared-member set must be derived from the tree, never carried in the classifier",
+  );
+
+  const classifierFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ltf-classify-fixtures-"));
+  fs.mkdirSync(path.join(classifierFixtureRoot, "sources"));
+  fs.mkdirSync(path.join(classifierFixtureRoot, "types"));
+  fs.writeFileSync(path.join(classifierFixtureRoot, "sources", "page.js"), [
+    "(function attachClassifierFixture(global) {",
+    "  const namespace = global.LongtailForge || {};",
+    "  const decoy = { icons: {} };",
+    "  const key = \"icons\";",
+    "  function readsThroughAlias() {",
+    "    return namespace.icons.render();",
+    "  }",
+    "  function readsDecoy() {",
+    "    return decoy.icons.render();",
+    "  }",
+    "  function readsComputed() {",
+    "    return namespace[key].render();",
+    "  }",
+    "  function shadows() {",
+    "    const namespace = { icons: {} };",
+    "    return namespace.icons.render();",
+    "  }",
+    "  namespace.icons = { render() {} };",
+    "  global.LongtailForge = namespace;",
+    "  return [readsThroughAlias, readsDecoy, readsComputed, shadows];",
+    "})(window);",
+  ].join("\n"));
+  fs.writeFileSync(path.join(classifierFixtureRoot, "types", "contracts.d.ts"), [
+    "export interface BrowserIconsFixture { render(): void; }",
+    "export interface LongtailForgeBrowserNamespace {",
+    "  icons?: BrowserIconsFixture;",
+    "}",
+    "",
+  ].join("\n"));
+  fs.writeFileSync(path.join(classifierFixtureRoot, "tsconfig.json"), JSON.stringify({
+    compilerOptions: {
+      target: "es2023",
+      module: "esnext",
+      moduleResolution: "bundler",
+      allowJs: true,
+      checkJs: false,
+      noEmit: true,
+      lib: ["DOM", "DOM.Iterable", "ES2023"],
+      types: [],
+    },
+    include: ["sources/**/*.js"],
+  }));
+
+  /** @param {string} declarationFile @param {{line: number, column: number, code: number, message: string}[]} rows */
+  const classifyFixture = (declarationFile, rows) => classifyBrowserDiagnostics({
+    diagnostics: rows.map((row) => ({ filePath: "sources/page.js", ...row })),
+    root: classifierFixtureRoot,
+    configFile: "tsconfig.json",
+    scanDirectory: "sources",
+    declarationFile,
+  });
+
+  const aliasRead = { line: 6, column: 12, code: 18046, message: "'namespace.icons' is of type 'unknown'." };
+  const decoyRead = { line: 9, column: 12, code: 18046, message: "'decoy.icons' is of type 'unknown'." };
+  const computedRead = { line: 12, column: 12, code: 18046, message: "'namespace[key]' is of type 'unknown'." };
+  const shadowedRead = { line: 16, column: 12, code: 18046, message: "'namespace.icons' is of type 'unknown'." };
+
+  // NAMESPACE IDENTITY - through the resolver, not the spelling. `namespace.icons` is the
+  // surface, `decoy.icons` is not, and the inner `namespace` is a local that shadows the alias.
+  const declaredRun = classifyFixture("types/contracts.d.ts", [aliasRead, decoyRead, computedRead, shadowedRead]);
+  const familyAt = (/** @type {typeof declaredRun} */ run, /** @type {number} */ line) =>
+    run.diagnostics.find((entry) => entry.line === line)?.family;
+  assert.equal(familyAt(declaredRun, 6), "unknown", "a declared member that is still unshaped is a genuine trust boundary");
+  assert.equal(familyAt(declaredRun, 9), "unknown", "an unrelated receiver is not a namespace read");
+  assert.equal(familyAt(declaredRun, 16), "unknown", "a shadowed local is not the namespace");
+  assert.equal(
+    declaredRun.diagnostics.find((entry) => entry.line === 9)?.member,
+    null,
+    "an unrelated receiver resolves to no member",
+  );
+
+  // UNSUPPORTED - a computed key stays unresolved rather than being guessed into the family.
+  assert.equal(
+    declaredRun.diagnostics.find((entry) => entry.line === 12)?.member,
+    null,
+    "a computed member name must remain unresolved rather than guessed",
+  );
+
+  // LIVE DECLARATION, behaviourally. The same diagnostic on the same tree changes family when
+  // the declaration stops naming the member: undeclared, the read is an index-signature
+  // symptom and namespace work; declared, it is a genuine `unknown`. A frozen set cannot see
+  // that difference, which is precisely the defect that went unnoticed.
+  fs.writeFileSync(path.join(classifierFixtureRoot, "types", "empty.d.ts"), [
+    "export interface LongtailForgeBrowserNamespace {",
+    "}",
+    "",
+  ].join("\n"));
+  const undeclaredRun = classifyFixture("types/empty.d.ts", [aliasRead]);
+  assert.equal(
+    familyAt(undeclaredRun, 6),
+    "namespace",
+    "an undeclared member read is namespace work, not a trust boundary",
+  );
+  assert.notEqual(
+    familyAt(undeclaredRun, 6),
+    familyAt(declaredRun, 6),
+    "classification must follow the live declaration; a frozen set would answer identically for both",
+  );
+
+  // ACCOUNTING and OWNERSHIP - one family each, one owner for the three owned families, and
+  // totals that reconcile. Zero owners and two owners are both failures.
+  const accounted = classifyFixture("types/contracts.d.ts", [
+    aliasRead,
+    { line: 6, column: 12, code: 7006, message: "Parameter 'value' implicitly has an 'any' type." },
+    { line: 9, column: 12, code: 7034, message: "Variable 'rows' implicitly has type 'any[]'." },
+    { line: 9, column: 20, code: 2571, message: "Object is of type 'unknown'." },
+  ]);
+  assert.equal(accounted.diagnostics.length, 4, "every diagnostic is accounted for exactly once");
+  const ownedFamilies = new Set(["params", "state", "assorted"]);
+  for (const entry of accounted.diagnostics) {
+    assert.ok(entry.family, "every diagnostic has a family");
+    if (ownedFamilies.has(entry.family)) {
+      assert.ok(entry.owner, `${entry.family} diagnostics must name exactly one owner`);
+    } else {
+      assert.equal(entry.owner, null, "families the post-0.33.33.38 owners do not hold must name no owner");
+    }
+  }
+  const ownerSum = Object.values(accounted.owners).reduce((total, bucket) => total + bucket.total, 0);
+  const ownedCount = accounted.diagnostics.filter((entry) => ownedFamilies.has(entry.family)).length;
+  assert.equal(ownerSum, ownedCount, "owner budgets must hold every owned-family diagnostic and no other");
+  assert.equal(
+    Object.values(accounted.families).reduce((total, count) => total + count, 0),
+    accounted.total,
+    "canonical families must cover the whole diagnostic set",
+  );
+
+  // DETERMINISM - an unchanged tree serialises identically. A classifier whose answers depend
+  // on iteration order cannot be a durable number.
+  const repeated = classifyFixture("types/contracts.d.ts", [aliasRead, decoyRead, computedRead, shadowedRead]);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(repeated.diagnostics)),
+    JSON.parse(JSON.stringify(declaredRun.diagnostics)),
+    "classifying an unchanged tree twice must serialise identically",
+  );
+  assert.deepEqual(repeated.families, declaredRun.families);
+  assert.deepEqual(repeated.owners, declaredRun.owners);
+
+  fs.rmSync(classifierFixtureRoot, { recursive: true, force: true });
+}
 
 // `0.33.33.38.2.4.1` gave the estate one namespace resolver, and these fixtures are what
 // make it safe for the next tool to call instead of writing its own.
