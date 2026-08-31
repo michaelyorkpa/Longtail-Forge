@@ -1,5 +1,52 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.4.4 - Additive publication semantics
+
+**Model: Medium Effort** - the child that expected to write policy for three surfaces, found six, and ended by deleting five of them.
+
+- [x] **The roadmap said three and the estate had six.** `0.33.33.38.2.4.3` made the tree structurally queryable, and asking the inventory for `preservesExisting` returned `dashboard`, `notesDialog`, `listsDialog` - plus **`filesDialog`** and **`reporting`**, which no planning pass had seen, and **`view`**. A list assembled by reading code had found five-sixths of the estate and was confident about it. **That is the argument for structural completeness in one sentence.**
+- [x] **Five preserved nothing on any delivery path, so they were removed rather than blessed.** Policy saying dead defensiveness is permitted forever would be worse than the syntax it excuses.
+- [x] **`dashboard`'s comment described a guarantee its code did not implement.** It said replacing the object would orphan scripts that captured a reference at load - and **a spread assigns a new object**, so it never provided that identity. Two consumers do capture the surface at load and register panels immediately, so the concern was real; the spread was simply never what protected them. The registry it appeared to defend is `dashboardPanelRenderers`, a **file-local closure**, so a re-evaluation would start empty whether members were carried over or not. One call site, one delivery through the bridge. **Removed, and the comment now says what the code does.**
+- [x] **`filesDialog` was documented residue, and the documentation was in the tree already.** `shared/file-preview.js` records that `0.33.33.33.8` counted this surface as three writers and `0.33.33.34` reduced it to one canonical owner, and that the only member it ever merged in was `openFilePreview` - which that file no longer writes and which `files.js` republishes itself. **The multi-writer record was struck in `.34`; the spread it justified stayed for two more checkpoints.**
+- [x] **`notesDialog` and `listsDialog` have the estate's only genuine double-delivery path and still preserve nothing.** Each is a classic script on its own page *and* a `module: true` module-action dependency - but the descriptors name a readiness probe on the surface and member, so the loader skips a file that has already published, and a second evaluation would rebuild the same members from the same API. **Idempotency insurance against a case the architecture already prevents, and which the spread would not have changed.**
+- [x] **`view` is retained because it is the real thing.** `view-renderer.js` spreads the 30 primitives `view-builder.js` published in order to add 10 more, in a fixed delivery order, so **the preservation is part of a contract between two named co-writers.** Its record says that rather than saying "additive": nothing outside those two files may contribute to `view`, so this is member preservation and explicitly **not** extensibility.
+
+**Additive publication is now governed independently of writer multiplicity, which is the distinction this child exists to draw.** A surface may have one writer or several, and may replace or preserve, in any of the four combinations. `MULTI_WRITER_RECORDS` answers *how many writers are permitted and why*; `ADDITIVE_PUBLICATION_RECORDS` answers *why a writer preserves*. A fixture proves all four cells, and the estate proves two of them: `window.fetch` has three writers and preserves nothing, `view` has two and preserves.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Preserving publications | 6 | **1** |
+| Unique publication surfaces | 65 | **65** |
+| Publication occurrences | 68 | **68** |
+| Known / declared members | 63 / 30 | **63 / 30** |
+| Undeclared backlog | 33 | **33**, unchanged |
+| Unresolvable rooted writes | 0 | **0** |
+| Browser program diagnostics | 8,869 | **8,866** |
+| Namespace surface family | 385 | **382** |
+| params / state / dom / unknown / assorted | 4,632 / 1,823 / 1,484 / 378 / 167 | **unchanged** |
+| Bare-root reads | 122 | **119** |
+| Runtime files changed | - | **5** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**All three closed diagnostics are `TS18048` root reads inside the removed spreads** - one each in `files.js`, `lists.js` and `notes.js` - and all three are namespace family, so **no `0.33.33.39`-`.44` owner budget moved.** `dashboard.js` and `reporting.js` read through a local alias and carried no diagnostic at all.
+
+**No declaration was added.** Removing a spread does not settle a surface's contract, and `dashboard`, `notesDialog` and `listsDialog` are now unblocked for the checkpoints that own them rather than absorbed here.
+
+Four new guards were each proved by breaking them: restoring a removed spread, a record naming the wrong writer, a record preserving a file that does not publish the surface, and striking the only record. **Each failed with the message that names the problem**, which the `0.33.33.38.2.4.3` retrospective is the reason for checking - a guard written through a mangled escape had passed on a tree that plainly violated it.
+
+## Version 0.33.33.38.2.4 - Namespace governance (rollup closed)
+
+All four children have landed. The namespace now has a durable owner, and the four things that made it possible to drift are each closed by an implementation rather than a rule:
+
+- **`.4.1`** put root, member and binding identity in **one repository-owned resolver**. The same spelling-versus-binding mistake had been made five times in five independent implementations; a rule cannot be shared, only an implementation can.
+- **`.4.2`** made the canonical families, the `0.33.33.39`-`.44` budgets and the root-optionality classes a **repository command that classifies the diagnostics of its own compiler run against its own tree**. It found six misclassifications in the published table on its first run.
+- **`.4.3`** related **publication to declaration** for the first time, naming all 33 undeclared members in a shrink-only backlog asserted by identity rather than by count.
+- **`.4.4`** separated **additive publication from writer multiplicity** and reduced six preserving publications to the one that means something.
+
+**What this rollup did not do is reduce debt, and that was the point.** It closed at 8,866 against 8,869, and every one of those three came from deleting syntax rather than typing anything. What changed is that the estate's numbers now have a producer, its publications have contracts, and the next checkpoint can remove permissiveness instead of guessing around it.
+
 ## Version 0.33.33.38.2.4.3 - Declaration coverage becomes enforceable
 
 **Model: Medium Effort** - four invariants, one of them a backlog rather than a rule, and a fixture that passed for a week's worth of reasons that turned out to be a stray control character.
