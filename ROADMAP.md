@@ -388,15 +388,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **This is not a debt-reduction checkpoint and must not be justified as one.** The three surfaces it unblocks carry **five diagnostics between them** - `dashboard` 0, `notesDialog` 3, `listsDialog` 2. The larger adoptable bucket elsewhere is **122 bare-root `window.LongtailForge` reads** owned by `0.33.33.38.2.6`, which needs nothing from here. **What this checkpoint buys is that the estate's numbers become reproducible and that declaration coverage becomes enforceable** - and the evidence it is needed is that two independent staleness defects were found in the analysis tooling in a single session.
 
-#### 0.33.33.38.2.4.2 - A durable command that classifies its own tree
-
-**Depends on `.1`. Tooling and CI; no runtime consequence.**
-
-- [ ] **The estate's numbers have no in-repo producer at all.** The canonical family table, the `0.33.33.39`-`.44` budgets, and the root-optionality classes are computed by analysis scripts that live outside the repository and that CI never runs. What the repository owns is the shrink-only ledger in `scripts/typecheck-governance.mjs`, which enforces no new debt per file per code, and the publication inventory, which enforces surface ownership. **Neither knows what a diagnostic means.**
-- [ ] **Source-tree identity must be structural, not procedural.** `0.33.33.38.2.2.6.4.2` established that the classifier resolves bindings from the **working tree**, so classifying a saved snapshot against different source silently invents family and owner movement - and did, reporting a `.44` increase that did not exist. **The command must produce the diagnostics and classify them in one invocation** rather than accepting a snapshot path, because operator discipline has already failed once.
-- [ ] **A second staleness defect proves the same point from the other side.** The analysis classifier decides namespace-versus-genuine-`unknown` from a `declared` set frozen in a JSON snapshot that holds **one** member while the declaration holds **thirty**. It happens to change no current total - re-running with the live declaration reproduces 4,632 / 1,828 / 1,484 / 379 / 379 / 167 exactly - but nothing would have said so. **Every input a durable number depends on must be derived, never carried.**
-- [ ] Emit the canonical families, the future-owner budgets, and the assertion that every params/state/assorted diagnostic has exactly one owner. **Reuse the ledger's existing compiler invocation rather than adding a second one.**
-
 #### 0.33.33.38.2.4.3 - Declaration coverage becomes enforceable
 
 **Depends on `.2` only for reporting; can land independently of `.4`. CI consequence, no runtime consequence.**

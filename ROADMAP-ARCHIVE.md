@@ -1,5 +1,42 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.4.2 - A durable command that classifies its own tree
+
+**Model: High Effort** - the child that gave the estate's semantic numbers a repository producer, and found six wrong ones on the way.
+
+- [x] **There is nothing to mismatch, which is the whole design.** `npm run typecheck` already spawned the compiler; it now keeps each run's located diagnostics and classifies the browser program's own diagnostics against the tree that run read, in the same process. **No snapshot is written and none can be supplied**, so the defect `0.33.33.38.2.2.6.4.2` hit - classifying a saved diagnostics file while different source was checked out, which invented a `0.33.33.44` increase that did not exist - has no way to recur. The parse kept only file and code before this; it now keeps line, column and message, which is precisely why the ledger could enforce monotonicity while knowing nothing about meaning.
+- [x] **Every semantic input is derived, and the second stale defect is what proves it matters.** The external classifier decided namespace-versus-genuine-`unknown` from a `declared` set frozen in JSON that held **one** member while the declaration held **thirty**. Here the declared members are read from the live declaration and the known members from the live publication inventory. A test flips one diagnostic's family by changing only the declaration, so **a frozen set would answer identically for both and fail**.
+- [x] **The published family table was wrong by six, and the command is what found them.** All six are the same defect class this checkpoint exists to end. Four are in `dashboard.entry.js`, whose root is bound by `const namespace = window.LongtailForge = window.LongtailForge || {}` - an assignment-expression bootstrap the text-based analyser could not follow, so `namespace.cachedFetch`, `namespace.userPreferences` and two `workspaceContext` reads fell to page-local state and genuine `unknown`. One is `footer.js:160`, where `.catch` sits on a **different line** from the receiver it is called on, so a line-local scan could not see that the receiver is a namespace member. One is `task-calendar.js:38`. **The resolver answers all six correctly**, and they are corrections rather than a regression: the numbers were wrong, not the tree.
+- [x] **A computed key stays unresolved rather than guessed, and the first attempt did guess.** A read of the root itself was chased along the source text to find the member it continued into, which walks straight through `namespace[key].render` and invents a read of `render`. The root is now identified as the root and classified on that alone. **The fixture caught it**, which is what the fixture is for.
+
+Reproduced from HEAD, by the command, in one invocation:
+
+| Family | Count | | Owner | Params | State | Assorted | Total |
+| --- | ---: | --- | --- | ---: | ---: | ---: | ---: |
+| Unannotated parameters | **4,632** | | `0.33.33.39` shared browser framework | 1,660 | 90 | 26 | **1,776** |
+| Page-local state | **1,823** | | `0.33.33.40` Notes | 378 | 129 | 27 | **534** |
+| DOM subtype and lookup | **1,484** | | `0.33.33.41` Tasks and Task Dialog | 556 | 642 | 23 | **1,221** |
+| genuine `unknown` | **378** | | `0.33.33.42` Workbench | 307 | 203 | 21 | **531** |
+| Namespace surface | **385** | | `0.33.33.43` Lists, Files, Clients/Projects | 752 | 199 | 26 | **977** |
+| Assorted | **167** | | `0.33.33.44` remaining page controllers | 979 | 560 | 44 | **1,583** |
+| **Total** | **8,869** | | **Total** | **4,632** | **1,823** | **167** | **6,622** |
+
+**The command throws rather than reports** if the families fail to cover every governed diagnostic or the owner sums fail to equal their families, so the reconciliation is enforced on every run rather than asserted once. Root optionality is reported and untouched: **122 bare-root reads**, 1 on a declared member, and 53 parked behind 13 undeclared members - all `0.33.33.38.2.6`'s and `.38.2.2`'s work, not this child's.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,869 | **8,869** |
+| Compiler invocations | 1 per program | **1 per program** |
+| `scripts` program diagnostics | 0 across 594 files | **0 across 595 files** |
+| Ledger semantics | per file per code, shrink-only | **unchanged** |
+| Application runtime files changed | - | **0** |
+| CI workflow files changed | - | **0** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**The shrink-only ledger is untouched and remains the authority on debt monotonicity.** This adds meaning beside it: the ledger knows a file's codes moved, and now something knows what they were about. Two deliberate breaks prove the tests catch the history - freezing the declared set fails *an undeclared member read is namespace work, not a trust boundary*, and resolving members by spelling fails *a computed member name must remain unresolved rather than guessed*.
+
 ## Version 0.33.33.38.2.4.1 - One repository-owned namespace/binding resolver
 
 **Model: Medium Effort** - an extraction rather than an implementation, and the child where proving the fixtures fail-first is what stopped the wrong fixture shipping.
