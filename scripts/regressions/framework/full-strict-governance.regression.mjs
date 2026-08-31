@@ -3053,8 +3053,24 @@ const resolverFixtureSource = [
   '    const namespace = { decoyMember: {} };',
   '    return namespace.decoyMember;',
   '  }',
+  '  function shorthandReference() {',
+  '    const shorthandLocal = { ok: true };',
+  '    const shorthandAlias = global.LongtailForge || {};',
+  '    return { shorthandLocal, shorthandAlias };',
+  '  }',
+  '  function aliasThenMutate() {',
+  '    const promises = namespace.dashboardBootstrap;',
+  '    return promises.dataPromises;',
+  '  }',
+  '  function requireNamespace() {',
+  '    return namespace;',
+  '  }',
+  '  function accessorForm() {',
+  '    return requireNamespace().accessorMember;',
+  '  }',
   '  return [usesApi, usesCustomer, shadowsModal, capturesOuterAlias,',
-  '    aliasSpelledAnything, decoySpelledLikeTheRoot, bootstrapped];',
+  '    aliasSpelledAnything, decoySpelledLikeTheRoot, shorthandReference,',
+  '    aliasThenMutate, accessorForm, bootstrapped];',
   '})(window);',
 ].join("\n");
 
@@ -3170,6 +3186,36 @@ fs.writeFileSync(
   // PRESERVATION - a local DOM variable that shares a surface's name is not that surface.
   assert.equal(seen("modal").kind, "other", "an inner local must not resolve to a namespace surface");
   assert.equal(seen("modal").member, null, "an inner local names no namespace member");
+
+  // PRESERVATION - a shorthand property is a reference like any other, and resolves by its
+  // binding rather than by the key it happens to supply. One of these two is the namespace
+  // and one is a local object; nothing about the shorthand form decides which.
+  assert.equal(seen("shorthandLocal").kind, "other", "a shorthand reference to a local is not the namespace");
+  assert.equal(seen("shorthandAlias").kind, "namespace", "a shorthand reference to an alias is still the namespace");
+
+  // LIMIT - alias-then-mutate. `0.33.33.38.2.2.6.7` searched for `dataPromises.set` and found
+  // nothing, because both consumers alias the map into a local and mutate through the alias;
+  // taking that at face value would have inverted a contract to `ReadonlyMap`. The resolver's
+  // documented model tracks bindings, **not values through containers**, so a local
+  // initialised from a member access is `other` and the read through it names no member.
+  // That is the correct answer here, and the reason a *search* still has to be written
+  // knowing it: this is the resolver refusing to guess, not the resolver resolving.
+  assert.equal(
+    seen("promises.dataPromises").member,
+    null,
+    "a local initialised from a member access is a binding of its own, not that member",
+  );
+
+  // LIMIT - the accessor form. `requireClientProjectOptions().normalizeClients` is how five
+  // sites acquired a surface in `0.33.33.38.2.2.6.4.1`, and a receiver-pinned audit missed
+  // every one of them. The resolver does not follow values through calls, so the member is
+  // **explicitly unresolved rather than guessed into the namespace family** - the disposition
+  // `0.33.33.38.2.4.2` must then treat as unclassified rather than as a surface read.
+  assert.equal(
+    seen("requireNamespace().accessorMember").member,
+    null,
+    "a member reached through a call is not resolvable under the documented model",
+  );
 
   // The resolver is the only implementation of this, and the inventory now calls it rather
   // than carrying its own copy - which is the whole point of the child.
