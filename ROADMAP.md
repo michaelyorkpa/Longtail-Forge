@@ -346,14 +346,15 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.2.2.6.8 - `LongtailForge.dashboard`
 
-**BLOCKED on `0.33.33.38.2.4`. 1 published member from a classic script, published by spread-merge - which is a governance question before it is a typing one.**
+**UNBLOCKED by `0.33.33.38.2.4.4`. 1 published member from a single writer, published by plain replacement.**
 
-**The block stands even though only one writer is measured.** The publication inventory reports a single writer today, so a declaration could be derived from the runtime and would be accurate this week. **What it would not be is truthful about the surface's own design:** `{ ...(namespace.dashboard || {}), ... }` reads the existing member before writing, which is the shape a surface takes when it expects to be extended. **Declaring the one member that happens to exist would freeze an anticipated extension point into a closed contract**, and the next writer would arrive to find the type says it cannot exist. `0.33.33.38.2.4` owns multi-writer governance; **this child does not start until that owner has said whether a spread-merged surface is open or closed.** Measuring one writer is not the same as settling that question.
+**The block was correct and its answer was that the spread meant nothing.** This child was held because `{ ...(namespace.dashboard || {}), ... }` read the existing member before writing, which is the shape a surface takes when it expects to be extended - and declaring the one member that happens to exist would have frozen an anticipated extension point into a closed contract. `0.33.33.38.2.4.4` settled it by archaeology rather than assumption: **the comment claimed the spread protected references captured at load, but a spread assigns a new object and never provided that identity**, and the registry it appeared to defend is a file-local closure that a re-evaluation would rebuild empty regardless. The spread is gone.
 
-`dashboard.js` writes `namespace.dashboard = { ...(namespace.dashboard || {}), registerPanelRenderer }`.
+`dashboard.js` now writes `namespace.dashboard = { registerPanelRenderer }`.
 
-- [ ] **Settle whether more than one writer exists or was merely anticipated.** The spread reads as an invitation to other publishers; the publication inventory currently reports one writer. **`0.33.33.38.2.4` owns multi-writer governance**, and declaring a merged surface without settling that would freeze an assumption rather than a contract.
-- [ ] **`dashboard.js` is loaded by the bridge, not by a script tag**, so its execution ordering is a consequence of `0.33.33.38.2.2.6.3`. Preflight it after the bridge lands.
+- [ ] **Declare one member against a closed contract.** There is one writer, one call site, one delivery through the ES-module bridge, and no additive record - so a closed interface is now the truthful shape rather than an assumption about extensibility.
+- [ ] **`registerPanelRenderer` takes a renderer id and a function**, and two consumers - `tasks-dashboard.js` and `time-tracking-dashboard.js` - capture the surface at load and register immediately, one throwing and one returning when it is absent. **Preserve both failure modes**; they are different on purpose.
+- [ ] **The surface carries zero diagnostics**, so this is declaration coverage rather than debt reduction. It shrinks `0.33.33.38.2.4.3`'s undeclared backlog by exact identity when it lands.
 
 #### 0.33.33.38.2.2.6.5 - The narrow pure surfaces
 
@@ -361,7 +362,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 - [ ] **Four of these are published by page controllers with heavy parameter debt** - `notes.js` 192, `lists.js` 176, `shared/file-attachments.js` 132, `navigation.js` 65 - owned by `0.33.33.40` through `.44`. **`icons` proved that debt is usually independent and `settingsRenderer` proved it sometimes is not**, so probe per writer rather than per cohort.
 - [ ] **Their combined namespace debt is small**; the value here is declaration coverage rather than diagnostic reduction, which is the honest reason to run it late.
-- [ ] **`notesDialog` and `listsDialog` are blocked on `0.33.33.38.2.4` for the same reason `0.33.33.38.2.2.6.8` is.** Both publish `Object.freeze({ ...(window.LongtailForge.X || {}), ...api })` - **read-before-write, the same anticipated-extension shape as `dashboard`** - and the same governance answer settles all three. They were measured for this pass and set down, not skipped.
+- [ ] **`notesDialog` and `listsDialog` are unblocked by `0.33.33.38.2.4.4`**, which removed the read-before-write spread from both. Each has one writer and two delivery paths - a classic script on its own page and a `module: true` module-action dependency - but the descriptor names a readiness probe on the surface and member, so the second load never happens and the spread preserved nothing. **Declare them against closed contracts**, and expect the delivery story, not the publication form, to be the interesting part: `notes.js` publishes five members through `notesDialogApi` and `lists.js` three.
 - [ ] **`userPreferences` is not a pure surface and the earlier grouping was wrong about it.** It is published **inside an async bootstrap, after `await response.json()`**, and its single member is `shell.user?.preferredCalendarView || null` - **an unvalidated wire field with a fallback, not a constructed value.** A truthful declaration is therefore a `0.33.33.38.4` question, and its **lazy publication is a second question**: the surface is absent until that request resolves. **`notesEditor` and `notesLinkedPanel` are the only two here that are clean today**, and between them they carry one root diagnostic.
 
 #### 0.33.33.38.2.2.6.6 - The wire-exposed surfaces, one return trace each
