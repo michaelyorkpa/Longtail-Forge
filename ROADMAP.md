@@ -114,15 +114,17 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 | Owner | Unannotated parameters | Page-local state | Assorted | Total |
 | --- | ---: | ---: | ---: | ---: |
-| `0.33.33.39` shared browser framework | **1,661** | **92** | **26** | **1,779** |
+| `0.33.33.39` shared browser framework | **1,661** | **91** | **26** | **1,778** |
 | `0.33.33.40` Notes | 378 | 129 | 27 | 534 |
 | `0.33.33.41` Tasks and Task Dialog | 556 | 642 | 23 | 1,221 |
 | `0.33.33.42` Workbench | 311 | 210 | 21 | 542 |
 | `0.33.33.43` Lists, Files, Clients/Projects | 754 | 219 | 26 | 999 |
 | `0.33.33.44` remaining page controllers | 981 | 566 | 44 | 1,591 |
-| **Total** | **4,641** | **1,858** | **167** | **6,666** |
+| **Total** | **4,641** | **1,857** | **167** | **6,665** |
 
 **`0.33.33.39` fell by 78 because dead source ceased to exist, not because `0.33.33.38` typed anything it owned.** `0.33.33.38.2.2.7` deleted `public/js/shared/billing.js` - a 385-line browser billing implementation whose page delivery was removed by commit `922df3cc` when the responsibility moved to `src/modules/time-tracking/time-tracking-billing.service.js`. **Its 89 diagnostics did not move owner and were not fixed; the file that produced them is gone.** Seventy-two were unannotated parameters, five page-local state, and one assorted - all `0.33.33.39`'s - and the remaining eleven were namespace surface, which `0.33.33.38` owned. **`0.33.33.40` through `.44` are unchanged in every family.**
+
+**`0.33.33.39` fell one further, from 1,779 to 1,778, and that one is a genuine elimination rather than a transfer.** `0.33.33.38.2.2.6.7` declared `LongtailForge.dashboardBootstrap`, and a page-local read that had been counted as untyped state resolved **because the runtime contract now gives existing state a precise type** - no code was moved, no debt was reclassified, and `0.33.33.38` did not absorb anything `.39` owned. **The distinction matters because the opposite would be invisible:** a child that quietly re-owned a diagnostic would produce the same arithmetic. This one is recorded at the point of elimination so the budget is restated in planning rather than banked. **Page-local state is 1,857 estate-wide and the six owner columns still sum to their family totals exactly.**
 
 **This is the distinction the branch keeps having to make.** A budget may fall because debt was genuinely eliminated, because a classifier defect was corrected, or because the work landed - and the three are not interchangeable. **Deleting a ghost is the first kind**, and recording it as anything else would credit a typing checkpoint with work it never did.
 
@@ -331,7 +333,9 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.2.2.6.8 - `LongtailForge.dashboard`
 
-**1 published member from a classic script, published by spread-merge - which is a governance question before it is a typing one.**
+**BLOCKED on `0.33.33.38.2.4`. 1 published member from a classic script, published by spread-merge - which is a governance question before it is a typing one.**
+
+**The block stands even though only one writer is measured.** The publication inventory reports a single writer today, so a declaration could be derived from the runtime and would be accurate this week. **What it would not be is truthful about the surface's own design:** `{ ...(namespace.dashboard || {}), ... }` reads the existing member before writing, which is the shape a surface takes when it expects to be extended. **Declaring the one member that happens to exist would freeze an anticipated extension point into a closed contract**, and the next writer would arrive to find the type says it cannot exist. `0.33.33.38.2.4` owns multi-writer governance; **this child does not start until that owner has said whether a spread-merged surface is open or closed.** Measuring one writer is not the same as settling that question.
 
 `dashboard.js` writes `namespace.dashboard = { ...(namespace.dashboard || {}), registerPanelRenderer }`.
 
@@ -344,6 +348,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 - [ ] **`moduleActions` already has one genuinely optional consumer** - `shared/module-actions.js:389` guards `namespace.pageController?.setStatus` and falls through - so classify every site the way `0.33.33.38.2.6.3` did for `cachedFetch`.
 - [ ] Writer parameter debt is 48 and 41. **Nine consumers each is the largest blast radius left; prove delivery per page.**
+- [ ] **`clientProjectOptions` is a vocabulary-design child, not a declaration child.** `normalizeClients` is a total normalizer whose output shape is assembled across six helper functions - identity, labels, status, billing, hierarchy, and nested projects - so declaring it means **naming a client vocabulary the repository does not currently have anywhere.** That is the shape that made `settingsRenderer` a blocked surface. **Run it after `moduleActions`, and expect the type to be the deliverable rather than a by-product.**
 
 #### 0.33.33.38.2.2.6.5 - The narrow pure surfaces
 
@@ -351,6 +356,8 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 - [ ] **Four of these are published by page controllers with heavy parameter debt** - `notes.js` 192, `lists.js` 176, `shared/file-attachments.js` 132, `navigation.js` 65 - owned by `0.33.33.40` through `.44`. **`icons` proved that debt is usually independent and `settingsRenderer` proved it sometimes is not**, so probe per writer rather than per cohort.
 - [ ] **Their combined namespace debt is small**; the value here is declaration coverage rather than diagnostic reduction, which is the honest reason to run it late.
+- [ ] **`notesDialog` and `listsDialog` are blocked on `0.33.33.38.2.4` for the same reason `0.33.33.38.2.2.6.8` is.** Both publish `Object.freeze({ ...(window.LongtailForge.X || {}), ...api })` - **read-before-write, the same anticipated-extension shape as `dashboard`** - and the same governance answer settles all three. They were measured for this pass and set down, not skipped.
+- [ ] **`userPreferences` is not a pure surface and the earlier grouping was wrong about it.** It is published **inside an async bootstrap, after `await response.json()`**, and its single member is `shell.user?.preferredCalendarView || null` - **an unvalidated wire field with a fallback, not a constructed value.** A truthful declaration is therefore a `0.33.33.38.4` question, and its **lazy publication is a second question**: the surface is absent until that request resolves. **`notesEditor` and `notesLinkedPanel` are the only two here that are clean today**, and between them they carry one root diagnostic.
 
 #### 0.33.33.38.2.2.6.6 - The wire-exposed surfaces, one return trace each
 
