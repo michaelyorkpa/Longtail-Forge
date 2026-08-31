@@ -114,15 +114,28 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 | Owner | Unannotated parameters | Page-local state | Assorted | Total |
 | --- | ---: | ---: | ---: | ---: |
-| `0.33.33.39` shared browser framework | **1,661** | **91** | **26** | **1,778** |
+| `0.33.33.39` shared browser framework | **1,660** | **91** | **26** | **1,777** |
 | `0.33.33.40` Notes | 378 | 129 | 27 | 534 |
 | `0.33.33.41` Tasks and Task Dialog | 556 | 642 | 23 | 1,221 |
-| `0.33.33.42` Workbench | 311 | 210 | 21 | 542 |
-| `0.33.33.43` Lists, Files, Clients/Projects | 754 | 219 | 26 | 999 |
-| `0.33.33.44` remaining page controllers | 981 | 566 | 44 | 1,591 |
-| **Total** | **4,641** | **1,857** | **167** | **6,665** |
+| `0.33.33.42` Workbench | 307 | 203 | 21 | 531 |
+| `0.33.33.43` Lists, Files, Clients/Projects | 752 | 199 | 26 | 977 |
+| `0.33.33.44` remaining page controllers | 979 | 564 | 44 | 1,587 |
+| **Total** | **4,632** | **1,828** | **167** | **6,627** |
 
 **`0.33.33.39` fell by 78 because dead source ceased to exist, not because `0.33.33.38` typed anything it owned.** `0.33.33.38.2.2.7` deleted `public/js/shared/billing.js` - a 385-line browser billing implementation whose page delivery was removed by commit `922df3cc` when the responsibility moved to `src/modules/time-tracking/time-tracking-billing.service.js`. **Its 89 diagnostics did not move owner and were not fixed; the file that produced them is gone.** Seventy-two were unannotated parameters, five page-local state, and one assorted - all `0.33.33.39`'s - and the remaining eleven were namespace surface, which `0.33.33.38` owned. **`0.33.33.40` through `.44` are unchanged in every family.**
+
+**Restated from merged HEAD after `0.33.33.38.2.2.6.4.2`, which caused the largest budget movement of the rollup.** Thirty-eight diagnostics left `0.33.33.39`, `.42`, `.43` and `.44`. **They were eliminated, not transferred**: no owner's number rose, no diagnostic changed owner, and nothing was suppressed. Declaring `LongtailForge.clientProjectOptions` forced four page-local `clients: []` fields to be annotated - TypeScript infers `never[]` for them and **nothing is assignable to `never[]`**, so no truthful return type could land without it - and giving that state a precise element type resolved every read the compiler had been unable to follow.
+
+| Owner | Eliminated | Where |
+| --- | ---: | --- |
+| `0.33.33.39` | 1 | `shared/client-project-options.js` - one parameter, closed by contextually typing `optionLabel` |
+| `0.33.33.42` | 12 | `workbench.js` - 5 parameters, 7 page-local state |
+| `0.33.33.43` | 22 | `lists.js` 16, `files.js` 6 |
+| `0.33.33.44` | 3 | `calendar.js` - 1 parameter, 2 page-local state |
+
+**The two smallest owners were also stale by one before this restatement**: `.42` and `.44` were published as 542 and 1,591 against a tree that measured 543 and 1,590. Both are now derived rather than carried.
+
+**Every number in this table was produced by classifying a diagnostics file against the tree that produced it.** That qualifier is new, because `0.33.33.38.2.2.6.4.2` discovered that the classifier resolves bindings from the **working tree**: classifying a saved snapshot while different source is checked out silently invents family and owner movement, and did - it reported a `.44` increase that did not exist. **`0.33.33.38.2.4` owns making this impossible rather than merely documented.**
 
 **`0.33.33.39` fell one further, from 1,779 to 1,778, and that one is a genuine elimination rather than a transfer.** `0.33.33.38.2.2.6.7` declared `LongtailForge.dashboardBootstrap`, and a page-local read that had been counted as untyped state resolved **because the runtime contract now gives existing state a precise type** - no code was moved, no debt was reclassified, and `0.33.33.38` did not absorb anything `.39` owned. **The distinction matters because the opposite would be invisible:** a child that quietly re-owned a diagnostic would produce the same arithmetic. This one is recorded at the point of elimination so the budget is restated in planning rather than banked. **Page-local state is 1,857 estate-wide and the six owner columns still sum to their family totals exactly.**
 
