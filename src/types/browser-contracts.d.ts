@@ -1453,12 +1453,108 @@ export interface BrowserModuleActions extends ModuleActionDependencyLoader {
   register(action?: unknown): unknown;
 }
 
+/** A billing period a client or project overrides, or `null` where it inherits. */
+export interface NormalizedBillingPeriod {
+  /** 1-28, and always 1 for a calendar month. */
+  startDay: number;
+  type: "calendarMonth" | "custom";
+}
+
+/** A rounding rule a client or project overrides, or `null` where it inherits. */
+export interface NormalizedBillingRounding {
+  enabled: boolean;
+  increment: "nearestHalfHour" | "nearestHour" | "nearestQuarterHour";
+}
+
+/**
+ * A project as `normalizeClients` rebuilds it - **not** a project record.
+ *
+ * Every field here is constructed by the writer rather than passed through: the identifiers
+ * are `String(...).trim()`ed and accept either casing the API uses, `status` is derived from
+ * a case-insensitive `"inactive"` test, `billable` falls back to the owning client's setting,
+ * money is parsed to a finite number or `null`, and the two override shapes are rebuilt field
+ * by field. `displayName`, `optionLabel` and `hierarchyDepth` are added by the ordering pass,
+ * which indents each label by its depth in the parent chain.
+ */
+export interface NormalizedProjectOption {
+  billable: "no" | "yes";
+  billingPeriod: NormalizedBillingPeriod | null;
+  billingRate: number | null;
+  billingRounding: NormalizedBillingRounding | null;
+  client_id: string;
+  displayName: string;
+  hierarchyDepth: number;
+  id: string;
+  name: string;
+  optionLabel: string;
+  parent_project_id: string;
+  status: "Active" | "Inactive";
+}
+
+/**
+ * A client as `normalizeClients` rebuilds it, with its projects already ordered and labelled.
+ *
+ * **The writer spreads the input record before overwriting these fields**, so a normalized
+ * client also carries whatever else the API sent. That is deliberately not described here:
+ * no consumer in the estate reads a pass-through field, and naming today's API columns would
+ * freeze a server shape this helper does not own. The fields below are the ones the writer
+ * constructs and therefore the ones it can promise.
+ */
+export interface NormalizedClientOption {
+  billable: "no" | "yes";
+  billingPeriod: NormalizedBillingPeriod | null;
+  billingRate: number | null;
+  billingRounding: NormalizedBillingRounding | null;
+  displayName: string;
+  hierarchyDepth: number;
+  id: string;
+  /** Present only on the synthetic entry that carries workspace-scoped projects. */
+  isWorkspaceScope?: boolean;
+  name: string;
+  optionLabel: string;
+  parent_client_id: string;
+  projects: NormalizedProjectOption[];
+  status: "Active" | "Inactive";
+}
+
+/**
+ * `LongtailForge.clientProjectOptions`, published by
+ * `public/js/shared/client-project-options.js`.
+ *
+ * Turns a client/project API body into the ordered, labelled options six pages put in their
+ * pickers. **Input and output are deliberately different vocabularies.** `data` is `unknown`
+ * because it is a wire body - every consumer hands it a `response.json()` or an
+ * `api.getJson` result, and the writer reads it defensively, keeping only what survives
+ * `Array.isArray`. The output is named strongly because **the writer constructs every field
+ * of it**, which is the same input-untrusted / output-normalized split `timezones` and the
+ * link-target vocabulary already use.
+ */
+export interface BrowserClientProjectOptions {
+  /**
+   * Order and label a client/project body for a picker. **Total**: an unusable body yields an
+   * empty list rather than an error. Inactive records are dropped unless `includeInactive`.
+   *
+   * Clients come back in parent-then-child order with orphans appended, and a synthetic
+   * `isWorkspaceScope` entry is prepended **only** when the body carries workspace projects.
+   */
+  normalizeClients(data?: unknown, options?: { includeInactive?: boolean }): NormalizedClientOption[];
+  /**
+   * The label for a client **or** a project - both are passed at four sites - falling back
+   * through `displayName` and `name` to `""`.
+   *
+   * The parameter names the three fields the implementation reads rather than either record
+   * type, because that is all it touches and it is called with both.
+   */
+  optionLabel(record?: { displayName?: string; name?: string; optionLabel?: string }): string;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
   assetVersion?: BrowserAssetVersion;
   cachedFetch?: BrowserCachedFetch;
   capturePrompt?: BrowserCapturePrompt;
+  clientProjectOptions?: BrowserClientProjectOptions;
   controllers?: PageControllerRegistry;
   dashboardBootstrap?: BrowserDashboardBootstrap;
   errors?: BrowserErrorContract;

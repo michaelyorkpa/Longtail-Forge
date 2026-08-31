@@ -48,7 +48,7 @@
       api.getJson("/api/active-timers", { cache: "no-store" }),
     ]);
 
-    clients = namespace.clientProjectOptions.normalizeClients(clientProjectData);
+    clients = requireClientProjectOptions().normalizeClients(clientProjectData);
     taskOptions = normalizeTaskOptions(taskOptionsData);
     activeManualTimers = Array.isArray(activeTimersData?.timers) ? activeTimersData.timers : [];
     context = {
@@ -386,12 +386,24 @@
       : [];
   }
 
+  // Every page that loads this controller also loads `js/shared/client-project-options.js`,
+  // so this reads a dependency the page guarantees rather than probing for one.
+  function requireClientProjectOptions() {
+    const clientProjectOptions = namespace?.clientProjectOptions;
+
+    if (!clientProjectOptions) {
+      throw new Error("The timer dialog requires the client and project option helper.");
+    }
+
+    return clientProjectOptions;
+  }
+
   function clientOptionLabel(client) {
-    return namespace.clientProjectOptions.optionLabel(client);
+    return requireClientProjectOptions().optionLabel(client);
   }
 
   function projectOptionLabel(project) {
-    return namespace.clientProjectOptions.optionLabel(project);
+    return requireClientProjectOptions().optionLabel(project);
   }
 
   function workspaceShowsClientTools() {
