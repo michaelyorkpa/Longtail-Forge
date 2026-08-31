@@ -9,7 +9,9 @@ export const regressionMeta = Object.freeze({
 
 import assert from "node:assert/strict";
 import { collectBrowserPublicationInventory, contestedSurfaces } from "../../test-support/browser-publication-inventory.mjs";
+import { createNamespaceResolver } from "../../test-support/browser-namespace-resolver.mjs";
 import { extractClassMethodBlock, extractFunctionBlock, extractFunctionBody, extractFunctionSpan, scannableSource } from "../../test-support/source-scan.mjs";
+import { createRequire } from "node:module";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -3006,6 +3008,185 @@ assert.ok(
   leakingBrowserScripts.length <= SHARED_SCOPE_BACKLOG.size,
   `the shared-scope backlog may only shrink: ${leakingBrowserScripts.length} classic scripts leak against a recorded ${SHARED_SCOPE_BACKLOG.size}`,
 );
+
+// `0.33.33.38.2.4.1` gave the estate one namespace resolver, and these fixtures are what
+// make it safe for the next tool to call instead of writing its own.
+//
+// **Read the labels.** Most of what follows is a *preservation* proof: the publication
+// inventory already resolved root aliases, the logical-assignment root, shadowing and
+// index-paired parameters correctly, and the fixtures above prove that end to end. Those
+// answers must not change now that the logic lives somewhere else, and asserting them
+// directly against the resolver is how a future edit to the shared module gets caught by
+// the thing it would break rather than by an estate count moving.
+//
+// One case is genuinely new. `namespaceMemberOf` answers member identity for a **read**,
+// which the inventory never had to ask: it resolves assignment targets. Every
+// spelling-versus-binding defect on this branch was about a read - `namespace.timezones`
+// reached through an IIFE alias - and before this child the repository exported no
+// function that could answer it, so each analysis pass answered it again and three of
+// them answered it wrongly.
+const resolverFixtureSource = [
+  '(function attachResolverFixture(global) {',
+  '  const namespace = global.LongtailForge || {};',
+  '  const bootstrapped = global.LongtailForge ||= {};',
+  '  const customer = { timezones: {} };',
+  '  function usesApi() {',
+  '    const client = namespace.api;',
+  '    return client;',
+  '  }',
+  '  function usesCustomer() {',
+  '    const client = customer;',
+  '    return customer.timezones || client;',
+  '  }',
+  '  function shadowsModal() {',
+  '    const modal = document.createElement("div");',
+  '    return modal;',
+  '  }',
+  '  function capturesOuterAlias() {',
+  '    return namespace.timezones;',
+  '  }',
+  '  const ltf = global.LongtailForge || {};',
+  '  function aliasSpelledAnything() {',
+  '    return ltf.oddlyNamedMember;',
+  '  }',
+  '  function decoySpelledLikeTheRoot() {',
+  '    const namespace = { decoyMember: {} };',
+  '    return namespace.decoyMember;',
+  '  }',
+  '  return [usesApi, usesCustomer, shadowsModal, capturesOuterAlias,',
+  '    aliasSpelledAnything, decoySpelledLikeTheRoot, bootstrapped];',
+  '})(window);',
+].join("\n");
+
+const resolverFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ltf-resolver-fixtures-"));
+fs.mkdirSync(path.join(resolverFixtureRoot, "sources"));
+fs.writeFileSync(path.join(resolverFixtureRoot, "sources", "resolver.js"), resolverFixtureSource);
+fs.writeFileSync(
+  path.join(resolverFixtureRoot, "tsconfig.json"),
+  JSON.stringify({
+    compilerOptions: {
+      target: "es2023",
+      module: "esnext",
+      moduleResolution: "bundler",
+      allowJs: true,
+      checkJs: false,
+      noEmit: true,
+      lib: ["DOM", "DOM.Iterable", "ES2023"],
+      types: [],
+    },
+    include: ["sources/**/*.js"],
+  }),
+);
+
+{
+  const { API } = createRequire(`${process.cwd()}/package.json`)("typescript/unstable/sync");
+  const resolverApi = new API({ cwd: resolverFixtureRoot });
+  const resolverSnapshot = resolverApi.updateSnapshot({
+    openProjects: [path.join(resolverFixtureRoot, "tsconfig.json")],
+  });
+  const resolverProject = resolverSnapshot.getProjects()[0];
+  assert.ok(resolverProject, "the resolver fixture project must load");
+  const resolverSource = resolverProject.program.getSourceFile(
+    path.join(resolverFixtureRoot, "sources", "resolver.js").replaceAll("\\", "/"),
+  );
+  assert.ok(resolverSource, "the resolver fixture source must parse");
+
+  const resolver = createNamespaceResolver();
+
+  /**
+   * Every reference in the fixture, paired with the scope it was seen in, so each assertion
+   * below asks the resolver about a real node rather than a reconstructed one.
+   * @type {{text: string, member: string | null, kind: string}[]}
+   */
+  const observed = [];
+  resolver.walkScoped(resolverSource, (node, scope) => {
+    const kind = resolver.kindOf(node);
+    if (kind !== "PropertyAccessExpression" && kind !== "Identifier") return;
+    observed.push({
+      text: node.getText().replaceAll(/\s+/g, ""),
+      member: resolver.namespaceMemberOf(node, scope),
+      kind: resolver.classifyExpression(node, scope),
+    });
+  });
+
+  /**
+   * The recorded answer for one reference. A reference the walk never reached is a broken
+   * fixture rather than a passing assertion, so it fails here instead of comparing
+   * `undefined` against an expectation and looking correct.
+   * @param {string} text
+   */
+  const seen = (text) => {
+    const entry = observed.find((candidate) => candidate.text === text);
+    assert.ok(entry, `the resolver fixture must contain the reference \`${text}\``);
+    return entry;
+  };
+
+  // PRESERVATION - the direct root and the alias root both classify as the namespace, which
+  // is what `0.33.33.34` had to teach the inventory when a text scanner reported 19 surfaces.
+  assert.equal(seen("global.LongtailForge").kind, "namespace", "the direct root must resolve");
+  assert.equal(seen("namespace").kind, "namespace", "a root alias must resolve by binding");
+
+  // PRESERVATION - `||= {}` is the same bootstrap as `= x || {}`. Recognising only the long
+  // form hid `settingsHost` and `settingsPageController` from every count this feeds.
+  assert.equal(seen("bootstrapped").kind, "namespace", "the logical-assignment root must resolve");
+
+  // NEW - member identity for a read, through an alias whose spelling is not `LongtailForge`.
+  // A spelling-based routine called this an unrelated local and mis-classified its TS18046
+  // as a genuine trust boundary rather than namespace work.
+  assert.equal(seen("namespace.timezones").member, "timezones", "a member read through an alias must resolve");
+  assert.equal(seen("namespace.api").member, "api", "a member read through an alias must resolve");
+
+  // NEW - root identity is required. A property whose name matches a surface is not that
+  // surface when its receiver is an unrelated object.
+  assert.equal(seen("customer.timezones").member, null, "an unrelated receiver must not resolve to a surface");
+
+  // NEW, and the pair that actually discriminates binding from spelling. Neither of these
+  // is decided by how the receiver is written: `ltf` resolves because its binding is the
+  // namespace, and the inner `namespace` does not resolve because its binding is a local
+  // object literal. **The first version of this fixture proved neither** - it used the
+  // namespace through an identifier that happened to be spelled `namespace`, so a resolver
+  // that matched the spelling passed it. That was checked by making it fail, and it did not.
+  assert.equal(
+    seen("ltf.oddlyNamedMember").member,
+    "oddlyNamedMember",
+    "an alias resolves by binding, whatever it is called",
+  );
+  assert.equal(
+    seen("namespace.decoyMember").member,
+    null,
+    "an identifier spelled like the root is not the root when its binding is a local object",
+  );
+
+  // PRESERVATION - same spelling, separate scopes, different declarations. Only the
+  // API-bound `client` is the API; there is no name heuristic and no special case.
+  const clients = observed.filter((entry) => entry.text === "client");
+  assert.equal(clients.length >= 2, true, "the fixture must declare `client` in two scopes");
+  assert.deepEqual(
+    [...new Set(clients.map((entry) => entry.kind))],
+    ["other"],
+    "neither `client` is the namespace or the global object; sharing a spelling proves nothing",
+  );
+
+  // PRESERVATION - a local DOM variable that shares a surface's name is not that surface.
+  assert.equal(seen("modal").kind, "other", "an inner local must not resolve to a namespace surface");
+  assert.equal(seen("modal").member, null, "an inner local names no namespace member");
+
+  // The resolver is the only implementation of this, and the inventory now calls it rather
+  // than carrying its own copy - which is the whole point of the child.
+  const inventorySource = fs.readFileSync("scripts/test-support/browser-publication-inventory.mjs", "utf8");
+  assert.match(
+    inventorySource,
+    /from "\.\/browser-namespace-resolver\.mjs"/,
+    "the publication inventory must resolve identity through the shared resolver",
+  );
+  assert.doesNotMatch(
+    inventorySource,
+    /const resolveBinding = |const classifyExpression = /,
+    "the publication inventory must not carry a second copy of the resolver",
+  );
+
+  fs.rmSync(resolverFixtureRoot, { recursive: true, force: true });
+}
 
 // The publication inventory is fixture-proved before it is trusted about the estate.
 // Every alias form the first-party code actually uses is covered, and so is every
