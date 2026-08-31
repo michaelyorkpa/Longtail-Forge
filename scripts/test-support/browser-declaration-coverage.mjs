@@ -33,6 +33,16 @@ import { declaredNamespaceMembers } from "./browser-diagnostic-classification.mj
  * the AST inventory and the declaration text; if the browser program reached zero diagnostics
  * tomorrow, every invariant here would still hold and still be enforceable.
  *
+ * **Additive publication and writer multiplicity are independent properties**, and
+ * `0.33.33.38.2.4.4` keeps them apart on purpose. A surface may have one writer or several,
+ * and may replace or preserve what it finds, in any combination. `MULTI_WRITER_RECORDS`
+ * answers how many writers are permitted and why; it does not answer why a writer preserves
+ * an existing surface, and extending it until it means both would lose the distinction.
+ *
+ * @typedef {object} AdditivePublication
+ * @property {string} surface the surface published additively
+ * @property {string} writer the file whose publication spreads the existing value
+ *
  * @typedef {object} SurfaceWriters
  * @property {string} surface fully qualified, e.g. `window.LongtailForge.icons`
  * @property {string[]} writers repository-relative files that publish it
@@ -47,6 +57,7 @@ import { declaredNamespaceMembers } from "./browser-diagnostic-classification.mj
  * @property {string[]} declaredMembersWithoutWriter declared, with no runtime writer
  * @property {SurfaceWriters[]} multiWriterSurfaces surfaces with more than one writer
  * @property {SurfaceWriters[]} unwrittenSurfaces surfaces recorded with no writer at all
+ * @property {AdditivePublication[]} additivePublications writers that preserve the existing surface
  * @property {string[]} unresolvableRootedWrites rooted writes that cannot be named
  * @property {string[]} writesBelowSurfaces writes reaching into an already-published surface
  * @property {string[]} clobberingRootWrites root writes that do not derive from the namespace
@@ -78,6 +89,8 @@ export function collectDeclarationCoverage({
   const multiWriterSurfaces = [];
   /** @type {SurfaceWriters[]} */
   const unwrittenSurfaces = [];
+  /** @type {AdditivePublication[]} */
+  const additivePublications = [];
   let publicationOccurrences = 0;
 
   for (const [surface, entry] of [...inventory.surfaces].sort(([left], [right]) => left.localeCompare(right))) {
@@ -85,6 +98,9 @@ export function collectDeclarationCoverage({
     publicationOccurrences += writers.length;
     if (writers.length === 0) unwrittenSurfaces.push({ surface, writers });
     if (writers.length > 1) multiWriterSurfaces.push({ surface, writers });
+    for (const writer of [...entry.writers].sort((left, right) => left.file.localeCompare(right.file))) {
+      if (writer.preservesExisting) additivePublications.push({ surface, writer: writer.file });
+    }
     if (surface.startsWith(memberPrefix)) publishedMembers.set(surface.slice(memberPrefix.length), writers);
   }
 
@@ -100,6 +116,7 @@ export function collectDeclarationCoverage({
     declaredMembersWithoutWriter: [...declared].filter((member) => !publishedMembers.has(member)).sort(),
     multiWriterSurfaces,
     unwrittenSurfaces,
+    additivePublications,
     unresolvableRootedWrites: inventory.unsupportedTargets
       .map((entry) => `${entry.file}:${entry.line}: ${entry.target}`).sort(),
     writesBelowSurfaces: inventory.deepWrites

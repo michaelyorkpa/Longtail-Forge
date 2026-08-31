@@ -169,12 +169,15 @@
   }
 
   function publishDashboardApi() {
-    // Mutate the shared namespace in place: replacing the object would orphan
-    // earlier scripts (like the Task dialog) that captured a reference at load,
-    // while navigation later assigns workspaceContext through window.LongtailForge.
+    // The namespace *root* is mutated in place, because replacing it would orphan earlier
+    // scripts that captured it at load. `dashboard` itself is a plain replacement:
+    // `0.33.33.38.2.4.4` removed a spread of the previous value that could not do what the
+    // comment here claimed. A spread assigns a new object, so it never preserved identity
+    // for a captured reference; and the panel registry it appeared to protect is
+    // `dashboardPanelRenderers`, a file-local closure, so a re-evaluation would start empty
+    // whether the members were carried over or not. This file publishes once, from one call.
     const namespace = window.LongtailForge = window.LongtailForge || {};
     namespace.dashboard = {
-      ...(namespace.dashboard || {}),
       registerPanelRenderer: registerDashboardPanelRenderer,
     };
   }
