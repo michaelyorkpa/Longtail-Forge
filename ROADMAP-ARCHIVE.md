@@ -1,5 +1,40 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.4.1 - One repository-owned namespace/binding resolver
+
+**Model: Medium Effort** - an extraction rather than an implementation, and the child where proving the fixtures fail-first is what stopped the wrong fixture shipping.
+
+- [x] **The resolution logic was already right; it was only in one place that could not be called.** `browser-publication-inventory.mjs` already resolved root aliases, the logical-assignment root, index-paired parameters and nested shadowing from the AST. What it could not do was answer those questions for anyone else - it exports `collectBrowserPublicationInventory` and `contestedSurfaces`, neither of which takes an expression - so five independent implementations answered them again and three answered them wrongly. **The resolver is that half lifted out unchanged**, and the inventory now calls it.
+- [x] **The publication estate is byte-identical, which is the acceptance criterion.** 65 unique surfaces, 68 publication occurrences, the same two governed multi-writer records, 50 namespace-root writes, 0 deep writes, 0 unsupported targets - and the full serialised inventory, including the sorted surface list, compares equal to the pre-refactor baseline. **Nothing was corrected here**, deliberately: a governance foundation that also changed the numbers would leave nobody able to say which caused what.
+- [x] **One genuinely new query, and it is the one every defect on this branch needed.** The inventory resolves assignment targets, so it answers about *writes*; every spelling-versus-binding failure was about a **read** - `namespace.timezones` reached through an IIFE alias, which a spelling-based routine called an unrelated local and mis-classified as a genuine trust boundary rather than namespace work. `namespaceMemberOf` answers it, and answers a deeper read with its top-level member because that is the member a declaration owns.
+- [x] **The first fixture proved nothing, and only breaking the resolver revealed it.** It exercised the namespace through an identifier that happened to be spelled `namespace`, so **a resolver rewritten to match that spelling passed it**. The replacement is a discriminating pair in both directions: an alias called `ltf` that resolves because its binding is the namespace, and a local object literal called `namespace` that does not resolve because its binding is not. **A fixture that cannot fail is not evidence**, and this one could not until it was made to.
+
+Three deliberate breaks, each caught by the assertion that names it:
+
+| Break | Caught by |
+| --- | --- |
+| Resolve member identity by spelling | *an identifier spelled like the root is not the root when its binding is a local object* |
+| Drop the logical-assignment root | *the logical-assignment root must resolve* |
+| Ignore inner bindings, so nothing shadows | *the direct root must resolve* |
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Unique published surfaces | 65 | **65** |
+| Publication occurrences | 68 | **68** |
+| Recorded multi-writer surfaces | 2 | **2** |
+| Namespace-root writes / deep / unsupported | 50 / 0 / 0 | **50 / 0 / 0** |
+| Browser program diagnostics | 8,869 | **8,869** |
+| `scripts` program diagnostics | 0 across 594 files | **0 across 594 files** |
+| Application runtime files changed | - | **0** |
+| CI workflow files changed | - | **0** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**`browser-publication-inventory.mjs` falls from 575 lines to 293** and the resolver is 394, which is not a saving and was never meant to be: the resolver carries the documentation of *why* each rule exists, which previously had to be re-learned by whoever wrote the next tool.
+
+**Nothing about classification, budgets, declaration coverage, or additive-publication policy moved.** `0.33.33.38.2.4.2` owns what a resolved fact *means*, `.4.3` owns whether a published surface is declared, and `.4.4` owns what an additive publication is - and the resolver is deliberately neutral about all three so that none of those decisions is pre-empted by the shape of an API.
+
 ## Version 0.33.33.38.2.2.6.4.2 - Declare the `LongtailForge.clientProjectOptions` vocabulary
 
 **Model: Medium Effort** - the first surface in this rollup whose contract had to name a shape rather than describe one, and the child that proved input and output are different vocabularies.
