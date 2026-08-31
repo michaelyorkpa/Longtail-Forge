@@ -1336,6 +1336,43 @@ export interface BrowserEsModuleBridge {
   versionedAssetUrl(assetPath?: unknown): string;
 }
 
+/**
+ * `LongtailForge.dashboardBootstrap`, published by `public/js/dashboard.entry.js`.
+ *
+ * The dashboard's shared load state: the manifest request the page started before any panel
+ * script existed, the route-keyed cache of in-flight panel requests, and the two functions that
+ * fill and address it.
+ *
+ * **`dataPromises` is deliberately shared and consumers write to it.** The entry module seeds it
+ * through `loadRoute`, and `dashboard.js` and `time-tracking-dashboard.js` both `set` into the
+ * same map under the same route keys - so a panel that has already been requested is never
+ * requested twice, whichever file asked first. **A `ReadonlyMap` would describe an architecture
+ * this page does not have**, and would break three call sites that are meant to participate.
+ *
+ * **Every consumer falls back to a private `new Map()` when the surface is absent**, so the
+ * shared cache degrades to per-file caching rather than failing.
+ */
+export interface BrowserDashboardBootstrap {
+  /**
+   * Route to in-flight request. **Values stay `Promise<unknown>`**: each is an `api.getJson`
+   * result, and narrowing a wire body is `0.33.33.38.4`'s work rather than this surface's.
+   */
+  dataPromises: Map<string, Promise<unknown>>;
+  /** Request a route once and memoize it. An empty route resolves an empty object. */
+  loadRoute(routeValue?: unknown): Promise<unknown>;
+  /**
+   * The manifest request started during module evaluation, created **once** and never replaced.
+   *
+   * Resolves the same `CachedFetchResult` shape on both of its branches - the workspace-scoped
+   * path returns `cachedFetch.getJson` directly and the unscoped path builds the equivalent by
+   * hand - so `data` is `unknown` here for the reason it is `unknown` there. **It can reject**:
+   * the API client is acquired inside it and the cached-fetch read is unguarded.
+   */
+  manifestPromise: Promise<CachedFetchResult>;
+  /** The data route for a panel descriptor, with the calendar panel's range folded in. */
+  routeForPanel(panel?: unknown): string;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
@@ -1343,6 +1380,7 @@ export interface LongtailForgeBrowserNamespace {
   cachedFetch?: BrowserCachedFetch;
   capturePrompt?: BrowserCapturePrompt;
   controllers?: PageControllerRegistry;
+  dashboardBootstrap?: BrowserDashboardBootstrap;
   errors?: BrowserErrorContract;
   esModuleBridge?: BrowserEsModuleBridge;
   formatters?: BrowserFormatters;

@@ -478,7 +478,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8973,
+      "errorCount": 8965,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -709,7 +709,7 @@
         "public/js/dashboard.js": [
           {
             "code": 2339,
-            "count": 31
+            "count": 26
           },
           {
             "code": 7005,
@@ -1527,7 +1527,7 @@
         "public/js/shared/task-calendar.js": [
           {
             "code": 2339,
-            "count": 18
+            "count": 17
           },
           {
             "code": 7006,
@@ -1937,7 +1937,7 @@
         "public/js/time-tracking-dashboard.js": [
           {
             "code": 2339,
-            "count": 16
+            "count": 14
           },
           {
             "code": 7006,
@@ -2806,7 +2806,7 @@
   },
   "totals": {
     "files": 1056,
-    "errors": 8973,
+    "errors": 8965,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

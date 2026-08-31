@@ -329,16 +329,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Preflight each child writer-first and do not promise a child from a sibling's clearance.** Two members published by the same writer share a risk profile; two members with the same diagnostic count share nothing.
 - [ ] **The 78 class-E root diagnostics resolve as their members are declared**, and they are not separate work. `0.33.33.38.2.6` closed declared-member root debt to zero; these are the parked half, and they drain child by child.
 
-#### 0.33.33.38.2.2.6.7 - `LongtailForge.dashboardBootstrap`
-
-**4 published members from the same ES module, and the first surface in the estate that publishes live mutable state rather than functions.**
-
-`Object.freeze({ dataPromises, loadRoute, manifestPromise, routeForPanel })` - where `dataPromises` is a **live `Map`** and `manifestPromise` is an **in-flight `Promise`** created during module evaluation.
-
-- [ ] **Decide whether live handles should be declared at all, and say why either way.** Every surface recovered so far publishes functions; a `Map` other code mutates and a promise created once at startup are a different kind of contract. **A declaration that names a mutable container also names who may mutate it**, and this rollup has not had to answer that yet.
-- [ ] **`manifestPromise`'s resolved shape comes off the wire.** It is `loadDashboardManifest()`, which resolves `cachedFetch.getJson("/api/dashboard", ...)`. **Expect a genuine `0.33.33.38.4` boundary here** - and do not weaken the promise to hide it.
-- [ ] Keep it separate from `0.33.33.38.2.2.6.3`. Sharing a writer is not sharing a contract.
-
 #### 0.33.33.38.2.2.6.8 - `LongtailForge.dashboard`
 
 **1 published member from a classic script, published by spread-merge - which is a governance question before it is a typing one.**
