@@ -3080,7 +3080,7 @@
     notificationToggle.hidden = !canToggleNotifications;
     notificationToggle.disabled = !canToggleNotifications;
 
-    if (!canToggleNotifications) {
+    if (!subscriptions || !canToggleNotifications) {
       notificationToggle.title = noteId ? "Note notifications unavailable" : "Save the note before following notifications";
       notificationToggle.setAttribute("aria-label", notificationToggle.title);
       return;

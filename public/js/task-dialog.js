@@ -1193,7 +1193,7 @@
     fields.notificationToggle.hidden = !canToggleNotifications;
     fields.notificationToggle.disabled = !canToggleNotifications;
 
-    if (!canToggleNotifications) {
+    if (!namespace.notificationSubscriptions || !canToggleNotifications) {
       return;
     }
 

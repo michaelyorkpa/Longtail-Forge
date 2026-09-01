@@ -480,7 +480,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8604,
+      "errorCount": 8590,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1045,7 +1045,7 @@
         "public/js/notes.js": [
           {
             "code": 18046,
-            "count": 11
+            "count": 9
           },
           {
             "code": 18047,
@@ -1061,7 +1061,7 @@
           },
           {
             "code": 2339,
-            "count": 489
+            "count": 484
           },
           {
             "code": 2345,
@@ -1685,7 +1685,7 @@
         "public/js/task-dialog.js": [
           {
             "code": 18046,
-            "count": 16
+            "count": 14
           },
           {
             "code": 18047,
@@ -1697,7 +1697,7 @@
           },
           {
             "code": 2339,
-            "count": 496
+            "count": 493
           },
           {
             "code": 2345,
@@ -1775,7 +1775,7 @@
           },
           {
             "code": 2339,
-            "count": 158
+            "count": 156
           },
           {
             "code": 2345,
@@ -2763,7 +2763,7 @@
   },
   "totals": {
     "files": 1061,
-    "errors": 8604,
+    "errors": 8590,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
