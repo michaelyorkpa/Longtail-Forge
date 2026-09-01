@@ -2480,7 +2480,7 @@
       for (const payload of actions) {
         const result = await api.postJson("/api/tasks/bulk", payload);
         results.push(...(result.tasks || []));
-        errors.push(...(result.errors || []));
+        errors.push(...requireErrors().readBulkFailures(result));
         recurrenceContinuities.push(...(result.recurrenceContinuities || []));
       }
 

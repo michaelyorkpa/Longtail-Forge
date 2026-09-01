@@ -365,6 +365,7 @@
         "tests/typecheck/time-tracking-server-contracts.fixture.mjs",
         "tests/unit/asset-version.test.mjs",
         "tests/unit/bounded-pagination.test.mjs",
+        "tests/unit/bulk-action-response-contract.test.mjs",
         "tests/unit/client-project-options.test.mjs",
         "tests/unit/files-preview.service.test.mjs",
         "tests/unit/files-scanner-job.service.test.mjs",
@@ -480,7 +481,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8571,
+      "errorCount": 8555,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1023,7 +1024,7 @@
         "public/js/notes-settings.js": [
           {
             "code": 18046,
-            "count": 15
+            "count": 8
           },
           {
             "code": 18047,
@@ -1039,13 +1040,13 @@
           },
           {
             "code": 7006,
-            "count": 32
+            "count": 31
           }
         ],
         "public/js/notes.js": [
           {
             "code": 18046,
-            "count": 9
+            "count": 5
           },
           {
             "code": 18047,
@@ -1077,7 +1078,7 @@
           },
           {
             "code": 7006,
-            "count": 179
+            "count": 176
           },
           {
             "code": 7019,
@@ -1759,7 +1760,7 @@
         "public/js/tasks.js": [
           {
             "code": 18046,
-            "count": 41
+            "count": 40
           },
           {
             "code": 18047,
@@ -2762,8 +2763,8 @@
     }
   },
   "totals": {
-    "files": 1061,
-    "errors": 8571,
+    "files": 1062,
+    "errors": 8555,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
