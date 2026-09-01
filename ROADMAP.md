@@ -388,14 +388,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **This is not a debt-reduction checkpoint and must not be justified as one.** The three surfaces it unblocks carry **five diagnostics between them** - `dashboard` 0, `notesDialog` 3, `listsDialog` 2. The larger adoptable bucket elsewhere is **122 bare-root `window.LongtailForge` reads** owned by `0.33.33.38.2.6`, which needs nothing from here. **What this checkpoint buys is that the estate's numbers become reproducible and that declaration coverage becomes enforceable** - and the evidence it is needed is that two independent staleness defects were found in the analysis tooling in a single session.
 
-#### 0.33.33.38.2.4.1 - One repository-owned namespace/binding resolver
-
-**Prerequisite for `.2` and `.4`; no runtime or CI consequence of its own.**
-
-- [ ] **Build on `scripts/test-support/browser-publication-inventory.mjs`, which already resolves identity structurally. Do not build a parallel framework.** It is the only in-repo tool that does, it is AST-based, and it already carries publication fixtures and a determinism-repeat check.
-- [ ] **The same spelling-versus-binding mistake has now been found five times**, in five independent implementations: `0.33.33.38.2.1`'s member attribution, `0.33.33.38.2.2.4`'s canonical classifier, `0.33.33.38.2.2.6.1`'s subject resolution, `0.33.33.38.2.2.6.7`'s Map-mutation search, and `0.33.33.38.2.2.6.4.1`'s receiver audit. **The rule was written down after the second and the next three still happened**, because a rule cannot be shared - only an implementation can.
-- [ ] **Fail-first fixtures, one per failure actually seen.** Root alias (`const namespace = window.LongtailForge || {}` then `namespace.icons`); the logical-assignment root `global.LongtailForge ||= {}` that `0.33.33.38.2.7` had to teach the inventory; same spelling in separate scopes that must not cross; nested shadowing, so a local `modal` is not `LongtailForge.modal`; object shorthand; alias-then-mutate, which inverted a contract in `.6.7`; and the accessor form `requireX().member`, which a receiver-pinned search missed in `.6.4.1`. **Do not promise general flow analysis.**
-
 #### 0.33.33.38.2.4.2 - A durable command that classifies its own tree
 
 **Depends on `.1`. Tooling and CI; no runtime consequence.**
