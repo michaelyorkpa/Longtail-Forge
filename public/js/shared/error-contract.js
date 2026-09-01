@@ -86,6 +86,71 @@
     return error;
   }
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserBulkActionFailure} BrowserBulkActionFailure */
+
+  /**
+   * The identity and context keys a bulk-action failure may carry, by producer.
+   *
+   * Each producer sets exactly one identity key; `target_type` accompanies `target_id`. They are
+   * copied only when they are strings, so a producer that starts sending something else stops
+   * being described rather than being described wrongly.
+   *
+   * Typed as its own literal keys rather than `string[]` so the copy below is a checked write to a
+   * named member instead of an index into the contract.
+   * @type {readonly ("catalogId" | "note_id" | "target_id" | "target_type" | "task_id")[]}
+   */
+  const BULK_FAILURE_TEXT_KEYS = Object.freeze([
+    "catalogId",
+    "note_id",
+    "target_id",
+    "target_type",
+    "task_id",
+  ]);
+
+  /**
+   * The failures a successful bulk-action body reports.
+   *
+   * **Total, because every call site it replaces was total.** All five wrote
+   * `result.errors || []`, so a body without the member already meant "nothing failed" and nothing
+   * threw. The one behaviour this adds is that an entry without a string `message` is dropped
+   * instead of counted - which is the only honest answer once elements are checked at all, and the
+   * same choice `0.33.33.38.4.2` made for the note list.
+   *
+   * **Reconstructed rather than passed through**, so what the caller receives is built from checked
+   * values. `status` is copied only when it is a number, and each identity key only when it is a
+   * string; nothing else on the wire entry survives.
+   * @param {unknown} body
+   * @returns {BrowserBulkActionFailure[]}
+   */
+  function readBulkFailures(body) {
+    const envelope = asRecord(body);
+    const entries = envelope && Array.isArray(envelope.errors) ? envelope.errors : [];
+    /** @type {BrowserBulkActionFailure[]} */
+    const failures = [];
+
+    for (const entry of entries) {
+      const failure = asRecord(entry);
+      if (!failure || typeof failure.message !== "string" || !failure.message) {
+        continue;
+      }
+
+      /** @type {BrowserBulkActionFailure} */
+      const narrowed = { message: failure.message };
+      if (typeof failure.status === "number") {
+        narrowed.status = failure.status;
+      }
+      for (const key of BULK_FAILURE_TEXT_KEYS) {
+        const value = failure[key];
+        if (typeof value === "string") {
+          narrowed[key] = value;
+        }
+      }
+      failures.push(narrowed);
+    }
+
+    return failures;
+  }
+
   /**
    * @param {unknown} value
    * @returns {Record<string, unknown> | null}
@@ -101,6 +166,7 @@
     caughtStatus,
     createError,
     read,
+    readBulkFailures,
   });
   global.LongtailForge = namespace;
 }(window));

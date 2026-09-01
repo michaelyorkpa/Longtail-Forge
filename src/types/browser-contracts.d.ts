@@ -21,7 +21,56 @@ export interface BrowserApiError extends Error {
   status: number;
 }
 
+/**
+ * One failure a bulk action reports inside an otherwise successful response.
+ *
+ * **Four producers, one failure record, and that was measured rather than assumed.**
+ * `POST /api/notes/bulk`, `POST /api/tags/bulk-assignments`,
+ * `POST /api/notes/settings/catalogs/bulk` and `POST /api/tasks/bulk` each loop over their targets
+ * and push a constructed object into an `errors` array when one target fails. **What they do not
+ * share is the success half**: the four envelopes carry `notes`, `changed`, `catalogs` and `tasks`
+ * respectively, and only one of them carries `affectedCount`. `0.33.33.38.4.11`'s planning called
+ * this a `{ affectedCount, changed, errors }` envelope; **no producer emits that shape**, and the
+ * contract below is the part that is genuinely shared.
+ *
+ * **`message` is required because all four construct it with a fallback**, so a failure always
+ * carries text. `status` is optional because three producers set it from the caught error and the
+ * catalog producer does not.
+ *
+ * **The identity keys are optional across producers, not within one.** Each producer sets exactly
+ * one - `note_id`, `target_id`, `catalogId`, `task_id` - and this is one contract rather than four
+ * because **the consumer already treats them as one type**: `notes.js` flattens the note and tag
+ * producers' failures into a single list and reads `error.note_id || error.target_id` off the
+ * result. Splitting the record would describe a distinction its only merging consumer does not make.
+ */
+export interface BrowserBulkActionFailure {
+  /** Always constructed with a fallback, so never absent and never empty. */
+  message: string;
+  /** Set by the note, tag and task producers; the catalog producer omits it. */
+  status?: number;
+  /** The catalog producer's identity key. */
+  catalogId?: string;
+  /** The note producer's identity key. */
+  note_id?: string;
+  /** The tag producer's identity key. */
+  target_id?: string;
+  /** Set alongside `target_id` by the tag producer. */
+  target_type?: string;
+  /** The task producer's identity key. */
+  task_id?: string;
+}
+
 export interface BrowserErrorContract {
+  /**
+   * The failures a *successful* bulk-action body reports.
+   *
+   * **Not `read`, and the difference is the point.** `read` interprets an error envelope from a
+   * response that failed; this reads the `errors` array a bulk action carries when it succeeded
+   * for some targets and not others. **Element validation, not container validation**: an entry
+   * without a string `message` is not a failure this contract can describe, so it is dropped
+   * rather than counted.
+   */
+  readBulkFailures(body: unknown): BrowserBulkActionFailure[];
   /**
    * Narrow a caught value to the message it carries, falling back when it carries none.
    *

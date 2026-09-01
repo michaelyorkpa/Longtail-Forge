@@ -100,6 +100,34 @@
   ]);
 
   /**
+   * The target identifiers a bulk action reported changing.
+   *
+   * **Two producers, two member names, one consumer concept.** `POST /api/notes/bulk` answers with
+   * `notes` and `POST /api/tags/bulk-assignments` with `changed`, and this function merges them the
+   * way the bulk editor already did - by collecting identifiers, never records. **The record shapes
+   * stay with their owners**: a bulk-updated note is `0.33.33.38.4.2`'s contract and a tag
+   * assignment result is `0.33.33.38.2.2.10`'s, and neither is claimed here.
+   * @param {unknown} body
+   * @returns {string[]}
+   */
+  function bulkChangedIds(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    /** @type {string[]} */
+    const ids = [];
+    for (const [member, key] of [["notes", "note_id"], ["changed", "target_id"]]) {
+      const entries = envelope && Array.isArray(envelope[member]) ? envelope[member] : [];
+      for (const entry of entries) {
+        const record = isResponseRecord(entry) ? entry[key] : null;
+        if (typeof record === "string" && record) {
+          ids.push(record);
+        }
+      }
+    }
+
+    return ids;
+  }
+
+  /**
    * A response body that is a plain object.
    *
    * A type predicate rather than a cast: `0.33.33.38.2.4.5` established that an annotation checks
@@ -2681,13 +2709,11 @@
         }));
       }
 
-      const updatedNoteIds = new Set(results.flatMap((result) => [
-        ...(result.notes || []).map((note) => note.note_id),
-        ...(result.changed || []).map((entry) => entry.target_id),
-      ]).filter(Boolean));
-      const failedNoteIds = new Set(results.flatMap((result) => (result.errors || [])
-        .map((error) => error.note_id || error.target_id)
-        .filter(Boolean)));
+      const failures = results.flatMap((result) => requireErrors().readBulkFailures(result));
+      const updatedNoteIds = new Set(results.flatMap((result) => bulkChangedIds(result)));
+      const failedNoteIds = new Set(failures
+        .map((failure) => failure.note_id || failure.target_id)
+        .filter(Boolean));
       state.selectedNoteIds = failedNoteIds;
       if (isNotesWorkspaceSurface) {
         await Promise.all([loadCollections(), loadNotes()]);
@@ -2705,7 +2731,7 @@
         return;
       }
 
-      const firstError = results.flatMap((result) => result.errors || [])[0];
+      const firstError = failures[0];
       setBulkFormStatus(firstError?.message || "Selected notes could not be updated.", true);
       bulkApplyButton.disabled = false;
     } catch (error) {

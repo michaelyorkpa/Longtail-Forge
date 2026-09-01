@@ -488,12 +488,16 @@ Its **lazy publication is a second contract question and belongs here too**: the
 - [x] **Two of the four blockers `0.33.33.40.2` recorded are gone, and two are not.** `selectedNote`, `editorNote`, `notes` and `collections` now hold named contracts, and `notesPagination` and `bulkCollections` came with them because they store the same two narrowed responses. `tagPicker`, `bulkTagPicker` and the rest stay with `0.33.33.40.2`.
 - [ ] **`shared/notes-linked-panel.js` is carried forward, and the blocker is a surface decision rather than a contract one.** Its two reads are the same `GET /api/notes` list envelope plus the `{ linkedNotes }` panel projection, and `BrowserLinkedNoteItem` is already declared for the latter. What is missing is a **shared narrowing implementation**: doing it locally would duplicate the column tables and predicates into a second file, and doing it properly means publishing a note-record surface on the namespace - which is `0.33.33.38.2.2`'s decision, not this child's. **Two consumers is where the estate should decide, not where it should copy.**
 
-#### 0.33.33.38.4.11 - The shared bulk-action envelope
+#### 0.33.33.38.4.11 - The shared bulk-action failure contract
 
-**11 diagnostics, one runtime envelope, and it does not belong to any feature child.** `POST /api/tags/bulk-assignments` and `POST /api/notes/settings/catalogs/bulk` both answer with `{ affectedCount, changed, errors }`, and `notes.js` and `notes-settings.js` read the same three members off them. **Drawn as its own child so the envelope gets one contract**: folding it into `0.33.33.38.4.2` because Notes consumes it would have produced a Notes-named contract that the catalog page also depends on, and folding it into both would have produced two.
+**Complete, and the trace corrected its own title.** See the archive entry.
 
-- [ ] Trace every bulk route in the estate before naming the contract; the two found here are unlikely to be all of them.
-- [ ] **This is not `LongtailForge.tags`.** The tags bulk route is reached through `requireApi().postJson` directly, so `0.33.33.38.2.2.10` owns the surface and this child owns the body.
+**There is no `{ affectedCount, changed, errors }` envelope, and the instruction to trace every bulk route before naming the contract is why that was caught.** Four routes participate, not two - `POST /api/notes/bulk`, `POST /api/tags/bulk-assignments`, `POST /api/notes/settings/catalogs/bulk` and `POST /api/tasks/bulk` - and **none of them emits that shape**. They pair four different success payloads (`notes`, `changed`, `catalogs`, `tasks`) with one kind of failure list, and only the catalog producer sends `affectedCount` at all.
+
+- [x] **The shared thing is the failure record, and `BrowserBulkActionFailure` is it.** `message` is required because all four construct it with a fallback; `status` is optional because three set it and the catalog producer does not; the four identity keys are optional **across** producers rather than within one, because `notes.js` already flattens two producers' failures into one list and reads `error.note_id || error.target_id`.
+- [x] **`readBulkFailures` lives on `LongtailForge.errors`, which needed no new declaration and no new delivery dependency.** That surface is already declared, already carries `caughtMessage` and `caughtStatus` from `0.33.33.38.4.1`, and `framework.http-error-contract` already proves it is installed before every page caller.
+- [x] **The two single-producer reads stayed local.** `affectedCount` is only the catalog producer's and `bulkChangedIds` only the note/tag pair's, so neither was pushed onto a shared surface to look symmetrical.
+- [ ] **Two diagnostics carried to `0.33.33.38.4.3`.** `tasks.js:2482` and `:2484` read `result.tasks` and `result.recurrenceContinuities` - task records and recurrence continuations, both that child's producers. Narrowing the failure list beside them left those two exactly where they were.
 
 #### 0.33.33.38.4.12 - The Notes satellite producers
 

@@ -21,6 +21,32 @@
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
   /**
+   * A response body that is a plain object.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isResponseRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * How many catalogs a bulk action reported changing.
+   *
+   * **Only the catalog producer sends this member**, which is why it is read here rather than
+   * beside `readBulkFailures`: the other three bulk routes carry a changed *list* instead of a
+   * count, and a shared reader would have had to invent one for them. `notes-collections.service.js`
+   * accumulates it with `+=`, so it is a finite number; anything else falls back to `0` exactly as
+   * `result.affectedCount || 0` did.
+   * @param {unknown} body
+   * @returns {number}
+   */
+  function bulkAffectedCount(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    const count = envelope ? envelope.affectedCount : null;
+    return typeof count === "number" && Number.isFinite(count) ? count : 0;
+  }
+
+  /**
    * The narrowing contract for the values this file catches.
    *
    * A `catch` binding is `unknown` and no declaration can change that: anything can be
@@ -521,13 +547,15 @@
     setCatalogStatus(`${actionLabel[0].toUpperCase()}${actionLabel.slice(1)}ing selected catalogs...`);
     try {
       const result = await api.postJson("/api/notes/settings/catalogs/bulk", { action, catalogIds });
-      const failedIds = new Set((result.errors || []).map((error) => error.catalogId));
+      const failures = requireErrors().readBulkFailures(result);
+      const affectedCount = bulkAffectedCount(result);
+      const failedIds = new Set(failures.map((failure) => failure.catalogId));
       state.selectedCatalogIds = failedIds;
       await loadCatalogs();
-      if (result.errors?.length) {
-        setCatalogStatus(`${result.affectedCount || 0} catalog${result.affectedCount === 1 ? "" : "s"} updated; ${result.errors.length} could not be updated.`, { isError: true });
+      if (failures.length) {
+        setCatalogStatus(`${affectedCount} catalog${affectedCount === 1 ? "" : "s"} updated; ${failures.length} could not be updated.`, { isError: true });
       } else {
-        setCatalogStatus(`${result.affectedCount || 0} catalog${result.affectedCount === 1 ? "" : "s"} ${action === "archive" ? "archived" : "restored"}.`, { type: "success" });
+        setCatalogStatus(`${affectedCount} catalog${affectedCount === 1 ? "" : "s"} ${action === "archive" ? "archived" : "restored"}.`, { type: "success" });
       }
     } catch (error) {
       setCatalogStatus(requireErrors().caughtMessage(error, "Selected catalogs could not be updated."), { isError: true });
