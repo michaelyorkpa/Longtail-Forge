@@ -139,6 +139,91 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserUserRecord} BrowserUserRecord */
+
+  /**
+   * The members `userRowToAppValue` constructs as text on every path.
+   *
+   * `password`, `home_workspace_id` and `active_workspace_id` are **deliberately absent**: the
+   * select carries them and the shaper does not send them, so a record that offered them would
+   * not be the one this producer builds.
+   */
+  const USER_TEXT_MEMBERS = Object.freeze([
+    "displayName",
+    "preferredLoginLanding",
+    "preferredWorkspaceSwitchLanding",
+    "themeAutoSource",
+    "themeMode",
+    "timezone",
+    "user_id",
+    "userStatus",
+    "username",
+  ]);
+
+  /** The members the shaper builds with `normalizeBooleanPreference` or the protected-user flag. */
+  const USER_BOOLEAN_MEMBERS = Object.freeze([
+    "openExternalLinksNewTab",
+    "passwordChangeRequired",
+    "protectedUser",
+  ]);
+
+  /** The two members the shaper genuinely nulls. */
+  const USER_NULLABLE_TEXT_MEMBERS = Object.freeze([
+    "altEmail",
+    "preferredCalendarView",
+  ]);
+
+  /**
+   * A response body that is a plain object.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isResponseRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * One user as the user-administration routes return it.
+   * @param {unknown} value
+   * @returns {value is BrowserUserRecord}
+   */
+  function isUserRecord(value) {
+    return isResponseRecord(value)
+      && USER_TEXT_MEMBERS.every((member) => typeof value[member] === "string")
+      && USER_BOOLEAN_MEMBERS.every((member) => typeof value[member] === "boolean")
+      && USER_NULLABLE_TEXT_MEMBERS.every((member) => value[member] === null || typeof value[member] === "string")
+      && value.user_id !== "";
+  }
+
+  /**
+   * The user list a body carries.
+   *
+   * **Element validation, not container validation.** `body.users || []` said only that the member
+   * was there; every element then reached the renderer unchecked. A malformed element is dropped,
+   * which is the same answer `0.33.33.38.4.2` gave for the note list.
+   * @param {unknown} body
+   * @returns {BrowserUserRecord[]}
+   */
+  function readUserRecords(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    return envelope && Array.isArray(envelope.users) ? envelope.users.filter(isUserRecord) : [];
+  }
+
+  /**
+   * The single user a mutation body echoes back, or `null`.
+   *
+   * `null` rather than a throw: every consumer already wrote `body.user?.username || username`,
+   * so an absent user already meant "fall back to the name we sent".
+   * @param {unknown} body
+   * @returns {BrowserUserRecord | null}
+   */
+  function readUserRecord(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    const user = envelope ? envelope.user : null;
+    return isUserRecord(user) ? user : null;
+  }
+
+
   /**
    * The narrowing contract for the values this file catches.
    *
@@ -226,7 +311,7 @@
       activeWorkspaceType = normalizeWorkspaceType(settingsBody.workspaceType);
       renderRoleOptions();
       applyAddUserOptions(addUserOptionsBody);
-      renderUsers(usersBody.users || []);
+      renderUsers(readUserRecords(usersBody));
       openUserFromQuery();
       setUserAdminStatus("");
     } catch (error) {
@@ -309,10 +394,11 @@
       }
       resetAccountLookup();
       await loadAddUserOptions(workspaceId);
-      renderUsers(body.users || []);
+      const createdUser = readUserRecord(body);
+      renderUsers(readUserRecords(body));
       setUserAdminStatus(body.accountCreated
-        ? `Created ${body.user?.username || username} and added the account to the selected workspace.`
-        : `Added existing account ${body.user?.username || username} to the selected workspace.`);
+        ? `Created ${createdUser?.username || username} and added the account to the selected workspace.`
+        : `Added existing account ${createdUser?.username || username} to the selected workspace.`);
     } catch (error) {
       if (requireErrors().caughtStatus(error) === 401) {
         window.location.replace("/login.html");
@@ -747,8 +833,8 @@
       );
 
       closeEditUserDialog();
-      renderUsers(body.users || []);
-      setUserAdminStatus(`Saved ${body.user?.username || username}.`);
+      renderUsers(readUserRecords(body));
+      setUserAdminStatus(`Saved ${readUserRecord(body)?.username || username}.`);
     } catch (error) {
       if (requireErrors().caughtStatus(error) === 401) {
         window.location.replace("/login.html");
@@ -1248,7 +1334,7 @@
         : await requireApi().putJson(url, undefined);
 
       onSuccess(body);
-      renderUsers(body.users || []);
+      renderUsers(readUserRecords(body));
       setUserAdminStatus(successMessage);
     } catch (error) {
       if (requireErrors().caughtStatus(error) === 401) {

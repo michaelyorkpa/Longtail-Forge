@@ -509,7 +509,25 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 #### 0.33.33.38.4.4 - The workspace-user, role and assignment responses
 
-**29 diagnostics.** `/api/users` and `/api/users/lookup` are shared by `user-admin.js` and `lists.js`, alongside `/api/roles` and `/api/role-assignments/lookup`. The lookup body is read by two unrelated pages, which is the clearest reuse signal the trace found.
+**Resliced from the live tree, because two of its planning claims were wrong.** The family holds **34** diagnostics, not 29 - `user-admin.js` 27 and `role-assignments.js` 7 - and **`lists.js` is not one of its consumers at all**: its eleven unknowns are `/api/lists` reads belonging to `0.33.33.38.4.7`. The cross-page reuse this child was ranked on does not exist, and the ranking survived anyway because the producer evidence did.
+
+**It is not one envelope.** The 34 span the user record, two different lookup routes, roles, assignments, sessions, and a six-body bootstrap `Promise.all`. Its children are drawn by producer:
+
+#### 0.33.33.38.4.4.1 - The user record
+
+**Complete: 7 diagnostics, one shaper, zero fallout.** See the archive entry.
+
+#### 0.33.33.38.4.4.2 - The two lookup responses
+
+**`/api/users/lookup` and `/api/role-assignments/lookup` are different routes and must be traced apart.** `user-admin.js:427-431` reads `body.match.alreadyActive` and `body.match.displayName`; `role-assignments.js:150-156` reads `body.match` and hands it to a local `normalizeTarget`. **Consumer usage is validation evidence, not producer authority** - derive both from their services before deciding whether they share a record.
+
+#### 0.33.33.38.4.4.3 - Roles, assignments and sessions
+
+`body.roles` in both pages, `body.assignments` and `body.assignmentRevision`, and the managed-session reads `body.sessions` and `body.revokedCount`. **Do not borrow the user record for any of them**, and inspect the roles response for permission filtering and system-role flags before naming its shape.
+
+#### 0.33.33.38.4.4.4 - The user-admin bootstrap
+
+The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, permission resources, workspace settings and the current user id. **Five producers behind one destructure**, which is why it is drawn apart from everything above.
 
 #### 0.33.33.38.4.5 - The settings catalog and user-settings bodies
 
