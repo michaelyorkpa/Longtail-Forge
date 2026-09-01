@@ -373,6 +373,7 @@
         "tests/unit/identifiers.test.mjs",
         "tests/unit/install-playwright-browser.test.mjs",
         "tests/unit/legal-content.test.mjs",
+        "tests/unit/note-response-contracts.test.mjs",
         "tests/unit/notes-effective-security.test.mjs",
         "tests/unit/public-demo-capabilities.test.mjs",
         "tests/unit/public-demo-enforcement.test.mjs",
@@ -478,7 +479,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8665,
+      "errorCount": 8607,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1043,7 +1044,7 @@
         "public/js/notes.js": [
           {
             "code": 18046,
-            "count": 35
+            "count": 11
           },
           {
             "code": 18047,
@@ -1055,11 +1056,11 @@
           },
           {
             "code": 2322,
-            "count": 6
+            "count": 5
           },
           {
             "code": 2339,
-            "count": 519
+            "count": 489
           },
           {
             "code": 2345,
@@ -1071,11 +1072,11 @@
           },
           {
             "code": 7005,
-            "count": 7
+            "count": 5
           },
           {
             "code": 7006,
-            "count": 180
+            "count": 179
           },
           {
             "code": 7019,
@@ -2760,8 +2761,8 @@
     }
   },
   "totals": {
-    "files": 1059,
-    "errors": 8665,
+    "files": 1060,
+    "errors": 8607,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

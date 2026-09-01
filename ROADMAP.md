@@ -431,7 +431,7 @@ Its **lazy publication is a second contract question and belongs here too**: the
 | Producer family | Live | Consumers |
 | --- | ---: | --- |
 | Caught values | **147** | 32 files - **closed by `0.33.33.38.4.1`** |
-| `/api/notes*` | 40 | `notes.js`, `notes-settings.js`, `tasks.js`, `shared/notes-linked-panel.js` |
+| `/api/notes*` | 40 | `notes.js`, `notes-settings.js`, `tasks.js`, `shared/notes-linked-panel.js` - **24 closed by `0.33.33.38.4.2`**, the rest resolved to four other producers |
 | `/api/tasks*` | 34 | `tasks.js`, `task-dialog.js`, `workbench.js` |
 | `/api/users`, `/api/roles`, `/api/role-assignments` | 29 | `user-admin.js`, `role-assignments.js`, `lists.js` |
 | `/api/settings*`, `/api/user/settings` | 18 | four settings pages |
@@ -439,7 +439,7 @@ Its **lazy publication is a second contract question and belongs here too**: the
 | `/api/lists*` | 7 | `lists.js` |
 | `/api/support-view*`, `/api/security-events`, `/api/runtime-diagnostics`, `/api/jobs` | 13 | `support-view-audit.js`, `audit-log.js`, `workspace-settings.js` |
 | `/api/files*`, `/api/api-keys`, `/api/workbench`, `/api/active-timers`, `/api/time-entries` | 15 | `files-settings.js`, `api-keys.js`, `workbench.js`, `shared/file-preview.js`, `time-entries.js` |
-| `/api/tags/bulk-assignments` | 4 | `notes.js` - a bulk-action envelope, **not** the `LongtailForge.tags` surface |
+| `/api/tags/bulk-assignments` | 4 | `notes.js` - a bulk-action envelope, **not** the `LongtailForge.tags` surface; `0.33.33.38.4.2` found seven more of the same envelope and drew `0.33.33.38.4.11` for all eleven |
 | Unattributed producers | 52 | traced no further than a local helper |
 
 **`LongtailForge.tags` has an owner and this checkpoint must not take its work.** `0.33.33.38.2.2.10` owns it, is BLOCKED after a writer-first preflight, and holds the recorded `createTagChip` defect. The `tagPicker` and `bulkTagPicker` fields `0.33.33.40.1` left behind wait on that declaration rather than on a response contract. **Two surfaces blocked behind one undeclared member is a dependency, not a reason to reassign ownership.**
@@ -452,12 +452,38 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **Complete.** One producer, one already-declared contract, 147 diagnostics, zero transfers. See the archive entry.
 
-#### 0.33.33.38.4.2 - The Notes response family
+#### 0.33.33.38.4.2 - The Notes entity and collection response contracts
 
-**40 diagnostics and the highest-leverage remaining child, because it is the only one another checkpoint is waiting on.** `0.33.33.40.2` cannot type `notes`, `collections`, `selectedNote`, `linkTargets` or their siblings until a note, a collection and a link target have named validated shapes, and `0.33.33.40.1` proved that typing them `unknown` first trades a hidden boundary for a visible one without settling anything.
+**Complete for the entity and collection family: 24 of the 48 diagnostics in the three Notes-owned files.** The other 24 were traced to five different producers and left with them. See the archive entry.
 
-- [ ] Read the note routes and services before naming a field. A browser contract that guesses the server's shape is worse than `unknown`.
-- [ ] **Three envelopes, not one contract**: the note envelope (`{ note }`, `{ notes, pagination }`), the bulk-action envelope (`{ affectedCount, changed, errors }`) shared with the catalog and tag-assignment routes, and the notes-settings catalog envelope (`{ catalogs, capabilities, preflight, execution }`). Two reads in `notes.js` and `notes-settings.js` are settings-catalog reads and belong to `0.33.33.38.4.5`; confirm that split from the classifier before starting.
+**The file a diagnostic sits in did not decide its owner, and this child is the proof.** `notes.js`, `notes-settings.js` and `shared/notes-linked-panel.js` hold 48 genuine `unknown` reads between them, and only half are the Notes entity boundary:
+
+| Producer | Live | Owner |
+| --- | ---: | --- |
+| `{ note }` from `GET/PUT/POST /api/notes[/:id]` | 19 | **closed here** |
+| `{ notes, pagination }` from `GET /api/notes` | 3 | **closed here** |
+| `{ collections }` from `GET /api/notes/collections` | 2 | **closed here** |
+| `{ affectedCount, changed, errors }` bulk envelope | 11 | `0.33.33.38.4.11` |
+| `{ catalogs, capabilities, preflight, execution }` | 5 | `0.33.33.38.4.5` |
+| `GET /api/settings/catalog`, `GET /api/user/settings` | 2 | `0.33.33.38.4.5` |
+| `{ revisions }` and the revision restore body | 2 | `0.33.33.38.4.12` |
+| `{ bodyHtml }` from `POST /api/notes/preview` | 1 | `0.33.33.38.4.12` |
+| `{ targets }` from `GET /api/notes/link-targets` | 1 | `0.33.33.38.4.12` |
+| `shared/notes-linked-panel.js` | 2 | carried forward, below |
+
+- [x] **Two of the four blockers `0.33.33.40.2` recorded are gone, and two are not.** `selectedNote`, `editorNote`, `notes` and `collections` now hold named contracts, and `notesPagination` and `bulkCollections` came with them because they store the same two narrowed responses. `tagPicker`, `bulkTagPicker` and the rest stay with `0.33.33.40.2`.
+- [ ] **`shared/notes-linked-panel.js` is carried forward, and the blocker is a surface decision rather than a contract one.** Its two reads are the same `GET /api/notes` list envelope plus the `{ linkedNotes }` panel projection, and `BrowserLinkedNoteItem` is already declared for the latter. What is missing is a **shared narrowing implementation**: doing it locally would duplicate the column tables and predicates into a second file, and doing it properly means publishing a note-record surface on the namespace - which is `0.33.33.38.2.2`'s decision, not this child's. **Two consumers is where the estate should decide, not where it should copy.**
+
+#### 0.33.33.38.4.11 - The shared bulk-action envelope
+
+**11 diagnostics, one runtime envelope, and it does not belong to any feature child.** `POST /api/tags/bulk-assignments` and `POST /api/notes/settings/catalogs/bulk` both answer with `{ affectedCount, changed, errors }`, and `notes.js` and `notes-settings.js` read the same three members off them. **Drawn as its own child so the envelope gets one contract**: folding it into `0.33.33.38.4.2` because Notes consumes it would have produced a Notes-named contract that the catalog page also depends on, and folding it into both would have produced two.
+
+- [ ] Trace every bulk route in the estate before naming the contract; the two found here are unlikely to be all of them.
+- [ ] **This is not `LongtailForge.tags`.** The tags bulk route is reached through `requireApi().postJson` directly, so `0.33.33.38.2.2.10` owns the surface and this child owns the body.
+
+#### 0.33.33.38.4.12 - The Notes satellite producers
+
+**4 diagnostics across three unrelated producers that share only the `/api/notes` prefix.** The revision history array and the revision restore body, the `{ bodyHtml }` Markdown preview, and the `{ targets }` link-target directory. **Kept out of `0.33.33.38.4.2` because a route prefix is not a producer**: none of the three is shaped by `shapeNoteForBrowser`, and the link-target directory is not even a note.
 
 #### 0.33.33.38.4.3 - The Tasks response family
 
@@ -534,7 +560,7 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 Today's measurement: `public/js/notes.js` alone is **4,682 lines with 391 top-level names and 1,306 diagnostics** — the largest single owner in the browser program. **This is already too large for one implementation child** on the evidence of every comparable `0.33.33.32` child, but its internal boundaries are not drawn here because `0.33.33.33.6` rescopes it and `0.33.33.38` changes what its diagnostics are.
 
-**Resliced into implementation children by `0.33.33.40.1`, which typed the page-state store and learned why the rest cannot follow the same shape.** The owner budget is **528**: params 378, state 127, assorted 23. `notes.js` carries far more than that - the rest belongs to the DOM and genuine-`unknown` families other checkpoints own - so size this from the classifier, never from the file total.
+**Resliced into implementation children by `0.33.33.40.1`, which typed the page-state store and learned why the rest cannot follow the same shape.** The owner budget is **494** after `0.33.33.38.4.2` closed the six response-handoff state fields: params 377, state 95, assorted 22. It was 528 before that child, and the 34 it lost were eliminated as a prerequisite of the Notes response boundary rather than banked for a later `0.33.33.40` child. `notes.js` carries far more than that - the rest belongs to the DOM and genuine-`unknown` families other checkpoints own - so size this from the classifier, never from the file total.
 
 - [ ] Close full-strict debt in Notes and its browser-owned helpers using named state, response, DOM, and action contracts.
 - [ ] Preserve secure/plain note separation, safe Markdown, revision rules, linked context, attachments, and modal focus.
@@ -546,8 +572,10 @@ Today's measurement: `public/js/notes.js` alone is **4,682 lines with 391 top-le
 **`0.33.33.40.1` proved this child cannot be drawn as a state child, and that is its most useful result.** Annotating the whole state object with one named `NotesPageState` contract - the shape the reslice expected - closes 47 state diagnostics and **opens 40 genuine `unknown` ones**, because `notes: []`, `collections: []`, `availableTags: []`, `selectedNote: null` and their siblings hold **unvalidated API bodies that `never[]` and `null` were silently permitting reads through**. Reading a property off `never` is legal; reading one off `unknown` is not.
 
 - [ ] **The transfer is real and belongs to `0.33.33.38.4`, not here.** The full-object contract was measured, not guessed: state 1,823 to 1,776, `unknown` 378 to 418, `0.33.33.40` 534 to 490, and the per-file-per-code ledger rejected it on `notes.js` `TS18046` 49 to 89.
+- [ ] **`0.33.33.38.4.2` answered half of this and the circular dependency is gone.** A note, a note-list item, pagination and a collection now have named contracts narrowed at runtime, so the fields that store them are typed. **What is still waiting is the rest**: a link target, a tag and the primary-context records have no contract yet, and `tagPicker`/`bulkTagPicker` wait on `LongtailForge.tags` rather than on any response.
 - [ ] **So this child waits on the Notes response contracts.** Once a note, a collection, a tag and a link target have named validated shapes, the state fields that hold them can be typed and the whole object can carry one contract. **Do not type them as `unknown` first** - that trades a hidden boundary for a visible one without settling anything.
-- [ ] The fields concerned are `availableTags`, `bulkCollections`, `collections`, `editorContextSummaries`, `editorNote`, `editorSelectedTarget`, `editorStagedTargets`, `linkTargets`, `notes`, `notesPagination`, `primaryContextClients`, `primaryContextProjects`, `selectedNote`, `selectedNoteIds`, `tagPicker` and `bulkTagPicker`. **`tagPicker` and `bulkTagPicker` are a different blocker**: their consumers optional-chain into `readTagIds`, so they need `LongtailForge.tags` declared rather than a response contract.
+- [ ] **Six of the sixteen fields left this child at `0.33.33.38.4.2` and must not be counted here again.** `selectedNote`, `editorNote`, `notes` and `collections` are the direct storage handoff for the Notes entity and collection contracts that child published; `notesPagination` and `bulkCollections` store the same two narrowed responses and could not be left behind without re-opening them. **Those six are closed, and their 32 state diagnostics were eliminated there, not here.**
+- [ ] The fields still concerned are `availableTags`, `editorContextSummaries`, `editorSelectedTarget`, `editorStagedTargets`, `linkTargets`, `primaryContextClients`, `primaryContextProjects`, `selectedNoteIds`, `tagPicker` and `bulkTagPicker`. **`tagPicker` and `bulkTagPicker` are a different blocker**: their consumers optional-chain into `readTagIds`, so they need `LongtailForge.tags` declared rather than a response contract.
 
 **Later `0.33.33.40.x` children are not drawn yet.** The remaining 378 parameter and 23 assorted diagnostics have not been clustered, and `0.33.33.40.1` deliberately did not touch them. Draw those boundaries from the classifier after `0.33.33.40.2`, not from this section.
 

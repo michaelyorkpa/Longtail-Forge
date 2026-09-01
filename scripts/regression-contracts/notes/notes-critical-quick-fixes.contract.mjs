@@ -36,7 +36,7 @@ assert.match(css, /\.notes-list-row\s*\{[\s\S]*grid-template-columns: auto minma
 
 assert.match(notesModule, /id: "save-close-note", label: "Save & Close"[\s\S]*id: "save-note", label: "Save Note"/, "the Notes editor descriptor should expose separate Save and Save and Close actions");
 assert.match(functionBlock(notes, "saveNote"), /const wasCreating = !state\.editingNoteId[\s\S]*closeOnSuccess: !wasCreating/, "Save should keep a newly created note open");
-assert.match(functionBlock(notes, "saveNoteForm"), /!wasEditing[\s\S]*transitionCreatedNoteToEdit\(result\.note\)[\s\S]*Note saved\. Continue editing or choose Save & Close\./, "the create dialog should transition in place to a persisted edit dialog");
+assert.match(functionBlock(notes, "saveNoteForm"), /!wasEditing[\s\S]*transitionCreatedNoteToEdit\(savedNote\)[\s\S]*Note saved\. Continue editing or choose Save & Close\./, "the create dialog should transition in place to a persisted edit dialog");
 assert.match(functionBlock(notes, "transitionCreatedNoteToEdit"), /state\.editingNoteId = note\.note_id[\s\S]*dialogTitle\.textContent = "Edit Note"[\s\S]*mountTagEditor\(note\)[\s\S]*mountNoteEditorFiles\(note\)/, "the persisted note should enable the canonical saved-note utilities without closing the dialog");
 
 console.log("Notes critical quick-fixes regression passed.");

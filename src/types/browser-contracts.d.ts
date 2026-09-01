@@ -1888,6 +1888,191 @@ export interface BrowserFileAttachments {
   mount(container?: Element | null, options?: BrowserFileAttachmentOptions): BrowserMountedPanel;
 }
 
+/**
+ * The note columns every browser-facing Notes projection carries.
+ *
+ * **Derived from the producer, not from what `notes.js` reads.** `NOTE_LIST_COLUMNS` in
+ * `src/modules/notes/notes.repo.js` selects exactly these twenty-seven, and `NOTE_COLUMNS` - the
+ * detail select - is a strict superset, so this is the intersection every shaped note has. The
+ * required/nullable split is the table's own `NOT NULL`, and nothing here is optional: these
+ * columns are selected by name, so they are present even when null.
+ *
+ * **The vocabularies are documented rather than declared as unions, deliberately.** `note_type`,
+ * `library_bucket`, `library_bucket_source`, `status`, `visibility` and `security_mode` each carry
+ * a `CHECK` constraint in the schema, so the server does constrain them - but **the browser does
+ * not validate them**, and `0.33.33.38.4` already recorded for `userPreferences` that a closed
+ * union over an unvalidated wire field is a claim no browser code makes. The runtime vocabularies
+ * are: `note_type` general/meeting/research/decision/procedure/reference/idea/log/client/project/
+ * task/ticket/user; `library_bucket` active_work/ongoing_area/reference; `library_bucket_source`
+ * derived/manual/imported; `status` active/pinned/archived/deleted; `visibility` internal/private/
+ * workspace/client_visible/public; `security_mode` normal/secure.
+ */
+export interface BrowserNoteColumns {
+  archived_at: string | null;
+  /** Nulled by the producer for an effectively secure note, in both projections. */
+  body_excerpt: string | null;
+  client_id: string | null;
+  created_at: string;
+  created_by_user_id: string | null;
+  deleted_at: string | null;
+  import_source: string | null;
+  import_source_id: string | null;
+  imported_at: string | null;
+  library_bucket: string;
+  library_bucket_source: string;
+  linked_user_id: string | null;
+  note_collection_id: string | null;
+  note_id: string;
+  note_type: string;
+  owner_user_id: string | null;
+  project_id: string | null;
+  security_mode: string;
+  slug: string | null;
+  status: string;
+  task_id: string | null;
+  ticket_id: string | null;
+  title: string;
+  updated_at: string;
+  updated_by_user_id: string | null;
+  visibility: string;
+  workspace_id: string;
+}
+
+/**
+ * One note as `GET /api/notes` returns it, shaped by `shapeNoteListProjection`.
+ *
+ * **A list note is not a detail note and this estate has to say so once.** The list select carries
+ * twenty-seven columns, and the projection then deletes `body_markdown`, `body_plaintext_index`,
+ * `body_html`, `metadata_json`, `metadata` and `searchDocument` - most of which the list select
+ * never had. What it adds is `tags`, from the effective-tag decoration every candidate batch runs
+ * through. The internal `__candidateOffset` marker is stripped before the response, so it is
+ * absent here rather than optional.
+ */
+export interface BrowserNoteListItem extends BrowserNoteColumns {
+  /** Effective tags as the tags service decorated them. **Not modelled here**: the tag record is
+   * `LongtailForge.tags`' producer, and `0.33.33.38.2.2.10` owns it. */
+  tags: unknown[];
+}
+
+/**
+ * One note as `GET /api/notes/:id`, `POST /api/notes` and the editor refresh return it.
+ *
+ * **`shapeNoteForBrowser` is subtractive, which is what makes this contract derivable.** It spreads
+ * the forty-seven-column detail row, deletes the eleven secure-storage columns, and then removes or
+ * nulls the rest conditionally. Every member below is a column the detail select names or a field
+ * `attachNoteIntegrations` adds - **no member is here because a consumer reads it.**
+ *
+ * **The eleven secure-storage columns are absent by design and must stay absent.**
+ * `secure_payload`, `secure_payload_version`, `encrypted_data_key`, `encryption_key_version`,
+ * `encryption_algorithm`, `key_wrapping_algorithm`, `encryption_nonce`, `encryption_auth_tag`,
+ * `key_wrapping_nonce`, `key_wrapping_auth_tag` and `encrypted_at` are deleted by
+ * `stripSecureStorageFields` before the note leaves the server. Declaring any of them would invite
+ * a browser consumer to depend on an envelope the server deliberately withholds.
+ */
+export interface BrowserNoteRecord extends BrowserNoteColumns {
+  body_markdown: string;
+  /** Nulled by the producer for an effectively secure note. */
+  body_plaintext_index: string | null;
+  import_batch_id: string | null;
+  import_source_path: string | null;
+  metadata_json: string | null;
+  original_notebook: string | null;
+  original_page_id: string | null;
+  original_section: string | null;
+  original_section_group: string | null;
+  /**
+   * Rendered note body.
+   *
+   * **Optional rather than nullable, and the difference is the contract.** The producer takes
+   * `includeBodyHtml`, and when it is false `shapeNoteForBrowser` **deletes the property** rather
+   * than nulling it. A route that omits it sends a note with no `body_html` key at all.
+   */
+  body_html?: string;
+  /**
+   * The decrypted secure body, present only on the paths that decrypt one and **deleted again**
+   * once the note is recognised as effectively secure. Optional for the same reason as
+   * `body_html`: the producer deletes the key.
+   */
+  secure_body_decrypted?: unknown;
+  /**
+   * Added by the producer **only** for an effectively secure note, so its absence is meaningful.
+   */
+  secure_title_warning?: string;
+  /** Decorated note links. **Not modelled here**: the link decorator is its own producer. */
+  links: unknown[];
+  /** The linked-context summary the producer builds. Its own producer, not modelled here. */
+  linked_context: unknown;
+  owner_display_name: string;
+  /** Effective tags, owned by `0.33.33.38.2.2.10` as on the list item. */
+  tags: unknown[];
+}
+
+/**
+ * One note as `GET /api/notes/for-target` returns it, shaped by `shapeLinkedNotePanelItem`.
+ *
+ * The detail projection minus `body_markdown`, `body_plaintext_index` and `metadata_json`, plus
+ * five fields the panel needs. It is declared against the shared columns rather than against
+ * `BrowserNoteRecord` because `tags` is not decorated on this path.
+ */
+export interface BrowserLinkedNoteItem extends BrowserNoteColumns {
+  /** A duplicate of `note_id`, added by the producer for the panel's list primitives. */
+  id: string;
+  label: string;
+  /** `null` for an effectively secure note, `""` when the note has no excerpt. */
+  excerpt: string | null;
+  sourceUrl: string;
+  links: unknown[];
+}
+
+/**
+ * The pagination record `noteListResult` builds, or `null` when the caller asked for no page.
+ *
+ * Constructed field by field by the producer rather than passed through, so every member is
+ * present and typed.
+ */
+export interface BrowserNotePagination {
+  hasMore: boolean;
+  limit: number;
+  nextCursor: string;
+  pageSize: number;
+}
+
+/** The `{ note }` envelope the single-note routes return. */
+export interface BrowserNoteEnvelope {
+  note: BrowserNoteRecord;
+}
+
+/** The `{ notes, pagination }` envelope `GET /api/notes` returns. */
+export interface BrowserNoteListEnvelope {
+  notes: BrowserNoteListItem[];
+  pagination: BrowserNotePagination | null;
+}
+
+/**
+ * One note collection as `public/js/notes.js` holds it after `normalizeCollections`.
+ *
+ * **This is the normalised shape, not the wire shape, and that is the point.** The collection read
+ * model spreads the twenty-seven-column collection row and adds two rollup counts; the browser then
+ * rebuilds seven fields with defaults and drops any entry without an id. The seven rebuilt fields
+ * are typed because the normaliser guarantees them. **The fields it carries through untouched stay
+ * `unknown` and optional**, because nothing on either side of the boundary establishes them: the
+ * spread neither checks nor defaults them, and the wire may omit any of them.
+ */
+export interface BrowserNoteCollection {
+  accessibleNoteCount: number;
+  depth: number;
+  directAccessibleNoteCount: number;
+  library_bucket: string;
+  note_library_collection_id: string;
+  /** `""` rather than `null` for a root collection - the normaliser's own default. */
+  parent_collection_id: string;
+  title: string;
+  /** Carried through the spread unchecked; read by the collection sort. */
+  path_cache?: unknown;
+  /** Carried through the spread unchecked; compared against `"archived"` and `"deleted"`. */
+  status?: unknown;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;

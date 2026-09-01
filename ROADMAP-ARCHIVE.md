@@ -1,5 +1,56 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.2 - Notes entity and collection response contracts
+
+**Model: High Effort** - the child that had to decide what a Notes response *is* before it could narrow one, and found that half the Notes-owned `unknown` reads were not Notes entity reads at all.
+
+- [x] **Scope was corrected against the producers before a line was written, and it moved by half.** The three Notes-owned files hold 48 genuine `unknown` diagnostics. **24 are the entity and collection boundary; 24 are five other producers** - a shared bulk-action envelope (11), the settings catalog projection (5), two settings reads (2), revisions and the revision restore body (2), the Markdown preview (1), the link-target directory (1), and the linked-notes panel (2). Each is recorded with its owner in the live roadmap. **A route prefix is not a producer**: `/api/notes/link-targets` returns a directory of projects and tasks, not notes.
+- [x] **The bulk-action envelope turned out to be eleven, not four, and that is why it got its own child.** `POST /api/tags/bulk-assignments` and `POST /api/notes/settings/catalogs/bulk` return the same `{ affectedCount, changed, errors }` shape to two different pages. Folding it into this child would have produced a Notes-named contract that the catalog page depends on; `0.33.33.38.4.11` owns it instead. **The same runtime envelope gets one contract, and the contract is named after the envelope rather than after whoever reads it first.**
+- [x] **The contract is derived from the producer's column lists, not from what `notes.js` reads.** `NOTE_COLUMNS` selects 47 columns and `shapeNoteForBrowser` deletes 11 secure-storage ones, so `BrowserNoteRecord` has 36 columns plus what `attachNoteIntegrations` adds. `NOTE_LIST_COLUMNS` selects 27, so `BrowserNoteListItem` has those plus `tags`. The intersection is named `BrowserNoteColumns` and the three projections extend it. **No member is in these contracts because a consumer wanted it.**
+- [x] **Omission and nullability are modelled as the different things they are.** `body_html` is `?:` because the producer **deletes** the key when `includeBodyHtml` is false; `body_excerpt` is `| null` because the producer **nulls** it for a secure note while the select still names it. The unit test asserts both directions: a note without `body_html` is accepted, a note with `body_html: null` is rejected, a note with `body_excerpt: null` is accepted, and a note missing `body_excerpt` is rejected.
+- [x] **The eleven secure-storage columns are absent from every browser note contract and the test proves they stay absent.** `secure_payload`, the four encryption fields, the four key-wrapping fields and `encrypted_at` are read out of `stripSecureStorageFields` itself, and each is asserted to be neither a declared member nor a checked column. A body that carries one anyway is still accepted as a note - **the contract omits the member rather than policing the wire**, because policing it would be a server behaviour change wearing a browser type.
+- [x] **The vocabularies are documented and typed `string`, deliberately.** Six columns carry `CHECK` constraints, so the server does constrain them - but the browser does not validate them, and this checkpoint already recorded for `userPreferences` that a closed union over an unvalidated wire field is a claim no browser code makes. The runtime vocabulary of each is written into the declaration where the next reader will find it.
+- [x] **Narrowing is by type predicate and reconstruction, never by cast.** `isNoteRecord` and `isNoteListItem` check every selected column as text or `null`; `readNotePagination` rebuilds its four members from checked values; `normalizeCollections` was **already** a total normaliser and only needed its input declared `unknown` and its entries checked before the spread. `requireNoteFromEnvelope` throws a named error - which is the path the raw read already took, because `renderDetail` reads `note.title` on its first line.
+- [x] **Six state slots were adopted, and the two beyond the four were proved rather than assumed.** `selectedNote`, `editorNote`, `notes` and `collections` are the direct handoff. `notesPagination` stores the other half of the same list envelope and `bulkCollections` stores the same normalised collections; neither could be left inferring as `null` and `never[]` without re-opening the boundary in the same function. **Nothing else in the 39-field store was touched** - not the tag pickers, not the primary-context arrays, not the editor or Markdown state.
+
+Proved by breaking each one:
+
+| Break | Failure |
+| --- | --- |
+| The browser stops checking a column the server selects | the shared column set no longer equals the list select |
+| The server stops selecting a column the browser checks | the same assertion, from the other side |
+| A secure-storage column enters the browser contract | `encrypted_at` must not be a member of a note contract |
+| The list checks its container but not its elements | a malformed element reaches the trusted array |
+| Pagination is passed through instead of rebuilt | a body missing `hasMore` is accepted as pagination |
+| The single-note envelope stops throwing | the malformed-body exception is missing |
+| The collection normaliser stops dropping identity-less entries | an entry with no id survives |
+| `selectedNote` loses the `null` its lifecycle resets to | `TS2322` on the reset assignment |
+| `notes` claims detail records instead of list items | list items are not assignable to detail records |
+| A non-collection is assigned to `collections` | `TS2322` on the literal |
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,665 | **8,607** |
+| Genuine `unknown` | 231 | **207** |
+| Page-local state | 1,821 | **1,789** |
+| Params | 4,625 | **4,624** |
+| Assorted | 159 | **158** |
+| DOM / namespace | 1,484 / 345 | **unchanged** |
+| `0.33.33.40` Notes | 528 | **494** |
+| `.39` / `.41` / `.42` / `.43` / `.44` | 1,773 / 1,217 / 531 / 976 / 1,580 | **all unchanged** |
+| Root optionality | 117 bare-root, 42 parked behind 8 | **unchanged** |
+| Unit tests / regressions / end-to-end | 337 / 348 / 167 | **342 / 348 / 167**, green |
+
+**58 eliminations, zero transfers and zero increases anywhere.** The per-file per-code comparison against the committed ledger shows six movements, all in `notes.js`: `TS18046` 35 to 11, `TS2339` 519 to 489, `TS2322` 6 to 5, `TS7005` 7 to 5, `TS7006` 180 to 179. **No code in any file rose.** `4,624 + 1,789 + 158 = 6,571` reconciles against the six owners exactly.
+
+**`0.33.33.40` fell 34 and that movement is recorded here rather than banked.** One param, 32 page-local state and one assorted, all in `notes.js`, all caused by the six state slots receiving a named contract. They were inseparable from this boundary: a truthful response type has nowhere to go while its destination infers as `null` or `never[]`. `0.33.33.40.2` has been amended to name the six fields as closed so it cannot claim them again.
+
+**A correction to `0.33.33.38.4.1`'s archive entry, which this child's own byte audit disproved.** That entry says two files "were rewritten to CRLF by the scripted edit". They were not. **523 files in this working tree are CRLF on disk while their blobs are LF**, and `git status` reports the tree clean because git's stat cache has not compared their contents. Rewriting such a file - even byte-for-byte in its own encoding - makes git notice what was already true. The evidence is a survey of the whole tree, and `src/modules/notes/notes.repo.js` demonstrated it here: **this child only ever read that file**, and it still appeared modified with whole-file churn until it was restored to its blob. The audit stands; the attribution in that entry does not.
+
+**The runtime proof is a unit test rather than a new regression owner, and that was forced rather than chosen.** `scripts/regression-coverage-exceptions.json` holds `maximumActiveScripts` at 348 and the generator refuses to raise it - the same guardrail `0.33.33.30.3.1` met and declined to weaken. `tests/unit/note-response-contracts.test.mjs` lifts the narrowing functions out of `notes.js` with the published source-slicing helpers, runs them in a sandbox, and builds its fixtures from `notes.repo.js`'s own column lists, so the browser contract cannot drift from the producer in either direction without failing.
+
 ## Version 0.33.33.38.4.1 - Narrow the caught-value boundary
 
 **Model: High Effort** - the child that found 39% of `0.33.33.38.4` was not a wire body at all, and closed it against a contract that already existed.

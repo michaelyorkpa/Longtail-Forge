@@ -47,7 +47,7 @@ assert.match(
 );
 assert.match(
   openNoteViewerBody,
-  /renderNoteViewDialog\(dialog, result\.note, params, hostContext\)/,
+  /renderNoteViewDialog\(dialog, requireNoteFromEnvelope\(result\), params, hostContext\)/,
   "Notes view modal should render the returned note detail payload",
 );
 assert.match(
