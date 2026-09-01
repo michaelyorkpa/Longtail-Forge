@@ -1780,6 +1780,98 @@ export interface BrowserDashboard {
   registerPanelRenderer(rendererId?: unknown, renderer?: DashboardPanelRenderer): void;
 }
 
+/**
+ * The detail each attachment event carries, keyed by the event `emit` raises.
+ *
+ * **The eleven events do not share a detail shape, so they do not share a listener type.** A
+ * single `(detail?: unknown) => void` looked tidy and was wrong: `task-dialog.js` destructures
+ * `{ error }` from the upload-failure detail, and a callback that destructures cannot accept
+ * `unknown`. Each listener below carries the shape its own `emit` call site supplies, which is
+ * both more truthful and what lets the existing consumers compile unchanged.
+ *
+ * The values inside stay `unknown`: an attachment, an upload result and a caught error are all
+ * unvalidated, and narrowing them is `0.33.33.38.4`'s work.
+ */
+export type BrowserFileAttachmentEventListener<Detail> = (detail?: Detail) => void;
+
+/**
+ * What `LongtailForge.fileAttachments.mount` accepts.
+ *
+ * **Every key is optional because the writer supplies a default for the ones it needs.**
+ * `normalizeOptions` builds a defaulted object and spreads the caller's over it, so a caller
+ * may pass none of these; what it may not do is pass something the component silently drops.
+ *
+ * **The `on*` members are read through a computed key**, which is why a search for them finds
+ * nothing: `emit` builds `on${Name}` from the event it is raising. They are enumerable all the
+ * same - the writer raises eleven named events - and each is called as `callback?.(detail)`
+ * alongside a `longtailforge:file-attachments:*` DOM event carrying the same detail.
+ *
+ * **`emptyMessage` is accepted and never read.** `task-dialog.js` passes it, the spread carries
+ * it into the component's state, and nothing consumes it - so it is declared rather than
+ * omitted, because omitting it would fail an excess-property check on a call the runtime
+ * accepts today. Removing it from that call site is `0.33.33.41`'s work, not this one's.
+ */
+export interface BrowserFileAttachmentOptions {
+  /** File categories the picker offers, as `acceptedExtensions` maps them. */
+  acceptedCategories?: unknown;
+  /** Extra form fields appended to an upload. Sent as-is, so the value is not narrowed here. */
+  attachmentMetadata?: unknown;
+  canQuarantine?: boolean;
+  /** Compared against `false`, so anything else leaves removal enabled. */
+  canRemove?: boolean;
+  canReport?: boolean;
+  canUpload?: boolean;
+  clientId?: unknown;
+  /** Accepted and currently unread. */
+  emptyMessage?: unknown;
+  /** Required together with `targetType` and `targetId` before the panel will load. */
+  moduleId?: unknown;
+  onAttachmentAdded?: BrowserFileAttachmentEventListener<unknown>;
+  onAttachmentRemoved?: BrowserFileAttachmentEventListener<{ attachment?: unknown }>;
+  onFileDeleted?: BrowserFileAttachmentEventListener<{ attachment?: unknown }>;
+  onFileQuarantined?: BrowserFileAttachmentEventListener<{ attachment?: unknown }>;
+  onFileReported?: BrowserFileAttachmentEventListener<{ attachment?: unknown }>;
+  onFileRestored?: BrowserFileAttachmentEventListener<{ attachment?: unknown }>;
+  onRefresh?: BrowserFileAttachmentEventListener<{ attachments?: unknown }>;
+  onStatusChanged?: BrowserFileAttachmentEventListener<{ attachment?: unknown; status?: unknown }>;
+  onUploadCompleted?: BrowserFileAttachmentEventListener<unknown>;
+  onUploadFailed?: BrowserFileAttachmentEventListener<{ error?: unknown }>;
+  onUploadStarted?: BrowserFileAttachmentEventListener<{ files?: unknown }>;
+  projectId?: unknown;
+  /** Shown in place of the upload form when the record has not been saved yet. */
+  saveFirstMessage?: unknown;
+  targetId?: unknown;
+  targetType?: unknown;
+  /** The panel heading. */
+  title?: unknown;
+  visibility?: unknown;
+}
+
+/**
+ * `LongtailForge.fileAttachments`, published by `public/js/shared/file-attachments.js`.
+ *
+ * The attachment panel Notes and the Task dialog mount. **One writer, one member, closed** -
+ * `0.33.33.38.2.4.4` removed the preserving spread that made it look otherwise, having proved
+ * it was the residue of a three-writer arrangement `0.33.33.34` retired.
+ *
+ * **This surface waited on Notes rather than on itself.** `notes.js` held its controller in a
+ * state field that inferred as `null`, so nothing the mount returned could be assigned there;
+ * `0.33.33.40.1` typed that field and the block ended.
+ */
+export interface BrowserFileAttachments {
+  /**
+   * Mount the attachment panel into a container and start loading its attachments.
+   *
+   * **Throws** when there is no container, so the return has no null branch - and the parameter
+   * admits `null` because that is what the runtime accepts and rejects, rather than forcing a
+   * caller that already guards to narrow again for the declaration's convenience. The returned
+   * controller is the same `BrowserMountedPanel` the linked-notes panel returns: `refresh`
+   * re-reads and re-renders without handing back a wire body, and `destroy` also unsubscribes
+   * from the workspace-context event this panel listens to.
+   */
+  mount(container?: Element | null, options?: BrowserFileAttachmentOptions): BrowserMountedPanel;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
@@ -1792,6 +1884,7 @@ export interface LongtailForgeBrowserNamespace {
   dashboardBootstrap?: BrowserDashboardBootstrap;
   errors?: BrowserErrorContract;
   esModuleBridge?: BrowserEsModuleBridge;
+  fileAttachments?: BrowserFileAttachments;
   formatters?: BrowserFormatters;
   getWorkspaceProjectsLabel?: (workspaceName?: unknown) => string;
   icons?: BrowserIcons;

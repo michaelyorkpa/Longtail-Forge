@@ -29,8 +29,11 @@ assert.match(notesJs, /function handleFilesDialogClose\(\)[\s\S]*filesToggle\?\.
 
 assert.doesNotMatch(notesJs, /noteFilesPanel|data-note-files-panel|toggleNoteEditorPanel\("files"\)|function toggleNoteEditorPanel/, "Files should no longer render or toggle an inline editor panel below Body");
 assert.match(notesJs, /function mountNoteEditorFiles\(note\)[\s\S]*filesSaveFirstWarning\.hidden = Boolean\(note\?\.note_id\)/, "Unsaved notes should show the save-first warning in the Files dialog");
-assert.match(notesJs, /if \(!filesAvailable \|\| secure \|\| !note\?\.note_id\) \{[\s\S]*filesEditor\?\.replaceChildren\?\.\(\)/, "Unsaved notes should not mount the attachment helper against an empty target id");
-assert.match(notesJs, /state\.editorAttachmentController = window\.LongtailForge\.fileAttachments\.mount\(filesEditor, \{[\s\S]*canUpload: Boolean\(note\?\.note_id\) && note\?\.status !== "archived"[\s\S]*targetId: note\?\.note_id \|\| ""/, "Saved normal notes should mount the shared attachment helper with the saved note id");
+// The claim is that an unsaved note clears the editor instead of mounting against an empty
+// target id, not how the guard spells its availability half: `0.33.33.38.2.2.6.5.1` reads the
+// surface into a binding so the same condition can narrow it for the mount below.
+assert.match(notesJs, /if \([^)]*secure \|\| !note\?\.note_id\) \{[\s\S]*filesEditor\?\.replaceChildren\?\.\(\)/, "Unsaved notes should not mount the attachment helper against an empty target id");
+assert.match(notesJs, /state\.editorAttachmentController = (?:window\.LongtailForge\.fileAttachments|fileAttachments)\.mount\(filesEditor, \{[\s\S]*canUpload: Boolean\(note\?\.note_id\) && note\?\.status !== "archived"[\s\S]*targetId: note\?\.note_id \|\| ""/, "Saved normal notes should mount the shared attachment helper with the saved note id");
 assert.match(notesJs, /const secure = isSecureNote\(note\) \|\| \(!note\?\.note_id && isSecureEditorMode\(\)\)/, "Secure saved notes and secure draft notes should keep normal file attachments unavailable");
 assert.match(notesJs, /filesToggle\.hidden = secure \|\| !filesAvailable[\s\S]*closeFilesDialog\(\)/, "Unavailable or secure Files utility state should collapse and close the child dialog");
 assert.match(notesJs, /function resetNoteEditorPanels\(\)[\s\S]*closeTagsDialog\(\)[\s\S]*closeFilesDialog\(\)/, "Resetting the note editor should close any stacked utility dialogs");

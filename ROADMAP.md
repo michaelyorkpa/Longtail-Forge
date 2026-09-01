@@ -344,14 +344,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Preflight each child writer-first and do not promise a child from a sibling's clearance.** Two members published by the same writer share a risk profile; two members with the same diagnostic count share nothing.
 - [ ] **The 78 class-E root diagnostics resolve as their members are declared**, and they are not separate work. `0.33.33.38.2.6` closed declared-member root debt to zero; these are the parked half, and they drain child by child.
 
-#### 0.33.33.38.2.2.6.5.1 - `LongtailForge.fileAttachments`
-
-**Split out of `0.33.33.38.2.2.6.5`, which declared the other four surfaces and could not take this one.** The contract itself is ready: `mount(container, options)` **throws** when it has no container, returns a `{ destroy, refresh }` controller, and its `refresh` fetches but resolves nothing - the same shape `notesLinkedPanel` was declared with, and the same reason `timezones` was declarable. **`BrowserMountedPanel` already exists and this surface will reuse it.**
-
-- [ ] **The blocker is not this surface, it is where Notes keeps its controller.** `public/js/notes.js:151` initialises `attachmentController: null` inside a state object literal, so TypeScript infers the property as `null` and **nothing is assignable to it**. Declaring `mount`'s return therefore fails at `notes.js:4105` and `4229` until that state field carries a type. `task-dialog.js` holds the same controller in a bare `let` and needed no change at all, which is what isolates the cause.
-- [ ] **That field is page-local state and belongs to `0.33.33.40`.** It is not a hand-written copy of this contract - unlike `notes.js:410`, which `0.33.33.38.2.2.6.5` legitimately replaced - so typing it here would be `0.33.33.40`'s work done early and counted against the wrong owner. **Land this when Notes state is typed, or with `0.33.33.40`'s explicit agreement to take the two annotations.**
-- [ ] The member stays in `0.33.33.38.2.4.3`'s undeclared backlog until then, which is the point of the backlog being asserted by identity.
-
 #### 0.33.33.38.2.2.6.6.1 - `LongtailForge.notificationSubscriptions`
 
 **Reassigned to `0.33.33.38.4` in all but name: three of its five members return an API body its consumers read immediately.**
