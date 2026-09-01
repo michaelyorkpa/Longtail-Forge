@@ -1506,6 +1506,13 @@
     return option;
   }
 
+  /**
+   * The implementation of `LongtailForge.applyWorkspaceName`. Its parameter carries the
+   * declared contract so the publication below is actually checked: with an implicit `any`
+   * here, a namespace declaration of any shape stayed assignable.
+   * @param {unknown} value
+   * @returns {void}
+   */
   function applyWorkspaceName(value) {
     const workspaceName = String(value || "").trim() || DEFAULT_WORKSPACE_NAME;
 
@@ -1544,6 +1551,12 @@
     workspaceSelector.title = `Active workspace: ${workspaceName}`;
   }
 
+  /**
+   * The implementation of `LongtailForge.getWorkspaceProjectsLabel`, carrying its declared
+   * contract for the same reason.
+   * @param {unknown} [workspaceName]
+   * @returns {string}
+   */
   function getWorkspaceProjectsLabel(workspaceName) {
     const labelSource = String(workspaceName || "").trim() ||
       String(window.LongtailForge?.workspaceContext?.workspaceName || "").trim() ||

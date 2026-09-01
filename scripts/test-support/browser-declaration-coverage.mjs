@@ -58,6 +58,8 @@ import { declaredNamespaceMembers } from "./browser-diagnostic-classification.mj
  * @property {SurfaceWriters[]} multiWriterSurfaces surfaces with more than one writer
  * @property {SurfaceWriters[]} unwrittenSurfaces surfaces recorded with no writer at all
  * @property {AdditivePublication[]} additivePublications writers that preserve the existing surface
+ * @property {string[]} assertedPublications publications whose value is a cast rather than a
+ *   checked expression, so the writer is not checked against its declaration
  * @property {string[]} unresolvableRootedWrites rooted writes that cannot be named
  * @property {string[]} writesBelowSurfaces writes reaching into an already-published surface
  * @property {string[]} clobberingRootWrites root writes that do not derive from the namespace
@@ -91,6 +93,8 @@ export function collectDeclarationCoverage({
   const unwrittenSurfaces = [];
   /** @type {AdditivePublication[]} */
   const additivePublications = [];
+  /** @type {string[]} */
+  const assertedPublications = [];
   let publicationOccurrences = 0;
 
   for (const [surface, entry] of [...inventory.surfaces].sort(([left], [right]) => left.localeCompare(right))) {
@@ -100,6 +104,7 @@ export function collectDeclarationCoverage({
     if (writers.length > 1) multiWriterSurfaces.push({ surface, writers });
     for (const writer of [...entry.writers].sort((left, right) => left.file.localeCompare(right.file))) {
       if (writer.preservesExisting) additivePublications.push({ surface, writer: writer.file });
+      if (writer.assertedValue) assertedPublications.push(`${writer.file}:${writer.line}: ${surface}`);
     }
     if (surface.startsWith(memberPrefix)) publishedMembers.set(surface.slice(memberPrefix.length), writers);
   }
@@ -117,6 +122,7 @@ export function collectDeclarationCoverage({
     multiWriterSurfaces,
     unwrittenSurfaces,
     additivePublications,
+    assertedPublications: assertedPublications.sort(),
     unresolvableRootedWrites: inventory.unsupportedTargets
       .map((entry) => `${entry.file}:${entry.line}: ${entry.target}`).sort(),
     writesBelowSurfaces: inventory.deepWrites

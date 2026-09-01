@@ -67,6 +67,13 @@
       : null;
   }
 
-  namespace.viewResponseRecords = /** @type {BrowserViewResponseRecords} */ (Object.freeze({ read }));
+  // Annotated rather than asserted. `0.33.33.38.2.4.5` found this cast was the reason the
+  // writer was never checked against its contract: a cast tells the compiler what to believe,
+  // so adding a member to `BrowserViewResponseRecords` left this file green. The annotation
+  // checks the object in both directions at its construction point instead.
+  /** @type {BrowserViewResponseRecords} */
+  const viewResponseRecordsApi = Object.freeze({ read });
+
+  namespace.viewResponseRecords = viewResponseRecordsApi;
   global.LongtailForge = namespace;
 })(window);
