@@ -375,6 +375,7 @@
         "tests/unit/legal-content.test.mjs",
         "tests/unit/note-response-contracts.test.mjs",
         "tests/unit/notes-effective-security.test.mjs",
+        "tests/unit/notification-response-contracts.test.mjs",
         "tests/unit/public-demo-capabilities.test.mjs",
         "tests/unit/public-demo-enforcement.test.mjs",
         "tests/unit/regression-source-measure.test.mjs",
@@ -479,7 +480,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8607,
+      "errorCount": 8604,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1396,7 +1397,7 @@
         "public/js/shared/notification-subscriptions.js": [
           {
             "code": 7006,
-            "count": 7
+            "count": 4
           }
         ],
         "public/js/shared/overlay-host.js": [
@@ -2761,8 +2762,8 @@
     }
   },
   "totals": {
-    "files": 1060,
-    "errors": 8607,
+    "files": 1061,
+    "errors": 8604,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

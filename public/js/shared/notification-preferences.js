@@ -1,6 +1,68 @@
 (function attachNotificationPreferences(global) {
   const root = global.LongtailForge || {};
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserNotificationEventPreference} BrowserNotificationEventPreference */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserNotificationPreferenceCatalog} BrowserNotificationPreferenceCatalog */
+
+  /** The text members `preferences()` constructs for every configurable event. */
+  const EVENT_TEXT_MEMBERS = Object.freeze([
+    "defaultPriority",
+    "description",
+    "id",
+    "label",
+    "moduleId",
+    "workspacePriority",
+  ]);
+
+  /**
+   * The boolean members `preferences()` constructs for every configurable event.
+   *
+   * **Booleans, not integer flags.** `enabled` is an `INTEGER` column on both preference tables and
+   * the server converts each layer with `Number(row.enabled) === 1` before answering, so a body
+   * carrying `1` here is not the shape this producer sends.
+   */
+  const EVENT_BOOLEAN_MEMBERS = Object.freeze([
+    "defaultEnabled",
+    "moduleEnabled",
+    "userEnabled",
+    "workspaceEnabled",
+  ]);
+
+  /**
+   * A response body that is a plain object.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isResponseRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * One merged event preference as `preferences()` builds it.
+   *
+   * **Element validation, not container validation.** `Array.isArray(body.events)` said only that
+   * the container was an array; every element then reached the renderer unchecked.
+   * @param {unknown} value
+   * @returns {value is BrowserNotificationEventPreference}
+   */
+  function isEventPreference(value) {
+    return isResponseRecord(value)
+      && EVENT_TEXT_MEMBERS.every((member) => typeof value[member] === "string")
+      && EVENT_BOOLEAN_MEMBERS.every((member) => typeof value[member] === "boolean")
+      && value.id !== "";
+  }
+
+  /**
+   * The viewer's notification preference catalogue.
+   *
+   * **The envelope was already constructed and only its array was raw.** The three members have
+   * always been rebuilt from the body; what changes here is that each element of `events` is checked
+   * before it is called a preference record. **A malformed element is dropped rather than rendered**,
+   * which is the one behaviour this narrowing adds and the only honest answer once elements are
+   * checked at all. A non-array `events`, a missing one, and a non-OK response all behave exactly as
+   * before: `[]`, `[]`, and a thrown API error.
+   * @returns {Promise<BrowserNotificationPreferenceCatalog>}
+   */
   async function loadPreferences() {
     const response = await fetch("/api/notifications/preferences", { cache: "no-store" });
     const body = await parseJsonResponse(response);
@@ -11,7 +73,7 @@
 
     return {
       canManageWorkspaceDefaults: body?.canManageWorkspaceDefaults === true,
-      events: Array.isArray(body?.events) ? body.events : [],
+      events: Array.isArray(body?.events) ? body.events.filter(isEventPreference) : [],
       groupingPreferences: normalizeGroupingPreferences(body?.groupingPreferences),
     };
   }

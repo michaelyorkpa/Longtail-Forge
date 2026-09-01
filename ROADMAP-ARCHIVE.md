@@ -1,5 +1,67 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.10 - Notification response bodies
+
+**Model: High Effort** - the child whose whole subject was invisible to the instrument that was supposed to size it, and which had to be revealed before it could be closed.
+
+- [x] **The boundary was measured by declaring the two blocked surfaces temporarily and reading the difference.** Against the tree `0.33.33.38.4.2` left, both draft declarations move the estate 8,607 to 8,598: namespace **-10**, page-local state **-7**, **genuine `unknown` +7**, assorted **+1**. **Those seven are the child.** They are six `result.isFollowing` reads - three in `notes.js`, three in `task-dialog.js` - and one `events` array reaching `notifications.js`. The probe was reverted before implementation; **no namespace declaration is committed here.**
+- [x] **One envelope for three operations, because the producer builds one.** `subscriptionStatus`, `followTarget` and `unfollowTarget` in `notifications.service.js` each return `{ isFollowing, subscription, target }`. `BrowserNotificationSubscriptionResult` is declared once and all three members resolve to it - **the route operation and the record are different concepts**, and three interfaces named after three routes would have described one runtime shape three times.
+- [x] **The subscription record is constructed, which is what makes it derivable.** `subscriptionRowToAppValue` builds ten members by name from the ten `NOTIFICATION_SUBSCRIPTION_COLUMNS` columns, defaulting `event_type` to `""` and `status` to `"inactive"`. Nothing in `BrowserNotificationSubscription` is optional or nullable even though `event_type` is a nullable column, because **the shaper closes that gap before the row leaves the server**.
+- [x] **The echoed target is not the target the browser sends, and both are declared.** `taskTarget` and `noteTarget` construct camelCase `{ moduleId, targetType, targetId }`; `normalizeSubscriptionTarget` answers with snake_case `{ event_type, module_id, target_id, target_type }`. **Collapsing them would have let a consumer read `moduleId` off a value carrying `module_id`**, so `BrowserNotificationTargetRequest` and `BrowserNotificationTarget` are separate contracts.
+- [x] **`saveUserPreferences` and `saveWorkspaceDefaults` keep returning `Promise<unknown>`, and that is a result rather than an omission.** `0.33.33.38.2.2.6.6.2` recorded the test in advance: read fields and it is this checkpoint's, ignore the result and opacity is the contract. **Both are awaited and discarded**, at `user-settings.js:321` and `notifications.js:441`. **Do not invent symmetry among operations**: two members of the same surface fetch, and neither has a body anyone consumes.
+- [x] **`loadPreferences` was the preference boundary nobody had listed.** It constructs `canManageWorkspaceDefaults` and `groupingPreferences` from the body and then passed `events` through unchecked once `Array.isArray` was satisfied - **container validation standing in for element validation**, the same defect the Tags lesson and `0.33.33.38.4.2`'s list envelope both name.
+- [x] **The three preference layers stay three, because the producer keeps them apart.** `preferences()` merges `notification_user_preferences`, `notification_workspace_defaults` and the module event catalogue into one read model where `userEnabled`, `workspaceEnabled` and `defaultEnabled` are separate answers that may disagree, each falling back to the next. **`enabled` is an `INTEGER` column on both preference tables** and the server converts every layer with `Number(row.enabled) === 1`, so `BrowserNotificationEventPreference` models real booleans and the narrowing **rejects the stored integer flag** rather than accepting it.
+- [x] **The narrowing lives in the two writers, so the wire is crossed once.** Each surface already constructed part of its answer, so `readSubscriptionResult` and `isEventPreference` sit beside the members that publish them. **No consumer changed** - `result.isFollowing` reads the same property it always did - and no new cross-module runtime dependency was created to centralise three predicates.
+- [x] **Exactly one state slot was adopted and it is named.** `notifications.js` holds `preferences: []`, which inferred as an empty array of nothing and is the direct storage handoff for the catalogue contract. Every other field in that store stays with its `0.33.33.39`-`.44` owner, and nothing in `user-settings.js`, `notes.js` or `task-dialog.js` was typed.
+- [x] **Malformed bodies behave exactly as before.** `readSubscriptionResult` is total: `isFollowing` is literally `body.isFollowing === true`, which is the comparison all six consumers wrote, so a malformed body still resolves to "not following" instead of rejecting - the toggle depends on it. `subscription` and `target` become `null` rather than fabricated records, because `readSubscription` genuinely returns `null` for a target never followed and **absence and emptiness are different answers**. `loadPreferences` keeps `[]` for a missing or non-array `events` and still throws the same API error for a non-OK response; the one added behaviour is that a malformed element is dropped rather than rendered.
+
+Proved by breaking each one:
+
+| Break | Failure |
+| --- | --- |
+| The browser stops checking a member the shaper constructs | checked members no longer equal the producer's |
+| The shaper stops constructing a member the browser checks | the same assertion, from the other side |
+| The browser invents a member the producer never sends | the same assertion, third direction |
+| An integer flag is accepted where the producer sends a boolean | `defaultEnabled` must be a boolean |
+| `isFollowing` stops being the comparison the consumers wrote | a truthy non-`true` value changes the answer |
+| An absent subscription becomes a fabricated empty record | a row missing its id is accepted |
+| The preference catalogue trusts its container again | `loadPreferences` no longer checks its elements |
+| A member stops narrowing before it publishes the body | `readStatus` returns the raw body |
+| The result contract claims a type the narrowing does not build | writer no longer satisfies the contract |
+| The event contract models a stored integer flag | the constructed boolean is not assignable |
+| The adopted state slot loses the contract it stores | `TS2322` on the handoff |
+
+Closing state:
+
+| Condition | Baseline | Probe *(both draft declarations)* | Final |
+| --- | ---: | ---: | ---: |
+| Browser program diagnostics | 8,607 | 8,598 | **8,604** |
+| Genuine `unknown` | 207 | **214** | **207** |
+| Namespace | 345 | 335 | 345 |
+| Page-local state | 1,789 | 1,782 | 1,789 |
+| Params | 4,624 | 4,624 | **4,621** |
+| Assorted | 158 | 159 | 158 |
+| DOM | 1,484 | 1,484 | 1,484 |
+| `0.33.33.39` | 1,773 | 1,773 | **1,770** |
+| `.40` / `.41` / `.42` / `.43` | 494 / 1,217 / 531 / 976 | unchanged | **unchanged** |
+| `.44` | 1,580 | 1,574 | 1,580 |
+| Unit tests / regressions / end-to-end | 342 / 348 / 167 | - | **356 / 348 / 167**, green |
+
+**Three visible eliminations and seven latent ones, and the second number is the point.** The three are `0.33.33.39` params, from annotating the `target` parameter of the three narrowed members. The seven never appear in a clean-tree total because they do not exist until a surface is declared - **which is exactly why a checkpoint sized by today's count would have skipped this one.** `4,621 + 1,789 + 158 = 6,568` reconciles against the six owners exactly.
+
+**The acceptance evidence is the post-boundary declaration probe, run separately for each child.**
+
+| Declared surface | `unknown` | state | DOM | params | assorted | namespace | revealed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `notificationSubscriptions` | **0** | 0 | 0 | 0 | 0 | -10 | 2 root-optionality reads |
+| `notificationPreferences` | **0** | -7 | 0 | 0 | 0 | 0 | 6 root-optionality reads |
+
+Every diagnostic either declaration still reveals is `TS18048` - the ordinary checked-acquisition debt those children own. **Neither inherits a wire boundary.** The `readWorkspaceDefaultsPayload` read an earlier probe surfaced was an artefact of declaring that member `unknown`: it reads the DOM and constructs its payload, and declaring it truthfully removes it. Both probes were reverted; **this checkpoint commits no namespace declaration.**
+
+**A harness defect worth recording, because it nearly landed as evidence.** The deliberate-break script patched a source file, failed to launch its test runner, and exited without restoring - leaving one member missing from the browser's checked table. The producer-agreement test then compared nine against nine and **passed**, because the reader that builds the fixture had also been reading the file the break had edited. The break harness now restores in a `finally` on any abort. **A test whose fixture comes from the tree under test is only as honest as the tree.**
+
+**The CRLF condition `0.33.33.38.4.2` documented appeared twice more and was handled the same way.** `shared/notification-preferences.js` was already CRLF on disk against an LF blob, so its edit produced whole-file churn until it was normalised to the blob's style; `services/notifications.service.js` was touched only by the break harness and was restored byte-for-byte after proving it differed from its blob **only** by line endings. Every changed file was compared to its blob directly rather than through `git status`.
+
 ## Version 0.33.33.38.4.2 - Notes entity and collection response contracts
 
 **Model: High Effort** - the child that had to decide what a Notes response *is* before it could narrow one, and found that half the Notes-owned `unknown` reads were not Notes entity reads at all.

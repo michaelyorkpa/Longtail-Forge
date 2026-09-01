@@ -350,14 +350,17 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 `taskTarget` and `noteTarget` construct a target descriptor and are declarable today. `follow`, `unfollow` and `readStatus` return `LongtailForge.api` results, and the honest type for those is `Promise<unknown>` - **but `unknown` here would not be an intentional opaque contract.** Declaring it exposed five `TS18046` reads in `notes.js` and `task-dialog.js` where consumers destructure the result immediately, and four root-optionality reads besides.
 
-- [ ] **The surface cannot land in `0.33.33.38.2` because a truthful declaration transfers work rather than closing it.** The estate's rule is that a top-level declaration must cover every runtime member, so the two constructed members cannot land alone.
-- [ ] **`0.33.33.38.4` owns the subscription-status body**, and this surface becomes declarable in one step once that body has a contract.
+- [x] **Unblocked by `0.33.33.38.4.10`, and the clearance was measured rather than assumed.** Declaring this surface against the narrowed tree costs **zero genuine `unknown`, zero state, zero DOM and zero param diagnostics**. It closes 10 namespace diagnostics and reveals exactly **two** root-optionality reads - `notes.js:3094` and `task-dialog.js:1205` - which ordinary checked acquisition settles. The five `TS18046` the earlier preflight predicted are gone: `readStatus`, `follow` and `unfollow` now resolve to `BrowserNotificationSubscriptionResult`.
+- [ ] **What remains is adoption, not discovery.** Declare all five members, add the two checked acquisitions, confirm writer conformance, and remove the member from `0.33.33.38.2.4.3`'s undeclared backlog.
 
 #### 0.33.33.38.2.2.6.6.2 - `LongtailForge.notificationPreferences`
 
 **Eight members, six constructed and two returning a raw body.** `loadPreferences` builds its result locally, the three `read*Payload` members construct from the DOM, and the two `render*` members return nothing - but `saveUserPreferences` and `saveWorkspaceDefaults` both `return body` straight from the API.
 
-- [ ] **Trace the two `body` returns against their consumers before choosing.** If callers read fields immediately this is `0.33.33.38.4`'s work like `.6.6.1`; if they ignore the result, `Promise<unknown>` is the intentional contract and the whole surface lands here.
+- [x] **Traced, and the answer was the second branch.** Neither `body` return is read: `user-settings.js:321` and `notifications.js:441` both await and discard. **`Promise<unknown>` is the intentional contract for those two members**, so they were never `0.33.33.38.4`'s work.
+- [x] **What did need this checkpoint was `loadPreferences`, which nobody had listed as a wire boundary.** It constructs its envelope but passed `events` through once `Array.isArray` was satisfied - container validation standing in for element validation. `0.33.33.38.4.10` checks the elements and adopts the one state slot that stores them.
+- [ ] **Unblocked, measured the same way as `.6.6.1`**: declaring this surface costs **zero genuine `unknown` and zero assorted**, eliminates 7 page-local state diagnostics, and reveals **six** root-optionality reads in `user-settings.js` that checked acquisition settles. The `readWorkspaceDefaultsPayload` diagnostic an earlier probe showed was an artefact of declaring that member `unknown`; it reads the DOM and constructs its payload, so declaring it truthfully - as this child owns doing - removes it.
+- [ ] **The three `read*Payload` members are request payloads, not response bodies.** They belong to this surface's declaration and not to any `0.33.33.38.4` child.
 
 #### 0.33.33.38.2.2.6.6.3.1 - `LongtailForge.tasksDialog`
 
@@ -513,9 +516,19 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **52 diagnostics whose producer this reslice did not resolve, plus whatever the file, key and timer bodies leave over.** **Attribution is the work and it comes first**: follow each read back through its local helper to a route, then fold it into whichever sibling child owns that family - or draw a new child if the trace finds a family nobody listed. **Do not begin by typing them.**
 
-#### 0.33.33.38.4.10 - The notification bodies, on demand
+#### 0.33.33.38.4.10 - Notification response bodies
 
-**Not sized by the classifier, because its diagnostics do not exist yet.** `0.33.33.38.2.2.6.6.1` and `.6.6.2` each found that declaring their surface truthfully exposes reads their consumers make immediately - five `TS18046` in `notes.js` and `task-dialog.js` for the first, two untraced `body` returns for the second. **Size this from a writer-first preflight taken with those surfaces declared**, never from today's count.
+**Complete. The child that was worth doing for what it could not be measured by.** Its visible cost was three diagnostics; what it actually did was make two blocked namespace surfaces declarable without either of them inheriting a wire-boundary bill. See the archive entry.
+
+**The boundary was found by declaring the surfaces temporarily and measuring, because it was invisible otherwise.** With both draft declarations applied against the tree `0.33.33.38.4.2` left, the estate fell 8,607 to 8,598 - namespace **-10**, but genuine `unknown` **+7**. Those seven were the boundary: six `result.isFollowing` reads across `notes.js` and `task-dialog.js`, and one `events` handoff in `notifications.js`. **A number that is not there yet is still a number**, and the probe is how this checkpoint stopped guessing at it.
+
+- [x] **`readStatus`, `follow` and `unfollow` share one envelope because the producer builds one.** `subscriptionStatus`, `followTarget` and `unfollowTarget` each answer `{ isFollowing, subscription, target }`; the operation differs and the record does not, so there is one `BrowserNotificationSubscriptionResult` rather than three interfaces named after three routes.
+- [x] **`saveUserPreferences` and `saveWorkspaceDefaults` keep returning `Promise<unknown>`, and that is the finding rather than an omission.** `0.33.33.38.2.2.6.6.2` set the test: if callers read fields the body is this checkpoint's, and if they ignore the result the opacity is the contract. **Both results are awaited and discarded** - `user-settings.js:321` and `notifications.js:441` - so `.6.6.2` never needed this child for them.
+- [x] **The narrowing lives in the two writers, not in five consumers.** Each surface publishes members that already constructed part of their answer, so the wire is crossed once at the surface that owns it and every consumer keeps the code it had.
+
+#### 0.33.33.38.4.13 - The remaining notification bodies
+
+**Not drawn from a count, drawn from what `0.33.33.38.4.10` deliberately left.** `/api/notifications` itself, the read/dismiss mutations, and the display-preference routes are separate producers that no declared surface currently exposes; `notifications.js` reads them directly. **Size this the way `.4.10` was sized** - by declaring nothing and probing, because these bodies are invisible to the classifier for the same reason those were.
 
 #### 0.33.33.38.5 - Narrow the server task lifecycle status vocabulary
 
