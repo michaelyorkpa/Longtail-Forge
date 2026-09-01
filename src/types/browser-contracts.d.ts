@@ -1702,6 +1702,35 @@ export interface BrowserTaskResumeNoteCapture {
   offer(options?: unknown): Promise<TaskResumeNoteOfferResult>;
 }
 
+/**
+ * `LongtailForge.timeEntryDialog`, published by `public/js/time-entry-dialog.js`.
+ *
+ * **The openers resolve a string, not an opaque result, and that is the finding.**
+ * `0.33.33.38.2.2.6.5` declared `notesDialog` and `listsDialog` with `Promise<unknown>` because
+ * those resolve `hostContext?.result || result` - two different shapes. **These dialogs do not
+ * do that**: both openers delegate to one internal `openDialog`, which resolves
+ * `dialog.returnValue || "closed"`, and `time-entries.js` reads it exactly that way with
+ * `if (result !== "complete")`. Copying the earlier precedent would have thrown away a precise
+ * type the runtime already provides.
+ */
+export interface BrowserTimeEntryDialog {
+  /** Reset the dialog's host context. Returns the surface, so calls can chain. */
+  configure(options?: unknown): BrowserTimeEntryDialog;
+  openAdd(params?: unknown, hostContext?: unknown): Promise<string>;
+  /** **Rejects** when the entry it was asked to edit cannot be loaded. */
+  openEdit(params?: unknown, hostContext?: unknown): Promise<string>;
+}
+
+/**
+ * `LongtailForge.timeTrackingTimerDialog`, published by
+ * `public/js/time-tracking-timer-dialog.js`.
+ *
+ * One member, resolving the same `dialog.returnValue || "closed"` string its sibling dialogs do.
+ */
+export interface BrowserTimeTrackingTimerDialog {
+  openCreate(params?: unknown, hostContext?: unknown): Promise<string>;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
@@ -1748,6 +1777,8 @@ export interface LongtailForgeBrowserNamespace {
   settingsPageController?: BrowserSettingsPageController;
   status?: BrowserStatusMessage;
   taskResumeNoteCapture?: BrowserTaskResumeNoteCapture;
+  timeEntryDialog?: BrowserTimeEntryDialog;
+  timeTrackingTimerDialog?: BrowserTimeTrackingTimerDialog;
   timezones?: BrowserTimezones;
   /**
    * The frozen view factory, written by `view-builder.js` and extended by `view-renderer.js`.

@@ -387,11 +387,25 @@
     return button;
   }
 
+  // `time-entries.html` loads `js/time-entry-dialog.js` itself, so this reads a dependency the
+  // page guarantees rather than probing for one. It throws where the property access used to
+  // throw, inside the same try/catch that already reported the failure.
+  /** @returns {import("../../src/types/browser-contracts.js").BrowserTimeEntryDialog} */
+  function requireTimeEntryDialog() {
+    const timeEntryDialog = window.LongtailForge.timeEntryDialog;
+
+    if (!timeEntryDialog) {
+      throw new Error("The time entry dialog is required to open an entry.");
+    }
+
+    return timeEntryDialog;
+  }
+
   async function openEditDialog(entryId) {
     setTimeEntryStatus("Opening entry...");
 
     try {
-      const result = await window.LongtailForge.timeEntryDialog.openEdit({ entryId }, {
+      const result = await requireTimeEntryDialog().openEdit({ entryId }, {
         complete: async () => {
           await loadTimeEntryData();
           setTimeEntryStatus(`Saved ${entryId}.`);
@@ -410,7 +424,7 @@
     setTimeEntryStatus("Opening entry...");
 
     try {
-      const result = await window.LongtailForge.timeEntryDialog.openAdd({}, {
+      const result = await requireTimeEntryDialog().openAdd({}, {
         complete: async () => {
           await loadTimeEntryData();
           setTimeEntryStatus("Entry saved.");

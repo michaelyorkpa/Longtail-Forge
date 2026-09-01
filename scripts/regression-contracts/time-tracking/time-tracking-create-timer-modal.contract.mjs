@@ -32,7 +32,7 @@ assert.doesNotMatch(
 
 assert.match(
   moduleActions,
-  /id: "time-tracking\.timer\.create"[\s\S]*recordType: "active_timer"[\s\S]*open: \(params, hostContext\) => namespace\.timeTrackingTimerDialog\.openCreate\(params, hostContext\)/,
+  /id: "time-tracking\.timer\.create"[\s\S]*recordType: "active_timer"[\s\S]*open: \(params, hostContext\) => (?:namespace\.timeTrackingTimerDialog|requireTimeTrackingTimerDialog\(\))\.openCreate\(params, hostContext\)/,
   "shared module actions should register the Time Tracking Create Timer opener",
 );
 assert.match(
@@ -128,7 +128,10 @@ assert.match(timerDialog, /hostContext\?\.complete\?\.\(\{[\s\S]*actionId: TIMER
 assert.match(timerDialog, /hostContext\?\.cancel\?\.\(\{ actionId: TIMER_ACTION_ID \}\)/, "Create Timer modal should cancel the module action on close/cancel");
 
 assert.match(quickActionCaptureRegression, /time-tracking\\\.timer\\\.create/, "QAC regression should cover the Timer module-action path");
-assert.match(moduleActionsRegression, /timeTrackingTimerDialog\\\.openCreate/, "module actions regression should cover the Time Tracking timer opener");
+// The claim is that the module-actions regression covers the timer opener, not how that
+// regression spells the receiver: `0.33.33.38.2.2.6.6.3` gave the surface a declaration and the
+// opener now acquires it through a checked accessor.
+assert.match(moduleActionsRegression, /timeTrackingTimerDialog[^/]*\\\.openCreate/, "module actions regression should cover the Time Tracking timer opener");
 
 assert.match(
   moduleContract,

@@ -1,5 +1,34 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.6.6.3 - The dialog surfaces
+
+**Model: Medium Effort** - the child that was expected to reuse an `unknown` precedent and found the precedent did not apply.
+
+- [x] **The openers resolve a string, and copying `0.33.33.38.2.2.6.5` would have thrown that away.** `notesDialog` and `listsDialog` were declared `Promise<unknown>` because they resolve `hostContext?.result || result` - two different shapes. **These dialogs do not do that at all.** Every opener in all three surfaces bottoms out in `resolve(dialog.returnValue || "closed")`, and `time-entries.js` reads it exactly that way with `if (result !== "complete")`. **`Promise<string>` is the truthful type**, and it is enforced: making a consumer read `result.entryId` fails with *Property 'entryId' does not exist on type 'string'*.
+- [x] **One member is genuinely opaque, and the consumers are what prove it.** `pollRecurrenceContinuity` plucks `recurrenceContinuity` out of an unvalidated API body, and both consumers hand it straight back to `recurrenceContinuityMessage` and `renderRecurrenceContinuity` without owning it. **The token is issued and consumed by the same surface**; naming a shape would describe a body nobody validates.
+- [x] **`options` stayed `unknown` on purpose.** `pollRecurrenceContinuity` reads `attempts`, `delayMs`, `initialContinuity` and `onUpdate` defensively, and naming that shape would type the `onUpdate` parameter - which two consumers immediately narrow with `continuity?.status`. `0.33.33.38.2.2.6.4.1` paid for that lesson once already.
+- [x] **`tasksDialog` was withdrawn, and the cause is four lines in another file.** Declaring it gives `action.behavior` a `string` type where it was `any`, so `TASK_LIFECYCLE_BEHAVIOR_HANDLERS[action.behavior]` can no longer index its own frozen record - **four `TS7053` in `tasks.js`, owned by `0.33.33.41`.** Its two siblings caused none, which is what isolates it.
+
+**Two deliberate breaks came back green, and that is the finding to carry forward.** Declaring `openCreate` as `Promise<{ id: string }>` - a flat lie - produced **no error**, because the writer's `openDialog` returns `Promise<any>` and anything is assignable to it. **Deleting `configure` from a declared surface also produced no error**, because a TypeScript object type is not exact and an extra runtime property is simply ignored. **So neither the return type nor the completeness of a surface is checked against its writer.** The completeness rule this rollup relies on - declare every runtime-published member or declare none - currently rests on the derivation being done honestly, not on a check. The publication inventory cannot close the gap on its own either: it records an object literal's keys, and all three of these surfaces publish a named `const`, so it reports no members at all. **That is a candidate for `0.33.33.38.2.4.3` to own, and it is recorded here rather than fixed here.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,846 | **8,839** |
+| Namespace surface family | 366 | **359** |
+| params / state / dom / genuine `unknown` / assorted | 4,632 / 1,823 / 1,484 / 378 / 163 | **all unchanged** |
+| `0.33.33.39` - `.44` budgets | 1,775 / 534 / 1,220 / 531 / 976 / 1,582 | **all unchanged, and checked this time** |
+| Declared members | 36 | **38** |
+| Undeclared backlog | 27 | **25** |
+| Bare-root reads | 119 | **118** |
+| Root reads parked behind undeclared members | 48 | **43** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**Seven eliminations and no transfers.** Genuine `unknown` did not move: the one opaque member belongs to a surface that did not land. Five consumer sites acquire through checked accessors - three in `module-actions.js` beside the two `0.33.33.38.2.2.6.5` added, two in `time-entries.js` where the throw lands in the `try/catch` that already reported the failure.
+
+The backlog shrank by exact identity: `timeEntryDialog` and `timeTrackingTimerDialog`.
+
 ## Version 0.33.33.38.2.2.6.6 - The wire-exposed surfaces, one return trace each
 
 **Model: Medium Effort** - eight surfaces were traced member by member, two were declarable, and the four that were not are now four children with named blockers rather than one section with a wrong member count.
