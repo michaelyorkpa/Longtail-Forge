@@ -12,6 +12,262 @@
   
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteRecord} BrowserNoteRecord */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteListItem} BrowserNoteListItem */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNotePagination} BrowserNotePagination */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteListEnvelope} BrowserNoteListEnvelope */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCollection} BrowserNoteCollection */
+
+  /**
+   * The note columns the producer selects by name in both projections and never nulls.
+   *
+   * These are the table's `NOT NULL` columns, which is why they are checked rather than assumed:
+   * a value that is missing any of them is not a note this page can render.
+   */
+  const REQUIRED_NOTE_COLUMNS = Object.freeze([
+    "created_at",
+    "library_bucket",
+    "library_bucket_source",
+    "note_id",
+    "note_type",
+    "security_mode",
+    "status",
+    "title",
+    "updated_at",
+    "visibility",
+    "workspace_id",
+  ]);
+
+  /**
+   * The note columns the producer selects by name and may return as `null`.
+   *
+   * Checked as `string | null` rather than skipped: the select names them, so a body that omits one
+   * is not the shape `shapeNoteForBrowser` produces, and silently accepting it would make the
+   * contract a wish.
+   */
+  const NULLABLE_NOTE_COLUMNS = Object.freeze([
+    "archived_at",
+    "body_excerpt",
+    "client_id",
+    "created_by_user_id",
+    "deleted_at",
+    "import_source",
+    "import_source_id",
+    "imported_at",
+    "linked_user_id",
+    "note_collection_id",
+    "owner_user_id",
+    "project_id",
+    "slug",
+    "task_id",
+    "ticket_id",
+    "updated_by_user_id",
+  ]);
+
+  /**
+   * The detail-only columns `NOTE_COLUMNS` adds over `NOTE_LIST_COLUMNS`, minus `body_markdown`
+   * which is `NOT NULL` and checked with the required set.
+   */
+  /**
+   * The detail-only members the producer always supplies as text: the `NOT NULL` body column and
+   * the owner label, which `resolveNoteOwnerLabel` returns as `""` rather than omitting.
+   */
+  const REQUIRED_NOTE_DETAIL_COLUMNS = Object.freeze([
+    "body_markdown",
+    "owner_display_name",
+  ]);
+
+  /**
+   * The detail members the producer **deletes** rather than nulls, so absence is the signal.
+   *
+   * `body_html` is gone whenever the route passed no `includeBodyHtml`; `secure_title_warning` is
+   * added only for an effectively secure note.
+   */
+  const OPTIONAL_NOTE_DETAIL_MEMBERS = Object.freeze([
+    "body_html",
+    "secure_title_warning",
+  ]);
+
+  const NULLABLE_NOTE_DETAIL_COLUMNS = Object.freeze([
+    "body_plaintext_index",
+    "import_batch_id",
+    "import_source_path",
+    "metadata_json",
+    "original_notebook",
+    "original_page_id",
+    "original_section",
+    "original_section_group",
+  ]);
+
+  /**
+   * A response body that is a plain object.
+   *
+   * A type predicate rather than a cast: `0.33.33.38.2.4.5` established that an annotation checks
+   * and a cast asserts, and a `JSON.parse` result is the value that most needs the check.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isResponseRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * Every named column is present and is a string.
+   *
+   * Takes `unknown` rather than a record so it can be applied to a value a predicate has already
+   * narrowed: an interface without an index signature is not a `Record<string, unknown>`, and
+   * asking for one here would make the second predicate unable to reuse the first.
+   * @param {unknown} value
+   * @param {readonly string[]} columns
+   * @returns {boolean}
+   */
+  function hasTextColumns(value, columns) {
+    return isResponseRecord(value) && columns.every((column) => typeof value[column] === "string");
+  }
+
+  /**
+   * Every named column is present and is either a string or `null`.
+   * @param {unknown} value
+   * @param {readonly string[]} columns
+   * @returns {boolean}
+   */
+  function hasNullableTextColumns(value, columns) {
+    return isResponseRecord(value)
+      && columns.every((column) => value[column] === null || typeof value[column] === "string");
+  }
+
+  /**
+   * Every named column is either absent or a string. Used for the members the producer **deletes**
+   * rather than nulls, where presence itself carries meaning.
+   * @param {unknown} value
+   * @param {readonly string[]} columns
+   * @returns {boolean}
+   */
+  function hasOptionalTextColumns(value, columns) {
+    return isResponseRecord(value)
+      && columns.every((column) => value[column] === undefined || typeof value[column] === "string");
+  }
+
+  /**
+   * Every named member is present and is an array.
+   * @param {unknown} value
+   * @param {readonly string[]} members
+   * @returns {boolean}
+   */
+  function hasArrayMembers(value, members) {
+    return isResponseRecord(value) && members.every((member) => Array.isArray(value[member]));
+  }
+
+  /**
+   * One note as `GET /api/notes` returns it.
+   *
+   * **Element validation, not container validation.** `Array.isArray(result.notes)` says nothing
+   * about what is inside it, and the tags lesson in this estate is that trusting the container is
+   * how untrusted elements become trusted records.
+   * @param {unknown} value
+   * @returns {value is BrowserNoteListItem}
+   */
+  function isNoteListItem(value) {
+    return isResponseRecord(value)
+      && hasTextColumns(value, REQUIRED_NOTE_COLUMNS)
+      && hasNullableTextColumns(value, NULLABLE_NOTE_COLUMNS)
+      && hasArrayMembers(value, ["tags"])
+      && value.note_id !== "";
+  }
+
+  /**
+   * One note as the single-note routes return it, after `attachNoteIntegrations`.
+   *
+   * `body_html`, `secure_title_warning` and `secure_body_decrypted` are checked only when present,
+   * because the producer **deletes** them rather than nulling them.
+   * @param {unknown} value
+   * @returns {value is BrowserNoteRecord}
+   */
+  function isNoteRecord(value) {
+    return isNoteListItem(value)
+      && hasTextColumns(value, REQUIRED_NOTE_DETAIL_COLUMNS)
+      && hasNullableTextColumns(value, NULLABLE_NOTE_DETAIL_COLUMNS)
+      && hasArrayMembers(value, ["links"])
+      && hasOptionalTextColumns(value, OPTIONAL_NOTE_DETAIL_MEMBERS);
+  }
+
+  /**
+   * The note a `{ note }` envelope carries.
+   *
+   * **Throws on a malformed body, which is the path the raw read already took.** Every call site
+   * dereferenced `result.note` immediately - `renderDetail` reads `note.title` on its first line -
+   * so an absent or malformed note already produced a `TypeError` inside the same `try`. This
+   * replaces that with a named error on the same path; nothing new catches and nothing new escapes.
+   * @param {unknown} result
+   * @returns {BrowserNoteRecord}
+   */
+  function requireNoteFromEnvelope(result) {
+    const note = isResponseRecord(result) ? result.note : null;
+    if (!isNoteRecord(note)) {
+      throw new Error("The note response did not contain a note.");
+    }
+
+    return note;
+  }
+
+  /**
+   * The pagination record a note list envelope carries, or `null`.
+   *
+   * Reconstructed field by field rather than passed through, so the returned record is built from
+   * checked values instead of asserted over an unchecked one.
+   * @param {unknown} value
+   * @returns {BrowserNotePagination | null}
+   */
+  function readNotePagination(value) {
+    if (!isResponseRecord(value)) {
+      return null;
+    }
+
+    const { hasMore, limit, nextCursor, pageSize } = value;
+    return typeof hasMore === "boolean"
+      && typeof limit === "number"
+      && typeof nextCursor === "string"
+      && typeof pageSize === "number"
+      ? { hasMore, limit, nextCursor, pageSize }
+      : null;
+  }
+
+  /**
+   * The `{ notes, pagination }` envelope `GET /api/notes` returns.
+   *
+   * **Falls back rather than throwing, because the raw read fell back**: `result.notes || []` and
+   * `result.pagination || null` were already the author's contract for a body without them. A
+   * malformed element is dropped rather than rendered, which is the one behaviour this narrowing
+   * adds and the only honest answer once elements are checked at all.
+   * @param {unknown} result
+   * @returns {BrowserNoteListEnvelope}
+   */
+  function readNoteListEnvelope(result) {
+    const envelope = isResponseRecord(result) ? result : null;
+    const notes = envelope && Array.isArray(envelope.notes) ? envelope.notes.filter(isNoteListItem) : [];
+    return { notes, pagination: readNotePagination(envelope ? envelope.pagination : null) };
+  }
+
+  /**
+   * One member of an untrusted response envelope.
+   * @param {unknown} result
+   * @param {string} member
+   * @returns {unknown}
+   */
+  function readEnvelopeMember(result, member) {
+    return isResponseRecord(result) ? result[member] : undefined;
+  }
+
+  /**
+   * Text carried through the collection normaliser unchecked.
+   * @param {unknown} value
+   * @returns {string}
+   */
+  function collectionText(value) {
+    return typeof value === "string" ? value : "";
+  }
+
+
   /**
    * The narrowing contract for the values this file catches.
    *
@@ -173,10 +429,18 @@
      * @type {import("../../src/types/browser-contracts.js").BrowserMountedPanel | null}
      */
     attachmentController: null,
+    /**
+     * The same normalised collections, loaded again for the bulk editor.
+     * @type {BrowserNoteCollection[]}
+     */
     bulkCollections: [],
     bulkTagPicker: null,
     collectionDialogMode: "create",
     collectionEditingId: "",
+    /**
+     * Collections as `normalizeCollections` rebuilt them from `GET /api/notes/collections`.
+     * @type {BrowserNoteCollection[]}
+     */
     collections: [],
     /**
      * The in-flight dialog data load, or `null` between opens. Awaited, never read.
@@ -192,6 +456,10 @@
     editorContextSummaries: {},
     editorHostContext: null,
     editorHostContextSettled: false,
+    /**
+     * The note the editor is editing, or `null` when the editor is creating or closed.
+     * @type {BrowserNoteRecord | null}
+     */
     editorNote: null,
     editorSelectedTarget: null,
     editorStagedTargets: [],
@@ -203,6 +471,10 @@
      */
     linkTargetSearchTimer: null,
     linkTargets: [],
+    /**
+     * The current page of notes, after every element was checked against the list projection.
+     * @type {BrowserNoteListItem[]}
+     */
     notes: [],
     /**
      * Cursors already visited, newest last. Pushed and popped as strings.
@@ -211,12 +483,20 @@
     notesCursorStack: [],
     notesCurrentCursor: "",
     notesNextCursor: "",
+    /**
+     * The pagination record `readNoteListEnvelope` reconstructed, or `null` for an unpaged load.
+     * @type {BrowserNotePagination | null}
+     */
     notesPagination: null,
     page: 1,
     primaryContextClients: [],
     primaryContextProjects: [],
     previewRequestId: 0,
     settingsLoaded: false,
+    /**
+     * The note the viewer is showing, or `null` before one is selected and when the library clears it.
+     * @type {BrowserNoteRecord | null}
+     */
     selectedNote: null,
     selectedNoteIds: new Set(),
     selectedCollectionId: new URLSearchParams(window.location.search).get("collection") || "",
@@ -869,7 +1149,7 @@
 
     try {
       const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
-      renderNoteViewDialog(dialog, result.note, params, hostContext);
+      renderNoteViewDialog(dialog, requireNoteFromEnvelope(result), params, hostContext);
     } catch (error) {
       renderNoteViewError(dialog, error);
       hostContext?.setStatus?.(noteViewErrorMessage(error), { isError: true });
@@ -1867,10 +2147,11 @@
     const api = requireApi();
     const query = buildNotesListQuery(cursor);
     const result = await api.getJson(`/api/notes?${query.toString()}`, { cache: "no-store" });
-    state.notes = result.notes || [];
-    state.notesPagination = result.pagination || null;
+    const { notes, pagination } = readNoteListEnvelope(result);
+    state.notes = notes;
+    state.notesPagination = pagination;
     state.notesCurrentCursor = cursor || "";
-    state.notesNextCursor = result.pagination?.nextCursor || "";
+    state.notesNextCursor = pagination?.nextCursor || "";
     syncNoteSelectionToVisibleNotes();
   }
 
@@ -1993,7 +2274,7 @@
 
     const query = params.toString();
     const result = await api.getJson(`/api/notes/collections${query ? `?${query}` : ""}`, { cache: "no-store" });
-    state.collections = normalizeCollections(result.collections || []);
+    state.collections = normalizeCollections(readEnvelopeMember(result, "collections"));
   }
 
   async function loadTags() {
@@ -2285,7 +2566,7 @@
     setStatus("Loading bulk editor...");
     try {
       const result = await api.getJson("/api/notes/collections", { cache: "no-store" });
-      state.bulkCollections = normalizeCollections(result.collections || []);
+      state.bulkCollections = normalizeCollections(readEnvelopeMember(result, "collections"));
       bulkLibraryInput.value = "";
       bulkTypeInput.value = "";
       bulkTagActionInput.value = "";
@@ -2462,8 +2743,9 @@
       return;
     }
     const result = await api.getJson(`/api/notes/${encodeURIComponent(selectedId)}`, { cache: "no-store" });
-    state.selectedNote = result.note;
-    renderDetail(result.note);
+    const note = requireNoteFromEnvelope(result);
+    state.selectedNote = note;
+    renderDetail(note);
   }
 
   function setBulkFormStatus(message, isError = false) {
@@ -2480,8 +2762,9 @@
 
     try {
       const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
-      state.selectedNote = result.note;
-      renderDetail(result.note);
+      const note = requireNoteFromEnvelope(result);
+      state.selectedNote = note;
+      renderDetail(note);
       renderNotes();
       closeNotesSlideOutDrawer();
       updateUrl(noteId);
@@ -2648,11 +2931,12 @@
 
     try {
       const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
+      const hydrated = requireNoteFromEnvelope(result);
       if (state.selectedNote?.note_id === noteId) {
-        state.selectedNote = result.note;
-        renderDetail(result.note);
+        state.selectedNote = hydrated;
+        renderDetail(hydrated);
       }
-      return result.note;
+      return hydrated;
     } catch {
       return note;
     }
@@ -2916,24 +3200,25 @@
       if (typeof state.editorHostContext?.refresh === "function") {
         await state.editorHostContext.refresh(result);
       }
+      const savedNote = requireNoteFromEnvelope(result);
       if (!wasEditing) {
-        await transitionCreatedNoteToEdit(result.note);
+        await transitionCreatedNoteToEdit(savedNote);
       }
       if (isNotesWorkspaceSurface) {
-        state.selectedNote = result.note;
+        state.selectedNote = savedNote;
         renderNotes();
-        renderDetail(result.note);
-        updateUrl(result.note.note_id);
+        renderDetail(savedNote);
+        updateUrl(savedNote.note_id);
       }
       if (closeOnSuccess) {
         completeNoteEditorHostContext({
           actionId: wasEditing ? "notes.edit" : "notes.add",
-          recordId: result.note?.note_id || "",
-          title: result.note?.title || payload.title || "",
+          recordId: savedNote.note_id,
+          title: savedNote.title || payload.title || "",
         });
         closeEditor({ returnValue: "complete" });
         if (isNotesWorkspaceSurface) {
-          await selectNote(result.note.note_id);
+          await selectNote(savedNote.note_id);
         }
         setEditorFormStatus("");
         return result;
@@ -3756,16 +4041,17 @@
   async function refreshEditorNote(noteId) {
     const api = requireApi();
     const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
+    const refreshed = requireNoteFromEnvelope(result);
 
-    state.editorNote = result.note;
+    state.editorNote = refreshed;
     if (state.selectedNote?.note_id === noteId) {
-      state.selectedNote = result.note;
-      renderDetail(result.note);
+      state.selectedNote = refreshed;
+      renderDetail(refreshed);
     }
     await loadNotes();
     renderNotes();
     renderEditorContextSelection();
-    return result.note;
+    return refreshed;
   }
 
   function contextTypeLabel(targetType) {
@@ -4578,14 +4864,26 @@
     return BUCKET_LABELS[value] || formatToken(value);
   }
 
+  /**
+   * Normalise the collection read model into the shape this page holds.
+   *
+   * **Already a total normaliser before `0.33.33.38.4.2`, and that is why it is the narrowing.** It
+   * array-guards, rebuilds seven fields with defaults, drops any entry without an id, and sorts.
+   * The only change is that its input is now declared `unknown` and its entries are checked to be
+   * records before the spread, so what it returns is a named contract rather than an inferred array
+   * of whatever the wire happened to send.
+   * @param {unknown} collections
+   * @returns {BrowserNoteCollection[]}
+   */
   function normalizeCollections(collections) {
     return (Array.isArray(collections) ? collections : [])
+      .filter(isResponseRecord)
       .map((collection) => ({
         ...collection,
-        note_library_collection_id: collection.note_library_collection_id || collection.id || "",
-        parent_collection_id: collection.parent_collection_id || "",
-        library_bucket: collection.library_bucket || "reference",
-        title: collection.title || collection.name || "Collection",
+        note_library_collection_id: collectionText(collection.note_library_collection_id) || collectionText(collection.id),
+        parent_collection_id: collectionText(collection.parent_collection_id),
+        library_bucket: collectionText(collection.library_bucket) || "reference",
+        title: collectionText(collection.title) || collectionText(collection.name) || "Collection",
         depth: Number(collection.depth || 0),
         accessibleNoteCount: Number(collection.accessibleNoteCount || collection.accessible_note_count || 0),
         directAccessibleNoteCount: Number(collection.directAccessibleNoteCount || collection.direct_accessible_note_count || 0),
