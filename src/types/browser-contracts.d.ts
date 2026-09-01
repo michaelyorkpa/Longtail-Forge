@@ -1731,6 +1731,55 @@ export interface BrowserTimeTrackingTimerDialog {
   openCreate(params?: unknown, hostContext?: unknown): Promise<string>;
 }
 
+/**
+ * A dashboard panel renderer, as modules register them through
+ * `LongtailForge.dashboard.registerPanelRenderer`.
+ *
+ * **The parameters are `unknown` because the runtime hands the renderer untrusted values.**
+ * `contribution` is an entry from the dashboard manifest, which arrives through
+ * `dashboardBootstrap.manifestPromise` as a `CachedFetchResult` whose `data` is `unknown`;
+ * narrowing it is `0.33.33.38.4`'s work. `context` is built by `dashboard.js` and carries
+ * `dashboardData`, `findContribution`, `loadContributionData`, `setStatus`, `view`,
+ * `createPanel` and `createDashboardPanel` - **named here rather than typed**, for the reason
+ * `0.33.33.38.2.2.6.4.1` withdrew `ModuleActionHostOptions`: a host-supplied callback shape is
+ * read defensively, and typing it constrains callers the runtime does not constrain.
+ *
+ * **The return is `unknown` because the registry accepts three shapes**: a falsy value, one
+ * panel, or an array of them. `normalizeRenderedPanels` reduces all three to a list before any
+ * of it reaches the DOM.
+ */
+export type DashboardPanelRenderer = (contribution?: unknown, context?: unknown) => unknown;
+
+/**
+ * `LongtailForge.dashboard`, published by `public/js/dashboard.js`.
+ *
+ * **A closed, single-member surface, and `0.33.33.38.2.4.4` is what made that statement
+ * true rather than assumed.** This child was blocked on `0.33.33.38.2.4` for four checkpoints
+ * because the surface was published by spread-merge - `{ ...(namespace.dashboard || {}), ... }` -
+ * which reads as an invitation to other publishers, and declaring the one member that happened
+ * to exist would have frozen an anticipated extension point into a closed contract. **The block
+ * was correct.** What settled it was archaeology, not assumption: the spread assigned a new
+ * object every time so it never preserved identity for a captured reference, the panel registry
+ * it appeared to protect is a file-local closure, and the file publishes once from one call
+ * behind the ES-module bridge. The spread is gone, and this is a closed contract.
+ *
+ * **Two consumers acquire it at load and fail differently on purpose.** `tasks-dashboard.js`
+ * **throws** - the Tasks dashboard cannot render without the registry - while
+ * `time-tracking-dashboard.js` **returns**, because its panels are an optional contribution to
+ * a dashboard that renders fine without them. Both check `registerPanelRenderer` rather than
+ * the surface, and neither is standardised into the other.
+ */
+export interface BrowserDashboard {
+  /**
+   * Register a renderer for a panel contribution id.
+   *
+   * **Ignores** an empty id or a non-function renderer rather than throwing, and **re-renders
+   * immediately** when dashboard data has already arrived - so a late registration still shows
+   * its panel. A repeat id replaces the previous renderer.
+   */
+  registerPanelRenderer(rendererId?: unknown, renderer?: DashboardPanelRenderer): void;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
@@ -1739,6 +1788,7 @@ export interface LongtailForgeBrowserNamespace {
   capturePrompt?: BrowserCapturePrompt;
   clientProjectOptions?: BrowserClientProjectOptions;
   controllers?: PageControllerRegistry;
+  dashboard?: BrowserDashboard;
   dashboardBootstrap?: BrowserDashboardBootstrap;
   errors?: BrowserErrorContract;
   esModuleBridge?: BrowserEsModuleBridge;
