@@ -4235,7 +4235,10 @@
   }
 
   function mountNoteEditorFiles(note) {
-    const filesAvailable = Boolean(filesEditor) && Boolean(window.LongtailForge.fileAttachments);
+    // Read once and test the binding rather than a boolean derived from it: `!filesAvailable`
+    // is exactly `!filesEditor || !fileAttachments`, but a boolean cannot narrow the surface
+    // for the `mount` call below the guard. Same condition, same order, same early return.
+    const fileAttachments = window.LongtailForge.fileAttachments;
     const secure = isSecureNote(note) || (!note?.note_id && isSecureEditorMode());
 
     updateFilesUtilityState(note);
@@ -4246,12 +4249,12 @@
     if (filesSaveFirstWarning) {
       filesSaveFirstWarning.hidden = Boolean(note?.note_id);
     }
-    if (!filesAvailable || secure || !note?.note_id) {
+    if (!filesEditor || !fileAttachments || secure || !note?.note_id) {
       filesEditor?.replaceChildren?.();
       return;
     }
 
-    state.editorAttachmentController = window.LongtailForge.fileAttachments.mount(filesEditor, {
+    state.editorAttachmentController = fileAttachments.mount(filesEditor, {
       acceptedCategories: ["document", "image", "pdf", "spreadsheet", "presentation", "text", "other"],
       canRemove: Boolean(note?.note_id) && note?.status !== "archived",
       canUpload: Boolean(note?.note_id) && note?.status !== "archived",
