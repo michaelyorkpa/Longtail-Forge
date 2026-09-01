@@ -22,6 +22,24 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Support view requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * The API client this file cannot run without.
    *
@@ -51,7 +69,7 @@
       renderTargetOptions();
       setStatus(targets.length ? "" : "No active users with an available workspace can be viewed.", !targets.length);
     } catch (error) {
-      setStatus(error.message || "Support View targets could not be loaded.", true);
+      setStatus(requireErrors().caughtMessage(error, "Support View targets could not be loaded."), true);
       entryForm.hidden = true;
     }
   }
@@ -105,7 +123,7 @@
     } catch (error) {
       passwordInput.value = "";
       passwordInput.focus();
-      setStatus(error.message || "Support View could not be started.", true);
+      setStatus(requireErrors().caughtMessage(error, "Support View could not be started."), true);
     } finally {
       startButton.disabled = false;
     }

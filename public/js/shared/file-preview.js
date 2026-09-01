@@ -23,6 +23,24 @@
 
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = namespace?.errors;
+    if (!errors) {
+      throw new Error("File preview requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * The API client this file cannot run without.
    *
@@ -178,12 +196,12 @@
 
       renderFilePreviewContent(dialog, preview, contentResponse.content || {});
     } catch (error) {
-      if (error.status === 401) {
+      if (requireErrors().caughtStatus(error) === 401) {
         global.location.replace("/login.html");
         return;
       }
 
-      renderFilePreviewUnavailable(dialog, error.message || "Preview could not be loaded.", true);
+      renderFilePreviewUnavailable(dialog, requireErrors().caughtMessage(error, "Preview could not be loaded."), true);
     }
   }
 

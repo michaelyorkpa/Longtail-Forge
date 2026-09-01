@@ -20,6 +20,24 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserPageController} BrowserPageController */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("The Time Tracker stopwatch requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * The page controller registry this page cannot run without.
    *
@@ -493,7 +511,7 @@
           message: `The timer is still running and is now linked to ${task.label || "the selected task"}.`,
         });
       } catch (error) {
-        this.setStatus(error.message || "Timer could not be linked to the task.");
+        this.setStatus(requireErrors().caughtMessage(error, "Timer could not be linked to the task."));
         console.error(error);
       } finally {
         this.isSaving = false;

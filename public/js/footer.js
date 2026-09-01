@@ -38,6 +38,24 @@
   footer.appendChild(footerInner);
   document.body.appendChild(footer);
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("The site footer requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   function updateFooterMetrics() {
     const root = document.documentElement;
     const viewportHeight = window.innerHeight || root.clientHeight || 0;
@@ -336,7 +354,7 @@
       });
       setQuickActionStatus(shell.status, "");
     } catch (error) {
-      setQuickActionStatus(shell.status, error.message || `${action.label} could not be opened.`, true);
+      setQuickActionStatus(shell.status, requireErrors().caughtMessage(error, `${action.label} could not be opened.`), true);
     } finally {
       button.disabled = false;
     }

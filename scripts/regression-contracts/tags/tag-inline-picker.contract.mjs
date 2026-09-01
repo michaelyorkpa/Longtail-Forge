@@ -10,7 +10,7 @@ const css = readText("public/css/longtail-forge.css");
 assert.match(helper, /async function createTag/, "shared tag helper must expose a tag creation helper");
 assert.match(helper, /fetch\("\/api\/tags"/, "inline tag creation must use the module-owned tag API");
 assert.match(helper, /method:\s*"POST"/, "inline tag creation must post new tag definitions");
-assert.match(helper, /status !== 409/, "inline duplicate conflicts should be handled separately from hard failures");
+assert.match(helper, /requireErrors\(\)\.caughtStatus\(error\) !== 409/, "inline duplicate conflicts should be handled separately from hard failures");
 assert.match(helper, /loadTags\(\{ search: name, status: "active" \}\)/, "slug conflicts should reload matching active tags for reuse");
 assert.match(helper, /findTagByNameOrSlug/, "inline picker must reuse existing tags by normalized name or slug");
 assert.match(helper, /event\.key !== "Enter" && event\.key !== ","/, "inline picker must tokenize with Enter and comma");
@@ -18,7 +18,7 @@ assert.match(helper, /event\.preventDefault\(\)/, "tokenization must not submit 
 assert.match(helper, /dataset\.tagPickerRemove/, "selected tag chips must be removable");
 assert.match(helper, /dataset\.tagPickerSelected/, "selected IDs must remain readable from stable hidden inputs");
 assert.match(helper, /if \(options\.allowCreate === false\)[\s\S]*Select an existing tag from the list\./, "record workflows must be able to disable inline tag creation with clear feedback");
-assert.match(helper, /catch \(error\) \{[\s\S]*setStatus\(status, error\.message \|\| "Unable to create tag\.", true\)/, "inline create permission failures must surface the API error message");
+assert.match(helper, /catch \(error\) \{[\s\S]*setStatus\(status, requireErrors\(\)\.caughtMessage\(error, "Unable to create tag\."\), true\)/, "inline create permission failures must surface the API error message");
 assert.match(helper, /aria-autocomplete", "list"/, "tag entry must advertise autocomplete behavior");
 assert.match(helper, /input\.setAttribute\("role", "combobox"\)/, "tag entry must expose combobox semantics for expanded suggestion state");
 assert.match(helper, /input\.setAttribute\("aria-controls", suggestions\.id\)/, "tag entry must identify its controlled suggestion list");

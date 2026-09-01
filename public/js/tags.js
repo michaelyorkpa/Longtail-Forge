@@ -43,6 +43,24 @@
 
   loadTags();
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("The tags page requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   async function loadTags() {
     setStatus("Loading tags");
 
@@ -63,7 +81,7 @@
     } catch (error) {
       state.tags = [];
       renderTags();
-      setStatus(error.message || "Tags unavailable.", true);
+      setStatus(requireErrors().caughtMessage(error, "Tags unavailable."), true);
     }
   }
 
@@ -95,7 +113,7 @@
       await loadTags();
       setStatus("Tag saved.");
     } catch (error) {
-      setStatus(error.message || "Tag save failed.", true);
+      setStatus(requireErrors().caughtMessage(error, "Tag save failed."), true);
     }
   }
 
@@ -199,7 +217,7 @@
       await loadTags();
       setStatus(action === "archive" ? "Tag archived." : "Tag restored.");
     } catch (error) {
-      setStatus(error.message || "Tag update failed.", true);
+      setStatus(requireErrors().caughtMessage(error, "Tag update failed."), true);
     }
   }
 

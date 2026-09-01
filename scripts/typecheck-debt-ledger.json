@@ -478,13 +478,9 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8812,
+      "errorCount": 8665,
       "diagnostics": {
         "public/js/account-recovery.js": [
-          {
-            "code": 18046,
-            "count": 1
-          },
           {
             "code": 2339,
             "count": 3
@@ -497,7 +493,7 @@
         "public/js/api-keys.js": [
           {
             "code": 18046,
-            "count": 11
+            "count": 6
           },
           {
             "code": 18047,
@@ -595,7 +591,7 @@
         "public/js/calendar.js": [
           {
             "code": 18046,
-            "count": 3
+            "count": 2
           },
           {
             "code": 2322,
@@ -621,7 +617,7 @@
         "public/js/clients-projects.js": [
           {
             "code": 18046,
-            "count": 14
+            "count": 13
           },
           {
             "code": 18047,
@@ -737,7 +733,7 @@
         "public/js/files-settings.js": [
           {
             "code": 18046,
-            "count": 9
+            "count": 6
           },
           {
             "code": 18048,
@@ -763,7 +759,7 @@
         "public/js/files.js": [
           {
             "code": 18046,
-            "count": 17
+            "count": 7
           },
           {
             "code": 18048,
@@ -808,10 +804,6 @@
         ],
         "public/js/footer.js": [
           {
-            "code": 18046,
-            "count": 1
-          },
-          {
             "code": 2339,
             "count": 7
           },
@@ -842,10 +834,6 @@
         ],
         "public/js/help.js": [
           {
-            "code": 18046,
-            "count": 2
-          },
-          {
             "code": 2322,
             "count": 2
           },
@@ -873,7 +861,7 @@
         "public/js/lists.js": [
           {
             "code": 18046,
-            "count": 21
+            "count": 11
           },
           {
             "code": 18047,
@@ -926,10 +914,6 @@
         ],
         "public/js/login.js": [
           {
-            "code": 18046,
-            "count": 2
-          },
-          {
             "code": 18047,
             "count": 16
           },
@@ -961,7 +945,7 @@
         "public/js/module-settings.js": [
           {
             "code": 18046,
-            "count": 9
+            "count": 7
           },
           {
             "code": 18048,
@@ -1037,7 +1021,7 @@
         "public/js/notes-settings.js": [
           {
             "code": 18046,
-            "count": 21
+            "count": 15
           },
           {
             "code": 18047,
@@ -1059,7 +1043,7 @@
         "public/js/notes.js": [
           {
             "code": 18046,
-            "count": 48
+            "count": 35
           },
           {
             "code": 18047,
@@ -1149,7 +1133,7 @@
         "public/js/role-assignments.js": [
           {
             "code": 18046,
-            "count": 10
+            "count": 7
           },
           {
             "code": 18047,
@@ -1177,10 +1161,6 @@
           }
         ],
         "public/js/search.js": [
-          {
-            "code": 18046,
-            "count": 2
-          },
           {
             "code": 2322,
             "count": 1
@@ -1257,7 +1237,7 @@
         "public/js/shared/file-attachments.js": [
           {
             "code": 18046,
-            "count": 9
+            "count": 2
           },
           {
             "code": 2339,
@@ -1283,7 +1263,7 @@
         "public/js/shared/file-preview.js": [
           {
             "code": 18046,
-            "count": 4
+            "count": 2
           },
           {
             "code": 2339,
@@ -1347,7 +1327,7 @@
           },
           {
             "code": 18046,
-            "count": 9
+            "count": 8
           },
           {
             "code": 2322,
@@ -1383,7 +1363,7 @@
         "public/js/shared/notes-linked-panel.js": [
           {
             "code": 18046,
-            "count": 4
+            "count": 2
           },
           {
             "code": 2339,
@@ -1492,10 +1472,6 @@
         ],
         "public/js/shared/tags.js": [
           {
-            "code": 18046,
-            "count": 3
-          },
-          {
             "code": 18047,
             "count": 3
           },
@@ -1591,7 +1567,7 @@
         "public/js/stop-watch.js": [
           {
             "code": 18046,
-            "count": 3
+            "count": 2
           },
           {
             "code": 18047,
@@ -1637,7 +1613,7 @@
         "public/js/support-view-audit.js": [
           {
             "code": 18046,
-            "count": 7
+            "count": 6
           },
           {
             "code": 18047,
@@ -1659,7 +1635,7 @@
         "public/js/support-view.js": [
           {
             "code": 18046,
-            "count": 7
+            "count": 5
           },
           {
             "code": 18047,
@@ -1684,10 +1660,6 @@
         ],
         "public/js/tags.js": [
           {
-            "code": 18046,
-            "count": 3
-          },
-          {
             "code": 2339,
             "count": 32
           },
@@ -1711,7 +1683,7 @@
         "public/js/task-dialog.js": [
           {
             "code": 18046,
-            "count": 28
+            "count": 16
           },
           {
             "code": 18047,
@@ -1785,7 +1757,7 @@
         "public/js/tasks.js": [
           {
             "code": 18046,
-            "count": 49
+            "count": 41
           },
           {
             "code": 18047,
@@ -1857,7 +1829,7 @@
         "public/js/time-entries.js": [
           {
             "code": 18046,
-            "count": 5
+            "count": 2
           },
           {
             "code": 18047,
@@ -1891,7 +1863,7 @@
         "public/js/time-entry-dialog.js": [
           {
             "code": 18046,
-            "count": 3
+            "count": 2
           },
           {
             "code": 18047,
@@ -1956,10 +1928,6 @@
         ],
         "public/js/time-tracking-timer-dialog.js": [
           {
-            "code": 18046,
-            "count": 1
-          },
-          {
             "code": 18047,
             "count": 13
           },
@@ -1991,7 +1959,7 @@
         "public/js/user-admin.js": [
           {
             "code": 18046,
-            "count": 44
+            "count": 27
           },
           {
             "code": 18047,
@@ -2079,7 +2047,7 @@
         "public/js/workbench.js": [
           {
             "code": 18046,
-            "count": 32
+            "count": 12
           },
           {
             "code": 18047,
@@ -2145,7 +2113,7 @@
         "public/js/workspace-settings.js": [
           {
             "code": 18046,
-            "count": 15
+            "count": 14
           },
           {
             "code": 18047,
@@ -2793,7 +2761,7 @@
   },
   "totals": {
     "files": 1059,
-    "errors": 8812,
+    "errors": 8665,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -7,6 +7,24 @@
   const calendarHost = document.querySelector("[data-calendar-host]");
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Calendar requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * The view factory this path cannot run without.
    *
@@ -424,7 +442,7 @@
         ? "The Tasks module is disabled for this workspace. Existing due dates are shown read-only."
         : "");
     } catch (error) {
-      setCalendarStatus(error.message || "Calendar data could not be loaded.", { isError: true });
+      setCalendarStatus(requireErrors().caughtMessage(error, "Calendar data could not be loaded."), { isError: true });
       console.error(error);
     }
   }

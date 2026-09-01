@@ -77,6 +77,24 @@ rebuildIndexButton?.addEventListener("click", rebuildSearchIndex);
 
 initialize();
 
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+/**
+ * The narrowing contract for the values this file catches.
+ *
+ * A `catch` binding is `unknown` and no declaration can change that: anything can be
+ * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+ * checked read fails exactly where the raw `error.message` read failed before.
+ * @returns {BrowserErrorContract}
+ */
+function requireErrors() {
+  const errors = window.LongtailForge?.errors;
+  if (!errors) {
+    throw new Error("Search requires LongtailForge.errors.");
+  }
+  return errors;
+}
+
 async function initialize() {
   state.page = readPageFromUrl();
   applyFiltersToControls();
@@ -115,7 +133,7 @@ async function rebuildSearchIndex() {
     const jobId = body?.jobId || body?.job?.jobId || "";
     setRebuildStatus(jobId ? `Index rebuild queued. Job ${jobId}.` : "Index rebuild queued.");
   } catch (error) {
-    setRebuildStatus(error.message || "Search index rebuild failed.", true);
+    setRebuildStatus(requireErrors().caughtMessage(error, "Search index rebuild failed."), true);
   } finally {
     rebuildIndexButton.disabled = false;
   }
@@ -195,7 +213,7 @@ async function loadResults() {
 
     renderResults(body);
   } catch (error) {
-    renderErrorState(error.message || "Search results unavailable.");
+    renderErrorState(requireErrors().caughtMessage(error, "Search results unavailable."));
   }
 }
 

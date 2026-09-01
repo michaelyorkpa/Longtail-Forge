@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19012,
+    "activeAssertionCount": 19026,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19826,
+    "effectiveAssertionCount": 19840,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -5344,11 +5344,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 58,
+      "assertionCount": 72,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves internal and v1 API envelopes, request correlation, safe diagnostics, browser HTML classification, and final route ordering.",
-      "entryPointAssertionCount": 58,
+      "entryPointAssertionCount": 72,
       "id": "framework.http-error-contract",
       "legacy": false,
       "path": "scripts/regressions/framework/http-error-contract.regression.mjs",

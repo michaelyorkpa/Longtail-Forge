@@ -39,6 +39,24 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Role assignments requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * The API client this file cannot run without.
    *
@@ -223,18 +241,18 @@
       setStatus(successMessage);
       return true;
     } catch (error) {
-      if (error.status === 409) {
+      if (requireErrors().caughtStatus(error) === 409) {
         target.assignmentRevision = "";
         renderTarget();
         setStatus("Assignments changed. Find the account again before making another change.", true);
         findAccountButton.focus();
         return false;
       }
-      if (error.status === 401) {
+      if (requireErrors().caughtStatus(error) === 401) {
         window.location.replace("/login.html");
         return false;
       }
-      setStatus(error.message || "Role assignments could not be updated.", true);
+      setStatus(requireErrors().caughtMessage(error, "Role assignments could not be updated."), true);
       return false;
     } finally {
       setBusy(false);

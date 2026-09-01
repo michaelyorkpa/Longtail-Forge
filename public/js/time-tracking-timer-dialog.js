@@ -18,6 +18,24 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = namespace?.errors;
+    if (!errors) {
+      throw new Error("The time tracking timer dialog requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * The API client this file cannot run without.
    *
@@ -253,7 +271,7 @@
       dialog.close("complete");
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Timer could not be started.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Timer could not be started."), { isError: true });
     } finally {
       fields.save.disabled = false;
     }

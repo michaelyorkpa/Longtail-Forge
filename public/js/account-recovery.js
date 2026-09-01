@@ -28,7 +28,7 @@
       window.URL.revokeObjectURL(url);
       setStatus("Account data downloaded.");
     } catch (error) {
-      setStatus(error.message || "Account data could not be exported.");
+      setStatus(requireErrors().caughtMessage(error, "Account data could not be exported."));
     } finally {
       downloadButton.disabled = false;
     }
@@ -46,6 +46,24 @@
       window.location.replace("/login.html");
     }
   });
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Account recovery requires LongtailForge.errors.");
+    }
+    return errors;
+  }
 
   function setStatus(message) {
     if (status) status.textContent = message;

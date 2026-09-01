@@ -55,6 +55,24 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTimezones} BrowserTimezones */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Time Entries requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * The timezone state and formatters this page cannot render dates without.
    *
@@ -416,7 +434,7 @@
         setTimeEntryStatus("");
       }
     } catch (error) {
-      setTimeEntryStatus(error.message || "Entry could not be opened.");
+      setTimeEntryStatus(requireErrors().caughtMessage(error, "Entry could not be opened."));
     }
   }
 
@@ -435,7 +453,7 @@
         setTimeEntryStatus("");
       }
     } catch (error) {
-      setTimeEntryStatus(error.message || "Entry could not be opened.");
+      setTimeEntryStatus(requireErrors().caughtMessage(error, "Entry could not be opened."));
     }
   }
 
@@ -660,7 +678,7 @@
       const skippedText = skippedCount > 0 ? ` ${skippedCount} skipped.` : "";
       setTimeEntryStatus(`Updated tags on ${changedCount} time ${changedCount === 1 ? "entry" : "entries"}.${skippedText}`);
     } catch (error) {
-      setTimeEntryStatus(error.message || "Time entry tags could not be updated.");
+      setTimeEntryStatus(requireErrors().caughtMessage(error, "Time entry tags could not be updated."));
       console.error(error);
     } finally {
       updateBulkControls();

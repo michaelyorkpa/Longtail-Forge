@@ -55,7 +55,7 @@
           window.location.assign(pendingLoginLandingPath);
         }
       } catch (error) {
-        setLoginStatus(error.message || "Login failed.");
+        setLoginStatus(requireErrors().caughtMessage(error, "Login failed."));
       } finally {
         submitButton.disabled = false;
       }
@@ -94,11 +94,29 @@
       requiredPasswordForm.reset();
       window.location.replace(pendingLoginLandingPath);
     } catch (error) {
-      setRequiredPasswordStatus(error.message || "Password was not changed.");
+      setRequiredPasswordStatus(requireErrors().caughtMessage(error, "Password was not changed."));
     } finally {
       submitButton.disabled = false;
     }
   });
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("The login page requires LongtailForge.errors.");
+    }
+    return errors;
+  }
 
   async function redirectIfLoggedIn() {
     try {
