@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import { collectBrowserPublicationInventory, contestedSurfaces } from "../../test-support/browser-publication-inventory.mjs";
 import { createNamespaceResolver } from "../../test-support/browser-namespace-resolver.mjs";
 import { classifyBrowserDiagnostics, declaredNamespaceMembers } from "../../test-support/browser-diagnostic-classification.mjs";
+import { collectDeclarationCoverage } from "../../test-support/browser-declaration-coverage.mjs";
 import { extractClassMethodBlock, extractFunctionBlock, extractFunctionBody, extractFunctionSpan, scannableSource } from "../../test-support/source-scan.mjs";
 import { createRequire } from "node:module";
 import fs from "node:fs";
@@ -3794,6 +3795,383 @@ for (const [surface, record] of MULTI_WRITER_SURFACES) {
     );
   }
 }
+
+// The four invariants are fixture-proved before the estate is trusted to them, on a tree small
+// enough that each assertion is about one thing. Every case below is a *behaviour* of the
+// derivation, so an implementation that satisfied the estate by accident still fails here.
+{
+  const coverageFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ltf-coverage-fixtures-"));
+  fs.mkdirSync(path.join(coverageFixtureRoot, "sources"));
+  fs.mkdirSync(path.join(coverageFixtureRoot, "types"));
+
+  const writeFixtureSource = (/** @type {string} */ name, /** @type {string[]} */ lines) =>
+    fs.writeFileSync(path.join(coverageFixtureRoot, "sources", name), `${lines.join("\n")}\n`);
+
+  // `declaredSurface` is published by two files, which is what makes unique surfaces and
+  // publication occurrences different numbers on this tree.
+  writeFixtureSource("alpha.js", [
+    "(function attachAlpha(global) {",
+    "  const namespace = global.LongtailForge || {};",
+    "  namespace.declaredSurface = { ok: true };",
+    "  namespace.undeclaredSurface = { ok: true };",
+    "  global.LongtailForge = namespace;",
+    "})(window);",
+  ]);
+  writeFixtureSource("beta.js", [
+    "(function attachBeta(global) {",
+    "  const namespace = global.LongtailForge || {};",
+    "  namespace.declaredSurface = { second: true };",
+    "  global.LongtailForge = namespace;",
+    "})(window);",
+  ]);
+
+  fs.writeFileSync(path.join(coverageFixtureRoot, "tsconfig.json"), JSON.stringify({
+    compilerOptions: {
+      target: "es2023",
+      module: "esnext",
+      moduleResolution: "bundler",
+      allowJs: true,
+      checkJs: false,
+      noEmit: true,
+      lib: ["DOM", "DOM.Iterable", "ES2023"],
+      types: [],
+    },
+    include: ["sources/**/*.js"],
+  }));
+
+  const writeFixtureDeclaration = (/** @type {string} */ name, /** @type {string[]} */ members) =>
+    fs.writeFileSync(path.join(coverageFixtureRoot, "types", name), [
+      "export interface LongtailForgeBrowserNamespace {",
+      ...members.map((member) => `  ${member}?: unknown;`),
+      "}",
+      "",
+    ].join("\n"));
+
+  writeFixtureDeclaration("both.d.ts", ["declaredSurface", "typeOnlySurface"]);
+  writeFixtureDeclaration("neither.d.ts", []);
+
+  const fixtureCoverage = (/** @type {string} */ declarationFile) => collectDeclarationCoverage({
+    root: coverageFixtureRoot,
+    configFile: "tsconfig.json",
+    scanDirectory: "sources",
+    declarationFile: `types/${declarationFile}`,
+  });
+
+  const withDeclaration = fixtureCoverage("both.d.ts");
+
+  // TERMINOLOGY - the numbers this checkpoint must never let a reader conflate. One surface is
+  // written by two files, so occurrences exceed unique surfaces; and a declared member with no
+  // writer is known without being published, so the member universes differ in both directions.
+  assert.equal(withDeclaration.uniqueSurfaces, 2, "two distinct surfaces are published");
+  assert.equal(withDeclaration.publicationOccurrences, 3, "three writer-surface pairs publish them");
+  assert.notEqual(
+    withDeclaration.uniqueSurfaces,
+    withDeclaration.publicationOccurrences,
+    "unique publication surfaces and publication occurrences are different measurements",
+  );
+  assert.deepEqual(withDeclaration.publishedMembers, ["declaredSurface", "undeclaredSurface"]);
+  assert.deepEqual(withDeclaration.declaredMembers, ["declaredSurface", "typeOnlySurface"]);
+  assert.deepEqual(
+    withDeclaration.knownMembers,
+    ["declaredSurface", "typeOnlySurface", "undeclaredSurface"],
+    "known members are the union of declared and published, which is neither one alone",
+  );
+
+  // A - PUBLISHED WITHOUT DECLARATION. The undeclared one is reported by exact name, and the
+  // declared one is not. A backlog entry naming something else cannot cover it, which is the
+  // property that makes the record an inventory rather than an allowance.
+  assert.deepEqual(withDeclaration.undeclaredPublishedMembers, ["undeclaredSurface"]);
+  const wrongName = ["someOtherSurface"];
+  assert.deepEqual(
+    withDeclaration.undeclaredPublishedMembers.filter((member) => !wrongName.includes(member)),
+    ["undeclaredSurface"],
+    "an exception for a differently named member must not cover an undeclared publication",
+  );
+
+  // B - DECLARED WITHOUT WRITER. `typeOnlySurface` is declared and nothing publishes it, which
+  // is exactly the state that needs a disposition rather than a silent pass.
+  assert.deepEqual(withDeclaration.declaredMembersWithoutWriter, ["typeOnlySurface"]);
+  const recordedTypeOnly = new Map([["typeOnlySurface", "fixture: declared with no writer on purpose"]]);
+  assert.deepEqual(
+    withDeclaration.declaredMembersWithoutWriter.filter((member) => !recordedTypeOnly.has(member)),
+    [],
+    "a recorded type-only declaration satisfies the writer invariant",
+  );
+  assert.equal(
+    withDeclaration.declaredMembersWithoutWriter.includes("declaredSurface"),
+    false,
+    "a declared member that is published must never be reported as missing a writer",
+  );
+
+  // C - CANONICAL WRITER. Two writers on one surface is the contested case; the single-writer
+  // surface is not reported. Whether a lone additive writer is open or closed is not asked here.
+  assert.deepEqual(
+    withDeclaration.multiWriterSurfaces.map((entry) => entry.surface),
+    ["window.LongtailForge.declaredSurface"],
+    "only the surface with more than one writer is contested",
+  );
+  assert.deepEqual(
+    withDeclaration.multiWriterSurfaces[0]?.writers,
+    ["sources/alpha.js", "sources/beta.js"],
+    "a contested surface reports its exact writer set so a stale record fails",
+  );
+
+  // LIVE DERIVATION - the same tree, read against a declaration that names nothing, moves
+  // members between the two coverage answers. **No snapshot is edited and no second inventory
+  // exists**; changing the declaration is the only difference between these two results.
+  const withoutDeclaration = fixtureCoverage("neither.d.ts");
+  assert.deepEqual(
+    withoutDeclaration.undeclaredPublishedMembers,
+    ["declaredSurface", "undeclaredSurface"],
+    "removing a declaration must make its published member undeclared",
+  );
+  assert.deepEqual(
+    withoutDeclaration.declaredMembersWithoutWriter,
+    [],
+    "removing a declaration must also remove it from the writer-coverage question",
+  );
+  assert.notDeepEqual(
+    withoutDeclaration.undeclaredPublishedMembers,
+    withDeclaration.undeclaredPublishedMembers,
+    "declaration coverage must follow the live declaration rather than a carried list",
+  );
+
+  // LIVE DERIVATION, the other direction - adding a publication changes writer coverage without
+  // a second inventory being updated anywhere.
+  writeFixtureSource("gamma.js", [
+    "(function attachGamma(global) {",
+    "  const namespace = global.LongtailForge || {};",
+    "  namespace.typeOnlySurface = { nowPublished: true };",
+    "  global.LongtailForge = namespace;",
+    "})(window);",
+  ]);
+  const afterPublishing = fixtureCoverage("both.d.ts");
+  assert.deepEqual(
+    afterPublishing.declaredMembersWithoutWriter,
+    [],
+    "publishing a declared member must clear it from the missing-writer set",
+  );
+  assert.equal(
+    afterPublishing.uniqueSurfaces,
+    3,
+    "a new publication is a new unique surface",
+  );
+
+  // D - UNRESOLVABLE ROOTED WRITE. A computed key rooted at the namespace is recorded rather
+  // than guessed into a member name, and it is not counted as a published surface.
+  writeFixtureSource("computed.js", [
+    "(function attachComputed(global) {",
+    "  const namespace = global.LongtailForge || {};",
+    "  const key = \"whicheverSurface\";",
+    "  namespace[key] = { ok: true };",
+    "  global.LongtailForge = namespace;",
+    "})(window);",
+  ]);
+  const withComputed = fixtureCoverage("both.d.ts");
+  assert.equal(
+    withComputed.unresolvableRootedWrites.length,
+    1,
+    "a computed rooted write must be recorded as unresolvable",
+  );
+  assert.match(withComputed.unresolvableRootedWrites[0], /sources\/computed\.js:\d+: window\.LongtailForge\[key\]/);
+  assert.equal(
+    withComputed.publishedMembers.includes("whicheverSurface"),
+    false,
+    "a computed key must never be guessed into a published member name",
+  );
+  assert.equal(
+    withComputed.publishedMembers.includes("key"),
+    false,
+    "nor into the name of the variable that supplied it",
+  );
+
+  // DETERMINISM - an unchanged tree answers identically.
+  assert.deepEqual(fixtureCoverage("both.d.ts"), withComputed, "an unchanged tree must serialise identically");
+
+  fs.rmSync(coverageFixtureRoot, { recursive: true, force: true });
+}
+
+// `0.33.33.38.2.4.3` - publication and declaration can no longer drift apart silently.
+//
+// Four invariants, kept apart on purpose. They fail for different reasons and a reviewer has
+// to be able to tell which one broke, so each has its own vocabulary, its own recorded
+// dispositions, and its own failure text. "Namespace governance failed" is not a diagnosis.
+//
+// **The counting vocabulary is part of the contract.** A unique publication surface is not a
+// publication occurrence and neither is a known `LongtailForge` member. The estate is 65
+// unique surfaces across 68 publication occurrences, of which 63 are namespace members and
+// two are bare globals; the three numbers are asserted separately below precisely so no
+// future reader can take one for another, which is how an earlier reconciliation went wrong.
+const declarationCoverage = collectDeclarationCoverage({});
+
+// A - PUBLISHED SURFACE WITHOUT DECLARATION.
+//
+// Thirty-three members are published with no contract. **This is a backlog, not an
+// allowance**: it names every one of them exactly, and it is asserted by identity rather than
+// by count, so a new undeclared publication fails immediately *and* an entry that has since
+// been declared fails until it is struck. A count-based allowance would let a declared member
+// pay for a newly undeclared one, which is the escape hatch this must not become.
+//
+// Declaring these is `0.33.33.38.2.2`'s work and its descendants', not this checkpoint's.
+// The list shrinks as those land; it may never grow without a deliberate edit here.
+const UNDECLARED_PUBLICATION_BACKLOG = [
+  "clientProjectDialog",
+  "dashboard",
+  "fileAttachments",
+  "filePreview",
+  "filesDialog",
+  "getWorkspaceProjectsLabel",
+  "helpPageReady",
+  "listsDialog",
+  "navigationIntent",
+  "notesDialog",
+  "notesEditor",
+  "notesLinkedPanel",
+  "notificationPreferences",
+  "notificationSubscriptions",
+  "notificationsPageReady",
+  "overlayHost",
+  "quickActionRefresh",
+  "recovery",
+  "refreshAppShell",
+  "refreshNotifications",
+  "reporting",
+  "sessionAuthWarnings",
+  "settingsRenderer",
+  "supportView",
+  "tags",
+  "taskCalendar",
+  "taskResumeNoteCapture",
+  "tasksDialog",
+  "timeEntryDialog",
+  "timeTrackingTimerDialog",
+  "userPreferences",
+  "workspaceContext",
+  "workspaceContextReady",
+];
+
+const newlyUndeclaredMembers = declarationCoverage.undeclaredPublishedMembers
+  .filter((member) => !UNDECLARED_PUBLICATION_BACKLOG.includes(member));
+assert.deepEqual(
+  newlyUndeclaredMembers,
+  [],
+  "these LongtailForge members are published at runtime with no declaration and are not in the"
+    + ` 0.33.33.38.2.4.3 backlog: ${newlyUndeclaredMembers.join(", ")}`,
+);
+const struckBacklogEntries = UNDECLARED_PUBLICATION_BACKLOG
+  .filter((member) => !declarationCoverage.undeclaredPublishedMembers.includes(member));
+assert.deepEqual(
+  struckBacklogEntries,
+  [],
+  "these members are recorded as undeclared publications but are now declared or no longer"
+    + ` published; a spent record must be struck from the backlog: ${struckBacklogEntries.join(", ")}`,
+);
+
+// B - DECLARED MEMBER WITHOUT RUNTIME WRITER.
+//
+// A declaration with no publisher is either a genuine type-only contract or a stale one, and
+// they are not interchangeable. **The estate currently has neither**: every declared member is
+// published. The record exists so the distinction is available the moment it is needed, and it
+// is asserted by identity so an entry cannot outlive the condition that justified it.
+/** @type {Map<string, string>} */
+const TYPE_ONLY_DECLARATIONS = new Map();
+
+const declarationsMissingWriter = declarationCoverage.declaredMembersWithoutWriter
+  .filter((member) => !TYPE_ONLY_DECLARATIONS.has(member));
+assert.deepEqual(
+  declarationsMissingWriter,
+  [],
+  "these LongtailForge members are declared but nothing publishes them; declare them type-only"
+    + ` with a reason or remove the stale contract: ${declarationsMissingWriter.join(", ")}`,
+);
+for (const [member, reason] of TYPE_ONLY_DECLARATIONS) {
+  assert.ok(
+    declarationCoverage.declaredMembersWithoutWriter.includes(member),
+    `${member} is recorded as a type-only declaration but now has a runtime writer; a spent record must be struck`,
+  );
+  assert.ok(reason.length > 0, `${member} must record why it is type-only rather than stale`);
+}
+
+// C - CANONICAL WRITER OWNERSHIP.
+//
+// One writer is the rule. More than one is a failure unless the surface carries a
+// multi-writer record, which `0.33.33.33.8` already models with its writers, order, delivery,
+// reason and disposition - reused here rather than duplicated. A surface with no writer at
+// all is not a published surface and would mean the inventory recorded something it should
+// not have.
+//
+// **A single additive writer is not this invariant's business.** Whether a spread-merged
+// surface with one writer is open or closed is `0.33.33.38.2.4.4`'s decision.
+assert.deepEqual(
+  declarationCoverage.unwrittenSurfaces,
+  [],
+  "a published surface must have at least one runtime writer",
+);
+const uncontestedByRecord = declarationCoverage.multiWriterSurfaces
+  .filter((entry) => !MULTI_WRITER_SURFACES.has(entry.surface))
+  .map((entry) => `${entry.surface} written by ${entry.writers.join(", ")}`);
+assert.deepEqual(
+  uncontestedByRecord,
+  [],
+  `these surfaces have more than one runtime writer and no multi-writer record: ${uncontestedByRecord.join(" | ")}`,
+);
+const singleWriterSurfaces = declarationCoverage.uniqueSurfaces - declarationCoverage.multiWriterSurfaces.length;
+assert.equal(
+  singleWriterSurfaces,
+  63,
+  "63 of the 65 unique publication surfaces must have exactly one canonical writer",
+);
+
+// D - NO UNRESOLVABLE ROOTED WRITE.
+//
+// Restated here beside the other three so the four invariants read as one contract, using the
+// inventory's own result rather than a second scan. A computed key stays unresolved rather
+// than being guessed into a member name.
+assert.deepEqual(declarationCoverage.unresolvableRootedWrites, [], "a rooted write must be statically nameable");
+assert.deepEqual(declarationCoverage.writesBelowSurfaces, [], "nothing may write below an already-published surface");
+assert.deepEqual(declarationCoverage.clobberingRootWrites, [], "the namespace root may only be extended, never replaced");
+
+// DISPOSITION - member-level diagnostic attribution stays durable *reporting*, and no
+// governance rule depends on it.
+//
+// `0.33.33.38.2.4.2` already produces a member name per classified diagnostic deterministically
+// and at no extra cost, so it is kept rather than thrown away. But **declaration coverage must
+// hold even if the browser program reaches zero diagnostics**: every invariant above is derived
+// from the AST publication inventory and the declaration text, and none of them consults a
+// diagnostic. The two modules share a declaration *parser* and nothing else, which is asserted
+// here so a later edit cannot quietly make governance depend on the measuring instrument.
+const coverageSourceText = fs.readFileSync("scripts/test-support/browser-declaration-coverage.mjs", "utf8");
+assert.doesNotMatch(
+  coverageSourceText,
+  /classifyBrowserDiagnostics|consume the diagnostics|options\.diagnostics/,
+  "declaration coverage must be structural and must never consume diagnostics",
+);
+assert.match(
+  coverageSourceText,
+  /import \{ declaredNamespaceMembers \}/,
+  "declaration coverage reads the live declaration through the shared parser rather than a copied list",
+);
+assert.doesNotMatch(
+  coverageSourceText,
+  /readdirSync|querySelector|\.match\(\/.*LongtailForge/,
+  "declaration coverage must not scan source text for publications; that is the inventory's job",
+);
+
+// TERMINOLOGY - the three numbers are different numbers, asserted apart so no future summary
+// can print one as another.
+assert.equal(declarationCoverage.uniqueSurfaces, 65, "unique publication surfaces");
+assert.equal(declarationCoverage.publicationOccurrences, 68, "publication occurrences, which exceed unique surfaces");
+assert.equal(declarationCoverage.knownMembers.length, 63, "known LongtailForge members, which are not all governed surfaces");
+assert.equal(declarationCoverage.declaredMembers.length, 30, "declared LongtailForge members");
+assert.equal(declarationCoverage.publishedMembers.length, 63, "LongtailForge members with a runtime writer");
+assert.ok(
+  declarationCoverage.publicationOccurrences > declarationCoverage.uniqueSurfaces,
+  "publication occurrences must exceed unique surfaces while any surface has co-writers",
+);
+assert.ok(
+  declarationCoverage.knownMembers.length < declarationCoverage.uniqueSurfaces,
+  "the LongtailForge members are a subset of the governed surfaces, not the same universe",
+);
 
 // Where order is the contract, it is proved from how the writers are actually delivered.
 //

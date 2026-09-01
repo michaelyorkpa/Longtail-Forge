@@ -2742,6 +2742,7 @@
         "scripts/tasks-primary-repository-conversion-regression.mjs",
         "scripts/tasks-server-side-list-paging-regression.mjs",
         "scripts/tasks-view-selector-query-contract-regression.mjs",
+        "scripts/test-support/browser-declaration-coverage.mjs",
         "scripts/test-support/browser-diagnostic-classification.mjs",
         "scripts/test-support/browser-namespace-resolver.mjs",
         "scripts/test-support/browser-publication-inventory.mjs",
@@ -2803,7 +2804,7 @@
     }
   },
   "totals": {
-    "files": 1058,
+    "files": 1059,
     "errors": 8869,
     "explicitAny": 0
   },
