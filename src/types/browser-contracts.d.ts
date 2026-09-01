@@ -2073,6 +2073,131 @@ export interface BrowserNoteCollection {
   status?: unknown;
 }
 
+/**
+ * The target a browser caller builds to identify what it wants to follow.
+ *
+ * **This is not the same shape the server echoes back, and the difference is load-bearing.**
+ * `taskTarget` and `noteTarget` construct camelCase members that `targetParams` turns into a query
+ * string; the server answers with `BrowserNotificationTarget`, which is snake_case because
+ * `normalizeSubscriptionTarget` builds it from the database's own column names. Two records, two
+ * names - collapsing them would let a consumer read `moduleId` off a value that carries `module_id`.
+ */
+export interface BrowserNotificationTargetRequest {
+  moduleId: string;
+  targetId: string;
+  targetType: string;
+}
+
+/**
+ * The target the subscription routes echo back, as `normalizeSubscriptionTarget` builds it.
+ *
+ * Every member is constructed by `String(...).trim()`, so all four are present and are strings;
+ * `event_type` is `""` rather than absent when the caller named no event.
+ */
+export interface BrowserNotificationTarget {
+  event_type: string;
+  module_id: string;
+  target_id: string;
+  target_type: string;
+}
+
+/**
+ * One notification subscription row as the subscription routes return it.
+ *
+ * **Constructed, not selected**: `subscriptionRowToAppValue` builds this object member by member
+ * from the ten columns `NOTIFICATION_SUBSCRIPTION_COLUMNS` names, defaulting `event_type` to `""`
+ * and `status` to `"inactive"`. That is why nothing here is optional or nullable even though
+ * `event_type` is a nullable column - the shaper closes the gap before the row leaves the server.
+ *
+ * `status` is `"active"` or `"inactive"` at runtime, enforced by a `CHECK` constraint. It is typed
+ * `string` because the browser does not validate that vocabulary, on the rule this checkpoint
+ * recorded for `userPreferences`: a closed union over an unvalidated wire field is a claim no
+ * browser code makes.
+ */
+export interface BrowserNotificationSubscription {
+  created_at: string;
+  event_type: string;
+  module_id: string;
+  notification_subscription_id: string;
+  status: string;
+  target_id: string;
+  target_type: string;
+  updated_at: string;
+  user_id: string;
+  workspace_id: string;
+}
+
+/**
+ * What `readStatus`, `follow` and `unfollow` resolve to once the browser has narrowed the body.
+ *
+ * **One envelope for three operations, because the producer builds one.** `subscriptionStatus`,
+ * `followTarget` and `unfollowTarget` each return `{ isFollowing, subscription, target }` - the
+ * operation differs, the record does not. Three interfaces named after three routes would have
+ * described the same runtime shape three times.
+ *
+ * `subscription` and `target` are nullable **here** rather than in the producer: the server always
+ * sends both, and these are the values the browser's own narrowing produces when a body arrives
+ * without them. `isFollowing` is exactly `body.isFollowing === true`, which is the comparison every
+ * consumer already wrote.
+ */
+export interface BrowserNotificationSubscriptionResult {
+  isFollowing: boolean;
+  subscription: BrowserNotificationSubscription | null;
+  target: BrowserNotificationTarget | null;
+}
+
+/**
+ * One configurable notification event, merged with the viewer's preference layers.
+ *
+ * **This is the merged read model, not a stored record, and it is deliberately its own contract.**
+ * The producer holds three layers - `notification_user_preferences`, `notification_workspace_defaults`
+ * and the module event catalog - and `preferences()` collapses them into this one shape. The stored
+ * rows are never sent: `enabled` is an `INTEGER` column on both preference tables and the server
+ * converts it with `Number(row.enabled) === 1`, so **the browser receives real booleans and must not
+ * model an integer flag.**
+ *
+ * `userEnabled` falls back to the workspace value, which falls back to the event's own default, so
+ * the three booleans can disagree and each one means something different. `defaultPriority` and
+ * `workspacePriority` are `low`/`normal`/`high`/`urgent` at runtime, typed `string` for the same
+ * reason `status` is above.
+ */
+export interface BrowserNotificationEventPreference {
+  defaultEnabled: boolean;
+  defaultPriority: string;
+  description: string;
+  id: string;
+  label: string;
+  moduleEnabled: boolean;
+  moduleId: string;
+  userEnabled: boolean;
+  workspaceEnabled: boolean;
+  workspacePriority: string;
+}
+
+/**
+ * The viewer's notification display preferences, as `shapeUserDisplayPreferences` constructs them.
+ *
+ * One member today, and it is normalised twice - once by the server and again by the browser's
+ * `normalizeGroupingPreferences` - so it is always a string.
+ */
+export interface BrowserNotificationGroupingPreferences {
+  groupingMode: string;
+}
+
+/**
+ * What `loadPreferences` resolves to.
+ *
+ * **The envelope was already constructed; only its array was raw.** The browser writer has always
+ * rebuilt `canManageWorkspaceDefaults` and `groupingPreferences` from the body, and it passed
+ * `events` straight through once `Array.isArray` said it was an array. `0.33.33.38.4.10` checks the
+ * elements, which is the difference between an array and an array of records.
+ */
+export interface BrowserNotificationPreferenceCatalog {
+  canManageWorkspaceDefaults: boolean;
+  events: BrowserNotificationEventPreference[];
+  groupingPreferences: BrowserNotificationGroupingPreferences;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;

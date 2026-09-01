@@ -17,6 +17,15 @@ const state = {
     total: 0,
   },
   groupingPreferences: { groupingMode: "client_project" },
+  /**
+   * The configurable notification events as `loadPreferences` narrowed them.
+   *
+   * **The direct storage handoff for `0.33.33.38.4.10`'s catalogue contract, and the only state
+   * slot this checkpoint adopts.** It inferred as an empty array of nothing, so no checked value
+   * could be assigned to it once `loadPreferences` stopped returning raw wire elements. Every other
+   * field in this store belongs to its `0.33.33.39`-`.44` owner.
+   * @type {import("../../src/types/browser-contracts.js").BrowserNotificationEventPreference[]}
+   */
   preferences: [],
 };
 
