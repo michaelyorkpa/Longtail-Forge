@@ -22,7 +22,7 @@ assert.match(
 
 assert.match(
   moduleActionsSource,
-  /id: "notes\.view"[\s\S]*label: "View Note"[\s\S]*mode: "view"[\s\S]*requiredPermissions: \["notes\.view"\][\s\S]*open: \(params, hostContext\) => namespace\.notesDialog\.openNoteViewer\(params, hostContext\)/,
+  /id: "notes\.view"[\s\S]*label: "View Note"[\s\S]*mode: "view"[\s\S]*requiredPermissions: \["notes\.view"\][\s\S]*open: \(params, hostContext\) => (?:namespace\.notesDialog|requireNotesDialog\(\))\.openNoteViewer\(params, hostContext\)/,
   "Shared module actions should expose a Notes-owned read action",
 );
 assert.match(

@@ -158,11 +158,11 @@ check("Notes, Lists, and Files actions use module-owned canonical openers", () =
   assert.match(notesView, /js\/shared\/module-actions\.js/);
   assert.match(listsView, /js\/shared\/module-actions\.js/);
   assert.match(filesView, /js\/shared\/module-actions\.js/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteViewer\(params, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.listsDialog\.openListEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.listsDialog\.openListEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.notesDialog|requireNotesDialog\(\))\.openNoteEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.notesDialog|requireNotesDialog\(\))\.openNoteEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.notesDialog|requireNotesDialog\(\))\.openNoteViewer\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.listsDialog|requireListsDialog\(\))\.openListEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.listsDialog|requireListsDialog\(\))\.openListEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.filesDialog\.openFileEditorAction\(params, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.filePreview\.openFilePreviewAction\(params, hostContext\)/);
   assert.match(notesScript, /window\.LongtailForge\.notesDialog = Object\.freeze/);

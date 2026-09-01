@@ -409,9 +409,12 @@
 
   /**
    * The plain Markdown controller for the note body, or null when the body control is absent.
-   * Declared with the shape `notesEditor.createPlainTextarea` returns because `0.33.33.35.1.1`
-   * split this binding's declaration from its assignment.
-   * @type {{ applyCommand: (commandName: string) => void, getValue: () => string, setValue: (value: string) => void } | null}
+   * `0.33.33.35.1.1` split this binding's declaration from its assignment and hand-wrote the
+   * shape `notesEditor.createPlainTextarea` returns; `0.33.33.38.2.2.6.5` declared that
+   * contract, so the copy is replaced by the contract itself. `undefined` is admitted because
+   * the surface is read through an optional chain and may be absent on a page that did not
+   * load the editor.
+   * @type {import("../../src/types/browser-contracts.js").NotesPlainTextareaController | null | undefined}
    */
   let editor = null;
 

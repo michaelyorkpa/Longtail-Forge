@@ -1548,6 +1548,120 @@ export interface BrowserClientProjectOptions {
   optionLabel(record?: { displayName?: string; name?: string; optionLabel?: string }): string;
 }
 
+/** One Markdown command the notes editor can apply, as `notesEditor.commands` lists them. */
+export interface NotesEditorCommand {
+  placeholder: string;
+  prefix: string;
+  suffix: string;
+}
+
+/**
+ * The controller `createPlainTextarea` returns: a plain `<textarea>` wired for Markdown
+ * editing. Every member is built by the writer from the element it was given, so the shape is
+ * closed - there is no extension point here and nothing is read back off the DOM untyped.
+ */
+export interface NotesPlainTextareaController {
+  /** Apply a command by name and return the textarea's resulting value. */
+  applyCommand(commandName?: unknown): string;
+  /** The command names this controller accepts, from the writer's own frozen table. */
+  commands: string[];
+  /** Continue a list marker onto the next line; `false` when the caret is not in a list. */
+  continueList(): boolean;
+  element: HTMLTextAreaElement;
+  getValue(): string;
+  indent(): void;
+  outdent(): void;
+  setValue(value?: unknown): void;
+}
+
+/**
+ * `LongtailForge.notesEditor`, published by `public/js/shared/notes-editor.js`.
+ *
+ * Markdown editing behaviour for a plain `<textarea>`, with no dialog and no network of its
+ * own. **Every member is total**: a missing textarea yields `""`, `false`, or `null` rather
+ * than throwing, which is why the parameters below say what the runtime accepts rather than
+ * what a caller ideally passes.
+ */
+export interface BrowserNotesEditor {
+  /** Apply a command to a textarea and return its resulting value, or `""` when it cannot. */
+  applyCommand(textarea?: unknown, commandName?: unknown): string;
+  /** The writer's frozen command table, keyed by command name. */
+  commands: Readonly<Record<string, NotesEditorCommand>>;
+  /** Continue a list marker on Enter. `false` when there is nothing to continue. */
+  continueListMarker(textarea?: unknown): boolean;
+  /** Wire a textarea for Markdown editing, or `null` when there is no element. */
+  createPlainTextarea(element?: unknown, options?: unknown): NotesPlainTextareaController | null;
+  /** Tab, Shift+Tab and Enter behaviour. Reads the event and returns nothing. */
+  handleKeydown(event?: unknown, textarea?: unknown): void;
+  /** Normalise Markdown text. Coerces through `String(...)`, so anything is accepted. */
+  normalizeMarkdown(markdown?: unknown): string;
+}
+
+/**
+ * A panel mounted into a host element, as `notesLinkedPanel.mount` returns.
+ *
+ * **`refresh` fetches but resolves nothing.** The panel reads its own route and renders into
+ * the container it was given; no wire body is handed back to the caller, which is why this
+ * surface is declarable in `0.33.33.38.2` rather than being `0.33.33.38.4`'s work. The same
+ * distinction `timezones` established: reaching the network is not the boundary, returning
+ * unvalidated data is.
+ *
+ * `fileAttachments.mount` returns the identical shape and will reuse this contract when
+ * `0.33.33.40` has typed the Notes page state that currently holds its controller as `null`.
+ */
+export interface BrowserMountedPanel {
+  /** Tear the panel down and empty its container. */
+  destroy(): void;
+  /** Re-read the panel's data and re-render. Resolves when the render is complete. */
+  refresh(): Promise<void>;
+}
+
+/**
+ * `LongtailForge.notesLinkedPanel`, published by `public/js/shared/notes-linked-panel.js`.
+ *
+ * The linked-notes panel the Task dialog mounts. **`mount` throws** rather than returning
+ * `null` when it has no container, so the return type has no null branch.
+ */
+export interface BrowserNotesLinkedPanel {
+  mount(container?: unknown, options?: unknown): BrowserMountedPanel;
+}
+
+/**
+ * `LongtailForge.notesDialog`, published by `public/js/notes.js`.
+ *
+ * **A closed contract with one writer.** `0.33.33.38.2.4.4` removed the spread of the previous
+ * value that made this look like an extension point: the file is delivered as a classic script
+ * on its own page and as a `module: true` module-action dependency elsewhere, and the
+ * descriptor's readiness probe stops the second load. Nothing may contribute members here.
+ *
+ * **Every opener rejects rather than returning a failure value** - a missing note id, an edit
+ * without a record - and each resolves `hostContext.result` when a module action supplied one,
+ * otherwise the dialog's own outcome. That union is genuinely `unknown`: the two branches are
+ * different shapes and `0.33.33.38.4` owns narrowing what a dialog resolves.
+ */
+export interface BrowserNotesDialog {
+  /** Open the editor in add mode. */
+  openAdd(params?: unknown, hostContext?: unknown): Promise<unknown>;
+  /** Open the editor in edit mode. Rejects without a note id. */
+  openEdit(params?: unknown, hostContext?: unknown): Promise<unknown>;
+  openNoteEditor(params?: unknown, hostContext?: unknown): Promise<unknown>;
+  openNoteViewer(params?: unknown, hostContext?: unknown): Promise<unknown>;
+  /** The viewer, under the name the module-action registry uses. */
+  openView(params?: unknown, hostContext?: unknown): Promise<unknown>;
+}
+
+/**
+ * `LongtailForge.listsDialog`, published by `public/js/lists.js`.
+ *
+ * The same closed single-writer shape as `notesDialog`, for the same reasons, with three
+ * members instead of five.
+ */
+export interface BrowserListsDialog {
+  openAdd(params?: unknown, hostContext?: unknown): Promise<unknown>;
+  openEdit(params?: unknown, hostContext?: unknown): Promise<unknown>;
+  openListEditor(params?: unknown, hostContext?: unknown): Promise<unknown>;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
@@ -1561,8 +1675,12 @@ export interface LongtailForgeBrowserNamespace {
   esModuleBridge?: BrowserEsModuleBridge;
   formatters?: BrowserFormatters;
   icons?: BrowserIcons;
+  listsDialog?: BrowserListsDialog;
   modal?: BrowserModalDialogs;
   moduleActions?: BrowserModuleActions;
+  notesDialog?: BrowserNotesDialog;
+  notesEditor?: BrowserNotesEditor;
+  notesLinkedPanel?: BrowserNotesLinkedPanel;
   pageController?: BrowserPageController;
   /**
    * Published by `public/js/login.js`. The required-password-change form is

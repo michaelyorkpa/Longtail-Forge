@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.6.5 - The narrow pure surfaces
+
+**Model: Medium Effort** - six surfaces were listed, four were declarable, and finding out which was most of the work.
+
+- [x] **Four declared, and every one of them closed.** `notesEditor` (6 members), `notesLinkedPanel` (1), `notesDialog` (5) and `listsDialog` (3). `0.33.33.38.2.4.4` had just removed the preserving spreads from the last two, so **a closed interface is now the truthful shape rather than an assumption**: neither surface may be extended, and the compiler says so - adding `notAMember()` to a read of `BrowserListsDialog` fails with `TS2339` rather than resolving through an index signature.
+- [x] **`notesLinkedPanel.mount` fetches and is still declarable, which is the distinction `timezones` established.** It throws when it has no container, returns `{ destroy, refresh }`, and `refresh` is `async` with no `return` - the panel reads its own route and renders into the container it was given. **Reaching the network is not the boundary; returning unvalidated data is**, and nothing here does.
+- [x] **`notesEditor` was declarable because its coupling turned out to be a copy of its own contract.** `public/js/notes.js:410` carried a hand-written `@type` for the controller `createPlainTextarea` returns, and said so in its own comment. Replacing that copy with the declared `NotesPlainTextareaController` is adoption, not later-owned cleanup - the duplicate is gone and the two can no longer drift.
+- [x] **`fileAttachments` did not clear preflight, and the cause is one line in a different file.** `notes.js:151` initialises `attachmentController: null` inside a state object literal, so the property infers as `null` and **nothing is assignable to it**; declaring `mount`'s return fails at two Notes call sites. `task-dialog.js` holds the same controller in a bare `let` and needed no change, which is what isolates the cause. **That field is page-local state owned by `0.33.33.40`**, and unlike `notes.js:410` it is not a copy of this contract - so the surface was split into `0.33.33.38.2.2.6.5.1` and left in the backlog rather than typed early against the wrong owner.
+- [x] **`userPreferences` was never a pure surface and is now owned by `0.33.33.38.4`.** It is published inside an async bootstrap after `await response.json()`, and its member is `shell.user?.preferredCalendarView || null` - an unvalidated wire field whose fallback proves nothing about what the server sent.
+
+**Declaring the two dialogs moved five diagnostics before it eliminated them, and the ledger is what noticed.** `module-actions.js` held five `TS18046` reads of `namespace.notesDialog` and `namespace.listsDialog`; declaring the members turned them into `TS18048` root-optionality reads - **class E becoming class B, which is a transfer and not progress.** The file's total never changed, so only the per-file-per-code ledger saw it. The five sites now acquire through checked accessors, which is honest because the dependency table already guarantees them: `ensureDependencies` loads each action's scripts and every descriptor names the surface and member it must publish.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,866 | **8,856** |
+| Namespace surface family | 382 | **372** |
+| params / state / dom / unknown / assorted | 4,632 / 1,823 / 1,484 / 378 / 167 | **all unchanged** |
+| Declared members | 30 | **34** |
+| Undeclared backlog | 33 | **29** |
+| Known members / unique surfaces / occurrences | 63 / 65 / 68 | **63 / 65 / 68** |
+| Bare-root reads | 119 | **119** |
+| Root reads parked behind undeclared members | 53 | **48** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**All ten closures are namespace family and no `0.33.33.39`-`.44` owner budget moved by one.** The backlog shrank by exact identity - `listsDialog`, `notesDialog`, `notesEditor`, `notesLinkedPanel` - and `0.33.33.38.2.4.3`'s governance proved it by failing first: with the declarations added and the entries still present it named all four as spent records.
+
+**One accessor edit landed between a JSDoc `@type` and the declaration it annotated**, detaching it and turning `MODULE_ACTION_DEPENDENCIES` back into an untyped index. The ledger caught it as a `TS7053` increase in a file whose total had not changed. **An insertion anchor has to respect what the comment above it belongs to.**
+
 ## Version 0.33.33.38.2.4.4 - Additive publication semantics
 
 **Model: Medium Effort** - the child that expected to write policy for three surfaces, found six, and ended by deleting five of them.

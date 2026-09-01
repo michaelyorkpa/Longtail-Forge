@@ -9,6 +9,33 @@
   /** @type {Map<string, Promise<void>>} */
   const dependencyScriptLoads = new Map();
 
+  // The dependency table below is what makes these reads safe: `ensureDependencies` loads the
+  // module action's scripts and each descriptor names the surface and member it must publish,
+  // so an opener never runs before its dialog exists. These accessors say that out loud rather
+  // than re-reading the namespace on trust, and they throw at the same moment the property
+  // access used to - when the action is opened, not when the registry is built.
+  /** @returns {import("../../../src/types/browser-contracts.js").BrowserNotesDialog} */
+  function requireNotesDialog() {
+    const notesDialog = namespace.notesDialog;
+
+    if (!notesDialog) {
+      throw new Error("The Notes dialog is required to open this module action.");
+    }
+
+    return notesDialog;
+  }
+
+  /** @returns {import("../../../src/types/browser-contracts.js").BrowserListsDialog} */
+  function requireListsDialog() {
+    const listsDialog = namespace.listsDialog;
+
+    if (!listsDialog) {
+      throw new Error("The Lists dialog is required to open this module action.");
+    }
+
+    return listsDialog;
+  }
+
   /**
    * Scripts a host page must load before the named action can be opened, in the order
    * they must run.
@@ -145,7 +172,7 @@
       recordType: "note",
       requiredModules: ["notes"],
       requiredPermissions: ["notes.create"],
-      open: (params, hostContext) => namespace.notesDialog.openNoteEditor({ ...params, mode: "add" }, hostContext),
+      open: (params, hostContext) => requireNotesDialog().openNoteEditor({ ...params, mode: "add" }, hostContext),
     },
     {
       id: "notes.edit",
@@ -156,7 +183,7 @@
       recordType: "note",
       requiredModules: ["notes"],
       requiredPermissions: ["notes.view"],
-      open: (params, hostContext) => namespace.notesDialog.openNoteEditor({ ...params, mode: "edit" }, hostContext),
+      open: (params, hostContext) => requireNotesDialog().openNoteEditor({ ...params, mode: "edit" }, hostContext),
     },
     {
       id: "notes.view",
@@ -167,7 +194,7 @@
       recordType: "note",
       requiredModules: ["notes"],
       requiredPermissions: ["notes.view"],
-      open: (params, hostContext) => namespace.notesDialog.openNoteViewer(params, hostContext),
+      open: (params, hostContext) => requireNotesDialog().openNoteViewer(params, hostContext),
     },
     {
       id: "lists.add",
@@ -178,7 +205,7 @@
       recordType: "list",
       requiredModules: ["lists"],
       requiredPermissions: ["lists.create"],
-      open: (params, hostContext) => namespace.listsDialog.openListEditor({ ...params, mode: "add" }, hostContext),
+      open: (params, hostContext) => requireListsDialog().openListEditor({ ...params, mode: "add" }, hostContext),
     },
     {
       id: "lists.edit",
@@ -189,7 +216,7 @@
       recordType: "list",
       requiredModules: ["lists"],
       requiredPermissions: ["lists.view"],
-      open: (params, hostContext) => namespace.listsDialog.openListEditor({ ...params, mode: "edit" }, hostContext),
+      open: (params, hostContext) => requireListsDialog().openListEditor({ ...params, mode: "edit" }, hostContext),
     },
     {
       id: "projects.add",

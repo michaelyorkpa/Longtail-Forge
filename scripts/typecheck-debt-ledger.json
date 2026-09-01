@@ -478,7 +478,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8866,
+      "errorCount": 8856,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -813,7 +813,7 @@
           },
           {
             "code": 2339,
-            "count": 10
+            "count": 8
           },
           {
             "code": 2345,
@@ -1075,7 +1075,7 @@
           },
           {
             "code": 2339,
-            "count": 523
+            "count": 522
           },
           {
             "code": 2345,
@@ -1351,7 +1351,7 @@
           },
           {
             "code": 18046,
-            "count": 17
+            "count": 12
           },
           {
             "code": 2322,
@@ -1727,7 +1727,7 @@
           },
           {
             "code": 2339,
-            "count": 501
+            "count": 499
           },
           {
             "code": 2345,
@@ -2805,7 +2805,7 @@
   },
   "totals": {
     "files": 1059,
-    "errors": 8866,
+    "errors": 8856,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
