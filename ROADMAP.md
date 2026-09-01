@@ -364,13 +364,34 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **That field is page-local state and belongs to `0.33.33.40`.** It is not a hand-written copy of this contract - unlike `notes.js:410`, which `0.33.33.38.2.2.6.5` legitimately replaced - so typing it here would be `0.33.33.40`'s work done early and counted against the wrong owner. **Land this when Notes state is typed, or with `0.33.33.40`'s explicit agreement to take the two annotations.**
 - [ ] The member stays in `0.33.33.38.2.4.3`'s undeclared backlog until then, which is the point of the backlog being asserted by identity.
 
-#### 0.33.33.38.2.2.6.6 - The wire-exposed surfaces, one return trace each
+#### 0.33.33.38.2.2.6.6.1 - `LongtailForge.notificationSubscriptions`
 
-**8 surfaces with at least one published member that reaches the network: `notificationSubscriptions` (3 of 5), `notificationPreferences` (3 of 8), `taskCalendar` (1 of 9), `taskResumeNoteCapture` (2 of 2), and `tasksDialog`, `timeEntryDialog`, `timeTrackingTimerDialog`, `getWorkspaceProjectsLabel` (1 of 1 each).**
+**Reassigned to `0.33.33.38.4` in all but name: three of its five members return an API body its consumers read immediately.**
 
-- [ ] **Reaching the network is not the blocker; returning unvalidated wire data is.** `timezones` fetches and publishes only constructed values, which is why it is `0.33.33.38.2.2.6.2` and not here. **Trace each network-touching member's returns before grouping any of these**, and expect the answer to differ within a single surface.
-- [ ] **A surface may split by member.** `taskCalendar` is eight pure members and one fetch; `notificationPreferences` is five and three. **Nothing requires a child to take a whole surface** if the contract divides cleanly.
-- [ ] **This is a holding pen with a shared question, not a plan.** Do not draw a cohort from it until at least one member has been traced end to end.
+`taskTarget` and `noteTarget` construct a target descriptor and are declarable today. `follow`, `unfollow` and `readStatus` return `LongtailForge.api` results, and the honest type for those is `Promise<unknown>` - **but `unknown` here would not be an intentional opaque contract.** Declaring it exposed five `TS18046` reads in `notes.js` and `task-dialog.js` where consumers destructure the result immediately, and four root-optionality reads besides.
+
+- [ ] **The surface cannot land in `0.33.33.38.2` because a truthful declaration transfers work rather than closing it.** The estate's rule is that a top-level declaration must cover every runtime member, so the two constructed members cannot land alone.
+- [ ] **`0.33.33.38.4` owns the subscription-status body**, and this surface becomes declarable in one step once that body has a contract.
+
+#### 0.33.33.38.2.2.6.6.2 - `LongtailForge.notificationPreferences`
+
+**Eight members, six constructed and two returning a raw body.** `loadPreferences` builds its result locally, the three `read*Payload` members construct from the DOM, and the two `render*` members return nothing - but `saveUserPreferences` and `saveWorkspaceDefaults` both `return body` straight from the API.
+
+- [ ] **Trace the two `body` returns against their consumers before choosing.** If callers read fields immediately this is `0.33.33.38.4`'s work like `.6.6.1`; if they ignore the result, `Promise<unknown>` is the intentional contract and the whole surface lands here.
+
+#### 0.33.33.38.2.2.6.6.3 - The dialog surfaces
+
+**`tasksDialog`, `timeEntryDialog` and `timeTrackingTimerDialog` - and the roadmap's member counts for the first two were wrong.** `tasksDialog` publishes `taskDialogApi` with **eight or more** members (`configure`, `open`, `openAdd`, `openEdit`, `openTaskEditor`, `pollRecurrenceContinuity`, `recurrenceContinuityMessage`, `renderRecurrenceContinuity`), and `timeEntryDialog` publishes **three** (`configure`, `openAdd`, `openEdit`); only `timeTrackingTimerDialog` is the single member this section claimed. **The counts were planning evidence and the inventory disagrees with them.**
+
+- [ ] **`0.33.33.38.2.2.6.5` already proved the opaque-result case is real**: `notesDialog` and `listsDialog` resolve `hostContext.result || result` and `Promise<unknown>` is their intentional contract. Test the same question here per member rather than per surface.
+- [ ] The non-opener members - `configure`, the recurrence helpers - are the likelier easy half; do not let an opener's result question block them if the surface can be declared whole.
+
+#### 0.33.33.38.2.2.6.6.4 - `LongtailForge.taskCalendar`
+
+**Eight constructed members, one that returns a parsed body, and a blocker that is not in this file.** `addDays`, `calendarRange`, `dateKeyOf`, `normalizeCalendarView`, `parseDateKey`, `readPreferredCalendarView`, `renderCalendarBody` and `resolveDefaultView` are all locally constructed - `readPreferredCalendarView` reads `userPreferences.preferredCalendarView` but **returns it through `normalizeCalendarView`**, so its output is a checked member of a known set rather than the wire value.
+
+- [ ] **`fetchCalendarWindow` returns `dashboardBootstrap.loadRoute(route)` or `response.json()`.** The first is already declared `Promise<unknown>`, so that is the honest type for both branches and the surface could be declared whole.
+- [ ] **The blocker is `public/js/calendar.js:44`, which initialises `data: null` in a state object literal** - the `0.33.33.38.2.2.6.5.1` pattern exactly. `calendarState.data = await fetchCalendarWindow(...)` then fails because nothing is assignable to `null`. That field is page-local state owned by `0.33.33.44`, and it is not a copy of this contract.
 
 #### 0.33.33.38.2.3 - Close declaration coverage for the quiet tail
 

@@ -1,5 +1,50 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.6.6 - The wire-exposed surfaces, one return trace each
+
+**Model: Medium Effort** - eight surfaces were traced member by member, two were declarable, and the four that were not are now four children with named blockers rather than one section with a wrong member count.
+
+- [x] **Network contact stopped being a proxy for dynamic typing, and the traces prove it both ways.** `taskResumeNoteCapture` reaches the network in both members and is **declared here**, because every branch returns an outcome the file builds. `notificationSubscriptions` reaches the network in three members and is **not**, because those three hand back an API body its consumers read immediately. **The same transport, opposite conclusions.**
+- [x] **`taskResumeNoteCapture` returns a constructed shape with an unconstructed payload, and the declaration says exactly that.** `consumed`/`captured` and `reason` are the file's own, while `task` is a record that arrived from the network unvalidated and `error` is a caught value - so those two are `unknown` in a named field rather than spread through the result. **Genuine `unknown` is 378 either side**: nothing new was opened.
+- [x] **Two of the declarations were stronger than the code and the compiler said so.** `reason` and the subscription target's `moduleId`/`targetType` were written as literal unions; an object-literal property **widens to `string`**, so the writers produce `string` and the unions were a claim the code does not make. Relaxed to what the writer returns.
+- [x] **A required member is not the same as a declared one.** `getWorkspaceProjectsLabel` was first written without `?`, which made `{}` stop being assignable to the namespace and produced **184 new diagnostics across the estate** - every `const namespace = window.LongtailForge || {}` in the tree. One character.
+- [x] **Governance had a blind spot and this child fell into it.** `declaredNamespaceMembers` matched only `name?:` property syntax, so `getWorkspaceProjectsLabel?(name): string` was published, declared, and **still reported as undeclared**. The estate writes every member property-style, which is why nothing had noticed. The member is now property-style *and* the parser accepts both, so the convention no longer has to hold for coverage to be true.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,856 | **8,846** |
+| Namespace surface family | 372 | **366** |
+| Assorted | 167 | **163** |
+| params / state / dom / genuine `unknown` | 4,632 / 1,823 / 1,484 / 378 | **all unchanged** |
+| `0.33.33.39` / `.41` / `.43` / `.44` | 1,776 / 1,221 / 977 / 1,583 | **1,775 / 1,220 / 976 / 1,582** |
+| Declared members | 34 | **36** |
+| Undeclared backlog | 29 | **27** |
+| Bare-root reads | 119 | **119** |
+| Root reads parked behind undeclared members | 48 | **48** |
+| Runtime files changed | - | **0** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**Ten eliminations and no transfers, and four of them left `0.33.33.39`-`.44` budgets.** Six are `TS2339` namespace-family reads of `taskResumeNoteCapture`'s members - one each in `task-dialog.js` and `tasks.js`, four in `workbench.js`. **The other four are `TS2349`, which is assorted**, and they are the interesting ones: `getWorkspaceProjectsLabel` was being *called* through the namespace index signature, so every call site read "this expression is not callable". Declaring the member as a function made all four valid.
+
+| Owner | File | Before | After |
+| --- | --- | ---: | ---: |
+| `0.33.33.39` | `shared/client-project-options.js` | 1,776 | **1,775** |
+| `0.33.33.41` | `tasks.js` | 1,221 | **1,220** |
+| `0.33.33.43` | `clients-projects.js` | 977 | **976** |
+| `0.33.33.44` | `time-tracking-reporting.js` | 1,583 | **1,582** |
+
+**These are genuine eliminations, not transfers**: the diagnostics ceased to exist because a callable member became callable, and no owner absorbed anything. Assorted falls 167 to 163 and the four budgets fall by one each, which is the only arithmetic that reconciles.
+
+**An earlier draft of this entry claimed no owner budget changed, and that claim was made without looking.** The closing check grepped the classifier's family line and never printed the owner table beneath it - the six-line answer was sitting in the same command's output. `0.33.33.38.2.4.2` exists precisely so this number cannot be guessed, and guessing it anyway is the failure the instrument was built to prevent. **A number that reconciles is not the same as a number that was read.**
+
+The backlog shrank by exact identity: `getWorkspaceProjectsLabel` and `taskResumeNoteCapture`.
+
+**The section's own member counts were wrong and the inventory is what caught them.** `tasksDialog` publishes eight or more members where the roadmap said one, and `timeEntryDialog` three. Those counts had been carried since the surface was first sized by reading files.
+
+**`.6.6` was resliced rather than forced.** Four children now carry the four different reasons the remaining surfaces cannot land: an API body consumers read (`.1`), two raw-body returns needing a consumer trace (`.2`), a dialog cohort whose real membership was mis-sized (`.3`), and eight clean members blocked by one `data: null` in `calendar.js` (`.4`).
+
 ## Version 0.33.33.38.2.2.6.5 - The narrow pure surfaces
 
 **Model: Medium Effort** - six surfaces were listed, four were declarable, and finding out which was most of the work.
