@@ -379,12 +379,13 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 - [ ] **Trace the two `body` returns against their consumers before choosing.** If callers read fields immediately this is `0.33.33.38.4`'s work like `.6.6.1`; if they ignore the result, `Promise<unknown>` is the intentional contract and the whole surface lands here.
 
-#### 0.33.33.38.2.2.6.6.3 - The dialog surfaces
+#### 0.33.33.38.2.2.6.6.3.1 - `LongtailForge.tasksDialog`
 
-**`tasksDialog`, `timeEntryDialog` and `timeTrackingTimerDialog` - and the roadmap's member counts for the first two were wrong.** `tasksDialog` publishes `taskDialogApi` with **eight or more** members (`configure`, `open`, `openAdd`, `openEdit`, `openTaskEditor`, `pollRecurrenceContinuity`, `recurrenceContinuityMessage`, `renderRecurrenceContinuity`), and `timeEntryDialog` publishes **three** (`configure`, `openAdd`, `openEdit`); only `timeTrackingTimerDialog` is the single member this section claimed. **The counts were planning evidence and the inventory disagrees with them.**
+**Split out of `0.33.33.38.2.2.6.6.3`, which declared its two sibling dialogs and could not take this one.** The contract is fully derived and ready: eight members - `configure`, `open`, `openAdd`, `openEdit`, `openTaskEditor`, `pollRecurrenceContinuity`, `recurrenceContinuityMessage`, `renderRecurrenceContinuity` - with the four openers resolving `dialog.returnValue || "closed"` and `pollRecurrenceContinuity` returning an opaque continuity token its two sibling members consume.
 
-- [ ] **`0.33.33.38.2.2.6.5` already proved the opaque-result case is real**: `notesDialog` and `listsDialog` resolve `hostContext.result || result` and `Promise<unknown>` is their intentional contract. Test the same question here per member rather than per surface.
-- [ ] The non-opener members - `configure`, the recurrence helpers - are the likelier easy half; do not let an opener's result question block them if the surface can be declared whole.
+- [ ] **The blocker is `public/js/tasks.js`, not this surface.** Declaring `tasksDialog` gives `action.behavior` a `string` type where it was `any`, and `TASK_LIFECYCLE_BEHAVIOR_HANDLERS[action.behavior]` then cannot index its own frozen record - **four `TS7053` in `tasks.js`, all page-local state owned by `0.33.33.41`.** Its two sibling dialogs caused none.
+- [ ] **This is the `0.33.33.38.2.2.6.5.1` pattern with a different shape**: not a state field inferred too narrowly, but a closed record indexed by a key the declaration made precise. Neither is a copy of this contract, so neither belongs here.
+- [ ] Land it with `0.33.33.41`, or once that record carries a key type. The member stays in `0.33.33.38.2.4.3`'s backlog until then.
 
 #### 0.33.33.38.2.2.6.6.4 - `LongtailForge.taskCalendar`
 
