@@ -45,9 +45,9 @@ check("shared registry exposes first-party Notes, Lists, and Files actions", () 
     "files.edit",
     "files.preview",
   ].forEach((actionId) => assert.match(moduleActions, new RegExp(`id: "${escapeRegExp(actionId)}"`)));
-  assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
-  assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.notesDialog\.openNoteViewer\(params, hostContext\)/);
-  assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.listsDialog\.openListEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
+  assert.match(moduleActions, /open: \(params, hostContext\) => (?:namespace\.notesDialog|requireNotesDialog\(\))\.openNoteEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
+  assert.match(moduleActions, /open: \(params, hostContext\) => (?:namespace\.notesDialog|requireNotesDialog\(\))\.openNoteViewer\(params, hostContext\)/);
+  assert.match(moduleActions, /open: \(params, hostContext\) => (?:namespace\.listsDialog|requireListsDialog\(\))\.openListEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
   assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.filesDialog\.openFileEditorAction\(params, hostContext\)/);
   assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.filePreview\.openFilePreviewAction\(params, hostContext\)/);
   assert.match(moduleActions, /moduleId === "framework"/);
