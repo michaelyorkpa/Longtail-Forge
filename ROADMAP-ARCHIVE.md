@@ -1,5 +1,47 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.6.8 - `LongtailForge.dashboard`
+
+**Model: Medium Effort** - one member, nine diagnostics, and the first surface in the estate whose declaration is checked against its own writer.
+
+- [x] **The four-checkpoint block was correct, and `0.33.33.38.2.4.4` is what retired it.** This child waited on `0.33.33.38.2.4` because the surface was published by spread-merge, which reads as an invitation to other publishers - and declaring the one member that happened to exist would have frozen an anticipated extension point into a closed contract. **That was the right call on the evidence then.** What settled it was archaeology: the spread assigned a new object every time so it never preserved identity for a captured reference, the registry it appeared to protect is a file-local closure, and the file publishes once from one call behind the ES-module bridge. Re-derived here from the live inventory: **one writer, one publication occurrence, one nested member, no consumer extends it.**
+- [x] **The writer now constructs its API object against the contract, and that closes the `0.33.33.38.2.2.6.3` finding for this surface.** That child proved two negatives: deleting a member from a declared surface stayed green, because a TypeScript object type is not exact; and a false return type stayed green, because the writer was inferred through `any`. **An annotated object literal fixes both** - `/** @type {BrowserDashboard} */ const dashboardApi = { ... }` is checked in both directions at its construction point, and the estate already uses `@type` on declarations, so no new machinery was needed.
+
+Proved by breaking it, and the results are not uniform:
+
+| Break | Caught? |
+| --- | --- |
+| Runtime member removed | **yes** - `TS2741: Property 'registerPanelRenderer' is missing in type '{}' but required in type 'BrowserDashboard'` |
+| Extra runtime member added | **yes** - `TS2353: Object literal may only specify known properties` |
+| Declaration disagrees with the writer's signature | **yes** - `TS2322` at the API object |
+| The **only** declared member removed | **at the consumers, not the writer** - an emptied interface is `{}`, which accepts anything; the nine consumer call sites fail instead |
+
+- [x] **The first attempt at the signature break passed, and the test was wrong rather than the linkage.** Changing `DashboardPanelRenderer` moved *both* sides at once, because the declaration and the writer reference the same alias. A real disagreement had to be introduced on one side only.
+- [x] **The `any` leak was the declared member's own implementation.** `registerDashboardPanelRenderer`'s parameters were implicit `any`, so a wrong contract was assignable and the linkage passed a break it should have caught. Typing them from the declaration is the same act as annotating the object - not unrelated debt - and it closed the leak. **It also eliminated two `0.33.33.44` parameter diagnostics**, which is a genuine budget movement and is recorded as one below.
+
+**Two consumers acquire the surface at load and fail differently on purpose, and both were left exactly as they are.** `tasks-dashboard.js` **throws** - the Tasks dashboard cannot render without the registry - while `time-tracking-dashboard.js` **returns**, because its panels are an optional contribution to a dashboard that renders without them. Both check `registerPanelRenderer` rather than the surface. Nothing was standardised.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,839 | **8,828** |
+| Namespace surface family | 359 | **350** |
+| Unannotated parameters | 4,632 | **4,630** |
+| state / dom / genuine `unknown` / assorted | 1,823 / 1,484 / 378 / 163 | **all unchanged** |
+| `0.33.33.44` remaining page controllers | 1,582 | **1,580** |
+| `0.33.33.39` / `.40` / `.41` / `.42` / `.43` | 1,775 / 534 / 1,220 / 531 / 976 | **unchanged** |
+| Declared members | 38 | **39** |
+| Undeclared backlog | 25 | **24** |
+| Bare-root reads / parked | 118 / 43 | **118 / 43** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**Eleven eliminations and no transfers.** Nine are `TS2339` reads of `registerPanelRenderer` in the two consumers - namespace family - and two are the `TS7006` implicit parameters of the member's own implementation, which belonged to `0.33.33.44`. **Both owner tables were printed and compared in full rather than summarised**, which is now the operating procedure. `4,630 + 1,823 + 163 = 6,616` reconciles against the six owners exactly.
+
+The backlog shrank by exact identity: `dashboard`.
+
+**The `0.33.33.38.2.2.6.3` finding is not closed generally.** This pattern works, costs one named `const` and a JSDoc block, and needs no new tooling - but the estate's other declared surfaces are still connected to their writers only by the derivation being done honestly. **Whether that becomes a governance child before `0.33.33.38.2.5` is a scope decision, not a technical one**: the pattern is proven, the retrofit is mechanical, and the catch-all cannot be removed on a belief about completeness that only one surface currently earns.
+
 ## Version 0.33.33.38.2.2.6.6.3 - The dialog surfaces
 
 **Model: Medium Effort** - the child that was expected to reuse an `unknown` precedent and found the precedent did not apply.

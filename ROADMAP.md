@@ -344,18 +344,6 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Preflight each child writer-first and do not promise a child from a sibling's clearance.** Two members published by the same writer share a risk profile; two members with the same diagnostic count share nothing.
 - [ ] **The 78 class-E root diagnostics resolve as their members are declared**, and they are not separate work. `0.33.33.38.2.6` closed declared-member root debt to zero; these are the parked half, and they drain child by child.
 
-#### 0.33.33.38.2.2.6.8 - `LongtailForge.dashboard`
-
-**UNBLOCKED by `0.33.33.38.2.4.4`. 1 published member from a single writer, published by plain replacement.**
-
-**The block was correct and its answer was that the spread meant nothing.** This child was held because `{ ...(namespace.dashboard || {}), ... }` read the existing member before writing, which is the shape a surface takes when it expects to be extended - and declaring the one member that happens to exist would have frozen an anticipated extension point into a closed contract. `0.33.33.38.2.4.4` settled it by archaeology rather than assumption: **the comment claimed the spread protected references captured at load, but a spread assigns a new object and never provided that identity**, and the registry it appeared to defend is a file-local closure that a re-evaluation would rebuild empty regardless. The spread is gone.
-
-`dashboard.js` now writes `namespace.dashboard = { registerPanelRenderer }`.
-
-- [ ] **Declare one member against a closed contract.** There is one writer, one call site, one delivery through the ES-module bridge, and no additive record - so a closed interface is now the truthful shape rather than an assumption about extensibility.
-- [ ] **`registerPanelRenderer` takes a renderer id and a function**, and two consumers - `tasks-dashboard.js` and `time-tracking-dashboard.js` - capture the surface at load and register immediately, one throwing and one returning when it is absent. **Preserve both failure modes**; they are different on purpose.
-- [ ] **The surface carries zero diagnostics**, so this is declaration coverage rather than debt reduction. It shrinks `0.33.33.38.2.4.3`'s undeclared backlog by exact identity when it lands.
-
 #### 0.33.33.38.2.2.6.5.1 - `LongtailForge.fileAttachments`
 
 **Split out of `0.33.33.38.2.2.6.5`, which declared the other four surfaces and could not take this one.** The contract itself is ready: `mount(container, options)` **throws** when it has no container, returns a `{ destroy, refresh }` controller, and its `refresh` fetches but resolves nothing - the same shape `notesLinkedPanel` was declared with, and the same reason `timezones` was declarable. **`BrowserMountedPanel` already exists and this surface will reuse it.**

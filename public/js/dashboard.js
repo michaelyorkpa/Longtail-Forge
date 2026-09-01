@@ -177,11 +177,28 @@
     // `dashboardPanelRenderers`, a file-local closure, so a re-evaluation would start empty
     // whether the members were carried over or not. This file publishes once, from one call.
     const namespace = window.LongtailForge = window.LongtailForge || {};
-    namespace.dashboard = {
+    // Annotated rather than merely assigned, so the compiler checks this object against the
+    // contract at its construction point. `0.33.33.38.2.2.6.3` found that a declaration alone
+    // proves nothing about its writer: deleting a member from a declared surface stayed green,
+    // because a TypeScript object type is not exact and an extra runtime property is ignored.
+    // An annotated object literal is checked both ways - a missing member fails, and an excess
+    // one fails the object-literal check - which is the cheapest linkage the estate already has.
+    /** @type {import("../../src/types/browser-contracts.js").BrowserDashboard} */
+    const dashboardApi = {
       registerPanelRenderer: registerDashboardPanelRenderer,
     };
+
+    namespace.dashboard = dashboardApi;
   }
 
+  /**
+   * The implementation of `LongtailForge.dashboard.registerPanelRenderer`. Its parameters carry
+   * the declared contract so the annotation on `dashboardApi` has something to check: with
+   * implicit `any` here, a wrong renderer type in the declaration was assignable and the
+   * linkage passed a break it should have caught.
+   * @param {unknown} rendererId
+   * @param {import("../../src/types/browser-contracts.js").DashboardPanelRenderer} renderer
+   */
   function registerDashboardPanelRenderer(rendererId, renderer) {
     const normalizedRendererId = String(rendererId || "").trim();
 

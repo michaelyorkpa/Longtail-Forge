@@ -4006,7 +4006,7 @@ const declarationCoverage = collectDeclarationCoverage({});
 
 // A - PUBLISHED SURFACE WITHOUT DECLARATION.
 //
-// Twenty-five members are published with no contract. **This is a backlog, not an
+// Twenty-four members are published with no contract. **This is a backlog, not an
 // allowance**: it names every one of them exactly, and it is asserted by identity rather than
 // by count, so a new undeclared publication fails immediately *and* an entry that has since
 // been declared fails until it is struck. A count-based allowance would let a declared member
@@ -4016,7 +4016,6 @@ const declarationCoverage = collectDeclarationCoverage({});
 // The list shrinks as those land; it may never grow without a deliberate edit here.
 const UNDECLARED_PUBLICATION_BACKLOG = [
   "clientProjectDialog",
-  "dashboard",
   "fileAttachments",
   "filePreview",
   "filesDialog",
@@ -4154,7 +4153,7 @@ assert.doesNotMatch(
 assert.equal(declarationCoverage.uniqueSurfaces, 65, "unique publication surfaces");
 assert.equal(declarationCoverage.publicationOccurrences, 68, "publication occurrences, which exceed unique surfaces");
 assert.equal(declarationCoverage.knownMembers.length, 63, "known LongtailForge members, which are not all governed surfaces");
-assert.equal(declarationCoverage.declaredMembers.length, 38, "declared LongtailForge members");
+assert.equal(declarationCoverage.declaredMembers.length, 39, "declared LongtailForge members");
 assert.equal(declarationCoverage.publishedMembers.length, 63, "LongtailForge members with a runtime writer");
 assert.ok(
   declarationCoverage.publicationOccurrences > declarationCoverage.uniqueSurfaces,
@@ -4396,7 +4395,10 @@ assert.equal(
 // inert fails here rather than silently re-entering the estate as an undisposed additive.
 /** @type {readonly [string, RegExp][]} */
 const REPLACEMENT_PUBLICATIONS = [
-  ["public/js/dashboard.js", /namespace\.dashboard = \{\s*\n\s*registerPanelRenderer/],
+  // `0.33.33.38.2.2.6.8` gave the surface a declaration, so the object is now built as an
+  // annotated `dashboardApi` const and then assigned. The claim is that nothing spreads the
+  // previous value, not which of the two shapes the file uses to say so.
+  ["public/js/dashboard.js", /(?:namespace\.dashboard|const dashboardApi) = \{\s*\n\s*registerPanelRenderer/],
   ["public/js/reporting.js", /namespace\.reporting = \{\s*\n\s*registerRenderer/],
   ["public/js/files.js", /window\.LongtailForge\.filesDialog = Object\.freeze\(\{\s*\n\s*openFileEditor/],
   ["public/js/notes.js", /window\.LongtailForge\.notesDialog = Object\.freeze\(\{\s*\n\s*\.\.\.notesDialogApi/],
