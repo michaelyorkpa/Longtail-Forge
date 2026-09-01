@@ -356,14 +356,13 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **`registerPanelRenderer` takes a renderer id and a function**, and two consumers - `tasks-dashboard.js` and `time-tracking-dashboard.js` - capture the surface at load and register immediately, one throwing and one returning when it is absent. **Preserve both failure modes**; they are different on purpose.
 - [ ] **The surface carries zero diagnostics**, so this is declaration coverage rather than debt reduction. It shrinks `0.33.33.38.2.4.3`'s undeclared backlog by exact identity when it lands.
 
-#### 0.33.33.38.2.2.6.5 - The narrow pure surfaces
+#### 0.33.33.38.2.2.6.5.1 - `LongtailForge.fileAttachments`
 
-**6 surfaces publishing 11 members between them, none reaching the network: `notesEditor` (6 members), `fileAttachments`, `listsDialog`, `notesDialog`, `notesLinkedPanel`, and `userPreferences` (1 each).**
+**Split out of `0.33.33.38.2.2.6.5`, which declared the other four surfaces and could not take this one.** The contract itself is ready: `mount(container, options)` **throws** when it has no container, returns a `{ destroy, refresh }` controller, and its `refresh` fetches but resolves nothing - the same shape `notesLinkedPanel` was declared with, and the same reason `timezones` was declarable. **`BrowserMountedPanel` already exists and this surface will reuse it.**
 
-- [ ] **Four of these are published by page controllers with heavy parameter debt** - `notes.js` 192, `lists.js` 176, `shared/file-attachments.js` 132, `navigation.js` 65 - owned by `0.33.33.40` through `.44`. **`icons` proved that debt is usually independent and `settingsRenderer` proved it sometimes is not**, so probe per writer rather than per cohort.
-- [ ] **Their combined namespace debt is small**; the value here is declaration coverage rather than diagnostic reduction, which is the honest reason to run it late.
-- [ ] **`notesDialog` and `listsDialog` are unblocked by `0.33.33.38.2.4.4`**, which removed the read-before-write spread from both. Each has one writer and two delivery paths - a classic script on its own page and a `module: true` module-action dependency - but the descriptor names a readiness probe on the surface and member, so the second load never happens and the spread preserved nothing. **Declare them against closed contracts**, and expect the delivery story, not the publication form, to be the interesting part: `notes.js` publishes five members through `notesDialogApi` and `lists.js` three.
-- [ ] **`userPreferences` is not a pure surface and the earlier grouping was wrong about it.** It is published **inside an async bootstrap, after `await response.json()`**, and its single member is `shell.user?.preferredCalendarView || null` - **an unvalidated wire field with a fallback, not a constructed value.** A truthful declaration is therefore a `0.33.33.38.4` question, and its **lazy publication is a second question**: the surface is absent until that request resolves. **`notesEditor` and `notesLinkedPanel` are the only two here that are clean today**, and between them they carry one root diagnostic.
+- [ ] **The blocker is not this surface, it is where Notes keeps its controller.** `public/js/notes.js:151` initialises `attachmentController: null` inside a state object literal, so TypeScript infers the property as `null` and **nothing is assignable to it**. Declaring `mount`'s return therefore fails at `notes.js:4105` and `4229` until that state field carries a type. `task-dialog.js` holds the same controller in a bare `let` and needed no change at all, which is what isolates the cause.
+- [ ] **That field is page-local state and belongs to `0.33.33.40`.** It is not a hand-written copy of this contract - unlike `notes.js:410`, which `0.33.33.38.2.2.6.5` legitimately replaced - so typing it here would be `0.33.33.40`'s work done early and counted against the wrong owner. **Land this when Notes state is typed, or with `0.33.33.40`'s explicit agreement to take the two annotations.**
+- [ ] The member stays in `0.33.33.38.2.4.3`'s undeclared backlog until then, which is the point of the backlog being asserted by identity.
 
 #### 0.33.33.38.2.2.6.6 - The wire-exposed surfaces, one return trace each
 
@@ -404,6 +403,11 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] The declared-null caches are a different shape from a lookup result and may need a different answer; measure them separately rather than forcing one helper over both.
 
 #### 0.33.33.38.4 - Publish narrowing contracts for the genuine dynamic boundaries
+
+**`LongtailForge.userPreferences` is owned here, moved out of `0.33.33.38.2.2.6.5` by that child's preflight.** It was listed as a narrow pure surface and it is neither. `public/js/navigation.js` publishes it **inside an async bootstrap, after `await response.json()`**, and its single member is `shell.user?.preferredCalendarView || null` - **an unvalidated wire field with a fallback.** The fallback does not make the non-null value trustworthy: nothing checks that the server sent one of the three views the page can render, so a closed string union would be a claim about the API that no code makes. **Do not declare it as one, do not cast it, and do not widen it to `string` to make the shape look settled.**
+
+Its **lazy publication is a second contract question and belongs here too**: the surface does not exist until that request resolves, so every consumer sees it as genuinely absent for part of the page's life. That is optionality with a cause, not the ordinary namespace optionality `0.33.33.38.2.6` adopts.
+
 
 **Corrected to 379 by `0.33.33.38.2.2.6.1`, and the 29 that left were never this checkpoint's.** The attributor resolved a diagnostic's subject by spelling: `'namespace.timezones' is of type 'unknown'` names a member through the IIFE's own root alias, the resolver reports that alias as no member at all, and the diagnostic fell through to the `unknown` family. **29 diagnostics across twelve members were counted here that are undeclared-member namespace symptoms.** The family did not move when `capturePrompt` landed - it was 379 before and after - and the appearance that it had was the instrument.
 
