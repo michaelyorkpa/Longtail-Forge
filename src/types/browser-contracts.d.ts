@@ -1662,6 +1662,46 @@ export interface BrowserListsDialog {
   openListEditor(params?: unknown, hostContext?: unknown): Promise<unknown>;
 }
 
+/**
+ * What `taskResumeNoteCapture.consume` resolves: a locally built outcome, never a wire body.
+ *
+ * **The shape is constructed and the payload is not.** Every branch of the implementation
+ * returns an object literal assembled here - but `reason` widens to `string` the way any
+ * object-literal property does, and `task`
+ * is a task record that reached this file from the network without validation, and `error` is
+ * a caught value. Those two stay `unknown` because that is what they are; narrowing a task
+ * record is `0.33.33.38.4`'s work.
+ */
+export interface TaskResumeNoteConsumeResult {
+  consumed: boolean;
+  /** Present only on the error branch. */
+  error?: unknown;
+  reason?: string;
+  task?: unknown;
+}
+
+/** What `taskResumeNoteCapture.offer` resolves. Constructed on every branch, like `consume`. */
+export interface TaskResumeNoteOfferResult {
+  captured: boolean;
+  /** Present only on the error branch. */
+  error?: unknown;
+  reason?: string;
+  task?: unknown;
+}
+
+/**
+ * `LongtailForge.taskResumeNoteCapture`, published by `public/js/task-resume-note-capture.js`.
+ *
+ * Offers the resume-note prompt when a task is resumed, and consumes the note the prompt
+ * captured. **Both members reach the network and neither returns a wire body**: each resolves
+ * an outcome this file builds, with the untrusted task record carried in one named field
+ * rather than spread through the result.
+ */
+export interface BrowserTaskResumeNoteCapture {
+  consume(options?: unknown): Promise<TaskResumeNoteConsumeResult>;
+  offer(options?: unknown): Promise<TaskResumeNoteOfferResult>;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
@@ -1674,6 +1714,7 @@ export interface LongtailForgeBrowserNamespace {
   errors?: BrowserErrorContract;
   esModuleBridge?: BrowserEsModuleBridge;
   formatters?: BrowserFormatters;
+  getWorkspaceProjectsLabel?: (workspaceName?: unknown) => string;
   icons?: BrowserIcons;
   listsDialog?: BrowserListsDialog;
   modal?: BrowserModalDialogs;
@@ -1706,6 +1747,7 @@ export interface LongtailForgeBrowserNamespace {
   settingsHost?: BrowserSettingsHost;
   settingsPageController?: BrowserSettingsPageController;
   status?: BrowserStatusMessage;
+  taskResumeNoteCapture?: BrowserTaskResumeNoteCapture;
   timezones?: BrowserTimezones;
   /**
    * The frozen view factory, written by `view-builder.js` and extended by `view-renderer.js`.
