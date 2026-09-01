@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.6.5.1 - `LongtailForge.fileAttachments`
+
+**Model: Medium Effort** - the child that cashed `0.33.33.40.1`'s prerequisite, and nearly recorded a false finding on the way.
+
+- [x] **The preflight arithmetic was imprecise and the reproduction says so exactly.** It reported "three closed and exactly one new" against 8,820 to 8,817, which does not add up. Reproduced from the clean tree: **four eliminated, one introduced.** Three are `TS2339 Property 'mount' does not exist on type '{}'` in `notes.js` and `task-dialog.js`; the fourth is a `TS18046` at `notes.js:4254` that the introduced `TS18048` **replaces at the same position** - a code movement inside the namespace family, not a fresh diagnostic. So the total was right and the sentence was wrong.
+- [x] **Five option callbacks looked dead and were not.** `emptyMessage`, `onAttachmentAdded`, `onUploadFailed` and their siblings return nothing from a text search of the writer, and the draft archive entry said so. **They are read through a computed key**: `emit` builds `` `on${Name}` `` from the event it raises, so eleven named callbacks exist that no search for their names can find. Only `emptyMessage` is genuinely accepted-and-unread, and it is declared rather than omitted because omitting it fails an excess-property check on a call the runtime accepts today.
+- [x] **One listener type was wrong for the same reason `ModuleActionHostOptions` was.** A single `(detail?: unknown) => void` looked tidy, but `task-dialog.js` destructures `{ error }` from the upload-failure detail and a destructuring callback cannot accept `unknown`. **The eleven events do not share a detail shape**, so each listener now carries the shape its own `emit` site supplies - which is more truthful and **eliminated three implicit-`any` parameters in `task-dialog.js`**.
+- [x] **`container` admits `null` because that is what the runtime accepts and rejects.** `mount` throws on a falsy container, and `notes.js` holds its editor element as `Element | null` behind a guard. Declaring `HTMLElement` would have forced a consumer that already guards to narrow again for the declaration's convenience.
+- [x] **Writer conformance came free, exactly as `0.33.33.38.2.4.5` predicted.** `namespace.fileAttachments = { mount }` is a direct object literal assigned to a typed property, so it is checked both ways with no added ceremony: dropping `mount` fails `TS2741`, adding `notARealMember` fails `TS2353`, and a false return fails `TS2322` at three call sites.
+
+**The Notes consumer acquires through the guard it already had.** `mountNoteEditorFiles` computed `filesAvailable` as `Boolean(filesEditor) && Boolean(window.LongtailForge.fileAttachments)` - a real guarantee stored in a boolean, which cannot narrow. It now tests the bindings directly: `!filesEditor || !fileAttachments` is exactly `!filesAvailable`, same condition, same order, same early return. **The sibling site at `notes.js:4130` needed nothing**, because its guard was already inline.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,820 | **8,812** |
+| Namespace surface family | 350 | **345** |
+| Unannotated parameters | 4,628 | **4,625** |
+| state / dom / genuine `unknown` / assorted | 1,821 / 1,484 / 378 / 159 | **all unchanged** |
+| `0.33.33.41` Tasks and Task Dialog | 1,220 | **1,217** |
+| `.39` / `.40` / `.42` / `.43` / `.44` | 1,773 / 528 / 531 / 976 / 1,580 | **unchanged** |
+| Declared members / undeclared backlog | 39 / 24 | **40 / 23** |
+| Bare-root reads / parked | 118 / 43 | **117 / 42** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**Eight eliminations, no transfers**: five namespace and three `0.33.33.41` parameters, the latter a genuine contextual elimination from the callback contract rather than debt this child went looking for. Genuine `unknown` did not move. `4,625 + 1,821 + 159 = 6,605` reconciles against the six owners, compared against the full printed table.
+
+**Two runtime files changed and one of them only in a guard.** `notes.js` reads the surface into a binding and tests it instead of a derived boolean; `file-attachments.js` was not touched at all. Two source assertions pinned the old guard spelling and the old mount receiver, and both were retargeted to the claims they own - an unsaved note still must clear the editor rather than mount against an empty target id, and the saved-note mount still must carry `targetId: note?.note_id || ""`.
+
 ## Version 0.33.33.40.1 - Type the Notes page-state contract
 
 **Model: Medium Effort** - the child that set out to give one object one contract, measured what that would cost, and typed five fields instead.
