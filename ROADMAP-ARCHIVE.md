@@ -1,5 +1,49 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.4.5 - Declared namespace surfaces prove writer conformance
+
+**Model: Medium Effort** - a corrective child that reopened `0.33.33.38.2.4`, and whose main result was that the problem was six times smaller than the checkpoint that found it believed.
+
+The sequence matters, so it is recorded rather than smoothed over:
+
+1. **`0.33.33.38.2.4.3`** enforced top-level publication/declaration identity - does a declaration exist for every published surface.
+2. **`0.33.33.38.2.2.6.3`** discovered that is not the same question as whether the writer satisfies it: deleting a member from a declared surface stayed green, because a TypeScript object type is not exact, and a false return type stayed green, because the writer was inferred through `any`.
+3. **`0.33.33.38.2.2.6.8`** proved a typed API object makes a missing member, an extra member and a disagreeing signature all fail at compile time.
+4. **`0.33.33.38.2.4.5`** closes the gap that `.6.3` demonstrated.
+
+- [x] **The `.6.8` report said one of 39 members was checked. It was 36.** The audit is a single probe: add a required member to every declared surface interface and ask which writers fail. **Thirty-six failed immediately** - because a publication that assigns an object literal or a value straight onto a typed namespace property is already checked by the compiler, and most of this estate publishes that way. **Nobody arranged that; it fell out of the publication style.** Claiming otherwise from one sample was the error, and the probe is what corrected it.
+- [x] **Three were genuinely unlinked, through exactly two escape hatches.** `viewResponseRecords` published through a **JSDoc cast** - `namespace.viewResponseRecords = /** @type {BrowserViewResponseRecords} */ (Object.freeze({ read }))` - and a cast tells the compiler what to believe rather than checking anything. `applyWorkspaceName` and `getWorkspaceProjectsLabel` published **functions whose implicit-`any` parameters were assignable to any contract at all**, which is the same leak `.6.8` found in `registerDashboardPanelRenderer`.
+- [x] **All three are now linked, and each was proved by a deliberate mismatch.** The cast became an annotated `const`; the two functions carry their declared contracts. Re-probing fails them: `TS2741` for the missing member, and `TS2322` twice for a return the writer does not produce.
+- [x] **No writer-conformance backlog was created, because the live audit proved none was needed.** All 39 declared members are mechanically linked. Introducing shrink-only debt machinery for an empty set would have been ceremony.
+
+**The durable guard closes the structural hatch, and its limits are stated rather than implied.** A namespace publication may no longer assert its own value: `assertedPublications` is derived from the AST the inventory already walks, and restoring the `viewResponseRecords` cast fails with *a namespace publication must be a checked expression, not a cast*. **The `any`-parameter hatch is not structurally detectable** - it is a property of the published function, not of the publication statement - so it is audited by the probe recorded here rather than asserted on every run. That is a real limit and is the honest reason this child does not claim total enforcement.
+
+**`view` needed no special treatment, and the reason is that the estate had already modelled it correctly.** `BrowserViewFactory extends BrowserViewPrimitives, Partial<BrowserViewDescriptorRenderers>` - the builder's 30 primitives are required and the renderer's 10 are optional, so **each writer is already checked against what that writer actually promises** and the combined surface still matches the public contract. Probing `BrowserViewPrimitives` fails `view-builder.js` exactly as it should. The hardest fixture turned out to need nothing.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Declared members mechanically linked | **36 of 39** | **39 of 39** |
+| Browser program diagnostics | 8,828 | **8,826** |
+| Unannotated parameters | 4,630 | **4,628** |
+| state / dom / genuine `unknown` / namespace / assorted | 1,823 / 1,484 / 378 / 350 / 163 | **all unchanged** |
+| `0.33.33.39` shared browser framework | 1,775 | **1,773** |
+| `.40` / `.41` / `.42` / `.43` / `.44` | 534 / 1,220 / 531 / 976 / 1,580 | **unchanged** |
+| Declared members / undeclared backlog | 39 / 24 | **39 / 24** |
+| Publications asserted by a cast | 1 | **0** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**Two eliminations, no transfers**, both `TS7006` implicit parameters on functions that *are* the declared members' implementations - `applyWorkspaceName` and `getWorkspaceProjectsLabel` in `navigation.js`, which is `0.33.33.39`'s. Typing a published function from its own public contract is contract adoption, not that owner's debt. `4,628 + 1,823 + 163 = 6,614` reconciles against the six owners exactly, compared against the full printed table.
+
+**Two runtime files changed, both semantically identical.** `view-response-records.js` binds the same frozen object to a name before assigning it - same object, same freeze, same target, same timing. `navigation.js` gained two JSDoc blocks and no executable change at all.
+
+## Version 0.33.33.38.2.4 - Namespace governance (rollup closed again)
+
+`0.33.33.38.2.4.4` closed this rollup, and `0.33.33.38.2.4.5` reopened it because `0.33.33.38.2.2.6.3` found an invariant the four original children did not cover. **That is the reopening working as intended rather than a defect in the reslice**: the gap was only visible once surfaces started being declared in volume, and the corrective child is smaller than any of the four.
+
+The parent now covers five things: one resolver, one self-classifying command, declaration coverage, additive-publication policy, and **writer conformance** - the difference between *a declaration exists* and *the writer satisfies it*. `0.33.33.38.2.5` can now reason about removing the catch-all from compiler-checked evidence for 39 of 39 declared members, with one documented limit: a published function with implicit-`any` parameters can still accept a contract it does not honour, and only the probe catches that.
+
 ## Version 0.33.33.38.2.2.6.8 - `LongtailForge.dashboard`
 
 **Model: Medium Effort** - one member, nine diagnostics, and the first surface in the estate whose declaration is checked against its own writer.
