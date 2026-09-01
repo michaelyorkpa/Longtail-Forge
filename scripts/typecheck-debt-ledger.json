@@ -478,7 +478,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8846,
+      "errorCount": 8839,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -813,7 +813,7 @@
           },
           {
             "code": 2339,
-            "count": 8
+            "count": 7
           },
           {
             "code": 2345,
@@ -1347,7 +1347,7 @@
           },
           {
             "code": 18046,
-            "count": 12
+            "count": 9
           },
           {
             "code": 2322,
@@ -1857,7 +1857,7 @@
         "public/js/time-entries.js": [
           {
             "code": 18046,
-            "count": 7
+            "count": 5
           },
           {
             "code": 18047,
@@ -1865,7 +1865,7 @@
           },
           {
             "code": 18048,
-            "count": 10
+            "count": 9
           },
           {
             "code": 2339,
@@ -2793,7 +2793,7 @@
   },
   "totals": {
     "files": 1059,
-    "errors": 8846,
+    "errors": 8839,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

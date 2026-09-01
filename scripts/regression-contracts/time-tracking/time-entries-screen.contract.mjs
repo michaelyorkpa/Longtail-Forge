@@ -60,8 +60,8 @@ check("unified page exposes toolbar, filters, sort, and list actions", () => {
 check("add and edit workflows use the Time Tracking dialog helper", () => {
   assert.match(timeEntriesView, /js\/time-entry-dialog\.js/);
   assert.match(timeEntriesView, /js\/time-entries\.js/);
-  assert.match(timeEntriesScript, /timeEntryDialog\.openAdd/);
-  assert.match(timeEntriesScript, /timeEntryDialog\.openEdit/);
+  assert.match(timeEntriesScript, /(?:timeEntryDialog|requireTimeEntryDialog\(\))\.openAdd/);
+  assert.match(timeEntriesScript, /(?:timeEntryDialog|requireTimeEntryDialog\(\))\.openEdit/);
   assert.match(timeEntriesScript, /openAddFromUrl/);
   assert.match(timeEntriesScript, /openEntryFromUrl/);
 });

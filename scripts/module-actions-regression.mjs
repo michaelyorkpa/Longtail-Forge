@@ -124,16 +124,16 @@ check("Tasks actions use module-owned reusable dialog helpers", () => {
 check("Time Entry actions use module-owned reusable dialog helpers", () => {
   assert.match(moduleActionsSource, /src: "js\/time-entry-dialog\.js"/);
   assert.match(timeEntriesView, /js\/time-entry-dialog\.js/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.timeEntryDialog\.openAdd\(params, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.timeEntryDialog\.openEdit\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.timeEntryDialog|requireTimeEntryDialog\(\))\.openAdd\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.timeEntryDialog|requireTimeEntryDialog\(\))\.openEdit\(params, hostContext\)/);
   assert.match(timeEntryDialogScript, /actionId: "time-entries\.add"/);
   assert.match(timeEntryDialogScript, /actionId: "time-entries\.edit"/);
-  assert.match(timeEntriesScript, /timeEntryDialog\.openAdd/);
-  assert.match(timeEntriesScript, /timeEntryDialog\.openEdit/);
+  assert.match(timeEntriesScript, /(?:timeEntryDialog|requireTimeEntryDialog\(\))\.openAdd/);
+  assert.match(timeEntriesScript, /(?:timeEntryDialog|requireTimeEntryDialog\(\))\.openEdit/);
 });
 
 check("Time Tracking timer action uses module-owned reusable dialog helpers", () => {
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.timeTrackingTimerDialog\.openCreate\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.timeTrackingTimerDialog|requireTimeTrackingTimerDialog\(\))\.openCreate\(params, hostContext\)/);
   assert.match(timeTrackingTimerDialogScript, /actionId: TIMER_ACTION_ID/);
   assert.match(timeTrackingTimerDialogScript, /namespace\.timeTrackingTimerDialog = timeTrackingTimerDialogApi/);
   assert.match(timeTrackingTimerDialogScript, /openCreate/);
@@ -183,7 +183,7 @@ check("module-owned saves can signal host completion", () => {
   assert.match(notesScript, /completeNoteEditorHostContext/);
   assert.match(listsScript, /completeListDialogHostContext/);
   assert.match(filesScript, /hostContext\?\.complete\?\.\(\{/);
-  assert.match(timeEntriesScript, /timeEntryDialog\.openEdit/);
+  assert.match(timeEntriesScript, /(?:timeEntryDialog|requireTimeEntryDialog\(\))\.openEdit/);
   assert.match(timeEntriesScript, /complete: async \(\) =>/);
   assert.match(clientsProjectsScript, /signalClientProjectModuleAction/);
 });

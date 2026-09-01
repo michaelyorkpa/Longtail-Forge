@@ -36,6 +36,28 @@
     return listsDialog;
   }
 
+  /** @returns {import("../../../src/types/browser-contracts.js").BrowserTimeEntryDialog} */
+  function requireTimeEntryDialog() {
+    const timeEntryDialog = namespace.timeEntryDialog;
+
+    if (!timeEntryDialog) {
+      throw new Error("The time entry dialog is required to open this module action.");
+    }
+
+    return timeEntryDialog;
+  }
+
+  /** @returns {import("../../../src/types/browser-contracts.js").BrowserTimeTrackingTimerDialog} */
+  function requireTimeTrackingTimerDialog() {
+    const timeTrackingTimerDialog = namespace.timeTrackingTimerDialog;
+
+    if (!timeTrackingTimerDialog) {
+      throw new Error("The timer dialog is required to open this module action.");
+    }
+
+    return timeTrackingTimerDialog;
+  }
+
   /**
    * Scripts a host page must load before the named action can be opened, in the order
    * they must run.
@@ -137,7 +159,7 @@
       requiredModules: ["time-tracking"],
       requiredPermissions: ["time_entries.create"],
       requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
-      open: (params, hostContext) => namespace.timeEntryDialog.openAdd(params, hostContext),
+      open: (params, hostContext) => requireTimeEntryDialog().openAdd(params, hostContext),
     },
     {
       id: "time-tracking.timer.create",
@@ -149,7 +171,7 @@
       requiredModules: ["time-tracking"],
       requiredPermissions: ["time_entries.create"],
       requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
-      open: (params, hostContext) => namespace.timeTrackingTimerDialog.openCreate(params, hostContext),
+      open: (params, hostContext) => requireTimeTrackingTimerDialog().openCreate(params, hostContext),
     },
     {
       id: "time-entries.edit",
@@ -161,7 +183,7 @@
       requiredModules: ["time-tracking"],
       requiredPermissions: ["time_entries.edit_own", "time_entries.edit_all"],
       requiredWorkspaceCapabilities: ["time_tracking", "time_tracking_optional"],
-      open: (params, hostContext) => namespace.timeEntryDialog.openEdit(params, hostContext),
+      open: (params, hostContext) => requireTimeEntryDialog().openEdit(params, hostContext),
     },
     {
       id: "notes.add",
