@@ -1,5 +1,57 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.6.6.1 - `LongtailForge.notificationSubscriptions`
+
+**Model: Medium Effort** - the adoption a boundary checkpoint had already paid for, and the first surface in this rollup to land with nothing left over.
+
+- [x] **The runtime surface was re-derived, not carried.** The repository inventory reports **one writer**, `public/js/shared/notification-subscriptions.js`, **one publication occurrence**, no additive publication and no second writer - so the object literal it assigns is the whole surface and the interface may be exact. The five members are `follow`, `noteTarget`, `readStatus`, `taskTarget`, `unfollow`.
+- [x] **Writer conformance came for free and was proved in both directions.** The writer assigns an object literal to a typed optional property, which `0.33.33.38.2.4.5` established is checked rather than asserted. Removing `noteTarget` fails with `TS2741`; publishing `targetParams` alongside the five fails with `TS2353`. **No `@type` annotation was added**, because adding one would have been ceremony over a check that already exists.
+- [x] **The three network members resolve to the envelope `0.33.33.38.4.10` narrows, and nothing was re-modelled.** `BrowserNotificationSubscriptionResult`, `BrowserNotificationSubscription`, `BrowserNotificationTarget` and `BrowserNotificationTargetRequest` are reused verbatim. **There is no `FollowResult`, no `UnfollowResult` and no `StatusResult`** - the route operation and the record are different concepts, and one producer envelope gets one contract.
+- [x] **The request target and the response target stayed two contracts.** `taskTarget` and `noteTarget` construct camelCase `BrowserNotificationTargetRequest` locally and reach no network; `normalizeSubscriptionTarget` echoes snake_case `BrowserNotificationTarget`. Declaring a helper to build the echoed shape fails, and so does merging a member of either into the other.
+- [x] **Checked acquisition matched the actual delivery guarantee.** `footer.js` loads the script behind a presence probe and `shared/module-actions.js` declares it as a module-action dependency, so the surface is optional by design and both consumers already hid their follow toggle without it. **Each guard was extended rather than replaced**: `if (!canToggleNotifications)` became `if (!subscriptions || !canToggleNotifications)` in `notes.js` and the equivalent in `task-dialog.js`. The flag is already false when the surface is absent, so the branch taken is identical - **the edit tells the compiler what the code already knew**. No accessor throws, because a throwing accessor would have turned a hidden toggle into a broken page.
+- [x] **`tasks.js` needed nothing.** Its `if (!window.LongtailForge.notificationSubscriptions) { return; }` already narrowed through to both uses, which is why the declaration probe found two positions rather than three.
+- [x] **Nothing outside the surface was touched.** No Notes or Tasks page state, no DOM subtype, no writer parameter debt. The probe predicted zero movement in four families and the tree delivered exactly that.
+
+Proved by breaking each one:
+
+| Break | Failure |
+| --- | --- |
+| The backlog keeps a spent record after the declaration | a spent record must be struck |
+| The backlog entry is struck without the declaration | published with no declaration and no backlog record |
+| An unrelated declaration is offered in its place | the same assertion, unpaid |
+| The writer drops a declared member | `TS2741`, property missing |
+| The writer publishes an undeclared member | `TS2353`, excess property |
+| `follow` claims a result the narrowing does not build | consumers can no longer read `isFollowing` |
+| `readStatus` claims the row instead of the envelope | the same, from the other shape |
+| A network member is declared synchronous | `TS2322` at the writer |
+| A helper is declared to build the response target | `TS2322` at the writer |
+| A helper is declared to take a second argument | `TS2554` at both call sites |
+| The Notes consumer loses its presence guarantee | `TS18048` returns at `notes.js` |
+| The Task dialog loses its presence guarantee | `TS18048` returns at `task-dialog.js` |
+| A member publishes the raw body as the narrowed contract | `TS2322`, `unknown` is not the envelope |
+
+Closing state:
+
+| Condition | Baseline | Declaration only | Final |
+| --- | ---: | ---: | ---: |
+| Browser program diagnostics | 8,604 | 8,594 | **8,590** |
+| Namespace surface | 345 | 335 | **331** |
+| params / state / dom / unknown / assorted | 4,621 / 1,789 / 1,484 / 207 / 158 | **all unchanged** | **all unchanged** |
+| Declared members | 40 of 63 | 41 | **41** |
+| Undeclared backlog | 23 | 23 *(stale, and it failed)* | **22** |
+| Root reads on a declared member | 1 | 3 | **1** |
+| Members with parked root debt | 8 | 7 | **7** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 494 / 1,217 / 531 / 976 / 1,580 | **all unchanged** | **all unchanged** |
+| Unit tests / regressions / end-to-end | 356 / 348 / 167 | - | **359 / 348 / 167**, green |
+
+**14 eliminations, every one of them namespace, and no diagnostic moved owner.** `4,621 + 1,789 + 158 = 6,568` reconciles against the six owners before and after - the owner table was printed and compared rather than remembered.
+
+**The four diagnostics the declaration revealed were code movements, not new debt, and they are reported as movements.** Two source positions each carry two references, so `notes.js:3094` and `task-dialog.js:1205` produced four diagnostics that moved `TS18046 'subscriptions' is of type 'unknown'` to `TS18048 'subscriptions' is possibly 'undefined'` and were then eliminated by the guards. **Counting the intermediate code as a second win would have claimed 18 for a change worth 14.**
+
+**One green deliberate break was found and fixed rather than accepted.** The assertion that each network member resolves to the narrowed envelope was written unanchored, so `follow`'s pattern was satisfied by the text of `unfollow` and a false `follow` contract passed. The three member patterns are now anchored to their own line, and each was re-proved by breaking it. **A substring is not a member name.**
+
+**No source assertion needed retargeting.** Nothing in the estate pinned either guard's spelling, and the six assertions that pin `notificationSubscriptions` member calls - across `notification-regression.mjs`, `task-modal-followup` and `tasks-timer-utility-escape-hatch` - all describe call sites this child did not move.
+
 ## Version 0.33.33.38.4.10 - Notification response bodies
 
 **Model: High Effort** - the child whose whole subject was invisible to the instrument that was supposed to size it, and which had to be revealed before it could be closed.

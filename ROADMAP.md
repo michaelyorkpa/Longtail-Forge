@@ -346,12 +346,14 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.2.2.6.6.1 - `LongtailForge.notificationSubscriptions`
 
-**Reassigned to `0.33.33.38.4` in all but name: three of its five members return an API body its consumers read immediately.**
+**Complete.** Five members declared, the backlog entry struck, two consumers acquiring through their own delivery guarantee, and **14 namespace diagnostics closed with nothing transferred anywhere.** See the archive entry.
 
-`taskTarget` and `noteTarget` construct a target descriptor and are declarable today. `follow`, `unfollow` and `readStatus` return `LongtailForge.api` results, and the honest type for those is `Promise<unknown>` - **but `unknown` here would not be an intentional opaque contract.** Declaring it exposed five `TS18046` reads in `notes.js` and `task-dialog.js` where consumers destructure the result immediately, and four root-optionality reads besides.
+**The reassignment this section used to record was right, and it was resolved rather than reversed.** `follow`, `unfollow` and `readStatus` did return raw API bodies, and declaring the surface before `0.33.33.38.4.10` would have handed every consumer an `unknown` to read `isFollowing` off. That checkpoint narrowed the three members inside this writer, and this child then cost **zero genuine `unknown`, zero state, zero DOM and zero params** - the whole point of ordering them that way.
 
-- [x] **Unblocked by `0.33.33.38.4.10`, and the clearance was measured rather than assumed.** Declaring this surface against the narrowed tree costs **zero genuine `unknown`, zero state, zero DOM and zero param diagnostics**. It closes 10 namespace diagnostics and reveals exactly **two** root-optionality reads - `notes.js:3094` and `task-dialog.js:1205` - which ordinary checked acquisition settles. The five `TS18046` the earlier preflight predicted are gone: `readStatus`, `follow` and `unfollow` now resolve to `BrowserNotificationSubscriptionResult`.
-- [ ] **What remains is adoption, not discovery.** Declare all five members, add the two checked acquisitions, confirm writer conformance, and remove the member from `0.33.33.38.2.4.3`'s undeclared backlog.
+- [x] **Five members, and the surface is exact.** `follow`, `noteTarget`, `readStatus`, `taskTarget` and `unfollow`. The inventory reports one writer, one publication occurrence, no additive publication and no second writer, so the declaration may cover the literal exactly - and does: removing a member fails with `TS2741` and adding one fails with `TS2353`, **both without a single line of `@type` ceremony.**
+- [x] **The request target and the response target stayed apart.** `taskTarget` and `noteTarget` build `BrowserNotificationTargetRequest`; the server echoes `BrowserNotificationTarget`. Declaring either helper to build the echoed shape fails.
+- [x] **Checked acquisition matched the delivery contract rather than overriding it.** `footer.js` loads this script behind a presence probe and `shared/module-actions.js` names it as a module-action dependency, so the surface is genuinely optional and every consumer already hides its follow toggle without it. **The guards were extended, not replaced**: `if (!canToggleNotifications)` became `if (!subscriptions || !canToggleNotifications)`, which is the same branch because the flag is already false when the surface is missing. No accessor throws, because nothing here should.
+- [x] **Backlog 23 to 22 by identity.** Striking the entry without the declaration fails, keeping it after the declaration fails, and an unrelated declaration cannot pay for it.
 
 #### 0.33.33.38.2.2.6.6.2 - `LongtailForge.notificationPreferences`
 
