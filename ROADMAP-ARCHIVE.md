@@ -1,5 +1,40 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.4.1 - The user record
+
+**Model: Medium Effort** - the child whose producer evidence turned out to be about what the server *withholds*.
+
+- [x] **The family was resliced first, and two planning claims did not survive the live tree.** `0.33.33.38.4.4` holds **34** diagnostics rather than 29, and **`lists.js` is not one of its consumers**: its eleven unknowns are `/api/lists` reads owned by `0.33.33.38.4.7`. The cross-page reuse this child was ranked on was a mis-attribution from an earlier endpoint trace. **The ranking held anyway, because the producer evidence was the real reason.**
+- [x] **`USER_SELECT_COLUMNS` is the column authority and it is not the response.** The select carries seventeen columns including **`password`**, `home_workspace_id` and `active_workspace_id`. `userRowToAppValue` constructs fifteen members by name and **sends none of those three**. The browser contract describes the shaper, never the select, and a test asserts each withheld column is still selected - so the proof cannot pass by the column quietly disappearing.
+- [x] **Every text member has a total server-side fallback and every one is still typed `string`.** `themeMode` is light/auto/dark, `themeAutoSource` is always `system`, the landing preferences are one of five, `preferredCalendarView` is day/week/month or `null`, `userStatus` is active/inactive. **The browser validates none of them**, and this estate has refused since `userPreferences` to declare a closed union over an unvalidated wire field. The vocabularies are written into the declaration instead.
+- [x] **Two members are nullable and the rest are not, because the shaper is explicit about it.** `altEmail` and `preferredCalendarView` are the two `normalizeOptionalEmail` and `normalizeCalendarViewPreference` genuinely null; everything else is present on every path. The three flags are booleans because `normalizeBooleanPreference` converts them before they are sent, and the narrowing **rejects the stored integer** the way `0.33.33.38.4.10` did for notification preferences.
+- [x] **Element validation, and a fallback rather than a throw.** `readUserRecords` drops an element that is not a user; `readUserRecord` answers `null`, because every consumer already wrote `body.user?.username || username` and absence was already the fallback.
+
+Proved by breaking each one, restored in a `finally`:
+
+| Break | Failure |
+| --- | --- |
+| The shaper stops sending a member the browser checks | the checked set no longer equals the shaper's |
+| The shaper starts forwarding the withheld password | the same assertion, from the other side |
+| The select stops carrying `password` | the withholding proof would be vacuous |
+| The contract regains the withheld password | the contract no longer matches the shaper |
+| The contract describes a member the shaper omits | the same, for an invented member |
+| The browser accepts an integer where a boolean is sent | the flags are normalised before sending |
+| The list read trusts its container | a malformed element becomes a user |
+| A consumer reads the raw body again | `TS18046` returns in `user-admin.js` |
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,555 | **8,548** |
+| Genuine `unknown` | 195 | **188** |
+| params / state / dom / namespace / assorted | 4,617 / 1,782 / 1,484 / 319 / 158 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,217 / 531 / 976 / 1,572 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 376 / 348 / 167 | **382 / 348 / 167**, green |
+
+**7 eliminations, no transfers, no fallout.** All seven are `user-admin.js` reads of `body.users` and `body.user`. No state was typed, no DOM diagnostic appeared, and no owner budget moved - which is what the preflight predicted and the tree confirmed. `4,617 + 1,782 + 158 = 6,557` reconciles either side.
+
 ## Version 0.33.33.38.4.11 - The shared bulk-action failure contract
 
 **Model: Medium Effort** - the child whose first job was to discover that the envelope it was named after does not exist.
