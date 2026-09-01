@@ -138,6 +138,26 @@ function requireApi() {
   }
   return apiClient;
 }
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserNotificationPreferences} BrowserNotificationPreferences */
+
+/**
+ * The notification preference surface this page cannot render its Notifications section without.
+ *
+ * `views/protected/user-settings.html` loads `shared/notification-preferences.js` at line 23,
+ * ahead of this script, so a missing surface is a delivery failure rather than a configuration.
+ * Both call sites already sit inside a `try` that reports the failure as a status message, so the
+ * checked read fails exactly where the raw read failed before - with a named error instead of a
+ * `TypeError` raised by the first property access.
+ * @returns {BrowserNotificationPreferences}
+ */
+function requireNotificationPreferences() {
+  const preferences = window.LongtailForge?.notificationPreferences;
+  if (!preferences) {
+    throw new Error("User settings requires LongtailForge.notificationPreferences.");
+  }
+  return preferences;
+}
+
 /** @typedef {import("../../src/types/browser-contracts.js").BrowserSettingsHost} BrowserSettingsHost */
 /** @typedef {import("../../src/types/browser-contracts.js").BrowserSettingsPageController} BrowserSettingsPageController */
 
@@ -260,14 +280,15 @@ async function loadNotificationPreferences() {
 
   try {
     await window.LongtailForge?.workspaceContextReady;
-    const body = await window.LongtailForge.notificationPreferences.loadPreferences();
+    const notificationPreferences = requireNotificationPreferences();
+    const body = await notificationPreferences.loadPreferences();
 
-    window.LongtailForge.notificationPreferences.renderGroupingPreferences(
+    notificationPreferences.renderGroupingPreferences(
       notificationGroupingPreferences,
       body.groupingPreferences,
       { workspaceType: window.LongtailForge?.workspaceContext?.workspaceType || "business" },
     );
-    window.LongtailForge.notificationPreferences.renderPreferenceGroups(notificationPreferenceList, body.events, {
+    notificationPreferences.renderPreferenceGroups(notificationPreferenceList, body.events, {
       canManageWorkspaceDefaults: false,
       emptyText: "No configurable notification types are available.",
       headingLevel: "h3",
@@ -316,9 +337,10 @@ async function saveAllSettings() {
       timezone: profileTimezoneSelect.value,
       username,
     });
-    const preferences = window.LongtailForge.notificationPreferences.readUserPreferencesPayload(notificationPreferenceList);
-    const groupingPreferences = window.LongtailForge.notificationPreferences.readGroupingPreferencesPayload(notificationGroupingPreferences);
-    await window.LongtailForge.notificationPreferences.saveUserPreferences(preferences, groupingPreferences);
+    const notificationPreferences = requireNotificationPreferences();
+    const preferences = notificationPreferences.readUserPreferencesPayload(notificationPreferenceList);
+    const groupingPreferences = notificationPreferences.readGroupingPreferencesPayload(notificationGroupingPreferences);
+    await notificationPreferences.saveUserPreferences(preferences, groupingPreferences);
     applyThemeMode(body.themeMode, body.themeAutoSource);
     applyMarkdownRendering(body);
     applyAppPreferences(body);

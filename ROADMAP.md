@@ -357,12 +357,21 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.2.2.6.6.2 - `LongtailForge.notificationPreferences`
 
+**Complete, and it closed the rollup's last notification surface after correcting the instrument that was measuring it.** Eight members declared, the backlog entry struck, six acquisitions in `user-settings.js`, and **19 namespace eliminations with every other family unmoved.** See the archive entry.
+
+**A measurement correction landed first, and it is not implementation progress.** Seven `notifications.js` diagnostics were filed under `0.33.33.44`'s page-state budget because their receiver was `const preferences = getNotificationPreferences()` - an alias the classifier could not resolve through the accessor call. They were namespace work all along. The classifier now resolves that one shape, and **state falls 1,789 to 1,782 while namespace rises 331 to 338 with the total unchanged at 8,590.** `0.33.33.44` is restated at **1,573**.
+
+- [x] **Eight members, and the surface is exact.** `loadPreferences`, three `read*Payload` builders, two renderers, and two `save*` mutations. One writer, one publication occurrence, no additive publication.
+- [x] **The three request builders kept their asymmetries.** `readGroupingPreferencesPayload` returns a **closed union** because `normalizeGroupingMode` closes it; `readWorkspaceDefaultsPayload` defaults its id to `""` and filters the empties; `readUserPreferencesPayload` does **neither**, so its `id` is `string | undefined`. **Homogenising them would have erased a difference between two builders four lines apart.**
+- [x] **The `id` asymmetry is not a live defect, and that was traced rather than assumed.** `normalizePreferenceList` filters every submitted row against `allowedEventIds`, so a row with no id is dropped by the server before it reaches the repository. **No repair, no behaviour change, and the type now shows the shape the server was already absorbing.**
+- [x] **`saveUserPreferences` and `saveWorkspaceDefaults` keep `Promise<unknown>`.** Both callers await and discard, which `0.33.33.38.4.10` proved from the boundary side and this child re-proved from the surface side with a test that fails if any caller starts binding the result.
+
 **Eight members, six constructed and two returning a raw body.** `loadPreferences` builds its result locally, the three `read*Payload` members construct from the DOM, and the two `render*` members return nothing - but `saveUserPreferences` and `saveWorkspaceDefaults` both `return body` straight from the API.
 
 - [x] **Traced, and the answer was the second branch.** Neither `body` return is read: `user-settings.js:321` and `notifications.js:441` both await and discard. **`Promise<unknown>` is the intentional contract for those two members**, so they were never `0.33.33.38.4`'s work.
 - [x] **What did need this checkpoint was `loadPreferences`, which nobody had listed as a wire boundary.** It constructs its envelope but passed `events` through once `Array.isArray` was satisfied - container validation standing in for element validation. `0.33.33.38.4.10` checks the elements and adopts the one state slot that stores them.
-- [ ] **Unblocked, measured the same way as `.6.6.1`**: declaring this surface costs **zero genuine `unknown` and zero assorted**, eliminates 7 page-local state diagnostics, and reveals **six** root-optionality reads in `user-settings.js` that checked acquisition settles. The `readWorkspaceDefaultsPayload` diagnostic an earlier probe showed was an artefact of declaring that member `unknown`; it reads the DOM and constructs its payload, so declaring it truthfully - as this child owns doing - removes it.
-- [ ] **The three `read*Payload` members are request payloads, not response bodies.** They belong to this surface's declaration and not to any `0.33.33.38.4` child.
+- [x] **The seven were never state debt, and the classifier now says so before the source changed.** They are `TS2339` reads through an accessor alias, and correcting the attribution while the evidence still existed is the estate's own rule about ratified measurements.
+- [x] **The three `read*Payload` members are request payloads, not response bodies.** They belong to this surface's declaration and not to any `0.33.33.38.4` child.
 
 #### 0.33.33.38.2.2.6.6.3.1 - `LongtailForge.tasksDialog`
 

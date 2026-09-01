@@ -2236,6 +2236,111 @@ export interface BrowserNotificationSubscriptions {
   unfollow(target: unknown): Promise<BrowserNotificationSubscriptionResult>;
 }
 
+/**
+ * How the All Notifications page groups what it lists.
+ *
+ * **A closed union because the browser closes it, not because the schema does.**
+ * `normalizeGroupingMode` answers `["client_project", "notification_type", "record_type"].includes(value)
+ * ? value : "client_project"`, so every value that leaves this writer is one of the three - unlike
+ * the wire vocabularies this estate leaves as `string`, which nothing on the browser side checks.
+ */
+export type BrowserNotificationGroupingMode = "client_project" | "notification_type" | "record_type";
+
+/** The grouping payload `readGroupingPreferencesPayload` builds from the form. */
+export interface BrowserNotificationGroupingPayload {
+  groupingMode: BrowserNotificationGroupingMode;
+}
+
+/**
+ * One row of the user-preference payload the form sends.
+ *
+ * **`id` is optional and its sibling contract's is not, and that asymmetry is the contract.**
+ * This builder reads `row.dataset.notificationEventId` and neither defaults nor filters it, so a
+ * row whose marker attribute is missing is sent with no id at all. `readWorkspaceDefaultsPayload`
+ * defaults the same value to `""` and then drops the row. **Typing them alike would have hidden a
+ * real difference between two builders that sit four lines apart.**
+ */
+export interface BrowserNotificationUserPreferencePayload {
+  enabled: boolean;
+  id: string | undefined;
+}
+
+/**
+ * One row of the workspace-default payload the form sends.
+ *
+ * `id` is `string` because the builder defaults it with `|| ""` before filtering the empties out.
+ * **The filter is not in the type**: TypeScript cannot say "non-empty string" without inventing a
+ * brand, and inventing one here would claim a guarantee the estate does not otherwise keep.
+ * `priority` is read straight from the select with a `"normal"` fallback and is **not** normalised
+ * against a vocabulary, so it stays `string` where `groupingMode` does not.
+ */
+export interface BrowserNotificationWorkspaceDefaultPayload {
+  enabled: boolean;
+  id: string;
+  priority: string;
+}
+
+/** What `renderPreferenceGroups` reads from its options. Every member is optional. */
+export interface BrowserNotificationPreferenceGroupOptions {
+  canManageWorkspaceDefaults?: unknown;
+  emptyText?: unknown;
+  headingLevel?: unknown;
+  includeWorkspaceDefaults?: unknown;
+  workspaceDefaultDisabled?: unknown;
+}
+
+/** What `renderGroupingPreferences` reads from its options. */
+export interface BrowserNotificationGroupingOptions {
+  workspaceType?: unknown;
+}
+
+/**
+ * `LongtailForge.notificationPreferences`, published by
+ * `public/js/shared/notification-preferences.js`.
+ *
+ * **One writer, one publication, eight members, closed.** The inventory reports no additive
+ * publication and no second writer, so the object literal the writer assigns is the whole surface.
+ *
+ * **Three kinds of member, and the difference is the reason this surface took two checkpoints.**
+ * `loadPreferences` crosses the network and returns the catalogue `0.33.33.38.4.10` narrowed. The
+ * three `read*Payload` members cross no network at all - they read the DOM and construct outgoing
+ * request bodies, which is why their contracts are published here rather than there. And the two
+ * `save*` members resolve to `unknown` on purpose.
+ */
+export interface BrowserNotificationPreferences {
+  /** The viewer's preference catalogue, narrowed by `0.33.33.38.4.10` before it is resolved. */
+  loadPreferences(): Promise<BrowserNotificationPreferenceCatalog>;
+  /** Build the grouping payload from the form. Reads the DOM; reaches no network. */
+  readGroupingPreferencesPayload(container: Element | null): BrowserNotificationGroupingPayload;
+  /** Build the user-preference payload from the form. Reads the DOM; reaches no network. */
+  readUserPreferencesPayload(container: Element | null): BrowserNotificationUserPreferencePayload[];
+  /** Build the workspace-default payload from the form. Reads the DOM; reaches no network. */
+  readWorkspaceDefaultsPayload(container: Element | null): BrowserNotificationWorkspaceDefaultPayload[];
+  /** Render the grouping control into a container. Returns nothing, and returns early without one. */
+  renderGroupingPreferences(
+    container: Element | null,
+    groupingPreferences?: unknown,
+    options?: BrowserNotificationGroupingOptions,
+  ): void;
+  /** Render the preference groups into a container. Returns nothing, and returns early without one. */
+  renderPreferenceGroups(
+    container: Element | null,
+    events: unknown,
+    options?: BrowserNotificationPreferenceGroupOptions,
+  ): void;
+  /**
+   * Save the viewer's preferences.
+   *
+   * **`Promise<unknown>` is the contract, not an unfinished one.** `0.33.33.38.2.2.6.6.2` traced
+   * both callers - `user-settings.js` and `notifications.js` - and each awaits this and discards
+   * what it resolves to. Narrowing a body nobody reads would publish a promise the surface does
+   * not make; `0.33.33.38.4.10` recorded the same finding from the boundary side.
+   */
+  saveUserPreferences(preferences: unknown, groupingPreferences?: unknown): Promise<unknown>;
+  /** Save the workspace defaults. `Promise<unknown>` for the same traced reason. */
+  saveWorkspaceDefaults(defaults: unknown): Promise<unknown>;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
@@ -2258,6 +2363,7 @@ export interface LongtailForgeBrowserNamespace {
   notesDialog?: BrowserNotesDialog;
   notesEditor?: BrowserNotesEditor;
   notesLinkedPanel?: BrowserNotesLinkedPanel;
+  notificationPreferences?: BrowserNotificationPreferences;
   notificationSubscriptions?: BrowserNotificationSubscriptions;
   pageController?: BrowserPageController;
   /**

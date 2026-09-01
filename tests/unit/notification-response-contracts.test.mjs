@@ -26,6 +26,8 @@ const preferencesSource = readText("public/js/shared/notification-preferences.js
 const repositorySource = readText("src/repositories/notifications.repo.js");
 const serviceSource = readText("src/services/notifications.service.js");
 const declarationSource = readText("src/types/browser-contracts.d.ts");
+const userSettingsSource = readText("public/js/user-settings.js");
+const notificationsPageSource = readText("public/js/notifications.js");
 
 const subscriptions = sandbox(subscriptionsSource, {
   tables: ["SUBSCRIPTION_MEMBERS", "TARGET_MEMBERS"],
@@ -170,6 +172,127 @@ describe("the published subscription surface", () => {
         block,
         new RegExp(`^  ${member}\\([^)]*\\): Promise<BrowserNotificationSubscriptionResult>;$`, "m"),
         `${member} must resolve to the envelope 0.33.33.38.4.10 narrows, not to unknown and not to its own interface`,
+      );
+    }
+  });
+});
+
+describe("the published preference surface", () => {
+  const payloadBuilders = sandbox(preferencesSource, {
+    tables: [],
+    functions: ["normalizeGroupingMode", "normalizeGroupingPreferences", "readGroupingPreferencesPayload",
+      "readUserPreferencesPayload", "readWorkspaceDefaultsPayload"],
+  });
+
+  it("declares exactly the eight members the writer publishes", () => {
+    const published = [...extractFunctionBlock(preferencesSource, "attachNotificationPreferences")
+      .matchAll(/root\.notificationPreferences = \{([\s\S]*?)\};/g)]
+      .flatMap((match) => [...match[1].matchAll(/^\s+(\w+),$/gm)].map((entry) => entry[1]));
+    assert.equal(published.length, 8, "the writer must still publish one object literal of eight members");
+    const declared = [...declarationBlock("BrowserNotificationPreferences")
+      .matchAll(/^  (\w+)[(<]/gm)].map((entry) => entry[1]);
+    assert.deepEqual(
+      declared.slice().sort(),
+      published.slice().sort(),
+      "a top-level declaration must cover the entire runtime surface, and may not exceed it",
+    );
+  });
+
+  it("closes the grouping vocabulary because the normaliser closes it", () => {
+    const declared = [...declarationBlock("BrowserNotificationGroupingMode", { alias: true })
+      .matchAll(/"([a-z_]+)"/g)].map((entry) => entry[1]);
+    assert.deepEqual(declared, ["client_project", "notification_type", "record_type"]);
+    for (const mode of declared) {
+      assert.equal(payloadBuilders.normalizeGroupingMode(mode), mode, `${mode} is a value the normaliser keeps`);
+    }
+    for (const rejected of ["", "client", null, undefined, 7, {}, ["record_type"], "CLIENT_PROJECT"]) {
+      assert.equal(
+        payloadBuilders.normalizeGroupingMode(rejected),
+        "client_project",
+        "anything else falls back, which is what makes the closed union true rather than hopeful",
+      );
+    }
+  });
+
+  it("builds the grouping payload from the form", () => {
+    const container = { querySelector: () => ({ value: "record_type" }) };
+    assert.deepEqual(plain(payloadBuilders.readGroupingPreferencesPayload(container)), { groupingMode: "record_type" });
+    assert.deepEqual(plain(payloadBuilders.readGroupingPreferencesPayload({ querySelector: () => null })), { groupingMode: "client_project" });
+    assert.deepEqual(plain(payloadBuilders.readGroupingPreferencesPayload(null)), { groupingMode: "client_project" });
+    assert.deepEqual(plain(payloadBuilders.readGroupingPreferencesPayload({ querySelector: () => ({ value: "made-up" }) })), { groupingMode: "client_project" });
+  });
+
+  it("keeps the two array payloads asymmetric, because the builders are", () => {
+    const userRows = {
+      querySelectorAll: () => [
+        { dataset: { notificationEventId: "tasks.updated" }, querySelector: () => ({ checked: true, disabled: false }) },
+        { dataset: {}, querySelector: () => ({ checked: false, disabled: false }) },
+      ],
+    };
+    const userPayload = plain(payloadBuilders.readUserPreferencesPayload(userRows));
+    assert.equal(userPayload.length, 2, "the user-preference builder filters nothing");
+    assert.deepEqual(userPayload[0], { id: "tasks.updated", enabled: true });
+    assert.equal("id" in payloadBuilders.readUserPreferencesPayload(userRows)[1], true);
+    assert.equal(
+      payloadBuilders.readUserPreferencesPayload(userRows)[1].id,
+      undefined,
+      "a row with no marker attribute is sent with no id: the builder neither defaults nor drops it",
+    );
+
+    const defaultRows = {
+      querySelectorAll: () => [
+        { checked: true, closest: () => ({ dataset: { notificationEventId: "tasks.updated" }, querySelector: () => ({ value: "high" }) }) },
+        { checked: false, closest: () => ({ dataset: {}, querySelector: () => null }) },
+        { checked: true, closest: () => null },
+      ],
+    };
+    const defaultPayload = plain(payloadBuilders.readWorkspaceDefaultsPayload(defaultRows));
+    assert.deepEqual(defaultPayload, [{ id: "tasks.updated", enabled: true, priority: "high" }],
+      "the workspace-default builder defaults the id to \"\" and then drops the rows that have none");
+    assert.deepEqual(plain(payloadBuilders.readUserPreferencesPayload(null)), []);
+    assert.deepEqual(plain(payloadBuilders.readWorkspaceDefaultsPayload(null)), []);
+  });
+
+  it("reads the disabled control's remembered value rather than its checkbox", () => {
+    const rows = {
+      querySelectorAll: () => [
+        { dataset: { notificationEventId: "a" }, querySelector: () => ({ checked: false, disabled: true, dataset: { preferenceOriginalEnabled: "true" } }) },
+        { dataset: { notificationEventId: "b" }, querySelector: () => ({ checked: true, disabled: true, dataset: { preferenceOriginalEnabled: "false" } }) },
+      ],
+    };
+    assert.deepEqual(
+      plain(payloadBuilders.readUserPreferencesPayload(rows)).map((/** @type {{enabled: boolean}} */ row) => row.enabled),
+      [true, false],
+      "a disabled control reports what it was, not what it shows",
+    );
+  });
+
+  it("leaves the two mutation results opaque, because every caller discards them", () => {
+    const block = declarationBlock("BrowserNotificationPreferences");
+    for (const member of ["saveUserPreferences", "saveWorkspaceDefaults"]) {
+      assert.match(block, new RegExp(`^  ${member}\\([^)]*\\): Promise<unknown>;$`, "m"),
+        `${member} promises nothing about its body because nothing reads it`);
+    }
+    for (const [source, name] of [[userSettingsSource, "user-settings.js"], [notificationsPageSource, "notifications.js"]]) {
+      for (const member of ["saveUserPreferences", "saveWorkspaceDefaults"]) {
+        for (const match of source.matchAll(new RegExp(`\\.${member}\\(`, "g"))) {
+          const line = source.slice(source.lastIndexOf("\n", match.index) + 1, source.indexOf("\n", match.index));
+          assert.doesNotMatch(line, /(?:const|let|var|return)\s/,
+            `${name} must keep discarding what ${member} resolves to; binding it would make Promise<unknown> the wrong contract`);
+        }
+      }
+    }
+  });
+
+  it("renders through void members", () => {
+    const block = declarationBlock("BrowserNotificationPreferences");
+    for (const member of ["renderGroupingPreferences", "renderPreferenceGroups"]) {
+      assert.match(block, new RegExp(`${member}\\(`), `${member} is declared`);
+      assert.match(block, new RegExp(`${member}\\([\\s\\S]*?\\): void;`), `${member} returns nothing`);
+      assert.doesNotMatch(
+        extractFunctionBlock(preferencesSource, member),
+        /return [^;]/,
+        `${member} must have no value-returning statement for void to be truthful`,
       );
     }
   });
@@ -324,9 +447,12 @@ function eventFixture() {
   };
 }
 
-/** @param {string} name @returns {string} */
-function declarationBlock(name) {
-  const match = declarationSource.match(new RegExp(`export interface ${name}\\b[^{]*\\{[\\s\\S]*?\\n\\}`));
+/** @param {string} name @param {{alias?: boolean}} [options] @returns {string} */
+function declarationBlock(name, options = {}) {
+  const pattern = options.alias
+    ? new RegExp(`export type ${name}\\b[^;]*;`)
+    : new RegExp(`export interface ${name}\\b[^{]*\\{[\\s\\S]*?\\n\\}`);
+  const match = declarationSource.match(pattern);
   assert.ok(match, `${name} must be declared`);
   return match[0];
 }

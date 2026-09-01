@@ -1,5 +1,77 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.6.6.2 - `LongtailForge.notificationPreferences`
+
+**Model: High Effort** - the adoption that had to correct the instrument before it could report itself honestly.
+
+### The attribution audit, which came first on purpose
+
+- [x] **Seven `notifications.js` diagnostics were filed as page-local state and were namespace work.** `TS2339 Property 'X' does not exist on type '{}'` at lines 97, 395, 400, 443, 444, 447 and 450, every one reached through `const preferences = getNotificationPreferences()` - an accessor whose whole body is `return window.LongtailForge?.notificationPreferences || null;`. The classifier records a `const` whose **own initialiser** reads a member; a call is not an initialiser, so the alias resolved to nothing and the reads fell to `0.33.33.44`'s state budget.
+- [x] **The estate's own rule decided it: when a measurement decision is ratified, change the instrument in the same tree.** Correcting it after the declaration would have erased the evidence, so it was corrected first and measured separately. **The total did not move**: 8,590 before and after. State falls **1,789 to 1,782**, namespace rises **331 to 338**, and `0.33.33.44` is restated **1,580 to 1,573**. Nothing was eliminated; seven diagnostics changed owner.
+- [x] **The rule is a shape, not a flow, and the refusals are the substance.** A `const` bound to a **zero-argument** call of a **zero-parameter** function whose body is **exactly one** `return` of a namespace member names that member. The literal default is peeled - `|| {}`, `?? {}`, `|| null`, `|| undefined` - and nothing else is. Six refusals are asserted and each was proved by removing the check it rests on: a parameterised function, a call with arguments, a body of more than one statement, a name declared twice anywhere in the file, a `let` reassigned afterwards, and a real alternative on the right of `||`.
+- [x] **The measurement was bounded before it was built.** A survey found 21 single-return accessor functions across the estate but exactly **seven diagnostics** the rule reattributes - all of them these. The rule was still worth having: the idiom recurs, and the next undeclared surface reached this way would have been misfiled the same way.
+
+### The adoption
+
+- [x] **Eight members, exact.** `loadPreferences`, `readGroupingPreferencesPayload`, `readUserPreferencesPayload`, `readWorkspaceDefaultsPayload`, `renderGroupingPreferences`, `renderPreferenceGroups`, `saveUserPreferences`, `saveWorkspaceDefaults`. One writer, one publication, no additive publication, no second writer.
+- [x] **`loadPreferences` reuses `BrowserNotificationPreferenceCatalog` verbatim.** No second catalogue, no duplicate event record, no duplicate grouping record - `0.33.33.38.4.10` owns that wire vocabulary and this child consumes it.
+- [x] **`groupingMode` is a closed union because the browser closes it.** `normalizeGroupingMode` answers `["client_project", "notification_type", "record_type"].includes(value) ? value : "client_project"`, so every value leaving this surface is one of three. **That is the opposite finding to the wire vocabularies this estate leaves as `string`** - `status`, `priority`, `visibility` - which nothing on the browser side checks. The difference is whether a total fallback exists, and here it does.
+- [x] **`priority` stays `string` in the same payload, four lines away.** `readWorkspaceDefaultsPayload` reads the select's value with a `"normal"` fallback and normalises against nothing, so modelling a vocabulary there would have been the mistake the grouping union is not.
+- [x] **The two array builders are asymmetric and the contracts say so.** `readWorkspaceDefaultsPayload` defaults `id` with `|| ""` and then filters the empties out; `readUserPreferencesPayload` neither defaults nor filters, so its `id` is `string | undefined`. **The filter is not in the type**: TypeScript cannot express a non-empty string without a brand, and inventing one here would claim a guarantee nothing else in the estate keeps.
+- [x] **That asymmetry is not a live defect, and it was traced rather than assumed.** `normalizePreferenceList` filters every submitted row against `allowedEventIds` before the repository sees it, so a row with no id is discarded server-side. The type reveals the shape; the trace shows the server already absorbs it. **Nothing was silently filtered or defaulted to tidy it away.**
+- [x] **`saveUserPreferences` and `saveWorkspaceDefaults` keep `Promise<unknown>`.** Both callers await and discard. A test now fails if either caller starts binding the result, because that would make the opaque contract the wrong one.
+- [x] **Six acquisitions in `user-settings.js`, through the delivery guarantee that page actually has.** `views/protected/user-settings.html` loads `shared/notification-preferences.js` at line 23, ahead of the page script, so a missing surface is a delivery failure. `requireNotificationPreferences()` throws into the `try` that already reported the failure as a status message - the same path the raw read took, with a named error instead of a `TypeError` from the first property access.
+- [x] **`notifications.js` needed no acquisition edit at all.** It guards the surface through its own accessor and returns early without it. **The best source change was no change**, and it is left exactly as it was.
+- [x] **No state was typed.** The probe predicted zero genuine state debt once the seven alias diagnostics were understood, and the tree delivered zero.
+
+Proved by breaking each one:
+
+| Break | Failure |
+| --- | --- |
+| The classifier stops resolving accessor aliases | the alias read is state again |
+| The rule stops refusing a parameterised accessor | a parameterised function is accepted |
+| The rule stops refusing a call with arguments | an argumented call is accepted |
+| The rule stops refusing a multi-statement body | sequencing is accepted as a shape |
+| The rule stops refusing a shadowed name | a twice-declared name is accepted |
+| The rule stops requiring a `const` binding | a reassigned `let` is accepted |
+| The rule stops refusing a non-literal default | `a || b` is peeled to `a` |
+| The backlog keeps a spent record | a spent record must be struck |
+| The backlog entry is struck without the declaration | published with no declaration and no record |
+| The writer drops a declared member | `TS2741`, property missing |
+| The writer publishes an undeclared member | `TS2353`, excess property |
+| `loadPreferences` claims a body the narrowing does not build | the catalogue is not the event array |
+| The grouping payload claims a value the normaliser cannot make | the union no longer matches the normaliser |
+| The workspace-default payload claims the wrong `priority` type | `TS2322` at the writer |
+| The user-preference payload is homogenised with its sibling | `string` cannot take the undefined id |
+| The user-preference builder starts defaulting its id | the asymmetry test fails |
+| The workspace-default builder stops filtering | the identity-less row survives |
+| A renderer is declared to return something | `TS2322` at the writer |
+| The settings page loses its presence guarantee | `TS18048` returns at all six sites |
+| A caller starts consuming a mutation result | `Promise<unknown>` becomes the wrong contract |
+
+Closing state:
+
+| Condition | Baseline | Corrected classifier | Declaration | Final |
+| --- | ---: | ---: | ---: | ---: |
+| Browser program diagnostics | 8,590 | **8,590** | 8,583 | **8,571** |
+| Namespace surface | 331 | **338** | 331 | **319** |
+| Page-local state | 1,789 | **1,782** | 1,782 | **1,782** |
+| params / dom / unknown / assorted | 4,621 / 1,484 / 207 / 158 | **unchanged** | **unchanged** | **unchanged** |
+| Declared members | 41 of 63 | 41 | 42 | **42** |
+| Undeclared backlog | 22 | 22 | 22 *(stale, and it failed)* | **21** |
+| Bare-root reads | 117 | 117 | 117 | **111** |
+| `0.33.33.44` | 1,580 | **1,573** | 1,573 | **1,573** |
+| `.39` / `.40` / `.41` / `.42` / `.43` | 1,770 / 494 / 1,217 / 531 / 976 | **unchanged** | **unchanged** | **unchanged** |
+| Unit tests / regressions / end-to-end | 359 / 348 / 167 | - | - | **366 / 348 / 167**, green |
+
+**Seven diagnostics changed owner and nineteen were eliminated, and the two numbers are reported apart.** The reattribution moved nothing out of the estate: 8,590 before and after, with `0.33.33.44` restated as a measurement correction rather than credited with work it did not do. The implementation then eliminated **19** - seven `notifications.js` alias reads closed by the declaration, six member root-reads and six root reads closed by the acquisitions - every one of them namespace. `4,621 + 1,782 + 158 = 6,561` reconciles against the six owners at the corrected baseline and again at the end.
+
+**The declaration stage moved six diagnostics rather than closing them, and they are reported as movements.** `user-settings.js` lines 263, 265, 270, 319, 320 and 321 went `TS18046 'window.LongtailForge.notificationPreferences' is of type 'unknown'` to `TS18048 ... is possibly 'undefined'`, and the accessor then closed those six **and** the six `'window.LongtailForge' is possibly 'undefined'` reads underneath them. Counting the intermediate code would have claimed 25 for a change worth 19.
+
+**Three green deliberate breaks were found and fixed rather than accepted.** The parameterised-accessor fixture returned `namespace.icons || key`, which the literal-default rule already refused, so removing the parameter check changed nothing; the sequenced-accessor fixture returned a local, so removing the single-statement check changed nothing; and no fixture passed an argument to a valid accessor at all. Each was rewritten until the check it names is the only thing refusing it. **A refusal that something else was already making is not a proof.**
+
+**A line-number correction inside the fixture is worth recording too.** Inserting a statement into an accessor shifted three reads by one - except the accessor sits *below* them, so nothing shifted, and the "correction" pointed three assertions at closing braces where they passed vacuously. Caught by re-running the breaks rather than by the suite, which is why the breaks are run last.
+
 ## Version 0.33.33.38.2.2.6.6.1 - `LongtailForge.notificationSubscriptions`
 
 **Model: Medium Effort** - the adoption a boundary checkpoint had already paid for, and the first surface in this rollup to land with nothing left over.
