@@ -2390,6 +2390,62 @@ export interface BrowserNotificationPreferences {
   saveWorkspaceDefaults(defaults: unknown): Promise<unknown>;
 }
 
+/**
+ * One workspace a user belongs to, as `decorateUserWithMemberships` constructs it.
+ *
+ * Six members built by name from the membership row, so none is optional here.
+ */
+export interface BrowserUserWorkspaceMembership {
+  createdAt: string;
+  status: string;
+  updatedAt: string;
+  userWorkspaceId: string;
+  workspaceId: string;
+  workspaceName: string;
+}
+
+/**
+ * One user as the user-administration routes return it.
+ *
+ * **Constructed, and that is what makes the omissions load-bearing.** `userRowToAppValue` in
+ * `src/utils/normalizers.js` builds these fifteen members by name from the row
+ * `USER_SELECT_COLUMNS` selects. That column list includes **`password`**, `home_workspace_id` and
+ * `active_workspace_id`, and the shaper sends none of them. **This contract must never regain
+ * them**: the select is not the response, and a browser record that named `password` would invite
+ * a consumer to depend on something the server deliberately withholds.
+ *
+ * **Every text member has a total server-side fallback, and every one is still typed `string`.**
+ * `themeMode` is light/auto/dark, `themeAutoSource` is always `system`, the two landing
+ * preferences are dashboard/workbench/tasks/notes/lists, `preferredCalendarView` is day/week/month
+ * or `null`, and `userStatus` is active/inactive. **The browser does not check any of them**, and
+ * this estate has refused since `userPreferences` to declare a closed union over a wire field
+ * nothing validates. The vocabularies are written down here instead.
+ *
+ * `altEmail` and `preferredCalendarView` are the two members the shaper genuinely nulls;
+ * everything else is present and non-null on every path.
+ */
+export interface BrowserUserRecord {
+  /** `null` when the account has no alternate address. */
+  altEmail: string | null;
+  /** Falls back to the username, so never empty. */
+  displayName: string;
+  openExternalLinksNewTab: boolean;
+  passwordChangeRequired: boolean;
+  /** `null` when the account has expressed no calendar preference. */
+  preferredCalendarView: string | null;
+  preferredLoginLanding: string;
+  preferredWorkspaceSwitchLanding: string;
+  protectedUser: boolean;
+  themeAutoSource: string;
+  themeMode: string;
+  timezone: string;
+  user_id: string;
+  userStatus: string;
+  username: string;
+  /** Added by `decorateUserWithMemberships` on the list paths. */
+  workspaceMemberships?: BrowserUserWorkspaceMembership[];
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
