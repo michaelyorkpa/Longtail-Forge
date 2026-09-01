@@ -1,5 +1,42 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.40.1 - Type the Notes page-state contract
+
+**Model: Medium Effort** - the child that set out to give one object one contract, measured what that would cost, and typed five fields instead.
+
+- [x] **The whole-object contract was written, measured, and withdrawn - and that measurement is the child's main result.** `NotesPageState` named all 39 fields, with wire-derived ones as `unknown`. It closes **47 state diagnostics** and opens **40 genuine `unknown`** ones, moving `0.33.33.40` from 534 to 490 while `unknown` rises 378 to 418. The per-file-per-code ledger refused it on `notes.js` `TS18046` 49 to 89. **`never[]` and `null` were not types, they were silence**: reading a property off `never` is legal, so `state.notes[i].title` compiled while meaning nothing.
+- [x] **Five fields had a wrong initialiser type and a knowable correct one, and only those were typed.** `attachmentController` and `editorAttachmentController` hold what `fileAttachments.mount` returns, `notesCursorStack` holds the cursor strings it pushes and pops, `linkTargetSearchTimer` holds a `setTimeout` handle, and `dialogDataReady` holds the promise it awaits. **None of them is a wire boundary**, which is exactly why they could land while their sixteen siblings could not.
+- [x] **`tagPicker` and `bulkTagPicker` were left behind for a different reason and it is worth separating.** Their consumers optional-chain into `readTagIds`, so `unknown` breaks them - but the fix is not a response contract, it is declaring `LongtailForge.tags`, which is still in the undeclared backlog. **Two fields, two different blockers, in the same object.**
+- [x] **`primaryContextClients` looked like the `clientProjectOptions` case and is not.** It is filled from `fetchLinkTargets`, not from `normalizeClients`, so there is no declared contract to reuse and its consumers read `clientId`/`targetId` off the wire.
+- [x] **Secure notes, revisions and Markdown were not opened.** No field typed here touches `isSecureNote`, revision payloads, or the Markdown path, and no runtime line changed at all - the diff is five JSDoc blocks.
+
+Proved by breaking each one:
+
+| Break | Failure |
+| --- | --- |
+| Controller typed `string \| null` | assignment from `fileAttachments.mount` fails |
+| `null` removed from a controller that resets to null | `TS2322: Type 'null' is not assignable to type 'BrowserMountedPanel'` |
+| Cursor stack typed `number[]` | `TS2345` on the `push` of a string |
+| Timer handle typed `string \| null` | `TS2345` where the handle is passed to `clearTimeout` |
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,826 | **8,820** |
+| Page-local state | 1,823 | **1,821** |
+| Assorted | 163 | **159** |
+| params / dom / genuine `unknown` / namespace | 4,628 / 1,484 / 378 / 350 | **all unchanged** |
+| `0.33.33.40` Notes | 534 | **528** |
+| `.39` / `.41` / `.42` / `.43` / `.44` | 1,773 / 1,220 / 531 / 976 / 1,580 | **unchanged** |
+| `notes.js` file total *(not an owner budget)* | 928 | **922** |
+| Runtime behaviour changed | - | **none** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**Six eliminations, no transfers**: two page-local state and four assorted, all `0.33.33.40`'s own. `4,628 + 1,821 + 159 = 6,608` reconciles against the six owners exactly, compared against the full printed table.
+
+**`0.33.33.38.2.2.6.5.1` is unblocked, and it was proved rather than assumed.** Declaring `LongtailForge.fileAttachments` against this tree costs **one** diagnostic - a root-optionality read at `notes.js:4254` that ordinary checked acquisition settles - and closes three. **No state error survives it**, which is the whole point of the prerequisite.
+
 ## Version 0.33.33.38.2.4.5 - Declared namespace surfaces prove writer conformance
 
 **Model: Medium Effort** - a corrective child that reopened `0.33.33.38.2.4`, and whose main result was that the problem was six times smaller than the checkpoint that found it believed.

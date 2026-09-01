@@ -148,14 +148,28 @@
   let state = {
     activeBucket: "all",
     availableTags: [],
+    /**
+     * What `LongtailForge.fileAttachments.mount` returned for the note view, or `null` before
+     * one is mounted. **This field is why `0.33.33.38.2.2.6.5.1` is blocked on Notes**: while it
+     * inferred as `null`, nothing the surface returns could be assigned to it.
+     * @type {import("../../src/types/browser-contracts.js").BrowserMountedPanel | null}
+     */
     attachmentController: null,
     bulkCollections: [],
     bulkTagPicker: null,
     collectionDialogMode: "create",
     collectionEditingId: "",
     collections: [],
+    /**
+     * The in-flight dialog data load, or `null` between opens. Awaited, never read.
+     * @type {Promise<unknown> | null}
+     */
     dialogDataReady: null,
     editingNoteId: "",
+    /**
+     * The editor's attachment panel, reset to `null` when the editor closes.
+     * @type {import("../../src/types/browser-contracts.js").BrowserMountedPanel | null}
+     */
     editorAttachmentController: null,
     editorContextSummaries: {},
     editorHostContext: null,
@@ -165,9 +179,17 @@
     editorStagedTargets: [],
     libraryManuallyChanged: false,
     linkTargetClientContext: LINK_CLIENT_CONTEXT_ALL,
+    /**
+     * `window.setTimeout` handle for the link-target search debounce.
+     * @type {number | null}
+     */
     linkTargetSearchTimer: null,
     linkTargets: [],
     notes: [],
+    /**
+     * Cursors already visited, newest last. Pushed and popped as strings.
+     * @type {string[]}
+     */
     notesCursorStack: [],
     notesCurrentCursor: "",
     notesNextCursor: "",
