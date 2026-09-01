@@ -1,5 +1,63 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.11 - The shared bulk-action failure contract
+
+**Model: Medium Effort** - the child whose first job was to discover that the envelope it was named after does not exist.
+
+- [x] **Four producers, not two, and none of them emits the planned shape.** The reslice recorded a `{ affectedCount, changed, errors }` envelope shared by the tag and catalog bulk routes. Tracing every bulk route found **four**: `POST /api/notes/bulk` answers `{ notes, errors }`, `POST /api/tags/bulk-assignments` answers `{ action, changed, changed_count, errors, skipped_count, target_type }`, `POST /api/notes/settings/catalogs/bulk` answers `{ action, affectedCount, catalogs, errors, requestedCount }`, and `POST /api/tasks/bulk` answers `{ tasks, errors, recurrenceContinuities }`. **`affectedCount` is one producer's and `changed` is another's**; the planned envelope was two producers' fields written side by side.
+- [x] **The set was 14, not 11, and the difference was two consumers nobody had listed.** `tasks.js` reads three members off its bulk body and `notes.js` reads four, not three. Twelve are closed here; **two are carried to `0.33.33.38.4.3`** because `result.tasks` and `result.recurrenceContinuities` are task records, not failures.
+- [x] **What the four genuinely share is the failure record.** Each loops its targets and pushes a constructed object into `errors`. `message` is in all four with a fallback, so it is required. `status` is in three - the note, tag and task producers read it off the caught error and the catalog producer does not - so it is optional. The identity key differs per producer: `note_id`, `target_id`, `catalogId`, `task_id`.
+- [x] **One contract rather than four, and the consumer decided that rather than elegance.** `notes.js` flattens the note and tag producers' failures into a single list and reads `error.note_id || error.target_id` off the result. **Splitting the record would describe a distinction its only merging consumer does not make**, and the optional identity keys are honest precisely because they are optional *across* producers.
+- [x] **`readBulkFailures` went on `LongtailForge.errors`, and that cost nothing.** The surface is already declared, already carries `caughtMessage` and `caughtStatus`, and `framework.http-error-contract` already asserts that served HTML installs `error-contract.js` before every page caller - so three consumers on three pages share one implementation with **no new namespace member and no new delivery dependency**. Declaring the contract and publishing the member measured **zero diagnostics** before a call site moved.
+- [x] **It reconstructs rather than passes through.** `status` is copied only when it is a number and each identity key only when it is a string; everything else on the wire entry - a stack, an error body, an unrecognised field - is left there. A test proves that a failure carrying `stack` and `body` yields neither.
+- [x] **The two single-producer reads stayed local, deliberately.** `bulkAffectedCount` is `notes-settings.js`'s because only the catalog producer sends a count, and `bulkChangedIds` is `notes.js`'s because only the note/tag pair send changed lists. **`bulkChangedIds` collects identifiers, never records** - a bulk-updated note is `0.33.33.38.4.2`'s contract and a tag assignment is `0.33.33.38.2.2.10`'s, and neither is claimed here.
+- [x] **No state was typed and no namespace work was absorbed.** `state.selectedNoteIds` still reports one `TS2740`, with a changed message and the same count; it is `0.33.33.40.2`'s field and stays there. The tags surface, the catalog contract and the task record were all left with their owners.
+
+Proved by breaking each one, with every mutation restored in a `finally`:
+
+| Break | Failure |
+| --- | --- |
+| Producer A stops sending its identity key | `/api/notes/bulk` must carry `note_id` |
+| Producer B stops sending `status` | three producers set it, not two |
+| Producer C sends a member the contract omits | the contract does not describe it |
+| Producer D stops constructing failures inline | the producer authority disappears |
+| The contract describes a member no producer sends | agreement fails from the other side |
+| The contract makes `status` required | one producer omits it |
+| The contract drops an identity key | that producer sends it |
+| The reader stops requiring a text message | a message-less entry becomes a failure |
+| The reader trusts the container | a non-array `errors` is iterated |
+| The reader copies `status` unchecked | a string status survives |
+| The reader copies an identity key unchecked | a numeric id survives |
+| The reader passes entries through | the wire entry's extra members survive |
+| The checked key table falls out of step | a declared key could never arrive |
+| The changed-id read uses one key for both members | the tag producer's ids vanish |
+| The changed-id read stops checking entries | a non-string id survives |
+| The affected count accepts a string | `"3"` becomes 3 where `|| 0` gave 0 |
+| A consumer reads the raw body again | `TS18046` returns in `tasks.js` |
+
+**The producer and contract authorities are separate files, which is the property `0.33.33.38.4.10` lost.** That checkpoint's agreement test drew its fixture and its expectation from the same source, so a nine-against-nine comparison stayed green while the file was broken. Here the four producer services are read for what is sent and the browser declaration is read for what is described; **breaking either one leaves the other standing**, and the first seven breaks above prove it in both directions.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,571 | **8,555** |
+| Genuine `unknown` | 207 | **195** |
+| Params | 4,621 | **4,617** |
+| state / dom / namespace / assorted | 1,782 / 1,484 / 319 / 158 | **all unchanged** |
+| `0.33.33.40` Notes | 494 | **491** |
+| `0.33.33.44` remaining page controllers | 1,573 | **1,572** |
+| `.39` / `.41` / `.42` / `.43` | 1,770 / 1,217 / 531 / 976 | **all unchanged** |
+| Root optionality | 111 bare-root, 34 parked behind 6 | **unchanged** |
+| Declared members / backlog | 42 of 63 / 21 | **unchanged** |
+| Unit tests / regressions / end-to-end | 366 / 348 / 167 | **376 / 348 / 167**, green |
+
+**16 eliminations, no transfers.** Twelve are the genuine `unknown` reads: seven in `notes-settings.js`, four in `notes.js`, one in `tasks.js`. **Four are unannotated callback parameters that ceased to exist** - `(error) => error.catalogId`, `(entry) => entry.target_id`, `(error) => error.note_id || error.target_id` and `(note) => note.note_id` were replaced by narrowed reads, so three left `0.33.33.40` and one left `0.33.33.44`. That is elimination rather than transfer, and it is recorded here so neither budget is credited with it twice. `4,617 + 1,782 + 158 = 6,557` reconciles against the six owners.
+
+**Three behavioural differences, all in malformed-body handling, all deliberate.** A non-array `errors` previously threw from `.map` into the surrounding `catch` and now reports no failures; an entry without a text message is dropped rather than counted; and `firstError` is now the first *valid* failure rather than the first entry. Every well-formed body behaves exactly as before, and the fallbacks the call sites already wrote - `result.errors || []` and `result.affectedCount || 0` - are reproduced precisely.
+
+**A correction this child owes the record.** `0.33.33.38.2.2.6.6.2`'s closing preflight said `LongtailForge.tags` "remains blocked on its 838-line writer with 64 unannotated parameters". **That is not what the Tags preflight established and the live roadmap does not say it**: drafting and wiring the contract leaves `shared/tags.js` byte-for-byte identical in the ledger, and the real blockers are downstream - eight `0.33.33.38.4` wire boundaries, five page-local state slots, two DOM subtype mismatches, four bootstrap inference collisions and the recorded `createTagChip` defect. Nothing in the committed record needed changing; the error was in the preflight prose only.
+
 ## Version 0.33.33.38.2.2.6.6.2 - `LongtailForge.notificationPreferences`
 
 **Model: High Effort** - the adoption that had to correct the instrument before it could report itself honestly.
