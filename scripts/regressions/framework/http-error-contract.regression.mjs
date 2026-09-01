@@ -40,6 +40,7 @@ assert.match(
   "served HTML should install the shared browser error parser before page callers run",
 );
 await assertBrowserApiContract();
+await assertCaughtValueNarrowing();
 await assertCheckedRouteBoundaries();
 assertHeadersAlreadySentPassThrough();
 
@@ -270,6 +271,53 @@ async function assertBrowserApiContract() {
   assert.equal(error.status, 409);
   assert.equal(error.method, "GET");
   assert.equal(error.body.error.code, "conflict");
+}
+
+/**
+ * The caught-value narrowing contract `0.33.33.38.4.1` published.
+ *
+ * A `catch` binding holds whatever was thrown, so the 147 sites that read `error.message` and
+ * `error.status` were reading through an unchecked boundary. These two accessors are the checked
+ * read, and this proves they answer the same thing the raw reads answered - including for the
+ * malformed values a raw read silently tolerated.
+ */
+async function assertCaughtValueNarrowing() {
+  const context = vm.createContext({ window: { LongtailForge: {} } });
+  vm.runInContext(
+    await fs.readFile("public/js/shared/error-contract.js", "utf8"),
+    context,
+    { filename: "error-contract.js" },
+  );
+  const { caughtMessage, caughtStatus, createError } = context.window.LongtailForge.errors;
+
+  const apiError = createError({ error: { code: "conflict", message: "The record changed." } }, "Fallback.", 409);
+  assert.equal(caughtMessage(apiError, "Fallback."), "The record changed.");
+  assert.equal(caughtStatus(apiError), 409);
+  assert.equal(caughtStatus(createError(null, "Fallback.")), 0, "a producer that supplied no status still reports 0");
+
+  assert.equal(caughtMessage(new Error("boom"), "Fallback."), "boom", "a native Error still yields its own message");
+  assert.equal(caughtMessage(new TypeError("wrong"), "Fallback."), "wrong");
+  assert.equal(caughtStatus(new Error("boom")), null, "a value carrying no status is absent, not zero");
+
+  for (const malformed of [null, undefined, 0, 42, "boom", true, Symbol("thrown"), [], () => {}]) {
+    assert.equal(
+      caughtMessage(malformed, "Fallback."),
+      "Fallback.",
+      "a thrown value with no message falls back exactly as `error.message || fallback` did",
+    );
+    assert.equal(caughtStatus(malformed), null);
+  }
+
+  assert.equal(caughtMessage({ message: "" }, "Fallback."), "Fallback.", "an empty message falls back, as `||` did");
+  assert.equal(caughtMessage({ message: "direct" }, "Fallback."), "direct");
+  assert.equal(
+    caughtMessage({ message: 42 }, "Fallback."),
+    "Fallback.",
+    "the one deliberate difference: a non-string message falls back rather than being forwarded",
+  );
+  assert.equal(caughtStatus({ status: "409" }), null, "a non-numeric status is absent, so `=== 409` stays false");
+  assert.equal(caughtStatus({ status: 0 }), 0);
+  assert.equal(caughtStatus(Object.create(null)), null);
 }
 
 async function assertCheckedRouteBoundaries() {

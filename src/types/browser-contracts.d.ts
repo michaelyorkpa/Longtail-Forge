@@ -22,6 +22,22 @@ export interface BrowserApiError extends Error {
 }
 
 export interface BrowserErrorContract {
+  /**
+   * Narrow a caught value to the message it carries, falling back when it carries none.
+   *
+   * **This is the narrowing contract for the caught-value boundary**, published by
+   * `0.33.33.38.4.1`. A `catch` binding is `unknown` for a reason no declaration can remove:
+   * anything can be thrown. The estate's 131 `error.message || "..."` sites were reading through
+   * that boundary rather than across it.
+   */
+  caughtMessage(value: unknown, fallback: string): string;
+  /**
+   * Narrow a caught value to the HTTP status it carries, or `null` when it carries none.
+   *
+   * `null` rather than `0`: `createError` stores `0` for a producer that supplied no status, so
+   * zero is a status a `BrowserApiError` can genuinely hold and absence needs its own value.
+   */
+  caughtStatus(value: unknown): number | null;
   createError(body: unknown, fallback: string, status?: number): BrowserApiError;
   read(body: unknown, fallback?: string): BrowserApiErrorDetails;
 }

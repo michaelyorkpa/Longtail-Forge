@@ -5,6 +5,24 @@
   const namespace = global.LongtailForge || {};
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = namespace?.errors;
+    if (!errors) {
+      throw new Error("Task dialog requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * The alert and confirmation dialogs this file cannot ask a question without. Acquired per call
    * rather than once at module scope, so a missing surface still fails at exactly the moment it
@@ -762,7 +780,7 @@
       }
       return result;
     } catch (error) {
-      setStatus(error.message || "Task was not saved.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task was not saved."), { isError: true });
       throw error;
     }
   }
@@ -816,7 +834,7 @@
       context?.hostContext?.complete?.(taskCompletionHostDetail(result));
       closeTaskModal(dialog, "complete");
     } catch (error) {
-      setStatus(error.message || "Task was not completed.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task was not completed."), { isError: true });
       updateCompleteTaskActionState();
     }
   }
@@ -1270,7 +1288,7 @@
       setStatus(result.isFollowing ? "Task notifications followed." : "Task notifications unfollowed.");
     } catch (error) {
       writeNotificationFollowState(isFollowing);
-      setStatus(error.message || "Notification follow change failed.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Notification follow change failed."), { isError: true });
     }
   }
 
@@ -1342,7 +1360,7 @@
       }
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Task timer was not saved.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task timer was not saved."), { isError: true });
     }
   }
 
@@ -1369,7 +1387,7 @@
       offerTaskResumeNote(result.task || task, event?.currentTarget || null);
       setStatus("Task time saved.");
     } catch (error) {
-      setStatus(error.message || "Task time was not saved.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task time was not saved."), { isError: true });
     }
   }
 
@@ -1399,7 +1417,7 @@
       applyTaskTimerMutationResult(result, task);
       setStatus("Task timer reset.");
     } catch (error) {
-      setStatus(error.message || "Task timer was not reset.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task timer was not reset."), { isError: true });
     }
   }
 
@@ -1633,7 +1651,7 @@
       fields.checklistInput.value = "";
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Checklist item was not added.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Checklist item was not added."), { isError: true });
     }
   }
 
@@ -1682,7 +1700,7 @@
       setStatus("");
     } catch (error) {
       checkbox.checked = !checkbox.checked;
-      setStatus(error.message || "Checklist item was not updated.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Checklist item was not updated."), { isError: true });
     }
   }
 
@@ -1725,7 +1743,7 @@
       applyChecklistResult(await api.putJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist/${encodeURIComponent(itemId)}`, { label }));
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Checklist item was not saved.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Checklist item was not saved."), { isError: true });
     }
   }
 
@@ -1750,7 +1768,7 @@
       applyChecklistResult(await api.deleteJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist/${encodeURIComponent(itemId)}`));
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Checklist item was not removed.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Checklist item was not removed."), { isError: true });
     }
   }
 
@@ -1774,7 +1792,7 @@
       }));
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Checklist was not reordered.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Checklist was not reordered."), { isError: true });
     }
   }
 
@@ -2029,7 +2047,7 @@
         }, 0);
       }
     } catch (error) {
-      setStatus(error.message || "The recurring task could not be recovered.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "The recurring task could not be recovered."), { isError: true });
       writeRecurrenceRecovery(recovery);
     }
   }

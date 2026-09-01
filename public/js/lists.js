@@ -43,6 +43,24 @@
    */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
   
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Lists requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * Whether this page received `view-renderer.js` as well as `view-builder.js`.
    *
@@ -764,9 +782,9 @@
       openListFromUrl();
       setStatus("");
     } catch (error) {
-      renderListPlaceholder(error.message || "Lists could not be loaded.");
-      renderDetailPrompt(error.message || "Lists could not be loaded.");
-      setStatus(error.message || "Lists could not be loaded.", true);
+      renderListPlaceholder(requireErrors().caughtMessage(error, "Lists could not be loaded."));
+      renderDetailPrompt(requireErrors().caughtMessage(error, "Lists could not be loaded."));
+      setStatus(requireErrors().caughtMessage(error, "Lists could not be loaded."), true);
     }
   }
 
@@ -1290,7 +1308,7 @@
       await refreshLists(listId);
       setStatus("");
     } catch (error) {
-      itemDialogFormStatus.textContent = error.message || "Item could not be saved.";
+      itemDialogFormStatus.textContent = requireErrors().caughtMessage(error, "Item could not be saved.");
     } finally {
       itemDialogSave.disabled = false;
     }
@@ -1568,7 +1586,7 @@
       await refreshLists(selectedId || list?.list_id || state.selectedListId);
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "List action failed.", true);
+      setStatus(requireErrors().caughtMessage(error, "List action failed."), true);
     }
   }
 
@@ -1660,7 +1678,7 @@
         await refreshLists(listId);
         setStatus("");
       } catch (error) {
-        setStatus(error.message || "Link could not be added.", true);
+        setStatus(requireErrors().caughtMessage(error, "Link could not be added."), true);
       }
     }
     // The item add/edit form is a modal appended to the body (saved via saveItem); only the linked-records
@@ -1835,7 +1853,7 @@
       state.linkTargets = [];
       parts.setRecords([]);
       listLinkApplyButton.disabled = true;
-      listFormStatus.textContent = error.message || "Linked records could not be loaded.";
+      listFormStatus.textContent = requireErrors().caughtMessage(error, "Linked records could not be loaded.");
     } finally {
       listLinkResultsInput.disabled = false;
     }
@@ -1869,7 +1887,7 @@
       await refreshListEditor(state.editingListId);
       listFormStatus.textContent = "";
     } catch (error) {
-      listFormStatus.textContent = error.message || "Linked record could not be added.";
+      listFormStatus.textContent = requireErrors().caughtMessage(error, "Linked record could not be added.");
     } finally {
       listLinkApplyButton.disabled = false;
     }
@@ -1899,7 +1917,7 @@
       await refreshListEditor(state.editingListId);
       listFormStatus.textContent = "";
     } catch (error) {
-      listFormStatus.textContent = error.message || "Linked record could not be removed.";
+      listFormStatus.textContent = requireErrors().caughtMessage(error, "Linked record could not be removed.");
     }
   }
 
@@ -2110,7 +2128,7 @@
       }
       setStatus("");
     } catch (error) {
-      listFormStatus.textContent = error.message || "List could not be saved.";
+      listFormStatus.textContent = requireErrors().caughtMessage(error, "List could not be saved.");
       if (createdDuringSave && savedListId) {
         listDialogTitle.textContent = "Edit List";
         listSaveButton.textContent = "Save List";

@@ -14,6 +14,24 @@
   // so an opener never runs before its dialog exists. These accessors say that out loud rather
   // than re-reading the namespace on trust, and they throw at the same moment the property
   // access used to - when the action is opened, not when the registry is built.
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = namespace?.errors;
+    if (!errors) {
+      throw new Error("Module actions requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /** @returns {import("../../../src/types/browser-contracts.js").BrowserNotesDialog} */
   function requireNotesDialog() {
     const notesDialog = namespace.notesDialog;
@@ -388,7 +406,7 @@
         hostContext.complete(returnedResult);
       }
     } catch (error) {
-      hostContext.setStatus(error.message || "Module action could not be opened.", { isError: true });
+      hostContext.setStatus(requireErrors().caughtMessage(error, "Module action could not be opened."), { isError: true });
       throw error;
     }
 

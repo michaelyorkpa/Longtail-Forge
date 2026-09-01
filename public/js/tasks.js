@@ -3,6 +3,24 @@
   // visibility resolution stays here - it is a Tasks responsibility, not duplication.
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserCapturePrompt} BrowserCapturePrompt */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Tasks requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * The single-field capture dialog this path cannot ask its question without.
    *
@@ -801,7 +819,7 @@
       hasLoadedTasks = true;
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Tasks could not be loaded.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Tasks could not be loaded."), { isError: true });
     }
   }
 
@@ -834,7 +852,7 @@
       renderTasks();
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Tasks could not be loaded.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Tasks could not be loaded."), { isError: true });
     }
   }
 
@@ -871,7 +889,7 @@
       renderTasks();
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "More tasks could not be loaded.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "More tasks could not be loaded."), { isError: true });
     }
   }
 
@@ -1925,7 +1943,7 @@
       await reloadTaskList();
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Task timer action failed.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task timer action failed."), { isError: true });
     }
   }
 
@@ -2219,7 +2237,7 @@
       );
       setStatus("Task notifications followed.");
     } catch (error) {
-      setStatus(error.message || "Task notifications were not followed.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task notifications were not followed."), { isError: true });
     }
   }
 
@@ -2260,7 +2278,7 @@
         setStatus("");
       }
     } catch (error) {
-      setStatus(error.message || "Task action failed.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task action failed."), { isError: true });
     }
   }
 
@@ -2279,7 +2297,7 @@
         setStatus("");
       }
     } catch (error) {
-      setStatus(error.message || "Task action failed.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task action failed."), { isError: true });
     }
   }
 
@@ -2484,7 +2502,7 @@
         setStatus(`Updated ${results.length} task changes.`);
       }
     } catch (error) {
-      setStatus(error.message || "Selected tasks were not updated.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Selected tasks were not updated."), { isError: true });
     }
   }
 

@@ -10,6 +10,24 @@
    */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
   
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Notes requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * Whether this page received `view-renderer.js` as well as `view-builder.js`.
    *
@@ -1806,8 +1824,8 @@
       }
       setStatus("");
     } catch (error) {
-      renderEmptyList(error.message || "Notes could not be loaded.");
-      setStatus(error.message || "Notes could not be loaded.", true);
+      renderEmptyList(requireErrors().caughtMessage(error, "Notes could not be loaded."));
+      setStatus(requireErrors().caughtMessage(error, "Notes could not be loaded."), true);
     }
   }
 
@@ -1868,8 +1886,8 @@
       renderNotes();
       setStatus("");
     } catch (error) {
-      renderEmptyList(error.message || "Notes could not be loaded.");
-      setStatus(error.message || "Notes could not be loaded.", true);
+      renderEmptyList(requireErrors().caughtMessage(error, "Notes could not be loaded."));
+      setStatus(requireErrors().caughtMessage(error, "Notes could not be loaded."), true);
     }
   }
 
@@ -1890,7 +1908,7 @@
     } catch (error) {
       state.page = Math.max(1, state.page - 1);
       state.notesCursorStack.pop();
-      setStatus(error.message || "Notes could not be loaded.", true);
+      setStatus(requireErrors().caughtMessage(error, "Notes could not be loaded."), true);
     }
   }
 
@@ -1910,7 +1928,7 @@
     } catch (error) {
       state.page += 1;
       state.notesCursorStack.push(previousCursor);
-      setStatus(error.message || "Notes could not be loaded.", true);
+      setStatus(requireErrors().caughtMessage(error, "Notes could not be loaded."), true);
     }
   }
 
@@ -2010,8 +2028,8 @@
       renderBlankDetailPrompt();
       setStatus("");
     } catch (error) {
-      renderEmptyList(error.message || "Notes could not be loaded.");
-      setStatus(error.message || "Notes could not be loaded.", true);
+      renderEmptyList(requireErrors().caughtMessage(error, "Notes could not be loaded."));
+      setStatus(requireErrors().caughtMessage(error, "Notes could not be loaded."), true);
     }
   }
 
@@ -2280,7 +2298,7 @@
       bulkLibraryInput.focus();
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Notes bulk editor could not be opened.", true);
+      setStatus(requireErrors().caughtMessage(error, "Notes bulk editor could not be opened."), true);
     }
   }
 
@@ -2410,7 +2428,7 @@
       setBulkFormStatus(firstError?.message || "Selected notes could not be updated.", true);
       bulkApplyButton.disabled = false;
     } catch (error) {
-      setBulkFormStatus(error.message || "Selected notes could not be updated.", true);
+      setBulkFormStatus(requireErrors().caughtMessage(error, "Selected notes could not be updated."), true);
       bulkApplyButton.disabled = false;
     }
   }
@@ -2821,7 +2839,7 @@
       setEditorFormStatus(result.isFollowing ? "Note notifications followed." : "Note notifications unfollowed.");
     } catch (error) {
       writeNoteNotificationFollowState(isFollowing);
-      setEditorFormStatus(error.message || "Notification follow change failed.", true);
+      setEditorFormStatus(requireErrors().caughtMessage(error, "Notification follow change failed."), true);
     }
   }
 
@@ -3876,7 +3894,7 @@
       closeCollectionDialog();
       setStatus("");
     } catch (error) {
-      collectionFormStatus.textContent = error.message || "Collection could not be saved.";
+      collectionFormStatus.textContent = requireErrors().caughtMessage(error, "Collection could not be saved.");
       collectionSaveButton.disabled = false;
     }
   }
@@ -3919,7 +3937,7 @@
       await refreshCollectionUi();
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Collection could not be updated.", true);
+      setStatus(requireErrors().caughtMessage(error, "Collection could not be updated."), true);
     }
   }
 

@@ -18,6 +18,24 @@
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFieldElement} BrowserViewFieldElement */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFieldControl} BrowserViewFieldControl */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Notes settings requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * The control a field rendered. `viewParts.control` is null only on the radio path, where a
    * descriptor carrying no options renders a legend and no inputs; every caller here builds a
@@ -158,11 +176,11 @@
       setPageStatus("");
       settingsPageController.setClean();
     } catch (error) {
-      if (error.status === 401) {
+      if (requireErrors().caughtStatus(error) === 401) {
         window.location.replace("/login.html");
         return;
       }
-      setPageStatus(error.message || "Notes settings could not be loaded.", { isError: true });
+      setPageStatus(requireErrors().caughtMessage(error, "Notes settings could not be loaded."), { isError: true });
     }
   }
 
@@ -387,7 +405,7 @@
       showCatalogSecurityConfirmation(catalog, requestedAction, result.preflight || {});
       setCatalogStatus("");
     } catch (error) {
-      setCatalogStatus(error.message || "Catalog security preview could not be loaded.", { isError: true });
+      setCatalogStatus(requireErrors().caughtMessage(error, "Catalog security preview could not be loaded."), { isError: true });
     }
   }
 
@@ -457,7 +475,7 @@
         setCatalogStatus(response.execution === "job" ? "Catalog security transition queued. Status will refresh automatically." : "Catalog security transition completed.", { type: "success" });
       } catch (error) {
         submitButton.disabled = false;
-        setCatalogStatus(error.message || "Catalog security transition could not be started.", { isError: true });
+        setCatalogStatus(requireErrors().caughtMessage(error, "Catalog security transition could not be started."), { isError: true });
       }
     });
 
@@ -512,7 +530,7 @@
         setCatalogStatus(`${result.affectedCount || 0} catalog${result.affectedCount === 1 ? "" : "s"} ${action === "archive" ? "archived" : "restored"}.`, { type: "success" });
       }
     } catch (error) {
-      setCatalogStatus(error.message || "Selected catalogs could not be updated.", { isError: true });
+      setCatalogStatus(requireErrors().caughtMessage(error, "Selected catalogs could not be updated."), { isError: true });
     }
   }
 
@@ -579,7 +597,7 @@
         setCatalogStatus(catalog ? "Catalog saved." : "Catalog created.", { type: "success" });
       } catch (error) {
         saveButton.disabled = false;
-        setCatalogStatus(error.message || "Catalog could not be saved.", { isError: true });
+        setCatalogStatus(requireErrors().caughtMessage(error, "Catalog could not be saved."), { isError: true });
       }
     });
 

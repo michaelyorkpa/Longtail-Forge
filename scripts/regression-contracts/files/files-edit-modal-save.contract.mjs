@@ -70,7 +70,7 @@ assert.match(saveBlock, /api\.patchJson\(`\/api\/files\/attachments\/\$\{encodeU
 assert.match(saveBlock, /view\.closeModal\(dialog,\s*"saved"\)/, "Successful save should close the modal");
 assert.match(saveBlock, /await loadFiles\(\)/, "Successful save should refresh the browse list");
 assert.match(saveBlock, /focusFileRowByAttachmentId\(row\.attachmentId\)/, "Successful save should return focus to the refreshed attachment row when present");
-assert.match(saveBlock, /catch \(error\) \{[\s\S]*setFileEditorControlsDisabled\(dialog,\s*false\)[\s\S]*setFileEditorStatus\(dialog,\s*error\.message \|\| "File context was not saved\.",\s*true\)/, "Failed save should keep the modal open and report an inline error");
+assert.match(saveBlock, /catch \(error\) \{[\s\S]*setFileEditorControlsDisabled\(dialog,\s*false\)[\s\S]*setFileEditorStatus\(dialog,\s*requireErrors\(\)\.caughtMessage\(error, "File context was not saved\."\),\s*true\)/, "Failed save should keep the modal open and report an inline error");
 assert.match(markReviewedBlock, /title:\s*"Mark file reviewed\?"[\s\S]*confirmLabel:\s*"Mark Reviewed"[\s\S]*api\.postJson\(`\/api\/files\/\$\{encodeURIComponent\(row\.fileId\)\}\/restore`,\s*\{\}\)/, "Mark Reviewed should confirm and use the Files restore route");
 assert.match(markReviewedBlock, /view\.closeModal\(dialog,\s*"reviewed"\)[\s\S]*await loadFiles\(\)[\s\S]*focusFileRowByAttachmentId\(row\.attachmentId\)/, "Mark Reviewed should close, refresh, and restore focus like other File Context saves");
 

@@ -50,6 +50,24 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserCachedFetch} BrowserCachedFetch */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Workbench requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * The stale-while-revalidate helper the Workbench data path cannot load without.
    *
@@ -817,7 +835,7 @@
         setStatus("");
       }
     } catch (error) {
-      setStatus(error.message || "Workbench could not be loaded.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Workbench could not be loaded."), { isError: true });
     }
   }
 
@@ -2597,7 +2615,7 @@
       }
       state.activeTaskFocus = {
         ...state.activeTaskFocus,
-        error: error.message || "Focused task details could not be loaded.",
+        error: requireErrors().caughtMessage(error, "Focused task details could not be loaded."),
         isLoading: false,
       };
       renderTaskFocusSurface();
@@ -2661,7 +2679,7 @@
       state.activeTaskFocus = {
         ...state.activeTaskFocus,
         relatedContext: {
-          error: error.message || "Related task context could not be loaded.",
+          error: requireErrors().caughtMessage(error, "Related task context could not be loaded."),
           groups: [],
           isLoading: false,
           items: [],
@@ -2803,7 +2821,7 @@
       }
       focusActiveFocusQuestion();
     } catch (error) {
-      setStatus(error.message || "Task was not completed.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task was not completed."), { isError: true });
     }
   }
 
@@ -2853,7 +2871,7 @@
       renderTaskFocusSurface();
       setStatus("Task resumed.");
     } catch (error) {
-      setStatus(error.message || "Task could not be resumed.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task could not be resumed."), { isError: true });
     }
   }
 
@@ -2894,7 +2912,7 @@
       }
       state.activeTaskFocus = {
         ...state.activeTaskFocus,
-        checklistError: error.message || "Checklist item was not updated.",
+        checklistError: requireErrors().caughtMessage(error, "Checklist item was not updated."),
         checklistMutationItemId: "",
       };
       renderTaskFocusSurface();
@@ -2986,7 +3004,7 @@
       }
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Task could not be opened.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task could not be opened."), { isError: true });
     }
   }
 
@@ -3031,7 +3049,7 @@
       }
       setStatus("");
     } catch (error) {
-      setStatus(error.message || `${action.moduleLabel} could not be opened.`, { isError: true });
+      setStatus(requireErrors().caughtMessage(error, `${action.moduleLabel} could not be opened.`), { isError: true });
     }
   }
 
@@ -3085,7 +3103,7 @@
         navigateFromWorkbench(action.fallbackUrl, "related-context-error-fallback");
         return;
       }
-      setStatus(error.message || `${sourceLabel} could not be opened.`, { isError: true });
+      setStatus(requireErrors().caughtMessage(error, `${sourceLabel} could not be opened.`), { isError: true });
     }
   }
 
@@ -3167,7 +3185,7 @@
       state.timers = sourceData.timers;
       renderTimers();
     } catch (error) {
-      setStatus(error.message || "Timers could not be refreshed.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Timers could not be refreshed."), { isError: true });
     }
   }
 
@@ -3381,7 +3399,7 @@
       renderWorkbenchInspector();
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Focus could not be loaded.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Focus could not be loaded."), { isError: true });
     }
   }
 
@@ -3503,7 +3521,7 @@
       });
       await loadWorkbench();
     } catch (error) {
-      setStatus(error.message || "Timer could not be updated.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Timer could not be updated."), { isError: true });
     }
   }
 
@@ -3520,7 +3538,7 @@
       await loadWorkbench();
       return result;
     } catch (error) {
-      setStatus(error.message || "Task timer could not be updated.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task timer could not be updated."), { isError: true });
       return null;
     }
   }
@@ -3553,7 +3571,7 @@
       }
       setStatus(timerStatus === "running" ? "Task timer started." : "Task timer paused.");
     } catch (error) {
-      setStatus(error.message || "Task timer could not be updated.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task timer could not be updated."), { isError: true });
     }
   }
 
@@ -3577,7 +3595,7 @@
       offerTaskResumeNote(result.task || state.activeTaskFocus?.task, event?.currentTarget || null);
       setStatus("Task time saved.");
     } catch (error) {
-      setStatus(error.message || "Task time could not be saved.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task time could not be saved."), { isError: true });
     }
   }
 
@@ -3609,7 +3627,7 @@
       await refreshWorkbenchAfterTaskFocusTimerMutation(result, taskId);
       setStatus("Task timer reset.");
     } catch (error) {
-      setStatus(error.message || "Task timer could not be reset.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task timer could not be reset."), { isError: true });
     }
   }
 
@@ -3641,7 +3659,7 @@
       }
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Task form could not be opened.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task form could not be opened."), { isError: true });
     }
   }
 
@@ -3718,7 +3736,7 @@
       await loadWorkbench();
       setStatus("Time saved.");
     } catch (error) {
-      setStatus(error.message || "Time could not be saved.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Time could not be saved."), { isError: true });
     }
   }
 
@@ -3736,7 +3754,7 @@
       offerTaskResumeNote(result.task);
       setStatus("Task time saved.");
     } catch (error) {
-      setStatus(error.message || "Task time could not be saved.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Task time could not be saved."), { isError: true });
     }
   }
 
@@ -3785,7 +3803,7 @@
       await loadWorkbench();
       setStatus("");
     } catch (error) {
-      setStatus(error.message || "Timer could not be discarded.", { isError: true });
+      setStatus(requireErrors().caughtMessage(error, "Timer could not be discarded."), { isError: true });
     }
   }
 

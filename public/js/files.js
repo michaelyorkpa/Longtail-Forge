@@ -10,6 +10,24 @@
    */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
   
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Files requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * Whether this page received `view-renderer.js` as well as `view-builder.js`.
    *
@@ -491,7 +509,7 @@
       updateFilesPagination();
       setStatus(visibleFileCountLabel(state.attachments.length, state.pagination));
     } catch (error) {
-      if (error.status === 401) {
+      if (requireErrors().caughtStatus(error) === 401) {
         window.location.replace("/login.html");
         return;
       }
@@ -500,7 +518,7 @@
       state.pagination = { hasMore: false, nextCursor: "" };
       renderFiles([]);
       updateFilesPagination();
-      setStatus(error.message || "Files could not be loaded.", true);
+      setStatus(requireErrors().caughtMessage(error, "Files could not be loaded."), true);
     }
   }
 
@@ -1382,7 +1400,7 @@
       }
 
       setFileEditorControlsDisabled(dialog, false);
-      setFileEditorStatus(dialog, error.message || "Target choices could not be loaded.", true);
+      setFileEditorStatus(dialog, requireErrors().caughtMessage(error, "Target choices could not be loaded."), true);
     }
   }
 
@@ -1641,7 +1659,7 @@
     try {
       payload = fileEditorContextPayload(dialog);
     } catch (error) {
-      setFileEditorStatus(dialog, error.message || "Choose a target before saving.", true);
+      setFileEditorStatus(dialog, requireErrors().caughtMessage(error, "Choose a target before saving."), true);
       syncFileEditorSaveState(dialog);
       return;
     }
@@ -1660,7 +1678,7 @@
       }
     } catch (error) {
       setFileEditorControlsDisabled(dialog, false);
-      setFileEditorStatus(dialog, error.message || "File context was not saved.", true);
+      setFileEditorStatus(dialog, requireErrors().caughtMessage(error, "File context was not saved."), true);
     }
   }
 
@@ -1704,7 +1722,7 @@
       if (markReviewedButton) {
         markReviewedButton.disabled = false;
       }
-      setFileEditorStatus(dialog, error.message || "File was not marked reviewed.", true);
+      setFileEditorStatus(dialog, requireErrors().caughtMessage(error, "File was not marked reviewed."), true);
     }
   }
 
@@ -1876,7 +1894,7 @@
       });
       await loadFiles();
     } catch (error) {
-      setStatus(error.message || "File was not reported.", true);
+      setStatus(requireErrors().caughtMessage(error, "File was not reported."), true);
     }
   }
 
@@ -1899,7 +1917,7 @@
       await api.postJson(`/api/files/${encodeURIComponent(fileId)}/quarantine`, { reason: FILE_QUARANTINE_REASON });
       await loadFiles();
     } catch (error) {
-      setStatus(error.message || "File was not moved to review.", true);
+      setStatus(requireErrors().caughtMessage(error, "File was not moved to review."), true);
     }
   }
 
@@ -1922,7 +1940,7 @@
       await api.postJson(`/api/files/${encodeURIComponent(fileId)}/delete`, {});
       await loadFiles();
     } catch (error) {
-      setStatus(error.message || "File was not deleted.", true);
+      setStatus(requireErrors().caughtMessage(error, "File was not deleted."), true);
     }
   }
 
@@ -1934,7 +1952,7 @@
       await api.postJson(`/api/files/${encodeURIComponent(fileId)}/restore`, {});
       await loadFiles();
     } catch (error) {
-      setStatus(error.message || "File was not restored.", true);
+      setStatus(requireErrors().caughtMessage(error, "File was not restored."), true);
     }
   }
 

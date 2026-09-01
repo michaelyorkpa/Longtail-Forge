@@ -7,6 +7,24 @@
 
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = namespace?.errors;
+    if (!errors) {
+      throw new Error("File attachments requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * The API client this file cannot run without.
    *
@@ -146,7 +164,7 @@
       });
       emit(container, state, "refresh", { attachments: state.attachments });
     } catch (error) {
-      state.error = error.message || "Attachments could not be loaded.";
+      state.error = requireErrors().caughtMessage(error, "Attachments could not be loaded.");
     } finally {
       state.isLoading = false;
       render(container, state);
@@ -718,7 +736,7 @@
       emit(container, state, "attachmentAdded", result);
       await refresh(container, state);
     } catch (error) {
-      state.error = error.message || "Upload failed.";
+      state.error = requireErrors().caughtMessage(error, "Upload failed.");
       emit(container, state, "uploadFailed", { error });
     } finally {
       state.isUploading = false;
@@ -843,7 +861,7 @@
       emit(container, state, "attachmentRemoved", { attachment });
       await refresh(container, state);
     } catch (error) {
-      state.error = error.message || "Attachment was not removed.";
+      state.error = requireErrors().caughtMessage(error, "Attachment was not removed.");
       render(container, state);
     }
   }
@@ -877,7 +895,7 @@
       emit(container, state, "fileReported", { attachment });
       await refresh(container, state);
     } catch (error) {
-      state.error = error.message || "File was not reported.";
+      state.error = requireErrors().caughtMessage(error, "File was not reported.");
       render(container, state);
     }
   }
@@ -907,7 +925,7 @@
       emit(container, state, "fileQuarantined", { attachment });
       await refresh(container, state);
     } catch (error) {
-      state.error = error.message || "File was not moved to review.";
+      state.error = requireErrors().caughtMessage(error, "File was not moved to review.");
       render(container, state);
     }
   }
@@ -937,7 +955,7 @@
       emit(container, state, "fileDeleted", { attachment });
       await refresh(container, state);
     } catch (error) {
-      state.error = error.message || "File was not deleted.";
+      state.error = requireErrors().caughtMessage(error, "File was not deleted.");
       render(container, state);
     }
   }
@@ -955,7 +973,7 @@
       emit(container, state, "fileRestored", { attachment });
       await refresh(container, state);
     } catch (error) {
-      state.error = error.message || "File was not restored.";
+      state.error = requireErrors().caughtMessage(error, "File was not restored.");
       render(container, state);
     }
   }

@@ -16,6 +16,24 @@ const state = {
 
 initialize();
 
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+/**
+ * The narrowing contract for the values this file catches.
+ *
+ * A `catch` binding is `unknown` and no declaration can change that: anything can be
+ * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+ * checked read fails exactly where the raw `error.message` read failed before.
+ * @returns {BrowserErrorContract}
+ */
+function requireErrors() {
+  const errors = window.LongtailForge?.errors;
+  if (!errors) {
+    throw new Error("Help requires LongtailForge.errors.");
+  }
+  return errors;
+}
+
 async function initialize() {
   setStatus("Loading help...");
   renderArticlePrompt("Loading help...");
@@ -48,7 +66,7 @@ async function initialize() {
     state.navigation = [];
     state.defaultArticleId = "";
     renderSections();
-    setStatus(error.message || "Help is unavailable.", true);
+    setStatus(requireErrors().caughtMessage(error, "Help is unavailable."), true);
     renderArticlePrompt("Help is unavailable.");
   }
 }
@@ -78,7 +96,7 @@ async function selectArticle(articleId, options = {}) {
     renderArticle(body.article || article);
     setStatus("");
   } catch (error) {
-    setStatus(error.message || "Article is unavailable.", true);
+    setStatus(requireErrors().caughtMessage(error, "Article is unavailable."), true);
     renderArticlePrompt("Article is unavailable.");
   }
 }

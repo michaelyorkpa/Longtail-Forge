@@ -6,6 +6,24 @@
   let tagPickerId = 0;
   let tagSuggestionId = 0;
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = namespace?.errors;
+    if (!errors) {
+      throw new Error("Shared tags requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   async function loadTags(options = {}) {
     const params = new URLSearchParams({
       status: options.status || "active",
@@ -202,7 +220,7 @@
           setStatus(status, `Added ${tag.name || tag.slug}`);
         }
       } catch (error) {
-        setStatus(status, error.message || "Unable to create tag.", true);
+        setStatus(status, requireErrors().caughtMessage(error, "Unable to create tag."), true);
       } finally {
         state.busy = false;
         input.disabled = false;
@@ -275,7 +293,7 @@
           setStatus(status, "Inherited tag removed from this record.");
         } catch (error) {
           suppressButton.disabled = false;
-          setStatus(status, error.message || "Unable to remove inherited tag.", true);
+          setStatus(status, requireErrors().caughtMessage(error, "Unable to remove inherited tag."), true);
         } finally {
           state.busy = false;
           sync();
@@ -661,7 +679,7 @@
       }
       return tag;
     } catch (error) {
-      if (error.status !== 409) {
+      if (requireErrors().caughtStatus(error) !== 409) {
         throw error;
       }
 

@@ -20,6 +20,24 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("Files settings requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * The API client this file cannot run without.
    *
@@ -102,11 +120,11 @@
       setStatus("");
       settingsPageController.setClean();
     } catch (error) {
-      if (error.status === 401) {
+      if (requireErrors().caughtStatus(error) === 401) {
         window.location.replace("/login.html");
         return;
       }
-      setStatus(error.message || "Files settings could not be loaded.", true);
+      setStatus(requireErrors().caughtMessage(error, "Files settings could not be loaded."), true);
     }
   }
 
@@ -133,7 +151,7 @@
       return true;
     } catch (error) {
       window.LongtailForge.settingsRenderer.showValidationErrors(filesSettingsForm, error);
-      setStatus(error.message || "Files settings were not saved.", true);
+      setStatus(requireErrors().caughtMessage(error, "Files settings were not saved."), true);
       return false;
     }
   }

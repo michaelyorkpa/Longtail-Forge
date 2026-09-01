@@ -137,6 +137,24 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserPageController} BrowserPageController */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+
+  /**
+   * The narrowing contract for the values this file catches.
+   *
+   * A `catch` binding is `unknown` and no declaration can change that: anything can be
+   * thrown. Every page that loads this script also loads `shared/error-contract.js`, so the
+   * checked read fails exactly where the raw `error.message` read failed before.
+   * @returns {BrowserErrorContract}
+   */
+  function requireErrors() {
+    const errors = window.LongtailForge?.errors;
+    if (!errors) {
+      throw new Error("User Admin requires LongtailForge.errors.");
+    }
+    return errors;
+  }
+
   /**
    * The page controller registry this page cannot run without.
    *
@@ -212,12 +230,12 @@
       openUserFromQuery();
       setUserAdminStatus("");
     } catch (error) {
-      if (error.status === 401) {
+      if (requireErrors().caughtStatus(error) === 401) {
         window.location.replace("/login.html");
         return;
       }
 
-      setUserAdminStatus(error.message || "Users could not be loaded.", true);
+      setUserAdminStatus(requireErrors().caughtMessage(error, "Users could not be loaded."), true);
     }
   }
 
@@ -296,12 +314,12 @@
         ? `Created ${body.user?.username || username} and added the account to the selected workspace.`
         : `Added existing account ${body.user?.username || username} to the selected workspace.`);
     } catch (error) {
-      if (error.status === 401) {
+      if (requireErrors().caughtStatus(error) === 401) {
         window.location.replace("/login.html");
         return;
       }
 
-      setUserAdminStatus(error.message || "User was not added.", true);
+      setUserAdminStatus(requireErrors().caughtMessage(error, "User was not added."), true);
     } finally {
       applyUserCreationAvailability();
     }
@@ -332,7 +350,7 @@
     } catch (error) {
       addUserCanCreate = false;
       applyUserCreationAvailability();
-      setUserAdminStatus(error.message || "Add User options could not be loaded.", true);
+      setUserAdminStatus(requireErrors().caughtMessage(error, "Add User options could not be loaded."), true);
     }
   }
 
@@ -415,7 +433,7 @@
       return true;
     } catch (error) {
       resetAccountLookup();
-      setUserAdminStatus(error.message || "Account lookup failed.", true);
+      setUserAdminStatus(requireErrors().caughtMessage(error, "Account lookup failed."), true);
       return false;
     } finally {
       applyUserCreationAvailability();
@@ -552,7 +570,7 @@
       pendingRoleAssignments = body.assignments || [];
       renderPendingRoleAssignments();
     } catch (error) {
-      setUserAdminStatus(error.message || "Role assignments could not be loaded.", true);
+      setUserAdminStatus(requireErrors().caughtMessage(error, "Role assignments could not be loaded."), true);
     }
   }
 
@@ -577,11 +595,11 @@
       );
       renderManagedUserSessions(body.sessions || []);
     } catch (error) {
-      if (error.status === 401) {
+      if (requireErrors().caughtStatus(error) === 401) {
         return;
       }
       renderManagedUserSessions([]);
-      setUserAdminStatus(error.message || "Active sessions could not be loaded.", true);
+      setUserAdminStatus(requireErrors().caughtMessage(error, "Active sessions could not be loaded."), true);
     } finally {
       refreshUserSessionsButton.disabled = false;
     }
@@ -639,10 +657,10 @@
       setUserAdminStatus("Session revoked.");
       await loadUserSessions(user);
     } catch (error) {
-      if (error.status === 401) {
+      if (requireErrors().caughtStatus(error) === 401) {
         return;
       }
-      setUserAdminStatus(error.message || "Session could not be revoked.", true);
+      setUserAdminStatus(requireErrors().caughtMessage(error, "Session could not be revoked."), true);
     }
   }
 
@@ -665,10 +683,10 @@
       setUserAdminStatus(`Revoked ${body.revokedCount || 0} session${body.revokedCount === 1 ? "" : "s"}.`);
       await loadUserSessions(user);
     } catch (error) {
-      if (error.status === 401) {
+      if (requireErrors().caughtStatus(error) === 401) {
         return;
       }
-      setUserAdminStatus(error.message || "Sessions could not be revoked.", true);
+      setUserAdminStatus(requireErrors().caughtMessage(error, "Sessions could not be revoked."), true);
     }
   }
 
@@ -732,12 +750,12 @@
       renderUsers(body.users || []);
       setUserAdminStatus(`Saved ${body.user?.username || username}.`);
     } catch (error) {
-      if (error.status === 401) {
+      if (requireErrors().caughtStatus(error) === 401) {
         window.location.replace("/login.html");
         return;
       }
 
-      setUserAdminStatus(error.message || "User was not saved.", true);
+      setUserAdminStatus(requireErrors().caughtMessage(error, "User was not saved."), true);
     } finally {
       saveEditUserButton.disabled = false;
     }
@@ -1233,12 +1251,12 @@
       renderUsers(body.users || []);
       setUserAdminStatus(successMessage);
     } catch (error) {
-      if (error.status === 401) {
+      if (requireErrors().caughtStatus(error) === 401) {
         window.location.replace("/login.html");
         return;
       }
 
-      setUserAdminStatus(error.message || "User change was not saved.", true);
+      setUserAdminStatus(requireErrors().caughtMessage(error, "User change was not saved."), true);
     }
   }
 

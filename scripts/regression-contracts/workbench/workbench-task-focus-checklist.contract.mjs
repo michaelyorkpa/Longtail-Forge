@@ -60,7 +60,7 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "handleTaskFocusChecklistChange"),
-  /catch \(error\)[\s\S]*checklistError: error\.message \|\| "Checklist item was not updated\."[\s\S]*setStatus\(state\.activeTaskFocus\.checklistError, \{ isError: true \}\);/,
+  /catch \(error\)[\s\S]*checklistError: requireErrors\(\)\.caughtMessage\(error, "Checklist item was not updated\."\)[\s\S]*setStatus\(state\.activeTaskFocus\.checklistError, \{ isError: true \}\);/,
   "Checklist permission or mutation failures should surface safely through Task Focus status and section copy",
 );
 assert.doesNotMatch(
