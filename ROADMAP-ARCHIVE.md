@@ -1,5 +1,46 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.1 - Narrow the caught-value boundary
+
+**Model: High Effort** - the child that found 39% of `0.33.33.38.4` was not a wire body at all, and closed it against a contract that already existed.
+
+- [x] **The reslice came before the implementation, and it changed what the first child was.** The 378 genuine `unknown` diagnostics were dumped from the durable classifier and traced to their producers. **147 of them are values a `catch` clause bound** - not awaited bodies, not parsed JSON. A caught value is unknown for a reason no declaration removes: anything can be thrown. **This is one boundary with one producer**, and splitting it by file would have made 32 children of it.
+- [x] **The consumption was already uniform, which is what made it a contract rather than 147 repairs.** 131 sites wrote `error.message || "..."` and 16 compared `error.status` against a numeric literal. Nothing else. The narrowing is therefore two accessors, `caughtMessage(value, fallback)` and `caughtStatus(value)`, published on `LongtailForge.errors` beside `createError` and `read`.
+- [x] **`BrowserErrorContract` and `BrowserApiError` were already declared, so this child added a narrowing rather than a shape.** `createError` has always produced `status`, `code`, `requestId` and `body`; what was missing was the checked read at the other end. **Declaring the producer and publishing the two accessors cost zero diagnostics** - measured before a single call site was touched.
+- [x] **`caughtStatus` returns `number | null`, not `number`.** `createError` stores `0` when the producer supplied no status, so zero is a status a `BrowserApiError` can genuinely hold; absence needs its own value. All sixteen sites compare with `===` or `!==` against a literal, so `null` and the `undefined` they read before are indistinguishable to them.
+- [x] **One behavioural difference exists, it is deliberate, and it is written down in three places.** `error.message || fallback` forwards a truthy non-string `message`; `caughtMessage` returns the fallback instead. Every consumer assigns the result to `textContent` or passes it to a status renderer that takes a string, so a string is the contract they already depended on, and no producer in this estate throws a value with a non-string `message`. **The regression asserts the difference explicitly rather than leaving it as a footnote.**
+- [x] **Checked acquisition in all 32 files, on the mechanism this estate already uses.** `requireErrors()` reads `LongtailForge.errors`, throws when absent, and returns the contract. `framework.http-error-contract` already asserts that served HTML installs `js/shared/error-contract.js` before page callers run, so **this is a delivery probe, not new policy**: it fails exactly where the raw `error.message` read failed before.
+- [x] **Four source assertions pinned the old spelling and were retargeted to the construct now owned, not deleted.** Files edit-modal save, the tags inline picker (twice), and the Workbench task-focus checklist. Each still asserts the behaviour it always asserted - that a failed save reports inline, that a 409 is handled apart from hard failures - and each was proved by reverting the source and watching it fail.
+
+Proved by breaking each one:
+
+| Break | Failure |
+| --- | --- |
+| Published object drops `caughtStatus` | writer no longer satisfies `BrowserErrorContract` |
+| `caughtMessage` returns `null` | return type violates the declaration |
+| `caughtStatus` declared `unknown` | all sixteen `=== 401` comparisons fail |
+| The checked acquisition stops checking | `errors` is possibly `undefined` at every call |
+| `caughtMessage` forwards a non-string `message` | `framework.http-error-contract` fails on the named assertion |
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,812 | **8,665** |
+| Genuine `unknown` | 378 | **231** |
+| params / state / dom / namespace / assorted | 4,625 / 1,821 / 1,484 / 345 / 159 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,773 / 528 / 1,217 / 531 / 976 / 1,580 | **all unchanged** |
+| Root optionality | 117 bare-root, 42 parked behind 8 | **unchanged** |
+| Declared namespace members | 40 of 63 known | **unchanged** |
+| Runtime behaviour changed | - | **one documented difference, asserted** |
+| Regressions / end-to-end | 348 / 167 | **348 / 167**, green |
+
+**147 eliminations, zero transfers**, compared against the full printed owner table rather than the family line. `4,625 + 1,821 + 159 = 6,605` reconciles against the six owners exactly, before and after.
+
+**A correction this checkpoint owes the record: `LongtailForge.tags` was never unowned.** An earlier statement in planning that Tags "needs a checkpoint id assigned" was wrong. `0.33.33.38.2.2.10` has owned it since its writer-first preflight, is BLOCKED, and holds the recorded `createTagChip` defect. The three `/api/tags` reads in `notes.js` are that checkpoint's and are excluded from this reslice by name. **Duplicating ownership to make a table balance is the failure mode the reslice exists to prevent.**
+
+**Two files were rewritten to CRLF by the scripted edit and restored to LF before commit.** `shared/error-contract.js` and `shared/tags.js` showed whole-file churn - 65 deletions for a 41-line addition - against blobs that are pure LF. The audit that caught it counts `\r\n` bytes against the blob rather than reading `git status`, and it now runs over every changed file: each keeps its blob's style and none is mixed.
+
 ## Version 0.33.33.38.2.2.6.5.1 - `LongtailForge.fileAttachments`
 
 **Model: Medium Effort** - the child that cashed `0.33.33.40.1`'s prerequisite, and nearly recorded a false finding on the way.

@@ -415,14 +415,81 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **The boundary, restated because a code keeps being mistaken for a cause:** a `TS18046` belongs to this checkpoint **only when the runtime value is still unknown after namespace and member identity are resolved.** An undeclared member that happens to emit `TS18046` is namespace work no matter what the compiler printed.
 
-**Model: High Effort - 408 genuine runtime boundaries, corrected twice and then grown by one: down from the 1,038 the first slice claimed, corrected again by the `0.33.33.38.2.2.2` preflight, which found 124 of the `unknown` family were undeclared namespace members rather than untrusted values, and then **increased by one when that same checkpoint's accurate typing exposed a boundary nobody had been able to see**.**
+**Model: High Effort - 378 genuine runtime boundaries at the reslice, 231 after `0.33.33.38.4.1`.** The historical figures this section carried - 1,038, then 408, then 407, then 379 - were each true of the tree that produced them and none is true now. **They are not implementation inputs.** `0.33.33.38.2.4.2` exists so this number is produced rather than remembered: `node scripts/typecheck-governance.mjs` prints it, and a child that quotes any other figure is quoting a tree it is not editing.
 
 - [ ] **Carry-forward from `0.33.33.38.2.2.2`: `workspace-settings.js` reads `moduleId` and `lifecycle` off the array `settingsHost.attachmentSections` returns.** That array is part of the `GET /api/settings/catalog` body, so declaring the surface truthfully as `unknown[]` made the trust boundary visible; the consumer now narrows with a predicate before sorting. **The diagnostic moved to its true owner - it is not evidence that the contract should be weakened**, and the baseline is 408 rather than 407 because of it. Expect this number to move again as later `.38.2.2` children declare their surfaces; each such move is a boundary becoming visible, not new debt.
 
 - [ ] Add named API response and descriptor handoff contracts with `unknown` narrowing at the network and view boundaries.
 - [ ] **`BrowserApi` already returns `Promise<unknown>` from all five methods, and that is correct.** A fetch body is an untrusted runtime value; the contract is right and the consumer is what needs a narrowing step. **Do not type `getJson`'s return to remove errors** - that would recreate the inherited-`any` shape the scripts program spent four children removing, wearing a JSDoc annotation.
-- [ ] **The scope is 407, and every one of them is a real boundary.** Catch clauses, awaited wire bodies, and parsed JSON - and **none is attributable to an undeclared namespace member**, which is what makes the boundary with `0.33.33.38.2.2` hard rather than a judgement call. A `TS18046` whose subject is an undeclared member is namespace work no matter what code the compiler emitted; a `TS18046` on a value that is still unshaped after its member is declared is this child's.
+- [ ] **Every one of them is a real boundary, and none is attributable to an undeclared namespace member** - which is what makes the boundary with `0.33.33.38.2.2` hard rather than a judgement call. A `TS18046` whose subject is an undeclared member is namespace work no matter what code the compiler emitted; a `TS18046` on a value that is still unshaped after its member is declared is this child's.
 - [ ] Read the producer before publishing any contract, and do not tighten a deliberately extensible contract to remove errors.
+
+**Resliced by producer, because a boundary is a thing that produces values and a diagnostic count is not.** The 378 were dumped from the durable classifier and traced back to what produced them. **Two kinds, and they are not variants of each other**: 147 are values a `catch` clause bound, produced by throw sites and shaped by one already-declared contract; 231 are API bodies, produced by 74 distinct calls across nineteen endpoint families. Splitting the first by file would have made 32 children of one boundary; splitting the second by count would have cut single endpoint families in half.
+
+**The endpoint attribution below is a trace, not a guess, and it is incomplete on purpose.** Resolving one level of local indirection attributes 179 of the 231; **52 reach their producer through helpers this pass did not follow**, and they are recorded as unattributed rather than distributed to make the table add up. Attributing them is `0.33.33.38.4.9`'s first task.
+
+| Producer family | Live | Consumers |
+| --- | ---: | --- |
+| Caught values | **147** | 32 files - **closed by `0.33.33.38.4.1`** |
+| `/api/notes*` | 40 | `notes.js`, `notes-settings.js`, `tasks.js`, `shared/notes-linked-panel.js` |
+| `/api/tasks*` | 34 | `tasks.js`, `task-dialog.js`, `workbench.js` |
+| `/api/users`, `/api/roles`, `/api/role-assignments` | 29 | `user-admin.js`, `role-assignments.js`, `lists.js` |
+| `/api/settings*`, `/api/user/settings` | 18 | four settings pages |
+| `/api/client-projects`, `/api/clients`, `/api/private-feeds` | 20 | `clients-projects.js`, `calendar-settings.js`, `lists.js`, `files.js`, `time-entry-dialog.js` |
+| `/api/lists*` | 7 | `lists.js` |
+| `/api/support-view*`, `/api/security-events`, `/api/runtime-diagnostics`, `/api/jobs` | 13 | `support-view-audit.js`, `audit-log.js`, `workspace-settings.js` |
+| `/api/files*`, `/api/api-keys`, `/api/workbench`, `/api/active-timers`, `/api/time-entries` | 15 | `files-settings.js`, `api-keys.js`, `workbench.js`, `shared/file-preview.js`, `time-entries.js` |
+| `/api/tags/bulk-assignments` | 4 | `notes.js` - a bulk-action envelope, **not** the `LongtailForge.tags` surface |
+| Unattributed producers | 52 | traced no further than a local helper |
+
+**`LongtailForge.tags` has an owner and this checkpoint must not take its work.** `0.33.33.38.2.2.10` owns it, is BLOCKED after a writer-first preflight, and holds the recorded `createTagChip` defect. The `tagPicker` and `bulkTagPicker` fields `0.33.33.40.1` left behind wait on that declaration rather than on a response contract. **Two surfaces blocked behind one undeclared member is a dependency, not a reason to reassign ownership.**
+
+**A first attempt at this table put four `notes.js` reads under that ownership and it was wrong, so it is corrected here rather than carried.** The four are `POST /api/tags/bulk-assignments` reads at `notes.js:2404-2427`, and they reach the route through `requireApi().postJson` directly - **not through `LongtailForge.tags`**. They read a bulk-action envelope of `notes`, `changed` and `errors`, which is the same envelope `notes-settings.js` reads from the catalog bulk route, and they are `0.33.33.38.4.2`'s. **The route a body comes from does not decide its owner; the surface a consumer reaches it through does.**
+
+**What this checkpoint unblocks, stated as a map rather than a hope.** `0.33.33.40.2` waits on `/api/notes*`; `0.33.33.38.2.2.6.6.1` and `.6.6.2` wait on the notification bodies, whose diagnostics **are not in today's 378** because they appear only once those surfaces are declared - a demand-driven child, sized by a preflight rather than by the classifier; `LongtailForge.userPreferences` is owned here outright, on the terms recorded at the top of this section.
+
+#### 0.33.33.38.4.1 - Narrow the caught-value boundary
+
+**Complete.** One producer, one already-declared contract, 147 diagnostics, zero transfers. See the archive entry.
+
+#### 0.33.33.38.4.2 - The Notes response family
+
+**40 diagnostics and the highest-leverage remaining child, because it is the only one another checkpoint is waiting on.** `0.33.33.40.2` cannot type `notes`, `collections`, `selectedNote`, `linkTargets` or their siblings until a note, a collection and a link target have named validated shapes, and `0.33.33.40.1` proved that typing them `unknown` first trades a hidden boundary for a visible one without settling anything.
+
+- [ ] Read the note routes and services before naming a field. A browser contract that guesses the server's shape is worse than `unknown`.
+- [ ] **Three envelopes, not one contract**: the note envelope (`{ note }`, `{ notes, pagination }`), the bulk-action envelope (`{ affectedCount, changed, errors }`) shared with the catalog and tag-assignment routes, and the notes-settings catalog envelope (`{ catalogs, capabilities, preflight, execution }`). Two reads in `notes.js` and `notes-settings.js` are settings-catalog reads and belong to `0.33.33.38.4.5`; confirm that split from the classifier before starting.
+
+#### 0.33.33.38.4.3 - The Tasks response family
+
+**34 diagnostics across `tasks.js`, `task-dialog.js` and `workbench.js`**, reached through `loadCanonicalTasks`, `loadTaskTimers` and the timer routes. Three consumers of one family, which is what makes it a boundary rather than three page problems.
+
+#### 0.33.33.38.4.4 - The workspace-user, role and assignment responses
+
+**29 diagnostics.** `/api/users` and `/api/users/lookup` are shared by `user-admin.js` and `lists.js`, alongside `/api/roles` and `/api/role-assignments/lookup`. The lookup body is read by two unrelated pages, which is the clearest reuse signal the trace found.
+
+#### 0.33.33.38.4.5 - The settings catalog and user-settings bodies
+
+**18 diagnostics** across `workspace-settings.js`, `module-settings.js`, `notes-settings.js` and `user-settings.js`. **This child inherits `0.33.33.38.2.2.2`'s carry-forward**: `attachmentSections` is part of `GET /api/settings/catalog`, and its consumer already narrows with a predicate before sorting.
+
+#### 0.33.33.38.4.6 - The client, project and calendar-subscription bodies
+
+**20 diagnostics.** `LongtailForge.clientProjectOptions` already publishes normalised client and project contracts, so this child's first question is which of these reads should consume that surface instead of the raw body - **a reuse trace, not a new contract**. `/api/private-feeds/calendar-subscriptions` is separate, and is the body `calendar-settings.js` reads directly.
+
+#### 0.33.33.38.4.7 - The Lists response family
+
+**7 diagnostics** - `/api/lists`, `/api/lists/:id`, `/api/lists/link-targets` and `/api/lists/item-suggestions`, all in `lists.js`. Small, self-contained, and the natural place to prove the pattern before the larger families.
+
+#### 0.33.33.38.4.8 - The operator-surface bodies
+
+**13 diagnostics** across Support View targets and audit, `/api/security-events`, `/api/runtime-diagnostics` and `/api/jobs`. Grouped because they share an operator audience and a read-only shape, not because they share a route prefix.
+
+#### 0.33.33.38.4.9 - Attribute and close the remaining producers
+
+**52 diagnostics whose producer this reslice did not resolve, plus whatever the file, key and timer bodies leave over.** **Attribution is the work and it comes first**: follow each read back through its local helper to a route, then fold it into whichever sibling child owns that family - or draw a new child if the trace finds a family nobody listed. **Do not begin by typing them.**
+
+#### 0.33.33.38.4.10 - The notification bodies, on demand
+
+**Not sized by the classifier, because its diagnostics do not exist yet.** `0.33.33.38.2.2.6.6.1` and `.6.6.2` each found that declaring their surface truthfully exposes reads their consumers make immediately - five `TS18046` in `notes.js` and `task-dialog.js` for the first, two untraced `body` returns for the second. **Size this from a writer-first preflight taken with those surfaces declared**, never from today's count.
 
 #### 0.33.33.38.5 - Narrow the server task lifecycle status vocabulary
 
