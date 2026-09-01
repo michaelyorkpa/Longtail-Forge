@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { collectBrowserPublicationInventory } from "./browser-publication-inventory.mjs";
 import { NAMESPACE, createNamespaceResolver, isNode } from "./browser-namespace-resolver.mjs";
+import { escapeRegExp } from "./source-scan.mjs";
 
 /**
  * What each browser diagnostic is *about*, derived from the diagnostics of one compiler run
@@ -309,7 +310,7 @@ export function classifyBrowserDiagnostics({
         const trimmed = before.replace(/[?.\s]+$/, "");
         const name = trimmed.match(IDENT_TAIL)?.[1] ?? null;
         if (name) {
-          if (new RegExp(`[(,]\\s*${name.replace(/[$]/g, "\\$&")}\\s*=\\s*\\{\\s*\\}`).test(index.text)) return "params";
+          if (new RegExp(`[(,]\\s*${escapeRegExp(name)}\\s*=\\s*\\{\\s*\\}`).test(index.text)) return "params";
           if (index.memberBindings.has(name) || index.bindingKind(offset, name) === "namespace") return "namespace";
         }
         return "state";
@@ -323,11 +324,11 @@ export function classifyBrowserDiagnostics({
       const rootName = subject.split(".")[0].split("[")[0];
       const identity = index.identityAt(index.offsetOf(diagnostic.line, diagnostic.column));
       if (identity && (identity.member || identity.kind === "namespace")) return "namespace";
-      const declaration = index.text.match(new RegExp(`\\b(?:const|let|var)\\s+${rootName.replace(/[$]/g, "\\$&")}\\s*=\\s*(.{0,120})`));
+      const declaration = index.text.match(new RegExp(`\\b(?:const|let|var)\\s+${escapeRegExp(rootName)}\\s*=\\s*(.{0,120})`));
       if (declaration && DOM_QUERY.test(declaration[1])) return "dom";
       if (index.memberBindings.has(rootName)) return "namespace";
       if (/@type \{[^}]*Element[^}]*\}/.test(index.text)
-        && new RegExp(`\\blet\\s+${rootName.replace(/[$]/g, "\\$&")}\\s*=\\s*null`).test(index.text)) return "dom";
+        && new RegExp(`\\blet\\s+${escapeRegExp(rootName)}\\s*=\\s*null`).test(index.text)) return "dom";
       return "state";
     }
 
