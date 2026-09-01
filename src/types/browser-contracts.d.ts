@@ -2198,6 +2198,44 @@ export interface BrowserNotificationPreferenceCatalog {
   groupingPreferences: BrowserNotificationGroupingPreferences;
 }
 
+/**
+ * `LongtailForge.notificationSubscriptions`, published by
+ * `public/js/shared/notification-subscriptions.js`.
+ *
+ * **One writer, one publication, five members, closed.** The inventory reports no additive
+ * publication and no second writer for this surface, so the object literal the writer assigns is
+ * the whole runtime surface and this interface may be exact.
+ *
+ * **This surface waited on its own response bodies rather than on its shape.** Declaring it before
+ * `0.33.33.38.4.10` would have handed every consumer an `unknown` to read `isFollowing` off; that
+ * checkpoint narrowed the three network members inside this writer, so the contract below names a
+ * checked value rather than a hope.
+ *
+ * **Genuinely optional at the root, and the consumers say so.** `footer.js` loads the script behind
+ * a presence probe and `shared/module-actions.js` names it as a module-action dependency, so every
+ * consumer already guards for absence and behaves differently without it - the Notes and Task
+ * dialogs hide their follow toggle rather than failing. The optionality is a delivery fact, not
+ * namespace ceremony.
+ */
+export interface BrowserNotificationSubscriptions {
+  /**
+   * Follow one target.
+   *
+   * `target` is `unknown` because the writer genuinely accepts either spelling:
+   * `normalizeTargetPayload` reads `moduleId` or `module_id` from whatever it is given. The result
+   * is the same envelope all three network members resolve to.
+   */
+  follow(target: unknown): Promise<BrowserNotificationSubscriptionResult>;
+  /** Build the request target for one note. Constructed locally; it reaches no network. */
+  noteTarget(noteId: string): BrowserNotificationTargetRequest;
+  /** The viewer's follow state for one target. */
+  readStatus(target: unknown): Promise<BrowserNotificationSubscriptionResult>;
+  /** Build the request target for one task. Constructed locally; it reaches no network. */
+  taskTarget(taskId: string): BrowserNotificationTargetRequest;
+  /** Stop following one target. */
+  unfollow(target: unknown): Promise<BrowserNotificationSubscriptionResult>;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
@@ -2220,6 +2258,7 @@ export interface LongtailForgeBrowserNamespace {
   notesDialog?: BrowserNotesDialog;
   notesEditor?: BrowserNotesEditor;
   notesLinkedPanel?: BrowserNotesLinkedPanel;
+  notificationSubscriptions?: BrowserNotificationSubscriptions;
   pageController?: BrowserPageController;
   /**
    * Published by `public/js/login.js`. The required-password-change form is

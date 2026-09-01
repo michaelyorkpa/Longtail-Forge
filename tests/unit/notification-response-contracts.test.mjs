@@ -25,6 +25,7 @@ const subscriptionsSource = readText("public/js/shared/notification-subscription
 const preferencesSource = readText("public/js/shared/notification-preferences.js");
 const repositorySource = readText("src/repositories/notifications.repo.js");
 const serviceSource = readText("src/services/notifications.service.js");
+const declarationSource = readText("src/types/browser-contracts.d.ts");
 
 const subscriptions = sandbox(subscriptionsSource, {
   tables: ["SUBSCRIPTION_MEMBERS", "TARGET_MEMBERS"],
@@ -123,6 +124,54 @@ describe("notification subscription responses", () => {
       null,
       "an empty event_type is what the producer sends when the caller named no event",
     );
+  });
+});
+
+describe("the published subscription surface", () => {
+  it("declares exactly the five members the writer publishes", () => {
+    const published = [...extractFunctionBlock(subscriptionsSource, "attachNotificationSubscriptions")
+      .matchAll(/root\.notificationSubscriptions = \{([\s\S]*?)\};/g)]
+      .flatMap((match) => [...match[1].matchAll(/^\s+(\w+),$/gm)].map((entry) => entry[1]));
+    assert.equal(published.length, 5, "the writer must still publish one object literal of five members");
+
+    const declared = [...declarationBlock("BrowserNotificationSubscriptions")
+      .matchAll(/^  (\w+)\(/gm)].map((entry) => entry[1]);
+    assert.deepEqual(
+      declared.slice().sort(),
+      published.slice().sort(),
+      "a top-level declaration must cover the entire runtime surface, and may not exceed it",
+    );
+  });
+
+  it("keeps the request target and the response target apart", () => {
+    const request = declarationBlock("BrowserNotificationTargetRequest");
+    const response = declarationBlock("BrowserNotificationTarget");
+    for (const member of ["moduleId", "targetId", "targetType"]) {
+      assert.match(request, new RegExp(`\n  ${member}: string;`), `the request target carries ${member}`);
+      assert.doesNotMatch(response, new RegExp(`\n  ${member}: string;`), `the response target must not carry ${member}`);
+    }
+    for (const member of ["event_type", "module_id", "target_id", "target_type"]) {
+      assert.match(response, new RegExp(`\n  ${member}: string;`), `the response target carries ${member}`);
+      assert.doesNotMatch(request, new RegExp(`\n  ${member}: string;`), `the request target must not carry ${member}`);
+    }
+    for (const member of ["noteTarget", "taskTarget"]) {
+      assert.match(
+        declarationBlock("BrowserNotificationSubscriptions"),
+        new RegExp(`^  ${member}\\([^)]*\\): BrowserNotificationTargetRequest;$`, "m"),
+        `${member} builds a request target, not the one the server echoes`,
+      );
+    }
+  });
+
+  it("resolves all three network members to the one narrowed envelope", () => {
+    const block = declarationBlock("BrowserNotificationSubscriptions");
+    for (const member of ["follow", "readStatus", "unfollow"]) {
+      assert.match(
+        block,
+        new RegExp(`^  ${member}\\([^)]*\\): Promise<BrowserNotificationSubscriptionResult>;$`, "m"),
+        `${member} must resolve to the envelope 0.33.33.38.4.10 narrows, not to unknown and not to its own interface`,
+      );
+    }
   });
 });
 
@@ -273,6 +322,13 @@ function eventFixture() {
     workspaceEnabled: true,
     workspacePriority: "high",
   };
+}
+
+/** @param {string} name @returns {string} */
+function declarationBlock(name) {
+  const match = declarationSource.match(new RegExp(`export interface ${name}\\b[^{]*\\{[\\s\\S]*?\\n\\}`));
+  assert.ok(match, `${name} must be declared`);
+  return match[0];
 }
 
 /** @param {Record<string, unknown>} record @param {string} member */
