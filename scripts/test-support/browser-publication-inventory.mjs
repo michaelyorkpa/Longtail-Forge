@@ -63,6 +63,10 @@ import {
  *   directly or through `Object.freeze`; empty for any other assigned expression
  * @property {boolean} preservesExisting whether that object literal spreads the surface
  *   it is republishing, which is what decides whether a co-writer's members survive
+ * @property {boolean} assertedValue whether the published value is a JSDoc cast rather than a
+ *   checked expression. A cast tells the compiler what to believe, so the writer is never
+ *   checked against the declaration it claims to implement - which is exactly how
+ *   `viewResponseRecords` stayed unlinked until `0.33.33.38.2.4.5` looked
  *
  * @typedef {object} PublicationSurface
  * @property {string} surface
@@ -270,7 +274,10 @@ export function collectBrowserPublicationInventory({
       const entry = surfaces.get(surface);
       if (entry && !entry.writers.some((writer) => writer.file === relative)) {
         const { members, preservesExisting } = describeAssignedValue(right, scope, surface);
-        entry.writers.push({ file: relative, form, alias: head, line, members, preservesExisting });
+        // A published value wrapped in parentheses is how a JSDoc cast reaches the AST, so this
+        // is the structural signature of "asserted rather than checked".
+        const assertedValue = right ? kindOf(right) === "ParenthesizedExpression" : false;
+        entry.writers.push({ file: relative, form, alias: head, line, members, preservesExisting, assertedValue });
       }
     };
 

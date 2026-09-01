@@ -4122,6 +4122,33 @@ assert.deepEqual(declarationCoverage.unresolvableRootedWrites, [], "a rooted wri
 assert.deepEqual(declarationCoverage.writesBelowSurfaces, [], "nothing may write below an already-published surface");
 assert.deepEqual(declarationCoverage.clobberingRootWrites, [], "the namespace root may only be extended, never replaced");
 
+// E - A DECLARATION MUST BE CHECKED AGAINST ITS WRITER, NOT MERELY EXIST.
+//
+// `0.33.33.38.2.2.6.3` proved that a declaration alone guarantees nothing: deleting a member
+// from a declared surface stayed green, because a TypeScript object type is not exact, and a
+// false return type stayed green, because the writer was inferred through `any`.
+// `0.33.33.38.2.4.5` audited all 39 declared members by adding a required member to every
+// declared interface and asking which writers failed. **Thirty-six already failed** - a
+// publication that assigns an object literal or a value straight onto a typed namespace
+// property is checked by the compiler already, which is why so much of the estate was safe
+// without anyone arranging it.
+//
+// **Three were not, and both escape hatches are now closed.** `viewResponseRecords` published
+// through a JSDoc cast, which tells the compiler what to believe instead of checking;
+// `applyWorkspaceName` and `getWorkspaceProjectsLabel` published functions whose implicit-`any`
+// parameters were assignable to any contract at all.
+//
+// This assertion closes the first hatch structurally: **a namespace publication may not assert
+// its own value.** The second is closed per-surface by typing the published function from its
+// contract, which is a property of the writer rather than of the publication statement, and is
+// audited by the probe recorded in the `0.33.33.38.2.4.5` archive entry.
+assert.deepEqual(
+  declarationCoverage.assertedPublications,
+  [],
+  "a namespace publication must be a checked expression, not a cast; a cast means the writer is"
+    + ` never checked against the declaration it claims to implement: ${declarationCoverage.assertedPublications.join(" | ")}`,
+);
+
 // DISPOSITION - member-level diagnostic attribution stays durable *reporting*, and no
 // governance rule depends on it.
 //
