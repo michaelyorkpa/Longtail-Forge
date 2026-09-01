@@ -475,10 +475,22 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 Today's measurement: `public/js/notes.js` alone is **4,682 lines with 391 top-level names and 1,306 diagnostics** — the largest single owner in the browser program. **This is already too large for one implementation child** on the evidence of every comparable `0.33.33.32` child, but its internal boundaries are not drawn here because `0.33.33.33.6` rescopes it and `0.33.33.38` changes what its diagnostics are.
 
+**Resliced into implementation children by `0.33.33.40.1`, which typed the page-state store and learned why the rest cannot follow the same shape.** The owner budget is **528**: params 378, state 127, assorted 23. `notes.js` carries far more than that - the rest belongs to the DOM and genuine-`unknown` families other checkpoints own - so size this from the classifier, never from the file total.
+
 - [ ] Close full-strict debt in Notes and its browser-owned helpers using named state, response, DOM, and action contracts.
 - [ ] Preserve secure/plain note separation, safe Markdown, revision rules, linked context, attachments, and modal focus.
 - [ ] Do not redesign the Notes surface or split new classic-script subsystems.
 - [ ] Reduce the Notes browser ledger to zero with focused desktop/mobile proof.
+
+#### 0.33.33.40.2 - The Notes wire-boundary state fields
+
+**`0.33.33.40.1` proved this child cannot be drawn as a state child, and that is its most useful result.** Annotating the whole state object with one named `NotesPageState` contract - the shape the reslice expected - closes 47 state diagnostics and **opens 40 genuine `unknown` ones**, because `notes: []`, `collections: []`, `availableTags: []`, `selectedNote: null` and their siblings hold **unvalidated API bodies that `never[]` and `null` were silently permitting reads through**. Reading a property off `never` is legal; reading one off `unknown` is not.
+
+- [ ] **The transfer is real and belongs to `0.33.33.38.4`, not here.** The full-object contract was measured, not guessed: state 1,823 to 1,776, `unknown` 378 to 418, `0.33.33.40` 534 to 490, and the per-file-per-code ledger rejected it on `notes.js` `TS18046` 49 to 89.
+- [ ] **So this child waits on the Notes response contracts.** Once a note, a collection, a tag and a link target have named validated shapes, the state fields that hold them can be typed and the whole object can carry one contract. **Do not type them as `unknown` first** - that trades a hidden boundary for a visible one without settling anything.
+- [ ] The fields concerned are `availableTags`, `bulkCollections`, `collections`, `editorContextSummaries`, `editorNote`, `editorSelectedTarget`, `editorStagedTargets`, `linkTargets`, `notes`, `notesPagination`, `primaryContextClients`, `primaryContextProjects`, `selectedNote`, `selectedNoteIds`, `tagPicker` and `bulkTagPicker`. **`tagPicker` and `bulkTagPicker` are a different blocker**: their consumers optional-chain into `readTagIds`, so they need `LongtailForge.tags` declared rather than a response contract.
+
+**Later `0.33.33.40.x` children are not drawn yet.** The remaining 378 parameter and 23 assorted diagnostics have not been clustered, and `0.33.33.40.1` deliberately did not touch them. Draw those boundaries from the classifier after `0.33.33.40.2`, not from this section.
 
 ### 0.33.33.41 - Type Tasks and Task Dialog browser controllers
 
