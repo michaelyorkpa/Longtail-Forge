@@ -4006,7 +4006,7 @@ const declarationCoverage = collectDeclarationCoverage({});
 
 // A - PUBLISHED SURFACE WITHOUT DECLARATION.
 //
-// Twenty-nine members are published with no contract. **This is a backlog, not an
+// Twenty-seven members are published with no contract. **This is a backlog, not an
 // allowance**: it names every one of them exactly, and it is asserted by identity rather than
 // by count, so a new undeclared publication fails immediately *and* an entry that has since
 // been declared fails until it is struck. A count-based allowance would let a declared member
@@ -4020,7 +4020,6 @@ const UNDECLARED_PUBLICATION_BACKLOG = [
   "fileAttachments",
   "filePreview",
   "filesDialog",
-  "getWorkspaceProjectsLabel",
   "helpPageReady",
   "navigationIntent",
   "notificationPreferences",
@@ -4037,7 +4036,6 @@ const UNDECLARED_PUBLICATION_BACKLOG = [
   "supportView",
   "tags",
   "taskCalendar",
-  "taskResumeNoteCapture",
   "tasksDialog",
   "timeEntryDialog",
   "timeTrackingTimerDialog",
@@ -4158,7 +4156,7 @@ assert.doesNotMatch(
 assert.equal(declarationCoverage.uniqueSurfaces, 65, "unique publication surfaces");
 assert.equal(declarationCoverage.publicationOccurrences, 68, "publication occurrences, which exceed unique surfaces");
 assert.equal(declarationCoverage.knownMembers.length, 63, "known LongtailForge members, which are not all governed surfaces");
-assert.equal(declarationCoverage.declaredMembers.length, 34, "declared LongtailForge members");
+assert.equal(declarationCoverage.declaredMembers.length, 36, "declared LongtailForge members");
 assert.equal(declarationCoverage.publishedMembers.length, 63, "LongtailForge members with a runtime writer");
 assert.ok(
   declarationCoverage.publicationOccurrences > declarationCoverage.uniqueSurfaces,
