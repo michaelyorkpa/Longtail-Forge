@@ -60,9 +60,11 @@
   loadReportCatalog();
 
   function publishReportingApi() {
+    // A plain replacement. `0.33.33.38.2.4.4` removed a spread of the previous value: this
+    // page controller is the only writer, it is delivered by one classic script tag, and
+    // `reportRenderers` is a file-local map, so there was never a prior value to preserve.
     const namespace = window.LongtailForge = window.LongtailForge || {};
     namespace.reporting = {
-      ...(namespace.reporting || {}),
       registerRenderer,
     };
   }

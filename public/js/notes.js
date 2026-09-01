@@ -588,8 +588,13 @@
     openView: openNoteViewer,
   });
 
+  // A plain publication. `0.33.33.38.2.4.4` removed a spread of the previous value: this
+  // file is the only writer, and although it is delivered two ways - a classic script on
+  // `notes.html` and a `module: true` module-action dependency elsewhere - the dependency
+  // descriptor names `notesDialog.openNoteViewer` as its readiness probe, so the loader
+  // skips a file that has already published. A second evaluation would in any case rebuild
+  // the same members from the same API.
   window.LongtailForge.notesDialog = Object.freeze({
-    ...(window.LongtailForge.notesDialog || {}),
     ...notesDialogApi,
   });
 

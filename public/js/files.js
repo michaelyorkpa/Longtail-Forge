@@ -117,8 +117,11 @@
   let activeFileEditorDialog = null;
   let fileEditorOptionRequestId = 0;
 
+  // `0.33.33.38.2.4.4` removed a spread of the previous value. It was the residue of the
+  // three-writer arrangement `0.33.33.33.8` recorded and `0.33.33.34` retired: the only
+  // member it ever merged in was `openFilePreview` from `shared/file-preview.js`, which
+  // that file no longer writes and which this object republishes itself.
   window.LongtailForge.filesDialog = Object.freeze({
-    ...(window.LongtailForge.filesDialog || {}),
     openFileEditor,
     openFileEditorAction,
     openFilePreview: (...args) => filePreview.openFilePreview(...args),

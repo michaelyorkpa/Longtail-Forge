@@ -4173,6 +4173,251 @@ assert.ok(
   "the LongtailForge members are a subset of the governed surfaces, not the same universe",
 );
 
+// The additive/multi-writer matrix, proved on a fixture tree because the estate only contains
+// two of its four cells. All four are legal shapes and the governance must tell them apart.
+{
+  const additiveFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ltf-additive-fixtures-"));
+  fs.mkdirSync(path.join(additiveFixtureRoot, "sources"));
+  fs.mkdirSync(path.join(additiveFixtureRoot, "types"));
+
+  const write = (/** @type {string} */ name, /** @type {string[]} */ lines) =>
+    fs.writeFileSync(path.join(additiveFixtureRoot, "sources", name), `${lines.join("\n")}\n`);
+
+  // one writer, replacement publication
+  write("one-replace.js", [
+    "(function attachOneReplace(global) {",
+    "  const namespace = global.LongtailForge || {};",
+    "  namespace.oneReplace = { ok: true };",
+    "  global.LongtailForge = namespace;",
+    "})(window);",
+  ]);
+  // one writer, additive publication
+  write("one-additive.js", [
+    "(function attachOneAdditive(global) {",
+    "  const namespace = global.LongtailForge || {};",
+    "  namespace.oneAdditive = { ...(namespace.oneAdditive || {}), ok: true };",
+    "  global.LongtailForge = namespace;",
+    "})(window);",
+  ]);
+  // two writers, neither additive
+  write("two-replace-a.js", [
+    "(function attachTwoReplaceA(global) {",
+    "  const namespace = global.LongtailForge || {};",
+    "  namespace.twoReplace = { first: true };",
+    "  global.LongtailForge = namespace;",
+    "})(window);",
+  ]);
+  write("two-replace-b.js", [
+    "(function attachTwoReplaceB(global) {",
+    "  const namespace = global.LongtailForge || {};",
+    "  namespace.twoReplace = { second: true };",
+    "  global.LongtailForge = namespace;",
+    "})(window);",
+  ]);
+  // two writers, the second additive - the `view` shape
+  write("two-additive-a.js", [
+    "(function attachTwoAdditiveA(global) {",
+    "  const namespace = global.LongtailForge || {};",
+    "  namespace.twoAdditive = { first: true };",
+    "  global.LongtailForge = namespace;",
+    "})(window);",
+  ]);
+  write("two-additive-b.js", [
+    "(function attachTwoAdditiveB(global) {",
+    "  const namespace = global.LongtailForge || {};",
+    "  namespace.twoAdditive = { ...namespace.twoAdditive, second: true };",
+    "  global.LongtailForge = namespace;",
+    "})(window);",
+  ]);
+
+  fs.writeFileSync(path.join(additiveFixtureRoot, "types", "contracts.d.ts"), [
+    "export interface LongtailForgeBrowserNamespace {",
+    "}",
+    "",
+  ].join("\n"));
+  fs.writeFileSync(path.join(additiveFixtureRoot, "tsconfig.json"), JSON.stringify({
+    compilerOptions: {
+      target: "es2023",
+      module: "esnext",
+      moduleResolution: "bundler",
+      allowJs: true,
+      checkJs: false,
+      noEmit: true,
+      lib: ["DOM", "DOM.Iterable", "ES2023"],
+      types: [],
+    },
+    include: ["sources/**/*.js"],
+  }));
+
+  const matrix = collectDeclarationCoverage({
+    root: additiveFixtureRoot,
+    configFile: "tsconfig.json",
+    scanDirectory: "sources",
+    declarationFile: "types/contracts.d.ts",
+  });
+  const additiveBySurface = new Set(matrix.additivePublications.map((entry) => entry.surface));
+  const multiWriterBySurface = new Set(matrix.multiWriterSurfaces.map((entry) => entry.surface));
+
+  // The four cells, each asserted on both axes so neither can stand in for the other.
+  assert.equal(additiveBySurface.has("window.LongtailForge.oneReplace"), false, "one writer, replacement: not additive");
+  assert.equal(multiWriterBySurface.has("window.LongtailForge.oneReplace"), false, "one writer, replacement: not multi-writer");
+
+  assert.equal(additiveBySurface.has("window.LongtailForge.oneAdditive"), true, "one writer can still publish additively");
+  assert.equal(multiWriterBySurface.has("window.LongtailForge.oneAdditive"), false, "additive does not imply more than one writer");
+
+  assert.equal(additiveBySurface.has("window.LongtailForge.twoReplace"), false, "more than one writer does not imply additive");
+  assert.equal(multiWriterBySurface.has("window.LongtailForge.twoReplace"), true, "two writers are contested however they publish");
+
+  assert.equal(additiveBySurface.has("window.LongtailForge.twoAdditive"), true, "the `view` shape: contested and additive");
+  assert.equal(multiWriterBySurface.has("window.LongtailForge.twoAdditive"), true, "the `view` shape: contested and additive");
+
+  // An additive publication is attributed to the writer that spreads, not to the surface as a
+  // whole, so a record naming the wrong file cannot satisfy it.
+  const twoAdditive = matrix.additivePublications.filter((entry) => entry.surface === "window.LongtailForge.twoAdditive");
+  assert.deepEqual(
+    twoAdditive.map((entry) => entry.writer),
+    ["sources/two-additive-b.js"],
+    "only the writer that preserves is recorded as additive, not its co-writer",
+  );
+
+  // A record for an unrelated surface cannot cover an undisposed one, which is the property
+  // that makes the record an inventory rather than a permission slip.
+  const wrongSurfaceRecord = new Map([["window.LongtailForge.somethingElse", { writer: "sources/two-additive-b.js" }]]);
+  const stillUndisposed = matrix.additivePublications
+    .filter((entry) => wrongSurfaceRecord.get(entry.surface)?.writer !== entry.writer)
+    .map((entry) => entry.surface);
+  assert.deepEqual(
+    [...new Set(stillUndisposed)].sort(),
+    ["window.LongtailForge.oneAdditive", "window.LongtailForge.twoAdditive"],
+    "a record for another surface must not dispose of an additive publication",
+  );
+
+  // WHAT THE RETAINED POLICY PROMISES. `view`'s record is `co-writer-member-preservation`, so
+  // the promise is that the first writer's known members survive the second publication. This
+  // executes that shape rather than asserting it from syntax.
+  const host = /** @type {Record<string, Record<string, unknown>>} */ ({});
+  host.twoAdditive = { first: true };
+  const captured = host.twoAdditive;
+  host.twoAdditive = { ...host.twoAdditive, second: true };
+  assert.deepEqual(host.twoAdditive, { first: true, second: true }, "the co-writer's members must survive");
+  assert.notEqual(
+    host.twoAdditive,
+    captured,
+    "a spread assigns a NEW object, so co-writer-member-preservation is explicitly not an"
+      + " identity guarantee - which is why `dashboard`'s comment claiming one could not be true",
+  );
+
+  fs.rmSync(additiveFixtureRoot, { recursive: true, force: true });
+}
+
+// `0.33.33.38.2.4.4` - additive publication, governed independently of writer multiplicity.
+//
+// **These are two properties, not one.** A surface may have one writer or several, and may
+// replace or preserve what it finds, in any of the four combinations. `MULTI_WRITER_RECORDS`
+// above answers *how many writers are permitted and why*; it does not answer *why a writer
+// preserves an existing surface*, and extending it until it meant both would lose exactly the
+// distinction this child exists to draw.
+//
+// The estate arrived here with six preserving publications. Five of them preserved nothing on
+// any delivery path and are gone: `dashboard` and `reporting` publish from a single call in a
+// single delivery with their renderer registries in file-local closures; `filesDialog` carried
+// the residue of the three-writer arrangement `0.33.33.33.8` recorded and `0.33.33.34` retired;
+// `notesDialog` and `listsDialog` have the estate's only genuine double-delivery path, but
+// their module-action descriptors name a readiness probe that stops the second load, and a
+// second evaluation would rebuild the same members anyway. **A spread that cannot preserve
+// anything is not a contract, and policy saying it is allowed forever would be worse than the
+// spread.**
+//
+// One remains, and it is the real thing.
+/** @type {readonly [string, {kind: string, writer: string, preserves: string, reason: string, disposition: string}][]} */
+const ADDITIVE_PUBLICATION_RECORDS = [
+  [
+    "window.LongtailForge.view",
+    {
+      kind: "co-writer-member-preservation",
+      writer: "public/js/shared/view-renderer.js",
+      preserves: "public/js/shared/view-builder.js",
+      reason: "The view factory is published by two files in a fixed order. The builder"
+        + " publishes 30 primitives and the renderer adds 10 more, so the renderer must"
+        + " spread what the builder published or the primitives would disappear from the"
+        + " surface every page that loads both. This preserves the *known members of a named"
+        + " co-writer*, which is why it is recorded here rather than described as"
+        + " extensibility: nothing outside those two files may contribute to `view`.",
+      disposition: "permanent",
+    },
+  ],
+];
+const ADDITIVE_PUBLICATIONS = new Map(ADDITIVE_PUBLICATION_RECORDS);
+
+const undisposedAdditive = declarationCoverage.additivePublications
+  .filter((entry) => ADDITIVE_PUBLICATIONS.get(entry.surface)?.writer !== entry.writer)
+  .map((entry) => `${entry.surface} preserved by ${entry.writer}`);
+assert.deepEqual(
+  undisposedAdditive,
+  [],
+  "these publications preserve an existing surface with no recorded reason; decide whether the"
+    + ` preservation is part of the contract or remove the spread: ${undisposedAdditive.join(" | ")}`,
+);
+for (const [surface, record] of ADDITIVE_PUBLICATIONS) {
+  const live = declarationCoverage.additivePublications
+    .find((entry) => entry.surface === surface && entry.writer === record.writer);
+  assert.ok(
+    live,
+    `${surface} is recorded as additively published by ${record.writer}, which no longer preserves`
+      + " an existing surface; a spent record must be struck",
+  );
+  assert.ok(record.reason.length > 0, `${surface} must record why preserving existing members is part of its contract`);
+  assert.ok(record.disposition.length > 0, `${surface} must record whether its additive publication is permanent or retiring`);
+  // The preserved-from writer has to be a real writer of the same surface. This is where the
+  // two dimensions meet without merging: additive governance names a file, and multi-writer
+  // governance is what says that file is allowed to be a second writer at all.
+  const surfaceWriters = declarationCoverage.multiWriterSurfaces.find((entry) => entry.surface === surface)?.writers
+    ?? [];
+  assert.ok(
+    surfaceWriters.includes(record.preserves),
+    `${surface} records that it preserves ${record.preserves}, which must still publish it`,
+  );
+  assert.ok(
+    MULTI_WRITER_SURFACES.has(surface),
+    `${surface} preserves a co-writer's members, so it must also carry a multi-writer record`,
+  );
+}
+
+// INDEPENDENCE - the two dimensions do not imply each other. Every multi-writer surface in the
+// estate is checked against the additive record rather than assumed to be additive: `window.fetch`
+// has three writers and preserves nothing, which is the case that would break a governance model
+// that treated "more than one writer" and "preserves the previous value" as the same fact.
+const additiveSurfaces = new Set(declarationCoverage.additivePublications.map((entry) => entry.surface));
+const multiWriterNonAdditive = [...MULTI_WRITER_SURFACES.keys()].filter((surface) => !additiveSurfaces.has(surface));
+assert.deepEqual(
+  multiWriterNonAdditive,
+  ["window.fetch"],
+  "window.fetch must remain the estate's proof that multiple writers do not imply additive publication",
+);
+assert.equal(
+  declarationCoverage.additivePublications.length,
+  1,
+  "one additive publication remains after 0.33.33.38.2.4.4; the other five preserved nothing and were removed",
+);
+
+// The five removals are asserted at the source, so restoring a spread that archaeology found
+// inert fails here rather than silently re-entering the estate as an undisposed additive.
+/** @type {readonly [string, RegExp][]} */
+const REPLACEMENT_PUBLICATIONS = [
+  ["public/js/dashboard.js", /namespace\.dashboard = \{\s*\n\s*registerPanelRenderer/],
+  ["public/js/reporting.js", /namespace\.reporting = \{\s*\n\s*registerRenderer/],
+  ["public/js/files.js", /window\.LongtailForge\.filesDialog = Object\.freeze\(\{\s*\n\s*openFileEditor/],
+  ["public/js/notes.js", /window\.LongtailForge\.notesDialog = Object\.freeze\(\{\s*\n\s*\.\.\.notesDialogApi/],
+  ["public/js/lists.js", /window\.LongtailForge\.listsDialog = Object\.freeze\(\{\s*\n\s*\.\.\.listsDialogApi/],
+];
+for (const [publisher, pattern] of REPLACEMENT_PUBLICATIONS) {
+  assert.match(
+    fs.readFileSync(publisher, "utf8").split("\r\n").join("\n"),
+    pattern,
+    `${publisher} must publish its surface without spreading the previous value`,
+  );
+}
+
 // Where order is the contract, it is proved from how the writers are actually delivered.
 //
 // The first version of this loop skipped any page that did not declare every writer, so a
