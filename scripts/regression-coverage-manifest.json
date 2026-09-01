@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19026,
+    "activeAssertionCount": 19028,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19840,
+    "effectiveAssertionCount": 19842,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -5305,11 +5305,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 514,
+      "assertionCount": 516,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves every first-party JavaScript file belongs to one full-strict program and exact debt can only shrink behind the generated compiler ledger.",
-      "entryPointAssertionCount": 514,
+      "entryPointAssertionCount": 516,
       "id": "framework.full-strict-governance",
       "legacy": false,
       "path": "scripts/regressions/framework/full-strict-governance.regression.mjs",

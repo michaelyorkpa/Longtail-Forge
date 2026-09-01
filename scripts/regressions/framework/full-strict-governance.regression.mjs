@@ -3112,9 +3112,65 @@ assert.ok(
     "    const namespace = { icons: {} };",
     "    return namespace.icons.render();",
     "  }",
+    "  function readsThroughAccessor() {",
+    "    const surfaceA = namespaceIcons();",
+    "    return surfaceA.render();",
+    "  }",
+    "  function readsThroughDecoyAccessor() {",
+    "    const surfaceB = decoyIcons();",
+    "    return surfaceB.render();",
+    "  }",
+    "  function readsThroughAccessorTakingAnArgument() {",
+    "    const surfaceC = iconsFor();",
+    "    return surfaceC.render();",
+    "  }",
+    "  function readsThroughSequencedAccessor() {",
+    "    const surfaceD = sequencedIcons();",
+    "    return surfaceD.render();",
+    "  }",
+    "  function readsThroughRedeclaredAccessor() {",
+    "    const surfaceE = redeclaredIcons();",
+    "    return surfaceE.render();",
+    "  }",
+    "  function readsThroughReassignedAlias() {",
+    "    let surfaceF = namespaceIcons();",
+    "    surfaceF = decoy.icons;",
+    "    return surfaceF.render();",
+    "  }",
+    "  function readsThroughFallbackAccessor() {",
+    "    const surfaceG = fallbackIcons();",
+    "    return surfaceG.render();",
+    "  }",
+    "  function readsThroughArgumentedCall() {",
+    "    const surfaceH = namespaceIcons(key);",
+    "    return surfaceH.render();",
+    "  }",
+    "  function namespaceIcons() {",
+    "    return namespace.icons || null;",
+    "  }",
+    "  function decoyIcons() {",
+    "    return decoy.icons || null;",
+    "  }",
+    "  function iconsFor(key = \"a\") {",
+    "    return namespace.icons;",
+    "  }",
+    "  function sequencedIcons() {",
+    "    const unused = 1;",
+    "    void unused;",
+    "    return namespace.icons;",
+    "  }",
+    "  function fallbackIcons() {",
+    "    return namespace.icons || decoy.icons;",
+    "  }",
+    "  function redeclaredIcons() {",
+    "    return namespace.icons;",
+    "  }",
+    "  const redeclaredIcons = null;",
     "  namespace.icons = { render() {} };",
     "  global.LongtailForge = namespace;",
-    "  return [readsThroughAlias, readsDecoy, readsComputed, shadows];",
+    "  return [readsThroughAlias, readsDecoy, readsComputed, shadows, readsThroughAccessor, readsThroughFallbackAccessor, readsThroughArgumentedCall,",
+    "    readsThroughDecoyAccessor, readsThroughAccessorTakingAnArgument, readsThroughSequencedAccessor,",
+    "    readsThroughRedeclaredAccessor, readsThroughReassignedAlias, redeclaredIcons];",
     "})(window);",
   ].join("\n"));
   fs.writeFileSync(path.join(classifierFixtureRoot, "types", "contracts.d.ts"), [
@@ -3151,6 +3207,15 @@ assert.ok(
   const decoyRead = { line: 9, column: 12, code: 18046, message: "'decoy.icons' is of type 'unknown'." };
   const computedRead = { line: 12, column: 12, code: 18046, message: "'namespace[key]' is of type 'unknown'." };
   const shadowedRead = { line: 16, column: 12, code: 18046, message: "'namespace.icons' is of type 'unknown'." };
+  // The accessor forms. Line 20 is the supported one; the rest are the refusals.
+  const accessorRead = { line: 20, column: 20, code: 2339, message: "Property 'render' does not exist on type '{}'." };
+  const decoyAccessorRead = { line: 24, column: 20, code: 2339, message: "Property 'render' does not exist on type '{}'." };
+  const argumentAccessorRead = { line: 28, column: 20, code: 2339, message: "Property 'render' does not exist on type '{}'." };
+  const sequencedAccessorRead = { line: 32, column: 20, code: 2339, message: "Property 'render' does not exist on type '{}'." };
+  const redeclaredAccessorRead = { line: 36, column: 20, code: 2339, message: "Property 'render' does not exist on type '{}'." };
+  const reassignedAliasRead = { line: 41, column: 20, code: 2339, message: "Property 'render' does not exist on type '{}'." };
+  const fallbackAccessorRead = { line: 45, column: 20, code: 2339, message: "Property 'render' does not exist on type '{}'." };
+  const argumentedCallRead = { line: 49, column: 20, code: 2339, message: "Property 'render' does not exist on type '{}'." };
 
   // NAMESPACE IDENTITY - through the resolver, not the spelling. `namespace.icons` is the
   // surface, `decoy.icons` is not, and the inner `namespace` is a local that shadows the alias.
@@ -3193,6 +3258,41 @@ assert.ok(
     familyAt(declaredRun, 6),
     "classification must follow the live declaration; a frozen set would answer identically for both",
   );
+
+  // NAMESPACE ACCESSOR ALIASES - `0.33.33.38.2.2.6.6.2`. A `const` bound to a zero-argument call
+  // of a zero-parameter function whose whole body returns a namespace member names that member.
+  // Reading it as page-local state filed seven `notifications.js` diagnostics under
+  // `0.33.33.44`'s state budget, which is an ownership claim rather than a presentation detail.
+  const accessorRun = classifyFixture("types/empty.d.ts", [
+    accessorRead,
+    decoyAccessorRead,
+    argumentAccessorRead,
+    sequencedAccessorRead,
+    redeclaredAccessorRead,
+    reassignedAliasRead,
+    fallbackAccessorRead,
+    argumentedCallRead,
+  ]);
+  // **Asserted on the family, not on `member`.** The reported member for a `TS2339` comes from the
+  // receiver's own expression, which an alias never is, so it is `null` on every row here -
+  // including the supported one. Asserting `member === null` for the refusals would have passed
+  // whatever the rule did, which is the vacuous shape this estate keeps finding.
+  assert.equal(familyAt(accessorRun, 20), "namespace", "an undeclared member read through an accessor alias is namespace work");
+
+  // THE REFUSALS, each one a shape the rule deliberately does not follow.
+  /** @type {readonly {line: number, reason: string}[]} */
+  const refusals = [
+    { line: 24, reason: "an accessor returning an unrelated object is not the namespace" },
+    { line: 28, reason: "a function that takes a parameter is not a plain accessor" },
+    { line: 32, reason: "a body of more than one statement is sequencing, not a shape" },
+    { line: 36, reason: "a name declared twice is shadowed somewhere and must be refused" },
+    { line: 41, reason: "a reassigned alias is flow, and flow is still refused" },
+    { line: 45, reason: "a real alternative is not a literal default and must not be peeled away" },
+    { line: 49, reason: "a call that passes an argument is not the zero-argument shape" },
+  ];
+  for (const refusal of refusals) {
+    assert.equal(familyAt(accessorRun, refusal.line), "state", refusal.reason);
+  }
 
   // ACCOUNTING and OWNERSHIP - one family each, one owner for the three owned families, and
   // totals that reconcile. Zero owners and two owners are both failures.
@@ -4020,7 +4120,6 @@ const UNDECLARED_PUBLICATION_BACKLOG = [
   "filesDialog",
   "helpPageReady",
   "navigationIntent",
-  "notificationPreferences",
   "notificationsPageReady",
   "overlayHost",
   "quickActionRefresh",
@@ -4178,7 +4277,7 @@ assert.doesNotMatch(
 assert.equal(declarationCoverage.uniqueSurfaces, 65, "unique publication surfaces");
 assert.equal(declarationCoverage.publicationOccurrences, 68, "publication occurrences, which exceed unique surfaces");
 assert.equal(declarationCoverage.knownMembers.length, 63, "known LongtailForge members, which are not all governed surfaces");
-assert.equal(declarationCoverage.declaredMembers.length, 41, "declared LongtailForge members");
+assert.equal(declarationCoverage.declaredMembers.length, 42, "declared LongtailForge members");
 assert.equal(declarationCoverage.publishedMembers.length, 63, "LongtailForge members with a runtime writer");
 assert.ok(
   declarationCoverage.publicationOccurrences > declarationCoverage.uniqueSurfaces,

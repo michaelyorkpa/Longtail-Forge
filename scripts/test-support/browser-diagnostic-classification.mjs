@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { collectBrowserPublicationInventory } from "./browser-publication-inventory.mjs";
-import { NAMESPACE, createNamespaceResolver, isNode } from "./browser-namespace-resolver.mjs";
+import { NAMESPACE, createNamespaceResolver, isNode, namedList } from "./browser-namespace-resolver.mjs";
 
 /**
  * What each browser diagnostic is *about*, derived from the diagnostics of one compiler run
@@ -127,6 +127,105 @@ function offsetIndex(text) {
 }
 
 /**
+ * The default a guarded namespace read falls away to, peeled so the read underneath is visible.
+ *
+ * `X || {}`, `X ?? {}` and `X || null` all still *name* the member they default away from. This
+ * peels only a literal default - an empty object, `null`, or `undefined` - so a real alternative
+ * such as `namespace.a || namespace.b` is left alone and resolves to nothing.
+ * @param {AstNode} node @param {ReturnType<typeof createNamespaceResolver>} resolver
+ * @returns {AstNode}
+ */
+function peelLiteralDefault(node, resolver) {
+  const source = resolver.unwrapParentheses(node);
+  if (resolver.kindOf(source) !== "BinaryExpression") return source;
+  const operator = source.getNamedChild("operatorToken");
+  const left = source.getNamedChild("left");
+  const right = source.getNamedChild("right");
+  if (!isNode(operator) || !isNode(left) || !isNode(right)) return source;
+  if (!["BarBarToken", "QuestionQuestionToken"].includes(resolver.kindOf(operator))) return source;
+  const fallback = resolver.unwrapParentheses(right);
+  const literal = resolver.isEmptyObjectLiteral(fallback)
+    || resolver.kindOf(fallback) === "NullKeyword"
+    || (resolver.kindOf(fallback) === "Identifier" && fallback.getText().trim() === "undefined");
+  return literal ? resolver.unwrapParentheses(left) : source;
+}
+
+/**
+ * Namespace accessor functions: `function name() { return <namespace member>; }`.
+ *
+ * **The one call this classifier follows, and it is a shape rather than a flow.** A `const` whose
+ * initialiser reads a member is already recorded; `notifications.js` reaches the same member
+ * through `const preferences = getNotificationPreferences()`, where the accessor is a
+ * zero-parameter function whose entire body is one `return`. Reading that as page-local state
+ * filed seven namespace diagnostics under `0.33.33.44`, which is a claim about who owns the debt,
+ * not a detail of presentation.
+ *
+ * **Every condition below is a refusal, and they are the point.** The function takes no parameters,
+ * so there is nothing to substitute; its body is exactly one statement, so there is nothing to
+ * sequence; the call passes no arguments; and the name is declared exactly once in the file, so no
+ * shadowed binding can be mistaken for it. Anything else - a reassignment, a container, a computed
+ * member, a second declaration of the same name - resolves to nothing, as it did before.
+ * @param {AstNode} sourceFile
+ * @param {ReturnType<typeof createNamespaceResolver>} resolver
+ * @returns {{accessors: Map<string, string>, immutableNames: Set<string>}}
+ */
+function collectNamespaceAccessors(sourceFile, resolver) {
+  /** @type {Map<string, string>} */
+  const accessors = new Map();
+  /** @type {Map<string, number>} */
+  const declarations = new Map();
+  /** @type {Set<string>} */
+  const immutableNames = new Set();
+  resolver.walkScoped(sourceFile, (node, scope) => {
+    const kind = resolver.kindOf(node);
+    if (kind === "VariableDeclarationList" && node.getText().trimStart().startsWith("const ")) {
+      for (const declaration of namedList(node, "declarations")) {
+        const declaredName = declaration.getNamedChild("name");
+        if (isNode(declaredName) && resolver.kindOf(declaredName) === "Identifier") {
+          immutableNames.add(declaredName.getText().trim());
+        }
+      }
+    }
+    if (["FunctionDeclaration", "VariableDeclaration", "Parameter", "ClassDeclaration"].includes(kind)) {
+      const declaredName = node.getNamedChild("name");
+      if (isNode(declaredName) && resolver.kindOf(declaredName) === "Identifier") {
+        const name = declaredName.getText().trim();
+        declarations.set(name, (declarations.get(name) ?? 0) + 1);
+      }
+    }
+    if (kind !== "FunctionDeclaration") return;
+    const nameNode = node.getNamedChild("name");
+    const body = node.getNamedChild("body");
+    const parameters = namedList(node, "parameters");
+    const statements = isNode(body) && resolver.kindOf(body) === "Block" ? namedList(body, "statements") : [];
+    const only = statements.length === 1 ? statements[0] : undefined;
+    const returned = only && resolver.kindOf(only) === "ReturnStatement" ? only.getNamedChild("expression") : undefined;
+    if (!isNode(nameNode) || parameters.length !== 0 || !isNode(returned)) return;
+    // The return is resolved in the function's own scope, so an accessor reading the IIFE's root
+    // alias resolves exactly as one reading `window.LongtailForge` does.
+    const member = resolver.namespaceMemberOf(peelLiteralDefault(returned, resolver), scope);
+    if (member) accessors.set(nameNode.getText().trim(), member);
+  });
+  for (const [name, count] of declarations) if (count > 1) accessors.delete(name);
+  return { accessors, immutableNames };
+}
+
+/**
+ * The member a zero-argument call to a namespace accessor names, or `null`.
+ * @param {AstNode} node
+ * @param {ReturnType<typeof createNamespaceResolver>} resolver
+ * @param {Map<string, string>} accessors
+ * @returns {string | null}
+ */
+function accessorMember(node, resolver, accessors) {
+  if (resolver.kindOf(node) !== "CallExpression") return null;
+  const callee = node.getNamedChild("expression");
+  if (!isNode(callee) || resolver.kindOf(callee) !== "Identifier") return null;
+  if (namedList(node, "arguments").length !== 0) return null;
+  return accessors.get(callee.getText().trim()) ?? null;
+}
+
+/**
  * Everything the classifier needs to know about one parsed file, indexed by position.
  *
  * `scopeAt` is what replaces asking whether an identifier is "spelled like the namespace".
@@ -143,6 +242,7 @@ function indexFile(sourceFile, text, resolver) {
   const spans = [];
   /** @type {Map<string, string>} */
   const memberBindings = new Map();
+  const { accessors, immutableNames } = collectNamespaceAccessors(sourceFile, resolver);
   /** @type {Map<number, {member: string | null, kind: string}>} */
   const atStart = new Map();
   /**
@@ -197,8 +297,12 @@ function indexFile(sourceFile, text, resolver) {
             source = resolver.unwrapParentheses(left);
           }
         }
-        const member = resolver.namespaceMemberOf(source, scope);
         const name = nameNode.getText().trim();
+        // The accessor shape is admitted only for a `const`. A `let` bound to an accessor and
+        // reassigned afterwards is flow, and flow stays refused - which makes the new rule
+        // strictly tighter than the initialiser rule beside it rather than an extension of it.
+        const member = resolver.namespaceMemberOf(source, scope)
+          ?? (immutableNames.has(name) ? accessorMember(source, resolver, accessors) : null);
         if (member && !memberBindings.has(name)) memberBindings.set(name, member);
       }
     }
