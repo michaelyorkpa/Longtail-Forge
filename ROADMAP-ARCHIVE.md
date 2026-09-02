@@ -1,5 +1,49 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.4.2 - The two lookup responses
+
+**Model: Medium Effort** - the child that was asked whether two routes shared a record, and answered from their queries rather than their field names.
+
+- [x] **`body.match` in both bodies is a coincidence of spelling, not a shared contract.** `POST /api/users/lookup` reaches `usersService.lookupAddUserAccount`, which finds an account with `usersRepository.readByUsername` - a **global** search across the installation. `POST /api/role-assignments/lookup` reaches `permissionsService.lookupDelegatedRoleAssignmentAccount`, which uses `readExactActiveMemberByUsername` - a query that joins `user_workspaces` and `workspaces` and can only ever identify an **active member of the caller's own workspace**. Two routes, two disclosure rules, two records, and no `BrowserLookupResult` over the pair.
+- [x] **The account lookup discloses three members and the omissions are the point.** `alreadyActive`, `displayName`, `username` - **no user identifier**, no account status, no alternate address, no workspace list. An administrator adding a user learns that an address is taken and what it is called, and nothing further. The contract describes that permitted disclosure and a test refuses six names it must never regain.
+- [x] **The assignment lookup discloses six, and its query selects three columns.** `user_id`, `username`, `display_name` - no password, no status, no verification state to leak. A test asserts the column list *and* both active-membership joins, so removing the workspace scoping fails the proof rather than silently widening who can be identified.
+- [x] **`assignments` is reused from `BrowserDelegatedRoleAssignment` because the producer is literally `decorateDelegatedAssignment`.** Same helper, and `canAssignExistingRole` filters per assignment before it runs, so a delegated manager still sees only what they may administer. **The administrator record must never stand in**, which `0.33.33.38.4.4.3.1` established and a test now enforces from this side too.
+- [x] **`match` is nullable, not optional, on both routes.** Both services return the member explicitly as `null` from every no-match branch - a username that is not a valid address, an address with no account, an address with no active membership - so `match: Record | null` is the producer's shape and optionality would have described a case that does not occur.
+- [x] **A malformed match now reads as no match, and that is the fail-closed direction.** `body.match || null` already turned a *falsy* match into none; a **truthy malformed one** used to reach the status line and render `Existing account found: undefined.`. Refusing to claim an account exists is the safer answer, and the server stays authoritative either way - `create` finds the existing account itself and answers 409 when it already belongs to the workspace.
+- [x] **`activeMembership` is `boolean` rather than `true`.** The service writes the literal, because the record only exists when the membership query matched. **The browser never reads the member**, and this estate has refused since `userPreferences` to declare a type narrower than what a consumer actually validates. The constant is written into the contract's prose instead.
+- [x] **No authorization changed.** Who may perform either lookup, whether inactive users are discoverable, whether accounts outside the workspace can be identified, the `alreadyActive` computation and the error-versus-no-match split are all exactly as they were. Narrowing begins after each route's decision.
+
+Proved by breaking each one, restored in a `finally`:
+
+| Break | Failure |
+| --- | --- |
+| The account service builds a fourth member | it builds exactly three |
+| The account contract loses a member the service builds | the same assertion, from the other side |
+| The account record acquires the identifier it withholds | `userId` may never appear there |
+| The account match accepts a number for the membership flag | it is a real boolean |
+| A truthy malformed match is trusted | the read must fail closed |
+| The member query stops requiring an active membership | the join is what makes this route the narrower one |
+| The member query selects a fourth column | it selects three |
+| The assignment target reuses the administrator record | producer identity, not the shared word |
+| The assignment reader trusts its assignments container | a malformed entry must be dropped |
+| The account record stops requiring the membership flag | the two records stop being distinguishable |
+| The assignment envelope gains the account envelope's workspace | this route reports no workspace |
+| A consumer reads the raw body again | the call must narrow before the read |
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,534 | **8,525** |
+| Genuine `unknown` | 174 | **165** |
+| params / state / dom / namespace / assorted | 4,617 / 1,782 / 1,484 / 319 / 158 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,217 / 531 / 976 / 1,572 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 397 / 348 / 167 | **409 / 348 / 167**, green |
+
+**9 eliminations, no transfers, no fallout.** Seven account-lookup reads in `user-admin.js` and two assignment-lookup reads in `role-assignments.js`. `normalizeTarget` and the `accountLookup` slot both absorbed a typed value without exposing anything: no state was typed, no DOM diagnostic appeared, and no owner budget moved. `4,617 + 1,782 + 158 = 6,557` reconciles either side.
+
+**The orphan this child found is now owned.** `body.accountCreated` and `body.initialPassword` in `user-admin.js` belong to `POST /api/users`, which is a mutation envelope rather than either lookup, and they are drawn as `0.33.33.38.4.4.5`. **The `initialPassword` trace found nothing to report**: the value is generated only when an account is actually created, is `""` when an existing account is merely attached, reaches only a caller who has already passed `assertWorkspaceCanAddUser`, is absent from the `user_created` audit entry because `usersRepository.create` returns a record with no password material in it, and is displayed in a panel the page hides whenever the value is empty.
+
 ## Version 0.33.33.38.4.7.1 - The list detail envelope
 
 **Model: Medium Effort** - the child that found its most useful asset was not what it appeared to be, and stopped where the evidence stopped.

@@ -519,7 +519,7 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 #### 0.33.33.38.4.4.2 - The two lookup responses
 
-**`/api/users/lookup` and `/api/role-assignments/lookup` are different routes and must be traced apart.** `user-admin.js:427-431` reads `body.match.alreadyActive` and `body.match.displayName`; `role-assignments.js:150-156` reads `body.match` and hands it to a local `normalizeTarget`. **Consumer usage is validation evidence, not producer authority** - derive both from their services before deciding whether they share a record.
+**Complete: 9 diagnostics, four contracts, zero fallout.** See the archive entry. The two routes were traced apart and they do **not** share a record - the account lookup searches every account in the installation and discloses three members, the assignment lookup can only identify an active member of the caller's own workspace and discloses six.
 
 #### 0.33.33.38.4.4.3 - Roles, assignments and sessions
 
@@ -536,6 +536,12 @@ Its **lazy publication is a second contract question and belongs here too**: the
 #### 0.33.33.38.4.4.4 - The user-admin bootstrap
 
 The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, permission resources, workspace settings and the current user id. **Five producers behind one destructure**, which is why it is drawn apart from everything above.
+
+#### 0.33.33.38.4.4.5 - The create-user mutation response
+
+**3 diagnostics that had no owner until `0.33.33.38.4.4.2` went looking.** `user-admin.js` reads `body.accountCreated` twice and `body.initialPassword` once from `POST /api/users`. **This is a mutation envelope and not the user record**: `usersService.create` answers `{ accountCreated, user, users, initialPassword }`, and `0.33.33.38.4.4.1` already narrowed the `user` and `users` halves of it - the three flag-and-password reads are what remain.
+
+**The security trace is done and the current behaviour is sound, so this child types it rather than changing it.** `initialPassword` is generated only in the branch that creates a new account, stays `""` when an existing account is merely attached to the workspace, and the route runs `assertPublicDemoCapabilityAllowed`, `resolveAddUserWorkspace` and `assertWorkspaceCanAddUser` first. `usersRepository.create` returns a constructed record with no password or hash in it, so the `user_created` audit entry stores none. The browser writes the value to a one-time panel that is hidden whenever the value is empty. **A child that narrows this must keep `initialPassword` a required member with an empty-string absent case rather than making it optional**, because the emptiness is what the consumer's `body.accountCreated` guard already reads.
 
 #### 0.33.33.38.4.5 - The settings catalog and user-settings bodies
 
