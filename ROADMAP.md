@@ -547,7 +547,17 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 #### 0.33.33.38.4.7 - The Lists response family
 
-**7 diagnostics** - `/api/lists`, `/api/lists/:id`, `/api/lists/link-targets` and `/api/lists/item-suggestions`, all in `lists.js`. Small, self-contained, and the natural place to prove the pattern before the larger families.
+**Resliced: eleven diagnostics across six routes, and `normalizeListRecord` is not the total normaliser it looked like.** It answers `{ ...list, ... }` and maps each item and link to `{ ...item, id }`, so it reconstructs nine members of the list and one of each element and **inherits everything else from whatever it is handed**. It is a trust boundary for what it rebuilds and nothing more, which is why the checking now happens before it.
+
+#### 0.33.33.38.4.7.1 - The list detail envelope
+
+**Complete: 7 diagnostics, five contracts, zero fallout.** See the archive entry.
+
+#### 0.33.33.38.4.7.2 - The list summary, suggestion, provider and target reads
+
+**4 diagnostics, and the summary read is deferred for a measured reason rather than a tidy one.** Narrowing `result.lists` types `state.lists`, whose elements are the *normaliser's* output - a shape `0.33.33.38.4.7.1` deliberately declined to name, because naming it would have claimed the spread's contribution. Typing the slot anyway pushed four new diagnostics into `openListDialog` and the list editor, which are `0.33.33.43`'s. **The measured chain is: summary read to `state.lists` to the dialog**, and this child should either take that dialog debt deliberately or wait for `0.33.33.43` to type the editor.
+
+- [ ] `result.suggestions`, `result.providers` and `result.targets` are three more producers, each needing its own trace. **A provider descriptor is not a link target**, and `state.linkTargets` is a direct handoff to check before it is adopted.
 
 #### 0.33.33.38.4.8 - The operator-surface bodies
 

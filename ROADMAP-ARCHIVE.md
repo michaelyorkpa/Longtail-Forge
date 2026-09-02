@@ -1,5 +1,46 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.7.1 - The list detail envelope
+
+**Model: Medium Effort** - the child that found its most useful asset was not what it appeared to be, and stopped where the evidence stopped.
+
+- [x] **`normalizeListRecord` is a trust boundary only for what it reconstructs.** It answers `{ ...list, id, isBillOfMaterials, is_reusable, items, links, list_id, progress, resumeContext, sourceContext }` and maps each item and link to `{ ...entry, id }`. **Nine members of the list and one member of each element** - everything else is inherited from its input. Calling its output a closed record would have claimed the spread's contribution, so the checking was put *before* it instead, in `readListDetail`.
+- [x] **Three column authorities, all named.** `LIST_COLUMNS` (21), `ITEM_COLUMNS` (27) and `LINK_COLUMNS` (11) in `lists.repo.js`, and both shapers spread their rows rather than reconstructing them, so those columns reach the page as the row held them. A test asserts each contract describes exactly its query, and that the browser checks exactly those columns minus the ones it deliberately leaves unchecked.
+- [x] **`is_reusable` is a number and `isReusable` is a boolean, in the same record.** The column is `INTEGER NOT NULL CHECK (is_reusable IN (0, 1))`, the server spreads it untouched and adds a separate camelCase boolean beside it, and the browser normaliser then overwrites the integer with a boolean of its own. **Two members, two types, one concept** - and the narrowing rejects each in the other's place.
+- [x] **Four members stay `unknown` because they are four other producers.** `links`, `progress`, `resumeContext` and `sourceContext` are built by `readPermissionSafeLinksForLists`, `readListProgressSummaries`, `buildListResumeContext` and `readSourceContextsForLists`. Naming their shapes from what the Lists page renders is the guess this checkpoint exists to refuse.
+- [x] **A list link is not a Notes link.** Eleven columns naming which module and target a list points at - no label, no decorated record, no resolved title. Reusing another module's link contract for the word would have claimed decoration this producer never performs.
+- [x] **The detail envelope reports an absent list as absent, not as `null`.** `readListDetail` answers `list: undefined` so the normaliser's own `list = {}` default applies exactly as it did when `result.list` was missing. `null` would have defeated that default and changed what a malformed body does.
+- [x] **One identifier vocabulary, in the order the call sites already used.** `readSavedListId` prefers the `list_id` column and falls back to the `id` duplicate the shaper adds, answering `""` when neither is text - which is what `result.list?.list_id || result.list?.id || ""` produced.
+
+**The summary read was measured, then deferred, and the measurement is the reason.** Narrowing `result.lists` types `state.lists`, whose elements are the normaliser's output. `0.33.33.38.4.7`'s own finding is that this output is not a shape this child may name, so `0.33.33.38.4.7`'s third adoption condition - *the named contract makes the correct state type knowable* - is **not met**. Typing the slot anyway was tried and measured: it closes 14 `never` reads but pushes **four new diagnostics into `openListDialog` and the list editor**, which are `0.33.33.43`'s debt. Annotating the dialog to absorb them cascaded further. **The clean subset was kept and the chain was written down** rather than paid for with someone else's budget.
+
+Proved by breaking each one, restored in a `finally`:
+
+| Break | Failure |
+| --- | --- |
+| The list query stops selecting a column the browser checks | the column set no longer matches |
+| The item query gains a column nobody checks | the same assertion, from the other side |
+| The link contract loses a column the query selects | `BrowserListLink` must describe it |
+| The wire integer is declared a boolean | the column is `INTEGER` and is spread untouched |
+| The summary accepts a boolean where the integer belongs | a boolean is not the shape the server sends |
+| The detail read trusts its item container | an array of items makes its entries items |
+| The detail read trusts its link container | the same, for links |
+| An absent list becomes `null` | the normaliser's own default stops applying |
+| The saved identifier prefers the shaper duplicate | the column no longer wins |
+| A consumer reads the raw body again | `TS18046` returns in `lists.js` |
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,541 | **8,534** |
+| Genuine `unknown` | 181 | **174** |
+| params / state / dom / namespace / assorted | 4,617 / 1,782 / 1,484 / 319 / 158 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,217 / 531 / 976 / 1,572 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 390 / 348 / 167 | **397 / 348 / 167**, green |
+
+**7 eliminations, no transfers, and the per-code audit found zero increases in any file.** Three reads of the detail envelope, three of the two save-and-duplicate identifiers, and one editor assignment. No state was typed, no DOM diagnostic appeared, and no owner budget moved. `4,617 + 1,782 + 158 = 6,557` reconciles either side.
+
 ## Version 0.33.33.38.4.4.3.1 - Roles and role-assignment responses
 
 **Model: Medium Effort** - the child that found two assignment records where the plan had one, and kept them apart.
