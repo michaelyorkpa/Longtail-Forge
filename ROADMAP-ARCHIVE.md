@@ -1,5 +1,34 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.5.1 - The User Settings response boundary
+
+**Model: High Effort** - the child that found a third producer the family had not counted, and the one that had to argue with an earlier checkpoint's rule before it could close a union.
+
+- [x] **Three producers, not two, and the trace is what found the third.** The load reads `GET /api/user/settings` beside `GET /api/settings/catalog`; the save reads `PUT /api/user/settings`; and `removeWorkspaceMembership` reads `DELETE /api/user/workspaces/:workspaceId`. **The catalogue was measured rather than assumed**: it is assigned straight to a page variable and contributes no genuine unknown, so this child declares no catalogue contract and leaves that producer to whichever child actually needs it.
+- [x] **`GET` and `PUT` do not share a shape, and the difference is the design.** `saveSettings` answers ten members; `readSettings` answers those ten **plus four** - the active workspace, the recovery capability, the creation options and the memberships. So `BrowserUserSettings` **extends** `BrowserUserSettingsProfile` rather than repeating it or making four members optional on one record. Breaks that put an extra member on the save's shape, or stop the read contract extending it, are both refused.
+- [x] **They agree by construction, and a proof keeps them from drifting.** The read copies its ten out of `userRowToAppValue`; the save rebuilds them from the request through **the same normalisers** - `normalizeThemeMode`, `normalizeThemeAutoSource`, `normalizeUserLandingPage`, `normalizeCalendarViewPreference` and `normalizeBooleanPreference`. The proof pins both sides to each normaliser by name, so changing one and not the other is refused from either direction.
+- [x] **The closed unions are earned by the check, which is the same rule `0.33.33.38.4.4` applied.** `BrowserUserRecord` wrote these exact vocabularies down in prose and kept `string`, saying this estate "has refused since `userPreferences` to declare a closed union over a wire field nothing validates". **This boundary validates them**, so it may close them - and the proof reads that record's own sentence to say so. `themeAutoSource` is a **single literal**, because `normalizeThemeAutoSource` answers `"system"` on every path including its fallback: the contract states there is no choice rather than implying one.
+- [x] **A settings form is refused rather than defaulted.** The account saves this form back, so a response the browser cannot vouch for would repopulate the controls with fallbacks and the next save would write those over real preferences. All three readers answer `null` and the page throws into the error paths it already had. For the removal that is also the fail-closed direction: an unreadable body must not send an account to recovery, and must not leave a stale membership list either. The removal has already happened server-side, so the page reports its ordinary failure and a reload shows the truth - a tradeoff recorded here rather than hidden.
+- [x] **The removal's two answers are a union, told apart by their own shapes.** The recovery path answers `{ accountExportRecovery: true, activeWorkspaceId: null, workspaces: [] }`; the ordinary path **omits the flag entirely**, which `?: never` records. Flattening them would have let a consumer read a workspace list off the recovery answer, which is always empty. A break that sends `accountExportRecovery: false` on the ordinary path, and one that accepts a truthy word for the redirect, are both refused.
+- [x] **The recovery capability is reported, never decided.** `isWorkspaceAdministrator` computes it and the route sends it on every response; the browser types a boolean and checks it. A break that hard-codes it in the service is refused, and nothing here widens who may recover an account.
+- [x] **Neither borrowed record was reused, and both refusals are proven.** A settings profile is not a `BrowserUserRecord` - that one carries `user_id`, `userStatus`, `protectedUser` and `passwordChangeRequired`, none of which this route sends. A membership row is not a `BrowserUserWorkspaceMembership` - that one is six camelCase members from a different shaper; these are four snake_case columns straight from `readForUser`. Neither `status` nor `workspace_type` carries a column `CHECK`, so both stay text.
+- [x] **The module settings stay the contributing module's to name.** `readWorkspaceCreationModuleSettings` **spreads** each module's own definition, so `moduleSettings` is `unknown[]` with the container still checked - the same reason the Workbench contribution contract promises only an identity.
+- [x] **A predicate narrows the binding it tests, and that shaped the reader.** Reading the four extra members after `isUserSettingsProfile` had narrowed the body made them unknown properties; the reader destructures them first and reconstructs afterwards. Four diagnostics appeared and were removed by structure rather than by weakening the contract.
+
+Proved by breaking each one, restored in a `finally`, and **every refusal judged by exit status**: 38 breaks across both settings routes, the removal service, the creation-options producer, the membership query, the shared normalisers, the browser declaration, the runtime tables and readers, and the consumers - including one that rewrites the status copy a permissions regression pins.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,366 | **8,360** |
+| Genuine `unknown` | 60 | **54** |
+| params / state / dom / namespace / assorted | 4,611 / 1,739 / 1,484 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,168 / 530 / 976 / 1,568 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 614 / 348 / 167 | **640 / 348 / 167**, green |
+
+**6 eliminations, no transfers, no new debt, and no state typed.** The page's five remaining `TS18046` are `window.LongtailForge.settingsRenderer`, an undeclared namespace member and a different family's work. `4,611 + 1,739 + 153 = 6,503` reconciles either side.
+
 ## Version 0.33.33.38.4.8.3 - The audit log envelope
 
 **Model: High Effort** - the operator family's third child, and the one whose disclosure model had to be read before a single member could be typed.
