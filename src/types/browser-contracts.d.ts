@@ -2446,6 +2446,88 @@ export interface BrowserUserRecord {
   workspaceMemberships?: BrowserUserWorkspaceMembership[];
 }
 
+/** One scope a role may be assigned in, as `listAssignableRoleOptions` builds it. */
+export interface BrowserRoleScope {
+  label: string;
+  scopeId: string;
+}
+
+/**
+ * One assignable role as `GET /api/roles` returns it.
+ *
+ * **The four columns are the whole role query.** `readRoles` selects `role_id`, `role_name`,
+ * `description` and `assignable_scope_type` and nothing else - **no permission storage, no
+ * capability table, no override JSON** - so the browser record cannot expose any. `sort_order` is
+ * selected for the `ORDER BY` and is not sent.
+ *
+ * `assignment_scope_type` and `scopes` are added by the service. **`scopes` is the permission
+ * decision made visible**: the service asks `canAssignRole` per candidate and keeps only what the
+ * caller may actually assign, so a role with no assignable scope never appears in this list at all.
+ * Narrowing happens after that filtering and must never widen it.
+ *
+ * `assignable_scope_type` and `assignment_scope_type` both hold a scope vocabulary -
+ * all/workspace/client/project - and both are typed `string`, because the browser validates
+ * neither and this estate does not declare unions over unvalidated wire fields.
+ */
+export interface BrowserRoleOption {
+  assignable_scope_type: string;
+  assignment_scope_type: string;
+  description: string;
+  role_id: string;
+  role_name: string;
+  scopes: BrowserRoleScope[];
+}
+
+/**
+ * One role assignment as `GET /api/users/:userId/role-assignments` returns it.
+ *
+ * **Constructed by `decorateAssignment`, seven members, and it is not the delegated record.**
+ * The administrator view carries the assignment's identity, its client and project scoping, and
+ * the parsed permission overrides. `permission_overrides` stays `unknown`: it is the override
+ * storage this response deliberately parses for the assignment editor, and modelling its shape is
+ * the permissions estate's work rather than this boundary's.
+ *
+ * `scope_id`, `client_id` and `project_id` are nullable columns the shaper passes through.
+ */
+export interface BrowserRoleAssignment {
+  assignment_id: string;
+  client_id: string | null;
+  permission_overrides: unknown;
+  project_id: string | null;
+  role_id: string;
+  scope_id: string | null;
+  scope_type: string;
+}
+
+/**
+ * One role assignment as the delegated paths return it.
+ *
+ * **Three members, and the difference from `BrowserRoleAssignment` is the contract.**
+ * `decorateDelegatedAssignment` emits only `role_id`, `scope_type` and `scope_id` - no assignment
+ * identity and **no permission overrides** - because a delegated manager may see which roles are
+ * held in scopes they administer without seeing the assignment record behind them. Reusing the
+ * administrator record here would claim four members the server withholds on purpose.
+ */
+export interface BrowserDelegatedRoleAssignment {
+  role_id: string;
+  scope_id: string | null;
+  scope_type: string;
+}
+
+/**
+ * What `PUT /api/users/:userId/role-assignments` resolves to.
+ *
+ * **`assignmentRevision` is genuinely optional, and the union is the producer's.**
+ * `replaceUserAssignments` answers `{ assignments }` for a full administrator and
+ * `{ assignmentRevision, assignments }` for a delegated manager, because only the delegated path
+ * carries an optimistic-concurrency token. The consumer's `String(body.assignmentRevision || "")`
+ * has always been reading that absence, not defending against a malformed field.
+ */
+export interface BrowserRoleAssignmentUpdate {
+  assignmentRevision?: string;
+  assignments: BrowserDelegatedRoleAssignment[];
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;

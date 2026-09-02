@@ -41,6 +41,102 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserRoleOption} BrowserRoleOption */
+
+  /** The four columns `readRoles` selects, plus the scope type the service computes. */
+  const ROLE_TEXT_MEMBERS = Object.freeze([
+    "assignable_scope_type",
+    "assignment_scope_type",
+    "description",
+    "role_id",
+    "role_name",
+  ]);
+
+  /**
+   * A response body that is a plain object.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isResponseRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * One scope the service kept after asking `canAssignRole` for it.
+   * @param {unknown} value
+   * @returns {boolean}
+   */
+  function isRoleScope(value) {
+    return isResponseRecord(value) && typeof value.label === "string" && typeof value.scopeId === "string";
+  }
+
+  /**
+   * One assignable role as `GET /api/roles` returns it.
+   * @param {unknown} value
+   * @returns {value is BrowserRoleOption}
+   */
+  function isRoleOption(value) {
+    return isResponseRecord(value)
+      && ROLE_TEXT_MEMBERS.every((member) => typeof value[member] === "string")
+      && Array.isArray(value.scopes)
+      && value.scopes.every(isRoleScope)
+      && value.role_id !== "";
+  }
+
+  /**
+   * The assignable roles a body carries.
+   *
+   * **Element validation, not container validation.** Both consumers already asked whether the
+   * member was an array; neither asked what was in it. A malformed entry is dropped, which is the
+   * answer this estate has given since `0.33.33.38.4.2`.
+   * @param {unknown} body
+   * @returns {BrowserRoleOption[]}
+   */
+  function readRoleOptions(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    return envelope && Array.isArray(envelope.roles) ? envelope.roles.filter(isRoleOption) : [];
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserDelegatedRoleAssignment} BrowserDelegatedRoleAssignment */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserRoleAssignmentUpdate} BrowserRoleAssignmentUpdate */
+
+  /**
+   * One assignment as the delegated paths emit it.
+   *
+   * Three members and no more: `decorateDelegatedAssignment` withholds the assignment identity and
+   * the permission overrides that the administrator record carries.
+   * @param {unknown} value
+   * @returns {value is BrowserDelegatedRoleAssignment}
+   */
+  function isDelegatedAssignment(value) {
+    return isResponseRecord(value)
+      && typeof value.role_id === "string"
+      && typeof value.scope_type === "string"
+      && (value.scope_id === null || typeof value.scope_id === "string")
+      && value.role_id !== "";
+  }
+
+  /**
+   * What a role-assignment update resolved to.
+   *
+   * **The revision is absent for a full administrator and present for a delegated manager**, which
+   * is the producer's own union rather than a defensive read. `String(body.assignmentRevision || "")`
+   * has always turned that absence into `""`, and this keeps doing so.
+   * @param {unknown} body
+   * @returns {BrowserRoleAssignmentUpdate}
+   */
+  function readAssignmentUpdate(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    const assignments = envelope && Array.isArray(envelope.assignments)
+      ? envelope.assignments.filter(isDelegatedAssignment)
+      : [];
+    const revision = envelope ? envelope.assignmentRevision : null;
+    return typeof revision === "string"
+      ? { assignmentRevision: revision, assignments }
+      : { assignments };
+  }
+
+
   /**
    * The narrowing contract for the values this file catches.
    *
@@ -121,7 +217,7 @@
 
     try {
       const body = await requireApi().getJson("/api/roles", { cache: "no-store" });
-      roleOptions = Array.isArray(body.roles) ? body.roles : [];
+      roleOptions = readRoleOptions(body);
       renderRoleOptions();
       setStatus(roleOptions.length ? "" : "No role assignments are available in this workspace.");
     } catch (error) {
@@ -235,8 +331,9 @@
           assignments,
         },
       );
-      target.assignments = Array.isArray(body.assignments) ? body.assignments : [];
-      target.assignmentRevision = String(body.assignmentRevision || "");
+      const update = readAssignmentUpdate(body);
+      target.assignments = update.assignments;
+      target.assignmentRevision = update.assignmentRevision || "";
       renderTarget();
       setStatus(successMessage);
       return true;
