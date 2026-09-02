@@ -541,6 +541,10 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **Complete: 6 diagnostics, four contracts, two direct handoffs.** See the archive entry. **Three of the envelope's seven members are constants the producer writes literally** - `taskOptions` is `null`, `timers` and `workCandidates` are `[]` - so no Task option contract was reusable here and there was no candidate record to derive. `bootstrap.registry`, `modules`, `taskOptions`, `workCandidates` and `currentUserId` - the Workbench module registry rather than a task producer, which is why it is drawn apart from everything above.
 
+#### 0.33.33.38.4.3.9 - Stabilize the Task Focus exit-capture synchronization proof
+
+**Complete: a verification correction, zero diagnostics, none claimed.** See the archive entry. `tests/e2e/task-focus-exit-capture.spec.mjs` asserted `writes.at(-1)` the moment the focus heading was visible on the third focus entry - but `activateTaskFocus` renders the candidate's title **before** `refreshActiveTaskFocus` reads the task back and consumes its note, so the heading is not a barrier for the consume PUT. Browser smoke on PR #464 twice saw the previous capture where the consume was expected; the first entry's wait was already causal, and this one now is too. Fix the wait, not the expectation: the corrected proof still requires the exact consume, capture, consume sequence, the status, the app-shell prompt and the final write count.
+
 #### 0.33.33.38.4.4 - The workspace-user, role and assignment responses
 
 **Resliced from the live tree, because two of its planning claims were wrong.** The family holds **34** diagnostics, not 29 - `user-admin.js` 27 and `role-assignments.js` 7 - and **`lists.js` is not one of its consumers at all**: its eleven unknowns are `/api/lists` reads belonging to `0.33.33.38.4.7`. The cross-page reuse this child was ranked on does not exist, and the ranking survived anyway because the producer evidence did.

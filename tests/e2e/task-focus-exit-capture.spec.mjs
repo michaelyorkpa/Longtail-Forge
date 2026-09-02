@@ -73,8 +73,18 @@ test("basic Task Focus consumes and recaptures context across Change Focus and a
   expect(taskStatus).toBe("in_progress");
 
   await page.getByRole("button", { name: "Focus task" }).first().click();
+  // The focus surface renders the candidate's title before the task is read back and its note
+  // consumed, so the heading is not a barrier for the consume PUT. Wait for the write itself, and
+  // for the exact sequence, so a substituted or extra write cannot satisfy the check.
+  await expect.poll(() => writes).toEqual([
+    { resume_note_action: "consume" },
+    {
+      resume_note: "Continue with the captured context.",
+      resume_note_action: "capture",
+    },
+    { resume_note_action: "consume" },
+  ]);
   await expect(page.getByRole("heading", { name: "Capture Task Focus exit context" })).toBeVisible();
-  expect(writes.at(-1)).toEqual({ resume_note_action: "consume" });
   expect(taskStatus).toBe("in_progress");
 
   if (isMobile) {

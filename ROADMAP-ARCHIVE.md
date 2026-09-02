@@ -26,6 +26,18 @@ Closing state:
 | Unit tests / regressions / end-to-end | 506 / 348 / 167 | **523 / 348 / 167**, green |
 
 **13 eliminations, no transfers, no new debt, and no state typed.** `0.33.33.43` did not move: the narrowed records flow into `Object.assign` calls that were already loosely typed. `4,612 + 1,742 + 153 = 6,507` reconciles either side.
+## Version 0.33.33.38.4.3.9 - Stabilize the Task Focus exit-capture synchronization proof
+
+**Model: High Effort** - a verification correction found by protected integration. The check could not tell correct behaviour from timing, and the fix is to the wait, not to the expectation and not to the product.
+
+- [x] **The diagnosis.** On the third focus entry, `task-focus-exit-capture.spec.mjs` asserted `writes.at(-1)` the moment the heading `Capture Task Focus exit context` was visible. But `activateTaskFocus` builds the focus state from the *candidate* - title included - and renders it **before** `refreshActiveTaskFocus` reads the task back and `consumeTaskFocusResumeNote` issues the consume PUT. The heading was never a barrier for that write. The first entry, straight after `page.goto`, already waited with `expect.poll` on `writes`; the third did not.
+- [x] **The fail-first proof, deterministic on both projects.** A temporary probe delayed the third consume PUT by 1.5 s **before** the intercepted route pushed it into `writes`, and kept the old assertion. Desktop and mobile both failed it with exactly the diff protected CI reported twice on PR #464 - `capture` received where `consume` was expected - and in both the eventual third write was still `{ resume_note_action: "consume" }` and the app-shell prompt flow completed correctly. The probe was restored byte-for-byte, hash-checked.
+- [x] **The correction is the same causal wait the test already used.** After the click, `expect.poll` on `writes` now waits for the exact three-element sequence - consume, the captured note, consume - and only then is the heading asserted. No sleep, no retry, no "contains consume somewhere": the status, the app-shell prompt and the final write count are unchanged and still asserted.
+- [x] **The corrected wait tolerates the widened race and still bites.** The same 1.5 s delay against the corrected test passed on both projects with retries off. Two product-side breaks were then refused at the corrected poll and nowhere earlier: one where a re-focus never consumes a note the session captured itself, and one where that write is substituted for a different action. Both restored byte-for-byte.
+- [x] **Stressed under the CI projects with retry disabled.** `--repeat-each=40 --retries=0`: 161 executions, 80 of them the corrected target (40 desktop, 40 mobile), 0 failures, 0 retries, and no run observed the stale capture at the synchronisation point. The complete suite: 167 passed, exit 0.
+- [x] **Corroborating, not corrected.** The same CI runs showed transient failures in `task-editor-parent-save` and once in Developer Example navigation. They are recorded as further evidence of timing sensitivity in protected browser runs and deliberately left alone: no independent proof of the same defect was made, and this is not a general Playwright cleanup.
+
+Closing state: **no diagnostic moved and none is claimed.** Browser diagnostics 8,414 and genuine `unknown` 104, as at `b24e64b5`, both untouched. Unit / regressions / end-to-end 506 / 348 / 167, green by exit status.
 
 ## Version 0.33.33.38.4.3.7 - Workbench Task bootstrap response
 
