@@ -27,10 +27,12 @@ const tasksPage = readText("public/js/tasks.js");
 
 const shared = sandbox(sharedSource,
   ["isResponseRecord", "isTaskAssignee", "isTaskRecord", "isTaskDetail", "isTaskListItem",
-    "isTaskListPagination", "isTaskListOptions", "readTaskList", "readBulkTasks"],
+    "isTaskListPagination", "isText", "isClientOption", "isProjectOption", "isTaskPickerOption",
+    "isUserOption", "readTaskListOptions", "readTaskList", "readBulkTasks"],
   ["TASK_TEXT_MEMBERS", "TASK_DETAIL_MEMBERS", "TASK_DETAIL_ARRAYS", "ASSIGNEE_MEMBERS",
     "TASK_LIST_MEMBERS", "TASK_LIST_TAG_MEMBERS", "TASK_PAGINATION_NUMBERS",
-    "TASK_OPTION_COLLECTIONS", "TASK_OPTION_TEXT_LISTS", "TASK_OPTION_FLAGS"]);
+    "TASK_OPTION_COLLECTIONS", "TASK_OPTION_TEXT_LISTS", "TASK_OPTION_FLAGS",
+    "CLIENT_OPTION_TEXT", "PROJECT_OPTION_TEXT", "TASK_PICKER_OPTION_TEXT", "USER_OPTION_TEXT"]);
 
 describe("the list element against the detail record", () => {
   it("describes exactly the five members the list projection adds", () => {
@@ -182,35 +184,38 @@ describe("the option catalog", () => {
       "and the browser checks every one of them, at the depth it can honestly claim");
   });
 
-  it("leaves the four other producers' collections unnamed", () => {
+  it("keeps the four other producers' collections in their own records", () => {
     const block = declarationBlock("BrowserTaskListOptions");
     for (const member of plain(shared.TASK_OPTION_COLLECTIONS)) {
-      assert.match(block, new RegExp(`\\n  ${member}: unknown\\[\\];`),
-        `${member} is built elsewhere and its element shape is not this boundary's to name`);
+      assert.doesNotMatch(block, new RegExp(`\\n  ${member}: unknown\\[\\];`),
+        `${member} was named by 0.33.33.38.4.3.8 and must not go back to being a container`);
     }
     for (const spreader of ["readClientOptionPayload", "readProjectOptionPayload"]) {
       assert.match(extractFunctionBlock(serviceSource, spreader), /\.\.\.(client|project),/,
         `${spreader} spreads its rows, so naming its shape would claim another module's contribution`);
     }
     assert.match(extractFunctionBlock(usersRepoSource, "readAll"), /return rows\.map\(userRowToAppValue\);/,
-      "users is provably the BrowserUserRecord producer, which the contract records for a later child");
+      "users is provably the BrowserUserRecord producer, which BrowserTaskUserOption records");
   });
 
   it("rejects a catalog it cannot vouch for", () => {
-    assert.equal(shared.isTaskListOptions(optionsFixture()), true);
+    // `0.33.33.38.4.3.8` replaced the container-only predicate with a reader that also checks each
+    // collection's elements. The catalog-level refusals this owner cares about are unchanged; the
+    // element behaviour is proved by `task-option-catalog-contracts`.
+    assert.notEqual(shared.readTaskListOptions(optionsFixture()), null);
     for (const member of plain(shared.TASK_OPTION_COLLECTIONS)) {
-      assert.equal(shared.isTaskListOptions({ ...optionsFixture(), [member]: {} }), false, `${member} is a list`);
-      assert.equal(shared.isTaskListOptions(omit(optionsFixture(), member)), false);
+      assert.equal(shared.readTaskListOptions({ ...optionsFixture(), [member]: {} }), null, `${member} is a list`);
+      assert.equal(shared.readTaskListOptions(omit(optionsFixture(), member)), null);
     }
     for (const member of plain(shared.TASK_OPTION_TEXT_LISTS)) {
-      assert.equal(shared.isTaskListOptions({ ...optionsFixture(), [member]: [1] }), false,
+      assert.equal(shared.readTaskListOptions({ ...optionsFixture(), [member]: [1] }), null,
         `${member} is spread from server constants and holds text`);
     }
     for (const member of plain(shared.TASK_OPTION_FLAGS)) {
-      assert.equal(shared.isTaskListOptions({ ...optionsFixture(), [member]: 1 }), false,
+      assert.equal(shared.readTaskListOptions({ ...optionsFixture(), [member]: 1 }), null,
         `${member} is a boolean the service constructs`);
     }
-    assert.equal(shared.isTaskListOptions({ ...optionsFixture(), workspaceType: null }), false);
+    assert.equal(shared.readTaskListOptions({ ...optionsFixture(), workspaceType: null }), null);
   });
 
   it("keeps the page default agreeing with the catalog contract", () => {

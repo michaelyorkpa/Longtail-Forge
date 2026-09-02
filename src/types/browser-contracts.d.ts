@@ -2861,31 +2861,141 @@ export interface BrowserTaskListPagination {
 /**
  * The option catalog `GET /api/tasks` sends beside its tasks.
  *
- * **Nine members from six producers, and only five of them are this producer's own.**
+ * **Nine members from six producers, and every one of them is now named.**
  * `readOptions` constructs `workspaceType`, `priorities`, `statuses`, `taskTimersEnabled` and
- * `timeTrackingEnabled` itself, and those are validated. `clients`, `projects`, `tasks` and
- * `users` are built by `readClientOptionPayload`, `readProjectOptionPayload`,
- * `readTaskOptionPayload` and `usersRepository.readAll`, so they stay `unknown[]` for the same
- * reason `BrowserTaskDetail` leaves ten members `unknown`.
+ * `timeTrackingEnabled` itself. The four collections come from `readClientOptionPayload`,
+ * `readProjectOptionPayload`, `readTaskOptionPayload` and `usersRepository.readAll`, and each has
+ * its own element contract - **four producers, four records, one envelope.** A single option type
+ * covering all four would have erased exactly the distinctions these checkpoints recovered.
  *
- * **`users` is provably `BrowserUserRecord[]`** - `readAll` answers `rows.map(userRowToAppValue)`,
- * the same shaper `0.33.33.38.4.4.1` derived that record from, filtered to active memberships.
- * It is left `unknown[]` here only because validating it would mean a second copy of that
- * fifteen-member table; a child that shares the predicate should adopt the record and say so.
+ * `0.33.33.38.4.3.2` left the four as `unknown[]` and validated only their containers. That was
+ * honest while their producers were untraced, and it made the element-level debt visible in the
+ * consumers; `0.33.33.38.4.3.8` traced them and closed it.
  *
  * `priorities` and `statuses` are spread from server constants and are arrays of text. The browser
  * validates that they are text and not which words they hold, as this estate has done since
  * `userPreferences`.
  */
+/**
+ * One client as the Task option catalog carries it.
+ *
+ * **A structural minimum, and deliberately not the whole client.** `readClientOptionPayload`
+ * spreads `...client` before adding `optionLabel`, `displayName` and `hierarchyDepth`, and what it
+ * spreads has itself been through `decorateClientShape`, which spreads again. A spread is a trust
+ * boundary only for what it reconstructs, so this contract promises the three members that payload
+ * builder genuinely constructs plus the two `clientRowToAppClient` guarantees by name - `id` and
+ * `name` - and says nothing about the rest of the record travelling beside them.
+ *
+ * The billing, hierarchy and tag members that `decorateClientShape` adds are **not** here. The
+ * Tasks page does not read them, and claiming them would be claiming the client-projects estate's
+ * contribution rather than this catalog's.
+ *
+ * `hierarchyDepth` is a real number: the builder answers `Number(client.depth) || 0`, and
+ * `parent_client_id` is the third member `clientRowToAppClient` guarantees by name - the empty
+ * string for a top-level client, which mirrors the project option's `client_id`.
+ */
+export interface BrowserTaskClientOption {
+  /** Falls back through the indented label to the name, so never empty for a named client. */
+  displayName: string;
+  hierarchyDepth: number;
+  id: string;
+  name: string;
+  optionLabel: string;
+  /** The empty string for a top-level client, never `null`. */
+  parent_client_id: string;
+}
+
+/**
+ * One project as the Task option catalog carries it.
+ *
+ * **Not a client option plus `client_id`.** It reaches the browser through a different service
+ * call, a different hierarchy sort and a different row shaper, and `projectRowToAppProject`
+ * guarantees `client_id` as text - the empty string for a project with no client, which is what
+ * the page's `(project.client_id || "") === selectedClientId` comparison has always read.
+ *
+ * The same structural-minimum rule applies as for the client option: `readProjectOptionPayload`
+ * spreads its rows and this contract promises only the members it reconstructs plus the three the
+ * row shaper builds by name.
+ */
+export interface BrowserTaskProjectOption {
+  /** The empty string when the project has no client, never `null`. */
+  client_id: string;
+  /** Falls back through the indented label to the name, so never empty for a named project. */
+  displayName: string;
+  hierarchyDepth: number;
+  id: string;
+  name: string;
+  optionLabel: string;
+}
+
+/**
+ * One task as the Task option catalog carries it.
+ *
+ * **This is a picker projection, not a task record.** `taskPickerOption` is a total
+ * reconstruction of thirteen members over a task the repository already returned, and it carries
+ * neither the thirty columns `BrowserTaskRecord` describes nor the assignees, the projection
+ * members or the detail members. Widening it to any of the task contracts would claim a shape this
+ * producer never builds.
+ *
+ * It duplicates the identifier as both `task_id` and `id`, and the label three ways -
+ * `label`, `optionLabel` and `displayName` - because the pickers that consume it read different
+ * ones. All three are text with total fallbacks.
+ *
+ * The list is already permission-filtered: `readTaskOptionPayload` asks a `tasks.view` evaluator
+ * per candidate and applies the status filter before shaping. Narrowing happens after that.
+ */
+export interface BrowserTaskPickerOption {
+  client_id: string;
+  client_name: string;
+  displayName: string;
+  due_date: string;
+  due_time: string;
+  /** The same value as `task_id`; the producer sends both. */
+  id: string;
+  /** Falls back to `"Untitled Task"`, so never empty. */
+  label: string;
+  optionLabel: string;
+  priority: string;
+  project_id: string;
+  project_name: string;
+  status: string;
+  task_id: string;
+}
+
+/**
+ * One workspace member as the Task option catalog carries it.
+ *
+ * **A deliberate subset of `BrowserUserRecord`, and it says so rather than pretending.** The
+ * producer is identical - `usersRepository.readAll` answers `rows.map(userRowToAppValue)`, the
+ * same shaper `0.33.33.38.4.4.1` derived that record from, filtered to active memberships - so the
+ * full fifteen members really are on the wire. This contract promises the three the Tasks page
+ * reads and validates all three.
+ *
+ * The alternative was a second copy of the fifteen-member predicate that lives in `user-admin.js`,
+ * or a new published surface to share it. **A page-local subset is cheaper than either and claims
+ * less**, which is why it is named for the catalog it belongs to rather than for the user record it
+ * is drawn from. A later child that shares the full predicate may replace this with
+ * `BrowserUserRecord` and delete the subset.
+ *
+ * Nothing withheld by `0.33.33.38.4.4.1` may appear here: the shaper never emits `password`, and
+ * this record must never regain it or any other column the select carries but the response drops.
+ */
+export interface BrowserTaskUserOption {
+  /** Falls back to the username, so never empty. */
+  displayName: string;
+  user_id: string;
+  username: string;
+}
+
 export interface BrowserTaskListOptions {
-  clients: unknown[];
+  clients: BrowserTaskClientOption[];
   priorities: string[];
-  projects: unknown[];
+  projects: BrowserTaskProjectOption[];
   statuses: string[];
   taskTimersEnabled: boolean;
-  tasks: unknown[];
+  tasks: BrowserTaskPickerOption[];
   timeTrackingEnabled: boolean;
-  users: unknown[];
+  users: BrowserTaskUserOption[];
   workspaceType: string;
 }
 
