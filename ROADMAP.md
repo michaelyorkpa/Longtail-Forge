@@ -539,7 +539,7 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 #### 0.33.33.38.4.3.7 - The Workbench bootstrap
 
-**6 diagnostics**, one more than first counted: `workbench.js` reads `bootstrap.currentUserId` too, and a first pass filed it under `.B` because of the member name. **The Workbench bootstrap is its own producer and the name it shares with the task list proves nothing.** `bootstrap.registry`, `modules`, `taskOptions`, `workCandidates` and `currentUserId` - the Workbench module registry rather than a task producer, which is why it is drawn apart from everything above.
+**Complete: 6 diagnostics, four contracts, two direct handoffs.** See the archive entry. **Three of the envelope's seven members are constants the producer writes literally** - `taskOptions` is `null`, `timers` and `workCandidates` are `[]` - so no Task option contract was reusable here and there was no candidate record to derive. `bootstrap.registry`, `modules`, `taskOptions`, `workCandidates` and `currentUserId` - the Workbench module registry rather than a task producer, which is why it is drawn apart from everything above.
 
 #### 0.33.33.38.4.4 - The workspace-user, role and assignment responses
 

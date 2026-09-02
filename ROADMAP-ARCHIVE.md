@@ -1,5 +1,62 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.3.7 - Workbench Task bootstrap response
+
+**Model: High Effort** - the child that expected a five-part registry payload and found that three of its seven members are constants the producer writes by hand.
+
+- [x] **Six diagnostics, all in `workbench.js`**, and all six genuinely from this envelope: the early source-data fan-out, the registry read, the current user, the module map, the task options and the candidate list.
+- [x] **`taskOptions` is literally `null` and `workCandidates` is literally `[]`.** `workbenchService.bootstrap` writes both as constants, with a comment recording that the fifty-candidate computation was removed once the browser began resolving candidates from `/api/workbench/focus-candidates` and the task detail read. **So `BrowserTaskListOptions` was not reused - not because the shapes differ, but because no catalog is sent** - and there was no work-candidate record to derive, because nothing is ever in the list. The contract states both constants rather than implying data arrives.
+- [x] **`registry` and `modules` are not two names for one thing.** The registry is a fixed three-member record of contribution lists - `timerSources`, `workbenchCards`, `workItemSources` - and `modules` is a map keyed by module id holding enablement state. One says what the workspace's modules *offer*, the other says which are *on*.
+- [x] **The module state is an exact reconstruction and earns a closed union.** `buildModuleStateMap` names `displayName`, `enabled` and `status`, and the last two come from **one comparison** - `moduleDefinition.status === "enabled"` for the boolean and the matching word for the text - so they cannot disagree and `"disabled" | "enabled"` is the producer's own vocabulary rather than a guess.
+- [x] **A contribution promises exactly one member, and that is the honest size of it.** `normalizeContribution` spreads what a module declared in its own `module.js` and overrides only `moduleId`. The renderer, label, sort order and actions belong to the contributing module's declaration - **the framework's extensibility contract owns those shapes**, and naming them here would freeze one module's vocabulary into every module's contract.
+- [x] **Contributions arrive filtered twice, and the browser must accept the filtered form.** `listWorkspaceContributions` drops any whose module is disabled, whose requirements are unavailable, or whose permissions the caller lacks; `filterPublicDemoContributionActions` then removes individual actions a public demo may not offer. A contribution stripped to its identity is still a contribution, and breaks on both filters fail.
+- [x] **A keyed map is validated by its values, not by being an object.** The key space is module ids and therefore open, so every value is checked and a malformed entry is dropped. `typeof registry === "object"` was never going to be the answer.
+- [x] **`modules` and `registry` are nullable in the reader although the route always sends them.** Each Workbench read already had its own fallback - the cached registry for one, the module map the page is holding for the other - and answering `null` is what preserves them. Inventing an empty registry would have quietly discarded the cache.
+- [x] **The parser stayed local.** Only Workbench consumes this response, so publishing a `LongtailForge` surface for it would have bought `0.33.33.38.2` ownership and delivery work for one caller. A break that publishes it fails.
+- [x] **No module-registry or candidate semantics changed.** Availability, ordering, lazy loading, permissions, disabled-module behaviour, focus selection and fallback navigation are untouched.
+
+**One static-contract owner was retargeted rather than re-spelled.** `workbench-task-ordering` pinned the literal expression `sourceData.taskOptions || bootstrap.taskOptions || { projects: [] }`, and the middle arm is **dead**: the bootstrap returns `taskOptions: null` unconditionally, so it could never be taken. The assertion's own words are *"should retain task options from module-owned source payloads"*, and that is now what it asserts - with a second assertion pinning the producer's constant beside it, so the branch cannot come back without the browser owing it a contract. Both were proved to fail when the behaviour they name is broken.
+
+**Two direct handoffs, measured before they were taken.** Narrowing alone closed all six and left two new `0.33.33.42` diagnostics on accidental initializer types: `state.registry`'s three lists inferred `never[]`, and `state.workCandidates` did too. Both store exactly what this child narrowed, so both were typed.
+
+**And one element read had to be guarded rather than the contract weakened.** Typing `workCandidates` as `unknown[]` pushed an `unknown` element into a `.42` candidate lookup. The alternative was widening the member back, which `0.33.33.38.4` forbids; instead the read now guards the entry it was already treating as unusable - a non-record matched nothing before and matches nothing now.
+
+Proved by breaking each one, restored in a `finally`, and **every refusal judged by exit status**:
+
+| Break | Failure |
+| --- | --- |
+| The service stops sending an envelope member | the contract is what the service returns |
+| The contract requires a member never sent | the same agreement, from the other side |
+| The bootstrap claims it sends a task catalog | no catalog is sent, so none may be claimed |
+| The current user stops coming from the session | that is where the producer takes it |
+| The module map drifts from its three members | the reconstruction is the contract |
+| The two module spellings stop sharing a comparison | that is why they cannot disagree |
+| The module status union is declared open | the shaper writes both words |
+| The runtime accepts a status nobody writes | a word no shaper writes is not a status |
+| The map is trusted by its keys | an object keyed by id is not a map of states |
+| The registry loses one of its three lists | the contract names three |
+| The browser stops checking one of the three | the runtime is checked against the contract |
+| The contribution claims a module's declaration | that shape belongs to the module |
+| The shaper stops overriding the module id | one override is the whole guarantee |
+| Contributions stop being permission-filtered | the browser describes what survived |
+| A disabled module starts contributing | the same, from the other filter |
+| The registry reader trusts its containers | an array of cards is not cards |
+| An unreadable registry becomes an empty one | that would discard the page's cache |
+| The parser is published as a surface | one consumer needs no published surface |
+| The early fan-out reads the raw body again | it must narrow the same body |
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,421 | **8,414** |
+| Genuine `unknown` | 110 | **104** |
+| params / state / dom / namespace / assorted | 4,612 / 1,744 / 1,484 / 319 / 152 | **4,612 / 1,742 / 1,484 / 319 / 153** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,168 / 531 / 976 / 1,572 | **1,770 / 491 / 1,168 / 530 / 976 / 1,572** |
+| Unit tests / regressions / end-to-end | 491 / 348 / 167 | **506 / 348 / 167**, green |
+
+**7 eliminations and no new debt.** A per-code audit against the integrated tree - counting by file and code rather than by position, because this child inserted a hundred lines into `workbench.js` and every line number below them shifted - shows exactly two movements: `TS18046` **6 to 0** and `TS2322` **5 to 4**. Nothing rose anywhere. The `assorted` family reading one higher is a **reclassification of a diagnostic that already existed**, not debt this child created. `4,612 + 1,742 + 153 = 6,507` reconciles either side.
+
 ## Version 0.33.33.38.4.3.3 - Task timer response contracts
 
 **Model: High Effort** - the child where the two producers of one record are built differently, and the contract had to say so rather than pick a side.
