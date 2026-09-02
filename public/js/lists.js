@@ -45,6 +45,165 @@
   
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListSummary} BrowserListSummary */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListItem} BrowserListItem */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListLink} BrowserListLink */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListDetail} BrowserListDetail */
+
+  /** The list columns the table declares `NOT NULL` and the shapers spread untouched. */
+  const LIST_TEXT_COLUMNS = Object.freeze([
+    "created_at", "list_id", "list_type", "status", "title", "updated_at", "workspace_id",
+  ]);
+
+  /** The list columns the table allows to be null. */
+  const LIST_NULLABLE_COLUMNS = Object.freeze([
+    "archived_at", "client_id", "completed_at", "created_by_user_id", "deleted_at", "description",
+    "duplicated_from_list_id", "finalized_at", "finalized_by_user_id", "metadata_json",
+    "project_id", "source_list_id", "updated_by_user_id",
+  ]);
+
+  /** The members `shapeListsForBrowser` constructs around the spread row. */
+  const LIST_SHAPED_BOOLEANS = Object.freeze(["isBillOfMaterials", "isReusable"]);
+
+  /** `ITEM_COLUMNS` the item table declares `NOT NULL`. */
+  const ITEM_TEXT_COLUMNS = Object.freeze([
+    "created_at", "item_name", "list_id", "list_item_id", "purchase_status", "updated_at", "workspace_id",
+  ]);
+
+  /** `ITEM_COLUMNS` the item table allows to be null, minus the four numeric ones. */
+  const ITEM_NULLABLE_COLUMNS = Object.freeze([
+    "assigned_user_id", "catalog_item_id", "checked_at", "checked_by_user_id", "completed_at",
+    "completed_by_user_id", "created_by_user_id", "deleted_at", "metadata_json", "needed_by_date",
+    "notes", "tracking_id", "unit", "updated_by_user_id", "url", "vendor_name",
+  ]);
+
+  /** `LINK_COLUMNS` the link table declares `NOT NULL`. */
+  const LINK_TEXT_COLUMNS = Object.freeze([
+    "created_at", "list_id", "list_link_id", "module_id", "target_id", "target_type", "workspace_id",
+  ]);
+
+  /** `LINK_COLUMNS` the link table allows to be null. */
+  const LINK_NULLABLE_COLUMNS = Object.freeze([
+    "created_by_user_id", "link_role", "metadata_json", "removed_at",
+  ]);
+
+  /**
+   * A response body that is a plain object.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isResponseRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * Every named column is present and is a string.
+   * @param {unknown} value @param {readonly string[]} columns @returns {boolean}
+   */
+  function hasListText(value, columns) {
+    return isResponseRecord(value) && columns.every((column) => typeof value[column] === "string");
+  }
+
+  /**
+   * Every named column is present and is either a string or `null`.
+   * @param {unknown} value @param {readonly string[]} columns @returns {boolean}
+   */
+  function hasListNullableText(value, columns) {
+    return isResponseRecord(value)
+      && columns.every((column) => value[column] === null || typeof value[column] === "string");
+  }
+
+  /**
+   * One list as the server shapes it.
+   *
+   * `is_reusable` is checked as a **number** because the column is `INTEGER` and the shaper spreads
+   * it untouched; the boolean beside it is `isReusable`, which the shaper builds.
+   * @param {unknown} value
+   * @returns {value is BrowserListSummary}
+   */
+  function isListSummary(value) {
+    return isResponseRecord(value)
+      && hasListText(value, LIST_TEXT_COLUMNS)
+      && hasListNullableText(value, LIST_NULLABLE_COLUMNS)
+      && typeof value.is_reusable === "number"
+      && typeof value.id === "string"
+      && LIST_SHAPED_BOOLEANS.every((member) => typeof value[member] === "boolean")
+      && Array.isArray(value.links)
+      && value.list_id !== "";
+  }
+
+  /**
+   * One list item as the detail route returns it.
+   * @param {unknown} value
+   * @returns {value is BrowserListItem}
+   */
+  function isListItem(value) {
+    return hasListText(value, ITEM_TEXT_COLUMNS)
+      && hasListNullableText(value, ITEM_NULLABLE_COLUMNS)
+      && isResponseRecord(value)
+      && value.list_item_id !== "";
+  }
+
+  /**
+   * One list link as the detail route returns it.
+   * @param {unknown} value
+   * @returns {value is BrowserListLink}
+   */
+  function isListLink(value) {
+    return hasListText(value, LINK_TEXT_COLUMNS)
+      && hasListNullableText(value, LINK_NULLABLE_COLUMNS)
+      && isResponseRecord(value)
+      && value.list_link_id !== "";
+  }
+
+  /**
+   * The `{ list, items, links }` envelope the detail route returns.
+   *
+   * **Each array is checked element by element before `normalizeListRecord` sees it**, because that
+   * normaliser spreads what it is given: it rebuilds nine members of the list and adds `id` to each
+   * item and link, and passes everything else through. It is a trust boundary for what it
+   * reconstructs and for nothing else, so the checking happens here.
+   * **`list` is `undefined` rather than `null` when the body carries none**, so the normaliser's
+   * own `list = {}` default applies exactly as it did when `result.list` was absent.
+   * @param {unknown} body
+   * @returns {BrowserListDetail}
+   */
+  function readListDetail(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    const list = envelope ? envelope.list : null;
+    return {
+      items: envelope && Array.isArray(envelope.items) ? envelope.items.filter(isListItem) : [],
+      links: envelope && Array.isArray(envelope.links) ? envelope.links.filter(isListLink) : [],
+      list: isListSummary(list) ? list : undefined,
+    };
+  }
+
+  /**
+   * The identifier a save or duplicate response reports for the list it wrote.
+   *
+   * **One identifier vocabulary, not two.** The server sends `list_id` as the column and `id` as
+   * the duplicate the shaper adds, and the two call sites already read them in that order. This
+   * keeps that order and returns `""` when neither is text, which is what `|| ""` produced.
+   * @param {unknown} body
+   * @returns {string}
+   */
+  function readSavedListId(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    const list = envelope && isResponseRecord(envelope.list) ? envelope.list : null;
+    if (!list) {
+      return "";
+    }
+
+    const listId = list.list_id;
+    const id = list.id;
+    if (typeof listId === "string" && listId) {
+      return listId;
+    }
+
+    return typeof id === "string" && id ? id : "";
+  }
+
+
   /**
    * The narrowing contract for the values this file catches.
    *
@@ -862,7 +1021,8 @@
       const result = await api.getJson(`/api/lists/${encodeURIComponent(listId)}?includeDeleted=true&includeDeletedItems=true`, {
         cache: "no-store",
       });
-      return normalizeListRecord(result.list, result.items || [], result.links || []);
+      const detail = readListDetail(result);
+      return normalizeListRecord(detail.list, detail.items, detail.links);
     } catch {
       return fallback ? normalizeListRecord(fallback, []) : null;
     }
@@ -1613,7 +1773,7 @@
         archiveFilter.value = "current";
       }
       setStatus("Created active working copy.");
-      return result.list?.list_id || result.list?.id || "";
+      return readSavedListId(result);
     } else if (action === "mark-reusable-list") {
       await api.postJson(`/api/lists/${listId}/mark-reusable`, {});
     } else if (action === "unmark-reusable-list") {
@@ -2104,10 +2264,10 @@
         await api.putJson(`/api/lists/${encodeURIComponent(state.editingListId)}`, payload);
       } else {
         const result = await api.postJson("/api/lists", payload);
-        savedListId = result.list?.list_id || "";
+        savedListId = readSavedListId(result);
         createdDuringSave = Boolean(savedListId);
         state.editingListId = savedListId;
-        state.editorList = normalizeListRecord(result.list, [], []);
+        state.editorList = normalizeListRecord(readListDetail(result).list, [], []);
         state.selectedListId = savedListId || state.selectedListId;
       }
       for (const target of state.editorStagedTargets) {
