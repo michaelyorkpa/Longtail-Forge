@@ -255,6 +255,45 @@
       : [];
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserAccountLookup} BrowserAccountLookup */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserAccountLookupMatch} BrowserAccountLookupMatch */
+
+  /**
+   * The account `POST /api/users/lookup` matched.
+   *
+   * **Three members and no identifier.** `lookupAddUserAccount` builds `alreadyActive`,
+   * `displayName` and `username` and sends nothing else, so this predicate checks the whole record.
+   * @param {unknown} value
+   * @returns {value is BrowserAccountLookupMatch}
+   */
+  function isAccountLookupMatch(value) {
+    return isResponseRecord(value)
+      && typeof value.alreadyActive === "boolean"
+      && typeof value.displayName === "string"
+      && typeof value.username === "string"
+      && value.username !== "";
+  }
+
+  /**
+   * The account lookup a body carries.
+   *
+   * **A malformed match reads as no match, which is the fail-closed direction.** The consumer's
+   * `body.match || null` already turned a falsy match into none; a *truthy* malformed one used to
+   * reach the status line and render `Existing account found: undefined.`. Treating it as no match
+   * refuses to claim an account exists, and the server stays authoritative either way - `create`
+   * finds the existing account itself and answers 409 when it is already a member.
+   * @param {unknown} body
+   * @returns {BrowserAccountLookup}
+   */
+  function readAccountLookup(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    const match = envelope ? envelope.match : null;
+    return {
+      match: isAccountLookupMatch(match) ? match : null,
+      workspaceId: envelope && typeof envelope.workspaceId === "string" ? envelope.workspaceId : "",
+    };
+  }
+
 
   /**
    * A response body that is a plain object.
@@ -592,12 +631,13 @@
     newUserAccountStatus.textContent = "Searching for an exact account match...";
 
     try {
-      const body = await requireApi().postJson("/api/users/lookup", { username, workspaceId });
-      accountLookup = { match: body.match || null, username, workspaceId };
-      newUserAccountStatus.textContent = body.match
-        ? body.match.alreadyActive
-          ? `${body.match.displayName || body.match.username} already belongs to this workspace.`
-          : `Existing account found: ${body.match.displayName || body.match.username}.`
+      const lookup = readAccountLookup(await requireApi().postJson("/api/users/lookup", { username, workspaceId }));
+      const match = lookup.match;
+      accountLookup = { match, username, workspaceId };
+      newUserAccountStatus.textContent = match
+        ? match.alreadyActive
+          ? `${match.displayName || match.username} already belongs to this workspace.`
+          : `Existing account found: ${match.displayName || match.username}.`
         : "No existing account found. A new account and generated password will be created.";
       return true;
     } catch (error) {

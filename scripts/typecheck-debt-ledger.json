@@ -375,6 +375,7 @@
         "tests/unit/install-playwright-browser.test.mjs",
         "tests/unit/legal-content.test.mjs",
         "tests/unit/list-response-contracts.test.mjs",
+        "tests/unit/lookup-response-contracts.test.mjs",
         "tests/unit/note-response-contracts.test.mjs",
         "tests/unit/notes-effective-security.test.mjs",
         "tests/unit/notification-response-contracts.test.mjs",
@@ -484,7 +485,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8534,
+      "errorCount": 8525,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1137,10 +1138,6 @@
           }
         ],
         "public/js/role-assignments.js": [
-          {
-            "code": 18046,
-            "count": 2
-          },
           {
             "code": 18047,
             "count": 44
@@ -1965,7 +1962,7 @@
         "public/js/user-admin.js": [
           {
             "code": 18046,
-            "count": 18
+            "count": 11
           },
           {
             "code": 18047,
@@ -2766,8 +2763,8 @@
     }
   },
   "totals": {
-    "files": 1065,
-    "errors": 8534,
+    "files": 1066,
+    "errors": 8525,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
