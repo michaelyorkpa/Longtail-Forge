@@ -2528,6 +2528,141 @@ export interface BrowserRoleAssignmentUpdate {
   assignments: BrowserDelegatedRoleAssignment[];
 }
 
+/**
+ * The list columns every browser-facing Lists projection carries.
+ *
+ * **Derived from `LIST_COLUMNS`, which both shapers spread rather than reconstruct.**
+ * `shapeListsForBrowser` answers `{ ...listRecord, ... }` and the browser's
+ * `normalizeListRecord` answers `{ ...list, ... }`, so these twenty-one columns reach the page
+ * exactly as the row held them. The required/nullable split is the table's own `NOT NULL`.
+ *
+ * **`is_reusable` is a number and that is not a mistake.** The column is `INTEGER NOT NULL` with a
+ * `CHECK (is_reusable IN (0, 1))`, the server spreads it untouched, and it adds a *separate*
+ * camelCase `isReusable` boolean beside it. Two members, two types, one concept - and the browser
+ * normaliser then overwrites `is_reusable` with a boolean of its own. Naming both as booleans here
+ * would have described the wire wrongly.
+ *
+ * `list_type` is shopping/procurement/packing/supplies/parts/checklist/bill_of_materials and
+ * `status` is active/completed/finalized/archived/deleted. Both are `CHECK`-constrained on the
+ * server and **neither is validated by the browser**, so both stay `string`.
+ */
+export interface BrowserListColumns {
+  archived_at: string | null;
+  client_id: string | null;
+  completed_at: string | null;
+  created_at: string;
+  created_by_user_id: string | null;
+  deleted_at: string | null;
+  description: string | null;
+  duplicated_from_list_id: string | null;
+  finalized_at: string | null;
+  finalized_by_user_id: string | null;
+  /** `0` or `1`. The boolean beside it is `isReusable`. */
+  is_reusable: number;
+  list_id: string;
+  list_type: string;
+  metadata_json: string | null;
+  project_id: string | null;
+  source_list_id: string | null;
+  status: string;
+  title: string;
+  updated_at: string;
+  updated_by_user_id: string | null;
+  workspace_id: string;
+}
+
+/**
+ * One list as `GET /api/lists` and the single-list routes return it.
+ *
+ * **The seven members below are what the server constructs; everything else is spread.**
+ * `shapeListsForBrowser` adds `id`, `isBillOfMaterials`, `isReusable`, `links`, `progress`,
+ * `resumeContext` and `sourceContext` around the spread row.
+ *
+ * **Four of them stay `unknown`, and that is this checkpoint's boundary.** `links`, `progress`,
+ * `resumeContext` and `sourceContext` are built by `readPermissionSafeLinksForLists`,
+ * `readListProgressSummaries`, `buildListResumeContext` and `readSourceContextsForLists` - four
+ * producers of their own, none of which this child traced. Naming their shapes from what the Lists
+ * page happens to render is exactly the guess `0.33.33.38.4` exists to refuse.
+ */
+export interface BrowserListSummary extends BrowserListColumns {
+  /** A duplicate of `list_id`, added by the server for the page's list primitives. */
+  id: string;
+  isBillOfMaterials: boolean;
+  isReusable: boolean;
+  /** Permission-filtered links. Their record is `0.33.33.38.4.7.2`'s producer, not this one's. */
+  links: unknown[];
+  progress: unknown;
+  resumeContext: unknown;
+  sourceContext: unknown;
+}
+
+/**
+ * One list item as `GET /api/lists/:listId` returns it.
+ *
+ * Derived from `ITEM_COLUMNS`. **`quantity`, `estimated_cost`, `actual_cost` and `sort_order` stay
+ * `unknown`**: the columns are numeric but nothing between the query and the response coerces them,
+ * and this child validates what the producer guarantees rather than what the renderer hopes.
+ */
+export interface BrowserListItem {
+  actual_cost: unknown;
+  assigned_user_id: string | null;
+  catalog_item_id: string | null;
+  checked_at: string | null;
+  checked_by_user_id: string | null;
+  completed_at: string | null;
+  completed_by_user_id: string | null;
+  created_at: string;
+  created_by_user_id: string | null;
+  deleted_at: string | null;
+  estimated_cost: unknown;
+  item_name: string;
+  list_id: string;
+  list_item_id: string;
+  metadata_json: string | null;
+  needed_by_date: string | null;
+  notes: string | null;
+  purchase_status: string;
+  quantity: unknown;
+  sort_order: unknown;
+  tracking_id: string | null;
+  unit: string | null;
+  updated_at: string;
+  updated_by_user_id: string | null;
+  url: string | null;
+  vendor_name: string | null;
+  workspace_id: string;
+}
+
+/**
+ * One list link as the detail route returns it, derived from `LINK_COLUMNS`.
+ *
+ * **This is not a Notes link and not a Tasks linked context.** It is the list-link row: eleven
+ * columns naming which module and target a list points at, with no label, no decorated record and
+ * no resolved title. Reusing another module's link contract for the word would have claimed
+ * decoration this producer never performs.
+ */
+export interface BrowserListLink {
+  created_at: string;
+  created_by_user_id: string | null;
+  link_role: string | null;
+  list_id: string;
+  list_link_id: string;
+  metadata_json: string | null;
+  module_id: string;
+  removed_at: string | null;
+  target_id: string;
+  target_type: string;
+  workspace_id: string;
+}
+
+/** The `{ list, items, links }` envelope the single-list detail route returns. */
+export interface BrowserListDetail {
+  items: BrowserListItem[];
+  links: BrowserListLink[];
+  /** Absent rather than `null`, so the browser normaliser's own default applies unchanged. */
+  list?: BrowserListSummary;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
