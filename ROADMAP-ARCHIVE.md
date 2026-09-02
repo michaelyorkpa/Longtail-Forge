@@ -1,5 +1,30 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.4.5 - The create-user mutation response
+
+**Model: High Effort** - the smallest child of this run, and the one whose whole argument is that an empty string is a value rather than an absence.
+
+- [x] **One producer, four members, and two of them were already published.** `usersService.create` answers `{ accountCreated, user, users, initialPassword }`, and `0.33.33.38.4.4.1` had already narrowed the `user` and `users` halves. `BrowserUserCreationResult` names all four and **reuses `BrowserUserRecord` for both**, so no second user shape was invented; a break that replaces the reused record with an inline one is refused.
+- [x] **`initialPassword` is required and its empty string is the contract.** The service initialises it to `""` and assigns it **only** in the branch that also sets `accountCreated`, so emptiness is the producer's way of saying no credential was minted. Making the member optional would turn that meaningful empty string into an absence and let a consumer treat the two outcomes as one; the declaration records why, and breaks that make it optional or delete that reasoning are both refused.
+- [x] **The security trace the line recorded was re-proved rather than assumed.** The credential is generated on one branch, the repository is handed a hash and returns a constructed record with no password member, the `user_created` audit entry stores neither the credential nor its hash, and the route reports the two outcomes with different status codes. Four breaks attack exactly those points - generating outside the branch, returning the hash from the repository, putting the credential in the audit metadata, and collapsing the status codes - and all four are refused.
+- [x] **The panel keeps hiding an empty value.** The browser feeds the credential to `showGeneratedPassword` only on the branch that minted one and passes `""` otherwise; a break that feeds it on both branches is refused.
+- [x] **The reader is total, because the reads it replaced were.** The raw flag read on an unusable body was already `undefined`, which took the existing-account branch and left the panel hidden - the fail-closed direction for a one-time credential. So the reader degrades rather than throwing, and a break that turns it into a refusal is refused by a check that exists for exactly that.
+- [x] **The neighbouring producer was left alone, deliberately.** `resetUserPassword` reads the same member name from `PUT /api/users/:userId/reset-password` through an implicitly typed callback. That is `0.33.33.44`'s parameter work and a different response boundary, so the proof scopes its consumer check to `createUser` and **asserts that the other read is unchanged** - and a break that narrows it too is refused.
+
+Proved by breaking each one, restored in a `finally`, and **every refusal judged by exit status**: 19 breaks across the service, the route, the repository, the browser declaration, the reader and the consumers.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,360 | **8,357** |
+| Genuine `unknown` | 54 | **51** |
+| params / state / dom / namespace / assorted | 4,611 / 1,739 / 1,484 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,168 / 530 / 976 / 1,568 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 640 / 348 / 167 | **655 / 348 / 167**, green |
+
+**3 eliminations, no transfers, no new debt, and no state typed.** `4,611 + 1,739 + 153 = 6,503` reconciles either side.
+
 ## Version 0.33.33.38.4.5.1 - The User Settings response boundary
 
 **Model: High Effort** - the child that found a third producer the family had not counted, and the one that had to argue with an earlier checkpoint's rule before it could close a union.

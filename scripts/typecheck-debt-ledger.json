@@ -371,6 +371,7 @@
         "tests/unit/calendar-subscription-contracts.test.mjs",
         "tests/unit/client-project-options.test.mjs",
         "tests/unit/client-project-record-contracts.test.mjs",
+        "tests/unit/create-user-response-contracts.test.mjs",
         "tests/unit/files-preview.service.test.mjs",
         "tests/unit/files-scanner-job.service.test.mjs",
         "tests/unit/files-storage-accounting.service.test.mjs",
@@ -499,7 +500,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8360,
+      "errorCount": 8357,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1936,7 +1937,7 @@
         "public/js/user-admin.js": [
           {
             "code": 18046,
-            "count": 11
+            "count": 8
           },
           {
             "code": 18047,
@@ -2733,8 +2734,8 @@
     }
   },
   "totals": {
-    "files": 1080,
-    "errors": 8360,
+    "files": 1081,
+    "errors": 8357,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
