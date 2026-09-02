@@ -519,7 +519,7 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 #### 0.33.33.38.4.3.3 - The task timer records
 
-**7 diagnostics.** `result.timers` and `result.timer` from the timer routes and `GET /api/tasks/timers`. `taskTimerFromUnified` is the shaper and it takes the task as its second argument, so this child inherits `BrowserTaskRecord` and needs only the timer.
+**Complete: 7 diagnostics, four contracts, one direct state handoff.** See the archive entry. `taskTimerFromUnified` is the shaper for the *mutation* routes only, and it **spreads** rather than reconstructing - so the browser contract is a guaranteed minimum, not an exact record.
 
 #### 0.33.33.38.4.3.4 - Recurrence continuity
 

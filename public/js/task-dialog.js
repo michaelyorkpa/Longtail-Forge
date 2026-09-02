@@ -320,7 +320,7 @@
       setStatus: (message, options = {}) => hostContext?.setStatus?.(message, options),
       tagOptions,
       task,
-      taskTimers: timersResult.timers || [],
+      taskTimers: requireTaskRecords().readTaskTimers(timersResult),
       tasks: tasksResult?.tasks || (task ? [task] : source.tasks || []),
     };
   }
@@ -1348,7 +1348,7 @@
 
   async function refreshTaskTimers() {
     const result = await loadTaskTimers();
-    taskTimers = Array.isArray(result.timers) ? result.timers : [];
+    taskTimers = requireTaskRecords().readTaskTimers(result);
     context.taskTimers = taskTimers;
     writeTaskTimerFields(currentTask);
   }

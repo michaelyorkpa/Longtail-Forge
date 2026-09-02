@@ -394,6 +394,7 @@
         "tests/unit/task-option-catalog-contracts.test.mjs",
         "tests/unit/task-record-contracts.test.mjs",
         "tests/unit/task-recurrence-continuity-contracts.test.mjs",
+        "tests/unit/task-timer-contracts.test.mjs",
         "tests/unit/test-support-harnesses.test.mjs",
         "tests/unit/user-record-contract.test.mjs",
         "tests/unit/work-candidate-query-edge.test.mjs",
@@ -490,7 +491,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8440,
+      "errorCount": 8421,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1691,7 +1692,7 @@
         "public/js/task-dialog.js": [
           {
             "code": 18046,
-            "count": 3
+            "count": 1
           },
           {
             "code": 18047,
@@ -1765,7 +1766,7 @@
         "public/js/tasks.js": [
           {
             "code": 18046,
-            "count": 9
+            "count": 4
           },
           {
             "code": 18047,
@@ -1776,23 +1777,15 @@
             "count": 18
           },
           {
-            "code": 2322,
-            "count": 1
-          },
-          {
             "code": 2339,
-            "count": 126
+            "count": 118
           },
           {
             "code": 2345,
-            "count": 5
+            "count": 3
           },
           {
             "code": 2554,
-            "count": 1
-          },
-          {
-            "code": 2698,
             "count": 1
           },
           {
@@ -2768,8 +2761,8 @@
     }
   },
   "totals": {
-    "files": 1071,
-    "errors": 8440,
+    "files": 1072,
+    "errors": 8421,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
