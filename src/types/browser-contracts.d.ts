@@ -3190,6 +3190,178 @@ export interface BrowserAuditLogEnvelope {
 }
 
 /**
+ * How the interface picks its palette. `normalizeThemeMode` answers one of these three on every
+ * path, falling back to `"light"`.
+ *
+ * **Closed here although `BrowserUserRecord` leaves the same value open, and the difference is
+ * the check.** That record wrote the vocabulary down in prose and kept `string`, because this
+ * estate refuses to declare a closed union over a wire field nothing validates. This boundary
+ * validates it: `readUserSettingsProfile` refuses a response whose theme mode is not one of
+ * these words. Same rule, applied where the check now exists.
+ */
+export type BrowserUserThemeMode = "auto" | "dark" | "light";
+
+/**
+ * What an automatic theme follows. A single literal, because `normalizeThemeAutoSource` answers
+ * `"system"` on **every** path including its fallback - there is no second source yet, and the
+ * contract says so rather than implying a choice the producer cannot make.
+ */
+export type BrowserUserThemeAutoSource = "system";
+
+/** Where a sign-in or a workspace switch lands, closed by `normalizeUserLandingPage`. */
+export type BrowserUserLandingPage = "dashboard" | "lists" | "notes" | "tasks" | "workbench";
+
+/** Which calendar span the account prefers, closed by `normalizeCalendarViewPreference`. */
+export type BrowserUserCalendarView = "day" | "month" | "week";
+
+/**
+ * The account's own settings, as both `GET` and `PUT /api/user/settings` send them.
+ *
+ * **Ten members, and the two routes agree by construction rather than by coincidence.**
+ * `readSettings` copies them out of `userRowToAppValue`; `saveSettings` rebuilds them from the
+ * request through **the same normalisers** - `normalizeThemeMode`, `normalizeThemeAutoSource`,
+ * `normalizeUserLandingPage`, `normalizeCalendarViewPreference`, `normalizeBooleanPreference`
+ * and the profile normaliser. A proof pins both routes to that shared list so they cannot drift.
+ *
+ * **This is not a `BrowserUserRecord`.** That record is fifteen members from the
+ * user-administration routes and carries `user_id`, `userStatus`, `protectedUser` and
+ * `passwordChangeRequired`, none of which this route sends; this one is the ten an account may
+ * see and change about itself. Ten scalars are common to both, and the vocabularies agree.
+ */
+export interface BrowserUserSettingsProfile {
+  /** `null` when the account has no alternate address. */
+  altEmail: string | null;
+  /** Falls back to the username, so never empty. */
+  displayName: string;
+  openExternalLinksNewTab: boolean;
+  /** `null` when the account has expressed no preference. */
+  preferredCalendarView: BrowserUserCalendarView | null;
+  preferredLoginLanding: BrowserUserLandingPage;
+  preferredWorkspaceSwitchLanding: BrowserUserLandingPage;
+  themeAutoSource: BrowserUserThemeAutoSource;
+  themeMode: BrowserUserThemeMode;
+  /** Falls back to the deployment default, so never empty. */
+  timezone: string;
+  username: string;
+}
+
+/** How this deployment is run, closed by the one comparison `readWorkspaceCreationOptions` makes. */
+export type BrowserWorkspaceInstallMode = "saas" | "self_hosted";
+
+/**
+ * A kind of workspace an account may create, closed because the producer starts from a literal
+ * list of these three and only ever filters it.
+ */
+export type BrowserWorkspaceType = "business" | "family" | "personal";
+
+/**
+ * One workspace kind the account may create right now.
+ *
+ * **Exact: four members**, built for each type that survived the install-mode, entitlement and
+ * per-user permission filters. `moduleSettings` is left `unknown[]`: it comes from
+ * `readWorkspaceCreationModuleSettings`, which **spreads** each module's own definition, so its
+ * members belong to the contributing module rather than to this response - the same reason the
+ * Workbench contribution contract promises only an identity.
+ */
+export interface BrowserWorkspaceCreationType {
+  /** `""` when the type declares no suggested name. */
+  defaultName: string;
+  label: string;
+  /** Each module's own settings definition, spread; its vocabulary is the module's to name. */
+  moduleSettings: unknown[];
+  workspaceType: BrowserWorkspaceType;
+}
+
+/**
+ * Whether and what this account may create, as `readWorkspaceCreationOptions` reports it.
+ *
+ * **The server has already decided.** `availableTypes` is empty when creation is disabled for
+ * the deployment, when the account lacks the permission, or when a hosted entitlement does not
+ * cover the type - so an empty list is a real answer and the page simply hides its form. The
+ * two flags are reported beside it, never combined into one by the browser.
+ */
+export interface BrowserWorkspaceCreationOptions {
+  availableTypes: BrowserWorkspaceCreationType[];
+  canCreateWorkspaces: boolean;
+  installMode: BrowserWorkspaceInstallMode;
+  workspaceCreationEnabled: boolean;
+}
+
+/**
+ * One workspace the account belongs to, as `readForUser` selects it.
+ *
+ * **Four columns, snake_case, straight from the query** - this is a row, not a shaped record,
+ * which is why it is not `BrowserUserWorkspaceMembership`: that one is six camelCase members
+ * built by `decorateUserWithMemberships` for the administration routes. Neither `status` nor
+ * `workspace_type` carries a column `CHECK`, so both stay text.
+ */
+export interface BrowserUserSettingsWorkspace {
+  status: string;
+  workspace_id: string;
+  workspace_name: string;
+  workspace_type: string;
+}
+
+/**
+ * What `GET /api/user/settings` resolves to: the account's own settings plus what it may do.
+ *
+ * **The profile ten, and four more that only the read sends.** The save answers the ten alone,
+ * so this extends that contract rather than repeating it or making four members optional on one
+ * record - the difference between the routes is real and is expressed as the difference.
+ *
+ * `canEnterAccountExportRecovery` is a **server permission result**, not a browser decision:
+ * `isWorkspaceAdministrator` computes it and the route sends it on every response. The browser
+ * reports it; it can never manufacture it, and nothing here widens who may recover an account.
+ */
+export interface BrowserUserSettings extends BrowserUserSettingsProfile {
+  /** The account's current workspace; the session's active workspace, or its own. */
+  activeWorkspaceId: string;
+  /** A permission result the server computed. The browser reports it and never decides it. */
+  canEnterAccountExportRecovery: boolean;
+  workspaceCreation: BrowserWorkspaceCreationOptions;
+  workspaces: BrowserUserSettingsWorkspace[];
+}
+
+/**
+ * What `DELETE /api/user/workspaces/:workspaceId` answers when the account has just left its
+ * **last** active workspace.
+ *
+ * The service revokes every session for the account and answers this instead of a workspace
+ * list, and the page leaves for the recovery sign-in. `accountExportRecovery` is the literal
+ * `true` the producer writes; `activeWorkspaceId` is `null` because there is no longer one.
+ */
+export interface BrowserAccountExportRecoveryResult {
+  accountExportRecovery: true;
+  activeWorkspaceId: null;
+  workspaces: BrowserUserSettingsWorkspace[];
+}
+
+/**
+ * What that route answers on the ordinary path: the workspace the account is left on, and the
+ * memberships it still holds.
+ *
+ * **`accountExportRecovery` is absent, not `false`** - the producer omits the member entirely,
+ * and `?: never` says so, which is what lets the two results be told apart by their own shapes
+ * rather than by a flag the browser has to interpret.
+ */
+export interface BrowserWorkspaceMembershipResult {
+  accountExportRecovery?: never;
+  activeWorkspaceId: string;
+  workspaces: BrowserUserSettingsWorkspace[];
+}
+
+/**
+ * The two answers that route genuinely has.
+ *
+ * Modelled as a union rather than one record with optional members, because the producer really
+ * does return two different shapes and flattening them would let a consumer read a workspace
+ * list off the recovery answer, which is always empty.
+ */
+export type BrowserWorkspaceRemovalResult =
+  | BrowserAccountExportRecoveryResult
+  | BrowserWorkspaceMembershipResult;
+
+/**
  * An API key as the workspace list sends it: the nine columns `readAll` selects by name, with
  * the key's scopes attached.
  *

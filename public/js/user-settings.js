@@ -251,20 +251,200 @@ async function deleteAccount() {
   }
 }
 
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserUserSettings} BrowserUserSettings */
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserUserSettingsProfile} BrowserUserSettingsProfile */
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserUserSettingsWorkspace} BrowserUserSettingsWorkspace */
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkspaceCreationOptions} BrowserWorkspaceCreationOptions */
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkspaceCreationType} BrowserWorkspaceCreationType */
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkspaceRemovalResult} BrowserWorkspaceRemovalResult */
+
+/** The three words `normalizeThemeMode` answers, fallback included. */
+const USER_THEME_MODES = Object.freeze(["auto", "dark", "light"]);
+
+/** The one word `normalizeThemeAutoSource` answers on every path. */
+const USER_THEME_AUTO_SOURCES = Object.freeze(["system"]);
+
+/** The five landings `normalizeUserLandingPage` answers. */
+const USER_LANDING_PAGES = Object.freeze(["dashboard", "lists", "notes", "tasks", "workbench"]);
+
+/** The three spans `normalizeCalendarViewPreference` answers before falling to `null`. */
+const USER_CALENDAR_VIEWS = Object.freeze(["day", "month", "week"]);
+
+/** The two landing members both routes rebuild through the same normaliser. */
+const USER_LANDING_MEMBERS = Object.freeze(["preferredLoginLanding", "preferredWorkspaceSwitchLanding"]);
+
+/** The three text members both routes always fill. */
+const USER_PROFILE_TEXT = Object.freeze(["displayName", "timezone", "username"]);
+
+/** The four columns `readForUser` selects for a workspace the account belongs to. */
+const USER_WORKSPACE_TEXT = Object.freeze(["status", "workspace_id", "workspace_name", "workspace_type"]);
+
+/** The three kinds of workspace the creation producer starts from. */
+const WORKSPACE_TYPES = Object.freeze(["business", "family", "personal"]);
+
+/** The two install modes the creation producer chooses between. */
+const WORKSPACE_INSTALL_MODES = Object.freeze(["saas", "self_hosted"]);
+
+/** The three text members each creatable workspace type carries beside its module settings. */
+const WORKSPACE_CREATION_TYPE_TEXT = Object.freeze(["defaultName", "label", "workspaceType"]);
+
+/**
+ * A plain JSON object, which is the least a wire body can be before any member is read.
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isResponseRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * @param {unknown} value @param {readonly string[]} vocabulary
+ * @returns {boolean}
+ */
+function isWord(value, vocabulary) {
+  return typeof value === "string" && vocabulary.includes(value);
+}
+
+/**
+ * The ten members both `/api/user/settings` routes send.
+ *
+ * The closed words are checked here rather than written down and trusted: that is what earns
+ * them a union at all, and it is why this contract may close what `BrowserUserRecord` could not.
+ * @param {unknown} value
+ * @returns {value is BrowserUserSettingsProfile}
+ */
+function isUserSettingsProfile(value) {
+  return isResponseRecord(value)
+    && USER_PROFILE_TEXT.every((member) => typeof value[member] === "string")
+    && value.username !== ""
+    && (value.altEmail === null || typeof value.altEmail === "string")
+    && typeof value.openExternalLinksNewTab === "boolean"
+    && isWord(value.themeMode, USER_THEME_MODES)
+    && isWord(value.themeAutoSource, USER_THEME_AUTO_SOURCES)
+    && USER_LANDING_MEMBERS.every((member) => isWord(value[member], USER_LANDING_PAGES))
+    && (value.preferredCalendarView === null || isWord(value.preferredCalendarView, USER_CALENDAR_VIEWS));
+}
+
+/**
+ * One workspace row the account belongs to.
+ * @param {unknown} value
+ * @returns {value is BrowserUserSettingsWorkspace}
+ */
+function isUserSettingsWorkspace(value) {
+  return isResponseRecord(value) && USER_WORKSPACE_TEXT.every((member) => typeof value[member] === "string");
+}
+
+/**
+ * One workspace kind this account may create.
+ * @param {unknown} value
+ * @returns {value is BrowserWorkspaceCreationType}
+ */
+function isWorkspaceCreationType(value) {
+  return isResponseRecord(value)
+    && WORKSPACE_CREATION_TYPE_TEXT.every((member) => typeof value[member] === "string")
+    && isWord(value.workspaceType, WORKSPACE_TYPES)
+    && Array.isArray(value.moduleSettings);
+}
+
+/**
+ * What this account may create, as the server already decided it.
+ * @param {unknown} value
+ * @returns {value is BrowserWorkspaceCreationOptions}
+ */
+function isWorkspaceCreationOptions(value) {
+  return isResponseRecord(value)
+    && isWord(value.installMode, WORKSPACE_INSTALL_MODES)
+    && typeof value.workspaceCreationEnabled === "boolean"
+    && typeof value.canCreateWorkspaces === "boolean"
+    && Array.isArray(value.availableTypes)
+    && value.availableTypes.every(isWorkspaceCreationType);
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is BrowserUserSettingsWorkspace[]}
+ */
+function isUserSettingsWorkspaces(value) {
+  return Array.isArray(value) && value.every(isUserSettingsWorkspace);
+}
+
+/**
+ * The save response: the ten members and nothing else this page reads.
+ *
+ * **Refused rather than defaulted, because this is a form the account saves back.** A response
+ * the browser cannot vouch for would repopulate the controls with fallbacks, and the next save
+ * would write those fallbacks over real preferences. `null` takes the load-error path the page
+ * already had.
+ * @param {unknown} body
+ * @returns {BrowserUserSettingsProfile | null}
+ */
+function readUserSettingsProfile(body) {
+  return isUserSettingsProfile(body) ? body : null;
+}
+
+/**
+ * The load response: the same ten, plus the four only the read sends.
+ * @param {unknown} body
+ * @returns {BrowserUserSettings | null}
+ */
+function readUserSettings(body) {
+  if (!isResponseRecord(body)) {
+    return null;
+  }
+  // Read the four before narrowing to the profile: a type predicate narrows the binding it
+  // tests, and the profile contract deliberately does not name them.
+  const { activeWorkspaceId, canEnterAccountExportRecovery, workspaceCreation, workspaces } = body;
+  if (!isUserSettingsProfile(body)
+    || typeof activeWorkspaceId !== "string"
+    || typeof canEnterAccountExportRecovery !== "boolean"
+    || !isWorkspaceCreationOptions(workspaceCreation)
+    || !isUserSettingsWorkspaces(workspaces)) {
+    return null;
+  }
+  return { ...body, activeWorkspaceId, canEnterAccountExportRecovery, workspaceCreation, workspaces };
+}
+
+/**
+ * The two answers the workspace-removal route genuinely has, told apart by their own shapes.
+ *
+ * Also refused rather than guessed: an unreadable body must not send the account to recovery,
+ * and must not leave a stale workspace list on screen either. The removal has already happened
+ * on the server, so the page reports its ordinary failure and a reload shows the truth.
+ * @param {unknown} body
+ * @returns {BrowserWorkspaceRemovalResult | null}
+ */
+function readWorkspaceRemoval(body) {
+  if (!isResponseRecord(body) || !isUserSettingsWorkspaces(body.workspaces)) {
+    return null;
+  }
+  if (body.accountExportRecovery === true) {
+    return body.activeWorkspaceId === null
+      ? { accountExportRecovery: true, activeWorkspaceId: null, workspaces: body.workspaces }
+      : null;
+  }
+  return body.accountExportRecovery === undefined && typeof body.activeWorkspaceId === "string"
+    ? { activeWorkspaceId: body.activeWorkspaceId, workspaces: body.workspaces }
+    : null;
+}
+
 async function loadUserSettings() {
   try {
     const [body, catalog] = await Promise.all([
       requireApi().getJson("/api/user/settings", { cache: "no-store" }),
       requireApi().getJson("/api/settings/catalog", { cache: "no-store" }),
     ]);
+    const settings = readUserSettings(body);
+    if (!settings) {
+      throw new Error("The user settings response could not be read.");
+    }
     settingsCatalog = catalog;
 
-    applyThemeMode(body.themeMode, body.themeAutoSource);
-    applyMarkdownRendering(body);
-    applyAppPreferences(body);
-    applyProfile(body);
-    applyWorkspaceAccess(body);
-    applyWorkspaceCreation(body.workspaceCreation);
+    applyThemeMode(settings.themeMode, settings.themeAutoSource);
+    applyMarkdownRendering(settings);
+    applyAppPreferences(settings);
+    applyProfile(settings);
+    applyWorkspaceAccess(settings);
+    applyWorkspaceCreation(settings.workspaceCreation);
     renderUserSettingsContributions();
     setUserSettingsStatus("");
     settingsPageController.setClean();
@@ -341,10 +521,14 @@ async function saveAllSettings() {
     const preferences = notificationPreferences.readUserPreferencesPayload(notificationPreferenceList);
     const groupingPreferences = notificationPreferences.readGroupingPreferencesPayload(notificationGroupingPreferences);
     await notificationPreferences.saveUserPreferences(preferences, groupingPreferences);
-    applyThemeMode(body.themeMode, body.themeAutoSource);
-    applyMarkdownRendering(body);
-    applyAppPreferences(body);
-    applyProfile(body);
+    const saved = readUserSettingsProfile(body);
+    if (!saved) {
+      throw new Error("The saved user settings response could not be read.");
+    }
+    applyThemeMode(saved.themeMode, saved.themeAutoSource);
+    applyMarkdownRendering(saved);
+    applyAppPreferences(saved);
+    applyProfile(saved);
     await loadNotificationPreferences();
     setUserSettingsStatus("User settings saved.", false, { type: "success", clearAfter: 1600 });
     return true;
@@ -651,14 +835,19 @@ async function removeWorkspaceMembership(workspaceId) {
   setUserSettingsStatus(`Leaving ${workspace.workspaceName || "workspace"}...`);
 
   try {
-    const body = await requireApi().deleteJson(`/api/user/workspaces/${encodeURIComponent(workspaceId)}`);
+    const removal = readWorkspaceRemoval(
+      await requireApi().deleteJson(`/api/user/workspaces/${encodeURIComponent(workspaceId)}`),
+    );
+    if (!removal) {
+      throw new Error("The workspace removal response could not be read.");
+    }
 
-    if (body.accountExportRecovery) {
+    if (removal.accountExportRecovery) {
       window.location.assign("/login.html?accountRecovery=1");
       return;
     }
 
-    applyWorkspaceAccess(body);
+    applyWorkspaceAccess(removal);
     renderWorkspaceRemovalList();
     setUserSettingsStatus("Workspace membership removed.", false, { type: "success", clearAfter: 1600 });
   } catch (error) {
