@@ -103,7 +103,7 @@ describe("the list envelope", () => {
     assert.deepEqual(declaredMembers("BrowserTaskListEnvelope").slice().sort(),
       ["currentUserId", "options", "pagination", "tasks"]);
     assert.doesNotMatch(declarationBlock("BrowserTaskListEnvelope"), /\n  timers/,
-      "the task timers reach the page from their own route and are 0.33.33.38.4.3.C's");
+      "the task timers reach the page from their own route and are 0.33.33.38.4.3.3's");
   });
 
   it("reads one envelope for all three loaders, because they share one helper", () => {

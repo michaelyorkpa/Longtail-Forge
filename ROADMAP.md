@@ -507,33 +507,35 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **Resliced from the live tree: 64 diagnostics, not the 34 this line used to record, and they are seven producers rather than one.** `tasks.js` 38, `task-dialog.js` 14, `workbench.js` 12. The single-task records were the largest coherent group and are closed; the rest are drawn below by producer.
 
+**Numbered rather than lettered, because the ceremony requires it.** A first pass drew these as `.B` through `.G`; `scripts/release/checkpoint-commits.mjs` requires `LTF-Checkpoint` to be a numeric slice **and** to name a declared numbered heading, and a release regression pins that rule. The letters could never have validated, so they are gone: `.B` is `.2` and `.C` through `.G` are `.3` through `.7`, in the order they were drawn.
+
 #### 0.33.33.38.4.3.1 - The base and detailed single-task records
 
 **Complete: 24 diagnostics, seven contracts, one shared surface, zero fallout.** See the archive entry.
 
-#### 0.33.33.38.4.3.B - The task collection and list envelope
+#### 0.33.33.38.4.3.2 - The task collection and list envelope
 
-**18 diagnostics.** `result.tasks` in three loaders, plus `currentUserId`, `options` and `pagination` beside them. **The element contract already exists**: `BrowserTaskDetail` is what `attachTaskListProjectionDetails` produces per row, so this child's real work is the envelope and its pagination, not the record. Check whether the list projection adds anything the detail shaper does not before reusing it.
+**Complete: 17 diagnostics, five contracts, three direct handoffs.** See the archive entry. **The reuse this line predicted did not hold**: the list projection is not the detail shaper, and checking that was the first thing the child did.
 
-#### 0.33.33.38.4.3.C - The task timer records
+#### 0.33.33.38.4.3.3 - The task timer records
 
 **7 diagnostics.** `result.timers` and `result.timer` from the timer routes and `GET /api/tasks/timers`. `taskTimerFromUnified` is the shaper and it takes the task as its second argument, so this child inherits `BrowserTaskRecord` and needs only the timer.
 
-#### 0.33.33.38.4.3.D - Recurrence continuity
+#### 0.33.33.38.4.3.4 - Recurrence continuity
 
 **5 diagnostics.** `result.recurrenceContinuity` and `result.recurrenceContinuities`, built by `readTaskCompletionContinuity`. `BrowserTaskDetail` already carries the member as `unknown`; this child names the shape.
 
-#### 0.33.33.38.4.3.E - The task count envelopes
+#### 0.33.33.38.4.3.5 - The task count envelopes
 
 **2 diagnostics.** `result.counts` and `result.count` from the attachment and note count routes - two envelopes over two other modules' counters.
 
-#### 0.33.33.38.4.3.F - The task relationship list
+#### 0.33.33.38.4.3.6 - The task relationship list
 
 **1 diagnostic.** `result.relationships` from `GET /api/tasks/:taskId/relationships`. Its `relationshipSummary` sibling is a *different* producer that `BrowserTaskDetail` already carries as `unknown`.
 
-#### 0.33.33.38.4.3.G - The Workbench bootstrap
+#### 0.33.33.38.4.3.7 - The Workbench bootstrap
 
-**5 diagnostics.** `bootstrap.registry`, `modules`, `taskOptions`, `workCandidates` and `currentUserId` - the Workbench module registry rather than a task producer, which is why it is drawn apart from everything above.
+**6 diagnostics**, one more than first counted: `workbench.js` reads `bootstrap.currentUserId` too, and a first pass filed it under `.B` because of the member name. **The Workbench bootstrap is its own producer and the name it shares with the task list proves nothing.** `bootstrap.registry`, `modules`, `taskOptions`, `workCandidates` and `currentUserId` - the Workbench module registry rather than a task producer, which is why it is drawn apart from everything above.
 
 #### 0.33.33.38.4.4 - The workspace-user, role and assignment responses
 

@@ -129,7 +129,7 @@ test("module lifecycle saves refresh recovery and timer surfaces immediately", a
    * used to be. That literal carried `assignee_ids` - a write-side input the task shaper never
    * returns - and omitted the thirty text members, the assignees, the three typed scalars and the
    * five members `attachTaskListProjectionDetails` always adds. A mock that claims a shape the
-   * producer cannot produce is a second, wrong contract, and `0.33.33.38.4.3.B` made the browser
+   * producer cannot produce is a second, wrong contract, and `0.33.33.38.4.3.2` made the browser
    * notice it.
    *
    * @param {{ currentUserId?: string }} liveResult

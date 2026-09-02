@@ -2907,7 +2907,7 @@ export interface BrowserTaskListOptions {
  * when it cannot vouch for the member, which keeps both existing consumer fallbacks intact.
  *
  * `timers` is **not** part of this envelope: `queryTasksResult` carries it, and `list` rebuilds
- * the response without it. The task timers belong to `0.33.33.38.4.3.C` and reach the page from
+ * the response without it. The task timers belong to `0.33.33.38.4.3.3` and reach the page from
  * their own route.
  */
 export interface BrowserTaskListEnvelope {
