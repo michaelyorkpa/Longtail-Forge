@@ -36,6 +36,8 @@
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskProjectOption} BrowserTaskProjectOption */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskPickerOption} BrowserTaskPickerOption */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskUserOption} BrowserTaskUserOption */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskTimerRecord} BrowserTaskTimerRecord */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskTimerResumeContext} BrowserTaskTimerResumeContext */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskRecurrenceNextTask} BrowserTaskRecurrenceNextTask */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskRecurrenceContinuity} BrowserTaskRecurrenceContinuity */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskBulkRecurrenceContinuity} BrowserTaskBulkRecurrenceContinuity */
@@ -176,6 +178,53 @@
   /** The four members `safeNextTask` builds when it builds anything at all. */
   const NEXT_TASK_TEXT = Object.freeze(["due_date", "task_id", "title", "url"]);
 
+  /**
+   * The eighteen text members both task-timer producers guarantee.
+   *
+   * `timerToTaskTimer` reconstructs every one by name. The mutation path reaches them through
+   * `taskTimerFromUnified`'s overrides, `shapeTimerPayload`'s two, and `activeTimerRowToAppValue`,
+   * which is itself a total reconstruction.
+   */
+  const TIMER_TEXT_MEMBERS = Object.freeze([
+    "active_task_timer_id",
+    "active_timer_id",
+    "client_id",
+    "client_name",
+    "created_at",
+    "description",
+    "project_id",
+    "project_name",
+    "source_id",
+    "source_label",
+    "source_metadata_json",
+    "source_module_id",
+    "source_type",
+    "source_url",
+    "task_id",
+    "updated_at",
+    "user_id",
+    "workspace_id",
+  ]);
+
+  /** The nine text members every resume-context shaper builds. */
+  const RESUME_CONTEXT_TEXT = Object.freeze([
+    "clientId",
+    "clientName",
+    "projectId",
+    "projectName",
+    "sourceId",
+    "sourceLabel",
+    "sourceModuleId",
+    "sourceType",
+    "sourceUrl",
+  ]);
+
+  /** The two states every timer shaper normalises to. */
+  const TIMER_STATUSES = Object.freeze(["paused", "running"]);
+
+  /** The two billable values the repository normalises to. */
+  const TIMER_BILLABLE = Object.freeze(["no", "yes"]);
+
   /** The two option collections `readOptions` spreads from server constants. */
   const TASK_OPTION_TEXT_LISTS = Object.freeze(["priorities", "statuses"]);
 
@@ -220,6 +269,69 @@
       && typeof value.reminder_override_enabled === "boolean"
       && Array.isArray(value.assignees)
       && value.assignees.every(isTaskAssignee);
+  }
+
+  /**
+   * The resume context a task timer carries.
+   * @param {unknown} value
+   * @returns {value is BrowserTaskTimerResumeContext}
+   */
+  function isTimerResumeContext(value) {
+    return isResponseRecord(value)
+      && RESUME_CONTEXT_TEXT.every((member) => typeof value[member] === "string")
+      && typeof value.accumulatedElapsedSeconds === "number"
+      && (value.lastActiveStartTime === null || typeof value.lastActiveStartTime === "string")
+      && typeof value.timerStatus === "string"
+      && TIMER_STATUSES.includes(value.timerStatus);
+  }
+
+  /**
+   * One task timer, in the shape both producers guarantee.
+   *
+   * **This checks a guaranteed minimum, not an exact record.** The save and link routes spread the
+   * unified active timer, so their payload legitimately carries members this contract does not
+   * name - `timer_slot` among them - and a benign extra must never make a timer unreadable.
+   * @param {unknown} value
+   * @returns {value is BrowserTaskTimerRecord}
+   */
+  function isTaskTimerRecord(value) {
+    return isResponseRecord(value)
+      && TIMER_TEXT_MEMBERS.every((member) => typeof value[member] === "string")
+      && typeof value.accumulated_elapsed_seconds === "number"
+      && typeof value.billable === "string"
+      && TIMER_BILLABLE.includes(value.billable)
+      && typeof value.timer_status === "string"
+      && TIMER_STATUSES.includes(value.timer_status)
+      && (value.last_active_start_time === null || typeof value.last_active_start_time === "string")
+      && "sourceMetadata" in value
+      && isTimerResumeContext(value.resumeContext)
+      && isTimerResumeContext(value.resume_context);
+  }
+
+  /**
+   * The task timers `GET /api/tasks/timers` listed.
+   *
+   * A malformed timer is dropped rather than emptying the list: both consumers already answered an
+   * absent list with none, and a page that cannot read one timer should still show the others.
+   * @param {unknown} body
+   * @returns {BrowserTaskTimerRecord[]}
+   */
+  function readTaskTimers(body) {
+    const timers = isResponseRecord(body) ? body.timers : null;
+    return Array.isArray(timers) ? timers.filter(isTaskTimerRecord) : [];
+  }
+
+  /**
+   * The task timer a save or link route answered with, or `null`.
+   *
+   * The consumer already guarded with `if (result.timer)` before storing it, so a record the
+   * browser cannot vouch for takes the same path a missing one always took.
+   * @param {unknown} body
+   * @returns {BrowserTaskTimerRecord | null}
+   */
+  function readTaskTimer(body) {
+    const timer = isResponseRecord(body) ? body.timer : null;
+    return isTaskTimerRecord(timer) ? timer : null;
   }
 
   /**
@@ -520,6 +632,8 @@
     readBulkRecurrenceContinuities,
     readBulkTasks,
     readRecurrenceContinuity,
+    readTaskTimer,
+    readTaskTimers,
     readSkipToCurrentTarget,
     readTask,
     readTaskDetail,

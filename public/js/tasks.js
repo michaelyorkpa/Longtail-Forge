@@ -7,6 +7,7 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRecords} BrowserTaskRecords */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskListItem} BrowserTaskListItem */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskTimerRecord} BrowserTaskTimerRecord */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskListOptions} BrowserTaskListOptions */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskListPagination} BrowserTaskListPagination */
 
@@ -196,6 +197,7 @@
       nextCursor: "",
       pageSize: TASK_LIST_PAGE_SIZE,
     },
+    /** @type {BrowserTaskTimerRecord[]} */
     taskTimers: [],
     tagOptions: [],
   };
@@ -838,7 +840,7 @@
       state = {
         ...state,
         tasks: list.tasks,
-        taskTimers: timersResult.timers || [],
+        taskTimers: requireTaskRecords().readTaskTimers(timersResult),
         currentUserId: list.currentUserId || state.currentUserId,
         options: list.options || state.options,
         attachmentCounts,
@@ -874,7 +876,7 @@
       state = {
         ...state,
         tasks: list.tasks,
-        taskTimers: timersResult.timers || [],
+        taskTimers: requireTaskRecords().readTaskTimers(timersResult),
         currentUserId: list.currentUserId || state.currentUserId,
         options: list.options || state.options,
         attachmentCounts,
@@ -911,7 +913,7 @@
       state = {
         ...state,
         tasks,
-        taskTimers: timersResult.timers || [],
+        taskTimers: requireTaskRecords().readTaskTimers(timersResult),
         currentUserId: list.currentUserId || state.currentUserId,
         options: list.options || state.options,
         attachmentCounts,
@@ -1966,8 +1968,9 @@
       if (timerTask) {
         upsertTask(timerTask);
       }
-      if (result.timer) {
-        upsertTaskTimerState(result.timer);
+      const savedTimer = requireTaskRecords().readTaskTimer(result);
+      if (savedTimer) {
+        upsertTaskTimerState(savedTimer);
       }
       if (!isRunning) {
         void window.LongtailForge.taskResumeNoteCapture?.offer({

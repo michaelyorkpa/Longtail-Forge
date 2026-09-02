@@ -2620,6 +2620,111 @@ export interface BrowserAssignmentLookup {
 }
 
 /**
+ * The resume context both task-timer producers reconstruct.
+ *
+ * **Twelve members, built identically by three shapers.** `timerToTaskTimer` builds it from the
+ * repository row, `shapeTimerPayload` builds it from the unified active timer, and
+ * `taskTimerFromUnified` rebuilds it again over that - every one of them naming all twelve, with
+ * the same fallbacks and the same `"running"`-or-`"paused"` normalisation.
+ *
+ * `lastActiveStartTime` is the one nullable member: a paused timer has no active start.
+ */
+export interface BrowserTaskTimerResumeContext {
+  accumulatedElapsedSeconds: number;
+  clientId: string;
+  clientName: string;
+  projectId: string;
+  projectName: string;
+  sourceId: string;
+  sourceLabel: string;
+  sourceModuleId: string;
+  sourceType: string;
+  sourceUrl: string;
+  /** `null` while the timer is paused. */
+  lastActiveStartTime: string | null;
+  timerStatus: BrowserTaskTimerStatus;
+}
+
+/**
+ * The two states every task-timer producer normalises to.
+ *
+ * Closed because all three shapers write `timer.timer_status === "running" ? "running" : "paused"`;
+ * nothing reaches the browser unnormalised.
+ */
+export type BrowserTaskTimerStatus = "paused" | "running";
+
+/**
+ * Whether a task timer's time is billable.
+ *
+ * Closed for the same reason: `row.billable === "no" ? "no" : "yes"` at the repository, and the
+ * list shaper repeats it. A workspace-level normaliser runs before the row is written.
+ */
+export type BrowserTaskTimerBillable = "no" | "yes";
+
+/**
+ * One task timer, in the shape **both** producers guarantee.
+ *
+ * **The two paths are not built the same way, and that asymmetry is the reason this contract is a
+ * guaranteed minimum rather than an exact record.** `GET /api/tasks/timers` reaches
+ * `timerToTaskTimer`, which reconstructs all twenty-five members by name. The save and link routes
+ * reach `taskTimerFromUnified`, which **spreads** the unified active timer and overrides eleven -
+ * and what it spreads has already been through `shapeTimerPayload`, which spreads again over
+ * `activeTimerRowToAppValue`.
+ *
+ * Every member named here is nevertheless guaranteed on both paths: eleven because the task shaper
+ * overrides them, two more because `shapeTimerPayload` does, and the rest because
+ * `activeTimerRowToAppValue` is itself a total reconstruction that normalises `billable` and
+ * `timer_status` exactly as the list shaper does. **A structural interface does not claim that no
+ * other property exists**, which is what lets this describe the spread path honestly.
+ *
+ * **`timer_slot` is deliberately absent.** The mutation path carries it through the spread and the
+ * list path never emits it, so it is not a common guarantee; naming it would freeze an incidental
+ * extra into browser vocabulary. The same applies to anything else the unified record happens to
+ * carry.
+ *
+ * **`source_label` and `source_url` are permission-filtered before they arrive.**
+ * `shapeTimerPayload` asks `canReadTimerSource` and blanks both to the empty string when the caller
+ * may not read the source. The browser describes what survived that decision and must never try to
+ * reconstruct what was withheld.
+ *
+ * `sourceMetadata` stays `unknown`: it is parsed JSON from another producer, and
+ * `source_metadata_json` beside it is the text it was parsed from.
+ *
+ * `task_id` is built differently on the two paths - the list shaper uses the timer's own
+ * `source_id`, the mutation shaper uses the task it was given - and both answer text.
+ */
+export interface BrowserTaskTimerRecord {
+  accumulated_elapsed_seconds: number;
+  billable: BrowserTaskTimerBillable;
+  active_task_timer_id: string;
+  active_timer_id: string;
+  client_id: string;
+  client_name: string;
+  created_at: string;
+  description: string;
+  project_id: string;
+  project_name: string;
+  source_id: string;
+  source_label: string;
+  source_metadata_json: string;
+  source_module_id: string;
+  source_type: string;
+  source_url: string;
+  task_id: string;
+  updated_at: string;
+  user_id: string;
+  workspace_id: string;
+  /** `null` while the timer is paused. */
+  last_active_start_time: string | null;
+  resumeContext: BrowserTaskTimerResumeContext;
+  /** The same object as `resumeContext`; both producers send both names. */
+  resume_context: BrowserTaskTimerResumeContext;
+  /** Parsed from `source_metadata_json` by another producer. */
+  sourceMetadata: unknown;
+  timer_status: BrowserTaskTimerStatus;
+}
+
+/**
  * The next occurrence a recurrence continuity points at.
  *
  * **Four members, and `safeNextTask` is why it is safe to name them.** It answers `null` for
@@ -3118,6 +3223,10 @@ export interface BrowserTaskRecords {
   readSkipToCurrentTarget(body: unknown): BrowserTaskDetail | null;
   /** The task list envelope, with every element checked. */
   readTaskList(body: unknown): BrowserTaskListEnvelope;
+  /** The task timers `GET /api/tasks/timers` listed, with every element checked. */
+  readTaskTimers(body: unknown): BrowserTaskTimerRecord[];
+  /** The task timer a save or link route answered with, or `null`. */
+  readTaskTimer(body: unknown): BrowserTaskTimerRecord | null;
   /** The continuity a lifecycle route reported beside its task, or `null`. */
   readRecurrenceContinuity(body: unknown): BrowserTaskRecurrenceContinuity | null;
   /** The per-task continuity entries a bulk action reported, with every element checked. */
