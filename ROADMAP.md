@@ -585,6 +585,12 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 **18 diagnostics** across `workspace-settings.js`, `module-settings.js`, `notes-settings.js` and `user-settings.js`. **This child inherits `0.33.33.38.2.2.2`'s carry-forward**: `attachmentSections` is part of `GET /api/settings/catalog`, and its consumer already narrows with a predicate before sorting.
 
+**Resliced by producer, because four settings pages are four estates.** They share a menu, not a response: `user-settings.js` reads three of its own routes, `workspace-settings.js` reads six, `notes-settings.js` four, and `module-settings.js` one. They are drawn as numeric children below as each is traced, and none may be typed as one settings envelope. **The catalogue is a fifth producer**, and the first child measured that it contributes no genuine unknown of its own - so it stays untyped until a child actually needs it.
+
+#### 0.33.33.38.4.5.1 - The User Settings response boundary
+
+**Complete: 6 diagnostics, twelve contracts, zero fallout - and three producers rather than the two this family expected.** See the archive entry. The trace found `DELETE /api/user/workspaces/:workspaceId` beside the load and the save. **`GET` and `PUT /api/user/settings` do not share a shape**: the save answers ten members, the read answers those ten plus four, so the read contract **extends** the save contract rather than making four members optional. The removal genuinely returns **two** shapes, and they are a union rather than one record with optional members.
+
 #### 0.33.33.38.4.6 - The client, project and calendar-subscription bodies
 
 **Resliced: 22 live diagnostics and three producer families, not one.** The reuse trace this line called for was run and it answered *no*: `clientProjectOptions` normalises into a **different vocabulary** - camelCase billing members and a two-word status - so it describes what the browser builds, never what the wire sends.
