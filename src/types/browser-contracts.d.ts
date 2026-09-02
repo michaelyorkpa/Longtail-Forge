@@ -2620,6 +2620,167 @@ export interface BrowserAssignmentLookup {
 }
 
 /**
+ * The billing contact a client record carries.
+ *
+ * **Eleven text members, all reconstructed with a total fallback**, so none is ever `null` and the
+ * whole record is present even for a client that has entered no billing contact at all.
+ */
+export interface BrowserClientBillingContact {
+  alternate_email: string;
+  alternate_name: string;
+  alternate_phone_number: string;
+  city: string;
+  email: string;
+  name: string;
+  phone_number: string;
+  state: string;
+  street_address_1: string;
+  street_address_2: string;
+  zip_code: string;
+}
+
+/**
+ * A client as the create route sends it back.
+ *
+ * **This is the write-payload normaliser's output, not the read shaper's row.** The create service
+ * answers `normalizeClientPayload(payload)`, which runs `normalizeClientProjectData` over a spread
+ * of the caller's own body - so it carries `childScopeIds` and `projects`, and it carries **no
+ * `created_at` or `updated_at`**, because nothing has been read back from the row.
+ * `clientRowToAppClient` is a different producer for a different route, and deriving this record
+ * from it was the mistake `0.33.33.38.4.6.1` had to correct against the live flow.
+ *
+ * Because the normaliser spreads the request payload, this is a **structural minimum**: every
+ * member named here is reconstructed by name, and a body may legitimately carry more.
+ *
+ * `id` and `name` are non-empty on every successful response - the service throws 400 otherwise -
+ * and `status` is a closed union because `normalizeClientStatus` answers one of two words on every
+ * path. `billing_rate` is trimmed text or `null`; `billing_period` and `billing_rounding` are
+ * `null` or another normaliser's record, so their shapes stay unnamed.
+ *
+ * **The five tag members are optional because the decorator genuinely omits them**, exactly as on
+ * the task list: `decorateRecordsForTarget` returns its records untouched when the tags module is
+ * not readable for the session.
+ */
+export interface BrowserClientRecord {
+  billable: BrowserClientBillable;
+  billing_contact: BrowserClientBillingContact;
+  /** `null` when no billing period was given. */
+  billing_period: unknown;
+  /** Trimmed text, or `null` when unset. */
+  billing_rate: string | null;
+  /** `null` when no rounding was given. */
+  billing_rounding: unknown;
+  childScopeIds: unknown[];
+  /** Non-empty: the service throws 400 without it. */
+  id: string;
+  /** Non-empty: the service throws 400 without it. */
+  name: string;
+  parent_client_id: string;
+  /** Forced empty by the create path, which writes the client before any project. */
+  projects: unknown[];
+  status: BrowserClientStatus;
+  workspace_id: string;
+  /** Absent unless the tags module is readable for the session. */
+  directTags?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  effectiveTags?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  propagatedTags?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  tagAssignments?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  tags?: unknown[];
+}
+
+/**
+ * Where a project stands.
+ *
+ * Closed for the same reason the client status is: `normalizeStatus` answers `"Active"` for
+ * anything it does not recognise and only ever those three words. A project can be completed;
+ * a client cannot, which is why the two unions are separate.
+ */
+export type BrowserProjectStatus = "Active" | "Completed" | "Inactive";
+
+/**
+ * Whether a client is active.
+ *
+ * Closed because `normalizeClientStatus` answers `"Active"` for anything it does not recognise and
+ * only ever those two words.
+ */
+export type BrowserClientStatus = "Active" | "Inactive";
+
+/**
+ * Whether a client or project is billable.
+ *
+ * Closed because `normalizeBillableFlag` returns one of two literals on every path, including its
+ * fallback.
+ */
+export type BrowserClientBillable = "no" | "yes";
+
+/**
+ * A project as the create routes send it back.
+ *
+ * **Not a client record with a `client_id` added, and not the read shaper's row.**
+ * `normalizeProjectPayload` normalises the payload through the same aggregate normaliser, then
+ * re-overrides `client_id` and `parent_project_id` from the request. It carries `taskDefaults`
+ * where the client carries `billing_contact` and `childScopeIds`, and like the client record it
+ * has **no timestamps and no resolved `client_name`** - those belong to the read shaper.
+ *
+ * The same structural-minimum rule applies: the normaliser spreads the request payload, so a body
+ * may legitimately carry more than these members.
+ */
+export interface BrowserProjectRecord {
+  billable: BrowserClientBillable;
+  /** `null` when no billing period was given. */
+  billing_period: unknown;
+  /** Trimmed text, or `null` when unset. */
+  billing_rate: string | null;
+  /** `null` when no rounding was given. */
+  billing_rounding: unknown;
+  client_id: string;
+  /** Non-empty: the service throws 400 without it. */
+  id: string;
+  /** Non-empty: the service throws 400 without it. */
+  name: string;
+  parent_project_id: string;
+  status: BrowserProjectStatus;
+  /** Built by four further normalisers; the Tasks settings estate owns its shape. */
+  taskDefaults: unknown;
+  workspace_id: string;
+  /** Absent unless the tags module is readable for the session. */
+  directTags?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  effectiveTags?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  propagatedTags?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  tagAssignments?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  tags?: unknown[];
+}
+
+/**
+ * What `POST /api/clients` resolves to.
+ *
+ * The service answers `{ client }` and nothing else. `null` is what the reader gives when it
+ * cannot vouch for the record, which the caller turns into the same failure the raw
+ * `result.client.id` read already produced for an absent client.
+ */
+export interface BrowserClientEnvelope {
+  client: BrowserClientRecord | null;
+}
+
+/**
+ * What `POST /api/projects` and `POST /api/clients/:clientId/projects` resolve to.
+ *
+ * Both routes reach the same service function and send the same envelope, so there is one contract
+ * rather than one per route.
+ */
+export interface BrowserProjectEnvelope {
+  project: BrowserProjectRecord | null;
+}
+
+/**
  * One module's state as the Workbench bootstrap reports it.
  *
  * **An exact reconstruction of three members.** `buildModuleStateMap` builds this for every module

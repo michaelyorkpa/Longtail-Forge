@@ -367,6 +367,7 @@
         "tests/unit/bounded-pagination.test.mjs",
         "tests/unit/bulk-action-response-contract.test.mjs",
         "tests/unit/client-project-options.test.mjs",
+        "tests/unit/client-project-record-contracts.test.mjs",
         "tests/unit/files-preview.service.test.mjs",
         "tests/unit/files-scanner-job.service.test.mjs",
         "tests/unit/files-storage-accounting.service.test.mjs",
@@ -492,7 +493,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8414,
+      "errorCount": 8401,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -629,10 +630,6 @@
           }
         ],
         "public/js/clients-projects.js": [
-          {
-            "code": 18046,
-            "count": 13
-          },
           {
             "code": 18047,
             "count": 13
@@ -2758,8 +2755,8 @@
     }
   },
   "totals": {
-    "files": 1073,
-    "errors": 8414,
+    "files": 1074,
+    "errors": 8401,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

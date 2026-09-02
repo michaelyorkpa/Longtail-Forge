@@ -1,5 +1,31 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.6.1 - The client and project create records
+
+**Model: High Effort** - the child that derived a contract from the wrong producer, shipped it into an end-to-end failure, and had to correct it against the live flow.
+
+- [x] **The reuse question this family was drawn to ask was answered, and the answer was no.** `clientProjectOptions.normalizeClient` **spreads** its input and builds a *different vocabulary* over it - `billingRate`, `billingPeriod` and `billingRounding` in camelCase, and a `status` reduced to Active/Inactive. It describes what the browser constructs, never what the wire sent, so using it for a response body would claim normalisation that has not happened yet. The Task-catalog subsets from `0.33.33.38.4.3.8` were refused for the same reason: a different builder, over two more spreads.
+- [x] **The producer is the write-payload normaliser, not the read shaper, and finding that out cost an end-to-end failure.** The contract was first derived from `clientRowToAppClient`, which is the shaper for `GET /api/clients/:id`. The **create** route answers `normalizeClientPayload(payload)` - `normalizeClientProjectData` over a spread of the caller's own body, handed straight back with no row read at all. So the record carries `childScopeIds` and `projects` and **no `created_at` or `updated_at`**, and the first guard rejected every real response. `client-projects-add-dialog-flow` failed deterministically on both projects, an isolation run proved the client narrowing was the cause, and the contract was rebuilt from the producer the route actually uses.
+- [x] **A structural minimum, and the declaration says why.** Both payload normalisers spread the request, so a body may legitimately carry more than the twelve members - `tagIds` and `action` among them - and a test proves the contract does not forbid them. Exact agreement is asserted only against what the normaliser reconstructs **by name**.
+- [x] **A project is not a client with a `client_id`.** Twelve members against eleven: the client carries a `billing_contact` and `childScopeIds`, the project carries `taskDefaults`, and neither carries the other's. Neither carries the `client_name` or timestamps that only the read shaper supplies.
+- [x] **Three closed unions, each earned separately.** `normalizeBillableFlag` answers `"no"` or `"yes"` on every path including its fallback; `normalizeClientStatus` answers Active or Inactive; `normalizeStatus` answers those **plus Completed**, because a project can be completed and a client cannot. **Two status unions rather than one**, and a break proves a client is never Completed.
+- [x] **The five tag members are optional because the decorator genuinely omits them**, the same runtime condition `0.33.33.38.4.3.2` found: `decorateRecordsForTarget` returns records untouched when the tags module is not readable.
+- [x] **The failure path was preserved rather than softened.** The raw reads already threw for an absent record - an identifier read on `undefined` - so `requireSavedRecord` throws with a clearer message instead. A record the browser cannot vouch for now takes the same path, which is the fail-closed direction.
+- [x] **One static owner was retargeted rather than re-spelled.** `clients-projects-action-registration` pinned the literal `result.client` reads. Its own words are that the create *omits browser identity and applies the canonical server record*, so it now asserts that plus the narrowing, and three breaks prove it still bites.
+
+Proved by breaking each one, restored in a `finally`, and **every refusal judged by exit status**: 26 breaks across the aggregate normaliser, both payload normalisers, the option normaliser, the declaration, the runtime tables and the consumers - including one that adds a member only the read shaper builds, one that starts reading the row back, one that stops spreading the request, one that turns the structural minimum into a fence, and one that gives a client the state only a project reaches.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,414 | **8,401** |
+| Genuine `unknown` | 104 | **91** |
+| params / state / dom / namespace / assorted | 4,612 / 1,742 / 1,484 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,168 / 530 / 976 / 1,572 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 506 / 348 / 167 | **523 / 348 / 167**, green |
+
+**13 eliminations, no transfers, no new debt, and no state typed.** `0.33.33.43` did not move: the narrowed records flow into `Object.assign` calls that were already loosely typed. `4,612 + 1,742 + 153 = 6,507` reconciles either side.
 ## Version 0.33.33.38.4.3.9 - Stabilize the Task Focus exit-capture synchronization proof
 
 **Model: High Effort** - a verification correction found by protected integration. The check could not tell correct behaviour from timing, and the fix is to the wait, not to the expectation and not to the product.

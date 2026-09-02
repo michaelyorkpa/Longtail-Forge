@@ -59,22 +59,38 @@ assert.doesNotMatch(clientsProjectsScript, /function createAddClientPageDialogSh
 assert.doesNotMatch(clientsProjectsScript, /function openAddClientModal\(\)/, "Clients/Projects adapter should not keep a duplicate Add Client modal opener");
 assert.doesNotMatch(clientsProjectsScript, /async function addClient\(\)/, "Clients/Projects adapter should not keep the retired duplicate Add Client submit path");
 assert.doesNotMatch(clientsProjectsScript, /\bcreateUuid\b|crypto(?:\.|\?\.)randomUUID|10000000-1000-4000-8000-100000000000/, "Clients/Projects browser code should not generate persistent record IDs");
+// 0.33.33.38.4.6.1: these pinned the raw `result.client` / `result.project` spellings. The page now
+// narrows both bodies before reading them, so the assertions name the behaviour they always meant:
+// the browser sends no identity, and the *server's own* record - whatever the read is spelled -
+// is what lands on the optimistic record, the focus and the action state.
 assert.match(
   clientsProjectsScript,
-  /const client = \{\s*name:[\s\S]*createClientRecord\(client,[\s\S]*client_id: ""[\s\S]*async function createClientRecord[\s\S]*Object\.assign\(client, result\.client, \{ projects: initialProjects \}\)[\s\S]*viewState\.openClientId = result\.client\.id/,
+  /const client = \{\s*name:[\s\S]*createClientRecord\(client,[\s\S]*client_id: ""[\s\S]*async function createClientRecord[\s\S]*Object\.assign\(client, savedClient, \{ projects: initialProjects \}\)[\s\S]*viewState\.openClientId = savedClient\.id/,
   "Client create should omit browser identity and apply the canonical server record to refresh, focus, and action state",
 );
 assert.match(
   clientsProjectsScript,
-  /const project = \{\s*client_id:[\s\S]*createProjectRecord\(targetClient, project,[\s\S]*project_id: ""[\s\S]*async function createProjectRecord[\s\S]*Object\.assign\(project, result\.project\)[\s\S]*project_id: result\.project\.id/,
+  /const savedClient = requireSavedRecord\(readClientRecord\(result\), "client"\);/,
+  "and that record must be the narrowed server response rather than a raw body read",
+);
+assert.match(
+  clientsProjectsScript,
+  /const project = \{\s*client_id:[\s\S]*createProjectRecord\(targetClient, project,[\s\S]*project_id: ""[\s\S]*async function createProjectRecord[\s\S]*Object\.assign\(project, savedProject\)[\s\S]*project_id: savedProject\.id/,
   "Project create should omit browser identity and apply the canonical server record to optimistic and action state",
+);
+assert.match(
+  clientsProjectsScript,
+  /const savedProject = requireSavedRecord\(readProjectRecord\(result\), "project"\);/,
+  "and the project record must be the narrowed server response too",
 );
 assert.match(
   clientsProjectsScript,
   // `0.33.33.38.2.1` moved the client behind a checked read. The contract is that the
   // optimistic project is replaced by the canonical server record, not how the
   // client was acquired, so the assertion names the call and the assignment.
-  /const projectResult = await requireApi\(\)\.postJson\([\s\S]*Object\.assign\(initialProject, projectResult\.project\)/,
+  // `0.33.33.38.4.6.1` narrowed that body: the assignment still replaces the optimistic project
+  // with the server's record, and now that record is a checked one.
+  /const projectResult = await requireApi\(\)\.postJson\([\s\S]*Object\.assign\(initialProject, requireSavedRecord\(readProjectRecord\(projectResult\), "project"\)\)/,
   "Nested Client/Project creation should replace the optimistic project with the canonical server record",
 );
 assert.doesNotMatch(clientsHtml, /data-client-modal|data-client-form|data-new-client-name/, "Clients host should not include static or compatibility Add Client form hooks");

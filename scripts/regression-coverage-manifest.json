@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19029,
+    "activeAssertionCount": 19031,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19843,
+    "effectiveAssertionCount": 19845,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -2342,11 +2342,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 22,
+      "assertionCount": 24,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy clients projects action registration contract.",
-      "entryPointAssertionCount": 22,
+      "entryPointAssertionCount": 24,
       "id": "legacy.clients.projects.action.registration",
       "legacy": true,
       "path": "scripts/clients-projects-action-registration-regression.mjs",

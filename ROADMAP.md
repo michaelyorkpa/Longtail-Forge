@@ -587,7 +587,17 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 #### 0.33.33.38.4.6 - The client, project and calendar-subscription bodies
 
-**20 diagnostics.** `LongtailForge.clientProjectOptions` already publishes normalised client and project contracts, so this child's first question is which of these reads should consume that surface instead of the raw body - **a reuse trace, not a new contract**. `/api/private-feeds/calendar-subscriptions` is separate, and is the body `calendar-settings.js` reads directly.
+**Resliced: 22 live diagnostics and three producer families, not one.** The reuse trace this line called for was run and it answered *no*: `clientProjectOptions` normalises into a **different vocabulary** - camelCase billing members and a two-word status - so it describes what the browser builds, never what the wire sends.
+
+#### 0.33.33.38.4.6.1 - The client and project create records
+
+**Complete: 13 diagnostics, five contracts, zero fallout.** See the archive entry.
+
+#### 0.33.33.38.4.6.2 - The calendar subscriptions and their options body
+
+**9 diagnostics, and the cheapest reuse in the family sits here.** `calendar-settings.js:114-115` hands `optionsBody.clients` and `optionsBody.workspaceProjects` straight to `clientProjectOptions.normalizeClients`/`normalizeProjects`, which **already accept `unknown` and are already total** - so only the envelope needs narrowing and the element trust is already owned.
+
+- [ ] **Two of the nine are secret-bearing and must not share a contract with the list.** `showSecret(body.feedUrl, body.subscription, ...)` runs on both create and rotate, while the list and revoke responses send subscriptions **without** a `feedUrl`. Making the secret optional on one record would erase exactly that distinction. Audit what the feed URL is before naming it.
 
 #### 0.33.33.38.4.7 - The Lists response family
 
