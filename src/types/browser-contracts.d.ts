@@ -2529,6 +2529,97 @@ export interface BrowserRoleAssignmentUpdate {
 }
 
 /**
+ * The account one `POST /api/users/lookup` matched.
+ *
+ * **Three members, and the omissions are the disclosure.** `lookupAddUserAccount` finds the
+ * account with `usersRepository.readByUsername` - a *global* lookup, not a workspace-scoped one -
+ * and then builds exactly `alreadyActive`, `displayName` and `username`. **No user identifier, no
+ * account status, no workspace list, no alternate address**, so an administrator adding a user
+ * learns that the address is taken and what it is called and nothing further. This contract
+ * describes that permitted disclosure and must never broaden it.
+ *
+ * `alreadyActive` is a real boolean: the service computes `membership?.status === "active"` against
+ * the *target* workspace, so it answers whether the account already belongs here rather than
+ * whether the account is active anywhere. `displayName` runs through `normalizeDisplayName` with
+ * the username as its fallback, so it is never empty.
+ */
+export interface BrowserAccountLookupMatch {
+  alreadyActive: boolean;
+  /** Falls back to the username, so never empty. */
+  displayName: string;
+  username: string;
+}
+
+/**
+ * What `POST /api/users/lookup` resolves to.
+ *
+ * **`match` is always present and is `null` when nothing matched** - the service returns
+ * `{ match: null, workspaceId }` from its no-match branch rather than omitting the member, so this
+ * is a nullable member and not an optional one. `workspaceId` is the workspace the service
+ * *resolved*, which is not necessarily the identifier the caller sent: `resolveAddUserWorkspace`
+ * decides it, and the browser is told which one the answer is about.
+ *
+ * The route runs `assertPublicDemoCapabilityAllowed`, `resolveAddUserWorkspace` and
+ * `assertWorkspaceCanAddUser` before any of this exists. Narrowing happens after that decision.
+ */
+export interface BrowserAccountLookup {
+  match: BrowserAccountLookupMatch | null;
+  workspaceId: string;
+}
+
+/**
+ * The workspace member one `POST /api/role-assignments/lookup` matched.
+ *
+ * **This is not `BrowserAccountLookupMatch`, and the difference is authorization rather than
+ * spelling.** `lookupDelegatedRoleAssignmentAccount` searches with
+ * `readExactActiveMemberByUsername`, which joins `user_workspaces` and `workspaces` and requires
+ * an *active* membership of the *caller's own* workspace - so this route can only ever identify
+ * someone the caller already administers, where the account lookup searches every account in the
+ * installation. Two routes, two disclosure rules, two records. The three columns that query
+ * selects are `user_id`, `username` and `display_name`; there is no password, no status and no
+ * verification state to leak here.
+ *
+ * `assignments` is reused from `BrowserDelegatedRoleAssignment` because the producer is literally
+ * the same helper - `decorateDelegatedAssignment` - and the same `canAssignRole` filter runs per
+ * assignment first, so a delegated manager sees only what they may administer. **The administrator
+ * record must never stand in for it**, which is exactly what `0.33.33.38.4.4.3.1` established.
+ *
+ * `assignmentRevision` is the optimistic-concurrency token the delegated `PUT` requires: an
+ * HMAC over the assignments the caller may manage, keyed by a server secret. It is a revision
+ * stamp, not authentication material, and it is the same token `BrowserRoleAssignmentUpdate`
+ * already carries.
+ *
+ * `activeMembership` is `boolean` rather than `true`. The service writes the literal, because the
+ * record only exists when the membership query matched - but the browser never reads the member,
+ * and this estate does not declare a type narrower than what a consumer actually validates.
+ */
+export interface BrowserAssignmentLookupTarget {
+  /** Always `true` on the wire: the query matched an active member, or `match` is `null`. */
+  activeMembership: boolean;
+  assignmentRevision: string;
+  assignments: BrowserDelegatedRoleAssignment[];
+  /** Falls back to the username, so never empty. */
+  displayName: string;
+  userId: string;
+  username: string;
+}
+
+/**
+ * What `POST /api/role-assignments/lookup` resolves to.
+ *
+ * **One member, and there is no `workspaceId` beside it.** The account lookup tells the browser
+ * which workspace it resolved; this route works only in the caller's own workspace and has nothing
+ * to report. Declaring a shared envelope over the two would have invented a member for one of them.
+ *
+ * `match` is `null` on all three no-match paths - a username that is not a valid address, an
+ * address with no active member, and the implicit case of neither - and the service never omits
+ * the member, so this is nullable rather than optional.
+ */
+export interface BrowserAssignmentLookup {
+  match: BrowserAssignmentLookupTarget | null;
+}
+
+/**
  * The list columns every browser-facing Lists projection carries.
  *
  * **Derived from `LIST_COLUMNS`, which both shapers spread rather than reconstruct.**

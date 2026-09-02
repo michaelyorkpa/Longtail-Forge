@@ -136,6 +136,59 @@
       : { assignments };
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserAssignmentLookup} BrowserAssignmentLookup */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserAssignmentLookupTarget} BrowserAssignmentLookupTarget */
+
+  /**
+   * The workspace member `POST /api/role-assignments/lookup` matched.
+   *
+   * **Not the account lookup's record.** That route searches every account in the installation;
+   * this one joins `user_workspaces` and can only identify an active member of the caller's own
+   * workspace. Six members here against three there, and the two must not be shared.
+   * @param {unknown} value
+   * @returns {value is BrowserAssignmentLookupTarget}
+   */
+  function isAssignmentLookupTarget(value) {
+    return isResponseRecord(value)
+      && typeof value.activeMembership === "boolean"
+      && typeof value.assignmentRevision === "string"
+      && Array.isArray(value.assignments)
+      && typeof value.displayName === "string"
+      && typeof value.userId === "string"
+      && typeof value.username === "string"
+      && value.userId !== "";
+  }
+
+  /**
+   * The assignment-target lookup a body carries.
+   *
+   * **The container check moves to the elements without changing the no-match answer.** The
+   * consumer already treated a falsy `match` as no match and `normalizeTarget` already accepted
+   * any array as the assignments; a malformed *entry* is now dropped rather than handed to the
+   * assignment editor, and a malformed *match* reads as no match, which is the fail-closed
+   * direction for a lookup that decides who may be administered.
+   * @param {unknown} body
+   * @returns {BrowserAssignmentLookup}
+   */
+  function readAssignmentLookup(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    const match = envelope ? envelope.match : null;
+    if (!isAssignmentLookupTarget(match)) {
+      return { match: null };
+    }
+
+    return {
+      match: {
+        activeMembership: match.activeMembership,
+        assignmentRevision: match.assignmentRevision,
+        assignments: match.assignments.filter(isDelegatedAssignment),
+        displayName: match.displayName,
+        userId: match.userId,
+        username: match.username,
+      },
+    };
+  }
+
 
   /**
    * The narrowing contract for the values this file catches.
@@ -239,17 +292,17 @@
     setStatus("Finding account...");
 
     try {
-      const body = await requireApi().postJson("/api/role-assignments/lookup", {
+      const lookup = readAssignmentLookup(await requireApi().postJson("/api/role-assignments/lookup", {
         username,
-      });
+      }));
 
-      if (!body.match) {
+      if (!lookup.match) {
         setStatus("No active workspace member matched that email.");
         accountEmailInput.focus();
         return;
       }
 
-      target = normalizeTarget(body.match);
+      target = normalizeTarget(lookup.match);
       renderTarget();
       setStatus("");
       targetHeading.focus();
