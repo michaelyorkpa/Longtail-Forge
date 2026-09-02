@@ -1,5 +1,64 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.3.3 - Task timer response contracts
+
+**Model: High Effort** - the child where the two producers of one record are built differently, and the contract had to say so rather than pick a side.
+
+- [x] **Seven diagnostics, and one near-miss excluded on evidence.** Five list reads - three in `tasks.js`, two in `task-dialog.js` - and two singular reads of a save response. `stop-watch.js` also reads `data.timers`, but from `GET /api/active-timers`: **a different endpoint and a different module**, and it stays with Time Tracking.
+- [x] **The list path reconstructs and the mutation path spreads.** `GET /api/tasks/timers` reaches `timerToTaskTimer`, which names all twenty-five members. The save and link routes reach `taskTimerFromUnified`, which spreads the unified active timer and overrides eleven - and what it spreads has already been through `shapeTimerPayload`, which spreads again over `activeTimerRowToAppValue`. **Spread over spread over reconstruction.**
+- [x] **Every contracted member is still guaranteed on both paths, and that took tracing all three shapers.** Eleven because the task shaper overrides them, two more because `shapeTimerPayload` does, and the remaining twelve because `activeTimerRowToAppValue` is itself a total reconstruction. The proof checks each member against the *whole chain* rather than against one function.
+- [x] **The contract is a guaranteed minimum, and one test exists to stop it becoming a fence.** A structural interface does not claim that no other property exists, which is what lets it describe the spread path honestly. `timer_slot` - the one member the mutation path carries and the list path never sends - is **deliberately unnamed**, and a break that adds it fails. A benign extra must never make a timer unreadable, and a break that starts counting keys fails too.
+- [x] **`billable` and `timer_status` are closed unions, normalised identically at both ends.** `row.billable === "no" ? "no" : "yes"` and `timer.timer_status === "running" ? "running" : "paused"` appear in the repository *and* in the list shaper, so nothing reaches the browser unnormalised. `source_type` and `source_module_id` stay `string`: their fallbacks are defaults, not closed sets.
+- [x] **`source_label` and `source_url` arrive permission-filtered, and the browser must accept the filtered form.** `shapeTimerPayload` asks `canReadTimerSource` and **blanks both to the empty string** when the caller may not read the source. A predicate that required them non-empty would have made every timer on a restricted source unreadable; a break that does exactly that fails.
+- [x] **`resumeContext` and `resume_context` are one object under two names.** All three shapers build the twelve-member record once and send it twice. One contract, and both names are checked - because both are sent.
+- [x] **The sensitive-field audit found nothing to report.** The spread carries `timer_slot` and nothing else the list path lacks: no tokens, no account data, no internal transition metadata. `source_metadata_json` is text and `sourceMetadata` is what another producer parsed from it; both stay outside this contract's claims, the latter as `unknown`.
+- [x] **The task half was reused, not re-parsed.** The save envelope carries a task beside its timer, and the page reads it with the task reader `0.33.33.38.4.3.1` landed. A break that re-reads it raw fails, and a test asserts the timer table is not a second copy of the task table.
+- [x] **No lifecycle behaviour changed.** Start, save, pause, link-manual, remove, finalize, the task status transitions and the billing normalisation are untouched, and the payload is not rewritten: the parser ignores uncontracted extras rather than stripping them.
+
+**One direct state handoff, measured before it was taken.** Narrowing alone closed all seven but left three new `0.33.33.41` diagnostics: `state.taskTimers: []` had inferred `never[]`, exactly as `state.tasks` did in `0.33.33.38.4.3.2`. It stores this child's own narrowed collection, its accidental type blocked the truthful contract, and the correct type is now mechanically known - so it was annotated, and **twelve further `0.33.33.41` diagnostics fell with it**.
+
+**A sixth read of the same producer was narrowed although it was never a diagnostic.** `task-dialog.js` reads `loadTaskTimers()` a second time in its bootstrap, where the loader's own `catch` arm gives the value a readable union rather than `unknown`. It is the same call to the same endpoint, so leaving it raw while banning the spelling everywhere else would have been incoherent. It closed nothing, and it is reported as closing nothing.
+
+Proved by breaking each one, restored in a `finally`, and **every refusal judged by exit status rather than by reading filtered output**:
+
+| Break | Failure |
+| --- | --- |
+| The list shaper stops reconstructing a member | the contract's members are the shaper's |
+| The mutation chain stops naming a member anywhere | a member no shaper names is not a guarantee |
+| The contract adds a member no producer guarantees | the same agreement, from the other side |
+| The contract freezes the spread's incidental extra | `timer_slot` is not a common guarantee |
+| The list shaper starts spreading | reconstruction is what makes it exact |
+| The billable vocabulary stops being closed | the normalisation is what closed it |
+| The status vocabulary is declared open | the same, at the declaration |
+| The runtime accepts a status no shaper writes | a state nobody writes is not a state |
+| The source label loses its permission filter | that filter is why the blank form is valid |
+| The blanked label is treated as malformed | the browser must accept what survived filtering |
+| The contract starts forbidding benign extras | a guaranteed minimum is a floor, not a fence |
+| The elapsed seconds are accepted as text | the shapers convert with `Number` |
+| The active start is required to be text | a paused timer has none |
+| Only one resume-context name is checked | both are sent, so both are checked |
+| The resume context loses a member | the runtime tables are pinned to the contract |
+| The list reader trusts its container | one unreadable timer must not hide the rest |
+| A malformed singular timer becomes trusted | the guarded path is preserved |
+| The readers stop being declared | the surface declaration is the contract |
+| The surface stops publishing a declared reader | publication and declaration move together |
+| A consumer reads the raw loader result | the call must narrow before the read |
+| The page re-parses the task half | that half already has a reader |
+
+**One break came back green and it was a real gap, not a bad mutation.** Deleting a member from the resume-context runtime table changed nothing, because the assertion that would have caught it iterated that same table - **the self-confirming fixture `0.33.33.38.4.3.1` hit and this estate keeps having to re-learn**. Both timer tables are now pinned to the contract, and the break fails.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,440 | **8,421** |
+| Genuine `unknown` | 117 | **110** |
+| params / state / dom / namespace / assorted | 4,612 / 1,752 / 1,484 / 319 / 156 | **4,612 / 1,744 / 1,484 / 319 / 152** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,180 / 531 / 976 / 1,572 | **1,770 / 491 / 1,168 / 531 / 976 / 1,572** |
+| Unit tests / regressions / end-to-end | 475 / 348 / 167 | **491 / 348 / 167**, green |
+
+**19 eliminations, no transfers, no new debt.** Seven owned reads plus twelve `0.33.33.41` diagnostics the handoff settled - eight state and four assorted - which is debt closed here rather than debt moved. No other owner changed. `4,612 + 1,744 + 152 = 6,508` reconciles either side.
+
 ## Version 0.33.33.38.4.3.4 - Recurrence continuity response contracts
 
 **Model: Medium Effort** - the child that took a member `0.33.33.38.4.3.1` deliberately left opaque and closed it from the producer rather than the page.
