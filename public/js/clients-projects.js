@@ -3007,6 +3007,173 @@
     return form;
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserClientRecord} BrowserClientRecord */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserProjectRecord} BrowserProjectRecord */
+
+  /** The eleven billing-contact members `clientRowToAppClient` reconstructs. */
+  const CLIENT_CONTACT_TEXT = Object.freeze([
+    "alternate_email",
+    "alternate_name",
+    "alternate_phone_number",
+    "city",
+    "email",
+    "name",
+    "phone_number",
+    "state",
+    "street_address_1",
+    "street_address_2",
+    "zip_code",
+  ]);
+
+  /** The four text members `normalizeClientProjectData` reconstructs beside the closed status. */
+  const CLIENT_TEXT = Object.freeze([
+    "id",
+    "name",
+    "parent_client_id",
+    "workspace_id",
+  ]);
+
+  /** The two words `normalizeClientStatus` answers. */
+  const CLIENT_STATUSES = Object.freeze(["Active", "Inactive"]);
+
+  /** The six text members the project half of the same normaliser reconstructs. */
+  const PROJECT_TEXT = Object.freeze([
+    "client_id",
+    "id",
+    "name",
+    "parent_project_id",
+    "workspace_id",
+  ]);
+
+  /** The three words `normalizeStatus` answers; a project can be completed and a client cannot. */
+  const PROJECT_STATUSES = Object.freeze(["Active", "Completed", "Inactive"]);
+
+  /**
+   * The five members the tag decorator adds - when it runs at all.
+   *
+   * `decorateRecordsForTarget` returns its records untouched when the tags module is not readable,
+   * so a workspace with tags disabled receives records carrying none of these.
+   */
+  const RECORD_TAG_MEMBERS = Object.freeze([
+    "directTags",
+    "effectiveTags",
+    "propagatedTags",
+    "tagAssignments",
+    "tags",
+  ]);
+
+  /** The two values `normalizeBillableFlag` returns on every path. */
+  const RECORD_BILLABLE = Object.freeze(["no", "yes"]);
+
+  /**
+   * A response body that is a plain object.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isResponseRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * The members every raw client and project record shares.
+   * @param {Record<string, unknown>} value
+   */
+  function hasRecordBillingShape(value) {
+    return typeof value.billable === "string"
+      && RECORD_BILLABLE.includes(value.billable)
+      && (value.billing_rate === null || typeof value.billing_rate === "string")
+      && "billing_period" in value
+      && "billing_rounding" in value
+      && RECORD_TAG_MEMBERS.every((member) => !(member in value) || Array.isArray(value[member]));
+  }
+
+  /**
+   * The billing contact a client record carries.
+   * @param {unknown} value
+   * @returns {value is import("../../src/types/browser-contracts.js").BrowserClientBillingContact}
+   */
+  function isClientBillingContact(value) {
+    return isResponseRecord(value)
+      && CLIENT_CONTACT_TEXT.every((member) => typeof value[member] === "string");
+  }
+
+  /**
+   * A client as the create route sends it back.
+   *
+   * **The write-payload normaliser's output, not the read shaper's row and not a normalised
+   * option.** It carries `childScopeIds` and `projects` and no timestamps, because nothing has
+   * been read back from the row yet.
+   * @param {unknown} value
+   * @returns {value is BrowserClientRecord}
+   */
+  function isClientRecord(value) {
+    return isResponseRecord(value)
+      && CLIENT_TEXT.every((member) => typeof value[member] === "string")
+      && value.id !== ""
+      && value.name !== ""
+      && typeof value.status === "string"
+      && CLIENT_STATUSES.includes(value.status)
+      && Array.isArray(value.childScopeIds)
+      && Array.isArray(value.projects)
+      && isClientBillingContact(value.billing_contact)
+      && hasRecordBillingShape(value);
+  }
+
+  /**
+   * A project as the create routes send it back.
+   * @param {unknown} value
+   * @returns {value is BrowserProjectRecord}
+   */
+  function isProjectRecord(value) {
+    return isResponseRecord(value)
+      && PROJECT_TEXT.every((member) => typeof value[member] === "string")
+      && value.id !== ""
+      && value.name !== ""
+      && typeof value.status === "string"
+      && PROJECT_STATUSES.includes(value.status)
+      && "taskDefaults" in value
+      && hasRecordBillingShape(value);
+  }
+
+  /**
+   * The client a create route answered with, or `null`.
+   * @param {unknown} body
+   * @returns {BrowserClientRecord | null}
+   */
+  function readClientRecord(body) {
+    const client = isResponseRecord(body) ? body.client : null;
+    return isClientRecord(client) ? client : null;
+  }
+
+  /**
+   * The project a create route answered with, or `null`.
+   * @param {unknown} body
+   * @returns {BrowserProjectRecord | null}
+   */
+  function readProjectRecord(body) {
+    const project = isResponseRecord(body) ? body.project : null;
+    return isProjectRecord(project) ? project : null;
+  }
+
+  /**
+   * The record a create route must have answered with.
+   *
+   * **The raw reads this replaced already threw for an absent record** - an identifier read on an
+   * undefined client - so the failure path is preserved and only its message improves. A record
+   * the browser cannot vouch for now takes the same path, which is the fail-closed direction.
+   * @template T
+   * @param {T | null} record
+   * @param {string} label
+   * @returns {T}
+   */
+  function requireSavedRecord(record, label) {
+    if (!record) {
+      throw new Error(`The server did not return a usable ${label} record.`);
+    }
+
+    return record;
+  }
+
   async function createClientRecord(client, action, viewState = {}) {
     return persistClientProjectChange(action, viewState, async () => {
       const initialProjects = Array.isArray(client.projects) ? client.projects : [];
@@ -3014,32 +3181,33 @@
         ...client,
         action,
       });
-      Object.assign(client, result.client, { projects: initialProjects });
+      const savedClient = requireSavedRecord(readClientRecord(result), "client");
+      Object.assign(client, savedClient, { projects: initialProjects });
       Object.assign(action, {
-        client_id: result.client.id,
-        client_name: result.client.name,
-        parent_client_id: result.client.parent_client_id || "",
+        client_id: savedClient.id,
+        client_name: savedClient.name,
+        parent_client_id: savedClient.parent_client_id,
       });
-      viewState.openClientId = result.client.id;
+      viewState.openClientId = savedClient.id;
 
       if (initialProjects.length > 0) {
         const initialProject = initialProjects[0];
         const projectAction = {
           action: "project_created",
-          client_id: result.client.id,
-          client_name: result.client.name,
+          client_id: savedClient.id,
+          client_name: savedClient.name,
           project_id: initialProject.id || "",
           project_name: initialProject.name,
           details: action.details,
         };
         const projectResult = await requireApi().postJson(
-          `/api/clients/${encodeURIComponent(result.client.id)}/projects`,
+          `/api/clients/${encodeURIComponent(savedClient.id)}/projects`,
           {
             ...initialProject,
             action: projectAction,
           },
         );
-        Object.assign(initialProject, projectResult.project);
+        Object.assign(initialProject, requireSavedRecord(readProjectRecord(projectResult), "project"));
       }
     });
   }
@@ -3067,11 +3235,12 @@
           action,
         }),
       );
-      Object.assign(project, result.project);
+      const savedProject = requireSavedRecord(readProjectRecord(result), "project");
+      Object.assign(project, savedProject);
       Object.assign(action, {
-        client_id: result.project.client_id || "",
-        project_id: result.project.id,
-        project_name: result.project.name,
+        client_id: savedProject.client_id,
+        project_id: savedProject.id,
+        project_name: savedProject.name,
       });
     });
   }
