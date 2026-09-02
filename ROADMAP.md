@@ -617,6 +617,12 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 **13 diagnostics** across Support View targets and audit, `/api/security-events`, `/api/runtime-diagnostics` and `/api/jobs`. Grouped because they share an operator audience and a read-only shape, not because they share a route prefix.
 
+**Resliced by producer, because an operator audience is not a producer.** Five services answer these thirteen, and each is its own security boundary; they are drawn as numeric children below as each is traced, and none of them may be typed as one operator envelope.
+
+#### 0.33.33.38.4.8.1 - The Support View audit envelope
+
+**Complete: 6 diagnostics, eight contracts, zero fallout, and one reusable pagination envelope.** See the archive entry. `listAudit` answers exactly five members behind the operator gate; `toAuditEvent` discloses eleven label-only members and no identifier, request id or metadata; the event vocabulary is closed three ways - column `CHECK`, server union, literal writers - and the browser is pinned to all three. **An audit list with one element the browser cannot vouch for is refused whole**, because a silently shorter audit list is the one thing that page must never render.
+
 #### 0.33.33.38.4.9 - Attribute and close the remaining producers
 
 **52 diagnostics whose producer this reslice did not resolve, plus whatever the file, key and timer bodies leave over.** **Attribution is the work and it comes first**: follow each read back through its local helper to a route, then fold it into whichever sibling child owns that family - or draw a new child if the trace finds a family nobody listed. **Do not begin by typing them.**

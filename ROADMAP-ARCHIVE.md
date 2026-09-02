@@ -1,5 +1,30 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.8.1 - The Support View audit envelope
+
+**Model: High Effort** - the family's first child, and a security surface: what the browser may name here is exactly what the operator gate already chose to disclose.
+
+- [x] **One producer, five members, all behind the gate.** `listAudit` requires Support View to be enabled, a normal super-administrator session that is not itself in Support View, and the `support_view.enter` permission; it prunes and filters to the retention window, then answers `events`, `exportLimit`, `filterOptions`, `pagination` and `retentionDays` under `Cache-Control: no-store`. `BrowserSupportViewAuditEnvelope` is exactly those five, and a break that drops the gate is refused.
+- [x] **The event record is a narrow disclosure, and the proofs check it from both sides.** `toAuditEvent` reconstructs eleven members by name: readable labels for the actor, the viewed user and the workspace, three closed words, an identifier-shaped reason class, the operator's stated reason, and the action and route ids. The query behind it selects user ids, the workspace id, the event id and the session's timestamps; the shaper emits none of them, the stored `metadata_json` and `request_id` are not selected at all, and nothing about the request - address, agent, session - is stored on an event to begin with. Breaks that emit the request id, substitute the actor's id for the label, select the metadata, or name an identifier on the contract are all refused.
+- [x] **The vocabulary is closed three times over, and the browser is pinned to all three.** `event_type` and `outcome` carry a column `CHECK` in migration 091, the server declares the same unions, and every writer in the service passes a literal from them; `session_outcome` is closed the same way by migration 090. The proof reads the `CHECK` clauses from the migrations and requires the server unions, the browser unions and the runtime tables to equal them - so no table confirms itself, and widening any one of the five is refused. `reasonClass` stays text because action attempts pass an identifier-shaped token through `normalizeAuditIdentifier`, which is a shape and not a vocabulary.
+- [x] **The pagination envelope is named for the helper, not for this route.** `boundedPaginationEnvelope` builds the same seven members for seven list routes - the audit log, files, jobs, notifications and search among them - so `BrowserBoundedPagination` is declared once, with `total` nullable because the helper answers `null` when a caller has no count, and the audit page treats that as no pages exactly as its `parseInt` fallback did.
+- [x] **Two filter vocabularies, kept apart, and one server declaration corrected in the record.** Three catalogues select a display name `AS label` beside an id `AS value` - the only identifiers the response discloses, and deliberately so, because the operator sends them back as filter parameters. Two select `DISTINCT ... AS value` and nothing else. The server's `SupportViewAuditOption` declares a `label` for all five; the browser follows the queries, declares a bare `BrowserSupportViewAuditFilterValue` for the two, and records the server's over-claim as its owner's to correct.
+- [x] **A malformed response is refused whole, and that is a deliberate change.** The raw reads were total: a bad element rendered a row of `None` cells, a bad envelope member fell back to a default. On an audit surface, dropping an element would silently hide a record and defaulting a policy line would state a policy the server did not send. The reader now answers `null` for any response it cannot vouch for in full, and the page throws into the load-error path it already had, so the operator sees that something is wrong rather than a shorter list.
+
+Proved by breaking each one, restored in a `finally`, and **every refusal judged by exit status**: 27 breaks across the service, the route, the repository query, the pagination helper, both migrations' `CHECK` clauses, the server declaration, the browser declaration, the runtime tables and readers, and the consumer.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,392 | **8,386** |
+| Genuine `unknown` | 82 | **76** |
+| params / state / dom / namespace / assorted | 4,612 / 1,742 / 1,484 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,168 / 530 / 976 / 1,572 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 539 / 348 / 167 | **559 / 348 / 167**, green |
+
+**6 eliminations, no transfers, no new debt, and no state typed.** The narrowed reads flow into three module-level scalars that were already numbers and into `populateFilters` and `renderRows`, whose parameters were already untyped. `4,612 + 1,742 + 153 = 6,507` reconciles either side.
+
 ## Version 0.33.33.38.4.6.2 - The calendar subscriptions and their options body
 
 **Model: High Effort** - the family's secret-bearing child, and the one whose reuse claim had to be corrected before it could be used.
