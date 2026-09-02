@@ -595,9 +595,9 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 #### 0.33.33.38.4.6.2 - The calendar subscriptions and their options body
 
-**9 diagnostics, and the cheapest reuse in the family sits here.** `calendar-settings.js:114-115` hands `optionsBody.clients` and `optionsBody.workspaceProjects` straight to `clientProjectOptions.normalizeClients`/`normalizeProjects`, which **already accept `unknown` and are already total** - so only the envelope needs narrowing and the element trust is already owned.
+**Complete: 9 diagnostics, seven contracts, zero fallout.** See the archive entry. **One correction to this line's reuse claim**: the two option reads feed the calendar page's *own* `normalizeClients`/`normalizeProjects`, not the shared surface - they are total all the same, so the options body was narrowed to its exact envelope and its elements were left as `unknown[]`, recorded as later-owner debt for whoever owns the cross-page option vocabulary.
 
-- [ ] **Two of the nine are secret-bearing and must not share a contract with the list.** `showSecret(body.feedUrl, body.subscription, ...)` runs on both create and rotate, while the list and revoke responses send subscriptions **without** a `feedUrl`. Making the secret optional on one record would erase exactly that distinction. Audit what the feed URL is before naming it.
+- [x] **The secret kept its own contract.** The feed URL is the raw token the server hashes and never stores in the clear, answered once by create and rotate and never by the list or the revoke; it is intentionally browser-visible and documented as such, so it was named on `BrowserCalendarSubscriptionSecret` and forbidden, by proof, from ever appearing on the descriptor.
 
 #### 0.33.33.38.4.7 - The Lists response family
 
