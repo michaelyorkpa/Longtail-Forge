@@ -80,15 +80,15 @@ assert.match(calendarSettings, /let currentSecret = "";/, "the raw bearer URL sh
 assert.match(calendarSettings, /window\.addEventListener\("pagehide", clearSecret\)/, "leaving the page should clear the one-time URL");
 assert.doesNotMatch(calendarSettings, /(?:localStorage|sessionStorage)[^\n]*calendar/i, "the raw bearer URL must not enter browser storage");
 assert.match(calendarSettings, /getJson\("\/api\/private-feeds\/calendar-subscriptions"/, "ordinary loads should use the safe collection endpoint");
-assert.match(calendarSettings, /postJson\("\/api\/private-feeds\/calendar-subscriptions", payload\)[^]*showSecret\(body\.feedUrl/, "creation should consume the one-time URL response");
-assert.match(calendarSettings, /calendar-subscriptions\/\$\{encodeURIComponent\(subscription\.subscriptionId\)\}\/rotate[^]*showSecret\(body\.feedUrl/, "owner rotation should consume the replacement URL");
+assert.match(calendarSettings, /const secret = readCalendarSubscriptionSecret\(\s*await api\.postJson\("\/api\/private-feeds\/calendar-subscriptions", payload\),\s*\);\s*showSecret\(secret\?\.feedUrl \|\| ""/, "creation should consume the one-time URL response only after the browser has vouched for it");
+assert.match(calendarSettings, /const secret = readCalendarSubscriptionSecret\(await api\.postJson\(\s*`\/api\/private-feeds\/calendar-subscriptions\/\$\{encodeURIComponent\(subscription\.subscriptionId\)\}\/rotate`,\s*\)\);\s*showSecret\(secret\?\.feedUrl \|\| ""/, "owner rotation should consume the replacement URL only after the browser has vouched for it");
 assert.match(calendarSettings, /deleteJson\([^]*calendar-subscriptions\/\$\{encodeURIComponent\(subscription\.subscriptionId\)\}[^]*reloadSubscriptionsAfterRemoval/, "row revocation and deletion should remove the unique collection item and refresh the list");
 assert.match(calendarSettings, /subscription\.status === "active" && subscription\.ownedByCurrentUser/, "only an active owner row should render Rotate");
 assert.match(calendarSettings, /subscription\.status === "active"[^]*rowAction\("Revoke"/, "administrators should be able to revoke any active row");
 assert.match(calendarSettings, /else \{[^]*rowAction\("Delete", "delete"/, "already-revoked rows should remain explicitly deletable");
 assert.match(calendarSettings, /state\.tasksEnabled[^]*creation and rotation are unavailable/, "disabled Tasks should preserve listing/revocation while explaining lifecycle closure");
 assert.match(calendarSettings, /getJson\("\/api\/client-projects\?view=options"/, "all workspace types should request permission-pruned Project scope options");
-assert.match(calendarSettings, /state\.clients = usesBusinessScopes\(\) \? normalizeClients\(optionsBody\.clients\) : \[\]/, "Personal and Family workspaces should discard Client options");
+assert.match(calendarSettings, /const options = readClientProjectOptions\(optionsBody\);[^]*state\.clients = usesBusinessScopes\(\) \? normalizeClients\(options\.clients\) : \[\]/, "Personal and Family workspaces should discard Client options, read from the narrowed options envelope");
 assert.match(calendarSettings, /renderScopeOptions\(\)[^]*usesBusinessScopes\(\)[^]*\["workspace", "Workspace"\][^]*\["project", "Project"\]/, "Personal and Family scope selection should contain Workspace and Project");
 assert.match(calendarSettings, /workspaces can use Workspace or Project scope\. Client scope is available only in Business workspaces/, "non-Business scope guidance should explain Project availability and the Business-only Client rule");
 assert.match(calendarSettings, /value === "family" \? "Family" : "Personal"/, "non-Business scope guidance should name both supported workspace types");
