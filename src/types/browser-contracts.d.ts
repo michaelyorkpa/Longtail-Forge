@@ -2781,6 +2781,107 @@ export interface BrowserProjectEnvelope {
 }
 
 /**
+ * How a calendar subscription is scoped, as the private-feeds service sends it.
+ *
+ * Closed because the token row's `scope_type` column is typed to these three words on the server
+ * and `toPublicSubscription` falls back to `"workspace"` when it is absent - so the shaper answers
+ * one of the three on every path.
+ */
+export type BrowserCalendarScopeType = "client" | "project" | "workspace";
+
+/**
+ * Who owns a calendar subscription.
+ *
+ * Two text members, both with total fallbacks in the shaper: the display name falls through the
+ * username to a fixed phrase, and the username to `""`.
+ */
+export interface BrowserCalendarSubscriptionOwner {
+  displayName: string;
+  username: string;
+}
+
+/** The scope a calendar subscription renders: a label the shaper resolves, and the closed type. */
+export interface BrowserCalendarSubscriptionScope {
+  label: string;
+  type: BrowserCalendarScopeType;
+}
+
+/**
+ * A calendar subscription as `toPublicSubscription` reconstructs it on every private-feeds route.
+ *
+ * **An exact reconstruction of eleven members, and it never carries the feed URL.** The shaper
+ * names every member from the token row, so this is the same record the server declares as
+ * `PrivateFeedPublicSubscription`, and a test pins the two together. The list route sends these
+ * and nothing else; create and rotate send one beside the one-time secret, on
+ * `BrowserCalendarSubscriptionSecret`; revoke answers only `{ removed, subscriptionId }`, which the
+ * page discards.
+ *
+ * `status` stays text on purpose. The shaper answers the row's `status` column with a `"revoked"`
+ * fallback, and the server's own contract keeps that column as `string` - closing it here would
+ * claim a vocabulary the producer does not. `subscriptionId` is the token row's id, which the row
+ * cannot lack; the four timestamps and the revocation reason are text or `null`, never absent.
+ */
+export interface BrowserCalendarSubscription {
+  createdAt: string | null;
+  name: string;
+  ownedByCurrentUser: boolean;
+  owner: BrowserCalendarSubscriptionOwner;
+  revocationReason: string | null;
+  revokedAt: string | null;
+  rotatedAt: string | null;
+  scope: BrowserCalendarSubscriptionScope;
+  status: string;
+  subscriptionId: string;
+  timezone: string;
+}
+
+/**
+ * What `GET /api/private-feeds/calendar-subscriptions` resolves to: the descriptors, and no URL.
+ *
+ * The server hashes each token's secret and stores only the hash, so this route **cannot**
+ * reproduce a feed URL even if it wanted to - the list is metadata by construction.
+ */
+export interface BrowserCalendarSubscriptionList {
+  subscriptions: BrowserCalendarSubscription[];
+}
+
+/**
+ * What `POST /api/private-feeds/calendar-subscriptions` and `POST .../:subscriptionId/rotate`
+ * resolve to, and **only** those two routes.
+ *
+ * `feedUrl` is the one-time secret: a URL carrying the raw token whose secret half the server
+ * hashed before storing, so this response is the only time the browser will ever see it. That is
+ * deliberate and documented - the page keeps it in memory, shows it once behind a reveal, and
+ * clears it on `pagehide`; the route itself answers with `Cache-Control: no-store`. Naming the URL
+ * here blesses an intended capability handoff, not leaked auth material.
+ *
+ * **This is a separate contract from the descriptor on purpose.** Putting an optional `feedUrl`
+ * on `BrowserCalendarSubscription` would let a list element claim a secret it can never carry and
+ * would erase the one distinction the security model rests on.
+ */
+export interface BrowserCalendarSubscriptionSecret {
+  feedUrl: string;
+  subscription: BrowserCalendarSubscription;
+}
+
+/**
+ * What `GET /api/client-projects?view=options` resolves to.
+ *
+ * `readClientProjectOptions` writes `view` literally and builds both collections by hand, so the
+ * envelope is exact. **Its elements are left as `unknown[]` deliberately.** The option records are
+ * a cross-page vocabulary read by eleven pages, ten of them through
+ * `clientProjectOptions.normalizeClients`, which is total over `unknown` and belongs to the shared
+ * surface; the calendar page's own two normalisers are total as well. Naming the elements is the
+ * work of whoever owns that surface, and it is recorded as later-owner debt rather than settled
+ * here by a container check that would not have validated them anyway.
+ */
+export interface BrowserClientProjectOptionsBody {
+  clients: unknown[];
+  view: "options";
+  workspaceProjects: unknown[];
+}
+
+/**
  * One module's state as the Workbench bootstrap reports it.
  *
  * **An exact reconstruction of three members.** `buildModuleStateMap` builds this for every module

@@ -323,7 +323,7 @@ test("disabled Tasks keeps Calendar metadata and revocation available", async ({
 
 /**
  * @param {{ id: string, name: string, owner: string, ownedByCurrentUser: boolean, scope: string, status?: string }} details
- * @returns {{ createdAt: string, name: string, ownedByCurrentUser: boolean, owner: { displayName: string, username: string }, revokedAt: string | null, rotatedAt: string | null, scope: { label: string, type: string }, status: string, subscriptionId: string, timezone: string }}
+ * @returns {{ createdAt: string, name: string, ownedByCurrentUser: boolean, owner: { displayName: string, username: string }, revocationReason: string | null, revokedAt: string | null, rotatedAt: string | null, scope: { label: string, type: string }, status: string, subscriptionId: string, timezone: string }}
  */
 function subscription({
   id,
@@ -338,6 +338,7 @@ function subscription({
     name,
     ownedByCurrentUser,
     owner: { displayName: owner, username: `${owner.toLowerCase().replaceAll(" ", ".")}@example.test` },
+    revocationReason: status === "revoked" ? "manual" : null,
     revokedAt: status === "revoked" ? "2026-07-25T13:00:00.000Z" : null,
     rotatedAt: null,
     scope: { label: scope, type: scope === "Workspace" ? "workspace" : "project" },

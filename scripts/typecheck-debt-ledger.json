@@ -366,6 +366,7 @@
         "tests/unit/asset-version.test.mjs",
         "tests/unit/bounded-pagination.test.mjs",
         "tests/unit/bulk-action-response-contract.test.mjs",
+        "tests/unit/calendar-subscription-contracts.test.mjs",
         "tests/unit/client-project-options.test.mjs",
         "tests/unit/client-project-record-contracts.test.mjs",
         "tests/unit/files-preview.service.test.mjs",
@@ -493,7 +494,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8401,
+      "errorCount": 8392,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -570,10 +571,6 @@
           }
         ],
         "public/js/calendar-settings.js": [
-          {
-            "code": 18046,
-            "count": 9
-          },
           {
             "code": 18047,
             "count": 12
@@ -2755,8 +2752,8 @@
     }
   },
   "totals": {
-    "files": 1074,
-    "errors": 8401,
+    "files": 1075,
+    "errors": 8392,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
