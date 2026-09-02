@@ -3012,6 +3012,78 @@ export interface BrowserSupportViewAuditEnvelope {
 }
 
 /**
+ * One workspace a Support View target may be viewed in, as `listTargets` builds it.
+ *
+ * **Exact: three members written by name** from a row the eligibility query already restricted
+ * to active memberships of active workspaces. `label` and `workspaceName` are the same value
+ * twice, kept because the producer writes both.
+ */
+export interface BrowserSupportViewTargetWorkspace {
+  label: string;
+  /** Non-empty: `start` refuses without it, so a blank one is not a choice. */
+  workspaceId: string;
+  workspaceName: string;
+}
+
+/**
+ * A Support View target as `listTargets` reconstructs it.
+ *
+ * **A security-filtered summary, not a user record.** It is built by hand from five selected
+ * columns - `user_id`, `username`, `display_name`, and the workspace pair - after a query that
+ * admits only active users holding an active membership of an active workspace, and never the
+ * actor themselves. `BrowserUserRecord` is a different producer describing a different thing,
+ * and reusing it here would promise the browser a status, role, timestamps and preferences that
+ * this route deliberately does not send.
+ *
+ * **This list is a picker, not an authorization.** `start` independently re-checks Support View
+ * enablement, session mode, target-is-not-actor, `support_view.enter` for the chosen workspace,
+ * the administrator's password, session freshness and a fresh eligibility row, so nothing named
+ * here can widen who may actually be viewed.
+ *
+ * `label` is `displayLabel`'s output, either the username alone or `Display Name (username)`,
+ * and is non-empty on every path.
+ */
+export interface BrowserSupportViewTarget {
+  displayName: string;
+  /** Non-empty: the shaper falls through to the username and then to a fixed phrase. */
+  label: string;
+  /** Non-empty: `start` refuses without it, so a blank one is not a choice. */
+  userId: string;
+  username: string;
+  workspaces: BrowserSupportViewTargetWorkspace[];
+}
+
+/**
+ * The administrator this page is being shown to, as `listTargets` names them from the session.
+ *
+ * **Exact: three members, and no capability, permission or session material.** `label` is the
+ * operator's username, written twice by the producer.
+ */
+export interface BrowserSupportViewActor {
+  label: string;
+  userId: string;
+  username: string;
+}
+
+/**
+ * What `GET /api/support-view/targets` resolves to.
+ *
+ * Reached only through `assertOperator`: Support View enabled, a normal super-administrator
+ * session that is not itself in Support View, and the `support_view.enter` permission.
+ *
+ * `expiresInSeconds` is the deployment's configured session lifetime - a single number read
+ * from `config.supportView.ttlSeconds`, bounded to 60-3600 - and **not** a catalogue of
+ * durations the operator may choose between. It is a top-level policy value rather than a
+ * member of any target, because the producer sends it that way.
+ */
+export interface BrowserSupportViewTargetEnvelope {
+  /** `null` only when the body could not be vouched for; the route always sends it. */
+  actor: BrowserSupportViewActor | null;
+  expiresInSeconds: number;
+  targets: BrowserSupportViewTarget[];
+}
+
+/**
  * An API key as the workspace list sends it: the nine columns `readAll` selects by name, with
  * the key's scopes attached.
  *
