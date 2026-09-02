@@ -99,6 +99,114 @@ function requireModalDialogs() {
   return dialogs;
 }
 
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserCalendarSubscription} BrowserCalendarSubscription */
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserCalendarSubscriptionSecret} BrowserCalendarSubscriptionSecret */
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserClientProjectOptionsBody} BrowserClientProjectOptionsBody */
+
+/** The three scope words the token row is typed to, one of which is the shaper's fallback. */
+const CALENDAR_SCOPE_TYPES = Object.freeze(["client", "project", "workspace"]);
+
+/** The four members `toPublicSubscription` always answers as text. */
+const SUBSCRIPTION_TEXT = Object.freeze(["name", "status", "subscriptionId", "timezone"]);
+
+/** The four members the shaper answers as text or `null`, never as an absence. */
+const SUBSCRIPTION_NULLABLE_TEXT = Object.freeze(["createdAt", "revocationReason", "revokedAt", "rotatedAt"]);
+
+/**
+ * A plain JSON object, which is the least a wire body can be before any member is read.
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isResponseRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is string | null}
+ */
+function isNullableText(value) {
+  return value === null || typeof value === "string";
+}
+
+/**
+ * A calendar subscription descriptor as `toPublicSubscription` reconstructs it.
+ *
+ * **Every private-feeds route sends this same record, and none of them puts a feed URL on it.**
+ * The tables above are the authority the unit proof reads; the reconstruction is exact, so the
+ * check is exact too, down to the owner and scope records the shaper builds by hand.
+ * @param {unknown} value
+ * @returns {value is BrowserCalendarSubscription}
+ */
+function isCalendarSubscription(value) {
+  return isResponseRecord(value)
+    && SUBSCRIPTION_TEXT.every((member) => typeof value[member] === "string")
+    && value.subscriptionId !== ""
+    && SUBSCRIPTION_NULLABLE_TEXT.every((member) => isNullableText(value[member]))
+    && typeof value.ownedByCurrentUser === "boolean"
+    && isResponseRecord(value.owner)
+    && typeof value.owner.displayName === "string"
+    && typeof value.owner.username === "string"
+    && isResponseRecord(value.scope)
+    && typeof value.scope.label === "string"
+    && typeof value.scope.type === "string"
+    && CALENDAR_SCOPE_TYPES.includes(value.scope.type);
+}
+
+/**
+ * The descriptors the list route sends, each one vouched for.
+ *
+ * Total, as `normalizeSubscriptions` already was: an unusable body or a non-list member yields an
+ * empty list, and an element the browser cannot vouch for is dropped rather than rendered.
+ * @param {unknown} body
+ * @returns {BrowserCalendarSubscription[]}
+ */
+function readCalendarSubscriptions(body) {
+  const subscriptions = isResponseRecord(body) ? body.subscriptions : null;
+  return Array.isArray(subscriptions) ? subscriptions.filter(isCalendarSubscription) : [];
+}
+
+/**
+ * The one-time secret create and rotate answer, or `null` when the response cannot be vouched for.
+ *
+ * A response without a usable URL already took the clear-the-panel path in `showSecret`, and a
+ * `null` here takes exactly that path: nothing is shown that the browser cannot stand behind.
+ * @param {unknown} body
+ * @returns {BrowserCalendarSubscriptionSecret | null}
+ */
+function readCalendarSubscriptionSecret(body) {
+  if (!isResponseRecord(body)) {
+    return null;
+  }
+  const { feedUrl, subscription } = body;
+  return typeof feedUrl === "string" && feedUrl !== "" && isCalendarSubscription(subscription)
+    ? { feedUrl, subscription }
+    : null;
+}
+
+/**
+ * The options body, narrowed to its envelope only.
+ *
+ * The two collections stay `unknown[]` on purpose: this page's `normalizeClients` and
+ * `normalizeProjects` are total over their elements, and the element vocabulary belongs to the
+ * shared `clientProjectOptions` surface rather than to this page. A body that does not announce
+ * itself as the options view is not this producer's, and yields the same empty collections a
+ * non-list member always did.
+ * @param {unknown} body
+ * @returns {BrowserClientProjectOptionsBody}
+ */
+function readClientProjectOptions(body) {
+  if (!isResponseRecord(body) || body.view !== "options") {
+    return { clients: [], view: "options", workspaceProjects: [] };
+  }
+  const { clients, workspaceProjects } = body;
+  return {
+    clients: Array.isArray(clients) ? clients : [],
+    view: "options",
+    workspaceProjects: Array.isArray(workspaceProjects) ? workspaceProjects : [],
+  };
+}
+
 async function initialize() {
   const api = requireApi();
   setStatus(listStatus, "Loading calendar subscriptions...");
@@ -110,9 +218,10 @@ async function initialize() {
       api.getJson("/api/private-feeds/calendar-subscriptions", { cache: "no-store" }),
       api.getJson("/api/client-projects?view=options", { cache: "no-store" }),
     ]);
-    state.subscriptions = normalizeSubscriptions(subscriptionsBody.subscriptions);
-    state.clients = usesBusinessScopes() ? normalizeClients(optionsBody.clients) : [];
-    state.workspaceProjects = normalizeProjects(optionsBody.workspaceProjects);
+    const options = readClientProjectOptions(optionsBody);
+    state.subscriptions = normalizeSubscriptions(readCalendarSubscriptions(subscriptionsBody));
+    state.clients = usesBusinessScopes() ? normalizeClients(options.clients) : [];
+    state.workspaceProjects = normalizeProjects(options.workspaceProjects);
     renderScopeOptions();
     renderClientOptions();
     renderScopeFields();
@@ -153,13 +262,15 @@ async function createSubscription(event) {
   setCreateBusy(true);
 
   try {
-    const body = await api.postJson("/api/private-feeds/calendar-subscriptions", payload);
-    showSecret(body.feedUrl, body.subscription, "created");
+    const secret = readCalendarSubscriptionSecret(
+      await api.postJson("/api/private-feeds/calendar-subscriptions", payload),
+    );
+    showSecret(secret?.feedUrl || "", secret?.subscription || null, "created");
     createForm.reset();
     renderClientOptions();
     renderScopeFields();
     await reloadSubscriptions();
-    setStatus(createStatus, `Created ${body.subscription?.name || payload.name}.`, {
+    setStatus(createStatus, `Created ${secret?.subscription.name || payload.name}.`, {
       clearAfter: 2400,
       type: "success",
     });
@@ -202,7 +313,7 @@ function readCreatePayload() {
 async function reloadSubscriptions(focus = null) {
   const api = requireApi();
   const body = await api.getJson("/api/private-feeds/calendar-subscriptions", { cache: "no-store" });
-  state.subscriptions = normalizeSubscriptions(body.subscriptions);
+  state.subscriptions = normalizeSubscriptions(readCalendarSubscriptions(body));
   renderSubscriptions();
   if (focus) {
     restoreSubscriptionFocus(focus);
@@ -242,10 +353,10 @@ async function rotateSubscription(subscription, trigger) {
   setListBusy(subscription.subscriptionId, true);
   setStatus(listStatus, `Rotating ${subscription.name}...`);
   try {
-    const body = await api.postJson(
+    const secret = readCalendarSubscriptionSecret(await api.postJson(
       `/api/private-feeds/calendar-subscriptions/${encodeURIComponent(subscription.subscriptionId)}/rotate`,
-    );
-    showSecret(body.feedUrl, body.subscription, "rotated");
+    ));
+    showSecret(secret?.feedUrl || "", secret?.subscription || null, "rotated");
     await reloadSubscriptions({ action: "rotate", subscriptionId: subscription.subscriptionId });
     setStatus(listStatus, `Rotated ${subscription.name}. Copy the replacement URL now.`, {
       clearAfter: 2400,

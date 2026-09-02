@@ -1,5 +1,30 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.6.2 - The calendar subscriptions and their options body
+
+**Model: High Effort** - the family's secret-bearing child, and the one whose reuse claim had to be corrected before it could be used.
+
+- [x] **One shaper answers every route, and it reconstructs exactly.** `toPublicSubscription` names eleven members from the token row - four text, four text-or-null, a boolean, and two hand-built records for the owner and the scope - so `BrowserCalendarSubscription` is exact, and a proof pins it to the shaper's literal **and** to the server's own `PrivateFeedPublicSubscription`, which is the same record. `status` stays text because the shaper answers the row column with a fallback and the server keeps that column open; `scope.type` closes because the row is typed to three words and the fallback is one of them.
+- [x] **The feed URL was audited before it was named, and it is a handoff, not a leak.** Create and rotate mint the raw token, store only the hash of its secret, and answer the URL once under `Cache-Control: no-store`; the list and the revoke never send it and could not - the server cannot rebuild it. The page keeps it in memory, shows it behind a reveal, and clears it on `pagehide`, exactly as the architecture note describes. So `feedUrl: string` lives on `BrowserCalendarSubscriptionSecret` beside one descriptor, and breaks prove the descriptor may not grow an optional URL, the secret's URL may not become optional, and the list contract may not carry one.
+- [x] **The one-time display semantics are unchanged.** A response without a usable URL already took `showSecret`'s clear-the-panel path; an unreadable secret takes exactly that path now, and nothing is shown that the browser cannot vouch for. The list is read totally, as the page's own normaliser already read it, with each element vouched for and an unusable one dropped rather than rendered.
+- [x] **The options body is an exact envelope with its elements deliberately left open.** `readClientProjectOptions` writes `view: "options"` literally and builds both collections by hand, so the envelope is exact and a body that does not announce itself is refused. The elements stay `unknown[]`: eleven pages read this body, ten through `clientProjectOptions.normalizeClients`, which is total over `unknown`, and this page's two normalisers are total as well. That is **later-owner debt, exposed in the declaration rather than settled by a container check** that would not have validated the elements anyway.
+- [x] **The reuse claim was wrong and the line now says so.** This child was ranked on the two option reads feeding the shared surface. They feed the page's own normalisers. The ranking survived because the producer evidence did, not because the claim did.
+- [x] **One fixture was rebuilt from the producer.** The calendar end-to-end fixture omitted `revocationReason`, which the shaper always writes; it now carries every member the descriptor declares, and its declared return type says so.
+
+Proved by breaking each one, restored in a `finally`, and **every refusal judged by exit status**: 25 breaks across the shaper, the create and rotate routes, the server declaration, the browser declaration, the runtime tables and readers, and the consumers - including one that puts the token hash on the descriptor, one that stops storing only the hash, one that lets the create response be cached, one that stops clearing the secret on navigation, and one that shows a URL beside a descriptor the browser cannot vouch for.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,401 | **8,392** |
+| Genuine `unknown` | 91 | **82** |
+| params / state / dom / namespace / assorted | 4,612 / 1,742 / 1,484 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,168 / 530 / 976 / 1,572 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 523 / 348 / 167 | **539 / 348 / 167**, green |
+
+**9 eliminations, no transfers, no new debt, and no state typed.** `0.33.33.44` did not move: the narrowed reads flow into the page's own total normalisers and into `showSecret`, whose parameters were already untyped. `4,612 + 1,742 + 153 = 6,507` reconciles either side.
+
 ## Version 0.33.33.38.4.6.1 - The client and project create records
 
 **Model: High Effort** - the child that derived a contract from the wrong producer, shipped it into an end-to-end failure, and had to correct it against the live flow.
