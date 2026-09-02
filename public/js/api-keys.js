@@ -83,15 +83,144 @@
     return dialogs;
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApiKeyCollection} BrowserApiKeyCollection */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApiKeyListEntry} BrowserApiKeyListEntry */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApiKeyRecord} BrowserApiKeyRecord */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApiKeySecret} BrowserApiKeySecret */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserApiScope} BrowserApiScope */
+
+  /** The seven text columns the list selects beside the two nullable ones and the scopes. */
+  const API_KEY_ENTRY_TEXT = Object.freeze([
+    "api_key_id",
+    "created_at",
+    "created_by_user_id",
+    "key_prefix",
+    "name",
+    "status",
+    "workspace_id",
+  ]);
+
+  /** The six text members `toPublicApiKey` writes beside the two nullable ones and the scopes. */
+  const API_KEY_RECORD_TEXT = Object.freeze([
+    "api_key_id",
+    "created_at",
+    "key_prefix",
+    "name",
+    "status",
+    "workspace_id",
+  ]);
+
+  /** The two timestamps both records answer as text or `null`. */
+  const API_KEY_NULLABLE_TEXT = Object.freeze(["last_used_at", "revoked_at"]);
+
+  /** The six text members the scope catalogue writes by name. */
+  const API_SCOPE_TEXT = Object.freeze(["access", "description", "id", "label", "moduleId", "scope"]);
+
+  /**
+   * A plain JSON object, which is the least a wire body can be before any member is read.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isResponseRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is string}
+   */
+  function isText(value) {
+    return typeof value === "string";
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is string | null}
+   */
+  function isNullableText(value) {
+    return value === null || typeof value === "string";
+  }
+
+  /**
+   * The shape the list entry and the public record share: scopes and two nullable timestamps.
+   * @param {Record<string, unknown>} value
+   */
+  function hasApiKeyShape(value) {
+    return Array.isArray(value.scopes) && value.scopes.every(isText)
+      && API_KEY_NULLABLE_TEXT.every((member) => isNullableText(value[member]));
+  }
+
+  /**
+   * An API key as the workspace list sends it. **Never the hash**: the list selects nine columns
+   * by name and `key_hash` is not one of them.
+   * @param {unknown} value
+   * @returns {value is BrowserApiKeyListEntry}
+   */
+  function isApiKeyListEntry(value) {
+    return isResponseRecord(value)
+      && API_KEY_ENTRY_TEXT.every((member) => isText(value[member]))
+      && hasApiKeyShape(value);
+  }
+
+  /**
+   * An API key as `toPublicApiKey` reconstructs it: the list entry without its creator.
+   * @param {unknown} value
+   * @returns {value is BrowserApiKeyRecord}
+   */
+  function isApiKeyRecord(value) {
+    return isResponseRecord(value)
+      && API_KEY_RECORD_TEXT.every((member) => isText(value[member]))
+      && hasApiKeyShape(value);
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is BrowserApiScope}
+   */
+  function isApiScope(value) {
+    return isResponseRecord(value) && API_SCOPE_TEXT.every((member) => isText(value[member]));
+  }
+
+  /**
+   * The two members every API key route answers, read totally.
+   *
+   * An unusable body or a non-list member yields an empty list, exactly as the `|| []` reads
+   * did, and an element the browser cannot vouch for is dropped rather than rendered.
+   * @param {unknown} body
+   * @returns {BrowserApiKeyCollection}
+   */
+  function readApiKeyCollection(body) {
+    const apiKeys = isResponseRecord(body) ? body.apiKeys : null;
+    const scopes = isResponseRecord(body) ? body.availableScopes : null;
+    return {
+      apiKeys: Array.isArray(apiKeys) ? apiKeys.filter(isApiKeyListEntry) : [],
+      availableScopes: Array.isArray(scopes) ? scopes.filter(isApiScope) : [],
+    };
+  }
+
+  /**
+   * The one-time secret the create route answers, or `null` when the browser cannot vouch for
+   * it. A missing raw key already hid the secret panel, and a `null` here takes that same path.
+   * @param {unknown} body
+   * @returns {BrowserApiKeySecret | null}
+   */
+  function readApiKeySecret(body) {
+    if (!isResponseRecord(body)) {
+      return null;
+    }
+    const { apiKey, rawKey } = body;
+    return isText(rawKey) && rawKey !== "" && isApiKeyRecord(apiKey) ? { apiKey, rawKey } : null;
+  }
+
   async function loadApiKeys() {
     setApiKeyStatus("Loading API keys...");
 
     try {
-      const body = await requireApi().getJson("/api/api-keys", { cache: "no-store" });
+      const collection = readApiKeyCollection(await requireApi().getJson("/api/api-keys", { cache: "no-store" }));
 
-      availableScopes = normalizeAvailableScopes(body.availableScopes || []);
+      availableScopes = normalizeAvailableScopes(collection.availableScopes);
       renderScopeControls();
-      renderApiKeys(body.apiKeys || []);
+      renderApiKeys(collection.apiKeys);
       setApiKeyStatus("");
     } catch (error) {
       if (requireErrors().caughtStatus(error) === 401) {
@@ -122,11 +251,12 @@
 
     try {
       const body = await requireApi().postJson("/api/api-keys", { name, scopes });
+      const issued = readApiKeySecret(body);
 
       apiKeyForm.reset();
-      showRawKey(body.rawKey || "");
-      renderApiKeys(body.apiKeys || []);
-      setApiKeyStatus(`Created ${body.apiKey?.name || name}.`);
+      showRawKey(issued?.rawKey || "");
+      renderApiKeys(readApiKeyCollection(body).apiKeys);
+      setApiKeyStatus(`Created ${issued?.apiKey.name || name}.`);
     } catch (error) {
       if (requireErrors().caughtStatus(error) === 401) {
         window.location.replace("/login.html");
@@ -284,7 +414,7 @@
         {},
       );
 
-      renderApiKeys(body.apiKeys || []);
+      renderApiKeys(readApiKeyCollection(body).apiKeys);
       setApiKeyStatus(`Revoked ${apiKey.name}.`);
     } catch (error) {
       setApiKeyStatus(requireErrors().caughtMessage(error, "API key was not revoked."), true);

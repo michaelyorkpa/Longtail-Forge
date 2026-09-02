@@ -363,6 +363,7 @@
         "tests/typecheck/task-workflow-contracts.fixture.mjs",
         "tests/typecheck/time-tracking-edge-contracts.fixture.mjs",
         "tests/typecheck/time-tracking-server-contracts.fixture.mjs",
+        "tests/unit/api-key-contracts.test.mjs",
         "tests/unit/asset-version.test.mjs",
         "tests/unit/bounded-pagination.test.mjs",
         "tests/unit/bulk-action-response-contract.test.mjs",
@@ -495,7 +496,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8386,
+      "errorCount": 8380,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -508,10 +509,6 @@
           }
         ],
         "public/js/api-keys.js": [
-          {
-            "code": 18046,
-            "count": 6
-          },
           {
             "code": 18047,
             "count": 19
@@ -2749,8 +2746,8 @@
     }
   },
   "totals": {
-    "files": 1076,
-    "errors": 8386,
+    "files": 1077,
+    "errors": 8380,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
