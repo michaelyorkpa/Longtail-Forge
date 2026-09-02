@@ -627,6 +627,10 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 **52 diagnostics whose producer this reslice did not resolve, plus whatever the file, key and timer bodies leave over.** **Attribution is the work and it comes first**: follow each read back through its local helper to a route, then fold it into whichever sibling child owns that family - or draw a new child if the trace finds a family nobody listed. **Do not begin by typing them.**
 
+#### 0.33.33.38.4.9.1 - The API key bodies
+
+**Complete: 6 diagnostics, seven contracts, zero fallout - the family the trace found that nobody had listed.** See the archive entry. The `/api/api-keys` row sat in the planning table with no owner, and `0.33.33.38.4.9`'s own rule is to draw a child when a trace finds such a family. One service answers three routes with **two record vocabularies and one secret**: the list entry is the nine columns `readAll` selects plus scopes, the public record is `toPublicApiKey`'s nine without the creator, and the raw key is minted, SHA-256 hashed and handed over once on create. It lives on `BrowserApiKeySecret` and is forbidden, by proof, from every record and from the revoke.
+
 #### 0.33.33.38.4.10 - Notification response bodies
 
 **Complete. The child that was worth doing for what it could not be measured by.** Its visible cost was three diagnostics; what it actually did was make two blocked namespace surfaces declarable without either of them inheriting a wire-boundary bill. See the archive entry.

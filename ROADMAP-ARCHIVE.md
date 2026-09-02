@@ -1,5 +1,29 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.9.1 - The API key bodies
+
+**Model: High Effort** - a secret-bearing family that no roadmap child owned, drawn under the attribution owner by its own rule and closed in one pass.
+
+- [x] **One service, three routes, two record vocabularies.** `list` answers `{ apiKeys, availableScopes }`; `create` adds `apiKey` and `rawKey`; `revoke` adds `apiKey` and **no raw key**, because a revoked key has nothing left to hand over. All three assert `workspace_settings.manage` first. `BrowserApiKeyCollection` is the two shared members, `BrowserApiKeySecret` the two only create adds, `BrowserApiKeyCreation` their composition, and `BrowserApiKeyRevocation` the collection plus the record.
+- [x] **The list entry and the public record are kept apart, not merged with an optional member.** `readAll` selects nine columns by name - never `key_hash` - and attaches scopes; `toPublicApiKey` reconstructs nine members and omits `created_by_user_id`. So the list discloses the creator and the record does not, and `BrowserApiKeyListEntry` and `BrowserApiKeyRecord` say exactly that. The proof reads the column list from the query and the members from the shaper's literal, and breaks that select the hash, emit the creator, or borrow the creator onto the record are refused.
+- [x] **The raw key was traced before it was named.** It is twenty-four random bytes, stored only as a SHA-256 hash beside a seventeen-character display prefix, answered once on create, and recorded in the audit trail by prefix alone - the same shaper that feeds the browser feeds the audit's before-and-after values. Breaks that store the key in the clear, record it in the audit metadata, put an optional raw key on the list entry, or make it optional on the secret are all refused. **One hygiene note for its owner**: unlike the calendar page, this page keeps the shown key in its input and does not clear it on `pagehide`; that is unchanged here.
+- [x] **The scope catalogue is exact, and `access` stays text.** `listAvailableApiScopes` writes six members after enablement, workspace-type and public-demo filtering; the registry answers a module's declared `access` as given and derives read/write only as a fallback, so the vocabulary is open. **One consumer defect found and left for its owner**: the page's `normalizeAvailableScopes` drops `access`, so every scope renders as Read. Not this boundary's to change.
+- [x] **Behaviour preserved exactly.** The collection is read totally with each element vouched for, as the `|| []` reads were; an unreadable secret hides the panel as a missing raw key already did; the status line falls back to the submitted name as before.
+
+Proved by breaking each one, restored in a `finally`, and **every refusal judged by exit status**: 22 breaks across the service, the repository query, the modules catalogue, the registry, the browser declaration, the runtime tables and readers, and the consumers.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,386 | **8,380** |
+| Genuine `unknown` | 76 | **70** |
+| params / state / dom / namespace / assorted | 4,612 / 1,742 / 1,484 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,168 / 530 / 976 / 1,572 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 559 / 348 / 167 | **574 / 348 / 167**, green |
+
+**6 eliminations, no transfers, no new debt, and no state typed.** `4,612 + 1,742 + 153 = 6,507` reconciles either side.
+
 ## Version 0.33.33.38.4.8.1 - The Support View audit envelope
 
 **Model: High Effort** - the family's first child, and a security surface: what the browser may name here is exactly what the operator gate already chose to disclose.
