@@ -122,20 +122,67 @@ test("module lifecycle saves refresh recovery and timer surfaces immediately", a
   await page.route("**/api/app-shell/bootstrap", async (route) => {
     await route.fulfill({ contentType: "application/json", body: JSON.stringify(shellResponse()) });
   });
+  /**
+   * The one task this fixture wants the list to hold.
+   *
+   * **It states the shape the server actually sends**, rather than the eight-member literal it
+   * used to be. That literal carried `assignee_ids` - a write-side input the task shaper never
+   * returns - and omitted the thirty text members, the assignees, the three typed scalars and the
+   * five members `attachTaskListProjectionDetails` always adds. A mock that claims a shape the
+   * producer cannot produce is a second, wrong contract, and `0.33.33.38.4.3.B` made the browser
+   * notice it.
+   *
+   * @param {{ currentUserId?: string }} liveResult
+   */
+  const timerSuppressionFixtureTask = (liveResult) => ({
+      archived_at: "",
+      archived_by_user_id: "",
+      blocked_reason: "",
+      client_id: "",
+      client_name: "",
+      completed_at: "",
+      completed_by_user_id: "",
+      created_at: "",
+      created_by_user_id: "",
+      description: "",
+      due_at_utc: "",
+      due_date: "",
+      due_time: "",
+      due_timezone: "",
+      last_worked_at: "",
+      next_action: "",
+      priority: "normal",
+      project_id: "fixture-project",
+      project_name: "Fixture Project",
+      recurrence_instance_date: "",
+      recurrence_template_id: "",
+      resume_note: "",
+      source_id: "",
+      source_type: "manual",
+      status: "open",
+      task_id: "timer-suppression-fixture",
+      title: "Timer suppression fixture",
+      updated_at: "",
+      updated_by_user_id: "",
+      workspace_id: "",
+      assignees: [],
+      billable: "yes",
+      estimate_minutes: null,
+      reminder_override_enabled: false,
+      checklistProgress: { completed: 0, total: 0 },
+      completionMetrics: {},
+      parentTask: null,
+      relationshipSummary: {},
+      resumeContext: {},
+      tags: [],
+      currentUserId: liveResult.currentUserId,
+    });
+
   await page.route(/\/api\/tasks(?:\?.*)?$/, async (route) => {
     const response = await route.fetch();
     const result = await response.json();
     if (taskTimersDisabled) {
-      result.tasks = [{
-        task_id: "timer-suppression-fixture",
-        title: "Timer suppression fixture",
-        status: "open",
-        priority: "normal",
-        project_id: "fixture-project",
-        project_name: "Fixture Project",
-        assignee_ids: [result.currentUserId].filter(Boolean),
-        tags: [],
-      }];
+      result.tasks = [timerSuppressionFixtureTask(result)];
       result.options = {
         ...(result.options || {}),
         projects: [{ project_id: "fixture-project", project_name: "Fixture Project" }],
