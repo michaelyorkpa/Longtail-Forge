@@ -1,5 +1,58 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.3.8 - The Task option-catalog element contracts
+
+**Model: High Effort** - the child that existed because the previous one told the truth about a slot and the truth turned out to have four producers inside it.
+
+- [x] **The fourteen were never new debt.** `0.33.33.38.4.3.2` typed `state.options` from `BrowserTaskListOptions`, whose four collections it had honestly left `unknown[]`. The accidental `never[]` that preceded it had been hiding every element read in the pickers; naming the slot made them visible. **All fourteen were in `tasks.js`** - three user reads, three client reads, eight project reads - and none in `task-dialog.js` or `workbench.js`.
+- [x] **Four producers, four records, one envelope.** `readClientOptionPayload`, `readProjectOptionPayload`, `readTaskOptionPayload` and `usersRepository.readAll` build them, and a single `BrowserTaskOption` with a pile of optional members would have erased exactly the distinctions the last several checkpoints recovered. A test refuses any discriminator that would let one stand in for another.
+- [x] **The client and project options are structural minimums, and the declaration says so.** Both payload builders **spread** their rows - and what they spread has already been through `decorateClientShape`, which spreads again - so exactness cannot be claimed. Each contract promises the three members its builder reconstructs plus the identity and relationship its row shaper guarantees by name: `id`, `name`, `parent_client_id` for the client; `id`, `name`, `client_id` for the project. **The billing, hierarchy and tag members the spreads carry past are deliberately absent** and belong to the client-projects estate.
+- [x] **A project option is not a client option with a client added.** Different service call, different hierarchy sort, different row shaper. `client_id` is the empty string for a project with no client, which is what the page's own comparison has always read, and `parent_client_id` belongs to the client record alone.
+- [x] **`options.tasks` is a picker projection, not any task record.** `taskPickerOption` reconstructs thirteen members - it duplicates the identifier as `task_id` and `id` and the label three ways, because different pickers read different ones - and carries none of the thirty columns, assignees, projection members or detail members the task contracts describe. **It has no consumer reads at all** in the Tasks page, and it was typed from its producer rather than skipped for that reason.
+- [x] **`options.users` became a named subset rather than a borrowed record or a duplicated predicate.** The producer really is `userRowToAppValue` - `readAll` answers `rows.map(userRowToAppValue)` - so the full fifteen members are on the wire. Sharing the fifteen-member predicate that lives in `user-admin.js` would have meant either copying it or publishing a new surface to hold it, and **`0.33.33.38.2`'s namespace ledger is not the place to pay for one predicate**. `BrowserTaskUserOption` promises the three members the page reads, validates all three, names itself for the catalog rather than the record, and says in its own declaration that it is a subset. A break that rewrites that sentence fails.
+- [x] **A malformed option is dropped; a malformed catalog is refused.** The two are different failures and the page already treated them differently: an absent catalog falls back to the stand-in the page holds, while a selector with one unusable entry has always rendered the rest. Refusing the whole catalog because one client is malformed would have emptied every picker on the page - the opposite of what `result.options || state.options` did.
+- [x] **One member was under-declared and the consumer found it.** Typing the client option surfaced a single new diagnostic: `client.parent_client_id`, which `clientRowToAppClient` **does** reconstruct. It was added because the producer guarantees it, not because a consumer asked, and it makes the client record symmetric with the project's `client_id`.
+- [x] **No permission decision moved.** `readTaskOptionPayload` asks a `tasks.view` evaluator per candidate, `listClients` and `listProjects` filter through `filterReadableClients` and `filterReadableProjects`, and `readOptions` keeps only active memberships. Element narrowing happens after all of it, and a break that removes the task evaluator fails.
+
+Proved by breaking each one, restored in a `finally`:
+
+| Break | Failure |
+| --- | --- |
+| A collection goes back to an untyped container | each one carries its own record |
+| The client row shaper stops guaranteeing the parent | the contract's members are the shaper's |
+| The client payload stops reconstructing a member | the same, from the builder's side |
+| The client contract acquires what the spread carries | that belongs to the client-projects estate |
+| The client depth is accepted as text | the builder answers a number |
+| The project contract borrows the client parent | that relationship is the client record's |
+| The project row shaper stops guaranteeing the client | the project's own shaper is the authority |
+| The picker option gains a task-record member | this producer never builds it |
+| The picker shaper stops building a member | it reconstructs thirteen |
+| The picker list stops being permission-filtered | the evaluator runs before the shaping |
+| The user option claims to be the whole record | the declaration must say it is a subset |
+| The user option acquires a withheld column | it may never enter this vocabulary |
+| The user shaper starts emitting the withheld column | the shaper never sends the password column |
+| The user option stops being a subset of its record | every member must exist on the record it names |
+| The catalog reader trusts a collection container | a selector keeps the entries it can read |
+| One malformed option empties the catalog | the same, from the other direction |
+| The catalog stops refusing a broken scalar | an unusable catalog falls back to the stand-in |
+| The catalog answers a member `readOptions` never builds | the reconstruction is exactly nine members |
+
+**Six of those breaks had to be written twice.** Each first attempt tripped a member-set assertion that *entailed* the exclusion it was aiming at, so the check it named never ran. The fix was to split the entailed assertions into tests of their own and give every `deepEqual` a message - better proofs, not proofs tuned to the breaks.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,466 | **8,447** |
+| Genuine `unknown` | 138 | **124** |
+| params / state / dom / namespace / assorted | 4,612 / 1,757 / 1,484 / 319 / 156 | **4,612 / 1,752 / 1,484 / 319 / 156** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,217* / 531 / 976 / 1,572 | **1,770 / 491 / 1,180 / 531 / 976 / 1,572** |
+| Unit tests / regressions / end-to-end | 441 / 348 / 167 | **460 / 348 / 167**, green |
+
+\* `0.33.33.41` entered this child at 1,185.
+
+**19 eliminations, no transfers, no new debt.** All 14 owned diagnostics closed and 5 more `0.33.33.41` state diagnostics fell contextually once the collections were typed. **No consumer edit was needed**: `public/js/tasks.js` is not in this child's diff at all, because `0.33.33.38.4.3.2` had already routed the catalog through the reader and only the element types were missing. No state was typed, no owner but `0.33.33.41` moved, and the per-code ledger records no increase anywhere. `4,612 + 1,752 + 156 = 6,520` reconciles either side.
+
 ## Version 0.33.33.38.4.3.2 - The task collection and list envelope
 
 **Model: High Effort** - the child whose plan said the work was already done, and whose first act was to check.
