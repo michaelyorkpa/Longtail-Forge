@@ -36,6 +36,9 @@
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskProjectOption} BrowserTaskProjectOption */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskPickerOption} BrowserTaskPickerOption */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskUserOption} BrowserTaskUserOption */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskRecurrenceNextTask} BrowserTaskRecurrenceNextTask */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskRecurrenceContinuity} BrowserTaskRecurrenceContinuity */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskBulkRecurrenceContinuity} BrowserTaskBulkRecurrenceContinuity */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskListEnvelope} BrowserTaskListEnvelope */
 
   const namespace = global.LongtailForge || {};
@@ -159,6 +162,20 @@
   /** The three members of `userRowToAppValue` this catalog promises. */
   const USER_OPTION_TEXT = Object.freeze(["displayName", "user_id", "username"]);
 
+  /** The three boolean members every continuity construction site builds. */
+  const CONTINUITY_FLAGS = Object.freeze([
+    "checklistTemplateSeeded",
+    "followUpFailed",
+    "followUpQueued",
+    "isRecurring",
+  ]);
+
+  /** The four states the recurrence service writes as literals. */
+  const CONTINUITY_STATUSES = Object.freeze(["available", "ended", "handoff_failed", "pending"]);
+
+  /** The four members `safeNextTask` builds when it builds anything at all. */
+  const NEXT_TASK_TEXT = Object.freeze(["due_date", "task_id", "title", "url"]);
+
   /** The two option collections `readOptions` spreads from server constants. */
   const TASK_OPTION_TEXT_LISTS = Object.freeze(["priorities", "statuses"]);
 
@@ -206,6 +223,72 @@
   }
 
   /**
+   * The next occurrence a continuity points at.
+   *
+   * `safeNextTask` answers `null` rather than a partial descriptor, so a record here is a complete
+   * one or it is not one at all.
+   * @param {unknown} value
+   * @returns {value is BrowserTaskRecurrenceNextTask}
+   */
+  function isRecurrenceNextTask(value) {
+    return isResponseRecord(value)
+      && NEXT_TASK_TEXT.every((member) => typeof value[member] === "string")
+      && value.task_id !== "";
+  }
+
+  /**
+   * One recurrence continuity, in the single shape all four construction sites build.
+   *
+   * **`null` is not checked here.** A task with no series legitimately has no continuity, and that
+   * absence is the reader's answer rather than this predicate's.
+   * @param {unknown} value
+   * @returns {value is BrowserTaskRecurrenceContinuity}
+   */
+  function isRecurrenceContinuity(value) {
+    return isResponseRecord(value)
+      && CONTINUITY_FLAGS.every((member) => typeof value[member] === "boolean")
+      && typeof value.nextScheduledDate === "string"
+      && typeof value.status === "string"
+      && CONTINUITY_STATUSES.includes(value.status)
+      && (value.nextTask === null || isRecurrenceNextTask(value.nextTask));
+  }
+
+  /**
+   * The continuity a lifecycle route reported beside its task, or `null`.
+   *
+   * **A task with no series and a malformed continuity both answer `null`, and that is deliberate.**
+   * Every consumer already guarded with `if (result.recurrenceContinuity)` before rendering, so a
+   * record the browser cannot vouch for takes the same path the legitimate absence has always
+   * taken - the completion message without the recurrence line - rather than rendering a partial
+   * one.
+   * @param {unknown} body
+   * @returns {BrowserTaskRecurrenceContinuity | null}
+   */
+  function readRecurrenceContinuity(body) {
+    const continuity = isResponseRecord(body) ? body.recurrenceContinuity : null;
+    return isRecurrenceContinuity(continuity) ? continuity : null;
+  }
+
+  /**
+   * The per-task continuity entries a bulk action reported.
+   *
+   * Each entry is a continuity **plus the `task_id` it belongs to**, because `bulkUpdate` pushes
+   * `{ task_id, ...continuity }` - the collection would be unusable without it. A malformed entry
+   * is dropped, which is the answer this estate has given since `0.33.33.38.4.2`.
+   * @param {unknown} body
+   * @returns {BrowserTaskBulkRecurrenceContinuity[]}
+   */
+  function readBulkRecurrenceContinuities(body) {
+    const entries = isResponseRecord(body) ? body.recurrenceContinuities : null;
+    return Array.isArray(entries)
+      ? entries.filter((entry) => isResponseRecord(entry)
+        && typeof entry.task_id === "string"
+        && entry.task_id !== ""
+        && isRecurrenceContinuity(entry))
+      : [];
+  }
+
+  /**
    * A task as `attachTaskDetails` builds it.
    *
    * The ten added members are ten other producers, so their presence is checked and their shapes
@@ -222,6 +305,9 @@
     return isResponseRecord(value)
       && TASK_DETAIL_MEMBERS.every((member) => member in value)
       && TASK_DETAIL_ARRAYS.every((member) => Array.isArray(value[member]))
+      // The one detail member whose producer is named: `attachTaskDetails` fills it with
+      // `readTaskCompletionContinuity`, so it is a continuity or it is `null`.
+      && (value.recurrenceContinuity === null || isRecurrenceContinuity(value.recurrenceContinuity))
       && isTaskRecord(value);
   }
 
@@ -431,7 +517,9 @@
   }
 
   namespace.taskRecords = Object.freeze({
+    readBulkRecurrenceContinuities,
     readBulkTasks,
+    readRecurrenceContinuity,
     readSkipToCurrentTarget,
     readTask,
     readTaskDetail,

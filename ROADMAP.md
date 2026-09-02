@@ -523,7 +523,7 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 #### 0.33.33.38.4.3.4 - Recurrence continuity
 
-**5 diagnostics.** `result.recurrenceContinuity` and `result.recurrenceContinuities`, built by `readTaskCompletionContinuity`. `BrowserTaskDetail` already carries the member as `unknown`; this child names the shape.
+**Complete: 7 diagnostics, four contracts, and the last opaque member of the Task detail record.** See the archive entry. The plural was **not** an array of the singular record - `bulkUpdate` pushes `{ task_id, ...continuity }` - and the line's own count of five was two short.
 
 #### 0.33.33.38.4.3.5 - The task count envelopes
 

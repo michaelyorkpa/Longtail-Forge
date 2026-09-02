@@ -1,5 +1,59 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.3.4 - Recurrence continuity response contracts
+
+**Model: Medium Effort** - the child that took a member `0.33.33.38.4.3.1` deliberately left opaque and closed it from the producer rather than the page.
+
+- [x] **Seven diagnostics, not the five this line recorded**, and all seven in `tasks.js`: two lifecycle handlers reading the singular three times each, and one bulk read of the plural. `task-dialog.js` reads the member too, but through `readTaskDetail`, so those were already typed.
+- [x] **One record from four construction sites, which is what made it nameable.** `readCompletionContinuity` builds all seven members, `endedContinuity` builds the same seven, `prepareCompletionContinuity` spreads that record and overrides one, and `completeRecurrenceHandoff` either spreads it with two overrides or - on its `catch` path - rebuilds the same seven by hand. **No path produces a different shape**, and each of the four is broken separately to prove it.
+- [x] **`status` is a closed union, and this is the first one in the rollup that earned it.** `"ended"`, `"available"`, `"pending"` and `"handoff_failed"` are written as literals at every construction site; nothing here is a database column passing through. `0.33.33.38.4.3.1` kept `status`, `priority` and `source_type` as `string` for exactly the opposite reason, and the two decisions are the same rule applied to different evidence.
+- [x] **The plural is not an array of the singular record.** `bulkUpdate` pushes `{ task_id, ...recurrenceContinuity }`, so each entry names the task it belongs to - information the singular routes never need because their envelope already carries the task. `BrowserTaskBulkRecurrenceContinuity` extends the record by that one member, and declaring the collection as the singular type would have lost the only thing that makes it usable.
+- [x] **`nextTask` is a link and a label, not a task.** `safeNextTask` answers `null` for anything without an identifier and otherwise builds four members - `due_date`, `task_id`, `title`, `url`. The `url` is the producer's, not the browser's.
+- [x] **`BrowserTaskDetail.recurrenceContinuity` stopped being `unknown`.** `attachTaskDetails` fills it from `readTaskCompletionContinuity` - the same producer the lifecycle routes send beside their task - so the detail record now carries that contract rather than a parallel one, and the runtime predicate checks it. **This was the point of the child**: eight of the ten added detail members remain `unknown` because their producers are still untraced, and a break that claims `recurrenceDetails` is the same record fails.
+- [x] **Absence and malformation are the same answer, deliberately.** A task with no series legitimately has no continuity, and every consumer already guarded with `if (continuity)` before rendering. A record the browser cannot vouch for therefore takes the path the legitimate absence has always taken - the completion message without the recurrence line - rather than rendering a partial one. `nextScheduledDate` is the empty string rather than `null` when a series ends, and `nextTask` is `null` rather than absent when the next instance does not exist yet; both are values, and both are accepted.
+- [x] **No lifecycle behaviour changed.** Completion, reopening, skip-to-current, recurrence generation, continuity calculation and recovery are untouched; the Tasks recurrence and lifecycle regression owners pass unchanged.
+
+**Two sibling proofs had to follow the contract.** `task-record-contracts` asserted that all ten added detail members are `unknown`, and both it and `task-list-contracts` built detail fixtures with `{}` for each. `{}` is no longer a continuity, so the fixtures now carry `null` - the value most tasks have - and the `unknown` loop exempts the one member whose producer this estate has now named while still holding the other eight. **A contract that gets stronger should break the proofs that assumed it was weak**, and these did.
+
+Proved by breaking each one, restored in a `finally`:
+
+| Break | Failure |
+| --- | --- |
+| The producer stops building a member | the live record is the contract |
+| The ended record drifts from the live one | both build the same seven |
+| The contract requires a member no site builds | the same agreement, from the other side |
+| The browser stops checking a flag | the runtime table is pinned to the contract |
+| The status union is declared open | the literals are what closed it |
+| The runtime accepts a state no site writes | a state nobody writes is not a state |
+| An ended series is required to carry a date | the empty string is the ended value |
+| The next-task descriptor may be partial | it is null or complete |
+| The next-task descriptor widens into a task | it is a link and a label |
+| The continuity trusts a partial next task | the descriptor is checked, not assumed |
+| A malformed continuity is trusted | it takes the path the absence takes |
+| The reader is declared to answer something else | it answers a record or `null` |
+| The bulk entry loses its task identifier | that member is the difference |
+| The bulk producer stops naming the task | the same, from the producer's side |
+| The bulk reader trusts its container | an array of entries is not entries |
+| The detail goes back to an opaque continuity | its producer is named now |
+| The detail stops checking the member it names | a partial continuity is not one |
+| A neighbouring recurrence member is claimed | a similar name is not a shared contract |
+| The detail shaper stops using the same producer | that shared producer is the justification |
+| A consumer reads the raw body again | the call must narrow before the read |
+
+**Two of those breaks were written badly and caught by the harness rather than by luck.** One mutated a destructure in a way that left the reader still filtering, so nothing should have failed and nothing did; the other tripped a member-set assertion that entailed the exclusion it was aiming at. Both were rewritten until only the named check refused.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,447 | **8,440** |
+| Genuine `unknown` | 124 | **117** |
+| params / state / dom / namespace / assorted | 4,612 / 1,752 / 1,484 / 319 / 156 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,180 / 531 / 976 / 1,572 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 460 / 348 / 167 | **475 / 348 / 167**, green |
+
+**7 eliminations, no transfers, no new debt.** Strengthening `BrowserTaskDetail` closed nothing beyond the owned seven - the detail consumers that read the member were already typed - so the payoff here is contract quality rather than count, and saying otherwise would be inventing credit. No state was typed, no owner budget moved, and the per-code ledger records no increase anywhere. `4,612 + 1,752 + 156 = 6,520` reconciles either side.
+
 ## Version 0.33.33.38.4.3.8 - The Task option-catalog element contracts
 
 **Model: High Effort** - the child that existed because the previous one told the truth about a slot and the truth turned out to have four producers inside it.

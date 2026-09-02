@@ -393,6 +393,7 @@
         "tests/unit/task-list-engine.test.mjs",
         "tests/unit/task-option-catalog-contracts.test.mjs",
         "tests/unit/task-record-contracts.test.mjs",
+        "tests/unit/task-recurrence-continuity-contracts.test.mjs",
         "tests/unit/test-support-harnesses.test.mjs",
         "tests/unit/user-record-contract.test.mjs",
         "tests/unit/work-candidate-query-edge.test.mjs",
@@ -489,7 +490,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8447,
+      "errorCount": 8440,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1764,7 +1765,7 @@
         "public/js/tasks.js": [
           {
             "code": 18046,
-            "count": 16
+            "count": 9
           },
           {
             "code": 18047,
@@ -2767,8 +2768,8 @@
     }
   },
   "totals": {
-    "files": 1070,
-    "errors": 8447,
+    "files": 1071,
+    "errors": 8440,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
