@@ -126,15 +126,155 @@
     }
     return apiClient;
   }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserAuditLogEntry} BrowserAuditLogEntry */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserAuditFilterOption} BrowserAuditFilterOption */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserAuditFilterOptions} BrowserAuditFilterOptions */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserBoundedPagination} BrowserBoundedPagination */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserAuditLogEnvelope} BrowserAuditLogEnvelope */
+
+  /** The six `NOT NULL` columns of `audit_logs`, in the order the query selects them. */
+  const AUDIT_ENTRY_TEXT = Object.freeze([
+    "audit_id",
+    "workspace_id",
+    "created_at",
+    "action",
+    "change_type",
+    "record_type",
+  ]);
+
+  /** The nine nullable columns beside them, snapshots included. */
+  const AUDIT_ENTRY_NULLABLE_TEXT = Object.freeze([
+    "actor_user_id",
+    "actor_user_name",
+    "record_id",
+    "record_label",
+    "record_url",
+    "ip_address",
+    "previous_value_json",
+    "new_value_json",
+    "metadata_json",
+  ]);
+
+  /** The four catalogues whose builders write a label beside a value. */
+  const AUDIT_LABELLED_FILTERS = Object.freeze(["clients", "projects", "users", "workspaces"]);
+
+  /** The two catalogues the repository maps straight to bare strings. */
+  const AUDIT_STRING_FILTERS = Object.freeze(["changeTypes", "recordTypes"]);
+
+  /** The four integers `boundedPaginationEnvelope` coerces itself. */
+  const BOUNDED_PAGINATION_NUMBERS = Object.freeze(["limit", "maxPageSize", "offset", "returned"]);
+
+  /**
+   * A plain JSON object, which is the least a wire body can be before any member is read.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isResponseRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is string | null}
+   */
+  function isNullableText(value) {
+    return value === null || typeof value === "string";
+  }
+
+  /**
+   * One audit entry, checked column for column against the table it is selected from.
+   *
+   * The three snapshot members are checked as **text or null and nothing more**: they carry
+   * `JSON.stringify` output the writer produced, and this boundary does not parse them into a
+   * shape, because no producer agrees on one.
+   * @param {unknown} value
+   * @returns {value is BrowserAuditLogEntry}
+   */
+  function isAuditLogEntry(value) {
+    return isResponseRecord(value)
+      && AUDIT_ENTRY_TEXT.every((member) => typeof value[member] === "string")
+      && value.audit_id !== ""
+      && AUDIT_ENTRY_NULLABLE_TEXT.every((member) => isNullableText(value[member]));
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is BrowserAuditFilterOption}
+   */
+  function isAuditFilterOption(value) {
+    return isResponseRecord(value) && typeof value.label === "string" && typeof value.value === "string";
+  }
+
+  /**
+   * The six catalogues, each element vouched for by the vocabulary its builder writes.
+   * @param {unknown} value
+   * @returns {value is BrowserAuditFilterOptions}
+   */
+  function isAuditFilterOptions(value) {
+    return isResponseRecord(value)
+      && AUDIT_LABELLED_FILTERS.every((member) => {
+        const options = value[member];
+        return Array.isArray(options) && options.every(isAuditFilterOption);
+      })
+      && AUDIT_STRING_FILTERS.every((member) => {
+        const options = value[member];
+        return Array.isArray(options) && options.every((entry) => typeof entry === "string");
+      });
+  }
+
+  /**
+   * The shared bounded pagination envelope: four integers, a flag, a cursor, and a count or null.
+   * @param {unknown} value
+   * @returns {value is BrowserBoundedPagination}
+   */
+  function isBoundedPagination(value) {
+    return isResponseRecord(value)
+      && BOUNDED_PAGINATION_NUMBERS.every((member) => typeof value[member] === "number" && Number.isFinite(value[member]))
+      && typeof value.hasMore === "boolean"
+      && typeof value.nextCursor === "string"
+      && (value.total === null || (typeof value.total === "number" && Number.isFinite(value.total)));
+  }
+
+  /**
+   * The audit envelope, read as a whole or not at all.
+   *
+   * **An audit page must not present partial history.** The raw reads coerced every member of a
+   * malformed row to the empty string, which rendered a blank line indistinguishable from a real
+   * entry with nothing recorded. Refusing the response instead sends the caller down the load
+   * error path it already had, so the administrator learns the history could not be read rather
+   * than reading a shorter or emptier one. This is the same choice `0.33.33.38.4.8.1` made for
+   * the Support View audit, and the opposite of the target picker's, where dropping an entry
+   * removes a candidate rather than hiding a record.
+   * @param {unknown} body
+   * @returns {BrowserAuditLogEnvelope | null}
+   */
+  function readAuditLogEnvelope(body) {
+    if (!isResponseRecord(body)) {
+      return null;
+    }
+    const { auditLogs: entries, filterOptions, pagination, workspaceId } = body;
+    if (!Array.isArray(entries) || !entries.every(isAuditLogEntry)
+      || !isAuditFilterOptions(filterOptions)
+      || !isBoundedPagination(pagination)
+      || typeof workspaceId !== "string") {
+      return null;
+    }
+    return { auditLogs: entries, filterOptions, pagination, workspaceId };
+  }
+
   async function loadAuditLogs() {
     setStatus("Loading audit log...");
 
     try {
-      const result = await requireApi().getJson(`${getAuditEndpoint()}?${buildPageParams().toString()}`, {
-        cache: "no-store",
-      });
-      auditLogs = Array.isArray(result.auditLogs) ? result.auditLogs.map(normalizeAuditLog) : [];
-      totalAuditLogs = Number.parseInt(result.pagination?.total, 10) || 0;
+      const result = readAuditLogEnvelope(await requireApi().getJson(
+        `${getAuditEndpoint()}?${buildPageParams().toString()}`,
+        { cache: "no-store" },
+      ));
+      if (!result) {
+        throw new Error("The audit log response could not be read.");
+      }
+      auditLogs = result.auditLogs.map(normalizeAuditLog);
+      totalAuditLogs = result.pagination.total ?? 0;
       const normalizedPage = normalizeCurrentPage();
 
       if (normalizedPage !== currentPage) {

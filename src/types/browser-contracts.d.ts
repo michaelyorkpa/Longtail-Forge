@@ -3084,6 +3084,112 @@ export interface BrowserSupportViewTargetEnvelope {
 }
 
 /**
+ * One audit log entry, exactly as `searchForScope` selects it.
+ *
+ * **Fifteen columns, straight from the table: this route has no shaper.** Six are `NOT NULL` and
+ * nine are nullable, and the contract follows the schema column for column rather than the
+ * renderer, which coerces every one of them to text for display.
+ *
+ * **What it deliberately discloses.** `ip_address` is the address the writer recorded for the
+ * acting session, and the page renders it: this is an administrative audit surface behind
+ * `audit_logs.view`, and the address is the point of several of its entries. The three `_json`
+ * members are the writer's snapshots. They are safe by construction rather than by filtering
+ * here: every value snapshot in the estate is built from a whitelist shaper - `userRowToAppValue`
+ * names fifteen profile members and no password column - or from a hand-written literal, and the
+ * password-reset entry records only a timestamp. Nothing narrows them at read time, so nothing
+ * may be assumed about them at read time either.
+ *
+ * `action`, `change_type` and `record_type` stay text: the writer normalises them but the
+ * columns carry no `CHECK`, the record type has an `allowUnknown` path, and the security stream
+ * writes its own action names.
+ */
+export interface BrowserAuditLogEntry {
+  action: string;
+  /** `null` for an entry no signed-in actor produced. */
+  actor_user_id: string | null;
+  /** `null` when the writer had no username to record. */
+  actor_user_name: string | null;
+  audit_id: string;
+  change_type: string;
+  created_at: string;
+  /**
+   * The address recorded for the acting session, or `null`. Deliberately disclosed to an
+   * administrator holding `audit_logs.view`; it is not redacted and this contract does not
+   * pretend otherwise.
+   */
+  ip_address: string | null;
+  /**
+   * `JSON.stringify` of whatever the writer passed as metadata, or `null`.
+   *
+   * **A JSON string, not a record.** Typing it as an object would promise a shape no producer
+   * agrees on - every caller passes its own - and would invite reading fields out of a snapshot
+   * that exists to be displayed, not queried.
+   */
+  metadata_json: string | null;
+  /** `JSON.stringify` of the writer's before-snapshot, or `null`. A JSON string, not a record. */
+  previous_value_json: string | null;
+  /** `JSON.stringify` of the writer's after-snapshot, or `null`. A JSON string, not a record. */
+  new_value_json: string | null;
+  record_id: string | null;
+  record_label: string | null;
+  record_type: string;
+  record_url: string | null;
+  workspace_id: string;
+}
+
+/**
+ * One audit filter choice, as the audit service's four option builders write it.
+ *
+ * **Not `BrowserSupportViewAuditFilterOption`**, which two members happen to match: that one is
+ * built by the Support View repository from support sessions, this one by four separate builders
+ * over users, clients, projects and workspaces. Same shape, different producers, so the same
+ * rule that kept three client vocabularies apart keeps these apart.
+ */
+export interface BrowserAuditFilterOption {
+  label: string;
+  value: string;
+}
+
+/**
+ * The six filter catalogues `list` assembles.
+ *
+ * Two vocabularies again, and they differ from the Support View audit's: here the record and
+ * change types are **bare strings** mapped straight off `SELECT DISTINCT` rows, while the four
+ * labelled catalogues are `{ label, value }` records. `workspaces` is empty unless the caller is
+ * a super administrator, and `clients` is empty outside a business workspace - both are producer
+ * decisions this contract reports rather than makes.
+ */
+export interface BrowserAuditFilterOptions {
+  changeTypes: string[];
+  clients: BrowserAuditFilterOption[];
+  projects: BrowserAuditFilterOption[];
+  recordTypes: string[];
+  users: BrowserAuditFilterOption[];
+  workspaces: BrowserAuditFilterOption[];
+}
+
+/**
+ * What `GET /api/audit-logs` and `GET /api/security-events` resolve to.
+ *
+ * One service answers both: `listSecurityEvents` calls `list` with `securityOnly`, so the
+ * envelope is identical and there is one contract rather than two named after two routes. The
+ * audit route requires `audit_logs.view` on the caller's workspace; the security route adds its
+ * own administrator check; and `resolveAuditWorkspaceScope` refuses any workspace but the
+ * caller's own unless they are a super administrator.
+ *
+ * `pagination` is the same `boundedPaginationEnvelope` record `0.33.33.38.4.8.1` published for
+ * the Support View audit - the first reuse of that contract, and the reason it was named for the
+ * helper rather than for one route.
+ */
+export interface BrowserAuditLogEnvelope {
+  auditLogs: BrowserAuditLogEntry[];
+  filterOptions: BrowserAuditFilterOptions;
+  pagination: BrowserBoundedPagination;
+  /** The scope the service resolved: a workspace id, or `"all"` for a super administrator. */
+  workspaceId: string;
+}
+
+/**
  * An API key as the workspace list sends it: the nine columns `readAll` selects by name, with
  * the key's scopes attached.
  *
