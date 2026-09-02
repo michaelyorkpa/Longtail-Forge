@@ -577,6 +577,8 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 #### 0.33.33.38.4.4.5 - The create-user mutation response
 
+**Complete: 3 diagnostics, one contract, two halves reused, zero fallout.** See the archive entry. The security trace this line recorded held on every point, so the child typed the response rather than changing it, and `initialPassword` stayed a **required** member whose `""` means absent.
+
 **3 diagnostics that had no owner until `0.33.33.38.4.4.2` went looking.** `user-admin.js` reads `body.accountCreated` twice and `body.initialPassword` once from `POST /api/users`. **This is a mutation envelope and not the user record**: `usersService.create` answers `{ accountCreated, user, users, initialPassword }`, and `0.33.33.38.4.4.1` already narrowed the `user` and `users` halves of it - the three flag-and-password reads are what remain.
 
 **The security trace is done and the current behaviour is sound, so this child types it rather than changing it.** `initialPassword` is generated only in the branch that creates a new account, stays `""` when an existing account is merely attached to the workspace, and the route runs `assertPublicDemoCapabilityAllowed`, `resolveAddUserWorkspace` and `assertWorkspaceCanAddUser` first. `usersRepository.create` returns a constructed record with no password or hash in it, so the `user_created` audit entry stores none. The browser writes the value to a one-time panel that is hidden whenever the value is empty. **A child that narrows this must keep `initialPassword` a required member with an empty-string absent case rather than making it optional**, because the emptiness is what the consumer's `body.accountCreated` guard already reads.
