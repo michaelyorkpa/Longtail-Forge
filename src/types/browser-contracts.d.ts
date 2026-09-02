@@ -2882,6 +2882,136 @@ export interface BrowserClientProjectOptionsBody {
 }
 
 /**
+ * What kind of Support View event was recorded.
+ *
+ * Closed three times over: the `support_view_events.event_type` column carries a `CHECK` over
+ * exactly these words, the server declares the same union, and every writer in the service
+ * passes a literal from it. A proof pins all three to this one.
+ */
+export type BrowserSupportViewEventType = "action_attempt" | "entered" | "exited" | "expired" | "terminated";
+
+/**
+ * How a Support View event ended - closed by the same column `CHECK`, server union and literal
+ * writers as the event type.
+ */
+export type BrowserSupportViewEventOutcome = "allowed" | "denied" | "disabled" | "expired" | "revoked" | "success";
+
+/**
+ * The state of the support session an event belongs to, joined in from `support_sessions.outcome`,
+ * whose column `CHECK` and server union close it to these five.
+ */
+export type BrowserSupportViewSessionOutcome = "active" | "disabled" | "exited" | "expired" | "revoked";
+
+/**
+ * One Support View audit event as `toAuditEvent` reconstructs it for the operator.
+ *
+ * **An exact reconstruction of eleven members, and a deliberately narrow disclosure.** The query
+ * behind it selects identifiers, timestamps and usernames; the shaper answers only readable
+ * labels - `actorLabel` and `effectiveUserLabel` fall from display name to username to a fixed
+ * phrase, and `workspaceName` has its own fallback - and never the user ids, the workspace id,
+ * the event id, the request id, or the session's own timestamps. The stored `metadata_json` is
+ * not even selected. Nothing about the request that produced the event - address, agent,
+ * session - is stored on it in the first place, so there is nothing here to withhold.
+ *
+ * `reasonClass` stays text: action attempts pass an identifier-shaped token through
+ * `normalizeAuditIdentifier`, and session ends write literal classes, so the vocabulary is open.
+ * `reasonReference` is the operator's own stated reason, required and bounded at entry.
+ */
+export interface BrowserSupportViewAuditEvent {
+  /** `""` when the event was not an action attempt. */
+  actionId: string;
+  actorLabel: string;
+  effectiveUserLabel: string;
+  eventType: BrowserSupportViewEventType;
+  occurredAt: string;
+  outcome: BrowserSupportViewEventOutcome;
+  /** `""` when no class was recorded. */
+  reasonClass: string;
+  reasonReference: string;
+  /** `""` when the event was not an action attempt. */
+  routeId: string;
+  sessionOutcome: BrowserSupportViewSessionOutcome;
+  workspaceName: string;
+}
+
+/**
+ * The bounded pagination envelope `boundedPaginationEnvelope` builds for seven list routes.
+ *
+ * **An exact reconstruction of seven members**, every one coerced by the helper itself: the four
+ * integers through positive/non-negative normalisers, `hasMore` by a strict comparison,
+ * `nextCursor` minted only when there is more and `""` otherwise, and `total` `null` when the
+ * caller had no count. Named for the helper rather than for Support View so the audit log, files,
+ * jobs, notifications and search reads can share it as each is narrowed.
+ */
+export interface BrowserBoundedPagination {
+  hasMore: boolean;
+  limit: number;
+  maxPageSize: number;
+  /** `""` when there is nothing further. */
+  nextCursor: string;
+  offset: number;
+  returned: number;
+  /** `null` when the producer had no total to give; the audit route always counts. */
+  total: number | null;
+}
+
+/**
+ * A filter choice with a readable label: the actor, viewed-user and workspace queries each
+ * select an id `AS value` beside a display name `AS label`.
+ *
+ * **The value is deliberately an identifier.** These are the only ids the audit response
+ * discloses, and they exist so the operator can send them back as filter parameters.
+ */
+export interface BrowserSupportViewAuditFilterOption {
+  label: string;
+  value: string;
+}
+
+/**
+ * A filter choice with no label: the event-type and outcome queries select `DISTINCT ... AS
+ * value` and nothing else, and the page formats the value into a label itself.
+ *
+ * The server's own `SupportViewAuditOption` declares a `label` for all five collections; the two
+ * queries behind these do not select one, and this boundary follows the query. That declaration
+ * is the server's to correct, and the discrepancy is recorded rather than copied.
+ */
+export interface BrowserSupportViewAuditFilterValue {
+  value: string;
+}
+
+/**
+ * The five filter catalogues `readAuditFilterOptions` builds from the retained sessions and
+ * events. Three are labelled, two are bare values, and the two vocabularies are kept apart.
+ */
+export interface BrowserSupportViewAuditFilterOptions {
+  actors: BrowserSupportViewAuditFilterOption[];
+  effectiveUsers: BrowserSupportViewAuditFilterOption[];
+  eventTypes: BrowserSupportViewAuditFilterValue[];
+  outcomes: BrowserSupportViewAuditFilterValue[];
+  workspaces: BrowserSupportViewAuditFilterOption[];
+}
+
+/**
+ * What `GET /api/support-view/audit` resolves to.
+ *
+ * **Reached only after authorization has chosen what may be disclosed.** `listAudit` requires
+ * Support View to be enabled, a normal super-administrator session that is not itself in
+ * Support View, and the `support_view.enter` permission, then prunes and filters to the
+ * retention window before shaping. This contract describes what leaves that gate; it cannot
+ * widen it.
+ *
+ * `retentionDays` and `exportLimit` are the service's own constants, sent so the page can state
+ * the policy rather than assume it.
+ */
+export interface BrowserSupportViewAuditEnvelope {
+  events: BrowserSupportViewAuditEvent[];
+  exportLimit: number;
+  filterOptions: BrowserSupportViewAuditFilterOptions;
+  pagination: BrowserBoundedPagination;
+  retentionDays: number;
+}
+
+/**
  * One module's state as the Workbench bootstrap reports it.
  *
  * **An exact reconstruction of three members.** `buildModuleStateMap` builds this for every module

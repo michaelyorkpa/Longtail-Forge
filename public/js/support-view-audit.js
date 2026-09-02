@@ -110,6 +110,147 @@
     }
     return apiClient;
   }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserSupportViewAuditEnvelope} BrowserSupportViewAuditEnvelope */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserSupportViewAuditEvent} BrowserSupportViewAuditEvent */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserSupportViewAuditFilterOptions} BrowserSupportViewAuditFilterOptions */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserSupportViewAuditFilterOption} BrowserSupportViewAuditFilterOption */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserSupportViewAuditFilterValue} BrowserSupportViewAuditFilterValue */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserBoundedPagination} BrowserBoundedPagination */
+
+  /** The event kinds the column `CHECK`, the server union and every writer agree on. */
+  const SUPPORT_VIEW_EVENT_TYPES = Object.freeze(["action_attempt", "entered", "exited", "expired", "terminated"]);
+
+  /** The event outcomes closed the same three ways. */
+  const SUPPORT_VIEW_EVENT_OUTCOMES = Object.freeze(["allowed", "denied", "disabled", "expired", "revoked", "success"]);
+
+  /** The support-session states `support_sessions.outcome` may hold. */
+  const SUPPORT_VIEW_SESSION_OUTCOMES = Object.freeze(["active", "disabled", "exited", "expired", "revoked"]);
+
+  /** The eight text members `toAuditEvent` always fills beside its three closed words. */
+  const AUDIT_EVENT_TEXT = Object.freeze([
+    "actionId",
+    "actorLabel",
+    "effectiveUserLabel",
+    "occurredAt",
+    "reasonClass",
+    "reasonReference",
+    "routeId",
+    "workspaceName",
+  ]);
+
+  /** The four integers `boundedPaginationEnvelope` coerces itself. */
+  const BOUNDED_PAGINATION_NUMBERS = Object.freeze(["limit", "maxPageSize", "offset", "returned"]);
+
+  /** The three filter catalogues whose queries select a label beside the value. */
+  const AUDIT_LABELLED_FILTERS = Object.freeze(["actors", "effectiveUsers", "workspaces"]);
+
+  /** The two filter catalogues whose queries select a distinct value and nothing else. */
+  const AUDIT_VALUE_FILTERS = Object.freeze(["eventTypes", "outcomes"]);
+
+  /**
+   * A plain JSON object, which is the least a wire body can be before any member is read.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isResponseRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is number}
+   */
+  function isFiniteNumber(value) {
+    return typeof value === "number" && Number.isFinite(value);
+  }
+
+  /**
+   * One audit event as the operator may see it: eleven members, three of them closed words.
+   * @param {unknown} value
+   * @returns {value is BrowserSupportViewAuditEvent}
+   */
+  function isAuditEvent(value) {
+    return isResponseRecord(value)
+      && AUDIT_EVENT_TEXT.every((member) => typeof value[member] === "string")
+      && typeof value.eventType === "string"
+      && SUPPORT_VIEW_EVENT_TYPES.includes(value.eventType)
+      && typeof value.outcome === "string"
+      && SUPPORT_VIEW_EVENT_OUTCOMES.includes(value.outcome)
+      && typeof value.sessionOutcome === "string"
+      && SUPPORT_VIEW_SESSION_OUTCOMES.includes(value.sessionOutcome);
+  }
+
+  /**
+   * The bounded pagination envelope: four integers, a flag, a cursor, and a count or `null`.
+   * @param {unknown} value
+   * @returns {value is BrowserBoundedPagination}
+   */
+  function isBoundedPagination(value) {
+    return isResponseRecord(value)
+      && BOUNDED_PAGINATION_NUMBERS.every((member) => isFiniteNumber(value[member]))
+      && typeof value.hasMore === "boolean"
+      && typeof value.nextCursor === "string"
+      && (value.total === null || isFiniteNumber(value.total));
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is BrowserSupportViewAuditFilterOption}
+   */
+  function isFilterOption(value) {
+    return isResponseRecord(value) && typeof value.value === "string" && typeof value.label === "string";
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is BrowserSupportViewAuditFilterValue}
+   */
+  function isFilterValue(value) {
+    return isResponseRecord(value) && typeof value.value === "string";
+  }
+
+  /**
+   * The five filter catalogues, each element vouched for by the vocabulary its query builds.
+   * @param {unknown} value
+   * @returns {value is BrowserSupportViewAuditFilterOptions}
+   */
+  function isAuditFilterOptions(value) {
+    return isResponseRecord(value)
+      && AUDIT_LABELLED_FILTERS.every((member) => {
+        const options = value[member];
+        return Array.isArray(options) && options.every(isFilterOption);
+      })
+      && AUDIT_VALUE_FILTERS.every((member) => {
+        const options = value[member];
+        return Array.isArray(options) && options.every(isFilterValue);
+      });
+  }
+
+  /**
+   * The audit envelope, read as a whole or not at all.
+   *
+   * **This is an audit surface, so an element the browser cannot vouch for does not make a
+   * shorter list - it makes an unreadable response.** Dropping one event would silently hide an
+   * audit record from the operator, which is the one thing this page must never do; the caller
+   * takes its ordinary load-error path instead, and the operator sees that something is wrong.
+   * @param {unknown} body
+   * @returns {BrowserSupportViewAuditEnvelope | null}
+   */
+  function readSupportViewAudit(body) {
+    if (!isResponseRecord(body)) {
+      return null;
+    }
+    const { events, exportLimit, filterOptions, pagination, retentionDays } = body;
+    if (!Array.isArray(events) || !events.every(isAuditEvent)
+      || !isFiniteNumber(exportLimit)
+      || !isAuditFilterOptions(filterOptions)
+      || !isBoundedPagination(pagination)
+      || !isFiniteNumber(retentionDays)) {
+      return null;
+    }
+    return { events, exportLimit, filterOptions, pagination, retentionDays };
+  }
+
   async function initialize() {
     await requireTimezones().loadSessionTimezone();
     await window.LongtailForge.workspaceContextReady;
@@ -119,16 +260,19 @@
   async function loadAudit() {
     setStatus("Loading Support View audit events...");
     try {
-      const result = await requireApi().getJson(
+      const audit = readSupportViewAudit(await requireApi().getJson(
         `/api/support-view/audit?${buildPageParams().toString()}`,
         { cache: "no-store" },
-      );
-      const events = Array.isArray(result.events) ? result.events : [];
-      totalEvents = Number.parseInt(result.pagination?.total, 10) || 0;
+      ));
+      if (!audit) {
+        throw new Error("The Support View audit response could not be read.");
+      }
+      const events = audit.events;
+      totalEvents = audit.pagination.total ?? 0;
       returnedEvents = events.length;
       currentPage = Math.min(Math.max(1, currentPage), totalPages());
-      populateFilters(result.filterOptions || {});
-      policyText.textContent = `Support View audit records are retained for ${result.retentionDays || 365} days. Each CSV export is limited to ${result.exportLimit || 1000} newest matching rows.`;
+      populateFilters(audit.filterOptions);
+      policyText.textContent = `Support View audit records are retained for ${audit.retentionDays} days. Each CSV export is limited to ${audit.exportLimit} newest matching rows.`;
       renderRows(events);
       updatePagination();
       updateStatus();
