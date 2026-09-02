@@ -389,6 +389,7 @@
         "tests/unit/sqlite-health-formatter.test.mjs",
         "tests/unit/static-regression-execution.test.mjs",
         "tests/unit/task-block-recovery-engine.test.mjs",
+        "tests/unit/task-list-contracts.test.mjs",
         "tests/unit/task-list-engine.test.mjs",
         "tests/unit/task-record-contracts.test.mjs",
         "tests/unit/test-support-harnesses.test.mjs",
@@ -487,7 +488,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8501,
+      "errorCount": 8466,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1762,7 +1763,7 @@
         "public/js/tasks.js": [
           {
             "code": 18046,
-            "count": 33
+            "count": 30
           },
           {
             "code": 18047,
@@ -1774,15 +1775,15 @@
           },
           {
             "code": 2322,
-            "count": 2
+            "count": 1
           },
           {
             "code": 2339,
-            "count": 156
+            "count": 131
           },
           {
             "code": 2345,
-            "count": 6
+            "count": 5
           },
           {
             "code": 2554,
@@ -1794,7 +1795,7 @@
           },
           {
             "code": 7005,
-            "count": 12
+            "count": 7
           },
           {
             "code": 7006,
@@ -2765,8 +2766,8 @@
     }
   },
   "totals": {
-    "files": 1068,
-    "errors": 8501,
+    "files": 1069,
+    "errors": 8466,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -6,6 +6,9 @@
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRecords} BrowserTaskRecords */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskListItem} BrowserTaskListItem */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskListOptions} BrowserTaskListOptions */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskListPagination} BrowserTaskListPagination */
 
   /**
    * The shared single-task narrowing surface.
@@ -160,10 +163,23 @@
 
   let activeTasksViewDescriptor = null;
   let state = {
+    /** @type {BrowserTaskListItem[]} */
     tasks: [],
+    /**
+     * The stand-in catalog the page holds until the first load answers.
+     *
+     * `priorities`, `statuses` and `tasks` are here because `readOptions` always sends all nine
+     * members and this slot now carries that contract - **not** because the page reads them. It
+     * reads `clients`, `projects` and `users` and nothing else, so the three additions are inert
+     * defaults rather than new behaviour.
+     * @type {BrowserTaskListOptions}
+     */
     options: {
       clients: [],
+      priorities: [],
       projects: [],
+      statuses: [],
+      tasks: [],
       users: [],
       workspaceType: "business",
       taskTimersEnabled: true,
@@ -813,21 +829,21 @@
       if (!hasLoadedTasks) {
         restoreFilterState();
       }
-      const result = await loadCanonicalTasks();
+      const list = requireTaskRecords().readTaskList(await loadCanonicalTasks());
       const timersResult = await loadTaskTimers();
       const [attachmentCounts, noteCounts] = await Promise.all([
-        loadAttachmentCounts(result.tasks || []),
-        loadNoteCounts(result.tasks || []),
+        loadAttachmentCounts(list.tasks),
+        loadNoteCounts(list.tasks),
       ]);
       state = {
         ...state,
-        tasks: result.tasks || [],
+        tasks: list.tasks,
         taskTimers: timersResult.timers || [],
-        currentUserId: result.currentUserId || state.currentUserId,
-        options: result.options || state.options,
+        currentUserId: list.currentUserId || state.currentUserId,
+        options: list.options || state.options,
         attachmentCounts,
         noteCounts,
-        pagination: normalizeTaskPagination(result.pagination),
+        pagination: normalizeTaskPagination(list.pagination),
         tagOptions,
       };
       populateFilters();
@@ -849,21 +865,21 @@
     setStatus("Updating task list...");
 
     try {
-      const result = await loadCanonicalTasks();
+      const list = requireTaskRecords().readTaskList(await loadCanonicalTasks());
       const timersResult = await loadTaskTimers();
       const [attachmentCounts, noteCounts] = await Promise.all([
-        loadAttachmentCounts(result.tasks || []),
-        loadNoteCounts(result.tasks || []),
+        loadAttachmentCounts(list.tasks),
+        loadNoteCounts(list.tasks),
       ]);
       state = {
         ...state,
-        tasks: result.tasks || [],
+        tasks: list.tasks,
         taskTimers: timersResult.timers || [],
-        currentUserId: result.currentUserId || state.currentUserId,
-        options: result.options || state.options,
+        currentUserId: list.currentUserId || state.currentUserId,
+        options: list.options || state.options,
         attachmentCounts,
         noteCounts,
-        pagination: normalizeTaskPagination(result.pagination),
+        pagination: normalizeTaskPagination(list.pagination),
       };
       populateFilters();
       configureTaskDialog();
@@ -884,9 +900,9 @@
     setStatus("Loading more tasks...");
 
     try {
-      const result = await loadCanonicalTasks(cursor);
+      const list = requireTaskRecords().readTaskList(await loadCanonicalTasks(cursor));
       const timersResult = await loadTaskTimers();
-      const tasks = mergeTasksById(state.tasks, result.tasks || []);
+      const tasks = mergeTasksById(state.tasks, list.tasks);
       const [attachmentCounts, noteCounts] = await Promise.all([
         loadAttachmentCounts(tasks),
         loadNoteCounts(tasks),
@@ -896,11 +912,11 @@
         ...state,
         tasks,
         taskTimers: timersResult.timers || [],
-        currentUserId: result.currentUserId || state.currentUserId,
-        options: result.options || state.options,
+        currentUserId: list.currentUserId || state.currentUserId,
+        options: list.options || state.options,
         attachmentCounts,
         noteCounts,
-        pagination: normalizeTaskPagination(result.pagination),
+        pagination: normalizeTaskPagination(list.pagination),
       };
       populateFilters();
       configureTaskDialog();
@@ -923,7 +939,14 @@
     return [...taskById.values()];
   }
 
-  function normalizeTaskPagination(pagination = {}) {
+  /**
+   * Reduce the server cursor to the three members the list controls need.
+   *
+   * The parameter is the contract `readTaskList` answers, including its `null`: the reader cannot
+   * vouch for a malformed cursor and this function has always had a total default for that case.
+   * @param {BrowserTaskListPagination | null} [pagination]
+   */
+  function normalizeTaskPagination(pagination = null) {
     return {
       hasMore: Boolean(pagination?.hasMore && pagination?.nextCursor),
       nextCursor: pagination?.nextCursor || "",
@@ -2500,7 +2523,7 @@
 
       for (const payload of actions) {
         const result = await api.postJson("/api/tasks/bulk", payload);
-        results.push(...(result.tasks || []));
+        results.push(...requireTaskRecords().readBulkTasks(result));
         errors.push(...requireErrors().readBulkFailures(result));
         recurrenceContinuities.push(...(result.recurrenceContinuities || []));
       }

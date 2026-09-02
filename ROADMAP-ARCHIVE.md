@@ -1,5 +1,57 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.3.2 - The task collection and list envelope
+
+**Model: High Effort** - the child whose plan said the work was already done, and whose first act was to check.
+
+- [x] **The list element is not `BrowserTaskDetail`, and the projection is the whole reason.** `attachTaskListProjectionDetails` adds **five** members where `attachTaskDetails` adds ten. It never loads `checklistItems`, `recurrenceContinuity`, `recurrenceDetails`, `recurrenceRecovery` or `reminderDetails` - avoiding exactly those is what makes it the optimised list projection - and it carries **`parentTask`**, which no detail route sends. Five shared, five detail-only, five list-only: **two records, both extending `BrowserTaskRecord`, neither extending the other.** Reusing the detail contract would have required six members the list deliberately does not fetch, and the honest way to satisfy it would have been an N+1 per row.
+- [x] **The five tag members are optional because the producer genuinely omits them.** `tagsService.decorateRecordsForTarget` returns its records *untouched* when the tags module is not readable, so a workspace with tags disabled receives list items carrying none of `tags`, `tagAssignments`, `directTags`, `propagatedTags` or `effectiveTags`. **Requiring them would have emptied the task list for those workspaces.** This is optionality a runtime condition creates, not optionality that lets one interface cover two records.
+- [x] **Three loaders, one envelope, because they share one helper.** The first load, the refresh and the cursor page all call `loadCanonicalTasks` and the same route; only the query string differs. Three call sites did not need three contracts, and the check was the helper rather than the count.
+- [x] **The bulk collection is the *other* record.** `POST /api/tasks/bulk` collects `readTaggedTaskWithDetails` output and each lifecycle service's own `task`, so `bulkUpdate` answers **detail** records - which is also why they flow into `upsertTask` beside the single-task responses. One member name, two element types, and the producers decide.
+- [x] **`pagination` came from its producer, not from the page controls.** `queryTasksResult` builds `hasMore`, `limit`, `nextCursor` and `pageSize` - `limit` and `pageSize` are two names for one number, so both are declared rather than one being called optional, and `nextCursor` is the empty string rather than `null` when there is nothing further.
+- [x] **`options` is nine members from six producers, and only five are this one's.** `workspaceType`, `priorities`, `statuses`, `taskTimersEnabled` and `timeTrackingEnabled` are constructed here and validated. `clients` and `projects` come from payload builders that **spread** their rows, so naming their shapes would claim `0.33.33.38.4.6`'s contribution; `tasks` is a picker projection; `users` is provably `BrowserUserRecord[]` - `readAll` answers `rows.map(userRowToAppValue)` - and is left `unknown[]` only because validating it would mean a second copy of that fifteen-member table. **A child that shares the predicate should adopt the record and say so.**
+- [x] **`timers` is not in this envelope.** `queryTasksResult` carries it and `list` rebuilds the response without it, so the task timers reach the page from their own route and stay `0.33.33.38.4.3.3`'s. A break that makes the route start sending them fails.
+- [x] **The 34-member task validator was reused, not rewritten.** `isTaskRecord` from `0.33.33.38.4.3.1` checks the base of every list item, and the new readers live beside it on the same shared surface. This child added a projection check, an envelope, a cursor and a catalog - not a second field table.
+- [x] **Server-side paging, projection and permission pruning were not touched.** `tasks-server-side-list-paging`, `task-canonical-query` and the Tasks permission owners all pass unchanged, and no source assertion needed retargeting: none of them pinned the reads this child replaced.
+
+**One e2e fixture was wrong and this child is what noticed.** `settings-admin-navigation` intercepts `/api/tasks` and substituted an **eight-member** task literal - carrying `assignee_ids`, a write-side input the shaper never returns, and omitting the thirty text members, the assignees, the three typed scalars and the five projection members. The browser correctly dropped it, and the fixture now states the shape the producer actually sends, generated from `taskRowToAppValue`'s own member list. **A mock that claims a shape the producer cannot produce is a second, wrong contract**, and it had been asserting one since it was written.
+
+**Three direct state handoffs were adopted, and the measurement is why.** Narrowing alone closed all 17 and left **eight** new `0.33.33.41` diagnostics on three accidental initializer types: `tasks: []` inferred `never[]`, the stand-in `options` literal inferred its own six-member shape, and `normalizeTaskPagination(pagination = {})` inferred `{}`. Each stores or transports exactly what this child narrowed, each blocked the truthful contract, and the correct type is now mechanically known - so each was typed. The stand-in catalog gained `priorities`, `statuses` and `tasks` to match the contract; **the page reads none of the three**, so the additions are inert defaults rather than new behaviour, and a break proves the default must keep carrying them.
+
+Proved by breaking each one, restored in a `finally`:
+
+| Break | Failure |
+| --- | --- |
+| The list projection starts loading a detail-only member | it builds four members in its first literal |
+| The list contract acquires one the projection never loads | that is exactly what the projection avoids |
+| The list contract loses the list-only member | `parentTask` is what makes this record its own |
+| The browser stops checking a projection member | the runtime table is pinned to the producer |
+| The tag members become required at runtime | a workspace with tags disabled must still see its tasks |
+| A tag member is declared required | the runtime condition is why it is optional |
+| The route starts sending the timers it drops | the envelope is four members |
+| The list read trusts its task container | an array of tasks does not make its entries tasks |
+| The current user is invented rather than read | it is `session.user_id` and always text |
+| The cursor accepts text for a computed number | the producer computed it |
+| The cursor contract loses a member | the producer builds four |
+| The catalog names another producer's element shape | that shape is not this boundary's to name |
+| The catalog stops checking a flag the service builds | the browser checks all nine |
+| The page default stops carrying the contract | the stand-in must hold what the slot declares |
+| The bulk reader checks the list item | bulk sends detail records |
+| A loader reads the raw body again | all three narrow at the same helper |
+| The tag decorator stops skipping an unreadable module | that skip is what makes the members optional |
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,501 | **8,466** |
+| Genuine `unknown` | 141 | **138** |
+| params / state / dom / namespace / assorted | 4,617 / 1,782 / 1,484 / 319 / 158 | **4,612 / 1,757 / 1,484 / 319 / 156** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,217 / 531 / 976 / 1,572 | **1,770 / 491 / 1,185 / 531 / 976 / 1,572** |
+| Unit tests / regressions / end-to-end | 424 / 348 / 167 | **441 / 348 / 167**, green |
+
+**35 eliminations and one honest transfer.** All 17 owned diagnostics closed, and the three handoffs then closed **32 more** in `0.33.33.41` - 25 state, 5 params, 2 assorted - which is debt this child settled rather than debt it moved. Against that, **14 genuine unknowns became newly visible**: reads of `clients`, `projects` and `users` elements that the accidental `never[]` had been hiding. They belong to the option payload builders and to a shared user predicate, they are recorded here rather than absorbed, and they are why the `unknown` family fell by 3 while the estate fell by 35. `4,612 + 1,757 + 156 = 6,525` reconciles either side.
+
 ## Version 0.33.33.38.4.3.1 - The base and detailed single-task records
 
 **Model: High Effort** - the child that found two final task shapes where the plan had one, and put the field table where three consumers could not disagree about it.

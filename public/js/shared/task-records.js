@@ -29,6 +29,10 @@
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskAssignee} BrowserTaskAssignee */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskRecord} BrowserTaskRecord */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskDetail} BrowserTaskDetail */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskListItem} BrowserTaskListItem */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskListPagination} BrowserTaskListPagination */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskListOptions} BrowserTaskListOptions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskListEnvelope} BrowserTaskListEnvelope */
 
   const namespace = global.LongtailForge || {};
 
@@ -88,6 +92,42 @@
 
   /** The four members `assigneeRowToAppValue` builds. */
   const ASSIGNEE_MEMBERS = Object.freeze(["displayName", "task_assignee_id", "user_id", "username"]);
+
+  /** The five members `attachTaskListProjectionDetails` adds to every list item. */
+  const TASK_LIST_MEMBERS = Object.freeze([
+    "checklistProgress",
+    "completionMetrics",
+    "parentTask",
+    "relationshipSummary",
+    "resumeContext",
+  ]);
+
+  /**
+   * The five members the tag decorator adds - **when it runs at all**.
+   *
+   * `decorateRecordsForTarget` returns its records untouched when the tags module is not readable
+   * for the session, so a workspace with tags disabled sends list items without any of these.
+   * They are checked when present and never required.
+   */
+  const TASK_LIST_TAG_MEMBERS = Object.freeze([
+    "directTags",
+    "effectiveTags",
+    "propagatedTags",
+    "tagAssignments",
+    "tags",
+  ]);
+
+  /** The four members `queryTasksResult` builds for the paging cursor. */
+  const TASK_PAGINATION_NUMBERS = Object.freeze(["limit", "pageSize"]);
+
+  /** The four option collections `readOptions` gets from four other producers. */
+  const TASK_OPTION_COLLECTIONS = Object.freeze(["clients", "projects", "tasks", "users"]);
+
+  /** The two option collections `readOptions` spreads from server constants. */
+  const TASK_OPTION_TEXT_LISTS = Object.freeze(["priorities", "statuses"]);
+
+  /** The two option flags `readOptions` constructs itself. */
+  const TASK_OPTION_FLAGS = Object.freeze(["taskTimersEnabled", "timeTrackingEnabled"]);
 
   /**
    * A response body that is a plain object.
@@ -150,6 +190,91 @@
   }
 
   /**
+   * A task as `GET /api/tasks` sends it.
+   *
+   * **The base record is checked by `isTaskRecord` rather than restated here.** This adds only
+   * what the list projection adds, which is five members - not the ten `attachTaskDetails` builds,
+   * and including `parentTask`, which no detail route sends.
+   * @param {unknown} value
+   * @returns {value is BrowserTaskListItem}
+   */
+  function isTaskListItem(value) {
+    // Read the added members while `value` is still the open record `isResponseRecord` proved; the
+    // base check runs last, as in `isTaskDetail`.
+    return isResponseRecord(value)
+      && TASK_LIST_MEMBERS.every((member) => member in value)
+      && TASK_LIST_TAG_MEMBERS.every((member) => !(member in value) || Array.isArray(value[member]))
+      && isTaskRecord(value);
+  }
+
+  /**
+   * The paging cursor `queryTasksResult` builds.
+   * @param {unknown} value
+   * @returns {value is BrowserTaskListPagination}
+   */
+  function isTaskListPagination(value) {
+    return isResponseRecord(value)
+      && typeof value.hasMore === "boolean"
+      && typeof value.nextCursor === "string"
+      && TASK_PAGINATION_NUMBERS.every((member) => typeof value[member] === "number");
+  }
+
+  /**
+   * The option catalog `readOptions` builds.
+   *
+   * The four collections come from four other producers and are checked as containers only, which
+   * is the whole of what this boundary can honestly say about them.
+   * @param {unknown} value
+   * @returns {value is BrowserTaskListOptions}
+   */
+  function isTaskListOptions(value) {
+    return isResponseRecord(value)
+      && typeof value.workspaceType === "string"
+      && TASK_OPTION_FLAGS.every((member) => typeof value[member] === "boolean")
+      && TASK_OPTION_COLLECTIONS.every((member) => Array.isArray(value[member]))
+      && TASK_OPTION_TEXT_LISTS.every((member) => Array.isArray(value[member])
+        && value[member].every((entry) => typeof entry === "string"));
+  }
+
+  /**
+   * The task list envelope, with every element checked.
+   *
+   * **A malformed task is dropped rather than emptying the list**, which is the answer this estate
+   * has given since `0.33.33.38.4.2` and the closest thing to what `result.tasks || []` did.
+   * `options` and `pagination` answer `null` when they cannot be vouched for, which is exactly the
+   * absence both consumers already handled - one falls back to the state it holds, the other runs
+   * a total normaliser with its own defaults.
+   * @param {unknown} body
+   * @returns {BrowserTaskListEnvelope}
+   */
+  function readTaskList(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    const options = envelope ? envelope.options : null;
+    const pagination = envelope ? envelope.pagination : null;
+    const currentUserId = envelope ? envelope.currentUserId : null;
+    return {
+      currentUserId: typeof currentUserId === "string" ? currentUserId : "",
+      options: isTaskListOptions(options) ? options : null,
+      pagination: isTaskListPagination(pagination) ? pagination : null,
+      tasks: envelope && Array.isArray(envelope.tasks) ? envelope.tasks.filter(isTaskListItem) : [],
+    };
+  }
+
+  /**
+   * The detailed tasks a bulk action changed.
+   *
+   * `bulkUpdate` collects `readTaggedTaskWithDetails` output and the lifecycle services' own
+   * `task`, so these are **detail** records rather than list items - which is why they flow into
+   * `upsertTask` beside the single-task responses and why `isTaskDetail` is the right check.
+   * @param {unknown} body
+   * @returns {BrowserTaskDetail[]}
+   */
+  function readBulkTasks(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    return envelope && Array.isArray(envelope.tasks) ? envelope.tasks.filter(isTaskDetail) : [];
+  }
+
+  /**
    * The base task a timer route sent, or `null`.
    * @param {unknown} body
    * @returns {BrowserTaskRecord | null}
@@ -183,9 +308,11 @@
   }
 
   namespace.taskRecords = Object.freeze({
+    readBulkTasks,
     readSkipToCurrentTarget,
     readTask,
     readTaskDetail,
+    readTaskList,
   });
 
   global.LongtailForge = namespace;

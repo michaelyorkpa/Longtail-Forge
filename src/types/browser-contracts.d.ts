@@ -2794,6 +2794,129 @@ export interface BrowserTaskSkipToCurrentResult {
  * It answers `null` for anything it cannot vouch for. None of these readers throws: every call
  * site already had a fallback for a missing task, and this preserves it.
  */
+/**
+ * One task as `GET /api/tasks` sends it.
+ *
+ * **This is not `BrowserTaskDetail`, and the projection is why.**
+ * `attachTaskListProjectionDetails` adds five members - `checklistProgress`, `completionMetrics`,
+ * `parentTask`, `relationshipSummary` and `resumeContext` - where `attachTaskDetails` adds ten.
+ * The list deliberately never loads `checklistItems`, `recurrenceContinuity`, `recurrenceDetails`,
+ * `recurrenceRecovery` or `reminderDetails`, because it is the optimised projection that keeps the
+ * list off a per-row detail query. It also carries `parentTask`, which **no detail route sends**.
+ * Five shared members, five detail-only, five list-only: neither record extends the other and both
+ * extend `BrowserTaskRecord`.
+ *
+ * **The five tag members are optional because the producer genuinely omits them.**
+ * `tagsService.decorateRecordsForTarget` returns its records *untouched* when the tags module is
+ * not readable for the session, so a workspace with tags disabled receives list items with no
+ * `tags`, `tagAssignments`, `directTags`, `propagatedTags` or `effectiveTags` at all. Requiring
+ * them would have emptied the task list for those workspaces. This is optionality a runtime
+ * condition creates, not optionality that makes one interface cover two records.
+ *
+ * `parentTask` is `null` when the task has no readable primary parent - `readPrimaryParentByTaskId`
+ * applies the caller's own `tasks.view` evaluator, so an unreadable parent is absent by design and
+ * the browser must not try to fill it in.
+ *
+ * The five projection members stay `unknown`: they are five other producers, the same answer
+ * `BrowserTaskDetail` gives for the members it shares with this record.
+ */
+export interface BrowserTaskListItem extends BrowserTaskRecord {
+  checklistProgress: unknown;
+  completionMetrics: unknown;
+  /** Absent unless the tags module is readable for the session. */
+  directTags?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  effectiveTags?: unknown[];
+  /** `null` when the task has no parent the caller may read. */
+  parentTask: unknown;
+  /** Absent unless the tags module is readable for the session. */
+  propagatedTags?: unknown[];
+  relationshipSummary: unknown;
+  resumeContext: unknown;
+  /** Absent unless the tags module is readable for the session. */
+  tagAssignments?: unknown[];
+  /** Absent unless the tags module is readable for the session. */
+  tags?: unknown[];
+}
+
+/**
+ * The paging cursor `GET /api/tasks` sends beside its tasks.
+ *
+ * **Four members, all constructed, none inferred from the page controls.** `queryTasksResult`
+ * builds `hasMore` from whether it minted a next cursor, and `limit` and `pageSize` from the same
+ * resolved page size - two names for one number, which is why both are declared rather than one
+ * being called optional. `nextCursor` is the empty string when there is nothing further, not
+ * `null` and not absent.
+ *
+ * The browser's own `normalizeTaskPagination` reduces this to the three members the list controls
+ * need; this contract describes what arrives, not what survives that reduction.
+ */
+export interface BrowserTaskListPagination {
+  hasMore: boolean;
+  limit: number;
+  nextCursor: string;
+  pageSize: number;
+}
+
+/**
+ * The option catalog `GET /api/tasks` sends beside its tasks.
+ *
+ * **Nine members from six producers, and only five of them are this producer's own.**
+ * `readOptions` constructs `workspaceType`, `priorities`, `statuses`, `taskTimersEnabled` and
+ * `timeTrackingEnabled` itself, and those are validated. `clients`, `projects`, `tasks` and
+ * `users` are built by `readClientOptionPayload`, `readProjectOptionPayload`,
+ * `readTaskOptionPayload` and `usersRepository.readAll`, so they stay `unknown[]` for the same
+ * reason `BrowserTaskDetail` leaves ten members `unknown`.
+ *
+ * **`users` is provably `BrowserUserRecord[]`** - `readAll` answers `rows.map(userRowToAppValue)`,
+ * the same shaper `0.33.33.38.4.4.1` derived that record from, filtered to active memberships.
+ * It is left `unknown[]` here only because validating it would mean a second copy of that
+ * fifteen-member table; a child that shares the predicate should adopt the record and say so.
+ *
+ * `priorities` and `statuses` are spread from server constants and are arrays of text. The browser
+ * validates that they are text and not which words they hold, as this estate has done since
+ * `userPreferences`.
+ */
+export interface BrowserTaskListOptions {
+  clients: unknown[];
+  priorities: string[];
+  projects: unknown[];
+  statuses: string[];
+  taskTimersEnabled: boolean;
+  tasks: unknown[];
+  timeTrackingEnabled: boolean;
+  users: unknown[];
+  workspaceType: string;
+}
+
+/**
+ * What `GET /api/tasks` resolves to.
+ *
+ * **One envelope for all three loaders**, because all three call the same `loadCanonicalTasks`
+ * helper and the same route: the first load, the refresh, and the cursor page. Only the query
+ * string differs.
+ *
+ * `currentUserId` is `session.user_id` and is always text - the consumer's
+ * `result.currentUserId || state.currentUserId` was reading a malformed body, not a producer
+ * union.
+ *
+ * **`options` and `pagination` are nullable here even though this route always sends them.**
+ * `list` throws its own invariant when pagination is missing and always asks for options, so the
+ * route cannot answer `null`; but `queryTasksResult` builds both conditionally for its other
+ * callers, and the browser cannot prove which caller answered. `null` is what the reader gives
+ * when it cannot vouch for the member, which keeps both existing consumer fallbacks intact.
+ *
+ * `timers` is **not** part of this envelope: `queryTasksResult` carries it, and `list` rebuilds
+ * the response without it. The task timers belong to `0.33.33.38.4.3.3` and reach the page from
+ * their own route.
+ */
+export interface BrowserTaskListEnvelope {
+  currentUserId: string;
+  options: BrowserTaskListOptions | null;
+  pagination: BrowserTaskListPagination | null;
+  tasks: BrowserTaskListItem[];
+}
+
 export interface BrowserTaskRecords {
   /** The base record a timer route sends, or `null`. */
   readTask(body: unknown): BrowserTaskRecord | null;
@@ -2801,6 +2924,16 @@ export interface BrowserTaskRecords {
   readTaskDetail(body: unknown): BrowserTaskDetail | null;
   /** The detailed record the skip-to-current route retained, or `null`. */
   readSkipToCurrentTarget(body: unknown): BrowserTaskDetail | null;
+  /** The task list envelope, with every element checked. */
+  readTaskList(body: unknown): BrowserTaskListEnvelope;
+  /**
+   * The detailed tasks a bulk action changed.
+   *
+   * `bulkUpdate` collects `readTaggedTaskWithDetails` output and the lifecycle services' own
+   * `task`, so these are detail records rather than list items - which is also why they flow into
+   * `upsertTask` beside the single-task responses.
+   */
+  readBulkTasks(body: unknown): BrowserTaskDetail[];
 }
 
 /**
