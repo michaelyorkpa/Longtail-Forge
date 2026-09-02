@@ -1,5 +1,59 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.3.1 - The base and detailed single-task records
+
+**Model: High Effort** - the child that found two final task shapes where the plan had one, and put the field table where three consumers could not disagree about it.
+
+- [x] **The family was 64 diagnostics and seven producers, not the 34 one boundary this line recorded.** The single-task records were 24 of them - eleven endpoints across all three consumers - and the other six groups are drawn as `.B` through `.G` by what builds them.
+- [x] **Two final task shapes, and the routes are not what divides them.** The three task-timer routes answer `task: updatedTask || task` where `updatedTask` is `tasksRepository.readById`: the base record and nothing else. Create, read, update, complete, reopen, archive, restore and skip-to-current all reach `attachTaskDetails`, directly or through `readTaggedTaskWithDetails`. **One contract for all eleven would have promised the timer routes ten members they never send.**
+- [x] **`taskRowToAppValue` is a total reconstruction, which is why the base contract can be exact.** Thirty-three members named individually with no spread anywhere, and every column the select carries is emitted - so the exclusion worth proving is not a withheld column but `assignee_ids`, a **write-side input** the service passes into the repository and the shaper never returns.
+- [x] **One closed union, three open ones, and the producer decides which.** `billable` is `"no" | "yes"` because the ternary that builds it cannot answer anything else. `status`, `priority` and `source_type` each get a default through a falsy fallback and stay `string`, because a default is not a closed set and the browser validates no vocabulary for them. `reminder_override_enabled` is a real boolean converted from an integer flag, and the narrowing rejects the stored integer.
+- [x] **`estimate_minutes` is the only nullable member in thirty-four.** Twenty-seven text members carry a total fallback and three are passed through from `NOT NULL` columns, so none of the thirty is ever `null` - which is a stronger statement than "string" and one a break proves.
+- [x] **A task assignee is a four-member summary and not `BrowserUserRecord`.** `assigneeRowToAppValue` builds the assignment identity, the user identifier, the username and a display name; the user record is fifteen constructed members including theme and landing preferences. Reusing it would have claimed eleven the assignee query never joins.
+- [x] **`targetTask` is the same record `task` is, because `skipToCurrent` builds it with the same shaper.** Producer identity decided the reuse; the different member name did not make it a different type. It is genuinely `null` when the skip retained no target.
+- [x] **The ten detail members are ten other producers and none of their shapes is named.** They are checked for presence and left `unknown`, the answer `0.33.33.38.4.7.1` gave for the same situation. **All ten are present on every path**: `recurrenceRecovery` is `null` rather than absent when the shaper runs without a session, and `tags` is an empty array rather than absent when the tag service did not decorate the row first. Content differs by path; the shape does not.
+- [x] **One field table, three consumers, in a shared surface rather than three copies.** `shared/task-records.js` publishes `LongtailForge.taskRecords` and is installed by the framework script block that already delivers `errors` and `taskLifecycleLegality`. A thirty-three member predicate written three times would have been three chances to drift from the shaper.
+- [x] **No task permission, workspace scope or visibility rule changed.** The contracts begin after each route's authorization; `attachTaskDetails` performs its own recurrence-recovery gating on the session it is given and that is untouched.
+
+**One behaviour genuinely changed and it is the fail-closed direction.** An absent task threw inside the surrounding `try` before and still does, so nothing moved there. A *malformed but truthy* task used to be spliced into `state.tasks` and rendered; it now reads as `null` and reaches the same catch, which surfaces the problem instead of drawing a garbage row.
+
+**No state was typed, and none needed to be.** The narrowed records flowed into `currentTask`, `upsertTask`, `applyActiveTaskFocusTask` and the Task Focus slot without a single new diagnostic in `0.33.33.41` or `0.33.33.42`. The state-adoption conditions were never reached because nothing blocked the contract.
+
+Proved by breaking each one, restored in a `finally`:
+
+| Break | Failure |
+| --- | --- |
+| The shaper stops reconstructing a member | it builds thirty-three |
+| The shaper emits the write-side input | `assignee_ids` is an input, never an output |
+| The contract loses a member the shaper builds | the same agreement, from the other side |
+| The browser stops checking one the shaper builds | the runtime table has its own authority |
+| The closed union is declared open | the ternary is what closes it |
+| An open vocabulary is declared closed | the browser validates no vocabulary for it |
+| The stored integer is accepted for the boolean | the shaper converts it, so the integer is wrong |
+| The one nullable member becomes merely present | `null` and a number are the only two answers |
+| The assignee predicate drops the assignment identity | an array of assignees is not assignees |
+| The record trusts its assignee container | the same, from the container side |
+| The detail contract loses one of the ten additions | it is exactly what the two shapers add |
+| The runtime stops requiring a detail member | the runtime tables are pinned to the contract |
+| A timer route stops writing its own fallback | that fallback is why the member is nullable |
+| Skip-to-current stops using the shared shaper | producer identity is what justified the reuse |
+| The shared surface is not installed on every page | the framework block must inject it |
+| A consumer reads the raw body again | the call must narrow before the read |
+
+**One of those breaks was written twice.** Deleting a member from a runtime table first came back **green**, because the assertion that would have caught it iterated the same table - the self-confirming fixture this estate has refused since `0.33.33.38.4.10`. The runtime tables are now pinned to the contract, and the break fails.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,525 | **8,501** |
+| Genuine `unknown` | 165 | **141** |
+| params / state / dom / namespace / assorted | 4,617 / 1,782 / 1,484 / 319 / 158 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,217 / 531 / 976 / 1,572 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 409 / 348 / 167 | **424 / 348 / 167**, green |
+
+**24 eliminations, no transfers, no fallout.** `0.33.33.41` and `0.33.33.42` did not move despite eleven endpoints feeding their state. Four static-contract owners and one resume-context owner pinned the old raw reads in source text and were updated to the narrowed form; the governance surface counters were ratcheted for the new publication. `4,617 + 1,782 + 158 = 6,557` reconciles either side.
+
 ## Version 0.33.33.38.4.4.2 - The two lookup responses
 
 **Model: Medium Effort** - the child that was asked whether two routes shared a record, and answered from their queries rather than their field names.
