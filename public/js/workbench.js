@@ -52,6 +52,24 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRecords} BrowserTaskRecords */
+
+  /**
+   * The shared single-task narrowing surface.
+   *
+   * `shared/task-records.js` is installed by the framework script block on every page, so this
+   * read fails exactly where the raw `result.task` read failed before.
+   * @returns {BrowserTaskRecords}
+   */
+  function requireTaskRecords() {
+    const taskRecords = window.LongtailForge?.taskRecords;
+    if (!taskRecords) {
+      throw new Error("LongtailForge.taskRecords is unavailable.");
+    }
+
+    return taskRecords;
+  }
+
   /**
    * The narrowing contract for the values this file catches.
    *
@@ -2600,7 +2618,7 @@
       if (state.activeTaskFocus?.taskId !== taskId) {
         return;
       }
-      const task = await consumeTaskFocusResumeNote(result.task || null, taskId);
+      const task = await consumeTaskFocusResumeNote(requireTaskRecords().readTaskDetail(result), taskId);
       if (state.activeTaskFocus?.taskId !== taskId) {
         return;
       }
@@ -2813,7 +2831,7 @@
       renderWorkbench();
       const completionDetail = {
         ...result,
-        recordId: result.task?.task_id || taskId,
+        recordId: requireTaskRecords().readTaskDetail(result)?.task_id || taskId,
       };
       setTaskCompletionStatus(completionDetail);
       if (completionDetail.recurrenceContinuity) {
@@ -2861,7 +2879,7 @@
       if (state.activeTaskFocus?.taskId !== taskId) {
         return;
       }
-      applyActiveTaskFocusTask(result.task || {
+      applyActiveTaskFocusTask(requireTaskRecords().readTaskDetail(result) || {
         ...state.activeTaskFocus.task,
         blocked_reason: "",
         status: "in_progress",
@@ -3567,7 +3585,7 @@
       });
       await refreshWorkbenchAfterTaskFocusTimerMutation(result, taskId);
       if (timerStatus === "paused") {
-        offerTaskResumeNote(result.task || state.activeTaskFocus?.task);
+        offerTaskResumeNote(requireTaskRecords().readTask(result) || state.activeTaskFocus?.task);
       }
       setStatus(timerStatus === "running" ? "Task timer started." : "Task timer paused.");
     } catch (error) {
@@ -3592,7 +3610,7 @@
         end_time: new Date().toISOString(),
       });
       await refreshWorkbenchAfterTaskFocusTimerMutation(result, taskId);
-      offerTaskResumeNote(result.task || state.activeTaskFocus?.task, event?.currentTarget || null);
+      offerTaskResumeNote(requireTaskRecords().readTask(result) || state.activeTaskFocus?.task, event?.currentTarget || null);
       setStatus("Task time saved.");
     } catch (error) {
       setStatus(requireErrors().caughtMessage(error, "Task time could not be saved."), { isError: true });
@@ -3751,7 +3769,7 @@
         end_time: new Date().toISOString(),
       });
       await loadWorkbench();
-      offerTaskResumeNote(result.task);
+      offerTaskResumeNote(requireTaskRecords().readTask(result));
       setStatus("Task time saved.");
     } catch (error) {
       setStatus(requireErrors().caughtMessage(error, "Task time could not be saved."), { isError: true });

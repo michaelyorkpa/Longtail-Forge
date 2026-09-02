@@ -390,6 +390,7 @@
         "tests/unit/static-regression-execution.test.mjs",
         "tests/unit/task-block-recovery-engine.test.mjs",
         "tests/unit/task-list-engine.test.mjs",
+        "tests/unit/task-record-contracts.test.mjs",
         "tests/unit/test-support-harnesses.test.mjs",
         "tests/unit/user-record-contract.test.mjs",
         "tests/unit/work-candidate-query-edge.test.mjs",
@@ -456,6 +457,7 @@
         "public/js/shared/tags.js",
         "public/js/shared/task-calendar.js",
         "public/js/shared/task-lifecycle-legality.js",
+        "public/js/shared/task-records.js",
         "public/js/shared/timezones.js",
         "public/js/shared/view-action-security.js",
         "public/js/shared/view-builder.js",
@@ -485,7 +487,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8525,
+      "errorCount": 8501,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1686,7 +1688,7 @@
         "public/js/task-dialog.js": [
           {
             "code": 18046,
-            "count": 14
+            "count": 3
           },
           {
             "code": 18047,
@@ -1760,7 +1762,7 @@
         "public/js/tasks.js": [
           {
             "code": 18046,
-            "count": 40
+            "count": 33
           },
           {
             "code": 18047,
@@ -2050,7 +2052,7 @@
         "public/js/workbench.js": [
           {
             "code": 18046,
-            "count": 12
+            "count": 6
           },
           {
             "code": 18047,
@@ -2763,8 +2765,8 @@
     }
   },
   "totals": {
-    "files": 1066,
-    "errors": 8525,
+    "files": 1068,
+    "errors": 8501,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

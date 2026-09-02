@@ -40,7 +40,7 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "refreshActiveTaskFocus"),
-  /api\.getJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}`,[\s\S]*cache: "no-store"[\s\S]*consumeTaskFocusResumeNote\(result\.task \|\| null, taskId\)[\s\S]*applyActiveTaskFocusTask\(task\)/,
+  /api\.getJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}`,[\s\S]*cache: "no-store"[\s\S]*consumeTaskFocusResumeNote\(requireTaskRecords\(\)\.readTaskDetail\(result\), taskId\)[\s\S]*applyActiveTaskFocusTask\(task\)/,
   "Task Focus should load focused task details through the existing Tasks read route, consume any resume note, and apply the resulting task",
 );
 
@@ -66,7 +66,7 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "completeFocusedTask"),
-  /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`, \{\}\)[\s\S]*resetTaskFocusState\(\);[\s\S]*await refreshFocusCandidates\(\);[\s\S]*renderWorkbench\(\);[\s\S]*const completionDetail = \{[\s\S]*\.\.\.result,[\s\S]*recordId: result\.task\?\.task_id \|\| taskId[\s\S]*setTaskCompletionStatus\(completionDetail\)[\s\S]*focusActiveFocusQuestion\(\)/,
+  /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`, \{\}\)[\s\S]*resetTaskFocusState\(\);[\s\S]*await refreshFocusCandidates\(\);[\s\S]*renderWorkbench\(\);[\s\S]*const completionDetail = \{[\s\S]*\.\.\.result,[\s\S]*recordId: requireTaskRecords\(\)\.readTaskDetail\(result\)\?\.task_id \|\| taskId[\s\S]*setTaskCompletionStatus\(completionDetail\)[\s\S]*focusActiveFocusQuestion\(\)/,
   "Task Focus Complete should call the existing route, return directly to Focus Selection, and retain completion continuity",
 );
 assert.doesNotMatch(

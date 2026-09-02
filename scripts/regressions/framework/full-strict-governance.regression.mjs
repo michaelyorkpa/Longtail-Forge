@@ -4206,8 +4206,8 @@ assert.deepEqual(
 const singleWriterSurfaces = declarationCoverage.uniqueSurfaces - declarationCoverage.multiWriterSurfaces.length;
 assert.equal(
   singleWriterSurfaces,
-  63,
-  "63 of the 65 unique publication surfaces must have exactly one canonical writer",
+  64,
+  "64 of the 66 unique publication surfaces must have exactly one canonical writer",
 );
 
 // D - NO UNRESOLVABLE ROOTED WRITE.
@@ -4274,11 +4274,11 @@ assert.doesNotMatch(
 
 // TERMINOLOGY - the three numbers are different numbers, asserted apart so no future summary
 // can print one as another.
-assert.equal(declarationCoverage.uniqueSurfaces, 65, "unique publication surfaces");
-assert.equal(declarationCoverage.publicationOccurrences, 68, "publication occurrences, which exceed unique surfaces");
-assert.equal(declarationCoverage.knownMembers.length, 63, "known LongtailForge members, which are not all governed surfaces");
-assert.equal(declarationCoverage.declaredMembers.length, 42, "declared LongtailForge members");
-assert.equal(declarationCoverage.publishedMembers.length, 63, "LongtailForge members with a runtime writer");
+assert.equal(declarationCoverage.uniqueSurfaces, 66, "unique publication surfaces");
+assert.equal(declarationCoverage.publicationOccurrences, 69, "publication occurrences, which exceed unique surfaces");
+assert.equal(declarationCoverage.knownMembers.length, 64, "known LongtailForge members, which are not all governed surfaces");
+assert.equal(declarationCoverage.declaredMembers.length, 43, "declared LongtailForge members");
+assert.equal(declarationCoverage.publishedMembers.length, 64, "LongtailForge members with a runtime writer");
 assert.ok(
   declarationCoverage.publicationOccurrences > declarationCoverage.uniqueSurfaces,
   "publication occurrences must exceed unique surfaces while any surface has co-writers",

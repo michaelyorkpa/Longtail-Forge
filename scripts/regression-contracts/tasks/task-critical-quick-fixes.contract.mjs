@@ -62,7 +62,7 @@ assert.match(extractFunctionSpan(tasks, "createTaskRow"), /is-task-child[\s\S]*-
 assert.match(extractFunctionSpan(tasks, "appendParentTaskChip"), /button\.textContent = `Child of: \$\{truncateTaskName\(parentTitle\)\}`[\s\S]*openTaskDialogById\(parentTaskId, button\)/, "the truncated Child of chip should open the canonical parent editor");
 
 assert.match(extractFunctionSpan(taskDialog, "saveTask"), /saveTaskForm\(\{ closeOnSuccess: false \}\)/, "primary Save should persist without closing Add or Edit dialogs");
-assert.match(extractFunctionSpan(taskDialog, "saveTaskForm"), /!wasEditing[\s\S]*transitionCreatedTaskToEdit\(result\.task\)[\s\S]*Task saved\. Continue editing or choose Save & Close\./, "the create dialog should transition in place to a persisted edit dialog");
+assert.match(extractFunctionSpan(taskDialog, "saveTaskForm"), /!wasEditing[\s\S]*transitionCreatedTaskToEdit\(savedTask\)[\s\S]*Task saved\. Continue editing or choose Save & Close\./, "the create dialog should transition in place to a persisted edit dialog");
 assert.match(extractFunctionSpan(taskDialog, "taskEditorModalDescriptor"), /id: "save-close", label: "Save & Close"[\s\S]*id: "save", label: "Save task"/, "the task editor should expose separate Save & Close and Save actions");
 
 assert.match(extractFunctionSpan(taskDialog, "populateFormOptions"), /option\("", workspaceProjectsLabel\(\)\)/, "Business task context should identify workspace-level projects explicitly");
