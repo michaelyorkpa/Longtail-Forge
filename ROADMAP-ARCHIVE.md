@@ -1,5 +1,44 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.4.3.1 - Roles and role-assignment responses
+
+**Model: Medium Effort** - the child that found two assignment records where the plan had one, and kept them apart.
+
+- [x] **The cluster was four routes, not one boundary.** `GET /api/roles`, `GET` and `PUT /api/users/:userId/role-assignments`, and the two session routes. The roles and assignment half is implemented here; **sessions and revocation are drawn as `0.33.33.38.4.4.3.2`** because a session list and a revocation acknowledgement are two envelopes.
+- [x] **Two assignment records, and that is the finding.** `decorateAssignment` constructs seven members for the administrator view - identity, role, scope, client, project and the parsed permission overrides. `decorateDelegatedAssignment` constructs **three** - `role_id`, `scope_type`, `scope_id` - because a delegated manager may see which roles are held in scopes they administer **without seeing the assignment record behind them**. `BrowserRoleAssignment` and `BrowserDelegatedRoleAssignment` are separate contracts, and a test proves the administrator predicate rejects a delegated record.
+- [x] **The role record is the query, and the query is four columns.** `readRoles` selects `role_id`, `role_name`, `description` and `assignable_scope_type` - **no permission storage, no capability table, no override JSON** - and `sort_order` orders the query without being sent. The service adds `assignment_scope_type` and `scopes`. A test asserts the contract is exactly the selected columns plus those two, and that four permission-shaped names can never appear in it.
+- [x] **`scopes` is the permission decision made visible, and narrowing happens after it.** `listAssignableRoleOptions` asks `canAssignRole` per candidate and keeps only what the caller may assign, dropping a role entirely when nothing remains. The browser checks each scope carries the `label` and `scopeId` the service built; **it never widens the list**.
+- [x] **`assignmentRevision` is optional because the producer's response is a union.** `replaceUserAssignments` answers `{ assignments }` for a full administrator and `{ assignmentRevision, assignments }` for a delegated manager, since only the delegated path carries an optimistic-concurrency token. The consumer's `String(body.assignmentRevision || "")` was reading that absence all along, and `readAssignmentUpdate` now omits the member rather than inventing an empty one.
+- [x] **Element validation replaced two container checks.** `Array.isArray(body.roles)` and `Array.isArray(body.assignments)` said only that the containers were arrays. Both now filter their elements, and a malformed entry is dropped - the answer this estate has given since `0.33.33.38.4.2`.
+- [x] **Authorization was not touched.** No permission check, workspace scope, eligibility rule or filter changed; the contracts begin after the server's decision and describe what survived it.
+
+Proved by breaking each one, restored in a `finally`:
+
+| Break | Failure |
+| --- | --- |
+| The role query stops selecting a column the contract has | the four-column select no longer matches |
+| The role contract gains a member the query never selects | the same assertion, from the other side |
+| The delegated contract acquires the withheld overrides | `permission_overrides` may never appear there |
+| The delegated shaper starts sending the assignment identity | the delegated shaper builds three |
+| The administrator shaper drops a member the contract has | the administrator shaper builds seven |
+| The role read trusts its container | an array of roles makes its entries roles |
+| A scope is accepted without the label the service builds | a scope `canAssignRole` never kept is accepted |
+| The administrator record accepts a delegated one | the two records stop being distinguishable |
+| The revision is invented when the producer sends none | an empty revision replaces a genuine absence |
+| A consumer reads the raw body again | `TS18046` returns in `user-admin.js` |
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,548 | **8,541** |
+| Genuine `unknown` | 188 | **181** |
+| params / state / dom / namespace / assorted | 4,617 / 1,782 / 1,484 / 319 / 158 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,217 / 531 / 976 / 1,572 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 382 / 348 / 167 | **390 / 348 / 167**, green |
+
+**7 eliminations, no transfers, no fallout.** Three roles reads across two pages, one administrator assignment read, and three delegated assignment and revision reads. No state was typed, no DOM diagnostic appeared, and no owner budget moved. `4,617 + 1,782 + 158 = 6,557` reconciles either side.
+
 ## Version 0.33.33.38.4.4.1 - The user record
 
 **Model: Medium Effort** - the child whose producer evidence turned out to be about what the server *withholds*.

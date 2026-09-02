@@ -523,7 +523,15 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 #### 0.33.33.38.4.4.3 - Roles, assignments and sessions
 
-`body.roles` in both pages, `body.assignments` and `body.assignmentRevision`, and the managed-session reads `body.sessions` and `body.revokedCount`. **Do not borrow the user record for any of them**, and inspect the roles response for permission filtering and system-role flags before naming its shape.
+**Resliced: the cluster is four routes, and its assignment half is two different records.** Ten diagnostics, and the trace found `GET /api/roles`, `GET /users/:id/role-assignments`, `PUT /users/:id/role-assignments`, and two session routes. **`decorateAssignment` builds seven members for the administrator view and `decorateDelegatedAssignment` builds three for the delegated paths** - no assignment identity and no permission overrides - so one assignment contract would have claimed four members the server withholds on purpose.
+
+#### 0.33.33.38.4.4.3.1 - Roles and role-assignment responses
+
+**Complete: 7 diagnostics, four contracts, zero fallout.** See the archive entry.
+
+#### 0.33.33.38.4.4.3.2 - Managed sessions and revocation
+
+**3 diagnostics left deliberately.** `user-admin.js:682` reads `body.sessions` from `GET /api/users/:id/sessions` and `:769` reads `body.revokedCount` twice from the two `DELETE` routes. **They are two envelopes, not one**: a session list and a revocation acknowledgement, and a list response with an optional count would be the false symmetry this rollup keeps refusing. **Trace the session record for authentication material before naming it** - a token or hash reaching the browser would be a defect to report, not a member to declare.
 
 #### 0.33.33.38.4.4.4 - The user-admin bootstrap
 

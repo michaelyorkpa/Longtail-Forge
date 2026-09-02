@@ -173,6 +173,89 @@
     "preferredCalendarView",
   ]);
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserRoleOption} BrowserRoleOption */
+
+  /** The four columns `readRoles` selects, plus the scope type the service computes. */
+  const ROLE_TEXT_MEMBERS = Object.freeze([
+    "assignable_scope_type",
+    "assignment_scope_type",
+    "description",
+    "role_id",
+    "role_name",
+  ]);
+
+  /**
+   * One scope the service kept after asking `canAssignRole` for it.
+   * @param {unknown} value
+   * @returns {boolean}
+   */
+  function isRoleScope(value) {
+    return isResponseRecord(value) && typeof value.label === "string" && typeof value.scopeId === "string";
+  }
+
+  /**
+   * One assignable role as `GET /api/roles` returns it.
+   * @param {unknown} value
+   * @returns {value is BrowserRoleOption}
+   */
+  function isRoleOption(value) {
+    return isResponseRecord(value)
+      && ROLE_TEXT_MEMBERS.every((member) => typeof value[member] === "string")
+      && Array.isArray(value.scopes)
+      && value.scopes.every(isRoleScope)
+      && value.role_id !== "";
+  }
+
+  /**
+   * The assignable roles a body carries.
+   *
+   * **Element validation, not container validation.** Both consumers already asked whether the
+   * member was an array; neither asked what was in it. A malformed entry is dropped, which is the
+   * answer this estate has given since `0.33.33.38.4.2`.
+   * @param {unknown} body
+   * @returns {BrowserRoleOption[]}
+   */
+  function readRoleOptions(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    return envelope && Array.isArray(envelope.roles) ? envelope.roles.filter(isRoleOption) : [];
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserRoleAssignment} BrowserRoleAssignment */
+
+  /**
+   * One assignment as `GET /api/users/:userId/role-assignments` returns it.
+   *
+   * Seven members, constructed by `decorateAssignment`. **This is not the delegated record**: the
+   * administrator view carries the assignment identity and the parsed overrides that the delegated
+   * paths withhold.
+   * @param {unknown} value
+   * @returns {value is BrowserRoleAssignment}
+   */
+  function isRoleAssignment(value) {
+    return isResponseRecord(value)
+      && typeof value.assignment_id === "string"
+      && typeof value.role_id === "string"
+      && typeof value.scope_type === "string"
+      && (value.scope_id === null || typeof value.scope_id === "string")
+      && (value.client_id === null || typeof value.client_id === "string")
+      && (value.project_id === null || typeof value.project_id === "string")
+      && "permission_overrides" in value
+      && value.assignment_id !== "";
+  }
+
+  /**
+   * The role assignments a body carries.
+   * @param {unknown} body
+   * @returns {BrowserRoleAssignment[]}
+   */
+  function readRoleAssignments(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    return envelope && Array.isArray(envelope.assignments)
+      ? envelope.assignments.filter(isRoleAssignment)
+      : [];
+  }
+
+
   /**
    * A response body that is a plain object.
    * @param {unknown} value
@@ -302,7 +385,7 @@
         requireApi().getJson("/api/users/add-options", { cache: "no-store" }),
       ]);
 
-      roles = rolesBody.roles || [];
+      roles = readRoleOptions(rolesBody);
       clients = /** @type {{ id?: unknown, name?: unknown, projects?: { id?: unknown, name?: unknown }[] }[]} */ (clientProjectBody.clients || []);
       workspaces = workspacesBody.workspaces || [];
       permissionResources = normalizePermissionResources(permissionResourcesBody.resources);
@@ -653,7 +736,7 @@
         loadUserSessions(user),
       ]);
 
-      pendingRoleAssignments = body.assignments || [];
+      pendingRoleAssignments = readRoleAssignments(body);
       renderPendingRoleAssignments();
     } catch (error) {
       setUserAdminStatus(requireErrors().caughtMessage(error, "Role assignments could not be loaded."), true);
