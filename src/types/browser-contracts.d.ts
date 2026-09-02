@@ -3012,6 +3012,106 @@ export interface BrowserSupportViewAuditEnvelope {
 }
 
 /**
+ * An API key as the workspace list sends it: the nine columns `readAll` selects by name, with
+ * the key's scopes attached.
+ *
+ * **Exact, and it never carries the hash.** The repository lists its columns explicitly and
+ * `key_hash` is not among them, so the list is metadata by construction. This is a different
+ * record from `BrowserApiKeyRecord`: the list discloses `created_by_user_id` and the public
+ * shaper does not, and the two are kept apart rather than merged with an optional member.
+ *
+ * `status` stays text: the service writes `"active"` and `"revoked"`, but the column carries
+ * no `CHECK` and the server's own row type keeps it open.
+ */
+export interface BrowserApiKeyListEntry {
+  api_key_id: string;
+  created_at: string;
+  created_by_user_id: string;
+  key_prefix: string;
+  /** `null` until the key is first used. */
+  last_used_at: string | null;
+  name: string;
+  /** `null` until the key is revoked. */
+  revoked_at: string | null;
+  scopes: string[];
+  status: string;
+  workspace_id: string;
+}
+
+/**
+ * An API key as `toPublicApiKey` reconstructs it beside a create or revoke result.
+ *
+ * **An exact reconstruction of nine members**: the list entry without its creator, and never
+ * the hash or the raw key. The same shaper feeds the audit trail's before-and-after values, so
+ * what the browser sees here is also what the audit log records.
+ */
+export interface BrowserApiKeyRecord {
+  api_key_id: string;
+  created_at: string;
+  key_prefix: string;
+  last_used_at: string | null;
+  name: string;
+  revoked_at: string | null;
+  scopes: string[];
+  status: string;
+  workspace_id: string;
+}
+
+/**
+ * One API scope the workspace may grant, as `listAvailableApiScopes` builds it from the
+ * enabled modules' catalogue entries.
+ *
+ * **Exact: six members written by name** after enablement, workspace-type and public-demo
+ * filtering. `id` and `scope` are the same value twice, kept because the producer writes both.
+ * `access` stays text: the registry answers a declared `access` when a module gives one and
+ * derives `"read"` or `"write"` from the scope's suffix otherwise, so the declared path is open.
+ */
+export interface BrowserApiScope {
+  access: string;
+  description: string;
+  id: string;
+  label: string;
+  moduleId: string;
+  scope: string;
+}
+
+/**
+ * What `GET /api/api-keys` resolves to, and the two members every API key route shares.
+ *
+ * Reached only through `workspace_settings.manage`; `list` reads it, `create` and `revoke`
+ * re-read it after their write so the page can re-render without a second request.
+ */
+export interface BrowserApiKeyCollection {
+  apiKeys: BrowserApiKeyListEntry[];
+  availableScopes: BrowserApiScope[];
+}
+
+/**
+ * The one-time secret `POST /api/api-keys` answers, and nothing else answers.
+ *
+ * `rawKey` is minted from twenty-four random bytes, hashed with SHA-256 before it is stored,
+ * and its first seventeen characters kept as the display prefix; the audit trail records only
+ * that prefix. So this response is the only time the raw key exists outside the caller's
+ * hands, which is why it is named here and forbidden, by proof, from the list entry and the
+ * public record.
+ */
+export interface BrowserApiKeySecret {
+  apiKey: BrowserApiKeyRecord;
+  rawKey: string;
+}
+
+/** What `POST /api/api-keys` resolves to: the secret beside the re-read collection. */
+export type BrowserApiKeyCreation = BrowserApiKeyCollection & BrowserApiKeySecret;
+
+/**
+ * What `PUT /api/api-keys/:apiKeyId/revoke` resolves to: the revoked record beside the re-read
+ * collection, and **no raw key** - a revoked key has nothing left to hand over.
+ */
+export interface BrowserApiKeyRevocation extends BrowserApiKeyCollection {
+  apiKey: BrowserApiKeyRecord;
+}
+
+/**
  * One module's state as the Workbench bootstrap reports it.
  *
  * **An exact reconstruction of three members.** `buildModuleStateMap` builds this for every module
