@@ -143,9 +143,16 @@ describe("the detailed task record", () => {
       "the browser checks every member the two detail shapers add");
   });
 
-  it("names none of the ten shapes, because they are ten other producers", () => {
+  it("names only the shape whose producer has been traced", () => {
     const block = declarationBlock("BrowserTaskDetail");
     for (const member of plain(shared.TASK_DETAIL_MEMBERS)) {
+      if (member === "recurrenceContinuity") {
+        // Named by `0.33.33.38.4.3.4` once `readTaskCompletionContinuity` was traced. The other
+        // eight stay unknown for exactly the reason this test was written.
+        assert.match(block, /\n  recurrenceContinuity: BrowserTaskRecurrenceContinuity \| null;/,
+          "the one added member whose producer this estate has named");
+        continue;
+      }
       assert.match(block, new RegExp(`\\n  ${member}: unknown;`),
         `${member} is built elsewhere and its shape is not this boundary's to name`);
     }
@@ -325,6 +332,9 @@ function detailFixture() {
   /** @type {Record<string, unknown>} */
   const detail = { ...taskFixture(), checklistItems: [], tags: [] };
   for (const member of plain(shared.TASK_DETAIL_MEMBERS)) detail[member] = {};
+  // `0.33.33.38.4.3.4` named this member, and `null` is the value most tasks carry: only a
+  // completed recurrence instance gets a continuity record.
+  detail.recurrenceContinuity = null;
   return detail;
 }
 

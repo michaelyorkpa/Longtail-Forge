@@ -2620,6 +2620,80 @@ export interface BrowserAssignmentLookup {
 }
 
 /**
+ * The next occurrence a recurrence continuity points at.
+ *
+ * **Four members, and `safeNextTask` is why it is safe to name them.** It answers `null` for
+ * anything without a `task_id` and otherwise builds exactly `due_date`, `task_id`, `title` and
+ * `url` - a deliberately tiny descriptor rather than a task record, because the surfaces that
+ * render it need a link and a label and nothing else. `title` falls back to `"Task"` and
+ * `due_date` falls back through the recurrence instance date to the empty string, so neither is
+ * ever empty-by-accident.
+ *
+ * `url` is built by the producer, not the browser: `tasks.html?task=` with the identifier encoded.
+ */
+export interface BrowserTaskRecurrenceNextTask {
+  /** Falls back to the recurrence instance date, then to the empty string. */
+  due_date: string;
+  task_id: string;
+  /** Falls back to `"Task"`, so never empty. */
+  title: string;
+  url: string;
+}
+
+/**
+ * What a completed recurrence instance says about the rest of its series.
+ *
+ * **One record from four construction sites, which is what makes it nameable.**
+ * `readCompletionContinuity` builds all seven members, `endedContinuity` builds the same seven,
+ * `prepareCompletionContinuity` spreads that record and overrides one member, and
+ * `completeRecurrenceHandoff` either spreads it with two overrides or - on its `catch` path -
+ * rebuilds the same seven by hand. No path produces a different shape.
+ *
+ * **`status` is a closed union because every one of those sites writes a literal.** `"ended"` when
+ * the template is inactive or has no next occurrence, `"available"` when the next instance already
+ * exists, `"pending"` when it does not, and `"handoff_failed"` when the follow-up queue threw.
+ * Nothing here is a database column passing through, which is the only reason this estate declares
+ * a union at all.
+ *
+ * `isRecurring` is `true` on every path; the producer never builds this record for a task that is
+ * not a recurrence instance, and answers `null` instead. `nextScheduledDate` is the empty string
+ * rather than `null` when the series has ended.
+ */
+export interface BrowserTaskRecurrenceContinuity {
+  checklistTemplateSeeded: boolean;
+  followUpFailed: boolean;
+  followUpQueued: boolean;
+  /** Always `true`: a task with no series gets `null` instead of this record. */
+  isRecurring: boolean;
+  /** The empty string when the series has ended. */
+  nextScheduledDate: string;
+  nextTask: BrowserTaskRecurrenceNextTask | null;
+  status: BrowserTaskRecurrenceStatus;
+}
+
+/**
+ * The four continuity states the producer writes as literals.
+ *
+ * Declared as a union rather than `string` because every construction site is a literal in the
+ * recurrence service, not a column read. `0.33.33.38.4.3.1` kept `status`, `priority` and
+ * `source_type` as `string` for exactly the opposite reason.
+ */
+export type BrowserTaskRecurrenceStatus = "available" | "ended" | "handoff_failed" | "pending";
+
+/**
+ * One entry of the bulk action's recurrence report.
+ *
+ * **Not simply `BrowserTaskRecurrenceContinuity`, and the difference is one member.** `bulkUpdate`
+ * pushes `{ task_id, ...recurrenceContinuity }`, so each entry says *which* task the continuity
+ * belongs to - information the singular routes never need because their envelope already carries
+ * the task. Declaring the plural as an array of the singular record would have lost the only thing
+ * that makes the collection usable.
+ */
+export interface BrowserTaskBulkRecurrenceContinuity extends BrowserTaskRecurrenceContinuity {
+  task_id: string;
+}
+
+/**
  * One task assignee as `attachAssignees` sends it.
  *
  * **A four-member summary, and it is not `BrowserUserRecord`.** `assigneeRowToAppValue` builds
@@ -2711,7 +2785,8 @@ export interface BrowserTaskRecord {
  * `restore` and `skipToCurrent` all reach `attachTaskDetails`, directly or through
  * `readTaggedTaskWithDetails`, so there is one detailed record rather than one per route.
  *
- * **Ten members are ten other producers**, and none of their shapes is named here.
+ * **Ten members are ten other producers**, and nine of their shapes are still unnamed here -
+ * `recurrenceContinuity` was named by `0.33.33.38.4.3.4` once its producer was traced.
  * `reminderDetails` comes from `taskRemindersService`, `checklistItems` and `checklistProgress`
  * from `taskChecklistsRepository`, `relationshipSummary` from `taskRelationshipsRepository`,
  * `recurrenceDetails` from `taskRecurrenceService`, `recurrenceContinuity` from
@@ -2733,7 +2808,14 @@ export interface BrowserTaskDetail extends BrowserTaskRecord {
   checklistItems: unknown[];
   checklistProgress: unknown;
   completionMetrics: unknown;
-  recurrenceContinuity: unknown;
+  /**
+   * `null` for any task that is not a completed recurrence instance.
+   *
+   * Named by `0.33.33.38.4.3.4`: `attachTaskDetails` fills this member with
+   * `readTaskCompletionContinuity`, which is the same producer the lifecycle routes send beside
+   * their task, so the detail record carries the same contract rather than a parallel one.
+   */
+  recurrenceContinuity: BrowserTaskRecurrenceContinuity | null;
   recurrenceDetails: unknown;
   /** `null` whenever the shaper is called without a session, which four routes do. */
   recurrenceRecovery: unknown;
@@ -3036,6 +3118,10 @@ export interface BrowserTaskRecords {
   readSkipToCurrentTarget(body: unknown): BrowserTaskDetail | null;
   /** The task list envelope, with every element checked. */
   readTaskList(body: unknown): BrowserTaskListEnvelope;
+  /** The continuity a lifecycle route reported beside its task, or `null`. */
+  readRecurrenceContinuity(body: unknown): BrowserTaskRecurrenceContinuity | null;
+  /** The per-task continuity entries a bulk action reported, with every element checked. */
+  readBulkRecurrenceContinuities(body: unknown): BrowserTaskBulkRecurrenceContinuity[];
   /**
    * The detailed tasks a bulk action changed.
    *

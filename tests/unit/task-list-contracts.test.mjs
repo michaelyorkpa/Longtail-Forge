@@ -320,6 +320,9 @@ function detailFixture() {
   /** @type {Record<string, unknown>} */
   const detail = { ...baseFixture(), checklistItems: [], tags: [] };
   for (const member of plain(shared.TASK_DETAIL_MEMBERS)) detail[member] = {};
+  // `0.33.33.38.4.3.4` named this member, and `null` is the value most tasks carry: only a
+  // completed recurrence instance gets a continuity record.
+  detail.recurrenceContinuity = null;
   return detail;
 }
 

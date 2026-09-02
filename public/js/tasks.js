@@ -2310,11 +2310,12 @@
     try {
       const result = await api.postJson(`/api/tasks/${encodeURIComponent(task.task_id)}/${action}`, {});
       const actionTask = requireTaskRecords().readTaskDetail(result);
+      const actionContinuity = requireTaskRecords().readRecurrenceContinuity(result);
       upsertTask(actionTask);
       await reloadTaskList();
-      if (action === "complete" && result.recurrenceContinuity) {
-        renderTaskRecurrenceContinuity(result.recurrenceContinuity);
-        trackTaskRecurrenceContinuity(actionTask?.task_id || task.task_id, result.recurrenceContinuity);
+      if (action === "complete" && actionContinuity) {
+        renderTaskRecurrenceContinuity(actionContinuity);
+        trackTaskRecurrenceContinuity(actionTask?.task_id || task.task_id, actionContinuity);
       } else if (action === "complete") {
         setStatus("Task completed.");
       } else {
@@ -2332,11 +2333,12 @@
     try {
       const result = await api.putJson(`/api/tasks/${encodeURIComponent(task.task_id)}`, payload);
       const lifecycleTask = requireTaskRecords().readTaskDetail(result);
+      const lifecycleContinuity = requireTaskRecords().readRecurrenceContinuity(result);
       upsertTask(lifecycleTask);
       await reloadTaskList();
-      if (result.recurrenceContinuity) {
-        renderTaskRecurrenceContinuity(result.recurrenceContinuity);
-        trackTaskRecurrenceContinuity(lifecycleTask?.task_id || task.task_id, result.recurrenceContinuity);
+      if (lifecycleContinuity) {
+        renderTaskRecurrenceContinuity(lifecycleContinuity);
+        trackTaskRecurrenceContinuity(lifecycleTask?.task_id || task.task_id, lifecycleContinuity);
       } else {
         setStatus("");
       }
@@ -2525,7 +2527,7 @@
         const result = await api.postJson("/api/tasks/bulk", payload);
         results.push(...requireTaskRecords().readBulkTasks(result));
         errors.push(...requireErrors().readBulkFailures(result));
-        recurrenceContinuities.push(...(result.recurrenceContinuities || []));
+        recurrenceContinuities.push(...requireTaskRecords().readBulkRecurrenceContinuities(result));
       }
 
       results.forEach(upsertTask);
