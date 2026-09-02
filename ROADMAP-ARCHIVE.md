@@ -1,5 +1,34 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.8.2 - The Support View target response
+
+**Model: High Effort** - the operator family's second child, and the one where the authorization trace decided the shape before a single member was named.
+
+- [x] **One producer, three members, behind the same gate as the audit.** `listTargets` requires Support View enabled, a normal super-administrator session that is not itself in Support View, and `support_view.enter`, then answers `actor`, `expiresInSeconds` and `targets` under `Cache-Control: no-store`. `BrowserSupportViewTargetEnvelope` is exactly those three, and breaks that drop the gate, the super-administrator requirement or the no-store header are refused.
+- [x] **The list is a picker and `start` is the authorization, which is why nothing here can widen it.** Discovery admits only active users holding an active membership of an active workspace and never the administrator themselves; `start` then independently re-checks enablement, session mode, target-is-not-actor, `support_view.enter` for the chosen workspace, the administrator's password, session freshness and a fresh eligibility row. **Eight breaks prove each of those is still there** - including one that lets discovery admit inactive accounts, one that lets it return the administrator, and one that stops re-verifying the password.
+- [x] **A target is a security-filtered summary, not a `BrowserUserRecord`.** The query selects three user columns - identifier, username, display name - and no credential, protection, status or preference column; the shaper builds five members by hand. Reusing the user record would have promised a status, role, timestamps and preferences this route never sends, so it was refused and a proof keeps the two shapes apart. Breaks that add `status`, `timezone` or a protection column are refused.
+- [x] **Fail-closed on the two members that decide an action.** `userId` and `label` must be non-empty: one names the account `start` would act on, the other is all the administrator sees before choosing it. A workspace choice must carry its identifier for the same reason. Nothing is synthesised and no eligibility is defaulted toward allowed.
+- [x] **Dropping an entry is the fail-closed direction here, and that is why this reader is total where the audit's refuses.** On the audit page a dropped element would hide a record; on a picker it removes a candidate. So an entry the browser cannot vouch for is not offered, an unusable body yields the same "no active users" state the page already showed for a non-list member, and a break that refuses the whole response instead is refused.
+- [x] **Expiry is one configured number, not a catalogue.** `config.supportView.ttlSeconds` is a bounded integer between a minute and an hour, sent once at the top level; no target carries its own, and there is no vocabulary of durations, because the operator chooses none. The zero fallback the page already had is preserved for anything that is not a positive finite number.
+- [x] **The actor is three members and no capability.** `userId`, `username` and a `label` the producer writes as the username; the administrator line keeps both fallbacks it already had.
+- [x] **One direct handoff annotated, and it paid for itself.** `targets` had inferred a list that could hold nothing. Annotating it to the narrowed record **cleared four further diagnostics in `0.33.33.44`** rather than adding any: the page's own target and workspace reads had been failing against that empty inference.
+
+Proved by breaking each one, restored in a `finally`, and **every refusal judged by exit status**: 31 breaks across the service, the route, the discovery query, the configuration bound, the browser declaration, the runtime tables and readers, and the consumer.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,380 | **8,371** |
+| Genuine `unknown` | 70 | **65** |
+| params / state | 4,612 / 1,742 | **4,611 / 1,739** |
+| dom / namespace / assorted | 1,484 / 319 / 153 | **all unchanged** |
+| `0.33.33.44` | 1,572 | **1,568** |
+| `.39` / `.40` / `.41` / `.42` / `.43` | 1,770 / 491 / 1,168 / 530 / 976 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 574 / 348 / 167 | **595 / 348 / 167**, green |
+
+**9 eliminations, no transfers, no new debt.** Five were the genuine unknowns; the other four fell out of `0.33.33.44` when the one direct handoff stopped inferring an empty list. `4,611 + 1,739 + 153 = 6,503` reconciles either side.
+
 ## Version 0.33.33.38.4.9.1 - The API key bodies
 
 **Model: High Effort** - a secret-bearing family that no roadmap child owned, drawn under the attribution owner by its own rule and closed in one pass.
