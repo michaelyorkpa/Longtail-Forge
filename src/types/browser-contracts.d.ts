@@ -2620,6 +2620,190 @@ export interface BrowserAssignmentLookup {
 }
 
 /**
+ * One task assignee as `attachAssignees` sends it.
+ *
+ * **A four-member summary, and it is not `BrowserUserRecord`.** `assigneeRowToAppValue` builds
+ * `task_assignee_id`, `user_id`, `username` and `displayName` - the identity of the assignment and
+ * enough to label the person. The user record is fifteen constructed members including theme and
+ * landing preferences, and reusing it here would claim eleven the task query never joins.
+ *
+ * `displayName` falls back through the username to the user identifier, so it is never empty.
+ */
+export interface BrowserTaskAssignee {
+  /** Falls back to the username and then the identifier, so never empty. */
+  displayName: string;
+  task_assignee_id: string;
+  user_id: string;
+  username: string;
+}
+
+/**
+ * A task exactly as `taskRowToAppValue` reconstructs it, plus the assignees `attachAssignees` adds.
+ *
+ * **A total reconstruction, which is why this contract can be exact.** The shaper names all
+ * thirty-three members individually - no spread anywhere - and every task column the select
+ * carries is emitted. `assignee_ids` is a *write-side* input the service passes into the
+ * repository and the shaper never emits it, so it must never appear here.
+ *
+ * **This is the record the task-timer routes send.** `taskTimersService.save`, `finalize` and
+ * `linkManualTimer` answer `task: updatedTask || task` where `updatedTask` is
+ * `tasksRepository.readById` - the base record with no reminders, no checklist, no tags and no
+ * recurrence detail. `BrowserTaskDetail` is what everything else sends.
+ *
+ * **Twenty-seven members have a total fallback and three are passed through**, so every one of the
+ * thirty is `string` and none is ever `null`. `estimate_minutes` is the single nullable member: the
+ * shaper answers `null` for a null or absent column and a number otherwise.
+ *
+ * `billable` is a closed union because the producer genuinely closes it - a ternary that answers
+ * `"no"` only for a literal `"no"` and `"yes"` for everything else cannot produce a third value.
+ * `status`, `priority` and `source_type` are **not** closed: each is a database text column with a
+ * default applied by a falsy fallback, and this estate does not declare a union over a wire field
+ * nothing validates. Their vocabularies are open/in_progress/blocked/complete/archived,
+ * low/normal/high, and manual/recurrence/import.
+ *
+ * `reminder_override_enabled` is a real boolean: the column is an integer flag and the shaper
+ * converts it through the dialect boolean reader, so the browser must reject the stored integer.
+ */
+export interface BrowserTaskRecord {
+  assignees: BrowserTaskAssignee[];
+  /** `"no"` only when the column literally holds `"no"`; the producer closes this union. */
+  billable: "no" | "yes";
+  /** `null` for a null or absent column; a number otherwise. */
+  estimate_minutes: number | null;
+  /** Converted from the stored integer flag, so a number here is wrong. */
+  reminder_override_enabled: boolean;
+  archived_at: string;
+  archived_by_user_id: string;
+  blocked_reason: string;
+  client_id: string;
+  client_name: string;
+  completed_at: string;
+  completed_by_user_id: string;
+  created_at: string;
+  created_by_user_id: string;
+  description: string;
+  due_at_utc: string;
+  due_date: string;
+  due_time: string;
+  due_timezone: string;
+  last_worked_at: string;
+  next_action: string;
+  priority: string;
+  project_id: string;
+  project_name: string;
+  recurrence_instance_date: string;
+  recurrence_template_id: string;
+  resume_note: string;
+  source_id: string;
+  source_type: string;
+  status: string;
+  task_id: string;
+  title: string;
+  updated_at: string;
+  updated_by_user_id: string;
+  workspace_id: string;
+}
+
+/**
+ * A task as every non-timer route sends it: `attachTaskDetails` over the base record.
+ *
+ * **One shaper serves all of them.** `create`, `read`, `update`, `complete`, `reopen`, `archive`,
+ * `restore` and `skipToCurrent` all reach `attachTaskDetails`, directly or through
+ * `readTaggedTaskWithDetails`, so there is one detailed record rather than one per route.
+ *
+ * **Ten members are ten other producers**, and none of their shapes is named here.
+ * `reminderDetails` comes from `taskRemindersService`, `checklistItems` and `checklistProgress`
+ * from `taskChecklistsRepository`, `relationshipSummary` from `taskRelationshipsRepository`,
+ * `recurrenceDetails` from `taskRecurrenceService`, `recurrenceContinuity` from
+ * `readTaskCompletionContinuity`, `recurrenceRecovery` from `recurrenceRecoveryPlan`, and
+ * `completionMetrics`, `resumeContext` and `tags` from three more. Naming them from what a task
+ * page renders is the guess this rollup exists to refuse; the sibling children own them.
+ *
+ * **Every member is present on every path, including the ones that look conditional.**
+ * `recurrenceRecovery` is `null` rather than absent when no session reaches the shaper - which is
+ * what `complete`, `reopen`, `archive` and `restore` do - and `tags` is an empty array rather than
+ * absent when the tag service did not decorate the row first. Content differs by path; the shape
+ * does not.
+ *
+ * `complete` additionally spreads `recurrenceContinuity` over the record a second time on its
+ * recurrence branch. It is the same member this contract already carries, and the browser reads
+ * the envelope sibling rather than the copy.
+ */
+export interface BrowserTaskDetail extends BrowserTaskRecord {
+  checklistItems: unknown[];
+  checklistProgress: unknown;
+  completionMetrics: unknown;
+  recurrenceContinuity: unknown;
+  recurrenceDetails: unknown;
+  /** `null` whenever the shaper is called without a session, which four routes do. */
+  recurrenceRecovery: unknown;
+  relationshipSummary: unknown;
+  reminderDetails: unknown;
+  resumeContext: unknown;
+  tags: unknown[];
+}
+
+/**
+ * The task a timer route sends back beside its timer.
+ *
+ * **`task` is nullable because the repository read can answer nothing.** The producer writes
+ * `task: updatedTask || task`, so the member is always present, but the browser cannot prove which
+ * side of that fallback it received and every consumer already wrote its own.
+ *
+ * The `timer` and `timers` siblings belong to the task-timer child and are not named here.
+ */
+export interface BrowserTaskEnvelope {
+  task: BrowserTaskRecord | null;
+}
+
+/**
+ * The task a create, read, update or lifecycle route sends.
+ *
+ * The siblings differ by route - `read` adds `currentUserId` and `options`, `complete` adds
+ * `createdTask`, `recurrenceContinuity` and `recurrenceJob` - and **each belongs to its own
+ * child**. Declaring one envelope with every sibling optional would be the mega-interface this
+ * estate keeps refusing.
+ */
+export interface BrowserTaskDetailEnvelope {
+  task: BrowserTaskDetail | null;
+}
+
+/**
+ * What `POST /api/tasks/:taskId/skip-to-current` resolves to.
+ *
+ * **`targetTask` is the same detailed record `task` is**, because the service builds it with
+ * `readTaggedTaskWithDetails` - the same shaper. Producer identity decides the reuse; the
+ * different member name does not make it a different type.
+ *
+ * It is genuinely `null` when the skip retained no target, which is the absence the consumer has
+ * always been reading through an optional chain.
+ */
+export interface BrowserTaskSkipToCurrentResult {
+  targetTask: BrowserTaskDetail | null;
+}
+
+/**
+ * The narrowing surface the three task consumers share.
+ *
+ * **One field table, three consumers.** `tasks.js`, `task-dialog.js` and `workbench.js` all read
+ * single-task responses, and a thirty-three member predicate written three times would be three
+ * chances to disagree with the shaper. This surface is installed by the same framework script
+ * block that already delivers `errors` and `taskLifecycleLegality`, so every page that reads a
+ * task has it before its own script runs.
+ *
+ * It answers `null` for anything it cannot vouch for. None of these readers throws: every call
+ * site already had a fallback for a missing task, and this preserves it.
+ */
+export interface BrowserTaskRecords {
+  /** The base record a timer route sends, or `null`. */
+  readTask(body: unknown): BrowserTaskRecord | null;
+  /** The detailed record every other route sends, or `null`. */
+  readTaskDetail(body: unknown): BrowserTaskDetail | null;
+  /** The detailed record the skip-to-current route retained, or `null`. */
+  readSkipToCurrentTarget(body: unknown): BrowserTaskDetail | null;
+}
+
+/**
  * The list columns every browser-facing Lists projection carries.
  *
  * **Derived from `LIST_COLUMNS`, which both shapers spread rather than reconstruct.**
@@ -2765,6 +2949,7 @@ export interface LongtailForgeBrowserNamespace {
   dashboard?: BrowserDashboard;
   dashboardBootstrap?: BrowserDashboardBootstrap;
   errors?: BrowserErrorContract;
+  taskRecords?: BrowserTaskRecords;
   esModuleBridge?: BrowserEsModuleBridge;
   fileAttachments?: BrowserFileAttachments;
   formatters?: BrowserFormatters;

@@ -505,7 +505,35 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 #### 0.33.33.38.4.3 - The Tasks response family
 
-**34 diagnostics across `tasks.js`, `task-dialog.js` and `workbench.js`**, reached through `loadCanonicalTasks`, `loadTaskTimers` and the timer routes. Three consumers of one family, which is what makes it a boundary rather than three page problems.
+**Resliced from the live tree: 64 diagnostics, not the 34 this line used to record, and they are seven producers rather than one.** `tasks.js` 38, `task-dialog.js` 14, `workbench.js` 12. The single-task records were the largest coherent group and are closed; the rest are drawn below by producer.
+
+#### 0.33.33.38.4.3.1 - The base and detailed single-task records
+
+**Complete: 24 diagnostics, seven contracts, one shared surface, zero fallout.** See the archive entry.
+
+#### 0.33.33.38.4.3.B - The task collection and list envelope
+
+**18 diagnostics.** `result.tasks` in three loaders, plus `currentUserId`, `options` and `pagination` beside them. **The element contract already exists**: `BrowserTaskDetail` is what `attachTaskListProjectionDetails` produces per row, so this child's real work is the envelope and its pagination, not the record. Check whether the list projection adds anything the detail shaper does not before reusing it.
+
+#### 0.33.33.38.4.3.C - The task timer records
+
+**7 diagnostics.** `result.timers` and `result.timer` from the timer routes and `GET /api/tasks/timers`. `taskTimerFromUnified` is the shaper and it takes the task as its second argument, so this child inherits `BrowserTaskRecord` and needs only the timer.
+
+#### 0.33.33.38.4.3.D - Recurrence continuity
+
+**5 diagnostics.** `result.recurrenceContinuity` and `result.recurrenceContinuities`, built by `readTaskCompletionContinuity`. `BrowserTaskDetail` already carries the member as `unknown`; this child names the shape.
+
+#### 0.33.33.38.4.3.E - The task count envelopes
+
+**2 diagnostics.** `result.counts` and `result.count` from the attachment and note count routes - two envelopes over two other modules' counters.
+
+#### 0.33.33.38.4.3.F - The task relationship list
+
+**1 diagnostic.** `result.relationships` from `GET /api/tasks/:taskId/relationships`. Its `relationshipSummary` sibling is a *different* producer that `BrowserTaskDetail` already carries as `unknown`.
+
+#### 0.33.33.38.4.3.G - The Workbench bootstrap
+
+**5 diagnostics.** `bootstrap.registry`, `modules`, `taskOptions`, `workCandidates` and `currentUserId` - the Workbench module registry rather than a task producer, which is why it is drawn apart from everything above.
 
 #### 0.33.33.38.4.4 - The workspace-user, role and assignment responses
 

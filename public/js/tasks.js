@@ -5,6 +5,24 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRecords} BrowserTaskRecords */
+
+  /**
+   * The shared single-task narrowing surface.
+   *
+   * `shared/task-records.js` is installed by the framework script block on every page, so this
+   * read fails exactly where the raw `result.task` read failed before.
+   * @returns {BrowserTaskRecords}
+   */
+  function requireTaskRecords() {
+    const taskRecords = window.LongtailForge?.taskRecords;
+    if (!taskRecords) {
+      throw new Error("LongtailForge.taskRecords is unavailable.");
+    }
+
+    return taskRecords;
+  }
+
   /**
    * The narrowing contract for the values this file catches.
    *
@@ -1921,15 +1939,16 @@
         accumulated_elapsed_seconds: elapsedSeconds,
         last_active_start_time: new Date().toISOString(),
       });
-      if (result.task) {
-        upsertTask(result.task);
+      const timerTask = requireTaskRecords().readTask(result);
+      if (timerTask) {
+        upsertTask(timerTask);
       }
       if (result.timer) {
         upsertTaskTimerState(result.timer);
       }
       if (!isRunning) {
         void window.LongtailForge.taskResumeNoteCapture?.offer({
-          task: result.task || task,
+          task: timerTask || task,
           onSaved(updatedTask) {
             if (updatedTask) {
               upsertTask(updatedTask);
@@ -2267,11 +2286,12 @@
 
     try {
       const result = await api.postJson(`/api/tasks/${encodeURIComponent(task.task_id)}/${action}`, {});
-      upsertTask(result.task);
+      const actionTask = requireTaskRecords().readTaskDetail(result);
+      upsertTask(actionTask);
       await reloadTaskList();
       if (action === "complete" && result.recurrenceContinuity) {
         renderTaskRecurrenceContinuity(result.recurrenceContinuity);
-        trackTaskRecurrenceContinuity(result.task?.task_id || task.task_id, result.recurrenceContinuity);
+        trackTaskRecurrenceContinuity(actionTask?.task_id || task.task_id, result.recurrenceContinuity);
       } else if (action === "complete") {
         setStatus("Task completed.");
       } else {
@@ -2288,11 +2308,12 @@
 
     try {
       const result = await api.putJson(`/api/tasks/${encodeURIComponent(task.task_id)}`, payload);
-      upsertTask(result.task);
+      const lifecycleTask = requireTaskRecords().readTaskDetail(result);
+      upsertTask(lifecycleTask);
       await reloadTaskList();
       if (result.recurrenceContinuity) {
         renderTaskRecurrenceContinuity(result.recurrenceContinuity);
-        trackTaskRecurrenceContinuity(result.task?.task_id || task.task_id, result.recurrenceContinuity);
+        trackTaskRecurrenceContinuity(lifecycleTask?.task_id || task.task_id, result.recurrenceContinuity);
       } else {
         setStatus("");
       }

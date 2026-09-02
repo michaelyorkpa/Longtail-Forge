@@ -7,6 +7,24 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRecords} BrowserTaskRecords */
+
+  /**
+   * The shared single-task narrowing surface.
+   *
+   * `shared/task-records.js` is installed by the framework script block on every page, so this
+   * read fails exactly where the raw `result.task` read failed before.
+   * @returns {BrowserTaskRecords}
+   */
+  function requireTaskRecords() {
+    const taskRecords = window.LongtailForge?.taskRecords;
+    if (!taskRecords) {
+      throw new Error("LongtailForge.taskRecords is unavailable.");
+    }
+
+    return taskRecords;
+  }
+
   /**
    * The narrowing contract for the values this file catches.
    *
@@ -744,9 +762,10 @@
       const result = wasEditing
         ? await api.putJson(`/api/tasks/${encodeURIComponent(currentTaskId)}`, payload)
         : await api.postJson("/api/tasks", payload);
-      await syncParentTaskRelationship(result.task?.task_id || "");
-      currentTask = result.task;
-      currentTaskId = result.task?.task_id || "";
+      const savedTask = requireTaskRecords().readTaskDetail(result);
+      await syncParentTaskRelationship(savedTask?.task_id || "");
+      currentTask = savedTask;
+      currentTaskId = savedTask?.task_id || "";
       rememberTaskInContext(currentTask);
       if (currentTask?.status === "blocked") {
         await refreshTaskTimers();
@@ -754,12 +773,12 @@
       updateCompleteTaskActionState();
       updateBlockTaskActionState();
       if (!wasEditing) {
-        await transitionCreatedTaskToEdit(result.task);
+        await transitionCreatedTaskToEdit(savedTask);
       }
       initialTaskFormSnapshot = taskFormSnapshot(payload);
       await notifyTaskEditorSaved(result);
       if (closeOnSuccess) {
-        const completedBySave = wasEditing && editingTask?.status !== "complete" && result.task?.status === "complete";
+        const completedBySave = wasEditing && editingTask?.status !== "complete" && savedTask?.status === "complete";
         if (completedBySave) {
           applyTaskCompletionResult(result);
           setTaskCompletionStatus(result);
@@ -769,8 +788,8 @@
         }
         context?.hostContext?.complete?.({
           actionId: wasEditing ? "tasks.edit" : "tasks.add",
-          recordId: result.task?.task_id || "",
-          title: result.task?.title || "",
+          recordId: savedTask?.task_id || "",
+          title: savedTask?.title || "",
         });
         closeTaskModal(dialog, "complete");
         setStatus("");
@@ -1356,7 +1375,7 @@
       });
       applyTaskTimerMutationResult(result, task);
       if (timerStatus === "paused") {
-        offerTaskResumeNote(result.task || task);
+        offerTaskResumeNote(requireTaskRecords().readTask(result) || task);
       }
       setStatus("");
     } catch (error) {
@@ -1384,7 +1403,7 @@
       });
       removeTaskTimer(task.task_id);
       applyTaskTimerMutationResult(result, task);
-      offerTaskResumeNote(result.task || task, event?.currentTarget || null);
+      offerTaskResumeNote(requireTaskRecords().readTask(result) || task, event?.currentTarget || null);
       setStatus("Task time saved.");
     } catch (error) {
       setStatus(requireErrors().caughtMessage(error, "Task time was not saved."), { isError: true });
@@ -2033,12 +2052,13 @@
     setStatus("Recovering recurring task...");
     try {
       const result = await api.postJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/skip-to-current`, {});
-      const targetTaskId = result.targetTask?.task_id || "";
+      const skipTarget = requireTaskRecords().readSkipToCurrentTarget(result);
+      const targetTaskId = skipTarget?.task_id || "";
       context?.hostContext?.complete?.({
         actionId: "tasks.skip-to-current",
         recordId: targetTaskId || currentTaskId,
         taskLifecycleAction: "skip-to-current",
-        title: result.targetTask?.title || currentTask?.title || "",
+        title: skipTarget?.title || currentTask?.title || "",
       });
       closeTaskModal(dialog, "complete");
       if (targetTaskId) {

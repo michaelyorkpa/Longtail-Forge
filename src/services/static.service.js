@@ -250,13 +250,14 @@ function injectErrorBoundaryScripts(contents) {
     && contents.includes('src="/js/shared/view-data-binding.js"')
     && contents.includes('src="/js/shared/view-modal-stack.js"')
     && contents.includes('src="/js/shared/task-lifecycle-legality.js"')
+    && contents.includes('src="/js/shared/task-records.js"')
   ) {
     return contents;
   }
 
   return contents.replace(
     /(<head\b[^>]*>)/i,
-    '$1\n    <script src="/js/shared/error-contract.js"></script>\n    <script src="/js/shared/browser-recovery.js"></script>\n    <script src="/js/shared/app-shell-bootstrap.js"></script>\n    <script src="/js/shared/view-surface-descriptor.js"></script>\n    <script src="/js/shared/view-response-records.js"></script>\n    <script src="/js/shared/view-action-security.js"></script>\n    <script src="/js/shared/view-search-options.js"></script>\n    <script src="/js/shared/view-data-binding.js"></script>\n    <script src="/js/shared/view-modal-stack.js"></script>\n    <script src="/js/shared/task-lifecycle-legality.js"></script>',
+    '$1\n    <script src="/js/shared/error-contract.js"></script>\n    <script src="/js/shared/browser-recovery.js"></script>\n    <script src="/js/shared/app-shell-bootstrap.js"></script>\n    <script src="/js/shared/view-surface-descriptor.js"></script>\n    <script src="/js/shared/view-response-records.js"></script>\n    <script src="/js/shared/view-action-security.js"></script>\n    <script src="/js/shared/view-search-options.js"></script>\n    <script src="/js/shared/view-data-binding.js"></script>\n    <script src="/js/shared/view-modal-stack.js"></script>\n    <script src="/js/shared/task-lifecycle-legality.js"></script>\n    <script src="/js/shared/task-records.js"></script>',
   );
 }
 
