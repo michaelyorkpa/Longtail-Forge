@@ -533,6 +533,10 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **1 diagnostic.** `result.relationships` from `GET /api/tasks/:taskId/relationships`. Its `relationshipSummary` sibling is a *different* producer that `BrowserTaskDetail` already carries as `unknown`.
 
+#### 0.33.33.38.4.3.8 - The Task option-catalog element contracts
+
+**Complete: 14 diagnostics, four element contracts, zero new debt.** See the archive entry. `0.33.33.38.4.3.2` typed the list envelope and left the catalog's four collections as `unknown[]`; **that made the element-level debt visible in the consumers rather than creating it**, and this child traced the four producers and closed it.
+
 #### 0.33.33.38.4.3.7 - The Workbench bootstrap
 
 **6 diagnostics**, one more than first counted: `workbench.js` reads `bootstrap.currentUserId` too, and a first pass filed it under `.B` because of the member name. **The Workbench bootstrap is its own producer and the name it shares with the task list proves nothing.** `bootstrap.registry`, `modules`, `taskOptions`, `workCandidates` and `currentUserId` - the Workbench module registry rather than a task producer, which is why it is drawn apart from everything above.

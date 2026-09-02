@@ -32,6 +32,10 @@
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskListItem} BrowserTaskListItem */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskListPagination} BrowserTaskListPagination */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskListOptions} BrowserTaskListOptions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskClientOption} BrowserTaskClientOption */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskProjectOption} BrowserTaskProjectOption */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskPickerOption} BrowserTaskPickerOption */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskUserOption} BrowserTaskUserOption */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskListEnvelope} BrowserTaskListEnvelope */
 
   const namespace = global.LongtailForge || {};
@@ -122,6 +126,38 @@
 
   /** The four option collections `readOptions` gets from four other producers. */
   const TASK_OPTION_COLLECTIONS = Object.freeze(["clients", "projects", "tasks", "users"]);
+
+  /**
+   * The client-option members this catalog can vouch for.
+   *
+   * Two are guaranteed by `clientRowToAppClient` and three are reconstructed by
+   * `readClientOptionPayload`. Everything else in the record arrived through two spreads and is
+   * the client-projects estate's to describe.
+   */
+  const CLIENT_OPTION_TEXT = Object.freeze(["displayName", "id", "name", "optionLabel", "parent_client_id"]);
+
+  /** The project option adds the client relationship its row shaper guarantees as text. */
+  const PROJECT_OPTION_TEXT = Object.freeze(["client_id", "displayName", "id", "name", "optionLabel"]);
+
+  /** The thirteen members `taskPickerOption` reconstructs, all text. */
+  const TASK_PICKER_OPTION_TEXT = Object.freeze([
+    "client_id",
+    "client_name",
+    "displayName",
+    "due_date",
+    "due_time",
+    "id",
+    "label",
+    "optionLabel",
+    "priority",
+    "project_id",
+    "project_name",
+    "status",
+    "task_id",
+  ]);
+
+  /** The three members of `userRowToAppValue` this catalog promises. */
+  const USER_OPTION_TEXT = Object.freeze(["displayName", "user_id", "username"]);
 
   /** The two option collections `readOptions` spreads from server constants. */
   const TASK_OPTION_TEXT_LISTS = Object.freeze(["priorities", "statuses"]);
@@ -220,20 +256,107 @@
   }
 
   /**
-   * The option catalog `readOptions` builds.
-   *
-   * The four collections come from four other producers and are checked as containers only, which
-   * is the whole of what this boundary can honestly say about them.
+   * A vocabulary entry the server spread from its own constants.
    * @param {unknown} value
-   * @returns {value is BrowserTaskListOptions}
+   * @returns {value is string}
    */
-  function isTaskListOptions(value) {
+  function isText(value) {
+    return typeof value === "string";
+  }
+
+  /**
+   * One client as `readClientOptionPayload` sends it.
+   * @param {unknown} value
+   * @returns {value is BrowserTaskClientOption}
+   */
+  function isClientOption(value) {
     return isResponseRecord(value)
-      && typeof value.workspaceType === "string"
-      && TASK_OPTION_FLAGS.every((member) => typeof value[member] === "boolean")
-      && TASK_OPTION_COLLECTIONS.every((member) => Array.isArray(value[member]))
-      && TASK_OPTION_TEXT_LISTS.every((member) => Array.isArray(value[member])
-        && value[member].every((entry) => typeof entry === "string"));
+      && CLIENT_OPTION_TEXT.every((member) => typeof value[member] === "string")
+      && typeof value.hierarchyDepth === "number"
+      && value.id !== "";
+  }
+
+  /**
+   * One project as `readProjectOptionPayload` sends it.
+   *
+   * `client_id` is text and may be the empty string; a project without a client is not a malformed
+   * project, and the page's own comparison has always read that empty string.
+   * @param {unknown} value
+   * @returns {value is BrowserTaskProjectOption}
+   */
+  function isProjectOption(value) {
+    return isResponseRecord(value)
+      && PROJECT_OPTION_TEXT.every((member) => typeof value[member] === "string")
+      && typeof value.hierarchyDepth === "number"
+      && value.id !== "";
+  }
+
+  /**
+   * One task as `taskPickerOption` sends it.
+   * @param {unknown} value
+   * @returns {value is BrowserTaskPickerOption}
+   */
+  function isTaskPickerOption(value) {
+    return isResponseRecord(value)
+      && TASK_PICKER_OPTION_TEXT.every((member) => typeof value[member] === "string")
+      && value.task_id !== "";
+  }
+
+  /**
+   * One workspace member as the catalog sends it.
+   *
+   * Three members of the fifteen `userRowToAppValue` builds, and the contract says so.
+   * @param {unknown} value
+   * @returns {value is BrowserTaskUserOption}
+   */
+  function isUserOption(value) {
+    return isResponseRecord(value)
+      && USER_OPTION_TEXT.every((member) => typeof value[member] === "string")
+      && value.user_id !== "";
+  }
+
+  /**
+   * The option catalog `readOptions` builds, with every collection element checked.
+   *
+   * **A malformed option is dropped; a malformed catalog is refused.** The two are different
+   * failures and the page already treats them differently: an absent catalog falls back to the
+   * stand-in the page holds, while a selector with one unusable entry has always simply rendered
+   * the rest. Refusing the whole catalog because one client is malformed would empty every picker
+   * on the page, which is the opposite of what `result.options || state.options` used to do.
+   * @param {unknown} value
+   * @returns {BrowserTaskListOptions | null}
+   */
+  function readTaskListOptions(value) {
+    // The refusal is table-driven, because the tables are the authority the proofs read. The
+    // reconstruction below then re-reads each member by name: a table-driven `every` proves the
+    // shape at runtime but carries no narrowing into the object literal, and this owner does not
+    // cast its way out of that.
+    if (!isResponseRecord(value)
+      || typeof value.workspaceType !== "string"
+      || !TASK_OPTION_FLAGS.every((member) => typeof value[member] === "boolean")
+      || !TASK_OPTION_COLLECTIONS.every((member) => Array.isArray(value[member]))
+      || !TASK_OPTION_TEXT_LISTS.every((member) => Array.isArray(value[member])
+        && value[member].every(isText))) {
+      return null;
+    }
+
+    const { clients, priorities, projects, statuses, tasks, users } = value;
+    if (!Array.isArray(clients) || !Array.isArray(projects) || !Array.isArray(tasks)
+      || !Array.isArray(users) || !Array.isArray(priorities) || !Array.isArray(statuses)) {
+      return null;
+    }
+
+    return {
+      clients: clients.filter(isClientOption),
+      priorities: priorities.filter(isText),
+      projects: projects.filter(isProjectOption),
+      statuses: statuses.filter(isText),
+      taskTimersEnabled: value.taskTimersEnabled === true,
+      tasks: tasks.filter(isTaskPickerOption),
+      timeTrackingEnabled: value.timeTrackingEnabled === true,
+      users: users.filter(isUserOption),
+      workspaceType: value.workspaceType,
+    };
   }
 
   /**
@@ -254,7 +377,7 @@
     const currentUserId = envelope ? envelope.currentUserId : null;
     return {
       currentUserId: typeof currentUserId === "string" ? currentUserId : "",
-      options: isTaskListOptions(options) ? options : null,
+      options: readTaskListOptions(options),
       pagination: isTaskListPagination(pagination) ? pagination : null,
       tasks: envelope && Array.isArray(envelope.tasks) ? envelope.tasks.filter(isTaskListItem) : [],
     };
