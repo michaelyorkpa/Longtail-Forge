@@ -2446,6 +2446,37 @@ export interface BrowserUserRecord {
   workspaceMemberships?: BrowserUserWorkspaceMembership[];
 }
 
+/**
+ * What `POST /api/users` resolves to.
+ *
+ * **A mutation envelope, not a user record.** `usersService.create` answers four members, and
+ * two of them are the halves `0.33.33.38.4.4.1` already narrowed: the account the route acted
+ * on, and the workspace's list after it. This contract names all four and reuses that record for
+ * both rather than describing a user twice.
+ *
+ * **`initialPassword` is a required member whose `""` means absent, and that is load-bearing.**
+ * The service generates one **only** in the branch that creates a new account; attaching an
+ * account that already existed leaves it the empty string it was initialised to. So emptiness is
+ * the producer's way of saying "no credential was minted", and `accountCreated` is the flag that
+ * says why - the two are read together by the consumer and must stay linked. Making the member
+ * optional would turn a meaningful empty string into an absence and let a consumer treat the two
+ * cases as one.
+ *
+ * The value is a genuine one-time credential and it is safe by construction upstream:
+ * `usersRepository.create` returns a constructed record with no password or hash in it, so the
+ * `user_created` audit entry stores none, and the browser writes the value to a panel it hides
+ * whenever the value is empty.
+ */
+export interface BrowserUserCreationResult {
+  /** `true` only when a new account was minted rather than an existing one attached. */
+  accountCreated: boolean;
+  /** The one-time credential, or `""` when no account was created. Never optional. */
+  initialPassword: string;
+  /** `null` when the body could not be vouched for; the route always echoes the account. */
+  user: BrowserUserRecord | null;
+  users: BrowserUserRecord[];
+}
+
 /** One scope a role may be assigned in, as `listAssignableRoleOptions` builds it. */
 export interface BrowserRoleScope {
   label: string;

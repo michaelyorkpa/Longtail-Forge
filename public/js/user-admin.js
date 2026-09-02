@@ -346,6 +346,32 @@
   }
 
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserUserCreationResult} BrowserUserCreationResult */
+
+  /**
+   * What the create route answered: the flag, the credential, and the two user halves.
+   *
+   * **Total, because the reads it replaces were.** The raw flag read on an unusable body was
+   * already `undefined`, which took the "existing account" branch and left the credential panel
+   * hidden - and that is the fail-closed direction for a one-time credential, so it is kept
+   * rather than turned into a throw.
+   *
+   * `initialPassword` is answered as `""` unless the producer sent text, which is the same empty
+   * value the producer itself writes when no account was minted.
+   * @param {unknown} body
+   * @returns {BrowserUserCreationResult}
+   */
+  function readUserCreation(body) {
+    const envelope = isResponseRecord(body) ? body : null;
+    const initialPassword = envelope ? envelope.initialPassword : null;
+    return {
+      accountCreated: envelope?.accountCreated === true,
+      initialPassword: typeof initialPassword === "string" ? initialPassword : "",
+      user: readUserRecord(body),
+      users: readUserRecords(body),
+    };
+  }
+
   /**
    * The narrowing contract for the values this file catches.
    *
@@ -508,19 +534,20 @@
         workspaceId,
       });
 
+      const created = readUserCreation(body);
+
       userAdminForm.reset();
-      if (body.accountCreated) {
-        showGeneratedPassword(body.initialPassword || "");
+      if (created.accountCreated) {
+        showGeneratedPassword(created.initialPassword);
       } else {
         showGeneratedPassword("");
       }
       resetAccountLookup();
       await loadAddUserOptions(workspaceId);
-      const createdUser = readUserRecord(body);
-      renderUsers(readUserRecords(body));
-      setUserAdminStatus(body.accountCreated
-        ? `Created ${createdUser?.username || username} and added the account to the selected workspace.`
-        : `Added existing account ${createdUser?.username || username} to the selected workspace.`);
+      renderUsers(created.users);
+      setUserAdminStatus(created.accountCreated
+        ? `Created ${created.user?.username || username} and added the account to the selected workspace.`
+        : `Added existing account ${created.user?.username || username} to the selected workspace.`);
     } catch (error) {
       if (requireErrors().caughtStatus(error) === 401) {
         window.location.replace("/login.html");
