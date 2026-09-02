@@ -5,6 +5,7 @@ import { createProjectTextReader } from "../../test-support/source-scan.mjs";
 const { readText } = createProjectTextReader();
 
 const workbenchScript = readText("public/js/workbench.js");
+const workbenchService = readText("src/services/workbench.service.js");
 const tasksService = readText("src/modules/tasks/tasks.service.js");
 const tasksScript = readText("public/js/tasks.js");
 
@@ -23,10 +24,19 @@ assert.match(
   /async function loadTaskOptionsData\(card\)[\s\S]*api\.getJson\(card\.listRoute[\s\S]*taskOptions: data\?\.options \|\| \{ projects: \[\] \}/,
   "Workbench should load Tasks options from the contributed route without consuming an all-tasks list.",
 );
+// 0.33.33.38.4.3.7: the bootstrap arm this used to pin was dead. `workbenchService.bootstrap`
+// returns `taskOptions: null` unconditionally, so the middle branch could never be taken, and the
+// browser contract now states that. What the assertion actually names - that module-owned source
+// payloads win over the local default - is asserted directly.
 assert.match(
   workbenchScript,
-  /taskOptions: sourceData\.taskOptions \|\| bootstrap\.taskOptions \|\| \{ projects: \[\] \}/,
+  /taskOptions: sourceData\.taskOptions \|\| \{ projects: \[\] \}/,
   "Workbench browser state should retain task options from module-owned source payloads.",
+);
+assert.match(
+  workbenchService,
+  /\n\s+taskOptions: null,/,
+  "and the bootstrap must keep sending none, or the browser owes that branch a contract again.",
 );
 assert.doesNotMatch(
   workbenchScript,

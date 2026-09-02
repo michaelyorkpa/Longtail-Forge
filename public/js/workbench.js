@@ -52,6 +52,126 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkbenchBootstrap} BrowserWorkbenchBootstrap */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkbenchContribution} BrowserWorkbenchContribution */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkbenchModuleState} BrowserWorkbenchModuleState */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkbenchRegistry} BrowserWorkbenchRegistry */
+
+  /** The two words `buildModuleStateMap` writes. */
+  const WORKBENCH_MODULE_STATUSES = Object.freeze(["disabled", "enabled"]);
+
+  /**
+   * A response body that is a plain object.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isBootstrapRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * One module contribution.
+   *
+   * `normalizeContribution` spreads what the module declared and overrides only `moduleId`, so
+   * that is the whole of what this boundary can promise. The renderer, label and actions a card
+   * carries belong to the contributing module's own declaration.
+   * @param {unknown} value
+   * @returns {value is BrowserWorkbenchContribution}
+   */
+  function isWorkbenchContribution(value) {
+    return isBootstrapRecord(value) && typeof value.moduleId === "string" && value.moduleId !== "";
+  }
+
+  /**
+   * One module's enablement state.
+   * @param {unknown} value
+   * @returns {value is BrowserWorkbenchModuleState}
+   */
+  function isWorkbenchModuleState(value) {
+    return isBootstrapRecord(value)
+      && typeof value.displayName === "string"
+      && typeof value.enabled === "boolean"
+      && typeof value.status === "string"
+      && WORKBENCH_MODULE_STATUSES.includes(value.status);
+  }
+
+  /**
+   * The registry the bootstrap sent, or `null`.
+   *
+   * A malformed contribution is dropped rather than discarding the registry: a card the browser
+   * cannot read should not hide the ones it can. A registry that is not a record at all answers
+   * `null`, which is the absence both reads already handled - one falls back to `{}`, the other to
+   * the registry the page is holding.
+   * @param {unknown} value
+   * @returns {BrowserWorkbenchRegistry | null}
+   */
+  function readWorkbenchRegistry(value) {
+    if (!isBootstrapRecord(value)) {
+      return null;
+    }
+
+    const { timerSources, workbenchCards, workItemSources } = value;
+    return {
+      timerSources: Array.isArray(timerSources) ? timerSources.filter(isWorkbenchContribution) : [],
+      workbenchCards: Array.isArray(workbenchCards) ? workbenchCards.filter(isWorkbenchContribution) : [],
+      workItemSources: Array.isArray(workItemSources) ? workItemSources.filter(isWorkbenchContribution) : [],
+    };
+  }
+
+  /**
+   * The module state map the bootstrap sent, or `null`.
+   *
+   * The keys are module ids and the key space is open, so every *value* is checked instead. A
+   * malformed entry is dropped; a map that is not a record answers `null`, which
+   * `normalizeModuleStateMap` already turned into the map the page was holding.
+   * @param {unknown} value
+   * @returns {Record<string, BrowserWorkbenchModuleState> | null}
+   */
+  function readWorkbenchModuleStates(value) {
+    if (!isBootstrapRecord(value)) {
+      return null;
+    }
+
+    /** @type {Record<string, BrowserWorkbenchModuleState>} */
+    const states = {};
+    for (const [moduleId, state] of Object.entries(value)) {
+      if (isWorkbenchModuleState(state)) {
+        states[moduleId] = state;
+      }
+    }
+
+    return states;
+  }
+
+  /**
+   * The Workbench bootstrap envelope.
+   *
+   * **Three of its members are constants the producer writes literally**, so this reader does not
+   * pretend to discover them: `taskOptions` is `null`, and `timers` and `workCandidates` are empty
+   * on this route because candidates load from `/api/workbench/focus-candidates`.
+   *
+   * Each member answers what its own consumer fallback already expected, so no malformed part of
+   * the response can take the page further down than it went before.
+   * @param {unknown} body
+   * @returns {BrowserWorkbenchBootstrap}
+   */
+  function readWorkbenchBootstrap(body) {
+    const envelope = isBootstrapRecord(body) ? body : null;
+    const currentUserId = envelope ? envelope.currentUserId : null;
+    const workCandidates = envelope ? envelope.workCandidates : null;
+    const timers = envelope ? envelope.timers : null;
+    const workCandidateMode = envelope ? envelope.workCandidateMode : null;
+    return {
+      currentUserId: typeof currentUserId === "string" ? currentUserId : "",
+      modules: envelope ? readWorkbenchModuleStates(envelope.modules) : null,
+      registry: envelope ? readWorkbenchRegistry(envelope.registry) : null,
+      taskOptions: null,
+      timers: Array.isArray(timers) ? timers : [],
+      workCandidateMode: typeof workCandidateMode === "string" ? workCandidateMode : "",
+      workCandidates: Array.isArray(workCandidates) ? workCandidates : [],
+    };
+  }
+
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRecords} BrowserTaskRecords */
 
   /**
@@ -202,6 +322,7 @@
     focusModeId: DEFAULT_FOCUS_MODE_ID,
     focusModes: [],
     modules: {},
+    /** @type {BrowserWorkbenchRegistry} */
     registry: {
       workbenchCards: [],
       timerSources: [],
@@ -214,6 +335,7 @@
     taskOptions: { projects: [] },
     timers: [],
     viewState: WORKBENCH_VIEW_STATE_FOCUS_SELECTION,
+    /** @type {unknown[]} */
     workCandidates: [],
     workspaceType: "business",
   };
@@ -790,14 +912,15 @@
       const restoredFocusPromise = loadFocusCandidatesForState();
       const sourceDataPromise = cachedRegistry
         ? loadWorkbenchSourceData(cachedRegistry)
-        : bootstrapPromise.then((bootstrap) => loadWorkbenchSourceData(bootstrap.registry || {}));
-      const [bootstrap, clientProjectData, focusModeData, initialSourceData, restoredFocusData] = await Promise.all([
+        : bootstrapPromise.then((body) => loadWorkbenchSourceData(readWorkbenchBootstrap(body).registry || {}));
+      const [bootstrapBody, clientProjectData, focusModeData, initialSourceData, restoredFocusData] = await Promise.all([
         bootstrapPromise,
         loadClientProjectData(),
         loadFocusModes(),
         sourceDataPromise,
         restoredFocusPromise,
       ]);
+      const bootstrap = readWorkbenchBootstrap(bootstrapBody);
       const registry = bootstrap.registry || state.registry;
       const sourceData = cachedRegistry && workbenchRegistryCardsChanged(cachedRegistry, registry)
         ? await loadWorkbenchSourceData(registry)
@@ -819,17 +942,17 @@
       state = {
         ...state,
         clients,
-        currentUserId: bootstrap.currentUserId || "",
+        currentUserId: bootstrap.currentUserId,
         focusModeId,
         focusModes,
-        modules: normalizeModuleStateMap(bootstrap.modules || state.modules),
+        modules: bootstrap.modules || normalizeModuleStateMap(state.modules),
         recommendedCandidateIndex: 0,
         registry,
         selectedClientId,
         selectedProjectId,
-        taskOptions: sourceData.taskOptions || bootstrap.taskOptions || { projects: [] },
+        taskOptions: sourceData.taskOptions || { projects: [] },
         timers: sourceData.timers,
-        workCandidates: bootstrap.workCandidates || [],
+        workCandidates: bootstrap.workCandidates,
         workspaceType,
       };
       // The candidates fetched with the restored selection stand unless
@@ -947,7 +1070,10 @@
     }
 
     const candidate = (state.focusCandidates || []).find((entry) => candidateTaskId(entry) === taskId)
-      || (state.workCandidates || []).find((entry) => candidateTaskId(entry) === taskId)
+      // The bootstrap contract types this slot's elements as unknown, because the route that
+      // fills it always sends none and the records that would fill it come from elsewhere. A
+      // non-record already matched nothing here; the guard says so rather than relying on it.
+      || (state.workCandidates || []).find((entry) => isBootstrapRecord(entry) && candidateTaskId(entry) === taskId)
       || {};
 
     await enterTaskFocus(candidate, taskId);

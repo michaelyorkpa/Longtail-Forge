@@ -2620,6 +2620,99 @@ export interface BrowserAssignmentLookup {
 }
 
 /**
+ * One module's state as the Workbench bootstrap reports it.
+ *
+ * **An exact reconstruction of three members.** `buildModuleStateMap` builds this for every module
+ * the workspace context returned, keyed by module id, and names all three - so unlike most of this
+ * bootstrap it can be described precisely.
+ *
+ * `enabled` and `status` are two spellings of one decision: the shaper writes
+ * `moduleDefinition.status === "enabled"` for the boolean and the matching word for the text, so
+ * they cannot disagree. `displayName` falls back through the module's name to its id, so it is
+ * never empty.
+ */
+export interface BrowserWorkbenchModuleState {
+  /** Falls back through the module name to its id, so never empty. */
+  displayName: string;
+  enabled: boolean;
+  status: BrowserWorkbenchModuleStatus;
+}
+
+/**
+ * The two words `buildModuleStateMap` writes.
+ *
+ * Closed because the shaper writes a literal on both branches of one comparison; nothing here is a
+ * column passing through.
+ */
+export type BrowserWorkbenchModuleStatus = "disabled" | "enabled";
+
+/**
+ * One module contribution as the Workbench registry carries it.
+ *
+ * **A one-member guarantee, and that is the honest size of it.** `normalizeContribution` spreads
+ * the contribution a module declared in its own `module.js` and overrides only `moduleId`.
+ * Everything else - renderer, label, sort order, actions - is that module's declaration, so the
+ * framework's extensibility contract owns those shapes rather than this response boundary. Naming
+ * them here would freeze one module's vocabulary into every module's contract.
+ *
+ * **Contributions arrive already filtered, twice.** `listWorkspaceContributions` drops any whose
+ * module is disabled, whose requirements are unavailable, or whose required permissions the caller
+ * lacks; `filterPublicDemoContributionActions` then removes individual actions a public demo may
+ * not offer. The browser describes what survived both and must never try to restore either.
+ */
+export interface BrowserWorkbenchContribution {
+  moduleId: string;
+}
+
+/**
+ * The three contribution lists the Workbench bootstrap sends as its registry.
+ *
+ * **`registry` and `modules` are not two names for one thing.** This is a fixed three-member
+ * record of contribution lists; `modules` is a map keyed by module id holding enablement state.
+ * One says what the workspace's modules *offer*, the other says which are *on*.
+ */
+export interface BrowserWorkbenchRegistry {
+  timerSources: BrowserWorkbenchContribution[];
+  workbenchCards: BrowserWorkbenchContribution[];
+  workItemSources: BrowserWorkbenchContribution[];
+}
+
+/**
+ * What `GET /api/workbench/bootstrap` resolves to.
+ *
+ * **Three of its seven members are constants, and the producer says so in its own source.**
+ * `taskOptions` is literally `null`, `timers` and `workCandidates` are literally `[]`, and a
+ * comment beside them records that the fifty-candidate bootstrap computation was removed once the
+ * browser began resolving candidates from `/api/workbench/focus-candidates` and the task detail
+ * read. The Workbench's `sourceData.taskOptions || bootstrap.taskOptions` has therefore been
+ * reading a member that is always absent, and this contract states that rather than implying a
+ * catalog arrives here. **No Task option contract is reused, because none is sent.**
+ *
+ * `currentUserId` is `session.user_id` and is always text.
+ *
+ * **`modules` and `registry` are nullable here even though the route always sends them.** The
+ * producer builds both unconditionally, but the reader answers `null` for anything it cannot vouch
+ * for, and each Workbench read already had its own fallback - the cached registry for one, the
+ * module map it is holding for the other. Preserving those fallbacks is why the members are
+ * nullable rather than the reader inventing an empty registry.
+ */
+export interface BrowserWorkbenchBootstrap {
+  currentUserId: string;
+  /** `null` when the map cannot be vouched for; the route itself always sends one. */
+  modules: Record<string, BrowserWorkbenchModuleState> | null;
+  /** `null` when the registry cannot be vouched for; the route itself always sends one. */
+  registry: BrowserWorkbenchRegistry | null;
+  /** Always `null` on this route: the catalog reaches the page from its own producer. */
+  taskOptions: null;
+  /** Always empty on this route. */
+  timers: unknown[];
+  /** Always the empty string on this route. */
+  workCandidateMode: string;
+  /** Always empty on this route: candidates load from `/api/workbench/focus-candidates`. */
+  workCandidates: unknown[];
+}
+
+/**
  * The resume context both task-timer producers reconstruct.
  *
  * **Twelve members, built identically by three shapers.** `timerToTaskTimer` builds it from the

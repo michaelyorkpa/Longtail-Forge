@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19028,
+    "activeAssertionCount": 19029,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19842,
+    "effectiveAssertionCount": 19843,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -7581,8 +7581,8 @@
     },
     {
       "area": "workbench",
-      "assertionCount": 382,
-      "contractAssertionCount": 381,
+      "assertionCount": 383,
+      "contractAssertionCount": 382,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/workbench/task-focus-deep-link.contract.mjs",
@@ -7646,7 +7646,7 @@
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-task-ordering.contract.mjs",
-          "assertionCount": 6
+          "assertionCount": 7
         },
         {
           "path": "scripts/regression-contracts/workbench/workbench-view-state.contract.mjs",
