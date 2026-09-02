@@ -627,6 +627,10 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 **Complete: 5 diagnostics eliminated and 4 more cleared beside them, four contracts, zero fallout.** See the archive entry. `listTargets` answers three members behind the same operator gate as the audit: the viewing administrator, the deployment's configured lifetime, and the eligible targets. **The target is a security-filtered summary of five selected columns, not a user record** - reusing `BrowserUserRecord` would have promised a status, role, timestamps and preferences this route deliberately never sends. **A record the browser cannot vouch for is dropped rather than offered**, which is the fail-closed direction for a picker and the opposite of the audit list's.
 
+#### 0.33.33.38.4.8.3 - The audit log envelope
+
+**Complete: 5 diagnostics, five contracts, and the first reuse of the shared pagination envelope.** See the archive entry. One service answers both `/api/audit-logs` and `/api/security-events`, so there is **one envelope rather than two named after two routes**. The entries have no shaper at all - they are the fifteen columns of `audit_logs` - so the contract follows the schema column for column, and the three snapshot members are typed as the **JSON strings they are**, not as records no producer agrees on. **An audit page must not present partial history**, so an entry the browser cannot vouch for makes the response unreadable rather than shorter.
+
 #### 0.33.33.38.4.9 - Attribute and close the remaining producers
 
 **52 diagnostics whose producer this reslice did not resolve, plus whatever the file, key and timer bodies leave over.** **Attribution is the work and it comes first**: follow each read back through its local helper to a route, then fold it into whichever sibling child owns that family - or draw a new child if the trace finds a family nobody listed. **Do not begin by typing them.**

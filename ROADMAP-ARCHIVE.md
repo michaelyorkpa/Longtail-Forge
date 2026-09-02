@@ -1,5 +1,31 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.8.3 - The audit log envelope
+
+**Model: High Effort** - the operator family's third child, and the one whose disclosure model had to be read before a single member could be typed.
+
+- [x] **One envelope for two routes, because one service answers both.** `listSecurityEvents` is `list` with a `securityOnly` flag, so `BrowserAuditLogEnvelope` is the four members `list` returns and there is no second contract named after the second route. The page picks between the endpoints itself, as it already did.
+- [x] **The first reuse of `BrowserBoundedPagination`.** `0.33.33.38.4.8.1` named that contract for `boundedPaginationEnvelope` rather than for the Support View audit precisely so the other six list routes could take it, and this is the first to do so. A break that gives the envelope its own pagination contract is refused.
+- [x] **The entry has no shaper, so the contract follows the table.** `searchForScope` selects all fifteen columns of `audit_logs` and the service answers the rows untouched. The proof reads `CREATE TABLE audit_logs` from the schema, derives which columns are `NOT NULL`, and requires the browser's two tables and the declaration to agree with it column for column - so six are text and nine are text-or-null, and a break that requires a nullable column or drops a selected one is refused. `action`, `change_type` and `record_type` stay open because the columns carry no `CHECK`, the record type has an explicit unknown path, and the security stream writes its own action names.
+- [x] **The disclosure model was read, and it holds.** The address is deliberately shown to an administrator holding `audit_logs.view`, and the declaration says so rather than implying redaction. The three `_json` members are `JSON.stringify` output, and they are safe **upstream** rather than at read time: `userRowToAppValue` is a hand-written whitelist of fifteen profile members with no credential column and no spread, the password-reset entry records only a timestamp, and the security stream that shares this table sanitises its metadata through a top-level allowlist, a secret-name pattern applied at every depth, and bounded depth and string length. **Five breaks prove each of those**, including one that makes the profile shaper spread its row and one that disables the secret-name filter.
+- [x] **The snapshots are typed as the JSON strings they are.** Naming them as records would promise a shape no producer agrees on - every caller passes its own - and would invite reading fields out of something that exists to be displayed. A break that types one as a record and a break that lets the runtime accept a parsed object are both refused.
+- [x] **Two filter vocabularies again, and a matching shape deliberately not reused.** Four catalogues are `{ label, value }` records and two are bare strings mapped straight off `SELECT DISTINCT`. `BrowserAuditFilterOption` is declared for this producer rather than borrowing `BrowserSupportViewAuditFilterOption`, whose two members happen to match: same shape, different producers, the same rule that kept three client vocabularies apart. Empty is a real answer for two of them - clients outside a business workspace, workspaces below a super administrator - and the proof says so.
+- [x] **Partial history is refused, which is a deliberate change.** The raw reads coerced every member of a malformed row to the empty string, rendering a blank line indistinguishable from a real entry with nothing recorded. The reader now refuses any response it cannot vouch for in full and the page throws into the load-error path it already owned. The display normaliser still runs on vouched-for rows, so a null column renders exactly as before. This is the same choice `0.33.33.38.4.8.1` made and the opposite of `0.33.33.38.4.8.2`'s, where dropping an entry removes a candidate rather than hiding a record.
+
+Proved by breaking each one, restored in a `finally`, and **every refusal judged by exit status**: 33 breaks across the service, both routes, the repository projection, the schema-derived nullability, the profile shaper, the password-reset writer, the security-event sanitiser, the browser declaration, the runtime tables and readers, and the consumer.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,371 | **8,366** |
+| Genuine `unknown` | 65 | **60** |
+| params / state / dom / namespace / assorted | 4,611 / 1,739 / 1,484 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,168 / 530 / 976 / 1,568 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 595 / 348 / 167 | **614 / 348 / 167**, green |
+
+**5 eliminations, no transfers, no new debt, and no state typed.** `4,611 + 1,739 + 153 = 6,503` reconciles either side.
+
 ## Version 0.33.33.38.4.8.2 - The Support View target response
 
 **Model: High Effort** - the operator family's second child, and the one where the authorization trace decided the shape before a single member was named.

@@ -365,6 +365,7 @@
         "tests/typecheck/time-tracking-server-contracts.fixture.mjs",
         "tests/unit/api-key-contracts.test.mjs",
         "tests/unit/asset-version.test.mjs",
+        "tests/unit/audit-log-contracts.test.mjs",
         "tests/unit/bounded-pagination.test.mjs",
         "tests/unit/bulk-action-response-contract.test.mjs",
         "tests/unit/calendar-subscription-contracts.test.mjs",
@@ -497,7 +498,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8371,
+      "errorCount": 8366,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -536,10 +537,6 @@
           }
         ],
         "public/js/audit-log.js": [
-          {
-            "code": 18046,
-            "count": 5
-          },
           {
             "code": 18047,
             "count": 51
@@ -2735,8 +2732,8 @@
     }
   },
   "totals": {
-    "files": 1078,
-    "errors": 8371,
+    "files": 1079,
+    "errors": 8366,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
