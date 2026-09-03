@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19031,
+    "activeAssertionCount": 19032,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19845,
+    "effectiveAssertionCount": 19846,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -4960,8 +4960,8 @@
     },
     {
       "area": "files",
-      "assertionCount": 626,
-      "contractAssertionCount": 625,
+      "assertionCount": 627,
+      "contractAssertionCount": 626,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/files/file-scanner-setup-docs.contract.mjs",
@@ -4977,7 +4977,7 @@
         },
         {
           "path": "scripts/regression-contracts/files/files-browse-compact-reset.contract.mjs",
-          "assertionCount": 36
+          "assertionCount": 37
         },
         {
           "path": "scripts/regression-contracts/files/files-browse-list-shell.contract.mjs",

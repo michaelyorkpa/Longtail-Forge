@@ -39,7 +39,12 @@ assert.match(renderFiles, /attachments\.map\(\(attachment\) => fileRow\(attachme
 assert.doesNotMatch(renderFiles, /state\.fileRows|reconcileSelectedFile|renderFilesSummary|renderSelectedFileDetail/, "Files render should not keep selected-row state or inline detail panels in sync");
 
 const loadFiles = extractFunctionSpan(filesScript, "loadFiles");
-assert.match(loadFiles, /params\.set\("limit", String\(FILES_PAGE_SIZE\)\)[\s\S]*const attachments = result\.attachments \|\| \[\][\s\S]*state\.attachments = options\.append \? \[\.\.\.state\.attachments, \.\.\.attachments\] : attachments[\s\S]*renderFiles\(state\.attachments\)[\s\S]*setStatus\(visibleFileCountLabel\(state\.attachments\.length, state\.pagination\)\)/, "Files successful browse loads should keep a bounded page size and compact visible-count status above the table");
+// Retargeted by 0.33.33.38.4.9.2: the read this pinned is now narrowed through
+// readFileAttachmentList before the page accumulates it. The assertion owns the bounded page
+// size, the append-or-replace accumulation and the compact visible-count status, so it asserts
+// those against the narrowed page rather than against the raw body read it happened to name.
+assert.match(loadFiles, /params\.set\("limit", String\(FILES_PAGE_SIZE\)\)[\s\S]*const attachments = page\.attachments[\s\S]*state\.attachments = options\.append \? \[\.\.\.state\.attachments, \.\.\.attachments\] : attachments[\s\S]*renderFiles\(state\.attachments\)[\s\S]*setStatus\(visibleFileCountLabel\(state\.attachments\.length, state\.pagination\)\)/, "Files successful browse loads should keep a bounded page size and compact visible-count status above the table");
+assert.match(loadFiles, /const page = readFileAttachmentList\(/, "Files browse loads should narrow the attachment page before accumulating it");
 
 const visibleFileCountLabel = extractFunctionSpan(filesScript, "visibleFileCountLabel");
 assert.match(visibleFileCountLabel, /const label = `\$\{safeCount\} file attachment\$\{safeCount === 1 \? "" : "s"\} visible`[\s\S]*return pagination\.hasMore \? `\$\{label\}\. More available\.` : label/, "Files visible-count status should stay compact and attachment-scoped while hinting at additional pages");
