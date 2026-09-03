@@ -302,7 +302,7 @@ describe("the consumers", () => {
   });
 
   it("leaves the page's other producers to their own children", () => {
-    for (const other of ["result.diagnostics", "result.jobs", "result.users"]) {
+    for (const other of ["result.diagnostics", "result.jobs"]) {
       assert.ok(page.includes(other), `${other} is another child's read and is untouched`);
     }
     assert.doesNotMatch(declarationSource, /BrowserWorkspaceRuntimeDiagnostics|BrowserWorkspaceJobObservability/,
@@ -316,12 +316,17 @@ describe("the consumers", () => {
       page.split("readWorkspaceBackupEnvelope(").length - 1, 3,
       "the backup reads now belong to the workspace backup receipt producer, not to this child",
     );
+    assert.equal(
+      page.split("readWorkspaceUserList(").length - 1, 2,
+      "the workspace roster now belongs to the shared user list producer, not to this child",
+    );
     const readerStart = page.indexOf("function readWorkspaceDeletionState");
     const deletionReader = page.slice(readerStart, page.indexOf("\n  }\n", readerStart));
     assert.ok(
       deletionReader.length > 0
         && !deletionReader.includes("readWorkspaceSettings")
-        && !deletionReader.includes("readWorkspaceBackupEnvelope"),
+        && !deletionReader.includes("readWorkspaceBackupEnvelope")
+        && !deletionReader.includes("readWorkspaceUserList"),
       "and this child's own reader must not reach into those producers",
     );
   });

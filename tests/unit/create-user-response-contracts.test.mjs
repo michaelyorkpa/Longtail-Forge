@@ -174,12 +174,16 @@ describe("the consumer", () => {
   });
 
   it("leaves the other user-admin producers to their own children", () => {
-    for (const other of ["workspacesBody.workspaces", "permissionResourcesBody.resources", "usersBody.currentUserId"]) {
+    // `usersBody.currentUserId` left this list when `0.33.33.38.4.4.6` claimed the shared
+    // user list. This child never owned it; it owns only that it does not touch it.
+    for (const other of ["workspacesBody.workspaces", "permissionResourcesBody.resources"]) {
       assert.ok(page.includes(other), `${other} is another child's read and is untouched`);
     }
     // Retargeted when `0.33.33.38.4.4.3.2` narrowed the session reads. The claim was never that
     // those reads stay raw - it is that this child does not own them - so it is now asserted
     // against the boundary rather than against a spelling that has since moved on.
+    assert.match(page, /readUserListResponse\(usersBody\)/,
+      "the acting identity now belongs to the shared user list producer, not to this child");
     const createUser = extractFunctionBlock(page, "createUser");
     for (const sessionRead of ["sessions", "revokedCount", "sessionReference"]) {
       assert.ok(!createUser.includes(sessionRead), `the create path must not touch ${sessionRead}`);

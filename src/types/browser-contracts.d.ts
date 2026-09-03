@@ -2663,6 +2663,25 @@ export interface BrowserUserWorkspaceMembership {
 }
 
 /**
+ * What `GET /api/users` resolves to.
+ *
+ * **Two members reconstructed by name, and the actor identity is the session's own.**
+ * `usersService.list` answers `currentUserId: session.user_id` beside the decorated list, so the
+ * acting user is stated by the server rather than inferred by the browser from list membership -
+ * and it is required, because a page that loses it loses every self-action restriction that
+ * depends on knowing who is looking.
+ *
+ * `users` reuses `BrowserUserRecord`: this is the producer that record was drawn from, and it
+ * already declares the `workspaceMemberships` the list paths decorate on. Reuse here is producer
+ * identity, not shape similarity.
+ */
+export interface BrowserUserListResponse {
+  /** `session.user_id`, so server-authoritative and never empty. */
+  currentUserId: string;
+  users: BrowserUserRecord[];
+}
+
+/**
  * One user as the user-administration routes return it.
  *
  * **Constructed, and that is what makes the omissions load-bearing.** `userRowToAppValue` in

@@ -331,6 +331,34 @@
     return envelope && Array.isArray(envelope.users) ? envelope.users.filter(isUserRecord) : [];
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserUserListResponse} BrowserUserListResponse */
+
+  /**
+   * What `GET /api/users` answered, or `null` when it cannot be vouched for.
+   *
+   * **This list refuses where `readUserRecords` drops, and the difference is deliberate.** That
+   * reader serves four bodies and answers a best-effort list, which `0.33.33.38.4.2` chose for
+   * the note list and `0.33.33.38.4.4.1` kept. Here the list *is* the administrative population:
+   * a silently shortened one hides an account from role, membership and lifecycle decisions
+   * while looking complete. So an element the browser cannot vouch for refuses the response, and
+   * the other three bodies keep the policy their own children set.
+   *
+   * `currentUserId` is required for the same reason it is server-supplied: a page that defaults
+   * it to `""` has quietly stopped knowing which account is acting.
+   * @param {unknown} body
+   * @returns {BrowserUserListResponse | null}
+   */
+  function readUserListResponse(body) {
+    if (!isResponseRecord(body)) {
+      return null;
+    }
+    const { currentUserId, users } = body;
+    if (typeof currentUserId !== "string" || currentUserId === "" || !Array.isArray(users)) {
+      return null;
+    }
+    return users.every(isUserRecord) ? { currentUserId, users } : null;
+  }
+
   /**
    * The single user a mutation body echoes back, or `null`.
    *
@@ -454,12 +482,16 @@
       clients = /** @type {{ id?: unknown, name?: unknown, projects?: { id?: unknown, name?: unknown }[] }[]} */ (clientProjectBody.clients || []);
       workspaces = workspacesBody.workspaces || [];
       permissionResources = normalizePermissionResources(permissionResourcesBody.resources);
-      currentUserId = String(usersBody.currentUserId || "");
+      const userList = readUserListResponse(usersBody);
+      if (!userList) {
+        throw new Error("The workspace user list could not be read.");
+      }
+      currentUserId = userList.currentUserId;
       draftPermissionOverrides = normalizePermissionOverrides(draftPermissionOverrides);
       activeWorkspaceType = normalizeWorkspaceType(settingsBody.workspaceType);
       renderRoleOptions();
       applyAddUserOptions(addUserOptionsBody);
-      renderUsers(readUserRecords(usersBody));
+      renderUsers(userList.users);
       openUserFromQuery();
       setUserAdminStatus("");
     } catch (error) {

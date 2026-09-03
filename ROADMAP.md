@@ -589,6 +589,10 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 **The security trace is done and the current behaviour is sound, so this child types it rather than changing it.** `initialPassword` is generated only in the branch that creates a new account, stays `""` when an existing account is merely attached to the workspace, and the route runs `assertPublicDemoCapabilityAllowed`, `resolveAddUserWorkspace` and `assertWorkspaceCanAddUser` first. `usersRepository.create` returns a constructed record with no password or hash in it, so the `user_created` audit entry stores none. The browser writes the value to a one-time panel that is hidden whenever the value is empty. **A child that narrows this must keep `initialPassword` a required member with an empty-string absent case rather than making it optional**, because the emptiness is what the consumer's `body.accountCreated` guard already reads.
 
+#### 0.33.33.38.4.4.6 - The shared user list response
+
+**Complete: 2 diagnostics, two pages, one producer - the last cross-file producer with more than one live read.** See the archive entry. `usersService.list` answers `{ currentUserId, users }` exactly, the acting identity is `session.user_id` rather than anything the browser infers from the roster, and `users` reuses the `BrowserUserRecord` this producer was drawn from. **Both pages refuse a roster they cannot fully vouch for**, because a silently shortened administrative list hides an account while looking complete. This takes the current-user-id producer out of `0.33.33.38.4.4.4`'s five, leaving that bootstrap child with four.
+
 #### 0.33.33.38.4.5 - The settings catalog and user-settings bodies
 
 **18 diagnostics** across `workspace-settings.js`, `module-settings.js`, `notes-settings.js` and `user-settings.js`. **This child inherits `0.33.33.38.2.2.2`'s carry-forward**: `attachmentSections` is part of `GET /api/settings/catalog`, and its consumer already narrows with a predicate before sorting.
