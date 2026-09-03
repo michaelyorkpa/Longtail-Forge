@@ -1,5 +1,38 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.7.2 - Lists link-target providers and targets
+
+**Model: High Effort** - two diagnostics owned, nine eliminated, and the first child this run where the fabricated value would have been a **capability the server never advertised**.
+
+- [x] **One endpoint, one exact envelope, two producers.** `listLinkTargets` reconstructs `{ providers, targets }` and spreads nothing, so they are traced together; they are typed apart because a provider descriptor and a linked-context target have different producers, roles and safety semantics. Breaks that add a third envelope member - **including one added in shorthand form** - are refused.
+- [x] **The provider record is a five-member reduction of the registry contribution**, not a mirror of it: the service maps each active provider to `id`, `label`, `moduleId`, `providerId` and `targetType` and answers no other part of the contribution. Two breaks change that membership.
+- [x] **The target record is exact although the shaper spreads, because what it spreads is the framework's own total reconstruction.** `normalizeLinkedContextTarget` names all eleven members and adds `primaryContextHints` only when the raw target carried it; `assertLinkedContextTargetContract` then refuses the target unless every one is present and typed; `shapeListLinkTarget` spreads that result and names three Lists labels. The declared membership is **derived from the normaliser's own literal plus those three**, not from a table in the test.
+- [x] **The provider catalogue is refused, never filtered, and never empty - and that is the security argument.** The page's own `listLinkProviderOptions` falls back to a locally ordered set of choices when handed nothing, which predates this boundary. So a body this browser cannot read must not reach it, or **the picker would advertise link types the server never said were available**. The service cannot answer a success with no provider - it derives the target type from `activeProviders[0]` and throws when none survives filtering - so an empty catalogue did not come from it. Four breaks attack that chain, including one that stops the throw and one that lets the reader accept an empty list.
+- [x] **Targets are refused whole too, for a different reason than the picker rule would suggest.** Dropping a bad candidate is usually harmless, but every target this producer emits has already passed the shared contract, so a malformed one is not a bad candidate - it is evidence the body is not this producer's. Filtering would also let a broken response arrive as **"nothing matched your search"**, which is a specific claim. An empty target list *is* accepted, because a search can legitimately match nothing.
+- [x] **The label safety guarantee is named as the reason those labels are safe.** The shared contract refuses a `displayLabel` or `secondaryLabel` that looks like a raw identifier or echoes the target, client, project or workspace id. The browser relies on that rather than re-implementing it, and **five breaks remove one guarantee each** - the raw-identifier check, the echo check, a field from the safe-label set, an identifier from the echo list, and the Lists shaper bypassing the contract altogether.
+- [x] **The type vocabulary is the service's own set, scanned rather than searched for.** `LIST_LINK_TARGET_TYPES` holds four types and `isListLinkTargetProvider` filters every provider through it. The proof reads the set literal, so a fifth type added there is visible - the lesson the tag bulk-action child paid for - and both the declared union and the reader's frozen table are pinned to it.
+- [x] **Every gate stays server-owned**: the Lists module must be writable and `MANAGE_LINKS` must be granted, both before a single provider is discovered. Two breaks remove one each.
+- [x] **The local provider normaliser was kept.** It still owns picker ordering, scope filtering and display fallbacks that this child does not; what changed is that it now receives a catalogue the browser has vouched for. A break that removes it is refused.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **41 breaks across the Lists service, the framework linked-context contract, the route, the declaration and the consumer, all 41 refused for their specific named check.**
+
+**The harness found the same blind spot twice, and it was a real one.** A member scan written as `^ {4}(\w+):` cannot see a property written in shorthand, so the proof reported two Lists labels where the shaper names three, and a break that added a shorthand member to the envelope passed. Both scans now read `[:,]`. Four message-less assertions were named for the same reason: a break landed on one and reported nothing about what it had broken.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,330 | **8,321** |
+| Genuine `unknown` | 28 | **26** |
+| state | 1,738 | **1,732** |
+| assorted | 153 | **152** |
+| params / dom / namespace | 4,608 / 1,484 / 319 | **all unchanged** |
+| `.43` Lists, Files, Clients/Projects | 975 | **968** |
+| `.39` / `.40` / `.41` / `.42` / `.44` | 1,770 / 491 / 1,168 / 530 / 1,565 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 884 / 348 / 167 | **913 / 348 / 167**, green |
+
+**9 eliminations and no transfers - every family moved down or stayed flat.** Two are the genuine `unknown` this child owns. The other seven are **contextual fallout from two direct state handoffs**, taken in the order the process requires: narrow first, measure, then annotate. `state.linkTargets` receives the narrowed targets directly, and `state.editorStagedTargets` receives one of them a hop later when the editor stages it - leaving that second slot inferred as `never[]` would have turned this child's own narrowing into two new `TS2322`s rather than none. Two slots, no page-state type, and `.43` was not begun. **Exactly one file moved**, `lists.js` 475 to 466, with `TS18046` 4 to 2, `TS2339` 206 to 200 and the one `TS2698` gone.
+
 ## Version 0.33.33.38.4.4.6 - The shared user list response
 
 **Model: High Effort** - two diagnostics in two files, and the checkpoint where a duplication had to be argued for rather than avoided.

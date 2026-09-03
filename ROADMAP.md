@@ -651,6 +651,9 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 - [ ] `result.suggestions`, `result.providers` and `result.targets` are three more producers, each needing its own trace. **A provider descriptor is not a link target**, and `state.linkTargets` is a direct handoff to check before it is adopted.
 
+
+**Providers and targets are complete: 2 diagnostics closed, 9 eliminated in total, and the picker can no longer be handed a catalogue the server never advertised.** See the archive entry. They were traced together because they are two members of **one exact envelope from one endpoint**, and typed apart because they are two producers: a five-member provider projection, and a linked-context target that is exact **because the shaper spreads the framework's own total reconstruction**. The deferred list-summary read and the suggestions producer remain this child's open work.
+
 #### 0.33.33.38.4.8 - The operator-surface bodies
 
 **13 diagnostics** across Support View targets and audit, `/api/security-events`, `/api/runtime-diagnostics` and `/api/jobs`. Grouped because they share an operator audience and a read-only shape, not because they share a route prefix.
