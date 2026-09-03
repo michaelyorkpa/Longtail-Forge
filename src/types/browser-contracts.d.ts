@@ -2241,6 +2241,66 @@ export interface BrowserNoteCatalogSettings {
   limits: { bulkSelection: number };
 }
 
+/** What `normalizeAction` answers before it throws; `retry` is a browser word, not a server one. */
+export type BrowserNoteCatalogSecurityAction = "enable" | "remove";
+
+/** Whether the transition runs in the request or continues as a resumable job. */
+export type BrowserNoteCatalogSecurityExecution = "job" | "synchronous";
+
+/**
+ * The preview `publicPreflight` builds for a catalog security transition.
+ *
+ * **Fourteen members reconstructed by name, so this is exact.** `currentPolicy` and
+ * `transitionState` reuse the catalog settings vocabularies because they are literally the same
+ * two columns, read through the same `CHECK` constraints - reuse on producer identity rather
+ * than on shape.
+ *
+ * The counts are all `.length` of a collected array, so they are finite and never absent.
+ * `blockerCodes` is `string[]` rather than a closed union: the two codes the service raises are
+ * not compared against literals anywhere in the browser, which only renders them as labels.
+ */
+export interface BrowserNoteCatalogSecurityPreflight {
+  action: BrowserNoteCatalogSecurityAction;
+  affectedNoteCount: number;
+  affectedRevisionCount: number;
+  /** Rendered one per entry, so the elements are checked rather than the container alone. */
+  blockerCodes: string[];
+  /** `blockers.length === 0`, and the only thing that enables the confirm button. */
+  canProceed: boolean;
+  catalogCount: number;
+  catalogId: string;
+  currentPolicy: BrowserNoteCatalogSecurityPolicy;
+  execution: BrowserNoteCatalogSecurityExecution;
+  noteTransformCount: number;
+  revisionTransformCount: number;
+  staleSearchDocumentCount: number;
+  transitionState: BrowserNoteCatalogTransitionState;
+  workRecordCount: number;
+}
+
+/** What `GET /api/notes/collections/:id/security/preflight` resolves to. */
+export interface BrowserNoteCatalogSecurityPreflightEnvelope {
+  preflight: BrowserNoteCatalogSecurityPreflight;
+}
+
+/**
+ * What the three catalog security transition routes resolve to.
+ *
+ * **A structural minimum, because the producer spreads.** The synchronous branch returns
+ * `{ ...result, execution, preflight }`, so only the members it names after the spread can be
+ * claimed. `execution` is one of those and is the member the route itself branches on to choose
+ * between `200` and `202`.
+ *
+ * The job branch also answers a `collection`, which is the **whole** collection record rather
+ * than the reduced settings row - carrying the workspace id, both user stamps, the transition
+ * actor and the inherited-security source. It is deliberately left undeclared: this contract
+ * describes what the browser may trust, and blessing an over-broad member with a type would
+ * make it look intended. Recorded for its own owner.
+ */
+export interface BrowserNoteCatalogSecurityTransition {
+  execution: BrowserNoteCatalogSecurityExecution;
+}
+
 /**
  * The target a browser caller builds to identify what it wants to follow.
  *

@@ -321,6 +321,88 @@
     };
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCatalogSecurityPreflight} BrowserNoteCatalogSecurityPreflight */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCatalogSecurityTransition} BrowserNoteCatalogSecurityTransition */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCatalogSecurityAction} BrowserNoteCatalogSecurityAction */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCatalogSecurityExecution} BrowserNoteCatalogSecurityExecution */
+
+  /** What `normalizeAction` answers before it throws. */
+  /** @type {readonly BrowserNoteCatalogSecurityAction[]} */
+  const SECURITY_ACTIONS = Object.freeze(["enable", "remove"]);
+  /** @type {readonly BrowserNoteCatalogSecurityExecution[]} */
+  const SECURITY_EXECUTIONS = Object.freeze(["job", "synchronous"]);
+
+  /** The seven counts `publicPreflight` answers as array lengths or collected totals. */
+  const PREFLIGHT_COUNTS = Object.freeze([
+    "affectedNoteCount", "affectedRevisionCount", "catalogCount", "noteTransformCount",
+    "revisionTransformCount", "staleSearchDocumentCount", "workRecordCount",
+  ]);
+
+  /**
+   * The transition preview, or `null` when it cannot be vouched for.
+   *
+   * **Refused rather than defaulted, because the default chose the wrong dialog.** The raw
+   * Defaulting the missing preview to an empty object left `action` undefined, and the
+   * confirmation reads `preflight.action === "remove"` to decide whether to demand the typed catalog id and the
+   * current password. An unreadable body therefore rendered the *enable* form for a *remove*
+   * request - dropping both downgrade prerequisites from the screen.
+   * @param {unknown} body
+   * @returns {BrowserNoteCatalogSecurityPreflight | null}
+   */
+  function readCatalogSecurityPreflight(body) {
+    if (!isCatalogRecord(body)) {
+      return null;
+    }
+    const preflight = body.preflight;
+    if (!isCatalogRecord(preflight)) {
+      return null;
+    }
+    const action = SECURITY_ACTIONS.find((word) => word === preflight.action);
+    const execution = SECURITY_EXECUTIONS.find((word) => word === preflight.execution);
+    const currentPolicy = CATALOG_SECURITY_POLICIES.find((word) => word === preflight.currentPolicy);
+    const transitionState = CATALOG_TRANSITION_STATES.find((word) => word === preflight.transitionState);
+    const { blockerCodes, canProceed, catalogId } = preflight;
+    if (!action || !execution || !currentPolicy || !transitionState
+      || !isText(catalogId) || typeof canProceed !== "boolean"
+      || !Array.isArray(blockerCodes) || !blockerCodes.every(isText)
+      || !PREFLIGHT_COUNTS.every((key) => isCount(preflight[key]))) {
+      return null;
+    }
+    return {
+      action,
+      affectedNoteCount: Number(preflight.affectedNoteCount),
+      affectedRevisionCount: Number(preflight.affectedRevisionCount),
+      blockerCodes: [...blockerCodes],
+      canProceed,
+      catalogCount: Number(preflight.catalogCount),
+      catalogId,
+      currentPolicy,
+      execution,
+      noteTransformCount: Number(preflight.noteTransformCount),
+      revisionTransformCount: Number(preflight.revisionTransformCount),
+      staleSearchDocumentCount: Number(preflight.staleSearchDocumentCount),
+      transitionState,
+      workRecordCount: Number(preflight.workRecordCount),
+    };
+  }
+
+  /**
+   * What a transition route answered, or `null` when its execution cannot be read.
+   *
+   * A structural minimum, because the producer spreads its own process result. The `collection`
+   * the job branch also sends is the whole record rather than the reduced settings row, and is
+   * left unread here rather than given a type it has not earned.
+   * @param {unknown} body
+   * @returns {BrowserNoteCatalogSecurityTransition | null}
+   */
+  function readCatalogSecurityTransition(body) {
+    if (!isCatalogRecord(body)) {
+      return null;
+    }
+    const execution = SECURITY_EXECUTIONS.find((word) => word === body.execution);
+    return execution ? { execution } : null;
+  }
+
   async function loadNotesSettings() {
     const api = requireApi();
     setPageStatus("Loading Notes settings...");
@@ -578,14 +660,20 @@
     const transitionAction = requestedAction === "retry" ? catalog.securityTransitionAction : requestedAction;
     setCatalogStatus("Loading catalog security preview...");
     try {
-      const result = await api.getJson(`/api/notes/collections/${encodeURIComponent(catalog.catalogId)}/security/preflight?action=${encodeURIComponent(transitionAction)}`, { cache: "no-store" });
-      showCatalogSecurityConfirmation(catalog, requestedAction, result.preflight || {});
+      const preflight = readCatalogSecurityPreflight(await api.getJson(`/api/notes/collections/${encodeURIComponent(catalog.catalogId)}/security/preflight?action=${encodeURIComponent(transitionAction)}`, { cache: "no-store" }));
+      if (!preflight) {
+        throw new Error("Catalog security preview could not be read.");
+      }
+      showCatalogSecurityConfirmation(catalog, requestedAction, preflight);
       setCatalogStatus("");
     } catch (error) {
       setCatalogStatus(requireErrors().caughtMessage(error, "Catalog security preview could not be loaded."), { isError: true });
     }
   }
 
+  // Only the preflight is annotated: it is the narrowed response handed straight in, and the
+  // other two parameters are this page's own values rather than anything the server answered.
+  /** @param {BrowserNoteCatalogSecurityPreflight} preflight */
   function showCatalogSecurityConfirmation(catalog, requestedAction, preflight) {
     const api = requireApi();
     const view = requireView();
@@ -646,10 +734,18 @@
         } : {}),
       };
       try {
-        const response = await api.postJson(`/api/notes/collections/${encodeURIComponent(catalog.catalogId)}/security/${endpointAction}`, payload);
+        const transition = readCatalogSecurityTransition(
+          await api.postJson(`/api/notes/collections/${encodeURIComponent(catalog.catalogId)}/security/${endpointAction}`, payload),
+        );
+        // Read before the dialog closes, so an unvouchable body cannot dismiss it on a
+        // transition outcome the response never stated. The transition has already happened
+        // server-side either way; a reload shows what it did.
+        if (!transition) {
+          throw new Error("Catalog security transition result could not be read.");
+        }
         closeDialog(dialog);
         await loadCatalogs();
-        setCatalogStatus(response.execution === "job" ? "Catalog security transition queued. Status will refresh automatically." : "Catalog security transition completed.", { type: "success" });
+        setCatalogStatus(transition.execution === "job" ? "Catalog security transition queued. Status will refresh automatically." : "Catalog security transition completed.", { type: "success" });
       } catch (error) {
         submitButton.disabled = false;
         setCatalogStatus(requireErrors().caughtMessage(error, "Catalog security transition could not be started."), { isError: true });

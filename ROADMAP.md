@@ -607,6 +607,10 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 **Complete: 3 diagnostics, one producer, and the largest of the four this page actually receives.** See the archive entry. Notes Settings' six survivors are **not one family** - they are `listCatalogSettings` with three, the shared `/api/settings` body with one, and the catalog-security preflight and transition with one each. This child closes the largest, whose row shaper reconstructs twenty members and withholds the transition actor and the ancestor that imposes inherited security. **The page had been borrowing the server's own row type for browser state without validating anything**, and that type over-claims the Library bucket as non-nullable where the column permits null.
 
+#### 0.33.33.38.4.5.4 - The catalog security preflight and transition responses
+
+**Complete: 2 diagnostics, one service, and two contracts that were right to keep apart.** See the archive entry. `publicPreflight` reconstructs fourteen members, so the preview is exact; the transition **spreads its own process result**, so it earns only a structural minimum naming the one member the route itself branches on. Defaulting an unreadable preview to an empty object had been rendering the **enable** dialog for a **remove** request, dropping both downgrade prerequisites from the screen.
+
 #### 0.33.33.38.4.6 - The client, project and calendar-subscription bodies
 
 **Resliced: 22 live diagnostics and three producer families, not one.** The reuse trace this line called for was run and it answered *no*: `clientProjectOptions` normalises into a **different vocabulary** - camelCase billing members and a two-word status - so it describes what the browser builds, never what the wire sends.
