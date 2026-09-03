@@ -177,8 +177,15 @@ describe("the consumer", () => {
     for (const other of ["workspacesBody.workspaces", "permissionResourcesBody.resources", "usersBody.currentUserId"]) {
       assert.ok(page.includes(other), `${other} is another child's read and is untouched`);
     }
-    assert.ok(page.includes("body.sessions"), "the managed-session reads are untouched too");
-    assert.doesNotMatch(declarationSource, /BrowserManagedSessionList/, "and this child declares nothing for them");
+    // Retargeted when `0.33.33.38.4.4.3.2` narrowed the session reads. The claim was never that
+    // those reads stay raw - it is that this child does not own them - so it is now asserted
+    // against the boundary rather than against a spelling that has since moved on.
+    const createUser = extractFunctionBlock(page, "createUser");
+    for (const sessionRead of ["sessions", "revokedCount", "sessionReference"]) {
+      assert.ok(!createUser.includes(sessionRead), `the create path must not touch ${sessionRead}`);
+    }
+    assert.doesNotMatch(declarationBlock("BrowserUserCreationResult"), /[Ss]ession/,
+      "and this child's contract names nothing from the session boundary");
   });
 });
 

@@ -820,16 +820,100 @@
     renderManagedUserSessions([]);
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserManagedSession} BrowserManagedSession */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserManagedSessionUser} BrowserManagedSessionUser */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserManagedSessionList} BrowserManagedSessionList */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserSessionRevocationResult} BrowserSessionRevocationResult */
+
+  /** The four text members `toManagedSession` always fills beside its boolean. */
+  const MANAGED_SESSION_TEXT = Object.freeze(["createdAt", "expiresAt", "ipAddress", "sessionReference"]);
+
+  /** The three members `toTargetUser` names for the account being managed. */
+  const MANAGED_SESSION_USER_TEXT = Object.freeze(["displayName", "userId", "username"]);
+
+  /** The shape the server's own reference validator accepts back. */
+  const SESSION_REFERENCE_PATTERN = /^[A-Za-z0-9_-]{32}$/;
+
+  /**
+   * One active session an administrator may see.
+   *
+   * The reference is checked against the same shape the server's `normalizeReference` requires,
+   * because a handle this page could not send back is not a session it can offer to revoke.
+   * @param {unknown} value
+   * @returns {value is BrowserManagedSession}
+   */
+  function isManagedSession(value) {
+    return isResponseRecord(value)
+      && MANAGED_SESSION_TEXT.every((member) => typeof value[member] === "string")
+      && typeof value.sessionReference === "string"
+      && SESSION_REFERENCE_PATTERN.test(value.sessionReference)
+      && typeof value.isCurrent === "boolean";
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is BrowserManagedSessionUser}
+   */
+  function isManagedSessionUser(value) {
+    return isResponseRecord(value)
+      && MANAGED_SESSION_USER_TEXT.every((member) => typeof value[member] === "string")
+      && value.userId !== "";
+  }
+
+  /**
+   * The session list, read as a whole or not at all.
+   *
+   * **Refused rather than shortened, because this is a security view.** Dropping an element
+   * would hide an active session from the administrator looking for exactly that, which is the
+   * one failure this panel must not have. `null` takes the load-error path the page already
+   * owned, which renders no rows and says the sessions could not be loaded - and that is
+   * visibly different from "no sessions are connected".
+   * @param {unknown} body
+   * @returns {BrowserManagedSessionList | null}
+   */
+  function readManagedSessionList(body) {
+    if (!isResponseRecord(body)) {
+      return null;
+    }
+    const { sessions, user } = body;
+    if (!Array.isArray(sessions) || !sessions.every(isManagedSession) || !isManagedSessionUser(user)) {
+      return null;
+    }
+    return { sessions, user };
+  }
+
+  /**
+   * The acknowledgement both revocation routes answer, or `null` when it cannot be vouched for.
+   *
+   * `null` never means "nothing was revoked": the request resolved, so the server did the work.
+   * It means the browser has no count it may report, and the caller says so without inventing
+   * one.
+   * @param {unknown} body
+   * @returns {BrowserSessionRevocationResult | null}
+   */
+  function readSessionRevocation(body) {
+    if (!isResponseRecord(body)) {
+      return null;
+    }
+    const { ok, revokedCount } = body;
+    return ok === true && typeof revokedCount === "number" && Number.isFinite(revokedCount)
+      ? { ok: true, revokedCount }
+      : null;
+  }
+
   async function loadUserSessions(user) {
     refreshUserSessionsButton.disabled = true;
     userSessionList.replaceChildren(createSessionStatusItem("Loading active sessions..."));
 
     try {
-      const body = await requireApi().getJson(
+      const managed = readManagedSessionList(await requireApi().getJson(
         `/api/users/${encodeURIComponent(user.user_id)}/sessions`,
         { cache: "no-store" },
-      );
-      renderManagedUserSessions(body.sessions || []);
+      ));
+      if (!managed) {
+        throw new Error("The managed session response could not be read.");
+      }
+      renderManagedUserSessions(managed.sessions);
     } catch (error) {
       if (requireErrors().caughtStatus(error) === 401) {
         return;
@@ -913,10 +997,14 @@
     }
 
     try {
-      const body = await requireApi().deleteJson(
+      const revocation = readSessionRevocation(await requireApi().deleteJson(
         `/api/users/${encodeURIComponent(user.user_id)}/sessions`,
-      );
-      setUserAdminStatus(`Revoked ${body.revokedCount || 0} session${body.revokedCount === 1 ? "" : "s"}.`);
+      ));
+      // The request resolved, so the sessions are gone either way; without a count the browser
+      // says so rather than reporting one it cannot vouch for. The refresh below shows the truth.
+      setUserAdminStatus(revocation
+        ? `Revoked ${revocation.revokedCount} session${revocation.revokedCount === 1 ? "" : "s"}.`
+        : "Workspace sessions were revoked.");
       await loadUserSessions(user);
     } catch (error) {
       if (requireErrors().caughtStatus(error) === 401) {

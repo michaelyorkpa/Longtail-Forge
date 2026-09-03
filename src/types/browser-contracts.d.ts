@@ -2477,6 +2477,87 @@ export interface BrowserUserCreationResult {
   users: BrowserUserRecord[];
 }
 
+/**
+ * One active session as `toManagedSession` reduces it for an administrator.
+ *
+ * **A deliberately reduced security projection, and the reduction is the point.** The row behind
+ * it carries eight columns; this record answers five, and the one it never passes through is
+ * `session_id` - which in this system **is the bearer credential**, the value
+ * `buildSessionCookie` writes into the session cookie. So the browser is handed
+ * `sessionReference` in its place, and `home_workspace_id`, `active_workspace_id`, `user_id` and
+ * `updated_at` are withheld as well. **This contract must never regain any of them.**
+ *
+ * There is no token, hash or secret column on `sessions` to withhold: the identifier is the
+ * credential, which is exactly why substituting a reference for it is the control.
+ *
+ * `ipAddress` is **not redacted**. The shaper coerces the nullable column to text and bounds it
+ * at 128 characters, and an administrator holding `users.manage` is shown it so they can tell
+ * one session from another; `""` means the column was empty, and the renderer says "IP
+ * unavailable". Both timestamps are `string` because their columns are `NOT NULL`, though only
+ * `createdAt` carries a defensive fallback in the shaper.
+ */
+export interface BrowserManagedSession {
+  /** The column is `NOT NULL`; the shaper also falls back to `""`. */
+  createdAt: string;
+  /** The column is `NOT NULL` and the shaper passes it through unguarded. */
+  expiresAt: string;
+  /** Bounded to 128 characters, `""` when the column was empty. Shown, not redacted. */
+  ipAddress: string;
+  /** Computed by the server by comparing the stored id with the caller's own. */
+  isCurrent: boolean;
+  /**
+   * An opaque 32-character handle for this session, suitable for sending back to the
+   * revoke-one route, which resolves it server-side.
+   *
+   * **Not a session id, and deliberately not durable.** It is `HMAC-SHA-256` over the stored
+   * identifier under a secret generated with `randomBytes(32)` at module load, base64url
+   * encoded and truncated - so it is stable only for the life of the server process, and the
+   * browser must treat it as a handle for the current interaction rather than a lasting id.
+   */
+  sessionReference: string;
+}
+
+/**
+ * The account whose sessions are being managed, as `toTargetUser` reduces it.
+ *
+ * **Three members, and not a `BrowserUserRecord`.** That record is what the user-administration
+ * list routes send; this is a header for one panel, built by its own shaper, and it carries no
+ * status, preference or protection member. `displayName` falls back to the username, so it is
+ * never empty.
+ */
+export interface BrowserManagedSessionUser {
+  displayName: string;
+  userId: string;
+  username: string;
+}
+
+/**
+ * What `GET /api/users/:userId/sessions` resolves to.
+ *
+ * **Both members are always sent**, so neither is optional. The list is scoped to the sessions
+ * connected to the **caller's workspace** - `listForUserInWorkspace`, not every session the
+ * account holds - which is what the panel's wording promises, and the contract does not widen
+ * it to the account's sessions everywhere.
+ */
+export interface BrowserManagedSessionList {
+  sessions: BrowserManagedSession[];
+  user: BrowserManagedSessionUser;
+}
+
+/**
+ * What both revocation routes resolve to.
+ *
+ * **One contract, because the two producers write the same literal.** `revokeManagedSession` and
+ * `revokeManagedUserSessions` each end in `return { ok: true, revokedCount }`, so `ok` is the
+ * literal `true` rather than a flag a caller has to test - a body that says anything else did not
+ * come from these producers. The revoke-one route answers this too, although the browser awaits
+ * that call without reading its body.
+ */
+export interface BrowserSessionRevocationResult {
+  ok: true;
+  revokedCount: number;
+}
+
 /** One scope a role may be assigned in, as `listAssignableRoleOptions` builds it. */
 export interface BrowserRoleScope {
   label: string;
