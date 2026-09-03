@@ -1,5 +1,32 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.4.3.2 - Managed sessions and revocation
+
+**Model: High Effort** - the child whose security instruction was to look for a leak, and whose answer is that the thing worth withholding is the identifier itself.
+
+- [x] **Two envelopes, exactly as the rollup drew them.** `listManagedUserSessions` answers `{ sessions, user }` and both revocation services answer `{ ok: true, revokedCount }`. Neither list member is optional, because the producer always sends both, and a list with an optional count would have been the false symmetry this family kept refusing.
+- [x] **The credential is the identifier, so the control is substitution rather than redaction.** The `sessions` table declares no token, hash or secret column; `buildSessionCookie` writes `session_id` straight into the session cookie, which makes that column the bearer value. The row carries eight columns and `toManagedSession` answers five, consuming `session_id` into `createSessionReference` and passing `home_workspace_id`, `active_workspace_id`, `user_id` and `updated_at` nowhere. **Six breaks guard exactly that**, including one that emits the identifier, one that names it on the contract, and one that adds a token column to the table.
+- [x] **The reference is derived, ephemeral, and resolved server-side - and the contract says all three.** It is `HMAC-SHA-256` over the stored identifier under a `randomBytes(32)` secret minted at module load, base64url encoded and truncated to 32 characters. The revoke route recomputes it for each candidate rather than trusting an identifier, and validates its shape first. Because the secret lives in process memory the handle is **stable only for the life of the server process**, so the contract refuses to call it durable and never renames it to `sessionId`. The browser checks the same 32-character shape the server's own validator requires, because a handle it could not send back is not a session it may offer to revoke.
+- [x] **The address is shown, not redacted, and the contract states it.** The shaper coerces the nullable column and bounds it at 128 characters; an administrator holding `users.manage` sees it to tell one session from another, and `""` renders as "IP unavailable" exactly as before. Both timestamps are text because both columns are `NOT NULL`, although only `createdAt` carries a defensive fallback - a difference the proof reads from the schema rather than assuming.
+- [x] **The workspace scope is preserved and proven.** The list reads `listForUserInWorkspace`, not every session the account holds, and the panel's own wording says so. Breaks that widen either the service call or the query itself are refused, as are ones that drop the `users.manage` assertion, the public-demo identity guard, or the read/update distinction between listing and revoking.
+- [x] **A session list is refused whole rather than shortened.** Dropping an element would hide an active session from the administrator looking for exactly that, which is the one failure this panel must not have; the page takes the load-error path it already owned, which is visibly different from "no sessions are connected". **This is the opposite choice from `0.33.33.38.4.8.2`'s picker**, where dropping removes a candidate rather than hiding a record, and both are recorded as deliberate.
+- [x] **A revocation count is never invented.** The raw read answered `0` for a body it could not vouch for, which claims nothing was revoked when the request had in fact succeeded. The count is now vouched for before it is reported, and an unreadable acknowledgement says the sessions were revoked without a number - the list refresh that follows either way is what shows the truth.
+- [x] **The single-revoke result is still ignored, on purpose.** Both routes answer the same contract, and that identity is recorded; but the page awaits that call without reading its body, so no contract was forced onto a result nobody consumes, and a break that starts reading it is refused.
+
+Proved by breaking each one, restored in a `finally`, and **every refusal judged by exit status**: 36 breaks across the service, the routes, the repository query, the cookie writer, the schema, the browser declaration, the runtime tables and readers, and the consumers.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,357 | **8,354** |
+| Genuine `unknown` | 51 | **48** |
+| params / state / dom / namespace / assorted | 4,611 / 1,739 / 1,484 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,168 / 530 / 976 / 1,568 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 655 / 348 / 167 | **678 / 348 / 167**, green |
+
+**3 eliminations, no transfers, no new debt, and no state typed.** `managedUserSessions` kept its own inference: the renderer still receives its list through an untyped parameter, so nothing needed annotating. `4,611 + 1,739 + 153 = 6,503` reconciles either side.
+
 ## Version 0.33.33.38.4.4.5 - The create-user mutation response
 
 **Model: High Effort** - the smallest child of this run, and the one whose whole argument is that an empty string is a value rather than an absence.

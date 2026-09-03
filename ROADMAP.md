@@ -569,6 +569,8 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 #### 0.33.33.38.4.4.3.2 - Managed sessions and revocation
 
+**Complete: 3 diagnostics, four contracts, zero fallout.** See the archive entry. The instruction this line gave was followed and it found the opposite of a leak: the `sessions` table has **no token, hash or secret column at all**, because `session_id` *is* the bearer credential the session cookie carries - so the control is not redaction but that `toManagedSession` never passes the identifier through, substituting an HMAC-derived reference the server resolves on the way back.
+
 **3 diagnostics left deliberately.** `user-admin.js:682` reads `body.sessions` from `GET /api/users/:id/sessions` and `:769` reads `body.revokedCount` twice from the two `DELETE` routes. **They are two envelopes, not one**: a session list and a revocation acknowledgement, and a list response with an optional count would be the false symmetry this rollup keeps refusing. **Trace the session record for authentication material before naming it** - a token or hash reaching the browser would be a defect to report, not a member to declare.
 
 #### 0.33.33.38.4.4.4 - The user-admin bootstrap
