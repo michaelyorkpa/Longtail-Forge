@@ -154,7 +154,10 @@ async function proveBrowserSinkInventory() {
   const expected = [
     'public/js/notes.js:body.innerHTML = note.body_html || "";',
     'public/js/notes.js:body.innerHTML = note.body_html || "";',
-    'public/js/notes.js:preview.innerHTML = result.bodyHtml || "";',
+    // Reviewed under `0.33.33.38.4.12.1`: the same sink, now fed from the vouched-for render
+    // rather than a raw body read, so the assigned markup is the one `renderMarkdownToSafeHtml`
+    // produced and an unreadable response refuses instead of injecting an empty default.
+    'public/js/notes.js:preview.innerHTML = rendered.bodyHtml;',
     'public/js/shared/file-preview.js:content.innerHTML = html || "";',
     'public/js/stop-watch.js:this.clientSelect.innerHTML = "";',
     'public/js/stop-watch.js:this.clientSelect.innerHTML = "";',
@@ -180,7 +183,10 @@ async function proveBrowserSinkInventory() {
   const filesPreview = await fs.readFile("public/js/shared/file-preview.js", "utf8");
   const transportSecurity = await fs.readFile("src/core/transport-security.js", "utf8");
   assert.match(notesBrowser, /body\.innerHTML = note\.body_html \|\| ""/);
-  assert.match(notesBrowser, /preview\.innerHTML = result\.bodyHtml \|\| ""/);
+  // Retargeted under `0.33.33.38.4.12.1`: the sink is unchanged and its source is now the
+  // vouched-for render, so what this owner asserts is that the live preview assigns the
+  // server-sanitised markup rather than that it defaults an unread body to "".
+  assert.match(notesBrowser, /preview\.innerHTML = rendered\.bodyHtml;/);
   assert.match(filesPreview, /content\.innerHTML = html \|\| ""/);
   assert.match(transportSecurity, /"script-src 'self'"/);
   assert.match(transportSecurity, /"script-src-attr 'none'"/);

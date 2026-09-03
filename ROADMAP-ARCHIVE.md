@@ -1,5 +1,31 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.12.1 - The Markdown preview response
+
+**Model: High Effort** - one diagnostic, and the smallest child of this run by count while carrying the most direct security argument: the value it narrows is the one the page writes into the document.
+
+- [x] **Four members reconstructed by name, two of them constants.** `previewMarkdown` names `bodyFormat`, `bodyMarkdown`, `bodyHtml` and `bodyHtmlFormat` and spreads nothing. `bodyFormat` and `bodyHtmlFormat` are written literally - they say which of the two bodies is which - so they are declared and **checked** as those words: a body labelling its formats differently did not come from this shaper. Five breaks attack that membership and those constants.
+- [x] **`bodyHtml` is safe to assign because the server sanitised it, and the contract says so.** The producer renders through `renderMarkdownToSafeHtml`, which asserts the Markdown safe itself rather than trusting its caller, and the input is asserted safe before that. **Four breaks remove one link of that chain each** - the safe renderer, the caller's assertion, the renderer's own assertion, and the preview permission - and all are refused. The browser relies on the guarantee; it does not re-implement it.
+- [x] **The default made two claims at once.** `result.bodyHtml || ""` rendered an unreadable body as an empty preview, which says the Markdown produces nothing - and it said it about a value then assigned to `innerHTML`. The reader refuses, the existing catch reports it, and a break that assigns before vouching is refused for exactly that ordering.
+- [x] **The superseded-request check still runs first.** A stale preview returns before this reader can throw into a response the page has already moved past, and a break that reorders them is refused.
+- [x] **The other two producers in this rollup were left alone.** `0.33.33.38.4.12` covers three: the revision history and restore bodies, this preview, and the link-target directory. Only the preview is closed here, and a break that narrows the revisions read is refused for touching another child's work.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **24 breaks across the service, the Markdown renderer, the route, the declaration and the consumer, all 24 refused for their specific named check on the first run.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,312 | **8,311** |
+| Genuine `unknown` | 22 | **21** |
+| params / state / dom / namespace / assorted | 4,605 / 1,730 / 1,484 / 319 / 152 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,168 / 530 / 968 / 1,560 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 968 / 348 / 167 | **985 / 348 / 167**, green |
+
+**1 elimination, no transfers, no contextual fallout, no new namespace surface.** Exactly one file moved, by one diagnostic.
+
+**The first attempt at this child inserted the reader between a doc comment and the function it documented**, which orphaned `requireNoteFromEnvelope`'s `@param` and turned one `unknown` into one implicit-any parameter - a transfer rather than an elimination. The measurement caught it before anything was committed, and the insertion now anchors above the comment rather than below it. It is the second time this estate has split a comment from its declaration; both were caught by measuring rather than by reading.
+
 ## Version 0.33.33.38.4.2.1 - The linked-note panel response
 
 **Model: High Effort** - two diagnostics, and the child that finally answered a surface question `0.33.33.38.4.2` wrote down and left open.

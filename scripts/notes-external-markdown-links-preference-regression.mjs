@@ -68,7 +68,10 @@ function assertStaticContract() {
   assert.match(notesScript, /OPEN_EXTERNAL_LINKS_STORAGE_KEY/, "Notes should read the cached Markdown link preference");
   assert.match(notesScript, /await Promise\.all\(\[loadMarkdownRenderingPreference\(\), loadTags\(\), loadCollections\(\), loadNotes\(\)\]\)/, "Notes should load the preference before rendering detail HTML");
   assert.match(notesScript, /body\.innerHTML = note\.body_html \|\| "";[\s\S]*applyExternalMarkdownLinkPreference\(body\);/, "saved Note detail should post-process rendered Markdown after injection");
-  assert.match(notesScript, /preview\.innerHTML = result\.bodyHtml \|\| "";[\s\S]*applyExternalMarkdownLinkPreference\(preview\);/, "live preview should post-process rendered Markdown after injection");
+  // Retargeted when `0.33.33.38.4.12.1` narrowed the preview response: what this owner asserts
+  // is that the live preview post-processes the Markdown it injects, not the spelling of the
+  // value being injected, which now comes from the vouched-for render rather than a raw read.
+  assert.match(notesScript, /preview\.innerHTML = rendered\.bodyHtml;[\s\S]*applyExternalMarkdownLinkPreference\(preview\);/, "live preview should post-process rendered Markdown after injection");
   assert.match(notesScript, /container\.querySelectorAll\("a\[href\]"\)/, "Notes post-processing should inspect anchors only");
   assert.match(notesScript, /const parsed = new window\.URL\(value\);[\s\S]*parsed\.protocol === "http:" \|\| parsed\.protocol === "https:"/, "Notes should only classify absolute http(s) URLs as external links");
   assert.doesNotMatch(notesScript, /new URL\(value,\s*window\.location\.href\)/, "relative app links must not be treated as external links");

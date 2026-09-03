@@ -706,6 +706,10 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 - [x] **`saveUserPreferences` and `saveWorkspaceDefaults` keep returning `Promise<unknown>`, and that is the finding rather than an omission.** `0.33.33.38.2.2.6.6.2` set the test: if callers read fields the body is this checkpoint's, and if they ignore the result the opacity is the contract. **Both results are awaited and discarded** - `user-settings.js:321` and `notifications.js:441` - so `.6.6.2` never needed this child for them.
 - [x] **The narrowing lives in the two writers, not in five consumers.** Each surface publishes members that already constructed part of their answer, so the wire is crossed once at the surface that owns it and every consumer keeps the code it had.
 
+#### 0.33.33.38.4.12.1 - The Markdown preview response
+
+**Complete: 1 diagnostic, four members, two of them constants, and one security guarantee named rather than assumed.** See the archive entry. `previewMarkdown` reconstructs `bodyFormat`, `bodyMarkdown`, `bodyHtml` and `bodyHtmlFormat` with no spread, and the browser assigns `bodyHtml` to `innerHTML` **because `renderMarkdownToSafeHtml` produced it**. Defaulting an unreadable body to `""` had made two claims at once: that the note renders to nothing, and that unvouchable markup was safe to write into the document. The revision and link-target producers remain this child's open work.
+
 #### 0.33.33.38.4.13 - The remaining notification bodies
 
 **Not drawn from a count, drawn from what `0.33.33.38.4.10` deliberately left.** `/api/notifications` itself, the read/dismiss mutations, and the display-preference routes are separate producers that no declared surface currently exposes; `notifications.js` reads them directly. **Size this the way `.4.10` was sized** - by declaring nothing and probing, because these bodies are invisible to the classifier for the same reason those were.

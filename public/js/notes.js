@@ -219,6 +219,34 @@
       && hasOptionalTextColumns(value, OPTIONAL_NOTE_DETAIL_MEMBERS);
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteMarkdownPreview} BrowserNoteMarkdownPreview */
+
+  /**
+   * The Markdown preview, or `null` when it cannot be vouched for.
+   *
+   * **Refused rather than defaulted, because the default was two claims at once.** `bodyHtml || ""`
+   * rendered an unreadable body as an empty preview, which says the Markdown produces nothing -
+   * and it did so on a value the page then assigns to `innerHTML`. The two constants are checked
+   * as constants: a body that labels its formats differently did not come from this shaper.
+   * @param {unknown} body
+   * @returns {BrowserNoteMarkdownPreview | null}
+   */
+  function readMarkdownPreview(body) {
+    if (!isResponseRecord(body)
+      || body.bodyFormat !== "markdown"
+      || body.bodyHtmlFormat !== "html"
+      || typeof body.bodyHtml !== "string"
+      || typeof body.bodyMarkdown !== "string") {
+      return null;
+    }
+    return {
+      bodyFormat: "markdown",
+      bodyHtml: body.bodyHtml,
+      bodyHtmlFormat: "html",
+      bodyMarkdown: body.bodyMarkdown,
+    };
+  }
+
   /**
    * The note a `{ note }` envelope carries.
    *
@@ -4132,11 +4160,14 @@
     preview.textContent = "Loading preview...";
 
     try {
-      const result = await api.postJson("/api/notes/preview", { body_markdown: markdown });
+      const rendered = readMarkdownPreview(await api.postJson("/api/notes/preview", { body_markdown: markdown }));
       if (requestId !== state.previewRequestId) {
         return;
       }
-      preview.innerHTML = result.bodyHtml || "";
+      if (!rendered) {
+        throw new Error("The Markdown preview could not be read.");
+      }
+      preview.innerHTML = rendered.bodyHtml;
       applyExternalMarkdownLinkPreference(preview);
       if (!preview.textContent.trim()) {
         preview.replaceChildren(emptyPreviewNode());
