@@ -1080,11 +1080,84 @@
     }
 
     try {
-      const result = await requireApi().getJson("/api/users", { cache: "no-store" });
-      renderWorkspaceUsers(result.users || []);
+      const userList = readWorkspaceUserList(
+        await requireApi().getJson("/api/users", { cache: "no-store" }),
+      );
+      if (!userList) {
+        throw new Error("The workspace user list could not be read.");
+      }
+      renderWorkspaceUsers(userList.users);
     } catch (error) {
       workspaceUsersList.replaceChildren(createWorkspaceUsersPlaceholder(requireErrors().caughtMessage(error, "Workspace users could not be loaded.")));
     }
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserUserRecord} BrowserUserRecord */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserUserListResponse} BrowserUserListResponse */
+
+  // These three tables are the same ones User Administration checks this producer with. They are
+  // repeated rather than shared because no declared namespace surface owns browser user records
+  // and the two pages load no common file that could, and a new root member is a bigger change
+  // than this boundary earns. They are **held identical by proof** instead: the checkpoint's
+  // own test reads both copies and fails if either drifts.
+
+  /** The members `userRowToAppValue` constructs as text on every path. */
+  const USER_TEXT_MEMBERS = Object.freeze([
+    "displayName",
+    "preferredLoginLanding",
+    "preferredWorkspaceSwitchLanding",
+    "themeAutoSource",
+    "themeMode",
+    "timezone",
+    "user_id",
+    "userStatus",
+    "username",
+  ]);
+
+  /** The members the shaper builds with `normalizeBooleanPreference` or the protected-user flag. */
+  const USER_BOOLEAN_MEMBERS = Object.freeze([
+    "openExternalLinksNewTab",
+    "passwordChangeRequired",
+    "protectedUser",
+  ]);
+
+  /** The two members the shaper genuinely nulls. */
+  const USER_NULLABLE_TEXT_MEMBERS = Object.freeze([
+    "altEmail",
+    "preferredCalendarView",
+  ]);
+
+  /**
+   * One user as the user-administration routes return it.
+   * @param {unknown} value
+   * @returns {value is BrowserUserRecord}
+   */
+  function isWorkspaceUserRecord(value) {
+    return isDeletionRecord(value)
+      && USER_TEXT_MEMBERS.every((member) => typeof value[member] === "string")
+      && USER_BOOLEAN_MEMBERS.every((member) => typeof value[member] === "boolean")
+      && USER_NULLABLE_TEXT_MEMBERS.every((member) => value[member] === null || typeof value[member] === "string")
+      && value.user_id !== "";
+  }
+
+  /**
+   * What `GET /api/users` answered, or `null` when it cannot be vouched for.
+   *
+   * Refused whole rather than filtered, for the reason the administrative list exists: a
+   * shortened roster hides an account from the workspace membership decisions this dialog makes,
+   * while looking like the complete one.
+   * @param {unknown} body
+   * @returns {BrowserUserListResponse | null}
+   */
+  function readWorkspaceUserList(body) {
+    if (!isDeletionRecord(body)) {
+      return null;
+    }
+    const { currentUserId, users } = body;
+    if (typeof currentUserId !== "string" || currentUserId === "" || !Array.isArray(users)) {
+      return null;
+    }
+    return users.every(isWorkspaceUserRecord) ? { currentUserId, users } : null;
   }
 
   function renderWorkspaceUsers(users) {

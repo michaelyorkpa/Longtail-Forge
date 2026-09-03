@@ -112,7 +112,10 @@ assert.match(user, /putJson\("\/api\/user\/settings"/);
 assert.match(user, /requireModalDialogs\(\)\.confirm\([\s\S]*contributions, and attribution are retained[\s\S]*deleteJson\("\/api\/user\/account"\)/);
 assert.match(user, /saveUserPreferences/);
 assert.doesNotMatch(user, /themeForm\.addEventListener\("change", async/);
-assert.match(userAdmin, /currentUserId = String\(usersBody\.currentUserId \|\| ""\)/);
+// Retargeted when `0.33.33.38.4.4.6` narrowed the shared user list. What this owner asserts
+// is that User Administration takes its acting identity from that producer during bootstrap
+// and still guards self-actions with it - not the spelling of the read, which has moved.
+assert.match(userAdmin, /currentUserId = userList\.currentUserId;/);
 assert.match(userAdmin, /isProtected \|\| isCurrentUser/);
 assert.match(userAdmin, /removes the user's current-workspace access[\s\S]*contributions, and attribution remain in workspace history/);
 for (const view of views) {

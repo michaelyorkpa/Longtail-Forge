@@ -1,5 +1,33 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.4.6 - The shared user list response
+
+**Model: High Effort** - two diagnostics in two files, and the checkpoint where a duplication had to be argued for rather than avoided.
+
+- [x] **One producer, exactly two members, and the actor is the session's own.** `usersService.list` reconstructs `{ currentUserId: session.user_id, users: await readUsersWithMemberships(session) }` and spreads nothing. The acting identity is **stated by the server**, so the browser never derives it from list membership - a break that makes the reader fall back to the first listed user is refused, and so is one that empties it at the source.
+- [x] **The user record is reused, on producer identity rather than shape.** `BrowserUserRecord` was drawn from this producer and already declares the optional `workspaceMemberships` the list paths decorate on, which is exactly what the Workspace Settings roster reads. A break that gives the envelope its own inline user shape is refused.
+- [x] **This list refuses where the shared best-effort reader drops, and the split is deliberate.** `readUserRecords` serves four bodies and answers a filtered list, which `0.33.33.38.4.2` chose for the note list and `0.33.33.38.4.4.1` kept. Here the list **is** the administrative population: a shortened roster hides an account from role, membership and lifecycle decisions while looking complete. So the envelope refuses, and the other three bodies keep the policy their own children set - a break that changes `readUserRecords` under them is refused for that reason.
+- [x] **`currentUserId` is required, because a page that defaults it has stopped knowing who is acting.** It drives self-action restrictions; an empty string is not "no current user", it is a page that has quietly lost the answer. Two breaks weaken it and both are refused.
+- [x] **The list gate stays server-owned**, asserting `users.manage` in the current workspace before a single user is read. Two breaks remove it and move it after the read.
+- [x] **The duplication is argued for, not hidden.** Two pages check this producer and **no declared namespace surface owns browser user records** - the two pages load no common file that could, and `0.33.33.38.4` does not spend a new root member on two diagnostics. So the three member tables are repeated in `workspace-settings.js` with a comment saying exactly that, and they are **held identical by proof**: the checkpoint's own test reads both copies and fails if either drifts, if either page stops applying one, or if the comment stops explaining itself. Four breaks cover those.
+- [x] **Two guards are pinned by source because behaviour cannot pin them.** Removing the container check makes the reader throw rather than answer; removing the record check changes no outcome, because the members are read defensively anyway. Neither failure names the guard, so the proof names them directly - the same honesty `0.33.33.38.4.5.6` applied when it deleted a guard nothing could break.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **27 breaks across the service, the route, the declaration and both pages, all 27 refused for their specific named check.**
+
+**Three owners were retargeted, and all three were proved to bite.** A framework contract pinned the literal spelling `currentUserId = String(usersBody.currentUserId || "")`; it now asserts that User Administration takes its acting identity from this producer. The create-user child and the workspace-deletion child each listed one of these reads among producers they leave alone - still true that they do not own them, no longer true that the reads are raw. **One of those retargets was caught passing while the reader was bypassed**, because the reader's own definition satisfied the match; it now requires the call site too.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,332 | **8,330** |
+| Genuine `unknown` | 30 | **28** |
+| params / state / dom / namespace / assorted | 4,608 / 1,738 / 1,484 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,168 / 530 / 975 / 1,565 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 853 / 348 / 167 | **884 / 348 / 167**, green |
+
+**2 eliminations, no transfers, no contextual fallout, no new namespace surface.** Every family and every owner row is identical either side; only `unknown` moved.
+
 ## Version 0.33.33.38.4.5.6 - The workspace backup receipt
 
 **Model: High Effort** - two diagnostics, the fifth producer this run whose two routes turned out to share one shaper, and the second where the fabricated value was a claim about someone's data rather than a state.
