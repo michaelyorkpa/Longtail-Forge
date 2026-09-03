@@ -1,5 +1,33 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.5.2 - The Workspace Deletion response boundary
+
+**Model: High Effort** - two diagnostics, and the smallest of this run's children by count while carrying the sharpest correction: a destructive-lifecycle surface was reading unreadable data as safety.
+
+- [x] **Three routes, one shaper, one contract.** `read`, `request` and `cancel` all end in `toBrowserState`, and all three routes wrap it as `{ deletion }`. So there is one envelope and one state record rather than a read result, a request result and a cancel result with identical members - and the **lifecycle member, not an optional field**, is what distinguishes a pending workspace from a live one. Breaks that split a route off the shaper, change one route's envelope, or invent a per-route result are all refused.
+- [x] **The shaper reconstructs rather than spreads, so the contracts are exact.** `toBrowserState` names five members and `toLifecycleSummary` names six, neither spreading anything, which is what makes exact producer-agreement proofs appropriate. The expected membership is read from the shaper's own literal rather than from the table the parser checks.
+- [x] **Two reductions carry the security argument, and both are pinned.** The stored lifecycle row holds ten members - including **`purgeToken`**, `backupId`, `requestedByUserId` and `purgeStartedAt` - and the summary answers six, none of them. `backupProtected` is `Boolean(backupId)`: the fact of a backup without naming which. The backup record holds twelve - including `archiveFilename` and `archiveSha256` - and the summary passes through two. **Five breaks attack exactly those points** and all are refused.
+- [x] **The status union is the column's own.** Migration 077 constrains it with `CHECK (status IN ('pending_deletion', 'purging'))`, the shaper's fallback is one of those two words, and the runtime table is pinned to the migration rather than to itself. The requirement closes for a different reason: the producer chooses between two literals from one recency test.
+- [x] **The acknowledgement phrase is required and nullable, because the null means something.** `null` says a current backup already satisfies the prerequisite; the phrase says it does not. Making it optional would erase that distinction, and a break that does is refused.
+- [x] **Three members the producer derives from one value are required to agree.** `backup.current`, `backup.requirement` and `acknowledgementPhrase` all come from the same recency test, and `pending` is `Boolean(lifecycle)` from the same value the lifecycle member is built from. The reader refuses a body where any of them contradict, because such a body did not come from this producer. Three breaks that remove each coherence check are refused.
+- [x] **The malformed-data policy is a deliberate tightening, and it is the point of the child.** `result.deletion || null` rendered an unreadable body as **"this workspace is not pending deletion"** and re-enabled the delete button beside it. The reader now refuses, the load throws into the path that hides **both** destructive controls and says the state could not be loaded, and the mutation **reads before it closes its dialog** so a bad body cannot dismiss it on a fabricated lifecycle state. The mutation has already happened server-side in that case; the dialog says the state could not be read and a reload shows the truth, which is recorded here rather than hidden.
+- [x] **Every destructive prerequisite stays server-owned.** The public-demo capability, the Workspace Administrator gate, the exact-name confirmation, the typed acknowledgement, the recency window, the already-pending refusal, the started-purge refusal and the expired-grace refusal are all asserted in the service; six breaks remove one each and all are refused. The browser reports what the server decided and re-decides nothing.
+- [x] **The page's other producers were left alone.** Runtime diagnostics, backups, settings, jobs and users are five more producers on this page and remain untouched, which is why `0.33.33.38.4.5` was resliced in the first place.
+
+Proved by breaking each one, restored in a `finally` with byte-for-byte verification, and **every refusal judged by exit status**: 35 breaks across the service, the routes, both repositories' row types, the status migration, the browser declaration, the runtime tables and readers, and the consumers.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,352 | **8,350** |
+| Genuine `unknown` | 46 | **44** |
+| params / state / dom / namespace / assorted | 4,611 / 1,739 / 1,484 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,168 / 530 / 976 / 1,568 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 693 / 348 / 167 | **714 / 348 / 167**, green |
+
+**2 eliminations, no transfers, no new debt, and no state typed.** A byte-safe before-and-after measurement of `workspace-settings.js` shows `TS18046` 14 to 12 and **no other code moving**; `workspaceDeletionState` kept its own inference, because the renderer still receives the state through an untyped parameter. `4,611 + 1,739 + 153 = 6,503` reconciles either side.
+
 ## Version 0.33.33.38.4.9.2 - The file attachment list
 
 **Model: High Effort** - the child where the compiler caught the owner claiming a contract it had not checked, and the fix was to check it.

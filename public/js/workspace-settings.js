@@ -222,12 +222,114 @@
     }
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkspaceDeletionState} BrowserWorkspaceDeletionState */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkspaceDeletionBackup} BrowserWorkspaceDeletionBackup */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkspaceDeletionLifecycle} BrowserWorkspaceDeletionLifecycle */
+
+  /** The two words migration 077's column CHECK admits. */
+  const DELETION_STATUSES = Object.freeze(["pending_deletion", "purging"]);
+
+  /** The two decisions the producer chooses between from one recency test. */
+  const DELETION_REQUIREMENTS = Object.freeze(["recent_backup", "typed_acknowledgement_required"]);
+
+  /** The two backup members the producer answers as text or `null`. */
+  const DELETION_BACKUP_NULLABLE_TEXT = Object.freeze(["createdAt", "createdByName"]);
+
+  /** The three text members every lifecycle summary carries beside its two booleans. */
+  const DELETION_LIFECYCLE_TEXT = Object.freeze(["purgeAfter", "requestedAt", "requestedByName"]);
+
+  /** The two booleans the lifecycle summary reports. */
+  const DELETION_LIFECYCLE_BOOLEANS = Object.freeze(["backupProtected", "noCurrentBackupAcknowledged"]);
+
+  /**
+   * A plain JSON object, which is the least a wire body can be before any member is read.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isDeletionRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * @param {unknown} value @param {readonly string[]} vocabulary
+   * @returns {boolean}
+   */
+  function isDeletionWord(value, vocabulary) {
+    return typeof value === "string" && vocabulary.includes(value);
+  }
+
+  /**
+   * What the latest backup means for a deletion request.
+   * @param {unknown} value
+   * @returns {value is BrowserWorkspaceDeletionBackup}
+   */
+  function isDeletionBackup(value) {
+    return isDeletionRecord(value)
+      && typeof value.current === "boolean"
+      && isDeletionWord(value.requirement, DELETION_REQUIREMENTS)
+      && typeof value.windowHours === "number"
+      && Number.isFinite(value.windowHours)
+      && DELETION_BACKUP_NULLABLE_TEXT.every((member) => value[member] === null || typeof value[member] === "string");
+  }
+
+  /**
+   * A pending deletion, checked member for member.
+   * @param {unknown} value
+   * @returns {value is BrowserWorkspaceDeletionLifecycle}
+   */
+  function isDeletionLifecycle(value) {
+    return isDeletionRecord(value)
+      && DELETION_LIFECYCLE_TEXT.every((member) => typeof value[member] === "string")
+      && DELETION_LIFECYCLE_BOOLEANS.every((member) => typeof value[member] === "boolean")
+      && isDeletionWord(value.status, DELETION_STATUSES);
+  }
+
+  /**
+   * The deletion state all three routes answer, or `null` when it cannot be vouched for.
+   *
+   * **Three members the producer derives from one value are required to agree.** `backup.current`,
+   * `backup.requirement` and `acknowledgementPhrase` all come from the same recency test, and
+   * `pending` is `Boolean(lifecycle)` from the same value the lifecycle member is built from - so
+   * a body where they contradict each other did not come from this producer, and is refused
+   * rather than half-believed.
+   * @param {unknown} body
+   * @returns {BrowserWorkspaceDeletionState | null}
+   */
+  function readWorkspaceDeletionState(body) {
+    const deletion = isDeletionRecord(body) ? body.deletion : null;
+    if (!isDeletionRecord(deletion)) {
+      return null;
+    }
+    const { acknowledgementPhrase, backup, lifecycle, pending, workspaceName } = deletion;
+    if (!isDeletionBackup(backup)
+      || typeof pending !== "boolean"
+      || typeof workspaceName !== "string"
+      || (acknowledgementPhrase !== null && typeof acknowledgementPhrase !== "string")
+      || (lifecycle !== null && !isDeletionLifecycle(lifecycle))) {
+      return null;
+    }
+    if (pending !== (lifecycle !== null)
+      || backup.current !== (acknowledgementPhrase === null)
+      || backup.current !== (backup.requirement === "recent_backup")) {
+      return null;
+    }
+    return { acknowledgementPhrase, backup, lifecycle, pending, workspaceName };
+  }
+
   async function loadWorkspaceDeletion() {
     if (!workspaceDeletionSummary) return;
     renderWorkspaceDeletionSummary(null, "Loading deletion state...");
     try {
-      const result = await requireApi().getJson("/api/settings/workspace-deletion", { cache: "no-store" });
-      renderWorkspaceDeletionSummary(result.deletion || null);
+      const deletion = readWorkspaceDeletionState(
+        await requireApi().getJson("/api/settings/workspace-deletion", { cache: "no-store" }),
+      );
+      // Fail closed: a body this page cannot vouch for must not be rendered as "not pending",
+      // which is what the raw read's `|| null` fallback did. The catch below hides both
+      // destructive controls and says the state could not be loaded, which is the truthful outcome.
+      if (!deletion) {
+        throw new Error("Workspace deletion state could not be read.");
+      }
+      renderWorkspaceDeletionSummary(deletion);
     } catch (error) {
       openWorkspaceDeletionButton.hidden = true;
       openWorkspaceDeletionCancelButton.hidden = true;
@@ -291,14 +393,20 @@
       ? "Canceling workspace deletion..."
       : "Scheduling workspace deletion...";
     try {
-      const result = workspaceDeletionDialogMode === "cancel"
+      const deletion = readWorkspaceDeletionState(workspaceDeletionDialogMode === "cancel"
         ? await requireApi().postJson("/api/settings/workspace-deletion/cancel", {})
         : await requireApi().postJson("/api/settings/workspace-deletion/request", {
           acknowledgement: workspaceDeletionAcknowledgementInput.value,
           workspaceName: workspaceDeletionNameInput.value,
-        });
+        }));
+      // Read before closing: an unvouchable body must not close the dialog on a fabricated
+      // lifecycle state, in either direction. The mutation itself already happened on the
+      // server, so the dialog reports that the state could not be read and a reload shows it.
+      if (!deletion) {
+        throw new Error("Workspace deletion state could not be read.");
+      }
       workspaceDeletionDialog.close();
-      renderWorkspaceDeletionSummary(result.deletion);
+      renderWorkspaceDeletionSummary(deletion);
       await window.LongtailForge.refreshAppShell?.();
     } catch (error) {
       workspaceDeletionDialogStatus.textContent = error?.message || "Workspace deletion state could not be changed.";
