@@ -486,7 +486,7 @@ Its **lazy publication is a second contract question and belongs here too**: the
 | `shared/notes-linked-panel.js` | 2 | carried forward, below |
 
 - [x] **Two of the four blockers `0.33.33.40.2` recorded are gone, and two are not.** `selectedNote`, `editorNote`, `notes` and `collections` now hold named contracts, and `notesPagination` and `bulkCollections` came with them because they store the same two narrowed responses. `tagPicker`, `bulkTagPicker` and the rest stay with `0.33.33.40.2`.
-- [ ] **`shared/notes-linked-panel.js` is carried forward, and the blocker is a surface decision rather than a contract one.** Its two reads are the same `GET /api/notes` list envelope plus the `{ linkedNotes }` panel projection, and `BrowserLinkedNoteItem` is already declared for the latter. What is missing is a **shared narrowing implementation**: doing it locally would duplicate the column tables and predicates into a second file, and doing it properly means publishing a note-record surface on the namespace - which is `0.33.33.38.2.2`'s decision, not this child's. **Two consumers is where the estate should decide, not where it should copy.**
+- [x] **`shared/notes-linked-panel.js` is carried forward, and the blocker is a surface decision rather than a contract one.** **Closed by `0.33.33.38.4.2.1`, and the surface decision went the third way this line did not consider:** the reader went onto `notesLinkedPanel`, which was *already* a declared root member and is *already* delivered to both consumers, so neither a duplicated column table nor a new namespace surface was needed. Its two reads are the same `GET /api/notes` list envelope plus the `{ linkedNotes }` panel projection, and `BrowserLinkedNoteItem` is already declared for the latter. What is missing is a **shared narrowing implementation**: doing it locally would duplicate the column tables and predicates into a second file, and doing it properly means publishing a note-record surface on the namespace - which is `0.33.33.38.2.2`'s decision, not this child's. **Two consumers is where the estate should decide, not where it should copy.**
 
 #### 0.33.33.38.4.11 - The shared bulk-action failure contract
 
@@ -506,6 +506,10 @@ Its **lazy publication is a second contract question and belongs here too**: the
 #### 0.33.33.38.4.12 - The Notes satellite producers
 
 **4 diagnostics across three unrelated producers that share only the `/api/notes` prefix.** The revision history array and the revision restore body, the `{ bodyHtml }` Markdown preview, and the `{ targets }` link-target directory. **Kept out of `0.33.33.38.4.2` because a route prefix is not a producer**: none of the three is shaped by `shapeNoteForBrowser`, and the link-target directory is not even a note.
+
+#### 0.33.33.38.4.2.1 - The linked-note panel response
+
+**Complete: 2 diagnostics, an exact eight-member envelope, and the surface decision `0.33.33.38.4.2` carried forward.** See the archive entry. `GET /api/notes/for-target` is one producer with two consumers, and the reader lives on `notesLinkedPanel` - already declared, already delivered to Tasks before its own script - so **no column table was duplicated and no namespace surface was added**. The envelope is exact and all eight members are named, but `notes` stays `unknown[]`: it is a compatibility projection nothing on this path reads into, and claiming it would make this endpoint the owner of a second exhaustive note projection.
 
 #### 0.33.33.38.4.3 - The Tasks response family
 
