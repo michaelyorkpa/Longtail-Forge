@@ -60,6 +60,39 @@ export interface BrowserBulkActionFailure {
   task_id?: string;
 }
 
+/** What a bulk tag assignment did to each target, closed by the normaliser that throws otherwise. */
+export type BrowserTagBulkAction = "add" | "remove" | "replace";
+
+/**
+ * What `POST /api/tags/bulk-assignments` resolves to.
+ *
+ * **Six members from one literal, and the failure half was already published.** `bulkAssign`
+ * ends in a single `return`, so this is one exact contract; its `errors` reuse
+ * `BrowserBulkActionFailure`, which `0.33.33.38.4.11` named after tracing this very route
+ * alongside three others. That child typed the failures every bulk producer shares and left
+ * each producer's own success payload to its owner - this is the tag producer's.
+ *
+ * The two counts are `results.length` and `errors.length`, so they are always finite
+ * non-negative integers and never absent; the consumer's `Number(...) || 0` guarded a body it
+ * had no other reason to distrust.
+ *
+ * `changed` stays `unknown[]`: its elements are what `applyBulkTagAction` answers per target,
+ * a vocabulary belonging to the tag-assignment producer rather than to this envelope, and no
+ * browser consumer reads into them.
+ */
+export interface BrowserTagBulkAssignmentResult {
+  action: BrowserTagBulkAction;
+  /** One entry per target that changed; the tag-assignment producer owns their shape. */
+  changed: unknown[];
+  /** `changed.length`, so always a finite count. */
+  changed_count: number;
+  errors: BrowserBulkActionFailure[];
+  /** `errors.length`, so always a finite count. */
+  skipped_count: number;
+  /** The caller's own target vocabulary, trimmed and required non-empty by the service. */
+  target_type: string;
+}
+
 export interface BrowserErrorContract {
   /**
    * The failures a *successful* bulk-action body reports.

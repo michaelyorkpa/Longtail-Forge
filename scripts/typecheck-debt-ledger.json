@@ -397,6 +397,7 @@
         "tests/unit/static-regression-execution.test.mjs",
         "tests/unit/support-view-audit-contracts.test.mjs",
         "tests/unit/support-view-target-contracts.test.mjs",
+        "tests/unit/tag-bulk-assignment-contracts.test.mjs",
         "tests/unit/task-block-recovery-engine.test.mjs",
         "tests/unit/task-list-contracts.test.mjs",
         "tests/unit/task-list-engine.test.mjs",
@@ -503,7 +504,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8350,
+      "errorCount": 8348,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1809,10 +1810,6 @@
         ],
         "public/js/time-entries.js": [
           {
-            "code": 18046,
-            "count": 2
-          },
-          {
             "code": 18047,
             "count": 41
           },
@@ -2737,8 +2734,8 @@
     }
   },
   "totals": {
-    "files": 1084,
-    "errors": 8350,
+    "files": 1085,
+    "errors": 8348,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
