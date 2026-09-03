@@ -284,10 +284,25 @@
     dialogDataReady: null,
     editingListId: "",
     editorList: null,
+    /**
+     * Targets staged on a list that has not been created yet.
+     *
+     * The second direct handoff of the same narrowed value: `applyListEditorLinkTarget` moves a
+     * target out of `linkTargets` and into this slot, so leaving it inferred as `never[]` would
+     * turn this child's own narrowing into two new diagnostics rather than none.
+     * @type {BrowserListLinkTarget[]}
+     */
     editorStagedTargets: [],
     itemDialogList: null,
     itemSuggestions: new Map(),
     linkTargetSearchTimer: null,
+    /**
+     * The link targets the picker is currently offering.
+     *
+     * Annotated because the narrowed response is handed straight into this slot; the empty
+     * initialiser would otherwise infer `never[]` and refuse it. One slot, not a page state.
+     * @type {BrowserListLinkTarget[]}
+     */
     linkTargets: [],
     listDialogHostContext: null,
     listDialogHostContextSettled: false,
@@ -1975,6 +1990,180 @@
     state.linkTargetSearchTimer = window.setTimeout(() => loadListEditorLinkTargets(), 180);
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListLinkTargetType} BrowserListLinkTargetType */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListLinkTargetProvider} BrowserListLinkTargetProvider */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListLinkTarget} BrowserListLinkTarget */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListLinkTargetsEnvelope} BrowserListLinkTargetsEnvelope */
+
+  /**
+   * The four types `LIST_LINK_TARGET_TYPES` admits before a provider can be advertised.
+   * @type {readonly BrowserListLinkTargetType[]}
+   */
+  const LIST_LINK_TARGET_TYPES = Object.freeze(["client", "note", "project", "task"]);
+
+  /** The five members the provider projection names. */
+  const LINK_PROVIDER_MEMBERS = Object.freeze(["id", "label", "moduleId", "providerId"]);
+
+  /** The members the shared contract refuses unless they are present and non-empty. */
+  const LINK_TARGET_REQUIRED_TEXT = Object.freeze([
+    "displayLabel", "moduleId", "sortKey", "targetId", "workspaceId",
+  ]);
+
+  /** The members it reconstructs but allows to be empty. */
+  const LINK_TARGET_OPTIONAL_TEXT = Object.freeze([
+    "clientId", "projectId", "secondaryLabel", "sourceUrl",
+  ]);
+
+  /** The three labels Lists names on top of the reconstruction. */
+  const LINK_TARGET_LIST_LABELS = Object.freeze(["ariaLabel", "fullLabel", "title"]);
+
+  /**
+   * A plain JSON object, which is the least a wire value can be before any member is read.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isLinkTargetRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * One advertised provider, or `null` when it cannot be vouched for.
+   * @param {unknown} entry
+   * @returns {BrowserListLinkTargetProvider | null}
+   */
+  function readLinkTargetProvider(entry) {
+    if (!isLinkTargetRecord(entry)) {
+      return null;
+    }
+    const targetType = LIST_LINK_TARGET_TYPES.find((word) => word === entry.targetType);
+    if (!targetType || !LINK_PROVIDER_MEMBERS.every((key) => typeof entry[key] === "string" && entry[key] !== "")) {
+      return null;
+    }
+    return {
+      id: String(entry.id),
+      label: String(entry.label),
+      moduleId: String(entry.moduleId),
+      providerId: String(entry.providerId),
+      targetType,
+    };
+  }
+
+  /**
+   * The hint map, or `null` when it is present and unreadable.
+   *
+   * Absent is a real answer - the shared contract only builds hints when the raw target carried
+   * them - so `undefined` is returned for a target that simply has none.
+   * @param {unknown} value
+   * @returns {Record<string, string> | null | undefined}
+   */
+  function readPrimaryContextHints(value) {
+    if (value === undefined) {
+      return undefined;
+    }
+    if (!isLinkTargetRecord(value)) {
+      return null;
+    }
+    /** @type {Record<string, string>} */
+    const hints = {};
+    for (const [key, hint] of Object.entries(value)) {
+      if (typeof hint !== "string") {
+        return null;
+      }
+      hints[key] = hint;
+    }
+    return hints;
+  }
+
+  /**
+   * One linked-context target, or `null` when it cannot be vouched for.
+   *
+   * Every member the contract claims is checked, including the four the server allows to be
+   * empty and the hint values it requires to be text. The two safe labels are checked as
+   * non-empty text here; what makes them *safe* is the server contract that refused a raw
+   * identifier or an echoed id, which this reader relies on rather than re-implements.
+   * @param {unknown} entry
+   * @returns {BrowserListLinkTarget | null}
+   */
+  function readListLinkTarget(entry) {
+    if (!isLinkTargetRecord(entry)) {
+      return null;
+    }
+    const targetType = LIST_LINK_TARGET_TYPES.find((word) => word === entry.targetType);
+    const hints = readPrimaryContextHints(entry.primaryContextHints);
+    if (!targetType || hints === null
+      || typeof entry.isAvailable !== "boolean"
+      || !LINK_TARGET_REQUIRED_TEXT.every((key) => typeof entry[key] === "string" && entry[key] !== "")
+      || !LINK_TARGET_LIST_LABELS.every((key) => typeof entry[key] === "string" && entry[key] !== "")
+      || !LINK_TARGET_OPTIONAL_TEXT.every((key) => typeof entry[key] === "string")) {
+      return null;
+    }
+    /** @type {BrowserListLinkTarget} */
+    const target = {
+      ariaLabel: String(entry.ariaLabel),
+      clientId: String(entry.clientId),
+      displayLabel: String(entry.displayLabel),
+      fullLabel: String(entry.fullLabel),
+      isAvailable: entry.isAvailable,
+      moduleId: String(entry.moduleId),
+      projectId: String(entry.projectId),
+      secondaryLabel: String(entry.secondaryLabel),
+      sortKey: String(entry.sortKey),
+      sourceUrl: String(entry.sourceUrl),
+      targetId: String(entry.targetId),
+      targetType,
+      title: String(entry.title),
+      workspaceId: String(entry.workspaceId),
+    };
+    if (hints !== undefined) {
+      target.primaryContextHints = hints;
+    }
+    return target;
+  }
+
+  /**
+   * What the link-target route answered, or `null` when it cannot be vouched for.
+   *
+   * **The provider catalogue is refused rather than filtered, and an empty one is refused too.**
+   * The page's own `listLinkProviderOptions` falls back to a locally ordered set of choices when
+   * it is handed nothing, which predates this boundary - so a body this browser cannot read must
+   * not reach it, or the picker would advertise link types the server never said were available.
+   * The service cannot answer a success with no provider, so an empty list did not come from it.
+   *
+   * Targets are refused whole for a different reason: every target the producer emits has
+   * already passed the shared linked-context contract, so a malformed one is not an unusable
+   * candidate to drop, it is evidence the body is not this producer's. Filtering would also let
+   * a broken response arrive as "nothing matched your search", which is a specific claim.
+   * @param {unknown} body
+   * @returns {BrowserListLinkTargetsEnvelope | null}
+   */
+  function readListLinkTargetsEnvelope(body) {
+    if (!isLinkTargetRecord(body) || !Array.isArray(body.providers) || !Array.isArray(body.targets)) {
+      return null;
+    }
+    /** @type {BrowserListLinkTargetProvider[]} */
+    const providers = [];
+    for (const entry of body.providers) {
+      const provider = readLinkTargetProvider(entry);
+      if (!provider) {
+        return null;
+      }
+      providers.push(provider);
+    }
+    if (providers.length === 0) {
+      return null;
+    }
+    /** @type {BrowserListLinkTarget[]} */
+    const targets = [];
+    for (const entry of body.targets) {
+      const target = readListLinkTarget(entry);
+      if (!target) {
+        return null;
+      }
+      targets.push(target);
+    }
+    return { providers, targets };
+  }
+
   async function loadListEditorLinkTargets() {
     const api = requireApi();
     const parts = listEditorPickerParts();
@@ -1997,15 +2186,20 @@
     }
 
     try {
-      const result = await api.getJson(`/api/lists/link-targets?${params.toString()}`, { cache: "no-store" });
-      const providerOptions = listLinkProviderOptions(result.providers || []);
+      const envelope = readListLinkTargetsEnvelope(
+        await api.getJson(`/api/lists/link-targets?${params.toString()}`, { cache: "no-store" }),
+      );
+      if (!envelope) {
+        throw new Error("Linked target options could not be read.");
+      }
+      const providerOptions = listLinkProviderOptions(envelope.providers);
       parts.setTargets?.(providerOptions);
       if (listLinkTargetTypeInput) {
         listLinkTargetTypeInput.value = providerOptions.some((provider) => provider.targetType === targetType)
           ? targetType
           : providerOptions[0]?.targetType || "";
       }
-      state.linkTargets = result.targets || [];
+      state.linkTargets = envelope.targets;
       parts.setRecords(state.linkTargets);
       listLinkApplyButton.disabled = state.linkTargets.length === 0;
       listFormStatus.textContent = "";

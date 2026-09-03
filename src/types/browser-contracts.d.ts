@@ -2210,6 +2210,87 @@ export interface BrowserNoteListEnvelope {
 }
 
 /**
+ * The four linked-context types Lists publishes.
+ *
+ * A subset of the framework's linked-context types: `isListLinkTargetProvider` filters every
+ * active provider through `LIST_LINK_TARGET_TYPES` before the route can answer, and each target
+ * is built with the surviving provider's own type. Using the wider framework vocabulary here
+ * would name types this route can never expose.
+ */
+export type BrowserListLinkTargetType = "client" | "note" | "project" | "task";
+
+/**
+ * One provider as the link-target route advertises it.
+ *
+ * **A deliberate five-member reduction of the registry's provider contribution**, not a mirror
+ * of it: the service maps each active provider to exactly these five and answers no other part
+ * of the contribution record.
+ */
+export interface BrowserListLinkTargetProvider {
+  id: string;
+  label: string;
+  moduleId: string;
+  /** The registry provider key, named `provider` on the contribution and `providerId` here. */
+  providerId: string;
+  targetType: BrowserListLinkTargetType;
+}
+
+/**
+ * One linked-context target as Lists answers it.
+ *
+ * **Exact although the shaper spreads, because what it spreads is the framework's own total
+ * reconstruction.** `normalizeLinkedContextTarget` names all eleven members from the raw input
+ * and adds `primaryContextHints` only when the input carried it;
+ * `assertLinkedContextTargetContract` then refuses the target unless every one is present and
+ * typed. `shapeListLinkTarget` spreads that result and names three Lists labels.
+ *
+ * **Four members carry a safety guarantee the browser must not weaken.** The shared contract
+ * refuses a `displayLabel` or `secondaryLabel` that looks like a raw identifier or echoes the
+ * target, client, project or workspace id, so those labels are safe to render *because the
+ * server refused the alternative* - not because they are strings.
+ *
+ * Six members are additionally guaranteed non-empty by that contract; `secondaryLabel`,
+ * `sourceUrl`, `clientId` and `projectId` are reconstructed but may legitimately be `""`.
+ */
+export interface BrowserListLinkTarget {
+  /** Lists' own label, falling back to the display label, so never empty. */
+  ariaLabel: string;
+  /** Reconstructed, and empty when the target has no client. */
+  clientId: string;
+  /** Refused by the shared contract if it looks like, or echoes, an identifier. */
+  displayLabel: string;
+  fullLabel: string;
+  isAvailable: boolean;
+  moduleId: string;
+  /** Present only when the raw target carried hints; every value is text. */
+  primaryContextHints?: Record<string, string>;
+  /** Reconstructed, and empty when the target has no project. */
+  projectId: string;
+  /** Refused by the shared contract if it looks like, or echoes, an identifier. */
+  secondaryLabel: string;
+  sortKey: string;
+  /** Reconstructed, and empty when the provider offers no link. */
+  sourceUrl: string;
+  targetId: string;
+  targetType: BrowserListLinkTargetType;
+  title: string;
+  workspaceId: string;
+}
+
+/**
+ * What `GET /api/lists/link-targets` resolves to.
+ *
+ * Two members reconstructed by name with no spread. **`providers` is never empty on a success**:
+ * the service derives its target type from `activeProviders[0]` and throws before returning when
+ * no active supported provider survives filtering, so an empty catalogue is not something this
+ * producer can answer.
+ */
+export interface BrowserListLinkTargetsEnvelope {
+  providers: BrowserListLinkTargetProvider[];
+  targets: BrowserListLinkTarget[];
+}
+
+/**
  * One note collection as `public/js/notes.js` holds it after `normalizeCollections`.
  *
  * **This is the normalised shape, not the wire shape, and that is the point.** The collection read
