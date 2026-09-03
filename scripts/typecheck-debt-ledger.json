@@ -376,6 +376,7 @@
         "tests/unit/file-attachment-list-contracts.test.mjs",
         "tests/unit/files-preview.service.test.mjs",
         "tests/unit/files-scanner-job.service.test.mjs",
+        "tests/unit/files-settings-accounting-contracts.test.mjs",
         "tests/unit/files-storage-accounting.service.test.mjs",
         "tests/unit/focus-mode-resolution.test.mjs",
         "tests/unit/identifiers.test.mjs",
@@ -506,7 +507,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8341,
+      "errorCount": 8338,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -745,15 +746,11 @@
         "public/js/files-settings.js": [
           {
             "code": 18046,
-            "count": 6
+            "count": 4
           },
           {
             "code": 18048,
             "count": 4
-          },
-          {
-            "code": 2339,
-            "count": 1
           },
           {
             "code": 7005,
@@ -2736,8 +2733,8 @@
     }
   },
   "totals": {
-    "files": 1087,
-    "errors": 8341,
+    "files": 1088,
+    "errors": 8338,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -5,7 +5,14 @@
   const filesSettingsStatus = asStatusElement(document.querySelector("[data-module-settings-status]"));
 
   let settingsCatalog = null;
-  let accounting = {};
+  /**
+   * The storage readout, or `null` when the server has not given one this browser can vouch for.
+   *
+   * `null` is not "no storage used" - it is "usage unknown", and the readout says so. A real
+   * accounting record whose totals are all zero is a different value and still renders zeros.
+   * @type {BrowserFileStorageAccounting | null}
+   */
+  let accounting = null;
   const settingsPageController = requireSettingsPageController().create({
     root: document.querySelector("[data-settings-host='module']"),
     onSave: saveFilesSettings,
@@ -106,6 +113,66 @@
     return node && "hidden" in node ? /** @type {HTMLElement} */ (node) : null;
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkspaceFileSettingsResponse} BrowserWorkspaceFileSettingsResponse */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserFileStorageAccounting} BrowserFileStorageAccounting */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserFileStorageAccountingTotals} BrowserFileStorageAccountingTotals */
+
+  /** The five members the totals reducer seeds, so the five it always answers. */
+  const ACCOUNTING_TOTALS = Object.freeze([
+    "externalFileCount", "externalReportedBytes", "fileCount", "internalBytes", "internalFileCount",
+  ]);
+
+  /**
+   * A plain JSON object, which is the least a wire value can be before any member is read.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isSettingsRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * What both Files settings routes answered, or `null` when it cannot be vouched for.
+   *
+   * **Refused rather than defaulted, because the default invented a number.** Treating a missing
+   * accounting record as an empty object and each missing total as zero rendered "0 internal
+   * files, 0 B internal storage" - a specific, reassuring claim about a workspace's storage that
+   * the server never made. The readout now says usage is unavailable instead.
+   *
+   * Totals are checked for finiteness rather than for being non-negative integers, because the
+   * row shaper coerces with `Number(column || 0)` and clamps nothing. `entries` is checked as a
+   * container only: nothing here reads into one.
+   * @param {unknown} body
+   * @returns {BrowserWorkspaceFileSettingsResponse | null}
+   */
+  function readWorkspaceFileSettingsResponse(body) {
+    if (!isSettingsRecord(body)) {
+      return null;
+    }
+    const { accounting: rawAccounting, settings } = body;
+    if (!isSettingsRecord(rawAccounting) || settings === undefined) {
+      return null;
+    }
+    const { entries, totals } = rawAccounting;
+    if (!Array.isArray(entries) || !isSettingsRecord(totals)
+      || !ACCOUNTING_TOTALS.every((key) => typeof totals[key] === "number" && Number.isFinite(totals[key]))) {
+      return null;
+    }
+    return {
+      accounting: {
+        entries,
+        totals: {
+          externalFileCount: Number(totals.externalFileCount),
+          externalReportedBytes: Number(totals.externalReportedBytes),
+          fileCount: Number(totals.fileCount),
+          internalBytes: Number(totals.internalBytes),
+          internalFileCount: Number(totals.internalFileCount),
+        },
+      },
+      settings,
+    };
+  }
+
   async function loadFilesSettings() {
     const api = requireApi();
     setStatus("Loading Files settings...");
@@ -114,8 +181,12 @@
         api.getJson("/api/settings/catalog", { cache: "no-store" }),
         api.getJson("/api/files/settings", { cache: "no-store" }),
       ]);
+      const response = readWorkspaceFileSettingsResponse(result);
+      if (!response) {
+        throw new Error("Files settings could not be read.");
+      }
       settingsCatalog = catalog;
-      accounting = result.accounting || {};
+      accounting = response.accounting;
       renderSettings();
       setStatus("");
       settingsPageController.setClean();
@@ -144,10 +215,16 @@
         internalStorageLimitBytes: nullableInteger(values["files.internalStorageLimitBytes"]),
         perUserStorageLimitBytes: nullableInteger(values["files.perUserStorageLimitBytes"]),
       });
-      accounting = result.accounting || {};
+      // The write has already happened, so an unreadable body is not a failed save. The readout
+      // drops to unavailable and the status says exactly that, rather than claiming the settings
+      // were not saved or inventing zero usage beside them.
+      const response = readWorkspaceFileSettingsResponse(result);
+      accounting = response ? response.accounting : null;
       settingsCatalog = await api.getJson("/api/settings/catalog", { cache: "no-store" });
       renderSettings();
-      setStatus("Files settings saved.");
+      setStatus(response
+        ? "Files settings saved."
+        : "Files settings saved. Storage usage could not be read.");
       return true;
     } catch (error) {
       window.LongtailForge.settingsRenderer.showValidationErrors(filesSettingsForm, error);
@@ -201,13 +278,20 @@
     if (!container) {
       return;
     }
-    const totals = accounting.totals || {};
     const view = requireView();
+    if (!accounting) {
+      container.replaceChildren(view.createElement("p", {
+        className: "settings-help",
+        text: "Storage usage is unavailable.",
+      }));
+      return;
+    }
+    const totals = accounting.totals;
     const items = [
-      ["Internal files", totals.internalFileCount || 0],
-      ["Internal storage", formatBytes(totals.internalBytes || 0)],
-      ["External files", totals.externalFileCount || 0],
-      ["External reported", formatBytes(totals.externalReportedBytes || 0)],
+      ["Internal files", totals.internalFileCount],
+      ["Internal storage", formatBytes(totals.internalBytes)],
+      ["External files", totals.externalFileCount],
+      ["External reported", formatBytes(totals.externalReportedBytes)],
     ];
     container.replaceChildren(...items.map(([label, value]) => view.createElement("div", {
       className: "settings-summary-item",

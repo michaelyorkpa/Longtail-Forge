@@ -1,5 +1,38 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.9.3 - The Files settings and storage accounting response
+
+**Model: High Effort** - two diagnostics, and the one this run where the fabricated value was a *number about someone's data* rather than a state or a count.
+
+- [x] **One contract for two routes, and producer identity proved by a call rather than by matching members.** `saveWorkspaceFileSettings` ends in `return readWorkspaceFileSettings(session)` - it *is* the read, invoked again after the write. So `GET` and `PUT /api/files/settings` cannot answer different shapes without the read changing, and a break that makes the save answer its own literal instead is refused. The question the trace had to settle was whether they merely shared an `accounting` member; they do not, they share the whole function.
+- [x] **Two members, reconstructed by name, so the membership is exact - and the settings half is still left unnamed.** `shapeWorkspaceFileSettings` is a static nine-member reconstruction, so naming it would have been possible; it was not earned. **This page never reads it**: the form is built from `/api/settings/catalog` and its values are collected back out of the DOM. `settings: unknown` says the member is always there and that this child does not describe it, and a break that freezes a settings vocabulary here is refused.
+- [x] **The accounting contract is named for its producer, because two routes share it exactly.** `readWorkspaceFileSettings` embeds `readStorageAccounting(session)`, and `GET /api/files/storage/accounting` reaches the same function through `filesService.readStorageAccounting`; only the `storageKind` filter differs, and that selects which rows are summed rather than what the result looks like. So the declaration is `BrowserFileStorageAccounting`, not a Files-Settings-page type - **published and ready, with no runtime surface**, because nothing in the browser reads the accounting route today. Three breaks hold that identity.
+- [x] **All five totals are always present, because they are the reduce's own seed.** `summarizeStorageAccounting` starts from a literal naming exactly five members at `0` and only adds to them, which is read out of the reducer rather than out of a table in the test. The server's own `StorageAccountingSummary` declares the same five as `number`, which **corroborates the derivation from a second, independent place** rather than being its source.
+- [x] **They are `number`, not "non-negative integer", and that restraint is deliberate.** The row shaper coerces each column with `Number(column || 0)` and clamps nothing, so the honest runtime check is finiteness. The external recorder does clamp its own input, but this projection makes no such promise, and a break that starts clamping in the shaper is refused for saying the contract understates the producer.
+- [x] **The entry breakdown is container-checked and no further.** No browser consumer reads into an entry, and this estate does not validate elements it does not read. A break that claims the entries as records is refused; a body whose entries are opaque nonsense is still accepted, and there is a test that says so.
+- [x] **A real zero and an unknown are now different values, which is the whole point.** Defaulting the missing record to an empty object and each missing total to zero rendered **"0 internal files, 0 B internal storage"** - a specific, reassuring claim about a workspace's storage that the server never made. The readout state now starts at `null` and renders **"Storage usage is unavailable."**; a genuine accounting record whose five totals are all zero is a different value and still renders its zeros. Both halves of that distinction have their own behavioural test.
+- [x] **An unreadable readout is not a failed save.** The load refuses outright, into the path that already reports it. The save cannot: the write has already happened. So it drops the readout to unavailable, reports **"Files settings saved. Storage usage could not be read."**, and still returns success - because claiming the settings were not saved would be the same class of invention in the opposite direction. A break that reports failure there is refused.
+- [x] **The readout never travels back through the save**, is never added to the settings catalog, and no total is treated as a settings value. A break that puts `accounting` into the `PUT` payload is refused.
+- [x] **Nothing about the save's own semantics moved** - extension parsing, the file-type policy, both quotas, validation, atomic persistence and the audit record are untouched, and all three producers keep asserting `files.manage_workspace_settings`. Three breaks remove one gate each.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **40 breaks across the Files service, the accounting service, the routes, the declaration and the consumer, all 40 refused for their specific named check.**
+
+**The proof is part source-evidence and part behavioural, and the harness is why.** Eleven checks run the *shipped reader itself*, sliced out of the page source and instantiated, so accept/refuse/valid-zero are exercised rather than asserted about. The first harness run then found two claims that only looked proved: the absent-readout branch was checked for appearing before the totals read but not for actually returning, and the totals were checked for validity but not for being rebuilt rather than aliased. Both were made real, and the breaks that had passed now fail.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,341 | **8,338** |
+| Genuine `unknown` | 37 | **35** |
+| state | 1,739 | **1,738** |
+| params / dom / namespace / assorted | 4,609 / 1,484 / 319 / 153 | **all unchanged** |
+| `.43` Lists, Files, Clients/Projects | 976 | **975** |
+| `.39` / `.40` / `.41` / `.42` / `.44` | 1,770 / 491 / 1,168 / 530 / 1,566 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 777 / 348 / 167 | **803 / 348 / 167**, green |
+
+**3 eliminations, no transfers, no new debt.** Two are the genuine `unknown` this child owns; the third is the **direct state handoff**, annotated only after the classifier showed the fallout - `accounting` had been inferred from `{}`, which cost a `TS2339` on its own `totals` read. That is one slot, not a page-state type, and `.44` was not begun. A byte-safe measurement shows `TS18046` 6 to 4 and `TS2339` 1 to 0 in `files-settings.js`, with **no other code and no other file moving at all**. The four remaining `TS18046` there are `window.LongtailForge.settingsRenderer` reads - namespace family, and not this boundary's.
+
 ## Version 0.33.33.38.4.5.4 - The catalog security preflight and transition responses
 
 **Model: High Effort** - two diagnostics, and the second half of the Notes Settings partition `0.33.33.38.4.5.3` drew. One service, two producers, and the trace's main finding is that they must not share a contract.
