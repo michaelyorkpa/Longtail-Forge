@@ -595,6 +595,10 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 **Complete: 6 diagnostics, twelve contracts, zero fallout - and three producers rather than the two this family expected.** See the archive entry. The trace found `DELETE /api/user/workspaces/:workspaceId` beside the load and the save. **`GET` and `PUT /api/user/settings` do not share a shape**: the save answers ten members, the read answers those ten plus four, so the read contract **extends** the save contract rather than making four members optional. The removal genuinely returns **two** shapes, and they are a union rather than one record with optional members.
 
+#### 0.33.33.38.4.5.2 - The Workspace Deletion response boundary
+
+**Complete: 2 diagnostics, six contracts, zero fallout - and a malformed-data correction that matters more than the count.** See the archive entry. Three routes converge on one `toBrowserState`, so there is one contract rather than three with identical members. **The raw read rendered an unvouchable body as "this workspace is not pending deletion"** - a safety claim the data never made - and it now refuses instead. Two reductions carry the security argument: the lifecycle summary drops the **purge token**, the backup id, the requester id and the purge job's state; the backup summary drops the archive filename and its digest.
+
 #### 0.33.33.38.4.6 - The client, project and calendar-subscription bodies
 
 **Resliced: 22 live diagnostics and three producer families, not one.** The reuse trace this line called for was run and it answered *no*: `clientProjectOptions` normalises into a **different vocabulary** - camelCase billing members and a two-word status - so it describes what the browser builds, never what the wire sends.
