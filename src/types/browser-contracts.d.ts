@@ -2135,6 +2135,30 @@ export interface BrowserFileAttachments {
 }
 
 /**
+ * What `POST /api/notes/preview` resolves to.
+ *
+ * **Four members reconstructed by name, two of them constants the producer writes literally.**
+ * `bodyFormat` and `bodyHtmlFormat` are not values the shaper discovers; they say which of the
+ * two bodies is which, so they are declared and checked as the words they are.
+ *
+ * **`bodyHtml` is the reason this contract matters.** The page assigns it to `innerHTML`, and it
+ * is safe to do that **because `renderMarkdownToSafeHtml` produced it** - the same call runs
+ * `assertSafeMarkdown` over the input first. A browser that accepted an unvouchable body here
+ * would be writing unsanitised markup into the document, so this reader refuses rather than
+ * falling back to `""`, which would also have claimed the note renders to nothing.
+ */
+export interface BrowserNoteMarkdownPreview {
+  /** A constant: the first body is always the Markdown that was sent. */
+  bodyFormat: "markdown";
+  /** The sanitised render, safe to assign because the server sanitised it. */
+  bodyHtml: string;
+  /** A constant: the second body is always HTML. */
+  bodyHtmlFormat: "html";
+  /** The Markdown the producer echoes back, after `assertSafeMarkdown`. */
+  bodyMarkdown: string;
+}
+
+/**
  * The note columns every browser-facing Notes projection carries.
  *
  * **Derived from the producer, not from what `notes.js` reads.** `NOTE_LIST_COLUMNS` in
