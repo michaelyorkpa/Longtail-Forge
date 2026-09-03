@@ -615,6 +615,10 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 **Complete: 3 diagnostics across three pages, one producer, one reader, and no new namespace debt.** See the archive entry. `save` ends in `return { data: await readInternal(session) }`, so the PUT's `data` **is** the GET body and there is one settings contract rather than two free to drift. The child's real decision is the module record: the producer reconstructs a twenty-plus-member registry manifest, and the browser deliberately publishes only the stable framework-owned pair - **identity and state** - so registry expansion is not a browser contract change. Proved in both directions: a benign new contribution member is accepted, a missing promised member is refused.
 
+#### 0.33.33.38.4.5.6 - The workspace backup receipt
+
+**Complete: 2 diagnostics, one shaper, two routes, and two members that are constants rather than data.** See the archive entry. `readLatest` and `create` both end in `toBrowserReceipt`, so there is one receipt; `secureNotesKeyIncluded` and `status` are written literally by the shaper and are therefore declared and **checked** as the literals they are. The readout had been turning an unreadable body into **"no backup has been taken"** - the most misleading thing a backup summary can say - and the create path had been able to say it beside a package it had just built.
+
 #### 0.33.33.38.4.6 - The client, project and calendar-subscription bodies
 
 **Resliced: 22 live diagnostics and three producer families, not one.** The reuse trace this line called for was run and it answered *no*: `clientProjectOptions` normalises into a **different vocabulary** - camelCase billing members and a two-word status - so it describes what the browser builds, never what the wire sends.

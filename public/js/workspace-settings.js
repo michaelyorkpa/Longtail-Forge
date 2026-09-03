@@ -196,12 +196,84 @@
     }
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkspaceBackupReceipt} BrowserWorkspaceBackupReceipt */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkspaceBackupEnvelope} BrowserWorkspaceBackupEnvelope */
+
+  /** The eight receipt members the shaper copies or derives, rather than writes literally. */
+  const BACKUP_RECEIPT_TEXT = Object.freeze([
+    "appVersion", "archiveSha256", "createdAt", "createdByName", "packageLabel", "workspaceName",
+  ]);
+  const BACKUP_RECEIPT_COUNTS = Object.freeze(["fileObjectBytes", "fileObjectCount"]);
+
+  /**
+   * One backup receipt, or `null` when it cannot be vouched for.
+   *
+   * The two constants are checked as the constants they are: a receipt claiming to carry a
+   * secure-notes key, or describing anything but a created package, did not come from this
+   * shaper and is refused rather than displayed.
+   * @param {unknown} value
+   * @returns {BrowserWorkspaceBackupReceipt | null}
+   */
+  function readWorkspaceBackupReceipt(value) {
+    if (!isDeletionRecord(value)) {
+      return null;
+    }
+    if (value.secureNotesKeyIncluded !== false || value.status !== "created"
+      || typeof value.secureNotesRecoveryRequired !== "boolean"
+      || !BACKUP_RECEIPT_TEXT.every((key) => typeof value[key] === "string")
+      || !BACKUP_RECEIPT_COUNTS.every((key) => typeof value[key] === "number" && Number.isFinite(value[key]))) {
+      return null;
+    }
+    return {
+      appVersion: String(value.appVersion),
+      archiveSha256: String(value.archiveSha256),
+      createdAt: String(value.createdAt),
+      createdByName: String(value.createdByName),
+      fileObjectBytes: Number(value.fileObjectBytes),
+      fileObjectCount: Number(value.fileObjectCount),
+      packageLabel: String(value.packageLabel),
+      secureNotesKeyIncluded: false,
+      secureNotesRecoveryRequired: value.secureNotesRecoveryRequired,
+      status: "created",
+      workspaceName: String(value.workspaceName),
+    };
+  }
+
+  /**
+   * The backup envelope both routes answer, or `null` when it cannot be vouched for.
+   *
+   * **`null` inside the envelope and an unreadable envelope are different answers.** The read
+   * says `null` for a workspace that has never been backed up; the raw code turned an unreadable
+   * body into that same `null`, so a broken response rendered as "no backup has been taken" -
+   * the most misleading thing this readout can say.
+   * @param {unknown} body
+   * @returns {BrowserWorkspaceBackupEnvelope | null}
+   */
+  function readWorkspaceBackupEnvelope(body) {
+    if (!isDeletionRecord(body)) {
+      return null;
+    }
+    // An envelope with no `backup` member at all needs no separate check: it reaches the receipt
+    // reader as `undefined` and is refused there, and a break harness proved the extra guard
+    // changed no outcome. Only an explicit `null` is the read's own empty answer.
+    if (body.backup === null) {
+      return { backup: null };
+    }
+    const backup = readWorkspaceBackupReceipt(body.backup);
+    return backup ? { backup } : null;
+  }
+
   async function loadLatestWorkspaceBackup() {
     if (!workspaceBackupSummary) return;
     renderWorkspaceBackupSummary(null, "Loading latest backup...");
     try {
-      const result = await requireApi().getJson("/api/settings/workspace-backups/latest", { cache: "no-store" });
-      renderWorkspaceBackupSummary(result.backup || null);
+      const envelope = readWorkspaceBackupEnvelope(
+        await requireApi().getJson("/api/settings/workspace-backups/latest", { cache: "no-store" }),
+      );
+      if (!envelope) {
+        throw new Error("The latest workspace backup could not be read.");
+      }
+      renderWorkspaceBackupSummary(envelope.backup);
     } catch (error) {
       renderWorkspaceBackupError(error);
     }
@@ -212,8 +284,17 @@
     createWorkspaceBackupButton.disabled = true;
     renderWorkspaceBackupMessage("Creating and validating a protected workspace package...");
     try {
-      const result = await requireApi().postJson("/api/settings/workspace-backups", {});
-      renderWorkspaceBackupSummary(result.backup || null);
+      const envelope = readWorkspaceBackupEnvelope(
+        await requireApi().postJson("/api/settings/workspace-backups", {}),
+      );
+      // The package has already been built and checksum-verified server-side, so an unreadable
+      // body is not a failed backup. What is unknown is the receipt, and the summary says so
+      // rather than rendering "no backup has been taken" beside a backup that was just made.
+      if (!envelope || !envelope.backup) {
+        renderWorkspaceBackupMessage("Workspace backup created, but its receipt could not be read. Reload to see the latest backup.", "success");
+        return;
+      }
+      renderWorkspaceBackupSummary(envelope.backup);
       renderWorkspaceBackupMessage("Workspace backup created and checksum-verified.", "success");
     } catch (error) {
       renderWorkspaceBackupError(error);
