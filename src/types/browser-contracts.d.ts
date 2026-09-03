@@ -3052,6 +3052,54 @@ export interface BrowserWorkspaceDeletionLifecycle {
 }
 
 /**
+ * A workspace backup package, as `toBrowserReceipt` builds it.
+ *
+ * **Eleven members reconstructed by name for two routes.** The read and the create both end in
+ * this one shaper, so there is one receipt rather than a "latest" record and a "created" record
+ * free to drift; `create` only adds the acting administrator's display name to the row first.
+ *
+ * `secureNotesKeyIncluded` and `status` are **constants the shaper writes literally**, not values
+ * it discovers, so they are declared as the literals they are: this receipt never carries a
+ * secure-notes key, and it only ever describes a package that was created.
+ *
+ * **The reduction is deliberate.** The stored export row also holds `backupId`, `workspaceId`,
+ * `archiveFilename` and `createdByUserId`, and the shaper answers none of them. `archiveSha256`
+ * *is* answered, and that is the intended contrast: the integrity digest of a package the
+ * administrator just made is theirs to check, while the deletion summary that mentions the same
+ * backup withholds it, because there it would name a file the reader is not being handed.
+ */
+export interface BrowserWorkspaceBackupReceipt {
+  appVersion: string;
+  /** The package's integrity digest, disclosed to the administrator who owns the package. */
+  archiveSha256: string;
+  createdAt: string;
+  /** Falls back to "Workspace administrator", so never empty. */
+  createdByName: string;
+  /** `Number(...) || 0`, so a finite count rather than a stored value passed through. */
+  fileObjectBytes: number;
+  fileObjectCount: number;
+  /** Built by the shaper from the timestamp, so never absent. */
+  packageLabel: string;
+  /** A constant: this receipt never carries a secure-notes key. */
+  secureNotesKeyIncluded: false;
+  secureNotesRecoveryRequired: boolean;
+  /** A constant: a receipt only ever describes a package that was created. */
+  status: "created";
+  workspaceName: string;
+}
+
+/**
+ * What both workspace backup routes resolve to.
+ *
+ * `null` is the **read's** answer for a workspace that has never been backed up. The create
+ * route wraps the same member but always has a receipt to put in it, so a `null` from that
+ * route would not have come from this producer.
+ */
+export interface BrowserWorkspaceBackupEnvelope {
+  backup: BrowserWorkspaceBackupReceipt | null;
+}
+
+/**
  * The workspace's deletion state, as `toBrowserState` reconstructs it.
  *
  * **One record for three routes.** `read`, `request` and `cancel` all end in this same shaper,

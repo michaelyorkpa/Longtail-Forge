@@ -1,5 +1,33 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.5.6 - The workspace backup receipt
+
+**Model: High Effort** - two diagnostics, the fifth producer this run whose two routes turned out to share one shaper, and the second where the fabricated value was a claim about someone's data rather than a state.
+
+- [x] **One shaper, two routes.** `readLatest` answers `toBrowserReceipt(receipt, workspace)` or `null`, and `create` answers the same shaper after adding only the acting administrator's display name to the row. So there is one receipt contract rather than a "latest" record and a "created" record free to drift, and both routes wrap it as the same one member. Breaks that give either route its own shape are refused.
+- [x] **Eleven members reconstructed by name, and two of them are constants.** `secureNotesKeyIncluded: false` and `status: "created"` are written literally by the shaper rather than discovered, so they are declared as those literals and the reader **checks them as constants**: a receipt claiming to carry a secure-notes key, or describing anything but a created package, did not come from this shaper and is refused rather than displayed. Four breaks attack that pair.
+- [x] **The reduction withholds the row's identifiers, and the one disclosure is the point.** The stored export row carries `backupId`, `workspaceId`, `archiveFilename` and `createdByUserId`, and the receipt answers none of them. It *does* answer `archiveSha256` - **the deliberate contrast** with `0.33.33.38.4.5.2`, whose deletion summary withholds the same digest: the integrity digest of a package the administrator just made is theirs to check, while in the deletion summary it would name a file the reader is not being handed. Three breaks hold both halves of that line.
+- [x] **Both routes stay behind the public-demo capability and the backup permission**, asserted before any row is read. Two breaks remove one gate each.
+- [x] **An empty answer and an unreadable one are now different things.** `result.backup || null` rendered an unreadable body as **"no backup has been taken"**, which for this readout is the most misleading sentence available. The read now refuses; an explicit `null` - the read's own answer for a workspace never backed up - is still accepted and rendered as the nothing it is. Both directions have their own behavioural test.
+- [x] **The create path never says no backup exists beside one it just made.** The package is built and checksum-verified server-side before the body is parsed, so an unreadable receipt reports that the backup was created and its receipt could not be read, and returns before rendering a summary it could not read.
+- [x] **The reader is local, because only this page consumes the producer.** No new namespace member, no delivery change, and the namespace family is untouched.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **26 breaks across the service, the routes, the declaration and the consumer, all 26 refused for their specific named check.**
+
+**The harness found a guard that could not be broken, and it was removed rather than kept.** The envelope reader had tested `"backup" in body` before reading the member; the break that deleted that test changed no outcome, because a body without the member reaches the receipt reader as `undefined` and is refused there anyway. An unprovable check is not a safety feature, so it went, and the comment left behind says why.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,334 | **8,332** |
+| Genuine `unknown` | 32 | **30** |
+| params / state / dom / namespace / assorted | 4,608 / 1,738 / 1,484 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,168 / 530 / 975 / 1,565 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 831 / 348 / 167 | **853 / 348 / 167**, green |
+
+**2 eliminations, no transfers, no new debt, no contextual fallout and no new namespace surface.** Every family and every owner row is identical either side; only `unknown` moved.
+
 ## Version 0.33.33.38.4.5.5 - The shared workspace settings response
 
 **Model: High Effort** - three diagnostics, the first child in this run whose consumers span three pages, and the one whose central question was what a browser contract is *entitled* to freeze.
