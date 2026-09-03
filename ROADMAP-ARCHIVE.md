@@ -1,5 +1,33 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.5.4 - The catalog security preflight and transition responses
+
+**Model: High Effort** - two diagnostics, and the second half of the Notes Settings partition `0.33.33.38.4.5.3` drew. One service, two producers, and the trace's main finding is that they must not share a contract.
+
+- [x] **The preview is exact and the transition is not, because one reconstructs and the other spreads.** `publicPreflight` names fourteen members and spreads nothing, so `BrowserNoteCatalogSecurityPreflight` is exact. The synchronous transition returns `{ ...result, execution, preflight }`, so only the members named after the spread can be claimed - and `BrowserNoteCatalogSecurityTransition` names exactly one. A break that stops the spread, and one that adds a member to the minimum, are both refused.
+- [x] **`execution` is the word the server itself branches on.** The routes answer `202` when it is `"job"` and `200` otherwise, and the preflight derives it from one two-way comparison against the synchronous record limit. That is what closes the union to two words, and widening either end is refused.
+- [x] **Two members reuse the catalog vocabularies, because they are literally those columns.** `currentPolicy` and `transitionState` are `security_policy` and `security_transition_state` read straight off the collection, so they carry the unions `0.33.33.38.4.5.3` closed on migration 088 - reuse on producer identity rather than on matching shape. Replacing either with bare text is refused.
+- [x] **The blocker codes stay open text and their elements are checked.** The dialog renders one paragraph per code, so `Array.isArray` alone would not be enough and every element is checked as text; but nothing compares a code to a literal, so closing the vocabulary would claim a check this page never makes.
+- [x] **The job branch answers a whole collection record, and it is deliberately left undeclared.** That branch returns `readCollectionById(...)` - the full record, carrying the workspace id, both user stamps, the transition actor and the inherited-security source, rather than the reduced settings row. It reaches an operator who already holds the secure-manage permission, so this is over-disclosure rather than a leak, and it is **recorded for its own owner instead of being blessed with a browser type**. Two breaks hold that line: one that types the member, and one that makes a consumer read it.
+- [x] **The malformed-data policy fixes a real safety hazard, not just a type.** Defaulting the missing preview to an empty object left `action` undefined, and the confirmation reads `preflight.action === "remove"` to decide whether to demand the typed catalog id and the current password. An unreadable body therefore rendered the **enable** form for a **remove** request. The preview is now refused outright, and the transition result is **read before the dialog closes**, so an unvouchable body cannot dismiss it on an outcome the response never stated.
+- [x] **Every destructive prerequisite stays server-owned.** The public-demo capability and the transition permission gate all four routes; remove additionally confirms the downgrade and reauthenticates the user; retry refuses anything but a failed transition. Five breaks remove one each and all are refused.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **34 breaks across the service, the routes, the declaration and the consumer, all 34 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,345 | **8,341** |
+| Genuine `unknown` | 39 | **37** |
+| params | 4,611 | **4,609** |
+| state / dom / namespace / assorted | 1,739 / 1,484 / 319 / 153 | **all unchanged** |
+| `.44` remaining page controllers | 1,568 | **1,566** |
+| `.39` / `.40` / `.41` / `.42` / `.43` | 1,770 / 491 / 1,168 / 530 / 976 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 756 / 348 / 167 | **777 / 348 / 167**, green |
+
+**4 eliminations, no transfers, no new debt.** Two are the genuine `unknown` this child owns; **two are contextual params**, and they were not chased - only the preview parameter was annotated, because it is the narrowed response handed straight into the confirmation, and the second fell out of the blocker-code callback once the array carried a type. The other two parameters of that function are this page's own values and were left exactly as they were. A byte-safe measurement shows `TS18046` 5 to 3 and `TS7006` 31 to 29 in `notes-settings.js`, with **no other code and no other file moving at all**.
+
 ## Version 0.33.33.38.4.5.3 - The Notes catalog settings response
 
 **Model: High Effort** - three diagnostics, chosen by tracing what the page receives rather than what file the diagnostics live in.

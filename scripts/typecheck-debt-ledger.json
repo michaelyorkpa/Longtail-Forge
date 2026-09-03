@@ -369,6 +369,7 @@
         "tests/unit/bounded-pagination.test.mjs",
         "tests/unit/bulk-action-response-contract.test.mjs",
         "tests/unit/calendar-subscription-contracts.test.mjs",
+        "tests/unit/catalog-security-response-contracts.test.mjs",
         "tests/unit/client-project-options.test.mjs",
         "tests/unit/client-project-record-contracts.test.mjs",
         "tests/unit/create-user-response-contracts.test.mjs",
@@ -505,7 +506,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8345,
+      "errorCount": 8341,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1032,7 +1033,7 @@
         "public/js/notes-settings.js": [
           {
             "code": 18046,
-            "count": 5
+            "count": 3
           },
           {
             "code": 18047,
@@ -1048,7 +1049,7 @@
           },
           {
             "code": 7006,
-            "count": 31
+            "count": 29
           }
         ],
         "public/js/notes.js": [
@@ -2735,8 +2736,8 @@
     }
   },
   "totals": {
-    "files": 1086,
-    "errors": 8345,
+    "files": 1087,
+    "errors": 8341,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
