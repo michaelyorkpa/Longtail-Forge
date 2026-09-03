@@ -57,6 +57,53 @@
     return openDialog(params);
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserActiveTimerSlotRecord} BrowserActiveTimerSlotRecord */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserActiveTimerList} BrowserActiveTimerList */
+
+  /**
+   * A plain JSON object, which is the least a wire value can be before any member is read.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isActiveTimerRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * One active timer, vouched for only as far as its slot.
+   *
+   * The response carries a much richer row; this promises the one member both list consumers
+   * rely on, and the record travels onward with everything else it arrived with.
+   * @param {unknown} value
+   * @returns {value is BrowserActiveTimerSlotRecord}
+   */
+  function isActiveTimerSlotRecord(value) {
+    return isActiveTimerRecord(value) && typeof value.timer_slot === "string" && value.timer_slot !== "";
+  }
+
+  /**
+   * The active manual timers, or `null` when the list cannot be vouched for.
+   *
+   * **An unreadable list is not an empty one, and the difference is a write hazard.** Slot
+   * occupancy is decided from this response: read as empty, the page concludes that every manual
+   * slot is free. So a missing or non-array `timers`, or one element without a usable slot,
+   * refuses the whole response rather than being filtered - this is state restoration, not a
+   * candidate picker, and a dropped timer is a slot the page would then believe is free.
+   *
+   * `{ timers: [] }` is a real answer and is accepted.
+   * @param {unknown} body
+   * @returns {BrowserActiveTimerList | null}
+   */
+  function readActiveTimerList(body) {
+    if (!isActiveTimerRecord(body) || !Array.isArray(body.timers)) {
+      return null;
+    }
+    // Filtered and length-checked rather than rebuilt: the elements pass through by reference,
+    // so the richer payload later code still reads is not truncated by narrowing its type.
+    const timers = body.timers.filter(isActiveTimerSlotRecord);
+    return timers.length === body.timers.length ? { timers } : null;
+  }
+
   async function prepareContext({ hostContext = null, params = {} } = {}) {
     const api = requireApi();
     await namespace.workspaceContextReady;
@@ -68,7 +115,14 @@
 
     clients = requireClientProjectOptions().normalizeClients(clientProjectData);
     taskOptions = normalizeTaskOptions(taskOptionsData);
-    activeManualTimers = Array.isArray(activeTimersData?.timers) ? activeTimersData.timers : [];
+    // The same producer and the same hazard as the stopwatch: if this list reads as empty when
+    // it could not be read, `nextManualTimerSlot` hands back a slot the server may already be
+    // running a timer in. Preparation fails instead, which the caller already handles.
+    const activeTimerList = readActiveTimerList(activeTimersData);
+    if (!activeTimerList) {
+      throw new Error("Active timers could not be read.");
+    }
+    activeManualTimers = activeTimerList.timers;
     context = {
       hostContext,
       params,

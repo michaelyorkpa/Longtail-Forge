@@ -4381,6 +4381,40 @@ export type BrowserTaskTimerStatus = "paused" | "running";
 export type BrowserTaskTimerBillable = "no" | "yes";
 
 /**
+ * One active manual timer, as far as the list boundary promises it.
+ *
+ * **A deliberate structural minimum, not a description of the record.** `shapeTimerPayload`
+ * answers `{ ...timer, source_label, source_url, resumeContext, resume_context }` - a spread of
+ * the repository row, so the browser cannot claim the shape is closed. What it *can* claim is
+ * the one member both list consumers rely on and the producer genuinely guarantees: the column
+ * is `TEXT NOT NULL`, the row mapping runs it through `textParam`, and every writer goes through
+ * `normalizeTimerSlot`, which throws on an empty slot.
+ *
+ * **The source label and URL are deliberately absent.** The producer blanks them when the timer's
+ * source is unreadable, which is a permission decision this boundary must not become the owner
+ * of; a contract that does not promise them cannot weaken them. `resumeContext` is left out for
+ * the same reason in a different key: it belongs to the resume workflows, not to slot occupancy.
+ *
+ * A record satisfying this type carries the rest of the row at runtime. The narrowing is of the
+ * type surface, not of the payload.
+ */
+export interface BrowserActiveTimerSlotRecord {
+  /** Non-empty: `TEXT NOT NULL`, and `normalizeTimerSlot` refuses an empty one on every write. */
+  timer_slot: string;
+}
+
+/**
+ * What `GET /api/active-timers` resolves to.
+ *
+ * One member, reconstructed by name. The route reaches `activeTimersRepository.readAll`, which
+ * is the **manual-timer** producer - `readAllBySource(..., { sourceType: "manual" })` - and not
+ * the all-work-timers list its sibling route answers.
+ */
+export interface BrowserActiveTimerList {
+  timers: BrowserActiveTimerSlotRecord[];
+}
+
+/**
  * One task timer, in the shape **both** producers guarantee.
  *
  * **The two paths are not built the same way, and that asymmetry is the reason this contract is a

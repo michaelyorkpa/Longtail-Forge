@@ -1,5 +1,37 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.9.4 - The active timer list
+
+**Model: High Effort** - two diagnostics owned, seven eliminated, and the first child in this run whose contract is defined as much by what it refuses to promise as by what it does.
+
+- [x] **The envelope is exact and the element is not, and the producer says which is which.** `list` reconstructs `{ timers }` by name with no spread. `shapeTimerPayload` returns `{ ...timer, source_label, source_url, resumeContext, resume_context }` - a spread of the **repository row**, not of a reconstruction - so the element cannot be claimed exactly. Breaks that add a member to the envelope, spread into it, or make the shaper reconstruct instead are all refused.
+- [x] **One member is promised, because one member is what both consumers need and the producer genuinely guarantees.** `timer_slot` is `TEXT NOT NULL`, the row mapping runs it through `textParam`, and `normalizeTimerSlot` throws on an empty slot on every write. Three breaks remove one layer of that guarantee each. It is **not** closed to `"1"`-`"4"`: the UI clamps manual slots to four, and UI convention is not producer proof.
+- [x] **The permission-blanked members are deliberately absent, and the proof says why.** `shapeTimerPayload` blanks `source_label` and `source_url` when `canReadTimerSource` says the source is unreadable. A browser contract that named them would become the owner of that disclosure decision; one that does not cannot weaken it. **Five breaks defend the server property anyway** - unblanking either value, answering the raw ones, and removing either half of the readability gate - and two more refuse a declaration that starts promising them.
+- [x] **The list is the manual one, and the distinction is pinned.** The route reaches `readAll`, which is `readAllBySource(..., { sourceType: "manual" })`; `readAllWorkTimers` exists separately, which is what makes that a real choice rather than an accident. Three breaks swap one for the other.
+- [x] **An unreadable list is not an empty list, and that is a write hazard rather than a display one.** Slot occupancy is decided from this response. Read as empty, `nextManualTimerSlot` hands back slot `"1"` while the server may already be running a timer there. So a missing or non-array `timers`, or one element without a usable slot, refuses the whole response - **filtered, not dropped**, because a dropped timer is a slot the page would then believe is free. `{ timers: [] }` is a real answer and is accepted.
+- [x] **Both consumers were narrowed, not only the one with diagnostics.** `time-tracking-timer-dialog.js` produced no genuine `unknown` - its `activeManualTimers` is implicit-any state, a different family - but it reads the same producer and makes the same decision, so leaving it treating malformed data as "no timers" would have left the hazard in place. Its preparation now fails rather than opening a create-timer form built on unknown occupancy.
+- [x] **The narrowing is of the type surface, not of the payload.** The reader filters and length-checks rather than rebuilding, so elements travel onward **by reference** with everything else they arrived with - which is what lets `restoreFromPersistedTimer` keep reading the richer row that `0.33.33.44` will eventually type. A break that rebuilds the element as `{ timer_slot }` is refused for truncating it.
+- [x] **Two tiny readers, duplicated on purpose and held identical by proof.** The two pages share no loaded helper that could legitimately own this, and a new `LongtailForge` root member is not worth two diagnostics. The reader is four short functions, so it is repeated - and the proof compares the two copies **character for character**, so neither page can drift. **The namespace family is unchanged at 319.**
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **31 breaks across the service, the repository, the route, the schema, both pages and the declaration, all 31 refused for their specific named check.**
+
+One guard is pinned by source rather than behaviour: removing the container check makes the reader throw instead of answering, and a thrown error names nothing about what was removed - the same honesty `0.33.33.38.4.5.6` applied when it deleted a guard nothing could break.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,321 | **8,314** |
+| Genuine `unknown` | 26 | **24** |
+| params | 4,608 | **4,605** |
+| state | 1,732 | **1,730** |
+| dom / namespace / assorted | 1,484 / 319 / 152 | **all unchanged** |
+| `.44` remaining page controllers | 1,565 | **1,560** |
+| `.39` / `.40` / `.41` / `.42` / `.43` | 1,770 / 491 / 1,168 / 530 / 968 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 913 / 348 / 167 | **939 / 348 / 167**, green |
+
+**7 eliminations and no transfers.** Two are the genuine `unknown` this child owns; the other five are contextual - three callback parameters in the stopwatch that acquired a type once the array they iterate carried one, and two reads off the dialog's timer list. **No state slot needed annotating**, and `.44` was not begun. Exactly two files moved: `stop-watch.js` 125 to 120 and `time-tracking-timer-dialog.js` 130 to 128.
+
 ## Version 0.33.33.38.4.7.2 - Lists link-target providers and targets
 
 **Model: High Effort** - two diagnostics owned, nine eliminated, and the first child this run where the fabricated value would have been a **capability the server never advertised**.
