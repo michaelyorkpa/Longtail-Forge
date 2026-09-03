@@ -189,6 +189,74 @@
     return dialogs;
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTagBulkAssignmentResult} BrowserTagBulkAssignmentResult */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTagBulkAction} BrowserTagBulkAction */
+
+  /**
+   * The three words `normalizeBulkTagAction` answers before it throws.
+   * @type {readonly BrowserTagBulkAction[]}
+   */
+  const TAG_BULK_ACTIONS = Object.freeze(["add", "remove", "replace"]);
+
+  /**
+   * A plain JSON object, which is the least a wire body can be before any member is read.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isBulkRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * What the bulk tag route answered, or `null` when it cannot be vouched for.
+   *
+   * **Refused rather than defaulted, because the numbers are the message.** The raw
+   * `Number(...) || 0` reads turned an unreadable body into "Updated tags on 0 time entries",
+   * which reports a specific outcome the response never stated. `null` takes the mutation's own
+   * error path, which says the tags could not be updated.
+   *
+   * The failure list is checked through the surface `0.33.33.38.4.11` published for it rather
+   * than re-validated here.
+   * @param {unknown} body
+   * @returns {BrowserTagBulkAssignmentResult | null}
+   */
+  function readTagBulkAssignment(body) {
+    if (!isBulkRecord(body)) {
+      return null;
+    }
+    const { action: actionWord, changed, changed_count: changedCount, errors, skipped_count: skippedCount, target_type: targetType } = body;
+    if (typeof actionWord !== "string"
+      || !Array.isArray(changed)
+      || !Array.isArray(errors)
+      || typeof targetType !== "string" || targetType === ""
+      || ![changedCount, skippedCount].every((count) => typeof count === "number" && Number.isFinite(count))
+      || changedCount !== changed.length
+      || skippedCount !== errors.length) {
+      return null;
+    }
+    // Searched rather than tested for membership, because a membership test answers a boolean
+    // and leaves the word as bare `string`; the search answers the vocabulary's own member.
+    const action = TAG_BULK_ACTIONS.find((word) => word === actionWord);
+    if (!action) {
+      return null;
+    }
+    // `readBulkFailures` drops any entry it cannot vouch for, and this producer builds every
+    // failure with a message fallback. A shorter list therefore means the body did not come
+    // from this producer, and the count would be describing failures the browser cannot see.
+    const failures = requireErrors().readBulkFailures(body);
+    if (failures.length !== skippedCount) {
+      return null;
+    }
+    return {
+      action,
+      changed,
+      changed_count: changedCount,
+      errors: failures,
+      skipped_count: skippedCount,
+      target_type: targetType,
+    };
+  }
+
   async function loadTimeEntryData() {
     setTimeEntryStatus("Loading entries...");
 
@@ -670,8 +738,12 @@
         targetIds,
         targetType: "time_entry",
       });
-      const changedCount = Number(result.changed_count) || 0;
-      const skippedCount = Number(result.skipped_count) || 0;
+      const assignment = readTagBulkAssignment(result);
+      if (!assignment) {
+        throw new Error("The bulk tag response could not be read.");
+      }
+      const changedCount = assignment.changed_count;
+      const skippedCount = assignment.skipped_count;
       selectedEntryIds.clear();
       bulkTagPicker?.setSelected?.([]);
       await loadTimeEntryData();

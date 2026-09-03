@@ -1,5 +1,31 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.11.1 - The tag bulk-assignment counts
+
+**Model: High Effort** - two diagnostics, and the smallest child this run by count. It is here because `0.33.33.38.4.11` finished half of this producer on purpose and said so, leaving the other half unowned rather than pretending it was covered.
+
+- [x] **The failure half was already published, so this child reuses it rather than redeclaring it.** `BrowserBulkActionFailure` names `message`, `status`, `target_id` and `target_type`, which is exactly the literal this producer pushes into `errors`, and `readBulkFailures` already narrows it on the `LongtailForge.errors` surface. A break that redeclares the failure record inline is refused.
+- [x] **One exact literal, sliced from the producer rather than from a table in the test.** `bulkAssign` ends in a single `return` naming six members and spreading nothing, so the contract is exact and the expected membership is read from the service's own source. Two other places in that function carry the same counts - the audit record's `newValue` and `metadata` - and neither is browser-visible, which the trace distinguished rather than merged.
+- [x] **The action vocabulary is the normaliser's own, and the test reads its list rather than searching for the three words it expects.** `normalizeBulkTagAction` accepts `add`, `remove` and `replace` and throws for anything else, so the union is closed by the producer. **The first harness run caught this proof being self-limiting**: a regex searching only for those three words could not see a fourth added beside them, and a break that widened the normaliser passed. Scoping the read to the literal list the normaliser tests against fixed it, and fixed a second break that had been landing on the wrong named check.
+- [x] **`changed` stays `unknown[]`.** Its elements are what `applyBulkTagAction` answers per target, a vocabulary belonging to the tag-assignment producer rather than to this envelope, and no browser consumer reads into them. A break that claims them as records is refused, and so is one that makes the consumer read into them.
+- [x] **The counts are checked against the arrays they count.** `changed_count` is `results.length` and `skipped_count` is `errors.length` in the producer, so a body where either disagrees did not come from it, and the reader refuses.
+- [x] **A failure the browser cannot read is refused rather than silently dropped.** `readBulkFailures` skips any entry without a message, and this producer builds every failure with a message fallback - so a shorter narrowed list means `skipped_count` would be describing failures the browser cannot see. The reader requires the two to agree.
+- [x] **The membership test became a search, because a boolean does not narrow.** `TAG_BULK_ACTIONS.includes(word)` left the action as bare text and cost a `TS2322`; typing the frozen table as `readonly BrowserTagBulkAction[]` and recovering the word with `find` narrows it honestly, with no cast.
+- [x] **Malformed responses no longer report a specific outcome.** `Number(result.changed_count) || 0` turned an unreadable body into **"Updated tags on 0 time entries"** - a result the response never stated. The consumer now refuses and takes the mutation's own error path.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash at any point: **31 breaks across the service, the route, the declaration and the consumer, all 31 refused for their specific named check**, with the proof suite green before the first mutation and after the last restore.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,350 | **8,348** |
+| Genuine `unknown` | 44 | **42** |
+| dom / assorted | 1,484 / 153 | **unchanged** |
+| Unit tests / regressions / end-to-end | 714 / 348 / 167 | **728 / 348 / 167**, green |
+
+**2 eliminations, no transfers, no new debt, and no state typed.** The canonical families move by `unknown` alone - params 4,611, state 1,739, dom 1,484, namespace 319 and assorted 153 are all identical either side, as is every row of the `.39`-`.44` owner table. A byte-safe before-and-after measurement shows `TS18046` 2 to 0 in `time-entries.js` and **exactly one file's count moving at all**, from 187 to 185; a per-file comparison of the two diagnostic sets proves nothing outside that file changed. `4,611 + 1,739 + 153 = 6,503` reconciles either side.
+
 ## Version 0.33.33.38.4.5.2 - The Workspace Deletion response boundary
 
 **Model: High Effort** - two diagnostics, and the smallest of this run's children by count while carrying the sharpest correction: a destructive-lifecycle surface was reading unreadable data as safety.

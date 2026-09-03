@@ -499,6 +499,10 @@ Its **lazy publication is a second contract question and belongs here too**: the
 - [x] **The two single-producer reads stayed local.** `affectedCount` is only the catalog producer's and `bulkChangedIds` only the note/tag pair's, so neither was pushed onto a shared surface to look symmetrical.
 - [ ] **Two diagnostics carried to `0.33.33.38.4.3`.** `tasks.js:2482` and `:2484` read `result.tasks` and `result.recurrenceContinuities` - task records and recurrence continuations, both that child's producers. Narrowing the failure list beside them left those two exactly where they were.
 
+#### 0.33.33.38.4.11.1 - The tag bulk-assignment counts
+
+**Complete: 2 diagnostics, one contract, and the success half of a producer whose failure half was already published.** See the archive entry. `0.33.33.38.4.11` traced this route among four, named `BrowserBulkActionFailure` for what they share, and deliberately left each producer's own success payload to its owner. This is the tag producer's: one exact six-member literal, an action vocabulary closed by the normaliser that throws otherwise, and two counts the browser had been coercing out of a body it never read.
+
 #### 0.33.33.38.4.12 - The Notes satellite producers
 
 **4 diagnostics across three unrelated producers that share only the `/api/notes` prefix.** The revision history array and the revision restore body, the `{ bodyHtml }` Markdown preview, and the `{ targets }` link-target directory. **Kept out of `0.33.33.38.4.2` because a route prefix is not a producer**: none of the three is shaped by `shapeNoteForBrowser`, and the link-target directory is not even a note.
