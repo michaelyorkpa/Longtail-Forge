@@ -649,6 +649,10 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 **Complete: 6 diagnostics, seven contracts, zero fallout - the family the trace found that nobody had listed.** See the archive entry. The `/api/api-keys` row sat in the planning table with no owner, and `0.33.33.38.4.9`'s own rule is to draw a child when a trace finds such a family. One service answers three routes with **two record vocabularies and one secret**: the list entry is the nine columns `readAll` selects plus scopes, the public record is `toPublicApiKey`'s nine without the creator, and the raw key is minted, SHA-256 hashed and handed over once on create. It lives on `BrowserApiKeySecret` and is forbidden, by proof, from every record and from the revoke.
 
+#### 0.33.33.38.4.9.2 - The file attachment list
+
+**Complete: 2 diagnostics, five contracts, and the second reuse of the shared pagination envelope.** See the archive entry. The `/api/files/attachments` body had no owner, and `0.33.33.38.4.9`'s own rule is to draw a child when a trace finds such a family. **The element is exact although the shaper spreads**, because what it spreads is its own reconstruction - the total-reconstruction case rather than the untrusted-body one. `shared/file-attachments.js` reads the same producer and is **deliberately left**: narrowing it needs either duplicated guards or a new published surface, and neither is this child's to create.
+
 #### 0.33.33.38.4.10 - Notification response bodies
 
 **Complete. The child that was worth doing for what it could not be measured by.** Its visible cost was three diagnostics; what it actually did was make two blocked namespace surfaces declarable without either of them inheriting a wire-boundary bill. See the archive entry.
