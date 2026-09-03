@@ -1793,6 +1793,83 @@ export interface BrowserMountedPanel {
   refresh(): Promise<void>;
 }
 
+/** The four sort modes `LINKED_NOTE_SORT_MODES` admits before the panel options normalise. */
+export type BrowserLinkedNoteSort = "pinned" | "recent" | "title" | "updated";
+
+/** The record `shapeLinkedNoteTarget` builds, four members named from the query's own target. */
+export interface BrowserLinkedNoteTarget {
+  moduleId: string;
+  targetId: string;
+  /** Left open text: the browser reader does not validate the full linked-target vocabulary. */
+  targetType: string;
+  sourceUrl: string;
+}
+
+/**
+ * What `readNotesModuleState` answers: a server policy result, not a browser computation.
+ *
+ * `notesModuleEnabled` and `enabled` are the same `canWriteModule` answer under two names, which
+ * the producer sends for compatibility rather than because they can differ.
+ */
+export interface BrowserNotesModuleState {
+  enabled: boolean;
+  historicalReadAccess: boolean;
+  notesModuleEnabled: boolean;
+  workspaceType: BrowserWorkspaceType;
+}
+
+/**
+ * The panel's action hints.
+ *
+ * **Display hints, not authorization.** Every write route asserts its own permission; these say
+ * what the panel should offer, and a browser that treats them as the decision would be reading a
+ * suggestion as a grant.
+ */
+export interface BrowserLinkedNotePanelActions {
+  canCreate: boolean;
+  canLink: boolean;
+  canUnlink: boolean;
+  readonly: boolean;
+}
+
+/** The empty state the producer builds when a target has no linked notes. */
+export interface BrowserLinkedNotePanelEmptyState {
+  action: { href: string; label: string };
+  body: string;
+  title: string;
+}
+
+/**
+ * What `GET /api/notes/for-target` resolves to.
+ *
+ * **Exact at the envelope: eight members, one literal, no top-level spread.** All eight are
+ * declared even though two diagnostics named only `count` and `linkedNotes`, because the panel
+ * reads `emptyState`, three of the `actions` and `moduleState.enabled` besides.
+ *
+ * **`notes` is deliberately opaque.** It is a compatibility projection of the same sorted notes
+ * `linkedNotes` is built from, shaped by `shapeNoteForBrowser`; no browser consumer on this path
+ * reads into an element. Claiming `BrowserNoteRecord[]` would make this endpoint the owner of a
+ * second exhaustive note projection it does not use, so the container is checked and the element
+ * shape is left to the producer that owns it.
+ *
+ * Three coherences are enforced because the producer guarantees them: `count` is
+ * `linkedNotes.length`, `notes` and `linkedNotes` map the same sorted collection, and
+ * `emptyState` is `null` exactly when there is something to show.
+ */
+export interface BrowserLinkedNotePanelResponse {
+  actions: BrowserLinkedNotePanelActions;
+  /** `linkedNotes.length`, so a finite count rather than a value to default. */
+  count: number;
+  /** `null` exactly when `count > 0`. */
+  emptyState: BrowserLinkedNotePanelEmptyState | null;
+  linkedNotes: BrowserLinkedNoteItem[];
+  moduleState: BrowserNotesModuleState;
+  /** The compatibility projection: container-checked, elements deliberately unpromised. */
+  notes: unknown[];
+  sort: BrowserLinkedNoteSort;
+  target: BrowserLinkedNoteTarget;
+}
+
 /**
  * `LongtailForge.notesLinkedPanel`, published by `public/js/shared/notes-linked-panel.js`.
  *
@@ -1801,6 +1878,14 @@ export interface BrowserMountedPanel {
  */
 export interface BrowserNotesLinkedPanel {
   mount(container?: unknown, options?: unknown): BrowserMountedPanel;
+  /**
+   * What `GET /api/notes/for-target` answered, or `null` when it cannot be vouched for.
+   *
+   * Lives here because two pages read this producer and this surface is already declared and
+   * already delivered to both - Tasks loads `shared/notes-linked-panel.js` before its own script -
+   * so sharing the reader costs no new root member and no second copy of the note column tables.
+   */
+  readForTarget(body: unknown): BrowserLinkedNotePanelResponse | null;
 }
 
 /**

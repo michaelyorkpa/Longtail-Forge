@@ -96,9 +96,12 @@
       if (options.projectId) {
         params.set("projectId", options.projectId);
       }
-      const panel = await api.getJson(`/api/notes/for-target?${params.toString()}`, { cache: "no-store" });
+      const panel = readForTarget(await api.getJson(`/api/notes/for-target?${params.toString()}`, { cache: "no-store" }));
+      if (!panel) {
+        throw new Error("Linked notes could not be read.");
+      }
       state.panel = panel;
-      state.notes = panel.linkedNotes || [];
+      state.notes = panel.linkedNotes;
       state.status = "";
       emit(container, "refresh", { notes: state.notes, panel });
     } catch (error) {
@@ -464,7 +467,200 @@
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserLinkedNoteItem} BrowserLinkedNoteItem */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserLinkedNotePanelResponse} BrowserLinkedNotePanelResponse */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserLinkedNotePanelActions} BrowserLinkedNotePanelActions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserLinkedNotePanelEmptyState} BrowserLinkedNotePanelEmptyState */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserLinkedNoteTarget} BrowserLinkedNoteTarget */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserNotesModuleState} BrowserNotesModuleState */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserLinkedNoteSort} BrowserLinkedNoteSort */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserWorkspaceType} BrowserWorkspaceType */
+
+  /** The four sort modes the panel options normalise to. @type {readonly BrowserLinkedNoteSort[]} */
+  const LINKED_NOTE_SORTS = Object.freeze(["pinned", "recent", "title", "updated"]);
+  /** @type {readonly BrowserWorkspaceType[]} */
+  const PANEL_WORKSPACE_TYPES = Object.freeze(["business", "family", "personal"]);
+
+  /** The note columns `shapeNoteForBrowser` always supplies as text. */
+  const PANEL_NOTE_TEXT_COLUMNS = Object.freeze([
+    "created_at", "library_bucket", "library_bucket_source", "note_id", "note_type",
+    "security_mode", "status", "title", "updated_at", "visibility", "workspace_id",
+  ]);
+
+  /** The note columns it names and may answer as `null`. */
+  const PANEL_NOTE_NULLABLE_COLUMNS = Object.freeze([
+    "archived_at", "body_excerpt", "client_id", "created_by_user_id", "deleted_at",
+    "import_source", "import_source_id", "imported_at", "linked_user_id", "note_collection_id",
+    "owner_user_id", "project_id", "slug", "task_id", "ticket_id", "updated_by_user_id",
+  ]);
+
+  /** The members the panel projection adds over those columns. */
+  const PANEL_ITEM_TEXT_MEMBERS = Object.freeze(["id", "label", "sourceUrl"]);
+
+  /** The three action hints that must all be false while the module cannot be written. */
+  const PANEL_WRITE_ACTIONS = Object.freeze(["canCreate", "canLink", "canUnlink"]);
+
+  /** @param {unknown} value @returns {value is Record<string, unknown>} */
+  function isPanelRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasPanelText(value, keys) {
+    return keys.every((key) => typeof value[key] === "string");
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasPanelNullableText(value, keys) {
+    return keys.every((key) => value[key] === null || typeof value[key] === "string");
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasPanelBooleans(value, keys) {
+    return keys.every((key) => typeof value[key] === "boolean");
+  }
+
+  /**
+   * One linked note as `shapeLinkedNotePanelItem` builds it.
+   *
+   * The three members that shaper **deletes** - the markdown body, the plaintext index and the
+   * metadata blob - are not checked here because they are not promised; a panel item that carried
+   * them would not be what this producer sends.
+   * @param {unknown} value
+   * @returns {value is BrowserLinkedNoteItem}
+   */
+  function isLinkedNoteItem(value) {
+    return isPanelRecord(value)
+      && hasPanelText(value, PANEL_NOTE_TEXT_COLUMNS)
+      && hasPanelNullableText(value, PANEL_NOTE_NULLABLE_COLUMNS)
+      && hasPanelText(value, PANEL_ITEM_TEXT_MEMBERS)
+      && (value.excerpt === null || typeof value.excerpt === "string")
+      && Array.isArray(value.links)
+      && value.note_id !== "";
+  }
+
+  /** @param {unknown} value @returns {BrowserLinkedNoteTarget | null} */
+  function readLinkedNoteTarget(value) {
+    if (!isPanelRecord(value) || !hasPanelText(value, ["moduleId", "targetId", "targetType", "sourceUrl"])) {
+      return null;
+    }
+    return {
+      moduleId: String(value.moduleId),
+      sourceUrl: String(value.sourceUrl),
+      targetId: String(value.targetId),
+      targetType: String(value.targetType),
+    };
+  }
+
+  /** @param {unknown} value @returns {BrowserNotesModuleState | null} */
+  function readNotesModuleState(value) {
+    if (!isPanelRecord(value) || !hasPanelBooleans(value, ["enabled", "historicalReadAccess", "notesModuleEnabled"])) {
+      return null;
+    }
+    const workspaceType = PANEL_WORKSPACE_TYPES.find((word) => word === value.workspaceType);
+    return workspaceType ? {
+      enabled: value.enabled === true,
+      historicalReadAccess: value.historicalReadAccess === true,
+      notesModuleEnabled: value.notesModuleEnabled === true,
+      workspaceType,
+    } : null;
+  }
+
+  /**
+   * The action hints, or `null` when they contradict the module state that produced them.
+   *
+   * `readonly` is `!enabled` in the producer, and a module that cannot be written yields three
+   * false hints. The reverse is deliberately **not** enforced: an enabled module may still be
+   * denied create or link by permissions, so an enabled state with false hints is ordinary.
+   * @param {unknown} value
+   * @param {BrowserNotesModuleState} moduleState
+   * @returns {BrowserLinkedNotePanelActions | null}
+   */
+  function readPanelActions(value, moduleState) {
+    if (!isPanelRecord(value) || !hasPanelBooleans(value, ["canCreate", "canLink", "canUnlink", "readonly"])) {
+      return null;
+    }
+    if (value.readonly !== !moduleState.enabled) {
+      return null;
+    }
+    if (!moduleState.enabled && PANEL_WRITE_ACTIONS.some((key) => value[key] === true)) {
+      return null;
+    }
+    return {
+      canCreate: value.canCreate === true,
+      canLink: value.canLink === true,
+      canUnlink: value.canUnlink === true,
+      readonly: value.readonly === true,
+    };
+  }
+
+  /** @param {unknown} value @returns {BrowserLinkedNotePanelEmptyState | null} */
+  function readPanelEmptyState(value) {
+    if (!isPanelRecord(value) || !hasPanelText(value, ["body", "title"]) || !isPanelRecord(value.action)) {
+      return null;
+    }
+    const action = value.action;
+    if (!hasPanelText(action, ["href", "label"])) {
+      return null;
+    }
+    return {
+      action: { href: String(action.href), label: String(action.label) },
+      body: String(value.body),
+      title: String(value.title),
+    };
+  }
+
+  /**
+   * What `GET /api/notes/for-target` answered, or `null` when it cannot be vouched for.
+   *
+   * **Refused whole, never shortened.** This one response decides a note count, the linked list,
+   * the create/link/unlink controls and the read-only state. Dropping a malformed item would hide
+   * a note while leaving the panel looking authoritative, and defaulting a malformed count would
+   * tell Tasks a record has no notes. Both are claims the response never made.
+   * @param {unknown} body
+   * @returns {BrowserLinkedNotePanelResponse | null}
+   */
+  function readForTarget(body) {
+    if (!isPanelRecord(body) || !Array.isArray(body.linkedNotes) || !Array.isArray(body.notes)) {
+      return null;
+    }
+    const sort = LINKED_NOTE_SORTS.find((word) => word === body.sort);
+    const target = readLinkedNoteTarget(body.target);
+    const moduleState = readNotesModuleState(body.moduleState);
+    if (!sort || !target || !moduleState) {
+      return null;
+    }
+    const actions = readPanelActions(body.actions, moduleState);
+    if (!actions) {
+      return null;
+    }
+    // The count needs no separate type or range test: requiring it to be strictly equal to the
+    // list length already forces it to be that number, and a break harness proved every extra
+    // guard around it changed no outcome. One check that bites beats three that decorate.
+    const linkedNotes = body.linkedNotes.filter(isLinkedNoteItem);
+    if (linkedNotes.length !== body.linkedNotes.length
+      || body.count !== linkedNotes.length
+      || body.notes.length !== linkedNotes.length) {
+      return null;
+    }
+    const emptyState = linkedNotes.length > 0 ? null : readPanelEmptyState(body.emptyState);
+    if (linkedNotes.length > 0 ? body.emptyState !== null : !emptyState) {
+      return null;
+    }
+    return {
+      actions,
+      count: body.count,
+      emptyState,
+      linkedNotes,
+      moduleState,
+      notes: body.notes,
+      sort,
+      target,
+    };
+  }
+
   namespace.notesLinkedPanel = {
     mount,
+    readForTarget,
   };
 })(window);

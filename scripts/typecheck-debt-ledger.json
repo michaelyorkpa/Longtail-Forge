@@ -383,6 +383,7 @@
         "tests/unit/identifiers.test.mjs",
         "tests/unit/install-playwright-browser.test.mjs",
         "tests/unit/legal-content.test.mjs",
+        "tests/unit/linked-note-panel-contracts.test.mjs",
         "tests/unit/list-link-target-contracts.test.mjs",
         "tests/unit/list-response-contracts.test.mjs",
         "tests/unit/lookup-response-contracts.test.mjs",
@@ -512,7 +513,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8314,
+      "errorCount": 8312,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1369,7 +1370,7 @@
         "public/js/shared/notes-linked-panel.js": [
           {
             "code": 18046,
-            "count": 2
+            "count": 1
           },
           {
             "code": 2339,
@@ -1743,7 +1744,7 @@
         "public/js/tasks.js": [
           {
             "code": 18046,
-            "count": 4
+            "count": 3
           },
           {
             "code": 18047,
@@ -2730,8 +2731,8 @@
     }
   },
   "totals": {
-    "files": 1093,
-    "errors": 8314,
+    "files": 1094,
+    "errors": 8312,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -1,5 +1,34 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.2.1 - The linked-note panel response
+
+**Model: High Effort** - two diagnostics, and the child that finally answered a surface question `0.33.33.38.4.2` wrote down and left open.
+
+- [x] **The blocker was never the contract, and the answer was a third option.** `0.33.33.38.4.2` carried this file forward saying a local reader would duplicate the note column tables and a proper one would need a new namespace surface - "**two consumers is where the estate should decide, not where it should copy**". Both were avoidable: `LongtailForge.notesLinkedPanel` is **already a declared root member**, already published by the shared script, and `tasks.html` already loads that script before its own. So `readForTarget` joined `mount` on it: one reader, one copy of the column tables, and the namespace family unchanged at **319**.
+- [x] **The envelope is exact and all eight members are named.** `listForTarget` reconstructs `target`, `sort`, `count`, `emptyState`, `moduleState`, `actions`, `notes` and `linkedNotes` in one literal with no top-level spread. They are all declared even though the two diagnostics named only two, because the panel also reads `emptyState`, three of the `actions` and `moduleState.enabled`. Three breaks change that membership and one spreads into it.
+- [x] **`notes` stays `unknown[]`, and that is the scoping decision.** It is a compatibility projection of the same sorted collection `linkedNotes` is built from, shaped by `shapeNoteForBrowser`; **no browser consumer on this path reads into an element.** Claiming `BrowserNoteRecord[]` would have made this endpoint the owner of a second exhaustive note projection it does not use. The container is checked, the elements are not, and the array is passed on **by identity** - a break that maps it into a copy is refused.
+- [x] **`linkedNotes` reuses the record already drawn from this shaper.** `BrowserLinkedNoteItem` was declared for `shapeLinkedNotePanelItem`; this child validates every member of it rather than inventing a second panel record. Two breaks swap the record out.
+- [x] **The secure reduction is the security argument, and it is pinned from both ends.** The shaper deletes `body_markdown`, `body_plaintext_index` and `metadata_json`, and nulls a secure note's excerpt. Three breaks stop a deletion, one stops the nulling, and one adds the deleted body to the declaration - all refused. The contract cannot promise what the producer removes.
+- [x] **The action hints stay display hints.** `canCreate` and `canLink`/`canUnlink` are permission answers gated on module writability, and every write route still asserts its own permission. The reader enforces the two coherences the producer guarantees - `readonly === !enabled`, and a module that cannot be written advertises no write - and **deliberately does not enforce the converse**, because an enabled module whose permissions deny everything is ordinary. A break that starts refusing that ordinary case is refused.
+- [x] **Three coherences make the count truthful.** `count` is `linkedNotes.length`, both projections map the same sorted collection, and `emptyState` is `null` exactly when there is something to show. Tasks no longer coerces a missing count to zero - **a specific claim that a record has no notes** - and a malformed empty state can no longer arrive as a generic message on a response the page is treating as trusted.
+- [x] **Refused whole, never shortened.** One response decides a note count, the linked list, the create/link/unlink controls and the read-only state. Dropping a malformed item would hide a note while leaving the panel authoritative.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **43 breaks across the Notes service, the route, the shared panel, Tasks, the Tasks view and the declaration, all 43 refused for their specific named check.**
+
+**The harness earned four corrections, three of them in the proof itself.** A delivery-order check compared `indexOf` results without first requiring the script tag to exist, so **deleting the tag entirely read as "loaded first"** and passed. A `notes` assertion compared deep equality, which could not tell the producer's array from a copy of it. No case exercised the nullable note columns, so removing that whole check changed nothing. And the case meant to isolate the `readonly` rule also violated the write-action rule, so it never tested what it named. The fourth correction was to the code: **every guard around `count` beyond the equality check was provably redundant** - the type test, the integer test and the sign test each changed no outcome, because requiring `count` to strictly equal the list length already forces it to be that number. They are gone, and the comment says why.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,314 | **8,312** |
+| Genuine `unknown` | 24 | **22** |
+| params / state / dom / **namespace** / assorted | 4,605 / 1,730 / 1,484 / **319** / 152 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,168 / 530 / 968 / 1,560 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 939 / 348 / 167 | **968 / 348 / 167**, green |
+
+**2 eliminations, no transfers, no contextual fallout, no new namespace surface, and no state slot annotated.** `state.panel` and `state.notes` were measured after narrowing and needed nothing. Exactly two files moved, one diagnostic each.
+
 ## Version 0.33.33.38.4.9.4 - The active timer list
 
 **Model: High Effort** - two diagnostics owned, seven eliminated, and the first child in this run whose contract is defined as much by what it refuses to promise as by what it does.

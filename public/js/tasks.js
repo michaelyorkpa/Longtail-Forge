@@ -2214,6 +2214,22 @@
     }
   }
 
+  /**
+   * The Notes Linked Panel surface, which owns this producer's reader.
+   *
+   * Acquired at the point of use like every other surface this page depends on: `tasks.html`
+   * loads `shared/notes-linked-panel.js` before this script, so a missing surface is a delivery
+   * fault worth failing on rather than optional-chaining past.
+   * @returns {import("../../src/types/browser-contracts.js").BrowserNotesLinkedPanel}
+   */
+  function requireNotesLinkedPanel() {
+    const panel = window.LongtailForge?.notesLinkedPanel;
+    if (!panel) {
+      throw new Error("Tasks requires LongtailForge.notesLinkedPanel.");
+    }
+    return panel;
+  }
+
   async function loadNoteCounts(tasks) {
     const api = requireApi();
     const counts = {};
@@ -2228,7 +2244,11 @@
           targetType: "task",
           targetId: task.task_id,
         }).toString()}`, { cache: "no-store" });
-        counts[task.task_id] = Number(result.count) || 0;
+        const panel = requireNotesLinkedPanel().readForTarget(result);
+        if (!panel) {
+          throw new Error("Linked note count could not be read.");
+        }
+        counts[task.task_id] = panel.count;
       } catch {
         counts[task.task_id] = 0;
       }
