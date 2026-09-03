@@ -2787,6 +2787,65 @@ export interface BrowserFileAttachmentTarget {
 }
 
 /**
+ * The storage totals `summarizeStorageAccounting` reduces into.
+ *
+ * **All five always present, because they are the reduce's own seed.** The reducer starts from a
+ * literal naming exactly these five at `0` and only ever adds to them, so none can be absent -
+ * and a workspace with no files answers five real zeros rather than nothing.
+ *
+ * They are `number` and not "non-negative integer". The row shaper coerces each column with
+ * `Number(column || 0)` and clamps nothing, so the honest runtime check is finiteness; the
+ * external recorder does clamp its input, but this projection makes no such promise and the
+ * contract describes the projection.
+ */
+export interface BrowserFileStorageAccountingTotals {
+  externalFileCount: number;
+  externalReportedBytes: number;
+  /** Every entry's file count, internal and external together. */
+  fileCount: number;
+  internalBytes: number;
+  internalFileCount: number;
+}
+
+/**
+ * What `readStorageAccounting` answers, for both the settings body and the accounting route.
+ *
+ * **Named for the producer rather than for the page, because two routes share it exactly.**
+ * `GET /api/files/storage/accounting` and the accounting member of the Files settings body are
+ * the same function; only the `storageKind` filter differs, and that selects which rows are
+ * summed rather than what the result looks like. Nothing in the browser reads the accounting
+ * route today, so no runtime surface is published for it - only this declaration, ready.
+ *
+ * `entries` is the per-row breakdown, container-checked and no further: no browser consumer
+ * reads into an entry, and this estate does not validate elements it does not read. A child
+ * that renders the breakdown owns naming `shapeStorageAccountingRow`'s eleven members.
+ */
+export interface BrowserFileStorageAccounting {
+  /** The per-row breakdown; `shapeStorageAccountingRow` owns its members. */
+  entries: unknown[];
+  totals: BrowserFileStorageAccountingTotals;
+}
+
+/**
+ * What both `GET /api/files/settings` and `PUT /api/files/settings` resolve to.
+ *
+ * **One contract for two routes, and not because they merely share a member.** The save ends in
+ * `return readWorkspaceFileSettings(session)` - it is the read, called again after the write, so
+ * the two bodies cannot diverge without the read changing. Two members, reconstructed by name
+ * with no spread, so the membership is exact.
+ *
+ * `settings` is declared present and left undescribed. It is a static nine-member reconstruction
+ * that a later child can name, but **this page never reads it**: the form is built from
+ * `/api/settings/catalog` and its values are collected back out of the DOM, so naming those nine
+ * here would freeze a settings vocabulary this boundary has not earned.
+ */
+export interface BrowserWorkspaceFileSettingsResponse {
+  accounting: BrowserFileStorageAccounting;
+  /** `shapeWorkspaceFileSettings`'s nine members; unread by this page and unnamed here. */
+  settings: unknown;
+}
+
+/**
  * One attachment as `GET /api/files/attachments` sends it.
  *
  * **Exact, although the producer spreads - because what it spreads is its own reconstruction.**

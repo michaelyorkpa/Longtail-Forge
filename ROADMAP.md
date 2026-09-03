@@ -669,6 +669,10 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 **Complete: 2 diagnostics, five contracts, and the second reuse of the shared pagination envelope.** See the archive entry. The `/api/files/attachments` body had no owner, and `0.33.33.38.4.9`'s own rule is to draw a child when a trace finds such a family. **The element is exact although the shaper spreads**, because what it spreads is its own reconstruction - the total-reconstruction case rather than the untrusted-body one. `shared/file-attachments.js` reads the same producer and is **deliberately left**: narrowing it needs either duplicated guards or a new published surface, and neither is this child's to create.
 
+#### 0.33.33.38.4.9.3 - The Files settings and storage accounting response
+
+**Complete: 2 diagnostics, three contracts, and one contract covering two routes because the save *is* the read.** See the archive entry. `saveWorkspaceFileSettings` ends in `return readWorkspaceFileSettings(session)`, so the two bodies cannot diverge - producer identity proved by a call, not by matching members. The `/api/files*` row sat in the planning table with no owner, and `0.33.33.38.4.9`'s own rule is to draw a child when a trace finds such a family. **The page had been turning an unreadable response into a confident "0 internal files, 0 B internal storage"**; it now says storage usage is unavailable, while a genuine all-zero record still renders its zeros.
+
 #### 0.33.33.38.4.10 - Notification response bodies
 
 **Complete. The child that was worth doing for what it could not be measured by.** Its visible cost was three diagnostics; what it actually did was make two blocked namespace surfaces declarable without either of them inheriting a wire-boundary bill. See the archive entry.
