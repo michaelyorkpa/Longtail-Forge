@@ -407,11 +407,15 @@
     const api = requireApi();
     setPageStatus("Loading Notes settings...");
     try {
-      const [settings, settingsCatalog] = await Promise.all([
+      const [settingsBody, settingsCatalog] = await Promise.all([
         api.getJson("/api/settings", { cache: "no-store" }),
         api.getJson("/api/settings/catalog", { cache: "no-store" }),
       ]);
-      const notesModule = (settings.modules || []).find((moduleDefinition) => moduleDefinition.id === "notes");
+      const settings = requireSettingsHost().readWorkspaceSettings(settingsBody);
+      if (!settings) {
+        throw new Error("Workspace settings could not be read.");
+      }
+      const notesModule = settings.modules.find((moduleDefinition) => moduleDefinition.id === "notes");
       if (notesModule?.status !== "enabled") {
         window.LongtailForge.settingsRenderer.renderDisabledModuleRecovery(notesSettingsFields, notesModule || {
           id: "notes",

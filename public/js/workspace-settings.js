@@ -495,8 +495,17 @@
     setWorkspaceSettingsStatus("Saving workspace settings...");
 
     try {
-      const result = await requireApi().putJson("/api/settings", settings);
-      const savedSettings = normalizeSettings(result.data);
+      const saveResult = requireSettingsHost().readWorkspaceSettingsSaveResult(
+        await requireApi().putJson("/api/settings", settings),
+      );
+      // The write has already happened, so an unreadable body is not a failed save. Refreshing
+      // the form from a body this browser cannot vouch for would be the invention; saying the
+      // save failed would be the opposite one.
+      if (!saveResult) {
+        setWorkspaceSettingsStatus("Workspace settings saved, but the refreshed settings could not be read. Reload to see the current state.");
+        return true;
+      }
+      const savedSettings = normalizeSettings(saveResult.data);
       settingsCatalog = await requireApi().getJson("/api/settings/catalog", { cache: "no-store" });
       workspaceNameInput.value = savedSettings.workspaceName;
       setWorkspaceTypeValue(savedSettings.workspaceType);

@@ -48,12 +48,97 @@
   const api = Object.freeze({
     attachmentSections,
     mount,
+    readWorkspaceSettings,
+    readWorkspaceSettingsSaveResult,
   });
   root.settingsHost = api;
 
   const host = document.querySelector("[data-settings-host]");
   if (host) {
     mount(host);
+  }
+
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserWorkspaceSettings} BrowserWorkspaceSettings */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserWorkspaceSettingsModule} BrowserWorkspaceSettingsModule */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserWorkspaceSettingsSaveResult} BrowserWorkspaceSettingsSaveResult */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserWorkspaceModuleStatus} BrowserWorkspaceModuleStatus */
+
+  /**
+   * The two words the module status resolver can answer.
+   * @type {readonly BrowserWorkspaceModuleStatus[]}
+   */
+  const WORKSPACE_MODULE_STATUSES = Object.freeze(["disabled", "enabled"]);
+
+  /**
+   * A plain JSON object, which is the least a wire value can be before any member is read.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isSettingsBodyRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * One module reduced to what this boundary promises, or `null` when it cannot be vouched for.
+   *
+   * **The narrowness is the point.** The producer reconstructs a much richer registry module
+   * record; this reads the stable framework-owned pair the settings pages rely on and is
+   * deliberately indifferent to everything else the record carries, so a module contributing a
+   * new navigation entry or a new kind of registry collection stays readable here.
+   * @param {unknown} entry
+   * @returns {BrowserWorkspaceSettingsModule | null}
+   */
+  function readWorkspaceSettingsModule(entry) {
+    if (!isSettingsBodyRecord(entry)) {
+      return null;
+    }
+    const status = WORKSPACE_MODULE_STATUSES.find((word) => word === entry.status);
+    if (!status || typeof entry.id !== "string" || entry.id === "") {
+      return null;
+    }
+    return { id: entry.id, status };
+  }
+
+  /**
+   * The shared workspace settings body, or `null` when it cannot be vouched for.
+   *
+   * **Refused whole when any module is unreadable, rather than filtered.** These records decide
+   * whether a settings page shows a module as available or offers its disabled-module recovery,
+   * so dropping an entry would quietly turn a module the workspace has enabled into one the page
+   * never mentions. Refusing shows the load failure instead.
+   *
+   * The producer's other persisted settings ride through untouched: the body spreads them, this
+   * contract promises none of them, and the pages' own normalisers already check what they read.
+   * @param {unknown} body
+   * @returns {BrowserWorkspaceSettings | null}
+   */
+  function readWorkspaceSettings(body) {
+    if (!isSettingsBodyRecord(body) || !Array.isArray(body.modules)) {
+      return null;
+    }
+    /** @type {BrowserWorkspaceSettingsModule[]} */
+    const modules = [];
+    for (const entry of body.modules) {
+      const moduleRecord = readWorkspaceSettingsModule(entry);
+      if (!moduleRecord) {
+        return null;
+      }
+      modules.push(moduleRecord);
+    }
+    return { ...body, modules };
+  }
+
+  /**
+   * The save envelope, or `null` when its settings body cannot be vouched for.
+   * @param {unknown} body
+   * @returns {BrowserWorkspaceSettingsSaveResult | null}
+   */
+  function readWorkspaceSettingsSaveResult(body) {
+    if (!isSettingsBodyRecord(body)) {
+      return null;
+    }
+    const data = readWorkspaceSettings(body.data);
+    return data ? { data } : null;
   }
 
   function mount(hostElement) {

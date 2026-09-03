@@ -1,5 +1,38 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.5.5 - The shared workspace settings response
+
+**Model: High Effort** - three diagnostics, the first child in this run whose consumers span three pages, and the one whose central question was what a browser contract is *entitled* to freeze.
+
+- [x] **One producer, proved by a call, so one contract.** `GET /api/settings` answers `readInternal(session)` directly and `save` ends in `return { data: await readInternal(session) }` - the same function, run again after the write. So there is one settings body contract wrapped in a one-member save envelope, not a GET contract and a PUT contract that would be free to drift apart. Two breaks attack exactly that delegation.
+- [x] **The outer body is a structural minimum, because the decorator spreads.** `decorateWorkspaceSettings` returns `{ ...settings, ... }` before naming its own five members, so whatever a workspace has persisted rides along and the browser cannot claim the body is closed. `modules` is one of the members named **after** that spread, which is what makes it claimable at all. A break that stops the spread, and one that stops naming `modules` after it, are both refused.
+- [x] **The module record is a deliberate stable minimum over a much richer producer record.** `loadWorkspaceModuleContext` reconstructs each module from its manifest with more than twenty members, most of them contribution-owned collections - navigation, view surfaces, settings, permissions, resource definitions, API scopes, event types. **Those are the extensibility carrier.** An exact browser mirror would turn every registry expansion into a browser contract change even where no consumer depends on the new member, so the contract promises `id` and `status` and nothing else. The contract says so in those words, and a break that rewrites the doc to claim the producer itself is that narrow is refused.
+- [x] **The narrowness is proved in both directions, which is what stops it being self-serving.** A module carrying new navigation entries, new view surfaces and an invented registry contribution is **accepted**, and answered as the promised pair. A module missing `status`, carrying a status the producer cannot answer, or carrying an unusable identity is **refused**. A break that makes the reader reject unpromised members is refused for the first reason; a break that drops either check is refused for the second.
+- [x] **The status vocabulary is read from both places that decide it.** `workspaceModuleStatus` returns `enabled` for a module that cannot be disabled and the mapped value or `disabled` otherwise, and the map that feeds it coerces every stored row to one of the same two words. The proof collects quoted words from **both** sites rather than searching for the two it expects, so a third added in either place is visible - **the lesson the tag bulk-action child paid for**. Two breaks add a third word, one per site, and both are refused.
+- [x] **The Workbench union is held consistent without merging the records.** The Workbench bootstrap builds its module map from this same module context, so its status scalar is genuinely the same vocabulary and the proof pins both unions to the producer's words. The **record** is a different projection and is not reused; a break that points the settings module record at the Workbench state is refused.
+- [x] **`id` is validated non-empty because the manifest contract requires it**, as a pattern-checked string, before the catalog is ever exposed - not because an empty one would be inconvenient. A break that drops the pattern requirement is refused.
+- [x] **An unreadable module refuses the whole body rather than being filtered out.** These records decide whether a settings page shows a module as available or offers its disabled-module recovery, so dropping one would quietly turn a module the workspace has enabled into one the page never mentions. An **absent** `modules` collection is refused too, while a workspace that genuinely has none is accepted and answered as the empty collection it is.
+- [x] **Write truth and response truth are kept apart on both save paths.** The write has already happened when the body is parsed, so an unreadable response is not a failed save: both pages report that the settings were saved and the refreshed state could not be read, and both still return success. Two breaks report failure instead and are refused.
+- [x] **The reader is shared, and it cost no new namespace surface.** Three pages read this one producer, so the parser lives once on `LongtailForge.settingsHost` - a member already declared and already acquired by all three pages through their own `requireSettingsHost()` guard. Adding two methods to it is a nested addition to a declared root, so the namespace family stayed at **319 with 43 of 64 members declared, unchanged**. A break that gives one page its own copy of the parser is refused.
+- [x] **Nothing else on the body was typed.** `moduleSettings` is registry-owned and stays with its own boundary; `enabledModules` is read only through the pages' own normalisers, which already check it. Both pages' `normalizeSettings` keep their jobs unchanged - this child owns the trust boundary, not their state debt.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **36 breaks across the settings service, the module registry, the manifest contract, the routes, the shared host, all three pages and the declaration, all 36 refused for their specific named check** on the first run.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,338 | **8,334** |
+| Genuine `unknown` | 35 | **32** |
+| params | 4,609 | **4,608** |
+| state / dom / **namespace** / assorted | 1,738 / 1,484 / **319** / 153 | **all unchanged** |
+| `.40` Notes / `.44` remaining controllers | 491 / 1,566 | **491 / 1,565** |
+| `.39` / `.41` / `.42` / `.43` | 1,770 / 1,168 / 530 / 975 | **all unchanged** |
+| Namespace declaration backlog | 43 of 64, 21 undeclared | **unchanged** |
+| Unit tests / regressions / end-to-end | 803 / 348 / 167 | **831 / 348 / 167**, green |
+
+**4 eliminations, no transfers, no new debt, and no new namespace surface.** Three are the genuine `unknown` this child owns; the fourth is a contextual param - the `moduleDefinition` callback in the Notes lookup, which acquired a type once the array it searches carried one. A byte-safe measurement shows **exactly three files moving**: `notes-settings.js` 47 to 45, `workspace-settings.js` 170 to 169 and `module-settings.js` 24 to 23, all `TS18046` apart from that one `TS7006`. **`settings-host.js` did not move at all** - the shared reader added no diagnostics to the file that now carries it.
+
 ## Version 0.33.33.38.4.9.3 - The Files settings and storage accounting response
 
 **Model: High Effort** - two diagnostics, and the one this run where the fabricated value was a *number about someone's data* rather than a state or a count.
