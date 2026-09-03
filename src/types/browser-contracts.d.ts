@@ -2155,6 +2155,92 @@ export interface BrowserNoteCollection {
   status?: unknown;
 }
 
+/** The three Library buckets `note_library_collections.library_bucket` is constrained to. */
+export type BrowserNoteLibraryBucket = "active_work" | "ongoing_area" | "reference";
+
+/** The catalog lifecycle states that column is constrained to. */
+export type BrowserNoteCatalogStatus = "active" | "archived" | "deleted";
+
+/** What migration 088 constrains `security_policy` to. */
+export type BrowserNoteCatalogSecurityPolicy = "normal" | "secure";
+
+/** What the effective-security resolver answers, from its own frozen table. */
+export type BrowserNoteEffectiveSecurityMode = "normal" | "secure";
+
+/** What migration 088 constrains `security_transition_state` to. */
+export type BrowserNoteCatalogTransitionState = "stable" | "securing" | "failed";
+
+/**
+ * What migration 089 constrains `security_transition_action` to.
+ *
+ * **Not the browser's own action vocabulary.** The page sends `enable`, `remove` and `retry` to
+ * the transition routes; this is the column's record of what a transition is *doing*, where
+ * `retry` is not a value because retrying resumes the action already stored.
+ */
+export type BrowserNoteCatalogTransitionAction = "none" | "enable" | "remove";
+
+/**
+ * One catalog as `shapeCatalogSettingsRow` builds it.
+ *
+ * **A reduction of the collection record, and the omissions are the security argument.** The
+ * record reaching the shaper is a stored row spread together with four members
+ * `projectCollectionSecurity` computes. The shaper names twenty and answers no others - so
+ * `security_transition_actor_user_id` (who started a transition) and `security_source_catalog_id`
+ * (which ancestor imposes security) never cross, along with the workspace id, the slug, both
+ * user-id stamps and the raw metadata blob. `securityInherited` says *that* security is
+ * inherited without naming *where from*.
+ *
+ * Every member is named by the shaper on every row, so none is optional. Six vocabularies are
+ * closed because the browser compares against those exact words and the database constrains the
+ * column to them; `source` is left open because nothing in the browser reads it, which is the
+ * same line this estate has drawn since `userPreferences`.
+ */
+export interface BrowserNoteCatalogSettingsRow {
+  catalogId: string;
+  title: string;
+  /** `""` rather than `null` for a catalog without one - the shaper's own default. */
+  description: string;
+  /** Nullable in the column, and the shaper passes it through without a default. */
+  libraryBucket: BrowserNoteLibraryBucket | null;
+  parentCatalogId: string | null;
+  /** The cached path, falling back to the title, so never absent. */
+  path: string;
+  depth: number;
+  sortOrder: number;
+  /** Constrained to `manual` and `imported`, left open because no browser code reads it. */
+  source: string;
+  status: BrowserNoteCatalogStatus;
+  securityPolicy: BrowserNoteCatalogSecurityPolicy;
+  effectiveSecurityMode: BrowserNoteEffectiveSecurityMode;
+  /** A comparison result, so a real boolean rather than a stored flag. */
+  securityInherited: boolean;
+  securityTransitionState: BrowserNoteCatalogTransitionState;
+  securityTransitionAction: BrowserNoteCatalogTransitionAction;
+  /** Constrained non-negative by migration 089. */
+  securityTransitionVersion: number;
+  securityTransitionJobId: string | null;
+  securityTransitionStartedAt: string | null;
+  securityTransitionErrorCode: string | null;
+  updatedAt: string;
+}
+
+/**
+ * What `GET /api/notes/settings/catalogs` resolves to.
+ *
+ * `listCatalogSettings` reconstructs all three members by name and spreads nothing, so this is
+ * exact. `capabilities.manageSecurity` is the server's own answer to
+ * `canInAnyScope(SECURE_MANAGE)` - the browser reports that decision and never recomputes it -
+ * and `limits.bulkSelection` is the constant the bulk route enforces.
+ *
+ * `limits` is declared even though this page reads only the other two, because the producer
+ * always sends it and an exact contract describes the producer rather than one consumer.
+ */
+export interface BrowserNoteCatalogSettings {
+  catalogs: BrowserNoteCatalogSettingsRow[];
+  capabilities: { manageSecurity: boolean };
+  limits: { bulkSelection: number };
+}
+
 /**
  * The target a browser caller builds to identify what it wants to follow.
  *

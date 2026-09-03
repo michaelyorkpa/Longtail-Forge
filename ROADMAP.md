@@ -603,6 +603,10 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 **Complete: 2 diagnostics, six contracts, zero fallout - and a malformed-data correction that matters more than the count.** See the archive entry. Three routes converge on one `toBrowserState`, so there is one contract rather than three with identical members. **The raw read rendered an unvouchable body as "this workspace is not pending deletion"** - a safety claim the data never made - and it now refuses instead. Two reductions carry the security argument: the lifecycle summary drops the **purge token**, the backup id, the requester id and the purge job's state; the backup summary drops the archive filename and its digest.
 
+#### 0.33.33.38.4.5.3 - The Notes catalog settings response
+
+**Complete: 3 diagnostics, one producer, and the largest of the four this page actually receives.** See the archive entry. Notes Settings' six survivors are **not one family** - they are `listCatalogSettings` with three, the shared `/api/settings` body with one, and the catalog-security preflight and transition with one each. This child closes the largest, whose row shaper reconstructs twenty members and withholds the transition actor and the ancestor that imposes inherited security. **The page had been borrowing the server's own row type for browser state without validating anything**, and that type over-claims the Library bucket as non-nullable where the column permits null.
+
 #### 0.33.33.38.4.6 - The client, project and calendar-subscription bodies
 
 **Resliced: 22 live diagnostics and three producer families, not one.** The reuse trace this line called for was run and it answered *no*: `clientProjectOptions` normalises into a **different vocabulary** - camelCase billing members and a two-word status - so it describes what the browser builds, never what the wire sends.

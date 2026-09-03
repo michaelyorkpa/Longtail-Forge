@@ -383,6 +383,7 @@
         "tests/unit/list-response-contracts.test.mjs",
         "tests/unit/lookup-response-contracts.test.mjs",
         "tests/unit/managed-session-contracts.test.mjs",
+        "tests/unit/note-catalog-settings-contracts.test.mjs",
         "tests/unit/note-response-contracts.test.mjs",
         "tests/unit/notes-effective-security.test.mjs",
         "tests/unit/notification-response-contracts.test.mjs",
@@ -504,7 +505,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8348,
+      "errorCount": 8345,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1031,7 +1032,7 @@
         "public/js/notes-settings.js": [
           {
             "code": 18046,
-            "count": 8
+            "count": 5
           },
           {
             "code": 18047,
@@ -2734,8 +2735,8 @@
     }
   },
   "totals": {
-    "files": 1085,
-    "errors": 8348,
+    "files": 1086,
+    "errors": 8345,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
