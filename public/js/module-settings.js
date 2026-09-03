@@ -145,8 +145,16 @@
     setStatus("Saving settings...");
 
     try {
-      const result = await requireApi().putJson("/api/settings", payload);
-      currentSettings = normalizeSettings(result.data || result);
+      const saveResult = requireSettingsHost().readWorkspaceSettingsSaveResult(
+        await requireApi().putJson("/api/settings", payload),
+      );
+      // Same producer as Workspace Settings, so the same reader and the same distinction: the
+      // write happened either way, and only the refreshed state is in doubt.
+      if (!saveResult) {
+        setStatus("Settings saved, but the refreshed settings could not be read.");
+        return true;
+      }
+      currentSettings = normalizeSettings(saveResult.data);
       settingsCatalog = await requireApi().getJson("/api/settings/catalog", { cache: "no-store" });
       renderModuleSettings();
       flashSavedState();

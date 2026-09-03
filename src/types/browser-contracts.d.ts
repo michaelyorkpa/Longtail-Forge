@@ -1034,6 +1034,73 @@ export interface BrowserViewDescriptorRenderers {
 }
 
 /**
+ * Whether a module is on for this workspace, as `workspaceModuleStatus` answers it.
+ *
+ * Two functions close this together: the status map coerces every stored row to `enabled` or
+ * `disabled`, and the resolver returns `enabled` for a module that cannot be disabled and the
+ * mapped value or `disabled` otherwise. Neither can answer a third word.
+ *
+ * `BrowserWorkbenchModuleStatus` carries the same two words for the same reason - the Workbench
+ * bootstrap builds its map from this same module context. The two are **proved consistent**
+ * rather than merged, because unifying them belongs to whoever owns both surfaces.
+ */
+export type BrowserWorkspaceModuleStatus = "disabled" | "enabled";
+
+/**
+ * One module as the shared settings body carries it.
+ *
+ * **A deliberate stable minimum over a much richer producer record, not a description of it.**
+ * `loadWorkspaceModuleContext` reconstructs each module from its registry manifest with more
+ * than twenty members, most of them contribution-owned collections - navigation, view surfaces,
+ * settings, permissions, resource definitions, API scopes, event types and more. Those are the
+ * extensibility carrier: they are *meant* to grow as modules are added and as the registry
+ * gains contribution kinds.
+ *
+ * An exact browser declaration would turn every such internal expansion into a browser contract
+ * change even where no browser consumer depends on the new member. So this contract promises
+ * only the stable framework-owned projection this boundary relies on - the module's identity and
+ * whether it is on - and the reader accepts records that carry anything else beside them.
+ *
+ * `id` is validated as non-empty text because the manifest contract requires it as a
+ * pattern-matched string before the catalog is ever exposed, not because an empty one would be
+ * inconvenient.
+ */
+export interface BrowserWorkspaceSettingsModule {
+  /** Required and pattern-checked by the manifest contract, so never empty. */
+  id: string;
+  status: BrowserWorkspaceModuleStatus;
+}
+
+/**
+ * The shared workspace settings body, as `readInternal` answers it.
+ *
+ * **A structural minimum, because `decorateWorkspaceSettings` spreads the persisted settings**
+ * before naming its own five members. Anything a workspace has persisted rides along, so the
+ * browser cannot claim the body is closed - and `modules` is one of the members named *after*
+ * that spread, which is what makes it claimable.
+ *
+ * Nothing else is promised here. `moduleSettings` is registry-owned and stays with its own
+ * boundary; `enabledModules` is read only through the pages' own normalisers, which already
+ * check it. Adding either because it happens to be present would freeze vocabulary this
+ * boundary has not earned.
+ */
+export interface BrowserWorkspaceSettings {
+  modules: BrowserWorkspaceSettingsModule[];
+}
+
+/**
+ * What `PUT /api/settings` resolves to.
+ *
+ * **One member, and its value is the GET body.** `save` ends in
+ * `return { data: await readInternal(session) }` - the same function `GET /api/settings` answers
+ * directly - so there is one settings contract wrapped in a one-member envelope rather than two
+ * body contracts that would be free to drift apart.
+ */
+export interface BrowserWorkspaceSettingsSaveResult {
+  data: BrowserWorkspaceSettings;
+}
+
+/**
  * `LongtailForge.settingsHost`, published by `public/js/shared/settings-host.js`.
  *
  * Mounts the settings host a page declares through `data-settings-host`, and reads the
@@ -1056,6 +1123,18 @@ export interface BrowserSettingsHost {
    * `data-settings-host-mounted`, and an unrecognised placement throws.
    */
   mount<Element extends HTMLElement | null | undefined>(hostElement: Element): Element;
+  /**
+   * The shared workspace settings body, or `null` when it cannot be vouched for.
+   *
+   * Lives here because three pages read this one producer and the host is already a declared
+   * surface all three acquire before use - so sharing the reader costs no new root member.
+   *
+   * The returned value carries the producer's other persisted settings through untouched; only
+   * `modules` is promised, and only it is checked.
+   */
+  readWorkspaceSettings(body: unknown): BrowserWorkspaceSettings | null;
+  /** The save envelope, or `null` when its settings body cannot be vouched for. */
+  readWorkspaceSettingsSaveResult(body: unknown): BrowserWorkspaceSettingsSaveResult | null;
 }
 
 /**
