@@ -2671,6 +2671,100 @@ export interface BrowserFileAttachmentList {
   sort: BrowserFileAttachmentSort;
 }
 
+/**
+ * Where a pending workspace deletion has reached.
+ *
+ * Closed by the column itself: migration 077 adds
+ * `CHECK (status IN ('pending_deletion', 'purging'))`, and the lifecycle summary falls back to
+ * the first of those two. The browser validates it, which is what earns the union.
+ */
+export type BrowserWorkspaceDeletionStatus = "pending_deletion" | "purging";
+
+/**
+ * What the server decided a deletion request needs before it may proceed.
+ *
+ * Two words, and the producer chooses between them from **one** value: whether a backup inside
+ * the recent window exists. The browser reports that decision and never re-makes it - the
+ * window, the age test and the acknowledgement rule all stay server-owned.
+ */
+export type BrowserWorkspaceDeletionRequirement = "recent_backup" | "typed_acknowledgement_required";
+
+/**
+ * What the workspace's latest backup means for a deletion request.
+ *
+ * **Five members reconstructed by name, and the reduction is the point.** The backup record
+ * behind it carries twelve - `backupId`, `archiveFilename`, `archiveSha256`, `createdByUserId`,
+ * `appVersion`, `status`, `secureNotesRecoveryRequired` and the object counts among them - and
+ * this summary passes through only the timestamp and the creator's label. **The archive name,
+ * its digest, the backup identifier and the requester's id never reach the browser**, and this
+ * contract must never regain them.
+ *
+ * `current`, `requirement` and the state's `acknowledgementPhrase` are all derived from the same
+ * recency test, so they cannot disagree; the reader enforces that rather than trusting it.
+ */
+export interface BrowserWorkspaceDeletionBackup {
+  /** `null` when the workspace has no backup at all. */
+  createdAt: string | null;
+  /** `null` when the workspace has no backup at all. */
+  createdByName: string | null;
+  /** Whether a backup inside the window exists. The server decides; the browser reports. */
+  current: boolean;
+  requirement: BrowserWorkspaceDeletionRequirement;
+  /** The recency window in hours, a server constant. */
+  windowHours: number;
+}
+
+/**
+ * A pending deletion, as `toLifecycleSummary` reduces it.
+ *
+ * **Six members from a ten-member row, and the four it drops are the security boundary.** The
+ * stored lifecycle carries `workspaceId`, `requestedByUserId`, `backupId`, `purgeStartedAt` and
+ * **`purgeToken`**; the summary answers none of them. `backupProtected` is `Boolean(backupId)` -
+ * the fact of a backup without its identifier - and the purge job's own state and token stay on
+ * the server. **This contract must never regain any of them.**
+ */
+export interface BrowserWorkspaceDeletionLifecycle {
+  /** Whether a backup covered the request, reported without naming which backup. */
+  backupProtected: boolean;
+  noCurrentBackupAcknowledged: boolean;
+  /** When the grace period ends and the purge becomes eligible. */
+  purgeAfter: string;
+  requestedAt: string;
+  requestedByName: string;
+  status: BrowserWorkspaceDeletionStatus;
+}
+
+/**
+ * The workspace's deletion state, as `toBrowserState` reconstructs it.
+ *
+ * **One record for three routes.** `read`, `request` and `cancel` all end in this same shaper,
+ * so there is one contract rather than a read result, a request result and a cancel result with
+ * identical members - and the lifecycle member, not an optional field, is what distinguishes the
+ * states.
+ *
+ * `acknowledgementPhrase` is **required and nullable, and the null means something**: the server
+ * answers `null` when a current backup already satisfies the prerequisite, and the phrase to
+ * type when it does not. Making it optional would erase that distinction.
+ *
+ * `pending` is `Boolean(lifecycle)` from the same value the lifecycle member is built from, so
+ * the two can never disagree - and the reader refuses a body where they do.
+ */
+export interface BrowserWorkspaceDeletionState {
+  /** The phrase an administrator must type, or `null` when a current backup makes it needless. */
+  acknowledgementPhrase: string | null;
+  backup: BrowserWorkspaceDeletionBackup;
+  /** `null` when no deletion is pending; the summary itself carries the pending state. */
+  lifecycle: BrowserWorkspaceDeletionLifecycle | null;
+  pending: boolean;
+  /** The workspace's own name, from the workspace record. The browser never supplies it. */
+  workspaceName: string;
+}
+
+/** What all three workspace-deletion routes resolve to. */
+export interface BrowserWorkspaceDeletionEnvelope {
+  deletion: BrowserWorkspaceDeletionState;
+}
+
 /** One scope a role may be assigned in, as `listAssignableRoleOptions` builds it. */
 export interface BrowserRoleScope {
   label: string;
