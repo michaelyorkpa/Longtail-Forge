@@ -1,5 +1,32 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.9.2 - The file attachment list
+
+**Model: High Effort** - the child where the compiler caught the owner claiming a contract it had not checked, and the fix was to check it.
+
+- [x] **One producer, two internal branches, one envelope.** `GET /api/files/attachments` answers `{ attachments, pagination, sort }` from both the paginated and the read-everything path, so there is one contract rather than one per branch. The family had no declared owner, and `0.33.33.38.4.9`'s rule is to draw one when a trace finds a family nobody listed.
+- [x] **The element is exact even though the shaper spreads, and the distinction is asserted.** `shapeAttachmentForRead` spreads `shapeAttachment(attachment)` - but that base names every member by hand from the row and spreads nothing itself, so this is the **total reconstruction** case rather than the spread-of-an-untrusted-body case that earns a structural minimum. Two breaks put a spread back, one into each shaper, and both are refused.
+- [x] **Both spellings of every paired member are required, because the producer writes both.** `fileAttachmentId`/`file_attachment_id`, `fileId`/`file_id`, the three context labels and four file timestamps are each written twice by name. Dropping one would break a reader the producer deliberately supports - and the other consumer of this same producer reads exactly that way, which the proof cites.
+- [x] **The second reuse of `BrowserBoundedPagination`, and it had to be earned.** Naming the shared contract without checking its seven members claimed a shape this reader never verified, and the compiler said so: `Record<string, unknown>` is not that contract. A guard was added rather than the claim weakened, and the page's own two-member normaliser is left exactly as it was, dual cursor spellings included.
+- [x] **The ordering vocabulary is closed by the producer's own `Set`**, and the runtime table is pinned to it rather than to itself. The reader hands back one of the producer's words by `find` rather than leaving the bare `string` an `includes` test does.
+- [x] **A page is refused rather than shortened.** This list accumulates across infinite-scroll loads and drives a visible count, so a short page would both under-report the total and corrupt what was already gathered. The page takes the load-error path it already owned.
+- [x] **One direct handoff annotated, and only that one.** `state.attachments` had inferred a list that could hold nothing; the neighbouring `state.projects` slot has the same problem, is untouched, and stays `0.33.33.44`'s.
+- [x] **The sibling consumer was left, and the reason is recorded rather than implied.** `shared/file-attachments.js` reads this producer too. Narrowing it needs either a duplicated copy of these guards or a new published surface, and this child creates neither; a break that narrows it anyway is refused.
+
+Proved by breaking each one, restored in a `finally`, and **every refusal judged by exit status**: 26 breaks across both service branches, both shapers, the ordering set, the browser declaration, the runtime tables and readers, the consumer, and the sibling module.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,354 | **8,352** |
+| Genuine `unknown` | 48 | **46** |
+| params / state / dom / namespace / assorted | 4,611 / 1,739 / 1,484 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,168 / 530 / 976 / 1,568 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 678 / 348 / 167 | **693 / 348 / 167**, green |
+
+**2 eliminations, no transfers, no new debt.** A first pass did transfer one: claiming the pagination contract without checking it raised a `TS2740` in `0.33.33.43`. That is what the guard removed, and a per-code diff of `files.js` confirms the only movement is `TS18046` seven to five. `4,611 + 1,739 + 153 = 6,503` reconciles either side.
+
 ## Version 0.33.33.38.4.4.3.2 - Managed sessions and revocation
 
 **Model: High Effort** - the child whose security instruction was to look for a leak, and whose answer is that the thing worth withholding is the identifier itself.

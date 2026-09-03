@@ -100,6 +100,14 @@
   const filePreviewActions = /** @type {import("../../src/types/browser-contracts.js").BrowserFilePreviewActions} */ (filePreview);
   const state = {
     workspaceType: "business",
+    /**
+     * The attachment page, accumulated across infinite-scroll loads.
+     *
+     * Annotated because the narrowed response is what fills it: an untyped `[]` infers a list
+     * that can hold nothing, and this is the one direct handoff the truthful response type
+     * requires. The rest of this page's state is untouched.
+     * @type {import("../../src/types/browser-contracts.js").BrowserFileAttachment[]}
+     */
     attachments: [],
     /** @type {import("../../src/types/browser-contracts.js").NormalizedClientOption[]} */
     clients: [],
@@ -500,10 +508,15 @@
         params.set("cursor", options.cursor);
       }
 
-      const result = await api.getJson(`/api/files/attachments?${params.toString()}`, { cache: "no-store" });
-      const attachments = result.attachments || [];
+      const page = readFileAttachmentList(
+        await api.getJson(`/api/files/attachments?${params.toString()}`, { cache: "no-store" }),
+      );
+      if (!page) {
+        throw new Error("The file attachment response could not be read.");
+      }
+      const attachments = page.attachments;
       state.attachments = options.append ? [...state.attachments, ...attachments] : attachments;
-      state.pagination = normalizeFilesPagination(result.pagination);
+      state.pagination = normalizeFilesPagination(page.pagination);
 
       renderFiles(state.attachments);
       updateFilesPagination();
@@ -520,6 +533,154 @@
       updateFilesPagination();
       setStatus(requireErrors().caughtMessage(error, "Files could not be loaded."), true);
     }
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserFileAttachment} BrowserFileAttachment */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserFileAttachmentFile} BrowserFileAttachmentFile */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserFileAttachmentList} BrowserFileAttachmentList */
+
+  /** The fourteen text members `shapeAttachmentForRead` always fills on an attachment. */
+  const ATTACHMENT_TEXT = Object.freeze([
+    "attachmentRole",
+    "caption",
+    "clientId",
+    "clientLabel",
+    "client_label",
+    "createdAt",
+    "fileAttachmentId",
+    "file_attachment_id",
+    "fileId",
+    "file_id",
+    "moduleId",
+    "projectId",
+    "projectLabel",
+    "project_label",
+    "targetId",
+    "targetLabel",
+    "target_label",
+    "targetType",
+    "visibility",
+  ]);
+
+  /** The seven text members the nested file record always fills. */
+  const ATTACHMENT_FILE_TEXT = Object.freeze([
+    "displayName",
+    "extension",
+    "mimeTypeDetected",
+    "originalFilename",
+    "scanStatus",
+    "status",
+    "uploadedByLabel",
+    "uploaded_by_label",
+  ]);
+
+  /** The six members the nested file record answers as text or `null`. */
+  const ATTACHMENT_FILE_NULLABLE_TEXT = Object.freeze([
+    "createdAt",
+    "created_at",
+    "deletedAt",
+    "deleted_at",
+    "updatedAt",
+    "updated_at",
+  ]);
+
+  /**
+   * The five orderings the producer's own `Set` admits, its fallback included.
+   *
+   * Typed to the published union so the reader can hand back one of its members rather than the
+   * bare `string` an `includes` test leaves behind. The authority is still the producer: a proof
+   * pins this table to `ATTACHMENT_SORT_MODES` rather than to itself.
+   * @type {readonly import("../../src/types/browser-contracts.js").BrowserFileAttachmentSort[]}
+   */
+  const ATTACHMENT_SORTS = Object.freeze(["filename", "newest", "oldest", "size", "status"]);
+
+  /** The four integers `boundedPaginationEnvelope` coerces itself. */
+  const ATTACHMENT_PAGINATION_NUMBERS = Object.freeze(["limit", "maxPageSize", "offset", "returned"]);
+
+  /**
+   * A plain JSON object, which is the least a wire body can be before any member is read.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isAttachmentRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * The shared bounded pagination envelope, checked member for member.
+   *
+   * Checked here rather than taken on trust: naming the shared contract without validating its
+   * seven members would have claimed a shape this reader never verified.
+   * @param {unknown} value
+   * @returns {value is import("../../src/types/browser-contracts.js").BrowserBoundedPagination}
+   */
+  function isAttachmentPagination(value) {
+    return isAttachmentRecord(value)
+      && ATTACHMENT_PAGINATION_NUMBERS.every((member) => typeof value[member] === "number"
+        && Number.isFinite(value[member]))
+      && typeof value.hasMore === "boolean"
+      && typeof value.nextCursor === "string"
+      && (value.total === null || (typeof value.total === "number" && Number.isFinite(value.total)));
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is BrowserFileAttachmentFile}
+   */
+  function isAttachmentFile(value) {
+    return isAttachmentRecord(value)
+      && ATTACHMENT_FILE_TEXT.every((member) => typeof value[member] === "string")
+      && ATTACHMENT_FILE_NULLABLE_TEXT.every((member) => value[member] === null || typeof value[member] === "string")
+      && typeof value.fileSizeBytes === "number"
+      && Number.isFinite(value.fileSizeBytes);
+  }
+
+  /**
+   * One attachment, checked against what the producer reconstructs by name.
+   *
+   * Both spellings of each paired member are required, because the producer writes both and a
+   * consumer of this page's data is entitled to read either.
+   * @param {unknown} value
+   * @returns {value is BrowserFileAttachment}
+   */
+  function isFileAttachment(value) {
+    return isAttachmentRecord(value)
+      && ATTACHMENT_TEXT.every((member) => typeof value[member] === "string")
+      && value.fileAttachmentId !== ""
+      && (value.removedAt === null || typeof value.removedAt === "string")
+      && typeof value.sortOrder === "number"
+      && Number.isFinite(value.sortOrder)
+      && isAttachmentFile(value.file)
+      && (value.target === null || (isAttachmentRecord(value.target)
+        && typeof value.target.id === "string"
+        && typeof value.target.label === "string"
+        && typeof value.target.type === "string"));
+  }
+
+  /**
+   * The attachment page, read as a whole or not at all.
+   *
+   * **Refused rather than shortened.** This list drives an infinite-scroll accumulation and a
+   * visible count; dropping an element would silently under-report how many attachments a
+   * workspace holds, and appending a short page would corrupt the accumulated list. `null` takes
+   * the load-error path the page already owned.
+   * @param {unknown} body
+   * @returns {BrowserFileAttachmentList | null}
+   */
+  function readFileAttachmentList(body) {
+    if (!isAttachmentRecord(body)) {
+      return null;
+    }
+    const { attachments, pagination, sort } = body;
+    // `find` rather than `includes`: the membership test answers a boolean and leaves `sort` a
+    // bare string, and this reader hands back one of the producer's own words.
+    const sortMode = ATTACHMENT_SORTS.find((mode) => mode === sort);
+    if (!Array.isArray(attachments) || !attachments.every(isFileAttachment)
+      || !isAttachmentPagination(pagination)
+      || !sortMode) {
+      return null;
+    }
+    return { attachments, pagination, sort: sortMode };
   }
 
   function normalizeFilesPagination(pagination = {}) {

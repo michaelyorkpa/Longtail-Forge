@@ -2558,6 +2558,119 @@ export interface BrowserSessionRevocationResult {
   revokedCount: number;
 }
 
+/**
+ * How an attachment list was ordered, closed by the one `Set` the producer tests against and
+ * falls back to.
+ */
+export type BrowserFileAttachmentSort = "filename" | "newest" | "oldest" | "size" | "status";
+
+/**
+ * The stored file behind an attachment, as `shapeAttachment` reconstructs it and
+ * `shapeAttachmentForRead` extends.
+ *
+ * **Fifteen members, and the paired spellings are the producer's own.** `createdAt`/`created_at`,
+ * `updatedAt`/`updated_at`, `deletedAt`/`deleted_at` and `uploadedByLabel`/`uploaded_by_label`
+ * are each written twice by name, which is why both consumers may read either. This contract
+ * reports that rather than choosing a favourite: dropping one spelling would break a reader the
+ * producer deliberately supports.
+ */
+export interface BrowserFileAttachmentFile {
+  /** `null` until the row records a creation time. */
+  createdAt: string | null;
+  /** The same value the producer also writes as `createdAt`. */
+  created_at: string | null;
+  /** `null` unless the file was deleted. */
+  deletedAt: string | null;
+  /** The same value the producer also writes as `deletedAt`. */
+  deleted_at: string | null;
+  displayName: string;
+  extension: string;
+  /** Coerced with `Number(... || 0)`, so always a number. */
+  fileSizeBytes: number;
+  mimeTypeDetected: string;
+  originalFilename: string;
+  scanStatus: string;
+  status: string;
+  /** `null` until the row records an update. */
+  updatedAt: string | null;
+  /** The same value the producer also writes as `updatedAt`. */
+  updated_at: string | null;
+  uploadedByLabel: string;
+  /** The same value the producer also writes as `uploadedByLabel`. */
+  uploaded_by_label: string;
+}
+
+/** What an attachment is attached to, resolved by label; `null` when the target is unreadable. */
+export interface BrowserFileAttachmentTarget {
+  id: string;
+  label: string;
+  type: string;
+}
+
+/**
+ * One attachment as `GET /api/files/attachments` sends it.
+ *
+ * **Exact, although the producer spreads - because what it spreads is its own reconstruction.**
+ * `shapeAttachmentForRead` spreads `shapeAttachment(attachment)`, which names every one of its
+ * members by hand from the row, and then names eight more. That is the "total reconstruction"
+ * case rather than the "spread of an untrusted body" case, so this contract is exact rather than
+ * a structural minimum.
+ *
+ * The paired spellings continue here: `fileAttachmentId`/`file_attachment_id`,
+ * `fileId`/`file_id`, and the three context labels are each written twice.
+ */
+export interface BrowserFileAttachment {
+  attachmentRole: string;
+  caption: string;
+  clientId: string;
+  clientLabel: string;
+  /** The same value the producer also writes as `clientLabel`. */
+  client_label: string;
+  createdAt: string;
+  file: BrowserFileAttachmentFile;
+  fileAttachmentId: string;
+  /** The same value the producer also writes as `fileAttachmentId`. */
+  file_attachment_id: string;
+  fileId: string;
+  /** The same value the producer also writes as `fileId`. */
+  file_id: string;
+  moduleId: string;
+  projectId: string;
+  projectLabel: string;
+  /** The same value the producer also writes as `projectLabel`. */
+  project_label: string;
+  /** `null` when the attachment is live. */
+  removedAt: string | null;
+  /** Coerced with `Number(... || 0)`, so always a number. */
+  sortOrder: number;
+  /** `null` when the target could not be resolved for this reader. */
+  target: BrowserFileAttachmentTarget | null;
+  targetId: string;
+  targetLabel: string;
+  /** The same value the producer also writes as `targetLabel`. */
+  target_label: string;
+  targetType: string;
+  visibility: string;
+}
+
+/**
+ * What `GET /api/files/attachments` resolves to.
+ *
+ * **Three members on both of the producer's paths.** The paginated branch and the
+ * read-everything branch each answer `attachments`, `pagination` and `sort`, so there is one
+ * contract rather than one per branch.
+ *
+ * `pagination` is `BrowserBoundedPagination` again - the **second** reuse of the contract
+ * `0.33.33.38.4.8.1` named for `boundedPaginationEnvelope` rather than for one route. The Files
+ * page reads only two of its seven members through a total normaliser of its own, and that
+ * normaliser is left exactly as it was.
+ */
+export interface BrowserFileAttachmentList {
+  attachments: BrowserFileAttachment[];
+  pagination: BrowserBoundedPagination;
+  sort: BrowserFileAttachmentSort;
+}
+
 /** One scope a role may be assigned in, as `listAssignableRoleOptions` builds it. */
 export interface BrowserRoleScope {
   label: string;
