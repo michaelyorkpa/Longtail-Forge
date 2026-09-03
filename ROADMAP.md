@@ -688,6 +688,10 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 **Complete: 2 diagnostics, three contracts, and one contract covering two routes because the save *is* the read.** See the archive entry. `saveWorkspaceFileSettings` ends in `return readWorkspaceFileSettings(session)`, so the two bodies cannot diverge - producer identity proved by a call, not by matching members. The `/api/files*` row sat in the planning table with no owner, and `0.33.33.38.4.9`'s own rule is to draw a child when a trace finds such a family. **The page had been turning an unreadable response into a confident "0 internal files, 0 B internal storage"**; it now says storage usage is unavailable, while a genuine all-zero record still renders its zeros.
 
+#### 0.33.33.38.4.9.4 - The active timer list
+
+**Complete: 2 diagnostics, 7 eliminated, and a browser contract that deliberately promises one member of a much richer record.** See the archive entry. `list` answers `{ timers }` exactly, but `shapeTimerPayload` spreads the repository row, so the element earns a **structural minimum**: the manual timer slot, which the column, the row mapping and every writer all guarantee. The permission-blanked source label and URL are left unpromised on purpose, so this boundary cannot become the owner of their disclosure. **Both consumers were narrowed**, because an unreadable list read as empty tells the page every manual slot is free.
+
 #### 0.33.33.38.4.10 - Notification response bodies
 
 **Complete. The child that was worth doing for what it could not be measured by.** Its visible cost was three diagnostics; what it actually did was make two blocked namespace surfaces declarable without either of them inheriting a wire-boundary bill. See the archive entry.

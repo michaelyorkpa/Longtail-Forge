@@ -223,12 +223,62 @@
     }
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserActiveTimerSlotRecord} BrowserActiveTimerSlotRecord */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserActiveTimerList} BrowserActiveTimerList */
+
+  /**
+   * A plain JSON object, which is the least a wire value can be before any member is read.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isActiveTimerRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * One active timer, vouched for only as far as its slot.
+   *
+   * The response carries a much richer row; this promises the one member both list consumers
+   * rely on, and the record travels onward with everything else it arrived with.
+   * @param {unknown} value
+   * @returns {value is BrowserActiveTimerSlotRecord}
+   */
+  function isActiveTimerSlotRecord(value) {
+    return isActiveTimerRecord(value) && typeof value.timer_slot === "string" && value.timer_slot !== "";
+  }
+
+  /**
+   * The active manual timers, or `null` when the list cannot be vouched for.
+   *
+   * **An unreadable list is not an empty one, and the difference is a write hazard.** Slot
+   * occupancy is decided from this response: read as empty, the page concludes that every manual
+   * slot is free. So a missing or non-array `timers`, or one element without a usable slot,
+   * refuses the whole response rather than being filtered - this is state restoration, not a
+   * candidate picker, and a dropped timer is a slot the page would then believe is free.
+   *
+   * `{ timers: [] }` is a real answer and is accepted.
+   * @param {unknown} body
+   * @returns {BrowserActiveTimerList | null}
+   */
+  function readActiveTimerList(body) {
+    if (!isActiveTimerRecord(body) || !Array.isArray(body.timers)) {
+      return null;
+    }
+    // Filtered and length-checked rather than rebuilt: the elements pass through by reference,
+    // so the richer payload later code still reads is not truncated by narrowing its type.
+    const timers = body.timers.filter(isActiveTimerSlotRecord);
+    return timers.length === body.timers.length ? { timers } : null;
+  }
+
   async function loadActiveTimers(options = {}) {
     try {
-      const data = await requireApi().getJson("/api/active-timers", {
+      const list = readActiveTimerList(await requireApi().getJson("/api/active-timers", {
         cache: "no-store",
-      });
-      const activeTimers = Array.isArray(data.timers) ? data.timers : [];
+      }));
+      if (!list) {
+        throw new Error("Active timers could not be read.");
+      }
+      const activeTimers = list.timers;
       const maxTimerSlot = activeTimers.reduce((maxSlot, timer) => {
         const timerSlot = Number.parseInt(timer.timer_slot, 10);
         return Number.isFinite(timerSlot) ? Math.max(maxSlot, timerSlot) : maxSlot;
