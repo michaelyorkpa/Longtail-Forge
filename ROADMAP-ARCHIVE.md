@@ -1,5 +1,33 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.5.3 - The Notes catalog settings response
+
+**Model: High Effort** - three diagnostics, chosen by tracing what the page receives rather than what file the diagnostics live in.
+
+- [x] **Notes Settings' six survivors are four producers, and the partition was the first job.** `GET /api/notes/settings/catalogs` owns three, the shared `GET /api/settings` body owns one (`settings.modules`), and the catalog-security preflight and transition own one each. There is no six-diagnostic family here and no shared envelope to invent: the two security routes come from `catalogSecurityService` while the catalog list comes from `notesCollectionsService`. This child closes the largest and records the rest.
+- [x] **One producer, total reconstruction, exact contract.** `listCatalogSettings` names `catalogs`, `capabilities` and `limits` and spreads nothing, and every row goes through `shapeCatalogSettingsRow`, which names twenty members and spreads nothing either. Breaks that add a member, spread the record, or bypass the shaper are all refused.
+- [x] **The reduction is the security argument, and four breaks attack it.** The record reaching the shaper is a stored row plus four members `projectCollectionSecurity` computes. The shaper answers twenty and withholds the rest - including **`security_transition_actor_user_id`**, who started a transition, and **`security_source_catalog_id`**, which ancestor imposes inherited security. `securityInherited` says *that* security is inherited without saying *from where*. The workspace id, slug, both user stamps and the raw metadata blob are withheld too. **No leak found.**
+- [x] **The capability stays the server's decision.** `capabilities.manageSecurity` is `canInAnyScope(session, SECURE_MANAGE)`, and the page reports it rather than deriving one. A break that computes it from catalog fields instead is refused, as is one that replaces the service's answer with a literal.
+- [x] **Six vocabularies closed on the database, one deliberately left open.** The bucket and status come from the table's own `CHECK` constraints, the policy and transition state from migration 088, the transition action from migration 089, and the effective mode from the resolver's frozen table - each read from the producer rather than from the table the parser checks, and **each proved by widening the constraint and watching the check fail**. `source` stays open text because nothing in the browser reads it, which is the line this estate has drawn since `userPreferences`.
+- [x] **The transition action is the column's vocabulary, not the browser's.** The page sends `enable`, `remove` and `retry`; the column records `none`, `enable` and `remove`, because retrying resumes the action already stored. Collapsing the two would have let a consumer test for a word the response can never carry.
+- [x] **The page was borrowing a server type for browser state, and that type over-claims.** `notes-settings.js` imported `NoteCatalogSettingsRow` from the server's own contracts and annotated `state.catalogs` with it - a declaration with no runtime proof behind it. That type declares `libraryBucket` non-nullable, but the column carries no `NOT NULL` and `collectionRowToAppValue` does not default it, so **the browser contract keeps it nullable and the reader distinguishes an absent bucket from an unrecognised one**. Two breaks cover exactly that distinction. The server-side over-claim is recorded for its own owner rather than repaired inside a response-boundary child.
+- [x] **Malformed data refuses the whole envelope.** `Array.isArray(result.catalogs) ? result.catalogs : []` rendered an unreadable body as **"this workspace has no Notes catalogs"** beside a silently withheld manage-security control - two statements the response never made. A single unreadable row is refused with the rest, because dropping it would hide a catalog that may be mid-transition or failed, and that is what this page exists to show. All five callers already report the failure.
+- [x] **The page's other three producers were left alone**, and the bulk route stays with `0.33.33.38.4.11`, whose `readBulkFailures` this page already uses.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash at any point: **43 breaks across the service, the route, the schema, both migrations, the security resolver, the declaration and the consumer, all 43 refused for their specific named check**, with the proof green before the first mutation and after the last restore.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,348 | **8,345** |
+| Genuine `unknown` | 42 | **39** |
+| params / state / dom / namespace / assorted | 4,611 / 1,739 / 1,484 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,168 / 530 / 976 / 1,568 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 728 / 348 / 167 | **756 / 348 / 167**, green |
+
+**3 eliminations, no transfers, no new debt.** A byte-safe before-and-after measurement shows `TS18046` 8 to 5 in `notes-settings.js` and **exactly one file's count moving at all**, 54 to 51. One state slot was retargeted rather than newly typed - `state.catalogs` already carried an annotation, and it now carries the browser row the page validates instead of the server row it merely asserted.
+
 ## Version 0.33.33.38.4.11.1 - The tag bulk-assignment counts
 
 **Model: High Effort** - two diagnostics, and the smallest child this run by count. It is here because `0.33.33.38.4.11` finished half of this producer on purpose and said so, leaving the other half unowned rather than pretending it was covered.

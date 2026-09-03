@@ -1,5 +1,4 @@
 /* global window, document */
-/** @typedef {import("../../src/types/notes-collections-contracts.js").NoteCatalogSettingsRow} NoteCatalogSettingsRow */
 (function attachNotesSettingsPage() {
 
   const notesSettingsFields = document.querySelector('[data-settings-attachment="module"][data-settings-module-id="notes"]');
@@ -156,7 +155,7 @@
   }
 
   const state = {
-    /** @type {NoteCatalogSettingsRow[]} */
+    /** @type {BrowserNoteCatalogSettingsRow[]} */
     catalogs: [],
     canManageSecurity: false,
     /** @type {number | null} */
@@ -172,6 +171,155 @@
 
   mountCatalogManager();
   loadNotesSettings();
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCatalogSettings} BrowserNoteCatalogSettings */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCatalogSettingsRow} BrowserNoteCatalogSettingsRow */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteLibraryBucket} BrowserNoteLibraryBucket */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCatalogStatus} BrowserNoteCatalogStatus */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCatalogSecurityPolicy} BrowserNoteCatalogSecurityPolicy */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteEffectiveSecurityMode} BrowserNoteEffectiveSecurityMode */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCatalogTransitionState} BrowserNoteCatalogTransitionState */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCatalogTransitionAction} BrowserNoteCatalogTransitionAction */
+
+  // The six vocabularies the database constrains and this page compares against. Each is
+  // searched rather than tested for membership, because a membership test answers a boolean and
+  // would leave the value as bare text. They are separate tables rather than one grouped object
+  // because a nested frozen array infers as `readonly string[]` whatever the outer annotation says.
+
+  /** @type {readonly BrowserNoteLibraryBucket[]} */
+  const CATALOG_BUCKETS = Object.freeze(["active_work", "ongoing_area", "reference"]);
+  /** @type {readonly BrowserNoteCatalogStatus[]} */
+  const CATALOG_STATUSES = Object.freeze(["active", "archived", "deleted"]);
+  /** @type {readonly BrowserNoteCatalogSecurityPolicy[]} */
+  const CATALOG_SECURITY_POLICIES = Object.freeze(["normal", "secure"]);
+  /** @type {readonly BrowserNoteEffectiveSecurityMode[]} */
+  const CATALOG_EFFECTIVE_MODES = Object.freeze(["normal", "secure"]);
+  /** @type {readonly BrowserNoteCatalogTransitionState[]} */
+  const CATALOG_TRANSITION_STATES = Object.freeze(["stable", "securing", "failed"]);
+  /** @type {readonly BrowserNoteCatalogTransitionAction[]} */
+  const CATALOG_TRANSITION_ACTIONS = Object.freeze(["none", "enable", "remove"]);
+
+  /**
+   * A plain JSON object, which is the least a wire value can be before any member is read.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isCatalogRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /** @param {unknown} value @returns {value is string} */
+  function isText(value) {
+    return typeof value === "string";
+  }
+
+  /** @param {unknown} value @returns {value is string | null} */
+  function isNullableText(value) {
+    return value === null || typeof value === "string";
+  }
+
+  /** @param {unknown} value @returns {value is number} */
+  function isCount(value) {
+    return typeof value === "number" && Number.isFinite(value);
+  }
+
+  /**
+   * One catalog as `shapeCatalogSettingsRow` builds it, or `null` when it cannot be vouched for.
+   *
+   * Every member the contract claims is checked here, including the seven this page does not
+   * currently render, because the contract describes the producer rather than today's readers.
+   * @param {unknown} entry
+   * @returns {BrowserNoteCatalogSettingsRow | null}
+   */
+  function readCatalogSettingsRow(entry) {
+    if (!isCatalogRecord(entry)) {
+      return null;
+    }
+    const bucket = entry.libraryBucket === null
+      ? null
+      : CATALOG_BUCKETS.find((word) => word === entry.libraryBucket);
+    const status = CATALOG_STATUSES.find((word) => word === entry.status);
+    const securityPolicy = CATALOG_SECURITY_POLICIES.find((word) => word === entry.securityPolicy);
+    const effectiveSecurityMode = CATALOG_EFFECTIVE_MODES.find((word) => word === entry.effectiveSecurityMode);
+    const transitionState = CATALOG_TRANSITION_STATES.find((word) => word === entry.securityTransitionState);
+    const transitionAction = CATALOG_TRANSITION_ACTIONS.find((word) => word === entry.securityTransitionAction);
+    if (bucket === undefined || !status || !securityPolicy || !effectiveSecurityMode
+      || !transitionState || !transitionAction) {
+      return null;
+    }
+    const {
+      catalogId, depth, description, parentCatalogId, path, securityInherited,
+      securityTransitionErrorCode, securityTransitionJobId, securityTransitionStartedAt,
+      securityTransitionVersion, sortOrder, source, title, updatedAt,
+    } = entry;
+    if (!isText(catalogId) || !isText(title) || !isText(description) || !isText(path)
+      || !isText(source) || !isText(updatedAt)
+      || !isNullableText(parentCatalogId) || !isNullableText(securityTransitionJobId)
+      || !isNullableText(securityTransitionStartedAt) || !isNullableText(securityTransitionErrorCode)
+      || !isCount(depth) || !isCount(sortOrder) || !isCount(securityTransitionVersion)
+      || typeof securityInherited !== "boolean") {
+      return null;
+    }
+    return {
+      catalogId,
+      depth,
+      description,
+      effectiveSecurityMode,
+      libraryBucket: bucket,
+      parentCatalogId,
+      path,
+      securityInherited,
+      securityPolicy,
+      securityTransitionAction: transitionAction,
+      securityTransitionErrorCode,
+      securityTransitionJobId,
+      securityTransitionStartedAt,
+      securityTransitionState: transitionState,
+      securityTransitionVersion,
+      sortOrder,
+      source,
+      status,
+      title,
+      updatedAt,
+    };
+  }
+
+  /**
+   * What the catalog settings route answered, or `null` when it cannot be vouched for.
+   *
+   * **Refused whole, rather than salvaged.** The raw reads defaulted an unreadable body to an
+   * empty catalog list beside a withheld manage-security capability, which renders as "this
+   * workspace has no Notes catalogs" next to controls the server never said were unavailable.
+   * Both statements are the page's own invention. A single unreadable row is refused with the
+   * rest for the same reason: dropping it would hide a catalog that may be mid-transition or
+   * failed, and this page exists to show exactly that.
+   * @param {unknown} body
+   * @returns {BrowserNoteCatalogSettings | null}
+   */
+  function readNoteCatalogSettings(body) {
+    if (!isCatalogRecord(body)) {
+      return null;
+    }
+    const { capabilities, catalogs, limits } = body;
+    if (!Array.isArray(catalogs) || !isCatalogRecord(capabilities) || !isCatalogRecord(limits)
+      || typeof capabilities.manageSecurity !== "boolean" || !isCount(limits.bulkSelection)) {
+      return null;
+    }
+    /** @type {BrowserNoteCatalogSettingsRow[]} */
+    const rows = [];
+    for (const entry of catalogs) {
+      const row = readCatalogSettingsRow(entry);
+      if (!row) {
+        return null;
+      }
+      rows.push(row);
+    }
+    return {
+      capabilities: { manageSecurity: capabilities.manageSecurity },
+      catalogs: rows,
+      limits: { bulkSelection: limits.bulkSelection },
+    };
+  }
 
   async function loadNotesSettings() {
     const api = requireApi();
@@ -212,9 +360,12 @@
 
   async function loadCatalogs() {
     const api = requireApi();
-    const result = await api.getJson("/api/notes/settings/catalogs", { cache: "no-store" });
-    state.catalogs = Array.isArray(result.catalogs) ? result.catalogs : [];
-    state.canManageSecurity = result.capabilities?.manageSecurity === true;
+    const settings = readNoteCatalogSettings(await api.getJson("/api/notes/settings/catalogs", { cache: "no-store" }));
+    if (!settings) {
+      throw new Error("Notes catalog settings could not be read.");
+    }
+    state.catalogs = settings.catalogs;
+    state.canManageSecurity = settings.capabilities.manageSecurity;
     state.selectedCatalogIds = new Set([...state.selectedCatalogIds].filter((catalogId) => (
       state.catalogs.some((catalog) => catalog.catalogId === catalogId)
     )));
