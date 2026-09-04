@@ -4314,6 +4314,41 @@ export interface BrowserRuntimeDiagnosticsResponse {
 }
 
 /**
+ * What the attachment-count query was asked, and how much of it the caller could see.
+ *
+ * **Absent on one of the producer's two returns.** `countAttachmentsForTargets` answers
+ * `{ counts: {} }` and nothing else when the request named no module, no target type or no
+ * targets at all; the full answer carries this beside the counts. It is optional here for that
+ * reason rather than because the server sometimes forgets it.
+ *
+ * `readableTargets` is deliberately a count and not a list: it says how many of the requested
+ * targets the caller may read, without naming the ones they may not.
+ */
+export interface BrowserFileAttachmentCountMeta {
+  checkedTargets: number;
+  moduleId: string;
+  readableTargets: number;
+  targetType: string;
+}
+
+/**
+ * `GET /api/files/attachments/counts`.
+ *
+ * **Every requested target id is a key, seeded to zero before any attachment is counted**, so
+ * a zero here means the server looked and found none - not that it had nothing to say. A
+ * target the caller may not read stays at zero, because the tally only increments for ids that
+ * survived `readableAttachmentTargetIds`, which is what keeps this endpoint from being a way
+ * to probe for attachments on records you cannot see.
+ *
+ * The browser reads only `counts`. `meta` is declared because the producer sends it, not
+ * because anything renders it.
+ */
+export interface BrowserFileAttachmentCounts {
+  counts: Record<string, number>;
+  meta?: BrowserFileAttachmentCountMeta;
+}
+
+/**
  * The four job states the Workspace Settings readout counts.
  *
  * `shapeStatusCounts` starts from this exact object with every count at zero and overwrites a

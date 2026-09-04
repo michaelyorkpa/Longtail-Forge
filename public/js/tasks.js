@@ -2193,6 +2193,40 @@
     return `${blockers} child${blockers === 1 ? "" : "ren"}`;
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserFileAttachmentCounts} BrowserFileAttachmentCounts */
+
+  /**
+   * The attachment tally, or `null` when the body is not one this producer sends.
+   *
+   * Every value is checked as a non-negative integer because every one of them is a counter
+   * the server seeded to zero and then incremented. No finiteness test guards them: JSON
+   * carries neither `NaN` nor `Infinity`, so requiring an integer already excludes both.
+   *
+   * `meta` is not read. The producer omits it entirely on its empty-request return, and
+   * refusing a tally over a member nothing here renders would be inventing a contract for it.
+   * @param {unknown} body
+   * @returns {Record<string, number> | null}
+   */
+  function readAttachmentCounts(body) {
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return null;
+    }
+
+    const counts = /** @type {Record<string, unknown>} */ (body).counts;
+
+    if (typeof counts !== "object" || counts === null || Array.isArray(counts)) {
+      return null;
+    }
+
+    const tally = /** @type {Record<string, unknown>} */ (counts);
+
+    return Object.keys(tally).every((key) => (
+      typeof tally[key] === "number" && Number.isInteger(tally[key]) && Number(tally[key]) >= 0
+    ))
+      ? /** @type {Record<string, number>} */ (counts)
+      : null;
+  }
+
   async function loadAttachmentCounts(tasks) {
     const api = requireApi();
     const targetIds = tasks.map((task) => task.task_id).filter(Boolean);
@@ -2202,13 +2236,17 @@
     }
 
     try {
-      const result = await api.getJson(`/api/files/attachments/counts?${new URLSearchParams({
+      const counts = readAttachmentCounts(await api.getJson(`/api/files/attachments/counts?${new URLSearchParams({
         moduleId: "tasks",
         targetType: "task",
         targetIds: targetIds.join(","),
-      }).toString()}`, { cache: "no-store" });
+      }).toString()}`, { cache: "no-store" }));
 
-      return result.counts || {};
+      if (!counts) {
+        throw new Error("The attachment counts could not be read.");
+      }
+
+      return counts;
     } catch {
       return {};
     }
