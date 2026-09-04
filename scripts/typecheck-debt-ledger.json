@@ -403,6 +403,7 @@
         "tests/unit/note-revision-list-contracts.test.mjs",
         "tests/unit/notes-effective-security.test.mjs",
         "tests/unit/notes-external-link-preference-contracts.test.mjs",
+        "tests/unit/notification-bell-summary-contracts.test.mjs",
         "tests/unit/notification-list-contracts.test.mjs",
         "tests/unit/notification-response-contracts.test.mjs",
         "tests/unit/public-demo-capabilities.test.mjs",
@@ -2720,7 +2721,7 @@
     }
   },
   "totals": {
-    "files": 1111,
+    "files": 1112,
     "errors": 8270,
     "explicitAny": 0
   },

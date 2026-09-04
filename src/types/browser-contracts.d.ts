@@ -6304,6 +6304,44 @@ export interface BrowserNotificationList {
   pagination: BrowserBoundedPagination;
 }
 
+/**
+ * What `GET /api/notifications/unread-count` answers.
+ *
+ * **Exact.** `readBellSummaryForRecipient` reconstructs nine members by name from one aggregate
+ * row and spreads nothing, and every count is `Number(... || 0)` over a `SUM` of ones and zeroes -
+ * so all five are finite, non-negative integers.
+ *
+ * **The count members are not interchangeable and are deliberately not collapsed.** The badge
+ * excludes low-priority unread items; the total does not; the low-priority count is the
+ * difference. The two priority counts are a **different population again**: their `SUM` spans
+ * `status IN ('unread', 'read')`, so an urgent notification the recipient has already read is
+ * still counted here and is **not** part of `unreadCount`. Reducing these to one number would
+ * lose the distinction the bell is built on.
+ *
+ * The three flags are derived from the two priority counts by the same producer, in the same
+ * statement, so the browser checks that they agree rather than recomputing them.
+ */
+export interface BrowserNotificationBellSummary {
+  /** The badge number: unread notifications that are not low priority. Always equal to `unreadCount`. */
+  count: number;
+  /** Active notifications at `high` priority, read or unread. */
+  highPriorityCount: number;
+  /** `highPriorityCount > 0`. */
+  hasHighPriority: boolean;
+  /** `hasUrgentPriority || hasHighPriority`. */
+  hasPriorityAlert: boolean;
+  /** `urgentPriorityCount > 0`. */
+  hasUrgentPriority: boolean;
+  /** Unread notifications at `low` priority, which the badge excludes. */
+  lowPriorityUnreadCount: number;
+  /** Every unread notification, including the low-priority ones. */
+  totalUnreadCount: number;
+  /** The same value as `count`; the producer sends both names. */
+  unreadCount: number;
+  /** Active notifications at `urgent` priority, read or unread. */
+  urgentPriorityCount: number;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
