@@ -6054,6 +6054,41 @@ export interface BrowserListDetail {
   list?: BrowserListSummary;
 }
 
+/**
+ * One catalog suggestion as `GET /api/lists/item-suggestions` offers it.
+ *
+ * **A structural minimum, because `shapeCatalogItemForBrowser` spreads.** It answers
+ * `{ ...item, id: item.catalog_item_id }` over the persistence record, so the response carries
+ * every column `CATALOG_COLUMNS` selects and whatever the catalogue grows next. The nine members
+ * below are the nine the Lists item picker reads, and each is what `list_item_catalog` guarantees:
+ * `quantity` and `use_count` are `NOT NULL` with `CHECK (>= 0)`, `estimated_cost` is nullable with
+ * the same check, and the four text columns beside them are nullable.
+ *
+ * **The `id` alias is deliberately absent.** The shaper adds it, but this picker submits
+ * `catalog_item_id`, and promising a member no consumer reads would make this contract the owner
+ * of a compatibility alias it does not use.
+ *
+ * **Not the persistence record.** `normalized_name`, `metadata_json`, `last_used_at`, the two
+ * actor columns and the workspace scoping stay off the browser promise: nothing here reads them,
+ * and declaring them would invite a consumer to.
+ */
+export interface BrowserListItemSuggestion {
+  /** The identity the picker submits, so it is required and non-empty. */
+  catalog_item_id: string;
+  /** `REAL`, nullable, and never negative. */
+  estimated_cost: number | null;
+  /** `NOT NULL`, and the value the datalist offers, so it is non-empty. */
+  item_name: string;
+  notes: string | null;
+  /** `NOT NULL DEFAULT 1 CHECK (quantity >= 0)`. */
+  quantity: number;
+  unit: string | null;
+  /** `NOT NULL DEFAULT 0 CHECK (use_count >= 0)`, read by the suggestion label. */
+  use_count: number;
+  url: string | null;
+  vendor_name: string | null;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
