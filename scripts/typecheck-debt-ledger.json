@@ -383,6 +383,7 @@
         "tests/unit/focus-mode-resolution.test.mjs",
         "tests/unit/identifiers.test.mjs",
         "tests/unit/install-playwright-browser.test.mjs",
+        "tests/unit/job-status-contracts.test.mjs",
         "tests/unit/legal-content.test.mjs",
         "tests/unit/linked-note-panel-contracts.test.mjs",
         "tests/unit/list-link-target-contracts.test.mjs",
@@ -516,7 +517,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8307,
+      "errorCount": 8306,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -2079,7 +2080,7 @@
         "public/js/workspace-settings.js": [
           {
             "code": 18046,
-            "count": 8
+            "count": 7
           },
           {
             "code": 18047,
@@ -2726,8 +2727,8 @@
     }
   },
   "totals": {
-    "files": 1097,
-    "errors": 8307,
+    "files": 1098,
+    "errors": 8306,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
