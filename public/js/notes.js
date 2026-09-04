@@ -479,6 +479,13 @@
 
   let state = {
     activeBucket: "all",
+    /**
+     * The active tags the pickers offer.
+     *
+     * Annotated because the empty initializer infers `never[]`, which the validated catalogue
+     * `loadTags` now returns cannot be assigned to.
+     * @type {import("../../src/types/browser-contracts.js").BrowserTagCatalogRecord[]}
+     */
     availableTags: [],
     /**
      * What `LongtailForge.fileAttachments.mount` returned for the note view, or `null` before
@@ -492,6 +499,11 @@
      * @type {BrowserNoteCollection[]}
      */
     bulkCollections: [],
+    /**
+     * The bulk tag dialog's mounted picker, or `null` before one is mounted and when the
+     * container is missing. Annotated because `null` alone infers the `null` type.
+     * @type {import("../../src/types/browser-contracts.js").BrowserTagPickerController | null}
+     */
     bulkTagPicker: null,
     collectionDialogMode: "create",
     collectionEditingId: "",
@@ -571,6 +583,10 @@
     selectedNoteIds: new Set(),
     selectedCollectionId: new URLSearchParams(window.location.search).get("collection") || "",
     filesDialogNoteId: "",
+    /**
+     * The note tag editor's mounted picker, or `null`.
+     * @type {import("../../src/types/browser-contracts.js").BrowserTagPickerController | null}
+     */
     tagPicker: null,
     tagsDialogNoteId: "",
     workspaceType: "",

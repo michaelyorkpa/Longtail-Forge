@@ -1206,6 +1206,12 @@
     });
     const cancelButton = createModalAction("Cancel", { role: "secondary" });
     const saveButton = createModalAction("Save", { role: "primary", type: "submit" });
+    /**
+     * Whatever can answer the dialog's tag ids: the mounted picker once it resolves, and this
+     * stub until then. Typed as the one method this site calls rather than as the controller, so
+     * the stub the page already relied on stays valid.
+     * @type {{readTagIds: () => string[]}}
+     */
     let tagPicker = { readTagIds: () => [] };
 
     populateParentClientSelect(parentSelect);

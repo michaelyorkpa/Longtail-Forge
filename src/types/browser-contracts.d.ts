@@ -6413,6 +6413,104 @@ export interface BrowserTagMutationEnvelope {
   tag: BrowserTagCatalogRecord;
 }
 
+/**
+ * What `loadTags` narrows its query by.
+ *
+ * Both members go straight into a `URLSearchParams`, with `"active"` and `""` as the defaults the
+ * writer supplies when the caller omits them.
+ */
+export interface BrowserTagLoadOptions {
+  search?: string;
+  status?: string;
+}
+
+/**
+ * The controller `mountPicker` resolves to.
+ *
+ * Three members, exactly as the returned literal builds them. `refreshTags` is the same function
+ * the writer registers in its mounted-picker set, so a create elsewhere refreshes this picker too.
+ */
+export interface BrowserTagPickerController {
+  /** The **directly assigned** tag identities; propagated and system tags are excluded. */
+  readTagIds(): string[];
+  refreshTags(): Promise<void>;
+  setSelected(tagIds?: unknown): void;
+}
+
+/**
+ * What `mountPicker` accepts.
+ *
+ * **`tags` and `selectedTags` are `unknown[]` on purpose.** `normalizeTagList` rebuilds whatever
+ * it is handed - catalogue tags, assignment records and effective tags all reach it - so
+ * requiring `BrowserTagCatalogRecord[]` here would be narrower than the writer, and every caller
+ * passing a propagated tag would be wrong against a contract the runtime happily accepts.
+ */
+export interface BrowserTagPickerOptions {
+  allowCreate?: boolean;
+  /** The fieldset legend; `"Tags"` when omitted. */
+  label?: string;
+  /** The entry input's placeholder; the writer supplies its own when omitted. */
+  placeholder?: string;
+  selectedTagIds?: unknown;
+  selectedTags?: unknown[];
+  tags?: unknown[];
+}
+
+/** The controller `mountFilterPicker` returns. */
+export interface BrowserTagFilterPickerController {
+  destroy(): void;
+  readValue(): string;
+  setTags(tags?: unknown[]): void;
+  setValue(value: unknown, options?: { notify?: boolean }): void;
+}
+
+/**
+ * What `mountFilterPicker` accepts.
+ *
+ * **Two members, because the writer reads two.** It signals a selection by dispatching a DOM
+ * `change` event on the input rather than by calling back, so there is no `onChange` here - and
+ * the No-Tags choice is always offered rather than gated by an option.
+ */
+export interface BrowserTagFilterPickerOptions {
+  tags?: unknown[];
+  value?: unknown;
+}
+
+/**
+ * The shared tag surface `shared/tags.js` publishes.
+ *
+ * **Eleven members, which is what the writer's object literal contains.** An earlier preflight
+ * recorded twelve; the count was wrong and is corrected here rather than reconciled by publishing
+ * a twelfth. In particular `createTagChip` is **not** published - it is internal, and the one
+ * consumer that probed for it had a guard that has always been false.
+ *
+ * **`loadTags` and `createTag` return validated records** because `0.33.33.38.4.14` closed those
+ * two wire boundaries at the writer. `suppressPropagatedTag` stays `Promise<unknown>`: its only
+ * caller awaits and discards the body, so typing it would describe a value nobody reads.
+ *
+ * The two mounts answer `null` when handed no container or input, and that is preserved rather
+ * than typed away.
+ */
+export interface BrowserTags {
+  NO_TAGS_FILTER_VALUE: string;
+  allTagsOption(): HTMLOptionElement;
+  createFilterOption(value: string, label: string): HTMLOptionElement;
+  createTag(payload?: unknown): Promise<BrowserTagCatalogRecord>;
+  loadTags(options?: BrowserTagLoadOptions): Promise<BrowserTagCatalogRecord[]>;
+  mountFilterPicker(
+    input: HTMLInputElement | null | undefined,
+    options?: BrowserTagFilterPickerOptions,
+  ): BrowserTagFilterPickerController | null;
+  mountPicker(
+    container: Element | null | undefined,
+    options?: BrowserTagPickerOptions,
+  ): Promise<BrowserTagPickerController | null>;
+  noTagsOption(): HTMLOptionElement;
+  readTagIds(container: Element | null | undefined): string[];
+  renderTagList(container: Element | null | undefined, tags?: unknown[]): void;
+  suppressPropagatedTag(assignmentId: string): Promise<unknown>;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
@@ -6463,6 +6561,7 @@ export interface LongtailForgeBrowserNamespace {
   settingsHost?: BrowserSettingsHost;
   settingsPageController?: BrowserSettingsPageController;
   status?: BrowserStatusMessage;
+  tags?: BrowserTags;
   taskResumeNoteCapture?: BrowserTaskResumeNoteCapture;
   timeEntryDialog?: BrowserTimeEntryDialog;
   timeTrackingTimerDialog?: BrowserTimeTrackingTimerDialog;

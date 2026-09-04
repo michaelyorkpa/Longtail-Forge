@@ -305,10 +305,14 @@
       wrapper,
     };
     if (filter.type === "tag") {
-      fieldState.tagFilterController = window.LongtailForge?.tags?.mountFilterPicker?.(control, {
-        tags: [],
-        value: filter.defaultValue,
-      }) || null;
+      // Narrowed here rather than by widening `BrowserViewFieldControl`: the view primitive can
+      // answer a select or a textarea, and the filter picker mounts only on an input.
+      fieldState.tagFilterController = control instanceof HTMLInputElement
+        ? window.LongtailForge?.tags?.mountFilterPicker?.(control, {
+          tags: [],
+          value: filter.defaultValue,
+        }) || null
+        : null;
     }
     reportingState.filterFields.set(filter.id, fieldState);
     setFilterValue(filter.id, filter.defaultValue);

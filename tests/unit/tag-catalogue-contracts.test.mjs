@@ -530,12 +530,16 @@ describe("this child stays inside the two catalogue producers", () => {
   });
 
   it("does not touch the namespace surface", () => {
+    // This child closed the wire so that `0.33.33.38.2.2.10` could declare the surface over
+    // honest returns. It originally asserted the declaration did not exist yet, which was the
+    // right guard for one checkpoint and is spent now that the successor has landed. What
+    // survives is the fact that outlives both: this child changed no member of the published
+    // literal, and the declaration that now exists describes that same literal rather than a
+    // wider one this child introduced.
     assert.match(shared, /namespace\.tags = \{/, "the surface is still published the same way");
     const surface = shared.slice(shared.indexOf("namespace.tags = {"), shared.indexOf("};", shared.indexOf("namespace.tags = {")));
     assert.equal((surface.match(/^\s+\w+,$/gm) || []).length, 11, "with eleven members, unchanged by this child");
-    assert.ok(!contracts.includes("export interface BrowserTags "), "and no surface interface is declared yet");
-    const namespaceBlock = functionBody(contracts, "export interface LongtailForgeBrowserNamespace {", "\n}\n");
-    assert.doesNotMatch(namespaceBlock, /^ {2}tags\?:/m, "nor is the root member declared");
+    assert.ok(!/createTagChip,/.test(surface), "and no member was added to carry the wire work");
   });
 
   it("leaves the server tag behaviour alone", () => {

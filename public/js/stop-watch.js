@@ -409,6 +409,11 @@
       this.confirmedProjectId = this.projectSelect.value;
       this.persistedActiveTimerId = "";
       this.isRestoring = false;
+      /**
+       * Whatever can answer and set this timer's tags: the mounted picker once it resolves, and
+       * this stub until then. Typed as the two methods this class calls.
+       * @type {{readTagIds: () => string[], setSelected: (tagIds?: unknown) => void}}
+       */
       this.tagPicker = { readTagIds: () => [], setSelected: () => {} };
 
       this.startTimeTracker = this.startTimeTracker.bind(this);

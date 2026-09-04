@@ -310,8 +310,12 @@
       loadTaskTimers(),
       loadTagOptions(),
     ]);
-    const source = taskResult || tasksResult || {};
-    const task = taskResult?.task || null;
+    const taskBody = isReadableJsonObject(taskResult) ? taskResult : null;
+    const listBody = isReadableJsonObject(tasksResult) ? tasksResult : null;
+    /** @type {Record<string, unknown>} */
+    const noBootstrapBody = {};
+    const source = taskBody || listBody || noBootstrapBody;
+    const task = taskBody?.task || null;
 
     return {
       currentUserId: source.currentUserId || readCurrentUserId(),
@@ -321,7 +325,7 @@
       tagOptions,
       task,
       taskTimers: requireTaskRecords().readTaskTimers(timersResult),
-      tasks: tasksResult?.tasks || (task ? [task] : source.tasks || []),
+      tasks: listBody?.tasks || (task ? [task] : source.tasks || []),
     };
   }
 
@@ -945,8 +949,17 @@
     "client_id", "client_name", "project_id", "project_name", "status", "task_id", "title", "url",
   ]);
 
-  /** @param {unknown} value @returns {value is Record<string, unknown>} */
-  function isTaskRelationshipRecord(value) {
+  /**
+   * A JSON value this dialog can read members off.
+   *
+   * It serves the relationship reads it was written for and the standalone bootstrap, whose four
+   * requests resolve through one `Promise.all`: TypeScript widens that tuple's heterogeneous
+   * elements to `{}`, which was masked while the tag load answered `any`. The check the bootstrap
+   * needed was already here, so it is reused and renamed rather than written twice.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isReadableJsonObject(value) {
     return typeof value === "object" && value !== null && !Array.isArray(value);
   }
 
@@ -964,7 +977,7 @@
    * @returns {boolean}
    */
   function isRelatedTaskSummary(value) {
-    return isTaskRelationshipRecord(value)
+    return isReadableJsonObject(value)
       && hasTaskRelationshipText(value, RELATED_TASK_TEXT_MEMBERS)
       && (value.estimate_minutes === null || typeof value.estimate_minutes === "number");
   }
@@ -981,7 +994,7 @@
    * @returns {value is BrowserTaskRelationship}
    */
   function isTaskRelationship(value) {
-    if (!isTaskRelationshipRecord(value)
+    if (!isReadableJsonObject(value)
       || !hasTaskRelationshipText(value, TASK_RELATIONSHIP_TEXT_MEMBERS)
       || typeof value.is_blocking !== "boolean"
       || !TASK_RELATIONSHIP_DIRECTIONS.some((word) => word === value.direction)) {
@@ -1005,7 +1018,7 @@
    * @returns {BrowserTaskRelationship[] | null}
    */
   function readTaskRelationships(body) {
-    if (!isTaskRelationshipRecord(body) || !Array.isArray(body.relationships)) {
+    if (!isReadableJsonObject(body) || !Array.isArray(body.relationships)) {
       return null;
     }
 
