@@ -49,6 +49,7 @@
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserListItem} BrowserListItem */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserListLink} BrowserListLink */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserListDetail} BrowserListDetail */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListItemSuggestion} BrowserListItemSuggestion */
 
   /** The list columns the table declares `NOT NULL` and the shapers spread untouched. */
   const LIST_TEXT_COLUMNS = Object.freeze([
@@ -1877,6 +1878,71 @@
     setFormValue(form, "save_to_catalog", "");
   }
 
+  /** The suggestion columns `list_item_catalog` declares nullable and the picker reads as text. */
+  const SUGGESTION_NULLABLE_COLUMNS = Object.freeze(["notes", "unit", "url", "vendor_name"]);
+
+  /**
+   * A count the catalogue guarantees is a finite number at or above zero.
+   *
+   * `quantity` and `use_count` are both `NOT NULL` with `CHECK (>= 0)`, and `estimated_cost`
+   * carries the same check when it is not null. `Number.isFinite` rather than `typeof` because a
+   * `NaN` reaching a quantity field would autofill an unusable value.
+   * @param {unknown} value
+   * @returns {value is number}
+   */
+  function isCatalogAmount(value) {
+    return typeof value === "number" && Number.isFinite(value) && value >= 0;
+  }
+
+  /**
+   * One catalog suggestion, in the nine members this picker reads.
+   *
+   * **A structural minimum over an extensible record.** `shapeCatalogItemForBrowser` answers
+   * `{ ...item, id }`, so the suggestion carries every catalogue column and whatever it grows
+   * next. Promising more than the picker reads would make this page the owner of the catalogue's
+   * persistence shape; promising less would let an unusable candidate into a form.
+   * @param {unknown} value
+   * @returns {value is BrowserListItemSuggestion}
+   */
+  function isItemSuggestion(value) {
+    return isResponseRecord(value)
+      && typeof value.catalog_item_id === "string"
+      && value.catalog_item_id !== ""
+      && typeof value.item_name === "string"
+      && value.item_name !== ""
+      && isCatalogAmount(value.quantity)
+      && isCatalogAmount(value.use_count)
+      && (value.estimated_cost === null || isCatalogAmount(value.estimated_cost))
+      && hasListNullableText(value, SUGGESTION_NULLABLE_COLUMNS);
+  }
+
+  /**
+   * The usable suggestions of an item-suggestions body, or `null` when it is not one.
+   *
+   * **The envelope and the element are judged differently, and deliberately.** A missing or
+   * non-array `suggestions` means the body is not one this producer sent, and there is nothing
+   * to show; a single malformed suggestion is one unusable candidate among usable ones.
+   *
+   * Suggestions are advisory - a shortcut for filling a form the viewer can fill by hand - so
+   * dropping a candidate costs a convenience, not an account of anything. That is why this
+   * differs from an authoritative list, where a short answer presented as a complete one is the
+   * misleading outcome. What must not happen is a malformed candidate reaching the datalist, the
+   * autofill or the `catalog_item_id` the form submits, and refusing per element is what prevents
+   * that while leaving the usable ones usable.
+   *
+   * **The producer's own objects are answered, not rebuilt**, so the `id` alias, the list-type
+   * and context columns, the usage metadata and anything the catalogue adds later all survive.
+   * @param {unknown} body
+   * @returns {BrowserListItemSuggestion[] | null}
+   */
+  function readItemSuggestions(body) {
+    if (!isResponseRecord(body) || !Array.isArray(body.suggestions)) {
+      return null;
+    }
+
+    return /** @type {BrowserListItemSuggestion[]} */ (body.suggestions.filter(isItemSuggestion));
+  }
+
   async function loadItemSuggestions(list) {
     const api = requireApi();
     if (!list?.list_id) {
@@ -1888,8 +1954,12 @@
       listId: list.list_id,
     });
     try {
-      const result = await api.getJson(`/api/lists/item-suggestions?${params}`, { cache: "no-store" });
-      const suggestions = result.suggestions || [];
+      const suggestions = readItemSuggestions(await api.getJson(`/api/lists/item-suggestions?${params}`, { cache: "no-store" }));
+
+      if (!suggestions) {
+        throw new Error("The item suggestions could not be read.");
+      }
+
       state.itemSuggestions.set(list.list_id, suggestions);
       return suggestions;
     } catch {
