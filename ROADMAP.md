@@ -511,6 +511,10 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **Complete: 2 diagnostics, an exact eight-member envelope, and the surface decision `0.33.33.38.4.2` carried forward.** See the archive entry. `GET /api/notes/for-target` is one producer with two consumers, and the reader lives on `notesLinkedPanel` - already declared, already delivered to Tasks before its own script - so **no column table was duplicated and no namespace surface was added**. The envelope is exact and all eight members are named, but `notes` stays `unknown[]`: it is a compatibility projection nothing on this path reads into, and claiming it would make this endpoint the owner of a second exhaustive note projection.
 
+#### 0.33.33.38.4.2.2 - The note mutation identity
+
+**Complete: 1 diagnostic, zero new contracts.** See the archive entry. `0.33.33.38.4.2` closed the `{ note }` envelope for `GET/PUT/POST /api/notes[/:id]` and published `BrowserNoteRecord` with `requireNoteFromEnvelope`; `mutateNote` was the one call site that still reached through a raw `result.note.note_id`. **The producer is the archive and restore pair, not create** - `mutateNote` serves only those two routes, and both answer the same envelope through `shapeNoteForWorkspaceRead`. So this child adds no note model, no second parser and no column table: it adopts the boundary that already exists, and takes its non-empty identifier from the proof `isNoteListItem` already carries. The unconsumed `searchDocument` stays outside the browser promise, where a sibling contract had already recorded it.
+
 #### 0.33.33.38.4.3 - The Tasks response family
 
 **Resliced from the live tree: 64 diagnostics, not the 34 this line used to record, and they are seven producers rather than one.** `tasks.js` 38, `task-dialog.js` 14, `workbench.js` 12. The single-task records were the largest coherent group and are closed; the rest are drawn below by producer.
