@@ -5356,11 +5356,41 @@
     return empty;
   }
 
+  /**
+   * The one preference this page reads from `GET /api/user/settings`, or `null`.
+   *
+   * **This is a structural one-member read of a richer exact producer.** `usersService.readSettings`
+   * reconstructs fourteen members and `BrowserUserSettings` declares every one of them, but this
+   * page consumes exactly one scalar. Validating that scalar does not entitle this reader to claim
+   * it checked the other thirteen, so it answers the boolean rather than the body, and the full
+   * User Settings reader stays where it belongs - on the page that owns that estate.
+   *
+   * **`=== true` is not a check.** The raw read the page used to make turned a missing member, a
+   * string `"false"` and an error body alike into a valid `false` preference, and then wrote that
+   * fabricated `false` over the viewer's cached preference. The member has to *be* a boolean before
+   * either of its values means anything: `normalizeBooleanPreference` guarantees the producer sends
+   * one, so anything else is a body this page did not ask for.
+   * @param {unknown} body
+   * @returns {boolean | null}
+   */
+  function readOpenExternalLinksNewTab(body) {
+    if (!isResponseRecord(body)) {
+      return null;
+    }
+
+    return typeof body.openExternalLinksNewTab === "boolean" ? body.openExternalLinksNewTab : null;
+  }
+
   async function loadMarkdownRenderingPreference() {
     const api = requireApi();
     try {
-      const settings = await api.getJson("/api/user/settings", { cache: "no-store" });
-      state.openExternalLinksNewTab = settings.openExternalLinksNewTab === true;
+      const preference = readOpenExternalLinksNewTab(await api.getJson("/api/user/settings", { cache: "no-store" }));
+
+      if (preference === null) {
+        throw new Error("The external-link preference could not be read.");
+      }
+
+      state.openExternalLinksNewTab = preference;
       state.settingsLoaded = true;
       storeOpenExternalLinksPreference(state.openExternalLinksNewTab);
     } catch {

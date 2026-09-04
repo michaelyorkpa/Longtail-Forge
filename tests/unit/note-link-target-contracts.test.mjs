@@ -366,9 +366,15 @@ describe("the notes consumer", () => {
   });
 
   it("leaves the other Notes producers to their own children", () => {
-    for (const other of ["result.revisions || []", "settings.openExternalLinksNewTab"]) {
+    for (const other of ["result.revisions || []"]) {
       assert.ok(page.includes(other), other + " is another child's read and is untouched");
     }
+    // `settings.openExternalLinksNewTab` was on this list until `0.33.33.38.4.5.8` adopted the
+    // User Settings producer's own boolean for the external-link preference. A sibling child
+    // doing its job is not this one widening, so the claim is asserted against that reader -
+    // anchored on the call site, because the reader's own definition also contains its name.
+    assert.match(page, /readOpenExternalLinksNewTab\(await api\.getJson\("\/api\/user\/settings"/,
+      "settings.openExternalLinksNewTab is another child's read and is untouched");
     // `result.note.note_id` was on this list until `0.33.33.38.4.2.2` adopted the established
     // note boundary for the archive and restore mutations. A sibling child doing its job is not
     // this one widening, so the claim is asserted against that boundary - anchored on the call
