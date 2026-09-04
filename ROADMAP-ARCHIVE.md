@@ -1,5 +1,32 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.9.6 - The attachment count response
+
+**Model: High Effort** - one diagnostic, and a producer whose two returns are not the same shape.
+
+- [x] **Two returns, one optional member.** `countAttachmentsForTargets` answers `{ counts: {} }` and nothing else when the request named no module, no target type or no targets; the full answer carries `meta` beside the tally. `meta` is therefore **optional in the contract because one of the producer's own returns omits it** - a distinction a contract written from the happy path alone would have missed. Three breaks defend it: one makes the empty return carry a meta, one makes the tally optional, one makes the meta required.
+- [x] **A zero here means the server looked.** Every requested target id is written into the tally as zero **before** any attachment is counted, so a task showing no attachments is a measured answer rather than a missing key. Two breaks attack that - removing the seeding, and moving it after the tally - and both are refused.
+- [x] **The tally is a permission answer, not a lookup.** It increments only for ids that are both requested and in `readableAttachmentTargetIds`, and only counts `available` attachments. Without that second set the endpoint would report attachment counts for records the caller cannot read, which is a way to probe for their existence. Three breaks remove the readable set, drop the check, or count removed attachments.
+- [x] **`readableTargets` is a count and not a list.** The meta says how many of the requested targets the caller may read without naming which, and a break that answers the ids themselves is refused.
+- [x] **An unreadable tally is no longer "no task has an attachment".** `result.counts || {}` accepted any body at all; a malformed count now refuses the whole tally. The helper still answers its pre-existing best-effort `{}` on failure - its `catch` predates this child - and what the proof adds is that the refusal lands in that catch rather than escaping the helper.
+- [x] **`meta` is declared and not read.** The page renders only the counts, so a body whose meta is missing, wrong or absurd must not decide whether the tally is readable, and a break that makes the reader refuse over it is refused.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **26 breaks across the Files service, the route, the declaration and the consumer, all 26 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,300 | **8,299** |
+| Genuine `unknown` | 13 | **12** |
+| params / state / dom / namespace / assorted | 4,602 / 1,730 / 1,484 / 319 / 152 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,167 / 530 / 968 / 1,558 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,183 / 348 / 167 | **1,199 / 348 / 167**, green |
+
+**1 elimination, no transfers, no contextual fallout, no new namespace surface.** No static owner needed retargeting.
+
+**One guard is pinned by source rather than by behaviour**, for the third time in this run and for the same reason: removing the record check makes `Object.keys` throw on a null tally rather than refuse, so what a break changes is a clean refusal into a crash. The array half of that guard is still proved behaviourally; the rest is pinned, and a break that removes it entirely is refused by the pin.
+
 ## Version 0.33.33.38.4.4.4.1 - The executable User Admin bootstrap responses
 
 **Model: High Effort** - three diagnostics, three producers, one transaction, and a shared normaliser that was evaluated properly and then declined.
