@@ -774,6 +774,12 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **Not drawn from a count, drawn from what `0.33.33.38.4.10` deliberately left.** `/api/notifications` itself, the read/dismiss mutations, and the display-preference routes are separate producers that no declared surface currently exposes; `notifications.js` reads them directly. **Size this the way `.4.10` was sized** - by declaring nothing and probing, because these bodies are invisible to the classifier for the same reason those were.
 
+#### 0.33.33.38.4.13.1 - The notification-list response
+
+**Complete: 0 visible diagnostics closed, 2 latent JSON trust boundaries closed, six contracts, and 2 contextual eliminations.** See the archive entry. **This child moves a number the classifier cannot see.** `Response.json()` is typed `any` by the DOM lib, so neither consumer's read was in the `unknown` family at all - the visible count was 2 before and is 2 after, and the movement is the two `any`-leaking reads becoming validated reads from `unknown`. The envelope is **exact at three**, and the record is exact too because `decorateForSession` spreads `notificationRowToAppValue`'s **total** reconstruction. **The URL trace found a real server defect** and this child refuses the value rather than blessing it; see the finding below.
+
+**A security finding, recorded rather than fixed here.** `safeRelativeUrl` in `notifications.service.js` and `safeUrl` in `core/events/event-summaries.js` are the same guard, and both reject any value carrying a URI scheme - which stops `javascript:`, `data:` and `vbscript:`. Neither rejects a **protocol-relative** URL. `//host/path`, `/\host/path` and `\/host/path` all carry no scheme, all pass, and all resolve against the page to `https://host/path` - a different origin, reached from an `href` the notification list renders. Every `payload.url` writer in the tree today is a first-party literal, so **no attacker-controlled path is proven**; this is a defence-in-depth guard that does not hold, not a live exploit. **The browser boundary refuses those forms and the server guard is untouched**, because correcting two server helpers is its own change and hiding it inside a parser would be the wrong way to land it.
+
 #### 0.33.33.38.5 - Narrow the server task lifecycle status vocabulary
 
 **Model: Medium Effort - 16 measured sites in one module, and a proven runtime guarantee.** Inherited from `0.33.33.37`.
