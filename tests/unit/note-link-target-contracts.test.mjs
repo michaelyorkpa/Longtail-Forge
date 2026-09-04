@@ -366,8 +366,14 @@ describe("the notes consumer", () => {
   });
 
   it("leaves the other Notes producers to their own children", () => {
-    for (const other of ["result.revisions || []", "result.note.note_id", "settings.openExternalLinksNewTab"]) {
+    for (const other of ["result.revisions || []", "settings.openExternalLinksNewTab"]) {
       assert.ok(page.includes(other), other + " is another child's read and is untouched");
     }
+    // `result.note.note_id` was on this list until `0.33.33.38.4.2.2` adopted the established
+    // note boundary for the archive and restore mutations. A sibling child doing its job is not
+    // this one widening, so the claim is asserted against that boundary - anchored on the call
+    // site, because the reader's own definition also contains its name.
+    assert.match(page, /await selectNote\(requireNoteFromEnvelope\(result\)\.note_id\);/,
+      "result.note.note_id is another child's read and is untouched");
   });
 });

@@ -211,9 +211,15 @@ describe("the notes consumer", () => {
   });
 
   it("leaves the other note producers to their own children", () => {
-    for (const other of ["result.revisions || []", "result.note.note_id"]) {
+    for (const other of ["result.revisions || []"]) {
       assert.ok(consumer.includes(other), other + " is another child's read and is untouched");
     }
+    // `result.note.note_id` was on this list until `0.33.33.38.4.2.2` adopted the established
+    // note boundary for the archive and restore mutations. A sibling child doing its job is not
+    // this one widening, so the claim is asserted against that boundary - anchored on the call
+    // site, because the reader's own definition also contains its name.
+    assert.match(consumer, /await selectNote\(requireNoteFromEnvelope\(result\)\.note_id\);/,
+      "result.note.note_id is another child's read and is untouched");
     // `result.targets || []` was on this list until `0.33.33.38.4.12.2` claimed the link-target
     // directory. A sibling child doing its job is not this one widening, so the claim is now
     // asserted against that boundary - anchored on the call site, because the reader's own

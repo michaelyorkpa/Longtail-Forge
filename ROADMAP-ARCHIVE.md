@@ -1,5 +1,34 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.2.2 - The note mutation identity
+
+**Model: High Effort** - one diagnostic and one line of runtime change, which is what a correct reuse decision costs when the boundary it reuses was built properly.
+
+- [x] **The producer is the archive and restore pair, and the trace said so before the typing did.** The remaining read was reported as the create response; `mutateNote` is called from exactly two places, `POST /api/notes/:noteId/archive` and `.../restore`, and its catch has always said "Note could not be updated." Both routes answer `{ note: await shapeNoteForWorkspaceRead(session, note) }` - the same envelope family `0.33.33.38.4.2` closed - so the adoption decision is unchanged by the correction, but the checkpoint is drawn under the child that owns that envelope rather than under a create response that has no live read.
+- [x] **Nothing new was declared.** `BrowserNoteRecord` and `requireNoteFromEnvelope` already exist and already prove exactly what this call site needs. Four breaks attack that discipline: declaring a second note response model, adding a second envelope reader, adding a second note predicate, and promising the search document. **A second reader named `requireNoteFromEnvelope2` initially slipped past a name-exact count**, which is why the count now allows a trailing name.
+- [x] **The identifier's guarantee is inherited, not re-asserted.** `isNoteListItem` already refuses `note_id === ""`, so the mutation takes the id straight off the vouched note and invents no fallback. Breaks that remove that refusal or add a `|| ""` are both refused.
+- [x] **The lists still refresh before the response is read, and that ordering is deliberate.** The write has already committed by the time the body arrives, so `loadCollections` and `loadNotes` run first and only then is the envelope vouched for. A break that vouches before the refresh is refused: a response the page cannot read must not also cost the user the refreshed list of a change that did happen.
+- [x] **The post-write case is recorded rather than redesigned.** When the body is unreadable the page says "Note could not be updated.", which is not quite true - the note *was* updated and only the response could not be read. Distinguishing those two is a mutation-acknowledgement question, not a response-boundary one, and this child does not open it. What it removes is the `TypeError` that used to occur on the same path, replacing it with the named error `requireNoteFromEnvelope`'s own doc comment was written for.
+- [x] **`searchDocument` stays unclaimed.** The create producer answers it beside the note and no browser code reads it. A sibling note contract already records it among the members deliberately not promised, and this child asserts that sentence still stands rather than writing a second one - a break that removes it is refused, and so is one that turns the member into a browser promise.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **25 breaks across the Notes service, its routes, the declaration and the consumer, all 25 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,287 | **8,286** |
+| Genuine `unknown` | 11 | **10** |
+| params / state / dom / namespace / assorted | 4,602 / 1,718 / 1,484 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 480 / 1,167 / 530 / 968 / 1,558 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,228 / 348 / 167 | **1,243 / 348 / 167**, green |
+
+**1 elimination, no transfers, no contextual fallout, no new contract and no new namespace surface.**
+
+**Two sibling pins were retargeted, and both were this run's own.** `0.33.33.38.4.12.1` and `0.33.33.38.4.12.2` had each named `result.note.note_id` as a read they deliberately left alone; it is this child's now, so both assert the boundary instead - anchored on the call site, because the reader's own definition also contains its name. Three bite-proofs.
+
+**Three proof flaws the harness caught, all in the proof.** The one-reader count demanded a paren immediately after the name and so missed a second reader called `requireNoteFromEnvelope2`. The malformed-column loop tested only base columns, so removing the detail-column check changed nothing it looked at. And an ordering assertion searched for one spelling of the vouching call's argument rather than for the call, so a break that rewrote the argument failed the presence check instead of the ordering claim.
+
 ## Version 0.33.33.38.4.12.2 - The Notes link-target directory response
 
 **Model: High Effort** - one diagnostic, twelve more that fell out beside it, and the clearest exact-versus-minimum case this run has produced.

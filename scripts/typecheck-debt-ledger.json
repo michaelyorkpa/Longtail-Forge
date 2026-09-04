@@ -394,6 +394,7 @@
         "tests/unit/markdown-preview-contracts.test.mjs",
         "tests/unit/note-catalog-settings-contracts.test.mjs",
         "tests/unit/note-link-target-contracts.test.mjs",
+        "tests/unit/note-mutation-identity-contracts.test.mjs",
         "tests/unit/note-response-contracts.test.mjs",
         "tests/unit/notes-effective-security.test.mjs",
         "tests/unit/notification-response-contracts.test.mjs",
@@ -521,7 +522,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8287,
+      "errorCount": 8286,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1062,7 +1063,7 @@
         "public/js/notes.js": [
           {
             "code": 18046,
-            "count": 3
+            "count": 2
           },
           {
             "code": 18047,
@@ -2731,8 +2732,8 @@
     }
   },
   "totals": {
-    "files": 1102,
-    "errors": 8287,
+    "files": 1103,
+    "errors": 8286,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
