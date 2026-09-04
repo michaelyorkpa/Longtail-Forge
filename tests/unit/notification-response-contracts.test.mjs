@@ -178,8 +178,12 @@ describe("the published subscription surface", () => {
 });
 
 describe("the published preference surface", () => {
+  // `GROUPING_MODES` joined this sandbox when `0.33.33.38.4.13.3` moved the vocabulary out of an
+  // inline array literal and into the frozen table the declared type already describes. The
+  // assertions below are unchanged: they still read the vocabulary from the declaration and
+  // exercise the shipped normaliser against it.
   const payloadBuilders = sandbox(preferencesSource, {
-    tables: [],
+    tables: ["GROUPING_MODES"],
     functions: ["normalizeGroupingMode", "normalizeGroupingPreferences", "readGroupingPreferencesPayload",
       "readUserPreferencesPayload", "readWorkspaceDefaultsPayload"],
   });
@@ -355,9 +359,13 @@ describe("notification preference responses", () => {
 
   it("is wired into the member that crosses the boundary", () => {
     const block = extractFunctionBlock(preferencesSource, "loadPreferences");
+    // Retargeted when `0.33.33.38.4.13.3` made the parsed body `unknown`: the elements are still
+    // filtered by the same predicate, but they are read off the guarded `catalog` rather than
+    // straight off `body`. What this owner asserts is the element check, not the spelling of the
+    // value being checked.
     assert.match(
       block,
-      /Array\.isArray\(body\?\.events\) \? body\.events\.filter\(isEventPreference\) : \[\]/,
+      /Array\.isArray\(catalog\.events\) \? catalog\.events\.filter\(isEventPreference\) : \[\]/,
       "loadPreferences must check the elements it returns, not only that the container is an array",
     );
     for (const member of ["readStatus", "follow", "unfollow"]) {

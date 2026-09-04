@@ -3,6 +3,14 @@
 
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserNotificationEventPreference} BrowserNotificationEventPreference */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserNotificationPreferenceCatalog} BrowserNotificationPreferenceCatalog */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserNotificationGroupingMode} BrowserNotificationGroupingMode */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserNotificationGroupingPreferences} BrowserNotificationGroupingPreferences */
+
+  /**
+   * The grouping vocabulary, which `BrowserNotificationGroupingMode` already declares.
+   * @type {readonly BrowserNotificationGroupingMode[]}
+   */
+  const GROUPING_MODES = Object.freeze(["client_project", "notification_type", "record_type"]);
 
   /** The text members `preferences()` constructs for every configurable event. */
   const EVENT_TEXT_MEMBERS = Object.freeze([
@@ -71,10 +79,16 @@
       throw apiError(body, "Notification preferences unavailable.", response.status);
     }
 
+    // The catalogue is rebuilt from an `unknown` body rather than read through it. Every
+    // behaviour `0.33.33.38.4.10` settled is preserved exactly: a missing or non-array `events`
+    // becomes `[]`, a malformed element is dropped, `canManageWorkspaceDefaults` is true only for
+    // the literal, and a malformed grouping preference falls back to `client_project`.
+    const catalog = isResponseRecord(body) ? body : {};
+
     return {
-      canManageWorkspaceDefaults: body?.canManageWorkspaceDefaults === true,
-      events: Array.isArray(body?.events) ? body.events.filter(isEventPreference) : [],
-      groupingPreferences: normalizeGroupingPreferences(body?.groupingPreferences),
+      canManageWorkspaceDefaults: catalog.canManageWorkspaceDefaults === true,
+      events: Array.isArray(catalog.events) ? catalog.events.filter(isEventPreference) : [],
+      groupingPreferences: normalizeGroupingPreferences(catalog.groupingPreferences),
     };
   }
 
@@ -368,14 +382,25 @@
     })).filter((event) => event.id);
   }
 
+  /**
+   * The viewer's grouping preference, normalised from whatever the body carried.
+   *
+   * Takes `unknown` because that is what the parsed body is. The two spellings and the
+   * `client_project` fallback are `0.33.33.38.4.10`'s and are unchanged.
+   * @param {unknown} groupingPreferences
+   * @returns {BrowserNotificationGroupingPreferences}
+   */
   function normalizeGroupingPreferences(groupingPreferences = {}) {
+    const record = isResponseRecord(groupingPreferences) ? groupingPreferences : {};
+
     return {
-      groupingMode: normalizeGroupingMode(groupingPreferences?.groupingMode || groupingPreferences?.grouping_mode),
+      groupingMode: normalizeGroupingMode(record.groupingMode || record.grouping_mode),
     };
   }
 
+  /** @param {unknown} value @returns {BrowserNotificationGroupingMode} */
   function normalizeGroupingMode(value) {
-    return ["client_project", "notification_type", "record_type"].includes(value) ? value : "client_project";
+    return GROUPING_MODES.find((mode) => mode === value) || "client_project";
   }
 
   function groupingOptions(workspaceType) {
@@ -395,6 +420,20 @@
     ];
   }
 
+  /**
+   * The parsed body of one response, as `unknown`.
+   *
+   * **`JSON.parse` returns `any`, and without this annotation that `any` reached three callers.**
+   * The transport here is a raw `fetch` rather than `BrowserApi`, so nothing else was going to
+   * say what the parsed text is - and the three consumers below normalise from it rather than
+   * reading it, which is only a truthful thing to say once the input is `unknown`.
+   *
+   * The shapes it can answer are unchanged: `null` for an empty body, the parsed value, `null`
+   * for unparsable text on an OK response, and `{ error: text }` for unparsable text on a
+   * failure, which the error helper reads.
+   * @param {Response} response
+   * @returns {Promise<unknown>}
+   */
   async function parseJsonResponse(response) {
     const text = await response.text();
 
