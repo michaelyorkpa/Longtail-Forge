@@ -1,5 +1,38 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.5.7 - The module settings catalog sections
+
+**Model: High Effort** - one diagnostic, and the discipline was in what the child refused to type rather than in what it typed.
+
+- [x] **Exactness is per producer level, and this catalog has three of them.** `settingsCatalogService.read` names `attachmentPoints` and `attachments` with no top-level spread, and `createEmptyAttachments` fixes four placement containers - both exact. Beneath them, `findOrCreateSection` spreads module metadata and `hydrateContribution` spreads a module's own contribution, so the section and the setting are **structural minimums**. Five breaks attack the exact levels and three the minimum ones.
+- [x] **Two members, because the collector trusts two.** `collectContributedSettingsPayload` reads `setting.id` and tests `setting.target === "framework"`. The renderer owns everything else - label, type, options, value, visibility - and naming those here would publish a thinner second copy of a contract this child does not own. A break that promises `label` is refused, and so is one that publishes a wider catalog model.
+- [x] **The two guarantees this child leans on are proved at their source, not re-derived.** A contributed setting's `id` is validated against `IDENTIFIER_PATTERN` by the manifest contract, so an empty one cannot reach a loaded module. And `target: "framework"` is **reserved**: the same validator rejects a module that claims it. That reservation is what makes the collector's one-word test safe, and three breaks - dropping the pattern, opening the vocabulary, releasing the reserved word - are all refused.
+- [x] **Server-side eligibility stays server-side.** Disabled modules contribute nothing, the module placement requires `workspace_settings.manage`, and a framework definition must pass its own workspace eligibility. Four breaks attack that chain, and a fifth refuses a browser that re-derives the permission name.
+- [x] **The raw catalog is inspected before any fallback.** `settingsHost.attachmentSections` answers `[]` for a body it cannot use. That is the correct answer for a picker and the wrong one here, because by the time this page sees the `[]` it can no longer tell a module that contributes nothing from a catalog it could not read - and it rendered "No configurable module settings are available." for both. The load now reads the raw catalog first and takes the page's existing **"Settings could not be loaded"** path when it cannot; the genuinely empty page keeps its own sentence. **The shared host is not redesigned**: the render path still calls it, and a break that rewires the render is refused.
+- [x] **A save whose refresh cannot be read still says the settings were saved.** The write has already committed by then, so the page reports the refresh rather than the write, keeps the sections already on screen, and installs nothing it could not vouch for. Two breaks - reporting "Settings were not saved." and installing the unread catalog - are both refused.
+- [x] **The producer's own sections and settings are answered, not rebuilt.** A break that rebuilds them to the promised minimum is refused by an assertion that the renderer's members survive, and three fixtures prove an unpromised member at the catalog, section and setting level is accepted and preserved.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **41 breaks across the catalog service, the modules service, the manifest contract, the shared settings host, the declaration and the page, all 41 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,285 | **8,282** |
+| Genuine `unknown` | 9 | **8** |
+| dom | 1,484 | **1,483** |
+| state | 1,718 | **1,717** |
+| params / namespace / assorted | 4,602 / 319 / 153 | **all unchanged** |
+| `0.33.33.44` remaining page controllers | 1,558 | **1,557** |
+| `.39` / `.40` / `.41` / `.42` / `.43` | 1,770 / 480 / 1,167 / 530 / 968 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,258 / 348 / 167 | **1,282 / 348 / 167**, green |
+
+**1 elimination and 2 contextual eliminations, no transfers and no new debt.** Measured against `HEAD`'s own copy of the page, every diagnostic code is at or below where it started: `TS18046` 6 to 5, `TS2339` 3 to 2, `TS7053` 1 to 0.
+
+**The first attempt added three diagnostics and measurement caught all three.** Two were new `moduleSettingsForm?.dataset` reads - this child needs the form's module id in four places, and the page was reading it separately in each. Routing all four through one helper left **one** read where there had been four, which is where the `dom` reduction comes from. The third was a `TS7053` on `frameworkSettings[setting.id]`, which appeared precisely *because* `setting.id` is now typed; the accumulator says what it holds.
+
+**Two proof flaws the harness caught.** The envelope membership scan used `:` alone and so could not see `attachments` as the shorthand property it is - the third time this estate has been caught by that exact blind spot. And a count of the new helper's uses included its own declaration, reporting five uses of a helper used four times.
+
 ## Version 0.33.33.38.4.9.7 - The attachment-panel list adoption
 
 **Model: High Effort** - one diagnostic, no new contract, and a duplication that had to be argued for rather than apologised for.

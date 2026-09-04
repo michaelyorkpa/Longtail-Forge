@@ -639,6 +639,10 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **Complete: 2 diagnostics, one shaper, two routes, and two members that are constants rather than data.** See the archive entry. `readLatest` and `create` both end in `toBrowserReceipt`, so there is one receipt; `secureNotesKeyIncluded` and `status` are written literally by the shaper and are therefore declared and **checked** as the literals they are. The readout had been turning an unreadable body into **"no backup has been taken"** - the most misleading thing a backup summary can say - and the create path had been able to say it beside a package it had just built.
 
+#### 0.33.33.38.4.5.7 - The module settings catalog sections
+
+**Complete: 1 diagnostic, two contracts, two contextual, and the fifth producer of this rollup typed only as far as a consumer needed it.** See the archive entry. `0.33.33.38.4.5` said the catalog would stay untyped until a child actually needed it; this is that child, and it needs **two members of a setting**. The envelope is exact at two and the placements at four, but the section and the setting are **structural minimums over an extensible contribution** - the settings renderer owns labels, types, options and values, and the reader answers the producer's own objects so it still sees them. `attachmentSections` answers `[]` for a catalog it cannot use, which is right for a picker and wrong here: by then the page cannot tell "this module contributes nothing" from "the catalog could not be read", and it printed the same sentence for both. The page now inspects the raw catalog first, and a save whose refresh cannot be read says the settings **were** saved.
+
 #### 0.33.33.38.4.6 - The client, project and calendar-subscription bodies
 
 **Resliced: 22 live diagnostics and three producer families, not one.** The reuse trace this line called for was run and it answered *no*: `clientProjectOptions` normalises into a **different vocabulary** - camelCase billing members and a two-word status - so it describes what the browser builds, never what the wire sends.
