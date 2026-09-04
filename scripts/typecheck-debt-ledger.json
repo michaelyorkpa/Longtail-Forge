@@ -367,6 +367,7 @@
         "tests/unit/api-key-contracts.test.mjs",
         "tests/unit/asset-version.test.mjs",
         "tests/unit/attachment-count-contracts.test.mjs",
+        "tests/unit/attachment-panel-list-contracts.test.mjs",
         "tests/unit/audit-log-contracts.test.mjs",
         "tests/unit/bounded-pagination.test.mjs",
         "tests/unit/bulk-action-response-contract.test.mjs",
@@ -522,7 +523,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8286,
+      "errorCount": 8285,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1253,7 +1254,7 @@
         "public/js/shared/file-attachments.js": [
           {
             "code": 18046,
-            "count": 2
+            "count": 1
           },
           {
             "code": 2339,
@@ -2732,8 +2733,8 @@
     }
   },
   "totals": {
-    "files": 1103,
-    "errors": 8286,
+    "files": 1104,
+    "errors": 8285,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
