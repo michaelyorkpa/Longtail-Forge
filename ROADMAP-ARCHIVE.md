@@ -1,5 +1,32 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.13.2 - The notification bell-summary response
+
+**Model: High Effort** - nine members, five of which are counts of three different populations.
+
+- [x] **Exact at nine, and the aliases are real aliases.** `readBellSummaryForRecipient` reconstructs the summary by name from one aggregate row and spreads nothing. `count` and `unreadCount` are written from the **same** `badge_count` sum, so the reader requires them to be equal; `totalUnreadCount` must be `unreadCount + lowPriorityUnreadCount`, because the badge sum and the low-priority sum partition the unread population between them. Four breaks attack that arithmetic, two of them in the producer's SQL.
+- [x] **The priority counts are not a subset of the unread count, and the reader must not pretend otherwise.** `urgent_priority_count` and `high_priority_count` sum over `status IN ('unread', 'read')`. A recipient who has read every urgent notification still has an urgent count with nothing unread, and a fixture proves that body is **valid**. A break that adds `urgentPriorityCount <= unreadCount` is refused.
+- [x] **Every member is checked by name, and that is a typing requirement rather than a style choice.** The first draft looped over two frozen tables of member names. `every` proves the values at runtime but narrows nothing, so the coherence arithmetic beneath it was reading `unknown` - **four new `TS18046` diagnostics, caught by measurement**. Naming each member is what makes the rules checkable at all, and a break that reintroduces the loop is refused.
+- [x] **A malformed summary is not a summary of zero.** The producer answers a genuine all-zero summary, and the raw handoff made that indistinguishable from an unreadable one. The reader refuses; the catch still resets the badge, which is the **page's own degradation choice** and is now commented as such where it happens. Two breaks refuse a reader that manufactures a zero itself or drops that comment.
+- [x] **`applyNotificationSummary` is left alone for its other caller.** It also receives `shell.notificationSummary` from the bootstrap, which is an already-trusted internal source. Narrowing one caller is this child's whole scope; three breaks refuse rewriting the helper, rerouting the bootstrap through this reader, or changing the call-site count.
+- [x] **The bulk mutation routes answer this same summary and stay unparsed.** `read-all` and `dismiss-all` both return a bell summary; every browser caller checks `ok` and refetches. Publishing a contract for a body nobody reads would be dead code, and three breaks refuse one being added.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **41 breaks across navigation, the notifications page, the notifications service, the repository, the routes and the declaration, all 41 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,270 | **8,270** |
+| Visible genuine `unknown` | 2 | **2** |
+| Notification-family raw JSON trust sites | 3 | **2** |
+| every canonical family and owner budget | - | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,446 / 348 / 167 | **1,468 / 348 / 167**, green |
+
+**Zero visible movement, and that is the correct result.** Measured against `HEAD`'s own copy of `navigation.js`, every diagnostic code is identical. This read was `any`, so closing it cannot move the `unknown` family - the movement is one latent boundary, and no contextual eliminations fell out.
+
+**Two proof flaws.** The count-integrality check could not be reached: every fractional fixture also broke a coherence rule, so `Number.isInteger` was never the thing refusing them - a **coherent** fractional summary is what makes it load-bearing. And the membership assertion used `predicate.includes(member)`, which the destructuring line satisfies on its own; it now requires each member's **own check** by its exact spelling.
+
 ## Version 0.33.33.38.4.13.1 - The notification-list response
 
 **Model: High Effort** - a boundary the compiler could not see, and a URL guard that does not do what its name says.
