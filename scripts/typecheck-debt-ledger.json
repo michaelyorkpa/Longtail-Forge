@@ -366,6 +366,7 @@
         "tests/unit/active-timer-list-contracts.test.mjs",
         "tests/unit/api-key-contracts.test.mjs",
         "tests/unit/asset-version.test.mjs",
+        "tests/unit/attachment-count-contracts.test.mjs",
         "tests/unit/audit-log-contracts.test.mjs",
         "tests/unit/bounded-pagination.test.mjs",
         "tests/unit/bulk-action-response-contract.test.mjs",
@@ -519,7 +520,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8300,
+      "errorCount": 8299,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1742,7 +1743,7 @@
         "public/js/tasks.js": [
           {
             "code": 18046,
-            "count": 3
+            "count": 2
           },
           {
             "code": 18047,
@@ -2729,8 +2730,8 @@
     }
   },
   "totals": {
-    "files": 1100,
-    "errors": 8300,
+    "files": 1101,
+    "errors": 8299,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
