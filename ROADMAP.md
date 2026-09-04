@@ -696,6 +696,10 @@ The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, per
 
 **Complete: 2 diagnostics, 7 eliminated, and a browser contract that deliberately promises one member of a much richer record.** See the archive entry. `list` answers `{ timers }` exactly, but `shapeTimerPayload` spreads the repository row, so the element earns a **structural minimum**: the manual timer slot, which the column, the row mapping and every writer all guarantee. The permission-blanked source label and URL are left unpromised on purpose, so this boundary cannot become the owner of their disclosure. **Both consumers were narrowed**, because an unreadable list read as empty tells the page every manual slot is free.
 
+#### 0.33.33.38.4.9.5 - The Files preview responses
+
+**Complete: 2 diagnostics, twelve contracts, and one workflow with two security boundaries in it.** See the archive entry. The `/api/files*` preview family sat in the planning table with no owner, and `0.33.33.38.4.9`'s own rule is to draw a child when a trace finds such a family. The descriptor route says whether a file may be previewed; the content route re-runs the same access gate and delivers it. They are **not one envelope**, and modelling them as one optional-field union would have said the browser may read content where it has only been told a state. The descriptor is a **discriminated union**: the producer derives `contentAvailable` from `state === "previewable"` and writes the content URL only under that flag, so a previewable descriptor promises the URL and the other variant declares it absent. The reader **rebuilds** that URL from the descriptor's own attachment id rather than trusting it, which is what stops a body sending the page to a third-party address or a storage object. Image content stays outside JSON entirely.
+
 #### 0.33.33.38.4.10 - Notification response bodies
 
 **Complete. The child that was worth doing for what it could not be measured by.** Its visible cost was three diagnostics; what it actually did was make two blocked namespace surfaces declarable without either of them inheriting a wire-boundary bill. See the archive entry.
