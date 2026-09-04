@@ -393,6 +393,7 @@
         "tests/unit/lookup-response-contracts.test.mjs",
         "tests/unit/managed-session-contracts.test.mjs",
         "tests/unit/markdown-preview-contracts.test.mjs",
+        "tests/unit/module-settings-catalog-contracts.test.mjs",
         "tests/unit/note-catalog-settings-contracts.test.mjs",
         "tests/unit/note-link-target-contracts.test.mjs",
         "tests/unit/note-mutation-identity-contracts.test.mjs",
@@ -523,7 +524,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8285,
+      "errorCount": 8282,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -966,7 +967,7 @@
         "public/js/module-settings.js": [
           {
             "code": 18046,
-            "count": 6
+            "count": 5
           },
           {
             "code": 18048,
@@ -974,7 +975,7 @@
           },
           {
             "code": 2339,
-            "count": 3
+            "count": 2
           },
           {
             "code": 7005,
@@ -986,10 +987,6 @@
           },
           {
             "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
             "count": 1
           }
         ],
@@ -2733,8 +2730,8 @@
     }
   },
   "totals": {
-    "files": 1104,
-    "errors": 8285,
+    "files": 1105,
+    "errors": 8282,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

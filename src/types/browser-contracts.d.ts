@@ -4438,6 +4438,53 @@ export interface BrowserNoteLinkTargetDirectory {
 }
 
 /**
+ * One contributed setting, in the two members the module settings collector trusts.
+ *
+ * **A deliberate structural minimum over an extensible contribution.** `hydrateContribution`
+ * spreads a module's own contribution and then writes `readOnly`, `readOnlyReason` and `value`
+ * over it, and the framework path spreads a registered definition. So a setting carries its
+ * label, type, options, default, visibility and whatever else its module declared - all of
+ * which the settings renderer already owns and normalises. Naming them here would publish a
+ * second, thinner copy of that renderer's contract for a consumer that reads two members.
+ *
+ * `id` is a validated identifier: the manifest contract requires it against
+ * `IDENTIFIER_PATTERN`, so an empty one cannot reach a loaded module.
+ *
+ * `target` is `string` rather than a union. Every setting in this response carries one -
+ * `listSettingsContributions` defaults a module's to `"module"` and the framework path writes
+ * `"framework"` - but the vocabulary is enforced by the **manifest contract at module load**,
+ * one level removed from this body. What the collector actually needs is narrower and is
+ * proved rather than declared: a module contribution **may not** claim `target: "framework"`,
+ * because the same validator reserves that word.
+ */
+export interface BrowserModuleSettingsSetting {
+  id: string;
+  target: string;
+}
+
+/**
+ * One section of the module placement, as `findOrCreateSection` builds it.
+ *
+ * `id`, `placement` and `settings` are written by name after the module metadata is spread, so
+ * those three are guaranteed; `moduleId`, `name` and `displayName` come from that metadata,
+ * which always supplies all three. **`placement` is `"module"`** because this contract only
+ * describes sections read out of `attachments.module`, and `moduleId` matches the bucket the
+ * section was found under - the producer keys the bucket on the same value it hands
+ * `findOrCreateSection`.
+ *
+ * The section is a structural minimum for the same reason its settings are: the metadata
+ * spread may carry more, and the renderer reads it.
+ */
+export interface BrowserModuleSettingsSection {
+  displayName: string;
+  id: string;
+  moduleId: string;
+  name: string;
+  placement: "module";
+  settings: BrowserModuleSettingsSetting[];
+}
+
+/**
  * The four job states the Workspace Settings readout counts.
  *
  * `shapeStatusCounts` starts from this exact object with every count at zero and overwrites a
