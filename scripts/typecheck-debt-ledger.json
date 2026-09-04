@@ -375,6 +375,7 @@
         "tests/unit/client-project-record-contracts.test.mjs",
         "tests/unit/create-user-response-contracts.test.mjs",
         "tests/unit/file-attachment-list-contracts.test.mjs",
+        "tests/unit/file-preview-contracts.test.mjs",
         "tests/unit/files-preview.service.test.mjs",
         "tests/unit/files-scanner-job.service.test.mjs",
         "tests/unit/files-settings-accounting-contracts.test.mjs",
@@ -514,7 +515,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8311,
+      "errorCount": 8309,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1269,10 +1270,6 @@
           }
         ],
         "public/js/shared/file-preview.js": [
-          {
-            "code": 18046,
-            "count": 2
-          },
           {
             "code": 2339,
             "count": 52
@@ -2732,8 +2729,8 @@
     }
   },
   "totals": {
-    "files": 1095,
-    "errors": 8311,
+    "files": 1096,
+    "errors": 8309,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

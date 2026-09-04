@@ -207,6 +207,187 @@ export interface BrowserFileActionRecord {
 }
 
 /**
+ * The five preview states the Files preview boundary answers.
+ *
+ * Four come from `previewAvailabilityForAttachment`, which reports `unavailable` for a file
+ * that is not available or has not passed scanning, `download_only` for a supported-but-not-
+ * previewable type, `too_large_for_preview` past the 512 KiB text cap, and `previewable`
+ * otherwise. The fifth, `unauthorized`, is produced one level up by the shared access gate
+ * when `files.download` is refused for the preview operation - the browser is told the file
+ * cannot be previewed without being told anything more about it.
+ */
+export type BrowserFilePreviewState =
+  | "download_only"
+  | "previewable"
+  | "too_large_for_preview"
+  | "unauthorized"
+  | "unavailable";
+
+/** The four kinds `previewKindForAttachment` maps an extension to, and nothing else. */
+export type BrowserFilePreviewKind = "image" | "markdown" | "text" | "unsupported";
+
+/**
+ * The kinds a **previewable** descriptor can carry.
+ *
+ * `unsupported` is missing because it cannot occur: the availability function answers
+ * `download_only` for that kind before it can reach the `previewable` return.
+ */
+export type BrowserPreviewableFileKind = "image" | "markdown" | "text";
+
+/**
+ * The members `shapeAttachmentPreviewDescriptor` writes for every descriptor it builds.
+ *
+ * The paired camelCase and snake_case spellings are the producer's own compatibility pairs,
+ * not a choice made here; it names both, so both are declared.
+ */
+export interface BrowserFilePreviewDescriptorCommon {
+  extension: string;
+  fileAttachmentId: string;
+  file_attachment_id: string;
+  fileId: string;
+  file_id: string;
+  fileName: string;
+  file_name: string;
+  fileSizeBytes: number;
+  file_size_bytes: number;
+  fileType: string;
+  file_type: string;
+  filename: string;
+  mimeType: string;
+  mime_type: string;
+  moduleId: string;
+  module_id: string;
+  /** Why the file is not previewable; the empty string when it is. */
+  reason: string;
+  scanStatus: string;
+  scan_status: string;
+  status: string;
+  targetId: string;
+  target_id: string;
+  targetType: string;
+  target_type: string;
+}
+
+/**
+ * A descriptor whose file may actually be previewed.
+ *
+ * The producer sets `contentAvailable` from `state === "previewable"` and adds the content
+ * URL **only** under that flag, so the state, the flag and the URL's presence are one fact
+ * written three times rather than three independent members. This variant says so, which is
+ * why the browser may read `contentUrl` here without a further test.
+ */
+export interface BrowserPreviewableFileDescriptor extends BrowserFilePreviewDescriptorCommon {
+  contentAvailable: true;
+  content_available: true;
+  /**
+   * The preview content route for this attachment, and deliberately nothing else.
+   *
+   * `previewContentUrlForAttachment` builds `/api/files/attachments/:id/preview/content`
+   * from the attachment id alone. It is never a storage key, a filesystem path or a signed
+   * cloud-storage URL, so following it re-enters the same access gate rather than reaching
+   * an object store directly.
+   */
+  contentUrl: string;
+  content_url: string;
+  kind: BrowserPreviewableFileKind;
+  previewKind: BrowserPreviewableFileKind;
+  preview_kind: BrowserPreviewableFileKind;
+  previewState: "previewable";
+  preview_state: "previewable";
+  state: "previewable";
+}
+
+/**
+ * A descriptor the browser must render as a state message rather than as content.
+ *
+ * The content URL is declared absent rather than optional: this producer does not write it
+ * outside the previewable branch, and a body that carried one here did not come from it.
+ */
+export interface BrowserUnpreviewableFileDescriptor extends BrowserFilePreviewDescriptorCommon {
+  contentAvailable: false;
+  content_available: false;
+  contentUrl?: undefined;
+  content_url?: undefined;
+  kind: BrowserFilePreviewKind;
+  previewKind: BrowserFilePreviewKind;
+  preview_kind: BrowserFilePreviewKind;
+  previewState: Exclude<BrowserFilePreviewState, "previewable">;
+  preview_state: Exclude<BrowserFilePreviewState, "previewable">;
+  state: Exclude<BrowserFilePreviewState, "previewable">;
+}
+
+/** The descriptor `shapeDescriptor` returns, discriminated on the state it was built from. */
+export type BrowserFilePreviewDescriptor =
+  | BrowserPreviewableFileDescriptor
+  | BrowserUnpreviewableFileDescriptor;
+
+/**
+ * `GET /api/files/attachments/:fileAttachmentId/preview`.
+ *
+ * The metadata half of the Files preview boundary: it answers whether and how a file may be
+ * previewed, after the shared access gate has proved the attachment exists, is not removed,
+ * resolves to a target the caller may read, and carries the `files.download` right. The route
+ * wraps the descriptor by name, so this envelope is exact at one member.
+ */
+export interface BrowserFilePreviewDescriptorEnvelope {
+  preview: BrowserFilePreviewDescriptor;
+}
+
+/** Text preview content, read from the file's own bytes and never interpreted as markup. */
+export interface BrowserFilePreviewTextContent {
+  encoding: "utf-8";
+  kind: "text";
+  text: string;
+}
+
+/**
+ * Markdown preview content.
+ *
+ * `bodyHtml` is assigned to `innerHTML`, and it is safe to do that **because
+ * `renderMarkdownToHtml` produced it**: that renderer parses with `html: false`, so raw
+ * markup in the uploaded file is escaped rather than passed through; it strips
+ * `javascript:`, `vbscript:` and `data:` link targets before parsing and validates every
+ * surviving URL; and, because the Files preview passes no `allowImages`, it renders images
+ * as escaped text rather than as `<img>`. The bytes are attacker-controlled - anyone who can
+ * upload a `.md` file chooses them - so the browser must not treat this member as trusted
+ * markup on the strength of its name. It is trusted because of the call that made it.
+ */
+export interface BrowserFilePreviewMarkdownContent {
+  bodyFormat: "markdown";
+  bodyHtml: string;
+  bodyHtmlFormat: "html";
+  bodyMarkdown: string;
+  kind: "markdown";
+}
+
+/**
+ * The two content records the JSON preview branch answers.
+ *
+ * Images are absent on purpose. The content route streams image bytes to the response with
+ * its own headers, so the browser reaches them through `<img src>` and never through
+ * `getJson`; a JSON body claiming `kind: "image"` is not something this producer sends.
+ */
+export type BrowserFilePreviewContent =
+  | BrowserFilePreviewTextContent
+  | BrowserFilePreviewMarkdownContent;
+
+/**
+ * `GET /api/files/attachments/:fileAttachmentId/preview/content`, in its JSON form.
+ *
+ * The delivery half of the boundary. It re-runs the same access gate rather than trusting the
+ * descriptor the browser was handed, then additionally requires that the content is
+ * available, that the backing file row exists, and that the stored object can be read.
+ *
+ * The embedded descriptor is the previewable variant because `assertContentAvailable` throws
+ * for every other state, and its kind equals the content's kind because both are built from
+ * the one availability record this request resolved.
+ */
+export interface BrowserFilePreviewContentEnvelope {
+  content: BrowserFilePreviewContent;
+  preview: BrowserPreviewableFileDescriptor;
+}
+
+/**
  * The action-shaped half of `LongtailForge.filePreview`: the `files.preview` opener and
  * the record helpers both Files actions unwrap their params with.
  */

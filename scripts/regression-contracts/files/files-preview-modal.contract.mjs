@@ -57,14 +57,22 @@ assert.match(buildPreview, /view\.createModal\(\{[\s\S]*title:\s*`Preview \$\{ro
 assert.match(buildPreview, /dialog\.dataset\.filePreviewDialog = ""[\s\S]*dialog\.dataset\.fileAttachmentId = row\.attachmentId \|\| ""/, "Preview modal should expose stable markers for tests and focus/debugging");
 
 assert.match(loadPreview, /api\.getJson\(`\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/preview`/, "Preview modal should read the attachment-scoped preview descriptor route");
-assert.match(loadPreview, /preview\.state !== "previewable" \|\| !preview\.contentUrl[\s\S]*renderFilePreviewState\(dialog, preview\)/, "Preview modal should handle download-only/unavailable descriptor states");
+// Retargeted under `0.33.33.38.4.9.5`: the separate content-URL test is gone because the
+// descriptor reader now refuses a previewable descriptor that does not carry this
+// attachment's own preview content route, so the state alone decides the branch.
+assert.match(loadPreview, /const preview = readFilePreviewDescriptor\(/, "Preview modal should read the descriptor through its contract reader");
+assert.match(loadPreview, /if \(!preview\) \{[\s\S]*The file preview descriptor could not be read/, "An unreadable descriptor should fail rather than read as an unavailable file");
+assert.match(loadPreview, /if \(preview\.state !== "previewable"\) \{[\s\S]*renderFilePreviewState\(dialog, preview\)/, "Preview modal should handle download-only/unavailable descriptor states");
 assert.match(loadPreview, /preview\.kind === "image"[\s\S]*renderFilePreviewImage\(dialog, preview\)/, "Image previews should render from the authenticated content URL");
-assert.match(loadPreview, /api\.getJson\(preview\.contentUrl[\s\S]*renderFilePreviewContent\(dialog, preview, contentResponse\.content \|\| \{\}\)/, "Text and Markdown previews should load content through the route-backed content URL");
+assert.match(loadPreview, /readFilePreviewContent\(await api\.getJson\(preview\.contentUrl[\s\S]*renderFilePreviewContent\(dialog, preview, contentBody\.content\)/, "Text and Markdown previews should load content through the route-backed content URL");
+assert.match(loadPreview, /if \(!contentBody\) \{[\s\S]*The file preview content could not be read/, "Unreadable content should fail rather than render as empty text or empty Markdown");
 assert.match(renderContent, /content\.kind === "text"[\s\S]*content\.kind === "markdown"/, "Preview content should branch only on server-provided safe content kinds");
 assert.match(renderImage, /createFilePreviewElement\("img"[\s\S]*src: preview\.contentUrl[\s\S]*image\.addEventListener\("load"[\s\S]*image\.addEventListener\("error"/, "Image previews should use the authenticated content route and handle load/error states");
 assert.match(renderText, /createFilePreviewElement\("code", \{ text: text \|\| "" \}\)/, "Text previews should render as textContent, not HTML");
-assert.match(renderMarkdown, /content\.innerHTML = html \|\| ""/, "Markdown previews should render the server-sanitized HTML payload");
-assert.doesNotMatch(renderMarkdown, /MarkdownIt|marked|showdown|markdown-it|DOMParser/, "Preview modal should not add a browser Markdown parser");
+assert.match(renderMarkdown, /content\.innerHTML = html;/, "Markdown previews should render the server-sanitized HTML payload");
+// Widened under `0.33.33.38.4.9.5`: the previous spelling missed `window.markdownit`, the
+// global markdown-it's own UMD build defines, which a bite-proof introduced unnoticed.
+assert.doesNotMatch(renderMarkdown, /markdown-?it|marked|showdown|DOMParser/i, "Preview modal should not add a browser Markdown parser");
 assert.match(previewStateMessage, /download-only[\s\S]*too large[\s\S]*permission[\s\S]*not available/i, "Preview modal should explain download-only, too-large, permission, and unavailable states");
 
 assert.match(downloadAction, /"aria-label": label[\s\S]*download: true[\s\S]*href: `\/api\/files\/\$\{encodeURIComponent\(row\.fileId\)\}\/download`[\s\S]*surfaceAction: "files\.download"/, "Preview modal Download action should keep using the existing Files download route");

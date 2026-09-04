@@ -28,10 +28,20 @@ assert.doesNotMatch(filePreviewScript, /namespace\.filesDialog =/,
   "Shared preview helper must not write the Files dialog namespace it does not own");
 assert.match(filePreviewScript, /api\.getJson\(`\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/preview`[\s\S]*api\.getJson\(preview\.contentUrl/,
   "Shared preview helper should keep descriptor and content loading route-backed");
-assert.match(filePreviewScript, /content\.innerHTML = html \|\| ""/,
+// Retargeted under `0.33.33.38.4.9.5`: the sink is unchanged, but what reaches it is now the
+// `bodyHtml` of a vouched-for content record rather than a raw `.content || {}` read, so this
+// owner asserts the whole path - read through the contract reader, assign only its markup.
+assert.match(filePreviewScript, /readFilePreviewContent\(await api\.getJson\(preview\.contentUrl/,
+  "Shared preview helper should read content through its contract reader");
+assert.match(filePreviewScript, /content\.innerHTML = html;/,
   "Shared preview helper should render only server-sanitized Markdown HTML");
-assert.doesNotMatch(filePreviewScript, /MarkdownIt|marked|showdown|markdown-it|\/api\/files\/batch|openFileEditor|File Context|Inspector/,
-  "Shared preview helper should not add a browser Markdown parser, upload behavior, File Context, or Inspector behavior");
+// Split from the combined guard below and made case-insensitive under `0.33.33.38.4.9.5`: the
+// previous spelling missed `window.markdownit`, the global markdown-it's own UMD build
+// defines, which a bite-proof introduced and this guard let through.
+assert.doesNotMatch(filePreviewScript, /markdown-?it|marked|showdown/i,
+  "Shared preview helper should not add a browser Markdown parser");
+assert.doesNotMatch(filePreviewScript, /\/api\/files\/batch|openFileEditor|File Context|Inspector/,
+  "Shared preview helper should not add upload behavior, File Context, or Inspector behavior");
 
 assert.match(filesScript, /const filePreview = window\.LongtailForge\?\.filePreview/,
   "Files page should consume the shared preview helper");
