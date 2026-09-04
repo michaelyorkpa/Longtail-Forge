@@ -3956,6 +3956,111 @@ export interface BrowserClientProjectOptionsBody {
 }
 
 /**
+ * One project of a client, in the two members User Admin submits as a role scope.
+ *
+ * **A structural minimum, and deliberately so.** `projectOptionFields` sends eight members;
+ * this names the two the role-scope picker relies on. The wider option record is the
+ * cross-page vocabulary `BrowserClientProjectOptionsBody` records as later-owner debt, and
+ * naming it here would settle that debt from the consumer that needs least of it.
+ */
+export interface BrowserUserAdminProjectScope {
+  /** The `projects.id` primary key, submitted as `scope_id` on a project role assignment. */
+  id: string;
+  name: string;
+}
+
+/**
+ * One client of the option body, in the members User Admin submits as a role scope.
+ *
+ * The same structural minimum as its projects, plus the nested collection: the picker walks
+ * `projects` to build project scopes beneath each client.
+ *
+ * **There is no `isWorkspaceScope` member, and that is the point.** The shared
+ * `clientProjectOptions.normalizeClients` prepends a synthetic client standing for the
+ * workspace's own projects whenever `workspaceProjects` is non-empty. User Admin has never
+ * offered that row as a role scope, and this contract describes what the **producer** sends
+ * under `clients` rather than what that normaliser would build from the whole body.
+ */
+export interface BrowserUserAdminClientScope {
+  /** The `clients.id` primary key, submitted as `scope_id` on a client role assignment. */
+  id: string;
+  name: string;
+  projects: BrowserUserAdminProjectScope[];
+}
+
+/**
+ * One workspace an administrator may assign membership in.
+ *
+ * **An exact reconstruction of five members.** `workspaceToAppValue` names all five and is
+ * reached only from `readAssignableWorkspaces`, so this record belongs to this endpoint alone.
+ * It is deliberately **not** any of the other workspace shapes in this file: those come from
+ * different shapers, and matching member names is not producer identity.
+ *
+ * `workspaceType` is `string` rather than `BrowserWorkspaceType` for the same reason. The
+ * `workspaces.workspace_type` column carries no `CHECK`, the query selects it raw and the
+ * shaper copies it, so this producer closes nothing - and the page only ever compares the
+ * value, never validates it. Closing the union here would promise a guarantee no one makes.
+ *
+ * Both owner members are nullable because the query reaches the username through a
+ * `LEFT JOIN`, and a workspace need not have an owner at all.
+ */
+export interface BrowserAssignableWorkspace {
+  ownerUserId: string | null;
+  ownerUsername: string | null;
+  /** The membership checkbox's value, submitted back as the workspace to join or leave. */
+  workspaceId: string;
+  workspaceName: string;
+  workspaceType: string;
+}
+
+/**
+ * `GET /api/workspaces`, behind `users.manage`.
+ *
+ * The service wraps the list by name, so the envelope is exact at one member. The list itself
+ * is already filtered by the server: only `status = 'active'` workspaces, only those the
+ * caller is a member of unless they are a super administrator, and only those where
+ * `users.manage` holds in the target workspace. An empty list is therefore a real answer - it
+ * means this administrator may assign membership nowhere - and the page says so.
+ */
+export interface BrowserAssignableWorkspaceList {
+  workspaces: BrowserAssignableWorkspace[];
+}
+
+/**
+ * One permission resource the server has decided this administrator may see.
+ *
+ * **An exact reconstruction of four members** by `normalizeResourceDefinition`, which trims
+ * every string and de-duplicates the operations before answering.
+ *
+ * **`requiredPermissions` is absent because the producer does not send it.** The server reads
+ * it to decide whether a resource is visible at all and then drops it; the catalog the browser
+ * receives is already the answer to that question. The browser must not re-derive, widen or
+ * hard-code it - module status, workspace terminology and permission filtering are all decided
+ * server-side, and a resource missing from this list is missing on purpose.
+ *
+ * `moduleId` is `""` for a framework resource that belongs to no contributed module, which is
+ * why it is the one member not required to carry text.
+ */
+export interface BrowserPermissionResource {
+  key: string;
+  label: string;
+  moduleId: string;
+  operations: string[];
+}
+
+/**
+ * `GET /api/users/permission-resources`, behind `users.manage`.
+ *
+ * Exact at one member. **A resource that quietly disappeared between the wire and the matrix
+ * would be worse than none arriving at all**: the permission grid would render without its
+ * controls, and a default-denied resource would look deliberately unassigned rather than
+ * unseen. So a catalog carrying one entry the browser cannot vouch for is refused whole.
+ */
+export interface BrowserPermissionResourceCatalog {
+  resources: BrowserPermissionResource[];
+}
+
+/**
  * What kind of Support View event was recorded.
  *
  * Closed three times over: the `support_view_events.event_type` column carries a `CHECK` over

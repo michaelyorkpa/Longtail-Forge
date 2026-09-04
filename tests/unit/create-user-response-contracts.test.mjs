@@ -176,9 +176,15 @@ describe("the consumer", () => {
   it("leaves the other user-admin producers to their own children", () => {
     // `usersBody.currentUserId` left this list when `0.33.33.38.4.4.6` claimed the shared
     // user list. This child never owned it; it owns only that it does not touch it.
-    for (const other of ["workspacesBody.workspaces", "permissionResourcesBody.resources"]) {
-      assert.ok(page.includes(other), `${other} is another child's read and is untouched`);
-    }
+    // Both reads this list once named were claimed by `0.33.33.38.4.4.4.1`, which closed the
+    // three executable bootstrap responses. A sibling child doing its job is not this one
+    // widening, so the claim is asserted against the boundary rather than against a raw
+    // spelling - and anchored on the call sites, because each reader's own definition also
+    // contains its name.
+    assert.match(page, /const assignableWorkspaces = readAssignableWorkspaces\(workspacesBody\);/,
+      "workspacesBody.workspaces is another child's read and is untouched");
+    assert.match(page, /const resourceCatalog = readPermissionResourceCatalog\(permissionResourcesBody\);/,
+      "permissionResourcesBody.resources is another child's read and is untouched");
     // Retargeted when `0.33.33.38.4.4.3.2` narrowed the session reads. The claim was never that
     // those reads stay raw - it is that this child does not own them - so it is now asserted
     // against the boundary rather than against a spelling that has since moved on.
