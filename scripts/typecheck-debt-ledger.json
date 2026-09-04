@@ -405,6 +405,7 @@
         "tests/unit/notes-external-link-preference-contracts.test.mjs",
         "tests/unit/notification-bell-summary-contracts.test.mjs",
         "tests/unit/notification-list-contracts.test.mjs",
+        "tests/unit/notification-preference-json-boundary.test.mjs",
         "tests/unit/notification-response-contracts.test.mjs",
         "tests/unit/public-demo-capabilities.test.mjs",
         "tests/unit/public-demo-enforcement.test.mjs",
@@ -531,7 +532,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8270,
+      "errorCount": 8266,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1390,11 +1391,11 @@
         "public/js/shared/notification-preferences.js": [
           {
             "code": 2339,
-            "count": 7
+            "count": 5
           },
           {
             "code": 7006,
-            "count": 33
+            "count": 31
           }
         ],
         "public/js/shared/notification-subscriptions.js": [
@@ -2721,8 +2722,8 @@
     }
   },
   "totals": {
-    "files": 1112,
-    "errors": 8270,
+    "files": 1113,
+    "errors": 8266,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
