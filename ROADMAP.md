@@ -583,7 +583,15 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 #### 0.33.33.38.4.4.4 - The user-admin bootstrap
 
-The six-body `Promise.all` at `user-admin.js:220-229` - clients, workspaces, permission resources, workspace settings and the current user id. **Five producers behind one destructure**, which is why it is drawn apart from everything above.
+**A planning rollup, resliced rather than closed.** The `Promise.all` in `loadUsers` destructures seven bodies from five producers, which is why it was drawn apart from everything above. `0.33.33.38.4.4.6` then took the current-user-id producer, leaving four reads: three that could be closed and one that could not. **A checkpoint is not allowed to be half-blocked**, so the parent is a rollup and the numeric children below own the work.
+
+#### 0.33.33.38.4.4.4.1 - The executable User Admin bootstrap responses
+
+**Complete: 3 diagnostics, six contracts, three readers, one transaction.** See the archive entry. `/api/client-projects?view=options`, `/api/workspaces` and `/api/users/permission-resources` are three producers consumed together, and they are typed as **three separate response contracts** - the bootstrap is a transaction, not a DTO. The already-published `BrowserClientProjectOptionsBody` is reused for the options envelope and its elements stay `unknown[]`, because naming the shared option record is still its own surface owner's work. **The shared `clientProjectOptions.normalizeClients` was evaluated and deliberately not adopted**: it prepends a synthetic workspace-scope client, reorders the hierarchy and depends on a terminology helper, and User Admin needs four identity fields. **A malformed client, workspace or permission resource now refuses the whole bootstrap** rather than shortening an administrative list that the page presents as complete.
+
+#### 0.33.33.38.4.4.4.2 - The workspace-type delivery tail
+
+**1 diagnostic, blocked on delivery topology rather than on producer truth.** `user-admin.js` reads `settingsBody.workspaceType` from `GET /api/settings`. **The producer question is already settled**: the vocabulary is closed, `BrowserWorkspaceType` exists, and `0.33.33.38.4.5.5` published the shared settings response and its reader. What is missing is delivery - `user-admin.html` does not load the settings host that owns that reader. **Adding a script to a page to remove one diagnostic is not a product reason**, and duplicating the shared `/api/settings` reader locally would create the second reader that child exists to prevent. It stays parked until a page requirement justifies the host, and `0.33.33.38.4.4.4.1` proves it was left alone.
 
 #### 0.33.33.38.4.4.5 - The create-user mutation response
 

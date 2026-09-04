@@ -1,5 +1,36 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.4.4.1 - The executable User Admin bootstrap responses
+
+**Model: High Effort** - three diagnostics, three producers, one transaction, and a shared normaliser that was evaluated properly and then declined.
+
+- [x] **The parent was resliced before anything was typed.** `0.33.33.38.4.4.4` is a deliberately multi-producer checkpoint, and after `0.33.33.38.4.4.6` claimed the current-user-id producer it held four reads: three executable and one blocked on page delivery. A checkpoint that can only ever be three-quarters done is a rollup, so it became one, and the numeric children own the work.
+- [x] **Three producers, three contracts, one commit.** `/api/client-projects?view=options`, `/api/workspaces` and `/api/users/permission-resources` share a `Promise.all` and nothing else. They are typed as three separate response boundaries; there is no bootstrap DTO. What they do share is a **transaction**: all three are narrowed into locals, one guard covers all three, and only then are `clients`, `workspaces` and `permissionResources` committed. Before this child the first three assignments happened before the user list was even read, so a body found malformed later left two collections already standing as a completed bootstrap.
+- [x] **The shared client/project normaliser was evaluated and declined, on its own behaviour.** `clientProjectOptions.normalizeClients` prepends a synthetic `isWorkspaceScope` client whenever `workspaceProjects` is non-empty, reorders the client hierarchy, adds display members and depends on the workspace-projects terminology helper. User Admin needs four identity fields - a client's id and name, and each project's - to submit as role scopes. Adopting it would have meant adding a script to the page, **neutralising its headline behaviour**, accepting a reordering of the scope options and taking a terminology dependency. The reader instead **vouches** rather than normalises: no ordering, no labels, no synthetic rows, no coercion. **It cannot introduce that row by construction**, because it never reads through `workspaceProjects` at all - a stronger guarantee than removing the row afterwards would be - and four breaks attack it from both ends.
+- [x] **The published options envelope is reused, and its elements stay unnamed.** `BrowserClientProjectOptionsBody` already records that the option record is a cross-page vocabulary belonging to whoever owns that surface. This child declares only the identity subset User Admin submits, says so, and a break that names the shared elements in that envelope is refused.
+- [x] **The workspace record is exact, and its type is deliberately not closed.** `workspaceToAppValue` reconstructs five members and is reached only from `readAssignableWorkspaces`. `workspaceType` is declared `string`, **not `BrowserWorkspaceType`**: the `workspaces.workspace_type` column carries no `CHECK`, the query selects it raw, and the page only ever compares the value. Three breaks defend that - one adds a column constraint, one adds a table-level constraint, and one closes the union in the browser anyway. Reusing a vocabulary because the member names match is not producer identity, and this is the case that proves the rule.
+- [x] **The permission catalog is no longer allowed to shrink in transit.** The page used to run every resource through a local normaliser that **filtered out whatever failed**, so a malformed resource left an administrator looking at a permission grid missing its controls - and a resource denied by omission is indistinguishable from one deliberately left unassigned. That normaliser did nothing the server had not already done: the server trims, de-duplicates the operations and falls the label back to the key. It is gone, and one unusable resource now refuses the whole catalog.
+- [x] **The server stays the authority on what an administrator may see.** Module status, workspace terminology and each resource's own required permissions all decide visibility server-side, and `requiredPermissions` is read and then dropped - the catalog the browser receives is already the answer. Breaks that let disabled modules contribute, skip terminology resolution, drop the permission filter, declare the server-only member, or give the browser a catalog literal of its own are all refused.
+- [x] **The blocked sibling was left exactly as it was.** `settingsBody.workspaceType` is still read raw, `user-admin.html` still does not load the settings host, and two breaks prove this child neither closed it nor delivered it.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **59 breaks across two services, the modules service, the workspace repository, the generated schema, the shared options script, the page, its HTML and the declaration, all 59 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,305 | **8,300** |
+| Genuine `unknown` | 16 | **13** |
+| params | 4,604 | **4,602** |
+| state / dom / namespace / assorted | 1,730 / 1,484 / 319 / 152 | **all unchanged** |
+| `.44` remaining page controllers | 1,560 | **1,558** |
+| `.39` / `.40` / `.41` / `.42` / `.43` | 1,770 / 491 / 1,167 / 530 / 968 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,146 / 348 / 167 | **1,183 / 348 / 167**, green |
+
+**3 eliminations and 2 contextual eliminations, no transfers, no new namespace surface.** `user-admin.js` went from four `TS18046` to one - the parked settings read - and from 55 implicit-`any` parameters to 53, because the deleted normaliser's own callbacks went with it. Every other diagnostic code in that file is byte-identical, measured by running the classifier against `HEAD`'s copy of the page and then against this one.
+
+**Three proof flaws the harness caught, all in the proof rather than the code.** A bare-name search for the shared normaliser was failed by the reader's own doc comment explaining why it is not adopted, so it is matched as a call. A call-shaped count of `workspaceToAppValue` missed `.map(workspaceToAppValue)` while still reporting a plausible total, so it counts the bare name and pins both call sites. And a `!literal.includes("...")` spread check called `[...new Set(...)]` an object spread, so spread checks are anchored at member indent. A fourth was a real gap: the "no CHECK on workspace_type" assertion only looked for a constraint written **after** the column, and a table-level `CHECK (workspace_type IN (...))` would have slipped past it.
+
 ## Version 0.33.33.38.4.8.5 - The Runtime Diagnostics response
 
 **Model: High Effort** - one diagnostic, a readout of eight sections, and a failure mode that is the mirror of the Jobs one: not hiding trouble, but inventing calm.
