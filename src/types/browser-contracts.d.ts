@@ -6089,6 +6089,63 @@ export interface BrowserListItemSuggestion {
   vendor_name: string | null;
 }
 
+/**
+ * One revision as `GET /api/notes/:noteId/revisions` lists it.
+ *
+ * **A structural minimum over a doubly-spread record.** `revisionRowToAppValue` spreads the
+ * persisted row and adds `metadata`; `shapeRevisionForBrowser` spreads that again through
+ * `stripSecureStorageFields`. So a listed revision carries every `note_revisions` column that
+ * survives the strip, and the nine members below are the nine the Revisions panel reads. Each is
+ * what the table guarantees: `note_revision_id` is the primary key, `revision_number`, `title`
+ * and `created_at` are `NOT NULL`, and `body_excerpt` and `change_summary` are nullable.
+ *
+ * **`security_mode` is closed and the rest are not.** The column's `CHECK` constraint admits
+ * exactly `normal` and `secure`, `NoteSecurityMode` says the same, and the browser **branches on
+ * it** to decide whether to hide a revision body - so it is validated here as the pair it is.
+ * `library_bucket` and `visibility` also carry `CHECK` constraints, but this panel only passes
+ * them through `formatToken`; formatting a token is not validating a vocabulary, and closing
+ * them would make this contract the owner of two vocabularies it never inspects.
+ *
+ * **`note_type` and `status` are absent because the panel does not read them**, not because the
+ * producer withholds them.
+ *
+ * **What a listed revision may not carry.** `stripSecureStorageFields` removes eleven encrypted
+ * storage columns from every revision, and a secure revision listed with `includeBody: false`
+ * additionally loses `body_markdown` and `secure_body_decrypted` and has its `body_excerpt`
+ * nulled. Those absences are the contract's, enforced by the reader rather than assumed.
+ *
+ * A **normal** revision may still carry `body_markdown`, because the shaper only deletes it on
+ * the secure branch. This contract does not promise it, does not read it and does not remove it:
+ * the caller already holds `view_history`, so that is a least-data question for the producer,
+ * not a boundary this consumer may decide by truncating what it was sent.
+ */
+export interface BrowserNoteRevisionSummary {
+  /** `NULL`-able in the table, and nulled outright for a secure revision. */
+  body_excerpt: string | null;
+  change_summary: string | null;
+  created_at: string;
+  /** `CHECK`-constrained by the table, but only formatted here, so it stays open. */
+  library_bucket: string;
+  /** The revision's identity, submitted to the restore route. */
+  note_revision_id: string;
+  revision_number: number;
+  /** Closed, because the browser decides whether to hide a body on it. */
+  security_mode: BrowserNoteEffectiveSecurityMode;
+  title: string;
+  /** `CHECK`-constrained by the table, but only formatted here, so it stays open. */
+  visibility: string;
+}
+
+/**
+ * What `GET /api/notes/:noteId/revisions` answers.
+ *
+ * `listRevisions` names `revisions` and spreads nothing, so this envelope is **exact at one
+ * member** even though its elements are structural minimums.
+ */
+export interface BrowserNoteRevisionList {
+  revisions: BrowserNoteRevisionSummary[];
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;

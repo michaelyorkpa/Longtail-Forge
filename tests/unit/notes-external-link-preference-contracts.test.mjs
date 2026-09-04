@@ -237,7 +237,11 @@ describe("this child stays inside its one member", () => {
   });
 
   it("leaves the other Notes producers to their own children", () => {
-    assert.ok(page.includes("result.revisions || []"),
-      "the revisions read is 0.33.33.38.4.12's and is untouched");
+    // `result.revisions || []` was on this list until `0.33.33.38.4.12.3` adopted the revision
+    // history boundary. A sibling child doing its job is not this one widening, so the claim is
+    // asserted against that reader - anchored on the call site, because the reader's own
+    // definition also contains its name.
+    assert.match(page, /readNoteRevisions\(await api\.getJson\(`\/api\/notes\/\$\{encodeURIComponent\(note\.note_id\)\}\/revisions`/,
+      "the revision history is another child's read and is untouched");
   });
 });
