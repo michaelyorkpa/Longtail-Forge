@@ -189,8 +189,15 @@
     renderRuntimeDiagnosticsLoading();
 
     try {
-      const result = await requireApi().getJson("/api/runtime-diagnostics", { cache: "no-store" });
-      renderRuntimeDiagnostics(result.diagnostics || {});
+      const diagnostics = readRuntimeDiagnosticsResponse(
+        await requireApi().getJson("/api/runtime-diagnostics", { cache: "no-store" }),
+      );
+
+      if (!diagnostics) {
+        throw new Error("The runtime diagnostics readout could not be read.");
+      }
+
+      renderRuntimeDiagnostics(diagnostics);
     } catch (error) {
       renderRuntimeDiagnosticsError(error);
     }
@@ -671,6 +678,200 @@
       left.moduleId.localeCompare(right.moduleId);
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserRuntimeDiagnostics} BrowserRuntimeDiagnostics */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserRuntimePathScope} BrowserRuntimePathScope */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserRuntimeHealthStatus} BrowserRuntimeHealthStatus */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserScannerHealthStatus} BrowserScannerHealthStatus */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserRuntimeWorkerState} BrowserRuntimeWorkerState */
+
+  /** The three scopes the path shapers answer. @type {readonly BrowserRuntimePathScope[]} */
+  const RUNTIME_PATH_SCOPES = Object.freeze(["app-root", "data-dir", "outside-app-root"]);
+
+  /** What a safe health reader answers about reaching its subject. @type {readonly BrowserRuntimeHealthStatus[]} */
+  const RUNTIME_HEALTH_STATUSES = Object.freeze(["ok", "unavailable"]);
+
+  /** The five words `safeScannerStatus` can answer. @type {readonly BrowserScannerHealthStatus[]} */
+  const SCANNER_HEALTH_STATUSES = Object.freeze([
+    "disabled", "ok", "pass_through", "unavailable", "unknown",
+  ]);
+
+  /** The four states the job runner's status type declares. @type {readonly BrowserRuntimeWorkerState[]} */
+  const RUNTIME_WORKER_STATES = Object.freeze(["disabled", "idle", "running", "stopped"]);
+
+  /** The pragmas the safe database reader answers as a number or `null`. */
+  const SQLITE_NULLABLE_NUMBERS = Object.freeze(["busyTimeoutMs", "cacheSizeKib", "mmapSizeBytes"]);
+
+  /** The pragmas it answers as text, `""` when it could not look. */
+  const SQLITE_TEXT = Object.freeze(["journalMode", "synchronous", "tempStore"]);
+
+  /** The worker counters and intervals, all plain numbers in the runner's own status type. */
+  const WORKER_NUMBERS = Object.freeze([
+    "claimedCount", "completedCount", "deadCount", "failedCount", "lastClaimedCount",
+    "lockTtlSeconds", "pollIntervalMs",
+  ]);
+
+  /** The worker timestamps, `null` until the worker has done that thing. */
+  const WORKER_NULLABLE_TEXT = Object.freeze([
+    "lastErrorAt", "lastPollAt", "lastRunAt", "lastSuccessAt", "startedAt", "stoppedAt",
+  ]);
+
+  /** @param {unknown} value @returns {value is Record<string, unknown>} */
+  function isDiagnosticsRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasDiagnosticsText(value, keys) {
+    return keys.every((key) => typeof value[key] === "string");
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasDiagnosticsNullableText(value, keys) {
+    return keys.every((key) => value[key] === null || typeof value[key] === "string");
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasDiagnosticsNumbers(value, keys) {
+    return keys.every((key) => typeof value[key] === "number");
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasDiagnosticsNullableNumbers(value, keys) {
+    return keys.every((key) => value[key] === null || typeof value[key] === "number");
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasDiagnosticsBooleans(value, keys) {
+    return keys.every((key) => typeof value[key] === "boolean");
+  }
+
+  /**
+   * A path the diagnostics readout is allowed to show.
+   *
+   * The scope is checked because it is what tells the page whether to warn about a redacted
+   * location, and `display` is only required to be text: what makes it safe is that the server
+   * built it against a placeholder, which is a server guarantee rather than a browser test.
+   * @param {unknown} value
+   */
+  function isRuntimePathLocation(value) {
+    return isDiagnosticsRecord(value)
+      && typeof value.display === "string"
+      && typeof value.redacted === "boolean"
+      && RUNTIME_PATH_SCOPES.some((word) => word === value.relativeTo);
+  }
+
+  /** @param {unknown} value */
+  function isRuntimeDatabaseSection(value) {
+    if (!isDiagnosticsRecord(value)
+      || typeof value.provider !== "string"
+      || !isRuntimePathLocation(value.fileLocation)) {
+      return false;
+    }
+
+    const health = value.health;
+    const sqlite = value.sqlite;
+
+    return isDiagnosticsRecord(health)
+      && typeof health.fileWritable === "boolean"
+      && RUNTIME_HEALTH_STATUSES.some((word) => word === health.status)
+      && isDiagnosticsRecord(sqlite)
+      && typeof sqlite.foreignKeysEnabled === "boolean"
+      && hasDiagnosticsText(sqlite, SQLITE_TEXT)
+      && hasDiagnosticsNullableNumbers(sqlite, SQLITE_NULLABLE_NUMBERS);
+  }
+
+  /**
+   * @param {unknown} value
+   */
+  function isRuntimeStorageSection(value) {
+    if (!isDiagnosticsRecord(value) || typeof value.provider !== "string") {
+      return false;
+    }
+
+    const health = value.health;
+
+    return isDiagnosticsRecord(health)
+      && typeof health.available === "boolean"
+      && RUNTIME_HEALTH_STATUSES.some((word) => word === health.status)
+      && (value.rootLocation === null || isRuntimePathLocation(value.rootLocation));
+  }
+
+  /** @param {unknown} value */
+  function isRuntimeScannerSection(value) {
+    if (!isDiagnosticsRecord(value) || typeof value.mode !== "string") {
+      return false;
+    }
+
+    const health = value.health;
+
+    return isDiagnosticsRecord(health)
+      && (health.available === null || typeof health.available === "boolean")
+      && typeof health.warning === "string"
+      && SCANNER_HEALTH_STATUSES.some((word) => word === health.status);
+  }
+
+  /** @param {unknown} value */
+  function isRuntimeWorkerSection(value) {
+    if (!isDiagnosticsRecord(value) || typeof value.mode !== "string") {
+      return false;
+    }
+
+    const status = value.status;
+
+    return isDiagnosticsRecord(status)
+      && typeof status.workerId === "string"
+      && RUNTIME_WORKER_STATES.some((word) => word === status.state)
+      && hasDiagnosticsBooleans(status, ["running", "timerActive"])
+      && hasDiagnosticsNumbers(status, WORKER_NUMBERS)
+      && hasDiagnosticsNullableText(status, WORKER_NULLABLE_TEXT)
+      && Array.isArray(status.registeredJobTypes)
+      && status.registeredJobTypes.every((entry) => typeof entry === "string");
+  }
+
+  /** @param {unknown} value */
+  function isRuntimeEnvironmentSection(value) {
+    return isDiagnosticsRecord(value)
+      && hasDiagnosticsText(value, ["deploymentMode", "environment"])
+      && Array.isArray(value.configurationWarnings)
+      && value.configurationWarnings.every((entry) => typeof entry === "string");
+  }
+
+  /**
+   * The diagnostics readout, or `null` when the body is not one this producer sends.
+   *
+   * `app` and `features` are not checked. Nothing on this page reads them, and refusing a
+   * readout over a section no consumer touches would be inventing a contract for it - the same
+   * reason they are declared opaque rather than named.
+   *
+   * A section that reports trouble is **not** a malformed section: an unreachable database, an
+   * unavailable storage provider, a disabled scanner and a stopped worker are all real answers
+   * this reader accepts. What it refuses is a body that cannot be read at all, because
+   * rendering that as "Unavailable" would make a response the page could not parse look
+   * exactly like a deployment the server looked at and found broken.
+   * @param {unknown} body
+   * @returns {BrowserRuntimeDiagnostics | null}
+   */
+  function readRuntimeDiagnosticsResponse(body) {
+    if (!isDiagnosticsRecord(body)) {
+      return null;
+    }
+
+    const diagnostics = body.diagnostics;
+
+    if (!isDiagnosticsRecord(diagnostics)
+      || !isRuntimeEnvironmentSection(diagnostics.runtime)
+      || !isRuntimeDatabaseSection(diagnostics.database)
+      || !isDiagnosticsRecord(diagnostics.data)
+      || !isRuntimePathLocation(diagnostics.data.directoryLocation)
+      || !isRuntimeStorageSection(diagnostics.storage)
+      || !isRuntimeScannerSection(diagnostics.scanner)
+      || !isRuntimeWorkerSection(diagnostics.worker)) {
+      return null;
+    }
+
+    return /** @type {BrowserRuntimeDiagnostics} */ (/** @type {unknown} */ (diagnostics));
+  }
+
   function renderRuntimeDiagnosticsLoading() {
     runtimeDiagnosticsSummary.replaceChildren(createRuntimeDiagnosticItem("Runtime", "Loading..."));
     renderRuntimeDiagnosticWarnings([]);
@@ -686,13 +887,13 @@
   }
 
   function renderRuntimeDiagnostics(diagnostics) {
-    const database = diagnostics.database || {};
-    const sqlite = database.sqlite || {};
-    const data = diagnostics.data || {};
-    const storage = diagnostics.storage || {};
-    const scanner = diagnostics.scanner || {};
-    const worker = diagnostics.worker || {};
-    const workerStatus = worker.status || {};
+    const database = diagnostics.database;
+    const sqlite = database.sqlite;
+    const data = diagnostics.data;
+    const storage = diagnostics.storage;
+    const scanner = diagnostics.scanner;
+    const worker = diagnostics.worker;
+    const workerStatus = worker.status;
 
     runtimeDiagnosticsSummary.replaceChildren(
       createRuntimeDiagnosticItem("Database Provider", formatRuntimeValue(database.provider)),
@@ -1003,13 +1204,11 @@
 
   function readRuntimeDiagnosticWarnings(diagnostics) {
     const warnings = [];
-    const database = diagnostics.database || {};
-    const storage = diagnostics.storage || {};
-    const scanner = diagnostics.scanner || {};
-    const worker = diagnostics.worker || {};
-    const runtimeWarnings = Array.isArray(diagnostics.runtime?.configurationWarnings)
-      ? diagnostics.runtime.configurationWarnings
-      : [];
+    const database = diagnostics.database;
+    const storage = diagnostics.storage;
+    const scanner = diagnostics.scanner;
+    const worker = diagnostics.worker;
+    const runtimeWarnings = diagnostics.runtime.configurationWarnings;
 
     if (database.provider && database.provider !== "sqlite") {
       warnings.push("This database provider is outside SQLite small-office mode.");
@@ -1019,13 +1218,13 @@
       warnings.push("Review this storage provider before relying on SQLite small-office mode.");
     }
 
-    if (storage.health?.status === "unavailable") {
+    if (storage.health.status === "unavailable") {
       warnings.push("Storage provider health is unavailable.");
     }
 
-    if (scanner.health?.warning) {
-      warnings.push(String(scanner.health.warning));
-    } else if (scanner.health?.status === "unavailable") {
+    if (scanner.health.warning) {
+      warnings.push(scanner.health.warning);
+    } else if (scanner.health.status === "unavailable") {
       warnings.push("Scanner health is unavailable.");
     }
 
@@ -1035,7 +1234,7 @@
       warnings.push("Review this worker mode before relying on SQLite small-office mode.");
     }
 
-    if (database.fileLocation?.relativeTo === "outside-app-root" || diagnostics.data?.directoryLocation?.relativeTo === "outside-app-root") {
+    if (database.fileLocation.relativeTo === "outside-app-root" || diagnostics.data.directoryLocation.relativeTo === "outside-app-root") {
       warnings.push("Confirm redacted runtime paths are on local or attached storage.");
     }
 

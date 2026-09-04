@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19041,
+    "activeAssertionCount": 19042,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19855,
+    "effectiveAssertionCount": 19856,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -2820,11 +2820,11 @@
     },
     {
       "area": "files",
-      "assertionCount": 36,
+      "assertionCount": 37,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy file scanner health diagnostics contract.",
-      "entryPointAssertionCount": 36,
+      "entryPointAssertionCount": 37,
       "id": "legacy.file.scanner.health.diagnostics",
       "legacy": true,
       "path": "scripts/file-scanner-health-diagnostics-regression.mjs",
