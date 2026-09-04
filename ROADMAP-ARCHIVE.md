@@ -1,5 +1,34 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.7.2.1 - The Lists item suggestions
+
+**Model: High Effort** - one diagnostic, and the interesting decision was the malformed policy rather than the shape.
+
+- [x] **A structural minimum, because the shaper spreads.** `shapeCatalogItemForBrowser` is `{ ...item, id: item.catalog_item_id }` over the persistence record, so the response carries every column `CATALOG_COLUMNS` selects. `BrowserListItemSuggestion` promises the **nine** the picker reads, and the count is nine rather than the eight a first reading suggests: `suggestionLabel` reads `use_count`. Membership is proved by scanning the three consuming functions and requiring set equality with the declaration - and the scan had to learn that `entry` is the matched suggestion in one function and the created `<option>` in another, which is why it is only read as a suggestion where it is one.
+- [x] **Every member is what the column guarantees, read from the schema.** `quantity` and `use_count` are `NOT NULL` with `CHECK (>= 0)`; `estimated_cost` is nullable with the same check; `unit`, `vendor_name`, `url` and `notes` are nullable `TEXT`. The test reads `CREATE TABLE list_item_catalog` and derives all of that, so three breaks in the **schema** - dropping a check, making a count nullable, making a text column `NOT NULL` - are refused alongside the browser ones.
+- [x] **`Number.isFinite`, not `typeof`.** A `NaN` reaching a quantity field would autofill a value no one can use, and `Number(null)` is `0`, so a coercing check would have accepted a null quantity as zero. Four breaks attack the amount check: accepting negatives, accepting `NaN`, coercing strings, and rejecting a legitimate zero the column permits.
+- [x] **The alias is deliberately absent.** The shaper adds `id`, but this picker submits `catalog_item_id`. Promising a member no consumer reads would make this contract the owner of a compatibility alias, and a break that declares it is refused - while a fixture proves a suggestion arriving **without** it is still usable.
+- [x] **The envelope and the element are judged differently, and the reason is written down.** A missing or non-array `suggestions` is not an empty catalogue: it means this is not a body this producer sent, and it takes the page's existing silent catch. One malformed suggestion is one unusable candidate among usable ones - and suggestions are **advisory**, a shortcut for filling a form the viewer can fill by hand, so dropping it costs a convenience rather than an account of anything. That is the opposite of an authoritative list, where a short answer presented as a complete one is the misleading outcome, and the distinction is stated in the reader rather than left to be inferred. What must not happen is a malformed candidate reaching the datalist, the autofill or the submitted `catalog_item_id`, and per-element refusal is what prevents that. **The existing product semantics were checked first**: nothing in the Lists regressions demands whole-list refusal here.
+- [x] **An unreadable body is no longer recorded as a loaded empty catalogue.** The raw read stored `[]` beside a successful return; the refusal now precedes the store and throws into the catch that was already there. **No failure surface is added** - this is an optional feature that already failed silently, and a break that adds a status message is refused.
+- [x] **Every server decision stays on the server.** `assertListsReadable` runs before the catalogue is queried, a requested list is access-checked, a request without one falls back to `LIST_PERMISSIONS.VIEW`, the query and context are normalised server-side, the limit is clamped in the repository and archived rows never leave it. Seven breaks attack that chain, including one that re-derives the permission name in the browser.
+- [x] **No state annotation, because the measurement did not ask for one.** Narrowing the read blocked nothing downstream: measured against `HEAD`'s own copy of the page, every diagnostic code is identical except `TS18046`. The `itemSuggestions` Map is left exactly as it was, and the assertion is anchored on its **neighbouring slots** - asserting the line alone passed with an annotation added directly above it.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **52 breaks across the page, the catalog service, the lists repository, the lists routes, the schema snapshot and the declaration, all 52 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,277 | **8,276** |
+| Genuine `unknown` | 6 | **5** |
+| params / state / dom / namespace / assorted | 4,599 / 1,717 / 1,483 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,767 / 480 / 1,167 / 530 / 968 / 1,557 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,326 / 348 / 167 | **1,352 / 348 / 167**, green |
+
+**1 elimination, no transfers, no contextual movement and no new debt.** Measured against `HEAD`'s own copy of the page: `TS18046` 2 to 1 in `lists.js` - the survivor is `0.33.33.38.4.7.2`'s blocked list-summary read - with every other diagnostic code identical. **No static owner needed retargeting**: nothing in the estate pinned `result.suggestions || []`.
+
+**The new test file carried two strict diagnostics and a lint error, and the ledger caught all three before the commit.** A `TS7006` on a `map` callback, a `TS2339` from a fixture whose type was inferred from its literal rather than declared as a wire body, and an unused destructured binding for a predicate this file exercises only through the reader.
+
 ## Version 0.33.33.38.4.2.3 - The linked-panel selectable-note search
 
 **Model: High Effort** - one diagnostic, and two adjacent contracts that had to be told apart.

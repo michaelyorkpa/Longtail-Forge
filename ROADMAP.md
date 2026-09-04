@@ -682,6 +682,10 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **Providers and targets are complete: 2 diagnostics closed, 9 eliminated in total, and the picker can no longer be handed a catalogue the server never advertised.** See the archive entry. They were traced together because they are two members of **one exact envelope from one endpoint**, and typed apart because they are two producers: a five-member provider projection, and a linked-context target that is exact **because the shaper spreads the framework's own total reconstruction**. The deferred list-summary read and the suggestions producer remain this child's open work.
 
+#### 0.33.33.38.4.7.2.1 - The Lists item suggestions
+
+**Complete: 1 diagnostic, one contract, zero fallout - and the third of the four reads `0.33.33.38.4.7.2` named.** See the archive entry. `BrowserListItemSuggestion` is a **structural minimum over an extensible catalogue record**, because `shapeCatalogItemForBrowser` answers `{ ...item, id }`; it promises the nine members the item picker reads and each is what `list_item_catalog` guarantees. **The envelope and the element are judged differently, on purpose**: a missing or non-array `suggestions` means the body is not one this producer sent, while a single malformed suggestion is one unusable candidate among usable ones, and suggestions are advisory rather than an account of anything. **`0.33.33.38.4.7.2`'s list-summary read stays blocked** on the state handoff it measured, so the Lists tail is not closed by this child.
+
 #### 0.33.33.38.4.8 - The operator-surface bodies
 
 **13 diagnostics** across Support View targets and audit, `/api/security-events`, `/api/runtime-diagnostics` and `/api/jobs`. Grouped because they share an operator audience and a read-only shape, not because they share a route prefix.
