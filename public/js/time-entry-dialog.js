@@ -320,7 +320,13 @@
       const result = selectedEntry
         ? await api.putJson(`/api/time-entries/${encodeURIComponent(selectedEntry.entryId)}`, payload)
         : await api.postJson("/api/time-entries", payload);
-      const savedEntryId = selectedEntry?.entryId || result.entry_id || result.entry?.entry_id || "";
+      const savedEntryId = selectedEntry
+        ? readUpdatedTimeEntryId(result, selectedEntry.entryId)
+        : readCreatedTimeEntryId(result);
+
+      if (savedEntryId === "") {
+        throw new Error("The saved time entry could not be identified.");
+      }
 
       if (typeof context?.onSaved === "function") {
         await context.onSaved({ ...result, entryId: savedEntryId });
@@ -336,6 +342,90 @@
     } finally {
       fields.save.disabled = false;
     }
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTimeEntryCreateResult} BrowserTimeEntryCreateResult */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTimeEntryUpdateResult} BrowserTimeEntryUpdateResult */
+
+  /** The one backend both save routes currently write. A different one is a contract change. */
+  const SAVED_TIME_ENTRY_STORAGE = "database";
+
+  /** @param {unknown} value @returns {value is Record<string, unknown>} */
+  function isSaveResponseRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * The nested entry's identity, or `""` when the response does not carry a usable one.
+   * @param {Record<string, unknown>} result
+   * @returns {string}
+   */
+  function nestedSavedEntryId(result) {
+    const entry = result.entry;
+
+    if (!isSaveResponseRecord(entry) || typeof entry.entry_id !== "string") {
+      return "";
+    }
+
+    return entry.entry_id;
+  }
+
+  /**
+   * The identity `POST /api/time-entries` minted, or `""`.
+   *
+   * **Read by the branch the dialog already knows.** `saveEntry` chose this route because there
+   * was no `selectedEntry`, so it does not need to discover which shape came back by testing
+   * whether a property happens to exist - which is what the fallback chain this replaced did.
+   *
+   * The outer identity and the nested one must **agree**. They are two statements about the same
+   * new record, and a response where they differ is not one this producer built.
+   * @param {unknown} body
+   * @returns {string}
+   */
+  function readCreatedTimeEntryId(body) {
+    if (!isSaveResponseRecord(body) || body.storage !== SAVED_TIME_ENTRY_STORAGE) {
+      return "";
+    }
+
+    const nested = nestedSavedEntryId(body);
+
+    // No separate empty check: this reader's failure signal *is* the empty string, so a response
+    // whose identities are both empty already returns one through the agreement test below.
+    if (typeof body.entry_id !== "string" || body.entry_id !== nested) {
+      return "";
+    }
+
+    return nested;
+  }
+
+  /**
+   * The identity `PUT /api/time-entries/:entryId` confirms, or `""`.
+   *
+   * **No outer `entry_id` is required or invented.** The update producer does not send one, and
+   * fabricating it here to make the two results look alike would publish a member the server
+   * never wrote.
+   *
+   * What is checked instead is that the entry that came back **is the one this route addressed**:
+   * a save that silently returns a different record must not be reported to the host as a
+   * successful edit of the record the viewer was editing.
+   * @param {unknown} body
+   * @param {string} requestedEntryId
+   * @returns {string}
+   */
+  function readUpdatedTimeEntryId(body, requestedEntryId) {
+    if (!isSaveResponseRecord(body) || body.storage !== SAVED_TIME_ENTRY_STORAGE) {
+      return "";
+    }
+
+    const nested = nestedSavedEntryId(body);
+
+    // Same here: an empty requested identity cannot equal a usable nested one, and a pair that is
+    // empty on both sides answers "" either way.
+    if (nested !== requestedEntryId) {
+      return "";
+    }
+
+    return nested;
   }
 
   function readRangeDurationSeconds() {
