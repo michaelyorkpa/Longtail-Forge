@@ -1,5 +1,36 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.8.4 - The Jobs Status response
+
+**Model: High Effort** - one diagnostic, one producer, and a readout whose failure mode is telling an administrator that nothing is wrong.
+
+- [x] **Drawn as its own child, not as half a page.** `0.33.33.38.4.8` grouped the operator surfaces by audience and then said plainly that an operator audience is not a producer, so its five services must be drawn as separate numeric children. Jobs Status and Runtime Diagnostics render on one page and share one permission; they are two producers, and combining them to save one ceremony would have made the roadmap's own reslice a fiction.
+- [x] **Authorization re-proved from the route down.** The route is workspace-scoped by `workspaceAsyncRoute`, and `readAdminReadout` asserts `workspace_settings.manage` for the session's own workspace **before** any job row is read. Four breaks attack that - removing the assertion, weakening the right, moving it after the reads, and dropping the workspace wrapper - and all four are refused.
+- [x] **The failure summary is a safe projection.** `shapeFailureSummary` reconstructs fourteen members by name, and `readRecentFailures` enumerates exactly those fourteen columns. The two it leaves behind are the ones that matter: `payload_json`, which carries whatever the enqueuing caller put in it, and `dedupe_key`. **Breaks that select `*`, that add `payload_json` to the select, that spread the row, or that declare a payload member are all refused** - and so is a break that removes `dedupe_key` from the schema, because the exclusion is only meaningful while the column exists.
+- [x] **`lastError` is disclosed on purpose and rendered as text.** It is the one member the server does not construct, so the durable secret-scanning owner covers its content rather than this contract; what this child proves is that it goes through `safeText`, always answers a string, and reaches the page as `textContent`. A break that assigns it to `innerHTML` is refused.
+- [x] **Two vocabularies, each closed at its own producer.** The counts cover the four states `readStatusCounts` groups by - `completed` is deliberately not among them - and `shapeStatusCounts` writes all four before it sees a row, so four zeros is a real answer and a missing count is not. The failure rows are narrower still: the column allows five states, but the query selects `status IN ('failed', 'dead')`, so the browser validates two. Breaks that add a fifth count state, a third failure state, or let any status overwrite a count are refused.
+- [x] **The bounded pagination contract is reused, and the reuse is earned by identity.** This producer calls `boundedPaginationEnvelope`, the same helper `0.33.33.38.4.8.1` named the contract for. The proof compares the helper's own reconstruction against the declared membership rather than eyeballing similar fields, and a break that declares a second pagination shape is refused. **The one spread in the readout is the producer's own normalised pagination handed to that helper** - the total-reconstruction case, not the untrusted-body one.
+- [x] **A shortened history is worse than no history.** A malformed failure row refuses the whole readout. The page appends pages into accumulated state and prints "N of total", so a quietly filtered list would read as a complete history that happens to be short. The refusal happens **before** the render that accumulates, and a break that reorders them is refused.
+- [x] **Counts cannot be coerced into reassurance.** Every count is a SQL `COUNT(*)`, so the reader requires a non-negative integer; `"2"`, `null`, `-1`, `1.5` and `NaN` all make the readout unreadable rather than zero. The attempt bounds are taken from the constraints the `jobs` table itself carries - `attempt_count >= 0` and `max_attempts > 0` - and breaks that remove the constraint from the schema or the check from the reader are both refused.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **53 breaks across the jobs service, the route, the pagination helper, the schema, the declaration and the consumer, all 53 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,307 | **8,306** |
+| Genuine `unknown` | 18 | **17** |
+| params / state / dom / namespace / assorted | 4,604 / 1,730 / 1,484 / 319 / 152 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,167 / 530 / 968 / 1,560 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,074 / 348 / 167 | **1,111 / 348 / 167**, green |
+
+**1 elimination, no transfers, no contextual fallout, no new namespace surface.**
+
+**The first attempt transferred rather than eliminated.** Testing `value.maxAttempts > 0` after a non-predicate check left that read `unknown`, so one genuine unknown was removed and one introduced - the count never moved. A second mistake in the same pass, casting a `Record<string, unknown>` straight to the readout type, added an `assorted` diagnostic. Measurement caught both before anything was committed; making the count check a type predicate and the readout check a type predicate fixed them together.
+
+**One sibling contract test was retargeted.** `0.33.33.38.4.5.2` had pinned `result.jobs` as a read it deliberately left alone. That is now this child's, so the pin names the Jobs Status reader instead - and the first version of that retarget matched the reader's own **definition** rather than its call site, so a bite-proof that left the read raw passed. It is anchored on the call now.
+
 ## Version 0.33.33.38.4.3.6 - The task relationship list
 
 **Model: High Effort** - one diagnostic, and the child `0.33.33.38.4.3` wrote down long before it could be closed: the relationship list was declared as a single, and its `relationshipSummary` sibling was recorded then as a different producer's work. Both judgements held when the trace finally ran.

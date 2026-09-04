@@ -4030,6 +4030,97 @@ export interface BrowserBoundedPagination {
 }
 
 /**
+ * The four job states the Workspace Settings readout counts.
+ *
+ * `shapeStatusCounts` starts from this exact object with every count at zero and overwrites a
+ * key only for a status it recognises, so all four are always present and a workspace with no
+ * jobs really does report four zeros. **`completed` is deliberately absent**: the counting
+ * query filters to these four, so a completed job is not something this readout counts.
+ */
+export interface BrowserJobStatusCounts {
+  dead: number;
+  failed: number;
+  pending: number;
+  running: number;
+}
+
+/**
+ * The two states a recent-failure row can be in.
+ *
+ * The `jobs` column allows five, but `readRecentFailures` selects
+ * `status IN ('failed', 'dead')`, so a row in this list cannot be pending, running or
+ * completed. The browser validates that narrowing rather than re-deriving it.
+ */
+export type BrowserJobFailureStatus = "dead" | "failed";
+
+/**
+ * One failed or dead-lettered job, as `shapeFailureSummary` reconstructs it.
+ *
+ * **This is the safe observability projection, not the jobs row.** The query enumerates
+ * fourteen columns by name, and the two it leaves behind are the ones that matter:
+ * `payload_json`, which carries whatever the enqueuing caller put in it, and `dedupe_key`,
+ * which is derived from job identity. Neither has a member here, and neither can acquire one
+ * without changing the select.
+ *
+ * `lastError` is the failure message the worker recorded, whitespace-collapsed by `safeText`
+ * and rendered as `textContent`. It is disclosed on purpose - a readout that says a job failed
+ * without saying why is not observability - and it is the one member whose content the server
+ * does not construct, so the durable secret-scanning owner covers it rather than this contract.
+ *
+ * The timestamps are `string | null` because the shaper maps an empty column to `null`, which
+ * makes "never locked" and "locked at the empty string" the same answer.
+ */
+export interface BrowserJobFailureSummary {
+  /** Non-negative: the `jobs` table constrains `attempt_count >= 0`. */
+  attemptCount: number;
+  availableAt: string | null;
+  completedAt: string | null;
+  createdAt: string | null;
+  deadAt: string | null;
+  jobId: string;
+  jobType: string;
+  /** Always a string, `""` when the worker recorded nothing usable. */
+  lastError: string;
+  lockedAt: string | null;
+  lockedBy: string | null;
+  /** Positive: the `jobs` table constrains `max_attempts > 0`. */
+  maxAttempts: number;
+  priority: number;
+  status: BrowserJobFailureStatus;
+  updatedAt: string | null;
+}
+
+/**
+ * The bounded page of recent failures.
+ *
+ * `pagination` is `BrowserBoundedPagination` again - the **third** reuse of the contract
+ * `0.33.33.38.4.8.1` named for `boundedPaginationEnvelope` rather than for one route, and this
+ * producer calls that same helper.
+ */
+export interface BrowserJobRecentFailures {
+  items: BrowserJobFailureSummary[];
+  pagination: BrowserBoundedPagination;
+}
+
+/** What `readAdminReadout` answers behind `workspace_settings.manage`. */
+export interface BrowserJobReadout {
+  counts: BrowserJobStatusCounts;
+  recentFailures: BrowserJobRecentFailures;
+}
+
+/**
+ * `GET /api/jobs/status`.
+ *
+ * The route wraps the readout by name under `no-store`, so this envelope is exact at one
+ * member. Reading it is not optional in the way an empty page is: a body this contract cannot
+ * vouch for means the page does not know how much work has failed, which is the opposite of
+ * what a zeroed readout would tell an administrator.
+ */
+export interface BrowserJobStatusResponse {
+  jobs: BrowserJobReadout;
+}
+
+/**
  * A filter choice with a readable label: the actor, viewed-user and workspace queries each
  * select an id `AS value` beside a display name `AS label`.
  *

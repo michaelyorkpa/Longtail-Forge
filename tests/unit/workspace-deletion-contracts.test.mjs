@@ -302,9 +302,16 @@ describe("the consumers", () => {
   });
 
   it("leaves the page's other producers to their own children", () => {
-    for (const other of ["result.diagnostics", "result.jobs"]) {
+    for (const other of ["result.diagnostics"]) {
       assert.ok(page.includes(other), `${other} is another child's read and is untouched`);
     }
+    // `result.jobs` was on this list until `0.33.33.38.4.8.4` claimed it for the Jobs Status
+    // producer. That is another child doing its job, not this one widening: what this child
+    // owns is that the deletion boundary is the only one it narrowed.
+    // Anchored on the call site, not the spelling: the reader's own definition also contains
+    // its name, so matching the bare name would have passed even with the read left raw.
+    assert.match(page, /const jobs = readJobStatusResponse\(/,
+      "the jobs readout now belongs to the Jobs Status producer, not to this child");
     assert.doesNotMatch(declarationSource, /BrowserWorkspaceRuntimeDiagnostics|BrowserWorkspaceJobObservability/,
       "and this child declares nothing for them");
     // The settings save read was on this list until `0.33.33.38.4.5.5` claimed it for the

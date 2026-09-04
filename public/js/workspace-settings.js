@@ -719,6 +719,140 @@
     renderRuntimeDiagnosticWarnings(readRuntimeDiagnosticWarnings(diagnostics));
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserJobReadout} BrowserJobReadout */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserJobFailureStatus} BrowserJobFailureStatus */
+
+  /** The four states the counting query groups by, and the four keys the shaper always writes. */
+  const JOB_COUNT_KEYS = Object.freeze(["dead", "failed", "pending", "running"]);
+
+  /** The two states `readRecentFailures` selects. @type {readonly BrowserJobFailureStatus[]} */
+  const JOB_FAILURE_STATUSES = Object.freeze(["dead", "failed"]);
+
+  /** The failure members the shaper writes as text, mapping an empty column to null. */
+  const JOB_FAILURE_NULLABLE_TEXT = Object.freeze([
+    "availableAt", "completedAt", "createdAt", "deadAt", "lockedAt", "lockedBy", "updatedAt",
+  ]);
+
+  /** The four integers the bounded-pagination helper normalises before it answers them. */
+  const JOB_PAGINATION_INTEGERS = Object.freeze(["limit", "maxPageSize", "offset", "returned"]);
+
+  /** @param {unknown} value @returns {value is Record<string, unknown>} */
+  function isJobRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * A count this readout is allowed to render as a number.
+   *
+   * Every count here is a SQL `COUNT(*)`, so a negative or fractional one did not come from
+   * this producer. No separate finiteness test guards them: JSON carries neither `NaN` nor
+   * `Infinity` - both serialise to `null` - so `Number.isInteger` already excludes them.
+   * @param {unknown} value
+   * @returns {value is number}
+   */
+  function isJobCount(value) {
+    return typeof value === "number" && Number.isInteger(value) && value >= 0;
+  }
+
+  /** The `jobs` table constrains `max_attempts > 0`. @param {unknown} value */
+  function isPositiveJobCount(value) {
+    return isJobCount(value) && value > 0;
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasJobNullableText(value, keys) {
+    return keys.every((key) => value[key] === null || typeof value[key] === "string");
+  }
+
+  /**
+   * The four status counts, as `shapeStatusCounts` builds them.
+   *
+   * All four are checked because the shaper writes all four unconditionally. A body missing
+   * one is not a workspace with nothing in that state - it is a body this producer did not
+   * send, and rendering it as zero would tell an administrator there is no failed work.
+   * @param {unknown} value
+   */
+  function isJobStatusCounts(value) {
+    return isJobRecord(value) && JOB_COUNT_KEYS.every((key) => isJobCount(value[key]));
+  }
+
+  /**
+   * One recent failure, as `shapeFailureSummary` reconstructs it.
+   *
+   * `attemptCount` and `maxAttempts` are checked against the constraints the `jobs` table
+   * itself carries - `attempt_count >= 0` and `max_attempts > 0` - rather than against what
+   * the page happens to render. `priority` has no such constraint, so it is only required to
+   * be an integer.
+   * @param {unknown} value
+   */
+  function isJobFailureSummary(value) {
+    return isJobRecord(value)
+      && typeof value.jobId === "string"
+      && typeof value.jobType === "string"
+      && typeof value.lastError === "string"
+      && JOB_FAILURE_STATUSES.some((word) => word === value.status)
+      && hasJobNullableText(value, JOB_FAILURE_NULLABLE_TEXT)
+      && isJobCount(value.attemptCount)
+      && isPositiveJobCount(value.maxAttempts)
+      && typeof value.priority === "number" && Number.isInteger(value.priority);
+  }
+
+  /**
+   * The bounded pagination envelope, as `boundedPaginationEnvelope` answers it.
+   *
+   * `total` is the one member the helper may answer as `null`, and `nextCursor` is minted only
+   * when there is more, so an empty string is its real answer rather than a missing one.
+   * @param {unknown} value
+   */
+  function isJobPagination(value) {
+    return isJobRecord(value)
+      && typeof value.hasMore === "boolean"
+      && typeof value.nextCursor === "string"
+      && JOB_PAGINATION_INTEGERS.every((key) => isJobCount(value[key]))
+      && (value.total === null || isJobCount(value.total));
+  }
+
+  /**
+   * The job readout, or `null` when the body is not one this producer sends.
+   *
+   * A malformed failure row refuses the **whole** readout rather than being filtered out of
+   * it. This page appends pages of failures into accumulated state and prints how many are
+   * shown against the total, so a quietly shorter list would read as a complete history that
+   * happens to be short - which is the one thing an observability surface must never do.
+   * @param {unknown} value
+   * @returns {value is BrowserJobReadout}
+   */
+  function isJobReadout(value) {
+    if (!isJobRecord(value) || !isJobStatusCounts(value.counts)) {
+      return false;
+    }
+
+    const recentFailures = value.recentFailures;
+
+    if (!isJobRecord(recentFailures)
+      || !isJobPagination(recentFailures.pagination)
+      || !Array.isArray(recentFailures.items)) {
+      return false;
+    }
+
+    return recentFailures.items.every(isJobFailureSummary);
+  }
+
+  /**
+   * The readout the page may render, or `null` when the body is not one this producer sends.
+   * @param {unknown} body
+   * @returns {BrowserJobReadout | null}
+   */
+  function readJobStatusResponse(body) {
+    if (!isJobRecord(body)) {
+      return null;
+    }
+
+    const jobs = body.jobs;
+
+    return isJobReadout(jobs) ? jobs : null;
+  }
+
   async function loadJobObservability(options = {}) {
     if (!jobObservabilitySummary || !jobObservabilityFailures) {
       return;
@@ -741,8 +875,15 @@
         params.set("cursor", options.cursor);
       }
 
-      const result = await requireApi().getJson(`/api/jobs/status?${params.toString()}`, { cache: "no-store" });
-      renderJobObservability(result.jobs || {}, { append: Boolean(options.append) });
+      const jobs = readJobStatusResponse(
+        await requireApi().getJson(`/api/jobs/status?${params.toString()}`, { cache: "no-store" }),
+      );
+
+      if (!jobs) {
+        throw new Error("The job status readout could not be read.");
+      }
+
+      renderJobObservability(jobs, { append: Boolean(options.append) });
     } catch (error) {
       renderJobObservabilityError(error);
     }
@@ -770,10 +911,10 @@
   }
 
   function renderJobObservability(jobs, options = {}) {
-    const counts = jobs.counts || {};
-    const recentFailures = jobs.recentFailures || {};
-    const pagination = recentFailures.pagination || {};
-    const incomingItems = Array.isArray(recentFailures.items) ? recentFailures.items : [];
+    const counts = jobs.counts;
+    const recentFailures = jobs.recentFailures;
+    const pagination = recentFailures.pagination;
+    const incomingItems = recentFailures.items;
 
     jobObservabilityFailureItems = options.append
       ? [...jobObservabilityFailureItems, ...incomingItems]
