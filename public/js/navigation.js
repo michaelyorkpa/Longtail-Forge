@@ -1466,13 +1466,87 @@
     notificationDismissAll?.toggleAttribute("disabled", disabled);
   }
 
+  /** @param {unknown} value @returns {value is number} */
+  function isBellCount(value) {
+    return typeof value === "number" && Number.isInteger(value) && value >= 0;
+  }
+
+  /**
+   * The bell summary, or `null` when the body is not one this producer sent.
+   *
+   * **A malformed summary is not a summary of zero.** The producer answers a genuine all-zero
+   * summary for a recipient with nothing waiting, and the raw read handed whatever came back
+   * straight to the badge - so an unreadable response and an empty inbox were the same thing.
+   * They are not, and this reader refuses rather than reporting a count the server never gave.
+   *
+   * **The aliases and the flags are required to agree**, because one statement derives them all:
+   * `count` and `unreadCount` are the same `SUM`; the total is the badge plus the low-priority
+   * remainder; and each flag is its own count being above zero. A body where they disagree was
+   * not built here, whatever its members happen to be.
+   *
+   * The two priority counts are **not** checked against `unreadCount`, because they are a
+   * different population: their `SUM` spans read notifications too.
+   * @param {unknown} body
+   * @returns {body is import("../../src/types/browser-contracts.js").BrowserNotificationBellSummary}
+   */
+  function isBellSummary(body) {
+    if (!isNotificationRecord(body)) {
+      return false;
+    }
+
+    // Named one at a time rather than looped over a table of member names: `every` proves the
+    // values are counts at runtime but narrows none of them, so the arithmetic below would be
+    // reading `unknown` and the coherence rules would not be checkable at all.
+    const { count, highPriorityCount, lowPriorityUnreadCount, totalUnreadCount, unreadCount, urgentPriorityCount } = body;
+    const { hasHighPriority, hasPriorityAlert, hasUrgentPriority } = body;
+
+    if (!isBellCount(count)
+      || !isBellCount(highPriorityCount)
+      || !isBellCount(lowPriorityUnreadCount)
+      || !isBellCount(totalUnreadCount)
+      || !isBellCount(unreadCount)
+      || !isBellCount(urgentPriorityCount)
+      || typeof hasHighPriority !== "boolean"
+      || typeof hasPriorityAlert !== "boolean"
+      || typeof hasUrgentPriority !== "boolean") {
+      return false;
+    }
+
+    return count === unreadCount
+      && totalUnreadCount === unreadCount + lowPriorityUnreadCount
+      && hasUrgentPriority === urgentPriorityCount > 0
+      && hasHighPriority === highPriorityCount > 0
+      && hasPriorityAlert === (hasUrgentPriority || hasHighPriority);
+  }
+
+  /**
+   * The bell summary, or `null`.
+   *
+   * A predicate narrows and a cast asserts, so the checking happens in `isBellSummary`.
+   * @param {unknown} body
+   * @returns {import("../../src/types/browser-contracts.js").BrowserNotificationBellSummary | null}
+   */
+  function readBellSummary(body) {
+    return isBellSummary(body) ? body : null;
+  }
+
   async function refreshNotificationCount() {
     try {
       const response = await fetch("/api/notifications/unread-count", { cache: "no-store" });
       if (response.ok) {
-        applyNotificationSummary(await response.json());
+        /** @type {unknown} */
+        const body = await response.json();
+        const summary = readBellSummary(body);
+
+        if (!summary) {
+          throw new Error("The notification summary could not be read.");
+        }
+
+        applyNotificationSummary(summary);
       }
     } catch {
+      // The badge is reset rather than left stale. This is the page's own degradation choice and
+      // **not** a claim that the server reported zero - the reader above refused to say that.
       applyNotificationSummary({ unreadCount: 0 });
     }
   }

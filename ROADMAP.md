@@ -780,6 +780,10 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **A security finding, recorded rather than fixed here.** `safeRelativeUrl` in `notifications.service.js` and `safeUrl` in `core/events/event-summaries.js` are the same guard, and both reject any value carrying a URI scheme - which stops `javascript:`, `data:` and `vbscript:`. Neither rejects a **protocol-relative** URL. `//host/path`, `/\host/path` and `\/host/path` all carry no scheme, all pass, and all resolve against the page to `https://host/path` - a different origin, reached from an `href` the notification list renders. Every `payload.url` writer in the tree today is a first-party literal, so **no attacker-controlled path is proven**; this is a defence-in-depth guard that does not hold, not a live exploit. **The browser boundary refuses those forms and the server guard is untouched**, because correcting two server helpers is its own change and hiding it inside a parser would be the wrong way to land it.
 
+#### 0.33.33.38.4.13.2 - The notification bell-summary response
+
+**Complete: 0 visible diagnostics, 1 latent JSON trust boundary closed, one exact contract, zero fallout.** See the archive entry. `refreshNotificationCount` passed `await response.json()` **straight into** `applyNotificationSummary`, so the badge rendered whatever came back and an unreadable response was indistinguishable from a recipient with nothing waiting. The contract is **exact at nine** and the count members are deliberately not collapsed: the badge excludes low-priority unread items, the total does not, and the two priority counts are a **different population again** - their `SUM` spans `status IN ('unread', 'read')`, so an urgent notification already read is counted there and is not part of `unreadCount`. **The reader does not invent a containment rule the SQL does not support.**
+
 #### 0.33.33.38.5 - Narrow the server task lifecycle status vocabulary
 
 **Model: Medium Effort - 16 measured sites in one module, and a proven runtime guarantee.** Inherited from `0.33.33.37`.
