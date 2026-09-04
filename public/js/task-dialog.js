@@ -928,11 +928,104 @@
       : "";
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRelationship} BrowserTaskRelationship */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRelationshipDirection} BrowserTaskRelationshipDirection */
+
+  /** The two directions the producer writes from one comparison. @type {readonly BrowserTaskRelationshipDirection[]} */
+  const TASK_RELATIONSHIP_DIRECTIONS = Object.freeze(["child", "parent"]);
+
+  /** The relationship members the producer always writes as text. */
+  const TASK_RELATIONSHIP_TEXT_MEMBERS = Object.freeze([
+    "child_task_id", "created_at", "parent_task_id", "related_task_id",
+    "task_relationship_id", "updated_at",
+  ]);
+
+  /** The related-task summary members it always writes as text. */
+  const RELATED_TASK_TEXT_MEMBERS = Object.freeze([
+    "client_id", "client_name", "project_id", "project_name", "status", "task_id", "title", "url",
+  ]);
+
+  /** @param {unknown} value @returns {value is Record<string, unknown>} */
+  function isTaskRelationshipRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasTaskRelationshipText(value, keys) {
+    return keys.every((key) => typeof value[key] === "string");
+  }
+
+  /**
+   * The related-task summary, as `taskRelationshipTaskSummary` reconstructs it.
+   *
+   * `estimate_minutes` is the only member the task record itself allows to be null, so it is
+   * the only one checked as nullable here.
+   * @param {unknown} value
+   * @returns {boolean}
+   */
+  function isRelatedTaskSummary(value) {
+    return isTaskRelationshipRecord(value)
+      && hasTaskRelationshipText(value, RELATED_TASK_TEXT_MEMBERS)
+      && (value.estimate_minutes === null || typeof value.estimate_minutes === "number");
+  }
+
+  /**
+   * One relationship as `readableRelationshipsForTask` builds it.
+   *
+   * The readability flag and the summary are checked against each other rather than
+   * separately. The producer writes the summary only when its `tasks.view` check passed and
+   * the related task exists, and writes the flag from that same check - so a row claiming the
+   * related task was unreadable while carrying its title, client and project is one where a
+   * withheld task's details arrived anyway, and this refuses it.
+   * @param {unknown} value
+   * @returns {value is BrowserTaskRelationship}
+   */
+  function isTaskRelationship(value) {
+    if (!isTaskRelationshipRecord(value)
+      || !hasTaskRelationshipText(value, TASK_RELATIONSHIP_TEXT_MEMBERS)
+      || typeof value.is_blocking !== "boolean"
+      || !TASK_RELATIONSHIP_DIRECTIONS.some((word) => word === value.direction)) {
+      return false;
+    }
+
+    return value.related_task_readable === true
+      ? isRelatedTaskSummary(value.related_task)
+      : value.related_task_readable === false && value.related_task === null;
+  }
+
+  /**
+   * The relationship list, or `null` when the body is not one this producer sends.
+   *
+   * `relationshipSummary` is not read: it is a different producer's record, and this reader
+   * refusing a body over a member nothing on this path uses would be inventing a contract for
+   * it. The array and its elements are what the caller relies on, and every element is
+   * checked - an array whose container is right and whose contents are not is the shape a
+   * length check alone would wave through.
+   * @param {unknown} body
+   * @returns {BrowserTaskRelationship[] | null}
+   */
+  function readTaskRelationships(body) {
+    if (!isTaskRelationshipRecord(body) || !Array.isArray(body.relationships)) {
+      return null;
+    }
+
+    const relationships = body.relationships.filter(isTaskRelationship);
+
+    return relationships.length === body.relationships.length ? relationships : null;
+  }
+
   async function readCurrentParentTaskId(taskId) {
     const api = requireApi();
     try {
-      const result = await api.getJson(`/api/tasks/${encodeURIComponent(taskId)}/relationships`, { cache: "no-store" });
-      const parent = (result.relationships || []).find((relationship) => relationship.direction === "parent");
+      const relationships = readTaskRelationships(
+        await api.getJson(`/api/tasks/${encodeURIComponent(taskId)}/relationships`, { cache: "no-store" }),
+      );
+
+      if (!relationships) {
+        throw new Error("The task relationship list could not be read.");
+      }
+
+      const parent = relationships.find((relationship) => relationship.direction === "parent");
       return parent?.parent_task_id || parent?.related_task?.task_id || "";
     } catch {
       return "";

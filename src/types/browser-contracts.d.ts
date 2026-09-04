@@ -4927,6 +4927,95 @@ export interface BrowserTaskRecord {
 }
 
 /**
+ * Which end of the relationship the task being asked about sits on.
+ *
+ * `readableRelationshipsForTask` writes `"child"` when the asked-about task is the parent of
+ * the pair and `"parent"` when it is the child, from one comparison and nothing else.
+ */
+export type BrowserTaskRelationshipDirection = "child" | "parent";
+
+/**
+ * The nine members `taskRelationshipTaskSummary` reconstructs from a related task.
+ *
+ * It is a summary rather than a task record: the shaper names these nine and no others, so a
+ * page cannot reach the related task's description, dates, assignee or tags through this
+ * boundary. `estimate_minutes` is the one nullable member, as it is on the task record itself.
+ */
+export interface BrowserTaskRelationshipTaskSummary {
+  client_id: string;
+  client_name: string;
+  estimate_minutes: number | null;
+  project_id: string;
+  project_name: string;
+  status: string;
+  task_id: string;
+  title: string;
+  url: string;
+}
+
+/** The members every relationship in the list carries, whichever side the caller can see. */
+export interface BrowserTaskRelationshipCommon {
+  child_task_id: string;
+  created_at: string;
+  direction: BrowserTaskRelationshipDirection;
+  is_blocking: boolean;
+  parent_task_id: string;
+  /** The other task's id: the child's on a `"child"` row, the parent's on a `"parent"` row. */
+  related_task_id: string;
+  task_relationship_id: string;
+  updated_at: string;
+}
+
+/** A relationship whose other task the caller may read, so its summary is present. */
+export interface BrowserReadableTaskRelationship extends BrowserTaskRelationshipCommon {
+  related_task: BrowserTaskRelationshipTaskSummary;
+  related_task_readable: true;
+}
+
+/**
+ * A relationship whose other task the caller may **not** read, or which no longer exists.
+ *
+ * The relationship itself is still disclosed - a task may legitimately know it has a parent it
+ * cannot open - but the summary is `null`, so the title, status, client and project of a task
+ * outside the caller's reach never cross this boundary.
+ */
+export interface BrowserWithheldTaskRelationship extends BrowserTaskRelationshipCommon {
+  related_task: null;
+  related_task_readable: false;
+}
+
+/**
+ * One relationship, discriminated on whether its other task was readable.
+ *
+ * The producer sets `related_task_readable` from a `tasks.view` check that is false whenever
+ * the related task is missing, and writes the summary only when that check passed and the task
+ * exists. So the flag and the summary's presence are one decision reported twice, not two
+ * members that could disagree - and a body in which they do disagree is one where a withheld
+ * task's details arrived anyway.
+ */
+export type BrowserTaskRelationship =
+  | BrowserReadableTaskRelationship
+  | BrowserWithheldTaskRelationship;
+
+/**
+ * `GET /api/tasks/:taskId/relationships`, and the four write routes that answer with it.
+ *
+ * `addChildTask`, `updateChildTaskRelationship` and their siblings all end in
+ * `listRelationships`, so the write responses cannot diverge from the read - producer identity
+ * proved by a call rather than by matching members. The envelope is exact at two.
+ *
+ * `relationshipSummary` is left `unknown` on purpose. It is a **different producer** -
+ * `taskRelationshipsRepository.relationshipSummary`, five counts from one aggregate query -
+ * and the same member is already carried as `unknown` by the two task-detail contracts that
+ * also receive it. Naming it here would put its contract on the boundary that happens to
+ * mention it rather than on the children that own it, and nothing on this path reads it.
+ */
+export interface BrowserTaskRelationshipListResponse {
+  relationshipSummary: unknown;
+  relationships: BrowserTaskRelationship[];
+}
+
+/**
  * A task as every non-timer route sends it: `attachTaskDetails` over the base record.
  *
  * **One shaper serves all of them.** `create`, `read`, `update`, `complete`, `reopen`, `archive`,

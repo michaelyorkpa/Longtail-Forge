@@ -1,5 +1,34 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.3.6 - The task relationship list
+
+**Model: High Effort** - one diagnostic, and the child `0.33.33.38.4.3` wrote down long before it could be closed: the relationship list was declared as a single, and its `relationshipSummary` sibling was recorded then as a different producer's work. Both judgements held when the trace finally ran.
+
+- [x] **The envelope is exact, and the write routes cannot diverge from it.** `listRelationships` returns `{ relationships, relationshipSummary }` and spreads nothing. `addChildTask` and `updateChildTaskRelationship` both end in `return listRelationships(...)`, so producer identity is proved by a call rather than by matching members - the same argument `0.33.33.38.4.9.3` used when a save turned out to be a read.
+- [x] **Readability is a permission decision reported twice, and the reader holds the two together.** The producer computes `canReadRelated` from a `tasks.view` check that is false whenever the related task is missing, writes it to `related_task_readable`, and writes the nine-member summary **only** when that check passed and the task exists. So the declaration carries a readable variant that promises the summary and a withheld one that declares it `null`, and a row pairing `related_task_readable: false` with a summary is refused. That pairing is the one this boundary exists to prevent: the relationship itself is still disclosed - a task may legitimately know it has a parent it cannot open - but the parent's title, status, client and project are not.
+- [x] **The summary is a summary.** `taskRelationshipTaskSummary` names nine members of the related task, so a description, an assignee or a set of tags cannot reach the browser through a relationship. **A break that adds a tenth is refused for membership; a break that quietly repoints `title` at `task.description` is refused for the leak** - and finding that second case is what showed the membership check alone would not have caught it.
+- [x] **`direction` is closed at two words** because the producer writes it from one comparison, and `is_blocking` is checked as a boolean because the repository dialect-reads it into one rather than passing a column value through.
+- [x] **`relationshipSummary` is left `unknown`, deliberately.** It is `taskRelationshipsRepository.relationshipSummary` - five counts from one aggregate query - and the same member is already carried unnamed by the two task-detail contracts that also receive it. Naming it here would put its contract on the boundary that happens to mention it rather than on the children that own it. **The reader does not read it either**, and a break that makes an unreadable summary refuse the list is refused for exactly that: a member this contract does not name must not decide whether the list is readable.
+- [x] **An unreadable list no longer reads as a task with no relationships**, and the helper still answers the best-effort empty string it has always answered on failure. That is honest rather than ideal: this helper's `catch` predates the child. What the proof adds is that an empty current parent **cannot** detach anything, because the save compares before it deletes - and a break that reorders those two is refused.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **41 breaks across the tasks service, the relationships repository, the route, the declaration and the consumer, all 41 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,309 | **8,307** |
+| Genuine `unknown` | 19 | **18** |
+| params | 4,605 | **4,604** |
+| state / dom / namespace / assorted | 1,730 / 1,484 / 319 / 152 | **all unchanged** |
+| `.41` Tasks and Task Dialog | 1,168 | **1,167** |
+| `.39` / `.40` / `.42` / `.43` / `.44` | 1,770 / 491 / 530 / 968 / 1,560 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,040 / 348 / 167 | **1,074 / 348 / 167**, green |
+
+**1 elimination and 1 contextual elimination, no transfers.** The second is in another owner's family and worth naming: the arrow parameter in `.find((relationship) => ...)` was an implicit `any` **because** the array it iterated was `unknown`. Typing the list gave it a type, so `0.33.33.41` lost one `params` diagnostic without that child doing anything. No static owner needed retargeting - the Tasks owners pin the producer's permission-gated shape, which this child did not move.
+
+**Two proof gaps the harness earned, both the same shape.** `indexOf(a) < indexOf(b)` reads as "a comes first" when `a` is **absent**, because `-1` is less than everything: deleting the permission assertion outright made the ordering check pass. The same gap sat in the save-ordering check. Both now require presence before order. It is the second time this estate has been caught by that exact pattern - `0.33.33.38.4.2.1` found it in a script-delivery-order check - and it is worth stating plainly: an ordering assertion that does not first prove both operands exist is not an ordering assertion.
+
 ## Version 0.33.33.38.4.9.5 - The Files preview responses
 
 **Model: High Effort** - two diagnostics, but two response contracts, because metadata authorization and content delivery are distinct security boundaries that happen to be one workflow.
