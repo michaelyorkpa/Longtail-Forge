@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.2.3 - The linked-panel selectable-note search
+
+**Model: High Effort** - one diagnostic, and two adjacent contracts that had to be told apart.
+
+- [x] **The adjacent predicate would have refused every note, and that is why it was not reused.** `isLinkedNoteItem` requires `id`, `label` and `sourceUrl` on top of the note columns, because `shapeLinkedNotePanelItem` adds them for the `for-target` projection. `GET /api/notes` sends none of the three. A break that reuses it is refused by a fixture proving the same note is *selectable* and *not* a panel item - the two verdicts are asserted together, so the distinction cannot quietly collapse.
+- [x] **The column tables are reused, not copied.** `PANEL_NOTE_TEXT_COLUMNS` and `PANEL_NOTE_NULLABLE_COLUMNS` already carry `shapeNoteForBrowser`'s columns for the for-target reader, and the new predicate takes both. Three breaks attack that: adding a second divergent table, dropping a column from one, and moving a column between them. Membership is checked against `BrowserNoteColumns` **read out of the declaration**, never against a list typed in the test.
+- [x] **Two readers of one contract, and they are made to agree.** The panel's new predicate and `notes.js`'s `isNoteListItem` are both instantiated from their own shipped source and required to return the same verdict on fourteen fixtures. A break that adds one extra condition to the Notes page predicate is refused - and the fixture that catches it had to be added, because every fixture in the first draft carried a non-empty title and so could not see the divergence.
+- [x] **Only `notes` is claimed.** `noteListResult` names `notes` and `pagination` with no spread, so the envelope is exact at that level - but this picker never reads the pagination. Returning `BrowserNoteListEnvelope` after checking one member would be a claim about a value nothing looked at. Three breaks attack it from both sides: declaring the wider return, answering the whole body, and *starting* to validate a member this reader has no business refusing a body over.
+- [x] **A malformed body must not read as "no notes".** `result.notes || []` turned an unreadable response into the same empty list a genuinely noteless workspace produces, and the picker printed **"No notes available"** for both. One malformed note now refuses the whole response and takes the module's existing **"Notes unavailable"** catch. Two breaks are aimed there, and the second was a real gap: nothing said the refusal had to *throw*, so rendering the empty-list message and returning satisfied every assertion in the first draft.
+- [x] **The producer's own objects survive.** The array is answered by identity and so are its elements, proved against references captured before the call. A break that rebuilds each note to the three members the picker reads - `note_id`, `title`, `body_excerpt` - is refused, and a fixture carrying an unpromised member proves it is preserved.
+- [x] **The picker behaves exactly as it did.** Linked ids still come from panel state and are still excluded; the needle still matches title and excerpt; the fifty-result cap, the title fallback, the submitted identifier and the query are all unchanged; and nothing is stored in panel state that was not stored before. Eight breaks cover that surface.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **39 breaks across the shared panel, the Notes page, the notes service and the declaration, all 39 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,281 | **8,277** |
+| Genuine `unknown` | 7 | **6** |
+| params | 4,602 | **4,599** |
+| `0.33.33.39` shared browser framework | 1,770 | **1,767** |
+| state / dom / namespace / assorted | 1,717 / 1,483 / 319 / 153 | **all unchanged** |
+| `.40` / `.41` / `.42` / `.43` / `.44` | 480 / 1,167 / 530 / 968 / 1,557 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,301 / 348 / 167 | **1,326 / 348 / 167**, green |
+
+**1 elimination and 3 contextual eliminations, no transfers and no new debt.** Measured against `HEAD`'s own copy of the module: `TS18046` 1 to 0 and `TS7006` 43 to 40 - the three filter callbacks now receive a typed array - with every other code identical. **No static owner needed retargeting**: nothing in the estate pinned `result.notes || []`.
+
+**A container guard that crashes rather than refuses, pinned first rather than last.** Removing `Array.isArray(body.notes)` makes `.every` throw a `TypeError` instead of returning `null`, so every runtime fixture in that test crashed before one could name the failure. The guard is asserted by source, and the assertion is placed **above** the fixtures rather than below them - the fourth occurrence of this pattern in the estate and the first where ordering inside the test was the fix.
+
 ## Version 0.33.33.38.4.5.8 - The Notes external-link preference
 
 **Model: High Effort** - one diagnostic, and the whole of it was deciding how little to type.
