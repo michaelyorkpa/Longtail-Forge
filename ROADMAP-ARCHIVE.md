@@ -1,5 +1,34 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.5.8 - The Notes external-link preference
+
+**Model: High Effort** - one diagnostic, and the whole of it was deciding how little to type.
+
+- [x] **A scalar reader, because the consumer consumes a scalar.** `usersService.readSettings` is an exact fourteen-member reconstruction and `BrowserUserSettings` already declares all of it, so the temptation was to annotate the body and be done. That would have been a claim this page cannot support: it checks one member. `readOpenExternalLinksNewTab` answers `boolean | null` and names nothing else, and four breaks - claiming the wider body, checking `timezone`, publishing a `BrowserNotesUserSettings`, loading `settings-host.js` into `notes.html` - are all refused.
+- [x] **`=== true` turned three different failures into a preference.** A missing member, a `"false"` string and an error body all produced `false`, `settingsLoaded` went true beside it, and `storeOpenExternalLinksPreference` wrote that fabricated `false` into `localStorage` - so the next cold load started from a preference the server never stated. The member is now proved to *be* a boolean before either of its values means anything, and `normalizeBooleanPreference` is what guarantees the producer sends one.
+- [x] **The refusal precedes every write, and the failure path writes nothing at all.** Three ordering assertions put the refusal before the assignment, before the storage write and before `settingsLoaded`, and each first proves both operands exist. The catch is the one the page already had: `settingsLoaded` stays false, the slot keeps the value `readStoredOpenExternalLinksPreference` seeded it with, and nothing reaches storage. Five breaks attack that, including two that persist or overwrite from inside the catch.
+- [x] **The external-link security behaviour is pinned, not assumed.** `target="_blank"` is still paired with `rel="noopener noreferrer"` and in that order, a valid disabled preference still removes both, and only absolute `http(s)` URLs are handled at all. Six breaks attack that chain - dropping `rel`, reversing the pair, resolving relative hrefs against `window.location.href`, opening the protocol vocabulary - and all six are refused.
+- [x] **Producer and reader authority are independent.** The producer side is proved by executing the shipped `normalizeBooleanPreference` against thirteen non-boolean inputs, not by reading its source and agreeing with it; the declaration side is proved against `BrowserUserSettingsProfile`, which was derived by `0.33.33.38.4.5.1` from the same producer without consulting this reader.
+- [x] **A cast was written first and replaced.** The reader's first draft narrowed the body with `/** @type {Record<string, unknown>} */ (body)`. `notes.js` already owns `isResponseRecord`, published by `0.33.33.38.2.4.5` for exactly this - an annotation checks and a cast asserts - so the reader uses it, and a break that restores the cast is refused.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **34 breaks across the page, the normalizer, the users service, the users routes, the declaration and the Notes view, all 34 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,282 | **8,281** |
+| Genuine `unknown` | 8 | **7** |
+| params / state / dom / namespace / assorted | 4,602 / 1,717 / 1,483 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 480 / 1,167 / 530 / 968 / 1,557 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,282 / 348 / 167 | **1,301 / 348 / 167**, green |
+
+**1 elimination, no transfers, no contextual movement and no new debt.** Measured against `HEAD`'s own copy of the page: `TS18046` 2 to 1 in `notes.js`, every other diagnostic code identical.
+
+**Three proof flaws the harness caught, and one of them made every judgement vacuous.** The break runner captured vitest's output with the platform's default codec, so the box-drawing characters in a failure report raised a `UnicodeDecodeError` on the reader thread and the captured text came back **empty** - every break was being judged against an empty string, and the first run duly reported 34 failures for the wrong check. The runner now decodes as UTF-8 and asserts the baseline capture is non-empty before any mutation runs. The second was a producer assertion aimed at `/\breturn value\b/`, which the normalizer's own `return value === true || ...` matches; it is now an execution test. The third was a real gap: every array fixture in the record-refusal list happened to lack the member, so the array check was never load-bearing, and the fixture that exposed it carries the member.
+
+**Two static owners retargeted.** `note-link-target-contracts` and `note-mutation-identity-contracts` each pinned `settings.openExternalLinksNewTab` as a *surviving* raw read, to prove those children had left it alone. Both now assert the reader's **call site** instead - the reader's own definition contains its name, so anchoring on the definition would pass for a reader nothing calls - and a break that splits the call across two statements is refused by both.
+
 ## Version 0.33.33.38.4.5.7 - The module settings catalog sections
 
 **Model: High Effort** - one diagnostic, and the discipline was in what the child refused to type rather than in what it typed.
