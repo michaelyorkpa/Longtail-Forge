@@ -784,6 +784,14 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **Complete: 0 visible diagnostics, 1 latent JSON trust boundary closed, one exact contract, zero fallout.** See the archive entry. `refreshNotificationCount` passed `await response.json()` **straight into** `applyNotificationSummary`, so the badge rendered whatever came back and an unreadable response was indistinguishable from a recipient with nothing waiting. The contract is **exact at nine** and the count members are deliberately not collapsed: the badge excludes low-priority unread items, the total does not, and the two priority counts are a **different population again** - their `SUM` spans `status IN ('unread', 'read')`, so an urgent notification already read is counted there and is not part of `unreadCount`. **The reader does not invent a containment rule the SQL does not support.**
 
+#### 0.33.33.38.4.13.3 - The notification-preference raw-JSON boundary
+
+**Complete: 0 visible diagnostics, 1 latent `any` leak closed, 4 contextual eliminations, no new contract.** See the archive entry. `parseJsonResponse` calls `JSON.parse`, which returns **`any`** - and without a declared return type that `any` reached all three callers. It now declares `Promise<unknown>`, and the work was to **prove `0.33.33.38.4.10`'s settled operations from `unknown` rather than change them**: a missing or non-array `events` still becomes `[]`, a malformed element is still dropped rather than refusing a configurable picker, and the save results stay `Promise<unknown>` because every caller awaits and discards them.
+
+#### 0.33.33.38.4.13 - closing the parent
+
+**All three children are merged and the ignored-body disposition is recorded.** `POST /:id/read` and `/:id/dismiss` answer `{ notification }`; `read-all` and `dismiss-all` answer the bell summary; both preference `PUT`s answer the catalogue. **Every browser caller checks `response.ok` and refetches**, and none parses a body. Those bodies are **intentionally ignored** and no browser response contract is required for them until a consumer actually binds one - publishing a parser to describe a generous response would be dead code. The refetch is deliberate and was not optimised away.
+
 #### 0.33.33.38.5 - Narrow the server task lifecycle status vocabulary
 
 **Model: Medium Effort - 16 measured sites in one module, and a proven runtime guarantee.** Inherited from `0.33.33.37`.

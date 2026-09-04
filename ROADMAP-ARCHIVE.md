@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.13.3 - The notification-preference raw-JSON boundary
+
+**Model: High Effort** - one annotation, and a great deal of care not to change what it made visible.
+
+- [x] **`JSON.parse` returns `any`, and that `any` had three consumers.** The transport is a raw `fetch`, so `BrowserApi`'s `Promise<unknown>` was never in the path and nothing else was going to say what the parsed text is. `parseJsonResponse` now declares `Promise<unknown>`; its four answer shapes - `null` for an empty body, the parsed value, `null` for unparsable text on success, `{ error: text }` on failure - are unchanged, and four breaks pin them.
+- [x] **The catalogue is reconstructed behind a guard, not cast.** `isResponseRecord(body) ? body : {}` replaces the optional-chained reads, and a break that casts to `BrowserNotificationPreferenceCatalog` is refused. **The record guard is pinned by source**, because a guard that admits `null` makes the reconstruction throw rather than refuse and no fixture can name that.
+- [x] **`0.33.33.38.4.10`'s malformed policy is preserved exactly, and it is preserved deliberately.** A malformed event is **dropped**, not refused, because that checkpoint chose element filtering for a configurable picker and nothing here demonstrates a new defect. Two breaks attack it from both sides: one that stops dropping, and one that escalates to whole-catalogue refusal.
+- [x] **The grouping normaliser takes `unknown` honestly.** Its vocabulary moved from an inline array literal into a frozen table typed by `BrowserNotificationGroupingMode`, which the estate already declared - so the closed union and the runtime check are now the same list, read from the declaration by the test. Six breaks attack the vocabulary, the fallback, the snake_case spelling and the guard.
+- [x] **The save results stay `Promise<unknown>`, and that is a finding rather than an omission.** Both routes answer the full catalogue; all three call sites await and discard. Validating a body nobody reads would be dead code, so the surface is unchanged and **a test proves no caller binds or reads a save result** - a caller that starts doing so makes that boundary future work instead of silently acquiring `any`. Seven breaks refuse a published save contract, a validated save body, and a caller that binds one.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **35 breaks across the preferences surface, the notifications page, user settings, the declaration and the notifications view, all 35 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,270 | **8,266** |
+| Visible genuine `unknown` | 2 | **2** |
+| Notification-family raw JSON trust sites | 2 | **0** |
+| params | 4,598 | **4,594** |
+| `0.33.33.39` shared browser framework | 1,767 | **1,763** |
+| state / dom / namespace / assorted | 1,715 / 1,483 / 319 / 153 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,468 / 348 / 167 | **1,486 / 348 / 167**, green |
+
+**4 contextual eliminations and no visible `unknown` movement.** Measured against `HEAD`'s own copy of the surface: `TS7006` 33 to 31 and `TS2339` 7 to 5, every other code identical. The eliminations come from the annotated boundary giving four callbacks a contextual type they did not have.
+
+**A self-confirming construction, caught by the breaks.** The first draft of the test **retyped** the catalogue reconstruction inside its own sandbox rather than lifting it from `loadPreferences`. Six breaks walked straight through it - every behavioural assertion was testing this file rather than the surface. The reconstruction is now sliced out of the shipped function, and a comment says why. A second gap: every non-record grouping fixture also lacked the member, so `|| {}` behaved identically to the record guard on all of them; an array carrying `groupingMode` is what makes it load-bearing.
+
+**Two static owners retargeted**, both in `notification-response-contracts` from `0.33.33.38.4.10`. Its sandbox now lifts `GROUPING_MODES` alongside the normaliser that reads it, and its element-check pin names `catalog.events` rather than `body?.events` - the assertion is still about the element check, not about the spelling of the value being checked.
+
 ## Version 0.33.33.38.4.13.2 - The notification bell-summary response
 
 **Model: High Effort** - nine members, five of which are counts of three different populations.
