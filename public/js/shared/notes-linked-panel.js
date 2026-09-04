@@ -306,10 +306,15 @@
       if (String(search || "").trim()) {
         params.set("q", String(search || "").trim());
       }
-      const result = await api.getJson(`/api/notes?${params.toString()}`, { cache: "no-store" });
+      const selectable = readSelectableNoteList(await api.getJson(`/api/notes?${params.toString()}`, { cache: "no-store" }));
+
+      if (!selectable) {
+        throw new Error("The selectable note list could not be read.");
+      }
+
       const linkedIds = new Set(state.notes.map((note) => note.id));
       const needle = String(search || "").trim().toLowerCase();
-      const notes = (result.notes || [])
+      const notes = selectable
         .filter((note) => !linkedIds.has(note.note_id))
         .filter((note) => !needle || [note.title, note.body_excerpt].filter(Boolean).join(" ").toLowerCase().includes(needle))
         .slice(0, 50);
@@ -472,6 +477,7 @@
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserLinkedNotePanelActions} BrowserLinkedNotePanelActions */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserLinkedNotePanelEmptyState} BrowserLinkedNotePanelEmptyState */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserLinkedNoteTarget} BrowserLinkedNoteTarget */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserNoteListItem} BrowserNoteListItem */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserNotesModuleState} BrowserNotesModuleState */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserLinkedNoteSort} BrowserLinkedNoteSort */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserWorkspaceType} BrowserWorkspaceType */
@@ -537,6 +543,49 @@
       && (value.excerpt === null || typeof value.excerpt === "string")
       && Array.isArray(value.links)
       && value.note_id !== "";
+  }
+
+  /**
+   * One note as `GET /api/notes` sends it, against the already-published list contract.
+   *
+   * **Not `isLinkedNoteItem`.** That predicate also requires `id`, `label` and `sourceUrl`, which
+   * `shapeLinkedNotePanelItem` adds for the *panel* projection and which this endpoint does not
+   * send - using it here would refuse every note the search returns. What the two share is the
+   * column tables, and those are reused rather than copied into a second divergent list.
+   * @param {unknown} value
+   * @returns {value is BrowserNoteListItem}
+   */
+  function isSelectableNoteItem(value) {
+    return isPanelRecord(value)
+      && hasPanelText(value, PANEL_NOTE_TEXT_COLUMNS)
+      && hasPanelNullableText(value, PANEL_NOTE_NULLABLE_COLUMNS)
+      && Array.isArray(value.tags)
+      && value.note_id !== "";
+  }
+
+  /**
+   * The selectable notes of a `GET /api/notes` body, or `null` when it is not one.
+   *
+   * **Only `notes` is claimed.** `noteListResult` names `notes` and `pagination` and is exact at
+   * that level, but this picker neither reads nor stores the pagination, so validating `notes`
+   * alone is the truthful claim and `BrowserNoteListEnvelope` is deliberately not returned.
+   *
+   * **The producer's own note objects are answered, not rebuilt.** The search filters on `title`
+   * and `body_excerpt` and the option carries `note_id`, but rebuilding to those three would
+   * throw away everything else a list note carries and everything the producer adds next.
+   *
+   * **One malformed note refuses the whole response.** `shapeNoteListProjection` shapes every
+   * note in the batch, so an element this page cannot read means the body is not one this
+   * producer sent; quietly dropping it would present a short link picker as a complete one.
+   * @param {unknown} body
+   * @returns {BrowserNoteListItem[] | null}
+   */
+  function readSelectableNoteList(body) {
+    if (!isPanelRecord(body) || !Array.isArray(body.notes) || !body.notes.every(isSelectableNoteItem)) {
+      return null;
+    }
+
+    return /** @type {BrowserNoteListItem[]} */ (body.notes);
   }
 
   /** @param {unknown} value @returns {BrowserLinkedNoteTarget | null} */
