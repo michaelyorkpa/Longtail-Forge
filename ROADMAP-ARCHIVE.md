@@ -1,5 +1,37 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.8.5 - The Runtime Diagnostics response
+
+**Model: High Effort** - one diagnostic, a readout of eight sections, and a failure mode that is the mirror of the Jobs one: not hiding trouble, but inventing calm.
+
+- [x] **Closed as its own producer, beside Jobs Status rather than with it.** The two render on one page and share one permission. They are not one response family, and `0.33.33.38.4.8` said so before either was traced. Jobs counts durable rows in one workspace's queue; this reports the health of the process serving it.
+- [x] **Authorization re-proved.** The route is workspace-scoped and sets `no-store`; `read` asserts `workspace_settings.manage` for the session's own workspace **before the first health call**. Breaks that remove the assertion, weaken the right, move it after the first read, or drop the workspace wrapper are all refused.
+- [x] **Exactness is per producer level, and that is what absorbs provider extensibility.** The top level reconstructs eight sections by name with no spread, and each rendered section reconstructs its own members. A storage or scanner adapter may answer anything at all from `health()` - only the two or three members this service names cross into the response. **Two breaks prove it**: one spreads the adapter's body into the safe reader, the other spreads the safe reader's result into the section, and both are refused. So the browser contract is exact without freezing any adapter's internals.
+- [x] **`app` and `features` are declared and left opaque.** Nothing on this page reads them; `features` alone is a thirty-odd member public-demo budget and perimeter tree. Naming it would be publishing an exhaustive projection for a producer with no browser consumer, which is what `0.33.33.38.4.2.1` refused for the compatibility note list. **The reader does not read them either**, and a break that makes an unreadable `features` refuse the readout is refused for exactly that.
+- [x] **Every path is a placeholder, and the vocabulary that says so is closed.** The three shapers describe a path against `<data-dir>`, `./` or - outside the deployment - `<redacted>` plus a basename. Four breaks attack that: displaying the resolved path, skipping the redaction fall-through, redacting to the whole path, and inventing a fourth scope. The scope union is closed at the three the shapers write, because the page raises a warning from it.
+- [x] **Secret scanning was left to the owners that already do it.** Two durable regressions scan this service and the browser script for `process.env`, storage keys, signed URLs, scanner internals and secret material. This child asserts **those owners still run** rather than building a parallel scanner, and breaks that disable either are refused. What it adds is contract-level: no declared member may name a secret, an environment value or a raw path.
+- [x] **Three vocabularies, each scanned from its own producer.** The scanner status is the five words `safeScannerStatus` normalises against - and the proof requires that the Set in the source **is** the producer's own, not a list assembled in the test. Reachability is the two words both safe readers write. The worker state is read out of the job runner's own declared type. A sixth scanner word, a third reachability word and a fifth worker state are each refused.
+- [x] **An unhealthy section is not a malformed one.** An unreachable database with null pragmas, an unavailable store with no local root, a disabled scanner, a stopped worker and a redacted path are all **accepted** - they are what the server saw. What is refused is a body the page cannot read, because rendering that through the same "Unavailable" formatter would make an unparseable response indistinguishable from a broken deployment.
+- [x] **Seven dead defaults removed.** `result.diagnostics || {}` was the trust boundary; the six section defaults and the warnings container test behind it were dead once the readout was vouched for, and each had quietly turned an unreadable section into a rendered one.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **51 breaks across the diagnostics service, the route, the job runner's status type, the durable security owner, the declaration and the consumer, all 51 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,306 | **8,305** |
+| Genuine `unknown` | 17 | **16** |
+| params / state / dom / namespace / assorted | 4,604 / 1,730 / 1,484 / 319 / 152 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 491 / 1,167 / 530 / 968 / 1,560 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,111 / 348 / 167 | **1,146 / 348 / 167**, green |
+
+**1 elimination, no transfers, no contextual fallout, no new namespace surface.**
+
+**The harness earned a proof gap worth naming.** The section-membership assertions compared each declaration against a list written **in the test** rather than against the producer, so a break that deleted `directoryLocation` from the readout passed: the declaration still matched the list, and the list still matched itself. They now read the producer's own literal at its own indent. A proof that confirms itself is not a proof, and this is the first time in this run that the self-confirming shape got as far as being written down.
+
+**Three static owners retargeted, all anchored on call sites.** The scanner-health owner pinned `scanner.health?.warning`, an optional chain this child removed; its first retarget matched the value being **tested** rather than **pushed**, so a bite that substituted invented warning copy passed until it was tightened. The Jobs Status child's own sibling pin and the workspace-deletion one both named `result.diagnostics` as untouched, and both now name the producer that owns it.
+
 ## Version 0.33.33.38.4.8.4 - The Jobs Status response
 
 **Model: High Effort** - one diagnostic, one producer, and a readout whose failure mode is telling an administrator that nothing is wrong.
