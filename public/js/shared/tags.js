@@ -24,6 +24,86 @@
     return errors;
   }
 
+  /** The nine members `tagRowToAppValue` rebuilds as text. */
+  const TAG_TEXT_MEMBERS = Object.freeze([
+    "color", "created_at", "created_by_user_id", "description", "name", "slug", "tag_id",
+    "updated_at", "workspace_id",
+  ]);
+
+  /** The four usage aggregates it rebuilds through `Number(... || 0)`. */
+  const TAG_COUNT_MEMBERS = Object.freeze([
+    "direct_usage_count", "propagated_usage_count", "system_usage_count", "usage_count",
+  ]);
+
+  /** The vocabulary the `tags.status` column's CHECK constraint admits. */
+  const TAG_STATUSES = Object.freeze(["active", "archived", "disabled"]);
+
+  /** @param {unknown} value @returns {value is Record<string, unknown>} */
+  function isTagRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * One tag as `tagRowToAppValue` rebuilds it.
+   *
+   * Every text member is a string because the normaliser fills the nullable columns with `""`,
+   * and every count is a finite non-negative integer because each is a `COALESCE`d aggregate or
+   * a zero default put through `Number`.
+   * @param {unknown} value
+   * @returns {value is import("../../../src/types/browser-contracts.js").BrowserTagCatalogRecord}
+   */
+  function isTagCatalogRecord(value) {
+    return isTagRecord(value)
+      && TAG_TEXT_MEMBERS.every((member) => typeof value[member] === "string")
+      && TAG_COUNT_MEMBERS.every((member) => typeof value[member] === "number"
+        && Number.isInteger(value[member])
+        && Number(value[member]) >= 0)
+      && value.tag_id !== ""
+      && TAG_STATUSES.some((status) => status === value.status);
+  }
+
+  /**
+   * The catalogue entries of a `GET /api/tags` body, filtered to the usable ones.
+   *
+   * **This helper's policy is deliberately looser than the Tags page's, and the difference is the
+   * consumer.** It feeds pickers and filters: an entry it cannot read is one option fewer on a
+   * list the viewer can still complete by hand, so it is dropped rather than taken as grounds to
+   * refuse the whole picker. `tags.js` administers the catalogue itself and refuses whole.
+   *
+   * The envelope stays absence-tolerant for the same reason and because that is the contract this
+   * helper already published: a body with no usable `tags` array resolves `[]`, exactly as a
+   * non-OK response does.
+   *
+   * **The producer's own records are answered**, so anything the catalogue grows next survives.
+   * @param {unknown} body
+   * @returns {import("../../../src/types/browser-contracts.js").BrowserTagCatalogRecord[]}
+   */
+  function readTagCatalogEntries(body) {
+    if (!isTagRecord(body) || !Array.isArray(body.tags)) {
+      return [];
+    }
+
+    return /** @type {import("../../../src/types/browser-contracts.js").BrowserTagCatalogRecord[]} */ (
+      body.tags.filter(isTagCatalogRecord)
+    );
+  }
+
+  /**
+   * The tag `POST /api/tags` created, or `null` when the body is not one this producer sent.
+   *
+   * The create envelope is exact at one member and the service throws rather than answering
+   * without it, so a successful response that carries no readable tag did not come from here.
+   * @param {unknown} body
+   * @returns {import("../../../src/types/browser-contracts.js").BrowserTagCatalogRecord | null}
+   */
+  function readCreatedTag(body) {
+    if (!isTagRecord(body) || !isTagCatalogRecord(body.tag)) {
+      return null;
+    }
+
+    return body.tag;
+  }
+
   async function loadTags(options = {}) {
     const params = new URLSearchParams({
       status: options.status || "active",
@@ -35,8 +115,9 @@
       return [];
     }
 
+    /** @type {unknown} */
     const body = await response.json();
-    return Array.isArray(body.tags) ? body.tags : [];
+    return readTagCatalogEntries(body);
   }
 
   async function createTag(payload = {}) {
@@ -55,7 +136,12 @@
       throw error;
     }
 
-    const tag = body?.tag || null;
+    const tag = readCreatedTag(body);
+
+    if (!tag) {
+      throw new Error("The created tag could not be read.");
+    }
+
     notifyTagCreated(tag);
     return tag;
   }
@@ -129,6 +215,15 @@
       activeSuggestionIndex: -1,
       allTags: normalizeTagList(Array.isArray(options.tags) ? options.tags : await loadTags()),
       busy: false,
+      /**
+       * The tags the picker currently holds selected.
+       *
+       * Typed by `normalizeTagList`'s own return rather than by the catalogue record, because
+       * this slot holds that normaliser's internal picker shape - which carries the assignment
+       * members a catalogue tag does not. Annotated only because the empty initializer infers
+       * `never[]` once `loadTags` feeds `allTags` a typed array.
+       * @type {ReturnType<typeof normalizeTagList>}
+       */
       selectedTags: [],
     };
     const selectedIds = new Set(normalizeTagIds(options.selectedTags || options.selectedTagIds || []));
@@ -823,6 +918,15 @@
     return badge;
   }
 
+  /**
+   * The parsed body of one response, as `unknown`.
+   *
+   * `response.json()` is typed `any`, and without this the three callers inherited it. The two
+   * mutation callers narrow what they need; `suppressPropagatedTag` deliberately does not, because
+   * its only caller awaits and discards the result.
+   * @param {Response} response
+   * @returns {Promise<unknown>}
+   */
   async function readJsonResponse(response) {
     try {
       return await response.json();

@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19042,
+    "activeAssertionCount": 19043,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19856,
+    "effectiveAssertionCount": 19857,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -6942,8 +6942,8 @@
     },
     {
       "area": "tags",
-      "assertionCount": 107,
-      "contractAssertionCount": 106,
+      "assertionCount": 108,
+      "contractAssertionCount": 107,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/tags/tag-inline-picker.contract.mjs",
@@ -6951,7 +6951,7 @@
         },
         {
           "path": "scripts/regression-contracts/tags/tag-management-page.contract.mjs",
-          "assertionCount": 19
+          "assertionCount": 20
         },
         {
           "path": "scripts/regression-contracts/tags/tag-record-workflow.contract.mjs",

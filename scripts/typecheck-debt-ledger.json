@@ -421,6 +421,7 @@
         "tests/unit/support-view-audit-contracts.test.mjs",
         "tests/unit/support-view-target-contracts.test.mjs",
         "tests/unit/tag-bulk-assignment-contracts.test.mjs",
+        "tests/unit/tag-catalogue-contracts.test.mjs",
         "tests/unit/task-block-recovery-engine.test.mjs",
         "tests/unit/task-list-contracts.test.mjs",
         "tests/unit/task-list-engine.test.mjs",
@@ -532,7 +533,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8266,
+      "errorCount": 8256,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1482,12 +1483,8 @@
             "count": 3
           },
           {
-            "code": 2322,
-            "count": 1
-          },
-          {
             "code": 2339,
-            "count": 37
+            "count": 34
           },
           {
             "code": 2345,
@@ -1495,7 +1492,7 @@
           },
           {
             "code": 7006,
-            "count": 64
+            "count": 63
           }
         ],
         "public/js/shared/task-calendar.js": [
@@ -1647,7 +1644,7 @@
         "public/js/tags.js": [
           {
             "code": 2339,
-            "count": 32
+            "count": 27
           },
           {
             "code": 7005,
@@ -2722,8 +2719,8 @@
     }
   },
   "totals": {
-    "files": 1113,
-    "errors": 8266,
+    "files": 1114,
+    "errors": 8256,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

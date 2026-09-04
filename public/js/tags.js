@@ -13,9 +13,23 @@
   const tagResetButton = document.querySelector("[data-tag-reset]");
   const statusButtons = [...document.querySelectorAll("[data-tag-status-filter]")];
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTagCatalogRecord} BrowserTagCatalogRecord */
+
   const state = {
+    /**
+     * Every tag in the workspace, whatever its status.
+     *
+     * Annotated because the empty initializer infers `never[]`, which the validated catalogue
+     * cannot be assigned to. Measured after the reader landed: these two are the only direct
+     * response handoffs this child creates.
+     * @type {BrowserTagCatalogRecord[]}
+     */
     allTags: [],
     status: "active",
+    /**
+     * The tags matching the current status filter.
+     * @type {BrowserTagCatalogRecord[]}
+     */
     tags: [],
   };
 
@@ -290,14 +304,80 @@
     return state.allTags.find((tag) => tag.tag_id !== currentTagId && slugify(tag.slug || tag.name) === normalizedSlug) || null;
   }
 
+  /** The nine members `tagRowToAppValue` rebuilds as text. */
+  const TAG_TEXT_MEMBERS = Object.freeze([
+    "color", "created_at", "created_by_user_id", "description", "name", "slug", "tag_id",
+    "updated_at", "workspace_id",
+  ]);
+
+  /** The four usage aggregates it rebuilds through `Number(... || 0)`. */
+  const TAG_COUNT_MEMBERS = Object.freeze([
+    "direct_usage_count", "propagated_usage_count", "system_usage_count", "usage_count",
+  ]);
+
+  /** The vocabulary the `tags.status` column's CHECK constraint admits. */
+  const TAG_STATUSES = Object.freeze(["active", "archived", "disabled"]);
+
+  /** @param {unknown} value @returns {value is Record<string, unknown>} */
+  function isTagRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * One tag as `tagRowToAppValue` rebuilds it.
+   *
+   * Every text member is a string because the normaliser fills the nullable columns with `""`,
+   * and every count is a finite non-negative integer because each is a `COALESCE`d aggregate or
+   * a zero default put through `Number`.
+   * @param {unknown} value
+   * @returns {value is import("../../src/types/browser-contracts.js").BrowserTagCatalogRecord}
+   */
+  function isTagCatalogRecord(value) {
+    return isTagRecord(value)
+      && TAG_TEXT_MEMBERS.every((member) => typeof value[member] === "string")
+      && TAG_COUNT_MEMBERS.every((member) => typeof value[member] === "number"
+        && Number.isInteger(value[member])
+        && Number(value[member]) >= 0)
+      && value.tag_id !== ""
+      && TAG_STATUSES.some((status) => status === value.status);
+  }
+
+  /**
+   * The tag catalogue, or `null` when the body is not one this producer sent.
+   *
+   * **This page administers the catalogue, so it refuses whole.** `shared/tags.js` feeds pickers and
+   * drops an unusable entry; here a tag the page cannot read is a row of the ledger it is being
+   * asked to manage, and a shortened catalogue rendered as complete would invite an administrator to
+   * conclude a tag no longer exists. The raw read went further still and turned an unreadable body
+   * into **"No tags found."**
+   *
+   * A genuinely empty catalogue stays a real answer.
+   * @param {unknown} body
+   * @returns {import("../../src/types/browser-contracts.js").BrowserTagCatalogRecord[] | null}
+   */
+  function readTagCatalog(body) {
+    if (!isTagRecord(body) || !Array.isArray(body.tags) || !body.tags.every(isTagCatalogRecord)) {
+      return null;
+    }
+
+    return /** @type {import("../../src/types/browser-contracts.js").BrowserTagCatalogRecord[]} */ (body.tags);
+  }
+
   async function fetchTags(params) {
     const response = await fetch(`/api/tags?${params}`, { cache: "no-store" });
     if (!response.ok) {
       throw new Error(await responseError(response, "Tags unavailable."));
     }
 
+    /** @type {unknown} */
     const body = await response.json();
-    return Array.isArray(body.tags) ? body.tags : [];
+    const tags = readTagCatalog(body);
+
+    if (!tags) {
+      throw new Error("Tags unavailable.");
+    }
+
+    return tags;
   }
 
   function formatDate(value) {
