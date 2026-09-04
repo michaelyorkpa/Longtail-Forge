@@ -539,7 +539,7 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 #### 0.33.33.38.4.3.6 - The task relationship list
 
-**1 diagnostic.** `result.relationships` from `GET /api/tasks/:taskId/relationships`. Its `relationshipSummary` sibling is a *different* producer that `BrowserTaskDetail` already carries as `unknown`.
+**Complete: 1 diagnostic, six contracts, and one permission decision reported twice.** See the archive entry. `listRelationships` answers `{ relationships, relationshipSummary }` exactly, and the four write routes answer by calling it, so the write bodies cannot diverge from the read. The element is **discriminated on readability**: the producer writes `related_task_readable` from a `tasks.view` check and the summary only when that check passed, so a row claiming the related task was unreadable while carrying its title, client and project is one where a withheld task's details arrived anyway - and the reader refuses it. `relationshipSummary` stays `unknown` as this child's own note said it should: it is a *different* producer, and the same member is already carried unnamed by the two task-detail contracts that receive it.
 
 #### 0.33.33.38.4.3.8 - The Task option-catalog element contracts
 
