@@ -464,6 +464,159 @@
     return dialogs;
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserUserAdminClientScope} BrowserUserAdminClientScope */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserAssignableWorkspace} BrowserAssignableWorkspace */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserPermissionResource} BrowserPermissionResource */
+
+  /** The five members `workspaceToAppValue` writes as text. */
+  const ASSIGNABLE_WORKSPACE_TEXT = Object.freeze(["workspaceId", "workspaceName", "workspaceType"]);
+
+  /** The two it reaches through a `LEFT JOIN`, and may therefore answer as `null`. */
+  const ASSIGNABLE_WORKSPACE_NULLABLE_TEXT = Object.freeze(["ownerUserId", "ownerUsername"]);
+
+  /** @param {unknown} value @returns {value is Record<string, unknown>} */
+  function isBootstrapRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /** An identifier this page will submit back to the server. @param {unknown} value */
+  function isBootstrapIdentifier(value) {
+    return typeof value === "string" && value.trim() !== "";
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasBootstrapText(value, keys) {
+    return keys.every((key) => typeof value[key] === "string");
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasBootstrapNullableText(value, keys) {
+    return keys.every((key) => value[key] === null || typeof value[key] === "string");
+  }
+
+  /**
+   * One project of a client, in the members this page submits as a role scope.
+   *
+   * `projects.id` and `projects.name` are both `NOT NULL` columns copied by name, so an
+   * unusable one did not come from this producer.
+   * @param {unknown} value
+   */
+  function isClientProjectScope(value) {
+    return isBootstrapRecord(value)
+      && isBootstrapIdentifier(value.id)
+      && typeof value.name === "string";
+  }
+
+  /** @param {unknown} value @returns {value is BrowserUserAdminClientScope} */
+  function isClientScope(value) {
+    return isBootstrapRecord(value)
+      && isBootstrapIdentifier(value.id)
+      && typeof value.name === "string"
+      && Array.isArray(value.projects)
+      && value.projects.every(isClientProjectScope);
+  }
+
+  /**
+   * The client/project role scopes, or `null` when the body is not one this producer sends.
+   *
+   * **This reads `clients` and nothing else.** The option body also carries
+   * `workspaceProjects`, and the shared `clientProjectOptions.normalizeClients` would fold
+   * those into a synthetic client so a picker can offer workspace-scoped projects. User Admin
+   * has never offered that scope and this reader cannot introduce it, because it never looks
+   * at that member - which is a stronger guarantee than removing the row afterwards would be.
+   *
+   * The envelope is checked as the exact one the producer builds: `view` is written literally,
+   * so a body labelling itself anything else is not the options view. A client the page cannot
+   * vouch for refuses the whole list rather than being dropped from it - a role-scope picker
+   * missing one client looks exactly like a workspace that has one fewer.
+   * @param {unknown} body
+   * @returns {BrowserUserAdminClientScope[] | null}
+   */
+  function readClientProjectScopes(body) {
+    if (!isBootstrapRecord(body)
+      || body.view !== "options"
+      || !Array.isArray(body.clients)
+      || !Array.isArray(body.workspaceProjects)) {
+      return null;
+    }
+
+    return body.clients.every(isClientScope)
+      ? /** @type {BrowserUserAdminClientScope[]} */ (body.clients)
+      : null;
+  }
+
+  /** @param {unknown} value @returns {value is BrowserAssignableWorkspace} */
+  function isAssignableWorkspace(value) {
+    return isBootstrapRecord(value)
+      && isBootstrapIdentifier(value.workspaceId)
+      && hasBootstrapText(value, ASSIGNABLE_WORKSPACE_TEXT)
+      && hasBootstrapNullableText(value, ASSIGNABLE_WORKSPACE_NULLABLE_TEXT);
+  }
+
+  /**
+   * The workspaces this administrator may assign membership in.
+   *
+   * A workspace dropped here would remove a membership checkbox from a list the page presents
+   * as complete, so one unusable entry refuses the whole response. An empty list is a
+   * different thing entirely and is accepted: the server filters by status, membership and
+   * `users.manage`, so answering none is a real result the page already renders as "No
+   * assignable workspaces."
+   * @param {unknown} body
+   * @returns {BrowserAssignableWorkspace[] | null}
+   */
+  function readAssignableWorkspaces(body) {
+    if (!isBootstrapRecord(body) || !Array.isArray(body.workspaces)) {
+      return null;
+    }
+
+    return body.workspaces.every(isAssignableWorkspace)
+      ? /** @type {BrowserAssignableWorkspace[]} */ (body.workspaces)
+      : null;
+  }
+
+  /**
+   * One permission resource, as `normalizeResourceDefinition` answers it.
+   *
+   * `key` and `label` must carry text because the matrix keys its rows on one and labels them
+   * with the other, and `operations` must be a non-empty list of non-empty words because a
+   * resource with no operations is a row of no controls. `moduleId` is only required to be a
+   * string: a framework resource belongs to no contributed module and is sent as `""`.
+   * @param {unknown} value
+   * @returns {value is BrowserPermissionResource}
+   */
+  function isPermissionResource(value) {
+    return isBootstrapRecord(value)
+      && isBootstrapIdentifier(value.key)
+      && isBootstrapIdentifier(value.label)
+      && typeof value.moduleId === "string"
+      && Array.isArray(value.operations)
+      && value.operations.length > 0
+      && value.operations.every(isBootstrapIdentifier);
+  }
+
+  /**
+   * The permission catalog, or `null` when one resource in it cannot be vouched for.
+   *
+   * **Nothing is filtered here, and that is the change.** The page used to normalise this list
+   * and drop whatever failed, so a malformed resource left an administrator looking at a
+   * permission grid that was missing controls while appearing complete - and a resource
+   * denied by omission is indistinguishable from one deliberately left unassigned. The server
+   * decides which resources are visible, using module status, workspace terminology and the
+   * resource's own required permissions; the browser's job is to render that answer or say it
+   * could not read it.
+   * @param {unknown} body
+   * @returns {BrowserPermissionResource[] | null}
+   */
+  function readPermissionResourceCatalog(body) {
+    if (!isBootstrapRecord(body) || !Array.isArray(body.resources)) {
+      return null;
+    }
+
+    return body.resources.every(isPermissionResource)
+      ? /** @type {BrowserPermissionResource[]} */ (body.resources)
+      : null;
+  }
+
   async function loadUsers() {
     setUserAdminStatus("Loading users...");
 
@@ -478,10 +631,18 @@
         requireApi().getJson("/api/users/add-options", { cache: "no-store" }),
       ]);
 
+      const clientScopes = readClientProjectScopes(clientProjectBody);
+      const assignableWorkspaces = readAssignableWorkspaces(workspacesBody);
+      const resourceCatalog = readPermissionResourceCatalog(permissionResourcesBody);
+
+      if (!clientScopes || !assignableWorkspaces || !resourceCatalog) {
+        throw new Error("The user administration bootstrap could not be read.");
+      }
+
       roles = readRoleOptions(rolesBody);
-      clients = /** @type {{ id?: unknown, name?: unknown, projects?: { id?: unknown, name?: unknown }[] }[]} */ (clientProjectBody.clients || []);
-      workspaces = workspacesBody.workspaces || [];
-      permissionResources = normalizePermissionResources(permissionResourcesBody.resources);
+      clients = clientScopes;
+      workspaces = assignableWorkspaces;
+      permissionResources = resourceCatalog;
       const userList = readUserListResponse(usersBody);
       if (!userList) {
         throw new Error("The workspace user list could not be read.");
@@ -1520,18 +1681,6 @@
 
   function getOperationAllowed(overrides, resource, operation) {
     return overrides.operationAccess?.[resource]?.[operation] !== false;
-  }
-
-  function normalizePermissionResources(resources = []) {
-    return (Array.isArray(resources) ? resources : [])
-      .map((resource) => ({
-        key: String(resource?.key || "").trim(),
-        label: String(resource?.label || resource?.key || "").trim(),
-        operations: [...new Set((resource?.operations || [])
-          .map((operation) => String(operation || "").trim())
-          .filter(Boolean))],
-      }))
-      .filter((resource) => resource.key && resource.label && resource.operations.length > 0);
   }
 
   function formatOperationLabel(operation) {
