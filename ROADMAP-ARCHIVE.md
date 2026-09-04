@@ -1,5 +1,40 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.14 - The Tag catalogue response boundaries
+
+**Model: High Effort** - a prerequisite child, drawn so that a blocked declaration could land honestly.
+
+- [x] **The wire is closed before the surface is declared, and that ordering is the whole point.** `0.33.33.38.2.2.10`'s preflight measured that wiring the tags declaration produced **21 new diagnostics across 9 consumer files**, of which **8 were genuine `0.33.33.38.4` boundaries becoming visible** - and recorded that either the declaring child waits for `.38.4` to own the tag wire, or it becomes a two-part change. This is `.38.4` owning it. Nothing here declares a namespace member, and five breaks refuse an early declaration of the surface, the root member, or a shared reader script.
+- [x] **One producer, one record.** `tagsService.list` and `tagsService.create` name one member each and spread nothing, and **both reach `tagRowToAppValue`** - fifteen members reconstructed by name. So the catalogue record is exact, and there is one of it: four breaks refuse a second record, a merged optional envelope, and an optional member on either side.
+- [x] **Nothing is nullable, because the normaliser fills the nullable columns.** `description`, `color` and `created_by_user_id` are `|| ""`, and the four usage counts are `COALESCE`d aggregates - not columns at all - put through `Number(... || 0)`. Ten breaks attack the scalars, including four in the producer's own SQL and normaliser.
+- [x] **`status` is closed on the constraint rather than on a comparison.** The column admits `active`, `archived` and `disabled`; the page only distinguishes the first. Closing on what a page compares would have produced a two-value union that the database can already violate, so the vocabulary is read from the `CHECK` and all three are declared - and a test records that **no current writer produces `disabled`**, so its presence is a constraint fact rather than an observed value.
+- [x] **Two readers, and the difference between them is the finding.** They implement one record and disagree on failure **on purpose**: the picker helper drops an unusable entry and stays absence-tolerant, because an option the viewer can still supply by hand is not grounds to refuse a picker; the administration page refuses whole, because a shortened catalogue rendered as complete invites an administrator to conclude a tag no longer exists. Both policies are asserted where they are written, and **both readers are run over one independent fixture set** rather than compared as text. Eleven breaks attack the pair, including four that swap one policy for the other.
+- [x] **A failed create is a failure.** The raw read took `body?.tag || null` and notified every mounted picker with it. An unreadable created tag now throws before any picker is told, and the non-OK path - the shared error helper, the attached status and body, and `ensureTag`'s 409 conflict recovery - is byte-for-byte what it was. Seven breaks cover it.
+- [x] **The suppression body stays `unknown` and the ignored bodies stay unread.** `readJsonResponse` declares `Promise<unknown>`; the update, archive and restore routes return real bodies that no browser caller parses. Publishing a reader for either would be dead code, and four breaks refuse one.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **63 breaks across both browser files, the tags service, the tags repository, the tags routes, the schema snapshot, the declaration and the page view, all 63 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,266 | **8,256** |
+| Visible genuine `unknown` | 2 | **2** |
+| Tag-family raw JSON trust sites | 3 | **0** |
+| params | 4,594 | **4,593** |
+| state | 1,715 | **1,707** |
+| assorted | 153 | **152** |
+| `0.33.33.39` shared browser framework | 1,763 | **1,758** |
+| `0.33.33.44` remaining page controllers | 1,555 | **1,550** |
+| dom / namespace | 1,483 / 319 | **both unchanged** |
+| Unit tests / regressions / end-to-end | 1,486 / 348 / 167 | **1,522 / 348 / 167**, green |
+
+**10 contextual eliminations and no visible `unknown` movement.** These reads were `any`, so closing them cannot move that family. Measured against `HEAD`'s own copies: `TS2339` 69 to 61, `TS7006` 83 to 82, `TS2322` 1 to 0. **`0.33.33.39` falls 5 and `0.33.33.44` falls 5**, and both are restated here rather than left to be discovered.
+
+**Three direct state slots annotated, and one of them is not a catalogue record.** `tags.js` holds `state.tags` and `state.allTags`, which take the validated catalogue. `shared/tags.js` holds `state.selectedTags`, which takes **`normalizeTagList`'s own picker shape** - assignment members and all - so it is typed by `ReturnType<typeof normalizeTagList>` rather than by the catalogue record. Typing it as a catalogue record would have been the exact confusion this child exists to avoid.
+
+**A static owner retargeted, and the reason is worth recording.** `tag-management-page.contract.mjs` asserted `doesNotMatch(script, /merge|delete|disable/i)` over the **whole page file**, to keep advanced cleanup actions out of the row UI. Publishing `disabled` as a status vocabulary value tripped it on a producer fact. The assertion now reads the row-rendering block, and a break that adds a Delete button proves it still bites.
+
 ## Version 0.33.33.38.4.13.3 - The notification-preference raw-JSON boundary
 
 **Model: High Effort** - one annotation, and a great deal of care not to change what it made visible.

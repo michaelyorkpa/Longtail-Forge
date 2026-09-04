@@ -6342,6 +6342,77 @@ export interface BrowserNotificationBellSummary {
   urgentPriorityCount: number;
 }
 
+/**
+ * The three statuses the `tags.status` column admits.
+ *
+ * Closed on the column's `CHECK` constraint rather than on what a page compares: `tags.js` only
+ * distinguishes `active` from the rest, but the column admits three and the browser validates all
+ * three. **`disabled` is admitted by the column and written by no current path** - it is declared
+ * because the constraint permits it, not because something produces it today.
+ */
+export type BrowserTagStatus = "active" | "archived" | "disabled";
+
+/**
+ * One tag as the catalogue routes return it.
+ *
+ * **Exact, because `tagRowToAppValue` is a total named reconstruction.** It rebuilds fifteen
+ * members from the row and inherits nothing, and **`GET /api/tags` and `POST /api/tags` both
+ * reach it** - so there is one record here rather than a list tag and a created tag.
+ *
+ * **Every member is a string or a number, and none is nullable.** The normaliser applies `|| ""`
+ * to the three columns the table leaves nullable, so `color` and `created_by_user_id` arrive as
+ * the empty string rather than `null`, and `description` is `NOT NULL DEFAULT ''` besides.
+ *
+ * **The four usage counts are aggregates, not columns.** The list query supplies them as
+ * `COALESCE(COUNT(*), 0)` over a join and the single-record reads default them to zero, so each
+ * is a finite non-negative integer either way.
+ *
+ * **This is not an assignment record.** `tag_assignment_id`, `source`, `source_assignment_id`,
+ * the source target fields and `propagation_rule_id` belong to `assignmentRowToAppValue` and to
+ * the effective-tag values `normalizeTagList` accepts - none of them reaches this producer, and
+ * naming any of them here would make this contract claim a shape these two routes never send.
+ */
+export interface BrowserTagCatalogRecord {
+  /** `""` when the tag carries no colour; the column is nullable and the normaliser fills it. */
+  color: string;
+  created_at: string;
+  /** `""` when the creating account is unknown; the column is nullable. */
+  created_by_user_id: string;
+  /** `NOT NULL DEFAULT ''`, so present and possibly empty. */
+  description: string;
+  direct_usage_count: number;
+  name: string;
+  propagated_usage_count: number;
+  slug: string;
+  status: BrowserTagStatus;
+  system_usage_count: number;
+  /** The tag's identity, non-empty because it is the table's primary key. */
+  tag_id: string;
+  updated_at: string;
+  usage_count: number;
+  workspace_id: string;
+}
+
+/**
+ * What `GET /api/tags` answers.
+ *
+ * `tagsService.list` names one member and spreads nothing, so this envelope is exact at one.
+ */
+export interface BrowserTagListEnvelope {
+  tags: BrowserTagCatalogRecord[];
+}
+
+/**
+ * What `POST /api/tags` answers.
+ *
+ * `tagsService.create` names one member and spreads nothing, and throws rather than answering a
+ * body without it - so this is exact at one too, and it is a **separate** contract from the list
+ * envelope rather than one shape with two optional members.
+ */
+export interface BrowserTagMutationEnvelope {
+  tag: BrowserTagCatalogRecord;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;

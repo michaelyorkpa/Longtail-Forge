@@ -25,7 +25,13 @@ assert.match(script, /metadataBadge\(`Status: \$\{tag\.status/, "Tag metadata mu
 assert.match(script, /metadataBadge\(`Updated: \$\{formatDate\(tag\.updated_at\)\}`\)/, "Tag metadata must show updated date");
 assert.match(script, /usage\.textContent = usageText\(tag\)/, "Tag rows must show usage counts");
 assert.match(script, /function usageText\(tag\)/, "Usage count labels must be centralized");
-assert.doesNotMatch(script, /merge|delete|disable/i, "Pass 3 must not add advanced cleanup actions to inline/list rows");
+// Retargeted when `0.33.33.38.4.14` published the tag status vocabulary: `disabled` is one of the
+// three values the `tags.status` CHECK constraint admits, so a whole-file scan for that word now
+// trips on a producer fact rather than on a row action. What this owner asserts is that the row
+// actions stay edit-and-archive, so it reads the row's own action rendering.
+const tagRowActions = script.slice(script.indexOf("function renderTags()"), script.indexOf("function createTagActionButton"));
+assert.match(tagRowActions, /actions\.append\(editButton, archiveButton\);/, "Tag rows must offer exactly the edit and archive actions");
+assert.doesNotMatch(tagRowActions, /merge|delete|disable/i, "Pass 3 must not add advanced cleanup actions to inline/list rows");
 
 assert.match(css, /\.tag-row-meta/, "Tag metadata row styles must exist");
 assert.match(css, /\.tag-metadata-badge/, "Tag metadata badges must be styled");

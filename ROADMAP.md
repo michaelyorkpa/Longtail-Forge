@@ -792,6 +792,14 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **All three children are merged and the ignored-body disposition is recorded.** `POST /:id/read` and `/:id/dismiss` answer `{ notification }`; `read-all` and `dismiss-all` answer the bell summary; both preference `PUT`s answer the catalogue. **Every browser caller checks `response.ok` and refetches**, and none parses a body. Those bodies are **intentionally ignored** and no browser response contract is required for them until a consumer actually binds one - publishing a parser to describe a generous response would be dead code. The refetch is deliberate and was not optimised away.
 
+#### 0.33.33.38.4.14 - The Tag catalogue response boundaries
+
+**Complete: 0 visible diagnostics closed, 3 latent JSON trust boundaries closed, four contracts, 10 contextual eliminations.** See the archive entry. **This child exists so that `0.33.33.38.2.2.10` can declare a surface whose network returns are already honest.** That checkpoint's preflight measured that declaring `LongtailForge.tags` would expose **eight genuine wire boundaries** across eight consumer files, and warned the trade must be decided deliberately rather than by attrition. Closing the wire first is that decision: `loadTags` and `createTag` now validate at the writer, so the declaration that follows narrows nothing and scatters no readers.
+
+**One producer record, two exact envelopes.** `GET /api/tags` and `POST /api/tags` both reach `tagRowToAppValue`, a total named reconstruction of fifteen members, so `BrowserTagCatalogRecord` is exact and is **one** record rather than a list tag and a created tag. `status` closes to the three values the column's `CHECK` admits - not to the two the Tags page compares - and `disabled` is declared because the constraint permits it, not because a writer produces it.
+
+**Two readers, two deliberately different policies.** `shared/tags.js` feeds pickers, so an unusable entry is dropped and a body with no usable array still resolves `[]`; `tags.js` administers the catalogue, so it refuses whole rather than printing **"No tags found"** for a body it never understood. Each policy is named where it is written and both are proved against one independent fixture set.
+
 #### 0.33.33.38.5 - Narrow the server task lifecycle status vocabulary
 
 **Model: Medium Effort - 16 measured sites in one module, and a proven runtime guarantee.** Inherited from `0.33.33.37`.
