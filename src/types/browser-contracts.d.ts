@@ -6185,6 +6185,125 @@ export interface BrowserTimeEntryUpdateResult {
   storage: "database";
 }
 
+/** The four statuses the `notifications.status` column admits, and `normalizeStatus` coerces to. */
+export type BrowserNotificationStatus = "unread" | "read" | "dismissed" | "archived";
+
+/** The four priorities the `notifications.priority` column admits, and `normalizePriority` coerces to. */
+export type BrowserNotificationPriority = "low" | "normal" | "high" | "urgent";
+
+/**
+ * The context a task or note target carries, in the two members the browser reads.
+ *
+ * Both readers build it with `normalizeJobText`, so both are strings and never absent when the
+ * context itself is present. It stays open above these two: a provider that adds a benign member
+ * later is still a context this reader can use.
+ */
+export interface BrowserNotificationRecordTargetContext {
+  clientName: string;
+  projectName: string;
+}
+
+/**
+ * What `readTargetMetadata` resolves for one notification.
+ *
+ * **Not `BrowserNotificationTarget`, which is already taken by a different producer.** That one
+ * is the snake_case target the *subscription* routes echo back; this is the navigation target the
+ * *list* decorator resolves. Two producers, two names - the same rule that keeps
+ * `BrowserNotificationTargetRequest` separate from it.
+ *
+ * Six members are unconditional - the base metadata object names them all before any branch runs.
+ * `label` and `context` are added **only** by the task and note readers when the record resolved,
+ * so they are optional here rather than empty-stringed.
+ */
+export interface BrowserNotificationRecordTarget {
+  canOpen: boolean;
+  context?: BrowserNotificationRecordTargetContext;
+  label?: string;
+  moduleId: string;
+  recordId: string;
+  recordType: string;
+  targetExists: boolean;
+  /** `""` when the target cannot be opened. Application-relative when set - see `BrowserNotification.url`. */
+  url: string;
+}
+
+/**
+ * One notification as `GET /api/notifications` returns it.
+ *
+ * **Exact, because the spread source is the producer's own total reconstruction.**
+ * `notificationRowToAppValue` names all seventeen persisted members and inherits nothing;
+ * `decorateForSession` spreads *that* and adds four of its own while overwriting `url`. A spread
+ * of a total reconstruction is still a total reconstruction, so every member below is named by
+ * one of those two functions and none is here because a renderer happens to read it.
+ *
+ * **Every member is a string, and none is nullable.** The row normaliser applies `|| ""` to each
+ * column the table leaves nullable, so an absent value arrives as the empty string rather than
+ * `null` - which is why `read_at` and `dismissed_at` are `string` and not `string | null`.
+ *
+ * **`metadata` is a plain object and nothing more.** `parseMetadata` guarantees a non-array
+ * object, and these consumers never read into it, so its values stay `unknown`: modelling the
+ * event payloads would make this contract the owner of every notification producer's metadata.
+ */
+export interface BrowserNotification {
+  actor_user_id: string;
+  body: string;
+  created_at: string;
+  /** The same string as `updateTypeLabel`; the producer sends both. */
+  displayType: string;
+  /** The target's label, the notification title, or the protected-note replacement. */
+  displayTitle: string;
+  dismissed_at: string;
+  event_type: string;
+  metadata: Record<string, unknown>;
+  module_id: string;
+  notification_id: string;
+  priority: BrowserNotificationPriority;
+  read_at: string;
+  recipient_user_id: string;
+  record_id: string;
+  record_type: string;
+  status: BrowserNotificationStatus;
+  target: BrowserNotificationRecordTarget;
+  title: string;
+  updateTypeLabel: string;
+  /**
+   * `""` unless the target can be opened.
+   *
+   * **This member reaches `anchor.href`, so the browser validates its shape rather than trusting
+   * the server guard.** `safeRelativeUrl` rejects anything carrying a URI scheme, which stops
+   * `javascript:`, `data:` and `vbscript:`, but it accepts protocol-relative and backslash forms
+   * that a browser resolves to a different origin. The reader refuses those here; the server
+   * guard is a separate defect recorded with its own owner.
+   */
+  url: string;
+  workspace_id: string;
+}
+
+/**
+ * The filter catalogue `readFilterOptionsForRecipient` reconstructs.
+ *
+ * Two named members, each a `DISTINCT` column projection filtered for truthiness, so both are
+ * arrays of non-empty strings and either may legitimately be empty.
+ */
+export interface BrowserNotificationFilterOptions {
+  events: string[];
+  modules: string[];
+}
+
+/**
+ * What `GET /api/notifications` answers.
+ *
+ * `notificationsService.list` names three members and spreads nothing, so this envelope is exact
+ * at three - and `pagination` is the **same** `boundedPaginationEnvelope` every other bounded
+ * reader in this estate already consumes, so `BrowserBoundedPagination` is reused rather than
+ * copied.
+ */
+export interface BrowserNotificationList {
+  filterOptions: BrowserNotificationFilterOptions;
+  notifications: BrowserNotification[];
+  pagination: BrowserBoundedPagination;
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;

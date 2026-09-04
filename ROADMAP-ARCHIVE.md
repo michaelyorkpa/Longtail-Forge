@@ -1,5 +1,40 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.13.1 - The notification-list response
+
+**Model: High Effort** - a boundary the compiler could not see, and a URL guard that does not do what its name says.
+
+- [x] **The reads were invisible, and that is why they were still raw.** Both consumers use a raw `fetch` and `await response.json()`, which the DOM lib types `Promise<any>`. Nothing in the `unknown` family ever pointed at them, so eleven checkpoints of trust-boundary work went past them. The parsed body is now annotated `unknown` at both sites, which is what makes the reader load-bearing rather than decorative.
+- [x] **Exact at three, and exact again at the record.** `notificationsService.list` names `filterOptions`, `notifications` and `pagination` with no spread. Beneath it, `decorateForSession` **spreads `notificationRowToAppValue`**, which reconstructs all seventeen persisted members by name and inherits nothing - so the spread source is a total reconstruction and an exact record contract is available rather than a structural minimum. Membership is derived by parsing both producers, not from the reader's own table.
+- [x] **Nothing is nullable, because the row normaliser makes sure of it.** Every column the table leaves nullable is rebuilt with `|| ""`, so `read_at` and `dismissed_at` are `string` rather than `string | null`. `status` and `priority` close to the four values each column's `CHECK` admits, cross-checked against the producer's own `normalizeStatus` and `normalizePriority` - and the list query's synthetic `active` **filter** is explicitly proved not to be a stored status.
+- [x] **`pagination` reuses the shared bounded envelope rather than copying it.** The producer calls the same `boundedPaginationEnvelope` every other bounded reader consumes, so `BrowserBoundedPagination` is reused; three breaks refuse a second pagination type, a narrowed inline shape and a dropped member.
+- [x] **The filter catalogue is validated in full, including the half this page ignores.** `readFilterOptionsForRecipient` reconstructs `events` **and** `modules`; the notifications page renders only the modules. Typing only what a renderer reads would have made the contract a description of one consumer rather than of the producer, so both are promised and both are checked, and an empty list stays a real answer.
+- [x] **The protected-note redaction is enforced as a whole.** `decorateForSession` replaces the title, empties the body, empties the metadata and closes the URL together when a note target does not exist. A record claiming one half without the other is refused - seven breaks attack it from both the browser and the producer side, including two that stop the producer redacting at all.
+- [x] **A real URL defect, named rather than patched.** The trace is in the roadmap entry above. The browser refuses protocol-relative and backslash forms; the server guard is left byte-for-byte, and a break that "helpfully" corrects it inside this child is refused by an assertion that the guard is unchanged. Three breaks prove the browser check itself - including one that adopts the server's rule as sufficient.
+- [x] **Two readers, one contract, and no new delivery.** There is no shared script loaded before both consumers, and adding one - or a namespace surface, or `api-client.js` on every page - would be a transport migration this child does not justify. So the reader is duplicated, deliberately, and **parity is proved by running the same producer fixtures through both shipped copies and requiring a single verdict**, never by comparing their source text. Four breaks refuse the alternatives.
+- [x] **The mutation bodies stay unparsed.** Read, dismiss, read-all and dismiss-all all return real bodies - a decorated notification or the bell summary - and every browser caller checks `ok` and refetches. Adding a parser to describe a body nobody reads would be dead code; two breaks refuse one being introduced.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **67 breaks across both consumers, the notifications service, the notifications repository, the routes, the schema snapshot, the declaration and the page view, all 67 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,272 | **8,270** |
+| Visible genuine `unknown` | 2 | **2** (unchanged - see below) |
+| Notification-family raw JSON trust sites | 5 | **3** |
+| state | 1,717 | **1,715** |
+| `0.33.33.44` remaining page controllers | 1,557 | **1,555** |
+| params / dom / namespace / assorted | 4,598 / 1,483 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` | 1,767 / 479 / 1,167 / 530 / 968 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,410 / 348 / 167 | **1,446 / 348 / 167**, green |
+
+**The visible count is unchanged and that is the correct result.** These reads were `any`, not `unknown`, so closing them cannot move the `unknown` family. What moved is 2 contextual `state` eliminations and two latent boundaries. **Reporting this as "no progress" would be as wrong as reporting it as an `unknown` reduction.**
+
+**A name collision the measurement caught.** `BrowserNotificationTarget` was **already declared** by `0.33.33.38.4.10` as the snake_case target the *subscription* routes echo back. TypeScript merges duplicate interface declarations silently, so the new navigation target merged into it and pushed a `TS2740` into `notification-subscriptions.js` - a file this child never touched. The list target is now `BrowserNotificationRecordTarget`, on the same rule that already keeps `BrowserNotificationTargetRequest` separate.
+
+**Four proof flaws, three of them the same shape.** A cast over the raw body was written first and replaced with a type predicate after `TS2352` named it. The producer-membership scan used `:` alone and reported two of the decorator's five members, because `displayTitle`, `updateTypeLabel` and `target` are **shorthand properties** - the fourth time this estate has been caught by that exact blind spot, and `readTargetMetadata` writes three more the same way. A fixed `"\n}\n"` closer sliced the page reader correctly and ran the navigation copy to end-of-file, so the reader scans are now indent-aware. And a `redacted()` fixture helper took no arguments, so four override cases silently tested the same record.
+
 ## Version 0.33.33.38.4.9.8 - The Time Entry save responses
 
 **Model: High Effort** - two diagnostics on one line, and they belonged to two different producers.
