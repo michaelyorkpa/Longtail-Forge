@@ -1,5 +1,33 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.9.8 - The Time Entry save responses
+
+**Model: High Effort** - two diagnostics on one line, and they belonged to two different producers.
+
+- [x] **Two producers, two contracts, and the discriminator is control flow rather than shape.** `createFromActiveTimer` names three members and `update` names two; both spread nothing, so both are exact. Flattening them into one interface with an optional `entry_id` would have made the call site ask *"does this property happen to exist?"* to work out which route it had just called - a question it already knows the answer to. `saveEntry` chose the route on `selectedEntry`, so it chooses the reader on `selectedEntry`. Five breaks attack that: swapping the readers, publishing a flattened result, making `entry_id` optional on create, adding one to the update contract, and restoring the fallback chain.
+- [x] **Identity coherence is checked per branch, and the two checks are different because the producers are.** Create requires the outer and nested identities to **agree** - they are two statements about one new record, and a response where they differ is not one this producer built. Update requires the entry that came back to be **the one the route addressed**, because a save that silently returns a different record must not be reported as an edit of the record the viewer was editing. Neither reader invents an outer identity for update, and a break that reads one is refused.
+- [x] **The nested entry is a one-member minimum over a decorated record.** `tagsService.decorateRecordsForTarget` answers the persisted entry with its tags attached, so `entry` carries durations, billing, invoice status, client and project context and the tag list. The dialog reads one member of it, `context.onSaved` receives the whole object, and a break that promises the durations and billing flags is refused.
+- [x] **`storage` is validated as the literal both producers write.** A different backend is a contract change and should be visible rather than absorbed by widening the member to `string`. The dialog's literal is tied to the producer's by reading the **service**, and the tie is only reachable when both routes move together - one alone is caught by the agreement check inside the helper, which is why that break exists too.
+- [x] **The write may already have committed when validation fails, so the refusal is deliberately narrow.** No `onSaved`, no `hostContext.complete`, no dialog close: without a record identity the browser cannot truthfully say the action finished. Five breaks put each of those before the refusal or bypass it. **The catch's wording is left alone** - "Time entry was not saved." is imprecise after a successful write with an unreadable response, and that is a mutation-acknowledgement question this contract child does not own. It is recorded here rather than redesigned.
+- [x] **The callback still receives the producer's own result.** `{ ...result, entryId: savedEntryId }` spreads rather than rebuilds, so the decorated entry travels on whole and a break that truncates it is refused.
+- [x] **Every server decision stays server-side.** The module write gate on both paths, the two distinct edge schemas, permissions, tags, audit and search indexing. Five breaks attack that, including two that re-derive the module id and the indexer in the browser.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **40 breaks across the dialog, the time-entries service, the time-entries routes and the declaration, all 40 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,274 | **8,272** |
+| Genuine `unknown` | 4 | **2** |
+| params / state / dom / namespace / assorted | 4,598 / 1,717 / 1,483 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,767 / 479 / 1,167 / 530 / 968 / 1,557 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,383 / 348 / 167 | **1,410 / 348 / 167**, green |
+
+**2 eliminations, no transfers, no contextual movement and no new debt.** Measured against `HEAD`'s own copy of the dialog: `TS18046` 2 to 0, every other diagnostic code identical. **No state annotation and no parameter typing** - `selectedEntry`, `context.onSaved`, `hostContext`, `fields`, `tagPicker` and `payload` are all untouched, and the dialog's parameter and state debt stays with `0.33.33.44`. **No static owner needed retargeting**: nothing in the estate pinned the fallback chain.
+
+**Two guards were removed because they could not be made to fail.** Both readers carried an explicit empty-identity check, and every mutation of either turned out to be behaviour-preserving: the function's failure signal *is* the empty string, so an input that would trip those guards already answers `""` through the type and agreement tests beside them. Rather than keep two claims no break could reach, the clauses were deleted and the reasoning written where they stood. **A third gap was real**: the nested-entry record check was answered by optional chaining, because every non-record fixture also lacked the member - an array carrying `entry_id` is what makes it load-bearing.
+
 ## Version 0.33.33.38.4.12.3 - The Notes revision-list response
 
 **Model: High Effort** - one diagnostic, and most of the work was deciding what a history panel is allowed to withhold, promise and refuse.

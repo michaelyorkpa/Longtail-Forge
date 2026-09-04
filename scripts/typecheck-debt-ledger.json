@@ -427,6 +427,7 @@
         "tests/unit/task-relationship-contracts.test.mjs",
         "tests/unit/task-timer-contracts.test.mjs",
         "tests/unit/test-support-harnesses.test.mjs",
+        "tests/unit/time-entry-save-contracts.test.mjs",
         "tests/unit/user-admin-bootstrap-contracts.test.mjs",
         "tests/unit/user-list-response-contracts.test.mjs",
         "tests/unit/user-record-contract.test.mjs",
@@ -528,7 +529,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8274,
+      "errorCount": 8272,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1832,10 +1833,6 @@
         ],
         "public/js/time-entry-dialog.js": [
           {
-            "code": 18046,
-            "count": 2
-          },
-          {
             "code": 18047,
             "count": 22
           },
@@ -2726,8 +2723,8 @@
     }
   },
   "totals": {
-    "files": 1109,
-    "errors": 8274,
+    "files": 1110,
+    "errors": 8272,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

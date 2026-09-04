@@ -6146,6 +6146,45 @@ export interface BrowserNoteRevisionList {
   revisions: BrowserNoteRevisionSummary[];
 }
 
+/**
+ * The identity of a saved time entry, as both save routes nest it.
+ *
+ * **A structural minimum over a decorated record.** `tagsService.decorateRecordsForTarget` answers
+ * the persisted entry with its tags attached, so `entry` carries durations, timestamps, billing,
+ * invoice status, client and project context and the tag list. The dialog reads **one member** of
+ * it - the identity it reports to the host - and `context.onSaved` receives the whole object, so
+ * promising more here would make this contract the owner of a record it only passes through.
+ */
+export interface BrowserSavedTimeEntryIdentity {
+  entry_id: string;
+}
+
+/**
+ * What `POST /api/time-entries` answers.
+ *
+ * `createFromActiveTimer` names three members and spreads nothing, so this is **exact**. The
+ * outer `entry_id` is the newly minted identity, which the update route has no reason to send
+ * and deliberately does not - so these two results are separate contracts rather than one with
+ * an optional member.
+ */
+export interface BrowserTimeEntryCreateResult {
+  entry: BrowserSavedTimeEntryIdentity;
+  entry_id: string;
+  storage: "database";
+}
+
+/**
+ * What `PUT /api/time-entries/:entryId` answers.
+ *
+ * `update` names two members and spreads nothing, so this is **exact** as well - and it is exact
+ * at two, not three. The caller already knows which entry it addressed, so an outer `entry_id`
+ * would be the server repeating the route parameter back.
+ */
+export interface BrowserTimeEntryUpdateResult {
+  entry: BrowserSavedTimeEntryIdentity;
+  storage: "database";
+}
+
 export interface LongtailForgeBrowserNamespace {
   api?: BrowserApi;
   appShellBootstrap?: BrowserAppShellBootstrapAdapter;
