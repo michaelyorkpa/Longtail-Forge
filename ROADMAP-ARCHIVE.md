@@ -1,5 +1,46 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.10 - `LongtailForge.tags`
+
+**Model: High Effort** - a blocked child unblocked by its prerequisite, then landed as drawn.
+
+- [x] **The block is resolved by the ordering, not by an exception.** The blocked entry offered two exits: wait for `0.33.33.38.4` to own the tag wire, or become a two-part change that declares and narrows eight consumers at once. `0.33.33.38.4.14` took the first, so **this child declares a surface whose two catalogue calls already answer validated records** and narrows nothing. Six breaks refuse a declaration that walks back to an unvalidated return.
+- [x] **Eleven members, and the miscount is corrected rather than absorbed.** The blocked entry wrote "twelve members" and then listed eleven. The declaration is read from `namespace.tags`'s own object literal - shorthand throughout, so a rename cannot hide behind an alias - and seven breaks attack the parity, including a twelfth member added on either side and a member renamed on both at once.
+- [x] **The recorded `createTagChip` defect is closed by removal.** `search.js` guarded on `window.LongtailForge?.tags?.createTagChip` and called it; the member has never been published, so the guard has always been false and every search result has always taken the plain-chip fallback. TypeScript's near-miss suggestion is `createTag`, which **posts a new tag**. The branch is deleted, the local builder is unchanged, and five breaks cover it - including one that restores the dead guard and one that routes a caller back through the surface.
+- [x] **The two mounts still answer `null`, because a missing container is not an error.** Both guards are executed against `null` and `undefined` rather than read as text, and the declaration carries `| null` on both returns and `| null | undefined` in both container positions. Five breaks attack them, including two that delete a guard outright and one that answers `{}` instead.
+- [x] **The picker options stay `unknown[]`, and that is the widest thing here on purpose.** `normalizeTagList` rebuilds whatever it is handed - catalogue tags, assignment records and effective tags all reach it - so declaring `BrowserTagCatalogRecord[]` would have been **narrower than the writer** and would have made every propagated-tag caller wrong against a contract the runtime accepts. Five breaks refuse the narrowing, including one that adds an `onChange` the writer never reads.
+- [x] **Two DOM narrowings, at the two call sites that needed them, with no cast and no widening.** `mountFilterPicker` writes `value`, `autocomplete` and `dataset`, so it needs an input and says so; `tasks.js` and `reporting.js` narrow with `instanceof HTMLInputElement` and send a non-input down the path a missing element already took. `BrowserViewFieldControl` keeps its three arms - the narrowing **selects** one. Six breaks cover it, one of which withdraws the `HTMLInputElement` browser global the narrowing needs at runtime, which no browser file had previously required.
+- [x] **The bootstrap collision is resolved by reusing a check the file already had.** Typing `loadTags` unmasked `Promise.all`'s widening of its heterogeneous elements to `{}` - previously hidden because the tag load answered `any`. The dialog **already contained a byte-identical predicate** at `isTaskRelationshipRecord`, in scope; a second copy was drafted and then deleted. One predicate, renamed `isReadableJsonObject`, now serves five sites. The four requests stay concurrent, no cast was added, and seven breaks cover it - including one that writes the duplicate back.
+- [x] **Five state slots typed, and two of them deliberately not by the controller.** The note pickers take `BrowserTagPickerController | null`; the two catalogue slots take the validated record. The `clients-projects.js` and `stop-watch.js` slots hold **stubs**, which cannot satisfy the controller because they have no `refreshTags`, so each is typed by the methods its page calls. Six breaks refuse the confusion in both directions.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **53 breaks across the declaration, the shared writer, five page controllers, the task dialog and the lint config, all 53 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,256 | **8,189** |
+| namespace | 319 | **271** |
+| Declared `LongtailForge` members | 43 of 64 | **44 of 64** |
+| params | 4,593 | **4,588** |
+| state | 1,707 | **1,695** |
+| assorted | 152 | **150** |
+| dom / visible genuine `unknown` | 1,483 / 2 | **both unchanged** |
+| `0.33.33.39` shared browser framework | 1,758 | **1,758, unchanged** |
+| `0.33.33.40` Notes | 479 | **469** |
+| `0.33.33.41` Tasks and Task Dialog | 1,167 | **1,165** |
+| `0.33.33.43` Lists, Files, Clients/Projects | 968 | **966** |
+| `0.33.33.44` remaining page controllers | 1,550 | **1,545** |
+| Unit tests / regressions / end-to-end | 1,522 / 348 / 167 | **1,562 / 348 / 167**, green |
+
+**Every changed (file, code) pair fell and none rose.** Measured against `HEAD`'s own copies across sixteen pairs in ten files, with **no pair present after that was absent before**. One code is eliminated outright: `stop-watch.js` `TS2554`, two arity errors where the page passed `[]` to a stub whose `() => {}` initializer inferred **zero parameters** - while the real picker's `setSelected` takes one. The untyped stub had been shadowing the writer's actual signature, and both clear paths are asserted rather than one.
+
+**The `0.33.33.39` prediction is restated and its attribution corrected.** The blocked entry predicted this declaration would remove four diagnostics from `0.33.33.39`'s budget with `TS7006` falling 3,052 to 3,048. **`0.33.33.39` is unchanged at 1,758, params and all.** Five `TS7006` eliminations did occur - `clients-projects.js` 185 to 183, `search.js` 31 to 30, `stop-watch.js` 59 to 58, `time-tracking-reporting.js` 48 to 47 - but those are page controllers under `0.33.33.43` and `0.33.33.44`, not the shared framework. The prediction was right that this is debt eliminated rather than moved; it was wrong about whose budget.
+
+**A spent record struck and a spent guard retargeted, both named rather than quietly dropped.** `tags` leaves the governance regression's undeclared-publication backlog, and its declared-member ratchet moves 43 to 44. `0.33.33.38.4.14`'s own test asserted the surface was **not yet declared** - the correct guard for one checkpoint, spent the moment its successor landed. It is retargeted to the fact that outlives it: that child changed no member of the published literal and added none to carry its wire work. Two breaks prove the retargeted assertion still bites.
+
+**One test file added and no existing browser behaviour changed.** `tests/unit/tag-surface-declaration.test.mjs` executes the mounts, the guards and the chip builder rather than reading them as text; the one behaviour change in the tree is the removal of a branch that has never run.
+
 ## Version 0.33.33.38.4.14 - The Tag catalogue response boundaries
 
 **Model: High Effort** - a prerequisite child, drawn so that a blocked declaration could land honestly.

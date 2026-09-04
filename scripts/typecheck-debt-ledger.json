@@ -422,6 +422,7 @@
         "tests/unit/support-view-target-contracts.test.mjs",
         "tests/unit/tag-bulk-assignment-contracts.test.mjs",
         "tests/unit/tag-catalogue-contracts.test.mjs",
+        "tests/unit/tag-surface-declaration.test.mjs",
         "tests/unit/task-block-recovery-engine.test.mjs",
         "tests/unit/task-list-contracts.test.mjs",
         "tests/unit/task-list-engine.test.mjs",
@@ -533,7 +534,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8256,
+      "errorCount": 8189,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -672,7 +673,7 @@
           },
           {
             "code": 2339,
-            "count": 164
+            "count": 158
           },
           {
             "code": 2345,
@@ -704,7 +705,7 @@
           },
           {
             "code": 7006,
-            "count": 185
+            "count": 183
           },
           {
             "code": 7023,
@@ -1082,7 +1083,7 @@
           },
           {
             "code": 2339,
-            "count": 474
+            "count": 459
           },
           {
             "code": 2345,
@@ -1134,7 +1135,7 @@
         "public/js/reporting.js": [
           {
             "code": 2339,
-            "count": 43
+            "count": 41
           },
           {
             "code": 7005,
@@ -1182,7 +1183,7 @@
           },
           {
             "code": 2339,
-            "count": 56
+            "count": 51
           },
           {
             "code": 7005,
@@ -1190,7 +1191,7 @@
           },
           {
             "code": 7006,
-            "count": 31
+            "count": 30
           },
           {
             "code": 7019,
@@ -1578,15 +1579,11 @@
           },
           {
             "code": 2339,
-            "count": 22
+            "count": 18
           },
           {
             "code": 2345,
             "count": 3
-          },
-          {
-            "code": 2554,
-            "count": 2
           },
           {
             "code": 7005,
@@ -1594,7 +1591,7 @@
           },
           {
             "code": 7006,
-            "count": 59
+            "count": 58
           },
           {
             "code": 7008,
@@ -1674,7 +1671,7 @@
           },
           {
             "code": 2339,
-            "count": 493
+            "count": 489
           },
           {
             "code": 2345,
@@ -1748,7 +1745,7 @@
           },
           {
             "code": 2339,
-            "count": 118
+            "count": 112
           },
           {
             "code": 2345,
@@ -1760,7 +1757,7 @@
           },
           {
             "code": 7005,
-            "count": 7
+            "count": 5
           },
           {
             "code": 7006,
@@ -1808,7 +1805,7 @@
           },
           {
             "code": 2339,
-            "count": 49
+            "count": 40
           },
           {
             "code": 2345,
@@ -1838,7 +1835,7 @@
           },
           {
             "code": 2339,
-            "count": 116
+            "count": 112
           },
           {
             "code": 2698,
@@ -1870,7 +1867,7 @@
         "public/js/time-tracking-reporting.js": [
           {
             "code": 2339,
-            "count": 12
+            "count": 9
           },
           {
             "code": 7005,
@@ -1878,7 +1875,7 @@
           },
           {
             "code": 7006,
-            "count": 48
+            "count": 47
           },
           {
             "code": 7023,
@@ -2719,8 +2716,8 @@
     }
   },
   "totals": {
-    "files": 1114,
-    "errors": 8256,
+    "files": 1115,
+    "errors": 8189,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

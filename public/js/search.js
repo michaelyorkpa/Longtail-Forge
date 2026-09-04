@@ -304,11 +304,19 @@ function createResultBadgeRow(...items) {
   return row;
 }
 
+/**
+ * One tag chip for a search result.
+ *
+ * **The shared-chip branch that stood here was unreachable and is removed.** It guarded on
+ * `LongtailForge.tags.createTagChip`, which `shared/tags.js` keeps internal and has never
+ * published, so the guard has always been false and results have always taken this fallback.
+ * Publishing that member to satisfy the guard would be a runtime change, and the near-miss
+ * TypeScript suggests instead - `createTag` - posts a new tag, so the dead branch was worse than
+ * it looked. `0.33.33.38.2.2.9` recorded this defect; `0.33.33.38.2.2.10` removes it.
+ * @param {{name?: string, slug?: string}} tag
+ * @returns {HTMLSpanElement}
+ */
 function createTagChip(tag) {
-  if (window.LongtailForge?.tags?.createTagChip) {
-    return window.LongtailForge.tags.createTagChip(tag);
-  }
-
   const chip = document.createElement("span");
   chip.className = "tag-chip";
   chip.textContent = tag.name || tag.slug || "Tag";

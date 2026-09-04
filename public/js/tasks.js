@@ -199,6 +199,13 @@
     },
     /** @type {BrowserTaskTimerRecord[]} */
     taskTimers: [],
+    /**
+     * The tag options the filter and dialog offer.
+     *
+     * Annotated because the empty initializer infers `never[]` once `loadTags` answers a
+     * validated catalogue.
+     * @type {import("../../src/types/browser-contracts.js").BrowserTagCatalogRecord[]}
+     */
     tagOptions: [],
   };
   let hasLoadedTasks = false;
@@ -1212,10 +1219,15 @@
       ? normalizeTagFilterValue(previousValue)
       : "all";
     if (!tagFilterController) {
-      tagFilterController = window.LongtailForge?.tags?.mountFilterPicker?.(tagFilter, {
-        tags,
-        value: nextValue,
-      }) || null;
+      // Narrowed at the call site rather than by widening the surface: the filter picker writes
+      // `value`, `autocomplete` and `dataset` on the element it mounts, so it needs an input and
+      // says so. A control that is not one takes the same path a missing one already took.
+      tagFilterController = tagFilter instanceof HTMLInputElement
+        ? window.LongtailForge?.tags?.mountFilterPicker?.(tagFilter, {
+          tags,
+          value: nextValue,
+        }) || null
+        : null;
     } else {
       tagFilterController.setTags(tags);
       tagFilterController.setValue(nextValue);
