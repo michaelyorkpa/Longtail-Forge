@@ -106,6 +106,109 @@
     return node && "hidden" in node ? /** @type {HTMLElement} */ (node) : null;
   }
 
+  /**
+   * The module this settings form configures.
+   *
+   * Read in one place because this page now needs it wherever the catalog is selected: the
+   * initial load, the post-save refresh, the render and the collector.
+   * @returns {string}
+   */
+  function currentModuleSettingsId() {
+    return moduleSettingsForm?.dataset.moduleSettingsForm || "";
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModuleSettingsSection} BrowserModuleSettingsSection */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserModuleSettingsSetting} BrowserModuleSettingsSetting */
+
+  /** @param {unknown} value @returns {value is Record<string, unknown>} */
+  function isCatalogRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * One contributed setting, in the members this page's collector trusts.
+   *
+   * Nothing else is checked. A setting also carries its label, type, options and value, and the
+   * settings renderer owns all of those - re-checking them here would publish a second copy of
+   * a contract this child does not own.
+   * @param {unknown} value
+   * @returns {value is BrowserModuleSettingsSetting}
+   */
+  function isModuleSettingsSetting(value) {
+    return isCatalogRecord(value)
+      && typeof value.id === "string"
+      && value.id !== ""
+      && typeof value.target === "string"
+      && value.target !== "";
+  }
+
+  /**
+   * One section of the module placement.
+   *
+   * `placement` and `moduleId` are checked against the bucket the section was read from,
+   * because the producer keys that bucket on the same module it hands `findOrCreateSection`
+   * and passes the placement straight through. A section that disagrees with its own bucket is
+   * not one this producer built.
+   * @param {unknown} value
+   * @param {string} moduleId
+   * @returns {value is BrowserModuleSettingsSection}
+   */
+  function isModuleSettingsSection(value, moduleId) {
+    return isCatalogRecord(value)
+      && typeof value.id === "string"
+      && value.id !== ""
+      && value.placement === "module"
+      && value.moduleId === moduleId
+      && typeof value.name === "string"
+      && typeof value.displayName === "string"
+      && Array.isArray(value.settings)
+      && value.settings.every(isModuleSettingsSetting);
+  }
+
+  /**
+   * The module's contributed sections, or `null` when the catalog is not one this producer sent.
+   *
+   * **The raw catalog is inspected before any fallback.** `settingsHost.attachmentSections`
+   * answers `[]` for a body it cannot use, which is the right answer for a picker and the wrong
+   * one here: by the time this page sees that `[]` it can no longer tell "this module
+   * contributes no settings" from "the catalog could not be read", and it renders the same
+   * sentence for both.
+   *
+   * A module with no entry, and a module whose entry is an empty list, are both real answers
+   * and both come back as `[]`. What is refused is a catalog whose shape this page cannot
+   * vouch for.
+   *
+   * **The producer's own sections and settings are answered, not rebuilt.** The renderer reads
+   * labels, types, values, options and whatever a module contributes next; rebuilding to the
+   * two members this collector needs would strip all of it.
+   * @param {unknown} catalog
+   * @param {string} moduleId
+   * @returns {BrowserModuleSettingsSection[] | null}
+   */
+  function readModuleSettingsSections(catalog, moduleId) {
+    if (!isCatalogRecord(catalog) || !isCatalogRecord(catalog.attachments)) {
+      return null;
+    }
+
+    const moduleAttachments = catalog.attachments.module;
+
+    if (!isCatalogRecord(moduleAttachments)) {
+      return null;
+    }
+
+    if (!Object.hasOwn(moduleAttachments, moduleId)) {
+      return [];
+    }
+
+    const sections = moduleAttachments[moduleId];
+
+    if (!Array.isArray(sections) || !sections.every((section) => isModuleSettingsSection(section, moduleId))) {
+      return null;
+    }
+
+    return /** @type {BrowserModuleSettingsSection[]} */ (sections);
+  }
+
   async function loadSettings() {
     setStatus("Loading settings...");
 
@@ -115,6 +218,9 @@
         requireApi().getJson("/api/settings/catalog", { cache: "no-store" }),
       ]);
       currentSettings = normalizeSettings(settingsResponse);
+      if (!readModuleSettingsSections(catalog, currentModuleSettingsId())) {
+        throw new Error("The settings catalog could not be read.");
+      }
       settingsCatalog = catalog;
       renderModuleSettings();
       setStatus("");
@@ -155,7 +261,12 @@
         return true;
       }
       currentSettings = normalizeSettings(saveResult.data);
-      settingsCatalog = await requireApi().getJson("/api/settings/catalog", { cache: "no-store" });
+      const refreshedCatalog = await requireApi().getJson("/api/settings/catalog", { cache: "no-store" });
+      if (!readModuleSettingsSections(refreshedCatalog, currentModuleSettingsId())) {
+        setStatus("Settings saved, but the refreshed settings catalog could not be read.");
+        return true;
+      }
+      settingsCatalog = refreshedCatalog;
       renderModuleSettings();
       flashSavedState();
       return true;
@@ -167,7 +278,7 @@
   }
 
   function renderModuleSettings() {
-    const moduleId = moduleSettingsForm?.dataset.moduleSettingsForm || "";
+    const moduleId = currentModuleSettingsId();
     const moduleDefinition = currentSettings?.modules.find((module) => module.id === moduleId) || null;
     if (moduleDefinition && moduleDefinition.status !== "enabled") {
       window.LongtailForge.settingsRenderer.renderDisabledModuleRecovery(moduleSettingsFields, moduleDefinition || {
@@ -185,11 +296,12 @@
 
   function collectContributedSettingsPayload() {
     const moduleSettings = window.LongtailForge.settingsRenderer.collectPayload(moduleSettingsForm);
+    /** @type {Record<string, unknown>} */
     const frameworkSettings = {};
-    const moduleId = moduleSettingsForm?.dataset.moduleSettingsForm || "";
-    const sections = requireSettingsHost().attachmentSections(settingsCatalog, "module", moduleId);
+    const moduleId = currentModuleSettingsId();
+    const sections = readModuleSettingsSections(settingsCatalog, moduleId) || [];
 
-    sections.flatMap((section) => section.settings || []).forEach((setting) => {
+    sections.flatMap((section) => section.settings).forEach((setting) => {
       if (setting.target !== "framework" || !Object.hasOwn(moduleSettings[moduleId] || {}, setting.id)) {
         return;
       }
