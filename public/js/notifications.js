@@ -9,6 +9,14 @@ const filterButtons = [...document.querySelectorAll("[data-notification-filter]"
 
 const state = {
   filter: "active",
+  /**
+   * The notifications this page vouched for.
+   *
+   * Annotated because the empty initializer infers `never[]`, which the narrowed response cannot
+   * be assigned to. Measured after the reader landed rather than assumed: it is the one direct
+   * response handoff this child creates.
+   * @type {import("../../src/types/browser-contracts.js").BrowserNotification[]}
+   */
   notifications: [],
   page: 0,
   pageSize: 25,
@@ -52,6 +60,158 @@ async function loadNotificationsPage() {
   await Promise.allSettled([loadNotifications(), loadPreferences()]);
 }
 
+/** The seventeen members `notificationRowToAppValue` reconstructs, plus the three text members the decorator adds. */
+const NOTIFICATION_TEXT_MEMBERS = Object.freeze([
+  "actor_user_id", "body", "created_at", "dismissed_at", "displayTitle", "displayType",
+  "event_type", "module_id", "notification_id", "read_at", "recipient_user_id", "record_id",
+  "record_type", "title", "updateTypeLabel", "url", "workspace_id",
+]);
+
+/** The unconditional members of `readTargetMetadata`'s base object. */
+const NOTIFICATION_TARGET_TEXT_MEMBERS = Object.freeze(["moduleId", "recordId", "recordType", "url"]);
+
+/** The status vocabulary the column's CHECK constraint admits. */
+const NOTIFICATION_STATUSES = Object.freeze(["unread", "read", "dismissed", "archived"]);
+
+/** The priority vocabulary the column's CHECK constraint admits. */
+const NOTIFICATION_PRIORITIES = Object.freeze(["low", "normal", "high", "urgent"]);
+
+/** The four bounded-pagination members the shared envelope always answers as finite numbers. */
+const NOTIFICATION_PAGINATION_NUMBERS = Object.freeze(["limit", "maxPageSize", "offset", "returned"]);
+
+/** @param {unknown} value @returns {value is Record<string, unknown>} */
+function isNotificationRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** @param {unknown} value @param {readonly string[]} members @returns {boolean} */
+function hasNotificationText(value, members) {
+  return isNotificationRecord(value) && members.every((member) => typeof value[member] === "string");
+}
+
+/** @param {unknown} value @returns {boolean} */
+function isNotificationStringList(value) {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string" && entry !== "");
+}
+
+/**
+ * A URL this page may put in an `href`.
+ *
+ * **The server guard is not sufficient and this is not the place to fix it.**
+ * `safeRelativeUrl` rejects any value carrying a URI scheme, so `javascript:`, `data:` and
+ * `vbscript:` cannot be stored - but a protocol-relative `//host/path`, and the backslash forms
+ * a browser normalises into one, carry no scheme and pass it. Resolved against the page they
+ * navigate to another origin. A notification URL is either empty or a path on this app, so that
+ * is what is checked here.
+ * @param {unknown} value
+ * @returns {value is string}
+ */
+function isApplicationRelativeUrl(value) {
+  if (typeof value !== "string" || value === "") {
+    return value === "";
+  }
+
+  return value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/\\");
+}
+
+/** @param {unknown} value @returns {value is import("../../src/types/browser-contracts.js").BrowserNotificationRecordTarget} */
+function isNotificationTarget(value) {
+  return isNotificationRecord(value)
+    && hasNotificationText(value, NOTIFICATION_TARGET_TEXT_MEMBERS)
+    && typeof value.canOpen === "boolean"
+    && typeof value.targetExists === "boolean"
+    && isApplicationRelativeUrl(value.url)
+    && (value.label === undefined || typeof value.label === "string")
+    && (value.context === undefined || hasNotificationText(value.context, ["clientName", "projectName"]));
+}
+
+/**
+ * One notification as the list producer decorates it.
+ *
+ * **Exact, because the spread source is a total reconstruction.** Every member checked here is
+ * named by `notificationRowToAppValue` or added by `decorateForSession`, and the row normaliser
+ * turns every nullable column into `""`, so nothing is nullable.
+ *
+ * **The protected-note redaction is checked as a whole.** The decorator answers a redacted
+ * notification when a note target does not exist, and a record that claims one half of that
+ * redaction without the other did not come from it.
+ * @param {unknown} value
+ * @returns {value is import("../../src/types/browser-contracts.js").BrowserNotification}
+ */
+function isNotificationRecordValue(value) {
+  if (!isNotificationRecord(value)
+    || !hasNotificationText(value, NOTIFICATION_TEXT_MEMBERS)
+    || value.notification_id === ""
+    || !NOTIFICATION_STATUSES.some((status) => status === value.status)
+    || !NOTIFICATION_PRIORITIES.some((priority) => priority === value.priority)
+    || !isNotificationRecord(value.metadata)
+    || !isNotificationTarget(value.target)
+    || !isApplicationRelativeUrl(value.url)) {
+    return false;
+  }
+
+  const target = value.target;
+
+  // A non-openable target carries no navigable URL, because the decorator writes `""` for it.
+  if (!target.canOpen && value.url !== "") {
+    return false;
+  }
+
+  // The redaction is all of it or none of it.
+  if (value.record_type === "note" && target.targetExists === false) {
+    return value.title === "Protected or unavailable note"
+      && value.displayTitle === "Protected or unavailable note"
+      && value.body === ""
+      && Object.keys(value.metadata).length === 0;
+  }
+
+  return true;
+}
+
+/** @param {unknown} value @returns {value is import("../../src/types/browser-contracts.js").BrowserBoundedPagination} */
+function isNotificationPagination(value) {
+  return isNotificationRecord(value)
+    && NOTIFICATION_PAGINATION_NUMBERS.every((member) => typeof value[member] === "number" && Number.isFinite(value[member]))
+    && typeof value.hasMore === "boolean"
+    && typeof value.nextCursor === "string"
+    && (value.total === null || (typeof value.total === "number" && Number.isFinite(value.total)));
+}
+
+/**
+ * The notification list, or `null` when the body is not one this producer sent.
+ *
+ * **One malformed notification refuses the whole response.** This is the recipient's
+ * authoritative notification list, and the raw read defaulted an unreadable body to an empty
+ * array - which rendered "No notifications" for a response the browser never understood.
+ * A genuinely empty list stays a real answer.
+ *
+ * **The producer's own array and records are answered, not rebuilt**, so the members these
+ * renderers do not yet read survive unpromised.
+ * @param {unknown} body
+ * @returns {body is import("../../src/types/browser-contracts.js").BrowserNotificationList}
+ */
+function isNotificationList(body) {
+  return isNotificationRecord(body)
+    && isNotificationRecord(body.filterOptions)
+    && isNotificationStringList(body.filterOptions.events)
+    && isNotificationStringList(body.filterOptions.modules)
+    && isNotificationPagination(body.pagination)
+    && Array.isArray(body.notifications)
+    && body.notifications.every(isNotificationRecordValue);
+}
+
+/**
+ * The notification list, or `null`.
+ *
+ * A predicate narrows and a cast asserts, so the checking happens in `isNotificationList` and
+ * this only chooses between the narrowed value and the refusal.
+ * @param {unknown} body
+ * @returns {import("../../src/types/browser-contracts.js").BrowserNotificationList | null}
+ */
+function readNotificationList(body) {
+  return isNotificationList(body) ? body : null;
+}
+
 async function loadNotifications() {
   setStatus("Loading notifications");
 
@@ -71,10 +231,17 @@ async function loadNotifications() {
       throw new Error("Notifications unavailable.");
     }
 
+    /** @type {unknown} */
     const body = await response.json();
-    state.notifications = Array.isArray(body.notifications) ? body.notifications : [];
-    state.pagination = normalizeNotificationPagination(body.pagination);
-    populateModuleFilter(body.filterOptions);
+    const list = readNotificationList(body);
+
+    if (!list) {
+      throw new Error("The notification list could not be read.");
+    }
+
+    state.notifications = list.notifications;
+    state.pagination = normalizeNotificationPagination(list.pagination);
+    populateModuleFilter(list.filterOptions);
     renderNotifications();
     setStatus("");
   } catch {
