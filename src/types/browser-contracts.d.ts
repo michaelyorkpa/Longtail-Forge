@@ -4349,6 +4349,95 @@ export interface BrowserFileAttachmentCounts {
 }
 
 /**
+ * The seven target types the Notes link-target directory can answer.
+ *
+ * Closed by `LINK_TARGET_TYPES`, which `listLinkTargets` both expands `"all"` into and
+ * validates every requested type against before it queries anything. **This is not
+ * `BrowserListLinkTargetType`**: Lists supports four of these words from its own producer, and
+ * two vocabularies that overlap are still two vocabularies. `workspace` stays in the set
+ * because the service answers it, even though the ordinary editor picker does not offer it.
+ */
+export type BrowserNoteLinkTargetType =
+  | "client"
+  | "list"
+  | "note"
+  | "project"
+  | "task"
+  | "user"
+  | "workspace";
+
+/**
+ * One record the Notes link-target picker may offer.
+ *
+ * **A deliberate structural minimum over a mixed-provider record.** `listLinkTargets` merges
+ * two producers: this module's own targets, shaped by the Notes `shapeLinkTarget`, and the
+ * external directory's, shaped by the framework `shapeLinkTarget` in
+ * `core/linked-context/link-target-shape.js`. Both reconstruct the same member names, but they
+ * are two functions, the framework one adds a conditional `unavailable` marker, and the
+ * directory still *declares* the weaker `LinkTargetCandidate[]` even though its providers
+ * populate every field. `0.33.33.36` owns strengthening that declaration; this contract does
+ * not, so it promises what **both** shapers write unconditionally and stays open above it.
+ *
+ * The nineteen members below are the intersection of two questions: what both producers always
+ * write, and what the Notes picker actually reads. `listId`, `noteId`, `taskId`, `userId`,
+ * `workspaceId` and `status` are written by both and read by neither, so they are not promised
+ * here - a contract earns its members from a consumer, not from a producer's generosity.
+ *
+ * Every string member may legitimately be `""`. The producers default rather than omit, so an
+ * absent subtitle is an empty subtitle, and `sourceUrl` is `""` for a type the framework has
+ * no page route for.
+ */
+export interface BrowserNoteLinkTarget {
+  ariaLabel: string;
+  clientId: string;
+  clientName: string;
+  displayLabel: string;
+  fullLabel: string;
+  /** `false` marks a target the picker shows but must not treat as selectable. */
+  isAvailable: boolean;
+  label: string;
+  /** May be `""`: the framework shaper does not default it the way the Notes one does. */
+  moduleId: string;
+  projectId: string;
+  projectName: string;
+  secondaryLabel: string;
+  sortKey: string;
+  /**
+   * A relative page route, or `""`.
+   *
+   * `targetSourceUrl` builds `notes.html?note=...` and its siblings with an encoded id, and
+   * answers `""` for a type it has no page for. A provider may supply its own value, which is
+   * why this promises a string rather than a shape - and why it can: **the picker never
+   * navigates it.** It carries the value into the option record and the staged target, and the
+   * only members the editor submits are `moduleId`, `targetType` and `targetId`.
+   */
+  sourceUrl: string;
+  subtitle: string;
+  suggestedLibraryBucket: string;
+  targetId: string;
+  targetType: BrowserNoteLinkTargetType;
+  title: string;
+  workspaceName: string;
+}
+
+/**
+ * `GET /api/notes/link-targets`.
+ *
+ * **Exact at one member**, because the service names `targets` and spreads nothing at the top
+ * level - the element beneath it is the part that stays open. The list arrives already
+ * permission-shaped: `NOTE_PERMISSIONS.VIEW` is asserted first, each internal type is gated on
+ * module read access and each external one on the provider's own module check, notes are
+ * filtered to the accessible set, and the client scope is resolved server-side. The browser
+ * reads what survived those decisions and re-derives none of them.
+ *
+ * An empty list is a real answer - a search that matched nothing. A body this contract cannot
+ * read is not, and must not be shown as one.
+ */
+export interface BrowserNoteLinkTargetDirectory {
+  targets: BrowserNoteLinkTarget[];
+}
+
+/**
  * The four job states the Workspace Settings readout counts.
  *
  * `shapeStatusCounts` starts from this exact object with every count at zero and overwrites a
