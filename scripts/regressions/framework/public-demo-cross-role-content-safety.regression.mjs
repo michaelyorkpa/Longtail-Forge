@@ -158,7 +158,12 @@ async function proveBrowserSinkInventory() {
     // rather than a raw body read, so the assigned markup is the one `renderMarkdownToSafeHtml`
     // produced and an unreadable response refuses instead of injecting an empty default.
     'public/js/notes.js:preview.innerHTML = rendered.bodyHtml;',
-    'public/js/shared/file-preview.js:content.innerHTML = html || "";',
+    // Reviewed under `0.33.33.38.4.9.5`: the same sink, now fed from a vouched-for
+    // content record rather than a raw `.content || {}` read. The markup is what the
+    // server's `renderMarkdownToHtml` produced from the uploaded file - parsed with
+    // `html: false`, unsafe link targets stripped, images escaped rather than requested -
+    // and an unreadable body now refuses instead of injecting an empty default.
+    'public/js/shared/file-preview.js:content.innerHTML = html;',
     'public/js/stop-watch.js:this.clientSelect.innerHTML = "";',
     'public/js/stop-watch.js:this.clientSelect.innerHTML = "";',
     'public/js/stop-watch.js:this.projectSelect.innerHTML = "";',
@@ -187,7 +192,19 @@ async function proveBrowserSinkInventory() {
   // vouched-for render, so what this owner asserts is that the live preview assigns the
   // server-sanitised markup rather than that it defaults an unread body to "".
   assert.match(notesBrowser, /preview\.innerHTML = rendered\.bodyHtml;/);
-  assert.match(filesPreview, /content\.innerHTML = html \|\| ""/);
+  // Retargeted under `0.33.33.38.4.9.5`: the sink is unchanged and its source is now the
+  // vouched-for render, so what this owner asserts is the whole producer-to-sink path - the
+  // content body is read through the contract reader, only its `bodyHtml` is assigned, and
+  // the browser still adds no Markdown parser of its own.
+  assert.match(filesPreview, /const contentBody = readFilePreviewContent\(await api\.getJson\(preview\.contentUrl/);
+  assert.match(filesPreview, /renderFilePreviewMarkdown\(dialog, content\.bodyHtml\)/);
+  assert.match(filesPreview, /content\.innerHTML = html;/);
+  // Case-insensitive and hyphen-optional deliberately: markdown-it's UMD build installs
+  // itself as `window.markdownit`, which the original spelling of this guard did not
+  // match. A bite-proof under `0.33.33.38.4.9.5` introduced that exact global and the
+  // guard let it through, so the pattern now covers the spelling an attacker-shaped
+  // mistake would actually use.
+  assert.doesNotMatch(filesPreview, /markdown-?it|marked|showdown/i);
   assert.match(transportSecurity, /"script-src 'self'"/);
   assert.match(transportSecurity, /"script-src-attr 'none'"/);
   assert.match(transportSecurity, /"object-src 'none'"/);

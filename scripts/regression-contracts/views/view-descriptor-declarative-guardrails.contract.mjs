@@ -304,7 +304,10 @@ assert.doesNotMatch(filesJs, /files\.browse\.legacy|createFilesBrowseChrome/, "S
 assert.doesNotMatch(filesJs, /document\.createElement\(/, "Strict Files source should create elements through shared view helpers");
 assert.equal(countMatches(filesJs, /innerHTML/g), 0, "Strict Files source should not keep direct innerHTML writes after preview extraction");
 assert.equal(countMatches(filePreviewJs, /innerHTML/g), 1, "Shared preview source should only use innerHTML for route-sanitized Markdown preview content");
-assert.match(extractFunctionBlock(filePreviewJs, "renderFilePreviewMarkdown"), /content\.innerHTML = html \|\| ""/, "Markdown preview should keep the documented route-sanitized innerHTML escape hatch");
+// Retargeted under `0.33.33.38.4.9.5`: still the module's single innerHTML write, still the
+// documented escape hatch, but no longer defaulted - the value is the `bodyHtml` of a content
+// record the contract reader vouched for, and an unreadable body refuses instead of injecting "".
+assert.match(extractFunctionBlock(filePreviewJs, "renderFilePreviewMarkdown"), /content\.innerHTML = html;/, "Markdown preview should keep the documented route-sanitized innerHTML escape hatch");
 assert.match(extractFunctionBlock(filesJs, "createFilesElement"), /requireFilesViewHelper\("createElement"\)[\s\S]*view\.createElement\(tagName, options\)/, "Files helper-backed fragments should use the shared createElement primitive");
 for (const helper of [
   "renderSurface",

@@ -41,8 +41,14 @@ const previewAvailability = extractFunctionSpan(filePreviewScript, "previewAvail
 assert.equal(countMatches(filesScript, /document\.createElement/g), 0, "Files browse should not create DOM nodes directly after strict enforcement");
 assert.equal(countMatches(filesScript, /innerHTML/g), 0, "Files browse should not keep direct innerHTML writes after preview extraction");
 assert.equal(countMatches(filePreviewScript, /innerHTML/g), 1, "Shared preview should only use innerHTML for route-sanitized Markdown preview content");
-assert.match(extractFunctionSpan(filePreviewScript, "renderFilePreviewMarkdown"), /content\.innerHTML = html \|\| ""/,
+// Retargeted under `0.33.33.38.4.9.5`: the escape hatch is unchanged and still the only
+// innerHTML write in this module, but the value reaching it is no longer defaulted. It is the
+// `bodyHtml` of a content record the contract reader vouched for, which the server produced
+// through `renderMarkdownToHtml`; an unreadable body now refuses rather than injecting "".
+assert.match(extractFunctionSpan(filePreviewScript, "renderFilePreviewMarkdown"), /content\.innerHTML = html;/,
   "Markdown preview should keep the documented route-sanitized innerHTML escape hatch");
+assert.match(filePreviewLoader, /readFilePreviewContent\(await api\.getJson\(preview\.contentUrl/,
+  "Markdown preview content should reach that escape hatch only through the contract reader");
 assert.equal(countMatches(attachmentHelper, /document\.createElement/g), 1, "Attachment helper should only keep direct DOM creation in the centralized fallback");
 assert.match(extractFunctionSpan(attachmentHelper, "createAttachmentElement"), /document\.createElement\(tagName\)/,
   "Attachment helper should centralize native DOM fallback construction");
@@ -68,7 +74,11 @@ assert.match(fileEditorControls, /createFileContextField\("Client"[\s\S]*view\.c
   "File Context controls should use the shared field grid");
 assert.match(filePreviewDialog, /files-preview-body[\s\S]*view\.createModal[\s\S]*files-preview-dialog/,
   "Preview should use the shared modal shell");
-assert.match(filePreviewLoader, /\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/preview[\s\S]*preview\.contentUrl[\s\S]*renderFilePreviewImage[\s\S]*renderFilePreviewContent/,
+// Retargeted under `0.33.33.38.4.9.5`: the order changed because the separate content-URL
+// truthiness test is gone. A previewable descriptor is the one that carries the URL - the
+// reader refuses any other - so the loader now branches on the state, then on the image kind,
+// and only then reads the URL it was promised.
+assert.match(filePreviewLoader, /\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/preview[\s\S]*preview\.state !== "previewable"[\s\S]*renderFilePreviewImage[\s\S]*preview\.contentUrl[\s\S]*renderFilePreviewContent/,
   "Preview loading should remain route-backed and Files-owned");
 
 assert.match(previewAvailability, /reviewPreviewAllowed[\s\S]*status !== "available"[\s\S]*kind === "unsupported"[\s\S]*too_large_for_preview[\s\S]*state:\s*"previewable"/,

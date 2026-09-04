@@ -160,6 +160,178 @@
     return link;
   }
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFilePreviewContent} BrowserFilePreviewContent */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFilePreviewContentEnvelope} BrowserFilePreviewContentEnvelope */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFilePreviewDescriptor} BrowserFilePreviewDescriptor */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFilePreviewKind} BrowserFilePreviewKind */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFilePreviewState} BrowserFilePreviewState */
+
+  /** The five states the availability function and the access gate answer between them. @type {readonly BrowserFilePreviewState[]} */
+  const PREVIEW_DESCRIPTOR_STATES = Object.freeze([
+    "download_only", "previewable", "too_large_for_preview", "unauthorized", "unavailable",
+  ]);
+
+  /** The four kinds the extension tables map to. @type {readonly BrowserFilePreviewKind[]} */
+  const PREVIEW_DESCRIPTOR_KINDS = Object.freeze(["image", "markdown", "text", "unsupported"]);
+
+  /** The descriptor members `shapeAttachmentPreviewDescriptor` always writes as text. */
+  const PREVIEW_DESCRIPTOR_TEXT_MEMBERS = Object.freeze([
+    "extension", "fileAttachmentId", "file_attachment_id", "fileId", "file_id",
+    "fileName", "file_name", "fileType", "file_type", "filename",
+    "mimeType", "mime_type", "moduleId", "module_id", "reason",
+    "scanStatus", "scan_status", "status", "targetId", "target_id",
+    "targetType", "target_type",
+  ]);
+
+  /** The two it writes as a byte count. */
+  const PREVIEW_DESCRIPTOR_NUMBER_MEMBERS = Object.freeze(["fileSizeBytes", "file_size_bytes"]);
+
+  /** @param {unknown} value @returns {value is Record<string, unknown>} */
+  function isFilePreviewRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /** @param {Record<string, unknown>} value @param {readonly string[]} keys */
+  function hasFilePreviewText(value, keys) {
+    return keys.every((key) => typeof value[key] === "string");
+  }
+
+  /**
+   * The content route this descriptor's own attachment id addresses.
+   *
+   * `previewContentUrlForAttachment` builds the URL the browser is asked to follow from the
+   * attachment id and nothing else, so the browser can rebuild it rather than trust it. That
+   * matters more than it looks: `api.getJson` and `<img src>` both accept any URL a body
+   * cares to send, so a descriptor that carried an absolute one would have the page fetching
+   * a third-party address and pointing an image at it. Rebuilding also settles the storage
+   * question by construction - a storage key, a filesystem path or a signed object URL can
+   * never equal this string.
+   * @param {Record<string, unknown>} descriptor
+   * @returns {string}
+   */
+  function filePreviewContentRoute(descriptor) {
+    return `/api/files/attachments/${encodeURIComponent(String(descriptor.fileAttachmentId))}/preview/content`;
+  }
+
+  /**
+   * One descriptor as `shapeAttachmentPreviewDescriptor` builds it.
+   *
+   * The three state spellings and the three kind spellings are checked against each other
+   * rather than separately: the producer writes one `state` and one `kind` into three
+   * members each, so a body whose copies disagree is not one it sent. The same goes for
+   * `contentAvailable`, which it derives from the state rather than deciding independently.
+   *
+   * No finiteness test guards the byte counts. JSON cannot carry `NaN` or `Infinity` - both
+   * serialise to `null` - so requiring a number already excludes them, and a check that can
+   * never change an outcome is decoration rather than proof.
+   * @param {unknown} value
+   * @returns {value is BrowserFilePreviewDescriptor}
+   */
+  function isFilePreviewDescriptor(value) {
+    if (!isFilePreviewRecord(value)
+      || !hasFilePreviewText(value, PREVIEW_DESCRIPTOR_TEXT_MEMBERS)
+      || !PREVIEW_DESCRIPTOR_NUMBER_MEMBERS.every((key) => typeof value[key] === "number")) {
+      return false;
+    }
+
+    const state = PREVIEW_DESCRIPTOR_STATES.find((word) => word === value.state);
+    const kind = PREVIEW_DESCRIPTOR_KINDS.find((word) => word === value.kind);
+
+    if (!state || !kind
+      || value.previewState !== state || value.preview_state !== state
+      || value.previewKind !== kind || value.preview_kind !== kind) {
+      return false;
+    }
+
+    const previewable = state === "previewable";
+
+    if (value.contentAvailable !== previewable || value.content_available !== previewable) {
+      return false;
+    }
+
+    if (!previewable) {
+      return value.contentUrl === undefined && value.content_url === undefined;
+    }
+
+    const contentUrl = filePreviewContentRoute(value);
+
+    return kind !== "unsupported" && value.contentUrl === contentUrl && value.content_url === contentUrl;
+  }
+
+  /**
+   * One content record, in the JSON form the content route answers for text and Markdown.
+   *
+   * `image` is refused rather than accepted as a third member. The route streams image bytes
+   * with their own headers and the browser reaches them through `<img src>`, so a JSON body
+   * announcing an image did not come from this producer.
+   * @param {unknown} value
+   * @returns {value is BrowserFilePreviewContent}
+   */
+  function isFilePreviewContent(value) {
+    if (!isFilePreviewRecord(value)) {
+      return false;
+    }
+
+    if (value.kind === "text") {
+      return value.encoding === "utf-8" && typeof value.text === "string";
+    }
+
+    return value.kind === "markdown"
+      && value.bodyFormat === "markdown"
+      && value.bodyHtmlFormat === "html"
+      && typeof value.bodyHtml === "string"
+      && typeof value.bodyMarkdown === "string";
+  }
+
+  /**
+   * The descriptor half of the boundary.
+   *
+   * A body this refuses is not an unavailable preview. Defaulting the descriptor to `{}` had
+   * collapsed those two into one message, so a response the page could not read looked
+   * exactly like a server that had considered the file and declined it.
+   * @param {unknown} body
+   * @returns {BrowserFilePreviewDescriptor | null}
+   */
+  function readFilePreviewDescriptor(body) {
+    if (!isFilePreviewRecord(body)) {
+      return null;
+    }
+
+    const preview = body.preview;
+
+    return isFilePreviewDescriptor(preview) ? preview : null;
+  }
+
+  /**
+   * The content half of the boundary, with its embedded descriptor.
+   *
+   * Both coherences this enforces are things the producer cannot violate: it calls
+   * `assertContentAvailable` before building anything, which throws for every state but
+   * `previewable`, and it selects the content branch from the same availability record the
+   * descriptor is shaped from, so the two kinds are one decision reported twice.
+   * @param {unknown} body
+   * @returns {BrowserFilePreviewContentEnvelope | null}
+   */
+  function readFilePreviewContent(body) {
+    if (!isFilePreviewRecord(body)) {
+      return null;
+    }
+
+    const preview = body.preview;
+
+    if (!isFilePreviewDescriptor(preview) || preview.state !== "previewable") {
+      return null;
+    }
+
+    const content = body.content;
+
+    if (!isFilePreviewContent(content) || content.kind !== preview.kind) {
+      return null;
+    }
+
+    return { content, preview };
+  }
+
   async function loadFilePreview(dialog, row) {
     const api = requireApi();
     if (!row.attachmentId) {
@@ -170,14 +342,19 @@
     setFilePreviewStatus(dialog, "Checking preview availability...");
 
     try {
-      const descriptorResponse = await api.getJson(`/api/files/attachments/${encodeURIComponent(row.attachmentId)}/preview`, { cache: "no-store" });
-      const preview = descriptorResponse.preview || {};
+      const preview = readFilePreviewDescriptor(
+        await api.getJson(`/api/files/attachments/${encodeURIComponent(row.attachmentId)}/preview`, { cache: "no-store" }),
+      );
 
       if (!dialog.isConnected) {
         return;
       }
 
-      if (preview.state !== "previewable" || !preview.contentUrl) {
+      if (!preview) {
+        throw new Error("The file preview descriptor could not be read.");
+      }
+
+      if (preview.state !== "previewable") {
         renderFilePreviewState(dialog, preview);
         return;
       }
@@ -188,13 +365,17 @@
       }
 
       setFilePreviewStatus(dialog, "Loading preview...");
-      const contentResponse = await api.getJson(preview.contentUrl, { cache: "no-store" });
+      const contentBody = readFilePreviewContent(await api.getJson(preview.contentUrl, { cache: "no-store" }));
 
       if (!dialog.isConnected) {
         return;
       }
 
-      renderFilePreviewContent(dialog, preview, contentResponse.content || {});
+      if (!contentBody) {
+        throw new Error("The file preview content could not be read.");
+      }
+
+      renderFilePreviewContent(dialog, preview, contentBody.content);
     } catch (error) {
       if (requireErrors().caughtStatus(error) === 401) {
         global.location.replace("/login.html");
@@ -207,12 +388,12 @@
 
   function renderFilePreviewContent(dialog, preview, content) {
     if (content.kind === "text") {
-      renderFilePreviewText(dialog, content.text || "");
+      renderFilePreviewText(dialog, content.text);
       return;
     }
 
     if (content.kind === "markdown") {
-      renderFilePreviewMarkdown(dialog, content.bodyHtml || "");
+      renderFilePreviewMarkdown(dialog, content.bodyHtml);
       return;
     }
 
@@ -257,7 +438,7 @@
       attrs: { "data-file-preview-markdown": "" },
     });
 
-    content.innerHTML = html || "";
+    content.innerHTML = html;
     setFilePreviewBody(dialog, content);
   }
 

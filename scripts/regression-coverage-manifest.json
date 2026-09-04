@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19032,
+    "activeAssertionCount": 19041,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19846,
+    "effectiveAssertionCount": 19855,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -4960,8 +4960,8 @@
     },
     {
       "area": "files",
-      "assertionCount": 627,
-      "contractAssertionCount": 626,
+      "assertionCount": 631,
+      "contractAssertionCount": 630,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/files/file-scanner-setup-docs.contract.mjs",
@@ -4997,7 +4997,7 @@
         },
         {
           "path": "scripts/regression-contracts/files/files-preview-modal.contract.mjs",
-          "assertionCount": 36
+          "assertionCount": 39
         },
         {
           "path": "scripts/regression-contracts/files/files-row-attachment-actions.contract.mjs",
@@ -5005,7 +5005,7 @@
         },
         {
           "path": "scripts/regression-contracts/files/files-strict-guardrail-inventory.contract.mjs",
-          "assertionCount": 59
+          "assertionCount": 60
         },
         {
           "path": "scripts/regression-contracts/files/files-upload-shell.contract.mjs",
@@ -5557,11 +5557,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 36,
+      "assertionCount": 39,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Proves public-demo editable content stays inert across scoped roles and freezes the reviewed browser HTML-sink inventory.",
-      "entryPointAssertionCount": 36,
+      "entryPointAssertionCount": 39,
       "id": "framework.public-demo-cross-role-content-safety",
       "legacy": false,
       "path": "scripts/regressions/framework/public-demo-cross-role-content-safety.regression.mjs",
@@ -6077,8 +6077,8 @@
     },
     {
       "area": "notes",
-      "assertionCount": 222,
-      "contractAssertionCount": 221,
+      "assertionCount": 224,
+      "contractAssertionCount": 223,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/notes/notes-context-terminology.contract.mjs",
@@ -6098,7 +6098,7 @@
         },
         {
           "path": "scripts/regression-contracts/notes/notes-file-preview-actions.contract.mjs",
-          "assertionCount": 23
+          "assertionCount": 25
         },
         {
           "path": "scripts/regression-contracts/notes/notes-files-stacked-modal.contract.mjs",
