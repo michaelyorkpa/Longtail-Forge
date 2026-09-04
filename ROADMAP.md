@@ -734,6 +734,10 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **Complete: 1 diagnostic, four members, two of them constants, and one security guarantee named rather than assumed.** See the archive entry. `previewMarkdown` reconstructs `bodyFormat`, `bodyMarkdown`, `bodyHtml` and `bodyHtmlFormat` with no spread, and the browser assigns `bodyHtml` to `innerHTML` **because `renderMarkdownToSafeHtml` produced it**. Defaulting an unreadable body to `""` had made two claims at once: that the note renders to nothing, and that unvouchable markup was safe to write into the document. The revision and link-target producers remain this child's open work.
 
+#### 0.33.33.38.4.12.2 - The Notes link-target directory response
+
+**Complete: 1 diagnostic, twelve contextual, three contracts, and the first response in this run whose envelope is exact and whose element deliberately is not.** See the archive entry. `listLinkTargets` names `targets` and spreads nothing, so the envelope is exact at one member. The element is a **structural minimum over a mixed-provider record**: two shapers feed this list - this module's own and the framework's in `core/linked-context` - and the directory still *declares* the weaker `LinkTargetCandidate[]` that `0.33.33.36` owns. The contract promises the **nineteen** members both shapers always write **and** the picker actually reads, leaves the six neither reads unnamed, and stays open above them. `result.targets || []` had turned an unreadable directory into "No records available", which is the one sentence a search picker must not say when it did not search.
+
 #### 0.33.33.38.4.13 - The remaining notification bodies
 
 **Not drawn from a count, drawn from what `0.33.33.38.4.10` deliberately left.** `/api/notifications` itself, the read/dismiss mutations, and the display-preference routes are separate producers that no declared surface currently exposes; `notifications.js` reads them directly. **Size this the way `.4.10` was sized** - by declaring nothing and probing, because these bodies are invisible to the classifier for the same reason those were.

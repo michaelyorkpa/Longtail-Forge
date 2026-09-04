@@ -1,5 +1,38 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.12.2 - The Notes link-target directory response
+
+**Model: High Effort** - one diagnostic, twelve more that fell out beside it, and the clearest exact-versus-minimum case this run has produced.
+
+- [x] **The envelope is exact and the element is not, and the proof says so separately.** `listLinkTargets` returns `{ targets }` with no top-level spread, so the envelope is exact at one member. The element beneath it is merged from two producers - `listTargetsByType` shaped by this module's `shapeLinkTarget`, and `linkTargetDirectory.list` shaped by the framework's - and the directory still declares `LinkTargetCandidate[]`, the weaker mostly-optional record, even though its providers populate every field. The service records that inference decision itself, and `0.33.33.36` owns strengthening it. **One assertion proves the envelope exact; a different one proves the element a strict subset**, and a break that promises every member the shapers write is refused for exactly that.
+- [x] **Nineteen members, chosen by intersection rather than by generosity.** Both shapers write the same twenty-five names; the picker reads nineteen of them. `listId`, `noteId`, `status`, `taskId`, `userId` and `workspaceId` are written by both and read by neither, so they are not promised - **a contract earns its members from a consumer**. The proof derives the written set from **both** producer literals and the promised set from the declaration, so neither confirms the other, and a break that promises a twentieth member no shaper writes is refused.
+- [x] **Extensibility is preserved by construction.** The framework shaper adds a conditional `unavailable` marker the Notes one never writes, and a provider may carry more. The reader **answers the producer's own array**, so a richer target arrives whole - which matters because the picker stages whole targets into editor state. Two breaks attack that: one truncates each target to the promised minimum, one filters the list.
+- [x] **Seven target types, closed at the producer's own set.** `LINK_TARGET_TYPES` is what `"all"` expands to and what every requested type is validated against. The proof scans that `Set` rather than searching for seven expected words, so an eighth is caught - and three breaks add one to the set, to the expansion and to the reader's table. **This is not the Lists vocabulary**: Lists supports four of these words from its own producer, and a break that reuses `BrowserListLinkTargetType` is refused. `workspace` stays valid because the service answers it.
+- [x] **Permission shaping is re-proved and never re-derived.** `NOTE_PERMISSIONS.VIEW` is asserted before a single target is gathered; each internal type is gated on its module check and notes are filtered to the accessible set **before any label is built**; each external type is gated on its provider's module right and then the client scope. Eight breaks attack that chain and all are refused. The browser reads what survived those decisions.
+- [x] **Labels and routes stay safe at the producer.** An unusable target is labelled by its **type**, never by its id, and the fallback table carries no interpolation. `targetSourceUrl` builds encoded relative page routes and answers `""` for a type it has no page for. The contract promises `sourceUrl` as text rather than as a shape - and it can, because **this picker never navigates it**: it carries the value into the option record, and the editor submits only `moduleId`, `targetType` and `targetId`. A break that starts submitting the URL is refused.
+- [x] **An unreadable directory no longer reads as a search that matched nothing.** The picker's catch said "No records available" for every failure. It still does for every failure but one: a body this contract cannot read now says so in its own words, and every other error reads exactly as it always has. Four breaks pin both halves of that distinction. **Nothing is filtered** - one unreadable target refuses the whole directory, because every element here was already produced, permission-shaped and sorted, so a malformed one is evidence the body is not this producer's.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **47 breaks across the Notes service, its route, the link-target directory, the framework shaper, the declaration and the consumer, all 47 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,299 | **8,287** |
+| Genuine `unknown` | 12 | **11** |
+| state | 1,730 | **1,718** |
+| params / dom / namespace | 4,602 / 1,484 / 319 | **all unchanged** |
+| assorted | 152 | **153** |
+| `0.33.33.40` Notes | 491 | **480** |
+| `.39` / `.41` / `.42` / `.43` / `.44` | 1,770 / 1,167 / 530 / 968 / 1,558 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,199 / 348 / 167 | **1,228 / 348 / 167**, green |
+
+**1 elimination and 12 contextual eliminations, no transfers, no new namespace surface.** Three state slots - `linkTargets`, `primaryContextClients` and `primaryContextProjects` - are direct handoffs of this one response whose `[]` initialisers inferred `never[]`; typing them by the response resolved twelve further diagnostics in `0.33.33.40`. Measured against `HEAD`'s own copy of the page: `TS18046` 4 to 3, `TS2339` 484 to 474, `TS7005` 5 to 4, and **every other diagnostic code identical**.
+
+**The `assorted` row moved from 152 to 153, and that is a reclassification rather than new debt.** No diagnostic code in `notes.js` increased, the file's total fell by twelve, and the whole program fell by twelve - so no other file moved. One surviving diagnostic that the classifier previously attributed to the `state` family now reads as `assorted`, because the binding it hangs off changed type. The classifier is reading the tree correctly; it is not a defect and no tooling was touched.
+
+**Four proof flaws the harness caught, all in the proof.** A single-shaper drop was caught by the both-shapers-agree assertion before the per-member loop, so that loop's real failure mode - the contract promising something **neither** shaper writes - now has its own break. An absolute-URL break was caught by the encoded-route assertion first, so it moved to a route that assertion does not name. A closing-brace pattern could never match a body sliced to stop before it. And the container guard is pinned by source for the fourth time in this run, for the same reason each time: removing it turns a clean refusal into a crash.
+
 ## Version 0.33.33.38.4.9.6 - The attachment count response
 
 **Model: High Effort** - one diagnostic, and a producer whose two returns are not the same shape.

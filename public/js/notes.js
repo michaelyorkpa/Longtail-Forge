@@ -526,6 +526,10 @@
      * @type {number | null}
      */
     linkTargetSearchTimer: null,
+    /**
+     * The current link-target page, after every element was vouched for.
+     * @type {BrowserNoteLinkTarget[]}
+     */
     linkTargets: [],
     /**
      * The current page of notes, after every element was checked against the list projection.
@@ -545,7 +549,15 @@
      */
     notesPagination: null,
     page: 1,
+    /**
+     * The client targets offered as a primary context, from the same directory response.
+     * @type {BrowserNoteLinkTarget[]}
+     */
     primaryContextClients: [],
+    /**
+     * The project targets offered as a primary context, from the same directory response.
+     * @type {BrowserNoteLinkTarget[]}
+     */
     primaryContextProjects: [],
     previewRequestId: 0,
     settingsLoaded: false,
@@ -3529,6 +3541,100 @@
     state.linkTargetSearchTimer = window.setTimeout(() => loadEditorLinkTargets(), 180);
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteLinkTarget} BrowserNoteLinkTarget */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteLinkTargetType} BrowserNoteLinkTargetType */
+
+  /** What this picker says when the directory answered something it could not read. */
+  const LINK_TARGET_LOAD_FAILURE = "Link targets could not be loaded.";
+
+  /** The seven types `LINK_TARGET_TYPES` closes the directory over. @type {readonly BrowserNoteLinkTargetType[]} */
+  const NOTE_LINK_TARGET_TYPES = Object.freeze([
+    "client", "list", "note", "project", "task", "user", "workspace",
+  ]);
+
+  /**
+   * The members both link-target shapers write unconditionally and this picker reads.
+   *
+   * Deliberately not the full record: six more are written by both producers and read by
+   * neither, and promising those would freeze a mixed-provider shape this child does not own.
+   */
+  const NOTE_LINK_TARGET_TEXT = Object.freeze([
+    "ariaLabel", "clientId", "clientName", "displayLabel", "fullLabel", "label", "moduleId",
+    "projectId", "projectName", "secondaryLabel", "sortKey", "sourceUrl", "subtitle",
+    "suggestedLibraryBucket", "title", "workspaceName",
+  ]);
+
+  /**
+   * One link target, checked for the members the picker relies on and nothing more.
+   *
+   * `targetId` must carry text because the editor submits it as the linked record's id and
+   * stages the option under it; an empty one is an option that cannot be chosen. Every other
+   * string may legitimately be `""` - the shapers default rather than omit - so they are
+   * checked for being text, not for being filled.
+   * @param {unknown} value
+   * @returns {value is BrowserNoteLinkTarget}
+   */
+  function isNoteLinkTarget(value) {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      return false;
+    }
+
+    const target = /** @type {Record<string, unknown>} */ (value);
+
+    return NOTE_LINK_TARGET_TYPES.some((word) => word === target.targetType)
+      && typeof target.targetId === "string"
+      && target.targetId !== ""
+      && typeof target.isAvailable === "boolean"
+      && NOTE_LINK_TARGET_TEXT.every((key) => typeof target[key] === "string");
+  }
+
+  /**
+   * The link-target directory, or `null` when the body is not one this producer sends.
+   *
+   * **The producer's own array is answered, not a rebuilt one.** Both shapers write more than
+   * this contract promises, and the picker carries whole targets into its staged editor state,
+   * so rebuilding to the promised minimum would silently drop context a later save still
+   * reads. The type surface is narrow; the runtime object stays exactly as it arrived.
+   *
+   * One unreadable element refuses the whole directory rather than being filtered out of it.
+   * Every target in this response has already been produced, permission-shaped and sorted, so
+   * a malformed element is evidence the body is not this producer's - not a candidate that
+   * happens to be unusable. A quietly shorter picker is indistinguishable from a search that
+   * matched fewer records.
+   * @param {unknown} body
+   * @returns {BrowserNoteLinkTarget[] | null}
+   */
+  function readNoteLinkTargets(body) {
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return null;
+    }
+
+    const targets = /** @type {Record<string, unknown>} */ (body).targets;
+
+    if (!Array.isArray(targets)) {
+      return null;
+    }
+
+    return targets.every(isNoteLinkTarget)
+      ? /** @type {BrowserNoteLinkTarget[]} */ (targets)
+      : null;
+  }
+
+  /**
+   * What the picker should say when a target load failed.
+   *
+   * A directory this page could not read is **not** a search that matched nothing, so the
+   * refusal keeps its own words. Every other failure still reads as it always has: this child
+   * owns the response boundary, not the page's network messaging.
+   * @param {unknown} error
+   * @returns {string}
+   */
+  function linkTargetLoadFailureLabel(error) {
+    return error instanceof Error && error.message === LINK_TARGET_LOAD_FAILURE
+      ? LINK_TARGET_LOAD_FAILURE
+      : "No records available";
+  }
+
   async function loadEditorLinkTargets() {
     if (!contextResultsInput) {
       return;
@@ -3546,9 +3652,9 @@
       });
       state.linkTargets = targets;
       populateLinkTargetSelect(contextResultsInput, targets);
-    } catch {
+    } catch (error) {
       state.linkTargets = [];
-      replaceLinkTargetOptions([{ value: "", label: "No records available", disabled: true }]);
+      replaceLinkTargetOptions([{ value: "", label: linkTargetLoadFailureLabel(error), disabled: true }]);
     } finally {
       contextResultsInput.disabled = false;
     }
@@ -3574,8 +3680,15 @@
       params.set("q", search.trim());
     }
 
-    const result = await api.getJson(`/api/notes/link-targets?${params.toString()}`, { cache: "no-store" });
-    return result.targets || [];
+    const targets = readNoteLinkTargets(
+      await api.getJson(`/api/notes/link-targets?${params.toString()}`, { cache: "no-store" }),
+    );
+
+    if (!targets) {
+      throw new Error(LINK_TARGET_LOAD_FAILURE);
+    }
+
+    return targets;
   }
 
   function populateLinkTargetSelect(select, targets = []) {
