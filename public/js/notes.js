@@ -4824,7 +4824,7 @@
     try {
       const result = await api.postJson(url, {});
       await Promise.all([loadCollections(), loadNotes()]);
-      await selectNote(result.note.note_id);
+      await selectNote(requireNoteFromEnvelope(result).note_id);
       setStatus("");
     } catch (error) {
       setStatus(safeNoteErrorMessage(error, "Note could not be updated."), true);
