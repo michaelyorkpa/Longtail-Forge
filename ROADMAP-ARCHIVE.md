@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.9.7 - The attachment-panel list adoption
+
+**Model: High Effort** - one diagnostic, no new contract, and a duplication that had to be argued for rather than apologised for.
+
+- [x] **The carry-forward is closed on the terms it was recorded.** `0.33.33.38.4.9.2` published `BrowserFileAttachmentList` and its four nested contracts, then wrote that the shared panel would need *either duplicated guards or a new published surface*. This child takes the duplicated guards. The alternative means a new script on every host that mounts the panel, or a new root member - a delivery change, not a one-consumer adoption. **The reader says so in its own doc comment**, and two breaks refuse a version that claims to be the centralised parser or drops the sentence explaining what keeps it honest.
+- [x] **Nothing new was declared.** No `BrowserPanelAttachment`, no second envelope, no structural subset that would have made validation optional. The published surface is still the single `mount`. Three breaks attack that.
+- [x] **Both readers are pinned to the declaration, not to each other.** The proof derives the expected membership from `BrowserFileAttachment` and `BrowserFileAttachmentFile` and asserts **both** tables cover exactly it, so a table copied into the test could not confirm itself. It then runs **nineteen fixtures through both readers** and requires the same verdict from each: five accepted, fourteen refused. Six breaks knock one guard out of one reader at a time, and each is refused by the reader it was aimed at.
+- [x] **The sort vocabulary is closed at the producer's own `Set`.** `ATTACHMENT_SORT_MODES` is scanned rather than searched for five expected words, and three breaks add a sixth - to the producer, to the panel's table, and to nothing at all.
+- [x] **The producer's own objects are answered, not rebuilt.** This panel hands whole attachments to its `statusChanged` and `refresh` listeners, so a host reading an unpromised member must still find it. Only the envelope wrapper is new. **The identity proof had a real gap**: it compared `result.attachments[0]` against `wire.attachments[0]`, which reads through the same array, so a reader that replaced every element *in place* compared equal to its own replacement and passed. The references are captured before the call now, and three breaks - replacing the array, the elements and the nested files - are each refused by the assertion they target.
+- [x] **An unreadable page no longer announces itself as an empty one.** The raw read set `state.attachments = []` and then emitted `refresh` with it: a host listening to that panel was told, successfully, that every attachment had gone. The refusal now precedes the status map, the assignment and **both** emits, and four breaks prove each of those orderings. What is unchanged is the genuinely empty case: an unconfigured target still emits its empty refresh exactly as before, and a break that removes it is refused.
+- [x] **The status-change model is untouched.** The previous-status map still keys on either identifier spelling, and only a *known* attachment whose status changed may raise the event. Two breaks attack those and both are refused.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **37 breaks across the Files service, its route, both browser readers and the declaration, all 37 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,286 | **8,285** |
+| Genuine `unknown` | 10 | **9** |
+| params / state / dom / namespace / assorted | 4,602 / 1,718 / 1,484 / 319 / 153 | **all unchanged** |
+| `.39` / `.40` / `.41` / `.42` / `.43` / `.44` | 1,770 / 480 / 1,167 / 530 / 968 / 1,558 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,243 / 348 / 167 | **1,258 / 348 / 167**, green |
+
+**1 elimination, no transfers, no contextual fallout, no new contract and no new namespace surface.**
+
+**The first attempt transferred rather than eliminated.** The pagination check was written as a boolean test rather than a type predicate, so `pagination` was still `unknown` where the reader answered it - one genuine `unknown` removed and one `TS2322` introduced, with the program total unmoved. Measurement caught it before anything was committed; the Files page's equivalent had carried the predicate annotation all along.
+
+**One static owner retargeted.** `0.33.33.38.4.9.2`'s own carry-forward pin asserted that the panel still read the producer raw. That sentence had two halves, and only the first is now false: the pin asserts the panel reads through a reader of its own, and still refuses both the Files page's reader and the surface that child declined to create. Three bite-proofs.
+
 ## Version 0.33.33.38.4.2.2 - The note mutation identity
 
 **Model: High Effort** - one diagnostic and one line of runtime change, which is what a correct reuse decision costs when the boundary it reuses was built properly.

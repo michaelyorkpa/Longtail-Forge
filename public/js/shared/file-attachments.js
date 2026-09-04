@@ -127,6 +127,126 @@
     return element;
   }
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFileAttachment} BrowserFileAttachment */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFileAttachmentFile} BrowserFileAttachmentFile */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFileAttachmentList} BrowserFileAttachmentList */
+
+  /**
+   * A second reader for a producer `0.33.33.38.4.9.2` already typed, and deliberately so.
+   *
+   * `public/js/files.js` carries the first one. The two pages share no runtime helper and giving
+   * them one would mean a new published surface or a new script on this panel's hosts - a
+   * delivery change well outside a one-consumer adoption. **This is a bounded duplicate, not a
+   * centralised parser**: both readers are pinned to the same declaration and the same producer,
+   * and a proof runs the same fixtures through both, so they can only drift together.
+   *
+   * The nineteen text members `shapeAttachment` fills on every attachment.
+   */
+  const PANEL_ATTACHMENT_TEXT = Object.freeze([
+    "attachmentRole", "caption", "clientId", "clientLabel", "client_label", "createdAt",
+    "fileAttachmentId", "file_attachment_id", "fileId", "file_id", "moduleId", "projectId",
+    "projectLabel", "project_label", "targetId", "targetLabel", "target_label", "targetType",
+    "visibility",
+  ]);
+
+  /** The eight text members the nested file record always fills. */
+  const PANEL_ATTACHMENT_FILE_TEXT = Object.freeze([
+    "displayName", "extension", "mimeTypeDetected", "originalFilename", "scanStatus", "status",
+    "uploadedByLabel", "uploaded_by_label",
+  ]);
+
+  /** The six the nested file record answers as text or `null`. */
+  const PANEL_ATTACHMENT_FILE_NULLABLE_TEXT = Object.freeze([
+    "createdAt", "created_at", "deletedAt", "deleted_at", "updatedAt", "updated_at",
+  ]);
+
+  /** The five orderings the producer's own `Set` admits. @type {readonly import("../../../src/types/browser-contracts.js").BrowserFileAttachmentSort[]} */
+  const PANEL_ATTACHMENT_SORTS = Object.freeze(["filename", "newest", "oldest", "size", "status"]);
+
+  /** The four integers `boundedPaginationEnvelope` coerces itself. */
+  const PANEL_PAGINATION_NUMBERS = Object.freeze(["limit", "maxPageSize", "offset", "returned"]);
+
+  /** @param {unknown} value @returns {value is Record<string, unknown>} */
+  function isPanelRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * The shared bounded pagination envelope, checked member for member.
+   *
+   * Declared as a predicate rather than a boolean test: naming the shared contract on a value
+   * this reader had only tested would have left `pagination` unknown at the point it is answered.
+   * @param {unknown} value
+   * @returns {value is import("../../../src/types/browser-contracts.js").BrowserBoundedPagination}
+   */
+  function isPanelPagination(value) {
+    return isPanelRecord(value)
+      && PANEL_PAGINATION_NUMBERS.every((member) => typeof value[member] === "number")
+      && typeof value.hasMore === "boolean"
+      && typeof value.nextCursor === "string"
+      && (value.total === null || typeof value.total === "number");
+  }
+
+  /** @param {unknown} value @returns {value is BrowserFileAttachmentFile} */
+  function isPanelAttachmentFile(value) {
+    return isPanelRecord(value)
+      && PANEL_ATTACHMENT_FILE_TEXT.every((member) => typeof value[member] === "string")
+      && PANEL_ATTACHMENT_FILE_NULLABLE_TEXT.every((member) => value[member] === null || typeof value[member] === "string")
+      && typeof value.fileSizeBytes === "number";
+  }
+
+  /**
+   * One attachment, checked against what the producer reconstructs by name.
+   *
+   * Both spellings of each paired member are required, because the producer writes both and this
+   * panel reads either - the status map keys on `fileAttachmentId || file_attachment_id`.
+   * @param {unknown} value
+   * @returns {value is BrowserFileAttachment}
+   */
+  function isPanelAttachment(value) {
+    return isPanelRecord(value)
+      && PANEL_ATTACHMENT_TEXT.every((member) => typeof value[member] === "string")
+      && value.fileAttachmentId !== ""
+      && (value.removedAt === null || typeof value.removedAt === "string")
+      && typeof value.sortOrder === "number"
+      && isPanelAttachmentFile(value.file)
+      && (value.target === null || (isPanelRecord(value.target)
+        && typeof value.target.id === "string"
+        && typeof value.target.label === "string"
+        && typeof value.target.type === "string"));
+  }
+
+  /**
+   * The attachment page, read as a whole or not at all.
+   *
+   * **The producer's own objects are answered, not rebuilt.** This panel hands whole attachments
+   * to its `statusChanged` and `refresh` listeners, so a host reading a member this contract does
+   * not promise must still find it. Only the envelope wrapper is new.
+   *
+   * **Refused rather than shortened.** An attachment dropped here would tell a host that a file
+   * it can still see is gone. The whole page is refused instead, and `null` takes the load-error
+   * path this panel already owned - which matters more than usual, because the raw read used to
+   * turn an unreadable body into an empty list and then emit a *successful* refresh carrying it.
+   * @param {unknown} body
+   * @returns {BrowserFileAttachmentList | null}
+   */
+  function readPanelAttachmentList(body) {
+    if (!isPanelRecord(body)) {
+      return null;
+    }
+
+    const { attachments, pagination, sort } = body;
+    const sortMode = PANEL_ATTACHMENT_SORTS.find((mode) => mode === sort);
+
+    if (!Array.isArray(attachments) || !attachments.every(isPanelAttachment)
+      || !isPanelPagination(pagination)
+      || !sortMode) {
+      return null;
+    }
+
+    return { attachments, pagination, sort: sortMode };
+  }
+
   async function refresh(container, state) {
     const api = requireApi();
     const { options } = state;
@@ -144,17 +264,21 @@
     render(container, state);
 
     try {
-      const result = await api.getJson(`/api/files/attachments?${new URLSearchParams({
+      const page = readPanelAttachmentList(await api.getJson(`/api/files/attachments?${new URLSearchParams({
         moduleId: options.moduleId,
         targetType: options.targetType,
         targetId: options.targetId,
-      }).toString()}`, { cache: "no-store" });
+      }).toString()}`, { cache: "no-store" }));
+
+      if (!page) {
+        throw new Error("The attachment list could not be read.");
+      }
 
       const previousStatuses = new Map(state.attachments.map((attachment) => [
         attachment.fileAttachmentId || attachment.file_attachment_id,
         attachment.file?.status,
       ]));
-      state.attachments = result.attachments || [];
+      state.attachments = page.attachments;
       state.attachments.forEach((attachment) => {
         const attachmentId = attachment.fileAttachmentId || attachment.file_attachment_id;
         const status = attachment.file?.status || "";

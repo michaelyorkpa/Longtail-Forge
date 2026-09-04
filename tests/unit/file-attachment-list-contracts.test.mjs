@@ -210,8 +210,12 @@ describe("the consumers", () => {
   });
 
   it("leaves the shared attachments panel to its own owner, and says why", () => {
-    assert.match(sharedPanel, /result\.attachments \|\| \[\]/,
-      "the shared panel still reads the same producer raw");
+    // `result.attachments || []` was this assertion's subject until `0.33.33.38.4.9.7` closed the
+    // carry-forward. It took the duplicated-guards route this child named rather than the new
+    // published surface it also named, so what stands is the rest of the sentence: the panel
+    // reads the same producer through a reader of its own, and no new surface exists.
+    assert.match(sharedPanel, /const page = readPanelAttachmentList\(/,
+      "the shared panel now reads the same producer through its own reader");
     assert.doesNotMatch(sharedPanel, /readFileAttachmentList/,
       "because narrowing it would need either duplicated guards or a new published surface");
     assert.doesNotMatch(sharedPanel, /LongtailForge\.fileAttachmentRecords/,

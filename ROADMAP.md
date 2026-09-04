@@ -724,6 +724,10 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **Complete: 1 diagnostic, two contracts, and a producer with two returns rather than one.** See the archive entry. `countAttachmentsForTargets` answers `{ counts }` alone when the request named no module, type or targets, and `{ counts, meta }` otherwise - so `meta` is declared **optional because the producer omits it**, not because the server is inconsistent. **Every requested target id is seeded to zero before any attachment is counted**, and the tally only increments for ids that survived `readableAttachmentTargetIds`, which is what stops the endpoint being a way to probe for attachments on records the caller cannot see. `result.counts || {}` had let an unreadable body read as "no task has an attachment"; a malformed count now makes the tally unreadable instead.
 
+#### 0.33.33.38.4.9.7 - The attachment-panel list adoption
+
+**Complete: 1 diagnostic, zero new contracts, and the carry-forward `0.33.33.38.4.9.2` left behind.** See the archive entry. That child published the whole attachment-list boundary and recorded that `shared/file-attachments.js` reads the same producer, but narrowing it needed **either duplicated guards or a new published surface**. This child takes the first: a bounded second reader inside the panel, pinned to the same declaration and the same producer as the Files page's, with a proof that runs one fixture set through **both**. The alternative would have meant a new script on every host that mounts this panel - a delivery change well outside a one-consumer adoption. The raw read had turned an unreadable body into an empty list and then emitted a **successful** refresh carrying it, which tells a host every attachment is gone.
+
 #### 0.33.33.38.4.10 - Notification response bodies
 
 **Complete. The child that was worth doing for what it could not be measured by.** Its visible cost was three diagnostics; what it actually did was make two blocked namespace surfaces declarable without either of them inheriting a wire-boundary bill. See the archive entry.
