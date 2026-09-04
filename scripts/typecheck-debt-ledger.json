@@ -400,6 +400,7 @@
         "tests/unit/note-link-target-contracts.test.mjs",
         "tests/unit/note-mutation-identity-contracts.test.mjs",
         "tests/unit/note-response-contracts.test.mjs",
+        "tests/unit/note-revision-list-contracts.test.mjs",
         "tests/unit/notes-effective-security.test.mjs",
         "tests/unit/notes-external-link-preference-contracts.test.mjs",
         "tests/unit/notification-response-contracts.test.mjs",
@@ -527,7 +528,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8276,
+      "errorCount": 8274,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1063,10 +1064,6 @@
         ],
         "public/js/notes.js": [
           {
-            "code": 18046,
-            "count": 1
-          },
-          {
             "code": 18047,
             "count": 99
           },
@@ -1096,7 +1093,7 @@
           },
           {
             "code": 7006,
-            "count": 176
+            "count": 175
           },
           {
             "code": 7019,
@@ -2729,8 +2726,8 @@
     }
   },
   "totals": {
-    "files": 1108,
-    "errors": 8276,
+    "files": 1109,
+    "errors": 8274,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

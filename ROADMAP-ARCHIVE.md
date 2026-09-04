@@ -1,5 +1,37 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.12.3 - The Notes revision-list response
+
+**Model: High Effort** - one diagnostic, and most of the work was deciding what a history panel is allowed to withhold, promise and refuse.
+
+- [x] **Exact envelope, structural element, and the two levels are argued separately.** `listRevisions` returns `{ revisions }` with no spread, so the envelope is exact at one member. Beneath it, `revisionRowToAppValue` spreads the persisted row and `shapeRevisionForBrowser` spreads that again through `stripSecureStorageFields`, so a listed revision carries every surviving column. Nine members are promised, and the count is nine rather than the eleven a first reading suggests: **`note_type` and `status` are carried by the response and never read here**, so they are absent from the contract rather than promised for completeness.
+- [x] **One vocabulary is closed and two are not, and the difference is the reason.** All three carry `CHECK` constraints. `security_mode` is closed to `normal | secure` because the column, `NoteSecurityMode` and the **browser's own branch** all say the same thing - `isSecureNote` decides on it whether a revision body is hidden. `library_bucket` and `visibility` stay `string`, because this panel passes them through `formatToken`: formatting a token is not validating a vocabulary, and closing them would make this contract the owner of two vocabularies it never inspects. Four breaks attack that boundary from both sides, including one that closes `library_bucket` for tidiness.
+- [x] **The secure boundary is checked, not trusted.** The eleven columns `stripSecureStorageFields` deletes are read **out of the producer** and refused **by presence**, so a `null` one fails too; a secure revision listed with `includeBody: false` must additionally lack `body_markdown` and `secure_body_decrypted` and carry a nulled excerpt. Twelve breaks attack it - removing a deletion from the producer, dropping one from the forbidden list, testing value instead of presence, skipping the secure branch, asking the list for bodies, bypassing the shaper entirely - and all twelve are refused.
+- [x] **A normal revision's body is left alone, and that is a decision rather than an oversight.** The shaper only deletes `body_markdown` on the secure branch, so a normal listed revision still carries it. This child does not promise it, does not read it and does not remove it: the caller already holds `view_history` and passed the `notes.revisions` consumer gate, so this is a least-data question for the producer, not a boundary a consumer may settle by truncating what it was sent. Two breaks pin that - one promising it, one stripping it in the browser - and the disclosure audit of the other unpromised members (`metadata`, the actor column, `change_reason` and the import fields) found nothing sensitive to report.
+- [x] **A malformed history refuses whole.** This is a note's authoritative record, not an advisory picker: a shortened history rendered as a complete one tells the viewer that edits they made never happened. `{ revisions: [] }` stays a real answer, because `visibleRevisionSnapshots` **deliberately** returns `[]` for a note whose only snapshot is its original - and that emptiness is asserted against the producer that decides it.
+- [x] **All three access layers stay where they are.** `readNoteOrThrow`, then `view_history`, then the `notes.revisions` consumer gate, then the query - proved by index ordering with each operand's existence checked first. Seven breaks attack the chain, including one that re-derives the permission name in the browser and one that lets the repository drop its workspace scope.
+- [x] **The restore response stays untyped, because nothing reads it.** `revisionItem` awaits the restore and discards it, then reloads the note. Two breaks refuse a reader and a contract for it.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **54 breaks across the page, the notes service, the notes repository, the notes routes, the schema snapshot, the browser declarations and the domain contracts, all 54 refused for their specific named check.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,276 | **8,274** |
+| Genuine `unknown` | 5 | **4** |
+| params | 4,599 | **4,598** |
+| `0.33.33.40` Notes | 480 | **479** |
+| state / dom / namespace / assorted | 1,717 / 1,483 / 319 / 153 | **all unchanged** |
+| `.39` / `.41` / `.42` / `.43` / `.44` | 1,767 / 1,167 / 530 / 968 / 1,557 | **all unchanged** |
+| Unit tests / regressions / end-to-end | 1,352 / 348 / 167 | **1,383 / 348 / 167**, green |
+
+**1 elimination and 1 contextual elimination, no transfers and no new debt.** Measured against `HEAD`'s own copy of the page: `TS18046` 1 to 0 and `TS7006` 176 to 175 - `revisionItem`'s `revision` parameter is now inferred from a typed array - with every other code identical.
+
+**Two real gaps and a proof that could have masked its own subject.** The reader's column tables were not tied to the declaration at all: the membership test compared the *declaration* against the panel's reads, so a column could quietly leave the reader while still being promised, and two breaks proved it. And the "there is one such vocabulary" claim counted **one name**, so a second alias declared under a different one passed - the corrected assertion enumerates the two aliases the estate already has for two genuinely different concepts and refuses a third. Separately, the reader's own JSDoc quoted the raw read it replaced, which would have satisfied the page-wide scan for that spelling forever; the comment now describes it instead.
+
+**Four static owners retargeted.** `markdown-preview`, `note-link-target`, `note-mutation-identity` and `notes-external-link-preference` each pinned `result.revisions || []` as a *surviving* raw read to prove they had left it alone. All four now assert the reader's **call site**, and a break that splits the call across two statements is refused by all four.
+
 ## Version 0.33.33.38.4.7.2.1 - The Lists item suggestions
 
 **Model: High Effort** - one diagnostic, and the interesting decision was the malformed policy rather than the shape.

@@ -14,6 +14,8 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteRecord} BrowserNoteRecord */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteListItem} BrowserNoteListItem */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteRevisionSummary} BrowserNoteRevisionSummary */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteEffectiveSecurityMode} BrowserNoteEffectiveSecurityMode */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNotePagination} BrowserNotePagination */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteListEnvelope} BrowserNoteListEnvelope */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCollection} BrowserNoteCollection */
@@ -4641,6 +4643,100 @@
     });
   }
 
+  /**
+   * The two security modes a revision may carry.
+   *
+   * Closed because the column's `CHECK` constraint admits exactly this pair and `NoteSecurityMode`
+   * declares the same one - and because the browser branches on it to decide whether a revision
+   * body is shown.
+   * @type {readonly BrowserNoteEffectiveSecurityMode[]}
+   */
+  const NOTE_REVISION_SECURITY_MODES = Object.freeze(["normal", "secure"]);
+
+  /** The revision columns `note_revisions` declares `NOT NULL` and this panel reads as text. */
+  const REQUIRED_REVISION_COLUMNS = Object.freeze(["created_at", "library_bucket", "note_revision_id", "title", "visibility"]);
+
+  /** The revision columns it declares nullable. */
+  const NULLABLE_REVISION_COLUMNS = Object.freeze(["body_excerpt", "change_summary"]);
+
+  /**
+   * The encrypted storage columns `stripSecureStorageFields` removes from **every** revision.
+   *
+   * Their absence is the contract, so it is checked rather than assumed. A listed revision that
+   * carries any one of them did not come through the shaper this endpoint uses.
+   */
+  const FORBIDDEN_REVISION_STORAGE_COLUMNS = Object.freeze([
+    "secure_payload", "secure_payload_version", "encrypted_data_key", "encryption_key_version",
+    "encryption_algorithm", "key_wrapping_algorithm", "encryption_nonce", "encryption_auth_tag",
+    "key_wrapping_nonce", "key_wrapping_auth_tag", "encrypted_at",
+  ]);
+
+  /** What a **secure** revision additionally loses when it is listed with `includeBody: false`. */
+  const FORBIDDEN_SECURE_REVISION_BODY_MEMBERS = Object.freeze(["body_markdown", "secure_body_decrypted"]);
+
+  /** @param {unknown} value @param {readonly string[]} members @returns {boolean} */
+  function hasNoMembers(value, members) {
+    return isResponseRecord(value) && members.every((member) => !Object.hasOwn(value, member));
+  }
+
+  /**
+   * One revision as the history list sends it.
+   *
+   * **The secure branch is enforced, not trusted.** `shapeRevisionForBrowser` nulls
+   * `body_excerpt` and deletes the two body members for a secure revision listed without a body;
+   * a listed revision that says it is secure and still carries either of them, or an excerpt, is
+   * not one this producer shaped, and the panel would print it as history.
+   *
+   * A **normal** revision is not required to have shed `body_markdown` - the shaper does not
+   * delete it there - so nothing is promised about it and nothing is stripped from it.
+   * @param {unknown} value
+   * @returns {value is BrowserNoteRevisionSummary}
+   */
+  function isNoteRevisionSummary(value) {
+    if (!isResponseRecord(value)
+      || !hasTextColumns(value, REQUIRED_REVISION_COLUMNS)
+      || !hasNullableTextColumns(value, NULLABLE_REVISION_COLUMNS)
+      || !hasNoMembers(value, FORBIDDEN_REVISION_STORAGE_COLUMNS)
+      || value.note_revision_id === ""
+      || typeof value.revision_number !== "number"
+      || !Number.isInteger(value.revision_number)
+      || !NOTE_REVISION_SECURITY_MODES.some((mode) => mode === value.security_mode)) {
+      return false;
+    }
+
+    if (value.security_mode !== "secure") {
+      return true;
+    }
+
+    return value.body_excerpt === null && hasNoMembers(value, FORBIDDEN_SECURE_REVISION_BODY_MEMBERS);
+  }
+
+  /**
+   * The revision history of a note, or `null` when the body is not one this producer sent.
+   *
+   * **One malformed revision refuses the whole list.** This is a note's authoritative history,
+   * not an advisory picker: a shortened history rendered as a complete one tells the viewer that
+   * edits they made never happened. The raw read this replaced went further still, defaulting an
+   * unreadable response to an empty array and rendering it as **"No revisions."**
+   *
+   * An empty list is a real answer and stays one - `visibleRevisionSnapshots` deliberately
+   * returns `[]` for a note whose only snapshot is its original.
+   *
+   * **The producer's own array and revision objects are answered**, so the metadata, actor and
+   * import columns a revision carries survive unpromised rather than being rebuilt away.
+   * @param {unknown} body
+   * @returns {BrowserNoteRevisionSummary[] | null}
+   */
+  function readNoteRevisions(body) {
+    if (!isResponseRecord(body)
+      || !Array.isArray(body.revisions)
+      || !body.revisions.every(isNoteRevisionSummary)) {
+      return null;
+    }
+
+    return /** @type {BrowserNoteRevisionSummary[]} */ (body.revisions);
+  }
+
   async function loadRevisions(note, list) {
     const api = requireApi();
     if (!list) {
@@ -4648,8 +4744,12 @@
     }
 
     try {
-      const result = await api.getJson(`/api/notes/${encodeURIComponent(note.note_id)}/revisions`, { cache: "no-store" });
-      const revisions = result.revisions || [];
+      const revisions = readNoteRevisions(await api.getJson(`/api/notes/${encodeURIComponent(note.note_id)}/revisions`, { cache: "no-store" }));
+
+      if (!revisions) {
+        throw new Error("The revision history could not be read.");
+      }
+
       list.replaceChildren(...(revisions.length ? revisions.map((revision) => revisionItem(note, revision)) : [emptyText("No revisions.")]));
     } catch (error) {
       list.replaceChildren(emptyText(safeNoteErrorMessage(error, "Revisions could not be loaded.")));
