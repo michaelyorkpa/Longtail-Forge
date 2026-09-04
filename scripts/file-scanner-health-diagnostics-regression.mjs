@@ -103,7 +103,11 @@ function assertStaticContracts() {
   assert.doesNotMatch(runtimeDiagnosticsSource, /process\.env|clamdHost|clamdPort|clamscanPath|signedUrl|storageKey|protectedPath|masterKey/i, "runtime diagnostics source must not expose scanner internals, raw env, signed URLs, storage keys, or secret material");
   assert.match(workspaceSettingsScript, /Scanner Status/, "Workspace Settings should render scanner availability status");
   assert.match(workspaceSettingsScript, /formatScannerStatus/, "Workspace Settings should format scanner health safely");
-  assert.match(workspaceSettingsScript, /scanner\.health\?\.warning/, "Workspace Settings warnings should consume the server-provided scanner warning");
+  // Retargeted under `0.33.33.38.4.8.5`: the optional chain is gone because the diagnostics
+  // reader now proves the scanner section before the warnings are built, so the page reads
+  // the server-provided warning directly instead of guessing whether it exists.
+  assert.match(workspaceSettingsScript, /warnings\.push\(scanner\.health\.warning\)/, "Workspace Settings warnings should consume the server-provided scanner warning");
+  assert.match(workspaceSettingsScript, /SCANNER_HEALTH_STATUSES\.some\(\(word\) => word === health\.status\)/, "Workspace Settings should validate the scanner status against the producer's own vocabulary");
   assert.match(runtimeDocs, /scanner mode[\s\S]*scanner health[\s\S]*disabled/, "runtime docs should document scanner health diagnostics");
   }
 

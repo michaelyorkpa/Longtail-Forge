@@ -401,6 +401,7 @@
         "tests/unit/resume-producer-payload.test.mjs",
         "tests/unit/role-assignment-contracts.test.mjs",
         "tests/unit/runtime-configuration.test.mjs",
+        "tests/unit/runtime-diagnostics-contracts.test.mjs",
         "tests/unit/shared-workspace-settings-contracts.test.mjs",
         "tests/unit/slice-verification-plan.test.mjs",
         "tests/unit/sqlite-health-formatter.test.mjs",
@@ -517,7 +518,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8306,
+      "errorCount": 8305,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -2080,7 +2081,7 @@
         "public/js/workspace-settings.js": [
           {
             "code": 18046,
-            "count": 7
+            "count": 6
           },
           {
             "code": 18047,
@@ -2727,8 +2728,8 @@
     }
   },
   "totals": {
-    "files": 1098,
-    "errors": 8306,
+    "files": 1099,
+    "errors": 8305,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

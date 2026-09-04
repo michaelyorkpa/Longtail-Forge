@@ -499,7 +499,12 @@ describe("the workspace settings consumer", () => {
   });
 
   it("leaves the runtime diagnostics read to its own child", () => {
-    assert.ok(consumer.includes("result.diagnostics || {}"),
+    // `result.diagnostics || {}` was this assertion's subject until `0.33.33.38.4.8.5` claimed
+    // it for the Runtime Diagnostics producer. That is the sibling child doing its job, not
+    // this one widening: what this child owns is the jobs readout and nothing else on the page.
+    assert.match(consumer, /const diagnostics = readRuntimeDiagnosticsResponse\(/,
       "the runtime diagnostics read is a different producer and is untouched here");
+    assert.match(consumer, /const jobs = readJobStatusResponse\(\n\s+await requireApi\(\)\.getJson\(`\/api\/jobs\/status/,
+      "and this child's reader stays on its own route");
   });
 });

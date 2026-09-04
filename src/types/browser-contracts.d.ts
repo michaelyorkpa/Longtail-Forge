@@ -4030,6 +4030,185 @@ export interface BrowserBoundedPagination {
 }
 
 /**
+ * Where a runtime path sits relative to the deployment, and whether it had to be redacted.
+ *
+ * The three location shapers answer `data-dir` or `app-root` for a path inside the deployment
+ * and fall through to `redactedPathLocation` otherwise, which is the only branch that sets
+ * `redacted`.
+ */
+export type BrowserRuntimePathScope = "app-root" | "data-dir" | "outside-app-root";
+
+/**
+ * A filesystem path as diagnostics is allowed to describe it.
+ *
+ * **`display` is never the resolved path.** A path inside the data directory is shown against
+ * a `<data-dir>` placeholder, one inside the application root against `./`, and anything else
+ * is reduced to `<redacted>` plus its basename. So an administrator can tell where the
+ * database or storage root lives without the response disclosing the host's directory layout.
+ */
+export interface BrowserRuntimePathLocation {
+  display: string;
+  redacted: boolean;
+  relativeTo: BrowserRuntimePathScope;
+}
+
+/** Whether the safe reader reached its subject, or reported it unreachable. */
+export type BrowserRuntimeHealthStatus = "ok" | "unavailable";
+
+/**
+ * How the configured file scanner answered.
+ *
+ * `safeScannerStatus` normalises the adapter's own word against a fixed set and falls back to
+ * `ok`, `unavailable` or `unknown` from the availability flag, so no adapter can introduce a
+ * sixth word here. `disabled` and `pass_through` are **real, healthy answers** for a
+ * deployment that runs no scanner - they are not failures, and not malformed.
+ */
+export type BrowserScannerHealthStatus = "disabled" | "ok" | "pass_through" | "unavailable" | "unknown";
+
+/** The database health the safe reader reports; `fileWritable` is false when it could not look. */
+export interface BrowserRuntimeDatabaseHealth {
+  fileWritable: boolean;
+  status: BrowserRuntimeHealthStatus;
+}
+
+/**
+ * The SQLite pragmas diagnostics reports.
+ *
+ * Every one is `null` or `""` when the health read threw, which is a real answer about an
+ * unreachable database rather than a malformed body.
+ */
+export interface BrowserRuntimeSqliteDiagnostics {
+  busyTimeoutMs: number | null;
+  cacheSizeKib: number | null;
+  foreignKeysEnabled: boolean;
+  journalMode: string;
+  mmapSizeBytes: number | null;
+  synchronous: string;
+  tempStore: string;
+}
+
+/** The database section: which provider, how healthy, its pragmas, and where its file lives. */
+export interface BrowserRuntimeDatabaseDiagnostics {
+  fileLocation: BrowserRuntimePathLocation;
+  health: BrowserRuntimeDatabaseHealth;
+  provider: string;
+  sqlite: BrowserRuntimeSqliteDiagnostics;
+}
+
+/** Where the data directory lives, described the same safe way. */
+export interface BrowserRuntimeDataDiagnostics {
+  directoryLocation: BrowserRuntimePathLocation;
+}
+
+/**
+ * The storage section.
+ *
+ * `rootLocation` is `null` for a provider that has no local root - an object store, say - and
+ * that is the producer's own answer rather than a missing member.
+ */
+export interface BrowserRuntimeStorageDiagnostics {
+  health: { available: boolean; status: BrowserRuntimeHealthStatus };
+  provider: string;
+  rootLocation: BrowserRuntimePathLocation | null;
+}
+
+/**
+ * The scanner section.
+ *
+ * `available` is `boolean | null` because `booleanOrNull` reports "the adapter did not say"
+ * as `null`, and `warning` is `""` when there is nothing to warn about.
+ */
+export interface BrowserRuntimeScannerDiagnostics {
+  health: { available: boolean | null; status: BrowserScannerHealthStatus; warning: string };
+  mode: string;
+}
+
+/**
+ * What the in-process job worker reports about itself.
+ *
+ * **This is not `/api/jobs/status`.** These are process counters for the worker running in
+ * this deployment; the Jobs Status readout counts durable rows in one workspace's queue. The
+ * two share four words and nothing else, so `0.33.33.38.4.8.4`'s contracts are deliberately
+ * not reused here.
+ */
+export interface BrowserRuntimeWorkerStatus {
+  claimedCount: number;
+  completedCount: number;
+  deadCount: number;
+  failedCount: number;
+  lastClaimedCount: number;
+  lastErrorAt: string | null;
+  lastPollAt: string | null;
+  lastRunAt: string | null;
+  lastSuccessAt: string | null;
+  lockTtlSeconds: number;
+  pollIntervalMs: number;
+  registeredJobTypes: string[];
+  running: boolean;
+  startedAt: string | null;
+  state: BrowserRuntimeWorkerState;
+  stoppedAt: string | null;
+  timerActive: boolean;
+  workerId: string;
+}
+
+/** The four states the job runner's own status type declares. */
+export type BrowserRuntimeWorkerState = "disabled" | "idle" | "running" | "stopped";
+
+/** The worker section: how it is configured, and what it is doing. */
+export interface BrowserRuntimeWorkerDiagnostics {
+  mode: string;
+  status: BrowserRuntimeWorkerStatus;
+}
+
+/** The deployment-shaped section, including whatever the configuration warned about at boot. */
+export interface BrowserRuntimeEnvironmentDiagnostics {
+  configurationWarnings: string[];
+  deploymentMode: string;
+  environment: string;
+}
+
+/**
+ * `GET /api/runtime-diagnostics`, behind `workspace_settings.manage`.
+ *
+ * **Exactness is per producer level.** `read` reconstructs all eight sections by name and
+ * spreads nothing, so the top level is exact; each section it builds is likewise reconstructed
+ * member by member, which is also what absorbs provider extensibility - a storage or scanner
+ * adapter may answer whatever it likes from `health()`, but only the members this service
+ * names reach the browser, so the contract can be exact without freezing an adapter's
+ * internals.
+ *
+ * **`app` and `features` are declared and left opaque on purpose.** Nothing on this path reads
+ * them: the page renders the database, data, storage, scanner and worker sections and the
+ * configuration warnings, and nothing else. `features` in particular is a thirty-odd member
+ * public-demo budget and perimeter tree; naming it here would be publishing an exhaustive
+ * projection for a producer with no browser consumer, which is what `0.33.33.38.4.2.1` refused
+ * for the compatibility note list. A consumer, not the producer's generosity, earns a contract.
+ */
+export interface BrowserRuntimeDiagnostics {
+  app: unknown;
+  data: BrowserRuntimeDataDiagnostics;
+  database: BrowserRuntimeDatabaseDiagnostics;
+  features: unknown;
+  runtime: BrowserRuntimeEnvironmentDiagnostics;
+  scanner: BrowserRuntimeScannerDiagnostics;
+  storage: BrowserRuntimeStorageDiagnostics;
+  worker: BrowserRuntimeWorkerDiagnostics;
+}
+
+/**
+ * The envelope the route wraps the readout in.
+ *
+ * An unreadable body is not a healthy deployment, and it is not an unconfigured one either.
+ * `result.diagnostics || {}` had rendered every section as "Unavailable" through the same
+ * formatter a genuinely unreachable database uses, which makes a response the page could not
+ * parse indistinguishable from a server that looked and found nothing.
+ */
+export interface BrowserRuntimeDiagnosticsResponse {
+  diagnostics: BrowserRuntimeDiagnostics;
+}
+
+/**
  * The four job states the Workspace Settings readout counts.
  *
  * `shapeStatusCounts` starts from this exact object with every count at zero and overwrites a
