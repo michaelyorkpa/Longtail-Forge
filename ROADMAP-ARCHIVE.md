@@ -1,5 +1,33 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.13.4 - Reject protocol-relative notification and event URLs
+
+**Model: High Effort** - a security correction drawn as its own owner, and a rendering defect found while proving it.
+
+- [x] **The defect is reproduced through the URL implementation the application relies on, not through a regex.** Each of the four two-character authority prefixes is resolved with `new URL(value, "https://app.example")` and shown to land on `https://evil.example`. A regex match would have proved only that a pattern fires; this proves the value escapes the origin. Four breaks - one per prefix - refuse a guard that stops checking, and three more refuse a guard that checks only `//`.
+- [x] **The writer inventory is read out of the producing modules, not retyped into the test.** Seven distinct shapes across seven module sources, every one a **bare relative path with no leading slash**. Two breaks edit a producer: one that starts emitting an authority form and one that starts emitting a root-relative path, and each fails the acceptance assertions because the fixture list is derived rather than declared.
+- [x] **The browser guard was refusing every URL its producers send, and that is the second defect.** It required a leading slash. `isNotificationRecordValue` refuses the whole record when the URL fails, so **every notification carrying a link was dropped** - from the page and from the app-shell panel, which carries its own copy of the guard. Correcting it is not weakening it: the authority refusal is unchanged and the scheme refusal is now explicit rather than incidental.
+- [x] **Four implementations, one fixture matrix.** The two server helpers sit in modules with no shared dependency and the two browser copies are in a different runtime again, so extracting one helper would be dependency churn for its own sake. What binds them is a matrix every one is run against, and **three breaks prove divergence fails** - correcting only one server guard, only one browser copy, or letting the panel drift from the page.
+- [x] **Every current behaviour is preserved.** Schemes are still refused by all four. Empty still means "no link" and is still accepted at the browser boundary. Root-relative paths still pass. A single leading backslash still passes, because it resolves here. Five breaks cover the preserved cases, including one that stops trimming and one that starts rejecting a lone backslash.
+- [x] **The record stays accurate.** No roadmap, archive or source comment claims an attacker-controlled path, because none is proved. One break inserts that claim and is refused.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **21 breaks across both server helpers, both browser copies and a producing module, all 21 refused.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Authority forms accepted by `safeRelativeUrl` | 4 | **0** |
+| Authority forms accepted by `safeUrl` | 4 | **0** |
+| Producer URL shapes the browser accepted | 0 of 7 | **7 of 7** |
+| Guards agreeing across the matrix | 2 of 4 | **4 of 4** |
+| Browser program diagnostics | 8,065 | **8,065** |
+| Unit tests / regressions / end-to-end | 1,733 / 348 / 167 | **1,767 / 348 / 167**, green |
+
+**Three spent guards retargeted, all from `0.33.33.38.4.13.1`.** That child recorded the server defect and deliberately left it: one assertion required the server to still accept the hostile forms, one required the server guard to be **byte-identical**, and one asserted a bare relative path was *not* what the producer builds. The first two are spent because this child did the work they were waiting for; the third was **wrong on its premise** and is corrected. Each now asserts that the boundaries answer alike.
+
+**The reopened `0.33.33.38.4.13` closes with this child.**
+
 ## Version 0.33.33.38.4.15 - The workspace-context storage and fallback-response boundary
 
 **Model: High Effort** - the wire prerequisite a namespace child was blocked on, under its own owner.
