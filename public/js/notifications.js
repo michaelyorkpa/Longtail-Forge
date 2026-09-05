@@ -97,12 +97,14 @@ function isNotificationStringList(value) {
 /**
  * A URL this page may put in an `href`.
  *
- * **The server guard is not sufficient and this is not the place to fix it.**
- * `safeRelativeUrl` rejects any value carrying a URI scheme, so `javascript:`, `data:` and
- * `vbscript:` cannot be stored - but a protocol-relative `//host/path`, and the backslash forms
- * a browser normalises into one, carry no scheme and pass it. Resolved against the page they
- * navigate to another origin. A notification URL is either empty or a path on this app, so that
- * is what is checked here.
+ * **This asks the same question the server now asks**, so the two boundaries refuse the same
+ * values: a scheme is refused, and two leading slash-or-backslash characters are refused because
+ * they are an authority rather than a path and resolve to another origin.
+ *
+ * It previously required a **leading slash**, which no notification writer produces - every one
+ * emits `tasks.html?task=...`, `dashboard.html` and the like - so every notification carrying a
+ * link was refused here and dropped from the list. `0.33.33.38.4.13.1` introduced that rule and
+ * its fixtures used `/tasks.html`, a shape the producers never emit, which hid it.
  * @param {unknown} value
  * @returns {value is string}
  */
@@ -111,7 +113,8 @@ function isApplicationRelativeUrl(value) {
     return value === "";
   }
 
-  return value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/\\");
+  const url = value.trim();
+  return Boolean(url) && !/^[a-z][a-z0-9+.-]*:/i.test(url) && !/^[/\\]{2}/.test(url);
 }
 
 /** @param {unknown} value @returns {value is import("../../src/types/browser-contracts.js").BrowserNotificationRecordTarget} */

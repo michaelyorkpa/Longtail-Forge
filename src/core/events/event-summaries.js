@@ -377,11 +377,25 @@ function safeActor(event) {
   };
 }
 
-/** @param {unknown} value */
+/**
+ * An event-summary URL this application will publish, or `""` for no link.
+ * *
+ * **Two leading slash-or-backslash characters are an authority, not a path.** `//host/p` is the
+ * familiar protocol-relative form; a browser resolving a special scheme normalises backslashes
+ * into slashes first, so `/\\host/p`, `\\/host/p` and `\\\\host/p` reach the same place. Each one
+ * carries no scheme, so the scheme test above admits all four, and each resolves to another
+ * origin when placed in an `href`. **One** leading backslash stays on this origin and is left
+ * alone.
+ *
+ * This is the same rule `safeRelativeUrl` applies to notification URLs. The two are kept as
+ * separate implementations because they sit in different modules with no shared dependency, and
+ * one fixture matrix proves they answer identically.
+ * @param {unknown} value
+ */
 function safeUrl(value) {
   const url = String(value || "").trim();
 
-  if (!url || /^[a-z][a-z0-9+.-]*:/i.test(url)) {
+  if (!url || /^[a-z][a-z0-9+.-]*:/i.test(url) || /^[/\\]{2}/.test(url)) {
     return "";
   }
 

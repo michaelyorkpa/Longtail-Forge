@@ -491,12 +491,15 @@ describe("the protected-note redaction is enforced as a whole", () => {
 });
 
 describe("the URL that reaches an href is validated at the browser boundary", () => {
-  it("refuses every off-site form the server guard lets through", () => {
+  it("refuses every off-site form, and now so does the server", () => {
+    // Retargeted by `0.33.33.38.4.13.4`, which corrected the server guard this recorded as
+    // defective. The browser's refusal is unchanged; what changed is that both boundaries now
+    // refuse the same values instead of only this one doing so.
     const serverGuard = functionBody(service, "function safeRelativeUrl(value) {");
     const shipped = new Function(serverGuard + "\n}\nreturn safeRelativeUrl;")();
     for (const hostile of ["//evil.example/p", "/\\evil.example/p", "\\/evil.example/p"]) {
-      assert.notEqual(shipped(hostile), "",
-        hostile + " is accepted by the server guard today, which is the recorded defect");
+      assert.equal(shipped(hostile), "",
+        hostile + " is now refused by the server guard as well");
       assert.equal(pageReader.isApplicationRelativeUrl(hostile), false,
         hostile + " resolves to another origin and must not reach an href");
       assert.equal(navReader.isApplicationRelativeUrl(hostile), false, hostile + " in the panel too");
@@ -518,16 +521,34 @@ describe("the URL that reaches an href is validated at the browser boundary", ()
 
   it("accepts an application path and an empty URL", () => {
     bothReaders(listBody({ notifications: [notification({ url: "/tasks.html?task=task_1" })] }), true,
-      "an application-relative path is what this producer sends");
+      "a root-relative path is accepted");
     bothReaders(listBody({ notifications: [notification({ url: "", target: target({ canOpen: false, url: "" }) })] }), true,
       "and an empty URL is valid for a notification that cannot be opened");
-    assert.equal(pageReader.isApplicationRelativeUrl("tasks.html"), false,
-      "a bare relative path is not what the producer builds, so it is not blessed either");
+    // Retargeted by `0.33.33.38.4.13.4`. This asserted the opposite on a wrong premise: a bare
+    // relative path is **exactly** what every notification producer builds - `tasks.html?task=...`,
+    // `dashboard.html` - so refusing it here dropped every notification carrying a link.
+    bothReaders(listBody({ notifications: [notification({ url: "tasks.html?task=task_1", target: target({ url: "tasks.html?task=task_1" }) })] }), true,
+      "and a bare relative path is what the producers actually send");
+    assert.equal(pageReader.isApplicationRelativeUrl("tasks.html"), true,
+      "so the boundary must admit it");
   });
 
-  it("does not modify the server guard", () => {
-    assert.match(service, /return url && !\/\^\[a-z\]\[a-z0-9\+\.-\]\*:\/i\.test\(url\) \? url : "";/,
-      "the server guard is left exactly as it was; correcting it is its own owner's work");
+  it("agrees with the corrected server guard rather than standing alone", () => {
+    // Retargeted by `0.33.33.38.4.13.4`, which owned that correction. The claim this defends is
+    // that the two boundaries answer the same question, not that one of them is left untouched.
+    const shipped = new Function(
+      functionBody(service, "function safeRelativeUrl(value) {") + "\n}\nreturn safeRelativeUrl;",
+    )();
+    for (const value of [
+      "//evil.example/p", "/\\evil.example/p", "\\/evil.example/p", "\\\\evil.example/p",
+      "javascript:alert(1)", "tasks.html", "tasks.html?task=1", "/tasks.html", "dashboard.html",
+    ]) {
+      assert.equal(
+        shipped(value) !== "",
+        pageReader.isApplicationRelativeUrl(value),
+        value + ": the server and browser boundaries must answer alike",
+      );
+    }
   });
 });
 
