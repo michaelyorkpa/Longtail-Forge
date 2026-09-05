@@ -1354,6 +1354,188 @@ export interface BrowserSettingsPageControllerHandle {
 }
 
 /**
+ * The setting types `normalizeType` closes its answer to.
+ *
+ * **This is the normalized output vocabulary, not the contribution input one.**
+ * `ModuleSettingDefinition.type` stays deliberately open through `(string & {})` because a module
+ * may contribute a type this renderer has not heard of; the renderer then answers `info`. So the
+ * input is extensible and the output is closed, and they are different types on purpose.
+ */
+export type BrowserSettingType =
+  | "boolean"
+  | "toggle"
+  | "text"
+  | "textarea"
+  | "number"
+  | "select"
+  | "multi-select"
+  | "radio"
+  | "info";
+
+/** One select, multi-select or radio choice, rebuilt as two strings by `normalizeOptions`. */
+export interface BrowserSettingOption {
+  label: string;
+  value: string;
+}
+
+/**
+ * A complete dependency between two settings in the same contribution.
+ *
+ * `normalizeVisibleWhen` answers `null` unless the candidate carries a non-empty `settingId` **and**
+ * owns an `equals` member, so a partial condition never reaches rendering. `equals` stays `unknown`
+ * because it is compared against whatever the controller field currently reads, which the module
+ * owns.
+ */
+export interface BrowserSettingVisibleWhen {
+  equals: unknown;
+  settingId: string;
+}
+
+/**
+ * One setting after `normalizeSetting` has run.
+ *
+ * **Structural rather than exact, and the reason is in the writer.** `normalizeSetting` spreads the
+ * contribution before overwriting its stable members, so a module's own extension fields survive
+ * into the resolved record. Every member named here is one the normalizer constructs or overwrites
+ * and is therefore present; the index signature carries the survivors, typed `unknown` exactly as
+ * `ModuleSettingDefinition` already types its own extensions. **An extension value is carried, not
+ * trusted.**
+ *
+ * `value` is `unknown` because the module owns what a setting means: a boolean for a toggle, a
+ * number or `""` for a number, `string[]` for a multi-select, and the contribution's own value
+ * otherwise.
+ */
+export interface BrowserResolvedSetting {
+  [key: string]: unknown;
+  description: string;
+  id: string;
+  /** `""` when the contribution named no recognised input mode. */
+  inputmode: string;
+  label: string;
+  /** A normalized number as a string, or `""`. Never a number - these are DOM attributes. */
+  max: string;
+  min: string;
+  moduleId: string;
+  moduleStatus: boolean;
+  options: BrowserSettingOption[];
+  placeholder: string;
+  readOnly: boolean;
+  readOnlyReason: string;
+  required: boolean;
+  rows: string;
+  spellcheck: boolean;
+  /** `"any"`, a normalized number as a string, or `""`. */
+  step: string;
+  type: BrowserSettingType;
+  value: unknown;
+  visibleWhen: BrowserSettingVisibleWhen | null;
+}
+
+/**
+ * One module after `normalizeModule` has run.
+ *
+ * **Exact, because the normalizer reconstructs it by name and spreads nothing.** `status` is closed
+ * to two values for the same reason: the normalizer writes `"enabled"` or `"disabled"` itself
+ * rather than passing a contributed status through.
+ */
+export interface BrowserResolvedSettingsModule {
+  canDisable: boolean;
+  displayName: string;
+  moduleId: string;
+  name: string;
+  settings: BrowserResolvedSetting[];
+  status: "enabled" | "disabled";
+}
+
+/**
+ * What the renderer's collection and validation methods accept as a search root.
+ *
+ * Both arms are real: the methods default to `document`, and every settings page passes its own
+ * form element instead.
+ */
+export type BrowserSettingsRenderScope = Document | Element;
+
+/**
+ * What `collectPayload` answers: module id to that module's field values.
+ *
+ * The inner record is `unknown`-valued because it comes straight from
+ * `LongtailForge.view.collectFieldValues`, and a module owns what its own settings mean.
+ */
+export type BrowserSettingsPayload = Record<string, Record<string, unknown>>;
+
+/**
+ * The fallback source `normalizeContributions` reads when it is handed no array.
+ *
+ * `modules` is `unknown` because the normalizer is total: it checks for an array, rebuilds each
+ * entry, and drops what it cannot use.
+ */
+export interface BrowserSettingsContributionOptions {
+  modules?: unknown;
+}
+
+/**
+ * What the three render methods accept.
+ *
+ * **Seven members, which is what the writer reads.** There is deliberately no index signature: a
+ * caller passing an option this renderer does not implement should be told so rather than have it
+ * silently ignored.
+ */
+export interface BrowserSettingsRenderOptions extends BrowserSettingsContributionOptions {
+  /** Append to the container instead of replacing its children. */
+  append?: boolean;
+  /** Shown when no module survives normalization, unless `hideEmpty` is `true`. */
+  emptyText?: string;
+  /** The grouped fieldset's legend; `"Modules"` when omitted. */
+  groupTitle?: string;
+  /** Render nothing at all rather than a placeholder when no module survives. */
+  hideEmpty?: boolean;
+  /** A nested bag the render methods forward to `normalizeContributions` in place of themselves. */
+  settings?: BrowserSettingsContributionOptions;
+  /** One section's legend; the module's display name when omitted. */
+  title?: string;
+}
+
+/**
+ * The shared settings surface `shared/settings-renderer.js` publishes.
+ *
+ * **Nine members, which is what the writer's frozen object contains.** The normalizers, the field
+ * builder, the visibility passes and the message helpers are all internal, and `showSaveAction` is
+ * not a member of anything here - the renderer has never read one.
+ */
+export interface BrowserSettingsRenderer {
+  clearValidationErrors(scope?: BrowserSettingsRenderScope): void;
+  collectPayload(scope?: BrowserSettingsRenderScope): BrowserSettingsPayload;
+  normalizeContributions(
+    moduleSettings?: unknown,
+    options?: BrowserSettingsContributionOptions,
+  ): BrowserResolvedSettingsModule[];
+  /** `null` when handed no container. */
+  renderDisabledModuleRecovery(
+    container: Element | null | undefined,
+    moduleDefinition?: unknown,
+  ): HTMLElement | null;
+  renderGroupedSections(
+    container: Element | null | undefined,
+    moduleSettings?: unknown,
+    options?: BrowserSettingsRenderOptions,
+  ): HTMLElement[];
+  /** `null` when handed no container, and when no module survives normalization. */
+  renderSection(
+    container: Element | null | undefined,
+    moduleDefinition?: unknown,
+    options?: BrowserSettingsRenderOptions,
+  ): HTMLElement | null;
+  renderSections(
+    container: Element | null | undefined,
+    moduleSettings?: unknown,
+    options?: BrowserSettingsRenderOptions,
+  ): HTMLElement[];
+  /** How many fields were given an error message. */
+  showValidationErrors(scope?: BrowserSettingsRenderScope, error?: unknown): number;
+  validate(scope?: BrowserSettingsRenderScope): boolean;
+}
+
+/**
  * Options `LongtailForge.status.set` reads. Nothing else in the bag is consulted.
  */
 export interface BrowserStatusMessageOptions {

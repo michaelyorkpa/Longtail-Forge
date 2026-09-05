@@ -414,6 +414,7 @@
         "tests/unit/role-assignment-contracts.test.mjs",
         "tests/unit/runtime-configuration.test.mjs",
         "tests/unit/runtime-diagnostics-contracts.test.mjs",
+        "tests/unit/settings-renderer-writer-contracts.test.mjs",
         "tests/unit/shared-workspace-settings-contracts.test.mjs",
         "tests/unit/slice-verification-plan.test.mjs",
         "tests/unit/sqlite-health-formatter.test.mjs",
@@ -534,7 +535,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8189,
+      "errorCount": 8114,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1452,20 +1453,6 @@
           {
             "code": 7006,
             "count": 11
-          }
-        ],
-        "public/js/shared/settings-renderer.js": [
-          {
-            "code": 2339,
-            "count": 25
-          },
-          {
-            "code": 7006,
-            "count": 49
-          },
-          {
-            "code": 7053,
-            "count": 1
           }
         ],
         "public/js/shared/status.js": [
@@ -2716,8 +2703,8 @@
     }
   },
   "totals": {
-    "files": 1115,
-    "errors": 8189,
+    "files": 1116,
+    "errors": 8114,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

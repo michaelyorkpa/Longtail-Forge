@@ -116,7 +116,41 @@ export function createFakeBrowserContext({
   return {
     window,
     document,
+    ...fakeDomConstructors(),
     ...globals,
+  };
+}
+
+/**
+ * Stand-ins for the DOM constructors browser code asks `instanceof` about.
+ *
+ * This fake models every tag with one `FakeElement`, so the real class hierarchy does not exist
+ * here. Each stand-in answers the question the hierarchy would: whether the value is an element
+ * at all, and for the two control constructors, whether it is that tag. Without them a sandbox
+ * evaluating a file that narrows with `instanceof` throws on the first check.
+ *
+ * The shape is inferred rather than annotated: naming it `Record<string, unknown>` would erase the
+ * constructors back into values the operator will not accept.
+ */
+export function fakeDomConstructors() {
+  // Classes rather than plain objects: `instanceof` requires a right-hand side with a `Function`
+  // prototype, and a static `Symbol.hasInstance` then answers the question the class hierarchy
+  // would have. A bare object with the same member is rejected by the compiler at every call site.
+  /** @param {string} [tagName] */
+  const elementConstructor = (tagName) => class FakeDomConstructor {
+    /** @param {unknown} value */
+    static [Symbol.hasInstance](value) {
+      return value instanceof FakeElement && value.nodeType === 1
+        && (tagName === undefined || value.tagName === tagName);
+    }
+  };
+
+  return {
+    Element: elementConstructor(),
+    HTMLElement: elementConstructor(),
+    HTMLInputElement: elementConstructor("INPUT"),
+    HTMLSelectElement: elementConstructor("SELECT"),
+    HTMLTextAreaElement: elementConstructor("TEXTAREA"),
   };
 }
 

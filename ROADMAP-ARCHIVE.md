@@ -1,5 +1,48 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.1 - Type the Settings Renderer writer boundary
+
+**Model: High Effort** - the first focused implementation child under a rollup that had to be resliced to hold it.
+
+- [x] **The blocker is typed under the owner that holds the debt, and the reslice is what makes that possible.** `0.33.33.38.2.2.9` has been blocked on this writer since its preflight; the writer's 49 unannotated parameters are `0.33.33.39`'s by the roadmap's own owner table, and a namespace checkpoint typing them would be one owner doing another's work. **`0.33.33.39` becomes a planning rollup and this is its first numeric child.** Six breaks refuse an early declaration of the namespace member, a publication that is not checked, and a writer that stops freezing its surface.
+- [x] **The contribution input stays open; the resolved output is closed.** `ModuleSettingDefinition` is **reused, not restated** - its `type` keeps the `(string & {})` arm that lets a module contribute a setting type this renderer has never heard of, and its `[key: string]: unknown` is the same extension carrier `BrowserResolvedSetting` uses. What the renderer *answers* is closed to nine values. Five breaks attack the pair, including one that closes the input and one that opens the output.
+- [x] **The setting vocabulary is proved from three independent sources.** The runtime table, the published union and the contribution input's own named arms are compared against each other rather than against a list retyped in the test, so **a tenth type added to any one of them is detected** - three breaks prove exactly that, one per source.
+- [x] **The resolved module is exact and the resolved setting is structural, because the writer says so.** `normalizeModule` reconstructs six members by name and spreads nothing, so its contract is exact and `status` closes to two values. `normalizeSetting` **spreads the contribution before overwriting** the members it owns, so its contract is structural: every overwritten member is promised, and the survivors ride an `unknown`-valued index signature. **An extension value is carried, not trusted.** Five breaks cover the pair, including one that spreads the contribution *after* the normalized members and one that drops the spread entirely.
+- [x] **Both render scopes are real and both are kept.** Every settings page passes its own form element; the methods default to `document`. `scope.matches?.()` was not a tolerance - a `Document` has no `matches`, so the optional call always answered `undefined` and the scope itself was never included. It now **asks the scope whether it is an element**, which is the same answer stated as a question. Three breaks cover it.
+- [x] **The nullable section results are removed by a predicate rather than by `Boolean`.** `.filter(Boolean)` and `filter((s) => s !== null && s !== undefined)` both left the array nullable to the compiler. One predicate replaces both, order and element identity are asserted, and the one `.filter(Boolean)` that remains - two strings joined into a field message - is asserted to be that and nothing else. Three breaks cover it.
+- [x] **A thrown value earns each member it is read for.** `error?.body?.fieldErrors || error?.fieldErrors` read three members off a value that might be a string. The carrier is proved record-like first, in the order the raw chain expressed, and the four shapes the pages actually throw - a `BrowserApiError`, a direct `fieldErrors` carrier, an ordinary `Error`, and a value that is none of them - are each executed. Three breaks cover it.
+- [x] **Each control-specific member is read off the control that has it.** `controls[0]?.checked` and `?.selectedOptions` were blind reads on a three-arm union. The reads now ask, and the test proves the difference with **a control that carries the other arm's member** - a case a blind read answers wrongly and a narrowed read answers correctly. Three breaks cover it.
+- [x] **The publication is checked by the compiler before the surface is declared.** The frozen object is annotated **on the literal**, not on the `Object.freeze` call, so membership is checked in both directions: four breaks make the compiler itself refuse a removed method, a tenth method, a changed parameter type and a changed return type. `LongtailForge.settingsRenderer` remains undeclared, so consumers still read it through the root's index signature and see `unknown`.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **57 breaks across the writer, the browser contracts, the framework contracts and the shared fake DOM, all 57 refused** - 5 judged by the compiler reporting a diagnostic in a file that is at zero, and 52 by a named assertion failing.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| `shared/settings-renderer.js` | **75** | **0** |
+| - `TS7006` / `TS2339` / `TS7053` | 49 / 25 / 1 | **0 / 0 / 0** |
+| Browser program diagnostics | 8,189 | **8,114** |
+| params | 4,588 | **4,521** |
+| state | 1,695 | **1,690** |
+| dom | 1,483 | **1,482** |
+| assorted | 150 | **148** |
+| `0.33.33.39` shared browser framework | 1,758 | **1,684** |
+| namespace / visible genuine `unknown` | 271 / 2 | **both unchanged** |
+| Explicit `any` annotations | 0 | **0** |
+| Declared namespace members | 44 of 64 | **unchanged** |
+| Unit tests / regressions / end-to-end | 1,562 / 348 / 167 | **1,618 / 348 / 167**, green |
+
+**The movement reconciles exactly and nothing else moved.** −67 params, −5 state, −1 dom, −2 assorted is −75, and the file held 75. `0.33.33.39` falls **74** rather than 75 because one of them was `dom`, which the owner table does not carry. Measured against `HEAD`'s own copies, **the only (file, code) pairs that changed are this file's three, all to zero**, with no pair present after that was absent before and no increase anywhere.
+
+**The declaration probe that blocked `0.33.33.38.2.2.9` now costs the writer nothing.** Its preflight measured **six additional diagnostics inside the writer** once the public boundary was annotated. Re-run against this tree, declaring `settingsRenderer?: BrowserSettingsRenderer` produces **zero diagnostics in the writer**. The 44 namespace diagnostics across the five settings pages and their 22 parked root reads are untouched and are the next checkpoint's to move.
+
+**Three latent defects surfaced by the typing and fixed here rather than deferred.** A dependent-visibility guard read `fieldState.controls` after a check that never narrowed it; a controller lookup passed a possibly-absent element to `WeakMap.get`; and `createSettingField` read `viewParts` off a union whose info-panel arm never has one. Each is repaired with a control-flow form that preserves the reachable behaviour exactly - `createInfoPanel` attaches no `viewParts`, so the optional read it replaces always answered the empty list.
+
+**The shared fake DOM gained the constructors this narrowing asks about, and they are load-bearing.** `scripts/test-support/fake-dom.mjs` models every tag with one `FakeElement`, so a sandbox evaluating a file that narrows with `instanceof` threw on the first check. Five stand-ins now answer what the real hierarchy would, as **classes with a static `Symbol.hasInstance`** rather than plain objects - the operator requires a `Function` prototype on its right-hand side, and a bare object with the same member is rejected at every call site. Three breaks prove the stand-ins are exercised rather than merely present.
+
+**Three browser globals were added to the lint configuration, and that is a real gap rather than a formality.** `Element`, `HTMLElement` and `HTMLSelectElement` were undeclared; `HTMLInputElement` was added by `0.33.33.38.2.2.10` for the same reason. Every one is a global the browser provides and this narrowing genuinely calls at runtime.
+
 ## Version 0.33.33.38.2.2.10 - `LongtailForge.tags`
 
 **Model: High Effort** - a blocked child unblocked by its prerequisite, then landed as drawn.
