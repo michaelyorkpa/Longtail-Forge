@@ -286,16 +286,35 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.2.2.5 - The workspace-context pair
 
-**26 canonical namespace diagnostics, an optional-dominant contract, and - measured after `modal` - a child that cannot close itself as drawn.**
+**Model: High Effort - a planning rollup. Its numeric children are the protected implementation checkpoints, and its wire prerequisite is not one of them.** The entry below was drawn as one namespace child covering a synchronisation promise, a refresh callable and a stored record. Tracing the runtime found **three different things with three different lifetimes**, and one of them is not namespace work at all:
+
+| Concept | What it is | Owner |
+| --- | --- | --- |
+| `refreshAppShell` / `workspaceContextReady` | one function published uncalled and called; a synchronisation barrier answering a tri-state | `0.33.33.38.2.2.5.1` - **complete** |
+| the app-shell, settings, session and localStorage inputs | untrusted candidate values reconciled into one canonical stored record | **`0.33.33.38.4.15`** - a wire boundary, not a declaration |
+| `LongtailForge.workspaceContext` | the stored record, declared and adopted | `0.33.33.38.2.2.5.2` |
+
+**The storage and fallback-response work is `0.33.33.38.4`'s, and it does not move here merely because the declaration depends on it.** A namespace prerequisite does not get to take a response-boundary child from its proper owner; that is the same rule `0.33.33.39.1` established from the other side, where a writer's parameter debt stayed with `0.33.33.39` rather than moving to the namespace checkpoint that was blocked on it.
 
 `workspaceContext` (15 / 24 files) and `workspaceContextReady` (11 / 17). Across both, **74 reads are optional-chained and only 16 are direct** - the widest consumer footprint in the estate and the most deliberately absence-tolerant.
 
-- [ ] **Do not convert this cohort to required delivery.** The right change for most sites is an optional root read, not a checked accessor. `0.33.33.35.1.1` built the cold-load bootstrap around this surface being absent. **Six aliases are written `|| {}`** - `files.js:1767`, `lists.js:771`, `notes.js:1785` and `:4762`, `stop-watch.js:1269`, and `shared/module-actions.js:409` - and that fallback is real behaviour rather than defensive noise.
-- [ ] **The pairing is right, and the writer proves it rather than the naming.** `navigation.js` publishes `workspaceContextReady = loadAppShellBootstrap()` at line 335 and calls `storeWorkspaceContext(workspaceContext)` inside that same function with the same constructed object. **One shape, two access paths.**
-- [ ] **`Promise<WorkspaceContext>` would be false.** `loadAppShellBootstrap` is `async` with **three distinct resolutions** - `undefined` when a 401 redirects, the constructed context on success, and `null` from the `catch` that falls back to `loadWorkspaceSettings()`. **It never rejects.** Fifteen of the twenty-five `workspaceContextReady` reads are direct `await`s, so the tri-state reaches consumers and the declaration has to say so.
-- [ ] **One public contract currently spans two children.** `navigation.js:334` publishes `refreshAppShell = loadAppShellBootstrap` - **the same function, uncalled** - and `refreshAppShell` sits in `0.33.33.38.2.2.6`. Decide that ownership before either child lands; declaring the promise here and the function there would describe one runtime expression twice.
-- [ ] **Truthful typing is expected to expose `unknown`, not to reach zero.** The constructed object spreads `shell.workspaceContext`, which `AppShellBootstrap` in `src/types/framework-contracts.d.ts` declares as `Record<string, unknown>`. Nine fields are constructed locally and are typeable now - `enabledModules`, `navigation`, `permissionHints`, `quickActions`, `searchTargets`, `viewSurfaces`, `userId`, and `username` - but the fields consumers actually read through those aliases, **`workspaceType`, `workspaceName`, `workspaceId`, `canRebuild`, `publicDemo`, `capabilities`, `tools`, `targets`, and `rawPermissions`, are not among them** and arrive off the wire. **A residue of genuine `unknown` is the correct outcome here**, owned by `0.33.33.38.4`, and a child that promises zero is promising to guess a server shape.
-- [ ] **Preflight this one against the writer before drawing its cohorts**, the way `settingsRenderer` and `modal` were. The shape above is recorded so that preflight starts from evidence rather than from the member names.
+- [ ] **Do not convert this cohort to required delivery.** The right change for most sites is an optional root read, not a checked accessor. `0.33.33.35.1.1` built the cold-load bootstrap around this surface being absent.
+
+#### 0.33.33.38.2.2.5.1 - Declare the app-shell refresh and readiness pair
+
+**Complete: 3 diagnostics closed, one result type, two members declared, and no consumer file changed.** See the archive entry. `navigation.js` publishes **one function expression twice** - `refreshAppShell` uncalled and `workspaceContextReady` called - so they are declared together against one result type rather than split across two owners.
+
+**The result is a tri-state and is declared as one.** `loadAppShellBootstrap` resolves the context it built, `undefined` when a `401` redirects through a bare `return`, and `null` when its catch path falls back to the settings and session endpoints. `BrowserAppShellRefreshResult` carries all three arms, and **it is named for the refresh rather than for the stored context** because those are different values.
+
+**The measured movement is 3, not 13, and that correction matters.** The preflight attributed 11 `workspaceContextReady` and 2 `refreshAppShell` diagnostics to these members. **Eleven of them say `'window.LongtailForge' is possibly 'undefined'`** - they are the *root's* optionality, not the member's, and declaring a member does not close them. What closed: one `TS2339` in `footer.js` and the two `TS2349` "not callable" in `workspace-settings.js`.
+
+#### 0.33.33.38.2.2.5.2 - Declare and adopt the stored workspace context
+
+**Blocked on `0.33.33.38.4.15`, deliberately.** The member cannot be declared honestly until there is a canonical stored record to declare it as: today `hydrateStoredWorkspaceContext` publishes whatever `readWorkspaceContext()` parsed out of `localStorage`, which is any non-null object. Declaring the member first would either need `Record<string, unknown>` - which is the shape that produced this cohort - or a record nothing validates.
+
+- [ ] Declare `workspaceContext?: BrowserStoredWorkspaceContext` and keep it **optional**: cached hydration and network bootstrap make absence a real lifecycle state.
+- [ ] Preserve every absence-tolerant consumer. **Do not replace the estate with one throwing accessor**; a required accessor belongs only where delivery already makes absence an error.
+- [ ] Close only the genuine boundaries the truthful declaration exposes, and **do not add a field to the contract because a consumer reads one** - a consumer read is not producer evidence.
 
 #### 0.33.33.38.2.2.6 - The undeclared remainder, resliced by writer risk
 
@@ -787,6 +806,27 @@ Both reject any value carrying a URI scheme, which stops `javascript:`, `data:` 
 **One producer record, two exact envelopes.** `GET /api/tags` and `POST /api/tags` both reach `tagRowToAppValue`, a total named reconstruction of fifteen members, so `BrowserTagCatalogRecord` is exact and is **one** record rather than a list tag and a created tag. `status` closes to the three values the column's `CHECK` admits - not to the two the Tags page compares - and `disabled` is declared because the constraint permits it, not because a writer produces it.
 
 **Two readers, two deliberately different policies.** `shared/tags.js` feeds pickers, so an unusable entry is dropped and a body with no usable array still resolves `[]`; `tags.js` administers the catalogue, so it refuses whole rather than printing **"No tags found"** for a body it never understood. Each policy is named where it is written and both are proved against one independent fixture set.
+
+#### 0.33.33.38.4.15 - The workspace-context storage and fallback-response boundary
+
+**Open, and drawn here because it is a wire boundary rather than a declaration.** `0.33.33.38.2.2.5.2` cannot declare `LongtailForge.workspaceContext` honestly until one canonical stored record exists; producing that record from four untrusted inputs is `0.33.33.38.4`'s work, not the namespace checkpoint's.
+
+**The write graph, corrected from the first preflight.** That preflight described the app-shell and `/api/session` objects as two competing stored-context writers. They are not - they are **candidate inputs** to one constructor.
+
+| Kind | Value |
+| --- | --- |
+| Candidate inputs | normalized `/api/app-shell/bootstrap` output, raw `/api/settings` fallback, raw `/api/session` fallback, parsed `localStorage` cache |
+| Constructor | `storeWorkspaceContext`, which reconstructs a canonical object by name |
+| Publication paths | `storeWorkspaceContext` publishes what it reconstructed; `hydrateStoredWorkspaceContext` publishes **whatever `readWorkspaceContext()` parsed** |
+
+**Those two publication paths are what must agree**, and today they do not: one publishes a reconstruction, the other publishes any non-null object that came out of `JSON.parse`.
+
+- [ ] **Keep the transient and the stored context apart.** `loadAppShellBootstrap` builds a richer object *before* storage, uses it immediately for navigation, and dispatches it as the `longtailforge:workspace-context-updated` detail. `storeWorkspaceContext` persists a smaller canonical one. **Do not force them equal** by deleting transient members, widening storage, or changing the event.
+- [ ] **Derive the canonical membership from the constructor, not from consumers.** A consumer read is not producer evidence. In particular do not add `permissionIds`, `permissions`, `publicDemo`, `workspaceDeletion`, `tools`, `targets` or a root-level `availableTools` without proving the store writes them.
+- [ ] **Close `localStorage` as an untrusted boundary.** `JSON.parse` result to explicit `unknown`, through a reader, to the record or `null` - never published raw and never cast. A malformed cache is ignored while the network bootstrap proceeds; it must not redirect or fail the page.
+- [ ] **Choose a cached-compatibility policy and document it.** Cached-context-first rendering is intentional, and an older cache missing a newer optional collection must not become unusable.
+- [ ] **Assess exactness per level.** The top level may be exact because the constructor reconstructs it by name; nested records and arrays stay structural where nothing validates their elements.
+- [ ] **Do not declare the root member here.** That is `0.33.33.38.2.2.5.2`'s.
 
 #### 0.33.33.38.5 - Narrow the server task lifecycle status vocabulary
 

@@ -1,5 +1,38 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.5.1 - Declare the app-shell refresh and readiness pair
+
+**Model: High Effort** - the first child of a rollup resliced by cause rather than by member.
+
+- [x] **One function, two members, one declaration.** `navigation.js` publishes `loadAppShellBootstrap` uncalled as `refreshAppShell` and called as `workspaceContextReady`. Declaring them apart would give one implementation two unrelated signatures, so both name **one** result type. Two breaks are judged by the compiler: publishing the called result as the callable, and the function itself as the promise, each produce a diagnostic in a tree that has none there.
+- [x] **The result is a tri-state, and all three arms are reachable.** `undefined` on the `401` redirect's bare `return`, `null` from the catch path, and the constructed context on success. Five breaks attack the union - removing either absence arm is refused **by the compiler**, because the implementation still produces it - and three more prove each arm sits at a real exit.
+- [x] **The result is named for the refresh, not for the context.** `BrowserAppShellRefreshResult` is `Record<string, unknown> | null | undefined`. The object arm stays an unknown-valued record because **nothing has validated it**: the app-shell adapter's own `workspaceContext` is an open record, and the canonical stored shape is `0.33.33.38.4.15`'s to define. Four breaks refuse an early stored record, a narrowing to the adapter envelope, and a `workspaceContext` member declared here.
+- [x] **Both members stay optional, and so does the root.** Navigation does not load on the recovery and public surfaces. Four breaks refuse making either member or the root required.
+- [x] **No consumer file changed, and that is the finding rather than the omission.** Every one of the 26 references is a direct `await`, an optional call, a `Promise.resolve` wrapper, or the footer's guard-then-chain - and each was already correct. `await undefined` resolves, so an absent barrier still releases. **The footer's guard returns before mounting anything when readiness is absent**, so its `.finally()` was never meant to run in that case and the chain is left exactly as written. Seven breaks cover the reference forms, including one that converts the chain to an optional chain that would skip the finaliser.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **28 breaks across the writer, the contracts, and four consumers, all 28 refused** - 5 judged by the compiler against a whole-estate baseline, 23 by a named assertion.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,070 | **8,067** |
+| namespace | 227 | **226** |
+| assorted | 148 | **146** |
+| `0.33.33.44` remaining page controllers | 1,545 | **1,543** |
+| Declared `LongtailForge` members | 45 of 64 | **47 of 64** |
+| Undeclared publication backlog | 19 | **17** |
+| params / state / dom / genuine `unknown` | 4,521 / 1,690 / 1,482 / 2 | **all unchanged** |
+| Root optionality | 89 bare-root, 1 adoptable, 12 parked behind 5 | **all unchanged** |
+| Explicit `any` | 0 | **0** |
+| Unit tests / regressions / end-to-end | 1,671 / 348 / 167 | **1,691 / 348 / 167**, green |
+
+**The preflight's headline was wrong and is corrected here.** It reported 13 diagnostics attributable to these two members and implied the declaration would close them. **Eleven of the thirteen read `'window.LongtailForge' is possibly 'undefined'`** - a complaint about the **root object**, which is optional on `Window`, not about the member. Declaring a member cannot fix that, and the probe confirms it: root optionality is **89 bare-root reads before and after**, with the adoptable count unmoved at 1. The three that did close are `footer.js` `TS2339` (a `.catch` on `{}`) and the two `workspace-settings.js` `TS2349`. **Nothing was claimed by subtraction, and the eleven remain open under root-optionality work.**
+
+**Only two (file, code) pairs changed and both fell**, with no pair appearing that was absent before and no increase anywhere. `navigation.js` holds exactly the diagnostics it held: typing the implementation cost nothing.
+
+**One spent guard retargeted.** `0.33.33.38.2.2.9`'s test pinned the declared-member ratchet at the absolute number **45**, which made it a tripwire for every later declaration rather than a check on its own. It now asserts what identity-based governance actually protects: that `settingsRenderer` left the backlog and joined the declared set, and that the **known** count is unchanged - declaring a member does not discover one. Four breaks prove the retarget bites.
+
 ## Version 0.33.33.38.2.2.9 - `LongtailForge.settingsRenderer`
 
 **Model: High Effort** - a resliced child unblocked by its prerequisite, then landed as drawn.
