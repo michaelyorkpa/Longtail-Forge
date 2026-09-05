@@ -314,9 +314,19 @@ describe("namespace governance records the declaration by identity", () => {
     assert.match(backlog, /"settingsHost"|"supportView"/, "the backlog still holds its other entries");
   });
 
-  it("moves the declared-member ratchet by exactly one", () => {
-    assert.match(governance, /declarationCoverage\.declaredMembers\.length, 45, "declared LongtailForge members"/);
-    assert.match(governance, /declarationCoverage\.knownMembers\.length, 64, "known LongtailForge members/);
+  it("is recorded by identity rather than by an absolute declared count", () => {
+    // Retargeted by `0.33.33.38.2.2.5.1`, which declared two more members and moved the ratchet
+    // again. Pinning the absolute number made this assertion a tripwire for every later
+    // declaration rather than a check on this one. What it defends is that **this** member left
+    // the backlog and joined the declared set, which is what identity-based governance means.
+    const at = governance.indexOf("const UNDECLARED_PUBLICATION_BACKLOG = [");
+    const backlog = governance.slice(at, governance.indexOf("];", at));
+    assert.ok(!/"settingsRenderer"/.test(backlog), "no longer an undeclared publication");
+    assert.match(contracts, /^ {2}settingsRenderer\?: BrowserSettingsRenderer;$/m, "and declared on the root");
+    assert.match(governance, /declarationCoverage\.knownMembers\.length, 64, "known LongtailForge members/,
+      "the known set is unchanged: declaring a member does not discover one");
+    assert.match(governance, /declarationCoverage\.declaredMembers\.length, \d+, "declared LongtailForge members"/,
+      "the ratchet is still asserted, just not pinned to this checkpoint's number");
   });
 
   it("leaves the publication surface and occurrence counts alone", () => {

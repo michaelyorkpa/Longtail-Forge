@@ -7,6 +7,22 @@ export interface BrowserAppShellBootstrapAdapter {
   normalize(value: unknown): AppShellBootstrap;
 }
 
+/**
+ * What one app-shell bootstrap pass resolves to.
+ *
+ * **Three completion forms, and none of them is optional to describe.** `loadAppShellBootstrap`
+ * resolves the context it built on success, `undefined` when a `401` sends the browser to the login
+ * page through a bare `return`, and `null` when its catch path falls back to the settings and
+ * session endpoints. A caller that awaits this is synchronising, not fetching a record.
+ *
+ * **This is the transient refresh result, not the stored workspace context.** The object arm is a
+ * record of unknown-valued members because nothing has validated it at this point: the app-shell
+ * adapter's own `workspaceContext` is an open record, and the canonical stored shape is
+ * `0.33.33.38.4.15`'s to define. Naming this for the refresh rather than for the context is
+ * deliberate - the two are different values with different lifetimes.
+ */
+export type BrowserAppShellRefreshResult = Record<string, unknown> | null | undefined;
+
 export interface BrowserApiErrorDetails {
   code: string;
   message: string;
@@ -6740,6 +6756,13 @@ export interface LongtailForgeBrowserNamespace {
    */
   applyWorkspaceName?: (value: unknown) => void;
   records?: BrowserRecords;
+  /**
+   * The app-shell bootstrap, uncalled. Its side effect is the refresh; its result is transient.
+   *
+   * Optional because `navigation.js` publishes it and not every surface loads navigation - the
+   * recovery and public pages do not - so every caller optional-calls it today and keeps doing so.
+   */
+  refreshAppShell?: () => Promise<BrowserAppShellRefreshResult>;
   settingsHost?: BrowserSettingsHost;
   settingsRenderer?: BrowserSettingsRenderer;
   settingsPageController?: BrowserSettingsPageController;
@@ -6768,6 +6791,15 @@ export interface LongtailForgeBrowserNamespace {
   viewSearchOptions?: BrowserViewSearchOptions;
   viewSurfaceDescriptor?: BrowserViewSurfaceDescriptorAdapter;
   viewResponseRecords?: BrowserViewResponseRecords;
+  /**
+   * The same bootstrap, called once at load, as a synchronisation barrier.
+   *
+   * `refreshAppShell` and this are one function expression published twice - one uncalled, one
+   * called - so they answer the same three forms. Awaiting this says "the first app-shell pass has
+   * settled"; it does **not** hand back the stored workspace context, and a consumer that wants
+   * that reads `LongtailForge.workspaceContext` after awaiting.
+   */
+  workspaceContextReady?: Promise<BrowserAppShellRefreshResult>;
   [key: string]: unknown;
 }
 

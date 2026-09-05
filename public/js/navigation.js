@@ -698,6 +698,15 @@
     return page || "dashboard.html";
   }
 
+  /**
+   * Refresh the app shell, and answer what that pass produced.
+   *
+   * Three forms, all reachable: the context it built, `undefined` when a `401` redirects, and
+   * `null` when the catch path falls back to the settings and session endpoints. The object arm is
+   * the **transient** app-shell context - richer than what `storeWorkspaceContext` persists - and
+   * it is deliberately not typed as the stored record.
+   * @returns {Promise<import("../../src/types/browser-contracts.js").BrowserAppShellRefreshResult>}
+   */
   async function loadAppShellBootstrap() {
     try {
       const response = await fetch("/api/app-shell/bootstrap", { cache: "no-store" });
