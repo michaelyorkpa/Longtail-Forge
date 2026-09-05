@@ -779,25 +779,19 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 #### 0.33.33.38.4.13 - closing the parent
 
-**Reopened by `0.33.33.38.4.13.4`.** The three response children are merged and their dispositions stand, but the security finding `0.33.33.38.4.13.1` recorded is now a drawn corrective child rather than prose inside a completed entry. **This parent does not close again until that child lands.**
+**Reopened by `0.33.33.38.4.13.4` and closed again by it.** The three response children were merged with their dispositions intact; the security finding `0.33.33.38.4.13.1` recorded was drawn as a corrective child rather than left as prose inside a completed entry, and that child has landed. **The parent is closed.**
 
 **All three children are merged and the ignored-body disposition is recorded.** `POST /:id/read` and `/:id/dismiss` answer `{ notification }`; `read-all` and `dismiss-all` answer the bell summary; both preference `PUT`s answer the catalogue. **Every browser caller checks `response.ok` and refetches**, and none parses a body. Those bodies are **intentionally ignored** and no browser response contract is required for them until a consumer actually binds one - publishing a parser to describe a generous response would be dead code. The refetch is deliberate and was not optimised away.
 
 #### 0.33.33.38.4.13.4 - Reject protocol-relative notification and event URLs
 
-**Open. This child exists so the finding has an owner rather than a paragraph.** `0.33.33.38.4.13.1` traced the defect and deliberately did not fix it, because correcting two server helpers is its own change; the record then sat inside a completed child, which is a description and not an assignment. **`0.33.33.38.4.13` is reopened until this lands.**
+**Complete: four guards corrected, two defects closed, and the two boundaries now answer the same question.** See the archive entry.
 
-**Exact scope - two helpers, one rule.**
+**The declared defect, reproduced against real URL resolution rather than a regex.** `safeRelativeUrl` and `safeUrl` rejected any value carrying a URI scheme but admitted every two-character authority prefix - `//host/p`, `/\host/p`, `\/host/p`, `\\host/p` - and each resolves to another origin through `new URL(value, origin)`. All four are refused now; a **single** leading backslash stays on this origin and is left alone.
 
-- `safeRelativeUrl` in `src/services/notifications.service.js`
-- `safeUrl` in `src/core/events/event-summaries.js`
+**A second defect this child found, and it was the more visible one.** The browser guard `0.33.33.38.4.13.1` added required a **leading slash**. **No notification writer produces one** - every producer emits `tasks.html?task=...`, `dashboard.html`, `workspace-settings.html` - so `isNotificationRecordValue` refused every notification carrying a link and dropped it from the list and the app-shell panel. That checkpoint's fixtures used `/tasks.html?task=task_1`, a shape no producer emits, which hid it.
 
-Both reject any value carrying a URI scheme, which stops `javascript:`, `data:` and `vbscript:`. **Neither rejects an authority form that carries no scheme.** Reject `//host/path`, `/\host/path`, `\/host/path`, and **any equivalent two-leading-slash-or-backslash authority form** - the general rule, not the three spellings, because a browser normalises backslashes into slashes before resolving.
-
-- [ ] **Retain valid first-party application-relative URLs.** A single leading slash followed by a path segment is the shape every current writer produces and must keep working.
-- [ ] **Retain the browser boundary's refusal.** `isApplicationRelativeUrl` in `public/js/notifications.js` already refuses these forms and is not weakened once the server agrees; two boundaries that agree is the point.
-- [ ] **Prove every first-party URL writer.** Enumerate every producer of `payload.url` and show what each writes.
-- [ ] **Do not claim an attacker-controlled path.** None has been proved: every current writer is a first-party literal. This is a defence-in-depth guard that does not hold, and describing it as a live exploit would be false.
+**No attacker-controlled writer path is proved.** Every current producer is a first-party literal, and the mutation routes enforce their own permissions. This is a defence-in-depth validation defect and a rendering defect, not a demonstrated exploit.
 
 #### 0.33.33.38.4.14 - The Tag catalogue response boundaries
 

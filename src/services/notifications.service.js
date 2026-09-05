@@ -1051,10 +1051,29 @@ function readAssigneeIds(event) {
   return Array.isArray(ids) ? ids.map((id) => String(id || "").trim()).filter(Boolean) : [];
 }
 
-/** @param {unknown} value @returns {string} */
+/**
+ * A notification URL this application will store, or `""` for no link.
+ * *
+ * **Two leading slash-or-backslash characters are an authority, not a path.** `//host/p` is the
+ * familiar protocol-relative form; a browser resolving a special scheme normalises backslashes
+ * into slashes first, so `/\\host/p`, `\\/host/p` and `\\\\host/p` reach the same place. Each one
+ * carries no scheme, so the scheme test above admits all four, and each resolves to another
+ * origin when placed in an `href`. **One** leading backslash stays on this origin and is left
+ * alone.
+ *
+ * Paths without a leading slash are accepted because that is what every notification writer
+ * produces - `tasks.html?task=...`, `dashboard.html`, `workspace-settings.html`.
+ * @param {unknown} value
+ * @returns {string}
+ */
 function safeRelativeUrl(value) {
   const url = String(value || "").trim();
-  return url && !/^[a-z][a-z0-9+.-]*:/i.test(url) ? url : "";
+
+  if (!url || /^[a-z][a-z0-9+.-]*:/i.test(url) || /^[/\\]{2}/.test(url)) {
+    return "";
+  }
+
+  return url;
 }
 
 /** @param {unknown} status @returns {string} */
