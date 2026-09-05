@@ -414,6 +414,7 @@
         "tests/unit/role-assignment-contracts.test.mjs",
         "tests/unit/runtime-configuration.test.mjs",
         "tests/unit/runtime-diagnostics-contracts.test.mjs",
+        "tests/unit/settings-renderer-surface-contracts.test.mjs",
         "tests/unit/settings-renderer-writer-contracts.test.mjs",
         "tests/unit/shared-workspace-settings-contracts.test.mjs",
         "tests/unit/slice-verification-plan.test.mjs",
@@ -535,7 +536,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8114,
+      "errorCount": 8070,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -773,14 +774,6 @@
         ],
         "public/js/files-settings.js": [
           {
-            "code": 18046,
-            "count": 4
-          },
-          {
-            "code": 18048,
-            "count": 4
-          },
-          {
             "code": 7005,
             "count": 1
           },
@@ -977,14 +970,6 @@
         ],
         "public/js/module-settings.js": [
           {
-            "code": 18046,
-            "count": 5
-          },
-          {
-            "code": 18048,
-            "count": 5
-          },
-          {
             "code": 2339,
             "count": 2
           },
@@ -1049,16 +1034,8 @@
         ],
         "public/js/notes-settings.js": [
           {
-            "code": 18046,
-            "count": 2
-          },
-          {
             "code": 18047,
             "count": 3
-          },
-          {
-            "code": 18048,
-            "count": 2
           },
           {
             "code": 2339,
@@ -1955,16 +1932,8 @@
         ],
         "public/js/user-settings.js": [
           {
-            "code": 18046,
-            "count": 5
-          },
-          {
             "code": 18047,
             "count": 44
-          },
-          {
-            "code": 18048,
-            "count": 5
           },
           {
             "code": 2339,
@@ -2055,16 +2024,12 @@
         ],
         "public/js/workspace-settings.js": [
           {
-            "code": 18046,
-            "count": 6
-          },
-          {
             "code": 18047,
             "count": 46
           },
           {
             "code": 18048,
-            "count": 8
+            "count": 2
           },
           {
             "code": 2339,
@@ -2703,8 +2668,8 @@
     }
   },
   "totals": {
-    "files": 1116,
-    "errors": 8114,
+    "files": 1117,
+    "errors": 8070,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

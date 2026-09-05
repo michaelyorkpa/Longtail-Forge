@@ -167,6 +167,38 @@ function requireNotificationPreferences() {
  * the checked read fails exactly where the raw read failed before.
  * @returns {BrowserSettingsHost}
  */
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserSettingsRenderer} BrowserSettingsRenderer */
+
+/**
+ * The shared settings renderer this page requires.
+ *
+ * User Settings loads `settings-renderer.js` before its controller, so an absent surface is a
+ * delivery failure rather than a condition to render around. This fails where the raw
+ * property read already failed, and says what is missing.
+ * @returns {BrowserSettingsRenderer}
+ */
+function requireSettingsRenderer() {
+  const renderer = window.LongtailForge?.settingsRenderer;
+  if (!renderer) {
+    throw new Error("User settings requires LongtailForge.settingsRenderer.");
+  }
+  return renderer;
+}
+
+/**
+ * The form the renderer collects and validates against.
+ *
+ * The renderer walks this element; a missing one threw on the first DOM read before and
+ * throws here instead, named.
+ * @returns {Element}
+ */
+function requireWorkspaceCreateForm() {
+  if (!workspaceCreateForm) {
+    throw new Error("User settings requires its workspace create form.");
+  }
+  return workspaceCreateForm;
+}
+
 function requireSettingsHost() {
   const host = window.LongtailForge?.settingsHost;
   if (!host) {
@@ -685,7 +717,7 @@ async function createWorkspace() {
     return;
   }
 
-  if (!window.LongtailForge.settingsRenderer.validate(workspaceCreateForm)) {
+  if (!requireSettingsRenderer().validate(requireWorkspaceCreateForm())) {
     setUserSettingsStatus("Review the highlighted module settings.", true);
     return;
   }
@@ -697,13 +729,13 @@ async function createWorkspace() {
     await requireApi().postJson("/api/workspaces", {
       workspaceType,
       workspaceName,
-      moduleSettings: window.LongtailForge.settingsRenderer.collectPayload(workspaceCreateForm),
+      moduleSettings: requireSettingsRenderer().collectPayload(requireWorkspaceCreateForm()),
     });
 
     setUserSettingsStatus("Workspace created.");
     window.location.replace("/workspace-settings.html");
   } catch (error) {
-    window.LongtailForge.settingsRenderer.showValidationErrors(workspaceCreateForm, error);
+    requireSettingsRenderer().showValidationErrors(requireWorkspaceCreateForm(), error);
     handleApiError(error, "Workspace was not created.");
     createWorkspaceButton.disabled = false;
   }
@@ -725,18 +757,18 @@ function updateSuggestedWorkspaceName() {
 function renderCreateWorkspaceModuleSettings() {
   const selectedType = workspaceCreationTypes.find((type) => type.workspaceType === newWorkspaceTypeSelect.value);
 
-  window.LongtailForge.settingsRenderer.renderSections(
+  requireSettingsRenderer().renderSections(
     newWorkspaceModuleSettingsContainer,
     selectedType?.moduleSettings || [],
-    { emptyText: "No module controls are available for this workspace type.", showSaveAction: false },
+    { emptyText: "No module controls are available for this workspace type." },
   );
 }
 
 function renderUserSettingsContributions() {
-  window.LongtailForge.settingsRenderer.renderSections(
+  requireSettingsRenderer().renderSections(
     userSettingsContributionContainer,
     requireSettingsHost().attachmentSections(settingsCatalog, "user"),
-    { hideEmpty: true, showSaveAction: false },
+    { hideEmpty: true },
   );
 }
 

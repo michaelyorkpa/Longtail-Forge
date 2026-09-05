@@ -370,8 +370,13 @@ describe("the module settings consumer", () => {
   });
 
   it("leaves the settings renderer and the shared host alone", () => {
-    assert.match(page, /window\.LongtailForge\.settingsRenderer\.renderSections\(/,
+    // Retargeted by `0.33.33.38.2.2.9`, which moved the acquisition from a raw namespace read to
+    // a checked accessor. The pin had named the call shape; what it defends is that this page
+    // delegates rendering rather than reimplementing it, which is what is asserted now.
+    assert.match(page, /requireSettingsRenderer\(\)\.renderSections\(/,
       "the renderer still renders the sections");
+    assert.doesNotMatch(page, /createFieldGrid|createSettingField|view\.createField\(/,
+      "and the page still builds no settings anatomy of its own");
     assert.match(page, /requireSettingsHost\(\)\.attachmentSections\(settingsCatalog, "module", moduleId\)/,
       "and the render path still uses the shared host, which this child does not redesign");
   });

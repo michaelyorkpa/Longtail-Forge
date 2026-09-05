@@ -153,12 +153,21 @@ describe("the writer publishes exactly what the contract declares", () => {
     assert.match(writer, /root\.settingsRenderer = Object\.freeze\(settingsRendererApi\);/);
   });
 
-  it("does not declare the namespace member, so consumers still read unknown", () => {
+  it("gave the namespace member its type, without declaring the member itself", () => {
+    // This child deliberately left `LongtailForge.settingsRenderer` undeclared so that consumers
+    // still read `unknown` while the writer was made honest. `0.33.33.38.2.2.9` has since
+    // declared it. The guard for that ordering is spent; the fact that outlives it is that the
+    // member is typed by **this** contract rather than by a looser one written to reach it.
     const namespaceBlock = contracts.slice(
       contracts.indexOf("export interface LongtailForgeBrowserNamespace {"),
       contracts.indexOf("\n}\n", contracts.indexOf("export interface LongtailForgeBrowserNamespace {")),
     );
-    assert.ok(!/settingsRenderer\??:/.test(namespaceBlock), "the surface belongs to the next checkpoint");
+    assert.match(namespaceBlock, /^ {2}settingsRenderer\?: BrowserSettingsRenderer;$/m);
+    assert.deepEqual(
+      [...contracts.matchAll(/^export (?:interface|type) (BrowserSettingsRenderer\w*)/gm)].map((m) => m[1]),
+      ["BrowserSettingsRenderer"],
+      "one renderer contract, so the member cannot be typed by a looser sibling",
+    );
   });
 
   it("carries no showSaveAction anywhere in the writer or its contracts", () => {

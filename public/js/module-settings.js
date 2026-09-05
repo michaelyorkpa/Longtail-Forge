@@ -63,6 +63,38 @@
    * the checked read fails exactly where the raw read failed before.
    * @returns {BrowserSettingsHost}
    */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserSettingsRenderer} BrowserSettingsRenderer */
+
+  /**
+   * The shared settings renderer this page requires.
+   *
+   * Module Settings loads `settings-renderer.js` before its controller, so an absent surface is a
+   * delivery failure rather than a condition to render around. This fails where the raw
+   * property read already failed, and says what is missing.
+   * @returns {BrowserSettingsRenderer}
+   */
+  function requireSettingsRenderer() {
+    const renderer = window.LongtailForge?.settingsRenderer;
+    if (!renderer) {
+      throw new Error("Module settings requires LongtailForge.settingsRenderer.");
+    }
+    return renderer;
+  }
+
+  /**
+   * The form the renderer collects and validates against.
+   *
+   * The renderer walks this element; a missing one threw on the first DOM read before and
+   * throws here instead, named.
+   * @returns {Element}
+   */
+  function requireModuleSettingsForm() {
+    if (!moduleSettingsForm) {
+      throw new Error("Module settings requires its module settings form.");
+    }
+    return moduleSettingsForm;
+  }
+
   function requireSettingsHost() {
     const host = window.LongtailForge?.settingsHost;
     if (!host) {
@@ -234,7 +266,7 @@
     if (!currentSettings) {
       return false;
     }
-    if (!window.LongtailForge.settingsRenderer.validate(moduleSettingsForm)) {
+    if (!requireSettingsRenderer().validate(requireModuleSettingsForm())) {
       setStatus("Review the highlighted settings.", { isError: true });
       return false;
     }
@@ -271,7 +303,7 @@
       flashSavedState();
       return true;
     } catch (error) {
-      window.LongtailForge.settingsRenderer.showValidationErrors(moduleSettingsForm, error);
+      requireSettingsRenderer().showValidationErrors(requireModuleSettingsForm(), error);
       setStatus(requireErrors().caughtMessage(error, "Settings were not saved."), { isError: true });
       return false;
     }
@@ -281,13 +313,13 @@
     const moduleId = currentModuleSettingsId();
     const moduleDefinition = currentSettings?.modules.find((module) => module.id === moduleId) || null;
     if (moduleDefinition && moduleDefinition.status !== "enabled") {
-      window.LongtailForge.settingsRenderer.renderDisabledModuleRecovery(moduleSettingsFields, moduleDefinition || {
+      requireSettingsRenderer().renderDisabledModuleRecovery(moduleSettingsFields, moduleDefinition || {
         id: moduleId,
         displayName: moduleId,
       });
       return;
     }
-    window.LongtailForge.settingsRenderer.renderSections(
+    requireSettingsRenderer().renderSections(
       moduleSettingsFields,
       requireSettingsHost().attachmentSections(settingsCatalog, "module", moduleId),
       { emptyText: "No configurable module settings are available." },
@@ -295,7 +327,7 @@
   }
 
   function collectContributedSettingsPayload() {
-    const moduleSettings = window.LongtailForge.settingsRenderer.collectPayload(moduleSettingsForm);
+    const moduleSettings = requireSettingsRenderer().collectPayload(requireModuleSettingsForm());
     /** @type {Record<string, unknown>} */
     const frameworkSettings = {};
     const moduleId = currentModuleSettingsId();
