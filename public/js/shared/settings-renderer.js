@@ -1,7 +1,104 @@
 (function attachSettingsRenderer(global) {
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserResolvedSetting} BrowserResolvedSetting */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserResolvedSettingsModule} BrowserResolvedSettingsModule */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserSettingOption} BrowserSettingOption */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserSettingType} BrowserSettingType */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserSettingVisibleWhen} BrowserSettingVisibleWhen */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserSettingsContributionOptions} BrowserSettingsContributionOptions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserSettingsPayload} BrowserSettingsPayload */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserSettingsRenderOptions} BrowserSettingsRenderOptions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserSettingsRenderScope} BrowserSettingsRenderScope */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserSettingsRenderer} BrowserSettingsRenderer */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFieldControl} BrowserViewFieldControl */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFieldElement} BrowserViewFieldElement */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFieldGridElement} BrowserViewFieldGridElement */
+
+  /**
+   * What one rendered field remembers. Private: no consumer reads it.
+   * @typedef {object} SettingsFieldMetadata
+   * @property {BrowserViewFieldControl[]} controls
+   * @property {string} defaultMessage
+   * @property {string} key
+   * @property {BrowserResolvedSetting} setting
+   */
+
+  /**
+   * What one rendered section remembers. Private: no consumer reads it.
+   * @typedef {object} SettingsSectionMetadata
+   * @property {HTMLElement[]} fields
+   * @property {BrowserViewFieldGridElement} grid
+   * @property {BrowserResolvedSettingsModule} module
+   */
+
+  /**
+   * The setting types this renderer knows how to draw.
+   *
+   * A contribution may name a type that is not here - `ModuleSettingDefinition.type` stays open on
+   * purpose - and one that does falls back to `info` rather than reaching the field factory with a
+   * type it cannot build.
+   * @type {readonly BrowserSettingType[]}
+   */
+  const SETTING_TYPES = Object.freeze([
+    "boolean", "toggle", "text", "textarea", "number", "select", "multi-select", "radio", "info",
+  ]);
+
   const root = global.LongtailForge || {};
+  /** @type {WeakMap<HTMLElement, SettingsFieldMetadata>} */
   const fieldMetadata = new WeakMap();
+  /** @type {WeakMap<HTMLElement, SettingsSectionMetadata>} */
   const sectionMetadata = new WeakMap();
+
+  /**
+   * Whether a candidate is an array this writer can walk.
+   *
+   * `Array.isArray` alone widens an `unknown` into an implicitly typed array, which would hand
+   * every downstream normalizer an untyped element. This narrows to `unknown[]` instead, so each
+   * element still has to be normalized before it is read.
+   * @param {unknown} value
+   * @returns {value is unknown[]}
+   */
+  function isCandidateList(value) {
+    return Array.isArray(value);
+  }
+
+  /**
+   * A candidate this writer can read members off, or an empty one.
+   *
+   * Every normalizer here is total - it is handed whatever a module contributed and answers a
+   * usable record - so an unusable candidate becomes an empty record and the normalizer's own
+   * fallbacks then apply, exactly as they did when the parameter was implicitly `any`.
+   * @param {unknown} value
+   * @returns {Record<string, unknown>}
+   */
+  function readCandidate(value) {
+    return isCandidateRecord(value) ? value : {};
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isCandidateRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * Whether a controller id survived the lookup that built it.
+   * @param {string | undefined} settingId
+   * @returns {settingId is string}
+   */
+  function isPresentSettingId(settingId) {
+    return Boolean(settingId);
+  }
+
+  /**
+   * Whether `renderSection` produced a section rather than declining.
+   * @param {HTMLElement | null} section
+   * @returns {section is HTMLElement}
+   */
+  function isRenderedSection(section) {
+    return section !== null;
+  }
 
   function requireView() {
     const view = root.view;
@@ -13,22 +110,32 @@
     return view;
   }
 
+  /**
+   * @param {unknown} [moduleSettings]
+   * @param {BrowserSettingsContributionOptions} [options]
+   * @returns {BrowserResolvedSettingsModule[]}
+   */
   function normalizeContributions(moduleSettings, options = {}) {
-    const source = Array.isArray(moduleSettings)
+    const source = isCandidateList(moduleSettings)
       ? moduleSettings
       : normalizeFromModules(options.modules);
 
     return source
-      .map((moduleDefinition) => normalizeModule(moduleDefinition || {}))
+      .map((moduleDefinition) => normalizeModule(moduleDefinition))
       .filter((moduleDefinition) => moduleDefinition.moduleId && moduleDefinition.settings.length > 0);
   }
 
+  /**
+   * @param {unknown} modules
+   * @returns {unknown[]}
+   */
   function normalizeFromModules(modules) {
-    if (!Array.isArray(modules)) {
+    if (!isCandidateList(modules)) {
       return [];
     }
-    return modules.flatMap((moduleDefinition) => {
-      const settings = Array.isArray(moduleDefinition.settings) ? moduleDefinition.settings : [];
+    return modules.flatMap((candidate) => {
+      const moduleDefinition = readCandidate(candidate);
+      const settings = isCandidateList(moduleDefinition.settings) ? moduleDefinition.settings : [];
       return settings.length > 0 ? [{
         moduleId: moduleDefinition.moduleId || moduleDefinition.id,
         name: moduleDefinition.name,
@@ -40,7 +147,12 @@
     });
   }
 
-  function normalizeModule(moduleDefinition) {
+  /**
+   * @param {unknown} candidate
+   * @returns {BrowserResolvedSettingsModule}
+   */
+  function normalizeModule(candidate) {
+    const moduleDefinition = readCandidate(candidate);
     const moduleId = String(moduleDefinition.moduleId || moduleDefinition.id || "").trim();
     return {
       moduleId,
@@ -48,13 +160,19 @@
       displayName: String(moduleDefinition.displayName || moduleDefinition.name || moduleId).trim(),
       status: moduleDefinition.status === "enabled" ? "enabled" : "disabled",
       canDisable: moduleDefinition.canDisable !== false,
-      settings: Array.isArray(moduleDefinition.settings)
-        ? moduleDefinition.settings.map((setting) => normalizeSetting(moduleDefinition, setting || {}))
+      settings: isCandidateList(moduleDefinition.settings)
+        ? moduleDefinition.settings.map((setting) => normalizeSetting(moduleDefinition, setting))
         : [],
     };
   }
 
-  function normalizeSetting(moduleDefinition, setting) {
+  /**
+   * @param {Record<string, unknown>} moduleDefinition
+   * @param {unknown} candidate
+   * @returns {BrowserResolvedSetting}
+   */
+  function normalizeSetting(moduleDefinition, candidate) {
+    const setting = readCandidate(candidate);
     const type = normalizeType(setting.type);
     const moduleId = String(setting.moduleId || moduleDefinition.moduleId || moduleDefinition.id || "").trim();
     const hasValue = Object.hasOwn(setting, "value");
@@ -86,6 +204,12 @@
     };
   }
 
+  /**
+   * @param {Element | null | undefined} container
+   * @param {unknown} [moduleSettings]
+   * @param {BrowserSettingsRenderOptions} [options]
+   * @returns {HTMLElement[]}
+   */
   function renderSections(container, moduleSettings, options = {}) {
     if (!container) {
       return [];
@@ -103,9 +227,15 @@
     return modules.map((moduleDefinition) => renderSection(container, moduleDefinition, {
       ...options,
       append: true,
-    })).filter(Boolean);
+    })).filter(isRenderedSection);
   }
 
+  /**
+   * @param {Element | null | undefined} container
+   * @param {unknown} [moduleSettings]
+   * @param {BrowserSettingsRenderOptions} [options]
+   * @returns {HTMLElement[]}
+   */
   function renderGroupedSections(container, moduleSettings, options = {}) {
     if (!container) {
       return [];
@@ -137,18 +267,24 @@
       ...options,
       append: true,
       title: undefined,
-    })).filter((section) => section !== null && section !== undefined);
+    })).filter(isRenderedSection);
     sections.forEach((section) => section.classList.add("settings-grouped-module"));
     container.appendChild(group);
     return sections;
   }
 
-  function renderDisabledModuleRecovery(container, moduleDefinition = {}) {
+  /**
+   * @param {Element | null | undefined} container
+   * @param {unknown} [candidate]
+   * @returns {HTMLElement | null}
+   */
+  function renderDisabledModuleRecovery(container, candidate = {}) {
     if (!container) {
       return null;
     }
 
     const view = requireView();
+    const moduleDefinition = readCandidate(candidate);
     const moduleId = String(moduleDefinition.id || moduleDefinition.moduleId || "").trim();
     const displayName = String(
       moduleDefinition.displayName || moduleDefinition.name || moduleId || "This module",
@@ -173,6 +309,12 @@
     return panel;
   }
 
+  /**
+   * @param {Element | null | undefined} container
+   * @param {unknown} [moduleDefinition]
+   * @param {BrowserSettingsRenderOptions} [options]
+   * @returns {HTMLElement | null}
+   */
   function renderSection(container, moduleDefinition, options = {}) {
     if (!container) {
       return null;
@@ -229,16 +371,30 @@
     return section;
   }
 
+  /**
+   * @param {BrowserResolvedSettingsModule} moduleDefinition
+   * @param {BrowserResolvedSetting} setting
+   * @returns {HTMLElement}
+   */
   function createSettingField(moduleDefinition, setting) {
     const view = requireView();
     const message = defaultFieldMessage(setting);
-    const field = setting.type === "info"
-      ? view.createInfoPanel({
+    // The info panel and the field are built apart because only one of them has `viewParts`.
+    // `createInfoPanel` never attaches one, so the optional read this replaces always answered
+    // the empty list on that branch.
+    /** @type {HTMLElement} */
+    let field;
+    /** @type {BrowserViewFieldControl[]} */
+    let controls;
+    if (setting.type === "info") {
+      field = view.createInfoPanel({
         title: setting.label,
         message: setting.description || setting.label,
         className: "view-settings-info",
-      })
-      : view.createField({
+      });
+      controls = [];
+    } else {
+      const fieldElement = view.createField({
         field: setting.id,
         type: setting.type,
         label: setting.label,
@@ -257,11 +413,13 @@
         message,
         messageClassName: "settings-help",
       });
+      field = fieldElement;
+      controls = fieldElement.viewParts?.controls || [];
+    }
 
     field.dataset.settingField = setting.id;
     field.dataset.settingKey = `${setting.moduleId || moduleDefinition.moduleId}.${setting.id}`;
     field.classList.add("view-settings-field");
-    const controls = field.viewParts?.controls || [];
     controls.forEach((control) => {
       control.dataset.moduleSetting = setting.id;
       control.dataset.moduleId = setting.moduleId || moduleDefinition.moduleId;
@@ -282,6 +440,7 @@
     return field;
   }
 
+  /** @param {HTMLElement} section */
   function bindDependentVisibility(section) {
     const metadata = sectionMetadata.get(section);
     if (!metadata) {
@@ -289,10 +448,12 @@
     }
     const controllerIds = new Set(metadata.fields
       .map((field) => fieldMetadata.get(field)?.setting.visibleWhen?.settingId)
-      .filter(Boolean));
+      .filter(isPresentSettingId));
     metadata.fields.forEach((field) => {
       const fieldState = fieldMetadata.get(field);
-      if (!controllerIds.has(fieldState?.setting.id)) {
+      // The absent case already returned here: the id set is built from present ids only, so a
+      // field with no metadata could never match it.
+      if (!fieldState || !controllerIds.has(fieldState.setting.id)) {
         return;
       }
       fieldState.controls.forEach((control) => {
@@ -303,6 +464,7 @@
     applyDependentVisibility(section);
   }
 
+  /** @param {HTMLElement} section */
   function applyDependentVisibility(section) {
     const metadata = sectionMetadata.get(section);
     if (!metadata) {
@@ -319,7 +481,7 @@
           return;
         }
         const controller = fieldsById.get(condition.settingId);
-        const controllerState = fieldMetadata.get(controller);
+        const controllerState = controller ? fieldMetadata.get(controller) : undefined;
         const visible = Boolean(controller && !controller.hidden && valueMatches(
           readFieldValue(controllerState),
           condition.equals,
@@ -332,6 +494,11 @@
     }
   }
 
+  /**
+   * @param {HTMLElement} field
+   * @param {boolean} visible
+   * @returns {boolean}
+   */
   function setFieldVisibility(field, visible) {
     const metadata = fieldMetadata.get(field);
     if (!metadata) {
@@ -349,14 +516,25 @@
     return changed;
   }
 
+  /**
+   * @param {BrowserSettingsRenderScope} [scope]
+   * @returns {BrowserSettingsPayload}
+   */
   function collectPayload(scope = document) {
+    /** @type {BrowserSettingsPayload} */
     const payload = {};
     const view = requireView();
+    // `scope.matches?.()` said the same thing: a `Document` has no `matches`, so the optional call
+    // answered `undefined` and the scope itself was never included.
     const grids = [
-      ...(scope.matches?.("[data-settings-grid]") ? [scope] : []),
+      ...(scope instanceof Element && scope.matches("[data-settings-grid]") ? [scope] : []),
       ...scope.querySelectorAll("[data-settings-grid]"),
     ];
     grids.forEach((grid) => {
+      // Every grid carrying this marker is built by `view.createFieldGrid`, which makes a `div`.
+      if (!(grid instanceof HTMLElement)) {
+        return;
+      }
       const moduleId = String(grid.dataset.moduleId || "").trim();
       const values = view.collectFieldValues(grid);
       if (moduleId && Object.keys(values).length > 0) {
@@ -366,6 +544,10 @@
     return payload;
   }
 
+  /**
+   * @param {BrowserSettingsRenderScope} [scope]
+   * @returns {boolean}
+   */
   function validate(scope = document) {
     clearValidationErrors(scope);
     let valid = true;
@@ -389,12 +571,23 @@
     return valid;
   }
 
+  /**
+   * @param {BrowserSettingsRenderScope} [scope]
+   * @param {unknown} [error]
+   * @returns {number}
+   */
   function showValidationErrors(scope = document, error = null) {
     clearValidationErrors(scope);
     const fields = listSettingFields(scope);
-    const structured = error?.body?.fieldErrors || error?.fieldErrors;
+    // Whatever was thrown: a `BrowserApiError` carrying `body.fieldErrors`, a plain carrier with
+    // `fieldErrors` on it, an ordinary `Error`, or a value that is neither. Each member is read
+    // only after the value it sits on has been proved record-like, and the order of preference is
+    // the one the raw optional chain expressed.
+    const errorRecord = isCandidateRecord(error) ? error : null;
+    const bodyRecord = isCandidateRecord(errorRecord?.body) ? errorRecord.body : null;
+    const structured = bodyRecord?.fieldErrors || errorRecord?.fieldErrors;
     let count = 0;
-    if (structured && typeof structured === "object") {
+    if (isCandidateRecord(structured)) {
       Object.entries(structured).forEach(([key, message]) => {
         const field = fields.find((item) => fieldMetadata.get(item)?.key === key);
         if (field) {
@@ -408,8 +601,8 @@
     }
 
     const message = String(
-      error?.message
-      || window.LongtailForge?.errors?.read?.(error?.body, "").message
+      errorRecord?.message
+      || window.LongtailForge?.errors?.read?.(bodyRecord, "").message
       || "",
     ).trim();
     if (!message) {
@@ -428,6 +621,7 @@
     return count;
   }
 
+  /** @param {BrowserSettingsRenderScope} [scope] */
   function clearValidationErrors(scope = document) {
     listSettingFields(scope).forEach((field) => {
       const metadata = fieldMetadata.get(field);
@@ -437,55 +631,107 @@
     });
   }
 
+  /**
+   * @param {BrowserSettingsRenderScope} scope
+   * @returns {HTMLElement[]}
+   */
   function listSettingFields(scope) {
     return [
-      ...(scope.matches?.("[data-setting-field]") ? [scope] : []),
+      ...(scope instanceof Element && scope.matches("[data-setting-field]") ? [scope] : []),
       ...scope.querySelectorAll("[data-setting-field]"),
-    ];
+    ].filter(isSettingFieldElement);
   }
 
+  /**
+   * Every element carrying the field marker is built by `createSettingField`.
+   * @param {Element} element
+   * @returns {element is HTMLElement}
+   */
+  function isSettingFieldElement(element) {
+    return element instanceof HTMLElement;
+  }
+
+  /**
+   * Only a field built by `view.createField` carries a message channel; an info panel does not,
+   * and the optional chain this replaces was already a no-op for one.
+   * @param {HTMLElement | BrowserViewFieldElement | null | undefined} field
+   * @param {unknown} message
+   * @param {boolean} invalid
+   */
   function setFieldMessage(field, message, invalid) {
-    field?.viewParts?.setMessage?.(message, {
+    if (!field || !("viewParts" in field)) {
+      return;
+    }
+    field.viewParts.setMessage?.(message, {
       invalid,
       tone: invalid ? "error" : "info",
     });
   }
 
+  /**
+   * @param {SettingsFieldMetadata | undefined} metadata
+   * @returns {unknown}
+   */
   function readFieldValue(metadata) {
     const controls = metadata?.controls || [];
     const type = metadata?.setting.type;
-    if (["boolean", "toggle"].includes(type)) {
-      return Boolean(controls[0]?.checked);
+    const [control] = controls;
+    // `checked` and `selectedOptions` live on one arm of the control union each. A control that is
+    // not that arm answered `undefined` before, which the surrounding `Boolean`, `find` and `||`
+    // already treated as absent - so each read now asks the control whether it is that arm.
+    if (type === "boolean" || type === "toggle") {
+      return control instanceof HTMLInputElement && control.checked;
     }
     if (type === "radio") {
-      return controls.find((control) => control.checked)?.value || "";
+      return controls.find((candidate) => candidate instanceof HTMLInputElement && candidate.checked)?.value || "";
     }
     if (type === "multi-select") {
-      return Array.from(controls[0]?.selectedOptions || [], (option) => option.value);
+      return control instanceof HTMLSelectElement
+        ? Array.from(control.selectedOptions, (option) => option.value)
+        : [];
     }
     if (type === "number") {
-      return controls[0]?.value === "" ? "" : Number(controls[0]?.value);
+      return control?.value === "" ? "" : Number(control?.value);
     }
-    return controls[0]?.value ?? metadata?.setting.value ?? "";
+    return control?.value ?? metadata?.setting.value ?? "";
   }
 
+  /**
+   * @param {unknown} value
+   * @param {unknown} expected
+   * @returns {boolean}
+   */
   function valueMatches(value, expected) {
     return Array.isArray(value) ? value.includes(expected) : value === expected;
   }
 
+  /**
+   * @param {unknown} type
+   * @returns {BrowserSettingType}
+   */
   function normalizeType(type) {
-    return ["boolean", "toggle", "text", "textarea", "number", "select", "multi-select", "radio", "info"].includes(type)
-      ? type
-      : "info";
+    return SETTING_TYPES.find((candidate) => candidate === type) || "info";
   }
 
+  /**
+   * @param {unknown} options
+   * @returns {BrowserSettingOption[]}
+   */
   function normalizeOptions(options) {
-    return Array.isArray(options) ? options.map((option) => ({
-      value: String(option?.value ?? ""),
-      label: String(option?.label ?? option?.value ?? ""),
-    })) : [];
+    return isCandidateList(options) ? options.map((candidate) => {
+      const option = readCandidate(candidate);
+      return {
+        value: String(option.value ?? ""),
+        label: String(option.label ?? option.value ?? ""),
+      };
+    }) : [];
   }
 
+  /**
+   * @param {unknown} value
+   * @param {BrowserSettingType} type
+   * @returns {unknown}
+   */
   function normalizeValue(value, type) {
     if (["boolean", "toggle"].includes(type)) {
       return value === true;
@@ -499,6 +745,12 @@
     return value ?? "";
   }
 
+  /**
+   * @param {BrowserSettingType} type
+   * @param {Record<string, unknown>} setting
+   * @param {Record<string, unknown>} moduleDefinition
+   * @returns {unknown}
+   */
   function defaultValue(type, setting, moduleDefinition) {
     if (["boolean", "toggle"].includes(type)) {
       return setting.moduleStatus === true ? moduleDefinition.status === "enabled" : false;
@@ -509,16 +761,25 @@
     return "";
   }
 
-  function normalizeVisibleWhen(visibleWhen) {
-    if (!visibleWhen || typeof visibleWhen !== "object") {
+  /**
+   * @param {unknown} candidate
+   * @returns {BrowserSettingVisibleWhen | null}
+   */
+  function normalizeVisibleWhen(candidate) {
+    if (!isCandidateRecord(candidate)) {
       return null;
     }
+    const visibleWhen = candidate;
     const settingId = String(visibleWhen.settingId || "").trim();
     return settingId && Object.hasOwn(visibleWhen, "equals")
       ? { settingId, equals: visibleWhen.equals }
       : null;
   }
 
+  /**
+   * @param {unknown} inputmode
+   * @returns {string}
+   */
   function normalizeInputMode(inputmode) {
     const value = String(inputmode || "").trim();
     return new Set(["none", "text", "decimal", "numeric", "tel", "search", "email", "url"]).has(value)
@@ -526,6 +787,10 @@
       : "";
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {string}
+   */
   function normalizeNumberAttribute(value) {
     if (value === null || value === undefined || value === "") {
       return "";
@@ -533,14 +798,26 @@
     return Number.isFinite(Number(value)) ? String(value) : "";
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {string}
+   */
   function normalizeStepAttribute(value) {
     return value === "any" ? "any" : normalizeNumberAttribute(value);
   }
 
+  /**
+   * @param {BrowserResolvedSetting} setting
+   * @returns {string}
+   */
   function defaultFieldMessage(setting) {
     return [setting.description, setting.readOnlyReason].filter(Boolean).join(" ");
   }
 
+  /**
+   * @param {string} message
+   * @returns {HTMLElement}
+   */
   function createPlaceholder(message) {
     return requireView().createElement("p", {
       className: "placeholder-copy",
@@ -548,7 +825,17 @@
     });
   }
 
-  root.settingsRenderer = Object.freeze({
+  /**
+   * The nine methods this writer publishes.
+   *
+   * Annotated on the literal rather than on the `Object.freeze` call, so that the compiler checks
+   * the membership in both directions: a missing method fails, a tenth one fails as an unknown
+   * property, and a changed signature fails. `LongtailForge.settingsRenderer` is **not** declared
+   * on the namespace yet, so consumers still read this through the root's index signature and see
+   * `unknown` - the writer is checked here before the surface is declared.
+   * @type {BrowserSettingsRenderer}
+   */
+  const settingsRendererApi = {
     clearValidationErrors,
     collectPayload,
     normalizeContributions,
@@ -558,6 +845,8 @@
     renderSections,
     showValidationErrors,
     validate,
-  });
+  };
+
+  root.settingsRenderer = Object.freeze(settingsRendererApi);
   global.LongtailForge = root;
 })(window);

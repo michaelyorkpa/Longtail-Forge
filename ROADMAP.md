@@ -773,7 +773,25 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 #### 0.33.33.38.4.13 - closing the parent
 
+**Reopened by `0.33.33.38.4.13.4`.** The three response children are merged and their dispositions stand, but the security finding `0.33.33.38.4.13.1` recorded is now a drawn corrective child rather than prose inside a completed entry. **This parent does not close again until that child lands.**
+
 **All three children are merged and the ignored-body disposition is recorded.** `POST /:id/read` and `/:id/dismiss` answer `{ notification }`; `read-all` and `dismiss-all` answer the bell summary; both preference `PUT`s answer the catalogue. **Every browser caller checks `response.ok` and refetches**, and none parses a body. Those bodies are **intentionally ignored** and no browser response contract is required for them until a consumer actually binds one - publishing a parser to describe a generous response would be dead code. The refetch is deliberate and was not optimised away.
+
+#### 0.33.33.38.4.13.4 - Reject protocol-relative notification and event URLs
+
+**Open. This child exists so the finding has an owner rather than a paragraph.** `0.33.33.38.4.13.1` traced the defect and deliberately did not fix it, because correcting two server helpers is its own change; the record then sat inside a completed child, which is a description and not an assignment. **`0.33.33.38.4.13` is reopened until this lands.**
+
+**Exact scope - two helpers, one rule.**
+
+- `safeRelativeUrl` in `src/services/notifications.service.js`
+- `safeUrl` in `src/core/events/event-summaries.js`
+
+Both reject any value carrying a URI scheme, which stops `javascript:`, `data:` and `vbscript:`. **Neither rejects an authority form that carries no scheme.** Reject `//host/path`, `/\host/path`, `\/host/path`, and **any equivalent two-leading-slash-or-backslash authority form** - the general rule, not the three spellings, because a browser normalises backslashes into slashes before resolving.
+
+- [ ] **Retain valid first-party application-relative URLs.** A single leading slash followed by a path segment is the shape every current writer produces and must keep working.
+- [ ] **Retain the browser boundary's refusal.** `isApplicationRelativeUrl` in `public/js/notifications.js` already refuses these forms and is not weakened once the server agrees; two boundaries that agree is the point.
+- [ ] **Prove every first-party URL writer.** Enumerate every producer of `payload.url` and show what each writes.
+- [ ] **Do not claim an attacker-controlled path.** None has been proved: every current writer is a first-party literal. This is a defence-in-depth guard that does not hold, and describing it as a live exploit would be false.
 
 #### 0.33.33.38.4.14 - The Tag catalogue response boundaries
 
@@ -810,15 +828,25 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 ### 0.33.33.39 - Type shared browser framework code
 
-**Model: High Effort** - Shared browser helpers have broad fan-in and include descriptor, recovery, modal, API, and shell behavior.
+**Model: High Effort - a planning rollup. Its numeric children are the protected implementation checkpoints; `0.33.33.39` itself is never claimed closed by one of them.** The rollup was drawn as a single broad checkpoint, and the first time a child needed to land under it - a writer whose parameter debt blocked a namespace declaration owned elsewhere - that shape gave no honest place to put the work. **The resliced-checkpoint rule now applies here**: a focused implementation child is drawn, verified, merged and measured on its own, and the rollup keeps only the goals none of them has claimed.
 
-Today's measurement: the already-isolated shared cohort is **47 files, 21,550 lines, 4,123 diagnostics**, and included `view-renderer.js` (404) and `view-builder.js` (492). **`0.33.33.35` has since run**: the renderer is **1,698 lines / 326** and the builder **1,911 / 462**, and the cohort gained four extracted siblings - `view-action-security.js`, `view-search-options.js`, `view-data-binding.js`, and `view-modal-stack.js` - **all at zero**. The `0.33.33.38` remeasurement gate re-derives this cohort anyway; these figures replace the pre-`.35` ones so the reslice does not start from a stale count.
+**Later children are drawn from the post-`0.33.33.38` tree, not from this one.** Nothing below is drawn speculatively: `0.33.33.39.1` exists because `0.33.33.38.2.2.9` was blocked on it, and the next child will be drawn when something needs it.
+
+Today's measurement: the already-isolated shared cohort is **47 files, 21,550 lines, 4,123 diagnostics**, and included `view-renderer.js` (404) and `view-builder.js` (492). **`0.33.33.35` has since run**: the renderer is **1,698 lines / 326** and the builder **1,911 / 462**, and the cohort gained four extracted siblings.
 
 - [ ] Close full-strict debt in `public/js/shared/`, app-shell/bootstrap, navigation, dialogs, formatters, records, and view helpers.
 - [ ] Use the `0.33.33.38` DOM/response/state contracts and narrow event targets explicitly.
 - [ ] Preserve accessibility, focus, recovery, cache-version, CSP, and frozen namespace behavior.
 - [ ] **Do not absorb module-specific controller behaviour.** A shared file that turns out to hold module logic is a finding for that module's child, not work for this one.
 - [ ] Reduce shared-browser ledger debt to zero.
+
+#### 0.33.33.39.1 - Type the Settings Renderer writer boundary
+
+**Complete: 75 diagnostics closed to zero, nine contracts, and the writer's public surface is now compiler-checked.** See the archive entry. **Drawn as a prerequisite, under the owner that already held the debt.** `0.33.33.38.2.2.9` cannot declare `LongtailForge.settingsRenderer` honestly while the writer's 49 unannotated parameters make its public methods unstatable - but that parameter debt is `0.33.33.39`'s, and a namespace checkpoint typing it would be one owner doing another's work. So the writer is typed here first, and the declaration follows in its own checkpoint.
+
+**The contribution input stays open and the resolved output is closed, which is the whole design.** `ModuleSettingDefinition` is reused rather than restated - a module may contribute a setting type this renderer has never heard of, and its `(string & {})` arm says so. What the renderer *answers* is closed: `normalizeType` admits nine values and falls back to `info`. **Nine contracts describe the resolved side only**, and `value` stays `unknown` throughout, because a module owns what its own setting means.
+
+**No consumer file changed and the namespace member is still undeclared**, so the 44 namespace diagnostics across the five settings pages are exactly where they were. That is `0.33.33.38.2.2.9`'s to move.
 
 ### 0.33.33.40 - Type the Notes browser controller
 
