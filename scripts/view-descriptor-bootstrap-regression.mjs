@@ -27,7 +27,11 @@ const modulesServiceSource = readText("src/core/modules/modules.service.js");
 assert.match(appShellServiceSource, /modulesService\.listActiveViewSurfaces\(session\.workspace_id, session\)/, "App shell should deliver view descriptors through the existing bootstrap path");
 assert.doesNotMatch(appShellServiceSource, /view-surfaces|viewSurfaces\/bootstrap|descriptor\/bootstrap/, "Descriptors should not get a separate bootstrap transport");
 assert.match(navigationScript, /viewSurfaces: shell\.viewSurfaces \|\| shell\.workspaceContext\?\.viewSurfaces \|\| \[\]/, "Navigation bootstrap should copy descriptors into workspace context");
-assert.match(navigationScript, /viewSurfaces: Array\.isArray\(settings\.viewSurfaces\)/, "Stored workspace context should preserve descriptors");
+// Retargeted by `0.33.33.38.4.15`, which moved the container check into a shared reader.
+// The pin named the expression; what it defends is that the stored context still carries the
+// descriptors the bootstrap copied into it, from the candidate and then from the cache.
+assert.match(navigationScript, /viewSurfaces: readContextList\(settings\.viewSurfaces, previous\.viewSurfaces\),/, "Stored workspace context should preserve descriptors");
+assert.match(navigationScript, /function readContextList\([\s\S]{0,220}Array\.isArray\(candidate\)/, "and that reader still admits only a real list");
 assert.match(modulesServiceSource, /requiredPermissionsAllowed\(protectedView, session\)/, "Descriptor delivery should honor protected view permissions");
 assert.match(modulesServiceSource, /!enabledModuleIds\.has\(surface\.moduleId\)/, "Descriptor delivery should skip disabled modules");
 

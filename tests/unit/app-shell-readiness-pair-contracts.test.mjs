@@ -110,9 +110,19 @@ describe("the result type carries all three completion forms", () => {
     assert.match(doc, /@returns \{Promise<[^}]*BrowserAppShellRefreshResult>\}/);
   });
 
-  it("names the result for the refresh, not for the stored context", () => {
-    assert.ok(!/BrowserWorkspaceContext\b/.test(contracts), "the stored record is 0.33.33.38.4.15's to define");
-    assert.ok(!/BrowserStoredWorkspaceContext/.test(contracts), "and it is not defined here");
+  it("names the result for the refresh, and keeps it distinct from the stored record", () => {
+    // Retargeted by `0.33.33.38.4.15`, which defined the stored record this child deliberately
+    // did not. The guard that it did not yet exist is spent; what outlives it is that the two are
+    // **different types** - the refresh result is an unknown-valued record, and the stored one is
+    // an exact thirteen-member contract.
+    assert.match(contracts, /^export type BrowserAppShellRefreshResult = Record<string, unknown> \| null \| undefined;$/m);
+    assert.match(contracts, /^export interface BrowserStoredWorkspaceContext \{$/m);
+    const alias = contracts.match(/^export type BrowserAppShellRefreshResult = (.*);$/m);
+    assert.ok(alias, "the alias must exist");
+    assert.ok(
+      !/BrowserStoredWorkspaceContext/.test(alias[1]),
+      "the refresh result must not be typed as the stored record",
+    );
   });
 });
 
@@ -184,27 +194,35 @@ describe("no context-shape work lands in this child", () => {
     assert.ok(!/^ {2}workspaceContext\?:/m.test(namespaceBody), "that member belongs to 0.33.33.38.2.2.5.2");
   });
 
-  it("leaves the storage and hydration functions untouched by any annotation", () => {
-    for (const fn of [
-      "function storeWorkspaceContext(", "function readWorkspaceContext(",
-      "function hydrateStoredWorkspaceContext(",
-    ]) {
+  it("did not type the storage path, which 0.33.33.38.4.15 later did", () => {
+    // Retargeted by that child. The guard was that this one added no context-shape work; the fact
+    // that outlives it is that the storage path answers the **stored** record while the refresh
+    // this child declared still answers the transient one.
+    for (const fn of ["function storeWorkspaceContext(", "function readWorkspaceContext("]) {
       const at = navigation.indexOf("  " + fn);
       assert.notEqual(at, -1, fn + " must still exist");
+      // Only the block immediately above counts: a fixed window reaches the previous function's
+      // doc and would pass for a declaration carrying none of its own.
       const before = navigation.slice(0, at).trimEnd();
-      assert.ok(
-        !before.endsWith("*/") || !/@param|@returns/.test(before.slice(before.lastIndexOf("/**"))),
-        fn + " must not be typed here",
-      );
+      assert.ok(before.endsWith("*/"), fn + " must carry its own JSDoc block");
+      const doc = before.slice(before.lastIndexOf("/**"));
+      assert.match(doc, /BrowserStoredWorkspaceContext/, fn + " answers the stored record");
     }
+    const at = navigation.indexOf("  async function loadAppShellBootstrap()");
+    assert.match(navigation.slice(at - 620, at), /BrowserAppShellRefreshResult/,
+      "and the refresh still answers the transient result");
   });
 
-  it("gives no wire value a trusted context type", () => {
-    assert.ok(!/BrowserStoredWorkspaceContext/.test(navigation));
+  it("gives no wire value a trusted context type without normalising it", () => {
+    // Retargeted by `0.33.33.38.4.15`: the stored record now appears in this file, reached only
+    // through the constructor. What the guard defended is unchanged - no response body is cast
+    // into a context, and the app-shell body still goes through the adapter.
     const code = codeOnly(navigation);
     assert.match(code, /const shell = bootstrapAdapter\.normalize\(await response\.json\(\)\);/,
       "the app-shell path is unchanged");
     assert.ok(!/@type \{[^}]*\} \*\/ \(await response\.json\(\)\)/.test(navigation), "no cast over a body");
+    assert.ok(!/@type \{[^}]*BrowserStoredWorkspaceContext[^}]*\} \*\/ \(/.test(navigation),
+      "and no cast into the stored record");
   });
 
   it("keeps the transient object arm as an unknown-valued record", () => {

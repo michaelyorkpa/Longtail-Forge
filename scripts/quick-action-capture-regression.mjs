@@ -29,7 +29,11 @@ check("app-shell bootstrap publishes server-gated quick actions", () => {
   assert.match(appShellService, /quickActions,/);
   assert.match(appShellService, /workspaceContext: \{[\s\S]*quickActions,[\s\S]*viewSurfaces,/);
   assert.match(navigation, /quickActions: shell\.quickActions \|\| shell\.workspaceContext\?\.quickActions \|\| \[\]/);
-  assert.match(navigation, /quickActions: Array\.isArray\(settings\.quickActions\) \? settings\.quickActions : previousContext\.quickActions \|\| \[\]/);
+  // Retargeted by `0.33.33.38.4.15`, which moved the container check into a shared reader.
+  // The pin named the expression; what it defends is that the stored context still takes the
+  // candidate's quick actions and falls back to the cached ones.
+  assert.match(navigation, /quickActions: readContextList\(settings\.quickActions, previous\.quickActions\),/);
+  assert.match(navigation, /function readContextList\([\s\S]{0,220}Array\.isArray\(candidate\)/);
 });
 
 check("quick actions are gated by module, capability, permission, and search availability", () => {

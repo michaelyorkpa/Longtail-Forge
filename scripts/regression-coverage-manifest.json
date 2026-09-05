@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19044,
+    "activeAssertionCount": 19046,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19858,
+    "effectiveAssertionCount": 19860,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -4335,11 +4335,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 64,
+      "assertionCount": 65,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy quick action capture contract.",
-      "entryPointAssertionCount": 64,
+      "entryPointAssertionCount": 65,
       "id": "legacy.quick.action.capture",
       "legacy": true,
       "path": "scripts/quick-action-capture-regression.mjs",
@@ -8744,11 +8744,11 @@
     },
     {
       "area": "views",
-      "assertionCount": 18,
+      "assertionCount": 19,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy view descriptor bootstrap contract.",
-      "entryPointAssertionCount": 18,
+      "entryPointAssertionCount": 19,
       "id": "legacy.view.descriptor.bootstrap",
       "legacy": true,
       "path": "scripts/view-descriptor-bootstrap-regression.mjs",

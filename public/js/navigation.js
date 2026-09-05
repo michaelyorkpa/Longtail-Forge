@@ -2,6 +2,12 @@
 (function attachAppShellNavigation() {
   const DEFAULT_WORKSPACE_NAME = "Workspace";
   const WORKSPACE_CONTEXT_STORAGE_KEY = "lf_workspace_context";
+
+  /**
+   * The workspace types the stored context closes to; anything else becomes the first.
+   * @type {readonly BrowserWorkspaceType[]}
+   */
+  const WORKSPACE_TYPES = Object.freeze(["business", "family", "personal"]);
   const THEME_STORAGE_KEY = "lf_theme";
   const THEME_AUTO_SOURCE_STORAGE_KEY = "lf_theme_auto_source";
   const SYSTEM_THEME_QUERY = "(prefers-color-scheme: dark)";
@@ -341,7 +347,7 @@
     const context = readWorkspaceContext();
 
     if (context && !window.LongtailForge.workspaceContext) {
-      window.LongtailForge.workspaceContext = context;
+      publishWorkspaceContext(context);
     }
   }
 
@@ -1606,10 +1612,12 @@
         throw new Error("Settings were unavailable.");
       }
 
+      /** @type {unknown} */
       const settings = await response.json();
-      storeWorkspaceContext(settings);
-      applyWorkspaceName(settings.workspaceName);
-      applyWorkspaceCapabilities(settings);
+      // Read the reconstruction rather than the body: the same members, but vouched for.
+      const context = storeWorkspaceContext(settings);
+      applyWorkspaceName(context.workspaceName);
+      applyWorkspaceCapabilities(context);
     } catch {
       applyWorkspaceName(DEFAULT_WORKSPACE_NAME);
     }
@@ -1635,8 +1643,7 @@
           userId: user.user_id || user.userId || user.workspaceContext.userId || user.workspaceContext.user_id || "",
           username: user.username || user.workspaceContext.username || "",
         };
-        storeWorkspaceContext(workspaceContext);
-        applyWorkspaceCapabilities(workspaceContext);
+        applyWorkspaceCapabilities(storeWorkspaceContext(workspaceContext));
       }
       if (user.themeMode) {
         applyThemeMode(user.themeMode, user.themeAutoSource);
@@ -1856,36 +1863,173 @@
     applyWorkspaceCapabilities(cachedContext);
   }
 
-  function readWorkspaceContext() {
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserStoredWorkspaceContext} BrowserStoredWorkspaceContext */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkspaceType} BrowserWorkspaceType */
+
+  /**
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isContextRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * A candidate this builder can read members off, or an empty one.
+   * @param {unknown} value
+   * @returns {Record<string, unknown>}
+   */
+  function readContextRecord(value) {
+    return isContextRecord(value) ? value : {};
+  }
+
+  /**
+   * The first candidate that is a list, in the order the caller gives them.
+   *
+   * The constructor checked only its **first** candidate with `Array.isArray` and took the cached
+   * one on trust; a cached non-array now falls through to the empty list rather than being stored
+   * as one. Nothing else about the order changes.
+   * @param {unknown[]} candidates
+   * @returns {unknown[]}
+   */
+  function readContextList(...candidates) {
+    for (const candidate of candidates) {
+      if (Array.isArray(candidate)) {
+        return candidate;
+      }
+    }
+    return [];
+  }
+
+  /**
+   * The first candidate that is a record, in order.
+   *
+   * The constructor accepted any truthy value here, so a string or a number could be stored and
+   * published as a hint bag. Every consumer reads members off it, so a non-record answered
+   * `undefined` for all of them then and answers `undefined` for all of them now.
+   * @param {unknown[]} candidates
+   * @returns {Record<string, unknown>}
+   */
+  function readContextBag(...candidates) {
+    for (const candidate of candidates) {
+      if (isContextRecord(candidate)) {
+        return candidate;
+      }
+    }
+    return {};
+  }
+
+  /**
+   * The first candidate that is a non-empty string, in order.
+   *
+   * The constructor took the first **truthy** value, so a number or an object could be stored as
+   * an identity or a name. The order of preference is unchanged; only the shape is now checked.
+   * @param {unknown[]} candidates
+   * @returns {string}
+   */
+  function readContextText(...candidates) {
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && candidate) {
+        return candidate;
+      }
+    }
+    return "";
+  }
+
+  /**
+   * @param {unknown[]} candidates
+   * @returns {BrowserWorkspaceType}
+   */
+  function readContextWorkspaceType(...candidates) {
+    const value = readContextText(...candidates);
+    return WORKSPACE_TYPES.find((candidate) => candidate === value) || "business";
+  }
+
+  /**
+   * The cached context as a record, without promising any member.
+   *
+   * This is the raw parse: the builder re-derives every member from it, so validating here would
+   * only duplicate that. `readWorkspaceContext` is the validated reader.
+   * @returns {Record<string, unknown> | null}
+   */
+  function readCachedWorkspaceRecord() {
     try {
-      const context = JSON.parse(window.localStorage.getItem(WORKSPACE_CONTEXT_STORAGE_KEY) || "null");
-      return context && typeof context === "object" ? context : null;
+      /** @type {unknown} */
+      const parsed = JSON.parse(window.localStorage.getItem(WORKSPACE_CONTEXT_STORAGE_KEY) || "null");
+      return isContextRecord(parsed) ? parsed : null;
     } catch {
       return null;
     }
   }
 
-  function storeWorkspaceContext(settings) {
-    const previousContext = readWorkspaceContext() || {};
-    const context = {
-      enabledModules: Array.isArray(settings.enabledModules) ? settings.enabledModules : previousContext.enabledModules || [],
-      modules: Array.isArray(settings.modules) ? settings.modules : previousContext.modules || [],
-      navigation: Array.isArray(settings.navigation) ? settings.navigation : previousContext.navigation || [],
-      permissionHints: settings.permissionHints || previousContext.permissionHints || {},
-      quickActions: Array.isArray(settings.quickActions) ? settings.quickActions : previousContext.quickActions || [],
-      searchTargets: Array.isArray(settings.searchTargets) ? settings.searchTargets : previousContext.searchTargets || [],
-      viewSurfaces: Array.isArray(settings.viewSurfaces) ? settings.viewSurfaces : previousContext.viewSurfaces || [],
-      userId: settings.userId || settings.user_id || previousContext.userId || "",
-      username: settings.username || previousContext.username || "",
-      workspaceCapabilities: settings.workspaceCapabilities || {},
-      workspaceId: settings.workspaceId || settings.workspace_id || "",
-      workspaceName: settings.workspaceName || DEFAULT_WORKSPACE_NAME,
-      workspaceType: settings.workspaceType || settings.workspaceCapabilities?.workspaceType || "business",
+  /**
+   * Reconstruct the canonical stored context from any candidate.
+   *
+   * Every member keeps the candidate-then-cache-then-default order the constructor already had.
+   * The four members that never consulted the cache - capabilities, id, name and type - still do
+   * not, because every producer that reaches here supplies them.
+   * @param {unknown} candidate
+   * @returns {BrowserStoredWorkspaceContext}
+   */
+  function buildWorkspaceContext(candidate) {
+    const settings = readContextRecord(candidate);
+    const previous = readContextRecord(readCachedWorkspaceRecord());
+    const capabilities = readContextRecord(settings.workspaceCapabilities);
+    return {
+      enabledModules: readContextList(settings.enabledModules, previous.enabledModules),
+      modules: readContextList(settings.modules, previous.modules),
+      navigation: readContextList(settings.navigation, previous.navigation),
+      permissionHints: readContextBag(settings.permissionHints, previous.permissionHints),
+      quickActions: readContextList(settings.quickActions, previous.quickActions),
+      searchTargets: readContextList(settings.searchTargets, previous.searchTargets),
+      viewSurfaces: readContextList(settings.viewSurfaces, previous.viewSurfaces),
+      userId: readContextText(settings.userId, settings.user_id, previous.userId),
+      username: readContextText(settings.username, previous.username),
+      workspaceCapabilities: readContextBag(settings.workspaceCapabilities),
+      workspaceId: readContextText(settings.workspaceId, settings.workspace_id),
+      workspaceName: readContextText(settings.workspaceName) || DEFAULT_WORKSPACE_NAME,
+      workspaceType: readContextWorkspaceType(settings.workspaceType, capabilities.workspaceType),
     };
+  }
 
-    window.localStorage.setItem(WORKSPACE_CONTEXT_STORAGE_KEY, JSON.stringify(context));
+  /**
+   * The single namespace assignment for this surface.
+   *
+   * Both publication paths - a live store and a cache hydration - go through here, so the value
+   * reaching `LongtailForge.workspaceContext` is a reconstructed record in both cases. The member
+   * itself is declared by `0.33.33.38.2.2.5.2`; the parameter type is what checks it today.
+   * @param {BrowserStoredWorkspaceContext} context
+   */
+  function publishWorkspaceContext(context) {
     window.LongtailForge = window.LongtailForge || {};
     window.LongtailForge.workspaceContext = context;
+  }
+
+  /**
+   * The cached context, reconstructed.
+   *
+   * **This is the localStorage trust boundary.** The parse result was previously published and
+   * rendered from directly whenever it was any non-null object; it now goes through the same
+   * builder a live store uses, so an older cache missing a collection gets the default the store
+   * would have written and a malformed one cannot be read as a context at all.
+   * @returns {BrowserStoredWorkspaceContext | null}
+   */
+  function readWorkspaceContext() {
+    const cached = readCachedWorkspaceRecord();
+    return cached ? buildWorkspaceContext(cached) : null;
+  }
+
+  /**
+   * Persist and publish the canonical workspace context built from a candidate.
+   * @param {unknown} settings
+   * @returns {BrowserStoredWorkspaceContext} the object that was persisted and published
+   */
+  function storeWorkspaceContext(settings) {
+    const context = buildWorkspaceContext(settings);
+
+    window.localStorage.setItem(WORKSPACE_CONTEXT_STORAGE_KEY, JSON.stringify(context));
+    publishWorkspaceContext(context);
+    return context;
   }
 
   function setNavLinkVisible(href, isVisible) {

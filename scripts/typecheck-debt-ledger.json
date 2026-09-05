@@ -444,6 +444,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "tests/unit/workbench-bootstrap-contracts.test.mjs",
         "tests/unit/workspace-backup-receipt-contracts.test.mjs",
+        "tests/unit/workspace-context-boundary-contracts.test.mjs",
         "tests/unit/workspace-deletion-contracts.test.mjs",
         "worker.js"
       ],
@@ -537,7 +538,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8067,
+      "errorCount": 8065,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -994,7 +995,7 @@
           },
           {
             "code": 18048,
-            "count": 6
+            "count": 5
           },
           {
             "code": 2339,
@@ -1022,7 +1023,7 @@
           },
           {
             "code": 7006,
-            "count": 62
+            "count": 61
           },
           {
             "code": 7019,
@@ -2665,8 +2666,8 @@
     }
   },
   "totals": {
-    "files": 1118,
-    "errors": 8067,
+    "files": 1119,
+    "errors": 8065,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
