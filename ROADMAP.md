@@ -919,6 +919,18 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Use shared contracts without merging module-owned state or payload meaning.
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
+**Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.1 - Type the Lists declarative-view descriptor boundary
+
+**Complete: 28 diagnostics closed, ten contracts published, and `0.33.33.38.2.2.5.2`'s blocker cleared.** See the archive entry.
+
+**The contracts are Lists-specific and structural, not one application-wide view-surface type.** Nothing measured says the other modules' contributed surfaces share Lists' anatomy, and an exhaustive `BrowserViewSurfaceDescriptor` would claim they do. Each of the ten interfaces carries an index signature and names only the members Lists reads.
+
+**The root promises identity and nothing else.** `BrowserListsWorkspaceSurfaceDescriptor` declares `id` and `moduleId`, because that is all the root reader needs to recognise the surface and pass it on safely. Every nested section is validated at the point of use instead, which is where each one's page-local fallback already lives.
+
+**A malformed optional fragment is treated as an absent one.** The action strip, item form, modal, empty state and index panel each fall back to the descriptor the page owns. `itemRows.actions` is the single exception and is **required**: the row builder maps over it without a guard, so a fragment missing it would throw rather than degrade.
+
 ### 0.33.33.44 - Close the browser program at zero
 
 **Model: High Effort** - Planning rollup and final browser-program closeout; its measured children are drawn by the post-`0.33.33.38` remeasurement.

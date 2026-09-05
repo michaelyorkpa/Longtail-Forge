@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.1 - Type the Lists declarative-view descriptor boundary
+
+**Model: High Effort** - the first measured child of `0.33.33.43`, drawn because a namespace declaration could not land without it.
+
+- [x] **The Lists-specific descriptor family is structural, and the root promises only identity.** Ten interfaces, each with an index signature, naming only what Lists reads. `BrowserListsWorkspaceSurfaceDescriptor` declares `id` and `moduleId`; a break that promises `detail` at the root is refused, because the sections belong to the readers that already own a fallback for them.
+- [x] **Validated objects are returned by identity, never rebuilt.** A contributed surface may carry members this page does not read, and reconstructing it would silently drop them before the renderer sees them. Two breaks - one rebuilding the root from its two known members, one rebuilding each action from its four - are refused.
+- [x] **A malformed optional fragment is treated as an absent one.** Action strip, item form, modal, empty state and index panel each fall back to the page's own descriptor rather than half-rendering a server one. **`itemRows.actions` is the deliberate exception and is required**, because the row builder maps over it with no guard; a fragment without it would throw rather than degrade. Breaks that relax each check, and one that drops an unusable action instead of refusing its collection, are all refused.
+- [x] **`collapseOnSelect` requires a real boolean.** A contributed string would collapse the index panel on every selection because it is truthy. The break that accepts any defined value is refused, as is the one that passes a non-text title through instead of dropping it.
+- [x] **The namespace member is read as an `unknown` candidate, with no cast and no declaration.** `0.33.33.38.2.2.5.2` declares `workspaceContext`; this boundary has to hold on both sides of that, so it narrows the value itself. Three breaks are refused: declaring the member here, typing `viewSurfaces` globally on the stored context, and reaching the namespace through a cast.
+- [x] **The lazy dialog-only path is untouched.** It awaits nothing, reads no workspace context and no server surface. Two breaks that give it either dependency are refused. The assertion is scoped to the branch itself - a wider window runs on into `initializeListsWorkspace`, which *does* await readiness, and would have reported the opposite of what it checks.
+- [x] **The four static owners followed the read rather than being relaxed.** `activeListsViewDescriptor?.indexPanel?.collapseOnSelect`, the `workspaceContext?.viewSurfaces` chain and the `.find(...) || null` resolution were all pinned by spelling. Each new pattern names the delivered descriptor as the only source **and** pins the validation that replaced the chain, so all four are stricter than what they replace.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **31 boundary breaks and 5 static-owner breaks.** 27 boundary breaks were refused by a named assertion and 5 owner breaks by their named claim. **Three were refused by the compiler instead**, and the reason is worth recording: dropping the record check on the namespace value, on the surface entry, or on the detail fragment is **runtime-inert** - a non-record still answers `undefined` for the member being read - so those guards carry their weight in the type system, and `TS18046`/`TS2339` is the honest judge for them. **One break was proven inert rather than uncovered**: removing the `@returns` from `listsViewSurfaceDescriptor` changes nothing, because the predicate-narrowed return already infers `BrowserListsWorkspaceSurfaceDescriptor | null`. Reading the compiler's reported type at a deliberate misuse, with the annotation and without it, returns the identical `TS2322`. The annotation stays as documentation naming the published contract; it is not load-bearing, and it is not counted as coverage.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| `lists.js` diagnostics | 465 | **437** |
+| `0.33.33.43` ledger | 966 | **939** |
+| Browser program diagnostics | 8,065 | **8,037** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 1,767 / 348 / 167 | **1,799 / 348 / 167**, green |
+
+**The 28 closed diagnostics are `TS7006` 16, `TS2339` 8, `TS7005` 3, `TS7034` 1**, every one of them in `lists.js`. No file gained a diagnostic and no `(file, code)` pair is new.
+
+**`0.33.33.38.2.2.5.2`'s blocker is cleared, and that is what this child was drawn for.** A declaration probe on this tree leaves `lists.js` **unchanged at 437**: the descriptor cascade that probe measured before is gone, and the only residue is the two permission diagnostics - `permissionIds` and `permissions` - which that checkpoint deletes rather than declares.
+
+**Two page-local shapes were corrected on the way, both behaviour-identical.** Four `|| {}` fallbacks produced an empty object literal the compiler could read no member off; they are optional chains now, which answer `undefined` for exactly the members `{}` already answered. And the page already owned a boolean named `isListsWorkspaceSurface` - "is this document the Lists host" - so the new predicate is `isListsSurfaceDescriptor`; the collision was found by the compiler, not by the tests.
+
 ## Version 0.33.33.38.4.13.4 - Reject protocol-relative notification and event URLs
 
 **Model: High Effort** - a security correction drawn as its own owner, and a rendering defect found while proving it.
