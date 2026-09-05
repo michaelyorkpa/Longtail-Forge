@@ -393,6 +393,7 @@
         "tests/unit/list-link-target-contracts.test.mjs",
         "tests/unit/list-response-contracts.test.mjs",
         "tests/unit/lists-item-suggestion-contracts.test.mjs",
+        "tests/unit/lists-view-descriptor-boundary.test.mjs",
         "tests/unit/lookup-response-contracts.test.mjs",
         "tests/unit/managed-session-contracts.test.mjs",
         "tests/unit/markdown-preview-contracts.test.mjs",
@@ -539,7 +540,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8065,
+      "errorCount": 8037,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -910,7 +911,7 @@
           },
           {
             "code": 2339,
-            "count": 200
+            "count": 192
           },
           {
             "code": 2345,
@@ -922,19 +923,15 @@
           },
           {
             "code": 7005,
-            "count": 4
+            "count": 1
           },
           {
             "code": 7006,
-            "count": 172
+            "count": 156
           },
           {
             "code": 7031,
             "count": 3
-          },
-          {
-            "code": 7034,
-            "count": 1
           },
           {
             "code": 7053,
@@ -2667,8 +2664,8 @@
     }
   },
   "totals": {
-    "files": 1120,
-    "errors": 8065,
+    "files": 1121,
+    "errors": 8037,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

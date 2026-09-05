@@ -2292,6 +2292,113 @@ export interface BrowserNotesDialog {
 }
 
 /**
+ * One action inside a Lists-contributed descriptor fragment.
+ *
+ * **`id` is the only required member, because it is the only one Lists cannot work without**: it
+ * keys the action maps and becomes the rendered control's action name. The three optional members
+ * are the ones Lists itself reads; everything else a module contributes rides the index signature
+ * untouched and reaches the renderer by identity.
+ */
+export interface BrowserListsActionDescriptor {
+  [key: string]: unknown;
+  behavior?: string;
+  id: string;
+  label?: string;
+  role?: string;
+}
+
+/**
+ * One field inside a Lists-contributed descriptor fragment.
+ *
+ * `field` names the control and is required; `width` is written onto a dataset attribute, so it is
+ * validated as a string when present. **The rest of a field definition is the renderer's**, and
+ * this contract does not restate it.
+ */
+export interface BrowserListsFieldDescriptor {
+  [key: string]: unknown;
+  field: string;
+  width?: string;
+}
+
+/** The list action strip a module may contribute in place of the page's own. */
+export interface BrowserListsActionStripDescriptor {
+  [key: string]: unknown;
+  actions?: BrowserListsActionDescriptor[];
+  label?: string;
+}
+
+/** The item form a module may contribute in place of the page's own. */
+export interface BrowserListsItemFormDescriptor {
+  [key: string]: unknown;
+  actions?: BrowserListsActionDescriptor[];
+  fields?: BrowserListsFieldDescriptor[];
+  title?: string;
+}
+
+/** The empty-state fragment of a contributed item-rows descriptor. */
+export interface BrowserListsEmptyStateDescriptor {
+  [key: string]: unknown;
+  message?: string;
+}
+
+/**
+ * The item rows a module may contribute in place of the page's own.
+ *
+ * `actions` is **required** here and optional on the other fragments, because the row builder maps
+ * over it without a guard. A contributed fragment without it is treated as absent so the page's own
+ * descriptor answers instead - which is what the other fragments already did, and what stops a
+ * missing member from throwing.
+ */
+export interface BrowserListsItemRowsDescriptor {
+  [key: string]: unknown;
+  actions: BrowserListsActionDescriptor[];
+  emptyState?: BrowserListsEmptyStateDescriptor;
+}
+
+/** The detail section of the Lists workspace surface. */
+export interface BrowserListsDetailDescriptor {
+  [key: string]: unknown;
+  actionStrip?: BrowserListsActionStripDescriptor;
+  itemForm?: BrowserListsItemFormDescriptor;
+  itemRows?: BrowserListsItemRowsDescriptor;
+}
+
+/** One modal definition Lists reads out of the contributed surface. */
+export interface BrowserListsModalDescriptor {
+  [key: string]: unknown;
+  fields?: BrowserListsFieldDescriptor[];
+  footerActions?: BrowserListsActionDescriptor[];
+  id: string;
+}
+
+/** The index-panel fragment of the Lists workspace surface. */
+export interface BrowserListsIndexPanelDescriptor {
+  [key: string]: unknown;
+  collapseOnSelect?: boolean;
+  label?: string;
+  title?: string;
+}
+
+/**
+ * The `lists.workspace` surface as `public/js/lists.js` consumes it.
+ *
+ * **Page-specific and structural on purpose.** `BrowserStoredWorkspaceContext.viewSurfaces` is
+ * `unknown[]` because the stored-context constructor checks only the container, so each consumer
+ * narrows its own element - and this is Lists doing that, not an application-wide descriptor model.
+ *
+ * **The root promises only its identity.** The nested sections are `unknown` here and validated
+ * where they are used, because each already has a page-local fallback: a contributed section that
+ * is malformed takes the same path an absent one takes, and a valid surface is not discarded for a
+ * section Lists can supply itself. Every member a module contributes rides the index signature and
+ * reaches the renderer by identity.
+ */
+export interface BrowserListsWorkspaceSurfaceDescriptor {
+  [key: string]: unknown;
+  id: string;
+  moduleId: string;
+}
+
+/**
  * `LongtailForge.listsDialog`, published by `public/js/lists.js`.
  *
  * The same closed single-writer shape as `notesDialog`, for the same reasons, with three
