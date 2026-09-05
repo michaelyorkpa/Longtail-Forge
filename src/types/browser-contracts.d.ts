@@ -5073,6 +5073,44 @@ export type BrowserWorkspaceInstallMode = "saas" | "self_hosted";
 export type BrowserWorkspaceType = "business" | "family" | "personal";
 
 /**
+ * The workspace context this browser persists and publishes.
+ *
+ * **Exact at the top level, because `storeWorkspaceContext` reconstructs all thirteen members by
+ * name and spreads nothing.** This is deliberately *not* the object `loadAppShellBootstrap` builds
+ * and dispatches: that transient one inherits whatever the app-shell producer put on its own
+ * `workspaceContext` - `permissionIds`, `workspaceDeletion`, `publicDemo` - and navigation reads
+ * those immediately. **The store keeps none of them**, so this record does not promise them either.
+ *
+ * **The collections are `unknown[]` on purpose.** The constructor checks each with `Array.isArray`
+ * and nothing else, and one of its candidate sources is `localStorage`. Typing the elements would
+ * claim a validation that does not happen; filtering them to earn the claim would change what the
+ * store persists. Consumers that need element shape own that narrowing.
+ *
+ * `workspaceType` is the one closed member, because the constructor already picks a value and
+ * falls back to `"business"` - and five browser files independently normalise it to this same
+ * vocabulary.
+ */
+export interface BrowserStoredWorkspaceContext {
+  enabledModules: unknown[];
+  modules: unknown[];
+  navigation: unknown[];
+  /** Whatever the producer sent, proved to be a record. Individual hints are the consumer's. */
+  permissionHints: Record<string, unknown>;
+  quickActions: unknown[];
+  searchTargets: unknown[];
+  /** `""` when no candidate and no cached value supplied one. */
+  userId: string;
+  username: string;
+  viewSurfaces: unknown[];
+  /** Proved to be a record; `availableTools` and the rest are read by consumers. */
+  workspaceCapabilities: Record<string, unknown>;
+  workspaceId: string;
+  /** `"Workspace"` when the candidate carried no usable name. */
+  workspaceName: string;
+  workspaceType: BrowserWorkspaceType;
+}
+
+/**
  * One workspace kind the account may create right now.
  *
  * **Exact: four members**, built for each type that survived the install-mode, entitlement and
