@@ -26,7 +26,11 @@ assert.match(listsModule, /dataSource:\s*\{[\s\S]*route:\s*"\/api\/lists"[\s\S]*
 
 assert.match(listsJs, /renderSurface\(renderDescriptor, host\)/, "Lists browser script should ask the framework renderer to fill the host");
 assert.match(listsJs, /listsViewSurfaceDescriptor\(\)/, "Lists browser script should resolve the delivered descriptor");
-assert.match(listsJs, /workspaceContext\?\.viewSurfaces/, "Lists browser script should prefer app-shell delivered descriptors");
+assert.match(
+  listsJs,
+  /const context = window\.LongtailForge\?\.workspaceContext;[\s\S]*?const surfaces = context\.viewSurfaces;/,
+  "Lists browser script should prefer app-shell delivered descriptors, read through a validated record",
+);
 // 0.33.33.35.1.2 deleted the module-local descriptor fallbacks. The server surface is the
 // only source now, so this owner asserts the absence of a local copy rather than its presence,
 // and the descriptor's shape is owned where it is declared - in the module/framework source.
@@ -37,8 +41,13 @@ assert.doesNotMatch(
 );
 assert.match(
   listsJs,
-  /surface\.id === "lists.workspace"[^\n]*\|\| null;/,
+  /function listsViewSurfaceDescriptor\(\) \{[\s\S]*?\n    return null;\n  \}/,
   "Lists should resolve to null when the server did not deliver its surface",
+);
+assert.match(
+  listsJs,
+  /value\.id === "lists\.workspace"\n\s*&& value\.moduleId === "lists";/,
+  "Lists should decide that resolution on the surface identity alone",
 );
 assert.match(listsJs, /decorateListsDeclarativeSurface/, "Lists browser script should decorate generic descriptor anatomy with legacy hooks");
 assert.match(listsJs, /data-view-sidebar-panel=\"lists-filters\"/, "Lists browser decoration should resolve the filter panel from the drawer");
@@ -46,7 +55,7 @@ assert.match(listsJs, /data-view-sidebar-panel=\"lists-index\"/, "Lists browser 
 assert.match(listsJs, /\.view-slideout-sidebar-main/, "Lists browser decoration should resolve the full-width drawer main region");
 assert.match(listsJs, /dataSource:\s*null/, "Lists should not let the generic renderer replace the existing Lists read workflow in this slice");
 assert.match(listsJs, /summaryTitle\.textContent = listSelectorTitle\(descriptor\)/, "Lists selector heading should come from the descriptor title");
-assert.match(listsJs, /activeListsViewDescriptor\?\.indexPanel\?\.collapseOnSelect/, "Lists selector collapse policy should come from the descriptor");
+assert.match(listsJs, /readListsIndexPanel\(activeListsViewDescriptor\?\.indexPanel\)\.collapseOnSelect/, "Lists selector collapse policy should come from the descriptor, through the panel reader");
 assert.doesNotMatch(listsJs, /selectList\(lists\[0\]\.list_id/, "Lists should not auto-select the first list on initial render");
 assert.match(listsJs, /\/api\/lists\?\$\{buildListQueryParams\(\)\}/, "Lists query route should stay module-owned");
 assert.match(listsJs, /api\.postJson\("\/api\/lists", payload\)/, "Lists create route should stay module-owned");

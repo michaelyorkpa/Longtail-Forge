@@ -171,7 +171,7 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /actual_cost/);
   assert.match(listsJs, /tracking_id/);
   assert.match(listsJs, /formatCurrency/);
-  assert.match(listsJs, /activeListsViewDescriptor\?\.indexPanel\?\.collapseOnSelect/);
+  assert.match(listsJs, /readListsIndexPanel\(activeListsViewDescriptor\?\.indexPanel\)\.collapseOnSelect/);
   assert.match(listsJs, /collapseIndexAfterSelection/);
   assert.match(listsJs, /indexPanel\.open = false/);
 

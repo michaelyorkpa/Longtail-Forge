@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19046,
+    "activeAssertionCount": 19047,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19860,
+    "effectiveAssertionCount": 19861,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -6040,12 +6040,12 @@
     },
     {
       "area": "lists",
-      "assertionCount": 148,
-      "contractAssertionCount": 147,
+      "assertionCount": 149,
+      "contractAssertionCount": 148,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/lists/lists-declarative-readonly-surface.contract.mjs",
-          "assertionCount": 41
+          "assertionCount": 42
         },
         {
           "path": "scripts/regression-contracts/lists/lists-items-modals-descriptor.contract.mjs",

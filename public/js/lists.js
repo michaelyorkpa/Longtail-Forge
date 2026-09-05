@@ -250,6 +250,14 @@
   }
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListsActionDescriptor} BrowserListsActionDescriptor */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListsActionStripDescriptor} BrowserListsActionStripDescriptor */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListsFieldDescriptor} BrowserListsFieldDescriptor */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListsIndexPanelDescriptor} BrowserListsIndexPanelDescriptor */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListsItemFormDescriptor} BrowserListsItemFormDescriptor */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListsItemRowsDescriptor} BrowserListsItemRowsDescriptor */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListsModalDescriptor} BrowserListsModalDescriptor */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListsWorkspaceSurfaceDescriptor} BrowserListsWorkspaceSurfaceDescriptor */
 
   /**
    * The API client this file cannot run without.
@@ -274,6 +282,7 @@
     }
     return factory;
   }
+  /** @type {BrowserListsWorkspaceSurfaceDescriptor | null} */
   let activeListsViewDescriptor = null;
   const listsWorkspaceHost = document.querySelector("[data-lists-host]");
   const isListsWorkspaceSurface = Boolean(listsWorkspaceHost);
@@ -673,14 +682,244 @@
     return state.lists.find((entry) => entry.list_id === listId) || selectedList();
   }
 
-  // 0.33.33.35.1.2: null means the server did not deliver this surface, which is the whole
-  // contract now - there is no local descriptor to fall back to. 0.33.33.35.1.1 made this
-  // readable by moving the shell build behind the workspace context, so an absent surface is
-  // an answer rather than a not-yet.
+  /**
+   * The `lists.workspace` surface the server delivered, or `null`.
+   *
+   * `0.33.33.35.1.2`: null means the server did not deliver this surface, which is the whole
+   * contract now - there is no local descriptor to fall back to. `0.33.33.35.1.1` made this
+   * readable by moving the shell build behind the workspace context, so an absent surface is
+   * an answer rather than a not-yet.
+   *
+   * The stored workspace context types `viewSurfaces` as an unvalidated container, so this page
+   * narrows its own element. Only the surface's identity is required here; each nested section is
+   * validated where it is used, because each already has a page-local fallback.
+   * @returns {BrowserListsWorkspaceSurfaceDescriptor | null}
+   */
   function listsViewSurfaceDescriptor() {
-    const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
-    return surfaces.find((surface) => surface.id === "lists.workspace" && surface.moduleId === "lists") || null;
+    for (const surface of listsWorkspaceViewSurfaces()) {
+      if (isListsSurfaceDescriptor(surface)) {
+        return surface;
+      }
+    }
+    return null;
   }
+
+  /**
+   * The delivered view surfaces, as a list this page can walk.
+   *
+   * The namespace member is read as an unknown candidate rather than through a declared type: this
+   * boundary has to hold both before and after `0.33.33.38.2.2.5.2` declares it.
+   * @returns {unknown[]}
+   */
+  function listsWorkspaceViewSurfaces() {
+    /** @type {unknown} */
+    const context = window.LongtailForge?.workspaceContext;
+    if (!isResponseRecord(context)) {
+      return [];
+    }
+    const surfaces = context.viewSurfaces;
+    return Array.isArray(surfaces) ? surfaces : [];
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is BrowserListsWorkspaceSurfaceDescriptor}
+   */
+  function isListsSurfaceDescriptor(value) {
+    return isResponseRecord(value)
+      && value.id === "lists.workspace"
+      && value.moduleId === "lists";
+  }
+
+  /**
+   * One contributed action, or `null` when it carries no usable identity.
+   *
+   * The original object is returned, so a module's own action members survive into the renderer.
+   * @param {unknown} value
+   * @returns {BrowserListsActionDescriptor | null}
+   */
+  function readListsAction(value) {
+    if (!isResponseRecord(value) || !isListsText(value.id)) {
+      return null;
+    }
+    for (const member of ["behavior", "label", "role"]) {
+      if (value[member] !== undefined && typeof value[member] !== "string") {
+        return null;
+      }
+    }
+    return /** @type {BrowserListsActionDescriptor} */ (value);
+  }
+
+  /**
+   * A contributed action collection, or `null` when any member of it is unusable.
+   *
+   * **A collection with one unusable action is treated as absent**, so the page's own descriptor
+   * answers instead. Admitting the rest would render a control with no action name, which is the
+   * shape this rejects.
+   * @param {unknown} value
+   * @returns {BrowserListsActionDescriptor[] | null}
+   */
+  function readListsActions(value) {
+    if (!Array.isArray(value)) {
+      return null;
+    }
+    const actions = [];
+    for (const candidate of value) {
+      const action = readListsAction(candidate);
+      if (!action) {
+        return null;
+      }
+      actions.push(action);
+    }
+    return actions;
+  }
+
+  /**
+   * A contributed field collection, or `null` when any member of it is unusable.
+   * @param {unknown} value
+   * @returns {BrowserListsFieldDescriptor[] | null}
+   */
+  function readListsFields(value) {
+    if (!Array.isArray(value)) {
+      return null;
+    }
+    const fields = [];
+    for (const candidate of value) {
+      if (!isResponseRecord(candidate) || !isListsText(candidate.field)) {
+        return null;
+      }
+      if (candidate.width !== undefined && typeof candidate.width !== "string") {
+        return null;
+      }
+      fields.push(/** @type {BrowserListsFieldDescriptor} */ (candidate));
+    }
+    return fields;
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is string}
+   */
+  function isListsText(value) {
+    return typeof value === "string" && value !== "";
+  }
+
+  /**
+   * A contributed action strip, or `null` when the page should use its own.
+   * @param {unknown} value
+   * @returns {BrowserListsActionStripDescriptor | null}
+   */
+  function readListsActionStrip(value) {
+    if (!isResponseRecord(value)) {
+      return null;
+    }
+    if (value.label !== undefined && typeof value.label !== "string") {
+      return null;
+    }
+    if (value.actions !== undefined && !readListsActions(value.actions)) {
+      return null;
+    }
+    return /** @type {BrowserListsActionStripDescriptor} */ (value);
+  }
+
+  /**
+   * A contributed item form, or `null` when the page should use its own.
+   * @param {unknown} value
+   * @returns {BrowserListsItemFormDescriptor | null}
+   */
+  function readListsItemForm(value) {
+    if (!isResponseRecord(value)) {
+      return null;
+    }
+    if (value.title !== undefined && typeof value.title !== "string") {
+      return null;
+    }
+    if (value.actions !== undefined && !readListsActions(value.actions)) {
+      return null;
+    }
+    if (value.fields !== undefined && !readListsFields(value.fields)) {
+      return null;
+    }
+    return /** @type {BrowserListsItemFormDescriptor} */ (value);
+  }
+
+  /**
+   * A contributed item-rows descriptor, or `null` when the page should use its own.
+   *
+   * `actions` is required here: the row builder maps over it without a guard, so a fragment
+   * without one would throw rather than degrade.
+   * @param {unknown} value
+   * @returns {BrowserListsItemRowsDescriptor | null}
+   */
+  function readListsItemRows(value) {
+    if (!isResponseRecord(value) || !readListsActions(value.actions)) {
+      return null;
+    }
+    if (value.emptyState !== undefined) {
+      const emptyState = value.emptyState;
+      if (!isResponseRecord(emptyState)
+        || (emptyState.message !== undefined && typeof emptyState.message !== "string")) {
+        return null;
+      }
+    }
+    return /** @type {BrowserListsItemRowsDescriptor} */ (value);
+  }
+
+  /**
+   * The contributed modal Lists renders its editor from, or `null` for the page's own.
+   * @param {unknown} value
+   * @returns {BrowserListsModalDescriptor | null}
+   */
+  function readListsModal(value) {
+    if (!isResponseRecord(value) || !isListsText(value.id)) {
+      return null;
+    }
+    if (value.fields !== undefined && !readListsFields(value.fields)) {
+      return null;
+    }
+    if (value.footerActions !== undefined && !readListsActions(value.footerActions)) {
+      return null;
+    }
+    return /** @type {BrowserListsModalDescriptor} */ (value);
+  }
+
+  /**
+   * The contributed index panel, or an empty fragment.
+   *
+   * `collapseOnSelect` must be a real boolean: a contributed string would otherwise collapse the
+   * panel on every selection because it is truthy.
+   * @param {unknown} value
+   * @returns {BrowserListsIndexPanelDescriptor}
+   */
+  function readListsIndexPanel(value) {
+    if (!isResponseRecord(value)) {
+      return {};
+    }
+    /** @type {BrowserListsIndexPanelDescriptor} */
+    const panel = {};
+    if (typeof value.collapseOnSelect === "boolean") {
+      panel.collapseOnSelect = value.collapseOnSelect;
+    }
+    if (typeof value.title === "string") {
+      panel.title = value.title;
+    }
+    if (typeof value.label === "string") {
+      panel.label = value.label;
+    }
+    return panel;
+  }
+
+  /**
+   * One section of the contributed detail fragment.
+   * @param {unknown} descriptor
+   * @param {string} section
+   * @returns {unknown}
+   */
+  function listsDetailSection(descriptor, section) {
+    const detail = isResponseRecord(descriptor) ? descriptor.detail : undefined;
+    return isResponseRecord(detail) ? detail[section] : undefined;
+  }
+
 
   function listsWorkflowActionStripDescriptor() {
     return {
@@ -897,11 +1136,11 @@
     formStatus.dataset.listFormStatus = "";
     formStatus.dataset.viewFieldWidth = "full";
 
-    const cancelAction = modal.footerActions?.find((action) => action.id === "cancel-list") || {};
-    const saveAction = modal.footerActions?.find((action) => action.id === "save-list") || {};
-    const cancel = view.createActionButton({ label: cancelAction.label || "Cancel", role: cancelAction.role || "secondary" });
+    const cancelAction = modal.footerActions?.find((action) => action.id === "cancel-list");
+    const saveAction = modal.footerActions?.find((action) => action.id === "save-list");
+    const cancel = view.createActionButton({ label: cancelAction?.label || "Cancel", role: cancelAction?.role || "secondary" });
     cancel.dataset.listCancel = "";
-    const save = view.createActionButton({ label: saveAction.label || "Save List", type: "submit", role: saveAction.role || "primary" });
+    const save = view.createActionButton({ label: saveAction?.label || "Save List", type: "submit", role: saveAction?.role || "primary" });
     save.dataset.listSave = "";
 
     const dialog = requireDescriptorRenderers().renderDescriptorModalForm(modal, {
@@ -931,7 +1170,14 @@
   }
 
   function listsEditorModalDescriptor() {
-    return listsViewSurfaceDescriptor()?.modals?.find((modal) => modal.id === "list-editor") || listsModalDescriptor();
+    const contributed = listsViewSurfaceDescriptor()?.modals;
+    for (const candidate of Array.isArray(contributed) ? contributed : []) {
+      const modal = readListsModal(candidate);
+      if (modal && modal.id === "list-editor") {
+        return modal;
+      }
+    }
+    return listsModalDescriptor();
   }
 
   function decorateListEditorField(grid, fieldName, dataName, wrapperDataName = "") {
@@ -1198,7 +1444,7 @@
   }
 
   function collapseIndexAfterSelection() {
-    if (indexPanel && activeListsViewDescriptor?.indexPanel?.collapseOnSelect && state.selectedListId) {
+    if (indexPanel && readListsIndexPanel(activeListsViewDescriptor?.indexPanel).collapseOnSelect && state.selectedListId) {
       indexPanel.open = false;
     }
   }
@@ -1288,7 +1534,8 @@
   }
 
   function listsActionStripSurfaceDescriptor() {
-    return listsViewSurfaceDescriptor()?.detail?.actionStrip || listsWorkflowActionStripDescriptor();
+    return readListsActionStrip(listsDetailSection(listsViewSurfaceDescriptor(), "actionStrip"))
+      || listsWorkflowActionStripDescriptor();
   }
 
   function detailActionButtons(list, locked) {
@@ -1324,10 +1571,15 @@
     return buttons.length > 0 ? buttons : [readonlyBadge(list.status)];
   }
 
-  function listWorkflowActionButton(action = {}, list, options = {}) {
-    const actionId = action.id || options.actionId || "";
-    return actionButton(options.label || action.label || actionId, actionId, list.list_id, action.role === "destructive" ? "secondary" : "", {
-      behavior: action.behavior,
+  /**
+   * @param {BrowserListsActionDescriptor | undefined} action the contributed action, when the map held one
+   * @param {*} list
+   * @param {*} [options]
+   */
+  function listWorkflowActionButton(action, list, options = {}) {
+    const actionId = action?.id || options.actionId || "";
+    return actionButton(options.label || action?.label || actionId, actionId, list.list_id, action?.role === "destructive" ? "secondary" : "", {
+      behavior: action?.behavior,
     });
   }
 
@@ -1342,8 +1594,8 @@
     if (locked) {
       children.push(view.createElement("p", { className: "lists-locked-note", text: readOnlyStateMessage(list) }));
     } else {
-      const addAction = descriptor.actions?.[0] || {};
-      const add = view.createActionButton({ label: addAction.label || "Add Item", role: addAction.role || "primary" });
+      const addAction = descriptor.actions?.[0];
+      const add = view.createActionButton({ label: addAction?.label || "Add Item", role: addAction?.role || "primary" });
       add.dataset.listAction = "add-item";
       add.dataset.listId = list.list_id;
       children.push(add);
@@ -1381,10 +1633,10 @@
     const formStatus = view.createStatusMessage({ className: "lists-form-status" });
     formStatus.dataset.listItemFormStatus = "";
 
-    const saveAction = descriptor.actions?.[0] || {};
+    const saveAction = descriptor.actions?.[0];
     const cancel = view.createActionButton({ label: "Cancel", role: "secondary" });
     cancel.dataset.listItemCancel = "";
-    const save = view.createActionButton({ label: saveAction.label || "Add Item", type: "submit", role: saveAction.role || "primary" });
+    const save = view.createActionButton({ label: saveAction?.label || "Add Item", type: "submit", role: saveAction?.role || "primary" });
     save.dataset.listItemSave = "";
 
     const dialog = requireDescriptorRenderers().renderDescriptorModalForm(descriptor, {
@@ -1491,7 +1743,8 @@
   }
 
   function listsItemFormSurfaceDescriptor() {
-    return listsViewSurfaceDescriptor()?.detail?.itemForm || listsItemFormDescriptor();
+    return readListsItemForm(listsDetailSection(listsViewSurfaceDescriptor(), "itemForm"))
+      || listsItemFormDescriptor();
   }
 
   function itemFormField(fieldName) {
@@ -1610,7 +1863,8 @@
   }
 
   function listsItemRowsSurfaceDescriptor() {
-    return listsViewSurfaceDescriptor()?.detail?.itemRows || listsItemRowsDescriptor();
+    return readListsItemRows(listsDetailSection(listsViewSurfaceDescriptor(), "itemRows"))
+      || listsItemRowsDescriptor();
   }
 
   function linkedContextItems(list) {
@@ -1718,15 +1972,20 @@
     "delete-item": "delete",
   };
 
+  /**
+   * @param {BrowserListsActionDescriptor | undefined} action the contributed action, when the map held one
+   * @param {*} list @param {*} item @param {number} index @param {number} total @param {*} locked
+   * @param {*} [options]
+   */
   function itemRowActionButton(action, list, item, index, total, locked, options = {}) {
-    const disabledByPosition = (action.id === "move-item-up" && index === 0) ||
-      (action.id === "move-item-down" && index >= total - 1);
-    return actionButton(action.label || action.id, action.id, list.list_id, action.role === "destructive" ? "secondary" : "", {
+    const disabledByPosition = (action?.id === "move-item-up" && index === 0) ||
+      (action?.id === "move-item-down" && index >= total - 1);
+    return actionButton(action?.label || action?.id, action?.id, list.list_id, action?.role === "destructive" ? "secondary" : "", {
       itemId: item.list_item_id,
       disabled: locked || disabledByPosition,
-      behavior: action.behavior,
+      behavior: action?.behavior,
       // Menu items render as labeled buttons (Edit/Delete); the inline up/down stay icon-only.
-      icon: options.menu ? undefined : ITEM_ROW_ACTION_ICONS[action.id],
+      icon: options.menu || !action ? undefined : ITEM_ROW_ACTION_ICONS[action.id],
     });
   }
 
@@ -3079,7 +3338,8 @@
   }
 
   function listSelectorTitle(descriptor = activeListsViewDescriptor) {
-    return descriptor?.indexPanel?.title || descriptor?.indexPanel?.label || "List Selector";
+    const panel = readListsIndexPanel(descriptor?.indexPanel);
+    return panel.title || panel.label || "List Selector";
   }
 
   function visibleItems(list) {
