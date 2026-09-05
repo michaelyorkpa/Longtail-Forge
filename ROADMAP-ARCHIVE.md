@@ -1,5 +1,41 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.15 - The workspace-context storage and fallback-response boundary
+
+**Model: High Effort** - the wire prerequisite a namespace child was blocked on, under its own owner.
+
+- [x] **The write graph is one constructor with four candidate inputs, and the first preflight had it wrong.** Not two competing writers: the normalized app-shell output, the raw `/api/settings` body, the raw `/api/session` body and the parsed cache are all **candidates**, and `storeWorkspaceContext` reconstructs one canonical object from whichever it is given. What actually disagreed was the two **publication** paths - the store published a reconstruction while `hydrateStoredWorkspaceContext` published whatever `JSON.parse` returned. Five breaks cover the publication, including one that adds a second assignment site.
+- [x] **Thirteen members, exact at the top level.** `enabledModules`, `modules`, `navigation`, `permissionHints`, `quickActions`, `searchTargets`, `userId`, `username`, `viewSurfaces`, `workspaceCapabilities`, `workspaceId`, `workspaceName`, `workspaceType`. The constructor reconstructs each by name and spreads nothing, so the record carries no extension signature - and a candidate's `permissionIds`, `workspaceDeletion` or `publicDemo` does not survive it. Five breaks attack the shape.
+- [x] **The collections stay `unknown[]`, and that is the honest answer rather than a weak one.** The constructor checks each with `Array.isArray` and nothing else, and one of its candidate sources is `localStorage`. Typing the elements would claim a validation that does not happen; filtering to earn the claim would change what the store persists. **Array identity and ordering are preserved**, and a break that rebuilds the array is refused.
+- [x] **The scalars and the two bags are shape-checked, and each tightening is named.** The constructor took the first **truthy** candidate, so a number could be stored as an identity and a string as a hint bag. The order of preference is untouched; only the shape is now checked. Every consumer read members off those bags, so a non-record answered `undefined` for all of them then and answers `undefined` for all of them now. Nine breaks cover the scalars, the lists and the bags.
+- [x] **`workspaceType` closes on the vocabulary rather than on truthiness.** It admitted any truthy value; it now answers one of three and falls back to `"business"`, which is what the constructor already did for absence and what five browser files independently do. Two breaks cover it, one per arm.
+- [x] **The previous-context policy is reproduced field by field, including where it is not uniform.** Nine members fall back to the cache; **four never did** - capabilities, id, name and type take a fixed default instead, because every producer that reaches the constructor supplies them. That asymmetry is preserved rather than tidied, and four breaks refuse changing it in either direction.
+- [x] **`localStorage` is closed as an untrusted boundary.** The parse result is explicitly `unknown`, goes through the record check, and then through the **same builder a live store uses** - so an older cache missing a collection gets the default the store would have written, and a malformed one cannot be read as a context at all. Hydration does not persist: the fake store **counts writes** rather than comparing bytes, because a rewrite that happens to produce the same string is still a rewrite. Six breaks cover it.
+- [x] **The two fallback responses reach the constructor, not the appliers.** Both bodies become explicit `unknown`; the settings path applies the reconstruction rather than re-reading `settings.workspaceName`, and the session path applies what the store returned. The `401` redirect, the default-name catch and the tolerated absence of a session context are unchanged. Five breaks cover them.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **42 breaks across the writer and the contracts, all 42 refused** - 3 judged by the compiler against a whole-estate baseline, 39 by a named assertion. The stored-context core is **executed** against a fake `localStorage` rather than read as text.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,067 | **8,065** |
+| namespace | 226 | **225** |
+| params | 4,521 | **4,520** |
+| assorted | 146 | **147** |
+| Bare-root reads | 89 | **88** |
+| state / dom / genuine `unknown` / explicit `any` | 1,690 / 1,482 / 2 / 0 | **all unchanged** |
+| Declared members / backlog | 47 of 64 / 17 | **both unchanged** |
+| Unit tests / regressions / end-to-end | 1,691 / 348 / 167 | **1,733 / 348 / 167**, green |
+
+**A load-time defect this checkpoint introduced, caught by the end-to-end suite and now caught by a unit test.** The workspace-type table was first declared beside the readers that use it, near the bottom of the file. `const` is not hoisted, and the cached-context hydration runs at **load** - so navigation threw on every page and 33 end-to-end specs failed. The table moved to the load-time constants, and an assertion now proves every constant the hydration reads is declared before it runs. **The suite was not rerun to see whether it would settle; the failure was diagnosed and fixed.**
+
+**Three static owners retargeted, each to the behaviour it was defending.** `view-descriptor-bootstrap-regression` and `quick-action-capture-regression` both pinned the old `Array.isArray(settings.x) ? ... : previousContext.x || []` expression; each now asserts that the member still takes the candidate and falls back to the cache, and that the shared reader still admits only a real list. `0.33.33.38.2.2.5.1`'s own test asserted the stored record **did not exist yet** - correct for that checkpoint, spent the moment this one defined it - and now asserts the two types stay distinct.
+
+**One product question traced and answered rather than assumed.** The four members with no cache fallback can, in principle, overwrite a valid stored name or id with a fabricated default. Tracing every producer shows they cannot in practice: `readWorkspaceBootstrap` supplies `workspaceCapabilities`, `workspaceId`, `workspaceName` and `workspaceType` on both the session and app-shell paths, and `/api/settings` supplies all four directly. **The behaviour is preserved and the reasoning is recorded here** rather than corrected on a hunch.
+
+**The storage payload did not grow.** No permission list, no capability secret and no transient member is persisted, and the one key is still the one key.
+
 ## Version 0.33.33.38.2.2.5.1 - Declare the app-shell refresh and readiness pair
 
 **Model: High Effort** - the first child of a rollup resliced by cause rather than by member.

@@ -310,7 +310,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.2.2.5.2 - Declare and adopt the stored workspace context
 
-**Blocked on `0.33.33.38.4.15`, deliberately.** The member cannot be declared honestly until there is a canonical stored record to declare it as: today `hydrateStoredWorkspaceContext` publishes whatever `readWorkspaceContext()` parsed out of `localStorage`, which is any non-null object. Declaring the member first would either need `Record<string, unknown>` - which is the shape that produced this cohort - or a record nothing validates.
+**Unblocked: `0.33.33.38.4.15` has landed.** The member cannot be declared honestly until there is a canonical stored record to declare it as: today `hydrateStoredWorkspaceContext` publishes whatever `readWorkspaceContext()` parsed out of `localStorage`, which is any non-null object. Declaring the member first would either need `Record<string, unknown>` - which is the shape that produced this cohort - or a record nothing validates.
 
 - [ ] Declare `workspaceContext?: BrowserStoredWorkspaceContext` and keep it **optional**: cached hydration and network bootstrap make absence a real lifecycle state.
 - [ ] Preserve every absence-tolerant consumer. **Do not replace the estate with one throwing accessor**; a required accessor belongs only where delivery already makes absence an error.
@@ -809,24 +809,13 @@ Both reject any value carrying a URI scheme, which stops `javascript:`, `data:` 
 
 #### 0.33.33.38.4.15 - The workspace-context storage and fallback-response boundary
 
-**Open, and drawn here because it is a wire boundary rather than a declaration.** `0.33.33.38.2.2.5.2` cannot declare `LongtailForge.workspaceContext` honestly until one canonical stored record exists; producing that record from four untrusted inputs is `0.33.33.38.4`'s work, not the namespace checkpoint's.
+**Complete: one canonical stored record, the localStorage boundary closed, and one publication path.** See the archive entry. `0.33.33.38.2.2.5.2` could not declare `LongtailForge.workspaceContext` while `hydrateStoredWorkspaceContext` published whatever `JSON.parse` returned; it now publishes a reconstruction, and so does the live store.
 
-**The write graph, corrected from the first preflight.** That preflight described the app-shell and `/api/session` objects as two competing stored-context writers. They are not - they are **candidate inputs** to one constructor.
+**The write graph, corrected.** The first preflight described the app-shell and `/api/session` objects as two competing stored-context writers. They are **candidate inputs to one constructor** - alongside `/api/settings` and the cache - and what had to agree was the two *publication* paths.
 
-| Kind | Value |
-| --- | --- |
-| Candidate inputs | normalized `/api/app-shell/bootstrap` output, raw `/api/settings` fallback, raw `/api/session` fallback, parsed `localStorage` cache |
-| Constructor | `storeWorkspaceContext`, which reconstructs a canonical object by name |
-| Publication paths | `storeWorkspaceContext` publishes what it reconstructed; `hydrateStoredWorkspaceContext` publishes **whatever `readWorkspaceContext()` parsed** |
+**Thirteen members, exact at the top level, collections left `unknown[]`.** The constructor reconstructs by name and spreads nothing, so the record is exact; it checks each collection with `Array.isArray` and nothing else, so claiming element types would claim a validation that does not happen. `workspaceType` is the one closed member, because the constructor already picks a value and five browser files normalise to that same vocabulary.
 
-**Those two publication paths are what must agree**, and today they do not: one publishes a reconstruction, the other publishes any non-null object that came out of `JSON.parse`.
-
-- [ ] **Keep the transient and the stored context apart.** `loadAppShellBootstrap` builds a richer object *before* storage, uses it immediately for navigation, and dispatches it as the `longtailforge:workspace-context-updated` detail. `storeWorkspaceContext` persists a smaller canonical one. **Do not force them equal** by deleting transient members, widening storage, or changing the event.
-- [ ] **Derive the canonical membership from the constructor, not from consumers.** A consumer read is not producer evidence. In particular do not add `permissionIds`, `permissions`, `publicDemo`, `workspaceDeletion`, `tools`, `targets` or a root-level `availableTools` without proving the store writes them.
-- [ ] **Close `localStorage` as an untrusted boundary.** `JSON.parse` result to explicit `unknown`, through a reader, to the record or `null` - never published raw and never cast. A malformed cache is ignored while the network bootstrap proceeds; it must not redirect or fail the page.
-- [ ] **Choose a cached-compatibility policy and document it.** Cached-context-first rendering is intentional, and an older cache missing a newer optional collection must not become unusable.
-- [ ] **Assess exactness per level.** The top level may be exact because the constructor reconstructs it by name; nested records and arrays stay structural where nothing validates their elements.
-- [ ] **Do not declare the root member here.** That is `0.33.33.38.2.2.5.2`'s.
+**The transient context is deliberately not this record.** `loadAppShellBootstrap` still builds its richer object, still dispatches it as the event detail, and still returns it as the refresh result - it carries `permissionIds`, `workspaceDeletion` and `publicDemo`, which the store has never persisted and this contract does not promise.
 
 #### 0.33.33.38.5 - Narrow the server task lifecycle status vocabulary
 
