@@ -6741,6 +6741,7 @@ export interface LongtailForgeBrowserNamespace {
   applyWorkspaceName?: (value: unknown) => void;
   records?: BrowserRecords;
   settingsHost?: BrowserSettingsHost;
+  settingsRenderer?: BrowserSettingsRenderer;
   settingsPageController?: BrowserSettingsPageController;
   status?: BrowserStatusMessage;
   tags?: BrowserTags;

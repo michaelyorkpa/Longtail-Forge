@@ -1,5 +1,43 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.9 - `LongtailForge.settingsRenderer`
+
+**Model: High Effort** - a resliced child unblocked by its prerequisite, then landed as drawn.
+
+- [x] **The block was ownership, and it is resolved by ownership.** The reslice recorded that this child could not declare the surface while `settings-renderer.js` carried 49 unannotated parameters, and that typing them here would be a namespace checkpoint doing `0.33.33.39`'s work. `0.33.33.39.1` did it instead. **This child adds no annotation to the writer at all** - it declares the member, adopts it in five consumers, and removes two dead arguments. Four breaks refuse a member typed by anything but the contract `0.33.33.39.1` published, including one that types it as a looser sibling.
+- [x] **The publication became compiler-checked the moment the member was declared, and it already conformed.** `0.33.33.39.1` annotated the frozen literal rather than the `Object.freeze` call so that membership was checked before the surface existed; declaring the member changed nothing about it. **Two breaks are judged by the compiler**: a removed method and a tenth one each produce a diagnostic in a writer that is otherwise at zero.
+- [x] **Five consumers acquire the surface through their own checked accessor.** Each reads `window.LongtailForge?.settingsRenderer` exactly once - inside the accessor - and fails with a named delivery error where the raw property read already failed. **No shared accessor file was created**, no consumer optional-chains past a missing renderer, and nine breaks cover the pattern, including one that reads the namespace a second time and one that answers `undefined` instead of throwing.
+- [x] **Delivery is proved for all eight pages, and both operands are proved present before any index is compared.** `view-builder.js` precedes `settings-renderer.js`, which precedes the controller, on every page that runs one of the five consumers - `module-settings.js` alone runs on four. A missing script answers `-1`, which would otherwise read as "earliest", so each entry is asserted to exist first. Four breaks cover it, including one that adds the renderer to a page with no consumer.
+- [x] **The scopes the pages pass are required rather than assumed.** Twelve calls passed an `Element | null` into methods that walk the DOM and would have thrown on the first read. Four pages now require their form; **Notes Settings has no form accessor because it passes only containers**, and containers legitimately accept absence. Three breaks cover the split.
+- [x] **The two dead `showSaveAction: false` arguments are removed, not contracted.** The renderer has never read one, so publishing the option to satisfy the callers would have invented a feature. The surviving options on both calls are asserted intact, the save controls remain `settingsPageController`'s, and four breaks refuse the alternatives - including one that gives the dead option a contract and one that grows a save feature in the renderer.
+- [x] **One consumer defect the declaration exposed, fixed at the same size it was found.** Workspace Settings built its save body by normalizing a payload into a module list and then **overwriting that member with the payload again** on the next line. The normalized value was never read. The body is now built in one expression, still carrying the collected payload, still reading it twice, and still sending the same request. Three breaks cover it.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **37 breaks across the declaration, the writer, all five consumers, two page templates and the governance regression, all 37 refused** - 2 judged by the compiler, 35 by a named assertion. **Eight further breaks prove the four retargeted static owners still bite.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,114 | **8,070** |
+| namespace | 271 | **227** |
+| Declared `LongtailForge` members | 44 of 64 | **45 of 64** |
+| Undeclared publication backlog | 20 | **19** |
+| Bare-root reads | 111 | **89** |
+| Parked root reads | 34 behind 6 members | **12 behind 5** |
+| `settingsRenderer`-attributed diagnostics | 44 | **0** |
+| params / state / dom / assorted | 4,521 / 1,690 / 1,482 / 148 | **all unchanged** |
+| Visible genuine `unknown` / explicit `any` | 2 / 0 | **both unchanged** |
+| `0.33.33.39` through `0.33.33.44` | 1,684 / 469 / 1,165 / 530 / 966 / 1,545 | **every row unchanged** |
+| Unit tests / regressions / end-to-end | 1,618 / 348 / 167 | **1,671 / 348 / 167**, green |
+
+**The movement is the member's own and nothing else moved.** All 44 were `namespace`, split `TS18046` 22 and `TS18048` 22, across five files - 12 in Workspace Settings, 10 each in Module and User Settings, 8 in Files Settings, 4 in Notes Settings. **Every owner row in the `.39`-`.44` table is unchanged**, because no page-local state or parameter debt was absorbed. Measured against the integrated `0.33.33.39.1` tree, **no (file, code) pair rose and no pair appeared that was absent before**.
+
+**The probe's own prediction, and where it was wrong.** Declaring the member alone moves the estate to **8,129**, not down: the 22 `TS18046` "of type unknown" reads resolve, and the 22 `TS18048` become 44 because an optional member is possibly undefined at every site. The checked accessor is what closes both halves. The probe also produced **12 `TS2345`**, **2 `TS2353`** and **1 `TS2740`** - the nullable scopes, the two dead arguments, and the payload defect - which is the whole of this child's consumer work and is why the declaration was never mechanical.
+
+**No genuine `unknown` was exposed, and that was re-proved rather than assumed.** All 44 were namespace-family before and none was `unknown`; the visible genuine count is 2 before and after. **No boundary is deferred to `0.33.33.38.4`.**
+
+**Four static owners retargeted, each to the behaviour it was defending.** `module-settings-catalog-contracts` and `ui.contract` both pinned the raw `window.LongtailForge.settingsRenderer.*` call shape; `ui.contract` also pinned the `settings.moduleSettings = ...` reassignment this child removed; and `0.33.33.39.1`'s own test asserted the member was **not yet declared**, which was the correct guard for one checkpoint and spent the moment its successor landed. Each now asserts what it was protecting - delegation rather than reimplementation, a collected payload rather than an invented one, and a member typed by the one renderer contract rather than a looser sibling.
+
 ## Version 0.33.33.39.1 - Type the Settings Renderer writer boundary
 
 **Model: High Effort** - the first focused implementation child under a rollup that had to be resliced to hold it.

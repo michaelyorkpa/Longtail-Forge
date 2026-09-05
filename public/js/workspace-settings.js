@@ -114,6 +114,38 @@
    * the checked read fails exactly where the raw read failed before.
    * @returns {BrowserSettingsHost}
    */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserSettingsRenderer} BrowserSettingsRenderer */
+
+  /**
+   * The shared settings renderer this page requires.
+   *
+   * Workspace Settings loads `settings-renderer.js` before its controller, so an absent surface is a
+   * delivery failure rather than a condition to render around. This fails where the raw
+   * property read already failed, and says what is missing.
+   * @returns {BrowserSettingsRenderer}
+   */
+  function requireSettingsRenderer() {
+    const renderer = window.LongtailForge?.settingsRenderer;
+    if (!renderer) {
+      throw new Error("Workspace settings requires LongtailForge.settingsRenderer.");
+    }
+    return renderer;
+  }
+
+  /**
+   * The form the renderer collects and validates against.
+   *
+   * The renderer walks this element; a missing one threw on the first DOM read before and
+   * throws here instead, named.
+   * @returns {Element}
+   */
+  function requireWorkspaceSettingsForm() {
+    if (!settingsForm) {
+      throw new Error("Workspace settings requires its settings form.");
+    }
+    return settingsForm;
+  }
+
   function requireSettingsHost() {
     const host = window.LongtailForge?.settingsHost;
     if (!host) {
@@ -559,21 +591,27 @@
   }
 
   async function saveSettings() {
-    if (!window.LongtailForge.settingsRenderer.validate(settingsForm)) {
+    if (!requireSettingsRenderer().validate(requireWorkspaceSettingsForm())) {
       setWorkspaceSettingsStatus("Review the highlighted module settings.");
       return false;
     }
     // Normalize before saving so the server receives the same shape the UI expects back.
-    const settings = normalizeSettings({
-      workspaceName: workspaceNameInput.value,
-      workspaceType: workspaceTypeSelect?.value,
+    // The body carries the **collected payload**, not the normalized module list. The
+    // normalizer answers a module array from whatever it is given, and its answer for
+    // `moduleSettings` was overwritten on the next line before anything read it; this says the
+    // same thing in one expression instead of by reassignment.
+    const settings = {
+      ...normalizeSettings({
+        workspaceName: workspaceNameInput.value,
+        workspaceType: workspaceTypeSelect?.value,
+        moduleSettings: readModuleSettingsPayload(),
+        audit: {
+          loggingEnabled: auditLoggingEnabledInput.checked,
+          retentionDays: auditRetentionDaysSelect.value,
+        },
+      }),
       moduleSettings: readModuleSettingsPayload(),
-      audit: {
-        loggingEnabled: auditLoggingEnabledInput.checked,
-        retentionDays: auditRetentionDaysSelect.value,
-      },
-    });
-    settings.moduleSettings = readModuleSettingsPayload();
+    };
 
     if (!settings.workspaceName) {
       setWorkspaceSettingsStatus("Workspace name is required.");
@@ -614,7 +652,7 @@
       flashSavedState();
       return true;
     } catch (error) {
-      window.LongtailForge.settingsRenderer.showValidationErrors(settingsForm, error);
+      requireSettingsRenderer().showValidationErrors(requireWorkspaceSettingsForm(), error);
       handleApiError(error, "Workspace settings were not saved. Start the local server and try again.");
       console.error(error);
       return false;
@@ -658,12 +696,12 @@
       section.moduleId !== "client-projects" && section.lifecycle !== true
     ));
 
-    window.LongtailForge.settingsRenderer.renderSections(
+    requireSettingsRenderer().renderSections(
       workspaceCoreSettingsContainer || moduleSettingsContainer,
       [...clientProjects, ...otherWorkspaceSettings],
       { hideEmpty: true },
     );
-    window.LongtailForge.settingsRenderer.renderGroupedSections(
+    requireSettingsRenderer().renderGroupedSections(
       workspaceModuleSettingsContainer || moduleSettingsContainer,
       optionalModules,
       { groupTitle: "Modules", hideEmpty: true },
@@ -1376,13 +1414,13 @@
   }
 
   function normalizeModuleSettings(moduleSettings, settings) {
-    return window.LongtailForge.settingsRenderer.normalizeContributions(moduleSettings, {
+    return requireSettingsRenderer().normalizeContributions(moduleSettings, {
       modules: settings?.modules,
     });
   }
 
   function readModuleSettingsPayload() {
-    return window.LongtailForge.settingsRenderer.collectPayload(settingsForm);
+    return requireSettingsRenderer().collectPayload(requireWorkspaceSettingsForm());
   }
 
   function normalizeWorkspaceType(value) {

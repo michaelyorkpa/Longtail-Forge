@@ -44,15 +44,27 @@ assert.doesNotMatch(
   "Module Settings normalization must not carry top-level legacy module flags into save payloads",
 );
 
+// Retargeted by `0.33.33.38.2.2.9`, which moved the acquisition to a checked accessor and the
+// form to a required one. The pin named the call shape; what it defends is that the create
+// request carries collected module state rather than inventing or omitting it.
 assert.match(
   files.userSettings,
-  /moduleSettings:\s*window\.LongtailForge\.settingsRenderer\.collectPayload\(workspaceCreateForm\)/,
+  /moduleSettings:\s*requireSettingsRenderer\(\)\.collectPayload\(requireWorkspaceCreateForm\(\)\)/,
   "Create Workspace must submit initial module state through moduleSettings",
 );
+// Retargeted by `0.33.33.38.2.2.9`. The pin named a reassignment that overwrote the normalizer's
+// own answer; the body is now built in one expression. What it defends is unchanged: the saved
+// request carries the **collected keyed payload**, not the normalized module list.
+const workspaceSaveBody = extractFunctionBody(files.workspaceSettings, "saveSettings");
 assert.match(
-  extractFunctionBody(files.workspaceSettings, "saveSettings"),
-  /settings\.moduleSettings\s*=\s*readModuleSettingsPayload\(\)/,
+  workspaceSaveBody,
+  /moduleSettings:\s*readModuleSettingsPayload\(\),\s*\n\s*\};/,
   "Workspace Settings save must preserve the keyed moduleSettings payload shape",
+);
+assert.match(
+  workspaceSaveBody,
+  /putJson\("\/api\/settings", settings\)/,
+  "and that body is what the save request sends",
 );
 assert.doesNotMatch(
   extractFunctionBody(files.userSettings, "createWorkspace"),

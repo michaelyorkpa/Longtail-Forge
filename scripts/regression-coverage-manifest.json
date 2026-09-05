@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19043,
+    "activeAssertionCount": 19044,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19857,
+    "effectiveAssertionCount": 19858,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -7442,8 +7442,8 @@
     },
     {
       "area": "views",
-      "assertionCount": 1009,
-      "contractAssertionCount": 995,
+      "assertionCount": 1010,
+      "contractAssertionCount": 996,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/views/accessibility.contract.mjs",
@@ -7531,7 +7531,7 @@
         },
         {
           "path": "scripts/regression-contracts/views/ui.contract.mjs",
-          "assertionCount": 49
+          "assertionCount": 50
         },
         {
           "path": "scripts/regression-contracts/views/view-builder-converted-surface-guardrails.contract.mjs",

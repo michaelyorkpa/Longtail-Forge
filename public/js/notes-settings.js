@@ -103,6 +103,24 @@
    * the checked read fails exactly where the raw read failed before.
    * @returns {BrowserSettingsHost}
    */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserSettingsRenderer} BrowserSettingsRenderer */
+
+  /**
+   * The shared settings renderer this page requires.
+   *
+   * Notes Settings loads `settings-renderer.js` before its controller, so an absent surface is a
+   * delivery failure rather than a condition to render around. This fails where the raw
+   * property read already failed, and says what is missing.
+   * @returns {BrowserSettingsRenderer}
+   */
+  function requireSettingsRenderer() {
+    const renderer = window.LongtailForge?.settingsRenderer;
+    if (!renderer) {
+      throw new Error("Notes settings requires LongtailForge.settingsRenderer.");
+    }
+    return renderer;
+  }
+
   function requireSettingsHost() {
     const host = window.LongtailForge?.settingsHost;
     if (!host) {
@@ -417,7 +435,7 @@
       }
       const notesModule = settings.modules.find((moduleDefinition) => moduleDefinition.id === "notes");
       if (notesModule?.status !== "enabled") {
-        window.LongtailForge.settingsRenderer.renderDisabledModuleRecovery(notesSettingsFields, notesModule || {
+        requireSettingsRenderer().renderDisabledModuleRecovery(notesSettingsFields, notesModule || {
           id: "notes",
           displayName: "Notes",
         });
@@ -427,7 +445,7 @@
         return;
       }
 
-      window.LongtailForge.settingsRenderer.renderSections(
+      requireSettingsRenderer().renderSections(
         notesSettingsFields,
         requireSettingsHost().attachmentSections(settingsCatalog, "module", "notes"),
         { emptyText: "No configurable Notes settings are available." },
