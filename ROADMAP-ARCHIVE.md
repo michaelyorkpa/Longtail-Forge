@@ -1,5 +1,32 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.6.8 - The publication-root accesses
+
+**Model: Medium Effort** - six writes, and one mechanism discarded on measurement before the right one landed.
+
+- [x] **The first mechanism was wrong and the inventory said so.** Publishing through `requireNamespace().<surface> = ...` type-checks and reads naturally, and it **withdrew six surfaces from the publication inventory**: that inventory resolves a writer through the *binding* an assignment is rooted at, and a call expression cannot be proved to be the namespace. The replacement is a local `const` read straight from the global - which is also the smallest acquisition each publication point can carry.
+- [x] **The inventory is identical before and after, and that was measured rather than asserted.** 66 surfaces, 51 namespace-root writes, **0 deep writes and 0 unsupported targets** on both sides, and the full surface-to-writer attribution compares equal. Each of the six is now recorded in `alias` form against the binding it publishes through.
+- [x] **A missing root is still refused, never created.** None of these files established the root, so creating one would publish into an object nothing else reads. Every site throws where the property assignment threw. Breaks that drop the guard, that create with `|| {}`, and that write onto a spread copy are all refused.
+- [x] **`navigation.js` keeps its own bootstrap.** It still creates the root at module scope, that creation still precedes both publications, and each publication acquires **its own** binding. The `userPreferences` acquisition sits deliberately after `await response.json()`: a root captured before that await is not provably the root that exists after it. A break that shares one binding between the two functions is refused.
+- [x] **Values, identity and order are unchanged.** The four frozen publications are still frozen and `clientProjectDialog` is still forwarded by identity rather than copied - and the frozen expectation is **stated in the suite rather than read out of the assignment**, so a change cannot move both sides together. Each publication still precedes the module-action registrations that follow it, and those registrations still read the root exactly as they did, counted per file rather than merely matched.
+- [x] **Nine static owners were retargeted, not relaxed.** Eight pinned the fully qualified assignment spelling; each now pins the binding instead, with its claim unchanged. The ninth is the governance assertion that `navigation.js` must keep publishing a surface: it now checks the **AST inventory**, which resolves through bindings, with the direct spelling still accepted.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **10 breaks across five publishing files - all 10 refused**, including the one that reintroduces the call-expression form and is caught by the inventory.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,877 | **7,871** |
+| Namespace family | 115 | **109** |
+| Bare-root sites | 76 | **70** |
+| Published surfaces / root writes | 66 / 51 | **66 / 51** |
+| Deep or unsupported rooted writes | 0 | **0** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 1,942 / 348 / 167 | **1,965 / 348 / 167**, green |
+
+**All six are true eliminations**, one per site, and no `(file, code)` pair increased: `navigation.js` −2, and one each in `clients-projects`, `files`, `lists` and `notes`. No declaration changed and no surface moved, so nothing transferred or reclassified.
+
 ## Version 0.33.33.38.2.6.7 - The direct readiness-await root accesses
 
 **Model: Medium Effort** - one semantic class, measured out of a coarser bucket before anything was edited.

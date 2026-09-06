@@ -164,7 +164,13 @@
   // three-writer arrangement `0.33.33.33.8` recorded and `0.33.33.34` retired: the only
   // member it ever merged in was `openFilePreview` from `shared/file-preview.js`, which
   // that file no longer writes and which this object republishes itself.
-  window.LongtailForge.filesDialog = Object.freeze({
+  const namespace = window.LongtailForge;
+
+  if (!namespace) {
+    throw new Error("Files requires the LongtailForge namespace.");
+  }
+
+  namespace.filesDialog = Object.freeze({
     openFileEditor,
     openFileEditorAction,
     openFilePreview: (...args) => requireFilePreview().openFilePreview(...args),

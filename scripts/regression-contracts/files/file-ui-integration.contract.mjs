@@ -109,7 +109,11 @@ assert.ok(filesScript.includes("status"), "Files surface should filter by status
 assert.ok(filesScript.includes("targetLabel"), "Files surface should render human-readable target labels.");
 assert.ok(filesScript.includes("clientLabel"), "Files surface should render human-readable client labels.");
 assert.ok(filesScript.includes("projectLabel"), "Files surface should render human-readable project labels.");
-assert.ok(filesScript.includes("LongtailForge.filesDialog"), "Files surface should expose the canonical file context dialog namespace.");
+// 0.33.33.38.2.6.8 publishes through a checked local binding, so the assignment no longer
+// spells the root. The claim is unchanged - this file still owns the surface - and the
+// binding it publishes through is pinned alongside it.
+assert.match(filesScript, /const namespace = window\.LongtailForge;[\s\S]*?namespace\.filesDialog = /,
+  "Files surface should expose the canonical file context dialog namespace.");
 assert.ok(filesScript.includes("openFileEditor"), "Files surface should expose the file context editor opener.");
 assert.ok(filesScript.includes("usesBusinessScope() ? clientFilter?.value : \"\""), "Files surface should not send client filters outside Business workspaces.");
 assert.ok(filesScript.includes('title: "Delete file?"'), "Files surface should warn before deleting files.");

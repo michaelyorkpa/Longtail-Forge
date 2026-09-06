@@ -149,7 +149,7 @@ check("Client and Project actions use module-owned reusable dialog helpers", () 
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireClientProjectDialog\(\)\.openEditProject\(params, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireClientProjectDialog\(\)\.openAddClient\(params, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireClientProjectDialog\(\)\.openEditClient\(params, hostContext\)/);
-  assert.match(clientsProjectsScript, /window\.LongtailForge\.clientProjectDialog = clientProjectDialogApi/);
+  assert.match(clientsProjectsScript, /namespace\.clientProjectDialog = clientProjectDialogApi/);
   assert.match(clientsProjectsScript, /function openClientProjectModuleAction[\s\S]*moduleActions\.open\(actionId, params/, "Clients/Projects descriptor and query actions should dispatch through the shared module action registry");
   assert.doesNotMatch(clientsProjectsScript, /window\.LongtailForge\.moduleActions\?\.register/, "Clients/Projects adapter should not duplicate first-party module action metadata");
 });
@@ -165,10 +165,10 @@ check("Notes, Lists, and Files actions use module-owned canonical openers", () =
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.listsDialog|requireListsDialog\(\))\.openListEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireFilesDialog\(\)\.openFileEditorAction\(params, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireFilePreview\(\)\.openFilePreviewAction\(params, hostContext\)/);
-  assert.match(notesScript, /window\.LongtailForge\.notesDialog = Object\.freeze/);
+  assert.match(notesScript, /namespace\.notesDialog = Object\.freeze/);
   assert.match(notesScript, /openNoteEditor/);
   assert.match(notesScript, /openNoteViewer/);
-  assert.match(listsScript, /window\.LongtailForge\.listsDialog = Object\.freeze/);
+  assert.match(listsScript, /namespace\.listsDialog = Object\.freeze/);
   assert.match(listsScript, /openListEditor/);
   assert.match(filesScript, /openFileEditorAction/);
   assert.match(filesScript, /openFilePreviewAction/);

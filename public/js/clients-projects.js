@@ -4140,7 +4140,13 @@
     openEditProject: openEditProjectAction,
   };
 
-  window.LongtailForge.clientProjectDialog = clientProjectDialogApi;
+  const namespace = window.LongtailForge;
+
+  if (!namespace) {
+    throw new Error("Clients and Projects requires the LongtailForge namespace.");
+  }
+
+  namespace.clientProjectDialog = clientProjectDialogApi;
 
   requirePageController().register("clients-projects", {
     snapshot: () => ({

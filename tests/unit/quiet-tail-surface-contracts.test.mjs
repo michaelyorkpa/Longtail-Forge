@@ -65,11 +65,11 @@ describe("userPreferences carries the one scalar its adapter already validated",
     const shell = normalize(bootstrapBody);
 
     // The publication literal, lifted rather than retyped.
-    const at = navigation.indexOf("      window.LongtailForge.userPreferences = Object.freeze({");
+    const at = navigation.indexOf("      shellNamespace.userPreferences = Object.freeze({");
     assert.notEqual(at, -1, "the publication must exist");
     const closer = navigation.indexOf("\n      });", at);
     assert.notEqual(closer, -1, "the publication must terminate");
-    const literal = navigation.slice(at + "      window.LongtailForge.userPreferences = ".length,
+    const literal = navigation.slice(at + "      shellNamespace.userPreferences = ".length,
       closer + "\n      })".length);
     const published = new Function("shell", "return " + literal.trim().replace(/;$/, "") + ";")(shell);
 
@@ -138,7 +138,7 @@ describe("userPreferences carries the one scalar its adapter already validated",
 
   it("keeps the namespace member optional, because it is absent until bootstrap resolves", () => {
     assert.equal(namespaceMember("userPreferences"), "  userPreferences?: BrowserUserPreferences;");
-    const at = navigation.indexOf("window.LongtailForge.userPreferences = ");
+    const at = navigation.indexOf("shellNamespace.userPreferences = ");
     const loader = navigation.lastIndexOf("const shell = bootstrapAdapter.normalize(await response.json());", at);
     assert.notEqual(loader, -1, "the publication must still follow the bootstrap response");
     assert.ok(loader < at, "so nothing publishes it earlier");

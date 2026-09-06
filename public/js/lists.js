@@ -533,7 +533,13 @@
   // A plain publication, for the reason `public/js/notes.js` records: one writer, two
   // delivery paths, and a readiness probe on `listsDialog.openListEditor` that stops the
   // second one. `0.33.33.38.2.4.4` removed the spread of the previous value.
-  window.LongtailForge.listsDialog = Object.freeze({
+  const namespace = window.LongtailForge;
+
+  if (!namespace) {
+    throw new Error("Lists requires the LongtailForge namespace.");
+  }
+
+  namespace.listsDialog = Object.freeze({
     ...listsDialogApi,
   });
 
