@@ -1027,7 +1027,13 @@
   // descriptor names `notesDialog.openNoteViewer` as its readiness probe, so the loader
   // skips a file that has already published. A second evaluation would in any case rebuild
   // the same members from the same API.
-  window.LongtailForge.notesDialog = Object.freeze({
+  const namespace = window.LongtailForge;
+
+  if (!namespace) {
+    throw new Error("Notes requires the LongtailForge namespace.");
+  }
+
+  namespace.notesDialog = Object.freeze({
     ...notesDialogApi,
   });
 

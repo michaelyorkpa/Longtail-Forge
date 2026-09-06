@@ -413,6 +413,7 @@
         "tests/unit/public-demo-capabilities.test.mjs",
         "tests/unit/public-demo-enforcement.test.mjs",
         "tests/unit/public-demo-ingress-carry-through.test.mjs",
+        "tests/unit/publication-root-access-contracts.test.mjs",
         "tests/unit/quiet-tail-surface-contracts.test.mjs",
         "tests/unit/readiness-root-access-contracts.test.mjs",
         "tests/unit/ready-dialog-adapter-contracts.test.mjs",
@@ -547,7 +548,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7877,
+      "errorCount": 7871,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -674,7 +675,7 @@
           },
           {
             "code": 18048,
-            "count": 5
+            "count": 4
           },
           {
             "code": 2322,
@@ -792,7 +793,7 @@
         "public/js/files.js": [
           {
             "code": 18048,
-            "count": 7
+            "count": 6
           },
           {
             "code": 2322,
@@ -894,7 +895,7 @@
           },
           {
             "code": 18048,
-            "count": 3
+            "count": 2
           },
           {
             "code": 2322,
@@ -984,7 +985,7 @@
           },
           {
             "code": 18048,
-            "count": 5
+            "count": 3
           },
           {
             "code": 2339,
@@ -1044,7 +1045,7 @@
           },
           {
             "code": 18048,
-            "count": 16
+            "count": 15
           },
           {
             "code": 2322,
@@ -2631,8 +2632,8 @@
     }
   },
   "totals": {
-    "files": 1128,
-    "errors": 7877,
+    "files": 1129,
+    "errors": 7871,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

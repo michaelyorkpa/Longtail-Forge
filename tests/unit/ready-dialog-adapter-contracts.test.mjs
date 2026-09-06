@@ -357,7 +357,7 @@ describe("each surface is declared whole, and the three stay distinct", () => {
 
   it("declares all four members of each dialog surface", () => {
     for (const [source, publication, name] of [
-      [files, "  window.LongtailForge.filesDialog = Object.freeze({", "BrowserFilesDialog"],
+      [files, "  namespace.filesDialog = Object.freeze({", "BrowserFilesDialog"],
       [clientsProjects, "  const clientProjectDialogApi = {", "BrowserClientProjectDialog"],
     ]) {
       const at = source.indexOf(publication);

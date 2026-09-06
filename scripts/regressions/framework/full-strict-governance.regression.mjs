@@ -2715,6 +2715,9 @@ assert.ok(
   "public/js/login.js must keep publishing window.LongtailForge.loginPage; tests/e2e/login.spec.mjs drives the required-password-change transition through it",
 );
 const navigationSource = fs.readFileSync("public/js/navigation.js", "utf8");
+// Collected here rather than reusing the inventory built further down, which is declared
+// after this block and would be in its temporal dead zone.
+const navigationPublications = collectBrowserPublicationInventory({});
 for (const publishedSurface of [
   "window.LongtailForge.navigationIntent",
   "window.LongtailForge.getWorkspaceProjectsLabel",
@@ -2728,8 +2731,20 @@ for (const publishedSurface of [
   "window.LongtailForge.applyWorkspaceName",
   "window.fetch",
 ]) {
+  // 0.33.33.38.2.6.8 publishes two of these through a checked local binding, so the spelling at
+  // the assignment is no longer always the fully qualified path. The claim is unchanged - the
+  // surface must still be published by this file - and it is now checked against the AST
+  // publication inventory, which resolves a writer through its binding rather than its spelling,
+  // with the source text accepted as the direct form.
+  const member = publishedSurface.startsWith("window.LongtailForge.")
+    ? publishedSurface.slice("window.LongtailForge.".length)
+    : "";
+  const attributed = member
+    ? (navigationPublications.surfaces.get(publishedSurface)?.writers ?? [])
+      .some((writer) => writer.file === "public/js/navigation.js")
+    : false;
   assert.ok(
-    navigationSource.includes(`${publishedSurface} =`),
+    navigationSource.includes(`${publishedSurface} =`) || attributed,
     `public/js/navigation.js must keep publishing ${publishedSurface}; scoping the script must not withdraw a surface other pages read`,
   );
 }
@@ -4508,9 +4523,12 @@ const REPLACEMENT_PUBLICATIONS = [
   // previous value, not which of the two shapes the file uses to say so.
   ["public/js/dashboard.js", /(?:namespace\.dashboard|const dashboardApi) = \{\s*\n\s*registerPanelRenderer/],
   ["public/js/reporting.js", /namespace\.reporting = \{\s*\n\s*registerRenderer/],
-  ["public/js/files.js", /window\.LongtailForge\.filesDialog = Object\.freeze\(\{\s*\n\s*openFileEditor/],
-  ["public/js/notes.js", /window\.LongtailForge\.notesDialog = Object\.freeze\(\{\s*\n\s*\.\.\.notesDialogApi/],
-  ["public/js/lists.js", /window\.LongtailForge\.listsDialog = Object\.freeze\(\{\s*\n\s*\.\.\.listsDialogApi/],
+  // 0.33.33.38.2.6.8 publishes these three through a checked local binding, so the assignment no
+  // longer spells the root. The claim is unchanged - the replacement must not spread the previous
+  // value - and each pattern now pins the binding the write goes through as well.
+  ["public/js/files.js", /namespace\.filesDialog = Object\.freeze\(\{\s*\n\s*openFileEditor/],
+  ["public/js/notes.js", /namespace\.notesDialog = Object\.freeze\(\{\s*\n\s*\.\.\.notesDialogApi/],
+  ["public/js/lists.js", /namespace\.listsDialog = Object\.freeze\(\{\s*\n\s*\.\.\.listsDialogApi/],
 ];
 for (const [publisher, pattern] of REPLACEMENT_PUBLICATIONS) {
   assert.match(

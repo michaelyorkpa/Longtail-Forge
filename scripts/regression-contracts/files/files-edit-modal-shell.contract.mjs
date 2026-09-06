@@ -48,7 +48,7 @@ const editorSource = [
   extractFunctionBlock(filesScript, "setFileEditorControlsDisabled"),
 ].join("\n");
 
-assert.match(filesScript, /LongtailForge\.filesDialog = Object\.freeze\(\{[\s\S]*openFileEditor/, "Files should expose a canonical filesDialog.openFileEditor opener");
+assert.match(filesScript, /namespace\.filesDialog = Object\.freeze\(\{[\s\S]*openFileEditor/, "Files should expose a canonical filesDialog.openFileEditor opener");
 assert.match(openerBlock, /view\.showModal\(dialog,\s*\{[\s\S]*trigger/, "File editor opener should use the shared modal stack with trigger focus return");
 assert.match(openerBlock, /loadFileEditorTargetOptions\(dialog,\s*row\)/, "File editor opener should load route-backed target choices");
 assert.match(buildBlock, /const previewButton = view\.createActionButton\(\{[\s\S]*icon:\s*"eye"[\s\S]*label:\s*`Preview \$\{row\.fileName\}`[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*requireFilePreview\(\)\.openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/, "File editor should expose the same standalone Preview footer action as the Files list");

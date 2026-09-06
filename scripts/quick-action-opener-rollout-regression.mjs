@@ -54,12 +54,12 @@ check("shared registry exposes first-party Notes, Lists, and Files actions", () 
 });
 
 check("module adapters wrap existing canonical openers instead of duplicating forms", () => {
-  assert.match(notesScript, /window\.LongtailForge\.notesDialog = Object\.freeze/);
+  assert.match(notesScript, /namespace\.notesDialog = Object\.freeze/);
   assert.match(notesScript, /function openNoteEditor\(params = \{\}, hostContext = null\)[\s\S]*openEditor\(/);
   assert.match(notesScript, /completeNoteEditorHostContext\(\{[\s\S]*actionId: wasEditing \? "notes\.edit" : "notes\.add"/);
   assert.match(notesScript, /cancelNoteEditorHostContext/);
   assert.match(notesScript, /ensureNotesDialogShells\(\)/);
-  assert.match(listsScript, /window\.LongtailForge\.listsDialog = Object\.freeze/);
+  assert.match(listsScript, /namespace\.listsDialog = Object\.freeze/);
   assert.match(listsScript, /function openListEditor\(params = \{\}, hostContext = null\)[\s\S]*openListDialog\(/);
   assert.match(listsScript, /completeListDialogHostContext\(\{[\s\S]*actionId: wasEditing \? "lists\.edit" : "lists\.add"/);
   assert.match(listsScript, /cancelListDialogHostContext/);

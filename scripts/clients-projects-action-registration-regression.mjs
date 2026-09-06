@@ -39,7 +39,7 @@ assert.match(
 );
 assert.match(
   clientsProjectsScript,
-  /const clientProjectDialogApi = \{[\s\S]*openAddClient: openAddClientAction,[\s\S]*openEditProject: openEditProjectAction,[\s\S]*\};[\s\S]*window\.LongtailForge\.clientProjectDialog = clientProjectDialogApi/,
+  /const clientProjectDialogApi = \{[\s\S]*openAddClient: openAddClientAction,[\s\S]*openEditProject: openEditProjectAction,[\s\S]*\};[\s\S]*namespace\.clientProjectDialog = clientProjectDialogApi/,
   "Clients/Projects should publish the module-owned dialog API consumed by module-actions",
 );
 assert.match(

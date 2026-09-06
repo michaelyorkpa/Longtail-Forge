@@ -732,7 +732,13 @@
       }
       const shell = bootstrapAdapter.normalize(await response.json());
       applySupportViewState(shell.supportView || null);
-      window.LongtailForge.userPreferences = Object.freeze({
+      const shellNamespace = window.LongtailForge;
+
+      if (!shellNamespace) {
+        throw new Error("Navigation requires the LongtailForge namespace.");
+      }
+
+      shellNamespace.userPreferences = Object.freeze({
         preferredCalendarView: shell.user?.preferredCalendarView || null,
       });
       const workspaceContext = {
@@ -780,7 +786,13 @@
     supportViewMutationObserver?.disconnect();
     supportViewMutationObserver = null;
     delete document.body.dataset.supportView;
-    window.LongtailForge.supportView = supportView ? Object.freeze({ ...supportView }) : null;
+    const supportNamespace = window.LongtailForge;
+
+    if (!supportNamespace) {
+      throw new Error("Navigation requires the LongtailForge namespace.");
+    }
+
+    supportNamespace.supportView = supportView ? Object.freeze({ ...supportView }) : null;
 
     if (!supportView) {
       return;
