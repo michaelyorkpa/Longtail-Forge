@@ -212,7 +212,13 @@ describe("the four accessors this checkpoint added", () => {
   for (const [key, page] of Object.entries(PAGES)) {
     it(`${key}.js refuses an absent root by its own name`, () => {
       const requireNamespace = accessor(key)({ LongtailForge: undefined });
-      assert.throws(() => requireNamespace(), new RegExp(`^Error: ${page} requires the LongtailForge namespace\.$`));
+      // Compared whole rather than matched: a pattern would have to escape the trailing period,
+      // and a period that stays a metacharacter accepts a message this test means to reject.
+      assert.throws(() => requireNamespace(), (error) => {
+        assert.ok(error instanceof Error, "the accessor throws an Error");
+        assert.equal(error.message, `${page} requires the LongtailForge namespace.`);
+        return true;
+      });
     });
 
     it(`${key}.js answers the root by identity, and reads it again on the next call`, () => {
