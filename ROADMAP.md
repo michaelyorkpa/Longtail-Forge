@@ -212,6 +212,16 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **No child may weaken a contract to move a number.** No cast, no non-null assertion, no suppression, no permissive index signature, no `any`.
 - [ ] **Classify every acquisition site before converting it, exactly as `0.33.33.38.1` did.** A consumer that legitimately runs without a surface keeps its optionality; four consumers and `file-attachments.js` did, and that was correct.
 
+#### 0.33.33.38.2.6.7 - The direct readiness-await root accesses
+
+**Complete: eleven sites across eight pages, and the root is checked while the member stays optional.** See the archive entry.
+
+**The cohort is eleven, not the twenty-four the previous turn's coarse bucket reported.** That bucket counted every `await window.LongtailForge.<member>`; only eleven of those await `workspaceContextReady`. The other thirteen await `tags`, `notificationSubscriptions`, `timezones`, `taskResumeNoteCapture`, `navigationIntent` and `refreshAppShell`, and each stays with its own cohort.
+
+**The distinction this child exists to preserve.** A missing root failed at the property read and still fails there. A present root that publishes no `workspaceContextReady` **never failed** - `await undefined` resolves - and still does not. So the accessor checks the **root** and never the member, and a deliberately wrong helper that requires the member is shown to fail the present-root case.
+
+**Five optional readiness reads were left optional** (`calendar-settings`, `calendar`, `clients-projects`, `files`, `lists`), the footer's read is already narrowed by its own guard, and `navigation.js` publishes rather than reads - that one belongs to the publication cohort.
+
 #### 0.33.33.38.2.6 - Adopt the root read at the declared members
 
 **Model: Medium Effort - RESLICED once the estate was classified by semantics rather than by symptom.**
