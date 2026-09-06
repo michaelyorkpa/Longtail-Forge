@@ -45,11 +45,11 @@ assert.doesNotMatch(filePreviewScript, /\/api\/files\/batch|openFileEditor|File 
 
 assert.match(filesScript, /const filePreview = window\.LongtailForge\?\.filePreview/,
   "Files page should consume the shared preview helper");
-assert.match(filesScript, /openFilePreview: \(\.\.\.args\) => filePreview\.openFilePreview\(\.\.\.args\)/,
+assert.match(filesScript, /openFilePreview: \(\.\.\.args\) => requireFilePreview\(\)\.openFilePreview\(\.\.\.args\)/,
   "Files page should keep the canonical filesDialog preview opener through the shared helper");
-assert.match(extractFunctionBlock(filesScript, "fileRow"), /filePreview\.previewAvailabilityForRow\(\{[\s\S]*canPreviewInReview: canManageReview[\s\S]*extension[\s\S]*fileSizeBytes[\s\S]*scanStatus[\s\S]*status/,
+assert.match(extractFunctionBlock(filesScript, "fileRow"), /requireFilePreview\(\)\.previewAvailabilityForRow\(\{[\s\S]*canPreviewInReview: canManageReview[\s\S]*extension[\s\S]*fileSizeBytes[\s\S]*scanStatus[\s\S]*status/,
   "Files rows should still derive preview affordance from the shared eligibility helper");
-assert.match(extractFunctionBlock(filesScript, "createPreviewAction"), /icon:\s*"eye"[\s\S]*filePreview\.openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/,
+assert.match(extractFunctionBlock(filesScript, "createPreviewAction"), /icon:\s*"eye"[\s\S]*requireFilePreview\(\)\.openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/,
   "Files row Preview action should keep opening the shared preview modal");
 assert.doesNotMatch(filesScript, /function buildFilePreviewDialog|function loadFilePreview|function renderFilePreviewMarkdown|function previewAvailabilityForRow/,
   "Files page should not keep a duplicate preview modal implementation");
@@ -61,7 +61,7 @@ const actionButton = extractFunctionBlock(attachmentHelper, "createAttachmentAct
 
 assert.match(createActions, /createAttachmentPreviewRow\(attachment, file, options\)[\s\S]*const preview = createAttachmentPreviewAction\(view, previewRow\)[\s\S]*const actionNodes = \[preview, download, remove, report, quarantine, deleteButton, restore\]/,
   "Shared attachment rows should include Preview before the existing file actions");
-assert.match(createPreviewAction, /action: "files\.preview"[\s\S]*hidden: !row\?\.previewable \|\| !namespace\.filePreview\?\.openFilePreview[\s\S]*icon: "eye"[\s\S]*iconOnly: true[\s\S]*namespace\.filePreview\.openFilePreview\(row, \{ trigger: event\?\.currentTarget \|\| null \}\)/,
+assert.match(createPreviewAction, /action: "files\.preview"[\s\S]*hidden: !row\?\.previewable \|\| !namespace\.filePreview\?\.openFilePreview[\s\S]*icon: "eye"[\s\S]*iconOnly: true[\s\S]*preview\.openFilePreview\(row, \{ trigger: event\?\.currentTarget \|\| null \}\)/,
   "Attachment Preview should be eligibility-gated, icon-only, accessible, and routed through the shared preview helper");
 assert.match(createDownloadAction, /namespace\.icons\?\.createIcon\?\.\("download"[\s\S]*icon-button file-attachment-action[\s\S]*"aria-label": label[\s\S]*href: `\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/download`/,
   "Attachment Download should become an icon button while keeping the authenticated download route");

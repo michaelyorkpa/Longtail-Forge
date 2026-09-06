@@ -145,10 +145,10 @@ check("Client and Project actions use module-owned reusable dialog helpers", () 
   assert.match(moduleActionsSource, /src: "js\/clients-projects\.js"/);
   assert.match(projectsView, /js\/clients-projects\.js/);
   assert.match(clientsView, /js\/clients-projects\.js/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.clientProjectDialog\.openAddProject\(params, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.clientProjectDialog\.openEditProject\(params, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.clientProjectDialog\.openAddClient\(params, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.clientProjectDialog\.openEditClient\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireClientProjectDialog\(\)\.openAddProject\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireClientProjectDialog\(\)\.openEditProject\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireClientProjectDialog\(\)\.openAddClient\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireClientProjectDialog\(\)\.openEditClient\(params, hostContext\)/);
   assert.match(clientsProjectsScript, /window\.LongtailForge\.clientProjectDialog = clientProjectDialogApi/);
   assert.match(clientsProjectsScript, /function openClientProjectModuleAction[\s\S]*moduleActions\.open\(actionId, params/, "Clients/Projects descriptor and query actions should dispatch through the shared module action registry");
   assert.doesNotMatch(clientsProjectsScript, /window\.LongtailForge\.moduleActions\?\.register/, "Clients/Projects adapter should not duplicate first-party module action metadata");
@@ -163,8 +163,8 @@ check("Notes, Lists, and Files actions use module-owned canonical openers", () =
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.notesDialog|requireNotesDialog\(\))\.openNoteViewer\(params, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.listsDialog|requireListsDialog\(\))\.openListEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => (?:namespace\.listsDialog|requireListsDialog\(\))\.openListEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.filesDialog\.openFileEditorAction\(params, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.filePreview\.openFilePreviewAction\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireFilesDialog\(\)\.openFileEditorAction\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireFilePreview\(\)\.openFilePreviewAction\(params, hostContext\)/);
   assert.match(notesScript, /window\.LongtailForge\.notesDialog = Object\.freeze/);
   assert.match(notesScript, /openNoteEditor/);
   assert.match(notesScript, /openNoteViewer/);

@@ -48,8 +48,8 @@ check("shared registry exposes first-party Notes, Lists, and Files actions", () 
   assert.match(moduleActions, /open: \(params, hostContext\) => (?:namespace\.notesDialog|requireNotesDialog\(\))\.openNoteEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
   assert.match(moduleActions, /open: \(params, hostContext\) => (?:namespace\.notesDialog|requireNotesDialog\(\))\.openNoteViewer\(params, hostContext\)/);
   assert.match(moduleActions, /open: \(params, hostContext\) => (?:namespace\.listsDialog|requireListsDialog\(\))\.openListEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
-  assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.filesDialog\.openFileEditorAction\(params, hostContext\)/);
-  assert.match(moduleActions, /open: \(params, hostContext\) => namespace\.filePreview\.openFilePreviewAction\(params, hostContext\)/);
+  assert.match(moduleActions, /open: \(params, hostContext\) => requireFilesDialog\(\)\.openFileEditorAction\(params, hostContext\)/);
+  assert.match(moduleActions, /open: \(params, hostContext\) => requireFilePreview\(\)\.openFilePreviewAction\(params, hostContext\)/);
   assert.match(moduleActions, /moduleId === "framework"/);
 });
 
@@ -70,7 +70,7 @@ check("Files registry stays attachment-scoped and does not invent a targetless u
   assert.match(filesScript, /function openFileEditorAction\(params = \{\}, hostContext = null\)[\s\S]*openFileEditor\(attachmentOrRow/);
   // 0.33.33.34 moved the preview opener to the shared helper so a host page that cannot
   // load this controller still opens the same dialog. Files keeps publishing it.
-  assert.match(filesScript, /function openFilePreviewAction\(params = \{\}, hostContext = null\)[\s\S]*filePreviewActions\.openFilePreviewAction\(params, hostContext\)/);
+  assert.match(filesScript, /function openFilePreviewAction\(params = \{\}, hostContext = null\)[\s\S]*requireFilePreview\(\)\.openFilePreviewAction\(params, hostContext\)/);
   assert.match(filePreviewScript, /function openFilePreviewAction\(params = \{\}, hostContext = null\)[\s\S]*openFilePreview\(attachmentOrRow/);
   assert.match(filesScript, /File Context requires an attachment record/);
   assert.match(filePreviewScript, /File Preview requires an attachment record/);

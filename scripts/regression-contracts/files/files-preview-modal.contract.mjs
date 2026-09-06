@@ -35,14 +35,14 @@ const previewAvailability = extractFunctionBlock(filePreviewScript, "previewAvai
 const previewKind = extractFunctionBlock(filePreviewScript, "previewKindForExtension");
 const previewStateMessage = extractFunctionBlock(filePreviewScript, "previewStateMessage");
 
-assert.match(fileRow, /const canManageReview = canManageFileReview\(attachment, file, fileId\)[\s\S]*const preview = filePreview\.previewAvailabilityForRow\(\{[\s\S]*canPreviewInReview: canManageReview[\s\S]*extension[\s\S]*fileSizeBytes[\s\S]*scanStatus[\s\S]*status/, "Files rows should derive local preview affordance state");
+assert.match(fileRow, /const canManageReview = canManageFileReview\(attachment, file, fileId\)[\s\S]*const preview = requireFilePreview\(\)\.previewAvailabilityForRow\(\{[\s\S]*canPreviewInReview: canManageReview[\s\S]*extension[\s\S]*fileSizeBytes[\s\S]*scanStatus[\s\S]*status/, "Files rows should derive local preview affordance state");
 assert.match(fileRow, /previewKind:\s*preview\.kind[\s\S]*previewable:\s*preview\.state === "previewable"[\s\S]*previewState:\s*preview\.state/, "Files rows should expose preview kind/state for action rendering");
 assert.match(previewAvailability, /reviewPreviewAllowed[\s\S]*status !== "available"[\s\S]*scanStatus[\s\S]*"unsupported"[\s\S]*TEXT_PREVIEW_MAX_BYTES[\s\S]*state:\s*"previewable"/, "Preview affordance should mirror status, scan, supported type, review permission, and size-cap gates");
 assert.match(previewKind, /IMAGE_PREVIEW_EXTENSIONS[\s\S]*MARKDOWN_PREVIEW_EXTENSIONS[\s\S]*TEXT_PREVIEW_EXTENSIONS[\s\S]*return "unsupported"/, "Preview kind should cover image, Markdown, text, and unsupported rows");
 
 assert.match(actions, /if \(row\.previewable\)[\s\S]*createPreviewAction\(row\)[\s\S]*else if \(row\.downloadable\)[\s\S]*createDownloadOnlyMarker\(row\)[\s\S]*createDownloadAction\(row\)/, "Files rows should show Preview for previewable rows and a quiet download-only marker for non-previewable downloadable rows");
 assert.match(previewAction, /icon:\s*"eye"[\s\S]*iconOnly:\s*true[\s\S]*label:\s*`Preview \$\{row\.fileName\}`[\s\S]*title:\s*`Preview \$\{row\.fileName\}`/, "Preview should use an icon-only eye action with accessible label/title");
-assert.match(previewAction, /stopFileRowActionEvent\(event\)[\s\S]*filePreview\.openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/, "Preview button should open Preview without triggering row edit");
+assert.match(previewAction, /stopFileRowActionEvent\(event\)[\s\S]*requireFilePreview\(\)\.openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/, "Preview button should open Preview without triggering row edit");
 assert.doesNotMatch(previewAction, /openFileEditor/, "Preview button must not open the File Context editor");
 assert.match(previewAction, /button\.dataset\.fileAction = "preview"/, "Preview button should participate in row action isolation");
 assert.match(downloadOnlyMarker, /files-row-preview-unavailable[\s\S]*"aria-label": label[\s\S]*role: "img"[\s\S]*fileAction: "preview-unavailable"/, "Download-only marker should be visible, accessible, and isolated from row-open");
