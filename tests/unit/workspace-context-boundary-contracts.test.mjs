@@ -83,6 +83,7 @@ function contextCore(cached = null) {
     slice("function readContextList(...candidates) {"),
     slice("function readContextBag(...candidates) {"),
     slice("function readContextText(...candidates) {"),
+    slice("function readContextPublicDemo(...candidates) {"),
     slice("function readContextWorkspaceType(...candidates) {"),
     slice("function readCachedWorkspaceRecord() {"),
     slice("function readWorkspaceContext() {"),
@@ -96,11 +97,11 @@ function contextCore(cached = null) {
   return { ...built, win, store, writes };
 }
 
-/** The thirteen names, spelled out here rather than read from the thing under test. */
+/** The fourteen names, spelled out here rather than read from the thing under test. */
 const STORED_MEMBERS = [
-  "enabledModules", "modules", "navigation", "permissionHints", "quickActions", "searchTargets",
-  "userId", "username", "viewSurfaces", "workspaceCapabilities", "workspaceId", "workspaceName",
-  "workspaceType",
+  "enabledModules", "modules", "navigation", "permissionHints", "publicDemo", "quickActions",
+  "searchTargets", "userId", "username", "viewSurfaces", "workspaceCapabilities", "workspaceId",
+  "workspaceName", "workspaceType",
 ];
 
 /** One complete candidate, so each negative case differs in exactly one way. */
@@ -109,6 +110,7 @@ const validCandidate = () => ({
   modules: [{ id: "tasks", status: "enabled" }],
   navigation: [{ href: "tasks.html" }],
   permissionHints: { filesManageQuarantine: true },
+  publicDemo: { enabled: false, filesIngressAllowed: true },
   quickActions: [{ id: "tasks.add" }],
   searchTargets: [{ id: "tasks" }],
   viewSurfaces: [{ id: "tasks-list" }],
@@ -121,7 +123,7 @@ const validCandidate = () => ({
 });
 
 describe("the stored contract is exact at its top level", () => {
-  it("declares exactly the thirteen members the constructor reconstructs", () => {
+  it("declares exactly the fourteen members the constructor reconstructs", () => {
     const at = contracts.indexOf("export interface BrowserStoredWorkspaceContext {");
     assert.notEqual(at, -1, "the contract must exist");
     const body = contracts.slice(at, contracts.indexOf("\n}\n", at));
@@ -141,9 +143,8 @@ describe("the stored contract is exact at its top level", () => {
       ...validCandidate(),
       permissionIds: ["files.manage"],
       workspaceDeletion: { purgeAfter: "2026-01-01" },
-      publicDemo: { enabled: true },
     });
-    for (const absent of ["permissionIds", "workspaceDeletion", "publicDemo"]) {
+    for (const absent of ["permissionIds", "workspaceDeletion"]) {
       assert.ok(!(absent in context), absent + " is transient, not stored");
     }
   });
@@ -156,6 +157,7 @@ describe("the stored contract is exact at its top level", () => {
     assert.equal(countOf(body, /: string;/g), 4, "four scalars");
     assert.equal(countOf(body, /: BrowserWorkspaceType;/g), 1, "and one closed vocabulary");
     assert.match(body, /workspaceType: BrowserWorkspaceType;/);
+    assert.match(body, /publicDemo: BrowserStoredPublicDemo \| null;/, "and one record that may be absent");
   });
 });
 

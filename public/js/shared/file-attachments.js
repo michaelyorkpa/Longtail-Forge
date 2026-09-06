@@ -1119,8 +1119,11 @@
 
   function publicDemoFilesIngressAllowed() {
     const publicDemo = namespace.workspaceContext?.publicDemo;
+    if (!publicDemo || publicDemo.enabled !== true) {
+      return true;
+    }
 
-    return publicDemo?.enabled !== true || publicDemo.filesIngressAllowed === true;
+    return publicDemo.filesIngressAllowed === true;
   }
 
   function normalizeOptions(options) {

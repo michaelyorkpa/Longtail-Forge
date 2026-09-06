@@ -1865,6 +1865,7 @@
     applyWorkspaceCapabilities(cachedContext);
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserStoredPublicDemo} BrowserStoredPublicDemo */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserStoredWorkspaceContext} BrowserStoredWorkspaceContext */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkspaceType} BrowserWorkspaceType */
 
@@ -1939,6 +1940,30 @@
   }
 
   /**
+   * The public-demo restriction the app shell computed, or `null` when nothing has said one.
+   *
+   * Only the app-shell bootstrap produces this member. A refresh through `/api/settings` or
+   * `/api/session` does not carry it, so absence means "nothing new was said" and the cached
+   * answer stands - it must never read as permission to upload. Both members have to be real
+   * booleans for the same reason: a malformed record is not an answer either.
+   *
+   * `null` is honest rather than a permissive default. It says no producer has spoken, which is
+   * true of an older cache and of a workspace that has never seen the shell.
+   * @param {unknown[]} candidates
+   * @returns {BrowserStoredPublicDemo | null}
+   */
+  function readContextPublicDemo(...candidates) {
+    for (const candidate of candidates) {
+      if (isContextRecord(candidate)
+        && typeof candidate.enabled === "boolean"
+        && typeof candidate.filesIngressAllowed === "boolean") {
+        return { enabled: candidate.enabled, filesIngressAllowed: candidate.filesIngressAllowed };
+      }
+    }
+    return null;
+  }
+
+  /**
    * @param {unknown[]} candidates
    * @returns {BrowserWorkspaceType}
    */
@@ -1982,6 +2007,7 @@
       modules: readContextList(settings.modules, previous.modules),
       navigation: readContextList(settings.navigation, previous.navigation),
       permissionHints: readContextBag(settings.permissionHints, previous.permissionHints),
+      publicDemo: readContextPublicDemo(settings.publicDemo, previous.publicDemo),
       quickActions: readContextList(settings.quickActions, previous.quickActions),
       searchTargets: readContextList(settings.searchTargets, previous.searchTargets),
       viewSurfaces: readContextList(settings.viewSurfaces, previous.viewSurfaces),
