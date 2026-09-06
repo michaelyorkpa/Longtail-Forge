@@ -479,6 +479,113 @@ export interface BrowserClientProjectDialog {
 }
 
 /**
+ * `LongtailForge.userPreferences`, published by `public/js/navigation.js`.
+ *
+ * **One member, and its type is the validation the app-shell adapter already performs.** The
+ * adapter reads `source.user` through a record check and builds `preferredCalendarView` with
+ * `stringValue`, which answers the original string or `""`; the publication turns `""` into
+ * `null`. So the runtime promise is a **string or null** - not a three-value union. An
+ * unrecognised non-empty view survives this boundary, and the calendar consumer's own
+ * normaliser is what decides to fall back. Declaring a closed vocabulary here would claim a
+ * check nothing performs.
+ */
+export interface BrowserUserPreferences {
+  readonly preferredCalendarView: string | null;
+}
+
+/**
+ * One navigation intent, as the controller and its callers actually shape it.
+ *
+ * `continue` may answer a value, a promise, or nothing, which is why `request` resolves
+ * `unknown` rather than `void`: the controller hands the caller's own result back.
+ */
+export interface BrowserNavigationIntentRequest {
+  [key: string]: unknown;
+  commitBeforeContinue?: boolean;
+  continue?: () => unknown;
+  href?: string;
+  kind?: string;
+}
+
+/**
+ * The guard a page registers to hold navigation while it finishes something.
+ *
+ * Every member is optional because the controller reaches each through an optional call, and
+ * `shouldHold` is the only one it consults before deciding to hold.
+ */
+export interface BrowserNavigationExitGuard {
+  beforeContinue?(intent: BrowserNavigationIntentRequest): unknown;
+  onCommitted?(intent: BrowserNavigationIntentRequest): void;
+  onContinueError?(intent: BrowserNavigationIntentRequest, error: unknown): void;
+  shouldHold?(intent: BrowserNavigationIntentRequest): boolean;
+}
+
+/**
+ * `LongtailForge.navigationIntent`, published by `public/js/navigation.js`.
+ *
+ * Four members, and the promise lifetime is part of the contract. **`request` is not `async`**:
+ * it answers `Promise.resolve(...)` when nothing holds, and otherwise returns the *same pending
+ * promise* to every caller until that intent settles. Making it `async` would wrap a new promise
+ * each call and move a synchronous URL failure into a rejection, so the declaration says
+ * `Promise<unknown>` and leaves the implementation as it is.
+ *
+ * `registerExitGuard` answers an **unregister function that only clears the guard it registered**
+ * - a stale unregister after a newer guard has replaced it is a no-op.
+ */
+export interface BrowserNavigationIntent {
+  navigate(href: string, options?: BrowserNavigationIntentRequest): Promise<unknown>;
+  registerExitGuard(guard?: BrowserNavigationExitGuard | null): () => void;
+  request(intent?: BrowserNavigationIntentRequest): Promise<unknown>;
+  shouldHold(intent?: BrowserNavigationIntentRequest): boolean;
+}
+
+/** What `quickActionRefresh.subscribe` filters on and calls back. */
+export interface BrowserQuickActionRefreshSubscription {
+  [key: string]: unknown;
+  actionIds?: unknown;
+  onRefresh?: (detail: Record<string, unknown>, event?: unknown) => void;
+  recordTypes?: unknown;
+  refresh?: (detail: Record<string, unknown>, event?: unknown) => void;
+}
+
+/**
+ * `LongtailForge.quickActionRefresh`, published by `public/js/shared/quick-action-refresh.js`.
+ *
+ * `subscribe` **throws** a `TypeError` when it is given neither a record type nor an action id,
+ * or no callback; it never answers `undefined`. When it accepts, it answers the unsubscribe
+ * function, so the return is a function rather than an optional one.
+ */
+export interface BrowserQuickActionRefresh {
+  readonly eventName: string;
+  subscribe(options?: BrowserQuickActionRefreshSubscription): () => void;
+}
+
+/**
+ * `LongtailForge.recovery`, published by `public/js/shared/browser-recovery.js`.
+ *
+ * Three members and three different resolutions. `permissionDenied` resolves **nothing** - its
+ * dialog resolves on close. `render` answers the `<main>` it built, or `null` when a recovery
+ * surface is already showing. `present` chooses between them, so it resolves whichever of those
+ * the error it was given calls for.
+ */
+export interface BrowserRecovery {
+  permissionDenied(): Promise<void>;
+  present(error?: unknown, options?: unknown): Promise<HTMLElement | null | void>;
+  render(options?: unknown): Promise<HTMLElement | null>;
+}
+
+/**
+ * `LongtailForge.reporting`, published by `public/js/reporting.js`.
+ *
+ * One member, and **the object is not frozen** - unlike its quiet-tail siblings - so this
+ * describes what it publishes rather than promising it cannot grow. `registerRenderer` answers
+ * nothing: it returns early for an unusable id or registration and otherwise records it.
+ */
+export interface BrowserReporting {
+  registerRenderer(rendererId?: unknown, registration?: unknown): void;
+}
+
+/**
  * `LongtailForge.viewActionSecurity`, published by `public/js/shared/view-action-security.js`.
  *
  * The security-relevant half of descriptor action dispatch, extracted from the view renderer by
@@ -6972,11 +7079,13 @@ export interface LongtailForgeBrowserNamespace {
   listsDialog?: BrowserListsDialog;
   modal?: BrowserModalDialogs;
   moduleActions?: BrowserModuleActions;
+  navigationIntent?: BrowserNavigationIntent;
   notesDialog?: BrowserNotesDialog;
   notesEditor?: BrowserNotesEditor;
   notesLinkedPanel?: BrowserNotesLinkedPanel;
   notificationPreferences?: BrowserNotificationPreferences;
   notificationSubscriptions?: BrowserNotificationSubscriptions;
+  notificationsPageReady?: boolean;
   pageController?: BrowserPageController;
   /**
    * Published by `public/js/login.js`. The required-password-change form is
@@ -6998,6 +7107,8 @@ export interface LongtailForgeBrowserNamespace {
    * owns is the deliberate `fetch` patch.
    */
   applyWorkspaceName?: (value: unknown) => void;
+  quickActionRefresh?: BrowserQuickActionRefresh;
+  recovery?: BrowserRecovery;
   records?: BrowserRecords;
   /**
    * The app-shell bootstrap, uncalled. Its side effect is the refresh; its result is transient.
@@ -7006,6 +7117,8 @@ export interface LongtailForgeBrowserNamespace {
    * recovery and public pages do not - so every caller optional-calls it today and keeps doing so.
    */
   refreshAppShell?: () => Promise<BrowserAppShellRefreshResult>;
+  refreshNotifications?: () => Promise<void>;
+  reporting?: BrowserReporting;
   settingsHost?: BrowserSettingsHost;
   settingsRenderer?: BrowserSettingsRenderer;
   settingsPageController?: BrowserSettingsPageController;
@@ -7016,6 +7129,7 @@ export interface LongtailForgeBrowserNamespace {
   timeEntryDialog?: BrowserTimeEntryDialog;
   timeTrackingTimerDialog?: BrowserTimeTrackingTimerDialog;
   timezones?: BrowserTimezones;
+  userPreferences?: BrowserUserPreferences;
   /**
    * The frozen view factory, written by `view-builder.js` and extended by `view-renderer.js`.
    * Optional because the namespace itself can be absent, not because the factory is.

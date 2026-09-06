@@ -413,6 +413,7 @@
         "tests/unit/public-demo-capabilities.test.mjs",
         "tests/unit/public-demo-enforcement.test.mjs",
         "tests/unit/public-demo-ingress-carry-through.test.mjs",
+        "tests/unit/quiet-tail-surface-contracts.test.mjs",
         "tests/unit/ready-dialog-adapter-contracts.test.mjs",
         "tests/unit/regression-source-measure.test.mjs",
         "tests/unit/resume-producer-payload.test.mjs",
@@ -545,7 +546,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7903,
+      "errorCount": 7888,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -737,16 +738,12 @@
         ],
         "public/js/dashboard.entry.js": [
           {
-            "code": 18046,
-            "count": 1
-          },
-          {
             "code": 18048,
             "count": 1
           },
           {
             "code": 2339,
-            "count": 5
+            "count": 4
           },
           {
             "code": 7006,
@@ -1099,10 +1096,6 @@
             "count": 15
           },
           {
-            "code": 2349,
-            "count": 1
-          },
-          {
             "code": 7006,
             "count": 24
           }
@@ -1136,7 +1129,7 @@
           },
           {
             "code": 2339,
-            "count": 24
+            "count": 23
           },
           {
             "code": 7005,
@@ -1190,7 +1183,7 @@
           },
           {
             "code": 7005,
-            "count": 2
+            "count": 1
           },
           {
             "code": 7006,
@@ -1198,7 +1191,7 @@
           },
           {
             "code": 7034,
-            "count": 2
+            "count": 1
           }
         ],
         "public/js/shared/capture-prompt.js": [
@@ -1452,7 +1445,7 @@
         "public/js/shared/task-calendar.js": [
           {
             "code": 2339,
-            "count": 17
+            "count": 16
           },
           {
             "code": 7006,
@@ -1816,7 +1809,7 @@
         "public/js/time-tracking-reporting.js": [
           {
             "code": 2339,
-            "count": 9
+            "count": 7
           },
           {
             "code": 7005,
@@ -1960,7 +1953,7 @@
           },
           {
             "code": 2339,
-            "count": 236
+            "count": 232
           },
           {
             "code": 2345,
@@ -1984,7 +1977,7 @@
           },
           {
             "code": 7006,
-            "count": 164
+            "count": 162
           },
           {
             "code": 7023,
@@ -2649,8 +2642,8 @@
     }
   },
   "totals": {
-    "files": 1126,
-    "errors": 7903,
+    "files": 1127,
+    "errors": 7888,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -73,6 +73,7 @@
     });
   }
 
+  /** @returns {Promise<void>} the dialog resolves on close, carrying nothing */
   function showPermissionDenied() {
     if (activePermissionDialog) {
       return activePermissionDialog.promise;
@@ -116,7 +117,9 @@
     dialog.appendChild(form);
     document.body.appendChild(dialog);
 
+    /** @type {() => void} */
     let resolveDialog;
+    /** @type {Promise<void>} */
     const promise = new Promise((resolve) => {
       resolveDialog = resolve;
     });
