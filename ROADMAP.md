@@ -393,6 +393,16 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **Do not justify this child by diagnostic count.** Its value is that the namespace stops drifting, which is why it belongs next to the governance child rather than to the typing ones.
 - [ ] Five members have no consumer at all: `billing` (`shared/billing.js`), `helpPageReady` (`help.js`), `overlayHost` (`shared/overlay-host.js`), and `sessionAuthWarnings` and `supportView` (both `navigation.js`). **Four produce zero diagnostics and `supportView` produces two.** Establish whether each is a live seam, an external hook, a compatibility surface, or a ghost **before** declaring it - and where repository evidence cannot settle it, **record the uncertainty rather than declaring by default.** A declaration with no runtime owner is its own kind of drift, and declaration coverage is not a reason to immortalise a dead global.
 
+#### 0.33.33.38.2.3.1 - The ready module-action dialog adapters
+
+**Complete: three surfaces declared whole, 38 diagnostics closed, and the parent stays open.** See the archive entry.
+
+**Scoped by a probe rather than by the parent's list.** Each of `filePreview`, `filesDialog` and `clientProjectDialog` was declared against the same clean base on its own and then together, and all three proved ready: no descriptor cascade, no response boundary, no prerequisite. **`0.33.33.43.1` did not unblock `clientProjectDialog`** - that checkpoint typed Lists descriptors - and this child does not claim it did; the fresh probe simply found nothing in the way. The parent's remaining members are untouched, and **`0.33.33.38.2.3` is not closed by this child.**
+
+**`filePreview` is declared whole, and the established contract is extended rather than restated.** `BrowserFilePreviewActions` describes three of the nine published members - the action-shaped half the Files controller delegates to - so `BrowserFilePreview` extends it with the other six. The stale comment saying the rest was `0.33.33.42`'s work is corrected: it is this child's, and it is done.
+
+**The two openers are not the same shape and are not merged.** `openFilePreview` builds a modal and hands it back synchronously; `openFilePreviewAction` answers the host context's result promise when there is one and the dialog when there is not. The four Clients/Projects openers are asynchronous and resolve `dialog.returnValue || "closed"` - **a close reason, never a saved record** - and throw when the record is missing or unmanageable. No generic dialog interface was invented to erase that.
+
 #### 0.33.33.38.2.5 - Remove the namespace index signature
 
 **Runs last, because until every legitimate surface is declared it would break the estate rather than govern it.**

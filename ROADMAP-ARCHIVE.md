@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.3.1 - The ready module-action dialog adapters
+
+**Model: High Effort** - one bounded cohort drawn by measurement, sharing an investigation and a dispatcher rather than a contract.
+
+- [x] **Three surfaces, declared whole.** `filePreview` publishes nine members, `filesDialog` four, `clientProjectDialog` four - every one is declared, not just the opener the dispatcher calls. `BrowserFilePreview` **extends** the established `BrowserFilePreviewActions` rather than restating its three members, so each member is described exactly once and the Files controller's existing consumer keeps its meaning.
+- [x] **The shapes stay apart.** The Files openers are synchronous: `openFilePreview` and `openFileEditor` return the modal element, and the two action-shaped openers return `unknown` because they answer the host's result promise **or** the dialog. The four Clients/Projects openers are asynchronous and resolve a **close reason string**, not a record, and reject rather than resolve when the record is missing or unmanageable. No `BrowserDialog` was invented, and a break that introduces one is refused.
+- [x] **The declarations check their writers, one-sidedly.** Six breaks edit the writer *or* the contract but never both: a preview kind outside the published union, a preview state the reader cannot produce, a dropped `filesDialog` member, a Clients opener that stops being asynchronous, and two contracts that claim a promise where the writer has none. All six are refused.
+- [x] **Two public returns were annotated, and only two.** `previewKindForExtension` and `previewAvailabilityForRow` widened to `string`, which was the one thing the published surface could not check. The four Clients/Projects openers were annotated for the same reason, and **a two-run probe proves it was load-bearing**: with the annotation a deliberately wrong contract is refused, without it the same wrong contract passes silently. No page controller and no helper parameter was typed.
+- [x] **The dispatcher acquires at invocation, never while building the registry.** Three `require*` accessors follow the pattern already used for Notes, Lists and the time dialogs. A break that acquires eagerly is refused, because doing so would turn an optional-at-startup dependency into a startup failure on every page that registers the action.
+- [x] **The Files preview delivery boundary is unchanged and now asserted.** `files.preview` still loads `js/shared/file-preview.js` and never `js/files.js`, which self-initializes with its own fetches. The chain test proves the load, the member check, the in-flight sharing between overlapping callers, and the failure when a script loads but publishes nothing.
+- [x] **Consumers outside the dispatcher keep their own rules.** The Files controller's cast was removed **after** the declaration began checking the writer, not before. The attachment panel's preview control stays optional - it is already hidden when the helper is absent, and its row reader still guards - because its hosts may not load the helper at all.
+- [x] **One indexing site was corrected on the way.** `footer.js` looked its quick-action dependency list up by indexing a closed record with a caller's string, which also reached inherited names: `toString` would have answered a function. It walks the map's own entries now, and six prototype and unknown names are proved to answer nothing.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **26 breaks across both writers, the three contracts, the dispatcher, the preview action's lifecycle and the three outside consumers - all 26 refused**, plus the annotation probe.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,963 | **7,925** |
+| Namespace family | 168 | **153** |
+| Declared namespace members | 48 of 64 | **51 of 64** |
+| Roots parked behind undeclared members | 12 behind 5 | **5 behind 2** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 1,834 / 348 / 167 | **1,862 / 348 / 167**, green |
+
+**Where the 38 went.** `clients-projects.js` −12 `TS2339`, `file-preview.js` −9 (−8 `TS2339` and −1 `TS7006`, both from the two annotated returns), `module-actions.js` −6 `TS18046`, `files.js` −5 `TS18046`, `file-attachments.js` −4, and `footer.js` −2. **No `(file, code)` pair increased anywhere**, and the `TS18046` "of type unknown" reads did not become `TS18048` "possibly undefined" reads, because each accessor narrows rather than deferring the question.
+
+**`0.33.33.38.2.3` remains open**, and this child claims none of its other members: `navigationIntent`, `notificationsPageReady`, `quickActionRefresh`, `recovery`, `refreshNotifications` and `reporting` are undrawn, and the four zero-consumer surfaces still carry the verdicts `0.33.33.38.2.2.7` recorded for them.
+
 ## Version 0.33.33.38.2.2.5.2 - Declare and adopt the stored workspace context
 
 **Model: High Effort** - one line of declaration, and a reckoning with everything it made visible.
