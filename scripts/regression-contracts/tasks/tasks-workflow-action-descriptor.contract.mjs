@@ -69,7 +69,8 @@ assert.doesNotMatch(workflowDescriptor, /assignee_replace|due_date", task_ids|du
 assert.doesNotMatch(tasksScript, /hasTaskWorkflowPermission/, "Tasks must not reintroduce a browser permission gate with no grant source");
 assert.doesNotMatch(disabledReason, /You do not have permission/, "and must not claim a refusal the browser cannot make");
 assert.match(timerDisabledReason, /Task timers are disabled[\s\S]*Time Tracking is disabled[\s\S]*project-linked task[\s\S]*Completed and archived tasks cannot use task timers/, "Timer disabled state should mirror shipped timer eligibility reasons");
-assert.match(runWorkflowAction, /handler\(\{[\s\S]*record:\s*task[\s\S]*refresh:\s*reloadTaskList[\s\S]*trigger/, "Workflow handlers should receive the Tasks record, refresh hook, and trigger");
+assert.match(runWorkflowAction, /const context = \{[\s\S]*record:\s*task[\s\S]*refresh:\s*reloadTaskList[\s\S]*trigger/, "Workflow handlers should receive the Tasks record, refresh hook, and trigger");
+assert.match(runWorkflowAction, /await handler\(context\);/, "and should hand that context over unchanged");
 assert.match(openWorkflowDialog, /openTaskDialog\(task, \{[\s\S]*focusTarget:\s*action\.focusTarget \|\| ""[\s\S]*returnFocusTo:\s*trigger \|\| document\.activeElement/, "Complex workflow actions should reopen the canonical task editor with field focus and focus return");
 assert.match(saveTimerAction, /api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(task\.task_id\)\}\/timer`[\s\S]*timer_status:[\s\S]*accumulated_elapsed_seconds:[\s\S]*last_active_start_time:[\s\S]*if \(timerTask\)[\s\S]*upsertTask\(timerTask\)[\s\S]*await reloadTaskList\(\)/, "Timer workflow actions should use existing Tasks timer routes, apply returned task state, and refresh the list");
 assert.match(readElapsed, /accumulated_elapsed_seconds[\s\S]*timer\.timer_status !== "running"[\s\S]*Date\.now\(\) - startedAt/, "Timer pause should preserve elapsed running time");

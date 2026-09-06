@@ -61,7 +61,8 @@ assert.match(disabledReason, /Task action is unavailable/, "Missing task records
 // enforces them, which permission-regression proves against the real routes.
 assert.doesNotMatch(tasksScript, /hasTaskLifecyclePermission|permissionAllowsTaskAction/, "Tasks must not reintroduce a browser permission gate with no grant source");
 assert.match(runLifecycleAction, /if \(action\.confirm && !await confirmTaskLifecycleAction\(action, task\)\)/, "Confirmed lifecycle actions should prompt before dispatch");
-assert.match(runLifecycleAction, /handler\(\{[\s\S]*record:\s*task[\s\S]*refresh:\s*reloadTaskList/, "Lifecycle handlers should receive the Tasks record and refresh hook");
+assert.match(runLifecycleAction, /const context = \{[\s\S]*record:\s*task[\s\S]*refresh:\s*reloadTaskList/, "Lifecycle handlers should receive the Tasks record and refresh hook");
+assert.match(runLifecycleAction, /await handler\(context\);/, "and should hand that context over unchanged");
 assert.match(confirmLifecycleAction, /modal\?\.confirm[\s\S]*danger:\s*confirmOptions\.danger === true \|\| action\.role === "destructive"/, "Destructive lifecycle confirmation should use the framework modal confirm helper");
 assert.match(updateLifecycleStatus, /api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(task\.task_id\)\}`, payload\)[\s\S]*upsertTask\(lifecycleTask\)[\s\S]*await reloadTaskList\(\)/, "Direct lifecycle status updates should use the existing Tasks update route and refresh the list");
 assert.match(extractFunctionSpan(tasksScript, "openTaskDialogForBlock"), /focusTarget:\s*"blocked_reason"[\s\S]*status:\s*"blocked"/, "Block should open the canonical editor in blocked state focused on Blocked Reason");

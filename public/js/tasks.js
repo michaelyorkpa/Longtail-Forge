@@ -162,6 +162,61 @@
     "tasks.workflow.timer.resume": ({ action, record }) => saveTaskTimerAction(record, action.timerStatus || "running"),
   });
 
+  /**
+   * What both task behavior dispatchers hand a handler.
+   *
+   * Every handler destructures the subset it needs; the context itself is the superset, and that
+   * is deliberate - a behavior may start reading `api` or `refresh` without its caller changing.
+   * @typedef {{
+   *   action: unknown,
+   *   api: unknown,
+   *   record: unknown,
+   *   refresh: unknown,
+   *   trigger: unknown,
+   *   workspaceContext: unknown,
+   * }} TaskBehaviorContext
+   */
+
+  /**
+   * The handler a behavior names, or `undefined` when the map does not declare one.
+   *
+   * Both maps are closed frozen records and `action.behavior` is whatever a descriptor carried,
+   * so indexing them with it was an implicit-any element access. **It also read through the
+   * prototype**: a descriptor declaring `behavior: "toString"` would have found
+   * `Object.prototype.toString`, and all four callers treat a truthy lookup as a handler.
+   * Walking a map's own entries answers only for the keys it actually declares.
+   *
+   * One reader per map rather than one shared reader, deliberately. A shared reader would have to
+   * name the parameter's type, and the only spellings available either erase the closed
+   * vocabulary these maps exist to keep or need a cast to get the handler back out. Reading each
+   * map where its type is known needs neither, and each reader's return stays the union of that
+   * map's own handlers.
+   *
+   * An unrecognised behavior still answers nothing, which is what all four callers already
+   * handle: two skip registration, two set a "Missing task ... behavior" status and return.
+   * @param {unknown} behavior
+   */
+  function taskLifecycleBehaviorHandler(behavior) {
+    for (const [name, handler] of Object.entries(TASK_LIFECYCLE_BEHAVIOR_HANDLERS)) {
+      if (name === behavior) {
+        return handler;
+      }
+    }
+
+    return undefined;
+  }
+
+  /** @param {unknown} behavior */
+  function taskWorkflowBehaviorHandler(behavior) {
+    for (const [name, handler] of Object.entries(TASK_WORKFLOW_BEHAVIOR_HANDLERS)) {
+      if (name === behavior) {
+        return handler;
+      }
+    }
+
+    return undefined;
+  }
+
   let activeTasksViewDescriptor = null;
   let state = {
     /** @type {BrowserTaskListItem[]} */
@@ -470,7 +525,7 @@
 
   function registerTaskLifecycleBehaviors() {
     taskLifecycleActionStripDescriptor().actions.forEach((action) => {
-      const handler = TASK_LIFECYCLE_BEHAVIOR_HANDLERS[action.behavior];
+      const handler = taskLifecycleBehaviorHandler(action.behavior);
       if (handler) {
         requireDescriptorRenderers().registerBehavior(action.behavior, handler);
       }
@@ -479,7 +534,7 @@
 
   function registerTaskWorkflowBehaviors() {
     taskWorkflowActionMenuDescriptor().actions.forEach((action) => {
-      const handler = TASK_WORKFLOW_BEHAVIOR_HANDLERS[action.behavior];
+      const handler = taskWorkflowBehaviorHandler(action.behavior);
       if (handler) {
         requireDescriptorRenderers().registerBehavior(action.behavior, handler);
       }
@@ -1825,7 +1880,7 @@
 
   async function runTaskLifecycleAction(action, task, trigger = null) {
     const api = requireApi();
-    const handler = TASK_LIFECYCLE_BEHAVIOR_HANDLERS[action.behavior];
+    const handler = taskLifecycleBehaviorHandler(action.behavior);
     if (!handler) {
       setStatus(`Missing task lifecycle behavior: ${action.behavior}`, { isError: true });
       return;
@@ -1834,32 +1889,38 @@
       return;
     }
 
-    await handler({
+    /** @type {TaskBehaviorContext} */
+    const context = {
       action,
       api,
       record: task,
       refresh: reloadTaskList,
       trigger,
       workspaceContext: window.LongtailForge?.workspaceContext || {},
-    });
+    };
+
+    await handler(context);
   }
 
   async function runTaskWorkflowAction(action, task, trigger = null) {
     const api = requireApi();
-    const handler = TASK_WORKFLOW_BEHAVIOR_HANDLERS[action.behavior];
+    const handler = taskWorkflowBehaviorHandler(action.behavior);
     if (!handler) {
       setStatus(`Missing task workflow behavior: ${action.behavior}`, { isError: true });
       return;
     }
 
-    await handler({
+    /** @type {TaskBehaviorContext} */
+    const context = {
       action,
       api,
       record: task,
       refresh: reloadTaskList,
       trigger,
       workspaceContext: window.LongtailForge?.workspaceContext || {},
-    });
+    };
+
+    await handler(context);
   }
 
   function openTaskDialogForWorkflow(task, action, trigger = null, defaults = {}) {

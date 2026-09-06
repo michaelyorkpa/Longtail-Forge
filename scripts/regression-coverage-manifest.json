@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19051,
+    "activeAssertionCount": 19053,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19865,
+    "effectiveAssertionCount": 19867,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -6979,8 +6979,8 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 772,
-      "contractAssertionCount": 771,
+      "assertionCount": 774,
+      "contractAssertionCount": 773,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/tasks/task-checklist-editor-display.contract.mjs",
@@ -7040,7 +7040,7 @@
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-lifecycle-action-descriptor.contract.mjs",
-          "assertionCount": 30
+          "assertionCount": 31
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-list-surface-boundary.contract.mjs",
@@ -7080,7 +7080,7 @@
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-workflow-action-descriptor.contract.mjs",
-          "assertionCount": 39
+          "assertionCount": 40
         }
       ],
       "description": "Runs source-only Tasks list, editor, modal, relationship, and Workbench-handoff contracts through one table-driven owner.",
