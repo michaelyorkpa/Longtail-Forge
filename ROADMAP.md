@@ -310,11 +310,17 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.2.2.5.2 - Declare and adopt the stored workspace context
 
-**Unblocked: `0.33.33.38.4.15` has landed.** The member cannot be declared honestly until there is a canonical stored record to declare it as: today `hydrateStoredWorkspaceContext` publishes whatever `readWorkspaceContext()` parsed out of `localStorage`, which is any non-null object. Declaring the member first would either need `Record<string, unknown>` - which is the shape that produced this cohort - or a record nothing validates.
+**Complete: 74 diagnostics closed, and the declaration's real cost was a reckoning rather than a cast.** See the archive entry.
 
-- [ ] Declare `workspaceContext?: BrowserStoredWorkspaceContext` and keep it **optional**: cached hydration and network bootstrap make absence a real lifecycle state.
-- [ ] Preserve every absence-tolerant consumer. **Do not replace the estate with one throwing accessor**; a required accessor belongs only where delivery already makes absence an error.
-- [ ] Close only the genuine boundaries the truthful declaration exposes, and **do not add a field to the contract because a consumer reads one** - a consumer read is not producer evidence.
+- [x] Declared `workspaceContext?: BrowserStoredWorkspaceContext`, **optional**, because cached hydration and network bootstrap make absence a real lifecycle state.
+- [x] Every absence-tolerant consumer is preserved. No throwing accessor was introduced.
+- [x] No field was added to the contract because a consumer reads one. **The opposite happened**: nine consumers read members no producer publishes, and those reads are gone.
+
+**What the declaration exposed was dead machinery, not missing contract.** Five files reached for `permissionIds` and then `permissions`; three read `user_id` or `workspace_type` beside the members the constructor already publishes; and `view-action-security.js` reached for the same two through a type assertion that made both look present. `buildWorkspaceContext` reconstructs the stored context by name and publishes fourteen members, none of them a grant list, so **every one of those reads had always answered "no restriction"** - two task gates and two task-dialog gates were constant `true`, and the message "You do not have permission to run this action" could not be produced by any of them.
+
+**Deleting them changes no behaviour, and leaving them would have been worse than either.** A named gate that cannot fire reads as protection while providing none. The permission the descriptors declare is enforced where it always was - `permission-regression` refuses the same descriptor-driven mutation at the real route for a user without the permission, invoked directly with no browser in the path - and that link is now asserted explicitly.
+
+**`LongtailForge.viewActionSecurity` keeps its surface.** Only the assertion and the lookup behind it were removed; the module's confirmation, route interpolation and dispatch are untouched, and `actionPermissionsAllowed` and `assertActionPermissions` remain published hooks with their existing signatures. Whether the browser should receive a deliberately designed permission hint is `0.33.33.39.2`'s to decide.
 
 #### 0.33.33.38.2.2.6 - The undeclared remainder, resliced by writer risk
 
@@ -867,6 +873,18 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 **The contribution input stays open and the resolved output is closed, which is the whole design.** `ModuleSettingDefinition` is reused rather than restated - a module may contribute a setting type this renderer has never heard of, and its `(string & {})` arm says so. What the renderer *answers* is closed: `normalizeType` admits nine values and falls back to `info`. **Nine contracts describe the resolved side only**, and `value` stays `unknown` throughout, because a module owns what its own setting means.
 
 **No consumer file changed and the namespace member is still undeclared**, so the 44 namespace diagnostics across the five settings pages are exactly where they were. That is `0.33.33.38.2.2.9`'s to move.
+
+#### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
+
+**Open. Not started, and deliberately not decided by `0.33.33.38.2.2.5.2`.** That checkpoint removed an unsupported type assertion and a lookup that could never answer; it did not design a replacement, and it must not be read as having settled what should exist here.
+
+**The situation, stated accurately.** `LongtailForge.viewActionSecurity.actionPermissionsAllowed` is unconditional and `assertActionPermissions` cannot throw. Descriptors across the modules still declare `requiredPermissions`, and the renderer still reads that metadata and still calls both hooks between confirmation and dispatch. Nothing is enforced by them, and nothing ever was.
+
+**The server contract already exists; only the browser carry-through does not.** `/api/app-shell/bootstrap` publishes a role-accurate `workspaceContext.permissionIds` - `permission-regression` asserts it per role, including that a project admin sees `projects.manage` and not `clients.manage`. `buildWorkspaceContext` deliberately does not persist it, so this is not a contract that would have to be invented, and the decision is about whether it should reach the browser at all rather than whether it could.
+
+- [ ] Decide between two outcomes and record why: **supply a deliberately designed, server-derived permission hint** for advisory UI gating, declared and validated like any other stored member; **or retire the unused hooks** after a caller and contract audit.
+- [ ] Whichever is chosen, an advisory hint is never an authorization boundary. Server-side enforcement stays where it is, and no hint may be described as protection.
+- [ ] If the hooks are retired, audit `requiredPermissions` on every descriptor first: the metadata may still be worth keeping for the server, for documentation, or for a future hint.
 
 ### 0.33.33.40 - Type the Notes browser controller
 
