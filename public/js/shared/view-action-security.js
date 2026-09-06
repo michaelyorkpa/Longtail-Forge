@@ -47,31 +47,33 @@
   const namespace = global.LongtailForge || {};
 
   /**
-   * Whether every permission an action requires is granted in the current workspace.
+   * Whether an action's declared permissions allow it here. **Always `true`.**
    *
-   * An action that requires nothing is allowed. A workspace context that publishes no
-   * permission list is treated as unrestricted, because the server is the enforcement point
-   * and this check is a UI affordance rather than the boundary.
+   * This has never gated anything, and `0.33.33.38.2.2.5.2` removed the assertion that hid it.
+   * The check reached for `permissionIds` and then `permissions` on the workspace context
+   * through a type assertion naming two members the canonical context does not have:
+   * `buildWorkspaceContext` reconstructs fourteen members by name and no grant list is among
+   * them, so both reads were `undefined`, the `Array.isArray` guard failed, and every call
+   * returned `true`. Removing the assertion changes the answer for no caller.
    *
+   * **The enforcement point is the server and always was.** The routes these actions dispatch
+   * to check permissions themselves and refuse an unauthorized caller whether or not this ran,
+   * so this is not a control that has been weakened - it is a hook that was never connected.
+   *
+   * It stays as a published hook rather than being deleted: `LongtailForge.viewActionSecurity`
+   * is a live surface and the renderer calls this between confirmation and dispatch. Whether
+   * the browser should receive a deliberately designed, server-derived permission hint for
+   * advisory gating - the app shell already computes a role-accurate `permissionIds` that the
+   * stored context deliberately drops - is an open framework decision, not this checkpoint's.
+   *
+   * `action` is unread and keeps its place in the published signature.
    * @param {SecuredAction} [action]
    * @returns {boolean}
    */
   function actionPermissionsAllowed(action = {}) {
-    const requiredPermissions = action.requiredPermissions || [];
-    if (!Array.isArray(requiredPermissions) || requiredPermissions.length === 0) {
-      return true;
-    }
+    void action;
 
-    const workspaceContext = /** @type {{ permissionIds?: unknown, permissions?: unknown } | undefined} */ (
-      namespace.workspaceContext
-    );
-    const grantedPermissions = workspaceContext?.permissionIds || workspaceContext?.permissions;
-    if (!Array.isArray(grantedPermissions)) {
-      return true;
-    }
-
-    const granted = new Set(grantedPermissions);
-    return requiredPermissions.every((permissionId) => granted.has(permissionId));
+    return true;
   }
 
   /**

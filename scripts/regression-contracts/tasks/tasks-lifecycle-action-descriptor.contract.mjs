@@ -20,8 +20,6 @@ const lifecycleStrip = extractFunctionSpan(tasksScript, "createTaskLifecycleActi
 const lifecycleDescriptor = extractFunctionSpan(tasksScript, "taskLifecycleActionStripDescriptor");
 const lifecycleButton = extractFunctionSpan(tasksScript, "taskLifecycleActionButton");
 const disabledReason = extractFunctionSpan(tasksScript, "taskLifecycleDisabledReason");
-const permissionCheck = extractFunctionSpan(tasksScript, "hasTaskLifecyclePermission");
-const permissionAllow = extractFunctionSpan(tasksScript, "permissionAllowsTaskAction");
 const runLifecycleAction = extractFunctionSpan(tasksScript, "runTaskLifecycleAction");
 const confirmLifecycleAction = extractFunctionSpan(tasksScript, "confirmTaskLifecycleAction");
 const updateLifecycleStatus = extractFunctionSpan(tasksScript, "updateTaskLifecycleStatus");
@@ -56,8 +54,12 @@ assert.match(lifecycleDescriptor, /id:\s*"archive-task"[\s\S]*role:\s*"destructi
 assert.doesNotMatch(lifecycleDescriptor, /delete-task|soft-delete|permanent-delete|tasks\.lifecycle\.delete/, "Lifecycle descriptors should not invent a task delete workflow");
 
 assert.match(disabledReason, /Task action is unavailable/, "Missing task records should render disabled lifecycle actions");
-assert.match(permissionCheck, /requiredPermissions[\s\S]*requiredAnyPermissions/, "Lifecycle permission display should understand both all-of and any-of permission declarations");
-assert.match(permissionAllow, /permissionId === "tasks\.edit_own"[\s\S]*return isOwnTask\(task\)/, "Own-task edit permission display should respect task ownership");
+// 0.33.33.38.2.2.5.2 deleted hasTaskLifecyclePermission and permissionAllowsTaskAction. Both
+// began by reading a permission set the canonical stored context has never published, so both
+// were constant true and these two assertions described a display rule that never applied.
+// The descriptors still declare their permissions - asserted just above - and the server still
+// enforces them, which permission-regression proves against the real routes.
+assert.doesNotMatch(tasksScript, /hasTaskLifecyclePermission|permissionAllowsTaskAction/, "Tasks must not reintroduce a browser permission gate with no grant source");
 assert.match(runLifecycleAction, /if \(action\.confirm && !await confirmTaskLifecycleAction\(action, task\)\)/, "Confirmed lifecycle actions should prompt before dispatch");
 assert.match(runLifecycleAction, /handler\(\{[\s\S]*record:\s*task[\s\S]*refresh:\s*reloadTaskList/, "Lifecycle handlers should receive the Tasks record and refresh hook");
 assert.match(confirmLifecycleAction, /modal\?\.confirm[\s\S]*danger:\s*confirmOptions\.danger === true \|\| action\.role === "destructive"/, "Destructive lifecycle confirmation should use the framework modal confirm helper");

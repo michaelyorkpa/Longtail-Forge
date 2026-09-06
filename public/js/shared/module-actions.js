@@ -497,7 +497,8 @@
       return true;
     }
 
-    const capabilities = namespace.workspaceContext?.workspaceCapabilities?.availableTools || [];
+    const availableTools = namespace.workspaceContext?.workspaceCapabilities?.availableTools;
+    const capabilities = Array.isArray(availableTools) ? availableTools : [];
     return requiredCapabilities.some((capability) => capabilities.includes(capability));
   }
 

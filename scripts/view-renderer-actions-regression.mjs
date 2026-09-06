@@ -80,7 +80,6 @@ const context = createFakeBrowserContext({
   iconButton: { iconClass: false, iconOnlyText: true },
   window: { confirmMessages },
   workspaceContext: {
-    permissionIds: ["sample.view"],
     workspaceId: "actions-workspace",
   },
 });
@@ -154,13 +153,22 @@ const missingButton = findButtonByText(surface, "Missing behavior");
 await missingButton.click();
 assert.match(surface.textContent, /Missing view behavior handler: sample\.missing/, "Missing behavior handlers should render a recoverable status");
 
-assert.equal(hasButtonByText(surface, "Denied route"), false, "Actions with absent declared permissions should not render");
-assert.equal(hasButtonByText(surface, "Denied row"), false, "Row actions with absent declared permissions should not render");
+// 0.33.33.38.2.2.5.2. These four assertions used to prove that a declared permission withholds
+// a control and then blocks its dispatch. They passed because this harness injected
+// `workspaceContext.permissionIds` into a fake context; no production publication path supplies
+// one, so the gate they described could never fire in the application. They are retargeted onto
+// what is true rather than deleted, and the denial itself is proved server-side - see
+// `permission-regression`, which refuses the same descriptor-driven mutation at the real route
+// for a user without the permission, invoked directly with no browser in the path.
+assert.ok(hasButtonByText(surface, "Denied route"), "Declared permissions do not withhold a control, because no client-side grant source exists");
+assert.ok(hasButtonByText(surface, "Denied row"), "The same is true of row actions");
+assert.match(renderer, /requiredPermissions/, "The renderer still reads the metadata, which the server enforces");
+assert.equal(context.window.LongtailForge.workspaceContext.permissionIds, undefined, "and the canonical context still publishes no grant list");
 
-context.window.LongtailForge.workspaceContext.permissionIds = [];
+const deniedBefore = behaviorCalls.length;
 await openButton.click();
-assert.match(surface.textContent, /You do not have permission to run this action/, "A rendered action should still recheck live permission hints before dispatch");
-assert.equal(behaviorCalls.length, 1, "A permission hint removed after render should block the behavior dispatch");
+assert.equal(behaviorCalls.length, deniedBefore + 1, "the permission hook is unconditional, so dispatch proceeds");
+assert.doesNotMatch(surface.textContent, /You do not have permission to run this action/, "and nothing claims a client-side refusal that did not happen");
 
 
 console.log("View renderer actions regression passed.");

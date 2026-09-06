@@ -955,16 +955,6 @@
   }
 
   function workspaceHasPermission(permissionId) {
-    const rawPermissions = namespace.workspaceContext?.permissionIds ||
-      namespace.workspaceContext?.permissions;
-
-    if (Array.isArray(rawPermissions)) {
-      return rawPermissions.some((permission) => {
-        const permissionValue = typeof permission === "string" ? permission : permission?.permissionId || permission?.permission_id || permission?.id;
-        return permissionValue === permissionId;
-      });
-    }
-
     if (permissionId === "files.manage_quarantine") {
       return namespace.workspaceContext?.permissionHints?.filesManageQuarantine === true;
     }

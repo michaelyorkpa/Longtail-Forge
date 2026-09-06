@@ -302,10 +302,14 @@ describe("the contracts are page-specific and change nothing global", () => {
     assert.match(body, /^ {2}viewSurfaces: unknown\[\];$/m, "this page narrows its own element");
   });
 
-  it("declares no namespace member, which is 0.33.33.38.2.2.5.2's work", () => {
+  it("left the namespace member to 0.33.33.38.2.2.5.2, and still reads it as a candidate", () => {
+    // Spent by that child. This page's boundary was written to hold on both sides of the
+    // declaration, so what outlives the guard is that it still does: the member is declared now,
+    // and this reader still narrows the value itself rather than trusting the contract.
     const at = contracts.indexOf("export interface LongtailForgeBrowserNamespace {");
     const body = contracts.slice(at, contracts.indexOf("\n}\n", at));
-    assert.ok(!/^ {2}workspaceContext\?:/m.test(body));
+    assert.match(body, /^ {2}workspaceContext\?: BrowserStoredWorkspaceContext;$/m);
+    assert.match(slice("function listsWorkspaceViewSurfaces() {"), /@type \{unknown\}/);
   });
 
   it("reads the namespace member as an unknown candidate, so it holds either way", () => {

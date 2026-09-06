@@ -25,8 +25,10 @@ const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
 const workbenchScript = readText("public/js/workbench.js");
 // 0.33.33.34 moved the module-action dependency table into the shared registry.
 const moduleActionsScript = readText("public/js/shared/module-actions.js");
-// 0.33.33.37 moved status legality into LongtailForge.taskLifecycleLegality; the dialog still
-// composes it with its own permission and saved-task checks.
+// 0.33.33.37 moved status legality into LongtailForge.taskLifecycleLegality; the dialog
+// composes it with its own saved-task check. 0.33.33.38.2.2.5.2 removed the permission half:
+// it read a grant list the canonical stored context has never published, so it was constant
+// true. Permission enforcement is server-side, and permission-regression proves it there.
 const taskLifecycleLegality = readText("public/js/shared/task-lifecycle-legality.js");
 const tasksView = readText("views/protected/tasks.html");
 const workbenchView = readText("views/protected/workbench.html");
@@ -61,8 +63,13 @@ function assertStaticContract() {
   assert.match(taskDialogScript, /fields\.complete\?\.addEventListener\("click", saveAndCompleteTask\)/, "Complete action should dispatch to the save-and-complete handler");
   assert.match(taskLifecycleLegality, /const ACTIVE_STATUSES = Object\.freeze\(\["open", "in_progress", "blocked"\]\)/, "Complete action should be visible only for active task statuses");
   assert.match(taskLifecycleLegality, /function canCompleteStatus\(status\)[\s\S]*ACTIVE_STATUS_SET\.has\(status\)/, "Completability should be decided from the shared active-status vocabulary");
-  assert.match(taskDialogScript, /currentTaskId[\s\S]*canCompleteStatus\(status\)[\s\S]*hasTaskCompletePermission\(\)/, "Complete action should require a saved active task and completion permission");
-  assert.match(taskDialogScript, /permissions\.has\("tasks\.complete"\)/, "Complete action should check tasks.complete before showing");
+  // 0.33.33.38.2.2.5.2 deleted hasTaskCompletePermission. It read a permission set the
+  // canonical stored context has never published, so it was constant true and this assertion
+  // was pinning a gate that could not fire. The half that was ever real is kept; the
+  // permission itself is enforced server-side, which permission-regression proves.
+  assert.match(taskDialogScript, /currentTaskId[\s\S]*canCompleteStatus\(status\)/, "Complete action should require a saved active task in a completable status");
+  assert.doesNotMatch(taskDialogScript, /hasTaskCompletePermission/, "and must not reintroduce a browser gate with no grant source");
+  assert.doesNotMatch(taskDialogScript, /permissions\.has\("tasks\.complete"\)/, "and must not check a grant list the browser is never given");
   assert.match(taskDialogScript, /complete\.dataset\.completeTask = ""[\s\S]*complete\.hidden = true/, "Complete header button should start hidden until state gating passes");
   assert.match(taskDialogScript, /taskFormChangeState\(\)\.hasChanges[\s\S]*saveTaskForm\(\{[\s\S]*closeOnSuccess: false,[\s\S]*statusMessage: "Saving task before completion\.\.\."/,
     "Save-and-complete should persist only real pending edits before completion");

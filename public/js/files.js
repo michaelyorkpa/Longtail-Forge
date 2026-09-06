@@ -236,7 +236,12 @@
   // an answer rather than a not-yet.
   function filesViewSurfaceDescriptor() {
     const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
-    return surfaces.find((surface) => surface.id === "files.browse" && surface.moduleId === "framework") || null;
+    return surfaces.find(
+      /** @returns {surface is Record<string, unknown>} */
+      (surface) => typeof surface === "object" && surface !== null
+        && "id" in surface && surface.id === "files.browse"
+        && "moduleId" in surface && surface.moduleId === "framework",
+    ) || null;
   }
 
   function cacheFilesElements() {
@@ -2007,30 +2012,11 @@
   }
 
   function workspaceHasPermission(permissionId) {
-    const permissions = workspacePermissionSet();
-    if (permissions) {
-      return permissions.has(permissionId);
-    }
-
     if (permissionId === "files.manage_quarantine") {
       return window.LongtailForge?.workspaceContext?.permissionHints?.filesManageQuarantine === true;
     }
 
     return false;
-  }
-
-  function workspacePermissionSet() {
-    const rawPermissions = window.LongtailForge?.workspaceContext?.permissionIds ||
-      window.LongtailForge?.workspaceContext?.permissions;
-
-    if (!Array.isArray(rawPermissions)) {
-      return null;
-    }
-
-    const permissionIds = rawPermissions
-      .map((permission) => typeof permission === "string" ? permission : permission?.permissionId || permission?.permission_id || permission?.id)
-      .filter(Boolean);
-    return new Set(permissionIds);
   }
 
   async function reportFile(fileId, file = {}, attachmentId = "") {

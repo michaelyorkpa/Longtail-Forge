@@ -21,7 +21,6 @@ const workflowMenu = extractFunctionSpan(tasksScript, "createTaskWorkflowActionM
 const workflowDescriptor = extractFunctionSpan(tasksScript, "taskWorkflowActionMenuDescriptor");
 const workflowButton = extractFunctionSpan(tasksScript, "taskWorkflowActionButton");
 const disabledReason = extractFunctionSpan(tasksScript, "taskWorkflowDisabledReason");
-const permissionCheck = extractFunctionSpan(tasksScript, "hasTaskWorkflowPermission");
 const timerDisabledReason = extractFunctionSpan(tasksScript, "taskTimerDisabledReason");
 const runWorkflowAction = extractFunctionSpan(tasksScript, "runTaskWorkflowAction");
 const openWorkflowDialog = extractFunctionSpan(tasksScript, "openTaskDialogForWorkflow");
@@ -63,8 +62,12 @@ assert.match(workflowDescriptor, /id:\s*"pause-task-timer"[\s\S]*behavior:\s*"ta
 assert.match(workflowDescriptor, /id:\s*"resume-task-timer"[\s\S]*behavior:\s*"tasks\.workflow\.timer\.resume"[\s\S]*timerStatus:\s*"running"[\s\S]*timerVisibility:\s*"paused"/, "Resume timer should only display for paused task timers");
 assert.doesNotMatch(workflowDescriptor, /assignee_replace|due_date", task_ids|due_time", task_ids|recurrence_template_id/, "Row workflow actions should not add inline edit payloads that bypass the canonical editor");
 
-assert.match(disabledReason, /hasTaskWorkflowPermission\(action, task\)/, "Workflow disabled state should include permission display");
-assert.match(permissionCheck, /requiredPermissions[\s\S]*requiredAnyPermissions/, "Workflow permission display should understand both all-of and any-of permission declarations");
+// 0.33.33.38.2.2.5.2 deleted hasTaskWorkflowPermission. It read a permission set the canonical
+// stored context has never published, so it was constant true and the disabled reason it fed
+// could not be produced. The disabled state keeps every reason that can actually occur, and
+// the permission itself is enforced server-side, which permission-regression proves.
+assert.doesNotMatch(tasksScript, /hasTaskWorkflowPermission/, "Tasks must not reintroduce a browser permission gate with no grant source");
+assert.doesNotMatch(disabledReason, /You do not have permission/, "and must not claim a refusal the browser cannot make");
 assert.match(timerDisabledReason, /Task timers are disabled[\s\S]*Time Tracking is disabled[\s\S]*project-linked task[\s\S]*Completed and archived tasks cannot use task timers/, "Timer disabled state should mirror shipped timer eligibility reasons");
 assert.match(runWorkflowAction, /handler\(\{[\s\S]*record:\s*task[\s\S]*refresh:\s*reloadTaskList[\s\S]*trigger/, "Workflow handlers should receive the Tasks record, refresh hook, and trigger");
 assert.match(openWorkflowDialog, /openTaskDialog\(task, \{[\s\S]*focusTarget:\s*action\.focusTarget \|\| ""[\s\S]*returnFocusTo:\s*trigger \|\| document\.activeElement/, "Complex workflow actions should reopen the canonical task editor with field focus and focus return");
