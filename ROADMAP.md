@@ -212,6 +212,14 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **No child may weaken a contract to move a number.** No cast, no non-null assertion, no suppression, no permissive index signature, no `any`.
 - [ ] **Classify every acquisition site before converting it, exactly as `0.33.33.38.1` did.** A consumer that legitimately runs without a surface keeps its optionality; four consumers and `file-attachments.js` did, and that was correct.
 
+#### 0.33.33.38.2.6.8 - The publication-root accesses
+
+**Complete: six publications addressed through a checked local binding, and the inventory still sees every one of them.** See the archive entry.
+
+**The binding is the point, not merely the check.** The publication inventory resolves a writer through the **binding** an assignment is rooted at, so `requireNamespace().filesDialog = ...` - a call expression - cannot be proved to be the namespace, and six real surfaces would have dropped out of governance. That form was written, measured, and replaced: a local `const` read straight from the global is what the resolver understands.
+
+**Bootstrap semantics are unchanged.** No file creates a root its publication would previously have failed on; `navigation.js` still establishes the root at module scope, and its two publications each acquire their own binding - the first deliberately **after** `await response.json()`, because a root captured before that await is not provably the root that exists after it.
+
 #### 0.33.33.38.2.6.7 - The direct readiness-await root accesses
 
 **Complete: eleven sites across eight pages, and the root is checked while the member stays optional.** See the archive entry.
