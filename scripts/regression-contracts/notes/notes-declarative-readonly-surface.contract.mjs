@@ -44,7 +44,7 @@ assert.doesNotMatch(
 );
 assert.match(
   notesJs,
-  /\.id === "notes\.workspace"[^\n]*\|\| null;/,
+  /candidate is Record<string, unknown>[\s\S]*?\.id === "notes\.workspace"[\s\S]*?\|\| null;/,
   "Notes should resolve to null when the server did not deliver its surface",
 );
 // The slide-out layout assertion that stood here read notes.js, where only the deleted

@@ -1,5 +1,32 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.5.2 - Declare and adopt the stored workspace context
+
+**Model: High Effort** - one line of declaration, and a reckoning with everything it made visible.
+
+- [x] **The member is declared as the canonical stored record and left optional.** `0.33.33.38.4.15` built the record this names and `0.33.33.38.4.15.1` completed it; absence stays a real lifecycle state, so no consumer was converted to a throwing accessor.
+- [x] **Nine consumers were reading members no producer publishes, and the reads are gone.** `permissionIds` and `permissions` in five files, `user_id` in two, `workspace_type` in one, and the same two collections again in `view-action-security.js` behind a type assertion. `buildWorkspaceContext` reconstructs fourteen named members and no grant list is among them, so **every one of these had always answered "no restriction"**.
+- [x] **Four gates were constant `true` and are deleted rather than left standing.** `hasTaskWorkflowPermission`, `hasTaskLifecyclePermission`, `hasTaskCompletePermission` and `hasTaskEditPermission` each began by reading a permission set that was always `null` and returning `true`. The message "You do not have permission to run this action" was unreachable from all four. A named gate that cannot fire reads as protection while providing none, so keeping them as `return true` would have been worse than either alternative.
+- [x] **The live permission hint was kept, and no new one was invented.** `permissionHints.filesManageQuarantine` has a real producer and still answers the quarantine check in both files. Only the two collections with no producer were removed.
+- [x] **`LongtailForge.viewActionSecurity` keeps its surface.** The assertion and the lookup behind it are gone; `actionPermissionsAllowed` and `assertActionPermissions` keep their signatures, exports, loader and renderer call sites, and `confirmDescriptorAction`, `interpolateRoute` and `runRouteAction` are untouched. The documentation says the hooks do not enforce client-side authorization, and does not claim to have repaired one.
+- [x] **The denial coverage that mattered was moved, not deleted.** `view-renderer-actions-regression` proved that a declared permission withholds a control - by injecting `workspaceContext.permissionIds` into a fake context. No production path supplies one, so it was proving a gate the application cannot exercise. Those assertions now record what is true, and the denial is asserted where it happens: `permission-regression` reads `clients.manage` out of the client-creation descriptor and proves the real route refuses a user without it, invoked directly with no browser involved.
+- [x] **Four sibling pages narrow the delivered surface before reading its identity**, using each page's own record predicate or an `in` test - no cast, and no second predicate where one already existed. Measured rather than assumed: the narrowing closes eight diagnostics and cascades into none.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **23 breaks across the contract, five pages, two shared modules and the security hook - all 23 refused.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 8,037 | **7,963** |
+| Undeclared namespace members | 5 | **4** |
+| Consumers reading a member no producer publishes | 9 | **0** |
+| Browser gates that could never fire | 4 | **0** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 1,816 / 348 / 167 | **1,834 / 348 / 167**, green |
+
+**One premise this checkpoint had to correct.** The preflight distinguished `publicDemo` from `permissionIds` on the grounds that only the former had a producer whose value was being dropped. That is not so: `/api/app-shell/bootstrap` publishes a role-accurate `permissionIds`, asserted per role by `permission-regression`. What actually separates them is a design judgment - a demo upload affordance is advisory UI, whereas mirroring grants into the browser invites exactly the "reads as protection" confusion this checkpoint removed. The judgment stands; the reasoning is corrected, and `0.33.33.39.2` is opened to decide the framework question on accurate ground rather than to invent a contract that already exists server-side.
+
 ## Version 0.33.33.38.4.15.1 - Carry the public-demo files-ingress restriction into the stored context
 
 **Model: High Effort** - a corrective prerequisite drawn out of `0.33.33.38.2.2.5.2`'s preflight, and the one finding in it that was not dead code.

@@ -190,8 +190,10 @@ describe("every consumer reference form is accounted for and unchanged", () => {
 });
 
 describe("no context-shape work lands in this child", () => {
-  it("declares no workspace-context member", () => {
-    assert.ok(!/^ {2}workspaceContext\?:/m.test(namespaceBody), "that member belongs to 0.33.33.38.2.2.5.2");
+  it("left the workspace-context member to 0.33.33.38.2.2.5.2, which declared it", () => {
+    // Spent by that child. The guard was that this one added no context-shape work; the fact that
+    // outlives it is that the member arrived as the canonical stored record, not a looser shape.
+    assert.match(namespaceBody, /^ {2}workspaceContext\?: BrowserStoredWorkspaceContext;$/m);
   });
 
   it("did not type the storage path, which 0.33.33.38.4.15 later did", () => {

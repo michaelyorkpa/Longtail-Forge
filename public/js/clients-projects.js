@@ -251,7 +251,12 @@
     }
 
     const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
-    const surface = surfaces.find((candidate) => candidate.id === surfaceId && candidate.moduleId === "client-projects") || null;
+    const surface = surfaces.find(
+      /** @returns {candidate is Record<string, unknown>} */
+      (candidate) => isResponseRecord(candidate)
+        && candidate.id === surfaceId
+        && candidate.moduleId === "client-projects",
+    ) || null;
     const filteredSurface = isProjectsPage ? withInitialProjectClientFilter(surface) : surface;
     return withoutUnavailableTopLevelActions(
       withoutUnsupportedBillingFields(withoutUnsupportedClientFields(filteredSurface)),

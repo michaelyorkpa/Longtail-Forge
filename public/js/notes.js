@@ -1410,13 +1410,18 @@
   // an answer rather than a not-yet.
   function notesViewSurfaceDescriptor() {
     const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
-    const surface = surfaces.find((candidate) => candidate.id === "notes.workspace" && candidate.moduleId === "notes") || null;
+    const surface = surfaces.find(
+      /** @returns {candidate is Record<string, unknown>} */
+      (candidate) => isResponseRecord(candidate)
+        && candidate.id === "notes.workspace"
+        && candidate.moduleId === "notes",
+    ) || null;
     return surface ? scopeNotesVisibilityContributions(surface) : null;
   }
 
   function scopeNotesVisibilityContributions(surface = {}) {
     const workspaceType = normalizeWorkspaceType(
-      state.workspaceType || window.LongtailForge?.workspaceContext?.workspaceType || window.LongtailForge?.workspaceContext?.workspace_type || "",
+      state.workspaceType || window.LongtailForge?.workspaceContext?.workspaceType || "",
     );
     if (!workspaceType || workspaceType === "business") {
       return surface;

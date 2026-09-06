@@ -416,10 +416,12 @@ describe("both publication paths agree, and neither publishes a raw value", () =
     assert.ok(!/window\.LongtailForge\.workspaceContext = context;/.test(hydrate), "no second assignment");
   });
 
-  it("still declares no namespace member for the surface", () => {
+  it("built the record 0.33.33.38.2.2.5.2 then declared the namespace member as", () => {
+    // Spent by that child. This checkpoint's claim was that it shaped the record without claiming
+    // the namespace; what outlives it is that the declaration, when it came, named *this* record.
     const at = contracts.indexOf("export interface LongtailForgeBrowserNamespace {");
     const body = contracts.slice(at, contracts.indexOf("\n}\n", at));
-    assert.ok(!/^ {2}workspaceContext\?:/m.test(body), "the member belongs to 0.33.33.38.2.2.5.2");
+    assert.match(body, /^ {2}workspaceContext\?: BrowserStoredWorkspaceContext;$/m);
   });
 });
 

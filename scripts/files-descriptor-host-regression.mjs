@@ -44,7 +44,7 @@ assert.doesNotMatch(
 );
 assert.match(
   filesScript,
-  /surface\.id === "files.browse"[^\n]*\|\| null;/,
+  /surface is Record<string, unknown>[\s\S]*?surface\.id === "files\.browse"[\s\S]*?\|\| null;/,
   "Files should resolve to null when the server did not deliver its surface",
 );
 assert.match(filesScript, /\/api\/files\/attachments/, "Files adapter should continue to use the service-owned attachments route");

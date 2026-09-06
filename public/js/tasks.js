@@ -492,7 +492,12 @@
   // an answer rather than a not-yet.
   function tasksViewSurfaceDescriptor() {
     const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
-    return surfaces.find((surface) => surface.id === "tasks.workspace" && surface.moduleId === "tasks") || null;
+    return surfaces.find(
+      /** @returns {surface is Record<string, unknown>} */
+      (surface) => typeof surface === "object" && surface !== null
+        && "id" in surface && surface.id === "tasks.workspace"
+        && "moduleId" in surface && surface.moduleId === "tasks",
+    ) || null;
   }
 
   function decorateTasksDeclarativeSurface(surface) {
@@ -1652,32 +1657,10 @@
     if (!task?.task_id) {
       return "Task action is unavailable.";
     }
-    if (!hasTaskWorkflowPermission(action, task)) {
-      return "You do not have permission to run this action.";
-    }
     if (action.timerStatus) {
       return taskTimerDisabledReason(action, task);
     }
     return "";
-  }
-
-  function hasTaskWorkflowPermission(action, task) {
-    const permissions = workspacePermissionSet();
-    if (!permissions) {
-      return true;
-    }
-
-    const requiredPermissions = Array.isArray(action.requiredPermissions) ? action.requiredPermissions : [];
-    if (requiredPermissions.some((permissionId) => !permissionAllowsTaskAction(permissions, permissionId, task))) {
-      return false;
-    }
-
-    const requiredAnyPermissions = Array.isArray(action.requiredAnyPermissions) ? action.requiredAnyPermissions : [];
-    if (requiredAnyPermissions.length > 0 && !requiredAnyPermissions.some((permissionId) => permissionAllowsTaskAction(permissions, permissionId, task))) {
-      return false;
-    }
-
-    return true;
   }
 
   function taskTimerDisabledReason(action, task) {
@@ -1837,59 +1820,7 @@
     if (!task?.task_id) {
       return "Task action is unavailable.";
     }
-    if (!hasTaskLifecyclePermission(action, task)) {
-      return "You do not have permission to run this action.";
-    }
     return "";
-  }
-
-  function hasTaskLifecyclePermission(action, task) {
-    const permissions = workspacePermissionSet();
-    if (!permissions) {
-      return true;
-    }
-
-    const requiredPermissions = Array.isArray(action.requiredPermissions) ? action.requiredPermissions : [];
-    if (requiredPermissions.some((permissionId) => !permissionAllowsTaskAction(permissions, permissionId, task))) {
-      return false;
-    }
-
-    const requiredAnyPermissions = Array.isArray(action.requiredAnyPermissions) ? action.requiredAnyPermissions : [];
-    if (requiredAnyPermissions.length > 0 && !requiredAnyPermissions.some((permissionId) => permissionAllowsTaskAction(permissions, permissionId, task))) {
-      return false;
-    }
-
-    return true;
-  }
-
-  function workspacePermissionSet() {
-    const rawPermissions = window.LongtailForge?.workspaceContext?.permissionIds ||
-      window.LongtailForge?.workspaceContext?.permissions;
-    if (!Array.isArray(rawPermissions)) {
-      return null;
-    }
-    const permissionIds = rawPermissions
-      .map((permission) => typeof permission === "string" ? permission : permission?.permissionId || permission?.permission_id || permission?.id)
-      .filter(Boolean);
-    return new Set(permissionIds);
-  }
-
-  function permissionAllowsTaskAction(permissions, permissionId, task) {
-    if (!permissions.has(permissionId)) {
-      return false;
-    }
-    if (permissionId === "tasks.edit_own") {
-      return isOwnTask(task);
-    }
-    return true;
-  }
-
-  function isOwnTask(task) {
-    const userId = currentUserId();
-    return Boolean(userId && (
-      task.created_by_user_id === userId ||
-      (task.assignee_ids || []).includes(userId)
-    ));
   }
 
   async function runTaskLifecycleAction(action, task, trigger = null) {
@@ -3277,7 +3208,6 @@
   function currentUserId() {
     return state.currentUserId ||
       window.LongtailForge?.workspaceContext?.userId ||
-      window.LongtailForge?.workspaceContext?.user_id ||
       "";
   }
 

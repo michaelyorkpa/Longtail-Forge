@@ -2682,20 +2682,7 @@
   }
 
   function canManageListLinks(list = state.editorList) {
-    if (list && ["archived", "deleted", "finalized"].includes(list.status)) {
-      return false;
-    }
-    const permissionValues = window.LongtailForge?.workspaceContext?.permissionIds
-      || window.LongtailForge?.workspaceContext?.permissions;
-    if (!permissionValues) {
-      return true;
-    }
-    const permissions = permissionValues instanceof Set
-      ? permissionValues
-      : new Set(Array.isArray(permissionValues)
-          ? permissionValues
-          : Object.entries(permissionValues).filter(([, allowed]) => Boolean(allowed)).map(([permissionId]) => permissionId));
-    return permissions.has("lists.manage_links");
+    return !(list && ["archived", "deleted", "finalized"].includes(list.status));
   }
 
   function openListDialog(list = null, options = {}) {

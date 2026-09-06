@@ -1632,8 +1632,7 @@
     const isBlocked = status === "blocked";
     const visible = Boolean(
       currentTaskId &&
-      !requireTaskLifecycleLegality().isTerminalStatus(status) &&
-      hasTaskEditPermission(),
+      !requireTaskLifecycleLegality().isTerminalStatus(status),
     );
     const label = isBlocked ? "Resume task" : "Block task";
     namespace.icons?.decorateButton?.(fields.block, {
@@ -1652,45 +1651,8 @@
     const status = fields.status?.value || currentTask?.status || "";
     return Boolean(
       currentTaskId &&
-      requireTaskLifecycleLegality().canCompleteStatus(status) &&
-      hasTaskCompletePermission(),
+      requireTaskLifecycleLegality().canCompleteStatus(status),
     );
-  }
-
-  function hasTaskCompletePermission() {
-    const permissions = taskDialogWorkspacePermissionSet();
-    return !permissions || permissions.has("tasks.complete");
-  }
-
-  function hasTaskEditPermission() {
-    const permissions = taskDialogWorkspacePermissionSet();
-    if (!permissions) {
-      return true;
-    }
-    if (permissions.has("tasks.edit_all")) {
-      return true;
-    }
-    if (!permissions.has("tasks.edit_own")) {
-      return false;
-    }
-
-    const userId = currentUserId();
-    return Boolean(userId && (
-      currentTask?.created_by_user_id === userId ||
-      (currentTask?.assignee_ids || []).includes(userId)
-    ));
-  }
-
-  function taskDialogWorkspacePermissionSet() {
-    const rawPermissions = namespace.workspaceContext?.permissionIds ||
-      namespace.workspaceContext?.permissions;
-    if (!Array.isArray(rawPermissions)) {
-      return null;
-    }
-
-    return new Set(rawPermissions
-      .map((permission) => typeof permission === "string" ? permission : permission?.permissionId || permission?.permission_id || permission?.id)
-      .filter(Boolean));
   }
 
   function rememberTaskInContext(task) {
@@ -2468,7 +2430,7 @@
   }
 
   function readCurrentUserId() {
-    return namespace.workspaceContext?.userId || namespace.workspaceContext?.user_id || "";
+    return namespace.workspaceContext?.userId || "";
   }
 
   function usesClientScope() {

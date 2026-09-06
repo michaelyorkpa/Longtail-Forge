@@ -448,6 +448,7 @@
         "tests/unit/workbench-bootstrap-contracts.test.mjs",
         "tests/unit/workspace-backup-receipt-contracts.test.mjs",
         "tests/unit/workspace-context-boundary-contracts.test.mjs",
+        "tests/unit/workspace-context-namespace-contracts.test.mjs",
         "tests/unit/workspace-deletion-contracts.test.mjs",
         "worker.js"
       ],
@@ -541,7 +542,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 8037,
+      "errorCount": 7963,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -590,7 +591,7 @@
           },
           {
             "code": 2339,
-            "count": 44
+            "count": 43
           },
           {
             "code": 2531,
@@ -620,7 +621,7 @@
           },
           {
             "code": 2339,
-            "count": 64
+            "count": 62
           },
           {
             "code": 2345,
@@ -650,7 +651,7 @@
           },
           {
             "code": 2339,
-            "count": 16
+            "count": 15
           },
           {
             "code": 7005,
@@ -680,7 +681,7 @@
           },
           {
             "code": 2339,
-            "count": 158
+            "count": 154
           },
           {
             "code": 2345,
@@ -712,7 +713,7 @@
           },
           {
             "code": 7006,
-            "count": 183
+            "count": 182
           },
           {
             "code": 7023,
@@ -742,7 +743,7 @@
           },
           {
             "code": 2339,
-            "count": 6
+            "count": 5
           },
           {
             "code": 7006,
@@ -806,7 +807,7 @@
           },
           {
             "code": 2339,
-            "count": 55
+            "count": 51
           },
           {
             "code": 2353,
@@ -818,7 +819,7 @@
           },
           {
             "code": 7006,
-            "count": 139
+            "count": 138
           },
           {
             "code": 7019,
@@ -840,7 +841,7 @@
         "public/js/footer.js": [
           {
             "code": 2339,
-            "count": 6
+            "count": 5
           },
           {
             "code": 2345,
@@ -912,7 +913,7 @@
           },
           {
             "code": 2339,
-            "count": 192
+            "count": 190
           },
           {
             "code": 2345,
@@ -998,7 +999,7 @@
           },
           {
             "code": 2339,
-            "count": 68
+            "count": 66
           },
           {
             "code": 2345,
@@ -1062,7 +1063,7 @@
           },
           {
             "code": 2339,
-            "count": 459
+            "count": 453
           },
           {
             "code": 2345,
@@ -1078,7 +1079,7 @@
           },
           {
             "code": 7006,
-            "count": 175
+            "count": 174
           },
           {
             "code": 7019,
@@ -1100,7 +1101,7 @@
         "public/js/notifications.js": [
           {
             "code": 2339,
-            "count": 16
+            "count": 15
           },
           {
             "code": 2349,
@@ -1162,7 +1163,7 @@
           },
           {
             "code": 2339,
-            "count": 51
+            "count": 49
           },
           {
             "code": 7005,
@@ -1236,7 +1237,7 @@
           },
           {
             "code": 2339,
-            "count": 17
+            "count": 13
           },
           {
             "code": 7005,
@@ -1326,7 +1327,7 @@
           },
           {
             "code": 2339,
-            "count": 7
+            "count": 5
           },
           {
             "code": 2554,
@@ -1372,7 +1373,7 @@
         "public/js/shared/notification-preferences.js": [
           {
             "code": 2339,
-            "count": 5
+            "count": 4
           },
           {
             "code": 7006,
@@ -1544,7 +1545,7 @@
           },
           {
             "code": 2339,
-            "count": 18
+            "count": 16
           },
           {
             "code": 2345,
@@ -1636,7 +1637,7 @@
           },
           {
             "code": 2339,
-            "count": 489
+            "count": 484
           },
           {
             "code": 2345,
@@ -1652,7 +1653,7 @@
           },
           {
             "code": 7005,
-            "count": 111
+            "count": 109
           },
           {
             "code": 7006,
@@ -1710,7 +1711,7 @@
           },
           {
             "code": 2339,
-            "count": 112
+            "count": 106
           },
           {
             "code": 2345,
@@ -1726,7 +1727,7 @@
           },
           {
             "code": 7006,
-            "count": 165
+            "count": 152
           },
           {
             "code": 7031,
@@ -1800,7 +1801,7 @@
           },
           {
             "code": 2339,
-            "count": 112
+            "count": 110
           },
           {
             "code": 2698,
@@ -1862,7 +1863,7 @@
           },
           {
             "code": 2339,
-            "count": 66
+            "count": 63
           },
           {
             "code": 7005,
@@ -1938,7 +1939,7 @@
           },
           {
             "code": 2339,
-            "count": 57
+            "count": 56
           },
           {
             "code": 2551,
@@ -1976,7 +1977,7 @@
           },
           {
             "code": 2339,
-            "count": 242
+            "count": 239
           },
           {
             "code": 2345,
@@ -2665,8 +2666,8 @@
     }
   },
   "totals": {
-    "files": 1122,
-    "errors": 8037,
+    "files": 1123,
+    "errors": 7963,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

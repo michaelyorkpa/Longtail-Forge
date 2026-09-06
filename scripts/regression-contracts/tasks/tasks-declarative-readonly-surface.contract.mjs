@@ -37,7 +37,7 @@ assert.doesNotMatch(
 );
 assert.match(
   tasksScript,
-  /surface\.id === "tasks.workspace"[^\n]*\|\| null;/,
+  /surface is Record<string, unknown>[\s\S]*?surface\.id === "tasks\.workspace"[\s\S]*?\|\| null;/,
   "Tasks should resolve to null when the server did not deliver its surface",
 );
 assert.match(tasksScript, /registerBehavior\("tasks\.create"/, "Tasks adapter should register the create action behavior");

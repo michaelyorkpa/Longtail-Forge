@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19047,
+    "activeAssertionCount": 19051,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19861,
+    "effectiveAssertionCount": 19865,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -4247,11 +4247,11 @@
     },
     {
       "area": "permissions",
-      "assertionCount": 371,
+      "assertionCount": 372,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Executes the complete eight-role HTTP authorization matrix against one isolated application server and disposable database.",
-      "entryPointAssertionCount": 371,
+      "entryPointAssertionCount": 372,
       "id": "permissions.http-authorization-matrix",
       "legacy": false,
       "path": "scripts/permission-regression.mjs",
@@ -6988,7 +6988,7 @@
         },
         {
           "path": "scripts/regression-contracts/tasks/task-critical-quick-fixes.contract.mjs",
-          "assertionCount": 51
+          "assertionCount": 52
         },
         {
           "path": "scripts/regression-contracts/tasks/task-editor-workbench-handoff.contract.mjs",
@@ -7040,7 +7040,7 @@
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-lifecycle-action-descriptor.contract.mjs",
-          "assertionCount": 31
+          "assertionCount": 30
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-list-surface-boundary.contract.mjs",
@@ -8333,11 +8333,11 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 32,
+      "assertionCount": 33,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy task modal complete action contract.",
-      "entryPointAssertionCount": 32,
+      "entryPointAssertionCount": 33,
       "id": "legacy.task.modal.complete.action",
       "legacy": true,
       "path": "scripts/task-modal-complete-action-regression.mjs",
@@ -8789,11 +8789,11 @@
     },
     {
       "area": "views",
-      "assertionCount": 24,
+      "assertionCount": 26,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy view renderer actions contract.",
-      "entryPointAssertionCount": 24,
+      "entryPointAssertionCount": 26,
       "id": "legacy.view.renderer.actions",
       "legacy": true,
       "path": "scripts/view-renderer-actions-regression.mjs",

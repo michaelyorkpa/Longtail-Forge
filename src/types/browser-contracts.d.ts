@@ -6950,6 +6950,7 @@ export interface LongtailForgeBrowserNamespace {
    * settled"; it does **not** hand back the stored workspace context, and a consumer that wants
    * that reads `LongtailForge.workspaceContext` after awaiting.
    */
+  workspaceContext?: BrowserStoredWorkspaceContext;
   workspaceContextReady?: Promise<BrowserAppShellRefreshResult>;
   [key: string]: unknown;
 }
