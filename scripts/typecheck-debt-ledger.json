@@ -414,6 +414,7 @@
         "tests/unit/public-demo-enforcement.test.mjs",
         "tests/unit/public-demo-ingress-carry-through.test.mjs",
         "tests/unit/quiet-tail-surface-contracts.test.mjs",
+        "tests/unit/readiness-root-access-contracts.test.mjs",
         "tests/unit/ready-dialog-adapter-contracts.test.mjs",
         "tests/unit/regression-source-measure.test.mjs",
         "tests/unit/resume-producer-payload.test.mjs",
@@ -546,7 +547,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7888,
+      "errorCount": 7877,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -588,10 +589,6 @@
           {
             "code": 18047,
             "count": 51
-          },
-          {
-            "code": 18048,
-            "count": 1
           },
           {
             "code": 2339,
@@ -677,7 +674,7 @@
           },
           {
             "code": 18048,
-            "count": 6
+            "count": 5
           },
           {
             "code": 2322,
@@ -897,7 +894,7 @@
           },
           {
             "code": 18048,
-            "count": 5
+            "count": 3
           },
           {
             "code": 2322,
@@ -1047,7 +1044,7 @@
           },
           {
             "code": 18048,
-            "count": 19
+            "count": 16
           },
           {
             "code": 2322,
@@ -1520,10 +1517,6 @@
             "count": 2
           },
           {
-            "code": 18048,
-            "count": 1
-          },
-          {
             "code": 2339,
             "count": 16
           },
@@ -1556,10 +1549,6 @@
           {
             "code": 18047,
             "count": 27
-          },
-          {
-            "code": 18048,
-            "count": 1
           },
           {
             "code": 2339,
@@ -1683,7 +1672,7 @@
           },
           {
             "code": 18048,
-            "count": 17
+            "count": 16
           },
           {
             "code": 2339,
@@ -1743,7 +1732,7 @@
           },
           {
             "code": 18048,
-            "count": 9
+            "count": 8
           },
           {
             "code": 2339,
@@ -2642,8 +2631,8 @@
     }
   },
   "totals": {
-    "files": 1127,
-    "errors": 7888,
+    "files": 1128,
+    "errors": 7877,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

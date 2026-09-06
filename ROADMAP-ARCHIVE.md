@@ -1,5 +1,33 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.6.7 - The direct readiness-await root accesses
+
+**Model: Medium Effort** - one semantic class, measured out of a coarser bucket before anything was edited.
+
+- [x] **The cohort is eleven sites across eight pages, and the reported twenty-four was an instrument artefact.** The prior turn's classifier bucketed on the prefix `await window.LongtailForge.`, which swept in every awaited member. Re-derived from the live diagnostics, exactly eleven await `workspaceContextReady`: `audit-log`, `clients-projects`, `lists` ×2, `notes` ×3, `stop-watch`, `support-view-audit`, `tasks`, `time-entries`. The other thirteen await six different members and stay with their own cohorts.
+- [x] **The root is checked and the member is not, because those are different facts.** A missing root failed at the property read and still fails in the same expression, inside the same `try`. A present root publishing no `workspaceContextReady` never failed, because `await undefined` resolves - and still continues one microtask later. **A helper requiring the member is written into the suite as the thing this must not be**, and shown to fail the present-root case that the shipped accessor passes.
+- [x] **The await never moved.** No site became conditional, none was replaced with a fabricated resolved promise, and no accessor is `async`. A break that hoists readiness into a variable and guards the await is refused, because skipping it removes an asynchronous continuation these pages have always had.
+- [x] **The root is read per call, not captured.** A break that caches it is refused: a replaced root must be seen by the next invocation.
+- [x] **Error handling is unchanged at every site.** The two `initialize` sites keep their awaits inside their `try` blocks and the two dialog preparers inside their `.catch`-guarded IIFEs; breaks that move either out are refused. The three pages that load a session timezone first still do.
+- [x] **The result semantics are untouched.** All eleven ignore what readiness resolves, and the suite proves an object, `null` and `undefined` each continue, while a rejection still propagates. Nothing was annotated as a stored workspace context and no downstream optional read changed.
+- [x] **The sites deliberately left alone are asserted as left alone.** Five optional reads stay optional, the footer's read stays narrowed by its own guard, and `navigation.js`'s publication stays a publication. Breaks that tighten the optional read or give the footer an accessor are refused.
+- [x] **One spent guard was retargeted, not deleted.** `0.33.33.38.2.2.5.1` asserted that every direct await was unchanged **and** that no site gained an accessor for the readiness member. The first half is spent by this child and now counts both root forms; **the second half is the governing distinction and is kept exactly**.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **12 breaks across five pages and the two files deliberately excluded - all 12 refused.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,888 | **7,877** |
+| Namespace family | 126 | **115** |
+| Bare-root sites | 87 | **76** |
+| Parked roots | 0 | **0** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 1,922 / 348 / 167 | **1,942 / 348 / 167**, green |
+
+**All eleven are true eliminations, one per site**, and no `(file, code)` pair increased: `notes.js` −3, `lists.js` −2, and one each in `audit-log`, `clients-projects`, `stop-watch`, `support-view-audit`, `tasks`, `time-entries`. No declaration changed, so nothing transferred or reclassified.
+
 ## Version 0.33.33.38.2.3.2 - The ready quiet-tail surfaces
 
 **Model: High Effort** - seven surfaces measured one at a time, batched because they were all ready rather than because they were all small.

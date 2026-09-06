@@ -146,11 +146,15 @@ describe("both members stay optional, because navigation is not on every page", 
 });
 
 describe("every consumer reference form is accounted for and unchanged", () => {
-  it("leaves every direct await exactly as it was", () => {
+  it("leaves every readiness await in place, whichever root form reaches it", () => {
     // `await undefined` is legal, so an absent member still resolves and the barrier still
-    // releases. Nothing here needed a required accessor.
-    const awaits = CONSUMERS.flatMap((name) => [...codeOnly(sources[name])
-      .matchAll(/await (?:window\.LongtailForge|namespace)\??\.workspaceContextReady/g)]);
+    // releases. `0.33.33.38.2.6.7` adopted the eleven direct root reads through a checked
+    // *namespace* accessor - the await itself is untouched at every one of them - so the audit
+    // counts both forms. What this guard has always protected is the half below: no site may
+    // gain an accessor for the readiness **member**, because absence is legal there.
+    const awaits = CONSUMERS.flatMap((name) => [...codeOnly(sources[name]).matchAll(
+      /await (?:window\.LongtailForge|namespace)\??\.workspaceContextReady|await requireNamespace\(\)\.workspaceContextReady/g,
+    )]);
     assert.ok(awaits.length >= 20, "the audit must still see the awaits it was written for");
     for (const [name, source] of Object.entries(sources)) {
       assert.ok(

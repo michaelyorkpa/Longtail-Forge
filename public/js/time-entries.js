@@ -65,6 +65,30 @@
    * checked read fails exactly where the raw `error.message` read failed before.
    * @returns {BrowserErrorContract}
    */
+  /** @typedef {import("../../src/types/browser-contracts.js").LongtailForgeBrowserNamespace} LongtailForgeBrowserNamespace */
+
+  /**
+   * The namespace root this page awaits its workspace-context readiness through.
+   *
+   * **The root is checked and the member is not, because those are different facts.** A missing
+   * root failed at this property read before and still fails here, in the same expression and so
+   * inside the same `try` region. A present root that publishes no `workspaceContextReady` never
+   * failed - `await undefined` is a real state this page has always tolerated, and it still
+   * continues one microtask later exactly as it did.
+   *
+   * Read per call rather than captured, so a root replaced between invocations is seen.
+   * @returns {LongtailForgeBrowserNamespace}
+   */
+  function requireNamespace() {
+    const namespace = window.LongtailForge;
+
+    if (!namespace) {
+      throw new Error("Time Entries requires the LongtailForge namespace.");
+    }
+
+    return namespace;
+  }
+
   function requireErrors() {
     const errors = window.LongtailForge?.errors;
     if (!errors) {
@@ -302,7 +326,7 @@
 
   async function initializeTimeEntries() {
     await requireTimezones().loadSessionTimezone();
-    await window.LongtailForge.workspaceContextReady;
+    await requireNamespace().workspaceContextReady;
     await loadTimeEntryData();
     openAddFromUrl();
     openEntryFromUrl();
