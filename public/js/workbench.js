@@ -1246,7 +1246,7 @@
       },
       onContinueError(_intent, error) {
         taskFocusExitCommitted = false;
-        setStatus(error?.message || "Navigation could not continue.", { isError: true });
+        setStatus(requireErrors().caughtMessage(error, "Navigation could not continue."), { isError: true });
       },
     });
     window.addEventListener("beforeunload", writePendingTaskFocusDrift);

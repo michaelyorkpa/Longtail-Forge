@@ -202,8 +202,9 @@ function dashboardPanelRoute(panel = {}) {
     return route;
   }
 
-  const view = ["day", "week", "month"].includes(namespace.userPreferences?.preferredCalendarView)
-    ? namespace.userPreferences.preferredCalendarView
+  const preferred = namespace.userPreferences?.preferredCalendarView || "";
+  const view = ["day", "week", "month"].includes(preferred)
+    ? preferred
     : window.matchMedia?.("(max-width: 700px)")?.matches ? "day" : "month";
   const range = dashboardCalendarRange(view, new Date());
   const params = new URLSearchParams({
