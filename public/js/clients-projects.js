@@ -958,13 +958,19 @@
   }
 
   function appendTagChips(container, tags) {
-    if (!container || !window.LongtailForge.tags?.renderTagList || !Array.isArray(tags) || tags.length === 0) {
+    if (!container) {
+      return;
+    }
+
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagSurface?.renderTagList || !Array.isArray(tags) || tags.length === 0) {
       return;
     }
 
     const list = document.createElement("div");
     list.className = "tag-chip-list";
-    window.LongtailForge.tags.renderTagList(list, tags);
+    tagSurface.renderTagList(list, tags);
     container.appendChild(list);
   }
 
@@ -999,15 +1005,19 @@
   }
 
   function mountTagPicker(container, tags = [], label = "Tags") {
-    if (!container || !window.LongtailForge.tags?.mountPicker) {
-      if (container) {
-        container.hidden = true;
-      }
+    if (!container) {
+      return null;
+    }
+
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagSurface?.mountPicker) {
+      container.hidden = true;
       return null;
     }
 
     container.hidden = false;
-    return window.LongtailForge.tags.mountPicker(container, {
+    return tagSurface.mountPicker(container, {
       tags: tagOptions,
       label,
       selectedTags: tags,

@@ -334,7 +334,7 @@ async function assertBrowserWiring() {
   assert.match(tasksJs, /\["tag_replace", "Replace direct tags"\]/);
   assert.match(tasksJs, /bulkTagActionInput/);
   assert.match(tasksJs, /selectedBulkTagIds/);
-  assert.match(notesJs, /tags\.mountPicker\(bulkTagsEditor/);
+  assert.match(notesJs, /tagSurface\.mountPicker\(bulkTagsEditor/);
   assert.match(notesJs, /\/api\/tags\/bulk-assignments/);
   assert.match(notesJs, /targetType: "note"/);
   assert.match(notesJs, /bulkTagPicker\?\.readTagIds/);

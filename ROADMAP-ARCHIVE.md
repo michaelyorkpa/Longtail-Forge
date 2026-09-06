@@ -1,5 +1,30 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.6.9 - The guarded member acquisitions
+
+**Model: Medium Effort** - sixteen sites, two shapes, and the shape is chosen by where the root is read rather than by which reads nicer.
+
+- [x] **The guard already proved the member; the read did not use it.** Every one of these sites tested a member and then reached it through a fresh `window.LongtailForge.<member>` read. Each now acquires the member **once**, through a checked root, and the guard tests the captured value. Nothing about optionality changed: only the root is checked, every member stays optional, and each guard keeps its own kind of test - a truthiness guard stays a truthiness guard, a method probe stays a method probe. Breaks in both directions are refused.
+- [x] **The capture goes above the guard only when the guard already reads the root on every path.** Eight sites qualify, `notes.mountTagEditor` among them: its `tagsToggle` branch reads the surface **again** when the editor is absent, so hoisting reads nothing that was not already read. A break that makes that capture conditional on `tagsEditor` is refused, because it changes what the toggle shows when the surface exists and the editor does not.
+- [x] **Where a term short-circuits ahead of the member, the condition is split at exactly that boundary.** Seven sites had a `!container`, `!bulkTagsEditor`, `!mount || isSecureNote(note)` or `!bulkTagsControl` term running first. Splitting there keeps the root unread on that path and leaves the order of every remaining test intact. Breaks that hoist the acquisition above the early return, and that drop a term following the member, are both refused.
+- [x] **Receiver identity and arguments are untouched.** `tags.renderTagList(...)` and both `notificationSubscriptions` calls still run **on the surface that guarded them**; a break that detaches `follow` and `taskTarget` into bare locals is refused, as is one that drops `{ status: "active" }` from `loadTags`. No argument was hoisted, precomputed or reordered, and no existing `try`/`catch` boundary moved - a break that removes the `catch` around `notes.loadTags` is refused.
+- [x] **`workbench.js` gains the accessor the other eight pages carry, and its tolerant read stays tolerant.** `registerExitGuard` reads `window.LongtailForge.navigationIntent?.` today and is left exactly so; this checkpoint makes no tolerant read strict. The same holds for `clients-projects.loadTagOptions`, whose root-tolerant ternary has its own test, and a break that gives it a hard root dependency is refused. Breaks that let an accessor require its member, or invent a root with `|| {}`, are refused.
+- [x] **Seven static owners were retargeted, not relaxed.** Each pinned a fully qualified spelling that no longer exists. Each now pins the binding its guard proves, with **its claim unchanged**, and two greedy `[\s\S]*` patterns were narrowed so they anchor inside the function they name rather than anywhere later in the file. Every retarget was proved twice: once against the behaviour it claims, once against the shipped binding it now names.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **15 breaks against the source and 14 against the retargeted owners - all 29 refused**.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,871 | **7,841** |
+| Namespace family | 109 | **79** |
+| Bare-root sites | 70 | **40** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 1,965 / 348 / 167 | **1,990 / 348 / 167**, green |
+
+**All thirty are true eliminations** and no `(file, code)` pair increased: `notes.js` -9, `tasks.js` -7, `time-entries.js` -6, `clients-projects.js` -4, `workbench.js` -4. No declaration changed, no surface moved and no publication was touched, so nothing transferred or reclassified.
+
 ## Version 0.33.33.38.2.6.8 - The publication-root accesses
 
 **Model: Medium Effort** - six writes, and one mechanism discarded on measurement before the right one landed.

@@ -212,6 +212,14 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **No child may weaken a contract to move a number.** No cast, no non-null assertion, no suppression, no permissive index signature, no `any`.
 - [ ] **Classify every acquisition site before converting it, exactly as `0.33.33.38.1` did.** A consumer that legitimately runs without a surface keeps its optionality; four consumers and `file-attachments.js` did, and that was correct.
 
+#### 0.33.33.38.2.6.9 - The guarded member acquisitions
+
+**Complete: sixteen sites across five pages, and the guard now tests the value the call uses.** See the archive entry.
+
+**The shape is chosen by where the root is read, not by which reads better.** A capture sits above the guard only where the guard already reads the root on **every** path; where a term short-circuits ahead of the member, the condition is split at exactly that boundary so that path still never reads the root. Both forms were broken in both directions.
+
+**Optionality is unchanged in both directions.** Only the root is checked, every member stays optional, and no read that is tolerant today - `workbench.registerExitGuard`, `clients-projects.loadTagOptions` - was made strict.
+
 #### 0.33.33.38.2.6.8 - The publication-root accesses
 
 **Complete: six publications addressed through a checked local binding, and the inventory still sees every one of them.** See the archive entry.

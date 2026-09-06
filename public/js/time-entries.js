@@ -552,10 +552,12 @@
   function createProjectCell(entry) {
     const cell = createTableCell(entry.projectName);
 
-    if (window.LongtailForge.tags?.renderTagList && Array.isArray(entry.tags) && entry.tags.length > 0) {
+    const tagSurface = requireNamespace().tags;
+
+    if (tagSurface?.renderTagList && Array.isArray(entry.tags) && entry.tags.length > 0) {
       const tagList = document.createElement("div");
       tagList.className = "tag-chip-list";
-      window.LongtailForge.tags.renderTagList(tagList, entry.tags);
+      tagSurface.renderTagList(tagList, entry.tags);
       cell.appendChild(tagList);
     }
 
@@ -690,12 +692,14 @@
   }
 
   async function loadTagOptions() {
-    if (!window.LongtailForge.tags?.loadTags) {
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagSurface?.loadTags) {
       return [];
     }
 
     try {
-      return await window.LongtailForge.tags.loadTags();
+      return await tagSurface.loadTags();
     } catch {
       return [];
     }
@@ -719,12 +723,18 @@
   }
 
   async function mountBulkTagPicker() {
-    if (!bulkTagsControl || !window.LongtailForge.tags?.mountPicker) {
+    if (!bulkTagsControl) {
+      return;
+    }
+
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagSurface?.mountPicker) {
       return;
     }
 
     bulkTagObserver?.disconnect();
-    bulkTagPicker = await window.LongtailForge.tags.mountPicker(bulkTagsControl, {
+    bulkTagPicker = await tagSurface.mountPicker(bulkTagsControl, {
       allowCreate: false,
       label: "Tags",
       placeholder: "Find tags",

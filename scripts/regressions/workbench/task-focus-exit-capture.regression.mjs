@@ -39,7 +39,7 @@ assert.match(workbenchSource, /function taskFocusExitSnapshot[\s\S]*resolvedWork
 assert.doesNotMatch(extractFunctionBlock(workbenchSource, "taskFocusExitSnapshot"), /currentTaskFocusTimer|timer_status/, "Task Focus exit capture must not depend on timer state");
 assert.match(workbenchSource, /function offerTaskResumeNoteBeforeExit[\s\S]*await window\.LongtailForge\.taskResumeNoteCapture\?\.offer/, "interceptable exits should await the existing Tasks-owned capture before continuing");
 assert.match(workbenchSource, /kind: "workbench-change-focus"[\s\S]*continue: continueChangeFocus/, "Change Focus should preserve its exact state transition through the intent controller");
-assert.match(workbenchSource, /function navigateFromWorkbench[\s\S]*navigationIntent\.navigate/, "scripted Workbench page fallbacks should use the shared intent");
+assert.match(workbenchSource, /function navigateFromWorkbench\([\s\S]*?requireNamespace\(\)\.navigationIntent;[\s\S]*?intent\.navigate\(href/, "scripted Workbench page fallbacks should use the shared intent");
 assert.match(workbenchSource, /addEventListener\("beforeunload", writePendingTaskFocusDrift\)[\s\S]*addEventListener\("pagehide", writePendingTaskFocusDrift\)/, "refresh and hard exit should persist the bounded drift marker best-effort");
 assert.match(workbenchSource, /addEventListener\("pageshow"[\s\S]*event\.persisted[\s\S]*recoverPendingTaskFocusDrift/, "a restored back-forward-cache Workbench should consume the same bounded recovery marker");
 assert.match(workbenchSource, /JSON\.stringify\(\{\s*taskId: snapshot\.taskId,\s*timestamp: Date\.now\(\),?\s*\}\)/, "the drift marker should contain only Task ID and timestamp");
