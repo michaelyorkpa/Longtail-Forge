@@ -287,7 +287,7 @@ describe("the page consumers keep the rules they already had", () => {
       assert.match(source, /tasksDialog\?\.renderRecurrenceContinuity\?\.\(/, name);
       assert.match(source, /tasksDialog\?\.pollRecurrenceContinuity\?\.\(/, name);
     }
-    assert.match(tasks, /window\.LongtailForge\.tasksDialog\?\.configure\?\.\(\)/);
+    assert.match(tasks, /requireNamespace\(\)\.tasksDialog\?\.configure\?\.\(\)/);
     for (const [name, source] of [["calendar.js", calendar], ["tasks-dashboard.js", tasksDashboard]]) {
       assert.match(source, /const opener = window\.LongtailForge\?\.tasksDialog\?\.openTaskEditor;/, name);
     }

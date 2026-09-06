@@ -298,7 +298,7 @@ describe("the consumers", () => {
     assert.match(page, /No current workspace backup is available\. Scheduling deletion requires the displayed typed acknowledgement\./);
     assert.match(page, /createRuntimeDiagnosticItem\("Grace Period Ends", formatRuntimeDate\(lifecycle\.purgeAfter\)\)/);
     assert.match(page, /The workspace remains fully operational during the grace period\./);
-    assert.match(page, /window\.LongtailForge\.refreshAppShell\?\.\(\)/, "and the app shell still refreshes after a mutation");
+    assert.match(extractFunctionBlock(page, "confirmWorkspaceDeletion"), /requireNamespace\(\)\.refreshAppShell\?\.\(\)/, "and the app shell still refreshes after a mutation");
   });
 
   it("leaves the page's other producers to their own children", () => {

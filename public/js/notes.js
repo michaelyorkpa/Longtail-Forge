@@ -943,7 +943,7 @@
     collectionActionsDialogBody = document.querySelector("[data-note-collection-actions-dialog-body]");
     collectionActionsDialogCloseButton = document.querySelector("[data-note-collection-actions-dialog-close]");
 
-    editor = window.LongtailForge.notesEditor?.createPlainTextarea(bodyInput);
+    editor = requireNamespace().notesEditor?.createPlainTextarea(bodyInput);
   }
 
   function bindNotesEvents() {
@@ -1037,7 +1037,7 @@
     ...notesDialogApi,
   });
 
-  window.LongtailForge.moduleActions?.register?.({
+  namespace.moduleActions?.register?.({
     actionId: "notes.add",
     id: "notes.add",
     label: "Add Note",
@@ -1049,7 +1049,7 @@
     requiredPermissions: ["notes.create"],
     title: "Add Note",
   });
-  window.LongtailForge.moduleActions?.register?.({
+  namespace.moduleActions?.register?.({
     actionId: "notes.edit",
     id: "notes.edit",
     label: "Edit Note",
@@ -1061,7 +1061,7 @@
     requiredPermissions: ["notes.view"],
     title: "Edit Note",
   });
-  window.LongtailForge.moduleActions?.register?.({
+  namespace.moduleActions?.register?.({
     actionId: "notes.view",
     id: "notes.view",
     label: "View Note",
@@ -4882,7 +4882,7 @@
     // Read once and test the binding rather than a boolean derived from it: `!filesAvailable`
     // is exactly `!filesEditor || !fileAttachments`, but a boolean cannot narrow the surface
     // for the `mount` call below the guard. Same condition, same order, same early return.
-    const fileAttachments = window.LongtailForge.fileAttachments;
+    const fileAttachments = requireNamespace().fileAttachments;
     const secure = isSecureNote(note) || (!note?.note_id && isSecureEditorMode());
 
     updateFilesUtilityState(note);
@@ -4918,7 +4918,7 @@
       return;
     }
 
-    const filesAvailable = Boolean(filesDialog) && Boolean(filesEditor) && Boolean(window.LongtailForge.fileAttachments);
+    const filesAvailable = Boolean(filesDialog) && Boolean(filesEditor) && Boolean(requireNamespace().fileAttachments);
     const secure = isSecureNote(note) || (!note?.note_id && isSecureEditorMode());
     filesToggle.hidden = secure || !filesAvailable;
     if (filesToggle.hidden) {

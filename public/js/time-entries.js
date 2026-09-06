@@ -502,7 +502,7 @@
   // throw, inside the same try/catch that already reported the failure.
   /** @returns {import("../../src/types/browser-contracts.js").BrowserTimeEntryDialog} */
   function requireTimeEntryDialog() {
-    const timeEntryDialog = window.LongtailForge.timeEntryDialog;
+    const timeEntryDialog = requireNamespace().timeEntryDialog;
 
     if (!timeEntryDialog) {
       throw new Error("The time entry dialog is required to open an entry.");
@@ -1113,7 +1113,7 @@
         { name: "filter controls exist", ok: Boolean(filterStatusSelect && filterPeriodSelect && filterUsersSelect) },
         { name: "bulk tag controls exist", ok: Boolean(bulkToolbar && bulkActionSelect && bulkTagsControl && bulkApplyButton && selectAllInput) },
         { name: "entry table exists", ok: Boolean(timeEntryTable) },
-        { name: "time entry dialog helper exists", ok: Boolean(window.LongtailForge.timeEntryDialog) },
+        { name: "time entry dialog helper exists", ok: Boolean(requireNamespace().timeEntryDialog) },
         { name: "entry data is an array", ok: Array.isArray(timeEntries) },
       ];
 

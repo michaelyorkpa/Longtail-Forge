@@ -95,7 +95,11 @@ assert.doesNotMatch(extractFunctionBlock(filesScript, "bindFileEditorControlEven
 
 assert.match(buildBlock, /previewButton\.dataset\.fileContextPreview = ""/, "File editor should expose a shared footer Preview control");
 assert.match(buildBlock, /saveButton\.dataset\.fileContextSave = ""/, "File editor should expose a shared footer Save control");
-assert.doesNotMatch(editorSource, /rename|replacement|storageProvider|storageKey|quarantine|hardDelete|permanent|purge/i, "File editor shell should not add forbidden controls");
+// The namespace accessor `0.33.33.38.2.6.10` added spells "requi[reNa]mespace", which the
+// case-insensitive word list below reads as "rename". Only that token is neutralised, so a
+// control actually named `rename...` - or `fileRename` - still trips the claim.
+const editorControls = editorSource.replace(/requireNamespace\(\)/g, "root()");
+assert.doesNotMatch(editorControls, /rename|replacement|storageProvider|storageKey|quarantine|hardDelete|permanent|purge/i, "File editor shell should not add forbidden controls");
 assert.doesNotMatch(extractFunctionBlock(filesScript, "createFileActions"), /openFileEditor/, "Files row actions should not open the editor in this slice");
 
 console.log("Files edit modal shell regression passed.");

@@ -12,6 +12,29 @@
   
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").LongtailForgeBrowserNamespace} LongtailForgeBrowserNamespace */
+
+  /**
+   * The namespace root the optional members on this page are reached through.
+   *
+   * **The root is checked and the member is not, because those are different facts.** Every
+   * read keeps its own `?.` exactly where it stands: a missing root failed at the property
+   * read before and fails here, in the same expression and the same region, while a present
+   * root that publishes no such member goes on short-circuiting as it always did.
+   *
+   * Read per call rather than captured, so a root replaced between invocations is seen.
+   * @returns {LongtailForgeBrowserNamespace}
+   */
+  function requireNamespace() {
+    const namespace = window.LongtailForge;
+
+    if (!namespace) {
+      throw new Error("Files requires the LongtailForge namespace.");
+    }
+
+    return namespace;
+  }
+
   /**
    * The narrowing contract for the values this file catches.
    *
@@ -177,7 +200,7 @@
     openFilePreviewAction,
   });
 
-  window.LongtailForge.moduleActions?.register?.({
+  namespace.moduleActions?.register?.({
     actionId: "files.edit",
     id: "files.edit",
     label: "Edit File Context",
@@ -188,7 +211,7 @@
     requiredPermissions: ["files.view"],
     title: "Edit File Context",
   });
-  window.LongtailForge.moduleActions?.register?.({
+  namespace.moduleActions?.register?.({
     actionId: "files.preview",
     id: "files.preview",
     label: "Preview File",
@@ -441,7 +464,7 @@
     const api = requireApi();
     try {
       const clientProjects = await api.getJson("/api/client-projects?view=options", { cache: "no-store" });
-      const normalizedClients = window.LongtailForge.clientProjectOptions?.normalizeClients?.(clientProjects) || [];
+      const normalizedClients = requireNamespace().clientProjectOptions?.normalizeClients?.(clientProjects) || [];
 
       state.clients = normalizedClients.filter((client) => client.id && !client.isWorkspaceScope);
       state.projects = flattenProjectOptions(normalizedClients);
@@ -455,7 +478,7 @@
     const projects = [];
 
     clients.forEach((client) => {
-      const clientLabel = window.LongtailForge.clientProjectOptions?.optionLabel?.(client)
+      const clientLabel = requireNamespace().clientProjectOptions?.optionLabel?.(client)
         || client.displayName
         || client.name
         || "";
@@ -492,7 +515,7 @@
       createOption("", "All clients"),
       ...state.clients.map((client) => createOption(
         client.id,
-        window.LongtailForge.clientProjectOptions?.optionLabel?.(client) || client.name || "Untitled Client",
+        requireNamespace().clientProjectOptions?.optionLabel?.(client) || client.name || "Untitled Client",
       )),
     );
     clientFilter.value = state.clients.some((client) => client.id === previousValue) ? previousValue : "";
@@ -1683,7 +1706,7 @@
 
   function fileEditorClientOptions() {
     return state.clients.map((client) => ({
-      label: window.LongtailForge.clientProjectOptions?.optionLabel?.(client) || client.name || "Untitled Client",
+      label: requireNamespace().clientProjectOptions?.optionLabel?.(client) || client.name || "Untitled Client",
       value: client.id,
     }));
   }

@@ -37,7 +37,7 @@ assert.match(navigationSource, /kind: "logout"[\s\S]*continue: performLogout/, "
 assert.match(workbenchSource, /installTaskFocusExitGuard\(\)/, "Workbench should register its bounded exit guard");
 assert.match(workbenchSource, /function taskFocusExitSnapshot[\s\S]*resolvedWorkbenchViewState\(\)[\s\S]*\["open", "in_progress"\][\s\S]*blocked_reason/, "loaded Open and In Progress Task Focus without blocked context should hold an exit");
 assert.doesNotMatch(extractFunctionBlock(workbenchSource, "taskFocusExitSnapshot"), /currentTaskFocusTimer|timer_status/, "Task Focus exit capture must not depend on timer state");
-assert.match(workbenchSource, /function offerTaskResumeNoteBeforeExit[\s\S]*await window\.LongtailForge\.taskResumeNoteCapture\?\.offer/, "interceptable exits should await the existing Tasks-owned capture before continuing");
+assert.match(extractFunctionBlock(workbenchSource, "offerTaskResumeNoteBeforeExit"), /await requireNamespace\(\)\.taskResumeNoteCapture\?\.offer/, "interceptable exits should await the existing Tasks-owned capture before continuing");
 assert.match(workbenchSource, /kind: "workbench-change-focus"[\s\S]*continue: continueChangeFocus/, "Change Focus should preserve its exact state transition through the intent controller");
 assert.match(workbenchSource, /function navigateFromWorkbench\([\s\S]*?requireNamespace\(\)\.navigationIntent;[\s\S]*?intent\.navigate\(href/, "scripted Workbench page fallbacks should use the shared intent");
 assert.match(workbenchSource, /addEventListener\("beforeunload", writePendingTaskFocusDrift\)[\s\S]*addEventListener\("pagehide", writePendingTaskFocusDrift\)/, "refresh and hard exit should persist the bounded drift marker best-effort");

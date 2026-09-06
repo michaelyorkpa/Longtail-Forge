@@ -137,9 +137,9 @@ describe("both members stay optional, because navigation is not on every page", 
   });
 
   it("keeps the refresh call optional at both of its call sites", () => {
-    assert.equal(countOf(workspaceSettings, /window\.LongtailForge\.refreshAppShell\?\.\(\)/g), 2);
+    assert.equal(countOf(workspaceSettings, /requireNamespace\(\)\.refreshAppShell\?\.\(\)/g), 2);
     assert.ok(
-      !/window\.LongtailForge\.refreshAppShell\(\)/.test(workspaceSettings),
+      !/requireNamespace\(\)\.refreshAppShell\(\)/.test(workspaceSettings),
       "a required call would change behaviour on a page that tolerates absence",
     );
   });

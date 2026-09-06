@@ -216,23 +216,24 @@ describe("nothing about the bootstrap or the publication order moved", () => {
     ]) {
       const source = read(path);
       const publication = source.indexOf(binding + "." + surface + " = Object.freeze(");
-      const registration = source.indexOf("window.LongtailForge.moduleActions?.register?.(", publication);
+      const registration = source.indexOf(binding + ".moduleActions?.register?.(", publication);
       assert.notEqual(publication, -1, path + " must publish " + surface);
       assert.notEqual(registration, -1, path + " must still register its module actions");
       assert.ok(publication < registration, path + " publishes before it registers");
     }
   });
 
-  it("leaves the module-action registrations reading the root as they did", () => {
-    // Those are optional reads in another cohort, and this child does not touch them.
+  it("registers every module action through the publication binding", () => {
+    // `0.33.33.38.2.6.10` adopted these reads: each registration now goes through the binding
+    // the publication guard above it already checked, rather than re-reading the global.
     // Counted, not merely matched: these files register more than once, and rerouting only one
-    // of them through the publication binding would still leave the others matching.
+    // of them would still leave the others matching.
     /** @type {[string, number][]} */
     const registrationCounts = [
       ["public/js/files.js", 2], ["public/js/lists.js", 2], ["public/js/notes.js", 3],
     ];
     for (const [path, registrations] of registrationCounts) {
-      const found = (read(path).match(/window\.LongtailForge\.moduleActions\?\.register\?\.\(/g) || []).length;
+      const found = (read(path).match(/(?<![\w.])namespace\.moduleActions\?\.register\?\.\(/g) || []).length;
       assert.equal(found, registrations, path + " keeps every registration read unchanged");
     }
   });

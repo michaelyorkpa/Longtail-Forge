@@ -543,7 +543,7 @@
     ...listsDialogApi,
   });
 
-  window.LongtailForge.moduleActions?.register?.({
+  namespace.moduleActions?.register?.({
     actionId: "lists.add",
     id: "lists.add",
     label: "Add List",
@@ -555,7 +555,7 @@
     requiredPermissions: ["lists.create"],
     title: "Add List",
   });
-  window.LongtailForge.moduleActions?.register?.({
+  namespace.moduleActions?.register?.({
     actionId: "lists.edit",
     id: "lists.edit",
     label: "Edit List",

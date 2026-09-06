@@ -45,7 +45,7 @@ assert.match(advancedFilters, /createFilesElement\("summary", \{ text: "Advanced
 assert.match(advancedFilters, /"Module"[\s\S]*"fileFilterModule"[\s\S]*"Target Type"[\s\S]*"fileFilterTargetType"[\s\S]*"Target ID"[\s\S]*"fileFilterTargetId"[\s\S]*"Project ID"[\s\S]*"fileFilterProjectId"/, "Advanced target filters should preserve module, target type, target ID, and raw project ID meanings");
 
 assert.match(filesScript, /api\.getJson\("\/api\/client-projects\?view=options", \{ cache: "no-store" \}\)/, "Files filters should reuse the existing client/project option provider");
-assert.match(filesScript, /window\.LongtailForge\.clientProjectOptions\?\.normalizeClients\?/, "Files filters should reuse shared client/project option normalization");
+assert.match(filesScript, /requireNamespace\(\)\.clientProjectOptions\?\.normalizeClients\?/, "Files filters should reuse shared client/project option normalization");
 assert.match(filesScript, /createOption\("", "All clients"\)/, "Client filter should use readable select options");
 assert.match(filesScript, /createOption\("", "All projects"\)/, "Project filter should use readable select options");
 assert.match(filesScript, /clientId:\s*usesBusinessScope\(\) \? clientFilter\?\.value : ""/, "Client filter values should only be submitted in Business workspaces");

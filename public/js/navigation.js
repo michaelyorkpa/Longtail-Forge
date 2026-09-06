@@ -68,6 +68,29 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").LongtailForgeBrowserNamespace} LongtailForgeBrowserNamespace */
+
+  /**
+   * The namespace root the optional members on this page are reached through.
+   *
+   * **The root is checked and the member is not, because those are different facts.** Every
+   * read keeps its own `?.` exactly where it stands: a missing root failed at the property
+   * read before and fails here, in the same expression and the same region, while a present
+   * root that publishes no such member goes on short-circuiting as it always did.
+   *
+   * Read per call rather than captured, so a root replaced between invocations is seen.
+   * @returns {LongtailForgeBrowserNamespace}
+   */
+  function requireNamespace() {
+    const namespace = window.LongtailForge;
+
+    if (!namespace) {
+      throw new Error("Navigation requires the LongtailForge namespace.");
+    }
+
+    return namespace;
+  }
+
   /**
    * The API client this file cannot run without.
    *
@@ -346,7 +369,7 @@
   function hydrateStoredWorkspaceContext() {
     const context = readWorkspaceContext();
 
-    if (context && !window.LongtailForge.workspaceContext) {
+    if (context && !requireNamespace().workspaceContext) {
       publishWorkspaceContext(context);
     }
   }
@@ -755,7 +778,7 @@
 
       storeWorkspaceContext(workspaceContext);
       if (shell.user?.timezone || shell.timezone) {
-        window.LongtailForge.timezones?.setUserTimezone?.(shell.user?.timezone || shell.timezone);
+        shellNamespace.timezones?.setUserTimezone?.(shell.user?.timezone || shell.timezone);
       }
       renderNavigation(shell.navigation);
       applyNotificationSummary(shell.notificationSummary);
@@ -888,7 +911,7 @@
   }
 
   function restoreFocusAfterSupportView() {
-    if (window.LongtailForge.supportView || window.sessionStorage.getItem(SUPPORT_VIEW_RESTORE_FOCUS_KEY) !== "true") {
+    if (requireNamespace().supportView || window.sessionStorage.getItem(SUPPORT_VIEW_RESTORE_FOCUS_KEY) !== "true") {
       return;
     }
     const focusHeading = () => {

@@ -410,6 +410,7 @@
         "tests/unit/notification-list-contracts.test.mjs",
         "tests/unit/notification-preference-json-boundary.test.mjs",
         "tests/unit/notification-response-contracts.test.mjs",
+        "tests/unit/optional-member-root-contracts.test.mjs",
         "tests/unit/protocol-relative-url-guard.test.mjs",
         "tests/unit/public-demo-capabilities.test.mjs",
         "tests/unit/public-demo-enforcement.test.mjs",
@@ -549,7 +550,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7841,
+      "errorCount": 7801,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -789,10 +790,6 @@
         ],
         "public/js/files.js": [
           {
-            "code": 18048,
-            "count": 6
-          },
-          {
             "code": 2322,
             "count": 1
           },
@@ -891,10 +888,6 @@
             "count": 55
           },
           {
-            "code": 18048,
-            "count": 2
-          },
-          {
             "code": 2322,
             "count": 7
           },
@@ -981,10 +974,6 @@
             "count": 4
           },
           {
-            "code": 18048,
-            "count": 3
-          },
-          {
             "code": 2339,
             "count": 66
           },
@@ -1039,10 +1028,6 @@
           {
             "code": 18047,
             "count": 99
-          },
-          {
-            "code": 18048,
-            "count": 6
           },
           {
             "code": 2322,
@@ -1117,10 +1102,6 @@
           {
             "code": 18047,
             "count": 44
-          },
-          {
-            "code": 18048,
-            "count": 1
           },
           {
             "code": 2339,
@@ -1669,10 +1650,6 @@
             "count": 9
           },
           {
-            "code": 18048,
-            "count": 9
-          },
-          {
             "code": 2339,
             "count": 100
           },
@@ -1727,10 +1704,6 @@
           {
             "code": 18047,
             "count": 41
-          },
-          {
-            "code": 18048,
-            "count": 2
           },
           {
             "code": 2339,
@@ -1931,10 +1904,6 @@
             "count": 3
           },
           {
-            "code": 18048,
-            "count": 9
-          },
-          {
             "code": 2322,
             "count": 4
           },
@@ -1991,10 +1960,6 @@
           {
             "code": 18047,
             "count": 46
-          },
-          {
-            "code": 18048,
-            "count": 2
           },
           {
             "code": 2339,
@@ -2629,8 +2594,8 @@
     }
   },
   "totals": {
-    "files": 1130,
-    "errors": 7841,
+    "files": 1131,
+    "errors": 7801,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
