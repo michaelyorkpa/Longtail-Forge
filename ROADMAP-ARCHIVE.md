@@ -1,5 +1,32 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.15.1 - Carry the public-demo files-ingress restriction into the stored context
+
+**Model: High Effort** - a corrective prerequisite drawn out of `0.33.33.38.2.2.5.2`'s preflight, and the one finding in it that was not dead code.
+
+**This is a deliberate behaviour correction.** Every other member that preflight surfaced - `permissionIds`, `permissions`, `user_id`, `workspace_type` - has no producer and is genuinely dead. `publicDemo` has a live one, and the value it computes was being dropped on the way to a consumer that was already written to act on it.
+
+- [x] **The defect is the connection, so the proof follows the connection.** The producing service's literal is read out of `app-shell.service.js` rather than retyped, the adapter's `normalize` is the shipped function, **the page's assembly literal is lifted from `navigation.js` and evaluated rather than copied**, and the constructor, the publication path, the panel's reader and the panel's upload handler are all the shipped source. A test that proved the producer and the consumer separately would have passed throughout the defect - both ends were always correct.
+- [x] **Silence cannot lift a restriction.** Only the app-shell bootstrap produces `publicDemo`; `/api/settings` and `/api/session` do not. Those refreshes carry the cached answer forward, so a denial survives a settings reload. A producer may still lift its own restriction, and a malformed record may not - seven malformed shapes are refused, including `{ enabled: true }` alone and a string.
+- [x] **Absence is modelled honestly as `null`.** An older cache that predates the member, and a workspace no shell has described, both answer "nothing has been said" rather than a permissive record. That reads as no restriction, which is what it means, and the shell's answer settles it when it arrives.
+- [x] **The contract is two booleans and nothing else.** `BrowserStoredPublicDemo` declares `enabled` and `filesIngressAllowed`; the constructor stores those two members and discards whatever else a producer sent. No permission collection rides along.
+- [x] **The panel already did its half.** The render withholds only the upload control and says why, leaving seeded attachments listed and viewable; `uploadFiles` refuses outright when ingress is denied; and `mount` re-reads the answer on `longtailforge:workspace-context-updated`, so a live update reaches an open panel. None of that changed - it simply started receiving a real answer.
+- [x] **This is an affordance, not an authorization boundary.** Server-side demo ingress enforcement and Files permissions are untouched. The reader says so where it lives, so no later reader mistakes it for enforcement.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **22 breaks across the producing service, the adapter, the page assembly, the constructor, the panel and the contract - all 22 refused.** The required one is among them: **deleting `publicDemo` from the constructor - the defect exactly as it was - fails the end-to-end producer-to-panel assertion.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Demo denying files ingress reaches the panel | never | **yes** |
+| Members surviving `buildWorkspaceContext` | 13 | **14** |
+| Browser program diagnostics | 8,037 | **8,037** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 1,799 / 348 / 167 | **1,816 / 348 / 167**, green |
+
+**One stale assertion was retargeted rather than deleted.** `0.33.33.38.4.15`'s own suite asserted that `publicDemo` is dropped as transient, alongside `permissionIds` and `workspaceDeletion`. That claim is now wrong for one of the three; the other two still hold and are still asserted, and the member that moved is covered by the carry-through suite rather than dropped from coverage.
+
 ## Version 0.33.33.43.1 - Type the Lists declarative-view descriptor boundary
 
 **Model: High Effort** - the first measured child of `0.33.33.43`, drawn because a namespace declaration could not land without it.
