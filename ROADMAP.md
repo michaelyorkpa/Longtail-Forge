@@ -372,9 +372,11 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Split out of `0.33.33.38.2.2.6.6.3`, which declared its two sibling dialogs and could not take this one.** The contract is fully derived and ready: eight members - `configure`, `open`, `openAdd`, `openEdit`, `openTaskEditor`, `pollRecurrenceContinuity`, `recurrenceContinuityMessage`, `renderRecurrenceContinuity` - with the four openers resolving `dialog.returnValue || "closed"` and `pollRecurrenceContinuity` returning an opaque continuity token its two sibling members consume.
 
-- [ ] **The blocker is `public/js/tasks.js`, not this surface.** Declaring `tasksDialog` gives `action.behavior` a `string` type where it was `any`, and `TASK_LIFECYCLE_BEHAVIOR_HANDLERS[action.behavior]` then cannot index its own frozen record - **four `TS7053` in `tasks.js`, all page-local state owned by `0.33.33.41`.** Its two sibling dialogs caused none.
-- [ ] **This is the `0.33.33.38.2.2.6.5.1` pattern with a different shape**: not a state field inferred too narrowly, but a closed record indexed by a key the declaration made precise. Neither is a copy of this contract, so neither belongs here.
-- [ ] Land it with `0.33.33.41`, or once that record carries a key type. The member stays in `0.33.33.38.2.4.3`'s backlog until then.
+**Complete: eight members declared, 18 diagnostics closed, and the blocker was cleared by its own owner first.** See the archive entry.
+
+- [x] **The blocker was `public/js/tasks.js`, and `0.33.33.41.1` closed it.** Four `TS7053` from a closed record indexed by a key this declaration made precise. That checkpoint gave both maps a lookup that proves the key is one they declare; this one then landed with **no `TS7053` residue at all**.
+- [x] **The prediction held exactly.** The recorded contract - eight members, four openers resolving `dialog.returnValue || "closed"`, and an opaque continuity token its two sibling members consume - is what the live writer turned out to publish, member for member.
+- [x] Declared and adopted. The member is out of `0.33.33.38.2.4.3`'s backlog.
 
 #### 0.33.33.38.2.2.6.6.4 - `LongtailForge.taskCalendar`
 

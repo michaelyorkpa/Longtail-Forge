@@ -87,6 +87,17 @@
     return filePreview;
   }
 
+  /** @returns {import("../../../src/types/browser-contracts.js").BrowserTasksDialog} */
+  function requireTasksDialog() {
+    const tasksDialog = namespace.tasksDialog;
+
+    if (!tasksDialog) {
+      throw new Error("The Tasks dialog is required to open this module action.");
+    }
+
+    return tasksDialog;
+  }
+
   /** @returns {import("../../../src/types/browser-contracts.js").BrowserTimeEntryDialog} */
   function requireTimeEntryDialog() {
     const timeEntryDialog = namespace.timeEntryDialog;
@@ -186,7 +197,7 @@
       requiredModules: ["tasks"],
       requiredPermissions: ["tasks.create"],
       requiredWorkspaceCapabilities: ["projects", "clients_projects"],
-      open: (params, hostContext) => namespace.tasksDialog.openTaskEditor({ ...params, mode: "add" }, hostContext),
+      open: (params, hostContext) => requireTasksDialog().openTaskEditor({ ...params, mode: "add" }, hostContext),
     },
     {
       id: "tasks.edit",
@@ -198,7 +209,7 @@
       requiredModules: ["tasks"],
       requiredPermissions: ["tasks.view"],
       requiredWorkspaceCapabilities: ["projects", "clients_projects"],
-      open: (params, hostContext) => namespace.tasksDialog.openTaskEditor({ ...params, mode: "edit" }, hostContext),
+      open: (params, hostContext) => requireTasksDialog().openTaskEditor({ ...params, mode: "edit" }, hostContext),
     },
     {
       id: "time-entries.add",

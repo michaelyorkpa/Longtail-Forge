@@ -6,6 +6,7 @@
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRecords} BrowserTaskRecords */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTasksDialog} BrowserTasksDialog */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskListItem} BrowserTaskListItem */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskTimerRecord} BrowserTaskTimerRecord */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskListOptions} BrowserTaskListOptions */
@@ -2469,10 +2470,28 @@
     openTaskDialog(task, { duplicate: true });
   }
 
+  /**
+   * The Task dialog, which `tasks.html` loads before this controller.
+   *
+   * Only the two openers below require it. Every other reader on this page - the recurrence
+   * message, the continuity render and the poller - keeps its optional chain, because those run
+   * from a status area that a host without the dialog still renders.
+   * @returns {BrowserTasksDialog}
+   */
+  function requireTasksDialog() {
+    const tasksDialog = window.LongtailForge.tasksDialog;
+
+    if (!tasksDialog) {
+      throw new Error("The Task dialog is required by the Tasks page.");
+    }
+
+    return tasksDialog;
+  }
+
   function openTaskDialog(task = null, options = {}) {
     state.editingTaskId = options.duplicate === true ? "" : task?.task_id || "";
     configureTaskDialog();
-    return window.LongtailForge.tasksDialog.openTaskEditor({
+    return requireTasksDialog().openTaskEditor({
       defaults: options.defaults || {},
       duplicate: options.duplicate === true,
       focusNotes: options.focusNotes === true,
@@ -2490,7 +2509,7 @@
     }
     state.editingTaskId = taskId;
     configureTaskDialog();
-    return window.LongtailForge.tasksDialog.openTaskEditor({
+    return requireTasksDialog().openTaskEditor({
       mode: "edit",
       returnFocusTo: returnFocusTo || document.activeElement,
       taskId,

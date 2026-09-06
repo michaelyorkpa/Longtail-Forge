@@ -439,6 +439,7 @@
         "tests/unit/task-recurrence-continuity-contracts.test.mjs",
         "tests/unit/task-relationship-contracts.test.mjs",
         "tests/unit/task-timer-contracts.test.mjs",
+        "tests/unit/tasks-dialog-surface-contracts.test.mjs",
         "tests/unit/test-support-harnesses.test.mjs",
         "tests/unit/time-entry-save-contracts.test.mjs",
         "tests/unit/user-admin-bootstrap-contracts.test.mjs",
@@ -544,7 +545,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7921,
+      "errorCount": 7903,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -653,7 +654,7 @@
           },
           {
             "code": 2339,
-            "count": 15
+            "count": 14
           },
           {
             "code": 7005,
@@ -661,7 +662,7 @@
           },
           {
             "code": 7006,
-            "count": 9
+            "count": 8
           },
           {
             "code": 7034,
@@ -839,7 +840,7 @@
         "public/js/footer.js": [
           {
             "code": 2339,
-            "count": 5
+            "count": 4
           },
           {
             "code": 2345,
@@ -1308,10 +1309,6 @@
             "count": 2
           },
           {
-            "code": 18046,
-            "count": 2
-          },
-          {
             "code": 2322,
             "count": 1
           },
@@ -1675,7 +1672,7 @@
           },
           {
             "code": 2339,
-            "count": 28
+            "count": 27
           },
           {
             "code": 7006,
@@ -1688,20 +1685,16 @@
         ],
         "public/js/tasks.js": [
           {
-            "code": 18046,
-            "count": 2
-          },
-          {
             "code": 18047,
             "count": 9
           },
           {
             "code": 18048,
-            "count": 18
+            "count": 17
           },
           {
             "code": 2339,
-            "count": 106
+            "count": 100
           },
           {
             "code": 2345,
@@ -1967,7 +1960,7 @@
           },
           {
             "code": 2339,
-            "count": 239
+            "count": 236
           },
           {
             "code": 2345,
@@ -2656,8 +2649,8 @@
     }
   },
   "totals": {
-    "files": 1125,
-    "errors": 7921,
+    "files": 1126,
+    "errors": 7903,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
