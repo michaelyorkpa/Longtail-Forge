@@ -1,5 +1,31 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.41.1 - Look a task behavior handler up by a key its map declares
+
+**Model: High Effort** - a narrow prerequisite, measured against the live probe rather than the recorded hypothesis.
+
+- [x] **The blocker was re-measured, not assumed.** A `tasksDialog` declaration probe against the merged tree still produced exactly four `TS7053` record-indexing errors at `tasks.js` 473, 482, 1828 and 1849, and nothing broader. The workspace-context cleanup had changed the surrounding code without changing this.
+- [x] **The closed vocabulary is kept.** Two readers, one per map, each walking its own map's entries where that map's type is known. No index signature, no `Record<string, ...>`, no `keyof` assertion, no cast, no invented catch-all handler. A break that replaces either with a string dictionary is refused by the compiler.
+- [x] **One reader per map rather than one shared reader, and the reason is recorded.** A shared reader has to name its parameter's type, and every spelling available either erases the vocabulary these maps exist to keep or needs a cast to get the handler back out.
+- [x] **The no-matching-handler behaviour is unchanged.** Two callers skip registration; two set `Missing task lifecycle behavior` / `Missing task workflow behavior` and return. Breaks that drop either are refused.
+- [x] **A latent dispatch defect closed with it.** Indexing a frozen record reaches the prototype, so a descriptor declaring `behavior: "toString"` resolved `Object.prototype.toString`, and all four callers treat a truthy lookup as a handler. Nine inherited names - including `constructor`, `valueOf` and `__proto__` - are proved to answer nothing now. **No attacker path is claimed**: descriptors are first-party or module-contributed, and nothing observed emits such a behavior.
+- [x] **The context is named, not narrowed.** Both dispatchers hand every handler the same six members and each handler destructures the subset it needs. Passing that as a fresh object literal made the compiler check the superset against whichever subset the matched handler declares, which is not the contract; naming it says so and changes nothing at runtime.
+- [x] **Nothing else moved.** Action ids, behavior strings, permission metadata, status rules and route selection are untouched, and the maps' membership is asserted key by key.
+
+Proved by breaking each one, restored from an explicit byte copy in a `finally` with hash verification and no stash: **11 breaks, all 11 refused.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,925 | **7,921** |
+| `tasks.js` `TS7053` | 11 | **7** |
+| `0.33.33.41` ledger | 1,150 | **1,146** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 1,862 / 348 / 167 | **1,875 / 348 / 167**, green |
+
+**The prerequisite's acceptance, measured.** With a temporary `tasksDialog` declaration applied on top, the four targeted errors are **gone** and no replacement appears elsewhere; the residue is four root-optionality transfers, which the namespace child adopts. **The declaration itself is not in this checkpoint** - `src/types/browser-contracts.d.ts` is untouched here.
+
 ## Version 0.33.33.38.2.3.1 - The ready module-action dialog adapters
 
 **Model: High Effort** - one bounded cohort drawn by measurement, sharing an investigation and a dispatcher rather than a contract.

@@ -933,6 +933,14 @@ Today's measurement: `tasks.js` is 2,982 lines and 661 diagnostics; `task-dialog
 - [ ] Keep Task Dialog's shared closure intact except for already-authorized policy extraction.
 - [ ] Reduce this browser ledger cohort to zero with rendered lifecycle coverage.
 
+#### 0.33.33.41.1 - Look a task behavior handler up by a key its map declares
+
+**Complete: the four record-indexing sites closed, and a latent dispatch defect closed with them.** See the archive entry. **Drawn as a prerequisite, under the owner that already held the debt.** `0.33.33.38.2.2.6.6.3.1` cannot declare `LongtailForge.tasksDialog` while the declaration makes `TASK_LIFECYCLE_BEHAVIOR_HANDLERS[action.behavior]` and its workflow twin resolve to an implicit `any` element access - but that indexing is `0.33.33.41`'s, and a namespace checkpoint fixing it would be one owner doing another's work.
+
+**The maps stay closed.** No index signature, no `Record<string, ...>` dictionary, no `keyof` assertion and no cast: each map is read where its own type is known, by walking its own entries. An unrecognised behavior still answers nothing, which is what all four callers already handle.
+
+**A latent defect closed on the way.** Indexing read through the prototype, so a contributed descriptor declaring `behavior: "toString"` resolved `Object.prototype.toString` - and every caller treats a truthy lookup as a handler and calls it. Nine inherited names are now proved to answer nothing.
+
 ### 0.33.33.42 - Type Workbench and extract Task Focus
 
 **Model: High Effort** - Workbench is a live orchestration surface with dynamic modules, timers, resume state, and recovery behavior.
