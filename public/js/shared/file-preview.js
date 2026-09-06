@@ -163,6 +163,7 @@
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFilePreviewContent} BrowserFilePreviewContent */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFilePreviewContentEnvelope} BrowserFilePreviewContentEnvelope */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFilePreviewDescriptor} BrowserFilePreviewDescriptor */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFilePreviewAvailability} BrowserFilePreviewAvailability */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFilePreviewKind} BrowserFilePreviewKind */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFilePreviewState} BrowserFilePreviewState */
 
@@ -584,6 +585,10 @@
     };
   }
 
+  /**
+   * @param {*} [row]
+   * @returns {BrowserFilePreviewAvailability}
+   */
   function previewAvailabilityForRow(row = {}) {
     const kind = previewKindForExtension(row.extension);
     const status = String(row.status || "").trim();
@@ -624,6 +629,10 @@
     };
   }
 
+  /**
+   * @param {unknown} extension
+   * @returns {BrowserFilePreviewKind}
+   */
   function previewKindForExtension(extension) {
     const normalizedExtension = String(extension || "").replace(/^\./, "").toLowerCase();
 

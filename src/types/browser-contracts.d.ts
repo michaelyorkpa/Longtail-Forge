@@ -414,6 +414,71 @@ export interface BrowserFilePreviewActions {
 }
 
 /**
+ * What `previewAvailabilityForRow` answers about one row.
+ *
+ * `unauthorized` is absent because this reader cannot produce it: that state is decided one
+ * level up by the shared access gate, which refuses `files.download` before a row is read.
+ */
+export interface BrowserFilePreviewAvailability {
+  kind: BrowserFilePreviewKind;
+  reason: string;
+  state: Exclude<BrowserFilePreviewState, "unauthorized">;
+}
+
+/**
+ * `LongtailForge.filePreview`, published by `public/js/shared/file-preview.js`.
+ *
+ * The whole publication, not the action-shaped half: `BrowserFilePreviewActions` describes the
+ * three members the Files controller delegates to, and this extends it with the six the preview
+ * helper also publishes. **The two openers are not the same shape and must not be merged.**
+ * `openFilePreview` builds a modal and hands it back synchronously; `openFilePreviewAction`
+ * answers the host context's result promise when there is one and the dialog when there is not,
+ * which is why its return stays `unknown` rather than becoming a promise.
+ *
+ * `previewAvailabilityForRow` never answers `unauthorized`: that state is produced one level up
+ * by the shared access gate, so this reader's own vocabulary excludes it.
+ */
+export interface BrowserFilePreview extends BrowserFilePreviewActions {
+  normalizeFilePreviewRow(attachmentOrRow?: unknown, options?: unknown): Record<string, unknown>;
+  openFilePreview(attachmentOrRow?: unknown, options?: unknown): BrowserViewModalElement;
+  previewAvailabilityForRow(row?: unknown): BrowserFilePreviewAvailability;
+  previewKindForExtension(extension?: unknown): BrowserFilePreviewKind;
+  previewStateMessage(state?: unknown): string;
+  previewUnavailableLabel(row?: unknown): string;
+}
+
+/**
+ * `LongtailForge.filesDialog`, published by `public/js/files.js`.
+ *
+ * Four members, and two of them delegate: the Files page owns the namespace but the preview
+ * pair is forwarded to `shared/file-preview.js`, so a host that only wants a preview never
+ * loads this controller. Both openers are synchronous - the editor action answers the host
+ * context's result when there is one and the dialog when there is not.
+ */
+export interface BrowserFilesDialog {
+  openFileEditor(attachmentOrRow?: unknown, options?: unknown): BrowserViewModalElement;
+  openFileEditorAction(params?: BrowserFileActionRecord, hostContext?: unknown): unknown;
+  openFilePreview(attachmentOrRow?: unknown, options?: unknown): BrowserViewModalElement;
+  openFilePreviewAction(params?: BrowserFileActionRecord, hostContext?: unknown): unknown;
+}
+
+/**
+ * `LongtailForge.clientProjectDialog`, published by `public/js/clients-projects.js`.
+ *
+ * **Unlike the Files openers these are asynchronous, and their promise resolves a string.**
+ * Each awaits its dialog data, resolves the requested record, and settles on the dialog's
+ * `close` event with `dialog.returnValue || "closed"` - a close reason, never a saved record.
+ * Each also **throws** when the record cannot be found or the caller may not manage it, which
+ * is a rejection rather than a resolved outcome.
+ */
+export interface BrowserClientProjectDialog {
+  openAddClient(params?: unknown, hostContext?: unknown): Promise<string>;
+  openAddProject(params?: unknown, hostContext?: unknown): Promise<string>;
+  openEditClient(params?: unknown, hostContext?: unknown): Promise<string>;
+  openEditProject(params?: unknown, hostContext?: unknown): Promise<string>;
+}
+
+/**
  * `LongtailForge.viewActionSecurity`, published by `public/js/shared/view-action-security.js`.
  *
  * The security-relevant half of descriptor action dispatch, extracted from the view renderer by
@@ -6866,6 +6931,7 @@ export interface LongtailForgeBrowserNamespace {
   assetVersion?: BrowserAssetVersion;
   cachedFetch?: BrowserCachedFetch;
   capturePrompt?: BrowserCapturePrompt;
+  clientProjectDialog?: BrowserClientProjectDialog;
   clientProjectOptions?: BrowserClientProjectOptions;
   controllers?: PageControllerRegistry;
   dashboard?: BrowserDashboard;
@@ -6874,6 +6940,8 @@ export interface LongtailForgeBrowserNamespace {
   taskRecords?: BrowserTaskRecords;
   esModuleBridge?: BrowserEsModuleBridge;
   fileAttachments?: BrowserFileAttachments;
+  filePreview?: BrowserFilePreview;
+  filesDialog?: BrowserFilesDialog;
   formatters?: BrowserFormatters;
   getWorkspaceProjectsLabel?: (workspaceName?: unknown) => string;
   icons?: BrowserIcons;

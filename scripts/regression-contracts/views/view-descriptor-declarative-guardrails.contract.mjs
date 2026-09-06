@@ -490,7 +490,7 @@ assert.match(extractFunctionBlock(fileAttachmentsJs, "attachmentRecoveryMessage"
   "Attachment recovery states should stay Files-owned");
 assert.doesNotMatch(fileAttachmentsJs, /openFileEditor|createFilesMetadataPanel|Inspector|data-file-selected-row/,
   "Attachment helper should not become inline File Context, Metadata, or Inspector UI");
-assert.match(fileAttachmentsJs, /namespace\.filePreview\.openFilePreview\(row, \{ trigger: event\?\.currentTarget \|\| null \}\)/,
+assert.match(fileAttachmentsJs, /const preview = namespace\.filePreview;[\s\S]*?preview\.openFilePreview\(row, \{ trigger: event\?\.currentTarget \|\| null \}\)/,
   "Attachment helper may open only the shared route-backed Preview modal");
 assert.match(filesStrictInventoryDoc, /Current as of 0\.33\.31\.9[\s\S]*strict enforcement is active/, "Files strict inventory should document the current active enforcement boundary");
 assert.match(filesStrictInventoryDoc, /Strict Enforcement Coverage In 0\.33\.5\.18\.12\.6/, "Files strict inventory should preserve the enforcement coverage section");

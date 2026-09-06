@@ -88,7 +88,7 @@ assert.match(extractFunctionSpan(helper, "deleteFile"), /\/api\/files\/\$\{encod
 assert.match(extractFunctionSpan(helper, "restoreFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/restore/, "Restore should keep using the Files lifecycle route");
 
 assert.doesNotMatch(helper, /openFileEditor|preview\/content|File Context|Inspector/, "Attachment helper should not become File Context, preview content, or Inspector UI");
-assert.match(helper, /namespace\.filePreview\.openFilePreview\(row, \{ trigger: event\?\.currentTarget \|\| null \}\)/, "Attachment helper may call only the shared preview opener");
+assert.match(helper, /const preview = namespace\.filePreview;[\s\S]*?preview\.openFilePreview\(row, \{ trigger: event\?\.currentTarget \|\| null \}\)/, "Attachment helper may call only the shared preview opener, through a narrowed binding");
 assert.match(filesScript, /function openFileEditor\(/, "Canonical File Context workflow should remain Files-owned outside the attachment helper");
 assert.match(filePreviewScript, /function openFilePreview\(/, "Canonical Preview workflow should live in the shared preview helper outside the attachment helper");
 

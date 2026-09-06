@@ -617,6 +617,11 @@
     tagOptions = loadedTags;
   }
 
+  /**
+   * @param {*} [params]
+   * @param {*} [hostContext]
+   * @returns {Promise<string>} the dialog's close reason
+   */
   async function openAddProjectAction(params = {}, hostContext = null) {
     await loadClientProjectDialogData();
     const requestedClientId = params.clientId || params.defaultClientId || params.parentClientId || "";
@@ -632,6 +637,11 @@
     });
   }
 
+  /**
+   * @param {*} [params]
+   * @param {*} [hostContext]
+   * @returns {Promise<string>} the dialog's close reason
+   */
   async function openEditProjectAction(params = {}, hostContext = null) {
     await loadClientProjectDialogData();
     const projectId = params.projectId || params.recordId || params.id || "";
@@ -647,6 +657,11 @@
     return openProjectDetailDialog(match.client, match.project, { hostContext });
   }
 
+  /**
+   * @param {*} [params]
+   * @param {*} [hostContext]
+   * @returns {Promise<string>} the dialog's close reason
+   */
   async function openAddClientAction(params = {}, hostContext = null) {
     await loadClientProjectDialogData();
 
@@ -670,6 +685,11 @@
     });
   }
 
+  /**
+   * @param {*} [params]
+   * @param {*} [hostContext]
+   * @returns {Promise<string>} the dialog's close reason
+   */
   async function openEditClientAction(params = {}, hostContext = null) {
     await loadClientProjectDialogData();
 

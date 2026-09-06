@@ -63,7 +63,7 @@ assert.match(extractFunctionSpan(filesScript, "quarantineFile"), /title:\s*"Move
   "Review action should preserve the protected quarantine route with review-oriented confirmation copy");
 assert.match(extractFunctionSpan(filesScript, "reportFile"), /Downloads will be paused until a workspace admin reviews it/,
   "Report confirmation should use review-oriented availability copy");
-assert.match(extractFunctionSpan(filesScript, "buildFileEditorDialog"), /action:\s*"files\.preview"[\s\S]*filePreview\.openFilePreview\(row/,
+assert.match(extractFunctionSpan(filesScript, "buildFileEditorDialog"), /action:\s*"files\.preview"[\s\S]*requireFilePreview\(\)\.openFilePreview\(row/,
   "File Context may keep its Preview control without reimplementing Preview behavior");
 assert.match(extractFunctionSpan(filePreviewScript, "createPreviewDownloadAction"), /surfaceAction: "files\.download"/,
   "Preview modal download should stay tied to the shared Files download action vocabulary");

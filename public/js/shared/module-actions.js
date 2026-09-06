@@ -54,6 +54,39 @@
     return listsDialog;
   }
 
+  /** @returns {import("../../../src/types/browser-contracts.js").BrowserClientProjectDialog} */
+  function requireClientProjectDialog() {
+    const clientProjectDialog = namespace.clientProjectDialog;
+
+    if (!clientProjectDialog) {
+      throw new Error("The client and project dialog is required to open this module action.");
+    }
+
+    return clientProjectDialog;
+  }
+
+  /** @returns {import("../../../src/types/browser-contracts.js").BrowserFilesDialog} */
+  function requireFilesDialog() {
+    const filesDialog = namespace.filesDialog;
+
+    if (!filesDialog) {
+      throw new Error("The Files dialog is required to open this module action.");
+    }
+
+    return filesDialog;
+  }
+
+  /** @returns {import("../../../src/types/browser-contracts.js").BrowserFilePreview} */
+  function requireFilePreview() {
+    const filePreview = namespace.filePreview;
+
+    if (!filePreview) {
+      throw new Error("The file preview helper is required to open this module action.");
+    }
+
+    return filePreview;
+  }
+
   /** @returns {import("../../../src/types/browser-contracts.js").BrowserTimeEntryDialog} */
   function requireTimeEntryDialog() {
     const timeEntryDialog = namespace.timeEntryDialog;
@@ -268,7 +301,7 @@
       requiredModules: ["client-projects"],
       requiredPermissions: ["projects.manage"],
       requiredWorkspaceCapabilities: ["projects", "clients_projects"],
-      open: (params, hostContext) => namespace.clientProjectDialog.openAddProject(params, hostContext),
+      open: (params, hostContext) => requireClientProjectDialog().openAddProject(params, hostContext),
     },
     {
       id: "projects.edit",
@@ -280,7 +313,7 @@
       requiredModules: ["client-projects"],
       requiredPermissions: ["projects.manage"],
       requiredWorkspaceCapabilities: ["projects", "clients_projects"],
-      open: (params, hostContext) => namespace.clientProjectDialog.openEditProject(params, hostContext),
+      open: (params, hostContext) => requireClientProjectDialog().openEditProject(params, hostContext),
     },
     {
       id: "clients.add",
@@ -292,7 +325,7 @@
       requiredModules: ["client-projects"],
       requiredPermissions: ["clients.manage"],
       requiredWorkspaceCapabilities: ["clients_projects"],
-      open: (params, hostContext) => namespace.clientProjectDialog.openAddClient(params, hostContext),
+      open: (params, hostContext) => requireClientProjectDialog().openAddClient(params, hostContext),
       workspaceTypes: ["business"],
     },
     {
@@ -305,7 +338,7 @@
       requiredModules: ["client-projects"],
       requiredPermissions: ["clients.manage"],
       requiredWorkspaceCapabilities: ["clients_projects"],
-      open: (params, hostContext) => namespace.clientProjectDialog.openEditClient(params, hostContext),
+      open: (params, hostContext) => requireClientProjectDialog().openEditClient(params, hostContext),
       workspaceTypes: ["business"],
     },
     {
@@ -316,7 +349,7 @@
       mode: "edit",
       recordType: "file_attachment",
       requiredPermissions: ["files.view"],
-      open: (params, hostContext) => namespace.filesDialog.openFileEditorAction(params, hostContext),
+      open: (params, hostContext) => requireFilesDialog().openFileEditorAction(params, hostContext),
     },
     {
       id: "files.preview",
@@ -326,7 +359,7 @@
       mode: "preview",
       recordType: "file_attachment",
       requiredPermissions: ["files.view"],
-      open: (params, hostContext) => namespace.filePreview.openFilePreviewAction(params, hostContext),
+      open: (params, hostContext) => requireFilePreview().openFilePreviewAction(params, hostContext),
     },
   ];
 

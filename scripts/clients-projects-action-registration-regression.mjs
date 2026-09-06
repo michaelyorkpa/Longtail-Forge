@@ -44,7 +44,7 @@ assert.match(
 );
 assert.match(
   moduleActionsScript,
-  /id: "projects\.add"[\s\S]*open: \(params, hostContext\) => namespace\.clientProjectDialog\.openAddProject\(params, hostContext\)[\s\S]*id: "clients\.edit"[\s\S]*open: \(params, hostContext\) => namespace\.clientProjectDialog\.openEditClient\(params, hostContext\)/,
+  /id: "projects\.add"[\s\S]*open: \(params, hostContext\) => requireClientProjectDialog\(\)\.openAddProject\(params, hostContext\)[\s\S]*id: "clients\.edit"[\s\S]*open: \(params, hostContext\) => requireClientProjectDialog\(\)\.openEditClient\(params, hostContext\)/,
   "Shared module-actions should own first-party Clients/Projects action metadata",
 );
 

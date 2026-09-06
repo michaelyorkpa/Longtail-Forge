@@ -373,11 +373,30 @@
     }));
   }
 
+  /**
+   * The dependency list this map declares for an action, or none.
+   *
+   * The map was indexed with the caller's string, which read through the prototype as well as
+   * the map's own keys - `toString` would have answered a function rather than nothing. Walking
+   * its entries answers only for the keys it actually declares.
+   * @param {string} moduleActionId
+   */
+  function quickActionDependenciesFor(moduleActionId) {
+    for (const [actionId, dependencies] of Object.entries(quickActionDependencySets)) {
+      if (actionId === moduleActionId) {
+        return dependencies;
+      }
+    }
+
+    return [];
+  }
+
   // Loads the quick action's scripts, then returns the registry those scripts published.
   // The check was already here and already threw; it now hands back what it proved rather
   // than leaving its caller to re-read the global on trust.
+  /** @param {string} moduleActionId */
   async function ensureQuickActionDependencies(moduleActionId) {
-    const dependencies = quickActionDependencySets[moduleActionId] || [];
+    const dependencies = quickActionDependenciesFor(moduleActionId);
 
     for (const dependency of dependencies) {
       await loadQuickActionScript(dependency);

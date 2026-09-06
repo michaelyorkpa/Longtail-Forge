@@ -6,6 +6,7 @@
   const FILE_QUARANTINE_REASON = "manual_quarantine";
 
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFilePreview} BrowserFilePreview */
 
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
@@ -682,7 +683,11 @@
       onClick: (event) => {
         event?.preventDefault?.();
         event?.stopPropagation?.();
-        namespace.filePreview.openFilePreview(row, { trigger: event?.currentTarget || null });
+        const preview = namespace.filePreview;
+        if (!preview) {
+          throw new Error("The file preview helper is required to preview an attachment.");
+        }
+        preview.openFilePreview(row, { trigger: event?.currentTarget || null });
       },
       role: "secondary",
       text: "",
@@ -750,7 +755,7 @@
       return null;
     }
 
-    return namespace.filePreview.normalizeFilePreviewRow(attachment, {
+    return requireAttachmentFilePreview().normalizeFilePreviewRow(attachment, {
       canPreviewInReview: canPreviewAttachmentInReview(attachment, file, options),
     });
   }
@@ -947,6 +952,21 @@
     ], false);
 
     return Boolean(fileId && !isDeleted && file.status !== "quarantined" && allowed);
+  }
+
+  /**
+   * The shared preview helper, at the one call site that has already proved it publishes the
+   * normaliser. Its guard returns before reaching here, so this never changes an outcome.
+   * @returns {BrowserFilePreview}
+   */
+  function requireAttachmentFilePreview() {
+    const preview = namespace.filePreview;
+
+    if (!preview) {
+      throw new Error("The file preview helper is required to describe an attachment.");
+    }
+
+    return preview;
   }
 
   function readActionBooleanFlag(values, fallback) {

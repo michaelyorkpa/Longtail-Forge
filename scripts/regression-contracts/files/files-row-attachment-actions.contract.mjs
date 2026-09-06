@@ -27,7 +27,7 @@ assert.match(rowActions, /view\.createDetailActionStrip\(\{[\s\S]*className: "fi
 assert.match(rowActions, /actions\.dataset\.fileActions = ""/, "Files row actions should expose a stable dense-action hook");
 assert.match(rowActions, /createPreviewAction\(row\)[\s\S]*createDownloadAction\(row\)[\s\S]*createReportAction\(row\)[\s\S]*createQuarantineAction\(row\)[\s\S]*createDeleteAction\(row\)[\s\S]*createRestoreAction\(row\)/, "Files rows should keep Preview, Download, Report, Quarantine, Delete, and Restore as distinct controls");
 
-assert.match(extractFunctionSpan(filesScript, "createPreviewAction"), /action: "files\.preview"[\s\S]*stopFileRowActionEvent\(event\)[\s\S]*filePreview\.openFilePreview\(row/, "Preview should remain a distinct modal action and stop row activation");
+assert.match(extractFunctionSpan(filesScript, "createPreviewAction"), /action: "files\.preview"[\s\S]*stopFileRowActionEvent\(event\)[\s\S]*requireFilePreview\(\)\.openFilePreview\(row/, "Preview should remain a distinct modal action and stop row activation");
 assert.match(extractFunctionSpan(filesScript, "createDownloadAction"), /className: "button-link action-button view-action-button icon-button files-row-action"[\s\S]*download: true[\s\S]*href: `\/api\/files\/\$\{encodeURIComponent\(row\.fileId\)\}\/download`[\s\S]*surfaceAction: "files\.download"/, "Download should remain a shared Files download route action");
 const rowReportAction = extractFunctionSpan(filesScript, "createReportAction");
 assert.match(rowReportAction, /action: "files\.report"/, "Report should expose the Files report action ID");
@@ -42,7 +42,7 @@ assert.match(extractFunctionSpan(filesScript, "createRestoreAction"), /action: "
 assert.match(extractFunctionSpan(filesScript, "isFileRowActionEvent"), /\[data-file-action\], a, button, input, select, textarea/, "Row click and Enter should ignore action controls");
 
 assert.match(extractFunctionSpan(filePreviewScript, "createPreviewDownloadAction"), /surfaceAction: "files\.download"/, "Preview modal download should share the Files download action vocabulary");
-assert.match(extractFunctionSpan(filesScript, "buildFileEditorDialog"), /action: "files\.preview"[\s\S]*filePreview\.openFilePreview\(row/, "File Context may preserve Preview placement without reimplementing Preview");
+assert.match(extractFunctionSpan(filesScript, "buildFileEditorDialog"), /action: "files\.preview"[\s\S]*requireFilePreview\(\)\.openFilePreview\(row/, "File Context may preserve Preview placement without reimplementing Preview");
 assert.match(extractFunctionSpan(filePreviewScript, "previewAvailabilityForRow"), /state: "download_only"/, "Unsupported files should remain download-only instead of opening a detail panel");
 
 const rowReport = extractFunctionSpan(filesScript, "reportFile");
@@ -65,7 +65,7 @@ const helperActions = extractFunctionSpan(attachmentHelper, "createAttachmentAct
 assert.match(helperActions, /view\?\.createDetailActionStrip[\s\S]*className: "file-attachment-actions"/, "Attachment actions should use shared dense action placement");
 assert.match(helperActions, /files\.removeAttachment[\s\S]*files\.report[\s\S]*files\.quarantine[\s\S]*files\.delete[\s\S]*files\.restore/, "Attachment actions should expose Files action IDs for shipped mutations");
 assert.match(helperActions, /const actionNodes = \[preview, download, remove, report, quarantine, deleteButton, restore\]/, "Attachment controls should remain distinct and ordered as separate controls");
-assert.match(extractFunctionSpan(attachmentHelper, "createAttachmentPreviewAction"), /action: "files\.preview"[\s\S]*icon: "eye"[\s\S]*namespace\.filePreview\.openFilePreview\(row/, "Attachment Preview should use the shared preview modal action");
+assert.match(extractFunctionSpan(attachmentHelper, "createAttachmentPreviewAction"), /action: "files\.preview"[\s\S]*icon: "eye"[\s\S]*preview\.openFilePreview\(row/, "Attachment Preview should use the shared preview modal action");
 assert.match(extractFunctionSpan(attachmentHelper, "createAttachmentDownloadAction"), /"aria-label": label[\s\S]*"data-surface-action": "files\.download"[\s\S]*href: `\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/download`/, "Attachment downloads should remain accessible Files route actions");
 assert.match(extractFunctionSpan(attachmentHelper, "normalizeOptions"), /canReport: true[\s\S]*canQuarantine: workspaceHasPermission\("files\.manage_quarantine"\)/, "Attachment helper should support permission-shaped report and quarantine visibility");
 

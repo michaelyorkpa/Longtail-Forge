@@ -63,7 +63,7 @@ assert.match(
 );
 assert.match(
   moduleActionsScript,
-  /id: "files\.preview"[\s\S]*open: \(params, hostContext\) => namespace\.filePreview\.openFilePreviewAction\(params, hostContext\)/,
+  /id: "files\.preview"[\s\S]*open: \(params, hostContext\) => requireFilePreview\(\)\.openFilePreviewAction\(params, hostContext\)/,
   "files.preview should dispatch through the shared File Preview helper",
 );
 assert.match(

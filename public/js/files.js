@@ -53,6 +53,7 @@
   }
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserFilePreview} BrowserFilePreview */
 
   /**
    * The API client this file cannot run without.
@@ -93,11 +94,27 @@
     }
     return factory;
   }
-  const filePreview = window.LongtailForge?.filePreview;
-  // 0.33.33.34 moved the record helpers and the action-shaped preview opener to the
-  // shared helper. This controller reads that half through its published contract so the
-  // delegation is checked; typing the rest of the `filePreview` surface is 0.33.33.42 work.
-  const filePreviewActions = /** @type {import("../../src/types/browser-contracts.js").BrowserFilePreviewActions} */ (filePreview);
+  /**
+   * The shared preview helper, which `files.html` loads before this controller.
+   *
+   * `0.33.33.34` moved the record helpers and the action-shaped opener here and this
+   * controller read that half through a cast to `BrowserFilePreviewActions`, because the
+   * namespace member was undeclared. `0.33.33.38.2.3.1` declared the whole surface, so the
+   * cast is gone and every one of the nine members is checked against the writer.
+   *
+   * Acquired per call rather than at load, which is when it was read before: an absent helper
+   * still fails where it is used, not while this file is being evaluated.
+   * @returns {BrowserFilePreview}
+   */
+  function requireFilePreview() {
+    const filePreview = window.LongtailForge?.filePreview;
+
+    if (!filePreview) {
+      throw new Error("The file preview helper is required by the Files page.");
+    }
+
+    return filePreview;
+  }
   const state = {
     workspaceType: "business",
     /**
@@ -150,7 +167,7 @@
   window.LongtailForge.filesDialog = Object.freeze({
     openFileEditor,
     openFileEditorAction,
-    openFilePreview: (...args) => filePreview.openFilePreview(...args),
+    openFilePreview: (...args) => requireFilePreview().openFilePreview(...args),
     openFilePreviewAction,
   });
 
@@ -765,7 +782,7 @@
     const extension = file.extension || extensionFromFilename(file.originalFilename || fileName);
     const fileSizeBytes = Number(file.fileSizeBytes || file.file_size_bytes || 0);
     const canManageReview = canManageFileReview(attachment, file, fileId);
-    const preview = filePreview.previewAvailabilityForRow({
+    const preview = requireFilePreview().previewAvailabilityForRow({
       canPreviewInReview: canManageReview,
       extension,
       fileSizeBytes,
@@ -1090,7 +1107,7 @@
       className: "files-row-action",
       onClick: (event) => {
         stopFileRowActionEvent(event);
-        filePreview.openFilePreview(row, { trigger: event.currentTarget });
+        requireFilePreview().openFilePreview(row, { trigger: event.currentTarget });
       },
     });
 
@@ -1099,7 +1116,7 @@
   }
 
   function createDownloadOnlyMarker(row) {
-    const label = filePreview.previewUnavailableLabel(row);
+    const label = requireFilePreview().previewUnavailableLabel(row);
     const icon = window.LongtailForge?.icons?.createIcon?.("eye", { decorative: true });
     const marker = createFilesElement("span", {
       className: "action-button icon-button files-row-action files-row-preview-unavailable",
@@ -1275,15 +1292,15 @@
   // this controller still opens the same dialog. Files keeps publishing it because Files
   // owns the `filesDialog` namespace.
   function openFilePreviewAction(params = {}, hostContext = null) {
-    return filePreviewActions.openFilePreviewAction(params, hostContext);
+    return requireFilePreview().openFilePreviewAction(params, hostContext);
   }
 
   function normalizeFileActionRecord(params = {}) {
-    return filePreviewActions.normalizeFileActionRecord(params);
+    return requireFilePreview().normalizeFileActionRecord(params);
   }
 
   function fileActionAttachmentId(attachmentOrRow = {}) {
-    return filePreviewActions.fileActionAttachmentId(attachmentOrRow);
+    return requireFilePreview().fileActionAttachmentId(attachmentOrRow);
   }
 
   function openFileEditor(attachmentOrRow = {}, options = {}) {
@@ -1340,7 +1357,7 @@
       onClick: (event) => {
         event.preventDefault();
         event.stopPropagation();
-        filePreview.openFilePreview(row, { trigger: event.currentTarget });
+        requireFilePreview().openFilePreview(row, { trigger: event.currentTarget });
       },
     });
     const markReviewedButton = view.createActionButton({
