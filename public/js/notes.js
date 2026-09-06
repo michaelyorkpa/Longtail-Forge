@@ -2399,13 +2399,15 @@
   }
 
   async function loadTags() {
-    if (!window.LongtailForge.tags) {
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagSurface) {
       state.availableTags = [];
       return;
     }
 
     try {
-      state.availableTags = await window.LongtailForge.tags.loadTags({ status: "active" });
+      state.availableTags = await tagSurface.loadTags({ status: "active" });
     } catch {
       state.availableTags = [];
     }
@@ -2745,12 +2747,19 @@
   }
 
   async function mountBulkTagPicker() {
-    if (!bulkTagsEditor || !window.LongtailForge.tags?.mountPicker) {
+    if (!bulkTagsEditor) {
       state.bulkTagPicker = null;
       return;
     }
 
-    state.bulkTagPicker = await window.LongtailForge.tags.mountPicker(bulkTagsEditor, {
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagSurface?.mountPicker) {
+      state.bulkTagPicker = null;
+      return;
+    }
+
+    state.bulkTagPicker = await tagSurface.mountPicker(bulkTagsEditor, {
       allowCreate: false,
       label: "Tags",
       placeholder: "Type to search tags",
@@ -4649,12 +4658,18 @@
   }
 
   function mountFilesPanel(note, mount) {
-    if (!mount || isSecureNote(note) || !window.LongtailForge.fileAttachments) {
+    if (!mount || isSecureNote(note)) {
+      return;
+    }
+
+    const fileAttachments = requireNamespace().fileAttachments;
+
+    if (!fileAttachments) {
       return;
     }
 
     state.attachmentController?.destroy?.();
-    state.attachmentController = window.LongtailForge.fileAttachments.mount(mount, {
+    state.attachmentController = fileAttachments.mount(mount, {
       acceptedCategories: ["document", "image", "pdf", "spreadsheet", "presentation", "text", "other"],
       canRemove: note.status !== "archived",
       canUpload: note.status !== "archived",
@@ -4844,14 +4859,18 @@
   }
 
   async function mountTagEditor(note) {
-    if (!tagsEditor || !window.LongtailForge.tags) {
-      tagsToggle && (tagsToggle.hidden = !window.LongtailForge.tags);
+    // Captured above the guard because the guard reads the surface on **both** of its paths:
+    // the `tagsToggle` branch reads it again when `tagsEditor` is absent.
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagsEditor || !tagSurface) {
+      tagsToggle && (tagsToggle.hidden = !tagSurface);
       return;
     }
 
     tagsToggle.hidden = false;
     state.tagsDialogNoteId = note?.note_id || "";
-    state.tagPicker = await window.LongtailForge.tags.mountPicker(tagsEditor, {
+    state.tagPicker = await tagSurface.mountPicker(tagsEditor, {
       allowCreate: true,
       label: "Tags",
       selectedTags: note?.tags || [],

@@ -384,6 +384,7 @@
         "tests/unit/files-settings-accounting-contracts.test.mjs",
         "tests/unit/files-storage-accounting.service.test.mjs",
         "tests/unit/focus-mode-resolution.test.mjs",
+        "tests/unit/guarded-member-root-contracts.test.mjs",
         "tests/unit/identifiers.test.mjs",
         "tests/unit/install-playwright-browser.test.mjs",
         "tests/unit/job-status-contracts.test.mjs",
@@ -548,7 +549,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7871,
+      "errorCount": 7841,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -672,10 +673,6 @@
           {
             "code": 18047,
             "count": 13
-          },
-          {
-            "code": 18048,
-            "count": 4
           },
           {
             "code": 2322,
@@ -1045,7 +1042,7 @@
           },
           {
             "code": 18048,
-            "count": 15
+            "count": 6
           },
           {
             "code": 2322,
@@ -1673,7 +1670,7 @@
           },
           {
             "code": 18048,
-            "count": 16
+            "count": 9
           },
           {
             "code": 2339,
@@ -1733,7 +1730,7 @@
           },
           {
             "code": 18048,
-            "count": 8
+            "count": 2
           },
           {
             "code": 2339,
@@ -1935,7 +1932,7 @@
           },
           {
             "code": 18048,
-            "count": 13
+            "count": 9
           },
           {
             "code": 2322,
@@ -2632,8 +2629,8 @@
     }
   },
   "totals": {
-    "files": 1129,
-    "errors": 7871,
+    "files": 1130,
+    "errors": 7841,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

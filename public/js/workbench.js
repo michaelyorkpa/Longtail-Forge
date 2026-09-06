@@ -198,6 +198,26 @@
    * checked read fails exactly where the raw `error.message` read failed before.
    * @returns {BrowserErrorContract}
    */
+  /** @typedef {import("../../src/types/browser-contracts.js").LongtailForgeBrowserNamespace} LongtailForgeBrowserNamespace */
+
+  /**
+   * The namespace root, read at the point of use.
+   *
+   * **Only the root is checked.** Every member reached through this is still optional, which is
+   * what the guards around each read already assume. A missing root failed at the property read
+   * before and fails here, in the same expression and the same region.
+   * @returns {LongtailForgeBrowserNamespace}
+   */
+  function requireNamespace() {
+    const namespace = window.LongtailForge;
+
+    if (!namespace) {
+      throw new Error("Workbench requires the LongtailForge namespace.");
+    }
+
+    return namespace;
+  }
+
   function requireErrors() {
     const errors = window.LongtailForge?.errors;
     if (!errors) {
@@ -3088,8 +3108,10 @@
       setStatus("Choose the next focus.");
       focusActiveFocusQuestion();
     };
-    if (window.LongtailForge.navigationIntent) {
-      await window.LongtailForge.navigationIntent.request({
+    const intent = requireNamespace().navigationIntent;
+
+    if (intent) {
+      await intent.request({
         kind: "workbench-change-focus",
         trigger: event?.currentTarget || null,
         continue: continueChangeFocus,
@@ -3266,8 +3288,10 @@
   }
 
   function navigateFromWorkbench(href, kind = "workbench-navigation") {
-    if (window.LongtailForge.navigationIntent) {
-      void window.LongtailForge.navigationIntent.navigate(href, { kind });
+    const intent = requireNamespace().navigationIntent;
+
+    if (intent) {
+      void intent.navigate(href, { kind });
       return;
     }
     window.location.href = href;

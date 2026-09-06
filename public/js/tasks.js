@@ -2356,7 +2356,9 @@
   }
 
   async function followTaskNotifications(task) {
-    if (!window.LongtailForge.notificationSubscriptions) {
+    const subscriptions = requireNamespace().notificationSubscriptions;
+
+    if (!subscriptions) {
       setStatus("Notification following is unavailable.", { isError: true });
       return;
     }
@@ -2364,8 +2366,8 @@
     setStatus("Following task notifications...");
 
     try {
-      await window.LongtailForge.notificationSubscriptions.follow(
-        window.LongtailForge.notificationSubscriptions.taskTarget(task.task_id),
+      await subscriptions.follow(
+        subscriptions.taskTarget(task.task_id),
       );
       setStatus("Task notifications followed.");
     } catch (error) {
@@ -2586,25 +2588,33 @@
   }
 
   async function loadTagOptions() {
-    if (!window.LongtailForge.tags?.loadTags) {
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagSurface?.loadTags) {
       return [];
     }
 
     try {
-      return await window.LongtailForge.tags.loadTags();
+      return await tagSurface.loadTags();
     } catch {
       return [];
     }
   }
 
   function appendTagChips(container, tags) {
-    if (!container || !window.LongtailForge.tags?.renderTagList || !Array.isArray(tags) || tags.length === 0) {
+    if (!container) {
+      return;
+    }
+
+    const tagSurface = requireNamespace().tags;
+
+    if (!tagSurface?.renderTagList || !Array.isArray(tags) || tags.length === 0) {
       return;
     }
 
     const list = document.createElement("div");
     list.className = "tag-chip-list";
-    window.LongtailForge.tags.renderTagList(list, tags);
+    tagSurface.renderTagList(list, tags);
     container.appendChild(list);
   }
 

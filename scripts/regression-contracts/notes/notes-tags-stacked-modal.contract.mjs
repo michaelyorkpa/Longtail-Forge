@@ -28,7 +28,7 @@ assert.doesNotMatch(notesJs, /tagPanel|noteTagsPanel/, "Tags should no longer re
 assert.doesNotMatch(notesJs, /toggleNoteEditorPanel\("tags"\)/, "The Tags button must not use the inline panel toggle");
 assert.doesNotMatch(notesJs, /noteFilesPanel|toggleNoteEditorPanel\("files"\)/, "Files should no longer use the deferred inline editor panel after the Files slice");
 
-assert.match(notesJs, /state\.tagPicker = await window\.LongtailForge\.tags\.mountPicker\(tagsEditor, \{[\s\S]*selectedTags: note\?\.tags \|\| \[\]/, "Opening an editor should hydrate the Tags modal picker from the current note tags");
+assert.match(notesJs, /const tagSurface = requireNamespace\(\)\.tags;[\s\S]*?state\.tagPicker = await tagSurface\.mountPicker\(tagsEditor, \{[\s\S]*selectedTags: note\?\.tags \|\| \[\]/, "Opening an editor should hydrate the Tags modal picker from the current note tags");
 assert.match(notesJs, /tagIds: state\.tagPicker\?\.readTagIds\?\.\(\) \|\| \[\]/, "Saving the note should still persist staged tag picker selections");
 assert.match(notesServiceJs, /await tagsService\.replaceAssignments\(session, \{[\s\S]*targetType: "note"[\s\S]*tagIds: payload\.tagIds \|\| payload\.tag_ids \|\| \[\]/, "Notes service should keep tag persistence on create/update payloads");
 
