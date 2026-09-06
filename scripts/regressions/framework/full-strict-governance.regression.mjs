@@ -4126,7 +4126,6 @@ const UNDECLARED_PUBLICATION_BACKLOG = [
   "sessionAuthWarnings",
   "supportView",
   "taskCalendar",
-  "tasksDialog",
   "userPreferences",
 ];
 
@@ -4269,7 +4268,7 @@ assert.doesNotMatch(
 assert.equal(declarationCoverage.uniqueSurfaces, 66, "unique publication surfaces");
 assert.equal(declarationCoverage.publicationOccurrences, 69, "publication occurrences, which exceed unique surfaces");
 assert.equal(declarationCoverage.knownMembers.length, 64, "known LongtailForge members, which are not all governed surfaces");
-assert.equal(declarationCoverage.declaredMembers.length, 51, "declared LongtailForge members");
+assert.equal(declarationCoverage.declaredMembers.length, 52, "declared LongtailForge members");
 assert.equal(declarationCoverage.publishedMembers.length, 64, "LongtailForge members with a runtime writer");
 assert.ok(
   declarationCoverage.publicationOccurrences > declarationCoverage.uniqueSurfaces,

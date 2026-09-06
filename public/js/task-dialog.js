@@ -116,6 +116,11 @@
     return taskDialogApi;
   }
 
+  /**
+   * @param {*} [params]
+   * @param {*} [hostContext]
+   * @returns {Promise<string>} the dialog's close reason
+   */
   async function openTaskEditor(params = {}, hostContext = null) {
     const api = requireApi();
     const request = normalizeTaskEditorRequest(params, hostContext);
@@ -329,6 +334,7 @@
     };
   }
 
+  /** @returns {Promise<string>} the dialog's close reason */
   async function open({ task = null, duplicate = false, defaults = {}, focusNotes = false, focusTarget = "", hostContext = null, promptBlockedReason = false, returnFocusTo = null } = {}) {
     ensureDialog();
     const isDuplicate = duplicate === true;

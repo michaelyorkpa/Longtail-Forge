@@ -2476,6 +2476,30 @@ export interface BrowserListsDialog {
 }
 
 /**
+ * `LongtailForge.tasksDialog`, published by `public/js/task-dialog.js`.
+ *
+ * Eight members, and they do not share a shape. **`configure` answers the surface itself** - it
+ * merges its options into the dialog's context and returns the same object, so a caller may chain
+ * it. The four openers are asynchronous and resolve `dialog.returnValue || "closed"`: a **close
+ * reason**, never a saved task. `openAdd` and `openEdit` are thin modes over `openTaskEditor`.
+ *
+ * `pollRecurrenceContinuity` answers an **opaque continuity token**. It polls the recurrence route
+ * and keeps whatever `recurrenceContinuity` the body carried, validating nothing, so `unknown` is
+ * what it really returns rather than a hidden shape - and its two sibling members are the ones
+ * that read it. Declaring a recurrence record here would claim a validation that does not happen.
+ */
+export interface BrowserTasksDialog {
+  configure(options?: unknown): BrowserTasksDialog;
+  open(request?: unknown): Promise<string>;
+  openAdd(params?: unknown, hostContext?: unknown): Promise<string>;
+  openEdit(params?: unknown, hostContext?: unknown): Promise<string>;
+  openTaskEditor(params?: unknown, hostContext?: unknown): Promise<string>;
+  pollRecurrenceContinuity(taskId?: unknown, options?: unknown): Promise<unknown>;
+  recurrenceContinuityMessage(continuity?: unknown): string;
+  renderRecurrenceContinuity(container?: unknown, continuity?: unknown): void;
+}
+
+/**
  * What `taskResumeNoteCapture.consume` resolves: a locally built outcome, never a wire body.
  *
  * **The shape is constructed and the payload is not.** Every branch of the implementation
@@ -6988,6 +7012,7 @@ export interface LongtailForgeBrowserNamespace {
   status?: BrowserStatusMessage;
   tags?: BrowserTags;
   taskResumeNoteCapture?: BrowserTaskResumeNoteCapture;
+  tasksDialog?: BrowserTasksDialog;
   timeEntryDialog?: BrowserTimeEntryDialog;
   timeTrackingTimerDialog?: BrowserTimeTrackingTimerDialog;
   timezones?: BrowserTimezones;
