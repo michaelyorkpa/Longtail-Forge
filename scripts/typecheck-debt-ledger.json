@@ -430,6 +430,7 @@
         "tests/unit/tag-bulk-assignment-contracts.test.mjs",
         "tests/unit/tag-catalogue-contracts.test.mjs",
         "tests/unit/tag-surface-declaration.test.mjs",
+        "tests/unit/task-behavior-handler-lookup.test.mjs",
         "tests/unit/task-block-recovery-engine.test.mjs",
         "tests/unit/task-list-contracts.test.mjs",
         "tests/unit/task-list-engine.test.mjs",
@@ -543,7 +544,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7925,
+      "errorCount": 7921,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1728,7 +1729,7 @@
           },
           {
             "code": 7053,
-            "count": 11
+            "count": 7
           }
         ],
         "public/js/theme-init.js": [
@@ -2655,8 +2656,8 @@
     }
   },
   "totals": {
-    "files": 1124,
-    "errors": 7925,
+    "files": 1125,
+    "errors": 7921,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
