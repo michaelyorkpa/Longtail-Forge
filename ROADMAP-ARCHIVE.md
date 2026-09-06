@@ -1,5 +1,32 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.6.6.3.1 - `LongtailForge.tasksDialog`
+
+**Model: High Effort** - the surface `0.33.33.38.2.2.6.6.3` could not take, landing once its blocker was closed under the owner that held it.
+
+- [x] **Eight members, and they do not share a shape.** `configure` answers **the surface itself** - it merges options into the dialog's context and returns the same object, so a caller may chain it. The four openers are asynchronous and resolve `dialog.returnValue || "closed"`, a **close reason and never a saved task**; `openAdd` and `openEdit` are thin modes over `openTaskEditor`. `renderRecurrenceContinuity` answers nothing.
+- [x] **The continuity token stays opaque, and that is a measurement rather than a shortcut.** `pollRecurrenceContinuity` polls the recurrence route and keeps whatever `recurrenceContinuity` the body carried, validating none of it. `BrowserTaskRecurrenceContinuity` exists, and claiming it here would claim a validation that does not happen - so the return is `unknown`, and the two sibling members that read the token are the ones that deal with its shape. **The recurrence response domain is not reopened.**
+- [x] **The declaration checks its writer.** Five one-sided breaks are refused by the compiler: a member withdrawn from the publication, `configure` answering something other than the surface, and three contracts claiming a resolution the writer does not produce.
+- [x] **Two annotations carry that check, and either one is enough.** `open` and `openTaskEditor` both name `Promise<string>`; a three-run probe shows the wrong contract is refused with either present and **passes silently with neither**, because `openTaskEditor` returns `await open(...)`. Both are kept, and the record says why removing one is safe and removing both is not.
+- [x] **The dispatcher acquires at invocation.** `requireTasksDialog()` follows the pattern the other dialogs already use, inside the `open` arrow. A break that acquires while the registry is built is refused, because that would turn an optional-at-startup dependency into a startup failure on every page that registers `tasks.add`.
+- [x] **Only the two Tasks-page openers require the surface; every other consumer stays optional.** The Calendar and the Tasks dashboard capture the opener optionally, and the recurrence message, continuity render and poller keep their optional chains in both Tasks and Workbench, because those run from status areas a host without the dialog still renders. Three breaks that make any of them mandatory are refused.
+- [x] **Nothing else in Tasks or the Task Dialog moved.** Open modes, host-context completion, cancellation, the seven-attempt recurrence poll at 1500ms, the settle on `available`/`ended`, the per-attempt `onUpdate`, the timer clear, the attachment and notes controller teardown, and the focus return are all asserted unchanged.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **20 breaks across the writer, the contract, the dispatcher and four consumer pages - all 20 refused.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,921 | **7,903** |
+| Namespace family | 153 | **136** |
+| Declared namespace members | 51 of 64 | **52 of 64** |
+| Roots parked behind undeclared members | 5 behind 2 | **1 behind 1** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 1,875 / 348 / 167 | **1,892 / 348 / 167**, green |
+
+**Where the 18 went.** `tasks.js` −9, `workbench.js` −3, `module-actions.js` −2, and one each in `calendar.js` `TS2339`, `calendar.js` `TS7006`, `footer.js` and `tasks-dashboard.js`. **No `(file, code)` pair increased**, and **no `TS7053` appeared** - the four the earlier probe predicted were closed by `0.33.33.41.1` before this landed.
+
 ## Version 0.33.33.41.1 - Look a task behavior handler up by a key its map declares
 
 **Model: High Effort** - a narrow prerequisite, measured against the live probe rather than the recorded hypothesis.
