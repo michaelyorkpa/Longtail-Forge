@@ -212,6 +212,16 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **No child may weaken a contract to move a number.** No cast, no non-null assertion, no suppression, no permissive index signature, no `any`.
 - [ ] **Classify every acquisition site before converting it, exactly as `0.33.33.38.1` did.** A consumer that legitimately runs without a surface keeps its optionality; four consumers and `file-attachments.js` did, and that was correct.
 
+#### 0.33.33.38.2.6.10 - The required-root, optional-member accesses
+
+**Complete: forty sites across nine pages, and the browser estate now has zero bare-root reads.** See the archive entry.
+
+**Required root, optional member - and both halves stayed put.** Every `?.` is where it was, no argument moved, no member became required, and no root became optional. The reads that are genuinely root-tolerant today were left tolerant.
+
+**Eight of the forty reuse a checked binding rather than re-reading the global**, because a guard directly above them already proved it - including `navigation`'s, which is acquired after the shell body is parsed.
+
+**Four owners were matching the whole file and would have passed on a second identical call.** They now read the function that owns the claim. The deliberate breaks found that; review had not.
+
 #### 0.33.33.38.2.6.9 - The guarded member acquisitions
 
 **Complete: sixteen sites across five pages, and the guard now tests the value the call uses.** See the archive entry.

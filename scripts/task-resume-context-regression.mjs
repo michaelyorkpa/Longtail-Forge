@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import vm from "node:vm";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
+import { extractFunctionBlock } from "./test-support/source-scan.mjs";
 
 /** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} TaskResumeSession */
 /** One task fixture the browser capture sandbox serves and mutates. */
@@ -344,8 +345,8 @@ async function assertResumeNoteCaptureBrowserContract() {
   assert.match(taskDialogScript, /timer\/finalize[\s\S]*offerTaskResumeNote\(requireTaskRecords\(\)\.readTask\(result\) \|\| task/, "Task dialog finalize should offer resume capture");
   assert.match(tasksScript, /if \(!isRunning\) \{[\s\S]*taskResumeNoteCapture\?\.offer/, "Tasks list Pause should offer resume capture");
   assert.match(workbenchScript, /async function changeFocus\([\s\S]*?requireNamespace\(\)\.navigationIntent;[\s\S]*?intent\.request\([\s\S]*kind: "workbench-change-focus"[\s\S]*continue: continueChangeFocus/, "Change Focus should hold its exact state transition behind the shared exit intent");
-  assert.match(workbenchScript, /function offerTaskResumeNoteBeforeExit[\s\S]*await window\.LongtailForge\.taskResumeNoteCapture\?\.offer/, "interceptable navigation should await resume capture before leaving Task Focus");
-  assert.match(workbenchScript, /function offerTaskResumeNote[\s\S]*void window\.LongtailForge\.taskResumeNoteCapture\?\.offer/, "Workbench should not await the capture prompt or block the underlying action");
+  assert.match(extractFunctionBlock(workbenchScript, "offerTaskResumeNoteBeforeExit"), /await requireNamespace\(\)\.taskResumeNoteCapture\?\.offer/, "interceptable navigation should await resume capture before leaving Task Focus");
+  assert.match(extractFunctionBlock(workbenchScript, "offerTaskResumeNote"), /void requireNamespace\(\)\.taskResumeNoteCapture\?\.offer/, "Workbench should not await the capture prompt or block the underlying action");
   assert.match(workbenchScript, /saveFocusedTaskTimer[\s\S]*timerStatus === "paused"[\s\S]*offerTaskResumeNote/, "focused-task Pause should offer resume capture");
   assert.match(workbenchScript, /finalizeFocusedTaskTimer[\s\S]*timer\/finalize[\s\S]*offerTaskResumeNote/, "focused-task finalize should offer resume capture");
 }

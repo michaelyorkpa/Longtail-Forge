@@ -381,7 +381,7 @@
   buildWorkbenchHost();
   bindWorkbenchEvents();
   installTaskFocusExitGuard();
-  window.LongtailForge.quickActionRefresh?.subscribe({
+  requireNamespace().quickActionRefresh?.subscribe({
     actionIds: ["time-tracking.timer.create"],
     onRefresh: refreshWorkbenchTimers,
     recordTypes: ["active_timer"],
@@ -1257,7 +1257,7 @@
   }
 
   function installTaskFocusExitGuard() {
-    window.LongtailForge.navigationIntent?.registerExitGuard({
+    requireNamespace().navigationIntent?.registerExitGuard({
       shouldHold: () => Boolean(taskFocusExitSnapshot()),
       beforeContinue: offerTaskResumeNoteBeforeExit,
       onCommitted() {
@@ -1297,7 +1297,7 @@
     if (!snapshot) {
       return { captured: false, reason: "not-applicable" };
     }
-    const result = await window.LongtailForge.taskResumeNoteCapture?.offer({
+    const result = await requireNamespace().taskResumeNoteCapture?.offer({
       task: snapshot.task,
       taskId: snapshot.taskId,
       trigger: intent.trigger || null,
@@ -1366,7 +1366,7 @@
         return false;
       }
       setStatus("Recovering work context...");
-      const captureResult = await window.LongtailForge.taskResumeNoteCapture?.offer({
+      const captureResult = await requireNamespace().taskResumeNoteCapture?.offer({
         task,
         taskId: marker.taskId,
         onError(error) {
@@ -2789,7 +2789,7 @@
   }
 
   async function consumeTaskFocusResumeNote(task, taskId) {
-    const consumer = window.LongtailForge.taskResumeNoteCapture?.consume;
+    const consumer = requireNamespace().taskResumeNoteCapture?.consume;
     if (typeof consumer !== "function") {
       return task;
     }
@@ -3842,7 +3842,7 @@
   }
 
   function renderTaskRecurrenceContinuity(continuity) {
-    const tasksDialog = window.LongtailForge.tasksDialog;
+    const tasksDialog = requireNamespace().tasksDialog;
     const message = tasksDialog?.recurrenceContinuityMessage?.(continuity) || "Task completed.";
     setStatus(message);
     tasksDialog?.renderRecurrenceContinuity?.(statusText, continuity);
@@ -3855,7 +3855,7 @@
 
     const tracker = Symbol(taskId);
     recurrenceContinuityTrackers.set(taskId, tracker);
-    window.LongtailForge.tasksDialog?.pollRecurrenceContinuity?.(taskId, {
+    requireNamespace().tasksDialog?.pollRecurrenceContinuity?.(taskId, {
       initialContinuity,
       onUpdate: async (continuity) => {
         if (recurrenceContinuityTrackers.get(taskId) !== tracker) {
@@ -3927,7 +3927,7 @@
   }
 
   function offerTaskResumeNote(task, trigger = null) {
-    void window.LongtailForge.taskResumeNoteCapture?.offer({
+    void requireNamespace().taskResumeNoteCapture?.offer({
       task,
       trigger,
       onSaved(updatedTask) {
@@ -4496,7 +4496,7 @@
       taskFocusInspectorCollapsed,
       timerCount: state.timers.length,
       enabledModules: enabledModuleIds(),
-      moduleActionCount: window.LongtailForge.moduleActions?.list?.().length || 0,
+      moduleActionCount: requireNamespace().moduleActions?.list?.().length || 0,
       viewState: resolvedWorkbenchViewState(),
       workspaceType: state.workspaceType,
     }),

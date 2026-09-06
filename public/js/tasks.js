@@ -306,7 +306,7 @@
       // A rejected context must not strand the page; the descriptor fallback still renders.
     }
     buildTasksViewShell();
-    window.LongtailForge.tasksDialog?.configure?.();
+    requireNamespace().tasksDialog?.configure?.();
     cacheTasksElements();
     bindTasksEvents();
     await loadTasks();
@@ -918,7 +918,7 @@
 
     try {
       await requireNamespace().workspaceContextReady;
-      await window.LongtailForge.timezones?.loadSessionTimezone?.();
+      await requireNamespace().timezones?.loadSessionTimezone?.();
       const tagOptions = await loadTagOptions();
       if (!hasLoadedTasks) {
         restoreFilterState();
@@ -2002,7 +2002,7 @@
         upsertTaskTimerState(savedTimer);
       }
       if (!isRunning) {
-        void window.LongtailForge.taskResumeNoteCapture?.offer({
+        void requireNamespace().taskResumeNoteCapture?.offer({
           task: timerTask || task,
           onSaved(updatedTask) {
             if (updatedTask) {
@@ -2440,7 +2440,7 @@
   }
 
   function renderTaskRecurrenceContinuity(continuity) {
-    const tasksDialog = window.LongtailForge.tasksDialog;
+    const tasksDialog = requireNamespace().tasksDialog;
     const message = tasksDialog?.recurrenceContinuityMessage?.(continuity) || "Task completed.";
     setStatus(message);
     tasksDialog?.renderRecurrenceContinuity?.(taskStatus, continuity);
@@ -2448,7 +2448,7 @@
 
   function renderBulkRecurrenceContinuity(continuities = []) {
     const messages = continuities
-      .map((continuity) => window.LongtailForge.tasksDialog?.recurrenceContinuityMessage?.(continuity))
+      .map((continuity) => requireNamespace().tasksDialog?.recurrenceContinuityMessage?.(continuity))
       .filter(Boolean);
     const message = `Updated recurring tasks. ${messages.join(" ")}`.trim();
     setStatus(message);
@@ -2472,7 +2472,7 @@
 
     const tracker = Symbol(taskId);
     recurrenceContinuityTrackers.set(taskId, tracker);
-    window.LongtailForge.tasksDialog?.pollRecurrenceContinuity?.(taskId, {
+    requireNamespace().tasksDialog?.pollRecurrenceContinuity?.(taskId, {
       initialContinuity,
       onUpdate: async (continuity) => {
         if (recurrenceContinuityTrackers.get(taskId) !== tracker) {
@@ -2505,7 +2505,7 @@
    * @returns {BrowserTasksDialog}
    */
   function requireTasksDialog() {
-    const tasksDialog = window.LongtailForge.tasksDialog;
+    const tasksDialog = requireNamespace().tasksDialog;
 
     if (!tasksDialog) {
       throw new Error("The Task dialog is required by the Tasks page.");
@@ -2543,7 +2543,7 @@
   }
 
   function configureTaskDialog() {
-    window.LongtailForge.tasksDialog?.configure?.({
+    requireNamespace().tasksDialog?.configure?.({
       currentUserId: currentUserId(),
       onSaved: async (result) => {
         if (result.task) {
@@ -3308,7 +3308,7 @@
       return task.due_date;
     }
 
-    return window.LongtailForge.timezones?.formatDateTime?.(task.due_at_utc, task.due_timezone) ||
+    return requireNamespace().timezones?.formatDateTime?.(task.due_at_utc, task.due_timezone) ||
       `${task.due_date} ${task.due_time}`;
   }
 

@@ -73,6 +73,29 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").LongtailForgeBrowserNamespace} LongtailForgeBrowserNamespace */
+
+  /**
+   * The namespace root the optional members on this page are reached through.
+   *
+   * **The root is checked and the member is not, because those are different facts.** Every
+   * read keeps its own `?.` exactly where it stands: a missing root failed at the property
+   * read before and fails here, in the same expression and the same region, while a present
+   * root that publishes no such member goes on short-circuiting as it always did.
+   *
+   * Read per call rather than captured, so a root replaced between invocations is seen.
+   * @returns {LongtailForgeBrowserNamespace}
+   */
+  function requireNamespace() {
+    const namespace = window.LongtailForge;
+
+    if (!namespace) {
+      throw new Error("Workspace Settings requires the LongtailForge namespace.");
+    }
+
+    return namespace;
+  }
+
   /**
    * The narrowing contract for the values this file catches.
    *
@@ -527,7 +550,7 @@
       }
       workspaceDeletionDialog.close();
       renderWorkspaceDeletionSummary(deletion);
-      await window.LongtailForge.refreshAppShell?.();
+      await requireNamespace().refreshAppShell?.();
     } catch (error) {
       workspaceDeletionDialogStatus.textContent = error?.message || "Workspace deletion state could not be changed.";
     } finally {
@@ -647,7 +670,7 @@
         applyWorkspaceName(savedSettings.workspaceName);
       }
 
-      await window.LongtailForge.refreshAppShell?.();
+      await requireNamespace().refreshAppShell?.();
 
       flashSavedState();
       return true;

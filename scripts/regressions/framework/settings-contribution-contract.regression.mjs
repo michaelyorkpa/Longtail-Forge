@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createDisposableDatabaseFixture } from "../../test-support/disposable-database.mjs";
+import { extractFunctionBlock } from "../../test-support/source-scan.mjs";
 import { workspaceSessionFixture } from "../../test-support/session-fixtures.mjs";
 
 const fixture = await createDisposableDatabaseFixture("settings-contribution-contract");
@@ -228,7 +229,7 @@ function assertDisabledModuleRecoveryBrowserContract() {
   assert.match(rendererSource, /renderDisabledModuleRecovery[\s\S]*Open Workspace Settings/);
   assert.match(rendererSource, /panel\.dataset\.disabledModuleRecovery = moduleId/);
   assert.match(navigationSource, /refreshAppShell = loadAppShellBootstrap[\s\S]*longtailforge:workspace-context-updated/);
-  assert.match(workspaceSettingsSource, /await window\.LongtailForge\.refreshAppShell\?\.\(\)/);
+  assert.match(extractFunctionBlock(workspaceSettingsSource, "saveSettings"), /await requireNamespace\(\)\.refreshAppShell\?\.\(\)/);
   assert.match(footerSource, /longtailforge:workspace-context-updated[\s\S]*syncQuickActionCapture/);
 }
 
