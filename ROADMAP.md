@@ -809,7 +809,17 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **Thirteen members, exact at the top level, collections left `unknown[]`.** The constructor reconstructs by name and spreads nothing, so the record is exact; it checks each collection with `Array.isArray` and nothing else, so claiming element types would claim a validation that does not happen. `workspaceType` is the one closed member, because the constructor already picks a value and five browser files normalise to that same vocabulary.
 
-**The transient context is deliberately not this record.** `loadAppShellBootstrap` still builds its richer object, still dispatches it as the event detail, and still returns it as the refresh result - it carries `permissionIds`, `workspaceDeletion` and `publicDemo`, which the store has never persisted and this contract does not promise.
+**The transient context is deliberately not this record.** `loadAppShellBootstrap` still builds its richer object, still dispatches it as the event detail, and still returns it as the refresh result - it carries `permissionIds` and `workspaceDeletion`, which the store has never persisted and this contract does not promise. **`publicDemo` was in that list and should not have been**: `0.33.33.38.4.15.1` corrects it.
+
+#### 0.33.33.38.4.15.1 - Carry the public-demo files-ingress restriction into the stored context
+
+**Complete: a producer-to-consumer defect closed, and the demo upload affordance works for the first time.** See the archive entry. **This is a deliberate behaviour correction, not behaviour-preserving typing.**
+
+**The defect was in the connection, not at either end.** `app-shell.service.js` computes `publicDemo: { enabled, filesIngressAllowed: evaluatePublicDemoCapability("files.ingress").allowed }`; the bootstrap adapter forwards it; the page's assembly forwards it; and `file-attachments.js` has always been ready to withhold the upload control and refuse the handler. `buildWorkspaceContext` reconstructs by name and **never named `publicDemo`**, so the restriction was dropped one step before its consumer and `publicDemoFilesIngressAllowed()` answered `true` in every demo.
+
+**Absence is modelled, not defaulted.** `publicDemo` is `BrowserStoredPublicDemo | null`, and only the app-shell bootstrap produces it - a `/api/settings` or `/api/session` refresh carries **no** such member. Those refreshes therefore carry the cached answer forward: silence means "nothing new was said", never "the restriction was lifted", and a malformed record is not an answer either.
+
+**This governs an upload affordance and authorizes nothing.** Server-side demo ingress restrictions and Files permissions are unchanged, and editing `localStorage` or the DOM still reaches a server that refuses. No permission collection was added to the stored context.
 
 #### 0.33.33.38.5 - Narrow the server task lifecycle status vocabulary
 

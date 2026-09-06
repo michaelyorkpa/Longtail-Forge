@@ -5197,12 +5197,18 @@ export type BrowserWorkspaceType = "business" | "family" | "personal";
  * falls back to `"business"` - and five browser files independently normalise it to this same
  * vocabulary.
  */
+export interface BrowserStoredPublicDemo {
+  enabled: boolean;
+  filesIngressAllowed: boolean;
+}
+
 export interface BrowserStoredWorkspaceContext {
   enabledModules: unknown[];
   modules: unknown[];
   navigation: unknown[];
   /** Whatever the producer sent, proved to be a record. Individual hints are the consumer's. */
   permissionHints: Record<string, unknown>;
+  publicDemo: BrowserStoredPublicDemo | null;
   quickActions: unknown[];
   searchTargets: unknown[];
   /** `""` when no candidate and no cached value supplied one. */
