@@ -1,5 +1,34 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.3.2 - The ready quiet-tail surfaces
+
+**Model: High Effort** - seven surfaces measured one at a time, batched because they were all ready rather than because they were all small.
+
+- [x] **Seven publications, seven shapes, seven contracts.** A boolean literal; an async function resolving nothing; an unfrozen record of one; frozen records of two and three; a frozen one-member preference object; and a frozen navigation controller. Each was probed against the same clean base alone and then together, and all seven proved ready - six adding no diagnostic at all, and `userPreferences` adding only the two its own consumer then adopted.
+- [x] **`userPreferences` carries the one scalar its adapter already earned.** The app-shell adapter reads `source.user` through a record check and builds the view with `stringValue`, which answers the original string or `""`; the publication turns `""` into `null`. So the runtime promise is **`string | null`** - not a three-value union, and not a raw wire field. An unrecognised non-empty view survives this boundary on purpose, and the dashboard's own membership test is what refuses it. Two compiler breaks are refused: one closing the vocabulary, one dropping the null.
+- [x] **The `0.33.33.38.4` premise about that field is corrected, not rewritten.** That paragraph called it an unvalidated wire field; it is the adapter's output, not the parsed body. Its warning against a closed union stands and is kept. The record says the earlier investigation did not establish the validation, rather than crediting it with having done so.
+- [x] **`navigationIntent` keeps its promise and guard lifetimes.** `request` stays synchronous so its pending promise is shared by identity and a bad URL still throws where it throws today; it resolves `unknown` because it returns the caller's own `continue` result. `registerExitGuard`'s unregister clears only the guard it registered. Thirteen breaks cover the holding, ordering, commit-before-continue, failure reporting, login bypass, stale unregister, throwing guard, and the modifier-click, download and cross-origin cases the click handler must leave alone.
+- [x] **The other five keep their differences.** `notificationsPageReady` is declared `boolean` because it is `true`. `refreshNotifications` is `() => Promise<void>` because the function returns nothing. `subscribe` **throws** on a filterless subscription and otherwise always answers an unsubscribe function - never `undefined` - and the unsubscribe removes the very listener it added. `recovery` has three different resolutions: nothing, the element it built, or `null` when a surface is already showing. `reporting` is **not frozen**, and the record says so rather than promising it cannot grow.
+- [x] **One writer annotation was needed, and it was measured rather than assumed.** `permissionDenied` resolved through an untyped promise, so the published contract could have claimed any resolution and the compiler would have accepted it. Naming that promise is what makes `Promise<void>` a checked claim; it closed two more diagnostics on its own.
+- [x] **Two claims cannot be held by the compiler, and are held where they can be.** TypeScript accepts a value-returning function for a `void`-returning signature, so a contract that dropped `registerExitGuard`'s or `subscribe`'s return would type-check. Both breaks are judged by the declaration assertions instead, and the record says why.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **37 breaks across two adapters, five writers, the contract file and both adopting consumers - all 37 refused.**
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,903 | **7,888** |
+| Namespace family | 136 | **126** |
+| Declared namespace members | 52 of 64 | **59 of 64** |
+| Roots parked behind undeclared members | 1 behind 1 | **0 behind 0** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 1,892 / 348 / 167 | **1,922 / 348 / 167**, green |
+
+**Where the 15 went, and none of it is a transfer.** `workbench.js` −6 (four `TS2339`, two `TS7006` once the exit guard was described), `time-tracking-reporting.js` −2, `browser-recovery.js` −2 from the named promise, and one each in `dashboard.entry.js` `TS18046`, `dashboard.entry.js` `TS2339`, `notifications.js` `TS2349`, `role-assignments.js` `TS2339`, `shared/task-calendar.js` `TS2339`. **No `(file, code)` pair increased**, and no `TS18046` became a `TS18048`: the one root that would have transferred was adopted in the same checkpoint.
+
+**`0.33.33.38.2.3` is still open.** Its four disposition-sensitive surfaces - `helpPageReady`, `overlayHost`, `sessionAuthWarnings`, `supportView` - keep the verdicts `0.33.33.38.2.2.7` recorded for them, and `taskCalendar` keeps its own prerequisite. None was declared or deleted for being small.
+
 ## Version 0.33.33.38.2.2.6.6.3.1 - `LongtailForge.tasksDialog`
 
 **Model: High Effort** - the surface `0.33.33.38.2.2.6.6.3` could not take, landing once its blocker was closed under the owner that held it.

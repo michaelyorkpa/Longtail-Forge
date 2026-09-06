@@ -405,6 +405,16 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **The two openers are not the same shape and are not merged.** `openFilePreview` builds a modal and hands it back synchronously; `openFilePreviewAction` answers the host context's result promise when there is one and the dialog when there is not. The four Clients/Projects openers are asynchronous and resolve `dialog.returnValue || "closed"` - **a close reason, never a saved record** - and throw when the record is missing or unmanageable. No generic dialog interface was invented to erase that.
 
+#### 0.33.33.38.2.3.2 - The ready quiet-tail surfaces
+
+**Complete: seven surfaces declared, 15 diagnostics closed, and the last parked root closed with them.** See the archive entry.
+
+**A declaration-coverage cohort, not a shared shape.** One scalar (`notificationsPageReady` is `true`, not a promise), one function (`refreshNotifications` resolves nothing), one unfrozen record of one (`reporting`), two frozen records of two and three (`quickActionRefresh`, `recovery`), one frozen preference object (`userPreferences`), and one frozen controller whose promise lifetime is part of its contract (`navigationIntent`). Seven contracts, no shared interface, and no unknown-valued catch-all.
+
+**`navigationIntent`'s lifetimes are the contract.** `request` is deliberately **not** `async`: it answers the *same pending promise* to every caller until an intent settles, and `async` would wrap a new one and turn a synchronous URL failure into a rejection. It resolves `unknown`, because it hands the caller's own `continue` result back. `registerExitGuard` answers an unregister that only clears the guard it registered, so a stale unregister after a replacement is a no-op.
+
+**Root optionality reaches zero parked roots.** The last one was `userPreferences`, closed by reading the preference once through an optional root at its single consumer.
+
 #### 0.33.33.38.2.5 - Remove the namespace index signature
 
 **Runs last, because until every legitimate surface is declared it would break the estate rather than govern it.**
@@ -427,7 +437,9 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.4 - Publish narrowing contracts for the genuine dynamic boundaries
 
-**`LongtailForge.userPreferences` is owned here, moved out of `0.33.33.38.2.2.6.5` by that child's preflight.** It was listed as a narrow pure surface and it is neither. `public/js/navigation.js` publishes it **inside an async bootstrap, after `await response.json()`**, and its single member is `shell.user?.preferredCalendarView || null` - **an unvalidated wire field with a fallback.** The fallback does not make the non-null value trustworthy: nothing checks that the server sent one of the three views the page can render, so a closed string union would be a claim about the API that no code makes. **Do not declare it as one, do not cast it, and do not widen it to `string` to make the shape look settled.**
+**`LongtailForge.userPreferences` is owned here, moved out of `0.33.33.38.2.2.6.5` by that child's preflight.** It was listed as a narrow pure surface and it is neither. `public/js/navigation.js` publishes it **inside an async bootstrap, after `await response.json()`**, and its single member is `shell.user?.preferredCalendarView || null`. **The warning that survives is the one about the vocabulary**: nothing checks that the server sent one of the three views the page can render, so a closed string union would be a claim about the API that no code makes. **Do not declare it as one and do not cast it.**
+
+**One premise in the paragraph above was wrong, and `0.33.33.38.2.3.2` measured it.** `shell` is not the parsed body: it is the app-shell adapter's output, and the adapter reads `source.user` through a record check and builds `preferredCalendarView` with `stringValue`, which answers the original string or `""`. The publication then turns `""` into `null`. So the scalar reaching the namespace **is already validated as a string or null** - the field is not raw, and declaring it `string | null` names a check the shipped adapter performs rather than widening to hide one. The earlier investigation did not establish this; it read the publication without following the adapter, and its conclusion about the closed union happened to be right for a different reason than the one it gave. That child declared and adopted the member on those corrected terms.
 
 Its **lazy publication is a second contract question and belongs here too**: the surface does not exist until that request resolves, so every consumer sees it as genuinely absent for part of the page's life. That is optionality with a cause, not the ordinary namespace optionality `0.33.33.38.2.6` adopts.
 
