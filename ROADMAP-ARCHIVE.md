@@ -1,5 +1,33 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.6.10 - The required-root, optional-member accesses
+
+**Model: Medium Effort** - forty sites, and the last bare root read in the estate.
+
+- [x] **Nothing but the root moved.** Every one of these sites already reached an optional member - `root.member?.method(...)`, `root.member?.method?.(...)`, or a plain read whose every later use is optional. The root is now checked and **each `?.` stays exactly where it stood**: none added, none dropped, no argument hoisted, reordered or precomputed, and no member made required. Breaks that add an optional call to a directly called member, that drop one from an optional call, and that make a member required are all refused.
+- [x] **The root did not become optional either.** Converting `root.member?.` into `root?.member?.` would answer the diagnostic while deleting the failure the site has always had. Every adopted line is pinned verbatim, and a break that restores root tolerance at `role-assignments.recovery` is refused. The reads that genuinely *are* root-tolerant today - `files.requireErrors`, `navigation.requireApi`, `workspace-settings.applyWorkspaceName`, and the `?.icons?.createIconButton` / `?.getWorkspaceProjectsLabel` guards - stayed exactly so.
+- [x] **Eight of the forty reuse a binding a guard above them already checked.** `files`, `lists` and `notes` register their module actions on the statements immediately after their publication guard, and `navigation` calls `timezones?.setUserTimezone?.` after `shellNamespace` - which is acquired **after** `await response.json()`, with nothing awaiting in between, so it is provably the same root. Re-reading the global at those eight would be a second acquisition for no gain, and breaks that do it are refused.
+- [x] **Four files gained the accessor: `files`, `navigation`, `role-assignments` and `workspace-settings`.** `files` and `navigation` already carried the checked local `0.33.33.38.2.6.8` gave their publication points; those bindings are untouched, because the publication inventory resolves a writer through the binding and a call expression cannot be proved to be the namespace. The accessor serves the deferred reads that run long after module evaluation.
+- [x] **Short-circuits are preserved for free, because nothing was hoisted.** `notes.updateFilesUtilityState` still never reads the root when `filesDialog` or `filesEditor` is absent, and `role-assignments.handleLoadError` still returns on its 401 path before the root is reached. Both are driven through every branch, and a break that reads the root ahead of those terms is refused.
+- [x] **Twelve assertions across nine owner files were retargeted, and four of them were also *scoped*.** Each pinned a spelling that no longer exists; each now pins the binding, claim unchanged. The scoping is the more interesting half: `workspace-settings` and `workbench` each carry **two identical calls**, so four owners were matching the whole file and would have passed on the *other* occurrence when the site they name regressed. They now read the function that owns the claim. The breaks found that, not review.
+- [x] **One owner collided with the accessor's name.** `files-edit-modal-shell` forbids a `rename` control case-insensitively, and `requi[reNa]mespace` matches it. Only that token is neutralised - breaks introducing `renameControl` **and** `fileRename` are both still refused, so the word list is exactly as strong as it was.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **16 breaks against the source and 14 against the retargeted owners - all 30 refused**.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,841 | **7,801** |
+| Namespace family | 79 | **39** |
+| Bare-root sites | 40 | **0** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 1,990 / 348 / 167 | **2,015 / 348 / 167**, green |
+
+**All forty are true eliminations** and no `(file, code)` pair increased: `tasks.js` -9, `workbench.js` -9, `files.js` -6, `notes.js` -6, `navigation.js` -3, `lists.js` -2, `time-entries.js` -2, `workspace-settings.js` -2, `role-assignments.js` -1. No declaration changed, no surface moved and no publication assignment was touched.
+
+**What remains is not a bare root read.** Five reads still spell `window.LongtailForge.` in a member position - `icons.createIconButton` in `navigation`, `notes`, `tasks` and `time-entries`, and `getWorkspaceProjectsLabel` in `tasks` - and each stands **inside** an `if (window.LongtailForge?.member?.method)` guard that narrows the root. They produce no diagnostic and are a different pattern from the one `0.33.33.38.2.6` set out to drain.
+
 ## Version 0.33.33.38.2.6.9 - The guarded member acquisitions
 
 **Model: Medium Effort** - sixteen sites, two shapes, and the shape is chosen by where the root is read rather than by which reads nicer.
@@ -8,7 +36,7 @@
 - [x] **The capture goes above the guard only when the guard already reads the root on every path.** Eight sites qualify, `notes.mountTagEditor` among them: its `tagsToggle` branch reads the surface **again** when the editor is absent, so hoisting reads nothing that was not already read. A break that makes that capture conditional on `tagsEditor` is refused, because it changes what the toggle shows when the surface exists and the editor does not.
 - [x] **Where a term short-circuits ahead of the member, the condition is split at exactly that boundary.** Seven sites had a `!container`, `!bulkTagsEditor`, `!mount || isSecureNote(note)` or `!bulkTagsControl` term running first. Splitting there keeps the root unread on that path and leaves the order of every remaining test intact. Breaks that hoist the acquisition above the early return, and that drop a term following the member, are both refused.
 - [x] **Receiver identity and arguments are untouched.** `tags.renderTagList(...)` and both `notificationSubscriptions` calls still run **on the surface that guarded them**; a break that detaches `follow` and `taskTarget` into bare locals is refused, as is one that drops `{ status: "active" }` from `loadTags`. No argument was hoisted, precomputed or reordered, and no existing `try`/`catch` boundary moved - a break that removes the `catch` around `notes.loadTags` is refused.
-- [x] **`workbench.js` gains the accessor the other eight pages carry, and its tolerant read stays tolerant.** `registerExitGuard` reads `window.LongtailForge.navigationIntent?.` today and is left exactly so; this checkpoint makes no tolerant read strict. The same holds for `clients-projects.loadTagOptions`, whose root-tolerant ternary has its own test, and a break that gives it a hard root dependency is refused. Breaks that let an accessor require its member, or invent a root with `|| {}`, are refused.
+- [x] **`workbench.js` gains the accessor the other eight pages carry, and `registerExitGuard` is left alone.** *(Corrected by `0.33.33.38.2.6.10`: that read was described here as tolerant, and it is not. `window.LongtailForge.navigationIntent?.registerExitGuard(...)` has an optional **member** and a required **root** - it was left alone because it belongs to the next child's cohort, not because the root was optional.)* This checkpoint makes no tolerant read strict. The same holds for `clients-projects.loadTagOptions`, whose root-tolerant ternary has its own test, and a break that gives it a hard root dependency is refused. Breaks that let an accessor require its member, or invent a root with `|| {}`, are refused.
 - [x] **Seven static owners were retargeted, not relaxed.** Each pinned a fully qualified spelling that no longer exists. Each now pins the binding its guard proves, with **its claim unchanged**, and two greedy `[\s\S]*` patterns were narrowed so they anchor inside the function they name rather than anywhere later in the file. Every retarget was proved twice: once against the behaviour it claims, once against the shipped binding it now names.
 
 Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **15 breaks against the source and 14 against the retargeted owners - all 29 refused**.
