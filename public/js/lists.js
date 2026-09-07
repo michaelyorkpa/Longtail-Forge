@@ -49,6 +49,8 @@
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserListItem} BrowserListItem */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserListLink} BrowserListLink */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserListDetail} BrowserListDetail */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNormalizedListRecord} BrowserNormalizedListRecord */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserListProgressSummary} BrowserListProgressSummary */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserListItemSuggestion} BrowserListItemSuggestion */
 
   /** The list columns the table declares `NOT NULL` and the shapers spread untouched. */
@@ -317,6 +319,10 @@
     currentUserId: "",
     dialogDataReady: null,
     editingListId: "",
+    /**
+     * The list the editor currently holds - the **normalized page record**, not the wire summary.
+     * @type {BrowserNormalizedListRecord | null}
+     */
     editorList: null,
     /**
      * Targets staged on a list that has not been created yet.
@@ -327,6 +333,10 @@
      * @type {BrowserListLinkTarget[]}
      */
     editorStagedTargets: [],
+    /**
+     * The list the item dialog is working inside; the same normalized value the editor holds.
+     * @type {BrowserNormalizedListRecord | null}
+     */
     itemDialogList: null,
     itemSuggestions: new Map(),
     linkTargetSearchTimer: null,
@@ -340,6 +350,10 @@
     linkTargets: [],
     listDialogHostContext: null,
     listDialogHostContextSettled: false,
+    /**
+     * The loaded collection, as **normalized page records** rather than wire summaries.
+     * @type {BrowserNormalizedListRecord[]}
+     */
     lists: [],
     selectedListId: new URLSearchParams(window.location.search).get("list") || "",
     users: [],
@@ -1336,14 +1350,37 @@
     }
   }
 
+  /**
+   * A detail load that produced a record.
+   *
+   * `filter(Boolean)` answered the same rows and told the compiler nothing, so the collection kept
+   * its nullable element type all the way into `state.lists`. The `null` here is the one
+   * `loadListDetail` answers when a detail request fails **and** there is no summary to fall back
+   * to - the same rows are dropped as before.
+   * @param {BrowserNormalizedListRecord | null} record
+   * @returns {record is BrowserNormalizedListRecord}
+   */
+  function isLoadedListRecord(record) {
+    return Boolean(record);
+  }
+
   async function loadLists() {
     const api = requireApi();
     const result = await api.getJson(`/api/lists?${buildListQueryParams()}`, { cache: "no-store" });
     const summaries = result.lists || [];
     const details = await Promise.all(summaries.map((list) => loadListDetail(list.list_id || list.id, list)));
-    state.lists = details.filter(Boolean);
+    state.lists = details.filter(isLoadedListRecord);
   }
 
+  /**
+   * One list's detail, or its summary when the detail request fails.
+   *
+   * **The fallback is the collection's own summary, and that path is load-bearing**: a rejected
+   * detail request still contributes a rendered list rather than dropping it. `null` is only
+   * answered when there is no summary to fall back to.
+   * @param {string} listId @param {BrowserListSummary | null} [fallback]
+   * @returns {Promise<BrowserNormalizedListRecord | null>}
+   */
   async function loadListDetail(listId, fallback = null) {
     const api = requireApi();
     try {
@@ -1734,6 +1771,7 @@
     return dialog;
   }
 
+  /** @param {BrowserNormalizedListRecord | null | undefined} list @param {BrowserListItem | null} [item] */
   async function openItemDialog(list, item = null) {
     if (!itemDialog || !list) {
       return;
@@ -2729,6 +2767,7 @@
     return list;
   }
 
+  /** @param {BrowserNormalizedListRecord | null} [list] */
   function configureListEditorPicker(list = null) {
     const parts = listEditorPickerParts();
     state.linkTargets = [];
@@ -2748,10 +2787,20 @@
     }
   }
 
+  /**
+   * A draft has no status, and a record whose status is not text never matched one of the three
+   * anyway - so the added `typeof` test answers exactly what `includes` already answered.
+   * @param {BrowserNormalizedListRecord | null} [list]
+   */
   function canManageListLinks(list = state.editorList) {
-    return !(list && ["archived", "deleted", "finalized"].includes(list.status));
+    return !(list && typeof list.status === "string" && ["archived", "deleted", "finalized"].includes(list.status));
   }
 
+  /**
+   * `null` opens the editor on an unsaved draft, which is a real entry point rather than an
+   * absence to guard against.
+   * @param {BrowserNormalizedListRecord | null} [list]
+   */
   function openListDialog(list = null, options = {}) {
     const view = requireView();
     const defaults = options.defaults || {};
@@ -2937,6 +2986,18 @@
     return !usesBusinessScope() || ["procurement", "parts", "supplies", "bill_of_materials"].includes(listType);
   }
 
+  /**
+   * One list as this page holds it.
+   *
+   * **The input is the wire record and the output is not.** Nine members are overwritten,
+   * `is_reusable` among them - numeric on the wire, boolean here - so the result cannot extend
+   * `BrowserListSummary`. The `{}` default is the draft case and is genuinely reachable:
+   * `readListDetail` answers `list: undefined` for a body it cannot read.
+   * **Its inputs are deliberately left as they were.** Annotating them reaches into
+   * `normalizeListProgress`'s twenty `unknown` reads and two snake_case aliases the shaper does
+   * not emit - a separate page-model boundary, not this record's.
+   * @returns {BrowserNormalizedListRecord}
+   */
   function normalizeListRecord(list = {}, items = [], links = []) {
     const normalizedItems = items.map((item) => ({ ...item, id: item.list_item_id || item.id }));
     const progress = normalizeListProgress(list.progress, normalizedItems);
@@ -2961,6 +3022,7 @@
     };
   }
 
+  /** @returns {BrowserListProgressSummary} */
   function normalizeListProgress(progress = {}, items = []) {
     const visible = items.filter((item) => !item.deleted_at);
     const checkedCount = visible.filter((item) => item.checked_at).length;
