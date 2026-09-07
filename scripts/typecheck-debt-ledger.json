@@ -358,6 +358,7 @@
         "tests/typecheck/client-project-contracts.fixture.mjs",
         "tests/typecheck/database-contracts.fixture.mjs",
         "tests/typecheck/job-payload-contracts.fixture.mjs",
+        "tests/typecheck/namespace-root-closure.fixture.mjs",
         "tests/typecheck/precise-service-contracts.fixture.mjs",
         "tests/typecheck/task-server-contracts.fixture.mjs",
         "tests/typecheck/task-workflow-contracts.fixture.mjs",
@@ -401,6 +402,7 @@
         "tests/unit/managed-session-contracts.test.mjs",
         "tests/unit/markdown-preview-contracts.test.mjs",
         "tests/unit/module-settings-catalog-contracts.test.mjs",
+        "tests/unit/namespace-root-closure-contracts.test.mjs",
         "tests/unit/note-catalog-settings-contracts.test.mjs",
         "tests/unit/note-link-target-contracts.test.mjs",
         "tests/unit/note-mutation-identity-contracts.test.mjs",
@@ -2555,7 +2557,7 @@
     }
   },
   "totals": {
-    "files": 1138,
+    "files": 1140,
     "errors": 7690,
     "explicitAny": 0
   },
@@ -2568,6 +2570,11 @@
     "tests/typecheck/database-contracts.fixture.mjs:8",
     "tests/typecheck/job-payload-contracts.fixture.mjs:24",
     "tests/typecheck/job-payload-contracts.fixture.mjs:27",
+    "tests/typecheck/namespace-root-closure.fixture.mjs:36",
+    "tests/typecheck/namespace-root-closure.fixture.mjs:42",
+    "tests/typecheck/namespace-root-closure.fixture.mjs:48",
+    "tests/typecheck/namespace-root-closure.fixture.mjs:54",
+    "tests/typecheck/namespace-root-closure.fixture.mjs:66",
     "tests/typecheck/precise-service-contracts.fixture.mjs:24",
     "tests/typecheck/precise-service-contracts.fixture.mjs:27",
     "tests/typecheck/precise-service-contracts.fixture.mjs:30",

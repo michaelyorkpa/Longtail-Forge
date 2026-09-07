@@ -1,5 +1,34 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.5 - The closed namespace root
+
+**Model: Small Effort** - one line removed, and the whole family's evidence behind it.
+
+- [x] **Every gate was re-confirmed on the live tree immediately before the removal, and recorded.** The publication inventory reports **0 deep writes and 0 unresolvable rooted targets** across 51 namespace-root writes; declaration coverage is **64 of 64** with the undeclared backlog empty by identity; root optionality is **0 bare-root, 0 adoptable, 0 parked**; the namespace diagnostic family is **0**. Module contributions remain server-side catalog data and publish nothing onto this root.
+- [x] **The removal changed no diagnostic identity at all.** Not the total - the *set*. The full sorted diagnostic list before and after is byte-identical at 7,690, which is the strongest available evidence that `[key: string]: unknown` was bootstrap looseness rather than load-bearing extensibility. No dynamic root access had to be traced, because none exists.
+- [x] **Nothing replaced it.** Not `any`, not the same signature under another key name, not a `Record` intersection, not fake optional members for misspellings. Breaks attempting each of those four are refused, and so is one that removes a declaration - which becomes a compile error rather than resolving to `unknown`.
+- [x] **Permissiveness is proved gone by the compiler, not by inspection.** `tests/typecheck/namespace-root-closure.fixture.mjs` carries five `@ts-expect-error` directives - an unknown member, a misspelled member, an arbitrary computed key, an undeclared *write*, and a nested `unknown` used as a string. Each fails the build if the rejection it claims stops happening, and all five are recorded in the governance directive inventory.
+- [x] **Nested extensibility is untouched.** `supportView` still carries `Readonly<Record<string, unknown>>`, and `BrowserNavigationIntentRequest` and `BrowserQuickActionRefreshSubscription` keep their own index signatures. Closing the **root** is not a licence to close what legitimately carries open data, and the fixture proves an unvalidated nested value is still `unknown` rather than having acquired a trusted type.
+- [x] **No runtime change was needed.** No browser script gained a shim, no script delivery moved, and the page shells are untouched. A closure that required runtime work would have been evidence the gate had not actually passed.
+
+Proved by breaking each claim, restored from explicit byte copies in a `finally` with hash verification and no stash: **5 breaks - all 5 refused**.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,690 | **7,690** |
+| Diagnostic identities changed | - | **none** |
+| Root index signature | present | **removed** |
+| Declared / known members | 64 / 64 | **64 / 64** |
+| Namespace family | 0 | **0** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 2,231 / 348 / 167 | **2,241 / 348 / 167**, green |
+
+**This checkpoint eliminates nothing, and that is the correct result.** Its outcome is the loss of root permissiveness and a compiler that now refuses an undeclared member - not a number. Reporting a diagnostic win here would have required inventing one.
+
+**`0.33.33.38.2` closes with it.** Its remaining unchecked boxes were standing rules and observations rather than undelivered work, and each is discharged in the roadmap entry rather than waived. **`0.33.33.38` does not close**: the DOM cohort, the response boundaries and the lifecycle-status family are untouched, and a closed root namespace proves nothing about nested payloads, parameters or DOM values.
+
 ## Version 0.33.33.38.2.3.3 - The final four publications
 
 **Model: Medium Effort** - four declarations that cost nothing on their own, which is precisely why the writers had to move too.

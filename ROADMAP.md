@@ -302,6 +302,25 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **The two Time Tracking tests are deliberately not the same test**, and both survive: `typeof ... === "function"` in the dashboard, plain truthiness in the reporting adapter. Neither fallback was removed, no `requireFormatters` was added, and `formatter?.method(value) || fallback` was refused as a substitute because it would replace a formatter's legitimate empty answer with local text.
 
+#### 0.33.33.38.2 - closing the rollup
+
+**Complete.** Every member of `LongtailForge` is declared, every root and member acquisition is adopted, and the root carries no index signature. The three questions this family had to answer separately - **diagnostic count**, **declaration coverage** and **root permissiveness** - are each answered: namespace family **0**, declared **64 of 64**, and the catch-all removed with no diagnostic identity changed.
+
+**What its remaining unchecked boxes were.** They are standing rules and observations, not undelivered work, and each is now discharged rather than waived:
+
+| Where | The box | Disposition |
+| --- | --- | --- |
+| `0.33.33.38.2` | Classify every acquisition site before converting it | Honoured by every child; `0.33.33.38.2.6` drew three semantic classes and drained all three. |
+| `0.33.33.38.2` | No child may weaken a contract to move a number | No cast, non-null assertion, suppression or permissive signature was added; explicit `any` is still **0**. |
+| `0.33.33.38.2` | Order is fixed by dependency, not by size | The last three children ran writer, then declaration, then closure - in exactly that order, because each needed the previous one. |
+| `0.33.33.38.2.2.5` | Do not convert the workspace-context cohort to required delivery | The context is still an optional read at every consumer; `0.33.33.38.2.9` proved it. |
+| `0.33.33.38.2.2.6` | Preflight each child writer-first | Done for every child, including `0.33.33.39.3`, which was drawn as a prerequisite precisely because its writer was not ready. |
+| `0.33.33.38.2.2.6` | The class-E root diagnostics resolve as their members are declared | They did. `parked` is **0**. |
+| `0.33.33.38.2.3` | Do not justify this child by diagnostic count | `0.33.33.38.2.3.3` closed four diagnostics, all contextual, and said so. |
+| `0.33.33.38.2.3` | The five zero-consumer members | `billing` was deleted on positive evidence by `0.33.33.38.2.2.7`; the other four are declared and **kept for compatibility**, with no consumer invented for any of them. |
+
+**This does not close `0.33.33.38`.** `0.33.33.38.3`'s DOM cohort is untouched, `0.33.33.38.4` has visible and latent boundaries outstanding, and `0.33.33.38.5` has its own owner. A closed root namespace proves nothing about nested payloads, parameters or DOM values.
+
 #### 0.33.33.38.2.7 - Teach the publication inventory the logical-assignment root
 
 **Model: Medium Effort - a prerequisite, not a cleanup. `0.33.33.38.2.2` decides which surfaces exist and how to group them by reading this inventory, and the instrument was incomplete.**
@@ -503,8 +522,10 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **The evidence says the catch-all is bootstrap looseness, and the seams confirm it.** `[key: string]: unknown` entered in `dabf9257`, "Add browser typecheck utility tier", with no extensibility rationale recorded. Against a dynamic contract: the AST inventory reports **0 unresolvable rooted writes, 0 deep writes, and no computed top-level name anywhere in the estate** - every one of the 62 members is a static identifier, so the namespace is fully statically enumerable. Module contributions are server-side catalog data and publish nothing onto the browser namespace. Governance already treats an unresolvable rooted write as a failure rather than a supported form.
 
-- [ ] Removing the catch-all makes an undeclared publication a compile error, which is the behaviour the estate already wants. **Confirm once more against every contribution seam before removing it**, and record what was checked.
-- [ ] **Never propose `[key: string]: any` or any other permissive signature as the alternative.** The choice is a declared member or a compile error.
+- [x] Removing the catch-all makes an undeclared publication a compile error, which is the behaviour the estate already wants. **Confirm once more against every contribution seam before removing it**, and record what was checked. **Checked on the live tree immediately before removal:** the publication inventory reports **0 deep writes and 0 unresolvable rooted targets** across 51 namespace-root writes; declaration coverage is **64 of 64** with the undeclared backlog empty by identity; root optionality is **0 bare-root, 0 adoptable, 0 parked**; and the namespace diagnostic family is **0**. Module contributions remain server-side catalog data and publish nothing onto this root.
+- [x] **Never propose `[key: string]: any` or any other permissive signature as the alternative.** The choice is a declared member or a compile error. Nothing replaced the catch-all - not `any`, not a renamed key, not a `Record` intersection - and a break attempting each of those is refused.
+
+**Complete: the root is closed, and removing it changed no diagnostic identity at all.** Before and after produce byte-identical diagnostic sets at 7,690, which is the strongest evidence that the catch-all was bootstrap looseness rather than load-bearing extensibility. See the archive entry.
 
 **Excluded from this whole family.** The `unknown` consumer boundaries are `.38.4`; DOM subtype and lookup is `.38.3`; `TaskLifecycleStatus` is `.38.5`. The 6,868 diagnostics in the unannotated-parameter, page-local-state, and assorted families keep their `0.33.33.39` through `.44` owners and **must not be absorbed here**.
 
