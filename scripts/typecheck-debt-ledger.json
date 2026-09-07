@@ -437,6 +437,7 @@
         "tests/unit/tag-surface-declaration.test.mjs",
         "tests/unit/task-behavior-handler-lookup.test.mjs",
         "tests/unit/task-block-recovery-engine.test.mjs",
+        "tests/unit/task-calendar-surface-contracts.test.mjs",
         "tests/unit/task-calendar-window-contracts.test.mjs",
         "tests/unit/task-list-contracts.test.mjs",
         "tests/unit/task-list-engine.test.mjs",
@@ -551,7 +552,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7790,
+      "errorCount": 7750,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -647,16 +648,12 @@
         ],
         "public/js/calendar.js": [
           {
-            "code": 18046,
-            "count": 2
-          },
-          {
             "code": 2322,
             "count": 1
           },
           {
             "code": 2339,
-            "count": 13
+            "count": 4
           },
           {
             "code": 7005,
@@ -664,7 +661,7 @@
           },
           {
             "code": 7006,
-            "count": 8
+            "count": 6
           },
           {
             "code": 7034,
@@ -1422,11 +1419,11 @@
         "public/js/shared/task-calendar.js": [
           {
             "code": 2339,
-            "count": 9
+            "count": 1
           },
           {
             "code": 7006,
-            "count": 38
+            "count": 28
           }
         ],
         "public/js/shared/timezones.js": [
@@ -1629,16 +1626,12 @@
         ],
         "public/js/tasks-dashboard.js": [
           {
-            "code": 18046,
-            "count": 3
-          },
-          {
             "code": 2339,
-            "count": 27
+            "count": 23
           },
           {
             "code": 7006,
-            "count": 30
+            "count": 28
           },
           {
             "code": 7053,
@@ -2595,8 +2588,8 @@
     }
   },
   "totals": {
-    "files": 1132,
-    "errors": 7790,
+    "files": 1133,
+    "errors": 7750,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

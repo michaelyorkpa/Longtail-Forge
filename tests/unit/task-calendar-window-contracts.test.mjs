@@ -346,14 +346,18 @@ describe("the transport error paths this checkpoint must not disturb", () => {
 
 describe("the source this checkpoint leaves in place", () => {
   it("keeps the reader private to the helper", () => {
-    assert.ok(!/readCalendarWindow[,\s]*$/m.test(source.slice(source.lastIndexOf("root.taskCalendar"))),
+    // `0.33.33.38.2.2.6.6.4` moved the published literal into a named, contract-checked binding;
+    // the claim is unchanged - the reader is not one of its members and the surface is frozen.
+    const published = source.slice(source.lastIndexOf("const taskCalendarApi = {"));
+    assert.ok(!/^\s*readCalendarWindow,/m.test(published.slice(0, published.indexOf("};"))),
       "the reader must not join the published surface");
-    assert.ok(source.includes("root.taskCalendar = Object.freeze({"), "the publication stays frozen");
+    assert.ok(source.includes("root.taskCalendar = Object.freeze(taskCalendarApi);"),
+      "the publication stays frozen");
   });
 
   it("publishes exactly the nine members it published before", () => {
-    const block = source.slice(source.lastIndexOf("root.taskCalendar = Object.freeze({"));
-    const members = block.slice(block.indexOf("{") + 1, block.indexOf("})")).split(",")
+    const block = source.slice(source.lastIndexOf("const taskCalendarApi = {"));
+    const members = block.slice(block.indexOf("{") + 1, block.indexOf("};")).split(",")
       .map((entry) => entry.trim()).filter(Boolean);
     assert.deepEqual(members, [
       "addDays", "calendarRange", "dateKeyOf", "fetchCalendarWindow", "normalizeCalendarView",

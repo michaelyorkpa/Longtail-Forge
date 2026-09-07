@@ -5859,6 +5859,180 @@ export interface BrowserTaskTimerRecord {
 }
 
 /**
+ * The three periods the Calendar host and the Dashboard panel can display.
+ *
+ * Declared as a union because `normalizeCalendarView` answers a member of a fixed `Set` or
+ * `null`, and every producer of a view id in this surface returns through it. Not a column read.
+ */
+export type BrowserTaskCalendarViewId = "day" | "month" | "week";
+
+/**
+ * What `calendarRange` builds for one period: the fetch bounds, the day keys to draw, and a label.
+ *
+ * **`monthIndex` exists only in the month branch**, and the renderer treats its presence as the
+ * signal that it is drawing a month grid - that is what dims the days either side of the month
+ * and switches the day header between a number and a long date. The day and week branches
+ * genuinely omit it rather than sending a placeholder.
+ *
+ * **Not the server's `range`.** `BrowserTaskCalendarWindowRange` is what the response echoes back;
+ * this is a rendering input the browser computes with local-time date arithmetic.
+ */
+export interface BrowserTaskCalendarRange {
+  /** Every `YYYY-MM-DD` key the period draws. One entry for a day, seven for a week, the full grid for a month. */
+  days: string[];
+  /** The last day key, sent as the request's `end`. */
+  fetchEnd: string;
+  /** The first day key, sent as the request's `start`. */
+  fetchStart: string;
+  /** A locale-formatted period title, e.g. `"Week of ..."`. Consumers write it into their period heading. */
+  label: string;
+  /** The anchor's zero-based month. **Month branch only** - its presence is what makes the renderer draw a month grid. */
+  monthIndex?: number;
+}
+
+/** The recurrence identity a projected occurrence is opened with. */
+export interface BrowserTaskCalendarOccurrence {
+  instanceDate: string;
+  templateId: string;
+  virtual: true;
+}
+
+/**
+ * The click handler the renderer calls for a task entry or a reminder row.
+ *
+ * **Three call shapes, one signature.** A saved task entry sends its `task_id` and the button; a
+ * projected occurrence sends the empty string, the button, and its recurrence identity; a
+ * reminder row sends the marker's `task_id` and the row, with no third argument. A consumer that
+ * ignored `trigger` would lose return focus, and one that ignored `occurrence` could not open a
+ * virtual instance at all - so both stay in the signature even though the Dashboard's handler
+ * uses fewer of them.
+ *
+ * The return value is discarded by the renderer; consumers may answer anything.
+ */
+export type BrowserTaskCalendarOpenTask = (
+  taskId: string,
+  trigger: Element,
+  occurrence?: BrowserTaskCalendarOccurrence | null,
+) => unknown;
+
+/** What `renderCalendarBody` needs in order to draw a period. */
+export interface BrowserTaskCalendarRenderOptions {
+  /** The validated window. Absent or partial data draws an empty period rather than throwing. */
+  data?: BrowserTaskCalendarWindow | null;
+  onOpenTask?: BrowserTaskCalendarOpenTask;
+  /** Required in practice: the renderer reads `range.days` on every path that gets past its guard. */
+  range: BrowserTaskCalendarRange;
+  /** Defaults to `"month"` when omitted. */
+  viewId?: BrowserTaskCalendarViewId;
+}
+
+/** The filters `fetchCalendarWindow` folds into its query string. */
+export interface BrowserTaskCalendarFilters {
+  clientId?: string;
+  projectId?: string;
+  /**
+   * One status, a comma-joined list, or an array of either. The helper flattens, splits, trims,
+   * de-duplicates and drops empties before sending anything.
+   */
+  statuses?: unknown;
+}
+
+/**
+ * The shared read-only task-calendar helper, published frozen by `shared/task-calendar.js`.
+ *
+ * Nine members, and the declaration states all nine rather than only the ones a consumer has been
+ * seen to call. Four of them - `addDays`, `dateKeyOf`, `parseDateKey` and `normalizeCalendarView`
+ * - are the period arithmetic the two consumers navigate with; the rest build a range, fetch its
+ * window and draw it.
+ *
+ * **The date arithmetic is deliberately local-time.** `addDays` and `parseDateKey` construct
+ * `new Date(year, monthIndex, day)`, which is a local-midnight instant, and `dateKeyOf` reads the
+ * local components back. The day keys this surface produces therefore agree with the calendar the
+ * user is looking at, and this declaration describes that rather than changing it.
+ */
+export interface BrowserTaskCalendar {
+  /**
+   * A new date `days` later, at local midnight.
+   *
+   * Constructed from the local year, month and date, so it lands on the same wall-clock day the
+   * caller is navigating - not on a UTC offset of the original instant. `days` may be negative,
+   * which is how the week and month grids find their start.
+   */
+  addDays(date: Date, days: number): Date;
+
+  /**
+   * The fetch bounds, day keys and label for one period around `anchor`.
+   *
+   * Three branches. `"day"` answers a single key; `"week"` answers the seven days from the
+   * anchor's Sunday; anything else answers the **month grid** - the whole weeks that contain the
+   * month - and is the only branch that sets `monthIndex`. An unrecognised `viewId` falls into
+   * the month branch rather than failing, which is why this accepts `string`.
+   */
+  calendarRange(viewId: string, anchor: Date): BrowserTaskCalendarRange;
+
+  /** The `YYYY-MM-DD` key for a date's **local** calendar day. */
+  dateKeyOf(date: Date): string;
+
+  /**
+   * The bounded window for a range, validated before it resolves.
+   *
+   * Reaches `/api/tasks/calendar` through `dashboardBootstrap.loadRoute` when one is published and
+   * a native `no-store` fetch otherwise; `0.33.33.38.4.3.10` put both branches behind one reader,
+   * so this resolves to a checked response or rejects. It never answers a partial window.
+   */
+  fetchCalendarWindow(
+    range: { fetchEnd: string, fetchStart: string },
+    filters?: BrowserTaskCalendarFilters,
+  ): Promise<BrowserTaskCalendarWindow>;
+
+  /** The value as a view id, or `null` when it is not one of the three. Accepts anything. */
+  normalizeCalendarView(value: unknown): BrowserTaskCalendarViewId | null;
+
+  /**
+   * A day key as a local-midnight `Date`.
+   *
+   * **Coercion, not validation.** The producer splits on `-`, coerces through `Number`, and
+   * defaults a missing month or day to 1; a value it cannot read yields an *invalid* `Date`
+   * rather than `null`. `calendar.js` relies on exactly that, testing
+   * `Number.isFinite(anchor.getTime())` after the call. Declaring a nullable return here would
+   * describe a producer that does not exist.
+   */
+  parseDateKey(dateKey: unknown): Date;
+
+  /**
+   * The user's saved calendar view, or `null` when none is stored or it is unrecognised.
+   *
+   * Reads `userPreferences.preferredCalendarView` but **returns it through**
+   * `normalizeCalendarView`, so the wire value never escapes: the answer is a member of the known
+   * set or `null`.
+   */
+  readPreferredCalendarView(): BrowserTaskCalendarViewId | null;
+
+  /**
+   * Draw a period into `target`, answering whether it had anything to show.
+   *
+   * **`false` has two meanings and both are real.** It is returned when `target` is absent or
+   * `LongtailForge.view` is unpublished - nothing was drawn at all - and again when the period
+   * drew successfully but held no tasks and no reminders, in which case an empty state was
+   * rendered. Consumers currently discard the answer; it is declared because the producer
+   * returns it.
+   */
+  renderCalendarBody(target: Element | null, options?: BrowserTaskCalendarRenderOptions): boolean;
+
+  /**
+   * The view to open with: the preference when it is one of the three, otherwise the device default.
+   *
+   * The device default is `"day"` on a narrow viewport and `"month"` otherwise. `options.isMobile`
+   * overrides the media query when the caller already knows; it is read only when it is a boolean,
+   * so an absent option falls through to `matchMedia` rather than to `false`.
+   */
+  resolveDefaultView(
+    preferredView: unknown,
+    options?: { isMobile?: boolean },
+  ): BrowserTaskCalendarViewId;
+}
+
+/**
  * The window `GET /api/tasks/calendar` describes, as the server states it.
  *
  * **Not the browser's display range, and the two are not interchangeable.** `tasksService`
@@ -7264,6 +7438,7 @@ export interface LongtailForgeBrowserNamespace {
   status?: BrowserStatusMessage;
   tags?: BrowserTags;
   taskResumeNoteCapture?: BrowserTaskResumeNoteCapture;
+  taskCalendar?: BrowserTaskCalendar;
   tasksDialog?: BrowserTasksDialog;
   timeEntryDialog?: BrowserTimeEntryDialog;
   timeTrackingTimerDialog?: BrowserTimeTrackingTimerDialog;
