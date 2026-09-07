@@ -88,6 +88,117 @@
     };
   }
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskCalendarWindow} BrowserTaskCalendarWindow */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskCalendarRow} BrowserTaskCalendarRow */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskCalendarReminderMarker} BrowserTaskCalendarReminderMarker */
+
+  /** @param {unknown} value @returns {value is Record<string, unknown>} */
+  function isResponseRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /** @param {unknown} value @returns {value is string} */
+  function isText(value) {
+    return typeof value === "string";
+  }
+
+  /**
+   * One calendar row, saved or projected.
+   *
+   * **The empty `task_id` is the point.** A projected occurrence carries no saved identifier by
+   * design, so the check is not "has an id" but "is internally consistent": a row marked
+   * `virtual` must carry the recurrence identity the click handler opens it with, and a row that
+   * is not marked must carry neither. A row claiming to be virtual without a `templateId` is the
+   * one shape the renderer cannot act on, and it is refused here rather than rendered as a dead
+   * button.
+   * @param {unknown} value @returns {value is BrowserTaskCalendarRow}
+   */
+  function isCalendarRow(value) {
+    if (!isResponseRecord(value)) {
+      return false;
+    }
+
+    const { allDay, client_name: clientName, due_date: dueDate, due_time: dueTime } = value;
+    const { endDate, id, instanceDate, priority, project_name: projectName } = value;
+    const { startDate, status, task_id: taskId, templateId, title, virtual } = value;
+
+    if (typeof allDay !== "boolean" || !isText(clientName) || !isText(dueDate) || !isText(dueTime)
+      || !isText(endDate) || !isText(id) || !isText(priority) || !isText(projectName)
+      || !isText(startDate) || !isText(status) || !isText(taskId) || !isText(title)) {
+      return false;
+    }
+
+    return virtual === true
+      ? isText(templateId) && isText(instanceDate)
+      : virtual === undefined && templateId === undefined && instanceDate === undefined;
+  }
+
+  /** @param {unknown} value @returns {value is BrowserTaskCalendarReminderMarker} */
+  function isReminderMarker(value) {
+    if (!isResponseRecord(value)) {
+      return false;
+    }
+
+    const { date, due_at_utc: dueAtUtc, due_kind: dueKind, offset_minutes: offsetMinutes } = value;
+    const { reminder_at_utc: reminderAtUtc, source, task_id: taskId, title, url } = value;
+    return isText(date) && isText(dueAtUtc) && (dueKind === "date_only" || dueKind === "date_time")
+      && typeof offsetMinutes === "number" && isText(reminderAtUtc) && isText(source)
+      && isText(taskId) && isText(title) && isText(url);
+  }
+
+  /**
+   * The calendar window response, read as a whole or not at all.
+   *
+   * **A malformed body must not become an empty calendar.** Both consumers render "Nothing
+   * scheduled" for a window with no rows, so filtering bad rows away would show the user a
+   * confident, wrong answer: a day that has tasks would read as a day that does not. Answering
+   * `null` sends the caller down the load-error path each already has - the Calendar status line
+   * and the Dashboard panel's "Calendar unavailable" state.
+   *
+   * **`source_enabled: false` is not that case.** A disabled Tasks module still returns a real
+   * window, and the Calendar page shows those due dates read-only. Only a body that fails to
+   * describe itself is refused.
+   *
+   * The validated arrays and rows are returned by identity, so the richer members the producer
+   * sends - and the recurrence identity the click handler forwards - reach the renderer
+   * unchanged.
+   * @param {unknown} body
+   * @returns {BrowserTaskCalendarWindow | null}
+   */
+  function readCalendarWindow(body) {
+    if (!isResponseRecord(body)) {
+      return null;
+    }
+
+    const { range, reminders, source_enabled: sourceEnabled, tasks } = body;
+
+    if (!isResponseRecord(range) || !isText(range.startDate) || !isText(range.endDate)
+      || typeof sourceEnabled !== "boolean"
+      || !Array.isArray(tasks) || !tasks.every(isCalendarRow)
+      || !Array.isArray(reminders) || !reminders.every(isReminderMarker)) {
+      return null;
+    }
+
+    return {
+      range: { endDate: range.endDate, startDate: range.startDate },
+      reminders,
+      source_enabled: sourceEnabled,
+      tasks,
+    };
+  }
+
+  /**
+   * The bounded window fetch, validated once for both transports.
+   *
+   * **Both branches pass through the same reader before this resolves.** The dashboard loader
+   * answers `Promise<unknown>` and `response.json()` answers an implicit `any`; validating only
+   * the second would leave the Dashboard panel reading an untyped body through the same public
+   * method. Neither branch retries through the other - a body that cannot be read is a bad
+   * response, not a reason to make a second request.
+   * @param {{ fetchStart: string, fetchEnd: string }} range
+   * @param {{ clientId?: string, projectId?: string, statuses?: unknown }} [filters]
+   * @returns {Promise<BrowserTaskCalendarWindow>}
+   */
   async function fetchCalendarWindow(range, filters = {}) {
     const params = new URLSearchParams({ start: range.fetchStart, end: range.fetchEnd });
 
@@ -109,11 +220,27 @@
 
     const route = `/api/tasks/calendar?${params.toString()}`;
     const dashboardLoadRoute = root.dashboardBootstrap?.loadRoute;
+    const body = typeof dashboardLoadRoute === "function"
+      ? await dashboardLoadRoute(route)
+      : await readNativeCalendarResponse(route);
+    const window = readCalendarWindow(body);
 
-    if (typeof dashboardLoadRoute === "function") {
-      return dashboardLoadRoute(route);
+    if (!window) {
+      throw new Error("The calendar response could not be read.");
     }
 
+    return window;
+  }
+
+  /**
+   * The fetch this helper falls back to when no dashboard loader is published.
+   *
+   * Keeps `no-store`, the permission message the Calendar page already showed for a 403, and the
+   * status-carrying message for every other non-OK response. Only the body leaves here; the
+   * validation belongs to the one reader both transports share.
+   * @param {string} route @returns {Promise<unknown>}
+   */
+  async function readNativeCalendarResponse(route) {
     const response = await fetch(route, { cache: "no-store" });
 
     if (response.status === 403) {

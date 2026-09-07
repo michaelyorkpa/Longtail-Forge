@@ -199,11 +199,17 @@ async function stubCalendarReads(page, requests = [], state = {}) {
         tasks: [
           {
             task_id: "mobile-calendar-task",
+            id: "mobile-calendar-task",
             title: "Mobile calendar proof",
             due_date: date,
             due_time: "09:00",
             status: "open",
             priority: "normal",
+            client_name: "",
+            project_name: "",
+            allDay: false,
+            startDate: date,
+            endDate: date,
           },
           ...(state.materialized
             ? [materializedCalendarTask(date)]
@@ -218,29 +224,55 @@ async function stubCalendarReads(page, requests = [], state = {}) {
                 due_time: "",
                 status: "open",
                 priority: "normal",
+                client_name: "",
+                project_name: "",
+                allDay: true,
+                startDate: date,
+                endDate: date,
               }]),
-          ...(statuses.includes("complete") ? [{
+          ...(statuses.includes("complete") ? [
+          {
             task_id: "mobile-calendar-completed-task",
+            id: "mobile-calendar-completed-task",
             title: "Mobile completed proof",
             due_date: date,
             due_time: "10:00",
             status: "complete",
             priority: "normal",
-          }] : []),
-          ...(statuses.includes("archived") ? [{
+            client_name: "",
+            project_name: "",
+            allDay: false,
+            startDate: date,
+            endDate: date,
+          },
+          ] : []),
+          ...(statuses.includes("archived") ? [
+          {
             task_id: "mobile-calendar-archived-task",
+            id: "mobile-calendar-archived-task",
             title: "Mobile archived proof",
             due_date: date,
             due_time: "11:00",
             status: "archived",
             priority: "normal",
-          }] : []),
+            client_name: "",
+            project_name: "",
+            allDay: false,
+            startDate: date,
+            endDate: date,
+          },
+          ] : []),
         ],
         reminders: [{
           task_id: "mobile-calendar-reminder",
           title: "Mobile reminder proof",
           date,
           reminder_at_utc: `${date}T08:00:00.000Z`,
+          due_at_utc: `${date}T09:00:00.000Z`,
+          due_kind: "date_time",
+          offset_minutes: 60,
+          source: "workspace",
+          url: "tasks.html?task=mobile-calendar-reminder",
         }],
       },
     });
@@ -287,11 +319,17 @@ async function stubOccurrenceMaterialization(page, state) {
 function materializedCalendarTask(date) {
   return {
     task_id: "mobile-calendar-materialized-task",
+    id: "mobile-calendar-materialized-task",
     title: "Mobile scheduled recurrence proof",
     due_date: date,
     due_time: "",
     status: "open",
     priority: "normal",
+    client_name: "",
+    project_name: "",
+    allDay: true,
+    startDate: date,
+    endDate: date,
   };
 }
 

@@ -437,6 +437,7 @@
         "tests/unit/tag-surface-declaration.test.mjs",
         "tests/unit/task-behavior-handler-lookup.test.mjs",
         "tests/unit/task-block-recovery-engine.test.mjs",
+        "tests/unit/task-calendar-window-contracts.test.mjs",
         "tests/unit/task-list-contracts.test.mjs",
         "tests/unit/task-list-engine.test.mjs",
         "tests/unit/task-option-catalog-contracts.test.mjs",
@@ -550,7 +551,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7801,
+      "errorCount": 7790,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -655,7 +656,7 @@
           },
           {
             "code": 2339,
-            "count": 14
+            "count": 13
           },
           {
             "code": 7005,
@@ -1421,11 +1422,11 @@
         "public/js/shared/task-calendar.js": [
           {
             "code": 2339,
-            "count": 16
+            "count": 9
           },
           {
             "code": 7006,
-            "count": 41
+            "count": 38
           }
         ],
         "public/js/shared/timezones.js": [
@@ -2594,8 +2595,8 @@
     }
   },
   "totals": {
-    "files": 1131,
-    "errors": 7801,
+    "files": 1132,
+    "errors": 7790,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
