@@ -155,7 +155,13 @@ describe("pageController is checked where it is used, not where it is captured",
       const option = liftDialogChain(key, namespace);
       namespace.pageController = recordingController();
 
-      assert.throws(() => option("v3", "Label three"), new RegExp(message.replace(/\./g, "\\.")));
+      // Compared whole rather than turned into a pattern: escaping a message into a regex is
+      // both weaker than an equality check and easy to get subtly wrong.
+      assert.throws(() => option("v3", "Label three"), (/** @type {unknown} */ error) => {
+        assert.ok(error instanceof Error);
+        assert.equal(error.message, message);
+        return true;
+      });
     });
   }
 
