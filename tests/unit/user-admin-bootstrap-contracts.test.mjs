@@ -495,8 +495,11 @@ describe("the bootstrap is committed as one transaction", () => {
   });
 
   it("refuses the whole bootstrap when any one body is unreadable", () => {
-    const guard = load.indexOf("if (!clientScopes || !assignableWorkspaces || !resourceCatalog) {");
-    assert.notEqual(guard, -1, "one guard must cover all three responses");
+    // `0.33.33.38.4.4.4.2` joined the workspace-type scalar to this same guard rather than adding
+    // a second refusal. What this owner defends is unchanged: one guard, covering every body the
+    // bootstrap reads, placed before anything commits.
+    const guard = load.indexOf("if (!clientScopes || !assignableWorkspaces || !resourceCatalog || !workspaceType) {");
+    assert.notEqual(guard, -1, "one guard must cover every response this bootstrap reads");
     const commit = load.indexOf("      clients = clientScopes;");
     assert.notEqual(commit, -1, "the bootstrap must commit its collections");
     assert.ok(guard < commit,
@@ -524,10 +527,17 @@ describe("the bootstrap is committed as one transaction", () => {
     }
   });
 
-  it("leaves the workspace-type delivery tail parked, exactly as it was", () => {
-    assert.match(load, /activeWorkspaceType = normalizeWorkspaceType\(settingsBody\.workspaceType\);/,
-      "the settings read is delivery-blocked and this child must not close it");
+  it("still adds no settings host, now that the workspace-type tail is closed without one", () => {
+    // This owner asserted the tail was parked, which was true until `0.33.33.38.4.4.4.2` closed
+    // it. That child also disproved the park's premise: the shared settings reader promises
+    // `modules` alone and never answered this value, so the host was never the delivery this was
+    // waiting on. **The half of the claim that outlived the park is the half worth keeping** -
+    // the page still does not load a settings script to type one scalar.
     assert.ok(!html.includes("settings-host.js"),
-      "and must not add the settings host that would deliver its shared reader");
+      "no settings host was added to user-admin.html");
+    assert.match(load, /const workspaceType = readWorkspaceType\(settingsBody\);/,
+      "the scalar is read locally from the response this bootstrap already requests");
+    assert.ok(!/normalizeWorkspaceType/.test(load),
+      "and the defaulting normaliser it used to call is gone");
   });
 });
