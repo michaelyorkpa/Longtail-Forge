@@ -212,6 +212,12 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [ ] **No child may weaken a contract to move a number.** No cast, no non-null assertion, no suppression, no permissive index signature, no `any`.
 - [ ] **Classify every acquisition site before converting it, exactly as `0.33.33.38.1` did.** A consumer that legitimately runs without a surface keeps its optionality; four consumers and `file-attachments.js` did, and that was correct.
 
+#### 0.33.33.38.2.6.11 - The last required declared-member acquisitions
+
+**Complete: five diagnostics, two surfaces, two different dependency lifetimes - and neither moved.** See the archive entry. `pageController` is captured during module evaluation in three lazily loaded dialogs and required much later, so the fix is lazy **checking** of that captured binding rather than lazy reacquisition; re-reading the member would have given those dialogs a live dependency they have never had. `cachedFetch` is the opposite: required only on the cached-manifest branch and read per call at its invocation point, so the uncached path still never touches it.
+
+**`PageControllerRegistry` is not this member's type.** That is `namespace.controllers` - an index-signature map of registered page controllers. `namespace.pageController` is `BrowserPageController`, which is the interface that actually carries `createOption` and `sortByName`.
+
 #### 0.33.33.38.2.6.10 - The required-root, optional-member accesses
 
 **Complete: forty sites across nine pages, and the browser estate now has zero bare-root reads.** See the archive entry.
@@ -265,15 +271,17 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - [x] **Take one semantic class at a time and one surface at a time.** The classes want different mechanisms, and a member name is not a semantics: `cachedFetch` sits in both A and B inside a single file. Eight children took them one at a time; `0.33.33.38.2.6.7` through `.6.10` drained the class-A root reads to **zero**.
 - [x] **Class E is not adoptable and must not be swept in.** Those 148 resolve when their member is declared, and adopting the root there trades one diagnostic for another - the rule `0.33.33.38.2.1` established and remeasured. **Class E is now empty**, drained entirely by `0.33.33.38.2.2`'s declarations exactly as predicted, and no child ever adopted a root to close one.
 
-**Bare-root reads are at zero, and this parent is still open.** `0.33.33.38.2.6.10` closed the last of them; the classifier now reports `0 bare-root reads`. Closing the parent on that counter alone would be wrong, because the counter is not the acceptance criterion:
+**Bare-root reads reached zero at `0.33.33.38.2.6.10`, and the parent stayed open for one more child.** `0.33.33.38.2.6.10` closed the last of them; the classifier now reports `0 bare-root reads`. Closing the parent on that counter alone would be wrong, because the counter is not the acceptance criterion:
 
 | The parent's measure | At the reslice | Now |
 | --- | ---: | ---: |
 | Class A - member intentionally optional | 15 | **0** |
-| Class B - member genuinely required, wants lazy checked acquisition | 26 | **1** |
+| Class B - member genuinely required, wants lazy checked acquisition | 26 | **0** |
 | Class E - parked behind an undeclared member | 148 | **0** |
 
-- [ ] **One class-B site remains and it is this parent's, not another owner's.** `dashboard.entry.js:169` reads `namespace.cachedFetch.getJson(...)` with the member genuinely required, which is the mechanism class B was drawn for. It is the single diagnostic the classifier reports as `adoptable`. **Do not close this parent by moving it**: `cachedFetch` is a declared member and the read is a namespace access, so reassigning it to a response or page-state owner would relabel the residue rather than retire it.
+- [x] **The last class-B site is closed, and it was retired rather than moved.** `0.33.33.38.2.6.11` gave `dashboard.entry.js` a checked acquisition on the cached-manifest branch and the three dialogs one against their captured binding. `cachedFetch` stayed this parent's, exactly as the previous note required.
+
+**Complete.** All three classes are drained, every child is merged, and the classifier reports `0 bare-root reads, 0 on a declared member, 0 parked behind 0 undeclared members`. The parent's measure was its three semantic classes and not any single counter, which is why it stayed open through `0.33.33.38.2.6.10` on one remaining site.
 
 
 #### 0.33.33.38.2.7 - Teach the publication inventory the logical-assignment root

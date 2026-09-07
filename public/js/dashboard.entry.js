@@ -13,6 +13,7 @@ const loadedScripts = new Map();
 const loadedStyles = new Map();
 
 /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserCachedFetch} BrowserCachedFetch */
 
 /**
  * The API client this file cannot run without.
@@ -154,6 +155,25 @@ await importScripts([
   "/js/footer.js",
 ]);
 
+/**
+ * The cache this manifest read uses **only when there is a workspace to key it by**.
+ *
+ * **Required on one branch and irrelevant on the other, which is why it is not acquired at the
+ * top.** Without a usable workspace id `loadDashboardManifest` goes straight to `BrowserApi` and
+ * never touches this member; hoisting the check above the id test would make the uncached path
+ * fail on a dependency it does not use. Read at the invocation point, per call, exactly as the
+ * property access was - so a cache published between two manifest loads is still seen by the
+ * second.
+ * @returns {BrowserCachedFetch}
+ */
+function requireCachedFetch() {
+  const cache = namespace.cachedFetch;
+  if (!cache) {
+    throw new Error("The Dashboard bridge requires LongtailForge.cachedFetch.");
+  }
+  return cache;
+}
+
 async function loadDashboardManifest() {
   const workspaceId = String(namespace.workspaceContext?.workspaceId || "").trim();
 
@@ -166,7 +186,7 @@ async function loadDashboardManifest() {
     };
   }
 
-  return namespace.cachedFetch.getJson("/api/dashboard", {
+  return requireCachedFetch().getJson("/api/dashboard", {
     cacheKey: `${workspaceId}:dashboard:${dashboardAssetVersion()}:manifest`,
   });
 }

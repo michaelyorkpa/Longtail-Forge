@@ -420,6 +420,7 @@
         "tests/unit/readiness-root-access-contracts.test.mjs",
         "tests/unit/ready-dialog-adapter-contracts.test.mjs",
         "tests/unit/regression-source-measure.test.mjs",
+        "tests/unit/required-member-acquisition-contracts.test.mjs",
         "tests/unit/resume-producer-payload.test.mjs",
         "tests/unit/role-assignment-contracts.test.mjs",
         "tests/unit/runtime-configuration.test.mjs",
@@ -552,7 +553,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7750,
+      "errorCount": 7745,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -731,10 +732,6 @@
           }
         ],
         "public/js/dashboard.entry.js": [
-          {
-            "code": 18048,
-            "count": 1
-          },
           {
             "code": 2339,
             "count": 4
@@ -1578,10 +1575,6 @@
             "count": 67
           },
           {
-            "code": 18048,
-            "count": 1
-          },
-          {
             "code": 2339,
             "count": 484
           },
@@ -1726,10 +1719,6 @@
             "count": 22
           },
           {
-            "code": 18048,
-            "count": 2
-          },
-          {
             "code": 2339,
             "count": 110
           },
@@ -1786,10 +1775,6 @@
           {
             "code": 18047,
             "count": 13
-          },
-          {
-            "code": 18048,
-            "count": 1
           },
           {
             "code": 2339,
@@ -2588,8 +2573,8 @@
     }
   },
   "totals": {
-    "files": 1133,
-    "errors": 7750,
+    "files": 1134,
+    "errors": 7745,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

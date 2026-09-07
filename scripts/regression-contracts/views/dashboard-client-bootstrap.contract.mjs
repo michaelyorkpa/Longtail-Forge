@@ -54,7 +54,10 @@ assert.ok(
 );
 assert.match(
   dashboardEntry,
-  /cachedFetch\.getJson\("\/api\/dashboard"[\s\S]*cacheKey: `\$\{workspaceId\}:dashboard:\$\{dashboardAssetVersion\(\)\}:manifest`/,
+  // `0.33.33.38.2.6.11` acquires the cache through a checked accessor on the branch that uses it;
+  // the claim is unchanged - this manifest read goes through the cached helper with the same
+  // workspace- and release-keyed cache key.
+  /requireCachedFetch\(\)\.getJson\("\/api\/dashboard"[\s\S]*?cacheKey: `\$\{workspaceId\}:dashboard:\$\{dashboardAssetVersion\(\)\}:manifest`/,
   "the near-static Dashboard manifest must use the workspace- and release-keyed stale-while-revalidate helper",
 );
 assert.match(
