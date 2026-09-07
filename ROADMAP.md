@@ -814,6 +814,14 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **Providers and targets are complete: 2 diagnostics closed, 9 eliminated in total, and the picker can no longer be handed a catalogue the server never advertised.** See the archive entry. They were traced together because they are two members of **one exact envelope from one endpoint**, and typed apart because they are two producers: a five-member provider projection, and a linked-context target that is exact **because the shaper spreads the framework's own total reconstruction**. The deferred list-summary read and the suggestions producer remain this child's open work.
 
+#### 0.33.33.38.4.7.2.2 - The list summary collection
+
+**Complete: the last Lists response boundary, 1 genuine-`unknown` diagnostic closed, and no second column table.** See the archive entry. `GET /api/lists` and `GET /api/lists/:listId` both shape their rows through `shapeListsForBrowser`, so `isListSummary` is reused rather than copied; the collection route only adds tag decoration, canonical filtering and sorting on top, none of which changes a shaped member.
+
+**The collection is read as a whole or not at all.** It decides which lists the page loads, so a malformed summary refuses the body rather than being filtered away - a shortened collection presented as a complete one is indistinguishable to the user. An empty `lists` array stays a legitimate answer, and the previous displayed collection survives a refusal because nothing is assigned until every detail has settled.
+
+**Only the portion this consumer reads is claimed.** The service also returns `query`; this page does not read it, so the reader answers `BrowserListSummary[]` rather than pretending to be a validated envelope.
+
 #### 0.33.33.38.4.7.2.1 - The Lists item suggestions
 
 **Complete: 1 diagnostic, one contract, zero fallout - and the third of the four reads `0.33.33.38.4.7.2` named.** See the archive entry. `BrowserListItemSuggestion` is a **structural minimum over an extensible catalogue record**, because `shapeCatalogItemForBrowser` answers `{ ...item, id }`; it promises the nine members the item picker reads and each is what `list_item_catalog` guarantees. **The envelope and the element are judged differently, on purpose**: a missing or non-array `suggestions` means the body is not one this producer sent, while a single malformed suggestion is one unusable candidate among usable ones, and suggestions are advisory rather than an account of anything. **`0.33.33.38.4.7.2`'s list-summary read stays blocked** on the state handoff it measured, so the Lists tail is not closed by this child.

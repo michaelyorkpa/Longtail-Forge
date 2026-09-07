@@ -1,5 +1,30 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.7.2.2 - The list summary collection
+
+**Model: Small Effort** - because `0.33.33.43.2` did the hard part first.
+
+- [x] **The predicate was reused, not copied.** `GET /api/lists` and `GET /api/lists/:listId` both shape their rows through `shapeListsForBrowser`; the collection route adds tag decoration, `filterRecordsByTags`, canonical filtering and sorting, and none of those changes a shaped member. `isListSummary` was traced against this producer before being reused, and there is still exactly **one** list column table in the file.
+- [x] **The collection is read as a whole or not at all.** It decides which lists the page loads, so one malformed summary refuses the body. Filtering it away would render a shortened collection that looks complete, and nothing in the page would say otherwise. Thirteen refusal cases are covered, including one bad row among valid ones.
+- [x] **An empty collection is an answer, not a failure**, and a refusal leaves the previously displayed collection untouched: `state.lists` is assigned once, after `Promise.all` settles, and a refused body throws before any detail request is issued.
+- [x] **Only the consumed portion is claimed.** The service also returns `query`. This page never reads it, so the reader answers `BrowserListSummary[]` and does not pretend to be a validated envelope. The array and its elements are returned **by identity**, so tag decoration and any richer producer column still reach the normaliser.
+- [x] **The detail-loading policy is untouched.** One request per summary, canonical server ordering preserved through out-of-order resolution, the summary fallback on a rejected detail, and `readListDetail`'s own deliberately tolerant policy - which belongs to `0.33.33.38.4.7.1` and is not tightened by a strict collection reader.
+- [x] **Two static owners were retargeted, both spent for the same honest reason.** Each asserted the raw summary read was still deferred - true until this child, which their own notes named as its owner. Each now pins the validated read, and the suggestions owner additionally proves that child still borrows nothing from this one.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,664 | **7,662** |
+| **Genuine `unknown`** | 2 | **1** |
+| `public/js/lists.js` | 398 | **396** |
+| Namespace family | 0 | **0** |
+| Declared / known members | 64 / 64 | **64 / 64** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 2,255 / 348 / 167 | **2,286 / 348 / 167**, green |
+
+**One true elimination and one contextual**, no `(file, code)` pair increased: `TS18046` -1 - the boundary this child owns - and `TS7006` -1 from the summary parameter the reader now types. Owner `0.33.33.43` 898 to **897**. The twenty-six that landed with `0.33.33.43.2` are that child's and are not counted here.
+
 ## Version 0.33.33.43.2 - The normalized Lists record handoff
 
 **Model: Medium Effort** - a prerequisite drawn from a probe rather than from a plan.
