@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.3.10 - The task calendar-window response
+
+**Model: Medium Effort** - one producer, two transports, and a fixture that had been describing a body the server cannot emit.
+
+- [x] **The endpoint `0.33.33.38.4.3` never listed.** That family was resliced by producer and drew seven; `GET /api/tasks/calendar` was not among them, and no other `.38.4` child covers it - `0.33.33.38.4.6.2` owns the private *calendar subscription* feeds, which is a different producer with a different body. Declared here as the family's tenth child rather than folded into an existing one.
+- [x] **Both transports validate through one reader, and only the second one was obviously untyped.** `fetchCalendarWindow` returns the prewarmed dashboard loader's `Promise<unknown>` when `dashboardBootstrap.loadRoute` is published and a native `fetch(...).json()` - an implicit `any` - otherwise. Fixing only the native branch would have left the Dashboard panel reading an unchecked body through the same public method. A break that restores the raw loader return is refused.
+- [x] **A refused body is a load error, never an empty calendar.** Both consumers render "Nothing scheduled" for a window with no rows, so filtering malformed rows away would have shown a confident wrong answer - a day that has tasks reading as a day that does not. The reader answers `null`, the method throws, and each consumer takes the error path it already had. Breaks that filter rows, filter markers, or stop checking the envelope are all refused.
+- [x] **The empty `task_id` is producer behaviour and had to stay legal.** `virtualTaskCalendarRow` writes it that way because a calendar `GET` **projects** occurrences and never materializes them; the click handler opens such a row through `templateId` and `instanceDate`. The row is discriminated on `virtual`, and a row that claims to be virtual without the recurrence identity is refused rather than rendered as a dead button. A break requiring a saved id on every row is refused, as is one that drops the consistency check.
+- [x] **The reminder lookahead is the designed case, not an inconsistency.** `calendarWindow` reads tasks through a horizon past `endDate`, computes reminders across all of them, and then filters the *rows* back to `due_date <= endDate`. A marker firing today for a task due next week therefore names a `task_id` that is legitimately absent from `tasks`. A break that requires every marker's task to appear in the window is refused.
+- [x] **`source_enabled: false` is a complete response.** It says the Tasks module is disabled; the window still carries the due dates that exist and the Calendar page shows them read-only with its status line. A break that treats it as an error is refused.
+- [x] **Two end-to-end fixtures were wrong, and the reader was not loosened to accept them.** `taskCalendarRow` writes twelve members on every persisted row and `virtualTaskCalendarRow` writes fifteen; `calendarReminderMarkers` writes nine. The Playwright stubs in `calendar-mobile-view` and `dashboard-bootstrap-sequencing` sent six and four. The mismatch was proved by the reader refusing them - the Dashboard spec failed on a panel that rendered "Calendar unavailable" - and both fixtures were corrected against the producer. The shape those stubs sent is now a permanent rejection case in the suite.
+- [x] **One page-state slot, typed because the response made it typeable.** `calendarState.data` was `null`-initialized and read as `data?.source_enabled`; the reduction is one diagnostic and it is reported under `0.33.33.44`, which owns Calendar's page state. Nothing else about `CalendarPageState`, the filters or the toolbar DOM moved.
+
+Proved by breaking each claim, restored from explicit byte copies in a `finally` with hash verification and no stash: **15 behavioural breaks and 3 compiler breaks - all 18 refused**. The compiler breaks show the slot annotation and the method's return are load-bearing: removing the annotation, claiming the range contract in its place, and claiming the range contract as the fetch result each raise the estate from 7,790 to 7,791.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,801 | **7,790** |
+| `shared/task-calendar.js` / `calendar.js` | 57 / 47 | **47 / 46** |
+| Namespace family | 39 | **39** |
+| Bare-root sites | 0 | **0** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 2,015 / 348 / 167 | **2,072 / 348 / 167**, green |
+
+**All eleven are true eliminations** and no `(file, code)` pair increased. `shared/task-calendar.js` -10, all inside `fetchCalendarWindow`, which is now free of diagnostics: `TS2339` -7 on its `range` and `filters` reads, `TS7006` -3 on the parameters and the callbacks they contextually type. `calendar.js` -1 on the direct data slot. Owner `0.33.33.39` 1,672 to **1,662**; owner `0.33.33.44` 1,539 to **1,538**. The namespace family is deliberately unchanged - `taskCalendar` is still undeclared, and declaring it is `0.33.33.38.2.2.6.6.4`'s work.
+
+**The latent boundary is the part no counter showed.** Explicit-`any` governance read 0 before this checkpoint and reads 0 after, because `response.json()` produces an implicit `any` rather than an annotation. The whole `/api/tasks/calendar` body was flowing into the Calendar page unchecked, and the estate's own instruments could not see it.
+
 ## Version 0.33.33.38.2.6.10 - The required-root, optional-member accesses
 
 **Model: Medium Effort** - forty sites, and the last bare root read in the estate.

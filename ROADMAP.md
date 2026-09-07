@@ -262,8 +262,19 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **`icons` joined this child by being declared.** It was undeclared when this section was first written, so its 13 root sites sat in class E; `0.33.33.38.2.2.4` moved them into class A, which is the mechanism `0.33.33.38.2` describes working as intended. **Expect the class-E column to keep draining into A and B as `.38.2.2` declares members**, and remeasure before drawing any child from it.
 
-- [ ] **Take one semantic class at a time and one surface at a time.** The classes want different mechanisms, and a member name is not a semantics: `cachedFetch` sits in both A and B inside a single file.
-- [ ] **Class E is not adoptable and must not be swept in.** Those 148 resolve when their member is declared, and adopting the root there trades one diagnostic for another - the rule `0.33.33.38.2.1` established and remeasured.
+- [x] **Take one semantic class at a time and one surface at a time.** The classes want different mechanisms, and a member name is not a semantics: `cachedFetch` sits in both A and B inside a single file. Eight children took them one at a time; `0.33.33.38.2.6.7` through `.6.10` drained the class-A root reads to **zero**.
+- [x] **Class E is not adoptable and must not be swept in.** Those 148 resolve when their member is declared, and adopting the root there trades one diagnostic for another - the rule `0.33.33.38.2.1` established and remeasured. **Class E is now empty**, drained entirely by `0.33.33.38.2.2`'s declarations exactly as predicted, and no child ever adopted a root to close one.
+
+**Bare-root reads are at zero, and this parent is still open.** `0.33.33.38.2.6.10` closed the last of them; the classifier now reports `0 bare-root reads`. Closing the parent on that counter alone would be wrong, because the counter is not the acceptance criterion:
+
+| The parent's measure | At the reslice | Now |
+| --- | ---: | ---: |
+| Class A - member intentionally optional | 15 | **0** |
+| Class B - member genuinely required, wants lazy checked acquisition | 26 | **1** |
+| Class E - parked behind an undeclared member | 148 | **0** |
+
+- [ ] **One class-B site remains and it is this parent's, not another owner's.** `dashboard.entry.js:169` reads `namespace.cachedFetch.getJson(...)` with the member genuinely required, which is the mechanism class B was drawn for. It is the single diagnostic the classifier reports as `adoptable`. **Do not close this parent by moving it**: `cachedFetch` is a declared member and the read is a namespace access, so reassigning it to a response or page-state owner would relabel the residue rather than retire it.
+
 
 #### 0.33.33.38.2.7 - Teach the publication inventory the logical-assignment root
 
@@ -615,6 +626,16 @@ Its **lazy publication is a second contract question and belongs here too**: the
 #### 0.33.33.38.4.3.9 - Stabilize the Task Focus exit-capture synchronization proof
 
 **Complete: a verification correction, zero diagnostics, none claimed.** See the archive entry. `tests/e2e/task-focus-exit-capture.spec.mjs` asserted `writes.at(-1)` the moment the focus heading was visible on the third focus entry - but `activateTaskFocus` renders the candidate's title **before** `refreshActiveTaskFocus` reads the task back and consumes its note, so the heading is not a barrier for the consume PUT. Browser smoke on PR #464 twice saw the previous capture where the consume was expected; the first entry's wait was already causal, and this one now is too. Fix the wait, not the expectation: the corrected proof still requires the exact consume, capture, consume sequence, the status, the app-shell prompt and the final write count.
+
+#### 0.33.33.38.4.3.10 - The task calendar-window response
+
+**Complete: 11 diagnostics, six contracts, one latent `any` boundary closed, and two end-to-end fixtures corrected against the producer they claimed to imitate.** See the archive entry. `GET /api/tasks/calendar` is the one producer `0.33.33.38.4.3` never listed, and `taskCalendar.fetchCalendarWindow` reached it through **two** transports - the prewarmed dashboard loader when one is published, a native `fetch` otherwise. The loader answers `Promise<unknown>` and `response.json()` answers an implicit `any`, so the method's inferred result was `any` and the Calendar page's `data` slot held an untyped value.
+
+**Both branches now pass through one private reader.** Validating only the native path would have left the Dashboard panel reading an unchecked body through the same public method. A refused body throws down the load-error path each consumer already had; it is never retried through the other transport, and it never becomes an empty calendar.
+
+**The virtual recurrence row and the reminder lookahead are producer behaviour, not defects to normalize.** `virtualTaskCalendarRow` writes an empty `task_id` because a calendar `GET` projects occurrences and never materializes them, so the row is discriminated on `virtual` and opened through `templateId` and `instanceDate`. `calendarWindow` computes reminders across a lookahead horizon past `endDate` and then filters the rows back to the window, so a marker whose task is absent from `tasks` is the designed case. Breaks asserting either the opposite are refused.
+
+**The direct data handoff is typed and nothing else is.** `calendarState.data` was a `null`-initialized storage slot for exactly this response; the contract makes it typeable, and that single annotation is this checkpoint's only page-state work. `CalendarPageState`, the filters, the toolbar DOM and the rest of Calendar's parameters stay where they are.
 
 #### 0.33.33.38.4.4 - The workspace-user, role and assignment responses
 
