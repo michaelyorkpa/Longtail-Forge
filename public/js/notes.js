@@ -2231,8 +2231,11 @@
   }
 
   function applyWorkspaceContext() {
-    const context = window.LongtailForge?.workspaceContext || {};
-    state.workspaceType = normalizeWorkspaceType(context.workspaceType || context.workspace_type || "");
+    // `buildWorkspaceContext` folds every snake_case input into its canonical member and
+    // publishes exactly one record, so `workspace_type` is a shape the publisher cannot emit.
+    // The canonical read and the final empty-string input into `normalizeWorkspaceType` stay.
+    const context = window.LongtailForge?.workspaceContext;
+    state.workspaceType = normalizeWorkspaceType(context?.workspaceType || "");
     applyWorkspaceVisibilityControls();
     populateWorkspaceVisibilityOptions();
     populateLinkTargetTypeSelect(contextTargetTypeInput);
@@ -5452,8 +5455,11 @@
   }
 
   function workspaceHasClientTools() {
-    const context = window.LongtailForge?.workspaceContext || {};
-    const tools = context.workspaceCapabilities?.availableTools || context.availableTools || [];
+    // `availableTools` lives inside `workspaceCapabilities`, which the publisher proves is a
+    // record and nothing more - so the nested read stays optional and `Array.isArray` still has
+    // work to do. The flat top-level alias is a shape the publisher cannot emit.
+    const context = window.LongtailForge?.workspaceContext;
+    const tools = context?.workspaceCapabilities?.availableTools || [];
     return Array.isArray(tools) && tools.includes("clients_projects");
   }
 

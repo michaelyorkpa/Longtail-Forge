@@ -46,7 +46,11 @@ async function assertBrowserPrimaryContextContract() {
   assert.match(notesJs, /clientField\.hidden = true/);
   assert.match(notesJs, /clientInput\?\.addEventListener\("change", handlePrimaryClientChange\)/);
   assert.match(notesJs, /projectInput\?\.addEventListener\("change", handlePrimaryProjectChange\)/);
-  assert.match(notesJs, /context\.workspaceType \|\| context\.workspace_type \|\| ""/);
+  // `0.33.33.38.2.9` deleted the `workspace_type` arm: `buildWorkspaceContext` folds every
+  // snake_case input into its canonical member, so that arm could never fire. The claim is
+  // unchanged - Notes reads the workspace type from the stored context and normalizes it.
+  assert.match(notesJs, /normalizeWorkspaceType\(context\?\.workspaceType \|\| ""\)/,
+    "Notes still reads the workspace type from the stored context, through its canonical member");
   assert.match(notesJs, /function normalizeWorkspaceType\(value = ""\)/);
   assert.match(notesJs, /return normalizeWorkspaceType\(state\.workspaceType\) === "business" && workspaceHasClientTools\(\)/);
   assert.match(notesJs, /function workspaceHasClientTools\(\)/);

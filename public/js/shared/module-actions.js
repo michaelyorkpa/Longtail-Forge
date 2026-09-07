@@ -517,8 +517,10 @@
       return true;
     }
 
-    const context = namespace.workspaceContext || {};
-    const enabledModules = Array.isArray(context.enabledModules) ? context.enabledModules : [];
+    // `enabledModules` is declared `unknown[]`, so the array check is still what makes the
+    // membership test below safe; it is not redundant with the declaration.
+    const context = namespace.workspaceContext;
+    const enabledModules = Array.isArray(context?.enabledModules) ? context.enabledModules : [];
 
     if (enabledModules.length === 0) {
       return true;
