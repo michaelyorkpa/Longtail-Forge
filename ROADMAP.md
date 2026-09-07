@@ -982,6 +982,14 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **No consumer file changed and the namespace member is still undeclared**, so the 44 namespace diagnostics across the five settings pages are exactly where they were. That is `0.33.33.38.2.2.9`'s to move.
 
+#### 0.33.33.39.3 - Type the Overlay Host writer boundary
+
+**Complete: 30 diagnostics to zero in one file, and a documented public hook that finally has executable coverage.** See the archive entry. `LongtailForge.overlayHost` is named in `docs/module-development.md` and `docs/ui-surface-contract.md` and has **no internal consumer**, so nothing in the estate would have noticed its behaviour drifting.
+
+**The contract describes the objects that exist, not tidier ones.** The published hook stays a plain mutable object with one method, `register` answers the overlay record the writer keeps - including the `abortController` slot it installs while open - and two `create` calls for one host answer two different controllers over the same registry. Controller identity is deliberately not promised.
+
+**`overlayHost` is not declared on the namespace here.** That is `0.33.33.38.2` quiet-tail work; this child publishes the contract and checks the writer against it.
+
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 
 **Open. Not started, and deliberately not decided by `0.33.33.38.2.2.5.2`.** That checkpoint removed an unsupported type assertion and a lookup that could never answer; it did not design a replacement, and it must not be read as having settled what should exist here.
