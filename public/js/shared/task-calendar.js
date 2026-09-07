@@ -6,10 +6,17 @@
 (function attachTaskCalendar(global) {
   const root = global.LongtailForge = global.LongtailForge || {};
   const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const CALENDAR_VIEW_IDS = new Set(["day", "week", "month"]);
+  // The same three ids, held as a literal tuple rather than a `Set`. `Set<string>.has` cannot
+  // narrow its argument, so the membership test could not produce the view id it had just
+  // proved; a `find` over the same three values does, without a cast.
+  const CALENDAR_VIEW_IDS = /** @type {const} */ (["day", "week", "month"]);
   const MONTH_TASK_LIMIT = 3;
 
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskCalendar} BrowserTaskCalendar */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskCalendarViewId} BrowserTaskCalendarViewId */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskCalendarRange} BrowserTaskCalendarRange */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskCalendarRenderOptions} BrowserTaskCalendarRenderOptions */
 
   /**
    * The view factory this path cannot run without.
@@ -30,14 +37,20 @@
     return root.view;
   }
 
+  /** @param {unknown} value @returns {BrowserTaskCalendarViewId | null} */
   function normalizeCalendarView(value) {
-    return CALENDAR_VIEW_IDS.has(value) ? value : null;
+    return CALENDAR_VIEW_IDS.find((viewId) => viewId === value) ?? null;
   }
 
+  /** @returns {BrowserTaskCalendarViewId | null} */
   function readPreferredCalendarView() {
     return normalizeCalendarView(root.userPreferences?.preferredCalendarView);
   }
 
+  /**
+   * @param {unknown} preferredView @param {{ isMobile?: boolean }} [options]
+   * @returns {BrowserTaskCalendarViewId}
+   */
   function resolveDefaultView(preferredView, options = {}) {
     const normalizedPreference = normalizeCalendarView(preferredView);
 
@@ -51,6 +64,7 @@
     return isMobile ? "day" : "month";
   }
 
+  /** @param {string} viewId @param {Date} anchor @returns {BrowserTaskCalendarRange} */
   function calendarRange(viewId, anchor) {
     if (viewId === "day") {
       const dayKey = dateKeyOf(anchor);
@@ -254,7 +268,12 @@
     return response.json();
   }
 
-  function renderCalendarBody(target, options = {}) {
+  /**
+   * @param {Element | null} target
+   * @param {BrowserTaskCalendarRenderOptions} options
+   * @returns {boolean}
+   */
+  function renderCalendarBody(target, options) {
     const view = viewBuilder();
 
     if (!target || !view) {
@@ -538,17 +557,20 @@
     return grouped;
   }
 
+  /** @param {Date} date @returns {string} */
   function dateKeyOf(date) {
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     return `${date.getFullYear()}-${month}-${day}`;
   }
 
+  /** @param {unknown} dateKey @returns {Date} */
   function parseDateKey(dateKey) {
     const [year, month, day] = String(dateKey || "").split("-").map(Number);
     return new Date(year, (month || 1) - 1, day || 1);
   }
 
+  /** @param {Date} date @param {number} days @returns {Date} */
   function addDays(date, days) {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
   }
@@ -586,7 +608,16 @@
     return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
   }
 
-  root.taskCalendar = Object.freeze({
+  /**
+   * The nine methods this writer publishes.
+   *
+   * Annotated on the literal rather than on the `Object.freeze` call, so the compiler checks the
+   * membership in both directions: a missing method fails, a tenth one fails as an unknown
+   * property, and a changed signature fails. The frozen object is unchanged - this states what it
+   * has always been.
+   * @type {BrowserTaskCalendar}
+   */
+  const taskCalendarApi = {
     addDays,
     calendarRange,
     dateKeyOf,
@@ -596,5 +627,7 @@
     readPreferredCalendarView,
     renderCalendarBody,
     resolveDefaultView,
-  });
+  };
+
+  root.taskCalendar = Object.freeze(taskCalendarApi);
 })(window);

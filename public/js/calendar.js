@@ -42,6 +42,26 @@
   }
   const taskCalendar = window.LongtailForge?.taskCalendar;
 
+  /**
+   * The calendar helper the period-shift path cannot run without.
+   *
+   * **Every other use on this page keeps its optional read**, because each of those entry points
+   * already returns early when the helper is unpublished. `shiftCalendarPeriod` never had that
+   * path: its week and day branches dereference the helper and throw when it is missing, while
+   * its month branch shifts without it. This preserves both - the same failure, at the same
+   * statement, with a message instead of a property access on `undefined`.
+   * @returns {import("../../src/types/browser-contracts.js").BrowserTaskCalendar}
+   */
+  function requireTaskCalendar() {
+    if (!taskCalendar) {
+      throw new Error("Calendar requires LongtailForge.taskCalendar.");
+    }
+    return taskCalendar;
+  }
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskCalendarOccurrence} BrowserTaskCalendarOccurrence */
+
+  /** @type {ReadonlyArray<{ id: import("../../src/types/browser-contracts.js").BrowserTaskCalendarViewId, label: string }>} */
   const CALENDAR_VIEW_OPTIONS = [
     { id: "month", label: "Month" },
     { id: "week", label: "Week" },
@@ -112,8 +132,12 @@
     const params = new URLSearchParams(window.location?.search || "");
     const requestedView = String(params.get("view") || "").trim().toLowerCase();
 
-    if (CALENDAR_VIEW_OPTIONS.some((option) => option.id === requestedView)) {
-      calendarState.view = requestedView;
+    // The same membership test as before, kept as the page's own list rather than delegated to
+    // `normalizeCalendarView`; `find` is used so the matched option's id carries its own type.
+    const matchedView = CALENDAR_VIEW_OPTIONS.find((option) => option.id === requestedView);
+
+    if (matchedView) {
+      calendarState.view = matchedView.id;
       calendarViewFromQuery = true;
     }
 
@@ -276,10 +300,11 @@
 
     if (calendarState.view === "month") {
       calendarState.anchor = new Date(anchor.getFullYear(), anchor.getMonth() + direction, 1);
-    } else if (calendarState.view === "week") {
-      calendarState.anchor = taskCalendar.addDays(anchor, direction * 7);
     } else {
-      calendarState.anchor = taskCalendar.addDays(anchor, direction);
+      const calendar = requireTaskCalendar();
+      calendarState.anchor = calendarState.view === "week"
+        ? calendar.addDays(anchor, direction * 7)
+        : calendar.addDays(anchor, direction);
     }
 
     loadCalendarWindow();
@@ -451,6 +476,10 @@
     }
   }
 
+  /**
+   * @param {string} taskId @param {Element} trigger
+   * @param {BrowserTaskCalendarOccurrence | null} [occurrence]
+   */
   function openCalendarTask(taskId, trigger, occurrence = null) {
     const opener = window.LongtailForge?.tasksDialog?.openTaskEditor;
     const templateId = String(occurrence?.templateId || "").trim();

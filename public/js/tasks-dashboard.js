@@ -62,12 +62,17 @@ function renderTasksNeedsAttentionContribution(contribution, context) {
   });
 }
 
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskCalendarOccurrence} BrowserTaskCalendarOccurrence */
 function renderTasksCalendarContribution(contribution, context) {
-  const taskCalendar = window.LongtailForge?.taskCalendar;
+  const optionalTaskCalendar = window.LongtailForge?.taskCalendar;
 
-  if (!taskCalendar) {
+  if (!optionalTaskCalendar) {
     return null;
   }
+
+  // Re-bound after the guard so the nested `hydrate` sees the narrowed surface. The Dashboard
+  // still contributes no panel at all when the helper is unpublished; this is the same object.
+  const taskCalendar = optionalTaskCalendar;
 
   const state = {
     view: taskCalendar.resolveDefaultView(taskCalendar.readPreferredCalendarView()),
@@ -171,6 +176,10 @@ function renderTasksCalendarContribution(contribution, context) {
     }
   }
 
+  /**
+   * @param {string} taskId @param {Element} trigger
+   * @param {BrowserTaskCalendarOccurrence | null} [occurrence]
+   */
   async function openTask(taskId, trigger, occurrence = null) {
     const templateId = String(occurrence?.templateId || "").trim();
     const instanceDate = String(occurrence?.instanceDate || "").trim();

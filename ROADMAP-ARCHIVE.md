@@ -1,5 +1,38 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.2.6.6.4 - `LongtailForge.taskCalendar`
+
+**Model: Medium Effort** - nine members, two consumers, and a blocker that another checkpoint had just retired.
+
+- [x] **The blocker this section recorded was real, and `0.33.33.38.4.3.10` removed it.** That child said `calendar.js` initialises `data: null`, so `calendarState.data = await fetchCalendarWindow(...)` could not be assigned. It could not be assigned because the fetch had no contract; once the response boundary was closed, the slot became typeable and was typed there. Nothing about this declaration had to work around it.
+- [x] **All nine members are declared, including the four that produced no diagnostic.** `addDays`, `dateKeyOf`, `parseDateKey` and `normalizeCalendarView` are the period arithmetic the consumers navigate with; declaring only the five that appeared in error messages would have described the surface by its symptoms. The writer is checked against the whole contract, and breaks that drop a published method or add an uncontracted one are both refused.
+- [x] **The signatures describe the producer, including the parts that are untidy.** `calendarRange` has three branches and **only the month branch sets `monthIndex`** - its presence is what makes the renderer dim the days either side and switch the day header - so it is optional rather than always-present. `parseDateKey` **coerces rather than validates**: it answers an *invalid* `Date` for an unreadable key, which is exactly what `calendar.js` tests with `Number.isFinite(anchor.getTime())`, so a nullable return would have described a producer that does not exist. `renderCalendarBody` returns `false` for two different reasons - nothing drawn, or drawn with nothing in it - and both are recorded. `resolveDefaultView` keeps its real second argument.
+- [x] **`normalizeCalendarView` needed one honest change to state its own answer.** `Set<string>.has` cannot narrow its argument, so the function could not return the view id it had just proved. The three ids are now a literal tuple and the membership test is a `find` over the same three values, in the same order - no cast, same behaviour.
+- [x] **The two consumers keep their own absence paths, which are not the same path.** The Dashboard contributes **no panel at all** when the helper is unpublished and still does. The Calendar page guards at each of its three entry points and still does. `shiftCalendarPeriod` is the one site with no absence path - its month branch shifts without the helper while its week and day branches dereference it and throw - and it now acquires a checked one, so it fails where it already failed rather than silently doing nothing. Breaks in every one of those directions are refused, including one that hoists the acquisition above the month branch.
+- [x] **No global accessor, and no early acquisition.** The Dashboard still reads the surface inside its contribution rather than at module scope, so nothing is acquired before the lazy bridge has loaded; a break that moves it to module scope is refused. The Dashboard's hydration token still guards both its success and failure paths, so an older request cannot replace a newer selected view.
+- [x] **The occurrence argument survives, and one break had to be re-aimed to prove it.** Removing the third parameter from `BrowserTaskCalendarOpenTask` raises nothing, because TypeScript accepts a source function that declares **extra optional parameters** - so that break was type-inert and was replaced with one at the consumer that receives the occurrence, where the type genuinely participates. The behavioural half is proved separately: a break that drops the recurrence identity from the click is refused.
+
+Proved by breaking each claim, restored from explicit byte copies in a `finally` with hash verification and no stash: **8 compiler breaks and 17 behavioural breaks - all 25 refused**, plus **6 more against the owners this child retargeted**.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,790 | **7,750** |
+| Namespace family | 39 | **25** |
+| Declared / known namespace members | 59 / 64 | **60 / 64** |
+| Undeclared members | 5 | **4** |
+| Unique surfaces / publication occurrences | 66 / 69 | **66 / 69** |
+| Bare-root sites | 0 | **0** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 2,072 / 348 / 167 | **2,100 / 348 / 167**, green |
+
+**All forty are true eliminations** and no `(file, code)` pair increased: `shared/task-calendar.js` -18 (`TS2339` 9 to 1, `TS7006` 38 to 28), `calendar.js` -13 (`TS2339` 13 to 4, `TS7006` 8 to 6, `TS18046` 2 to 0), `tasks-dashboard.js` -9 (`TS2339` 27 to 23, `TS7006` 30 to 28, `TS18046` 3 to 0). Owner `0.33.33.39` 1,662 to **1,646**, `0.33.33.41` 1,146 to **1,142**, `0.33.33.44` 1,538 to **1,534**.
+
+**The declaration alone was measured before any consumer changed**, and it is worth recording that it was not free: declaring the surface took the estate from 7,790 to 7,784 and **introduced three `TS2322`s** - the query-parameter view assignment and the two `onOpenTask` callbacks, each of which had been silently accepted while the surface was `unknown`. All three were genuine consumer defects the declaration exposed, and all three are closed here.
+
+**The shrink-only ledger caught what the display did not.** A first pass reported a clean run because the ledger write had *refused* - two new diagnostics in the writer, `TS2322` and `TS2345`, had appeared from `normalizeCalendarView` - and the stale ledger made the before/after comparison read as unchanged. The gate is what surfaced it.
+
 ## Version 0.33.33.38.4.3.10 - The task calendar-window response
 
 **Model: Medium Effort** - one producer, two transports, and a fixture that had been describing a body the server cannot emit.
