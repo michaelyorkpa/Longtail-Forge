@@ -176,10 +176,16 @@ describe("the collection assembly", () => {
     assert.match(listsSource, /@type \{BrowserNormalizedListRecord \| null\}\s*\n\s*\*\/\s*\n\s*itemDialogList: null,/);
   });
 
-  it("leaves the response read untouched, because that is the next child's", () => {
+  it("hands its model to the response child rather than doing that child's work", () => {
+    // This prerequisite landed with the raw read intact; `0.33.33.38.4.7.2.2` then replaced it.
+    // What this assertion defends is the handoff: the collection is read into the wire summary
+    // type, and only the normaliser turns those into the page record.
     const body = slice(listsSource, "async function loadLists() {");
-    assert.match(body, /const summaries = result\.lists \|\| \[\];/,
-      "the raw summary read is unchanged in this prerequisite");
+    assert.match(body, /const summaries = readListSummaries\(result\);/);
+    assert.match(listsSource, /@returns \{BrowserListSummary\[\]\}/,
+      "the reader answers wire summaries");
+    assert.match(listsSource, /@returns \{Promise<BrowserNormalizedListRecord \| null>\}/,
+      "and the detail loader answers page records");
   });
 
   it("leaves the normaliser's inputs unannotated, because they are a separate boundary", () => {

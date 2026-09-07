@@ -1364,10 +1364,41 @@
     return Boolean(record);
   }
 
+  /**
+   * The collection `GET /api/lists` answers, read as a whole or not at all.
+   *
+   * **This collection decides which lists the page loads**, so a malformed summary is refused
+   * rather than filtered away: dropping one and rendering the rest would present a shortened
+   * collection as a complete one, and the user would have no way to tell. A body that cannot be
+   * read throws into the caller's existing load-error path, which leaves the previously displayed
+   * collection in place.
+   *
+   * **An empty `lists` array is a legitimate answer**, not a failure - a workspace with no lists,
+   * or a filter that matches none.
+   *
+   * **`isListSummary` is reused rather than copied.** `GET /api/lists` and `GET /api/lists/:id`
+   * both shape their rows through `shapeListsForBrowser`; the collection route only adds tag
+   * decoration, canonical filtering and sorting on top, none of which changes a shaped member. A
+   * second column table would have been a second thing to keep true.
+   *
+   * **Only `lists` is validated.** The service also returns `query`, and this consumer does not
+   * read it - so this is the portion of the response the page depends on, not a validated envelope.
+   * The array and its elements are returned by identity; nothing is rebuilt.
+   * @param {unknown} body
+   * @returns {BrowserListSummary[]}
+   */
+  function readListSummaries(body) {
+    if (!isResponseRecord(body) || !Array.isArray(body.lists) || !body.lists.every(isListSummary)) {
+      throw new Error("The list collection could not be read.");
+    }
+
+    return body.lists;
+  }
+
   async function loadLists() {
     const api = requireApi();
     const result = await api.getJson(`/api/lists?${buildListQueryParams()}`, { cache: "no-store" });
-    const summaries = result.lists || [];
+    const summaries = readListSummaries(result);
     const details = await Promise.all(summaries.map((list) => loadListDetail(list.list_id || list.id, list)));
     state.lists = details.filter(isLoadedListRecord);
   }
