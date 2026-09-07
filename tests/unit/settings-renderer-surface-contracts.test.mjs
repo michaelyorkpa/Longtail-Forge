@@ -311,7 +311,12 @@ describe("namespace governance records the declaration by identity", () => {
     const at = governance.indexOf("const UNDECLARED_PUBLICATION_BACKLOG = [");
     const backlog = governance.slice(at, governance.indexOf("];", at));
     assert.ok(!/"settingsRenderer"/.test(backlog), "the record is spent");
-    assert.match(backlog, /"settingsHost"|"supportView"/, "the backlog still holds its other entries");
+    // `0.33.33.38.2.3.3` declared the last four members, so the backlog is now legitimately
+    // empty. The claim this assertion defends is unchanged - that **this** member left by
+    // identity - and what replaces the "other entries" half is that the list is still a live
+    // instrument rather than a deleted one.
+    assert.match(governance.slice(at), /^const UNDECLARED_PUBLICATION_BACKLOG = \[\];/m,
+      "the backlog survives as an empty list, so a new undeclared publication is still caught");
   });
 
   it("is recorded by identity rather than by an absolute declared count", () => {
