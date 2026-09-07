@@ -1,5 +1,31 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.8 - The fallback-object acquisitions
+
+**Model: Small Effort** - eight diagnostics, three files, and the thing being removed is not the fallback.
+
+- [x] **The stand-in was the defect, not the optionality.** All eight read `TS2339: Property 'x' does not exist on type '{}'`. Three files captured an optional declared member behind `|| {}`, and an empty object literal has **no members** - so every read through it was a property access on `{}`, whatever the member's declared type said. Deleting the literal lets each site's own existing test narrow the captured value, which is what those tests were already doing at runtime.
+- [x] **Both Time Tracking fallbacks stayed, and they are not the same test.** The dashboard asks `typeof formatters?.hours === "function"`; the reporting adapter asks plain truthiness. A truthy non-function therefore falls back in one file and reaches the call in the other, and **that difference is preserved on purpose** - breaks that homogenise either direction are refused. No `requireFormatters`, no mandatory script delivery, and the local hour and currency output is byte-for-byte what it was.
+- [x] **`formatter?.method(value) || fallback` was refused as a substitute.** It reads as an equivalent tidy-up and is not: a formatter that legitimately answers the empty string would have its answer replaced by the local text. Both files are driven through that exact case, and breaks introducing the coalescing form are refused in both.
+- [x] **A formatter's exception still propagates.** Wrapping the conditional in a `catch` that returns fallback output would hide a broken helper behind plausible numbers; a break that adds one is refused.
+- [x] **Capture semantics are untouched.** The formatter surface is read **once**, at module scope, in both files - a replacement published afterwards does not take over, and a break converting the capture into a per-call lookup is refused. Receivers and inputs are unchanged: `hours` is still called on the surface, and still with the raw value rather than a normalised one.
+- [x] **`view-builder`'s guard was already doing the work the fallback pretended to do.** `normalizeSurfaceDescriptor` read `root.viewSurfaceDescriptor || {}` and then threw unless `adapter.normalize` was a function - so an absent adapter and a malformed one already took the same path, and the empty object only hid the member's declared type from that check. The lookup still happens **inside the function on every call**, the descriptor, receiver, returned object identity and error message are unchanged, and breaks that bypass the function check, cache the adapter at module scope, detach `normalize`, rebuild the result or reword the error are all refused.
+
+Proved by breaking each claim, restored from explicit byte copies in a `finally` with hash verification and no stash: **17 breaks - all 17 refused**. Three of them initially missed and each was dispositioned rather than dropped: one because the lift carried only the capture line, so the claim moved to a source assertion that no file may make the surface mandatory; one because the guard fired with a different message than predicted; and one because the input chosen made normalisation invisible - `Number(28800)` is `28800` - so the test now also passes a string.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,745 | **7,737** |
+| Namespace family | 20 | **12** |
+| Bare-root sites / adoptable | 0 / 0 | **0 / 0** |
+| Declared / known members | 60 / 64 | **60 / 64** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 2,129 / 348 / 167 | **2,151 / 348 / 167**, green |
+
+**All eight are true eliminations**, all `TS2339`, and no `(file, code)` pair increased: `time-tracking-reporting.js` -4, `time-tracking-dashboard.js` -2, `shared/view-builder.js` -2. **The `0.33.33.39`-`0.33.33.44` owner budgets are unchanged** - every one of these is namespace-family, which those budgets do not carry - so there is no transfer, no reclassification and no contextual movement. No static owner needed retargeting.
+
 ## Version 0.33.33.38.2.6.11 - The last required declared-member acquisitions
 
 **Model: Medium Effort** - two surfaces, two different dependency lifetimes, and the whole point is that neither one moved.

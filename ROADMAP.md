@@ -284,6 +284,14 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 **Complete.** All three classes are drained, every child is merged, and the classifier reports `0 bare-root reads, 0 on a declared member, 0 parked behind 0 undeclared members`. The parent's measure was its three semantic classes and not any single counter, which is why it stayed open through `0.33.33.38.2.6.10` on one remaining site.
 
 
+#### 0.33.33.38.2.8 - The fallback-object acquisitions
+
+**Complete: eight diagnostics across three files, and the thing removed is the stand-in rather than the fallback.** See the archive entry. All eight read `Property 'x' does not exist on type '{}'`: an optional declared member captured behind `|| {}` has no members at all, so every read through it was a property access on an empty literal. Deleting the literal lets each site's own existing test narrow the captured value.
+
+**A different class from `0.33.33.38.2.6`, which is why it is not one of its children.** That parent's measure was root optionality - members reached through an unchecked root. Nothing here reaches an unchecked root; the roots were already optional-safe and the members already guarded.
+
+**The two Time Tracking tests are deliberately not the same test**, and both survive: `typeof ... === "function"` in the dashboard, plain truthiness in the reporting adapter. Neither fallback was removed, no `requireFormatters` was added, and `formatter?.method(value) || fallback` was refused as a substitute because it would replace a formatter's legitimate empty answer with local text.
+
 #### 0.33.33.38.2.7 - Teach the publication inventory the logical-assignment root
 
 **Model: Medium Effort - a prerequisite, not a cleanup. `0.33.33.38.2.2` decides which surfaces exist and how to group them by reading this inventory, and the instrument was incomplete.**
