@@ -1,5 +1,30 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.2 - The normalized Lists record handoff
+
+**Model: Medium Effort** - a prerequisite drawn from a probe rather than from a plan.
+
+- [x] **Drawn because the probe said so, not because a model looked untidy.** Applying the `GET /api/lists` summary reader closed its target `TS18046` and **introduced two new diagnostics**: `state.lists` inferred `never[]`, and `loadListDetail`'s `fallback` parameter typed `null`. Both sit at this boundary, so it lands first - and the raw summary read is deliberately unchanged here, so the next child still has its own target to close.
+- [x] **The page record and the wire record disagree on purpose, and one member proves it.** `is_reusable` is an `INTEGER` column the shaper passes through untouched, so `BrowserListSummary` types it `number`; `normalizeListRecord` coerces it to a boolean. **The first-party declaration probe caught this out loud** when the omission list was incomplete - `Interface 'BrowserNormalizedListRecord' incorrectly extends ...` - which is exactly the impossible-intersection trap. Every one of the nine rebuilt members is omitted from the base and the rest carried as an optional partial. No index signature, and no member this page does not read.
+- [x] **The draft case is real, so the identity is optional.** `readListDetail` answers `list: undefined` for a body it cannot read, and the normaliser's `{}` default then produces a record with no `id` and no `list_id`. Declaring them `string` would have described the saved case and called it the contract.
+- [x] **The normaliser's inputs are deliberately left as they were.** Annotating them reaches into `normalizeListProgress`'s **twenty** `unknown` reads and two snake_case aliases (`resume_context`, `source_context`) the shaper does not emit. That is a separate page-model boundary; this child owns the record it **produces**.
+- [x] **`filter(Boolean)` becomes a narrowing predicate that answers exactly what `Boolean` answered.** The old filter dropped the same rows and told the compiler nothing, so the nullable element type reached `state.lists`. The summary fallback is untouched: a rejected detail request still contributes its list rather than dropping it.
+- [x] **One fixture was corrected against the producer rather than the reader being bent to fit it.** It sent `progress: null`; `shapeListsForBrowser` always builds that member from `listProgressSummaryFromItems`.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,690 | **7,664** |
+| `public/js/lists.js` | 424 | **398** |
+| Genuine `unknown` | 2 | **2** |
+| Namespace family | 0 | **0** |
+| Declared / known members | 64 / 64 | **64 / 64** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 2,241 / 348 / 167 | **2,255 / 348 / 167**, green |
+
+**All twenty-six are true eliminations under `0.33.33.43`**, and no `(file, code)` pair increased: `TS2339` -19, `TS2322` -2, `TS7006` -3, `TS2345` -1, `TS7005` -1. Owner `0.33.33.43` 924 to **898** - params -3, state -20, assorted -3. **These are model-prerequisite eliminations and must not be reported as response-boundary work**; the response child's own target is still open.
+
 ## Version 0.33.33.38.2.5 - The closed namespace root
 
 **Model: Small Effort** - one line removed, and the whole family's evidence behind it.

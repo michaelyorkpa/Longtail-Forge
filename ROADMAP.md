@@ -1102,6 +1102,14 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
 
+#### 0.33.33.43.2 - The normalized Lists record handoff
+
+**Complete: 26 diagnostics, one page-model boundary, and the response read deliberately left alone.** See the archive entry. Drawn because a probe of the `GET /api/lists` reader closed its target and introduced two new diagnostics at exactly this boundary - `state.lists` inferred `never[]`, and `loadListDetail`'s `fallback` typed `null`. The response child could not land cleanly without it.
+
+**The page record and the wire record are different models, and one member proves it.** `is_reusable` is an `INTEGER` column the shaper passes through untouched, so `BrowserListSummary` types it `number`; `normalizeListRecord` coerces it to a boolean. A record that extended the wire contract would be an impossible type, so this one omits every member it rebuilds and carries the rest as an optional partial. `id` and `list_id` are `string | undefined` because the draft case is real: `readListDetail` answers `list: undefined` for a body it cannot read.
+
+**The normaliser's inputs are deliberately untyped.** Annotating them reaches into `normalizeListProgress`'s twenty `unknown` reads and two snake_case aliases the shaper does not emit - a separate boundary this child does not claim.
+
 #### 0.33.33.43.1 - Type the Lists declarative-view descriptor boundary
 
 **Complete: 28 diagnostics closed, ten contracts published, and `0.33.33.38.2.2.5.2`'s blocker cleared.** See the archive entry.
