@@ -5859,6 +5859,145 @@ export interface BrowserTaskTimerRecord {
 }
 
 /**
+ * The window `GET /api/tasks/calendar` describes, as the server states it.
+ *
+ * **Not the browser's display range, and the two are not interchangeable.** `tasksService`
+ * builds exactly these two day keys from the requested query, clamped to the service's bounded
+ * window. `taskCalendar.calendarRange()` builds a *different* object for the same period - it
+ * carries `fetchStart`, `fetchEnd`, the expanded `days` list, a formatted `label`, and in the
+ * month branch a `monthIndex`. That one is a rendering input; this one is a response member.
+ */
+export interface BrowserTaskCalendarWindowRange {
+  /** Inclusive `YYYY-MM-DD` day key, echoed from the request after normalization. */
+  endDate: string;
+  /** Inclusive `YYYY-MM-DD` day key. Never later than `endDate`; the producer rejects that with a 400. */
+  startDate: string;
+}
+
+/**
+ * The members every calendar row carries, whether it is a saved task or a projected occurrence.
+ *
+ * **`status` and `priority` stay `string`.** They are column values passing through
+ * `taskCalendarRow`, not literals the producer writes, which is the same reason
+ * `0.33.33.38.4.3.1` refused to close them. `formatToken` in the renderer title-cases whatever
+ * arrives; that is display formatting and not a constraint on the data.
+ *
+ * `startDate` and `endDate` are the row's own single-day span - both equal to `due_date` from
+ * both producers. They are declared because the producer promises them, not because this
+ * renderer reads them.
+ */
+export interface BrowserTaskCalendarRowBase {
+  /** `true` exactly when `due_time` is empty; the producer derives it rather than storing it. */
+  allDay: boolean;
+  client_name: string;
+  /** `YYYY-MM-DD`. The key the renderer groups rows by. */
+  due_date: string;
+  /** `HH:MM`, or the empty string for an all-day row. */
+  due_time: string;
+  endDate: string;
+  /** DOM identity. The task id for a saved row, `recurrence:<templateId>:<date>` for a projected one. */
+  id: string;
+  priority: string;
+  project_name: string;
+  startDate: string;
+  status: string;
+  title: string;
+}
+
+/**
+ * A row backed by a saved task.
+ *
+ * `task_id` is the saved identifier and the renderer opens the task with it directly. The
+ * recurrence members are absent rather than empty, which is what distinguishes this row from a
+ * projected one.
+ */
+export interface BrowserTaskCalendarTaskRow extends BrowserTaskCalendarRowBase {
+  instanceDate?: undefined;
+  task_id: string;
+  templateId?: undefined;
+  virtual?: undefined;
+}
+
+/**
+ * A recurrence occurrence the window projects without materializing it.
+ *
+ * **`task_id` is deliberately the empty string and must stay legal.** `virtualTaskCalendarRow`
+ * writes it that way because no task exists yet: a calendar `GET` projects occurrences and never
+ * creates them. The click handler opens this row through `templateId` and `instanceDate`
+ * instead, and requiring a saved identifier here would refuse a valid response.
+ *
+ * `virtual` is the discriminant, written as the literal `true` by the only producer that builds
+ * these rows.
+ */
+export interface BrowserTaskCalendarVirtualRow extends BrowserTaskCalendarRowBase {
+  /** `YYYY-MM-DD`, equal to `due_date`. */
+  instanceDate: string;
+  /** Always the empty string. The occurrence has no saved task. */
+  task_id: string;
+  templateId: string;
+  virtual: true;
+}
+
+/** One calendar row: a saved task or a projected recurrence occurrence. */
+export type BrowserTaskCalendarRow = BrowserTaskCalendarTaskRow | BrowserTaskCalendarVirtualRow;
+
+/**
+ * One reminder occurrence that falls inside the displayed window.
+ *
+ * **A marker's task is not necessarily in the same response's `tasks`.** `calendarWindow` reads
+ * tasks due through a lookahead horizon past `endDate`, computes reminders across all of them,
+ * and then keeps the markers whose *reminder* day lands inside the window while filtering the
+ * task rows down to `due_date <= endDate`. A reminder that fires today for a task due next week
+ * is the intended case, so nothing here may require `task_id` to appear in `tasks`.
+ *
+ * `due_kind` is a closed union because `computeReminderOccurrences` assigns one of two module
+ * constants by whether the task has a due time. `source` stays `string`: it is the reminder
+ * policy target that supplied the offset, and the server's own `TaskReminderOccurrence` declares
+ * it as `string`.
+ */
+export interface BrowserTaskCalendarReminderMarker {
+  /** `YYYY-MM-DD` in the session timezone. The key the renderer groups markers by. */
+  date: string;
+  /** ISO-8601 UTC instant the task is due, from which `reminder_at_utc` is offset. */
+  due_at_utc: string;
+  due_kind: BrowserTaskCalendarReminderDueKind;
+  /** Minutes *before* the due instant. `reminder_at_utc` is `due_at_utc` minus this many minutes. */
+  offset_minutes: number;
+  /** ISO-8601 UTC instant. Sorted ascending by the producer. */
+  reminder_at_utc: string;
+  /** The policy level the offsets came from, e.g. `"workspace"` or `"project"`. */
+  source: string;
+  task_id: string;
+  title: string;
+  /** `tasks.html?task=` with the identifier encoded, built by the producer. */
+  url: string;
+}
+
+/**
+ * Whether the reminder was computed against a date-and-time due value or a date-only one.
+ *
+ * Declared as a union because `computeReminderOccurrences` writes one of two constants, chosen
+ * by whether the task carries a `due_time`. Not a column read.
+ */
+export type BrowserTaskCalendarReminderDueKind = "date_only" | "date_time";
+
+/**
+ * The whole `GET /api/tasks/calendar` body.
+ *
+ * **`source_enabled: false` is a valid response, not an error and not an empty calendar.** It
+ * says the Tasks module is disabled for the workspace; the window still carries the due dates
+ * that already exist, and the Calendar page shows them read-only with a status line. Both
+ * arrays may legitimately be empty.
+ */
+export interface BrowserTaskCalendarWindow {
+  range: BrowserTaskCalendarWindowRange;
+  reminders: BrowserTaskCalendarReminderMarker[];
+  /** `false` when the Tasks module is disabled for this workspace. Still a complete response. */
+  source_enabled: boolean;
+  tasks: BrowserTaskCalendarRow[];
+}
+
+/**
  * The next occurrence a recurrence continuity points at.
  *
  * **Four members, and `safeNextTask` is why it is safe to name them.** It answers `null` for

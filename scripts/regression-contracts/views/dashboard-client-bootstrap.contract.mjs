@@ -87,7 +87,10 @@ assert.match(
 );
 assert.match(
   taskCalendar,
-  /const dashboardLoadRoute = root\.dashboardBootstrap\?\.loadRoute[\s\S]*return dashboardLoadRoute\(route\)/,
+  // `0.33.33.38.4.3.10` routed both transports through one response reader, so the loader's body
+  // is awaited and validated rather than returned raw. The claim is unchanged: when a prewarmed
+  // loader exists, this helper goes through it instead of opening its own request.
+  /const dashboardLoadRoute = root\.dashboardBootstrap\?\.loadRoute[\s\S]*?await dashboardLoadRoute\(route\)/,
   "the shared task calendar must reuse its prewarmed bounded route on Dashboard",
 );
 

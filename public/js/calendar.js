@@ -59,6 +59,10 @@
   const calendarState = {
     view: taskCalendar?.resolveDefaultView?.(null) || "month",
     anchor: new Date(),
+    // The direct storage slot for the calendar-window response. `0.33.33.38.4.3.10` made it
+    // typeable by validating that response at the fetch boundary; before that this held an
+    // implicit `any` and every read through it was unchecked.
+    /** @type {import("../../src/types/browser-contracts.js").BrowserTaskCalendarWindow | null} */
     data: null,
     workspaceType: "business",
     clientId: "",
