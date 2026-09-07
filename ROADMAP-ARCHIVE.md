@@ -1,5 +1,36 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.9 - The stored-context fallback and legacy-alias acquisitions
+
+**Model: Medium Effort** - twelve diagnostics that looked like one thing and were two, plus the small nested boundary the second one exposed.
+
+- [x] **Nine were the stand-in, not the availability.** Five consumer functions captured the published context as `workspaceContext || {}`. An empty object literal has no members, so every read through it failed regardless of what `BrowserStoredWorkspaceContext` declared. The literal is gone; each site keeps its **own** optional capture, at its original point, with its own operators and its own final default. No `requireWorkspaceContext`, no fabricated default record, and no consumer newly throws - breaks that add a throwing accessor or make the root required are refused.
+- [x] **Three were dead arms, and the publisher proves it.** `buildWorkspaceContext` is the sole writer of this member - one assignment site, reached by both the live store and the cache hydration - and it emits an exact fourteen-member record. `user_id`, `workspace_type` and a flat `availableTools` are not among them. **`user_id` is not merely absent, it is already consumed**: line 2049 folds `settings.user_id` *into* `userId` before publishing, so the consumer's alias arm was reading a field the publisher had deliberately normalised away. `workspace_type` is not even an input to `workspaceType`, and `availableTools` lives inside `workspaceCapabilities`. All three arms are deleted; the canonical read and the final default stay at each site.
+- [x] **Every live default survived, and `||` was not mechanically upgraded.** `context?.userId || ""` still answers `""` for the empty identity the constructor legitimately publishes; `context?.workspaceType || "business"` and the empty-string input into `normalizeWorkspaceType` are untouched. Breaks that delete a final fallback, and breaks that swap `||` for `??` where the behaviour differs, are refused in both directions.
+- [x] **The container checks stayed, because the declaration does not make them redundant.** `enabledModules` is declared `unknown[]` and `workspaceCapabilities` is declared `Record<string, unknown>`, so `Array.isArray` is still what makes `includes("clients_projects")` safe - a capability list that is a *string* would otherwise pass `includes`. Breaks that drop either check are refused.
+- [x] **Lists needed a small local boundary, and it is local.** Removing `{}` exposed reads the stored constructor never validated: `modules` is proved to be a list and nothing about its elements, because each element belongs to the module that contributed it. A file-local predicate proves only what selecting the Lists entry needs - a plain object carrying `id === "lists"` - reusing the file's existing `isResponseRecord`. Terminology precedence, the default entry, the `displayName` fallback and the `"Lists"` / `"Create List"` defaults are unchanged, the module object's other fields are left exactly as written, and breaks that trust an element from its container or index a non-record candidate are refused.
+- [x] **One malformed-input behaviour did change, and it is named rather than glossed.** A label that is a truthy **non-string** - a number, an object - used to be written straight into `textContent` and would have rendered `"42"` or `"[object Object]"`. It now falls to the same local default the missing case already used. A string label renders exactly as before; valid contexts are unaffected.
+
+Proved by breaking each claim, restored from explicit byte copies in a `finally` with hash verification and no stash: **19 breaks - all 19 refused**. Seven initially missed and each was dispositioned rather than dropped: four were assertions firing without their own message, and **three were real gaps** - the identity default only shows when there is no context at all, and two nested-trust claims passed for the wrong reason until the fixtures used a non-record element that actually carries the property (`Object.assign(["x"], { id: "lists" })`).
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,737 | **7,724** |
+| **Namespace family** | 12 | **0** |
+| Bare-root / adoptable / parked | 0 / 0 / 0 | **0 / 0 / 0** |
+| Declared / known members | 60 / 64 | **60 / 64** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Genuine `unknown` | 2 | **2** |
+| Unit tests / regressions / end-to-end | 2,151 / 348 / 167 | **2,184 / 348 / 167**, green |
+
+**Thirteen eliminations, and they are not all one family.** Twelve are the namespace-family reads this child set out to close. The thirteenth is a **contextual** `TS7006` under `0.33.33.43`: replacing the inline `(module) => module.id === "lists"` arrow with the named predicate removed an implicitly-`any` parameter. No `(file, code)` pair increased: `lists.js` -6, `notes.js` -4, `shared/module-actions.js` -2, `stop-watch.js` -1. Owner `0.33.33.43` 925 to **924**; every other budget is unchanged, because the namespace family is not carried by the owner budgets at all.
+
+**Two static owners were retargeted, both pinning the deleted alias arm.** `notes-primary-context-regression` and `personal-family-workspace-scope-regression` each asserted `context.workspaceType || context.workspace_type || ""`; each now pins `normalizeWorkspaceType(context?.workspaceType || "")` with its claim unchanged, and both were proved to still fire against two different ways of breaking that read.
+
+**Namespace zero is not namespace completion.** The diagnostic family is empty; declaration coverage is not. Four publications remain undeclared - `helpPageReady`, `overlayHost`, `sessionAuthWarnings`, `supportView` - and the namespace index signature still exists. Those are three separate acceptance questions and `0.33.33.38.2` stays open on the latter two.
+
 ## Version 0.33.33.38.2.8 - The fallback-object acquisitions
 
 **Model: Small Effort** - eight diagnostics, three files, and the thing being removed is not the fallback.
