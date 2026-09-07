@@ -1239,19 +1239,56 @@
     }
   }
 
-  function applyWorkspaceContext() {
-    const context = window.LongtailForge?.workspaceContext || {};
-    const moduleDefinition = (context.modules || []).find((module) => module.id === "lists");
-    const terminology = moduleDefinition?.terminology?.[context.workspaceType] || moduleDefinition?.terminology?.default || {};
-    const label = terminology.label || moduleDefinition?.displayName || "Lists";
+  /**
+   * The Lists entry in the stored context's module list.
+   *
+   * **The stored constructor validates the container, not the elements.** `modules` is declared
+   * `unknown[]` because `buildWorkspaceContext` proves it is a list and nothing about what is in
+   * it - each element belongs to the module that contributed it. This proves only what selecting
+   * the Lists entry needs: a plain object carrying `id === "lists"`. Every other field on that
+   * object is left exactly as the module wrote it.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isListsModuleDefinition(value) {
+    return isResponseRecord(value) && value.id === "lists";
+  }
 
-    state.workspaceType = context.workspaceType || "business";
-    state.currentUserId = context.userId || context.user_id || "";
+  /**
+   * One label the Lists chrome renders, or the empty string.
+   *
+   * **This is a deliberate tightening for malformed data, and only for malformed data.** A label
+   * that is a string renders exactly as before. A label that is a truthy *non-string* - a number,
+   * an object - used to be written into `textContent` and would have rendered as `"42"` or
+   * `"[object Object]"`; it now falls through to the same local default the missing case already
+   * used. Valid contexts are unaffected.
+   * @param {unknown} value @returns {string}
+   */
+  function readListsLabel(value) {
+    return typeof value === "string" ? value : "";
+  }
+
+  function applyWorkspaceContext() {
+    const context = window.LongtailForge?.workspaceContext;
+    const moduleDefinition = (context?.modules || []).find(isListsModuleDefinition);
+    const terminologies = isResponseRecord(moduleDefinition?.terminology)
+      ? moduleDefinition.terminology
+      : {};
+    // The same two-step truthiness chain as before: the workspace-specific entry when it is
+    // truthy, otherwise the default entry. Whatever it settles on is only read as a record.
+    const candidate = terminologies[context?.workspaceType || ""] || terminologies.default;
+    const terminology = isResponseRecord(candidate) ? candidate : {};
+    const label = readListsLabel(terminology.label) || readListsLabel(moduleDefinition?.displayName) || "Lists";
+
+    state.workspaceType = context?.workspaceType || "business";
+    // `buildWorkspaceContext` already folds an incoming `user_id` into `userId` before it
+    // publishes, so the alias arm was reading a field the publisher cannot emit.
+    state.currentUserId = context?.userId || "";
     if (pageTitle) {
       pageTitle.textContent = label;
     }
     if (createButton) {
-      createButton.textContent = terminology.createButton || "Create List";
+      createButton.textContent = readListsLabel(terminology.createButton) || "Create List";
     }
     document.body.dataset.listsWorkspaceType = state.workspaceType;
     setBusinessControlsVisible(usesBusinessScope());

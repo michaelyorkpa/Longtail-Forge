@@ -260,7 +260,10 @@ WHERE note_id = ${sqlText(personalDefault.note.note_id)};
 
     assert.match(notesScript, /workspaceType: ""/);
     assert.match(notesScript, /clientField\.hidden = true/);
-    assert.match(notesScript, /context\.workspaceType \|\| context\.workspace_type \|\| ""/);
+    // Same retarget as `notes-primary-context-regression`: the alias arm is gone, the
+    // canonical read and the final empty-string input into the normalizer are not.
+    assert.match(notesScript, /normalizeWorkspaceType\(context\?\.workspaceType \|\| ""\)/,
+      "Notes still reads the workspace type from the stored context, through its canonical member");
     assert.match(notesScript, /primaryClientField\.hidden = !clientAvailable/);
     assert.match(notesScript, /primaryClientField\.style\.display = clientAvailable \? "" : "none"/);
     assert.match(notesScript, /return normalizeWorkspaceType\(state\.workspaceType\) === "business" && workspaceHasClientTools\(\)/);

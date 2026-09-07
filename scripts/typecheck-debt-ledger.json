@@ -432,6 +432,7 @@
         "tests/unit/slice-verification-plan.test.mjs",
         "tests/unit/sqlite-health-formatter.test.mjs",
         "tests/unit/static-regression-execution.test.mjs",
+        "tests/unit/stored-context-acquisition-contracts.test.mjs",
         "tests/unit/support-view-audit-contracts.test.mjs",
         "tests/unit/support-view-target-contracts.test.mjs",
         "tests/unit/tag-bulk-assignment-contracts.test.mjs",
@@ -554,7 +555,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7737,
+      "errorCount": 7724,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -889,7 +890,7 @@
           },
           {
             "code": 2339,
-            "count": 190
+            "count": 185
           },
           {
             "code": 2345,
@@ -905,7 +906,7 @@
           },
           {
             "code": 7006,
-            "count": 156
+            "count": 155
           },
           {
             "code": 7031,
@@ -1031,7 +1032,7 @@
           },
           {
             "code": 2339,
-            "count": 453
+            "count": 449
           },
           {
             "code": 2345,
@@ -1279,7 +1280,7 @@
           },
           {
             "code": 2339,
-            "count": 5
+            "count": 3
           },
           {
             "code": 2554,
@@ -1493,7 +1494,7 @@
           },
           {
             "code": 2339,
-            "count": 16
+            "count": 15
           },
           {
             "code": 2345,
@@ -2574,8 +2575,8 @@
     }
   },
   "totals": {
-    "files": 1135,
-    "errors": 7737,
+    "files": 1136,
+    "errors": 7724,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

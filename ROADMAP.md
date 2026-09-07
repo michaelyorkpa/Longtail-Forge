@@ -284,6 +284,16 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 **Complete.** All three classes are drained, every child is merged, and the classifier reports `0 bare-root reads, 0 on a declared member, 0 parked behind 0 undeclared members`. The parent's measure was its three semantic classes and not any single counter, which is why it stayed open through `0.33.33.38.2.6.10` on one remaining site.
 
 
+#### 0.33.33.38.2.9 - The stored-context fallback and legacy-alias acquisitions
+
+**Complete: twelve diagnostics that looked like one thing and were two, and the namespace diagnostic family is now empty.** See the archive entry. Nine were the `workspaceContext || {}` stand-in obscuring already-declared canonical fields; three were fallback arms for `user_id`, `workspace_type` and a flat `availableTools` that the canonical publisher cannot emit.
+
+**The producer proves the alias deletion, and it did not move to allow it.** `buildWorkspaceContext` is the sole writer of this member and emits an exact record. `user_id` is not merely absent from it - the constructor already folds an incoming `user_id` **into** `userId` before publishing, so the consumer arm was reading a field that had been normalised away upstream.
+
+**Lists needed a small local boundary and got exactly that.** `modules` is declared `unknown[]` because the constructor proves the container and not its elements; a file-local predicate proves only `id === "lists"` on a plain object, reusing the file's existing record test. One malformed-input behaviour changed and is named in the archive rather than glossed: a truthy non-string label now takes the same local default the missing case already used.
+
+**Namespace zero is not namespace completion.** Four publications remain undeclared and the index signature still exists; diagnostic count, declaration coverage and permissiveness are three separate acceptance questions.
+
 #### 0.33.33.38.2.8 - The fallback-object acquisitions
 
 **Complete: eight diagnostics across three files, and the thing removed is the stand-in rather than the fallback.** See the archive entry. All eight read `Property 'x' does not exist on type '{}'`: an optional declared member captured behind `|| {}` has no members at all, so every read through it was a property access on an empty literal. Deleting the literal lets each site's own existing test narrow the captured value.

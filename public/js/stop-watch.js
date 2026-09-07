@@ -1393,8 +1393,8 @@
   }
 
   function workspaceShowsClientTools() {
-    const context = window.LongtailForge?.workspaceContext || {};
-    const tools = context.workspaceCapabilities?.availableTools || [];
+    const context = window.LongtailForge?.workspaceContext;
+    const tools = context?.workspaceCapabilities?.availableTools || [];
 
     return Array.isArray(tools) && tools.includes("clients_projects");
   }
