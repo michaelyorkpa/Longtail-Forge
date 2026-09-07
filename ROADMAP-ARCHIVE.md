@@ -1,5 +1,37 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.6.11 - The last required declared-member acquisitions
+
+**Model: Medium Effort** - two surfaces, two different dependency lifetimes, and the whole point is that neither one moved.
+
+- [x] **`pageController` is captured at module evaluation and required much later, and the fix is lazy *checking* rather than lazy *reacquisition*.** Three dialogs bind `const pageController = namespace.pageController` while the browser is still importing them; that bind never threw when the member was absent - it stored `undefined`, and the first `createOption` call failed. A file-local accessor now tests **that captured binding** at that same first call. Breaks that check at capture time, that re-read `namespace.pageController` inside the accessor, and that re-read it at a use site are all refused.
+- [x] **Re-reading would have been a new lifetime, not a narrowing.** These dialogs have never supported a page controller published *after* their module ran; a per-call lookup would make that silently start working. A break that grants the accessor a live lookup is refused, and so is one that lets a controller arriving after the capture rescue the call.
+- [x] **The dialogs still evaluate, and still publish, without the member.** A check at capture would break the lazy import itself rather than just the option builders. Each of the three shipped files is evaluated against a namespace with no `pageController` and still publishes `tasksDialog`, `timeEntryDialog` and `timeTrackingTimerDialog`.
+- [x] **Delivery order is why the capture works in production, and it is now asserted.** `page-controller.js` is a plain page script on `calendar.html`, `tasks.html` and `time-entries.html`; the dialogs are imported lazily by `module-actions.js` afterwards. Every one of those pages loads the helper **above** the dialog, and a break that removes it is refused.
+- [x] **`cachedFetch` is required on one branch and irrelevant on the other.** `loadDashboardManifest` goes straight to `BrowserApi` when there is no usable workspace id and never touches the cache. The check sits at the cached invocation point, below the id test, and is read **per call** - the opposite of the dialogs' captured binding, and both are preserved deliberately. Breaks that hoist the requirement above the id test, that route the uncached path through the cache, and that capture the member at module scope are all refused.
+- [x] **The cached result is handed back untouched.** Same route, same `${workspaceId}:dashboard:${assetVersion}:manifest` key, same `data`/`fromCache`/`revalidated` object by identity, same single request. Breaks that change the key, that rebuild the result with a spread, and that fall back to the API on the cached branch are refused.
+- [x] **A named delivery error replaces a `TypeError`, and that was checked before it was done.** No caller in any of the four files inspects the error class or message - no `instanceof`, no message match - so the failure point is unchanged and only its text improved.
+
+**One premise correction.** The instruction named `PageControllerRegistry` as the accessor's return type. That is the declared type of `namespace.controllers`, an index-signature map of registered page controllers; `namespace.pageController` is declared `BrowserPageController`, which is the interface carrying `createOption` and `sortByName`. The accessors return the latter, because the former has neither method.
+
+Proved by breaking each claim, restored from explicit byte copies in a `finally` with hash verification and no stash: **14 breaks - all 14 refused**, plus one against the static owner this child retargeted.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,750 | **7,745** |
+| Namespace family | 25 | **20** |
+| Root optionality: adoptable | 1 | **0** |
+| Bare-root sites | 0 | **0** |
+| Declared / known members | 60 / 64 | **60 / 64** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 2,100 / 348 / 167 | **2,129 / 348 / 167**, green |
+
+**All five are true eliminations**, all `TS18048`, and no `(file, code)` pair increased: `time-entry-dialog.js` -2, `task-dialog.js` -1, `time-tracking-timer-dialog.js` -1, `dashboard.entry.js` -1. **The `0.33.33.39`-`0.33.33.44` owner budgets are unchanged** - every one of these is namespace-family, which those budgets do not carry - so there is no transfer, no reclassification and no contextual movement to report.
+
+**This closes `0.33.33.38.2.6`.** Its acceptance criterion was the three semantic classes it drew, not a single counter: class A (member intentionally optional) reached 0 at `0.33.33.38.2.6.10`, class E (parked behind an undeclared member) drained to 0 through `0.33.33.38.2.2`'s declarations exactly as predicted, and class B (member genuinely required, wanting lazy checked acquisition) ends here - `pageController` and `cachedFetch` were the two surfaces it named that were still live. The classifier now reports `0 bare-root reads, 0 on a declared member, 0 parked`.
+
 ## Version 0.33.33.38.2.2.6.6.4 - `LongtailForge.taskCalendar`
 
 **Model: Medium Effort** - nine members, two consumers, and a blocker that another checkpoint had just retired.
