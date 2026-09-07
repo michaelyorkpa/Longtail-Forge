@@ -54,7 +54,29 @@
     }
     return dialogs;
   }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserPageController} BrowserPageController */
   const pageController = namespace.pageController;
+
+  /**
+   * The page-controller helper this dialog's option builders cannot run without.
+   *
+   * **Checked at use, not at capture, because the capture never threw.** `pageController` is
+   * bound during module evaluation, when the shared script may not have run yet; reading an
+   * absent member there produced `undefined` and only the first method call failed. This checks
+   * that same captured binding at that same first call, so the moment of failure is unchanged.
+   *
+   * **The captured binding is deliberately not re-read.** Re-reading `namespace.pageController`
+   * per call would give this dialog a live dependency it has never had, and a helper published
+   * after module evaluation would silently start working. That is a different lifetime, not a
+   * narrowing.
+   * @returns {BrowserPageController}
+   */
+  function requirePageController() {
+    if (!pageController) {
+      throw new Error("Task dialog requires LongtailForge.pageController.");
+    }
+    return pageController;
+  }
 
   let context = null;
   let fileAttachmentsController = null;
@@ -2386,7 +2408,7 @@
   }
 
   function option(value, label) {
-    return pageController.createOption(value, label);
+    return requirePageController().createOption(value, label);
   }
 
   function optionLabel(record) {

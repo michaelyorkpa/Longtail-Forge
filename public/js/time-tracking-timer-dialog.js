@@ -2,7 +2,29 @@
 
 (function attachTimeTrackingTimerDialog(global) {
   const namespace = global.LongtailForge || {};
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserPageController} BrowserPageController */
   const pageController = namespace.pageController;
+
+  /**
+   * The page-controller helper this dialog's option builders cannot run without.
+   *
+   * **Checked at use, not at capture, because the capture never threw.** `pageController` is
+   * bound during module evaluation, when the shared script may not have run yet; reading an
+   * absent member there produced `undefined` and only the first method call failed. This checks
+   * that same captured binding at that same first call, so the moment of failure is unchanged.
+   *
+   * **The captured binding is deliberately not re-read.** Re-reading `namespace.pageController`
+   * per call would give this dialog a live dependency it has never had, and a helper published
+   * after module evaluation would silently start working. That is a different lifetime, not a
+   * narrowing.
+   * @returns {BrowserPageController}
+   */
+  function requirePageController() {
+    if (!pageController) {
+      throw new Error("The time tracking timer dialog requires LongtailForge.pageController.");
+    }
+    return pageController;
+  }
 
   const TIMER_ACTION_ID = "time-tracking.timer.create";
   const MAX_MANUAL_TIMER_SLOTS = 4;
@@ -492,7 +514,7 @@
   }
 
   function createOption(value, text) {
-    return pageController.createOption(value, text);
+    return requirePageController().createOption(value, text);
   }
 
   function setStatus(message, options = {}) {
