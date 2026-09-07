@@ -427,10 +427,11 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 #### 0.33.33.38.2.2.6.6.4 - `LongtailForge.taskCalendar`
 
-**Eight constructed members, one that returns a parsed body, and a blocker that is not in this file.** `addDays`, `calendarRange`, `dateKeyOf`, `normalizeCalendarView`, `parseDateKey`, `readPreferredCalendarView`, `renderCalendarBody` and `resolveDefaultView` are all locally constructed - `readPreferredCalendarView` reads `userPreferences.preferredCalendarView` but **returns it through `normalizeCalendarView`**, so its output is a checked member of a known set rather than the wire value.
+**Complete: the surface is declared whole, 40 diagnostics closed, and the blocker was retired rather than worked around.** See the archive entry. `0.33.33.38.4.3.10` closed the `/api/tasks/calendar` response boundary, which made `calendar.js`'s `data: null` slot typeable and removed the reason this child had been held.
 
-- [ ] **`fetchCalendarWindow` returns `dashboardBootstrap.loadRoute(route)` or `response.json()`.** The first is already declared `Promise<unknown>`, so that is the honest type for both branches and the surface could be declared whole.
-- [ ] **The blocker is `public/js/calendar.js:44`, which initialises `data: null` in a state object literal** - the `0.33.33.38.2.2.6.5.1` pattern exactly. `calendarState.data = await fetchCalendarWindow(...)` then fails because nothing is assignable to `null`. That field is page-local state owned by `0.33.33.44`, and it is not a copy of this contract.
+**All nine members are declared, including the four that produced no diagnostic.** Declaring only the five that appeared in error messages would have described the surface by its symptoms. `calendarRange`'s `monthIndex` stays month-branch-only, `parseDateKey` stays a coercion rather than a validation, and `renderCalendarBody` keeps both meanings of its `false`.
+
+**The declaration was not free, and that is the point of probing before adopting.** On its own it moved the estate 7,790 to 7,784 and exposed three real consumer defects the `unknown` surface had been hiding - a raw query-parameter view assignment and two `onOpenTask` callbacks whose defaulted third parameter could not receive a recurrence identity. All three are closed here.
 
 #### 0.33.33.38.2.3 - Close declaration coverage for the quiet tail
 
