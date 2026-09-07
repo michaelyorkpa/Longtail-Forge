@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.3 - The Overlay Host writer boundary
+
+**Model: Medium Effort** - 30 diagnostics in one file, and the first executable coverage a documented public hook has ever had.
+
+- [x] **A documented hook with no internal consumer is the one that most needs testing.** `LongtailForge.overlayHost` is named in `docs/module-development.md:284` and `docs/ui-surface-contract.md:110`, and nothing in the estate calls it - so nothing would have caught a regression. It is now driven end to end against a DOM double that provides exactly the capabilities the writer uses, so the shipped implementation runs unmodified.
+- [x] **The contract describes the objects that exist.** The published hook stays a **plain mutable object**, because it has never been frozen and freezing it here would be a behaviour change wearing a contract's clothes. `register` answers the record the writer keeps - `abortController` included, since the writer installs it while open and clears it on close - and `previousFocus` stays `Element | null` because `document.activeElement` need not be focusable. Breaks that freeze the hook, drop the `abortController` member, or claim a focusable previous target are refused.
+- [x] **Controller identity is deliberately not promised.** Two `create` calls for one host answer two different controller objects over the same `WeakMap` registry, so an overlay registered through one is toggled by the other, and different hosts stay independent. A break that stops sharing the per-host state is refused.
+- [x] **DOM types come from the operations rather than from convenience.** `host` and `trigger` are `Element` - the writer only reads `nodeType`, `classList`, `getBoundingClientRect`, `setAttribute` and `contains` - while `panel` is an `HTMLElement` because it receives `hidden`, `dataset`, `style` and `focus`. Narrowing either further would refuse arguments this helper accepts today, and a break that narrows the stored `trigger` to `HTMLElement` is refused.
+- [x] **Event targets and focus candidates are narrowed, not cast.** `EventTarget` is not a `Node`, so `handlePointerDown` narrows with `instanceof` and hands `contains` a `Node | null`; a non-node target answered `false` from both `contains` calls before and still closes the overlay. `focus` lives on `HTMLElement`, `SVGElement` and `MathMLElement` rather than on `Element`, so the writer's existing `typeof ... === "function"` test became a predicate the compiler can follow.
+- [x] **`offsetParent` keeps its original meaning exactly.** It is an `HTMLElement` property; on an SVG element the old read produced `undefined`, which is not `null`, so such elements passed the visibility filter. A helper preserves that rather than narrowing the query result to `HTMLElement` and silently dropping them.
+- [x] **One structural change, and it is behaviour-preserving.** The overlay record is built in a single step so `close` is a function from the moment the record exists, instead of being assigned `null` and overwritten on the next line. The arrow closes over the record and cannot run before the statement completes.
+- [x] **Every preserved behaviour is asserted rather than assumed:** one active overlay per host, the second open closing the first, `closeAll` and click-away **not** returning focus while Escape and `toggle`-close do, the capture-phase outside-click listener, abort-signal cleanup, the focus trap and its no-focusable-content fallback, resize repositioning, the 700px breakpoint - proved by the media query actually asked - the bottom-sheet class, the anchor clamp and 280px minimum, the ARIA relationships, existing panel ids, and the `String(...)` name and title coercions.
+
+Proved by breaking each claim, restored from explicit byte copies in a `finally` with hash verification and no stash: **7 one-sided compiler disagreements and 17 behavioural breaks - all 24 refused**. Each compiler break changes only the writer or only the declaration, never both. One initially missed for a real reason and was re-aimed rather than dropped: narrowing an **input parameter** is type-inert for the writer, because a narrower argument is still assignable to the wider stored member.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,724 | **7,694** |
+| `shared/overlay-host.js` | 30 | **0** |
+| Namespace family | 0 | **0** |
+| Declared / known members | 60 / 64 | **60 / 64** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 2,184 / 348 / 167 | **2,211 / 348 / 167**, green |
+
+**All thirty are true eliminations in one file** and no `(file, code)` pair increased: `TS7006` -23, `TS2339` -5, `TS2322` -1, `TS7031` -1. Owner `0.33.33.39` 1,644 to **1,614** - params -29 and assorted -1, which is where this file's debt sat. No other budget moved, so there is no transfer, reclassification or contextual movement elsewhere.
+
+**Two incidental corrections, both named rather than folded in.** `eslint.config.js` gains `Node` beside the `Element` and `HTMLElement` it already declared, because the event-target narrowing needs it. And the explicit-`any` scan reads `any,` as an annotation - a JSDoc sentence ending "if any," tripped it - so the comment was reworded rather than the scanner loosened; the scanner was right to be suspicious of that token.
+
 ## Version 0.33.33.38.2.9 - The stored-context fallback and legacy-alias acquisitions
 
 **Model: Medium Effort** - twelve diagnostics that looked like one thing and were two, plus the small nested boundary the second one exposed.

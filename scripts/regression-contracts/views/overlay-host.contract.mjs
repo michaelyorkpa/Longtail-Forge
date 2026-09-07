@@ -10,7 +10,10 @@ const styles = readText("public/css/longtail-forge.css");
 const surfaceContract = readText("docs/ui-surface-contract.md");
 const uiGuide = readText("docs/ui-layout-guide.md");
 
-assert.match(overlayHost, /root\.overlayHost\s*=\s*\{[\s\S]*create/, "shared overlay host should expose LongtailForge.overlayHost.create");
+// `0.33.33.39.3` moved the published literal into a named, contract-checked binding so the
+// compiler checks its membership; the claim is unchanged - the hook still exposes `create`.
+assert.match(overlayHost, /const overlayHostApi\s*=\s*\{[\s\S]*?create,[\s\S]*?root\.overlayHost = overlayHostApi;/,
+  "shared overlay host should expose LongtailForge.overlayHost.create");
 assert.match(overlayHost, /registry = new WeakMap\(\)/, "overlay hosts should be scoped per host element");
 assert.match(overlayHost, /panel\.setAttribute\("role", "dialog"\)/, "overlay panels should expose dialog role");
 assert.match(overlayHost, /trigger\.setAttribute\("aria-haspopup", "dialog"\)/, "overlay triggers should expose dialog popup intent");

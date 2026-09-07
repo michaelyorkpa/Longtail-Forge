@@ -724,6 +724,90 @@ export interface BrowserTaskLifecycleLegality {
 }
 
 /**
+ * What `overlayHost.create` needs in order to adopt a host element.
+ *
+ * `host` is optional in the signature and required in fact: the writer throws when it is absent
+ * or is not an element node. It is declared `Element` rather than `HTMLElement` because the
+ * implementation only ever reads `nodeType`, `classList` and `getBoundingClientRect`, all of
+ * which `Element` provides - narrowing it further would refuse hosts this helper accepts today.
+ */
+export interface BrowserOverlayHostOptions {
+  host?: Element;
+}
+
+/**
+ * What registering one overlay needs.
+ *
+ * `name` and `title` are `unknown` because the writer coerces both with `String(...)` and trims
+ * them; that coercion is existing behaviour and is not tightened here. `panel` and `trigger` are
+ * optional in the signature and required in fact - a registration missing either throws, exactly
+ * as it does today.
+ *
+ * `panel` is an `HTMLElement` because the writer sets `hidden`, `dataset` and `style` on it and
+ * focuses it. `trigger` is only given attributes, asked whether it contains a node, and measured,
+ * so `Element` is the honest requirement.
+ */
+export interface BrowserOverlayRegistration {
+  name?: unknown;
+  panel?: HTMLElement;
+  title?: unknown;
+  trigger?: Element;
+}
+
+/**
+ * The overlay record `register` hands back.
+ *
+ * **This is the object the writer keeps, not a copy of it**, and it is deliberately mutable: the
+ * writer installs `abortController` on it while the overlay is open and sets it back to `null` on
+ * close, and it writes `previousFocus` at open time. Declaring those two members is what makes
+ * this contract describe the object that actually exists rather than a tidier one.
+ *
+ * `previousFocus` is `Element | null` because it is `document.activeElement`, which is not
+ * necessarily focusable; the writer checks before calling `focus`.
+ */
+export interface BrowserOverlayHandle {
+  /** Present only while the overlay is open; set to `null` by the close path. */
+  abortController?: AbortController | null;
+  close: () => void;
+  host: Element;
+  /** The trimmed, string-coerced registration name. */
+  name: string;
+  panel: HTMLElement;
+  /** Whatever had focus when the overlay opened. Not necessarily focusable. */
+  previousFocus: Element | null;
+  /** The trimmed, string-coerced title; `""` when none was given. */
+  title: string;
+  trigger: Element;
+}
+
+/**
+ * One host's overlay controller.
+ *
+ * **A new controller object per `create` call, over shared per-host state.** Two `create` calls
+ * for the same host answer two different controllers that reach the same registry, so an overlay
+ * registered through one is toggled by the other. Callers must not rely on controller identity.
+ */
+export interface BrowserOverlayController {
+  /** Closes the host's active overlay when one is open, **without** returning focus. */
+  closeAll(): void;
+  register(options?: BrowserOverlayRegistration): BrowserOverlayHandle;
+  /** Opens the named overlay, closes it if it is already active, and does nothing if unknown. */
+  toggle(name: string): void;
+}
+
+/**
+ * The module-facing overlay hook, documented in `docs/module-development.md` and
+ * `docs/ui-surface-contract.md`.
+ *
+ * **Deliberately a plain mutable object with one method.** The writer publishes `{ create }`
+ * without freezing it and this contract says so; freezing it here would be a behaviour change
+ * wearing a contract's clothes.
+ */
+export interface BrowserOverlayHost {
+  create(options?: BrowserOverlayHostOptions): BrowserOverlayController;
+}
+
+/**
  * The browser-facing task lifecycle vocabulary.
  *
  * Declared separately from `TaskLifecycleStatus` in `task-block-recovery-contracts.d.ts`, whose
