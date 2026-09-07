@@ -396,6 +396,7 @@
         "tests/unit/linked-panel-selectable-note-contracts.test.mjs",
         "tests/unit/list-link-target-contracts.test.mjs",
         "tests/unit/list-response-contracts.test.mjs",
+        "tests/unit/list-summary-response-contracts.test.mjs",
         "tests/unit/lists-item-suggestion-contracts.test.mjs",
         "tests/unit/lists-view-descriptor-boundary.test.mjs",
         "tests/unit/lookup-response-contracts.test.mjs",
@@ -560,7 +561,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7664,
+      "errorCount": 7662,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -882,10 +883,6 @@
         ],
         "public/js/lists.js": [
           {
-            "code": 18046,
-            "count": 1
-          },
-          {
             "code": 18047,
             "count": 55
           },
@@ -907,7 +904,7 @@
           },
           {
             "code": 7006,
-            "count": 152
+            "count": 151
           },
           {
             "code": 7031,
@@ -2554,8 +2551,8 @@
     }
   },
   "totals": {
-    "files": 1141,
-    "errors": 7664,
+    "files": 1142,
+    "errors": 7662,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

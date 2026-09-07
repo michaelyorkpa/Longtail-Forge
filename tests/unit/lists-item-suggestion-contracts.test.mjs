@@ -366,9 +366,15 @@ describe("this child stays inside the suggestions producer", () => {
     }
   });
 
-  it("leaves the blocked list-summary read where 0.33.33.38.4.7.2 put it", () => {
-    assert.match(page, /const summaries = result\.lists \|\| \[\];/,
-      "the list summary read is deferred on a measured state handoff and is untouched");
+  it("still touches nothing in the list-summary read, which now has its own child", () => {
+    // `0.33.33.38.4.7.2.2` closed that boundary and `0.33.33.43.2` gave it the page model it
+    // needed first. The claim this assertion defends is unchanged: the suggestions child stayed
+    // inside its own producer and reached neither.
+    assert.match(page, /const summaries = readListSummaries\(result\);/,
+      "the summary read belongs to the collection child, not to this one");
+    assert.ok(!/readListSummaries|isLoadedListRecord/.test(
+      page.slice(page.indexOf("function readItemSuggestions"), page.indexOf("async function loadLists"))),
+    "and the suggestions reader still borrows nothing from it");
   });
 
   it("adds no state annotation the measurement did not require", () => {
