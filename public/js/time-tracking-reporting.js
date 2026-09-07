@@ -1,7 +1,9 @@
 // Time Tracking-owned Project Time & Billing Reporting adapter.
 (function registerProjectTimeBillingRenderer() {
   const reporting = window.LongtailForge?.reporting;
-  const formatters = window.LongtailForge?.formatters || {};
+  // As in `time-tracking-dashboard.js`: the stand-in goes, the local fallbacks stay, and each
+  // use keeps its own kind of test - truthiness here, `typeof ... === "function"` there.
+  const formatters = window.LongtailForge?.formatters;
   const expandedProjectRows = new Set();
   let reportBootstrap = null;
 
@@ -255,11 +257,11 @@
   }
 
   function formatHours(seconds) {
-    return formatters.hours ? formatters.hours(seconds) : `${(Number(seconds || 0) / 3600).toFixed(2)} hrs`;
+    return formatters?.hours ? formatters.hours(seconds) : `${(Number(seconds || 0) / 3600).toFixed(2)} hrs`;
   }
 
   function formatCurrency(amount) {
-    return formatters.currency ? formatters.currency(amount) : `$${(Number(amount) || 0).toFixed(2)}`;
+    return formatters?.currency ? formatters.currency(amount) : `$${(Number(amount) || 0).toFixed(2)}`;
   }
 
   function getReportRowId(row) {
