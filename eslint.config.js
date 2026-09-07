@@ -13,6 +13,7 @@ const browserGlobals = {
   localStorage: "readonly",
   location: "readonly",
   navigator: "readonly",
+  Node: "readonly",
   setInterval: "readonly",
   setTimeout: "readonly",
   URL: "readonly",

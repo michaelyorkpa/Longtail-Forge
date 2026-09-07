@@ -412,6 +412,7 @@
         "tests/unit/notification-preference-json-boundary.test.mjs",
         "tests/unit/notification-response-contracts.test.mjs",
         "tests/unit/optional-member-root-contracts.test.mjs",
+        "tests/unit/overlay-host-writer-contracts.test.mjs",
         "tests/unit/protocol-relative-url-guard.test.mjs",
         "tests/unit/public-demo-capabilities.test.mjs",
         "tests/unit/public-demo-enforcement.test.mjs",
@@ -555,7 +556,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7724,
+      "errorCount": 7694,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1337,24 +1338,6 @@
           {
             "code": 7006,
             "count": 4
-          }
-        ],
-        "public/js/shared/overlay-host.js": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 5
-          },
-          {
-            "code": 7006,
-            "count": 23
-          },
-          {
-            "code": 7031,
-            "count": 1
           }
         ],
         "public/js/shared/quick-action-refresh.js": [
@@ -2575,8 +2558,8 @@
     }
   },
   "totals": {
-    "files": 1136,
-    "errors": 7724,
+    "files": 1137,
+    "errors": 7694,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
