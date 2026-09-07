@@ -6967,6 +6967,77 @@ export interface BrowserListItem {
 }
 
 /**
+ * The progress summary `normalizeListProgress` rebuilds for a list.
+ *
+ * **Every member is recomputed or coerced, which is why this one can promise its types.** The
+ * counts go through `Number(...)` with an item-derived fallback, the labels and dates fall back to
+ * `""`/`null`, and the two collections fall back to `[]`. Their *elements* stay `unknown`: the
+ * producer sends whatever it sends and this normaliser does not inspect them.
+ */
+export interface BrowserListProgressSummary {
+  assignedUserIds: unknown;
+  checkedItemCount: number;
+  completedItemCount: number;
+  earliestNeededByDate: unknown;
+  incompleteItemCount: number;
+  lastActivityAt: unknown;
+  neededByDates: unknown;
+  nextUncheckedItemLabel: unknown;
+  totalItemCount: number;
+  unassignedItemCount: number;
+}
+
+/**
+ * One list as the Lists page holds it, which is **not** one list as the wire sends it.
+ *
+ * `normalizeListRecord` spreads its input and then overwrites nine members, so the page record and
+ * `BrowserListSummary` disagree on purpose:
+ *
+ * - **`is_reusable` is a `number` on the wire and a `boolean` here.** The column is `INTEGER` and
+ *   the shaper passes it through untouched; the normaliser coerces it. That single conflict is why
+ *   this cannot extend the wire contract, and why an intersection of the two would be impossible.
+ * - `items` and `links` are re-mapped with an added `id`, so they are the detail contracts rather
+ *   than the wire's `unknown[]`.
+ * - `progress`, `resumeContext` and `sourceContext` are rebuilt with defaults.
+ *
+ * **`id` and `list_id` may be `undefined`, because a draft is a real input.** The normaliser
+ * defaults its parameter to `{}`, and `readListDetail` answers `list: undefined` for a body it
+ * cannot read - so `list.list_id || list.id` is genuinely absent for a list that has not been
+ * saved. Promising a string here would be describing the saved case only.
+ *
+ * The wire members it merely spreads are carried as an optional partial: present for a saved list,
+ * absent for a draft. Nothing here is an index signature - a member this page does not read is a
+ * member this contract does not promise.
+ */
+export interface BrowserNormalizedListRecord extends Partial<Omit<BrowserListSummary,
+  "id" | "isBillOfMaterials" | "is_reusable" | "items" | "links" | "list_id" | "progress" | "resumeContext" | "sourceContext">> {
+  /** `list_id` when the list is saved; `undefined` for a draft the editor has not created yet. */
+  id: string | undefined;
+  isBillOfMaterials: boolean;
+  /** Coerced from the wire's numeric column. */
+  is_reusable: boolean;
+  items: BrowserListItem[];
+  links: BrowserListLink[];
+  /** `id` when the list is saved; `undefined` for a draft. */
+  list_id: string | undefined;
+  progress: BrowserListProgressSummary;
+  /** The producer's context plus a guaranteed `progress` and `sourceUrl`. */
+  resumeContext: BrowserListResumeContext;
+  sourceContext: unknown;
+}
+
+/**
+ * The resume context the page attaches to a normalized list.
+ *
+ * The normaliser spreads whatever the producer sent and then guarantees two members, so those two
+ * are promised and the rest stay unstated.
+ */
+export interface BrowserListResumeContext {
+  progress: unknown;
+  sourceUrl: unknown;
+}
+
+/**
  * One list link as the detail route returns it, derived from `LINK_COLUMNS`.
  *
  * **This is not a Notes link and not a Tasks linked context.** It is the list-link row: eleven
