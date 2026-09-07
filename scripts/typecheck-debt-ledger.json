@@ -384,6 +384,7 @@
         "tests/unit/files-scanner-job.service.test.mjs",
         "tests/unit/files-settings-accounting-contracts.test.mjs",
         "tests/unit/files-storage-accounting.service.test.mjs",
+        "tests/unit/final-publication-contracts.test.mjs",
         "tests/unit/focus-mode-resolution.test.mjs",
         "tests/unit/guarded-member-root-contracts.test.mjs",
         "tests/unit/identifiers.test.mjs",
@@ -556,7 +557,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7694,
+      "errorCount": 7690,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -988,16 +989,12 @@
             "count": 1
           },
           {
-            "code": 2810,
-            "count": 1
-          },
-          {
             "code": 7005,
-            "count": 13
+            "count": 12
           },
           {
             "code": 7006,
-            "count": 61
+            "count": 60
           },
           {
             "code": 7019,
@@ -1005,7 +1002,7 @@
           },
           {
             "code": 7034,
-            "count": 6
+            "count": 5
           }
         ],
         "public/js/notes-settings.js": [
@@ -2558,8 +2555,8 @@
     }
   },
   "totals": {
-    "files": 1137,
-    "errors": 7694,
+    "files": 1138,
+    "errors": 7690,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

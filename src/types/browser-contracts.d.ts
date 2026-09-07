@@ -7419,6 +7419,35 @@ export interface BrowserTagFilterPickerOptions {
 }
 
 /**
+ * The Support View state this framework publishes, as far as it is actually proved.
+ *
+ * **A record boundary, not a validated Support View DTO.** The app-shell adapter runs
+ * `asRecord(source.supportView)`, which proves the value is a non-array object and nothing more;
+ * `applySupportViewState` then publishes a **shallow** frozen copy of it. Individual members -
+ * an actor, an expiry, a read-only flag - are read by consumers out of `unknown` and are not
+ * promised here. Declaring them would claim validation that no code performs.
+ *
+ * Nested values stay `unknown` deliberately: only the top level is frozen, and closing the field
+ * boundary is separate `0.33.33.38.4` work rather than a consequence of this declaration.
+ */
+export type BrowserSupportViewState = Readonly<Record<string, unknown>>;
+
+/**
+ * The session-warning compatibility hook.
+ *
+ * **One method, retained because it is published, not because a consumer was found.** `show`
+ * raises the expired-session dialog and resolves when that dialog closes. Repeated calls while a
+ * dialog is open share **the same pending promise** and raise no second dialog; the slot resets
+ * once it finishes.
+ *
+ * It shows a warning. It is **not** an authentication grant, a session-restoration API, or a
+ * promise that unsaved work was preserved - the dialog says so in as many words.
+ */
+export interface BrowserSessionAuthWarnings {
+  show(): Promise<void>;
+}
+
+/**
  * The shared tag surface `shared/tags.js` publishes.
  *
  * **Eleven members, which is what the writer's object literal contains.** An earlier preflight
@@ -7523,6 +7552,19 @@ export interface LongtailForgeBrowserNamespace {
   tags?: BrowserTags;
   taskResumeNoteCapture?: BrowserTaskResumeNoteCapture;
   taskCalendar?: BrowserTaskCalendar;
+  /**
+   * The Help page's completion sentinel, set to `true` once `help.js` finishes evaluating.
+   *
+   * **A boolean, and deliberately still a boolean.** It is absent on every page that does not
+   * load Help, and absent on Help itself until that final statement runs. It says the script
+   * reached its end - not that any Help request succeeded, and not that data is ready.
+   */
+  helpPageReady?: boolean;
+  /** The documented module-facing overlay hook. Contract published by `0.33.33.39.3`. */
+  overlayHost?: BrowserOverlayHost;
+  sessionAuthWarnings?: BrowserSessionAuthWarnings;
+  /** `null` while no Support View session is active; absent before the app shell publishes. */
+  supportView?: BrowserSupportViewState | null;
   tasksDialog?: BrowserTasksDialog;
   timeEntryDialog?: BrowserTimeEntryDialog;
   timeTrackingTimerDialog?: BrowserTimeTrackingTimerDialog;

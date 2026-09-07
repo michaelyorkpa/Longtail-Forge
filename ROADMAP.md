@@ -479,6 +479,14 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **The two openers are not the same shape and are not merged.** `openFilePreview` builds a modal and hands it back synchronously; `openFilePreviewAction` answers the host context's result promise when there is one and the dialog when there is not. The four Clients/Projects openers are asynchronous and resolve `dialog.returnValue || "closed"` - **a close reason, never a saved record** - and throw when the record is missing or unmanageable. No generic dialog interface was invented to erase that.
 
+#### 0.33.33.38.2.3.3 - The final four publications
+
+**Complete: declaration coverage is 64 of 64, and every one of the four is kept for compatibility.** See the archive entry. `helpPageReady`, `overlayHost`, `sessionAuthWarnings` and `supportView` are declared as what their writers actually publish, and each writer is annotated too - a declaration with no diagnostic weight is not automatically truthful, and an implicit-`any` writer would have satisfied any state type at all.
+
+**Each contract promises only the validation that exists.** `supportView` is a **record boundary**, not a Support View DTO: the adapter proves a non-array object and the writer publishes a shallow frozen copy, so the fields consumers read stay `unknown` and closing them remains `0.33.33.38.4` work. `sessionAuthWarnings.show` raises a warning and resolves when the dialog closes - it is not an authentication grant, a session-restoration API, or a promise that unsaved work survived. `helpPageReady` is the boolean sentinel it has always been, not a readiness promise.
+
+**Coverage is not completion.** The root index signature is still present; removing it is `0.33.33.38.2.5`'s guarded closeout, and diagnostic count, declaration coverage and permissiveness are three separate acceptance questions.
+
 #### 0.33.33.38.2.3.2 - The ready quiet-tail surfaces
 
 **Complete: seven surfaces declared, 15 diagnostics closed, and the last parked root closed with them.** See the archive entry.

@@ -4129,12 +4129,11 @@ const declarationCoverage = collectDeclarationCoverage({});
 //
 // Declaring these is `0.33.33.38.2.2`'s work and its descendants', not this checkpoint's.
 // The list shrinks as those land; it may never grow without a deliberate edit here.
-const UNDECLARED_PUBLICATION_BACKLOG = [
-  "helpPageReady",
-  "overlayHost",
-  "sessionAuthWarnings",
-  "supportView",
-];
+// `0.33.33.38.2.3.3` declared the last four. The list is empty rather than deleted: it is the
+// mechanism that catches a *new* undeclared publication, and it may never grow without a
+// deliberate edit here.
+/** @type {string[]} */
+const UNDECLARED_PUBLICATION_BACKLOG = [];
 
 const newlyUndeclaredMembers = declarationCoverage.undeclaredPublishedMembers
   .filter((member) => !UNDECLARED_PUBLICATION_BACKLOG.includes(member));
@@ -4275,7 +4274,7 @@ assert.doesNotMatch(
 assert.equal(declarationCoverage.uniqueSurfaces, 66, "unique publication surfaces");
 assert.equal(declarationCoverage.publicationOccurrences, 69, "publication occurrences, which exceed unique surfaces");
 assert.equal(declarationCoverage.knownMembers.length, 64, "known LongtailForge members, which are not all governed surfaces");
-assert.equal(declarationCoverage.declaredMembers.length, 60, "declared LongtailForge members");
+assert.equal(declarationCoverage.declaredMembers.length, 64, "declared LongtailForge members");
 assert.equal(declarationCoverage.publishedMembers.length, 64, "LongtailForge members with a runtime writer");
 assert.ok(
   declarationCoverage.publicationOccurrences > declarationCoverage.uniqueSurfaces,

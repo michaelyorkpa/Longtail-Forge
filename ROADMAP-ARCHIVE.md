@@ -1,5 +1,33 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.2.3.3 - The final four publications
+
+**Model: Medium Effort** - four declarations that cost nothing on their own, which is precisely why the writers had to move too.
+
+- [x] **A weightless declaration proves nothing by itself.** Each of the four cost **zero** diagnostics when probed alone. An implicit-`any` writer satisfies any declared state type, so the writers were annotated as well: `applySupportViewState`'s parameter states the adapter's boundary, `sessionAuthWarningPromise` and `showSessionAuthWarning` state their promise, and the session hook is checked on its literal. Breaks that remove the writer annotation or the checked literal are refused.
+- [x] **`supportView` promises a record boundary and nothing more.** The app-shell adapter runs `asRecord(source.supportView)`, which proves a non-array object; `applySupportViewState` publishes a **shallow** frozen copy or `null`. The fields consumers read out of `unknown` - an actor, an expiry, a read-only flag - are **not** declared, because nothing validates them. Breaks that claim those members, or that drop the inactive `null`, are refused. Nested values stay `unknown` and stay mutable; closing them is `0.33.33.38.4` work, not a consequence of this declaration.
+- [x] **`sessionAuthWarnings.show` is deliberately not `async`.** An async wrapper answers a fresh promise per call, and the pending slot exists so a second call while the dialog is open answers the **same** promise rather than opening a second dialog. Breaks that make it async, that stop sharing the slot, that leave the slot uncleared, and that drop cancellation prevention are all refused. The contract says what the hook is not: not an authentication grant, not a session-restoration API, not a promise that unsaved work survived - the dialog itself tells the user the opposite.
+- [x] **`helpPageReady` stays a boolean.** No interface built around a boolean, no promise, no `await`, no consumer invented to justify it. It is still assigned at the last statement of `help.js` and nowhere else; breaks that turn it into a promise or add work after it are refused.
+- [x] **`overlayHost` adopts `0.33.33.39.3`'s contract unweakened.** The root API is still an **unfrozen** `{ create }`, and the controller and handle stay separate nested contracts. A break that freezes the hook while adopting it is refused.
+- [x] **The backlog is emptied by identity, not deleted.** `UNDECLARED_PUBLICATION_BACKLOG` survives as an empty list because it is the instrument that catches a *new* undeclared publication - and a break that removes a declaration proves it still does.
+
+Proved by breaking each claim, restored from explicit byte copies in a `finally` with hash verification and no stash: **7 one-sided compiler disagreements, 9 behavioural breaks and 2 governance breaks - all 18 refused**.
+
+Closing state:
+
+| Condition | Before | After |
+| --- | ---: | ---: |
+| Browser program diagnostics | 7,694 | **7,690** |
+| **Declared / known members** | 60 / 64 | **64 / 64** |
+| Undeclared backlog | 4 | **0** |
+| Namespace family | 0 | **0** |
+| Explicit `any` nodes, estate-wide | 0 | **0** |
+| Unit tests / regressions / end-to-end | 2,211 / 348 / 167 | **2,231 / 348 / 167**, green |
+
+**Four contextual eliminations, none of them the point.** All four are in `navigation.js` and follow from annotating that file's two writers: `TS2810` -1, `TS7005` -1, `TS7006` -1, `TS7034` -1. No `(file, code)` pair increased. Owner `0.33.33.39` 1,614 to **1,612** and `0.33.33.44` is unchanged; the namespace family was already zero and stays there. **The result of this checkpoint is checked coverage, not a diagnostic win**, and the four are reported as contextual rather than dressed up as the outcome.
+
+**Coverage is not completion.** The root index signature is still present. Diagnostic count, declaration coverage and root permissiveness are three separate acceptance questions, and only the middle one closes here.
+
 ## Version 0.33.33.39.3 - The Overlay Host writer boundary
 
 **Model: Medium Effort** - 30 diagnostics in one file, and the first executable coverage a documented public hook has ever had.

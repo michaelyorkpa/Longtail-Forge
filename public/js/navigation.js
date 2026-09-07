@@ -57,6 +57,12 @@
   const workspaceSelector = siteHeader.querySelector("[data-workspace-selector]");
   let systemThemeModeQuery = null;
   let systemThemeModeListenerAttached = false;
+  /**
+   * The one in-flight session warning.
+   *
+   * Held so repeated calls share a promise and raise no second dialog; cleared by `finish`.
+   * @type {Promise<void> | null}
+   */
   let sessionAuthWarningPromise = null;
   let supportViewCountdownId = null;
   let supportViewMutationObserver = null;
@@ -355,9 +361,16 @@
   window.LongtailForge = window.LongtailForge || {};
   window.LongtailForge.getWorkspaceProjectsLabel = getWorkspaceProjectsLabel;
   window.LongtailForge.refreshNotifications = refreshNotificationCount;
-  window.LongtailForge.sessionAuthWarnings = {
+  /**
+   * The retained warning hook, annotated on the literal so the compiler checks its membership
+   * in both directions.
+   * @type {import("../../src/types/browser-contracts.js").BrowserSessionAuthWarnings}
+   */
+  const sessionAuthWarningsApi = {
     show: showSessionAuthWarning,
   };
+
+  window.LongtailForge.sessionAuthWarnings = sessionAuthWarningsApi;
   installSessionAuthWarningGuard();
   hydrateStoredWorkspaceContext();
   window.LongtailForge.refreshAppShell = loadAppShellBootstrap;
@@ -411,6 +424,14 @@
     }
   }
 
+  /**
+   * Raise the expired-session dialog, resolving when it closes.
+   *
+   * **Not `async`.** An async wrapper would return a fresh promise per call, which is exactly
+   * the identity this function exists to share: a second call while the dialog is open must
+   * answer the *same* pending promise rather than open a second dialog.
+   * @returns {Promise<void>}
+   */
   function showSessionAuthWarning() {
     if (sessionAuthWarningPromise) {
       return sessionAuthWarningPromise;
@@ -802,6 +823,14 @@
     }
   }
 
+  /**
+   * Publish the Support View state, or clear it.
+   *
+   * The parameter is the boundary the app-shell adapter already proves - `asRecord` answers a
+   * non-array object or `null` - and nothing narrower. Annotating it is what makes the
+   * declared member meaningful: an implicit-any writer would have satisfied any state type.
+   * @param {Record<string, unknown> | null} supportView
+   */
   function applySupportViewState(supportView) {
     window.clearInterval(supportViewCountdownId);
     supportViewCountdownId = null;

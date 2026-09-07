@@ -18,7 +18,10 @@ const stylesheet = await fs.readFile("public/css/longtail-forge.css", "utf8");
 
 assert.match(
   navigationSource,
-  /window\.LongtailForge\.sessionAuthWarnings\s*=\s*\{[\s\S]*show:\s*showSessionAuthWarning/,
+  // `0.33.33.38.2.3.3` moved the published literal into a named, contract-checked binding so
+  // the compiler checks its membership; the claim is unchanged - the app shell owns and
+  // exposes the session-warning hook backed by `showSessionAuthWarning`.
+  /const sessionAuthWarningsApi = \{[\s\S]*?show: showSessionAuthWarning,[\s\S]*?window\.LongtailForge\.sessionAuthWarnings = sessionAuthWarningsApi;/,
   "The authenticated app shell should expose the framework session-warning owner.",
 );
 assert.ok(
