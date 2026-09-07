@@ -1,6 +1,9 @@
 (function () {
   const dashboard = window.LongtailForge?.dashboard;
-  const formatters = window.LongtailForge?.formatters || {};
+  // The `|| {}` stand-in is gone, not the fallback. An empty object literal has no members,
+  // so every read through it was a property access on `{}`; the capture is simply the optional
+  // surface now, and the conditional below narrows it exactly as it always did at runtime.
+  const formatters = window.LongtailForge?.formatters;
   const effortSummaryPromises = window.LongtailForge?.dashboardBootstrap?.dataPromises || new Map();
   const DEFAULT_EFFORT_SUMMARY_ROUTE = "/api/time-tracking/dashboard/effort-summary";
 
@@ -219,7 +222,7 @@
   }
 
   function formatHours(seconds) {
-    return typeof formatters.hours === "function"
+    return typeof formatters?.hours === "function"
       ? formatters.hours(seconds)
       : `${((Number(seconds) || 0) / 3600).toFixed(2)} hrs`;
   }

@@ -377,6 +377,7 @@
         "tests/unit/client-project-options.test.mjs",
         "tests/unit/client-project-record-contracts.test.mjs",
         "tests/unit/create-user-response-contracts.test.mjs",
+        "tests/unit/fallback-object-acquisition-contracts.test.mjs",
         "tests/unit/file-attachment-list-contracts.test.mjs",
         "tests/unit/file-preview-contracts.test.mjs",
         "tests/unit/files-preview.service.test.mjs",
@@ -553,7 +554,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7745,
+      "errorCount": 7737,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1432,7 +1433,7 @@
         "public/js/shared/view-builder.js": [
           {
             "code": 2339,
-            "count": 351
+            "count": 349
           },
           {
             "code": 7005,
@@ -1742,7 +1743,7 @@
         "public/js/time-tracking-dashboard.js": [
           {
             "code": 2339,
-            "count": 11
+            "count": 9
           },
           {
             "code": 7006,
@@ -1752,7 +1753,7 @@
         "public/js/time-tracking-reporting.js": [
           {
             "code": 2339,
-            "count": 7
+            "count": 3
           },
           {
             "code": 7005,
@@ -2573,8 +2574,8 @@
     }
   },
   "totals": {
-    "files": 1134,
-    "errors": 7745,
+    "files": 1135,
+    "errors": 7737,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

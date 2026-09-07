@@ -1859,8 +1859,12 @@
   }
 
   function normalizeSurfaceDescriptor(descriptor) {
-    const adapter = root.viewSurfaceDescriptor || {};
-    if (typeof adapter.normalize !== "function") {
+    // Read from the captured root on every call, as before. The `|| {}` fallback was doing no
+    // work the guard below does not already do: an adapter that is absent and one whose
+    // `normalize` is not a function take the same path, and the empty object only hid the
+    // member's declared type from the check.
+    const adapter = root.viewSurfaceDescriptor;
+    if (typeof adapter?.normalize !== "function") {
       throw new Error("View primitives require LongtailForge.viewSurfaceDescriptor.normalize.");
     }
     return adapter.normalize(descriptor);
