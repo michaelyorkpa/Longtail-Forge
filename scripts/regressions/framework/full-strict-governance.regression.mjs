@@ -82,6 +82,13 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/database-contracts.fixture.mjs:8",
   "tests/typecheck/job-payload-contracts.fixture.mjs:24",
   "tests/typecheck/job-payload-contracts.fixture.mjs:27",
+  // `0.33.33.38.2.5` proves the closed namespace root by directive: each of these fails the
+  // build if the rejection it claims stops happening.
+  "tests/typecheck/namespace-root-closure.fixture.mjs:36",
+  "tests/typecheck/namespace-root-closure.fixture.mjs:42",
+  "tests/typecheck/namespace-root-closure.fixture.mjs:48",
+  "tests/typecheck/namespace-root-closure.fixture.mjs:54",
+  "tests/typecheck/namespace-root-closure.fixture.mjs:66",
   "tests/typecheck/precise-service-contracts.fixture.mjs:24",
   "tests/typecheck/precise-service-contracts.fixture.mjs:27",
   "tests/typecheck/precise-service-contracts.fixture.mjs:30",

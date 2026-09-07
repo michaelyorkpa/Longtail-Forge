@@ -7461,6 +7461,18 @@ export interface BrowserSessionAuthWarnings {
  *
  * The two mounts answer `null` when handed no container or input, and that is preserved rather
  * than typed away.
+ *
+ * **Closed by `0.33.33.38.2.5`: there is no index signature.** The catch-all entered in
+ * `dabf9257` as bootstrap looseness with no extensibility rationale recorded, and the estate
+ * outgrew it - every one of the 64 members is a static identifier, the publication inventory
+ * reports **0 deep writes and 0 unresolvable rooted targets**, and the undeclared backlog is
+ * empty. An undeclared publication is now a compile error, which is the behaviour governance
+ * already enforced by other means.
+ *
+ * **A misspelled or unknown top-level member is rejected. The alternative to a declared member is
+ * a compile error, never a permissive signature.** Extensibility that is genuinely open lives in
+ * the *nested* contracts that carry it - `supportView`'s unknown-valued record, module
+ * contribution data - and not at this root.
  */
 export interface BrowserTags {
   NO_TAGS_FILTER_VALUE: string;
@@ -7599,7 +7611,6 @@ export interface LongtailForgeBrowserNamespace {
    */
   workspaceContext?: BrowserStoredWorkspaceContext;
   workspaceContextReady?: Promise<BrowserAppShellRefreshResult>;
-  [key: string]: unknown;
 }
 
 export type BrowserErrorEnvelope = ApiErrorEnvelope;
