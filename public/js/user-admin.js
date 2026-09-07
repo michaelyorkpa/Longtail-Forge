@@ -46,6 +46,7 @@
   let clients = [];
   let workspaces = [];
   let permissionResources = [];
+  /** @type {BrowserWorkspaceType} */
   let activeWorkspaceType = "business";
   let addUserRoles = [];
   let addUserCanCreate = false;
@@ -467,6 +468,7 @@
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserUserAdminClientScope} BrowserUserAdminClientScope */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserAssignableWorkspace} BrowserAssignableWorkspace */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserPermissionResource} BrowserPermissionResource */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkspaceType} BrowserWorkspaceType */
 
   /** The five members `workspaceToAppValue` writes as text. */
   const ASSIGNABLE_WORKSPACE_TEXT = Object.freeze(["workspaceId", "workspaceName", "workspaceType"]);
@@ -617,6 +619,36 @@
       : null;
   }
 
+  /**
+   * The workspace type this page is administering, from `GET /api/settings`.
+   *
+   * **The server closes this vocabulary; what this reader establishes is that the body is the
+   * settings response at all.** `readWorkspaceSettingsFresh` selects the raw
+   * `workspaces.workspace_type` column, but `normalizeSettings` then runs the shared
+   * `normalizeWorkspaceType`, which trims, lowercases and maps anything outside `WORKSPACE_TYPES`
+   * to `"business"`. So a real settings body always carries one of these three, and this check can
+   * only refuse a body that is not one - a proxy error page, a redirect, a truncated payload.
+   *
+   * The raw column *is* open text, which is why `BrowserAssignableWorkspace.workspaceType` stays
+   * `string`: `workspaceToAppValue` copies it without ever reaching that normaliser. Two producers
+   * reading one column, making two different promises.
+   *
+   * Answers `null` for a body that is not a record and for a value outside the vocabulary. The
+   * caller refuses the bootstrap rather than substituting a default.
+   * @param {unknown} body
+   * @returns {BrowserWorkspaceType | null}
+   */
+  function readWorkspaceType(body) {
+    if (!isBootstrapRecord(body)) {
+      return null;
+    }
+
+    const workspaceType = body.workspaceType;
+    return workspaceType === "business" || workspaceType === "family" || workspaceType === "personal"
+      ? workspaceType
+      : null;
+  }
+
   async function loadUsers() {
     setUserAdminStatus("Loading users...");
 
@@ -634,8 +666,9 @@
       const clientScopes = readClientProjectScopes(clientProjectBody);
       const assignableWorkspaces = readAssignableWorkspaces(workspacesBody);
       const resourceCatalog = readPermissionResourceCatalog(permissionResourcesBody);
+      const workspaceType = readWorkspaceType(settingsBody);
 
-      if (!clientScopes || !assignableWorkspaces || !resourceCatalog) {
+      if (!clientScopes || !assignableWorkspaces || !resourceCatalog || !workspaceType) {
         throw new Error("The user administration bootstrap could not be read.");
       }
 
@@ -649,7 +682,7 @@
       }
       currentUserId = userList.currentUserId;
       draftPermissionOverrides = normalizePermissionOverrides(draftPermissionOverrides);
-      activeWorkspaceType = normalizeWorkspaceType(settingsBody.workspaceType);
+      activeWorkspaceType = workspaceType;
       renderRoleOptions();
       applyAddUserOptions(addUserOptionsBody);
       renderUsers(userList.users);
@@ -874,12 +907,6 @@
     if (newUserAccountStatus) {
       newUserAccountStatus.textContent = "";
     }
-  }
-
-  function normalizeWorkspaceType(workspaceType) {
-    return ["business", "personal", "family"].includes(workspaceType)
-      ? workspaceType
-      : "business";
   }
 
   function renderUsers(nextUsers) {
