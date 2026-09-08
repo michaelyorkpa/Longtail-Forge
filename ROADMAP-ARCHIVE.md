@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.7.2.3 - The repaired ordering proof
+
+**Model: Small Effort** - one assertion, and the discipline of proving it fails for the right reasons.
+
+- [x] **Recorded as repaired test evidence, not a newly discovered defect.** The shipped `loadLists` was correct throughout; what was wrong was a proof that would not have noticed if it had stopped being correct. No production file is touched by this checkpoint.
+- [x] **The vacuity is named exactly.** `indexOf` answers `-1` for an absent needle and `-1 < n` is true for every positive `n`, so two of the three clauses passed once their operation was deleted. The audit proved it by removing `readListSummaries(result)` and watching the assertion hold.
+- [x] **Presence before position.** `state.lists = `, `readListSummaries(result)` and `await Promise.all(` are each asserted present, with their own message, before any index is compared - and the single-assignment count is kept.
+- [x] **The inspection is scoped and comment-immune.** The body is already sliced to `loadLists` by the suite's own helper; it is now also stripped of `//` and `/* */` comments, so a mention in prose cannot satisfy a claim about executed code. A mutation that leaves only a comment naming both calls is refused.
+- [x] **Three orderings, asserted apart**: validated before any detail request is issued, settled before assignment, and validated before assignment. The middle one was not previously asserted at all.
+- [x] **Every mutation is syntactically valid, and that is checked rather than assumed.** The harness runs `node --check` on the mutated file and only scores a refusal when the parse succeeded, so a syntax error can never be counted as an ordering-test success.
+- [x] **The behavioural tests that already caught the bypass are untouched.** "leaves the previous collection in place when the body cannot be read" and "validates the collection before issuing any detail request" still fail on the same mutation, which is why this finding stayed low severity.
+
+Proved by breaking each one, restored from an explicit byte copy in a `finally` with hash verification and no stash: **5 mutations of `loadLists` - validation removed, detail load removed, settle moved after the assignment, validation moved after the assignment, and both calls left only as a comment - all 5 refused, all 5 parsing cleanly.**
+
 ## Version 0.33.33.38.4.4.7 - The optional workspace memberships
 
 **Model: Medium Effort** - two one-line predicate extensions, and two test suites that had to be repaired for the right reason rather than the convenient one.
