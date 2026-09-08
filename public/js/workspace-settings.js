@@ -1,13 +1,13 @@
 // Workspace settings are framework identity, audit, operations, and contributed module defaults.
 (function attachWorkspaceSettingsPage() {
-  const settingsForm = document.querySelector("[data-workspace-settings-form]");
-  const workspaceNameInput = document.querySelector("[data-workspace-name-input]");
-  const workspaceTypeSelect = document.querySelector("[data-workspace-type-input]");
+  const settingsForm = findForm("[data-workspace-settings-form]");
+  const workspaceNameInput = findInput("[data-workspace-name-input]");
+  const workspaceTypeSelect = findSelect("[data-workspace-type-input]");
   const moduleSettingsContainer = document.querySelector('[data-settings-attachment="workspace"]');
   const workspaceCoreSettingsContainer = moduleSettingsContainer?.querySelector("[data-workspace-core-settings]");
   const workspaceModuleSettingsContainer = moduleSettingsContainer?.querySelector("[data-workspace-module-settings]");
-  const auditLoggingEnabledInput = document.querySelector("[data-audit-logging-enabled]");
-  const auditRetentionDaysSelect = document.querySelector("[data-audit-retention-days]");
+  const auditLoggingEnabledInput = findInput("[data-audit-logging-enabled]");
+  const auditRetentionDaysSelect = findSelect("[data-audit-retention-days]");
   const openWorkspaceUsersButton = document.querySelector("[data-open-workspace-users]");
   const workspaceUsersDialog = document.querySelector("[data-workspace-users-dialog]");
   const workspaceUsersList = document.querySelector("[data-workspace-users-list]");
@@ -64,7 +64,7 @@
   closeWorkspaceDeletionButton?.addEventListener("click", () => workspaceDeletionDialog?.close());
   confirmWorkspaceDeletionButton?.addEventListener("click", confirmWorkspaceDeletion);
 
-  settingsForm.addEventListener("submit", async (event) => {
+  requireWorkspaceSettingsForm().addEventListener("submit", async (event) => {
     event.preventDefault();
     await saveSettings();
   });
@@ -161,8 +161,74 @@
    *
    * The renderer walks this element; a missing one threw on the first DOM read before and
    * throws here instead, named.
-   * @returns {Element}
+   * @returns {HTMLFormElement}
    */
+  /**
+   * The three checked lookups this page's core form needs.
+   *
+   * **A runtime subtype check, not an assertion.** `document.querySelector` answers
+   * `Element | null`, and the properties this form reads - `value`, `checked`, `submit` - live on
+   * the subtypes rather than on `Element`. `instanceof` is what the DOM actually guarantees, so a
+   * node that is present under the right selector but is not the control the markup contract
+   * promises answers `null` here rather than being typed into something it is not.
+   *
+   * **The controls are rendered by the settings host**, whose `field()` builder routes
+   * `type: "text"` and `type: "boolean"` to `<input>` - `boolean` through `inputTypeForField` as
+   * a checkbox - and `type: "select"` to `<select>`, while the page shell is a real `<form>`.
+   * These three checks are that contract, restated where the page reads it.
+   * @param {string} selector
+   * @returns {HTMLFormElement | null}
+   */
+  function findForm(selector) {
+    const node = document.querySelector(selector);
+    return node instanceof HTMLFormElement ? node : null;
+  }
+
+  /** @param {string} selector @returns {HTMLInputElement | null} */
+  function findInput(selector) {
+    const node = document.querySelector(selector);
+    return node instanceof HTMLInputElement ? node : null;
+  }
+
+  /** @param {string} selector @returns {HTMLSelectElement | null} */
+  function findSelect(selector) {
+    const node = document.querySelector(selector);
+    return node instanceof HTMLSelectElement ? node : null;
+  }
+
+  /**
+   * The workspace name control, required wherever the form is read or populated.
+   *
+   * **Checked at the use point, not at capture.** The page attaches many optional controls before
+   * this one is needed, and a throw during module evaluation would take those with it. Each of
+   * these three raises at the same place the old null dereference did, so a missing control fails
+   * exactly when it failed before - with a named error instead of "Cannot read properties of
+   * null".
+   * @returns {HTMLInputElement}
+   */
+  function requireWorkspaceNameInput() {
+    if (!workspaceNameInput) {
+      throw new Error("Workspace settings requires its workspace name input.");
+    }
+    return workspaceNameInput;
+  }
+
+  /** @returns {HTMLInputElement} */
+  function requireAuditLoggingEnabledInput() {
+    if (!auditLoggingEnabledInput) {
+      throw new Error("Workspace settings requires its audit logging control.");
+    }
+    return auditLoggingEnabledInput;
+  }
+
+  /** @returns {HTMLSelectElement} */
+  function requireAuditRetentionDaysSelect() {
+    if (!auditRetentionDaysSelect) {
+      throw new Error("Workspace settings requires its audit retention control.");
+    }
+    return auditRetentionDaysSelect;
+  }
+
   function requireWorkspaceSettingsForm() {
     if (!settingsForm) {
       throw new Error("Workspace settings requires its settings form.");
@@ -232,11 +298,11 @@
 
       settingsCatalog = catalog;
       activeWorkspaceId = settings.workspaceId || settings.workspace_id || "";
-      workspaceNameInput.value = settings.workspaceName;
+      requireWorkspaceNameInput().value = settings.workspaceName;
       setWorkspaceTypeValue(settings.workspaceType);
       renderModuleSettings(settingsCatalog);
-      auditLoggingEnabledInput.checked = settings.audit.loggingEnabled;
-      auditRetentionDaysSelect.value = String(settings.audit.retentionDays);
+      requireAuditLoggingEnabledInput().checked = settings.audit.loggingEnabled;
+      requireAuditRetentionDaysSelect().value = String(settings.audit.retentionDays);
       setWorkspaceSettingsStatus("");
       settingsPageController.setClean();
     } catch (error) {
@@ -634,12 +700,12 @@
     // same thing in one expression instead of by reassignment.
     const settings = {
       ...normalizeSettings({
-        workspaceName: workspaceNameInput.value,
+        workspaceName: requireWorkspaceNameInput().value,
         workspaceType: workspaceTypeSelect?.value,
         moduleSettings: readModuleSettingsPayload(),
         audit: {
-          loggingEnabled: auditLoggingEnabledInput.checked,
-          retentionDays: auditRetentionDaysSelect.value,
+          loggingEnabled: requireAuditLoggingEnabledInput().checked,
+          retentionDays: requireAuditRetentionDaysSelect().value,
         },
       }),
       moduleSettings: readModuleSettingsPayload(),
@@ -681,10 +747,10 @@
 
       const refreshedSections = readWorkspaceSettingsSections(refreshedCatalog);
 
-      workspaceNameInput.value = savedSettings.workspaceName;
+      requireWorkspaceNameInput().value = savedSettings.workspaceName;
       setWorkspaceTypeValue(savedSettings.workspaceType);
-      auditLoggingEnabledInput.checked = savedSettings.audit.loggingEnabled;
-      auditRetentionDaysSelect.value = String(savedSettings.audit.retentionDays);
+      requireAuditLoggingEnabledInput().checked = savedSettings.audit.loggingEnabled;
+      requireAuditRetentionDaysSelect().value = String(savedSettings.audit.retentionDays);
 
       if (refreshedSections) {
         settingsCatalog = refreshedCatalog;
