@@ -469,6 +469,7 @@
         "tests/unit/workspace-context-boundary-contracts.test.mjs",
         "tests/unit/workspace-context-namespace-contracts.test.mjs",
         "tests/unit/workspace-deletion-contracts.test.mjs",
+        "tests/unit/workspace-settings-catalog-contracts.test.mjs",
         "tests/unit/workspace-type-scalar-contracts.test.mjs",
         "worker.js"
       ],
@@ -562,7 +563,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7660,
+      "errorCount": 7657,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1933,7 +1934,7 @@
           },
           {
             "code": 7006,
-            "count": 41
+            "count": 38
           },
           {
             "code": 7034,
@@ -2548,8 +2549,8 @@
     }
   },
   "totals": {
-    "files": 1143,
-    "errors": 7660,
+    "files": 1144,
+    "errors": 7657,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

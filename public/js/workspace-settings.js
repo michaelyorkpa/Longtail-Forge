@@ -129,6 +129,7 @@
     return apiClient;
   }
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserSettingsHost} BrowserSettingsHost */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserWorkspaceSettingsSection} BrowserWorkspaceSettingsSection */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserSettingsPageController} BrowserSettingsPageController */
 
   /**
@@ -221,6 +222,14 @@
         requireApi().getJson("/api/settings/catalog", { cache: "no-store" }),
       ]);
       const settings = normalizeSettings(settingsResponse);
+
+      // Validated before installation, because everything after this point treats the form as
+      // successfully loaded - including `setClean`, which would leave an empty form looking
+      // like a complete one the viewer had already seen.
+      if (!readWorkspaceSettingsSections(catalog)) {
+        throw new Error("The settings catalog could not be read.");
+      }
+
       settingsCatalog = catalog;
       activeWorkspaceId = settings.workspaceId || settings.workspace_id || "";
       workspaceNameInput.value = settings.workspaceName;
@@ -655,12 +664,32 @@
         return true;
       }
       const savedSettings = normalizeSettings(saveResult.data);
-      settingsCatalog = await requireApi().getJson("/api/settings/catalog", { cache: "no-store" });
+
+      // The write is already committed. A refresh that fails or answers a catalog this page
+      // cannot vouch for must not be reported as a failed save, and must not replace the
+      // sections currently on screen with a fabricated empty catalog. Staged locally so
+      // `settingsCatalog` is only ever replaced by a catalog that was read.
+      let refreshedCatalog = null;
+      try {
+        refreshedCatalog = await requireApi().getJson("/api/settings/catalog", { cache: "no-store" });
+      } catch (refreshError) {
+        // A lost session is still a lost session; the page's own 401 handling owns that.
+        if (requireErrors().caughtStatus(refreshError) === 401) {
+          throw refreshError;
+        }
+      }
+
+      const refreshedSections = readWorkspaceSettingsSections(refreshedCatalog);
+
       workspaceNameInput.value = savedSettings.workspaceName;
       setWorkspaceTypeValue(savedSettings.workspaceType);
-      renderModuleSettings(settingsCatalog);
       auditLoggingEnabledInput.checked = savedSettings.audit.loggingEnabled;
       auditRetentionDaysSelect.value = String(savedSettings.audit.retentionDays);
+
+      if (refreshedSections) {
+        settingsCatalog = refreshedCatalog;
+        renderModuleSettings(settingsCatalog);
+      }
 
       // Bound locally rather than read twice: the surface moved from a bare
       // `window.*` global to a namespace member, and `window.LongtailForge.x`
@@ -671,6 +700,15 @@
       }
 
       await requireNamespace().refreshAppShell?.();
+
+      // Decided explicitly rather than by early return: the workspace name, the audit controls,
+      // the application-name update and the app-shell refresh all come from the saved settings
+      // and still apply. Only the contributed sections depend on the catalog, so only they are
+      // held back - and the status says so instead of flashing a clean saved state over it.
+      if (!refreshedSections) {
+        setWorkspaceSettingsStatus("Workspace settings saved, but the refreshed settings catalog could not be read. Reload to see the current state.");
+        return true;
+      }
 
       flashSavedState();
       return true;
@@ -699,18 +737,90 @@
   }
 
   /**
-   * An attachment section carries whatever `GET /api/settings/catalog` delivered, so the two
-   * fields this page sorts on are read through a check rather than assumed.
-   * @param {unknown} section
-   * @returns {section is { moduleId?: unknown, lifecycle?: unknown }}
+   * A plain JSON object, which is the least a catalog or one of its sections can be.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
    */
-  function isAttachmentSection(section) {
-    return typeof section === "object" && section !== null;
+  function isCatalogRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
   }
 
+  /**
+   * One section of the workspace placement.
+   *
+   * **Derived from `findOrCreateSection`, which is the only builder of these.** It writes `id`,
+   * `placement` and `settings` by name after spreading the module metadata, and that metadata
+   * always supplies `moduleId`, `name` and `displayName` - falling back to `moduleId` for the
+   * other two, which is why `moduleId` is the one required to be non-empty. The page sorts on
+   * `moduleId` and compares it to `"client-projects"`, so an empty one would silently join the
+   * wrong group.
+   *
+   * `placement` is checked against the container the section was read from: the producer passes
+   * the placement straight through, so a section that disagrees with its own bucket is not one
+   * this producer built.
+   *
+   * `lifecycle` is **absent on an ordinary section**, which is a real answer rather than a
+   * missing member, so its absence is admitted and its presence is checked against the
+   * producer's own declared type.
+   * @param {unknown} value
+   * @returns {value is BrowserWorkspaceSettingsSection}
+   */
+  function isWorkspaceSettingsSection(value) {
+    return isCatalogRecord(value)
+      && typeof value.id === "string"
+      && value.id !== ""
+      && value.placement === "workspace"
+      && typeof value.moduleId === "string"
+      && value.moduleId !== ""
+      && typeof value.name === "string"
+      && typeof value.displayName === "string"
+      && Array.isArray(value.settings)
+      && (value.lifecycle === undefined || typeof value.lifecycle === "boolean");
+  }
+
+  /**
+   * The workspace placement's sections, or `null` when the catalog is not one this producer sent.
+   *
+   * **The raw catalog is inspected before the shared helper is asked for anything.**
+   * `settingsHost.attachmentSections` answers `[]` for a body it cannot use, which is the right
+   * answer for a picker and the wrong one for an administrative form: by the time this page saw
+   * that `[]` it could no longer tell "this workspace contributes no settings" from "the catalog
+   * could not be read", and it rendered an empty form for both - then called `setClean`, leaving
+   * a complete-looking form whose save would submit nothing.
+   *
+   * A genuinely empty `attachments.workspace` is a real answer and comes back as `[]`. What is
+   * refused is a catalog whose shape this page cannot vouch for, or a section it cannot vouch
+   * for: this is an administrative form, so a silently dropped module would present the
+   * remaining controls as the whole of it.
+   *
+   * **Only the workspace placement is judged.** `user`, `module` and `new-workspace` belong to
+   * other pages with their own policies, and requiring them to be deeply valid here would let an
+   * unrelated placement refuse this form.
+   *
+   * **The producer's own sections and settings arrays are answered, not rebuilt**, so the
+   * renderer still sees labels, types, values, options and whatever a module contributes next.
+   * @param {unknown} catalog
+   * @returns {BrowserWorkspaceSettingsSection[] | null}
+   */
+  function readWorkspaceSettingsSections(catalog) {
+    if (!isCatalogRecord(catalog) || !isCatalogRecord(catalog.attachments)) {
+      return null;
+    }
+
+    const workspaceAttachments = catalog.attachments.workspace;
+
+    if (!Array.isArray(workspaceAttachments) || !workspaceAttachments.every(isWorkspaceSettingsSection)) {
+      return null;
+    }
+
+    return workspaceAttachments;
+  }
+
+  /** @param {unknown} catalog */
   function renderModuleSettings(catalog) {
-    const sections = requireSettingsHost().attachmentSections(catalog, "workspace")
-      .filter(isAttachmentSection);
+    // Already validated by the caller, which refuses an unreadable catalog rather than
+    // installing one. `|| []` is the unreachable arm of that contract, not a fallback policy.
+    const sections = readWorkspaceSettingsSections(catalog) || [];
     const clientProjects = sections.filter((section) => section.moduleId === "client-projects");
     const optionalModules = sections
       .filter((section) => section.moduleId !== "client-projects" && section.lifecycle === true)
@@ -731,6 +841,10 @@
     );
   }
 
+  /**
+   * @param {BrowserWorkspaceSettingsSection} left
+   * @param {BrowserWorkspaceSettingsSection} right
+   */
   function compareOptionalModules(left, right) {
     const leftLast = left.moduleId === "developer-example" ? 1 : 0;
     const rightLast = right.moduleId === "developer-example" ? 1 : 0;

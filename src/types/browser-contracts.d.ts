@@ -5070,6 +5070,45 @@ export interface BrowserModuleSettingsSection {
 }
 
 /**
+ * One section of the workspace placement, as `findOrCreateSection` builds it.
+ *
+ * **Deliberately not `BrowserModuleSettingsSection`.** That contract fixes `placement` to
+ * `"module"`, matches `moduleId` against the bucket key the module placement is stored under -
+ * a key the workspace placement does not have, because `attachments.workspace` is a flat array -
+ * and types its settings as the resolved records that page reads. Every one of those three
+ * guarantees is either wrong or unearned here, and the workspace placement additionally carries
+ * lifecycle sections the module placement never produces.
+ *
+ * `id`, `placement` and `settings` are written by name after the module metadata is spread, so
+ * those three are guaranteed; `moduleId`, `name` and `displayName` come from that metadata,
+ * which always supplies all three, with `moduleId` itself as the fallback for the other two.
+ *
+ * **`lifecycle` is optional because absence is a real answer, not a missing member.** Only
+ * `addModuleLifecycleSections` sets it, and only on a module that contributed a
+ * `moduleStatus` setting at this placement. A section without it is an ordinary contributed
+ * section, which is exactly how the page groups it. The producer's own typedef declares it
+ * `boolean`, so that is what is admitted here, though the shipped writer only ever assigns
+ * `true`.
+ *
+ * **`settings` stays `unknown[]`.** This page never reads inside a setting: it groups and sorts
+ * sections and hands the arrays to the settings renderer, which performs its own total
+ * normalisation of type, options, value and read-only state and owns that model. Naming the
+ * elements here would claim a validation this boundary does not perform and duplicate a
+ * contract that already has an owner. The array is answered by identity, so everything the
+ * renderer reads survives.
+ */
+export interface BrowserWorkspaceSettingsSection {
+  displayName: string;
+  id: string;
+  /** Present only on a section built from a module's lifecycle settings. */
+  lifecycle?: boolean;
+  moduleId: string;
+  name: string;
+  placement: "workspace";
+  settings: unknown[];
+}
+
+/**
  * The four job states the Workspace Settings readout counts.
  *
  * `shapeStatusCounts` starts from this exact object with every count at zero and overwrites a
