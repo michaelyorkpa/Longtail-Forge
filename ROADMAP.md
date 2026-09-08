@@ -735,6 +735,18 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **3 diagnostics left deliberately.** `user-admin.js:682` reads `body.sessions` from `GET /api/users/:id/sessions` and `:769` reads `body.revokedCount` twice from the two `DELETE` routes. **They are two envelopes, not one**: a session list and a revocation acknowledgement, and a list response with an optional count would be the false symmetry this rollup keeps refusing. **Trace the session record for authentication material before naming it** - a token or hash reaching the browser would be a defect to report, not a member to declare.
 
+#### 0.33.33.38.4.4.7 - The optional workspace memberships
+
+**Complete: an unsound type promise made true, and it removes no diagnostics.** See the archive entry. Found by the 2026-09-08 migration-integrity audit as **F2**. `BrowserUserRecord.workspaceMemberships?: BrowserUserWorkspaceMembership[]` promised, when present, an array of six-member records - and **neither** `isUserRecord` (User Admin) nor `isWorkspaceUserRecord` (Workspace Settings) checked it. Eight violating shapes passed the trust boundary; three made the shipped consumer throw.
+
+**Stated precisely: a confirmed unsound predicate, demonstrated on malformed input.** The current producer cannot emit any of those shapes - `decorateUserWithMemberships` builds an exact six-member record from an `INNER JOIN`, and every source column is `NOT NULL`. No claim is made that the server emits them, and no exploit was established. The defect is that a value could cross into a trusted consumer while violating the type the reader promised.
+
+**Optional now means what it should**: absent (the single-user paths do not decorate), an explicit `undefined` (`exactOptionalPropertyTypes` is off, so the two are the same answer), and an empty array are all accepted; `null`, a non-array, a non-record element and a membership missing or mistyping any of the six are refused. The producer's own array and elements are answered **by identity**.
+
+**Each outer reader kept its own policy.** The authoritative rosters still refuse rather than hide an account; the previously approved filtering reader still filters; the mutation echo still answers `null` and lets its caller fall back. Breaks in both directions are refused.
+
+**Both proofs that missed it were repaired on the right terms.** `user-record-contract` excluded `workspaceMemberships` from its checked-equals-produced comparison - and that exclusion is **correct**, because that comparison is against the *flat* shaper, which does not emit the member. What was missing was independent evidence for the **decorated** producer, which this child adds. `user-list-response-contracts`'s two-member fixture became the producer's six.
+
 #### 0.33.33.38.4.4.4 - The user-admin bootstrap
 
 **A planning rollup, resliced rather than closed.** The `Promise.all` in `loadUsers` destructures seven bodies from five producers, which is why it was drawn apart from everything above. `0.33.33.38.4.4.6` then took the current-user-id producer, leaving four reads: three that could be closed and one that could not. **A checkpoint is not allowed to be half-blocked**, so the parent is a rollup and the numeric children below own the work.
