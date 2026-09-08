@@ -443,8 +443,11 @@ describe("form behaviour this child must not have moved", () => {
   it("left the cohorts this child excluded alone", () => {
     // The deletion dialog's own controls are still raw `Element` reads; they belong to a later
     // DOM child and are not borrowed into this one.
-    assert.match(page, /const workspaceDeletionNameInput = document\.querySelector\(/,
-      "the deletion dialog controls are untouched");
+    // Spent: `0.33.33.38.3.2` took the deletion dialog as the next cohort. What survives of this
+    // claim is that THIS child did not reach into it - the deletion controls are captured by
+    // their own checked lookups, added by that child rather than this one.
+    assert.match(page, /const workspaceDeletionNameInput = findInput\(/,
+      "the deletion dialog now has its own checked lookups");
     assert.match(page, /const workspaceUsersDialog = document\.querySelector\(/,
       "and so is the users dialog");
   });

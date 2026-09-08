@@ -286,7 +286,9 @@ describe("the consumers", () => {
     }
     assert.equal(page.split("readWorkspaceDeletionState(").length, 4,
       "the load and the mutation both narrow, beside the reader's own declaration");
-    assert.match(page, /if \(!deletion\) \{\s+throw new Error\("Workspace deletion state could not be read\."\);\s+\}\s+workspaceDeletionDialog\.close\(\);/,
+    // The dialog is reached through a checked guard since `0.33.33.38.3.2`; the ordering this
+    // owner defends - read, then close - is unchanged.
+    assert.match(page, /if \(!deletion\) \{\s+throw new Error\("Workspace deletion state could not be read\."\);\s+\}\s+requireWorkspaceDeletionDialog\(\)\.close\(\);/,
       "the mutation reads before it closes the dialog, so a bad body cannot close it on a fabricated state");
     assert.match(declarationSource, /getJson\([^)]*\): Promise<unknown>;/, "BrowserApi keeps returning a promise of unknown");
     assert.match(declarationSource, /postJson\([^)]*\): Promise<unknown>;/);
