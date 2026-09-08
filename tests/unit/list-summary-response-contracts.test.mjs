@@ -29,6 +29,15 @@ function slice(source, opener) {
   return source.slice(start, end + 4);
 }
 
+/**
+ * A function body with its comments removed, so a claim about executed code cannot be satisfied
+ * by prose that happens to name the same call.
+ * @param {string} body
+ */
+function executableBody(body) {
+  return body.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|\s)\/\/[^\n]*/g, "$1");
+}
+
 /** @param {string} source @param {string} name */
 function constant(source, name) {
   const start = source.indexOf("  const " + name + " = ");
@@ -335,10 +344,31 @@ describe("the shipped source", () => {
   });
 
   it("assigns state.lists only at the completed-load point", () => {
-    const body = slice(listsSource, "async function loadLists() {");
-    assert.equal((body.match(/state\.lists = /g) || []).length, 1);
+    // **Presence before position.** `indexOf` answers `-1` for a needle that is not there, and
+    // `-1 < n` is true for every positive `n` - so an ordering comparison alone passes vacuously
+    // once the operation it orders has been deleted. `0.33.33.38.4.7.2.3` repaired this after the
+    // 2026-09-08 audit removed `readListSummaries(result)` entirely and watched the assertion
+    // still pass. Comments are stripped first, so a mention in prose cannot stand in for
+    // executed code.
+    const body = executableBody(slice(listsSource, "async function loadLists() {"));
+
     const assignment = body.indexOf("state.lists = ");
-    assert.ok(body.indexOf("readListSummaries(result)") < assignment);
-    assert.ok(body.indexOf("Promise.all") < assignment, "after every detail has settled");
+    const validation = body.indexOf("readListSummaries(result)");
+    const settle = body.indexOf("await Promise.all(");
+
+    assert.equal((body.match(/state\.lists = /g) || []).length, 1,
+      "loadLists must assign state.lists exactly once");
+    assert.notEqual(assignment, -1, "loadLists must assign state.lists");
+    assert.notEqual(validation, -1,
+      "loadLists must validate the collection through readListSummaries(result)");
+    assert.notEqual(settle, -1,
+      "loadLists must await Promise.all, so every detail request has settled");
+
+    assert.ok(validation < settle,
+      "the collection must be validated before any detail request is issued");
+    assert.ok(settle < assignment,
+      "every detail must have settled before state.lists is assigned");
+    assert.ok(validation < assignment,
+      "and the collection must be validated before state.lists is assigned");
   });
 });
