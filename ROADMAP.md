@@ -552,6 +552,18 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Deliberately excluded**, and asserted as still untouched: the deletion dialog, the users dialog, backup/job/runtime readouts, and the contributed settings renderer's internals. Four `Property 'value'` diagnostics remain in this file and all four are the deletion dialog's.
 
+#### 0.33.33.38.3.2 - The Workspace Settings deletion dialog
+
+**Complete: 41 diagnostics, twelve bindings, one page** - the second `0.33.33.38.3` cohort, on the pattern `0.33.33.38.3.1` established. See the archive entry. The DOM family fell **1,461 to 1,422** and `assorted` **142 to 140**; params and state did not move.
+
+**The live cohort was 25, not the 17 the audit expected** - and three of those 25 are `workspaceDeletionState`, a page-state binding rather than a DOM one, which is why it is **still outstanding** after this child. The audit's figure was an expectation, and it is corrected here rather than treated as a quota.
+
+**Three subtypes the core form did not need**: a real `<dialog>` for `showModal`/`close`, `<button>` for `disabled`, and a plain `HTMLElement` for the nodes this page only reads `hidden` or `textContent` from. Each traced to the host that builds it: `view.createModal` makes a `<dialog>`, `createActionButton` a `<button>`, `field({ type: "text" })` an `<input>`, and the acknowledgement marker is the field **shell**, a `<label>`.
+
+**This page's own `asStatusElement` is retired** - `"hidden" in node` plus an `HTMLElement` assertion, replaced by a real check. Both of its call sites are non-deletion status elements and both keep their existing tolerance: the page status is still handed to a writer whose contract declares `HTMLElement | null | undefined`, and the backup status still guards with its own early return. **The other five pages carrying that helper are not swept**, and a test asserts they still hold it.
+
+**Capture and failure timing are preserved.** All twelve are still queried once at module evaluation; each required control is checked at the use point that already dereferenced it, including the two inside `loadWorkspaceDeletion`'s `catch`. The listener bindings stay optional because they always were: **this page treats these controls as optional to bind and required to render onto, and that inconsistency is preserved rather than harmonised**, because harmonising it would change behaviour under the guise of typing.
+
 #### 0.33.33.38.4 - Publish narrowing contracts for the genuine dynamic boundaries
 
 **`LongtailForge.userPreferences` is owned here, moved out of `0.33.33.38.2.2.6.5` by that child's preflight.** It was listed as a narrow pure surface and it is neither. `public/js/navigation.js` publishes it **inside an async bootstrap, after `await response.json()`**, and its single member is `shell.user?.preferredCalendarView || null`. **The warning that survives is the one about the vocabulary**: nothing checks that the server sent one of the three views the page can render, so a closed string union would be a claim about the API that no code makes. **Do not declare it as one and do not cast it.**

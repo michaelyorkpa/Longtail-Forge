@@ -6,6 +6,8 @@ const browserGlobals = {
   Element: "readonly",
   fetch: "readonly",
   FormData: "readonly",
+  HTMLButtonElement: "readonly",
+  HTMLDialogElement: "readonly",
   HTMLElement: "readonly",
   HTMLFormElement: "readonly",
   HTMLInputElement: "readonly",

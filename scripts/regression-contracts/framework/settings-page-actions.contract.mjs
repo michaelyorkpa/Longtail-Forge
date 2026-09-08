@@ -77,7 +77,9 @@ assert.match(host, /LEAVE_WORKSPACE_WARNING = "Leaving a workspace removes only 
 assert.equal(host.match(/text: LEAVE_WORKSPACE_WARNING/g)?.length, 2, "the section and dialog must repeat the same warning");
 assert.match(host, /readoutSection\("Delete Workspace"[\s\S]*separate from Leave Workspace[\s\S]*30-day grace period/);
 assert.match(host, /action\("Delete Workspace", "openWorkspaceDeletion", \{[\s\S]*className: "danger-button",[\s\S]*hidden: true/);
-assert.match(workspace, /catch \(error\) \{[\s\S]*openWorkspaceDeletionButton\.hidden = true;[\s\S]*Workspace deletion requires a Workspace Administrator/);
+// `0.33.33.38.3.2` routed the two controls through checked guards. The claim is unchanged:
+// the catch still hides both destructive controls and still names the permission.
+assert.match(workspace, /catch \(error\) \{[\s\S]*requireOpenWorkspaceDeletionButton\(\)\.hidden = true;[\s\S]*requireOpenWorkspaceDeletionCancelButton\(\)\.hidden = true;[\s\S]*Workspace deletion requires a Workspace Administrator/);
 assert.match(workspace, /DELETE WITHOUT CURRENT BACKUP|acknowledgementPhrase/);
 assert.match(workspace, /workspace-deletion\/request/);
 assert.match(workspace, /workspace-deletion\/cancel/);

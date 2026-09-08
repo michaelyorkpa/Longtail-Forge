@@ -12,27 +12,27 @@
   const workspaceUsersDialog = document.querySelector("[data-workspace-users-dialog]");
   const workspaceUsersList = document.querySelector("[data-workspace-users-list]");
   const closeWorkspaceUsersButton = document.querySelector("[data-close-workspace-users]");
-  const workspaceSettingsStatus = asStatusElement(document.querySelector("[data-workspace-settings-status]"));
+  const workspaceSettingsStatus = findElement("[data-workspace-settings-status]");
   const runtimeDiagnosticsSummary = document.querySelector("[data-runtime-diagnostics-summary]");
   const runtimeDiagnosticsWarnings = document.querySelector("[data-runtime-diagnostics-warnings]");
   const jobObservabilitySummary = document.querySelector("[data-job-observability-summary]");
   const jobObservabilityFailures = document.querySelector("[data-job-observability-failures]");
   const jobObservabilityMoreButton = document.querySelector("[data-job-observability-more]");
   const workspaceBackupSummary = document.querySelector("[data-workspace-backup-summary]");
-  const workspaceBackupStatus = asStatusElement(document.querySelector("[data-workspace-backup-status]"));
+  const workspaceBackupStatus = findElement("[data-workspace-backup-status]");
   const createWorkspaceBackupButton = document.querySelector("[data-create-workspace-backup]");
-  const workspaceDeletionSummary = document.querySelector("[data-workspace-deletion-summary]");
-  const workspaceDeletionStatus = document.querySelector("[data-workspace-deletion-status]");
-  const openWorkspaceDeletionButton = document.querySelector("[data-open-workspace-deletion]");
-  const openWorkspaceDeletionCancelButton = document.querySelector("[data-open-workspace-deletion-cancel]");
-  const workspaceDeletionDialog = document.querySelector("[data-workspace-deletion-dialog]");
-  const workspaceDeletionDialogExplanation = document.querySelector("[data-workspace-deletion-dialog-explanation]");
-  const workspaceDeletionNameInput = document.querySelector("[data-workspace-deletion-name]");
-  const workspaceDeletionAcknowledgementInput = document.querySelector("[data-workspace-deletion-acknowledgement]");
-  const workspaceDeletionAcknowledgementField = document.querySelector("[data-workspace-deletion-acknowledgement-field]");
-  const workspaceDeletionDialogStatus = document.querySelector("[data-workspace-deletion-dialog-status]");
-  const closeWorkspaceDeletionButton = document.querySelector("[data-close-workspace-deletion]");
-  const confirmWorkspaceDeletionButton = document.querySelector("[data-confirm-workspace-deletion]");
+  const workspaceDeletionSummary = findElement("[data-workspace-deletion-summary]");
+  const workspaceDeletionStatus = findElement("[data-workspace-deletion-status]");
+  const openWorkspaceDeletionButton = findButton("[data-open-workspace-deletion]");
+  const openWorkspaceDeletionCancelButton = findButton("[data-open-workspace-deletion-cancel]");
+  const workspaceDeletionDialog = findDialog("[data-workspace-deletion-dialog]");
+  const workspaceDeletionDialogExplanation = findElement("[data-workspace-deletion-dialog-explanation]");
+  const workspaceDeletionNameInput = findInput("[data-workspace-deletion-name]");
+  const workspaceDeletionAcknowledgementInput = findInput("[data-workspace-deletion-acknowledgement]");
+  const workspaceDeletionAcknowledgementField = findElement("[data-workspace-deletion-acknowledgement-field]");
+  const workspaceDeletionDialogStatus = findElement("[data-workspace-deletion-dialog-status]");
+  const closeWorkspaceDeletionButton = findButton("[data-close-workspace-deletion]");
+  const confirmWorkspaceDeletionButton = findButton("[data-confirm-workspace-deletion]");
   const JOB_FAILURE_PAGE_SIZE = 5;
   let activeWorkspaceId = "";
   let jobObservabilityFailureItems = [];
@@ -196,6 +196,39 @@
     return node instanceof HTMLSelectElement ? node : null;
   }
 
+  /** @param {string} selector @returns {HTMLButtonElement | null} */
+  function findButton(selector) {
+    const node = document.querySelector(selector);
+    return node instanceof HTMLButtonElement ? node : null;
+  }
+
+  /**
+   * The deletion dialog itself, which the page opens and closes rather than merely reads.
+   * `view.createModal` builds a real `<dialog>`, and `showModal`/`close` live on that subtype.
+   * @param {string} selector
+   * @returns {HTMLDialogElement | null}
+   */
+  function findDialog(selector) {
+    const node = document.querySelector(selector);
+    return node instanceof HTMLDialogElement ? node : null;
+  }
+
+  /**
+   * A rendered element this page reads `hidden` or `textContent` from.
+   *
+   * **Replaces this page's own `asStatusElement`**, which tested `"hidden" in node` and then
+   * asserted `HTMLElement`. A property-presence test plus an assertion proves less than it claims;
+   * `instanceof` is what the DOM guarantees, and every node this reaches is built by the settings
+   * host in this same document. The other five pages still carry the older helper and are not
+   * swept here.
+   * @param {string} selector
+   * @returns {HTMLElement | null}
+   */
+  function findElement(selector) {
+    const node = document.querySelector(selector);
+    return node instanceof HTMLElement ? node : null;
+  }
+
   /**
    * The workspace name control, required wherever the form is read or populated.
    *
@@ -227,6 +260,88 @@
       throw new Error("Workspace settings requires its audit retention control.");
     }
     return auditRetentionDaysSelect;
+  }
+
+  /**
+   * The deletion dialog's required controls.
+   *
+   * **Checked where they were already dereferenced**, which is what keeps the timing unchanged:
+   * every one of these sites raised a null dereference before this child and raises a named error
+   * now. The listener bindings stay optional (`?.addEventListener`) because they always were -
+   * this page treats these controls as optional to bind and required to render onto, and that
+   * inconsistency is preserved rather than harmonised, because harmonising it would change
+   * behaviour under the guise of typing.
+   * @returns {HTMLDialogElement}
+   */
+  function requireWorkspaceDeletionDialog() {
+    if (!workspaceDeletionDialog) {
+      throw new Error("Workspace settings requires its deletion dialog.");
+    }
+    return workspaceDeletionDialog;
+  }
+
+  /** @returns {HTMLButtonElement} */
+  function requireOpenWorkspaceDeletionButton() {
+    if (!openWorkspaceDeletionButton) {
+      throw new Error("Workspace settings requires its delete-workspace button.");
+    }
+    return openWorkspaceDeletionButton;
+  }
+
+  /** @returns {HTMLButtonElement} */
+  function requireOpenWorkspaceDeletionCancelButton() {
+    if (!openWorkspaceDeletionCancelButton) {
+      throw new Error("Workspace settings requires its cancel-deletion button.");
+    }
+    return openWorkspaceDeletionCancelButton;
+  }
+
+  /** @returns {HTMLButtonElement} */
+  function requireConfirmWorkspaceDeletionButton() {
+    if (!confirmWorkspaceDeletionButton) {
+      throw new Error("Workspace settings requires its confirm-deletion button.");
+    }
+    return confirmWorkspaceDeletionButton;
+  }
+
+  /** @returns {HTMLInputElement} */
+  function requireWorkspaceDeletionNameInput() {
+    if (!workspaceDeletionNameInput) {
+      throw new Error("Workspace settings requires its deletion name input.");
+    }
+    return workspaceDeletionNameInput;
+  }
+
+  /** @returns {HTMLInputElement} */
+  function requireWorkspaceDeletionAcknowledgementInput() {
+    if (!workspaceDeletionAcknowledgementInput) {
+      throw new Error("Workspace settings requires its deletion acknowledgement input.");
+    }
+    return workspaceDeletionAcknowledgementInput;
+  }
+
+  /** @returns {HTMLElement} */
+  function requireWorkspaceDeletionAcknowledgementField() {
+    if (!workspaceDeletionAcknowledgementField) {
+      throw new Error("Workspace settings requires its deletion acknowledgement field.");
+    }
+    return workspaceDeletionAcknowledgementField;
+  }
+
+  /** @returns {HTMLElement} */
+  function requireWorkspaceDeletionDialogExplanation() {
+    if (!workspaceDeletionDialogExplanation) {
+      throw new Error("Workspace settings requires its deletion dialog explanation.");
+    }
+    return workspaceDeletionDialogExplanation;
+  }
+
+  /** @returns {HTMLElement} */
+  function requireWorkspaceDeletionDialogStatus() {
+    if (!workspaceDeletionDialogStatus) {
+      throw new Error("Workspace settings requires its deletion dialog status.");
+    }
+    return workspaceDeletionDialogStatus;
   }
 
   function requireWorkspaceSettingsForm() {
@@ -267,16 +382,6 @@
       throw new Error("Workspace settings requires LongtailForge.status.");
     }
     return status;
-  }
-
-  /**
-   * A status element the message helpers can drive. They set `hidden`, which only an
-   * `HTMLElement` has; anything else was already a silent no-op and stays one.
-   * @param {Element | null} node
-   * @returns {HTMLElement | null}
-   */
-  function asStatusElement(node) {
-    return node && "hidden" in node ? /** @type {HTMLElement} */ (node) : null;
   }
 
   async function loadSettingsForm() {
@@ -549,8 +654,8 @@
       }
       renderWorkspaceDeletionSummary(deletion);
     } catch (error) {
-      openWorkspaceDeletionButton.hidden = true;
-      openWorkspaceDeletionCancelButton.hidden = true;
+      requireOpenWorkspaceDeletionButton().hidden = true;
+      requireOpenWorkspaceDeletionCancelButton().hidden = true;
       renderWorkspaceDeletionMessage(error?.status === 403
         ? "Workspace deletion requires a Workspace Administrator or Super Admin."
         : error?.message || "Workspace deletion state could not be loaded.", "error");
@@ -564,8 +669,8 @@
     const lifecycle = deletion?.lifecycle;
     if (!lifecycle) {
       workspaceDeletionSummary.appendChild(createRuntimeDiagnosticItem("Status", placeholder));
-      openWorkspaceDeletionButton.hidden = false;
-      openWorkspaceDeletionCancelButton.hidden = true;
+      requireOpenWorkspaceDeletionButton().hidden = false;
+      requireOpenWorkspaceDeletionCancelButton().hidden = true;
       renderWorkspaceDeletionMessage(deletion?.backup?.current
         ? `A workspace backup from the last ${deletion.backup.windowHours} hours is available.`
         : "No current workspace backup is available. Scheduling deletion requires the displayed typed acknowledgement.");
@@ -578,8 +683,8 @@
       createRuntimeDiagnosticItem("Grace Period Ends", formatRuntimeDate(lifecycle.purgeAfter)),
       createRuntimeDiagnosticItem("Backup Protection", lifecycle.backupProtected ? "Current backup recorded" : "No current backup acknowledged"),
     );
-    openWorkspaceDeletionButton.hidden = true;
-    openWorkspaceDeletionCancelButton.hidden = false;
+    requireOpenWorkspaceDeletionButton().hidden = true;
+    requireOpenWorkspaceDeletionCancelButton().hidden = false;
     renderWorkspaceDeletionMessage("The workspace remains fully operational during the grace period. Cancel before the displayed time to restore its normal lifecycle state.", "warning");
   }
 
@@ -587,35 +692,35 @@
     if (!workspaceDeletionDialog || !workspaceDeletionState) return;
     workspaceDeletionDialogMode = mode;
     const canceling = mode === "cancel";
-    workspaceDeletionDialog.querySelector(".view-modal-title").textContent = canceling ? "Cancel Workspace Deletion" : "Delete Workspace";
-    workspaceDeletionDialogExplanation.textContent = canceling
+    requireWorkspaceDeletionDialog().querySelector(".view-modal-title").textContent = canceling ? "Cancel Workspace Deletion" : "Delete Workspace";
+    requireWorkspaceDeletionDialogExplanation().textContent = canceling
       ? `Cancel the pending deletion of ${workspaceDeletionState.workspaceName}. Its data and access remain unchanged.`
       : `Schedule ${workspaceDeletionState.workspaceName} for deletion after a 30-day grace period. Sessions, memberships, navigation, modules, jobs, Files, Search, and notifications remain operational during the grace period.`;
-    workspaceDeletionNameInput.closest(".view-renderer-field")?.toggleAttribute("hidden", canceling);
-    workspaceDeletionNameInput.required = !canceling;
-    workspaceDeletionAcknowledgementField.hidden = canceling || workspaceDeletionState.backup?.current;
-    workspaceDeletionAcknowledgementInput.required = !canceling && !workspaceDeletionState.backup?.current;
-    workspaceDeletionAcknowledgementInput.placeholder = workspaceDeletionState.acknowledgementPhrase || "";
-    workspaceDeletionNameInput.value = "";
-    workspaceDeletionAcknowledgementInput.value = "";
-    workspaceDeletionDialogStatus.textContent = "";
-    confirmWorkspaceDeletionButton.textContent = canceling ? "Cancel Deletion" : "Schedule Deletion";
-    confirmWorkspaceDeletionButton.classList.toggle("danger-button", !canceling);
-    workspaceDeletionDialog.showModal();
+    requireWorkspaceDeletionNameInput().closest(".view-renderer-field")?.toggleAttribute("hidden", canceling);
+    requireWorkspaceDeletionNameInput().required = !canceling;
+    requireWorkspaceDeletionAcknowledgementField().hidden = canceling || workspaceDeletionState.backup?.current;
+    requireWorkspaceDeletionAcknowledgementInput().required = !canceling && !workspaceDeletionState.backup?.current;
+    requireWorkspaceDeletionAcknowledgementInput().placeholder = workspaceDeletionState.acknowledgementPhrase || "";
+    requireWorkspaceDeletionNameInput().value = "";
+    requireWorkspaceDeletionAcknowledgementInput().value = "";
+    requireWorkspaceDeletionDialogStatus().textContent = "";
+    requireConfirmWorkspaceDeletionButton().textContent = canceling ? "Cancel Deletion" : "Schedule Deletion";
+    requireConfirmWorkspaceDeletionButton().classList.toggle("danger-button", !canceling);
+    requireWorkspaceDeletionDialog().showModal();
   }
 
   async function confirmWorkspaceDeletion() {
     if (!workspaceDeletionState || !confirmWorkspaceDeletionButton) return;
-    confirmWorkspaceDeletionButton.disabled = true;
-    workspaceDeletionDialogStatus.textContent = workspaceDeletionDialogMode === "cancel"
+    requireConfirmWorkspaceDeletionButton().disabled = true;
+    requireWorkspaceDeletionDialogStatus().textContent = workspaceDeletionDialogMode === "cancel"
       ? "Canceling workspace deletion..."
       : "Scheduling workspace deletion...";
     try {
       const deletion = readWorkspaceDeletionState(workspaceDeletionDialogMode === "cancel"
         ? await requireApi().postJson("/api/settings/workspace-deletion/cancel", {})
         : await requireApi().postJson("/api/settings/workspace-deletion/request", {
-          acknowledgement: workspaceDeletionAcknowledgementInput.value,
-          workspaceName: workspaceDeletionNameInput.value,
+          acknowledgement: requireWorkspaceDeletionAcknowledgementInput().value,
+          workspaceName: requireWorkspaceDeletionNameInput().value,
         }));
       // Read before closing: an unvouchable body must not close the dialog on a fabricated
       // lifecycle state, in either direction. The mutation itself already happened on the
@@ -623,13 +728,13 @@
       if (!deletion) {
         throw new Error("Workspace deletion state could not be read.");
       }
-      workspaceDeletionDialog.close();
+      requireWorkspaceDeletionDialog().close();
       renderWorkspaceDeletionSummary(deletion);
       await requireNamespace().refreshAppShell?.();
     } catch (error) {
-      workspaceDeletionDialogStatus.textContent = error?.message || "Workspace deletion state could not be changed.";
+      requireWorkspaceDeletionDialogStatus().textContent = error?.message || "Workspace deletion state could not be changed.";
     } finally {
-      confirmWorkspaceDeletionButton.disabled = false;
+      requireConfirmWorkspaceDeletionButton().disabled = false;
     }
   }
 
