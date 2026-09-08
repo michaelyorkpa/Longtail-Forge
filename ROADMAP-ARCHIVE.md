@@ -1,5 +1,22 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.4.7 - The optional workspace memberships
+
+**Model: Medium Effort** - two one-line predicate extensions, and two test suites that had to be repaired for the right reason rather than the convenient one.
+
+- [x] **The finding is stated as what it is.** A **confirmed unsound predicate and type promise**, with the failure demonstrated on malformed input, and **no claim** that the current producer emits it. `decorateUserWithMemberships` maps rows from `readForUser`, an `INNER JOIN` on `workspaces`; `user_workspaces.workspace_id`, `status`, `created_at` and `updated_at` are `TEXT NOT NULL`, `user_workspace_id` is the primary key, and `workspaces.name` is `NOT NULL`. So the declaration's six required strings are the producer's own guarantee - the browser was simply not checking them.
+- [x] **The fields were derived from the producer, not from a fixture or the table being written.** The suites read the six names out of `decorateUserWithMemberships` itself and compare them against the browser table *and* the declaration, so all three must agree. The nullability claim is asserted against the query and `current.sql`, not assumed.
+- [x] **Both predicates were updated, and neither contract was weakened.** `BrowserUserRecord` and `BrowserUserWorkspaceMembership` are reused unchanged; **no second membership contract** was created, no smaller user record reconstructed, no server projection touched.
+- [x] **Optional means absent, or present and valid.** Absent, explicit `undefined` and `[]` are accepted. `null`, a string, a number, a record, a non-record element, a missing member and a mistyped member are refused. No coercion, no dropping malformed elements, no fabricated fields. Objecthood comes from the page's own record predicate rather than from `!Array.isArray`.
+- [x] **Two breaks were inert against the first draft of the cases, and the cases were widened rather than the misses waved through.** A coercion (`[].concat(value)`) is indistinguishable from a real array check for every *invalid* non-array value - only a **valid membership sent instead of an array of one** exposes it. An objecthood test of "not an array and not nullish" is indistinguishable for primitives - only a **function carrying all six members** exposes it. Both cases were added, and both breaks are now refused.
+- [x] **Each outer reader kept its established policy**, tested explicitly: the authoritative rosters refuse rather than silently hiding an account, `readUserRecords` still filters, and `readUserRecord` still answers `null` for a mutation echo it cannot read. A break that turns the roster into a filter, and one that turns the filter into a refusal, are both refused.
+- [x] **The repaired proofs distinguish three things that were previously conflated**: the flat shaper's record, the decorated membership producer, and the browser's optional nested contract. The `workspaceMemberships` exclusion in the flat comparison was **kept**, because that comparison is against a producer that legitimately has nothing to say - removing it would have compared the member to the wrong authority. The evidence it lacked was added beside it.
+- [x] **Identity is proved with references captured before the reader runs**, so it is identity rather than equality: the producer's array and its elements reach the consumer unrebuilt, and a break that slices the array is refused.
+- [x] **No new script, namespace surface or shared helper.** Two local predicate implementations, one per page, matching each page's existing record helper and table conventions.
+- [x] **This removes no diagnostics and none were claimed.** The browser estate is **7,636** before and after, and `user-admin.js` (285) and `workspace-settings.js` (124) are unchanged per file. The value is that an existing promise is now true.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **12 breaks across both pages, all 12 refused for their specific named check.**
+
 ## Version 0.33.33.38.4.5.10 - The rejected-save protocol
 
 **Model: Medium Effort** - a one-word production change whose whole cost was proving it at the boundary where the audit found it.
