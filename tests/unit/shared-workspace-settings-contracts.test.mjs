@@ -353,11 +353,33 @@ describe("the three consumers", () => {
       ["module-settings", moduleSettings],
     ]) {
       assert.match(source, /requireSettingsHost\(\)\.readWorkspaceSettings/, name + " must use the shared reader");
+      // Matched on the parser's exact names rather than on a prefix. `0.33.33.38.4.5.9` added
+      // `readWorkspaceSettingsSections` to `workspace-settings`, which a prefix test reads as a
+      // copy of this parser and which is nothing of the kind: it parses
+      // `GET /api/settings/catalog`, a different producer with a different contract. The claim
+      // this owner makes - that no page re-parses the *settings body* - is unchanged.
       assert.ok(
-        !source.includes("function readWorkspaceSettings"),
-        name + " must not carry its own copy of the shared parser",
+        !/function readWorkspaceSettings\s*\(/.test(source),
+        name + " must not carry its own copy of the shared settings-body parser",
+      );
+      assert.ok(
+        !/function readWorkspaceSettingsSaveResult\s*\(/.test(source),
+        name + " must not carry its own copy of the save-result parser either",
       );
     }
+  });
+
+  it("does not count the catalog reader as a copy of the settings-body parser", () => {
+    // The distinction the assertion above now depends on, stated so it cannot quietly rot into
+    // a page re-parsing the settings body under a longer name.
+    assert.match(workspaceSettings, /function readWorkspaceSettingsSections\(catalog\) \{/,
+      "workspace-settings owns a catalog reader");
+    assert.match(workspaceSettings, /catalog\.attachments\.workspace/,
+      "which reads the catalog's own selected container");
+    assert.ok(!/getJson\("\/api\/settings", \{ cache: "no-store" \}\)[\s\S]{0,200}readWorkspaceSettingsSections/
+      .test(workspaceSettings), "and is never applied to the settings body");
+    assert.match(host, /function readWorkspaceSettings\(body\) \{/,
+      "while the settings body still has exactly one parser, in the shared host");
   });
 
   it("refuses an unreadable settings load rather than showing a disabled module", () => {
