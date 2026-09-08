@@ -876,6 +876,14 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **Complete: 1 diagnostic, one contract, zero fallout - and the third of the four reads `0.33.33.38.4.7.2` named.** See the archive entry. `BrowserListItemSuggestion` is a **structural minimum over an extensible catalogue record**, because `shapeCatalogItemForBrowser` answers `{ ...item, id }`; it promises the nine members the item picker reads and each is what `list_item_catalog` guarantees. **The envelope and the element are judged differently, on purpose**: a missing or non-array `suggestions` means the body is not one this producer sent, while a single malformed suggestion is one unusable candidate among usable ones, and suggestions are advisory rather than an account of anything. **`0.33.33.38.4.7.2`'s list-summary read stays blocked** on the state handoff it measured, so the Lists tail is not closed by this child.
 
+#### 0.33.33.38.4.7.2.3 - The repaired ordering proof
+
+**Complete: test-only, and no production code changed.** See the archive entry. Found by the 2026-09-08 migration-integrity audit as **F3**, and recorded here as **repaired test evidence - not a runtime defect**. `list-summary-response-contracts` compared index positions without first proving the operations were there: `indexOf` answers `-1` for a needle that is absent, and `-1 < n` holds for every positive `n`, so the assertion passed vacuously once the operation it ordered had been deleted. The audit removed `readListSummaries(result)` entirely and watched the ordering assertion still pass.
+
+**The severity is stated as the audit found it.** The *suite* already caught that mutation - two other tests failed - so this was one weak assertion, not a coverage hole. What is repaired is the assertion's own claim.
+
+**Presence now precedes position**, each with its own failure message, and the body is stripped of comments first so prose naming a call cannot stand in for executed code. The three orderings are asserted separately: validated before any detail request is issued, settled before assignment, and validated before assignment.
+
 #### 0.33.33.38.4.8 - The operator-surface bodies
 
 **13 diagnostics** across Support View targets and audit, `/api/security-events`, `/api/runtime-diagnostics` and `/api/jobs`. Grouped because they share an operator audience and a read-only shape, not because they share a route prefix.
