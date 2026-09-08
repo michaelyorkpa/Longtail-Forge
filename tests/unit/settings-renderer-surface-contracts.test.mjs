@@ -186,18 +186,35 @@ describe("the renderer is delivered to every page that runs a consumer, in order
 
 describe("the scopes the pages pass are proved rather than assumed", () => {
   it("requires each settings form the renderer walks", () => {
+    // The claim is that every form the renderer walks is *required* through a named guard, not
+    // that every guard answers the same width. `0.33.33.38.3.1` checked workspace-settings' form
+    // with `instanceof HTMLFormElement`, so that one answers the subtype it verified - which is
+    // an `Element`, and a narrowing of this promise rather than a departure from it. The three
+    // pages that still capture a bare `Element` still say so.
     const forms = [
-      ["files-settings", "requireFilesSettingsForm", "filesSettingsForm"],
-      ["module-settings", "requireModuleSettingsForm", "moduleSettingsForm"],
-      ["user-settings", "requireWorkspaceCreateForm", "workspaceCreateForm"],
-      ["workspace-settings", "requireWorkspaceSettingsForm", "settingsForm"],
+      ["files-settings", "requireFilesSettingsForm", "filesSettingsForm", "Element"],
+      ["module-settings", "requireModuleSettingsForm", "moduleSettingsForm", "Element"],
+      ["user-settings", "requireWorkspaceCreateForm", "workspaceCreateForm", "Element"],
+      ["workspace-settings", "requireWorkspaceSettingsForm", "settingsForm", "HTMLFormElement"],
     ];
-    for (const [script, accessor, holder] of forms) {
+    for (const [script, accessor, holder, returns] of forms) {
       const source = sources[script];
       assert.match(source, new RegExp("function " + accessor + "\\(\\) \\{"));
-      assert.match(source, new RegExp("if \\(!" + holder + "\\) \\{"));
-      assert.match(source, /@returns \{Element\}/);
+      assert.match(source, new RegExp("if \\(!" + holder + "\\) \\{"),
+        script + " must raise on an absent form rather than proceeding");
+      assert.match(source, new RegExp("@returns \\{" + returns + "\\}"),
+        script + " must declare the widest thing it actually verified");
     }
+  });
+
+  it("keeps the narrowed guard honest about how it was narrowed", () => {
+    // A subtype return is only allowed here because a runtime check earns it. If the check were
+    // ever replaced by an assertion, this promise would outrun the code again.
+    const source = sources["workspace-settings"];
+    assert.match(source, /return node instanceof HTMLFormElement \? node : null;/,
+      "the form is narrowed by a runtime check");
+    assert.match(source, /const settingsForm = findForm\("\[data-workspace-settings-form\]"\);/,
+      "and captured through it");
   });
 
   it("passes the required form, not the nullable holder, at every scoped call", () => {

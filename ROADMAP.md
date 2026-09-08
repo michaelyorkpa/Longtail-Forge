@@ -533,10 +533,24 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Model: High Effort - 1,479 diagnostics measured, corrected down from the 2,169 the previous slice claimed.**
 
-- [ ] Add checked DOM lookup and assert helpers that return the correct element subtype or fail explicitly. Do not turn a required element into an optional no-op.
+- [ ] Add checked DOM lookup and assert helpers that return the correct element subtype or fail explicitly. Do not turn a required element into an optional no-op. **Begun by `0.33.33.38.3.1`**, which took one page's core form as the first cohort and kept its helpers file-local: a single consumer is not evidence for a shared helper, and the second real consumer is what should extract one. That child's break set includes turning each required control into an optional no-op, and each is refused.
 - [ ] Add explicit event-target narrowing rather than a cast at each listener. `EventTarget` is only 10 diagnostics; the 861 are `Element` where a subtype is needed.
 - [ ] **The nullability cohort splits three ways and only two are yours.** Of 1,327 `TS18047`/`TS18048`: **549 are the namespace surface** (`.38.2`), **449 are DOM lookup results**, **265 are the declared-null element caches** the `cacheXElements()` pattern produces, and 64 are neither. The previous slice assigned the whole cohort to DOM.
 - [ ] The declared-null caches are a different shape from a lookup result and may need a different answer; measure them separately rather than forcing one helper over both.
+
+#### 0.33.33.38.3.1 - The Workspace Settings core form/control lookups
+
+**Complete: 21 diagnostics, five bindings, one page - and the first `0.33.33.38.3` child, which makes its shape worth stating.** See the archive entry. The DOM family fell **1,482 to 1,461** and **params, state and assorted did not move at all**: a pure DOM elimination with no contextual displacement into another family, which is the cleanest evidence available that the cohort was drawn at a real seam.
+
+**The 21 split two ways and both are this cohort's.** Ten are the `TS18047` nullability errors on the five captured bindings. Eleven are `TS2339` - eight `Property 'value'`, three `Property 'checked'` - that the null diagnostic was **masking**: `Element` carries neither, so narrowing the null without narrowing the subtype would have uncovered them rather than removed them. One checked lookup answers both.
+
+**Checked lookups, not assertions.** `findForm`, `findInput` and `findSelect` narrow with `instanceof`, which is what the DOM actually guarantees. The contract is the settings host's own `field()` builder: `type: "text"` and `type: "boolean"` route to `<input>` - the second as a checkbox through `inputTypeForField` - `type: "select"` to `<select>`, and the page shell is a real `<form>`. **No cast, no `@type` assertion, no generic type parameter treated as validation, no non-null assertion.** They are file-local: one page is not evidence for a shared helper, and the namespace gained nothing.
+
+**Capture lifetime and failure timing are preserved, not improved.** All five are still queried once during module evaluation and nothing re-queries, so a control replaced later is still not the one the page writes to - asserted so it stays a decision. Each required control is checked at its existing use point, inside the boundary that already caught the null dereference; the optional workspace-type select keeps its `if`/`?.` and its `"business"` fallback exactly.
+
+**One honest tightening.** A node present under the right selector but of the wrong subtype now behaves as absence. For the three required controls that means a named markup-contract error where the page previously read `undefined` and reported "Workspace name is required." For the optional select the behaviour is identical. Named rather than described as unchanged.
+
+**Deliberately excluded**, and asserted as still untouched: the deletion dialog, the users dialog, backup/job/runtime readouts, and the contributed settings renderer's internals. Four `Property 'value'` diagnostics remain in this file and all four are the deletion dialog's.
 
 #### 0.33.33.38.4 - Publish narrowing contracts for the genuine dynamic boundaries
 

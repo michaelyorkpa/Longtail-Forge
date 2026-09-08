@@ -435,11 +435,13 @@ describe("a committed write is not reported as a failed save", () => {
     // The early return sits after these deliberately: the write committed, so the name, the
     // audit controls, the application name and the app shell all still apply.
     const branch = save.indexOf("if (!refreshedSections) {");
+    // The control spellings moved when `0.33.33.38.3.1` routed them through checked guards. What
+    // this owner defends is unchanged: every one of these still runs before the refusal return.
     for (const sideEffect of [
-      "workspaceNameInput.value = savedSettings.workspaceName;",
+      "requireWorkspaceNameInput().value = savedSettings.workspaceName;",
       "setWorkspaceTypeValue(savedSettings.workspaceType);",
-      "auditLoggingEnabledInput.checked = savedSettings.audit.loggingEnabled;",
-      "auditRetentionDaysSelect.value = String(savedSettings.audit.retentionDays);",
+      "requireAuditLoggingEnabledInput().checked = savedSettings.audit.loggingEnabled;",
+      "requireAuditRetentionDaysSelect().value = String(savedSettings.audit.retentionDays);",
       "applyWorkspaceName(savedSettings.workspaceName);",
       "await requireNamespace().refreshAppShell?.();",
     ]) {
