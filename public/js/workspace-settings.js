@@ -1689,6 +1689,7 @@
   }
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserUserRecord} BrowserUserRecord */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserUserWorkspaceMembership} BrowserUserWorkspaceMembership */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserUserListResponse} BrowserUserListResponse */
 
   // These three tables are the same ones User Administration checks this producer with. They are
@@ -1724,6 +1725,45 @@
   ]);
 
   /**
+   * The six members `decorateUserWithMemberships` writes onto a user on the list paths.
+   *
+   * Every one is a `NOT NULL` column: `user_workspaces.user_workspace_id` (primary key),
+   * `workspace_id`, `status`, `created_at` and `updated_at`, plus `workspaces.name` reached
+   * through an `INNER JOIN`. So the declaration's six required strings are the producer's own
+   * guarantee, and this table validates exactly that - no emptiness constraint is added, because
+   * the contract does not promise one.
+   */
+  const WORKSPACE_MEMBERSHIP_TEXT = Object.freeze([
+    "createdAt", "status", "updatedAt", "userWorkspaceId", "workspaceId", "workspaceName",
+  ]);
+
+  /**
+   * One decorated workspace membership.
+   * @param {unknown} value
+   * @returns {value is BrowserUserWorkspaceMembership}
+   */
+  function isWorkspaceMembership(value) {
+    return isDeletionRecord(value)
+      && WORKSPACE_MEMBERSHIP_TEXT.every((member) => typeof value[member] === "string");
+  }
+
+  /**
+   * Whether a user's `workspaceMemberships` is one this producer could have written.
+   *
+   * **Optional means "may be absent; if present, still valid".** The single-user read paths do
+   * not decorate, so absence is a real answer - and with `exactOptionalPropertyTypes` off, an
+   * explicit `undefined` is the same answer and is admitted alongside it. `null` is **not**: the
+   * declared type is an array or nothing, and no producer writes `null` here.
+   *
+   * An empty array is a real answer too - a user who belongs to no active workspace.
+   * @param {unknown} value
+   */
+  function hasReadableWorkspaceMemberships(value) {
+    return value === undefined
+      || (Array.isArray(value) && value.every(isWorkspaceMembership));
+  }
+
+  /**
    * One user as the user-administration routes return it.
    * @param {unknown} value
    * @returns {value is BrowserUserRecord}
@@ -1733,7 +1773,8 @@
       && USER_TEXT_MEMBERS.every((member) => typeof value[member] === "string")
       && USER_BOOLEAN_MEMBERS.every((member) => typeof value[member] === "boolean")
       && USER_NULLABLE_TEXT_MEMBERS.every((member) => value[member] === null || typeof value[member] === "string")
-      && value.user_id !== "";
+      && value.user_id !== ""
+      && hasReadableWorkspaceMemberships(value.workspaceMemberships);
   }
 
   /**

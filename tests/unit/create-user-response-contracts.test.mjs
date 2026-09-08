@@ -25,8 +25,12 @@ const declarationSource = readText("src/types/browser-contracts.d.ts");
 const page = readText("public/js/user-admin.js");
 
 const parser = sandbox(page,
-  ["isResponseRecord", "isUserRecord", "readUserRecord", "readUserRecords", "readUserCreation"],
-  ["USER_TEXT_MEMBERS", "USER_BOOLEAN_MEMBERS", "USER_NULLABLE_TEXT_MEMBERS"]);
+  // `isUserRecord` gained a membership guard in `0.33.33.38.4.4.7`; the guard and its element
+  // predicate are lifted with it so this suite exercises the shipped record check, not a subset.
+  ["isResponseRecord", "isWorkspaceMembership", "hasReadableWorkspaceMemberships",
+    "isUserRecord", "readUserRecord", "readUserRecords", "readUserCreation"],
+  ["USER_TEXT_MEMBERS", "USER_BOOLEAN_MEMBERS", "USER_NULLABLE_TEXT_MEMBERS",
+    "WORKSPACE_MEMBERSHIP_TEXT"]);
 
 const create = extractFunctionBlock(serviceSource, "create");
 

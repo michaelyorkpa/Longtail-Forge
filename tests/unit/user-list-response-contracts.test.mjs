@@ -62,6 +62,30 @@ function shippedReader(source, helpers, tables, exported) {
 
 const TABLES = ["USER_TEXT_MEMBERS", "USER_BOOLEAN_MEMBERS", "USER_NULLABLE_TEXT_MEMBERS"];
 
+/** Lifted with the readers, but applied by `isWorkspaceMembership` rather than the user predicate. */
+const LIFTED_TABLES = [...TABLES, "WORKSPACE_MEMBERSHIP_TEXT"];
+
+/**
+ * One membership exactly as `decorateUserWithMemberships` writes it - **all six members**.
+ *
+ * The fixture this replaces carried two (`workspaceId`, `status`). A fixture narrower than
+ * the producer cannot notice missing validation, which is how `0.33.33.38.4.4.7`'s defect
+ * survived: this suite used the short shape only to prove *extra* members are preserved.
+ */
+/**
+ * @param {Record<string, unknown>} [overrides]
+ * @returns {Record<string, unknown>}
+ */
+const membership = (overrides = {}) => ({
+  createdAt: "2026-01-01T00:00:00.000Z",
+  status: "active",
+  updatedAt: "2026-01-02T00:00:00.000Z",
+  userWorkspaceId: "uw-1",
+  workspaceId: "ws-1",
+  workspaceName: "Acme",
+  ...overrides,
+});
+
 const user = (overrides = {}) => ({
   altEmail: null,
   displayName: "Ada",
@@ -80,6 +104,35 @@ const user = (overrides = {}) => ({
   ...overrides,
 });
 const body = (overrides = {}) => ({ currentUserId: "user-1", users: [user()], ...overrides });
+
+/**
+ * The six members the decorator writes, read from `decorateUserWithMemberships` itself so the
+ * cases below are not generated from the same table they test.
+ */
+const MEMBERSHIP_MEMBERS = (() => {
+  const block = functionBody(service, "async function decorateUserWithMemberships(user) {");
+  const mapped = /workspaceMemberships: memberships\.map\(\(membership\) => \(\{([\s\S]*?)\}\)\)/.exec(block);
+  assert.ok(mapped, "the decorator must build its memberships by name");
+  return [...mapped[1].matchAll(/^\s*(\w+):/gm)].map((entry) => entry[1]).sort();
+})();
+
+describe("the decorated membership producer", () => {
+  it("writes exactly six members, and the browser checks exactly those", () => {
+    assert.deepEqual(MEMBERSHIP_MEMBERS,
+      ["createdAt", "status", "updatedAt", "userWorkspaceId", "workspaceId", "workspaceName"]);
+    assert.deepEqual(Object.keys(membership()).sort(), MEMBERSHIP_MEMBERS,
+      "and this suite's fixture carries all six, not a subset");
+    for (const [name, source] of [["user-admin", userAdmin], ["workspace-settings", workspaceSettings]]) {
+      assert.deepEqual(memberTable(source, "WORKSPACE_MEMBERSHIP_TEXT"), MEMBERSHIP_MEMBERS,
+        name + " must check the members the decorator writes");
+    }
+    assert.deepEqual(
+      [...declaredInterface("BrowserUserWorkspaceMembership").matchAll(/^  (\w+)\??:/gm)]
+        .map((entry) => entry[1]).sort(),
+      MEMBERSHIP_MEMBERS,
+      "and the contract declares that same six");
+  });
+});
 
 describe("the user list producer", () => {
   it("reconstructs two members and spreads nothing", () => {
@@ -179,14 +232,18 @@ describe("both shipped readers, run against real bodies", () => {
   const readers = [
     ["user-admin", shippedReader(userAdmin, [
       "function isResponseRecord(value) {",
+      "function isWorkspaceMembership(value) {",
+      "function hasReadableWorkspaceMemberships(value) {",
       "function isUserRecord(value) {",
       "function readUserListResponse(body) {",
-    ], TABLES, "readUserListResponse")],
+    ], LIFTED_TABLES, "readUserListResponse")],
     ["workspace-settings", shippedReader(workspaceSettings, [
       "function isDeletionRecord(value) {",
+      "function isWorkspaceMembership(value) {",
+      "function hasReadableWorkspaceMemberships(value) {",
       "function isWorkspaceUserRecord(value) {",
       "function readWorkspaceUserList(body) {",
-    ], TABLES, "readWorkspaceUserList")],
+    ], LIFTED_TABLES, "readWorkspaceUserList")],
   ];
 
   for (const [name, readList] of readers) {
@@ -237,10 +294,76 @@ describe("both shipped readers, run against real bodies", () => {
 
     it(name + " accepts a user carrying members this record does not name", () => {
       const result = readList(body({
-        users: [user({ workspaceMemberships: [{ workspaceId: "ws", status: "active" }], aFutureColumn: 1 })],
+        users: [user({ workspaceMemberships: [membership()], aFutureColumn: 1 })],
       }));
       assert.ok(result, name + " must accept decoration the producer adds");
       assert.equal(result.users[0].aFutureColumn, 1, "and answer the element the producer sent");
+    });
+
+    it(name + " accepts every membership answer the producer really gives", () => {
+      for (const [label, memberships] of [
+        ["absent", undefined],
+        ["an empty array", []],
+        ["one membership", [membership()]],
+        ["several", [membership(), membership({ workspaceId: "ws-2", userWorkspaceId: "uw-2" })]],
+        ["one carrying a future column", [membership({ aFutureColumn: 1 })]],
+      ]) {
+        const users = memberships === undefined
+          ? [user()]
+          : [user({ workspaceMemberships: memberships })];
+        assert.ok(readList(body({ users })), name + " must accept memberships " + label);
+      }
+    });
+
+    it(name + " refuses a present memberships value that is not an array", () => {
+      for (const bad of ["ws-1", 7, true, { ws: 1 }, null]) {
+        assert.equal(readList(body({ users: [user({ workspaceMemberships: bad })] })), null,
+          name + " must refuse memberships of " + JSON.stringify(bad));
+      }
+    });
+
+    it(name + " refuses a membership element that is not a record", () => {
+      for (const bad of [null, "ws-1", 7, true, [membership()]]) {
+        assert.equal(readList(body({ users: [user({ workspaceMemberships: [bad] })] })), null,
+          name + " must refuse a membership element of " + JSON.stringify(bad));
+      }
+    });
+
+    it(name + " refuses a membership missing any promised member", () => {
+      for (const member of MEMBERSHIP_MEMBERS) {
+        const incomplete = membership();
+        delete incomplete[member];
+        assert.equal(readList(body({ users: [user({ workspaceMemberships: [incomplete] })] })), null,
+          name + " must refuse a membership without " + member);
+      }
+    });
+
+    it(name + " refuses a membership whose promised member has the wrong type", () => {
+      for (const member of MEMBERSHIP_MEMBERS) {
+        for (const bad of [null, 7, true, {}, []]) {
+          assert.equal(readList(body({ users: [user({ workspaceMemberships: [membership({ [member]: bad })] })] })), null,
+            name + " must refuse " + member + " of " + JSON.stringify(bad));
+        }
+      }
+    });
+
+    it(name + " refuses the whole roster for one malformed membership among valid users", () => {
+      // The established outer policy: an authoritative roster refuses rather than hiding an
+      // account. A newly-invalid element must follow it, not quietly become a filtered one.
+      const result = readList(body({
+        users: [user(), user({ user_id: "user-2", workspaceMemberships: [{ workspaceId: "ws-1" }] })],
+      }));
+      assert.equal(result, null,
+        name + " must not answer a roster with one account silently dropped");
+    });
+
+    it(name + " answers the producer's own membership array and elements by identity", () => {
+      const first = membership();
+      const memberships = [first];
+      const result = readList(body({ users: [user({ workspaceMemberships: memberships })] }));
+      assert.ok(result, "the body is accepted");
+      assert.equal(result.users[0].workspaceMemberships, memberships, "the array is not rebuilt");
+      assert.equal(result.users[0].workspaceMemberships[0], first, "nor its elements");
     });
 
     it(name + " accepts a genuinely empty roster", () => {
