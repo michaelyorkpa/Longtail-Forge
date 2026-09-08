@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.4.5.10 - The rejected-save protocol
+
+**Model: Medium Effort** - a one-word production change whose whole cost was proving it at the boundary where the audit found it.
+
+- [x] **Reproduced before it was corrected, through the real Save action.** A Playwright regression drives the page's own controller button rather than calling `saveSettings`, because the defect is a contract mismatch *between* the two. Against the unchanged implementation it failed on exactly the dirty-state assertion, after confirming the rejection message appeared and **no `PUT /api/settings` was issued** - so the pre-fix behaviour is recorded as observed, not inferred.
+- [x] **Whitespace-only is the narrowest reaching input, and it is used deliberately.** `required` is satisfied by a non-empty value, so nothing stops the submit earlier; `normalizeSettings` then trims to `""`. The audit had also established that `settingsRenderer.validate()` never sees this control at all - it walks `[data-setting-field]` through `fieldMetadata`, which only the contributed-settings builder populates - so an empty value reaches the same exit.
+- [x] **The correction is `return false`, and the shared contract was left alone.** `saved !== false` still means "cleaned"; no other page's handler changed; `undefined` was not redefined globally. Every sibling settings page was checked and already answered explicitly.
+- [x] **The local protocol is now declared where it lives.** `@returns {Promise<boolean>}` on this page's `saveSettings`, documenting the controller contract it satisfies rather than asserting a bare type, and **no new public interface** for one function. Reintroducing the bare `return` moves the file from **124 to 125** browser diagnostics - the annotation makes a future silent exit a compile error, which is the durable half of the fix.
+- [x] **All five preserved outcomes are pinned by name**: the renderer-validation rejection still answers `false`, the `catch` still answers `false`, and all three committed-write paths still answer `true` - including the save whose catalog refresh could not be read, which **did** save. A break on each is refused.
+- [x] **The regression proves the baseline, not just the flag.** After the rejection: Save and Revert stay enabled, **Revert restores the last genuinely saved name** rather than the rejected one, no write has been issued, and a later valid save then succeeds, updates the shell and cleans the form. The suite restores the workspace name in a `finally`.
+- [x] **Two of this suite's own assertions were caught being weak, and were fixed rather than reported as passing.** The first draft used `[\s\S]*?` between a condition and its expected `return`, so a *later* exit satisfied a claim about an earlier one and two mutations slipped through. A `guardedBlock` helper now bounds each claim to its own braces - the same weakness `0.33.33.38.4.7.2.3` repairs in the Lists summary suite.
+- [x] **This removes no diagnostics and none were claimed.** The browser estate is **7,636** before and after, every family unchanged. The value is a restored behaviour and a protocol the compiler can now hold.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **8 breaks across the page and the shared page controller, all 8 refused for their specific named check**, and the first additionally checked at the compiler.
+
 ## Version 0.33.33.38.3.1 - The Workspace Settings core form/control lookups
 
 **Model: Medium Effort** - the first `0.33.33.38.3` child, so the measurement discipline mattered as much as the change.
