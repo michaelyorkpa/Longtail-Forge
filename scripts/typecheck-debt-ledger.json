@@ -352,6 +352,7 @@
         "tests/e2e/workbench-mobile-chip-layout.spec.mjs",
         "tests/e2e/workbench-mobile-inspector.spec.mjs",
         "tests/e2e/workspace-rename-shell-label.spec.mjs",
+        "tests/e2e/workspace-settings-rejected-save.spec.mjs",
         "tests/e2e/workspace-switch-landing.spec.mjs",
         "tests/time-tracking/time-tracking-billing.test.mjs",
         "tests/typecheck/browser-database-boundary.fixture.mjs",
@@ -471,6 +472,7 @@
         "tests/unit/workspace-deletion-contracts.test.mjs",
         "tests/unit/workspace-settings-catalog-contracts.test.mjs",
         "tests/unit/workspace-settings-core-form-contracts.test.mjs",
+        "tests/unit/workspace-settings-save-contract.test.mjs",
         "tests/unit/workspace-type-scalar-contracts.test.mjs",
         "worker.js"
       ],
@@ -2550,7 +2552,7 @@
     }
   },
   "totals": {
-    "files": 1145,
+    "files": 1147,
     "errors": 7636,
     "explicitAny": 0
   },

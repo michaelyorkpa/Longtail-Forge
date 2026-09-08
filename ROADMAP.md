@@ -811,6 +811,16 @@ Its **lazy publication is a second contract question and belongs here too**: the
 
 **The carry-forward from `0.33.33.38.2.2.2` is discharged by this child**, on the terms that child set: the surface stayed truthfully `unknown[]`, the consumer now narrows with a predicate that validates every member it promises, and nothing was weakened to move a number.
 
+#### 0.33.33.38.4.5.10 - The rejected-save protocol
+
+**Complete: a behavioural bug correction, and it removes no diagnostics.** See the archive entry. Found by the 2026-09-08 migration-integrity audit as **F1**, and it is the only *live* defect that audit reproduced. `settingsPageController` runs `const saved = await options.onSave?.(); if (saved !== false) setClean();`, and `setClean` **re-snapshots the current controls as the saved baseline**. Every exit of `saveSettings` answered `true` or `false` except the workspace-name rejection, which exited with a bare `return` - and `undefined !== false`. So a rejected save marked an unsaved form clean, disabled Save and Revert, and made the rejected value the baseline **Revert restores**.
+
+**Reproduced through the real controller Save action before it was fixed**, not by calling `saveSettings` directly, because the defect lives *between* the page and the controller. A whitespace-only name is the narrowest input that reaches it: it satisfies the control's native `required` attribute, and `normalizeSettings` trims it to `""`. The pre-fix run failed on exactly the dirty-state assertion, with the rejection message shown and **zero** settings writes issued.
+
+**The correction is one word**, plus a `@returns {Promise<boolean>}` on this page's own function - the local protocol, not a new public interface. It closes the shape of the original defect: a future rejection path that forgets to answer is now a **compile error**, proved by reintroducing the bare `return` and watching the file's browser diagnostics rise from 124 to 125.
+
+**Pre-existing, not migration debt.** `git log -L` on that line lands on `6edebe6f` (2026-08-25), which created the `onSave` contract. Every sibling settings page already answered explicitly; this was one page, one exit.
+
 #### 0.33.33.38.4.6 - The client, project and calendar-subscription bodies
 
 **Resliced: 22 live diagnostics and three producer families, not one.** The reuse trace this line called for was run and it answered *no*: `clientProjectOptions` normalises into a **different vocabulary** - camelCase billing members and a two-word status - so it describes what the browser builds, never what the wire sends.

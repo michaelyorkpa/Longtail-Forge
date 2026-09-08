@@ -688,6 +688,17 @@
     return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
   }
 
+  /**
+   * Save the workspace settings, answering whether anything was saved.
+   *
+   * **This page's local protocol, not a new public interface.** `settingsPageController` treats
+   * any value other than `false` as a successful save and cleans the form, so every rejection
+   * path here must answer `false` and every committed write must answer `true` - including the
+   * write whose catalog refresh could not be read, which *did* save. Declaring the return closes
+   * the gap that let a bare `return` answer `undefined`: a future rejection path that forgets to
+   * answer is now a compile error rather than a silently cleaned form.
+   * @returns {Promise<boolean>}
+   */
   async function saveSettings() {
     if (!requireSettingsRenderer().validate(requireWorkspaceSettingsForm())) {
       setWorkspaceSettingsStatus("Review the highlighted module settings.");
@@ -713,7 +724,11 @@
 
     if (!settings.workspaceName) {
       setWorkspaceSettingsStatus("Workspace name is required.");
-      return;
+      // `false` is the page controller's "nothing was saved" signal: it runs
+      // `if (saved !== false) setClean()`, and `setClean` re-snapshots the current controls as the
+      // saved baseline. A bare `return` therefore answered `undefined`, marked an unsaved form
+      // clean, and made the rejected value the baseline Revert restores.
+      return false;
     }
 
     setWorkspaceSettingsStatus("Saving workspace settings...");
