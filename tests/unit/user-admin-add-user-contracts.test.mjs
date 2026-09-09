@@ -108,12 +108,16 @@ describe("each Add User control is checked against the tag its own template rend
     }
   });
 
-  it("leaves the other twenty-six acquisitions to their own owners", () => {
-    // This page acquires forty-one controls. Only the Add User fifteen are in this boundary.
-    const checked = [...page.matchAll(/findUserAdminControl\("\[data-/g)].length;
+  it("leaves the clusters it does not own to their own children", () => {
+    // Retargeted by `0.33.33.44.7`, which typed the edit-user dialog. The claim is that this page
+    // is converted cluster by cluster - all fifteen Add User controls are checked, and controls
+    // no landed child owns are still bare - not that the checked count stays at fifteen.
+    for (const [, slot] of CONTROLS) {
+      assert.match(page, new RegExp(`const ${slot} = findUserAdminControl\\(`), `${slot} is checked`);
+    }
     const bare = [...page.matchAll(/= document\.querySelector\("\[data-/g)].length;
-    assert.equal(checked, CONTROLS.length, "exactly the fifteen are checked");
-    assert.ok(bare > 20, "and the rest still await the edit, permissions, membership and session children");
+    assert.ok(bare > 0,
+      "and the permissions, membership, session and row-action controls still await their children");
   });
 });
 
@@ -151,10 +155,13 @@ describe("presence is settled where the page already dereferenced, not at acquis
     assert.match(executable, /requireUserAdminValue\(copyGeneratedPasswordButton, "copy-password button"\)\.addEventListener\("click"/);
     // Checked by what each required access is applied *to*, not by naming the slots it must not
     // touch: a break that wraps a bare `document.querySelector` names no slot at all.
-    const slots = new Set(CONTROLS.map(([, slot]) => slot));
+    // Derived from the source rather than listed, so a later child that types another cluster
+    // does not have to edit this rule: a required access may only be applied to a control that
+    // was acquired through the checked lookup.
+    const typed = new Set([...page.matchAll(/const (\w+) = findUserAdminControl\(/g)].map((entry) => entry[1]));
     for (const [, argument] of executable.matchAll(/(?<!function )requireUserAdminValue\(([^,]+),/g)) {
-      assert.ok(slots.has(argument.trim()),
-        `${argument.trim()} is not one of this boundary's fifteen controls`);
+      assert.ok(typed.has(argument.trim()),
+        `${argument.trim()} was never acquired through the checked lookup`);
     }
   });
 
