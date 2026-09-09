@@ -334,6 +334,7 @@
         "tests/e2e/notes-collections.spec.mjs",
         "tests/e2e/notes-editor-lifecycle.spec.mjs",
         "tests/e2e/notes-link-editor.spec.mjs",
+        "tests/e2e/notes-primary-context.spec.mjs",
         "tests/e2e/overflow.spec.mjs",
         "tests/e2e/public-legal.spec.mjs",
         "tests/e2e/reporting-host-console.spec.mjs",
@@ -358,6 +359,7 @@
         "tests/e2e/workspace-settings-rejected-save.spec.mjs",
         "tests/e2e/workspace-switch-landing.spec.mjs",
         "tests/mutations/notes-link-editor.breaks.mjs",
+        "tests/mutations/notes-primary-context.breaks.mjs",
         "tests/mutations/user-admin-add-user.breaks.mjs",
         "tests/time-tracking/time-tracking-billing.test.mjs",
         "tests/typecheck/browser-database-boundary.fixture.mjs",
@@ -420,6 +422,7 @@
         "tests/unit/notes-effective-security.test.mjs",
         "tests/unit/notes-external-link-preference-contracts.test.mjs",
         "tests/unit/notes-link-editor.test.mjs",
+        "tests/unit/notes-primary-context.test.mjs",
         "tests/unit/notification-bell-summary-contracts.test.mjs",
         "tests/unit/notification-list-contracts.test.mjs",
         "tests/unit/notification-preference-json-boundary.test.mjs",
@@ -579,7 +582,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 6951,
+      "errorCount": 6910,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1040,7 +1043,7 @@
           },
           {
             "code": 2339,
-            "count": 215
+            "count": 175
           },
           {
             "code": 2345,
@@ -1057,10 +1060,6 @@
           {
             "code": 7006,
             "count": 141
-          },
-          {
-            "code": 7019,
-            "count": 1
           },
           {
             "code": 7031,
@@ -2549,8 +2548,8 @@
     }
   },
   "totals": {
-    "files": 1160,
-    "errors": 6951,
+    "files": 1163,
+    "errors": 6910,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

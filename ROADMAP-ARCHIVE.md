@@ -1,5 +1,36 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.40.6 - Type the Notes primary-context records and legacy spellings
+
+**Model: High Effort** - one controller seam with provider labels, scope-sensitive controls, and asynchronous context ordering to preserve.
+
+- [x] Started clean on `agent/0.33.33-codex-primary-context` at the requested merged baseline `c57c892a421bd9a3f426aa26efd1968599ffe2ed`. Package and lockfile contents are unchanged from the installed `41b8862a` baseline; no install or dependency edit was performed.
+- [x] Reproduced the reference cohort exactly before editing: **41** diagnostics, TS2339 **40** and TS7019 **1**. No per-function correction was needed.
+
+| Function | Before | After |
+| --- | ---: | ---: |
+| `setTaskCreatedPrimaryContextSummaries` | 12 | 0 |
+| `applyTaskCreatedPrimaryContext` | 10 | 0 |
+| `primaryProjectOptionLabel` | 7 | 0 |
+| `targetPickerDisplayLabel` | 5 | 0 |
+| `updatePrimaryContextVisibility` | 3 | 0 |
+| `primaryClientOptionLabel` | 3 | 0 |
+| `providerDisplayLabel` | 1 | 0 |
+| **Named cohort** | **41** | **0** |
+
+- [x] Replaced all five previous `Partial<BrowserNoteLinkTarget> & Record<string, unknown>` parameters with the local `NotesLinkTargetInput`. Its closed legacy record has exactly thirteen optional spellings, each indexed from its published twin: `module_id`, `target_type`, `target_id`, `display_label`, `secondary_label`, `sort_key`, `source_url`, `full_label`, `aria_label`, `is_available`, `client_name`, `project_name`, and `workspace_name`. Compiler probes accept empty strings and `false`, reject `target.moduel_id`, and reject wrong twin member types. Nothing was published as a new response contract.
+- [x] The task-context input locally adds the two directly accepted IDs (`client_id`, `project_id`) using their published member types. Existing `clientStatus` / `client_status` values remain `unknown` passthroughs: the live link-target directory promises neither spelling, so this child does not invent a producer contract for them.
+- [x] All seven named function bodies retain their original bytes. Provider-first precedence, untrimmed provider text with trimming only for presence, Business suffixes, workspace-name fallback, caller-over-directory context, safe unavailable labels, and load-before-control assignment remain intact. The two primary field containers are narrowed to `HTMLElement` at their existing cache point; their optional guards and missing-control timing remain unchanged.
+- [x] Searched the whole `scripts/` tree for changed helper, legacy-field, and control spellings. `node scripts/linked-context-client-project-label-sort-regression.mjs` passes before and after. Its pinned client/project signatures and provider-first body bytes are unchanged; no existing assertion, manifest, or coverage floor was weakened.
+- [x] Six focused unit cases exercise the closed compiler boundary and actual extracted controller functions. The preceding link-editor suite also passes (13 combined cases). The committed `tests/mutations/notes-primary-context.breaks.mjs` catches **20/20 deliberate breaks, 0 inert**, gates syntax validity, and restores exact bytes in each `finally`. Restored SHA-256: `38888e748e408cf99cea44246b44e5f86ce5d9001632d72652d3b0cd839e81f0`. The initial run caught 19/20: removing picker provider precedence was inert with only a project fixture because the project fallback also prefers that provider. A non-project assertion re-aimed that case; the initial inert run is not counted as coverage.
+- [x] Rendered desktop/mobile proof passes on local `LTF_E2E_PORT=8102`, using this worktree's `data/e2e`. Each viewport covers Business/Family/Personal with both populated directories and missing-directory summary fallbacks, exact provider whitespace, selected project retention, scoped client visibility/disable/clear behavior, cancellation, no page errors, and no horizontal overflow. The fixture opens the public Notes editor and decorates the fetched note's primary context; it does not bypass the rendered controller.
+- [x] **Deferred caller finding:** the first rendered fixture used task-link URL prefill and found that existing `openEditorForLinkedTarget` awaits `openEditor()` before `applyTaskCreatedPrimaryContext`, while `openEditor()` resolves on dialog close. Consequently that caller's prefill has not run while the dialog is open. Those caller/lifecycle bodies are outside this child and were not changed. The passing rendered test proves primary controls through the public editor entry point; focused units prove task-context application and its asynchronous ordering. No end-to-end task-link prefill success is claimed. A later authorized lifecycle fix must address this separately.
+- [x] Branch-local canonical evidence: browser **7,049 -> 7,008**, Notes **443 -> 402**. Notes-owned **316 -> 278** (params **269 -> 231**, state **32 -> 32**, assorted **15 -> 15**); Notes DOM **127 -> 124**. Exactly **38 params + 3 DOM = 41** diagnostics removed. Other owners are unchanged; unknown, namespace, server/tests, scripts, and explicit-any remain zero. The ledger is branch-local evidence; the integrator recomputes it from the integrated tree.
+
+Excluded: the tag record contract, `normalizeNoteEditorDefaults`, bulk editing, revisions, attachments, filters, search, the stored-link input awaiting a saved-link producer contract, and the two `safeNoteErrorMessage` forwards. These remain deferred; this does not close `.40`, `.38`, `.44`, or the version-wide branch. Helpers remain file-local and no second cross-surface consumer was introduced.
+
+No docs change needed: behavior is preserved and durable documentation remains deferred to branch closeout. Required proof includes `check:fast`, all **348/348** regression scripts, all **413** permission checks, rendered desktop/mobile, final `verify:slice` with `LTF_REGRESSION_BASE_SHA=c57c892a421bd9a3f426aa26efd1968599ffe2ed`, and `checkpoint:validate` over the completed commit range. Regression/permission children omit inherited workstation storage-root, public-URL, bootstrap-password, and legacy secure-key overrides so fixtures own their intended values; no persistent environment or security check is changed.
+
 ## Version 0.33.33.44.5 - The User Admin Add User flow
 
 **Model: High Effort** - the largest file in the retained lane, and the work was proving which of its forty-one controls belong to one flow and why acquisition may not refuse.
