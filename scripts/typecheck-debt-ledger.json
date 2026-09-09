@@ -333,6 +333,7 @@
         "tests/e2e/modal.spec.mjs",
         "tests/e2e/notes-collections.spec.mjs",
         "tests/e2e/notes-editor-lifecycle.spec.mjs",
+        "tests/e2e/notes-link-editor.spec.mjs",
         "tests/e2e/overflow.spec.mjs",
         "tests/e2e/public-legal.spec.mjs",
         "tests/e2e/reporting-host-console.spec.mjs",
@@ -356,6 +357,7 @@
         "tests/e2e/workspace-rename-shell-label.spec.mjs",
         "tests/e2e/workspace-settings-rejected-save.spec.mjs",
         "tests/e2e/workspace-switch-landing.spec.mjs",
+        "tests/mutations/notes-link-editor.breaks.mjs",
         "tests/time-tracking/time-tracking-billing.test.mjs",
         "tests/typecheck/browser-database-boundary.fixture.mjs",
         "tests/typecheck/client-project-contracts.fixture.mjs",
@@ -416,6 +418,7 @@
         "tests/unit/notes-editor-lifecycle.test.mjs",
         "tests/unit/notes-effective-security.test.mjs",
         "tests/unit/notes-external-link-preference-contracts.test.mjs",
+        "tests/unit/notes-link-editor.test.mjs",
         "tests/unit/notification-bell-summary-contracts.test.mjs",
         "tests/unit/notification-list-contracts.test.mjs",
         "tests/unit/notification-preference-json-boundary.test.mjs",
@@ -573,7 +576,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7158,
+      "errorCount": 7075,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1030,19 +1033,15 @@
         "public/js/notes.js": [
           {
             "code": 18047,
-            "count": 62
-          },
-          {
-            "code": 2322,
-            "count": 4
+            "count": 53
           },
           {
             "code": 2339,
-            "count": 281
+            "count": 215
           },
           {
             "code": 2345,
-            "count": 15
+            "count": 12
           },
           {
             "code": 2740,
@@ -1054,7 +1053,7 @@
           },
           {
             "code": 7006,
-            "count": 142
+            "count": 141
           },
           {
             "code": 7019,
@@ -2551,8 +2550,8 @@
     }
   },
   "totals": {
-    "files": 1154,
-    "errors": 7158,
+    "files": 1157,
+    "errors": 7075,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

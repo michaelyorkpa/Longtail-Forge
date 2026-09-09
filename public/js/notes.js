@@ -579,7 +579,9 @@
      * @type {NotesEditorNote | null}
      */
     editorNote: null,
+    /** @type {Partial<BrowserNoteLinkTarget> | null} */
     editorSelectedTarget: null,
+    /** @type {Partial<BrowserNoteLinkTarget>[]} */
     editorStagedTargets: [],
     libraryManuallyChanged: false,
     linkTargetClientContext: LINK_CLIENT_CONTEXT_ALL,
@@ -740,13 +742,13 @@
   let secureWarning = null;
   /** @type {Element | null} */
   let contextClientInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let contextTargetTypeInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | null} */
   let contextSearchInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let contextResultsInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let contextApplyButton = null;
   /** @type {Element | null} */
   let contextList = null;
@@ -931,10 +933,10 @@
     securityInput = findNotesControl("[data-note-security]", HTMLSelectElement);
     secureWarning = findNotesControl("[data-note-secure-warning]", HTMLElement);
     contextClientInput = document.querySelector("[data-note-context-client]");
-    contextTargetTypeInput = document.querySelector("[data-note-context-target-type]");
-    contextSearchInput = document.querySelector("[data-note-context-search]");
-    contextResultsInput = document.querySelector("[data-note-context-results]");
-    contextApplyButton = document.querySelector("[data-note-context-apply]");
+    contextTargetTypeInput = findNotesControl("[data-note-context-target-type]", HTMLSelectElement);
+    contextSearchInput = findNotesControl("[data-note-context-search]", HTMLInputElement);
+    contextResultsInput = findNotesControl("[data-note-context-results]", HTMLSelectElement);
+    contextApplyButton = findNotesControl("[data-note-context-apply]", HTMLButtonElement);
     contextList = document.querySelector("[data-note-context-list]");
     contextSelectedMessage = document.querySelector("[data-note-context-selected]");
     clientInput = findNotesControl("[data-note-client-id]", HTMLSelectElement);
@@ -3699,6 +3701,7 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteLinkTarget} BrowserNoteLinkTarget */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteLinkTargetType} BrowserNoteLinkTargetType */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteLinkTargetDirectory} BrowserNoteLinkTargetDirectory */
 
   /** What this picker says when the directory answered something it could not read. */
   const LINK_TARGET_LOAD_FAILURE = "Link targets could not be loaded.";
@@ -3800,6 +3803,7 @@
     replaceLinkTargetOptions([{ value: "", label: "Loading records...", disabled: true }]);
 
     try {
+      /** @type {BrowserNoteLinkTargetDirectory["targets"]} */
       const targets = await fetchLinkTargets({
         ...readLinkTargetClientContext(),
         targetType: contextTargetTypeInput?.value || defaultLinkTargetType(),
@@ -4007,6 +4011,11 @@
     select?.replaceChildren(...options);
   }
 
+  /**
+   * Published target fields plus unpromised legacy extras carried by this local adapter.
+   * Extra fields stay unknown; this is not a second response contract.
+   * @param {Partial<BrowserNoteLinkTarget> & Record<string, unknown>} target
+   */
   function pickerRecordFromTarget(target = {}) {
     return {
       moduleId: target.moduleId || target.module_id || "",
@@ -4038,6 +4047,7 @@
     return label;
   }
 
+  /** @param {Partial<BrowserNoteLinkTarget> & Record<string, unknown>} target */
   function targetPickerSecondaryLabel(target = {}) {
     if (Object.hasOwn(target, "secondaryLabel") || Object.hasOwn(target, "secondary_label")) {
       return target.secondaryLabel ?? target.secondary_label ?? "";
@@ -4120,6 +4130,7 @@
     return (note.links || []).some((link) => editorLinkTargetMatches(link, target));
   }
 
+  /** @param {Partial<BrowserNoteLinkTarget> & Record<string, unknown>} target */
   function editorLinkTargetKey(target = {}) {
     const targetType = target.targetType || target.target_type || "";
     const targetId = target.targetId || target.target_id || "";
@@ -4131,6 +4142,7 @@
     return `${target.moduleId || target.module_id || ""}:${targetType}:${targetId}`;
   }
 
+  /** @param {Partial<BrowserNoteLinkTarget> & Record<string, unknown>} link @param {Partial<BrowserNoteLinkTarget> & Record<string, unknown>} target */
   function editorLinkTargetMatches(link = {}, target = {}) {
     const linkModuleId = link.moduleId || link.module_id || "";
     const targetModuleId = target.moduleId || target.module_id || "";
@@ -4148,6 +4160,7 @@
     return (state.editorStagedTargets || []).some((stagedTarget) => editorLinkTargetMatches(stagedTarget, target));
   }
 
+  /** @param {Partial<BrowserNoteLinkTarget>} target */
   function stageEditorLinkTarget(target = {}) {
     if (!target.targetType || !target.targetId) {
       return;
@@ -4155,13 +4168,13 @@
     if (stagedTargetExists(target)) {
       state.editorSelectedTarget = target;
       renderEditorContextSelection(target);
-      formStatus.textContent = "Linked context is already staged.";
+      requireNotesValue(formStatus).textContent = "Linked context is already staged.";
       return;
     }
 
     state.editorStagedTargets = [...(state.editorStagedTargets || []), target];
     state.editorSelectedTarget = target;
-    formStatus.textContent = "";
+    requireNotesValue(formStatus).textContent = "";
     renderEditorContextSelection(target);
   }
 
@@ -4175,6 +4188,7 @@
     updateLibrarySuggestion();
   }
 
+  /** @param {Partial<BrowserNoteLinkTarget> | null} target */
   function renderEditorContextSelection(target = null) {
     renderEditorContextPanel();
     if (!contextSelectedMessage) {
@@ -4309,6 +4323,7 @@
     return normalizeText(selected?.textContent) || fallback;
   }
 
+  /** @param {NotesEditorNote | null | undefined} note */
   async function removeEditorNoteLink(note, link) {
     const api = requireApi();
     const noteId = note?.note_id || state.editingNoteId;
@@ -4318,16 +4333,17 @@
       return;
     }
 
-    formStatus.textContent = "Removing linked context...";
+    requireNotesValue(formStatus).textContent = "Removing linked context...";
     try {
       await api.postJson(`/api/notes/${encodeURIComponent(noteId)}/links/${encodeURIComponent(noteLinkId)}/remove`, {});
       await refreshEditorNote(noteId);
-      formStatus.textContent = "";
+      requireNotesValue(formStatus).textContent = "";
     } catch (error) {
-      formStatus.textContent = safeNoteErrorMessage(error, "Linked context could not be removed.");
+      requireNotesValue(formStatus).textContent = safeNoteErrorMessage(error, "Linked context could not be removed.");
     }
   }
 
+  /** @param {Partial<BrowserNoteLinkTarget>} target */
   async function addEditorNoteLink(target = {}) {
     const api = requireApi();
     const noteId = state.editingNoteId;
@@ -4338,11 +4354,11 @@
     if (noteHasLink(state.editorNote || {}, target)) {
       state.editorSelectedTarget = null;
       renderEditorContextSelection();
-      formStatus.textContent = "Linked context is already added.";
+      requireNotesValue(formStatus).textContent = "Linked context is already added.";
       return;
     }
 
-    formStatus.textContent = "Adding linked context...";
+    requireNotesValue(formStatus).textContent = "Adding linked context...";
     if (contextApplyButton) {
       contextApplyButton.disabled = true;
     }
@@ -4351,9 +4367,9 @@
       await api.postJson(`/api/notes/${encodeURIComponent(noteId)}/links`, linkPayloadFromTarget(target));
       state.editorSelectedTarget = null;
       await refreshEditorNote(noteId);
-      formStatus.textContent = "";
+      requireNotesValue(formStatus).textContent = "";
     } catch (error) {
-      formStatus.textContent = safeNoteErrorMessage(error, "Linked context could not be added.");
+      requireNotesValue(formStatus).textContent = safeNoteErrorMessage(error, "Linked context could not be added.");
     } finally {
       if (contextApplyButton) {
         contextApplyButton.disabled = false;
