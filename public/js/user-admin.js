@@ -1,19 +1,55 @@
 (function attachUserAdminPage() {
-  const userAdminForm = document.querySelector("[data-user-admin-form]");
-  const newUserWorkspaceSelect = document.querySelector("[data-new-user-workspace]");
-  const newUserUsernameInput = document.querySelector("[data-new-user-username]");
-  const findUserAccountButton = document.querySelector("[data-find-user-account]");
-  const newUserAccountStatus = document.querySelector("[data-new-user-account-status]");
-  const newUserRoleSelect = document.querySelector("[data-new-user-role]");
-  const newUserClientScopeField = document.querySelector("[data-new-user-client-scope-field]");
-  const newUserClientScopeSelect = document.querySelector("[data-new-user-client-scope]");
-  const newUserProjectScopeField = document.querySelector("[data-new-user-project-scope-field]");
-  const newUserProjectScopeSelect = document.querySelector("[data-new-user-project-scope]");
-  const createUserButton = document.querySelector("[data-create-user]");
-  const generatedPasswordPanel = document.querySelector("[data-generated-password-panel]");
-  const generatedPasswordInput = document.querySelector("[data-generated-password]");
-  const copyGeneratedPasswordButton = document.querySelector("[data-copy-generated-password]");
-  const userAdminStatus = document.querySelector("[data-user-admin-status]");
+  /**
+   * One control, at the subtype the page's own markup renders, or `null`.
+   *
+   * **Typed-or-null on purpose.** `views/protected/user-admin.html` is static and always carries
+   * these controls, but acquisition happens at module evaluation - outside the `try` in
+   * `loadUsers` - so refusing here would turn a missing control into a dead page instead of the
+   * "Users could not be loaded." status it produces today. The subtype is settled here; presence
+   * is settled at the statement that already dereferenced it.
+   * @template T
+   * @param {string} selector
+   * @param {{ new (): T }} constructor
+   * @returns {T | null}
+   */
+  function findUserAdminControl(selector, constructor) {
+    const element = document.querySelector(selector);
+    return element instanceof constructor ? element : null;
+  }
+
+  /**
+   * Narrow at an access this page already made unguarded.
+   *
+   * Controls the page already guarded keep their guards: this is only for the statements that
+   * dereferenced a control directly, which is what makes it required.
+   * @template T
+   * @param {T | null} value
+   * @param {string} name
+   * @returns {T}
+   */
+  function requireUserAdminValue(value, name) {
+    if (value === null) {
+      throw new TypeError(`User administration requires its ${name}.`);
+    }
+
+    return value;
+  }
+
+  const userAdminForm = findUserAdminControl("[data-user-admin-form]", HTMLFormElement);
+  const newUserWorkspaceSelect = findUserAdminControl("[data-new-user-workspace]", HTMLSelectElement);
+  const newUserUsernameInput = findUserAdminControl("[data-new-user-username]", HTMLInputElement);
+  const findUserAccountButton = findUserAdminControl("[data-find-user-account]", HTMLButtonElement);
+  const newUserAccountStatus = findUserAdminControl("[data-new-user-account-status]", HTMLElement);
+  const newUserRoleSelect = findUserAdminControl("[data-new-user-role]", HTMLSelectElement);
+  const newUserClientScopeField = findUserAdminControl("[data-new-user-client-scope-field]", HTMLElement);
+  const newUserClientScopeSelect = findUserAdminControl("[data-new-user-client-scope]", HTMLSelectElement);
+  const newUserProjectScopeField = findUserAdminControl("[data-new-user-project-scope-field]", HTMLElement);
+  const newUserProjectScopeSelect = findUserAdminControl("[data-new-user-project-scope]", HTMLSelectElement);
+  const createUserButton = findUserAdminControl("[data-create-user]", HTMLButtonElement);
+  const generatedPasswordPanel = findUserAdminControl("[data-generated-password-panel]", HTMLElement);
+  const generatedPasswordInput = findUserAdminControl("[data-generated-password]", HTMLInputElement);
+  const copyGeneratedPasswordButton = findUserAdminControl("[data-copy-generated-password]", HTMLButtonElement);
+  const userAdminStatus = findUserAdminControl("[data-user-admin-status]", HTMLElement);
   const userList = document.querySelector("[data-user-list]");
   const editUserDialog = document.querySelector("[data-edit-user-dialog]");
   const editUserForm = document.querySelector("[data-edit-user-form]");
@@ -48,8 +84,27 @@
   let permissionResources = [];
   /** @type {BrowserWorkspaceType} */
   let activeWorkspaceType = "business";
+  /**
+   * The roles this workspace may assign to a new user.
+   *
+   * `GET /api/users/add-options` builds this from `listAssignableRoleOptions` - the same producer
+   * `GET /api/roles` uses - so it is the published role option, read through the same checked
+   * reader rather than a second unchecked copy.
+   * @type {BrowserRoleOption[]}
+   */
   let addUserRoles = [];
   let addUserCanCreate = false;
+  /**
+   * The account the last lookup matched, with the question it answered.
+   *
+   * **A page-local record over a published match.** `POST /api/users/lookup` answers
+   * `BrowserAccountLookup`; this slot keeps the match alongside the username and workspace it was
+   * asked about, because `createUser` re-runs the lookup whenever either has changed since. The
+   * match itself is the published contract and is not redescribed.
+   * @typedef {{ match: BrowserAccountLookupMatch | null, username: string, workspaceId: string }} AddUserAccountLookup
+   */
+
+  /** @type {AddUserAccountLookup | null} */
   let accountLookup = null;
   let pendingRoleAssignments = [];
   let draftPermissionOverrides = createDefaultPermissionOverrides();
@@ -60,7 +115,7 @@
 
   loadUsers();
 
-  userAdminForm.addEventListener("submit", async (event) => {
+  requireUserAdminValue(userAdminForm, "add-user form").addEventListener("submit", async (event) => {
     event.preventDefault();
     await createUser();
   });
@@ -71,13 +126,13 @@
 
   newUserWorkspaceSelect?.addEventListener("change", async () => {
     resetAccountLookup();
-    await loadAddUserOptions(newUserWorkspaceSelect.value);
+    await loadAddUserOptions(requireUserAdminValue(newUserWorkspaceSelect, "workspace select").value);
   });
 
   newUserUsernameInput?.addEventListener("input", resetAccountLookup);
   newUserRoleSelect?.addEventListener("change", renderNewUserScopeOptions);
 
-  copyGeneratedPasswordButton.addEventListener("click", async () => {
+  requireUserAdminValue(copyGeneratedPasswordButton, "copy-password button").addEventListener("click", async () => {
     await copyGeneratedPassword();
   });
 
@@ -745,7 +800,7 @@
       return;
     }
 
-    const username = newUserUsernameInput.value.trim().toLowerCase();
+    const username = requireUserAdminValue(newUserUsernameInput, "username input").value.trim().toLowerCase();
     const workspaceId = newUserWorkspaceSelect?.value || "";
 
     if (!isValidEmail(username)) {
@@ -775,9 +830,9 @@
     const role = addUserRoles.find((item) => item.role_id === initialRoleId);
     const scopeType = role?.assignment_scope_type || "";
     const scopeId = scopeType === "client"
-      ? newUserClientScopeSelect.value
+      ? requireUserAdminValue(newUserClientScopeSelect, "client scope select").value
       : scopeType === "project"
-        ? newUserProjectScopeSelect.value
+        ? requireUserAdminValue(newUserProjectScopeSelect, "project scope select").value
         : role?.scopes?.[0]?.scopeId || "";
     const assignments = role ? [{
       role_id: role.role_id,
@@ -791,7 +846,7 @@
       return;
     }
 
-    createUserButton.disabled = true;
+    requireUserAdminValue(createUserButton, "create button").disabled = true;
     setUserAdminStatus(accountLookup?.match ? "Adding existing account..." : "Creating account...");
 
     try {
@@ -803,7 +858,7 @@
 
       const created = readUserCreation(body);
 
-      userAdminForm.reset();
+      requireUserAdminValue(userAdminForm, "add-user form").reset();
       if (created.accountCreated) {
         showGeneratedPassword(created.initialPassword);
       } else {
@@ -830,16 +885,21 @@
   function applyUserCreationAvailability() {
     const canCreateUsers = addUserCanCreate;
 
-    createUserButton.disabled = !canCreateUsers;
-    findUserAccountButton.disabled = !canCreateUsers;
-    newUserWorkspaceSelect.disabled = newUserWorkspaceSelect.options.length < 2;
-    newUserUsernameInput.disabled = !canCreateUsers;
-    newUserRoleSelect.disabled = !canCreateUsers;
-    newUserClientScopeSelect.disabled = !canCreateUsers || newUserClientScopeField.hidden;
-    newUserProjectScopeSelect.disabled = !canCreateUsers || newUserProjectScopeField.hidden;
+    const workspaceSelect = requireUserAdminValue(newUserWorkspaceSelect, "workspace select");
+    const usernameInput = requireUserAdminValue(newUserUsernameInput, "username input");
+
+    requireUserAdminValue(createUserButton, "create button").disabled = !canCreateUsers;
+    requireUserAdminValue(findUserAccountButton, "find-account button").disabled = !canCreateUsers;
+    workspaceSelect.disabled = workspaceSelect.options.length < 2;
+    usernameInput.disabled = !canCreateUsers;
+    requireUserAdminValue(newUserRoleSelect, "role select").disabled = !canCreateUsers;
+    requireUserAdminValue(newUserClientScopeSelect, "client scope select").disabled =
+      !canCreateUsers || Boolean(requireUserAdminValue(newUserClientScopeField, "client scope field").hidden);
+    requireUserAdminValue(newUserProjectScopeSelect, "project scope select").disabled =
+      !canCreateUsers || Boolean(requireUserAdminValue(newUserProjectScopeField, "project scope field").hidden);
 
     if (!canCreateUsers) {
-      newUserUsernameInput.value = "";
+      usernameInput.value = "";
     }
   }
 
@@ -856,55 +916,72 @@
     }
   }
 
+  /**
+   * @param {unknown} [options] the `GET /api/users/add-options` body, unchecked as it arrives
+   */
   function applyAddUserOptions(options = {}) {
-    const selectedWorkspaceId = String(options.selectedWorkspaceId || "");
-    const availableWorkspaces = Array.isArray(options.workspaces) ? options.workspaces : [];
-    const previousWorkspaceId = newUserWorkspaceSelect.value;
+    // Read through this file's own checked readers rather than a bare `Array.isArray`. Both
+    // members come from the producers those readers already describe: `workspaces` from the same
+    // server-side `readAssignableWorkspaces` that `GET /api/workspaces` uses, and `roles` from the
+    // same `listAssignableRoleOptions` as `GET /api/roles`. `readRoleOptions` even documents two
+    // consumers; this was the one that never adopted it. A malformed element is now dropped
+    // instead of rendered as a blank option, which is the answer this page already gives at load.
+    const record = isResponseRecord(options) ? options : null;
+    const selectedWorkspaceId = String(record?.selectedWorkspaceId || "");
+    const availableWorkspaces = readAssignableWorkspaces(options) || [];
+    const workspaceSelect = requireUserAdminValue(newUserWorkspaceSelect, "workspace select");
+    const previousWorkspaceId = workspaceSelect.value;
 
-    newUserWorkspaceSelect.replaceChildren(...availableWorkspaces.map((workspace) => {
+    workspaceSelect.replaceChildren(...availableWorkspaces.map((workspace) => {
       const option = document.createElement("option");
       option.value = workspace.workspaceId;
       option.textContent = formatWorkspaceMembershipName(workspace);
       return option;
     }));
-    newUserWorkspaceSelect.value = selectedWorkspaceId || previousWorkspaceId;
-    addUserRoles = Array.isArray(options.roles) ? options.roles : [];
-    addUserCanCreate = options.canAddUsers === true;
+    workspaceSelect.value = selectedWorkspaceId || previousWorkspaceId;
+    addUserRoles = readRoleOptions(options);
+    addUserCanCreate = record?.canAddUsers === true;
     renderNewUserRoleOptions();
     applyUserCreationAvailability();
   }
 
   function renderNewUserRoleOptions() {
-    newUserRoleSelect.replaceChildren(createRoleOption("", "No initial role"));
+    const roleSelect = requireUserAdminValue(newUserRoleSelect, "role select");
+
+    roleSelect.replaceChildren(createRoleOption("", "No initial role"));
 
     addUserRoles.forEach((role) => {
-      newUserRoleSelect.appendChild(createRoleOption(role.role_id, role.role_name));
+      roleSelect.appendChild(createRoleOption(role.role_id, role.role_name));
     });
 
     renderNewUserScopeOptions();
   }
 
   function renderNewUserScopeOptions() {
-    const role = addUserRoles.find((item) => item.role_id === newUserRoleSelect.value);
+    const roleSelect = requireUserAdminValue(newUserRoleSelect, "role select");
+    const clientScopeSelect = requireUserAdminValue(newUserClientScopeSelect, "client scope select");
+    const projectScopeSelect = requireUserAdminValue(newUserProjectScopeSelect, "project scope select");
+    const role = addUserRoles.find((item) => item.role_id === roleSelect.value);
     const scopeType = role?.assignment_scope_type || "";
     const scopes = Array.isArray(role?.scopes) ? role.scopes : [];
 
-    newUserClientScopeField.hidden = scopeType !== "client";
-    newUserProjectScopeField.hidden = scopeType !== "project";
-    newUserClientScopeSelect.replaceChildren();
-    newUserProjectScopeSelect.replaceChildren();
+    requireUserAdminValue(newUserClientScopeField, "client scope field").hidden = scopeType !== "client";
+    requireUserAdminValue(newUserProjectScopeField, "project scope field").hidden = scopeType !== "project";
+    clientScopeSelect.replaceChildren();
+    projectScopeSelect.replaceChildren();
 
     if (scopeType === "client") {
-      newUserClientScopeSelect.replaceChildren(...scopes.map(createAddUserScopeOption));
+      clientScopeSelect.replaceChildren(...scopes.map(createAddUserScopeOption));
     }
 
     if (scopeType === "project") {
-      newUserProjectScopeSelect.replaceChildren(...scopes.map(createAddUserScopeOption));
+      projectScopeSelect.replaceChildren(...scopes.map(createAddUserScopeOption));
     }
 
     applyUserCreationAvailability();
   }
 
+  /** @param {BrowserRoleOption["scopes"][number]} scope */
   function createAddUserScopeOption(scope) {
     const option = document.createElement("option");
     option.value = scope.scopeId;
@@ -913,22 +990,23 @@
   }
 
   async function findUserAccount() {
-    const username = newUserUsernameInput.value.trim().toLowerCase();
-    const workspaceId = newUserWorkspaceSelect.value;
+    const accountStatus = requireUserAdminValue(newUserAccountStatus, "account status");
+    const username = requireUserAdminValue(newUserUsernameInput, "username input").value.trim().toLowerCase();
+    const workspaceId = requireUserAdminValue(newUserWorkspaceSelect, "workspace select").value;
 
     if (!isValidEmail(username)) {
       setUserAdminStatus("Enter a valid email address.", true);
       return false;
     }
 
-    findUserAccountButton.disabled = true;
-    newUserAccountStatus.textContent = "Searching for an exact account match...";
+    requireUserAdminValue(findUserAccountButton, "find-account button").disabled = true;
+    accountStatus.textContent = "Searching for an exact account match...";
 
     try {
       const lookup = readAccountLookup(await requireApi().postJson("/api/users/lookup", { username, workspaceId }));
       const match = lookup.match;
       accountLookup = { match, username, workspaceId };
-      newUserAccountStatus.textContent = match
+      accountStatus.textContent = match
         ? match.alreadyActive
           ? `${match.displayName || match.username} already belongs to this workspace.`
           : `Existing account found: ${match.displayName || match.username}.`
@@ -1833,30 +1911,34 @@
     }
   }
 
+  /** @param {string} password */
   function showGeneratedPassword(password) {
-    generatedPasswordInput.value = password;
-    generatedPasswordPanel.hidden = !password;
+    requireUserAdminValue(generatedPasswordInput, "generated password input").value = password;
+    requireUserAdminValue(generatedPasswordPanel, "generated password panel").hidden = !password;
   }
 
   async function copyGeneratedPassword() {
-    if (!generatedPasswordInput.value) {
+    const passwordInput = requireUserAdminValue(generatedPasswordInput, "generated password input");
+
+    if (!passwordInput.value) {
       return;
     }
 
     try {
-      await navigator.clipboard.writeText(generatedPasswordInput.value);
+      await navigator.clipboard.writeText(passwordInput.value);
     } catch {
-      generatedPasswordInput.select();
+      passwordInput.select();
       document.execCommand("copy");
     }
 
-    const originalText = copyGeneratedPasswordButton.textContent;
-    copyGeneratedPasswordButton.textContent = "Copied.";
-    copyGeneratedPasswordButton.classList.add("is-saved");
+    const copyButton = requireUserAdminValue(copyGeneratedPasswordButton, "copy-password button");
+    const originalText = copyButton.textContent;
+    copyButton.textContent = "Copied.";
+    copyButton.classList.add("is-saved");
 
     window.setTimeout(() => {
-      copyGeneratedPasswordButton.textContent = originalText;
-      copyGeneratedPasswordButton.classList.remove("is-saved");
+      copyButton.textContent = originalText;
+      copyButton.classList.remove("is-saved");
     }, 1600);
   }
 
@@ -1894,7 +1976,7 @@
 
   function setUserAdminStatus(message, isError = false) {
     requirePageController().setStatus(userAdminStatus, message, { isError });
-    userAdminStatus.classList.toggle("is-error", isError);
+    requireUserAdminValue(userAdminStatus, "status region").classList.toggle("is-error", isError);
   }
 
   requirePageController().register("user-admin", {
