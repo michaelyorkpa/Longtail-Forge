@@ -12,6 +12,7 @@ const browserGlobals = {
   HTMLFormElement: "readonly",
   HTMLInputElement: "readonly",
   HTMLSelectElement: "readonly",
+  HTMLTextAreaElement: "readonly",
   Intl: "readonly",
   localStorage: "readonly",
   location: "readonly",
