@@ -83,7 +83,7 @@ permissive and compatible with distributing Longtail Forge under
 | path-to-regexp | 8.4.2 | MIT | Copyright (c) 2014 Blake Embrey (hello@blakeembrey.com) | [L54](#l54) |
 | proxy-addr | 2.0.7 | MIT | Copyright (c) 2014-2016 Douglas Christopher Wilson | [L22](#l22) |
 | punycode.js | 2.3.1 | MIT | Mathias Bynens and contributors | [L55](#l55) |
-| qs | 6.15.3 | BSD-3-Clause | Copyright (c) 2014, Nathan LaFreniere and other [contributors](https://github.com/ljharb/qs/graphs/contributors) | [L56](#l56) |
+| qs | 6.16.0 | BSD-3-Clause | Copyright (c) 2014, Nathan LaFreniere and other [contributors](https://github.com/ljharb/qs/graphs/contributors) | [L56](#l56) |
 | range-parser | 1.3.0 | MIT | Copyright (c) 2012-2014 TJ Holowaychuk &lt;tj@vision-media.ca&gt;; Copyright (c) 2015-2016 Douglas Christopher Wilson &lt;doug@somethingdoug.com | [L57](#l57) |
 | raw-body | 3.0.2 | MIT | Copyright (c) 2013-2014 Jonathan Ong &lt;me@jongleberry.com&gt;; Copyright (c) 2014-2022 Douglas Christopher Wilson &lt;doug@somethingdoug.com&gt; | [L58](#l58) |
 | router | 2.2.0 | MIT | Copyright (c) 2013 Roman Shtylman; Copyright (c) 2014-2022 Douglas Christopher Wilson | [L59](#l59) |
@@ -1937,7 +1937,7 @@ SOFTWARE.
 
 ### L56
 
-Applies to: qs@6.15.3
+Applies to: qs@6.16.0
 
 ```text
 BSD 3-Clause License
