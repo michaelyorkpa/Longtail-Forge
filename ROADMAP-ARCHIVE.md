@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.44.2 - The Time Entry Dialog control record
+
+**Model: Medium Effort** - one declaration carried more than half this file's debt, and the work was proving the record could honestly be called complete.
+
+- [x] **The boundary is the control record, not the file.** `fields = {}` described an empty object while eighteen controls were read off it, which is where **110 of 203** diagnostics came from. Typing the slot fixed all 73 reads without editing one of them.
+- [x] **Declared complete, and that claim is earned rather than asserted.** `ensureDialog` is the only writer of `dialog`, `form` and `fields`; both entry points - `configure` at setup and `openDialog` on every open - call it before any control is read; and it throws unless every control is present. A break that asserts `{}` into the record's shape is refused, and so is one that adds a second writer.
+- [x] **Behaviour preserved where it matters, and the one difference is stated.** A read before `ensureDialog` raised a `TypeError` before this change and still does; only the message moves, from reading a property of `undefined` to reading one of an undefined record. Nothing reads a control before `ensureDialog` on any path.
+- [x] **The subtypes come from the markup this module renders.** The suite reads the tag for each of the eighteen out of `dialogMarkup` and requires the check to match it - matching the complete attribute, because `billable-control` sits on the `<label>` wrapping the `<select>` that carries `billable` and a prefix search finds the wrong element. Breaks that check the wrong subtype, widen a select to any element, or narrow a container past what the markup guarantees are all refused.
+- [x] **The five containers stay `HTMLElement`**, and the suite proves that is not laziness: it collects every member read off them and requires each to be a container member. Narrowing them further would claim a tag this module never depends on.
+- [x] **The narrowing is a runtime check with the constructor passed as a value**, not a type argument treated as validation. A break that replaces it with an assertion is refused, and so is one that fabricates a stand-in element for a missing control.
+- [x] **Self-rendering markup is preserved and ordered.** The module still renders the dialog when the page has none, and still does so *before* acquiring anything; breaks that remove the rendering or move acquisition ahead of it are both refused.
+- [x] **Dialog behaviour is untouched**: the dependent client-to-project population and its disabled state, the workspace-scope default and the guard that lets client-tool workspaces choose their own, both placeholder options, and the `timeEntryDialogBound` guard that keeps listeners bound once. Four breaks attack these and all four are refused.
+- [x] **Measured honestly by family.** Total **7,470 to 7,356**; `state` **1,637 to 1,525**, `dom` **1,353 to 1,351**, `params` and `assorted` unmoved. Owner `0.33.33.44` **1,528 to 1,409**; `.39` through `.43` unchanged. Exactly one file's counts moved, 203 to 89. Owner sum 6,005 equals params 4,341 + state 1,525 + assorted 139.
+
+Proved by breaking each one, restored from an explicit byte copy in a `finally` with hash verification and no stash: **16 breaks, all 16 refused, and every mutation checked with `node --check` first so a syntax error could not be scored as a pass.** One further break - deleting a blank line above the project listing - was **inert and is recorded as inert rather than counted**: the guard still returned, so nothing behavioural changed. It was re-aimed at the guard itself, which the suite refuses.
+
 ## Version 0.33.33.40.3 - Type the Notes collection workflow
 
 **Model: High Effort** - Collection hierarchy, modal lifecycle, and mutation recovery share one controller boundary.

@@ -1257,6 +1257,16 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: DOM 1,422 to 1,411, `0.33.33.44` 1,528 to 1,521**, params 4,383 to 4,378 and state 1,650 to 1,648, with `assorted` unmoved. Exactly one file's counts changed, 83 to 65.
 
+#### 0.33.33.44.2 - The Time Entry Dialog control record
+
+**Complete: 114 diagnostics, one slot and eighteen controls.** See the archive entry. `fields` was declared `{}`, so every read of a control reported a missing property - **110 of this file's 203 diagnostics were that one declaration**. `ensureDialog` renders the dialog's markup itself when the page has none, is the only writer of `dialog`, `form` and `fields`, and is reached from both entry points before anything reads a control; the record is therefore declared complete rather than asserted from an empty object.
+
+**A state boundary that happens to be built from DOM queries**, and the measurement says so: `state` fell **1,637 to 1,525** while `dom` moved only **1,353 to 1,351**. These were record-shape errors on a page-local slot, not query nullability, and reporting them as DOM progress would have been wrong.
+
+**Every control is required, checked where the dereference already was.** The module renders its own markup, so a control still missing or of the wrong subtype afterwards is a markup-contract error rather than an absent optional section - and each was already dereferenced unguarded immediately after acquisition. The subtypes come from `dialogMarkup` itself: `<select>`, `<input>`, `<textarea>`, `<button>`, and plain `HTMLElement` for the five containers this module only shows, hides or writes text into.
+
+**`0.33.33.44` 1,528 to 1,409**; `0.33.33.39` through `.43` unchanged, so the delegated lane is untouched.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
