@@ -1305,6 +1305,20 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 7,049 to 6,951, `0.33.33.44` 1,324 to 1,304**, `dom` 1,232 to 1,154, params 4,224 to 4,215, state 1,461 to 1,453, assorted 132 to 129. Every code fell or held and `TS2345` reached zero; no new code. Exactly one file's counts changed. **`0.33.33.39` through `.43` are byte-identical**, so the delegated lane is untouched.
 
+#### 0.33.33.44.6 - Review corrections to `0.33.33.44.3` and `0.33.33.44.4`
+
+**Complete: four review findings, all reproduced before being fixed.** See the archive entry. `public/js/time-entry-dialog.js` reaches **zero**.
+
+**The normaliser asserted a contract it never established.** `0.33.33.44.3` declared eight `NormalizedTimeEntry` members `string` while `normalizeTimeEntries` copied them straight off the wire behind nothing but an `Array.isArray` check. An isolated reproduction returned a numeric `clientId`, an object `description`, an object `invoiceStatus` and an `undefined` `entryId`. **This was a type guarantee asserted over an unchecked boundary, not a claim that the server emits those values** - the producer was traced and is sound: `normalizeTimeEntry` in `src/utils/normalizers.js` already answers ten strings per row. The browser now *checks* those ten at the boundary and drops a row that cannot satisfy them. No coercion was added, no valid producer row is dropped, and twelve executable cases run the shipped function to prove both.
+
+**The tag picker was deferred on an inaccurate claim, and a test enforced it.** `BrowserTagPickerController` has been published all along and `BrowserTags.mountPicker` already answers `Promise<BrowserTagPickerController | null>`. `0.33.33.44.4` said otherwise and its helper suite **required that wording**. The slot is typed from the published contract, the note is corrected, and the assertion now checks the contract is used rather than that a false note is present.
+
+**The save callback needed narrowing, not truncating.** `0.33.33.44.3` read the older save contract as requiring the response reach the spread unchecked and reverted a sound change. Narrowing the value *before* the spread preserves the spread, its members, the extra response members and the validated identity - `{}` is exactly what spreading a non-record already produced. Both contracts were **retargeted to the claim they actually protect** (rebuilding, not checking) rather than weakened.
+
+**Two shared files were rewritten to CRLF by `0.33.33.44.4`.** `shared/records.js` and `shared/page-controller.js` were entirely LF before it and are restored to LF, with the `BrowserRecordFields` changes preserved and nothing else reformatted. Cause: a Python edit opened without `newline=""`, which converts on write on Windows.
+
+**Measured: browser 6,910 to 6,906, `0.33.33.44` 1,304 to 1,300**, with `time-entry-dialog.js` **4 to 0**. `0.33.33.39` through `.43` unchanged. The reduction is small because the finding was soundness, not count.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
