@@ -1168,6 +1168,15 @@ Today's measurement: `public/js/notes.js` alone is **4,682 lines with 391 top-le
 
 **Later `0.33.33.40.x` children are not drawn yet.** The remaining 378 parameter and 23 assorted diagnostics have not been clustered, and `0.33.33.40.1` deliberately did not touch them. Draw those boundaries from the classifier after `0.33.33.40.2`, not from this section.
 
+#### 0.33.33.40.4 - Type the Notes editor lifecycle
+
+**Model: High Effort** — Editor hydration fallback, modal settlement, and secure/visibility state require exact lifecycle and failure-order preservation.
+
+- [ ] Type `openEditor`, `hydrateEditorNote`, `closeEditor`, `cancelEditor`, and their secure warning/visibility state, including required-versus-optional DOM reads and local lifecycle state contracts.
+- [ ] Preserve ID-only/detail hydration fallback, defaults, initialization order, retained note identity, close-result settlement, cancel/complete host semantics, secure-mode restrictions, workspace visibility choices, and focus return. Reuse existing response and namespace contracts; keep helpers file-local.
+- [ ] Leave links, revisions, attachments, tags, filters, search, and shared infrastructure for their owning later children. Calls into those subsystems retain their current order and payloads.
+- [ ] Use the updated dependency tree and live canonical compiler/classifier evidence. Starting `41b8862a`: Notes 665 = 419 owned + 246 DOM; browser 7,470. Verify isolated desktop/mobile lifecycle behavior with `LTF_E2E_PORT=8102`, regenerate the branch-local ledger, and run complete-range `verify:slice` and `checkpoint:validate`.
+
 ### 0.33.33.41 - Type Tasks and Task Dialog browser controllers
 
 **Model: High Effort** - Task lifecycle, recurrence, reminders, checklist, timers, and editor state share one high-risk workflow.

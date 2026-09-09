@@ -332,6 +332,7 @@
         "tests/e2e/mobile-nav.spec.mjs",
         "tests/e2e/modal.spec.mjs",
         "tests/e2e/notes-collections.spec.mjs",
+        "tests/e2e/notes-editor-lifecycle.spec.mjs",
         "tests/e2e/overflow.spec.mjs",
         "tests/e2e/public-legal.spec.mjs",
         "tests/e2e/reporting-host-console.spec.mjs",
@@ -412,6 +413,7 @@
         "tests/unit/note-mutation-identity-contracts.test.mjs",
         "tests/unit/note-response-contracts.test.mjs",
         "tests/unit/note-revision-list-contracts.test.mjs",
+        "tests/unit/notes-editor-lifecycle.test.mjs",
         "tests/unit/notes-effective-security.test.mjs",
         "tests/unit/notes-external-link-preference-contracts.test.mjs",
         "tests/unit/notification-bell-summary-contracts.test.mjs",
@@ -569,7 +571,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7470,
+      "errorCount": 7331,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1026,15 +1028,15 @@
         "public/js/notes.js": [
           {
             "code": 18047,
-            "count": 85
+            "count": 62
           },
           {
             "code": 2322,
-            "count": 5
+            "count": 4
           },
           {
             "code": 2339,
-            "count": 390
+            "count": 281
           },
           {
             "code": 2345,
@@ -1058,7 +1060,7 @@
           },
           {
             "code": 7031,
-            "count": 11
+            "count": 5
           },
           {
             "code": 7034,
@@ -2555,8 +2557,8 @@
     }
   },
   "totals": {
-    "files": 1150,
-    "errors": 7470,
+    "files": 1152,
+    "errors": 7331,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
