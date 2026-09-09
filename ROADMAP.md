@@ -1293,6 +1293,18 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 7,158 to 7,132, `0.33.33.44` 1,350 to 1,324**, params 4,303 to 4,277 with state, `dom` and `assorted` all unmoved. `TS7006` in this file 27 to 1. **`0.33.33.40` through `.43` are byte-identical**, so the delegated lane is untouched.
 
+#### 0.33.33.44.5 - The User Admin Add User flow
+
+**Complete: 98 diagnostics, one flow of a 285-diagnostic file.** See the archive entry. Whether creation is available at all, the options and scope the form offers, the account lookup that decides create-versus-add, the create request, and the generated password it hands back. `public/js/user-admin.js` goes **285 to 187**, and the Add User function range is at **zero**.
+
+**A DOM boundary, and the measurement says so.** `dom` fell **1,232 to 1,154** while the owner budget moved only **1,324 to 1,304**. Fifteen controls were acquired with bare `document.querySelector`, so every read was `Element | null` - which is where 78 of the 98 came from. Reporting that as owner progress would have been wrong, exactly as `0.33.33.44.2` reported the reverse.
+
+**Typed-or-null, not required-at-acquisition, and the reason is behavioural.** These controls are acquired at module evaluation, *outside* the `try` in `loadUsers`. Refusing there would turn one missing control into a dead page instead of the "Users could not be loaded." status it produces today. So the subtype is settled at the query point and presence at the statement that already dereferenced it - the `0.33.33.38.3` pattern this estate already uses in Notes. Controls the page already guarded keep their guards; the two bare bindings threw at module evaluation before and still do, with only the message improved.
+
+**No contract was authored, because this page already owned every one it needed.** `BrowserRoleOption`, `BrowserAccountLookupMatch` and `BrowserAssignableWorkspace` were already published *and already imported here*. The finding is that `applyAddUserOptions` bypassed the file's own checked readers with a bare `Array.isArray`: `readRoleOptions` documents **two consumers** and this was the one that never adopted it, and `workspaces` comes from the same server-side `readAssignableWorkspaces` that `GET /api/workspaces` uses. Both are now read through those readers, so a malformed element is dropped rather than rendered as a blank option - the answer this page already gives at load.
+
+**Measured: browser 7,049 to 6,951, `0.33.33.44` 1,324 to 1,304**, `dom` 1,232 to 1,154, params 4,224 to 4,215, state 1,461 to 1,453, assorted 132 to 129. Every code fell or held and `TS2345` reached zero; no new code. Exactly one file's counts changed. **`0.33.33.39` through `.43` are byte-identical**, so the delegated lane is untouched.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
