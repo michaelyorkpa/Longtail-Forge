@@ -112,19 +112,21 @@
    */
   let selectedEntry = null;
   /**
-   * Deliberately untyped, and the last of this file's page-local state.
+   * The controller `namespace.tags.mountPicker` resolves to, or `null`.
    *
-   * **Owned by a later `0.33.33.44` child, not forgotten.** The picker is mounted from
-   * `namespace.tags.mountPicker`, whose handle has no published contract yet, so typing this
-   * slot means settling that surface first. Three of this file's four remaining diagnostics
-   * are this slot, its read in `saveEntry` and `mountTagPicker`'s parameter; the fourth is the
-   * contracted spread in `saveEntry`. Nothing else in this file is undeclared.
+   * **`0.33.33.44.4` claimed this had no published contract. That was wrong.**
+   * `BrowserTagPickerController` has been published all along, and `BrowserTags.mountPicker`
+   * already answers `Promise<BrowserTagPickerController | null>` - so the slot is typed from the
+   * contract that already describes it rather than deferred behind an inaccurate note.
+   * @type {BrowserTagPickerController | null}
    */
   let tagPicker = null;
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTimezones} BrowserTimezones */
   /** @typedef {import("../../src/types/browser-contracts.js").NormalizedClientOption} NormalizedClientOption */
   /** @typedef {import("../../src/types/browser-contracts.js").NormalizedProjectOption} NormalizedProjectOption */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTagPickerController} BrowserTagPickerController */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTagPickerOptions} BrowserTagPickerOptions */
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
@@ -533,13 +535,15 @@
         throw new Error("The saved time entry could not be identified.");
       }
 
+      // The decorated response still travels on whole: the spread, its members and the validated
+      // identity are unchanged, and only the value being spread is established first. Spreading a
+      // non-record already contributed nothing, so `{}` is exactly what that case already
+      // produced - this states it rather than asserting a record shape the module never checked.
+      // Nothing is rebuilt and nothing is truncated.
+      const savedResult = isSaveResponseRecord(result) ? result : {};
+
       if (typeof context?.onSaved === "function") {
-        // Left spreading an unchecked value on purpose. `tests/unit/time-entry-save-contracts`
-        // requires this exact form: the decorated entry must travel on whole and nothing may
-        // be truncated for the callback. A record check here reads as a truncating rebuild to
-        // that contract even though it is behaviour-identical, so the resulting TS2698 stays
-        // and belongs to whichever child revisits that contract deliberately.
-        await context.onSaved({ ...result, entryId: savedEntryId });
+        await context.onSaved({ ...savedResult, entryId: savedEntryId });
       }
       context?.hostContext?.complete?.({
         actionId: selectedEntry ? "time-entries.edit" : "time-entries.add",
@@ -649,6 +653,7 @@
     return Math.round((endTime.getTime() - startTime.getTime()) / 1000);
   }
 
+  /** @param {BrowserTagPickerOptions["selectedTags"]} tags the entry tags the picker accepts */
   async function mountTagPicker(tags) {
     tagPicker = null;
     if (!fields.tags || !namespace.tags?.mountPicker) {
@@ -700,6 +705,62 @@
   }
 
   /**
+   * The ten columns every row of `GET /api/time-entries` carries as text.
+   *
+   * **Checked, not invented.** `normalizeTimeEntry` in `src/utils/normalizers.js` runs
+   * `String(value || "").trim()` over seven of these, resolves `invoice_status` through
+   * `isTimeEntryInvoiceStatus` to a closed union, and answers `normalizeUtcIso` for the two
+   * timestamps - so a row from that producer always carries these ten strings. Establishing it
+   * here is what makes the declared model true rather than merely declared: before this, eight
+   * of them were copied straight through, and a body from anywhere else could put a number in
+   * `clientId`, an object in `description`, or `undefined` in `entryId`.
+   *
+   * `duration_seconds`, `billable` and `tags` are deliberately absent: the rebuild below already
+   * converts each of them, so the model's claim about those members never rested on the wire.
+   */
+  const TIME_ENTRY_TEXT_COLUMNS = Object.freeze([
+    "client_id", "client_name", "description", "end_time", "entry_id",
+    "invoice_status", "project_id", "project_name", "start_time", "user_id",
+  ]);
+
+  /**
+   * @typedef {{
+   *   client_id: string,
+   *   client_name: string,
+   *   description: string,
+   *   end_time: string,
+   *   entry_id: string,
+   *   invoice_status: string,
+   *   project_id: string,
+   *   project_name: string,
+   *   start_time: string,
+   *   user_id: string,
+   * }} TimeEntryTextColumns
+   */
+
+  /**
+   * A response body that is a plain object.
+   *
+   * Not `isSaveResponseRecord`: all of its uses are genuinely save responses, and this one reads
+   * a list body. The two predicates are the same test of different things.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isTimeEntryRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * One row this dialog can rebuild without asserting anything the row does not carry.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown> & TimeEntryTextColumns}
+   */
+  function isTimeEntryRow(value) {
+    return isTimeEntryRecord(value)
+      && TIME_ENTRY_TEXT_COLUMNS.every((column) => typeof value[column] === "string");
+  }
+
+  /**
    * @param {unknown} data the `/api/time-entries` body, unchecked as it arrives
    * @returns {NormalizedTimeEntry[]}
    */
@@ -707,26 +768,26 @@
     // Narrowed here rather than at the caller: `api.getJson` answers `unknown`, and this is
     // the function that already decides what a usable body is. `isSaveResponseRecord` is not
     // reused because all three of its uses are genuinely save responses.
-    const envelope = typeof data === "object" && data !== null ? data : {};
-    const entries = "entries" in envelope ? envelope.entries : undefined;
+    const entries = isTimeEntryRecord(data) && Array.isArray(data.entries) ? data.entries : [];
 
-    return Array.isArray(entries)
-      ? entries.map((entry) => ({
-          billable: normalizeBillable(entry.billable),
-          clientId: entry.client_id,
-          clientName: entry.client_name,
-          description: entry.description,
-          durationSeconds: Number(entry.duration_seconds) || 0,
-          endTime: new Date(entry.end_time),
-          entryId: entry.entry_id,
-          invoiceStatus: entry.invoice_status || "unbilled",
-          projectId: entry.project_id,
-          projectName: entry.project_name,
-          startTime: new Date(entry.start_time),
-          tags: Array.isArray(entry.tags) ? entry.tags : [],
-          userId: entry.user_id,
-        }))
-      : [];
+    // Rows are checked, not coerced. The producer already answers ten strings; this establishes
+    // that at the boundary so the declared model is true of every row it returns, and a row that
+    // cannot satisfy it is dropped rather than rebuilt into a record whose members lie.
+    return entries.filter(isTimeEntryRow).map((entry) => ({
+      billable: normalizeBillable(entry.billable),
+      clientId: entry.client_id,
+      clientName: entry.client_name,
+      description: entry.description,
+      durationSeconds: Number(entry.duration_seconds) || 0,
+      endTime: new Date(entry.end_time),
+      entryId: entry.entry_id,
+      invoiceStatus: entry.invoice_status || "unbilled",
+      projectId: entry.project_id,
+      projectName: entry.project_name,
+      startTime: new Date(entry.start_time),
+      tags: Array.isArray(entry.tags) ? entry.tags : [],
+      userId: entry.user_id,
+    }));
   }
 
   /** @param {NormalizedClientOption} client */

@@ -360,6 +360,7 @@
         "tests/e2e/workspace-switch-landing.spec.mjs",
         "tests/mutations/notes-link-editor.breaks.mjs",
         "tests/mutations/notes-primary-context.breaks.mjs",
+        "tests/mutations/time-entry-dialog-corrections.breaks.mjs",
         "tests/mutations/user-admin-add-user.breaks.mjs",
         "tests/time-tracking/time-tracking-billing.test.mjs",
         "tests/typecheck/browser-database-boundary.fixture.mjs",
@@ -470,6 +471,7 @@
         "tests/unit/test-support-harnesses.test.mjs",
         "tests/unit/time-entry-dialog-control-contracts.test.mjs",
         "tests/unit/time-entry-dialog-helper-contracts.test.mjs",
+        "tests/unit/time-entry-dialog-normalizer-contracts.test.mjs",
         "tests/unit/time-entry-dialog-round-trip-contracts.test.mjs",
         "tests/unit/time-entry-save-contracts.test.mjs",
         "tests/unit/user-admin-add-user-contracts.test.mjs",
@@ -582,7 +584,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 6910,
+      "errorCount": 6906,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1704,24 +1706,6 @@
             "count": 6
           }
         ],
-        "public/js/time-entry-dialog.js": [
-          {
-            "code": 2698,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 1
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
         "public/js/time-tracking-dashboard.js": [
           {
             "code": 2339,
@@ -2548,8 +2532,8 @@
     }
   },
   "totals": {
-    "files": 1163,
-    "errors": 6910,
+    "files": 1165,
+    "errors": 6906,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

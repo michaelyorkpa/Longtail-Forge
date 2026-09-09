@@ -255,7 +255,7 @@ describe("the host is told nothing the response could not vouch for", () => {
     assert.match(save, /if \(savedEntryId === ""\) \{\n\s+throw new Error\("The saved time entry could not be identified\."\);\n\s+\}/,
       "by throwing into the existing catch");
     for (const [name, needle] of [
-      ["the saved callback", "await context.onSaved({ ...result, entryId: savedEntryId });"],
+      ["the saved callback", "await context.onSaved({ ...savedResult, entryId: savedEntryId });"],
       ["the host completion", "context?.hostContext?.complete?.({"],
       ["the dialog close", 'dialog.close("complete");'],
     ]) {
@@ -272,7 +272,14 @@ describe("the host is told nothing the response could not vouch for", () => {
   });
 
   it("hands the callback the producer's own result", () => {
-    assert.match(save, /await context\.onSaved\(\{ \.\.\.result, entryId: savedEntryId \}\);/,
+    // Retargeted by `0.33.33.44.6`. This case protects against **rebuilding** the payload, not
+    // against establishing the value first: `savedResult` is `result` narrowed to a record, so
+    // the decorated entry still travels on whole and the truncation forbidden below is still
+    // forbidden. `0.33.33.44.3` read the earlier wording as requiring the value stay unchecked
+    // and reverted a sound narrowing on that basis.
+    assert.match(save, /const savedResult = isSaveResponseRecord\(result\) \? result : \{\};/,
+      "the response is established before it is spread");
+    assert.match(save, /await context\.onSaved\(\{ \.\.\.savedResult, entryId: savedEntryId \}\);/,
       "the response is spread rather than rebuilt, so the decorated entry travels on whole");
     assert.doesNotMatch(save, /onSaved\(\{ entryId|onSaved\(\{ entry_id/, "nothing is truncated for the callback");
   });

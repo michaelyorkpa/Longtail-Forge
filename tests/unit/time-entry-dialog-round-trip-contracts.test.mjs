@@ -42,7 +42,7 @@ function typedefBody(name) {
 describe("the entry model is this page's own, and it is exact", () => {
   it("declares the thirteen members the normaliser names", () => {
     const normaliser = slice("  function normalizeTimeEntries(data) {");
-    const built = [...normaliser.matchAll(/^ {10}(\w+):/gm)].map((entry) => entry[1]).sort();
+    const built = [...normaliser.matchAll(/^ {6}(\w+):/gm)].map((entry) => entry[1]).sort();
     assert.equal(built.length, 13, "the normaliser rebuilds thirteen members");
     const declared = [...typedefBody("NormalizedTimeEntry").matchAll(/^\s+\*\s+(\w+):/gm)]
       .map((entry) => entry[1]).sort();
@@ -191,10 +191,10 @@ describe("the wire body is checked where it arrives, not assumed by whoever pass
     assert.match(page.slice(page.lastIndexOf("/**", at), at), /@param \{unknown\} data/,
       "the body arrives unchecked, and the parameter says so");
     const body = slice("  function normalizeTimeEntries(data) {");
-    assert.match(body, /const envelope = typeof data === "object" && data !== null \? data : \{\};/);
-    assert.match(body, /const entries = "entries" in envelope \? envelope\.entries : undefined;/);
-    assert.match(body, /return Array\.isArray\(entries\)/,
-      "and the array check is what licenses the map, as it already did");
+    assert.match(body, /const entries = isTimeEntryRecord\(data\) && Array\.isArray\(data\.entries\) \? data\.entries : \[\];/,
+      "the envelope is narrowed by this page's own record predicate");
+    assert.match(body, /return entries\.filter\(isTimeEntryRow\)\.map\(/,
+      "and every row is checked before it is rebuilt - see time-entry-dialog-normalizer-contracts");
   });
 
   it("does not borrow the save-response predicate for a GET envelope", () => {
@@ -204,23 +204,24 @@ describe("the wire body is checked where it arrives, not assumed by whoever pass
     assert.ok(!normaliser.includes("isSaveResponseRecord("),
       "all of its uses are genuinely save responses, so borrowing it would make its name untrue");
     const uses = [...page.matchAll(/isSaveResponseRecord\(/g)].length;
-    assert.equal(uses, 4, "one declaration and three save-response uses");
+    assert.equal(uses, 5, "one declaration and four uses, every one a save response");
   });
 
-  it("leaves the host payload spread unchecked, because a contract requires that form", () => {
-    // A fourth finding was found and deliberately *not* resolved. Checking `result` before
-    // spreading it is behaviour-identical - `{...5}` and `{...null}` already contributed nothing -
-    // but `tests/unit/time-entry-save-contracts` requires this exact call and forbids
-    // `onSaved({ entryId`, because a rebuild there would truncate the decorated entry. That
-    // contract is older than this child and was not weakened to admit the check.
+  it("checks the host payload before spreading it, and still spreads the whole response", () => {
+    // `0.33.33.44.3` reverted this check because it had rebuilt the payload, which the older
+    // save contract rightly forbids. The check itself was never the problem: narrowing the value
+    // *before* the spread keeps the spread, its members and the validated identity exactly as
+    // they were. `{}` is what spreading a non-record already produced.
     const body = slice("  async function saveEntry(event) {");
-    assert.match(body, /await context\.onSaved\(\{ \.\.\.result, entryId: savedEntryId \}\);/,
-      "the contracted form stands");
-    assert.match(body, /Left spreading an unchecked value on purpose/,
-      "and the code records why, so the surviving TS2698 is not read as an oversight");
+    assert.match(body, /const savedResult = isSaveResponseRecord\(result\) \? result : \{\};/,
+      "the response is established first");
+    assert.match(body, /await context\.onSaved\(\{ \.\.\.savedResult, entryId: savedEntryId \}\);/,
+      "and the spread still carries the whole decorated response plus the validated identity");
+    assert.doesNotMatch(body, /onSaved\(\{ entryId|onSaved\(\{ entry_id/,
+      "nothing is truncated for the callback, which is what the older contract protects");
     const contract = readFileSync(new URL("../../tests/unit/time-entry-save-contracts.test.mjs", import.meta.url), "utf8");
     assert.match(contract, /nothing is truncated for the callback/,
-      "the contract that requires it really does say so");
+      "and that contract still makes the claim, retargeted rather than weakened");
   });
 
   it("declares the entry points at the same text params prepareContext requires", () => {

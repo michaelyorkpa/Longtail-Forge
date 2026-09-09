@@ -192,15 +192,25 @@ describe("the context holder, and what is deliberately left", () => {
       "the status callback now takes its parameter types from this declaration");
   });
 
-  it("names an owner for every diagnostic it deliberately leaves", () => {
-    // Deferral must be explicit, not accidental omission.
+  it("types the tag picker from the contract that was already published", () => {
+    // `0.33.33.44.4` deferred this slot on the claim that its handle had no published contract,
+    // and this case *required* that wording. Both were wrong: `BrowserTagPickerController` has
+    // been published all along and `mountPicker` already answers it. The assertion now checks
+    // the contract is used rather than that an inaccurate note is present.
     const doc = docFor("  let tagPicker = null;");
-    assert.match(doc, /Owned by a later `0\.33\.33\.44` child, not forgotten/);
-    assert.match(doc, /no published contract yet/, "and says what settling it depends on");
-    assert.match(doc, /Nothing else in this file is undeclared/);
-    assert.match(slice("  async function saveEntry(event) {"),
-      /Left spreading an unchecked value on purpose/,
-      "the contracted spread keeps the reason `0.33.33.44.3` recorded");
+    assert.match(doc, /@type \{BrowserTagPickerController \| null\}/);
+    // Scoped to the deferral wording, not the phrase: the note that *corrects* the mistake has
+    // to be able to name it.
+    assert.ok(!/no published contract yet/.test(page),
+      "the deferral note is gone");
+    assert.match(doc, /claimed this had no published contract\. That was wrong/,
+      "and the correction is recorded where the mistake was");
+    assert.match(page, /BrowserTagPickerController\} BrowserTagPickerController \*\//,
+      "the published controller is imported, not redescribed");
+    assert.ok(contracts.includes("export interface BrowserTagPickerController {"),
+      "and that contract really is published");
+    assert.match(contracts, /mountPicker\(\s*\n?\s*container[^)]*\)[^;]*Promise<BrowserTagPickerController \| null>/,
+      "as the return type of the call this slot is filled from");
   });
 
   it("adds no cast, suppression or namespace surface", () => {
