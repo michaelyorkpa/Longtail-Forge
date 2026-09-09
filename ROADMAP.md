@@ -1319,6 +1319,18 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,910 to 6,906, `0.33.33.44` 1,304 to 1,300**, with `time-entry-dialog.js` **4 to 0**. `0.33.33.39` through `.43` unchanged. The reduction is small because the finding was soundness, not count.
 
+#### 0.33.33.44.7 - The User Admin edit-user dialog
+
+**Complete: 49 diagnostics.** See the archive entry. Opening the dialog for an account, writing that account into the controls, saving the edit, and closing it. `public/js/user-admin.js` goes **187 to 138**; the four named functions carried **39** on the recheck, exactly as scoped, with no correction needed.
+
+**The response half was already sound, and this child verified that rather than redoing it.** `saveEditedUser` reads its body through `readUserRecords` and `readUserRecord`, both of which run `isUserRecord` - text members, boolean members, nullable text, a non-empty `user_id` and readable memberships. That is what makes typing the `users` slot honest: **the compiler now verifies the chain end to end**, because `renderUsers` is declared and all four of its call sites pass a checked reader's output. This is the `0.33.33.44.6` lesson applied rather than repeated.
+
+**Typing that slot forced one declaration outside this cluster, and the ledger is why.** `renderWorkspaceMemberships(memberships, user = getEditingUser())` takes its second parameter's type from that default, so typing `users` gave it an inferred type that `closeEditUserDialog` immediately contradicted by passing `null` - a **new `TS2345`**. Null is a real argument there, so the parameter is declared at its actual domain rather than the call site being rewritten to suit an inference. A first attempt declared `memberships` as `unknown[]` and **moved the `unknown` family off zero**, which is exactly what `0.33.33.40.2` warns against; it is declared at the published `BrowserUserWorkspaceMembership` instead.
+
+**Behaviour preserved, including one place it was briefly not.** An intermediate edit optional-chained the focus target, which would have turned a throw on an absent control into a silent no-op. The original expression is restored. `refreshUserSessionsButton` is a bare query owned by the managed-sessions child, so `.focus()` stays unresolved there and the code names that owner.
+
+**Measured: browser 6,857, `0.33.33.44` 1,300 to 1,288**, `dom` 1,151 to 1,114. Every code fell or held - TS18047 63 to 42, TS2339 38 to 21, TS7006 49 to 43, TS7005 20 to 17, TS7034 6 to 5, TS2551 2 to 1 - and no new code survives. `0.33.33.39` through `.43` are unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.

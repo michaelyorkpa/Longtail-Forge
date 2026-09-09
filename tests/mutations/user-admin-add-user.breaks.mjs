@@ -51,9 +51,11 @@ const cases = [
   ["a guarded status write is made required",
     "if (newUserAccountStatus) {\n      newUserAccountStatus.textContent = \"\";\n    }",
     'requireUserAdminValue(newUserAccountStatus, "account status").textContent = "";'],
+  // Re-aimed by `0.33.33.44.7`, which typed the edit-user controls this break used to target.
+  // Any control no landed child owns serves the same purpose.
   ["a control outside this boundary gains a required access",
-    "  const editUserForm = document.querySelector(\"[data-edit-user-form]\");",
-    '  const editUserForm = requireUserAdminValue(document.querySelector("[data-edit-user-form]"), "edit form");'],
+    "  const permissionMatrix = document.querySelector(\"[data-permission-matrix]\");",
+    '  const permissionMatrix = requireUserAdminValue(document.querySelector("[data-permission-matrix]"), "permission matrix");'],
 
   // --- the readers this page already owned ---------------------------------------------------------
   ["the roles member reverts to an unchecked array",

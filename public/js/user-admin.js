@@ -51,16 +51,16 @@
   const copyGeneratedPasswordButton = findUserAdminControl("[data-copy-generated-password]", HTMLButtonElement);
   const userAdminStatus = findUserAdminControl("[data-user-admin-status]", HTMLElement);
   const userList = document.querySelector("[data-user-list]");
-  const editUserDialog = document.querySelector("[data-edit-user-dialog]");
-  const editUserForm = document.querySelector("[data-edit-user-form]");
-  const editUserIdInput = document.querySelector("[data-edit-user-id]");
-  const editUserUsernameInput = document.querySelector("[data-edit-user-username]");
-  const editUserDisplayNameInput = document.querySelector("[data-edit-user-display-name]");
-  const editUserAltEmailInput = document.querySelector("[data-edit-user-alt-email]");
-  const editUserTimezoneSelect = document.querySelector("[data-edit-user-timezone]");
-  const cancelEditUserButton = document.querySelector("[data-cancel-edit-user]");
-  const resetEditUserPasswordButton = document.querySelector("[data-reset-edit-user-password]");
-  const saveEditUserButton = document.querySelector("[data-save-edit-user]");
+  const editUserDialog = findUserAdminControl("[data-edit-user-dialog]", HTMLDialogElement);
+  const editUserForm = findUserAdminControl("[data-edit-user-form]", HTMLFormElement);
+  const editUserIdInput = findUserAdminControl("[data-edit-user-id]", HTMLInputElement);
+  const editUserUsernameInput = findUserAdminControl("[data-edit-user-username]", HTMLInputElement);
+  const editUserDisplayNameInput = findUserAdminControl("[data-edit-user-display-name]", HTMLInputElement);
+  const editUserAltEmailInput = findUserAdminControl("[data-edit-user-alt-email]", HTMLInputElement);
+  const editUserTimezoneSelect = findUserAdminControl("[data-edit-user-timezone]", HTMLSelectElement);
+  const cancelEditUserButton = findUserAdminControl("[data-cancel-edit-user]", HTMLButtonElement);
+  const resetEditUserPasswordButton = findUserAdminControl("[data-reset-edit-user-password]", HTMLButtonElement);
+  const saveEditUserButton = findUserAdminControl("[data-save-edit-user]", HTMLButtonElement);
   const workspaceMembershipList = document.querySelector("[data-workspace-membership-list]");
   const userSessionList = document.querySelector("[data-user-session-list]");
   const refreshUserSessionsButton = document.querySelector("[data-refresh-user-sessions]");
@@ -76,6 +76,7 @@
   const permissionMatrix = document.querySelector("[data-permission-matrix]");
   const cancelRolePermissionsButton = document.querySelector("[data-cancel-role-permissions]");
 
+  /** @type {BrowserUserRecord[]} */
   let users = [];
   let roles = [];
   /** @type {{ id?: unknown, name?: unknown, projects?: { id?: unknown, name?: unknown }[] }[]} */
@@ -136,12 +137,12 @@
     await copyGeneratedPassword();
   });
 
-  editUserForm.addEventListener("submit", async (event) => {
+  requireUserAdminValue(editUserForm, "edit-user form").addEventListener("submit", async (event) => {
     event.preventDefault();
     await saveEditedUser();
   });
 
-  cancelEditUserButton.addEventListener("click", closeEditUserDialog);
+  requireUserAdminValue(cancelEditUserButton, "cancel button").addEventListener("click", closeEditUserDialog);
 
   addRoleAssignmentButton.addEventListener("click", addPendingRoleAssignment);
 
@@ -167,7 +168,7 @@
 
   cancelRolePermissionsButton.addEventListener("click", closePermissionDialog);
 
-  resetEditUserPasswordButton.addEventListener("click", async () => {
+  requireUserAdminValue(resetEditUserPasswordButton, "reset-password button").addEventListener("click", async () => {
     const user = getEditingUser();
 
     if (user) {
@@ -1028,6 +1029,7 @@
     }
   }
 
+  /** @param {BrowserUserRecord[]} nextUsers */
   function renderUsers(nextUsers) {
     users = Array.isArray(nextUsers) ? nextUsers : [];
     renderUserRows(users);
@@ -1119,19 +1121,28 @@
     return button;
   }
 
+  /**
+   * @param {BrowserUserRecord} user a record that reached `users` through `isUserRecord`
+   * @param {{ focusSessions?: boolean }} [options]
+   */
   async function openEditUserDialog(user, options = {}) {
-    editUserIdInput.value = user.user_id;
-    editUserUsernameInput.value = user.username;
-    editUserDisplayNameInput.value = user.displayName || user.username;
-    editUserAltEmailInput.value = user.altEmail || "";
+    const usernameInput = requireUserAdminValue(editUserUsernameInput, "username input");
+
+    requireUserAdminValue(editUserIdInput, "identity input").value = user.user_id;
+    usernameInput.value = user.username;
+    requireUserAdminValue(editUserDisplayNameInput, "display name input").value = user.displayName || user.username;
+    requireUserAdminValue(editUserAltEmailInput, "alternate email input").value = user.altEmail || "";
     setEditUserTimezoneValue(user.timezone || "America/New_York");
     renderWorkspaceMemberships(user.workspaceMemberships || [], user);
     pendingRoleAssignments = [];
     draftPermissionOverrides = createDefaultPermissionOverrides();
     renderPendingRoleAssignments();
-    editUserDialog.showModal();
+    requireUserAdminValue(editUserDialog, "edit-user dialog").showModal();
     renderManagedUserSessions([]);
-    (options.focusSessions ? refreshUserSessionsButton : editUserUsernameInput).focus();
+    // The focus target is still a union: `refreshUserSessionsButton` is a bare query owned by
+    // the managed-sessions child, so `.focus()` stays unresolved until that child types it. The
+    // edit-user half is typed, and the throw-on-absent behaviour is deliberately unchanged.
+    (options.focusSessions ? refreshUserSessionsButton : usernameInput).focus();
 
     try {
       const [body] = await Promise.all([
@@ -1150,11 +1161,13 @@
   }
 
   function closeEditUserDialog() {
-    if (editUserDialog.open) {
-      editUserDialog.close();
+    const dialog = requireUserAdminValue(editUserDialog, "edit-user dialog");
+
+    if (dialog.open) {
+      dialog.close();
     }
 
-    editUserForm.reset();
+    requireUserAdminValue(editUserForm, "edit-user form").reset();
     renderWorkspaceMemberships([], null);
     renderManagedUserSessions([]);
   }
@@ -1365,15 +1378,16 @@
   }
 
   function getEditingUser() {
-    return users.find((user) => user.user_id === editUserIdInput.value);
+    const editingUserId = requireUserAdminValue(editUserIdInput, "identity input").value;
+    return users.find((user) => user.user_id === editingUserId);
   }
 
   async function saveEditedUser() {
     const user = getEditingUser();
-    const username = editUserUsernameInput.value.trim().toLowerCase();
-    const displayName = editUserDisplayNameInput.value.trim();
-    const altEmail = editUserAltEmailInput.value.trim().toLowerCase();
-    const timezone = editUserTimezoneSelect.value;
+    const username = requireUserAdminValue(editUserUsernameInput, "username input").value.trim().toLowerCase();
+    const displayName = requireUserAdminValue(editUserDisplayNameInput, "display name input").value.trim();
+    const altEmail = requireUserAdminValue(editUserAltEmailInput, "alternate email input").value.trim().toLowerCase();
+    const timezone = requireUserAdminValue(editUserTimezoneSelect, "timezone select").value;
 
     if (!user || !isValidEmail(username)) {
       setUserAdminStatus("Enter a valid email address.", true);
@@ -1390,7 +1404,7 @@
       return;
     }
 
-    saveEditUserButton.disabled = true;
+    requireUserAdminValue(saveEditUserButton, "save button").disabled = true;
     setUserAdminStatus("Saving user...");
 
     try {
@@ -1420,7 +1434,7 @@
 
       setUserAdminStatus(requireErrors().caughtMessage(error, "User was not saved."), true);
     } finally {
-      saveEditUserButton.disabled = false;
+      requireUserAdminValue(saveEditUserButton, "save button").disabled = false;
     }
   }
 
@@ -1577,6 +1591,15 @@
     });
   }
 
+  /**
+   * @param {BrowserUserWorkspaceMembership[]} memberships as `BrowserUserRecord` carries them
+   * @param {BrowserUserRecord | null | undefined} [user] the account being edited, or nothing
+   *
+   * Declared because typing the `users` slot gave the `getEditingUser()` default an inferred
+   * type that `closeEditUserDialog` immediately contradicted by passing `null`. Null is a real
+   * argument here - closing the dialog renders the empty state - so the domain says so rather
+   * than the call site being changed to suit an inference. The body already reads `user?.user_id`.
+   */
   function renderWorkspaceMemberships(memberships, user = getEditingUser()) {
     workspaceMembershipList.replaceChildren();
 
@@ -1956,18 +1979,20 @@
     return userStatus === "inactive" ? "Inactive" : "Active";
   }
 
+  /** @param {string} timezone the account timezone, or the page default when it has none */
   function setEditUserTimezoneValue(timezone) {
-    const matchingOption = [...editUserTimezoneSelect.options].find((option) => option.value === timezone);
+    const timezoneSelect = requireUserAdminValue(editUserTimezoneSelect, "timezone select");
+    const matchingOption = [...timezoneSelect.options].find((option) => option.value === timezone);
 
     if (!matchingOption) {
       const option = document.createElement("option");
 
       option.value = timezone;
       option.textContent = timezone;
-      editUserTimezoneSelect.appendChild(option);
+      timezoneSelect.appendChild(option);
     }
 
-    editUserTimezoneSelect.value = timezone;
+    timezoneSelect.value = timezone;
   }
 
   function isValidEmail(value) {
