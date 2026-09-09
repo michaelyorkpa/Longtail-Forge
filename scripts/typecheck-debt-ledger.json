@@ -358,6 +358,7 @@
         "tests/e2e/workspace-settings-rejected-save.spec.mjs",
         "tests/e2e/workspace-switch-landing.spec.mjs",
         "tests/mutations/notes-link-editor.breaks.mjs",
+        "tests/mutations/user-admin-add-user.breaks.mjs",
         "tests/time-tracking/time-tracking-billing.test.mjs",
         "tests/typecheck/browser-database-boundary.fixture.mjs",
         "tests/typecheck/client-project-contracts.fixture.mjs",
@@ -468,6 +469,7 @@
         "tests/unit/time-entry-dialog-helper-contracts.test.mjs",
         "tests/unit/time-entry-dialog-round-trip-contracts.test.mjs",
         "tests/unit/time-entry-save-contracts.test.mjs",
+        "tests/unit/user-admin-add-user-contracts.test.mjs",
         "tests/unit/user-admin-bootstrap-contracts.test.mjs",
         "tests/unit/user-list-response-contracts.test.mjs",
         "tests/unit/user-record-contract.test.mjs",
@@ -577,7 +579,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7049,
+      "errorCount": 6951,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1782,7 +1784,7 @@
         "public/js/user-admin.js": [
           {
             "code": 18047,
-            "count": 109
+            "count": 63
           },
           {
             "code": 2322,
@@ -1790,11 +1792,7 @@
           },
           {
             "code": 2339,
-            "count": 76
-          },
-          {
-            "code": 2345,
-            "count": 3
+            "count": 38
           },
           {
             "code": 2531,
@@ -1810,11 +1808,11 @@
           },
           {
             "code": 7005,
-            "count": 26
+            "count": 20
           },
           {
             "code": 7006,
-            "count": 52
+            "count": 49
           },
           {
             "code": 7031,
@@ -1822,7 +1820,7 @@
           },
           {
             "code": 7034,
-            "count": 8
+            "count": 6
           }
         ],
         "public/js/user-settings.js": [
@@ -2551,8 +2549,8 @@
     }
   },
   "totals": {
-    "files": 1158,
-    "errors": 7049,
+    "files": 1160,
+    "errors": 6951,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
