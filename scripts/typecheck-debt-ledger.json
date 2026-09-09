@@ -334,6 +334,7 @@
         "tests/e2e/notes-collections.spec.mjs",
         "tests/e2e/notes-editor-lifecycle.spec.mjs",
         "tests/e2e/notes-link-editor.spec.mjs",
+        "tests/e2e/notes-note-viewer.spec.mjs",
         "tests/e2e/notes-primary-context.spec.mjs",
         "tests/e2e/overflow.spec.mjs",
         "tests/e2e/public-legal.spec.mjs",
@@ -359,6 +360,7 @@
         "tests/e2e/workspace-settings-rejected-save.spec.mjs",
         "tests/e2e/workspace-switch-landing.spec.mjs",
         "tests/mutations/notes-link-editor.breaks.mjs",
+        "tests/mutations/notes-note-viewer.breaks.mjs",
         "tests/mutations/notes-primary-context.breaks.mjs",
         "tests/mutations/user-admin-add-user.breaks.mjs",
         "tests/time-tracking/time-tracking-billing.test.mjs",
@@ -422,6 +424,7 @@
         "tests/unit/notes-effective-security.test.mjs",
         "tests/unit/notes-external-link-preference-contracts.test.mjs",
         "tests/unit/notes-link-editor.test.mjs",
+        "tests/unit/notes-note-viewer.test.mjs",
         "tests/unit/notes-primary-context.test.mjs",
         "tests/unit/notification-bell-summary-contracts.test.mjs",
         "tests/unit/notification-list-contracts.test.mjs",
@@ -582,7 +585,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 6910,
+      "errorCount": 6874,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1043,7 +1046,7 @@
           },
           {
             "code": 2339,
-            "count": 175
+            "count": 145
           },
           {
             "code": 2345,
@@ -1055,11 +1058,11 @@
           },
           {
             "code": 7005,
-            "count": 4
+            "count": 2
           },
           {
             "code": 7006,
-            "count": 141
+            "count": 138
           },
           {
             "code": 7031,
@@ -1067,7 +1070,7 @@
           },
           {
             "code": 7034,
-            "count": 3
+            "count": 2
           },
           {
             "code": 7053,
@@ -2548,8 +2551,8 @@
     }
   },
   "totals": {
-    "files": 1163,
-    "errors": 6910,
+    "files": 1166,
+    "errors": 6874,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
