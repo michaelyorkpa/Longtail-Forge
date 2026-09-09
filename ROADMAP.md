@@ -1267,6 +1267,20 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **`0.33.33.44` 1,528 to 1,409**; `0.33.33.39` through `.43` unchanged, so the delegated lane is untouched.
 
+#### 0.33.33.44.3 - The Time Entry Dialog context and save payload
+
+**Complete: 60 diagnostics, one round trip.** See the archive entry. `prepareContext` finds the entry and the client catalogue, `openDialog` writes that entry into the controls `0.33.33.44.2` typed, and `saveEntry` reads those same controls back into a payload and picks the create or the update route by whether an entry was selected. What one half writes the other reads, so they were typed against one model rather than two.
+
+**The cluster sizes were rechecked before editing and had moved.** The estimate was ~48 for `prepareContext`/`openDialog` and ~24 for `saveEntry`; the live tree carried **24 and 51**, because `0.33.33.44.2` had already removed the record-shape errors and left the params and state behind. The boundary is unchanged - it is still one round trip - and only its arithmetic differed.
+
+**Typing the three slots uncovered four findings. Three are resolved; the fourth was refused by an older contract and is recorded instead.** An unresolvable client was dereferenced without a guard, one context read skipped the optional idiom the rest of the file already used, and host params were treated as arbitrary data when every one of the seventeen reads is form text into a control - all three resolved. The fourth is that the save response is spread into the host payload without ever being checked as a record: checking it is behaviour-identical, but `tests/unit/time-entry-save-contracts` requires that exact call and forbids the rebuilt form, because a rebuild there would truncate the decorated entry. **That contract was not weakened to admit the check.** The resulting `TS2698` stays, the code records why, and revisiting the contract belongs to a child that can do it deliberately.
+
+**`0.33.33.44.3` measured 89 to 29 with the check in place and 89 to 30 without it.** The one-diagnostic difference is the price of leaving an older contract intact, and it is the honest number.
+
+**A wrong annotation was measured and replaced rather than kept.** Declaring the normaliser's body `unknown` *raised* the file by one and turned an honest implicit-any into two property errors; declaring it at the shape the body wants moved the failure to the call site, because `api.getJson` answers `unknown`. The parameter stays `unknown` and the envelope is narrowed inside the function that already decides what a usable body is. `isSaveResponseRecord` was deliberately **not** borrowed for it - all of its uses are genuinely save responses, and reusing it would make its name untrue.
+
+**Measured: browser 7,217 to 7,158, `0.33.33.44` 1,409 to 1,350**, params 4,328 to 4,303 and state 1,501 to 1,467, with `dom` unmoved at 1,249 and `assorted` at 139. Exactly one file's counts changed, **89 to 30**, and every code fell or held: TS2339 26 to 0, TS7005 24 to 1, TS7006 34 to 27, TS7034 4 to 1, TS2698 1 to 1. `0.33.33.39` through `.43` are byte-identical, so the delegated lane is untouched. The 30 that remain are the timer/duration arithmetic, the tag picker, and the one contracted spread above - all later children.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
