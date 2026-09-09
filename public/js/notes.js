@@ -642,6 +642,7 @@
     workspaceType: "",
     openExternalLinksNewTab: readStoredOpenExternalLinksPreference(),
   };
+  /** @type {import("../../src/types/browser-contracts.js").BrowserViewModalElement | null} */
   let activeNoteViewDialog = null;
 
   const notesWorkspaceHost = document.querySelector("[data-notes-host]");
@@ -1256,6 +1257,7 @@
     return button;
   }
 
+  /** @param {NotesViewerHostContext | null} hostContext */
   async function openNoteEditor(params = {}, hostContext = null) {
     await prepareNoteDialogData();
 
@@ -1275,6 +1277,28 @@
     return hostContext?.result || result;
   }
 
+  /**
+   * The action aliases read by readNoteEditorId and the focus/parent inputs passed through
+   * by the viewer. The fetched detail, not an action parameter, supplies rendered content.
+   * @typedef {object} NotesViewerParams
+   * @property {string} [noteId]
+   * @property {string} [note_id]
+   * @property {string} [recordId]
+   * @property {string} [id]
+   * @property {Element | null} [returnFocusTo]
+   * @property {Element | null} [trigger]
+   * @property {HTMLDialogElement | null} [parent]
+   * @property {BrowserNoteRecord} [note]
+   */
+  /**
+   * Additional host members produced by module-actions.createHostContext: result settles
+   * once on cancel/complete, and setStatus forwards a message and its error flag.
+   * @typedef {NotesEditorHostContext & {
+   *   result?: Promise<unknown>,
+   *   setStatus?: (message: unknown, options: {isError?: boolean}) => unknown
+   * }} NotesViewerHostContext
+   */
+  /** @param {NotesViewerParams} params @param {NotesViewerHostContext | null} hostContext */
   async function openNoteViewer(params = {}, hostContext = null) {
     const api = requireApi();
     const view = requireView();
@@ -1318,6 +1342,7 @@
       const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
       renderNoteViewDialog(dialog, requireNoteFromEnvelope(result), params, hostContext);
     } catch (error) {
+      // Error-input typing remains owned by the deferred Notes error-helper boundary.
       renderNoteViewError(dialog, error);
       hostContext?.setStatus?.(noteViewErrorMessage(error), { isError: true });
     }
@@ -1364,9 +1389,16 @@
     return dialog;
   }
 
-  function renderNoteViewDialog(dialog, note = {}, params = {}, hostContext = null) {
+  /**
+   * @param {import("../../src/types/browser-contracts.js").BrowserViewModalElement} dialog
+   * @param {BrowserNoteRecord} note
+   * @param {NotesViewerParams} params
+   * @param {NotesViewerHostContext | null} hostContext
+   */
+  function renderNoteViewDialog(dialog, note, params = {}, hostContext = null) {
     const view = requireView();
-    const noteId = note.note_id || note.id || readNoteEditorId(params);
+    // This renderer only receives checked detail records; the linked-panel id alias has no producer here.
+    const noteId = note.note_id || readNoteEditorId(params);
     const title = note.title || "Untitled note";
 
     dialog.dataset.noteId = noteId || "";
@@ -1417,6 +1449,12 @@
     return dialog?.querySelector("[data-note-view-action='edit']");
   }
 
+  /**
+   * @param {import("../../src/types/browser-contracts.js").BrowserViewModalElement} dialog
+   * @param {string} noteId
+   * @param {NotesViewerParams} params
+   * @param {NotesViewerHostContext | null} hostContext
+   */
   function openNoteViewEditHandoff(dialog, noteId, params = {}, hostContext = null) {
     const view = requireView();
     if (!noteId) {
@@ -5621,7 +5659,12 @@
     return descendants;
   }
 
-  function detailMetaItems(note = {}) {
+  /**
+   * Both viewer and inline-detail paths receive requireNoteFromEnvelope's BrowserNoteRecord.
+   * Every caller supplies that record; no second record or empty detail is promised.
+   * @param {BrowserNoteRecord} note
+   */
+  function detailMetaItems(note) {
     const items = [
       ["Library", libraryLabel(note.library_bucket)],
       ["Note Kind", noteKindLabel(note.note_type)],

@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.40.7 - Type the Notes viewer and its edit handoff
+
+**Model: High Effort** - preserve the read-only viewer, shared metadata, and modal settlement across the edit handoff.
+
+- [x] Started clean and fetched origin. Nightly had advanced to `e51ce36fd4b2fc78bc0c2dbf72412b0bff2db651` (PR #553), so `agent/0.33.33-codex-note-viewer` was created from the explicitly required immutable baseline `f87173c0a42fcd412a30ac1f1c17b15636578e18`. No other branch was moved. Package files match the installed `41b8862a` baseline; no install or dependency edit was performed.
+- [x] Reproduced the **35** starting diagnostics exactly; no per-function correction was needed.
+
+| Function | Before | After |
+| --- | ---: | ---: |
+| `openNoteViewer` | 11 | 2 |
+| `renderNoteViewDialog` | 9 | 0 |
+| `detailMetaItems` | 9 | 0 |
+| `openNoteViewEditHandoff` | 6 | 0 |
+| **Named cohort** | **35** | **2** |
+
+- [x] **Both metadata callers consume the same detail contract.** The viewer passes `requireNoteFromEnvelope(result)` into `renderNoteViewDialog`. Every call to inline `renderDetail` also receives that checked record: `refreshSelectedNoteAfterBulk`, `selectNote`, `hydrateEditorNote`, `saveNoteForm`, and `refreshEditorNote`. Whole-reference inspection found no other Notes caller or publication. `detailMetaItems` therefore uses `BrowserNoteRecord` for both surfaces. The private renderers' unused empty-object defaults were removed; every actual caller supplies the record. No new response contract was authored.
+- [x] Removed the viewer renderer's unproduced `note.id` fallback: detail records supply `note_id`; the duplicate `id` is added only by `shapeLinkedNotePanelItem`, whose `BrowserLinkedNoteItem` this renderer never consumes. The action-ID fallback remains. No list or linked-panel input was widened into a detail record.
+- [x] Typed the active modal with published `BrowserViewModalElement`, local action/focus/parent inputs, and the actual host result/status members from `module-actions.createHostContext`, reusing existing editor-host fields. The handoff creates a real local demand at `openNoteEditor`; only its host parameter annotation changed. This resolves three diagnostics outside the named cohort: the active-slot declaration and two editor host reads. Editor-default work and shared extraction remain out of scope.
+- [x] **Two diagnostics remain in `openNoteViewer`:** unknown caught values forwarded to `renderNoteViewError` and `noteViewErrorMessage`. The source names the deferred Notes error-helper owner. Moving the diagnostics into those helpers or weakening the caught value would not close the boundary honestly. Existing error handling and the two `.40.5` `safeNoteErrorMessage` forwards remain unchanged.
+- [x] Preserved encoded/no-store canonical detail reads, checked-envelope rendering, safe unavailable copy, server HTML and external-link preference, archived edit disabling, viewer replacement/cleanup, host-result preference, once-only Edit listeners, and close-before-open ordering. No editor preparation or edit-only control acquisition was added to the viewer. Metadata order, separators, accessible labels, Personal visibility suppression, and owner fallback are unchanged.
+- [x] **Task-link prefill remains deferred to `openEditorForLinkedTarget`.** The viewer handoff closes synchronously, then opens the editor with the same record, host, and focus precedence. It never uses the task-link caller, which still awaits `openEditor()` resolving on close before applying task-created context. No fix for that out-of-scope lifecycle is claimed.
+- [x] Searched the whole `scripts/` tree for changed helper, default, ID-fallback, modal, and focus spellings. Existing Workbench linked-note-view assertions continue to pin canonical reads, checked envelopes, server HTML, safe errors, and close-before-edit behavior. No existing assertion, inventory, or coverage floor was changed.
+- [x] Seven focused behavioral units exercise actual extracted controller functions. The committed `tests/mutations/notes-note-viewer.breaks.mjs` catches **24/24 deliberate breaks, 0 inert**, requires valid syntax and assertion failures, and restores original bytes in every `finally`. Restored SHA-256: `2996296208800c9033676916eb16c5af542351abe4afe6a03a436f173e041c97`. The first attempt rejected a missing-ID timeout as invalid evidence; the corrected unit asserts prompt rejection after microtasks. Five diagnostics initially introduced by test-variable/rest-parameter annotations were corrected; server/tests is zero.
+- [x] Desktop/mobile rendered proof passes on local **`LTF_E2E_PORT=8102`**, this worktree's `data/e2e`: identical inline/viewer metadata, fetched content over action-supplied content, rendered Markdown, no viewer input/select/textarea/editable controls, same-record edit hydration, no premature host cancel on Edit, cancellation/focus return, archived edit blocking, safe unavailable/secure-error states, no page errors, and no horizontal overflow.
+- [x] Branch-local canonical evidence: browser **6,910 -> 6,874**, Notes **402 -> 366**. Notes-owned **278 -> 242**: params **231 -> 207**, state **32 -> 20**, assorted **15 -> 15**; Notes DOM remains **124**. Exactly **24 params + 12 state = 36** removed, no new diagnostic, all other owners unchanged. Unknown, namespace, server/tests, scripts, and explicit-any remain zero. The integrator recomputes the ledger canonically.
+
+Excluded: bulk editing (`openBulkEditor`, `applyBulkEdit`, `readBulkNoteChanges`, `syncNotesBulkToolbar`, `populateBulkCollectionOptions`); visibility contributions (`scopeNotesVisibilityContributions`, `applyWorkspaceVisibilityControls`); `normalizeNoteEditorDefaults`; revisions; attachments; filters; search; the `.40.5` stored-link input awaiting a saved-link producer contract and its two `safeNoteErrorMessage` forwards. This does not close `.40`, `.38`, `.44`, or the version-wide branch.
+
+No docs change needed: shipped behavior is preserved and durable documentation is deferred to branch closeout. Required verification comprises `check:fast`, `test:regressions`, `test:permissions`, rendered desktop/mobile, final `verify:slice` with `LTF_REGRESSION_BASE_SHA=f87173c0a42fcd412a30ac1f1c17b15636578e18`, and `checkpoint:validate` across the completed commit range. Regression/permission child environments omit inherited workstation storage-root, public-URL, bootstrap-password, and legacy secure-key overrides so fixtures own their settings; no persistent configuration or security gate is changed.
+
 ## Version 0.33.33.44.7 - The User Admin edit-user dialog
 
 **Model: High Effort** - ten controls and four functions were the easy half; the work was proving that the record this dialog edits is validated rather than assumed, and handling what typing that slot propagated.
