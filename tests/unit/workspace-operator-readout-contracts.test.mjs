@@ -51,9 +51,12 @@ describe("the containers are acquired the way the host builds them", () => {
   });
 
   it("captures all three through the page's existing checked lookup", () => {
+    // Compared as an exact string rather than a regex built from the selector: the selector
+    // contains `[` and `]`, and hand-escaping a subset of the metacharacters is both fragile and
+    // what CodeQL's `js/incomplete-sanitization` flags. The claim is an exact line, so match one.
     for (const [name, selector] of CONTAINERS) {
-      assert.match(page, new RegExp(`const ${name} = findElement\\("\\${selector.replace(/[[\]]/g, "\\$&")}"\\);`
-        .replace("\\\\", "\\")), name + " is captured through findElement");
+      assert.ok(page.includes(`  const ${name} = findElement("${selector}");`),
+        name + " is captured through findElement");
     }
     assert.match(slice("  function findElement(selector) {"),
       /node instanceof HTMLElement \? node : null;/,
