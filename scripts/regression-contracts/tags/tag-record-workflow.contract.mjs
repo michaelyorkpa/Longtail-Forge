@@ -17,7 +17,12 @@ assert.match(taskDialog, /tagIds:\s*readTaskTagIds\(\)/, "Task save payload must
 assert.match(taskDialog, /fields\.tagContainer\.hidden = true/, "Task dialog must hide inline tag controls when the shared Tags helper is unavailable");
 assert.match(taskDialog, /fields\.tagContainer\.hidden = false/, "Task dialog must reshow inline tag controls when the shared Tags helper is available");
 
-assert.match(timeEntryDialog, /namespace\.tags\.mountPicker\(fields\.tags,\s*\{[\s\S]*tags:\s*context\.tagOptions \|\| \[\][\s\S]*selectedTags:\s*tags/, "Time entry add/edit dialog must mount the shared inline tag picker with loaded tag options");
+// `context?.tagOptions` since `0.33.33.44.3`: typing the context slot showed this was the
+// file's only non-optional context read. The claim here is the mount shape - the picker is
+// mounted with the context's tag options and the entry's selected tags - so the optional
+// idiom is admitted and every behavioural requirement is unchanged. `task-dialog.js` is a
+// different owner and its assertion above is deliberately left exact.
+assert.match(timeEntryDialog, /namespace\.tags\.mountPicker\(fields\.tags,\s*\{[\s\S]*tags:\s*context\??\.tagOptions \|\| \[\][\s\S]*selectedTags:\s*tags/, "Time entry add/edit dialog must mount the shared inline tag picker with loaded tag options");
 assert.match(timeEntryDialog, /tagIds:\s*tagPicker\?\.readTagIds\?\.\(\) \|\| \[\]/, "Time entry save payload must continue to read selected tag IDs from the shared picker");
 assert.match(timeEntryDialog, /fields\.tags\.hidden = true/, "Time entry dialog must hide inline tag controls when the shared Tags helper is unavailable");
 assert.match(timeEntryDialog, /fields\.tags\.hidden = false/, "Time entry dialog must reshow inline tag controls when the shared Tags helper is available");
