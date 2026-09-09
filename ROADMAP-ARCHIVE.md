@@ -1,5 +1,40 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.40.5 - Type the Notes link-target picker and editor round trip
+
+**Model: High Effort** - one controller boundary with availability, legacy identity, and mutation-order behavior to preserve.
+
+- [x] Started with a clean worktree on `agent/0.33.33-codex-note-links` at the requested `a8e23a2595d4141ee965e887b3245553b2b9bb2c`. Package and lockfile contents match the last installed `41b8862a` baseline; no dependency installation or package change belongs to this child.
+- [x] Reproduced every reference count before editing: **84** diagnostics, comprising TS2339 **65**, TS18047 **9**, TS2322 **4**, TS2345 **4**, and TS7006 **2**. There are no corrections to the starting per-function counts.
+
+| Function | Before | After |
+| --- | ---: | ---: |
+| `pickerRecordFromTarget` | 20 | 0 |
+| `editorLinkTargetMatches` | 12 | 0 |
+| `targetPickerSecondaryLabel` | 10 | 0 |
+| `stageEditorLinkTarget` | 10 | 0 |
+| `addEditorNoteLink` | 9 | 1 |
+| `primaryProjectOptionLabel` | 7 | 7 |
+| `editorLinkTargetKey` | 6 | 0 |
+| `removeEditorNoteLink` | 6 | 2 |
+| `loadEditorLinkTargets` | 4 | 0 |
+| **Named cohort** | **84** | **10** |
+
+- [x] Reused `BrowserNoteLinkTarget` and `BrowserNoteLinkTargetDirectory`; no new response contract, predicate, namespace member, or shared helper was authored. The staged/selected slots and their rendering handoff admit partial targets because the existing local functions accept partial inputs. The checked directory still stores full targets. Legacy extras remain `unknown` through a file-local structural intersection rather than being promised by the wire contract. The project label reader remains unchanged after the behavioral source-contract collision below.
+- [x] Preserved the actual expressions for picker availability, URL carriage, identity keys, empty-module wildcard matching, explicit-empty secondary labels, staging by object identity, and the three-field link payload. Empty `moduleId` and `sourceUrl` remain legitimate values. The picker carries a source URL without navigating it, and saved link mutations still send only `moduleId`, `targetType`, and `targetId`.
+- [x] Typed the four link-picker controls at their existing cache point. Required form-status accesses use the existing local guard at the original statements, including before writes and after awaited refreshes; optional picker/apply controls retain their guards. No fallback control is fabricated.
+- [x] Searched `scripts/regression-contracts/` for every changed runtime spelling, including ordinary and regex-escaped legacy reads, control identifiers/selectors, and form-status accesses. That directory contained no collision. Full-suite inspection also found `scripts/linked-context-client-project-label-sort-regression.mjs:43`, outside that directory, pinning the exact provider-first project-label expression as a behavioral claim. Per the assignment, the entire `primaryProjectOptionLabel` change was reverted, leaving its seven TS2339 diagnostics; the focused regression then passed. The existing unit claim pinning source-URL carriage is also unchanged; no existing assertion, manifest, or coverage floor was edited.
+- [x] **The other three residual diagnostics are explicit boundary findings, not silently widened scope.** `removeEditorNoteLink` retains one TS7006 on its stored-link input: `BrowserNoteRecord.links` is still `unknown[]`, and neither directory contract promises `noteLinkId` / `note_link_id`. It also retains one TS2345, as does `addEditorNoteLink`, because both forward an unknown catch value to the existing, untyped `safeNoteErrorMessage` helper. Typing a saved-link producer or that general error helper is separate work; their behavior and failure timing were not changed to claim all 84.
+- [x] Seven new behavioral unit cases cover the round trip, including legacy aliases, empty-module identity, label presence, staging/duplicate/removal behavior, encoded mutation routes, safe failures, missing required status timing, and asynchronous directory loading. Desktop and mobile rendered proof passes on `LTF_E2E_PORT=8102` with this worktree's `data/e2e`: unavailable records remain visible disabled options, empty-module links stage/add/remove correctly, duplicate writes are suppressed, the page does not navigate, and there are no page errors or horizontal overflow.
+- [x] `node tests/mutations/notes-link-editor.breaks.mjs`: **16/16 deliberate breaks caught, 0 inert**. Each mutation passed `node --check` before a behavioral assertion failed; each restored the original byte copy in `finally` with SHA-256 verification, including an outer final restoration. The restored Notes SHA-256 is `850f33f4c611ed34eb331c4011a077c178a842d753ee7d2c02b5814bb10002c1`.
+- [x] Canonical branch-local evidence: browser **7,158 -> 7,075**, Notes **526 -> 443**. Notes-owned **382 -> 316** (params **322 -> 269**, state **38 -> 32**, assorted **22 -> 15**), Notes DOM **144 -> 127**. Exactly **66 owned + 17 DOM = 83** removed, including nine resolved uses outside the named cohort through the same state/control types. All other owner totals are unchanged; unknown, namespace, server/tests, scripts, and explicit-any remain zero. The generated ledger is branch-local evidence only; integration recomputes it from the combined tree.
+
+Explicit deferrals: tag and primary-context record contracts (`setTaskCreatedPrimaryContextSummaries`, `applyTaskCreatedPrimaryContext`, `updatePrimaryContextVisibility`), `normalizeNoteEditorDefaults`, bulk editing (`readBulkNoteChanges`, `openBulkEditor`, `applyBulkEdit`, `populateBulkCollectionOptions`, `syncNotesBulkToolbar`), revisions, attachments, filters, and search. The stored-link identity and error-helper residuals above are also deferred. This does not close `.40.2`, `.40`, or the version-wide branch.
+
+No docs change needed: existing workflow and payload behavior is preserved; durable documentation remains deferred to branch closeout. Verification uses the installed Vitest **4.1.11** / qs **6.16.0** tree. The inherited `LONGTAIL_LOCAL_STORAGE_ROOT`, `LONGTAIL_PUBLIC_URL`, `SUPER_ADMIN_PASSWORD`, and legacy `SECURE_NOTES_MASTER_KEY` variables are absent only from verification child processes, allowing fixture storage, origin, bootstrap-password defaults, and the missing-key assertion to operate independently of workstation settings. Full-regression attempts exposed the inherited storage override (the focused runtime-diagnostics rerun passed after isolation), then the calendar-feed origin and demo-identity fixture password overrides. No runtime configuration or security assertion was changed.
+
+The named preliminary gates passed: `npm run check:fast` (122 files / 2,488 unit cases, strict ledger, and lint), `npm run test:regressions` (348/348), and `npm run test:permissions` (413 checks). Final local closeout is `npm run verify:slice` with `LTF_REGRESSION_BASE_SHA=a8e23a2595d4141ee965e887b3245553b2b9bb2c`; `npm run checkpoint:validate` validates the completed commit range before publication. This archived declaration becomes authoritative on protected integration, which remains the integrator's lane.
+
 ## Version 0.33.33.44.3 - The Time Entry Dialog context and save payload
 
 **Model: Medium Effort** - one round trip typed against one model, and the work was in the four findings that surfaced once the slots stopped being empty.
