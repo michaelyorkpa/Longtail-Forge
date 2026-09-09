@@ -816,7 +816,16 @@ export interface BrowserOverlayHost {
  */
 export type BrowserTaskLifecycleStatus = "open" | "in_progress" | "blocked" | "complete" | "archived";
 
-export interface BrowserRecord {
+/**
+ * The named members the record helpers read, and **no index signature**.
+ *
+ * A published contract `interface` has no implicit index signature, so it cannot be passed where
+ * `BrowserRecord` is required however exactly its shape matches - `NormalizedClientOption` names
+ * every member these helpers touch and was still rejected. The helpers in `shared/records.js`
+ * read only the members below and never index an arbitrary key, so this is what they actually
+ * require. `BrowserRecord` keeps the index signature for the readers that genuinely need it.
+ */
+export interface BrowserRecordFields {
   clientId?: unknown;
   clientName?: unknown;
   id?: unknown;
@@ -825,15 +834,18 @@ export interface BrowserRecord {
   projectId?: unknown;
   projectName?: unknown;
   username?: unknown;
+}
+
+export interface BrowserRecord extends BrowserRecordFields {
   [key: string]: unknown;
 }
 
 export interface BrowserRecords {
-  getProjectMatchKey(project?: BrowserRecord | null): string;
-  matchesClient(entry?: BrowserRecord | null, client?: BrowserRecord | null): boolean;
-  matchesProject(entry?: BrowserRecord | null, project?: BrowserRecord | null): boolean;
+  getProjectMatchKey(project?: BrowserRecordFields | null): string;
+  matchesClient(entry?: BrowserRecordFields | null, client?: BrowserRecordFields | null): boolean;
+  matchesProject(entry?: BrowserRecordFields | null, project?: BrowserRecordFields | null): boolean;
   normalizeKey(value: unknown): string;
-  sortByName<Item extends BrowserRecord>(items: Item[]): Item[];
+  sortByName<Item extends BrowserRecordFields>(items: Item[]): Item[];
 }
 
 export interface BrowserViewResponseRecords {
@@ -902,7 +914,7 @@ export interface BrowserPageController {
   register(pageId: string, controller: PageControllerDefinition): RegisteredPageController;
   runSmoke(pageId: string): PageSmokeResult;
   setStatus(element: HTMLElement | null | undefined, message: string, options?: { isError?: boolean }): void;
-  sortByName<Item extends BrowserRecord>(items: Item[]): Item[];
+  sortByName<Item extends BrowserRecordFields>(items: Item[]): Item[];
 }
 
 /**

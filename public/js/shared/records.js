@@ -1,6 +1,10 @@
 // @ts-check
 
-/** @typedef {import("../../../src/types/browser-contracts.js").BrowserRecord} SharedRecord */
+/**
+ * The named members these helpers read. Not `BrowserRecord`: its index signature makes every
+ * published contract interface unassignable, and nothing here indexes an arbitrary key.
+ * @typedef {import("../../../src/types/browser-contracts.js").BrowserRecordFields} SharedRecord
+ */
 
 (function () {
   const namespace = window.LongtailForge || {};

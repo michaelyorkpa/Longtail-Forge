@@ -462,6 +462,7 @@
         "tests/unit/tasks-dialog-surface-contracts.test.mjs",
         "tests/unit/test-support-harnesses.test.mjs",
         "tests/unit/time-entry-dialog-control-contracts.test.mjs",
+        "tests/unit/time-entry-dialog-helper-contracts.test.mjs",
         "tests/unit/time-entry-dialog-round-trip-contracts.test.mjs",
         "tests/unit/time-entry-save-contracts.test.mjs",
         "tests/unit/user-admin-bootstrap-contracts.test.mjs",
@@ -573,7 +574,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7158,
+      "errorCount": 7132,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1714,7 +1715,7 @@
           },
           {
             "code": 7006,
-            "count": 27
+            "count": 1
           },
           {
             "code": 7034,
@@ -2551,8 +2552,8 @@
     }
   },
   "totals": {
-    "files": 1154,
-    "errors": 7158,
+    "files": 1155,
+    "errors": 7132,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
