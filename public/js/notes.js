@@ -758,9 +758,9 @@
   let clientInput = null;
   /** @type {HTMLSelectElement | null} */
   let projectInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLElement | null} */
   let primaryClientField = null;
-  /** @type {Element | null} */
+  /** @type {HTMLElement | null} */
   let primaryProjectField = null;
   /** @type {HTMLInputElement | null} */
   let taskInput = null;
@@ -941,8 +941,8 @@
     contextSelectedMessage = document.querySelector("[data-note-context-selected]");
     clientInput = findNotesControl("[data-note-client-id]", HTMLSelectElement);
     projectInput = findNotesControl("[data-note-project-id]", HTMLSelectElement);
-    primaryClientField = document.querySelector("[data-note-primary-client-field]");
-    primaryProjectField = document.querySelector("[data-note-primary-project-field]");
+    primaryClientField = findNotesControl("[data-note-primary-client-field]", HTMLElement);
+    primaryProjectField = findNotesControl("[data-note-primary-project-field]", HTMLElement);
     taskInput = findNotesControl("[data-note-task-id]", HTMLInputElement);
     userInput = findNotesControl("[data-note-user-id]", HTMLInputElement);
     suggestionMessage = document.querySelector("[data-note-library-suggestion]");
@@ -3670,6 +3670,7 @@
     return state.primaryContextProjects.find((project) => (project.projectId || project.targetId || "") === projectId) || null;
   }
 
+  /** @param {NotesLinkTargetInput} client */
   function primaryClientOptionLabel(client = {}) {
     return providerDisplayLabel(client.displayLabel, client.display_label) ||
       normalizeText(client.label) ||
@@ -3680,6 +3681,7 @@
     return normalizeText(client.status).toLowerCase() === "active";
   }
 
+  /** @param {NotesLinkTargetInput} project */
   function primaryProjectOptionLabel(project = {}) {
     const providerLabel = providerDisplayLabel(project.displayLabel, project.display_label);
     if (providerLabel) {
@@ -3702,6 +3704,37 @@
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteLinkTarget} BrowserNoteLinkTarget */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteLinkTargetType} BrowserNoteLinkTargetType */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteLinkTargetDirectory} BrowserNoteLinkTargetDirectory */
+
+  /**
+   * The closed legacy spellings this local picker already reads, with the same member types
+   * as their published twins. This compatibility input is not a response contract.
+   * @typedef {object} NotesLegacyLinkTargetFields
+   * @property {BrowserNoteLinkTarget["moduleId"]} [module_id]
+   * @property {BrowserNoteLinkTarget["targetType"]} [target_type]
+   * @property {BrowserNoteLinkTarget["targetId"]} [target_id]
+   * @property {BrowserNoteLinkTarget["displayLabel"]} [display_label]
+   * @property {BrowserNoteLinkTarget["secondaryLabel"]} [secondary_label]
+   * @property {BrowserNoteLinkTarget["sortKey"]} [sort_key]
+   * @property {BrowserNoteLinkTarget["sourceUrl"]} [source_url]
+   * @property {BrowserNoteLinkTarget["fullLabel"]} [full_label]
+   * @property {BrowserNoteLinkTarget["ariaLabel"]} [aria_label]
+   * @property {BrowserNoteLinkTarget["isAvailable"]} [is_available]
+   * @property {BrowserNoteLinkTarget["clientName"]} [client_name]
+   * @property {BrowserNoteLinkTarget["projectName"]} [project_name]
+   * @property {BrowserNoteLinkTarget["workspaceName"]} [workspace_name]
+   */
+  /** @typedef {Partial<BrowserNoteLinkTarget> & NotesLegacyLinkTargetFields} NotesLinkTargetInput */
+
+  /**
+   * Task-created context also accepts direct context IDs from the caller. The legacy status
+   * is passed through unchanged, not vouched for by the link-target directory.
+   * @typedef {NotesLinkTargetInput & {
+   *   client_id?: BrowserNoteLinkTarget["clientId"],
+   *   project_id?: BrowserNoteLinkTarget["projectId"],
+   *   clientStatus?: unknown,
+   *   client_status?: unknown
+   * }} NotesTaskPrimaryContextInput
+   */
 
   /** What this picker says when the directory answered something it could not read. */
   const LINK_TARGET_LOAD_FAILURE = "Link targets could not be loaded.";
@@ -4012,9 +4045,8 @@
   }
 
   /**
-   * Published target fields plus unpromised legacy extras carried by this local adapter.
-   * Extra fields stay unknown; this is not a second response contract.
-   * @param {Partial<BrowserNoteLinkTarget> & Record<string, unknown>} target
+   * Published target fields and their closed legacy spellings carried by this local adapter.
+   * @param {NotesLinkTargetInput} target
    */
   function pickerRecordFromTarget(target = {}) {
     return {
@@ -4032,6 +4064,7 @@
     };
   }
 
+  /** @param {NotesLinkTargetInput} target */
   function targetPickerDisplayLabel(target = {}) {
     const targetType = target.targetType || target.target_type || "";
     const providerLabel = providerDisplayLabel(target.displayLabel, target.display_label);
@@ -4047,7 +4080,7 @@
     return label;
   }
 
-  /** @param {Partial<BrowserNoteLinkTarget> & Record<string, unknown>} target */
+  /** @param {NotesLinkTargetInput} target */
   function targetPickerSecondaryLabel(target = {}) {
     if (Object.hasOwn(target, "secondaryLabel") || Object.hasOwn(target, "secondary_label")) {
       return target.secondaryLabel ?? target.secondary_label ?? "";
@@ -4130,7 +4163,7 @@
     return (note.links || []).some((link) => editorLinkTargetMatches(link, target));
   }
 
-  /** @param {Partial<BrowserNoteLinkTarget> & Record<string, unknown>} target */
+  /** @param {NotesLinkTargetInput} target */
   function editorLinkTargetKey(target = {}) {
     const targetType = target.targetType || target.target_type || "";
     const targetId = target.targetId || target.target_id || "";
@@ -4142,7 +4175,7 @@
     return `${target.moduleId || target.module_id || ""}:${targetType}:${targetId}`;
   }
 
-  /** @param {Partial<BrowserNoteLinkTarget> & Record<string, unknown>} link @param {Partial<BrowserNoteLinkTarget> & Record<string, unknown>} target */
+  /** @param {NotesLinkTargetInput} link @param {NotesLinkTargetInput} target */
   function editorLinkTargetMatches(link = {}, target = {}) {
     const linkModuleId = link.moduleId || link.module_id || "";
     const targetModuleId = target.moduleId || target.module_id || "";
@@ -5222,6 +5255,7 @@
     updateLibrarySuggestion({ preferredSuggestion: matchedTarget.suggestedLibraryBucket });
   }
 
+  /** @param {NotesTaskPrimaryContextInput} target @param {NotesTaskPrimaryContextInput} matchedTarget */
   async function applyTaskCreatedPrimaryContext(target = {}, matchedTarget = {}) {
     const targetType = target.targetType || target.target_type || "";
 
@@ -5247,6 +5281,7 @@
     renderEditorContextPanel();
   }
 
+  /** @param {NotesTaskPrimaryContextInput} target */
   function setTaskCreatedPrimaryContextSummaries(target = {}) {
     const clientId = normalizeText(target.clientId || target.client_id);
     const projectId = normalizeText(target.projectId || target.project_id);
@@ -5802,6 +5837,7 @@
     return String(value || "").trim();
   }
 
+  /** @param {...unknown} values */
   function providerDisplayLabel(...values) {
     for (const value of values) {
       if (value === null || value === undefined) {
