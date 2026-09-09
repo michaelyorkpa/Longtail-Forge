@@ -25,9 +25,24 @@
   }
 
   let context = null;
-  let dialog = null;
-  let form = null;
-  let fields = {};
+  /**
+   * The dialog element, its form, and its controls - all built once by `ensureDialog`.
+   *
+   * **Declared complete rather than empty, because `ensureDialog` is the only writer and it
+   * refuses an incomplete dialog.** Both entry points call it before anything reads a control:
+   * `configure` at setup and `openDialog` on every open. `fields` was previously `{}`, which is
+   * why every read of it reported a missing property - the slot described an empty object while
+   * the code read eighteen controls off it.
+   *
+   * A read before `ensureDialog` threw a `TypeError` before this change and still does; only the
+   * message moves, from reading a property of `undefined` to reading one of an undefined record.
+   * @type {HTMLDialogElement}
+   */
+  let dialog;
+  /** @type {HTMLFormElement} */
+  let form;
+  /** @type {TimeEntryDialogFields} */
+  let fields;
   let clients = [];
   let selectedEntry = null;
   let tagPicker = null;
@@ -202,36 +217,89 @@
     });
   }
 
-  function ensureDialog() {
-    dialog = document.querySelector("[data-time-entry-dialog]");
+  /**
+   * The eighteen controls `dialogMarkup` renders, each at the subtype that markup produces.
+   *
+   * `<select>` for the three pickers and billable, `<input>` for the date, the two times and the
+   * three duration parts, `<textarea>` for the description, `<button>` for cancel and save, and
+   * plain `HTMLElement` for the heading, status, tag list, and the two containers this module
+   * only shows and hides.
+   * @typedef {{
+   *   billable: HTMLSelectElement,
+   *   billableControl: HTMLElement,
+   *   cancel: HTMLButtonElement,
+   *   client: HTMLSelectElement,
+   *   date: HTMLInputElement,
+   *   description: HTMLTextAreaElement,
+   *   duration: HTMLElement,
+   *   durationHours: HTMLInputElement,
+   *   durationMinutes: HTMLInputElement,
+   *   durationSeconds: HTMLInputElement,
+   *   endTime: HTMLInputElement,
+   *   heading: HTMLElement,
+   *   invoiceStatus: HTMLSelectElement,
+   *   project: HTMLSelectElement,
+   *   save: HTMLButtonElement,
+   *   startTime: HTMLInputElement,
+   *   status: HTMLElement,
+   *   tags: HTMLElement,
+   * }} TimeEntryDialogFields
+   */
 
-    if (!dialog) {
+  /**
+   * One control of the dialog, checked against the subtype its markup renders.
+   *
+   * **Every control here is required, and the check sits where the dereference already was.**
+   * `ensureDialog` renders the markup itself when the page has none, so a control that is still
+   * missing or of the wrong subtype is a markup-contract error rather than an absent optional
+   * section - and this module already dereferenced each one unguarded immediately afterwards.
+   * The narrowing is `instanceof`, which is what the DOM guarantees; the constructor is passed as
+   * a value so the check is a real one rather than a type argument.
+   * @template T
+   * @param {ParentNode} scope
+   * @param {string} selector
+   * @param {{ new (): T }} constructor
+   * @param {string} name
+   * @returns {T}
+   */
+  function requireDialogControl(scope, selector, constructor, name) {
+    const node = scope.querySelector(selector);
+
+    if (!(node instanceof constructor)) {
+      throw new Error(`The time entry dialog requires its ${name}.`);
+    }
+
+    return node;
+  }
+
+  function ensureDialog() {
+    if (!document.querySelector("[data-time-entry-dialog]")) {
       const wrapper = document.createElement("div");
       wrapper.innerHTML = dialogMarkup();
       document.body.append(...wrapper.children);
-      dialog = document.querySelector("[data-time-entry-dialog]");
     }
 
-    form = dialog.querySelector("[data-time-entry-dialog-form]");
+    dialog = requireDialogControl(document, "[data-time-entry-dialog]", HTMLDialogElement, "dialog");
+    form = requireDialogControl(dialog, "[data-time-entry-dialog-form]", HTMLFormElement, "form");
     fields = {
-      billable: dialog.querySelector("[data-time-entry-dialog-billable]"),
-      billableControl: dialog.querySelector("[data-time-entry-dialog-billable-control]"),
-      cancel: dialog.querySelector("[data-time-entry-dialog-cancel]"),
-      client: dialog.querySelector("[data-time-entry-dialog-client]"),
-      date: dialog.querySelector("[data-time-entry-dialog-date]"),
-      description: dialog.querySelector("[data-time-entry-dialog-description]"),
-      duration: dialog.querySelector("[data-time-entry-dialog-duration]"),
-      durationHours: dialog.querySelector("[data-time-entry-dialog-duration-hours]"),
-      durationMinutes: dialog.querySelector("[data-time-entry-dialog-duration-minutes]"),
-      durationSeconds: dialog.querySelector("[data-time-entry-dialog-duration-seconds]"),
-      endTime: dialog.querySelector("[data-time-entry-dialog-end-time]"),
-      heading: dialog.querySelector("[data-time-entry-dialog-heading]"),
-      invoiceStatus: dialog.querySelector("[data-time-entry-dialog-invoice-status]"),
-      project: dialog.querySelector("[data-time-entry-dialog-project]"),
-      save: dialog.querySelector("[data-time-entry-dialog-save]"),
-      startTime: dialog.querySelector("[data-time-entry-dialog-start-time]"),
-      status: dialog.querySelector("[data-time-entry-dialog-status]"),
-      tags: dialog.querySelector("[data-time-entry-dialog-tags]"),
+      billable: requireDialogControl(dialog, "[data-time-entry-dialog-billable]", HTMLSelectElement, "billable select"),
+      billableControl: requireDialogControl(dialog, "[data-time-entry-dialog-billable-control]", HTMLElement, "billable control"),
+      cancel: requireDialogControl(dialog, "[data-time-entry-dialog-cancel]", HTMLButtonElement, "cancel button"),
+      client: requireDialogControl(dialog, "[data-time-entry-dialog-client]", HTMLSelectElement, "client select"),
+      date: requireDialogControl(dialog, "[data-time-entry-dialog-date]", HTMLInputElement, "date input"),
+      description: requireDialogControl(dialog, "[data-time-entry-dialog-description]", HTMLTextAreaElement, "description input"),
+      duration: requireDialogControl(dialog, "[data-time-entry-dialog-duration]", HTMLElement, "duration fieldset"),
+      durationHours: requireDialogControl(dialog, "[data-time-entry-dialog-duration-hours]", HTMLInputElement, "duration hours input"),
+      durationMinutes: requireDialogControl(dialog, "[data-time-entry-dialog-duration-minutes]", HTMLInputElement, "duration minutes input"),
+      durationSeconds: requireDialogControl(dialog, "[data-time-entry-dialog-duration-seconds]", HTMLInputElement, "duration seconds input"),
+      endTime: requireDialogControl(dialog, "[data-time-entry-dialog-end-time]", HTMLInputElement, "end time input"),
+      heading: requireDialogControl(dialog, "[data-time-entry-dialog-heading]", HTMLElement, "heading"),
+      invoiceStatus: requireDialogControl(dialog, "[data-time-entry-dialog-invoice-status]", HTMLSelectElement, "invoice status select"),
+      project: requireDialogControl(dialog, "[data-time-entry-dialog-project]", HTMLSelectElement, "project select"),
+      save: requireDialogControl(dialog, "[data-time-entry-dialog-save]", HTMLButtonElement, "save button"),
+      startTime: requireDialogControl(dialog, "[data-time-entry-dialog-start-time]", HTMLInputElement, "start time input"),
+      status: requireDialogControl(dialog, "[data-time-entry-dialog-status]", HTMLElement, "status line"),
+      tags: requireDialogControl(dialog, "[data-time-entry-dialog-tags]", HTMLElement, "tag list"),
     };
 
     if (form.dataset.timeEntryDialogBound === "true") {
