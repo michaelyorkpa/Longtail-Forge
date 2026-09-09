@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.44.1 - The Workspace Settings operator readouts
+
+**Model: Medium Effort** - the retained lane's first checkpoint under the two-lane split, and the first measurement that had to prove lane isolation as well as its own boundary.
+
+- [x] **One boundary, not two cohorts glued together.** The three containers are optional and the renderers that write into them are required, and those are the same fact: each loader already declines when its container is absent, so every render helper beneath it is reachable only after presence is established. The guards say that in a form the compiler can read.
+- [x] **The optional sections stayed optional.** `loadRuntimeDiagnostics` still answers `false` and `loadJobObservability` still returns when a container is missing; a break that turns either into a throw is refused, and so is one that hoists a guard into module evaluation. The page still loads with neither readout rendered.
+- [x] **Required checks sit where the dereference already was.** All three containers are queried once at module evaluation and never re-queried; a break that re-queries inside a guard is refused. A missing container raises a named error rather than dereferencing `null`, and a break that substitutes a fabricated `<div>` is refused.
+- [x] **No new lookup helper.** `findElement` from `0.33.33.38.3.2` already narrows by `instanceof HTMLElement`, which is exactly what a `<div>` grid needs and what `replaceChildren` requires. The settings host builds all three as `element("div", ...)` inside a `readoutSection`, and a break that changes one to a `<span>` is refused.
+- [x] **No new contract.** `BrowserRuntimeDiagnostics`, `BrowserJobReadout` and `BrowserJobFailureSummary` were already published; the four render inputs are typed from the readers that already validate them, and each contract is named locally exactly once. A duplicate `BrowserJobReadout` typedef was introduced by the conversion, produced two `TS2300`, and was **removed before the measurement rather than absorbed under a lower total**.
+- [x] **The Load more accumulation is preserved and proved.** The failure list still extends on append and replaces otherwise, the renderer still receives the accumulated list, and "Failures Shown" still compares what is displayed against the producer's total. Three breaks attack these and all three are refused.
+- [x] **The 2026-09-08 audit's Sample B assertion was left alone.** That audit found `readRuntimeDiagnosticsResponse`'s validation complete - 38 of 38 leaf violations refused - so removing its checked double assertion would be unauthorised cleanup, not typing. A break that removes it is refused.
+- [x] **Lane isolation was measured, not assumed.** `0.33.33.40` 468, `.41` 1,142, `.42` 528 and `.43` 897 are unchanged across this checkpoint; only `.44` moved, 1,528 to 1,521. Owner sum 6,166 equals params 4,378 + state 1,648 + assorted 140.
+
+Proved by breaking each one, restored from explicit byte copies in a `finally` with hash verification and no stash: **15 breaks across the page and the settings host, all 15 refused for their specific named check.**
+
 ## Version 0.33.33.38.3.2 - The Workspace Settings deletion dialog
 
 **Model: Medium Effort** - the second DOM cohort, and the first to retire a weaker helper alongside it.

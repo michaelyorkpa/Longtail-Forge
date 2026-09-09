@@ -1247,6 +1247,16 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 - [ ] Confirm all classic pages and the Dashboard bridge retain their existing delivery modes.
 - [ ] Prove the three-program `npm run typecheck` is green with zero suppressions, first-party omissions, or unexplained explicit `any`.
 
+#### 0.33.33.44.1 - The Workspace Settings operator readouts
+
+**Complete: 18 diagnostics, three containers and four render inputs - and the first `0.33.33.44` child.** See the archive entry. The first checkpoint of the retained lane under the two-lane split, and it stayed inside that lane: `.40`-`.43` owner budgets are **byte-identical** before and after, which is the measurement that proves the split holds.
+
+**Taken as one boundary because the optionality and the requiredness are the same fact.** Runtime Diagnostics and Jobs render into three sibling `<div>` grids built by the same `readoutSection` helper, and both follow one policy: the **section is optional** - `loadRuntimeDiagnostics` answers `false` and `loadJobObservability` returns when its container is absent - and the **render helpers beneath those loaders are required**, because they are only reachable once presence has been established. Splitting the containers from the renderers would have split a single behaviour in half.
+
+**No new lookup helper and no new contract.** `findElement`, added by `0.33.33.38.3.2`, is exactly right for a `<div>` the page calls `replaceChildren` on, and `BrowserRuntimeDiagnostics`, `BrowserJobReadout` and `BrowserJobFailureSummary` were already published - the render inputs are typed from the readers that already validate them. One duplicate local typedef was introduced and removed before measurement rather than absorbed.
+
+**Measured: DOM 1,422 to 1,411, `0.33.33.44` 1,528 to 1,521**, params 4,383 to 4,378 and state 1,650 to 1,648, with `assorted` unmoved. Exactly one file's counts changed, 83 to 65.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
