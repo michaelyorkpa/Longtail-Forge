@@ -92,6 +92,40 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **What this rollup leaves behind for later checkpoints.** The browser compiler ledger stays active at **10,528** diagnostics; reducing it belongs to `0.33.33.39` through `0.33.33.44`. `window.timeTrackerDebug` remains a bare, un-namespaced `window.*` surface published by `stop-watch.js` with no consumer anywhere in the repository - single-publisher, so it does not block closure, and left untouched because removing or renaming it is not scoping work.
 
+### Implementation lanes for the remainder of 0.33.33
+
+**A coordination amendment, not a checkpoint and not a reslice.** It carries no checkpoint identifier because it delivers no implementation: it is the roadmap-only planning record AGENTS.md allows to precede implementation. No checkpoint is renumbered, no acceptance criterion is removed, and no diagnostic is reclassified. This records *who* implements the remaining `0.33.33` browser work, so two agents can run in parallel without contending for a file.
+
+**The split already exists in the classifier.** `scripts/test-support/browser-diagnostic-classification.mjs` publishes `OWNER_FILES` for `0.33.33.40`-`.43`, and that map is **exactly** the twelve files delegated below. `SHARED_ROOT_FILES` (`app-shell-bootstrap.js`, `navigation.js`) and the `0.33.33.44` remainder are exactly the retained lane. **The classifier is therefore not changed by this amendment, and may not be changed to represent agent assignment.**
+
+| Lane | Files | Owners | Diagnostics at `b86bd32d` |
+| --- | --- | --- | --- |
+| **Codex** | the twelve `OWNER_FILES` controllers | `.40` `.41` `.42` `.43` | **3,588** — 3,035 owned + 553 DOM |
+| **Claude** | `public/js/shared/`, `app-shell-bootstrap.js`, `navigation.js`, every other browser controller, shared declarations, governance, integration | `.39` `.44` | **4,007** — 3,138 owned + 869 DOM |
+| | | | **7,595 total** |
+
+**Codex owns**, under `public/js/`: `notes.js`, `tasks.js`, `task-dialog.js`, `tasks-dashboard.js`, `task-resume-note-capture.js`, `task-calendar.js`, `workbench.js`, `lists.js`, `files.js`, `clients-projects.js`, `files-settings.js`, `lists-settings.js`. Code and tests specifically owned by those controllers may accompany their checkpoints. **Any additional implementation path requires an explicit, narrow ownership assignment recorded here before either agent edits it.**
+
+**`0.33.33.38.3` DOM work inside those twelve files is delegated to Codex**, to be taken alongside the `.40`-`.43` controller work rather than as a separate lane. The retained controllers may combine their own DOM and controller typing the same way. **Family accounting is unchanged**: a DOM elimination is credited to the `dom` family wherever it happens, an owned elimination to its `.39`-`.44` owner, and each elimination is credited exactly once. Owner sum must continue to equal `params + state + assorted`.
+
+**Integration is single-headed.** Claude alone merges protected pull requests and synchronizes `nightly` and `agent/0.33.33-lean-core`. Codex pushes feature branches and may open draft pull requests. Each lane prepares only the checkpoint bookkeeping its own branch needs; shared `ROADMAP.md`, archive and generated-file changes are reconciled at integration. **A branch-local typecheck ledger is evidence for that branch only** — the canonical ledger is recomputed from the integrated tree, never summed from branch deltas and never resolved with `ours`/`theirs`.
+
+**Shared prerequisites remain Claude's and land first.** Measured at `b86bd32d`, **none is currently outstanding**: all 64 namespace members are declared, the namespace family is `0`, and every surface the twelve files acquire — `view`, `icons`, `moduleActions`, `tags`, `taskRecords`, `modal`, `notificationSubscriptions`, `api`, `errors`, `pageController`, `workspaceContext` — is already typed. Prerequisites are drawn on demand when a Codex child is actually blocked, not pre-sliced.
+
+**Next child boundaries, from live compiler evidence rather than historical estimate:**
+
+| Lane | Next ID | Boundary | Live count |
+| --- | --- | --- | --- |
+| Codex | `0.33.33.40.3` | `notes.js` | 772 |
+| Codex | `0.33.33.41.2` | `task-dialog.js` 850, `tasks.js` 311, `tasks-dashboard.js` 52, `task-resume-note-capture.js` 20, `task-calendar.js` 0 | 1,233 |
+| Codex | `0.33.33.42.1` | `workbench.js` — this owner's first child | 538 |
+| Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `files.js` 252, `files-settings.js` 6, `lists-settings.js` 0 | 1,045 |
+| Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
+
+These are **starting** boundaries. Each lane draws its own next child from the tree it actually has; neither pre-slices its remaining controllers.
+
+**`0.33.33.38` and `0.33.33.44` may not be closed while delegated work is outstanding**, regardless of which lane holds it. The `.44` closeout proves the whole browser program at zero, so it is the last thing either lane does. `0.33.33.45`-`.47` are coordinated in real dependency order after the two browser lanes converge, and `0.33.33.48` runs only when its prerequisites are actually satisfied.
+
 ### 0.33.33.38 - Publish the browser contracts whose causes are genuinely shared
 
 **Model: High Effort** - Planning rollup only; its numbered children below are the protected implementation checkpoints.
@@ -533,7 +567,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **Model: High Effort - 1,479 diagnostics measured, corrected down from the 2,169 the previous slice claimed.**
 
-- [ ] Add checked DOM lookup and assert helpers that return the correct element subtype or fail explicitly. Do not turn a required element into an optional no-op. **Begun by `0.33.33.38.3.1`**, which took one page's core form as the first cohort and kept its helpers file-local: a single consumer is not evidence for a shared helper, and the second real consumer is what should extract one. That child's break set includes turning each required control into an optional no-op, and each is refused.
+- [ ] Add checked DOM lookup and assert helpers that return the correct element subtype or fail explicitly. Do not turn a required element into an optional no-op. **Begun by `0.33.33.38.3.1`**, which took one page's core form as the first cohort and kept its helpers file-local: a single consumer is not evidence for a shared helper, and the second real consumer is what should extract one. **Under the two-lane split that second consumer may now appear in the delegated lane**; extraction into `public/js/shared/` is Claude's, so a Codex child keeps its helpers file-local and records the demand rather than reaching across the boundary. That child's break set includes turning each required control into an optional no-op, and each is refused.
 - [ ] Add explicit event-target narrowing rather than a cast at each listener. `EventTarget` is only 10 diagnostics; the 861 are `Element` where a subtype is needed.
 - [ ] **The nullability cohort splits three ways and only two are yours.** Of 1,327 `TS18047`/`TS18048`: **549 are the namespace surface** (`.38.2`), **449 are DOM lookup results**, **265 are the declared-null element caches** the `cacheXElements()` pattern produces, and 64 are neither. The previous slice assigned the whole cohort to DOM.
 - [ ] The declared-null caches are a different shape from a lookup result and may need a different answer; measure them separately rather than forcing one helper over both.
@@ -1206,7 +1240,7 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 Second, the previous wording said to "delete the browser ledger section at zero". That contradicts the lifecycle `0.33.33.32` established and would break live governance, which asserts the program list is exactly `["server-tests", "browser", "scripts"]`. **Retire the browser section at zero exactly as `server-tests` and `scripts` are retired**: the section stays, its diagnostics map empties, its error count reaches zero, the full browser estate remains listed and owned, and governance asserts it may never regain debt. **The temporary compiler ledger is deleted as a whole at `0.33.33.48`**, once all three programs are permanently zero and the governance that depends on it has been migrated or retired. Retirement means permanently required to remain at zero; it never means no longer checked.
 
-- [ ] Receive whatever measured children remain after `0.33.33.39` through `.43`, then close with one final permanent-zero proof child.
+- [ ] Receive whatever measured children remain after `0.33.33.39` through `.43`, then close with one final permanent-zero proof child. **Under the two-lane split that receipt spans both lanes**: the final proof child may not run while any delegated `.40`-`.43` or module-local `.38.3` work is outstanding.
 - [ ] Close full-strict debt in settings, admin, Search, Notifications, Help, calendar, support, recovery, footer/splash, and remaining page controllers.
 - [ ] Remove the nine remaining browser `// @ts-check` pragmas; program-level `checkJs` is already authoritative.
 - [ ] **Retire the browser ledger section at zero — do not delete it.** Prove the estate is still fully listed and checked after retirement.
