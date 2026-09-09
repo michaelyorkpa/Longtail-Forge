@@ -111,10 +111,20 @@
    * @type {NormalizedTimeEntry | null}
    */
   let selectedEntry = null;
+  /**
+   * Deliberately untyped, and the last of this file's page-local state.
+   *
+   * **Owned by a later `0.33.33.44` child, not forgotten.** The picker is mounted from
+   * `namespace.tags.mountPicker`, whose handle has no published contract yet, so typing this
+   * slot means settling that surface first. Three of this file's four remaining diagnostics
+   * are this slot, its read in `saveEntry` and `mountTagPicker`'s parameter; the fourth is the
+   * contracted spread in `saveEntry`. Nothing else in this file is undeclared.
+   */
   let tagPicker = null;
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTimezones} BrowserTimezones */
   /** @typedef {import("../../src/types/browser-contracts.js").NormalizedClientOption} NormalizedClientOption */
+  /** @typedef {import("../../src/types/browser-contracts.js").NormalizedProjectOption} NormalizedProjectOption */
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
@@ -171,6 +181,11 @@
     }
     return apiClient;
   }
+  /**
+   * @param {Partial<TimeEntryDialogContext> & Record<string, unknown>} [options] the five
+   *   members this module reads, and anything else the caller carries - `prepareContext`
+   *   passes `params` through this way, which is why the model is a structural minimum.
+   */
   function configure(options = {}) {
     context = {
       hostContext: null,
@@ -412,6 +427,7 @@
     fields.durationSeconds.addEventListener("input", updateEndTimeFromDuration);
   }
 
+  /** @param {string} placeholder */
   function populateClientOptions(placeholder) {
     fields.client.replaceChildren(createOption("", placeholder));
     clients.forEach((client) => {
@@ -446,6 +462,7 @@
     }
   }
 
+  /** @param {Event} event */
   async function saveEntry(event) {
     const api = requireApi();
     event.preventDefault();
@@ -673,6 +690,11 @@
     return clientProjectOptions;
   }
 
+  /**
+   * @param {unknown} data
+   * @param {{ includeInactive?: boolean }} [options]
+   * @returns {NormalizedClientOption[]}
+   */
   function normalizeClients(data, options = {}) {
     return requireClientProjectOptions().normalizeClients(data, options);
   }
@@ -707,23 +729,32 @@
       : [];
   }
 
+  /** @param {NormalizedClientOption} client */
   function clientOptionLabel(client) {
     return requireClientProjectOptions().optionLabel(client);
   }
 
+  /** @param {NormalizedTimeEntry} entry @returns {string} */
   function findClientIdForEntry(entry) {
     return clients.find((client) => matchesClient(entry, client))?.id || "";
   }
 
+  /** @param {NormalizedTimeEntry} entry @returns {string} */
   function findProjectIdForEntry(entry) {
     const client = getClient(fields.client.value);
     return client?.projects.find((project) => matchesProject(entry, project))?.id || "";
   }
 
+  /** @param {string} clientId @returns {NormalizedClientOption | undefined} */
   function getClient(clientId) {
     return clients.find((client) => client.id === clientId);
   }
 
+  /**
+   * @param {string} clientId
+   * @param {string} projectId
+   * @returns {NormalizedProjectOption | undefined}
+   */
   function getProject(clientId, projectId) {
     if (clientId) {
       return getClient(clientId)?.projects.find((project) => project.id === projectId);
@@ -747,6 +778,7 @@
     fields.billable.value = normalizeBillable(project?.billable) || normalizeBillable(client?.billable) || "yes";
   }
 
+  /** @param {NormalizedTimeEntry} entry */
   function getEffectiveEntryBillable(entry) {
     const client = clients.find((currentClient) => matchesClient(entry, currentClient));
     const project = client?.projects.find((currentProject) => matchesProject(entry, currentProject));
@@ -761,6 +793,7 @@
       : billableValues.find((value) => value === "yes") || "yes";
   }
 
+  /** @param {unknown} value @returns {"yes" | "no" | ""} */
   function normalizeBillable(value) {
     if (value === "yes" || value === true) {
       return "yes";
@@ -773,22 +806,37 @@
     return "";
   }
 
+  /** @param {NormalizedTimeEntry} entry @param {NormalizedClientOption} [client] */
   function matchesClient(entry, client) {
     if (namespace.records?.matchesClient) {
       return namespace.records.matchesClient(entry, client);
     }
 
-    return Boolean(client) && (entry.clientId || "") === (client.isWorkspaceScope ? "" : client.id);
+    if (!client) {
+      return false;
+    }
+
+    return (entry.clientId || "") === (client.isWorkspaceScope ? "" : client.id);
   }
 
+  /** @param {NormalizedTimeEntry} entry @param {NormalizedProjectOption} [project] */
   function matchesProject(entry, project) {
     if (namespace.records?.matchesProject) {
       return namespace.records.matchesProject(entry, project);
     }
 
-    return Boolean(project) && entry.projectId === project.id;
+    if (!project) {
+      return false;
+    }
+
+    return entry.projectId === project.id;
   }
 
+  /**
+   * @param {string} dateValue
+   * @param {string} timeValue
+   * @returns {Date | null}
+   */
   function createZonedDateTime(dateValue, timeValue) {
     if (!dateValue || !timeValue) {
       return null;
@@ -798,16 +846,19 @@
     return Number.isFinite(date.getTime()) ? date : null;
   }
 
+  /** @param {Date} date */
   function formatDateInput(date) {
     return requireTimezones().formatDateInput(date);
   }
 
+  /** @param {Date} date */
   function formatTimeInput(date) {
     return requireTimezones().formatTimeInput(date);
   }
 
+  /** @param {number} totalSeconds */
   function setDurationInputs(totalSeconds) {
-    const normalizedSeconds = Math.max(0, Number.parseInt(totalSeconds, 10) || 0);
+    const normalizedSeconds = Math.max(0, Number.parseInt(String(totalSeconds), 10) || 0);
     fields.durationHours.value = String(Math.floor(normalizedSeconds / 3600));
     fields.durationMinutes.value = String(Math.floor((normalizedSeconds % 3600) / 60));
     fields.durationSeconds.value = String(normalizedSeconds % 60);
@@ -823,6 +874,7 @@
     return (hours * 3600) + (minutes * 60) + seconds;
   }
 
+  /** @param {string} value the raw text of one duration input @returns {number} */
   function clampDurationPart(value) {
     return Math.min(59, Math.max(0, Number.parseInt(value, 10) || 0));
   }
@@ -849,16 +901,19 @@
     fields.endTime.value = formatTimeInput(new Date(startTime.getTime() + (durationSeconds * 1000)));
   }
 
+  /** @param {NormalizedTimeEntry | null} entry @returns {string} */
   function entryHeading(entry) {
     return [entry?.projectName || "", entry?.endTime ? requireTimezones().formatDate(entry.endTime) : ""]
       .filter(Boolean)
       .join(" - ") || "Selected Entry";
   }
 
+  /** @param {string} value @param {string} text */
   function createOption(value, text) {
     return requirePageController().createOption(value, text);
   }
 
+  /** @param {NormalizedProjectOption[]} items */
   function sortByName(items) {
     return requirePageController().sortByName(items);
   }

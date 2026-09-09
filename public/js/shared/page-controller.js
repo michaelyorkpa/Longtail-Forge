@@ -1,6 +1,11 @@
 // @ts-check
 
-/** @typedef {import("../../../src/types/browser-contracts.js").BrowserRecord} PageBrowserRecord */
+/**
+ * The named members `sortByName` reads. Not `BrowserRecord`: constraining the generic to the
+ * indexed record makes this implementation unassignable to the widened published signature,
+ * and nothing here indexes an arbitrary key.
+ * @typedef {import("../../../src/types/browser-contracts.js").BrowserRecordFields} PageBrowserRecord
+ */
 /** @typedef {import("../../../src/types/browser-contracts.js").PageControllerDefinition} PageControllerDefinition */
 /** @typedef {import("../../../src/types/browser-contracts.js").PageControllerRegistry} PageControllerRegistry */
 /** @typedef {import("../../../src/types/browser-contracts.js").PageSmokeResult} PageSmokeResult */

@@ -1281,6 +1281,18 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 7,217 to 7,158, `0.33.33.44` 1,409 to 1,350**, params 4,328 to 4,303 and state 1,501 to 1,467, with `dom` unmoved at 1,249 and `assorted` at 139. Exactly one file's counts changed, **89 to 30**, and every code fell or held: TS2339 26 to 0, TS7005 24 to 1, TS7006 34 to 27, TS7034 4 to 1, TS2698 1 to 1. `0.33.33.39` through `.43` are byte-identical, so the delegated lane is untouched. The 30 that remain are the timer/duration arithmetic, the tag picker, and the one contracted spread above - all later children.
 
+#### 0.33.33.44.4 - The Time Entry Dialog helper surface
+
+**Complete: 26 diagnostics, and this file is finished apart from four with named owners.** See the archive entry. `public/js/time-entry-dialog.js` goes **30 to 4**: the tag-picker slot, its read in `saveEntry`, `mountTagPicker`'s parameter, and the contracted spread `0.33.33.44.3` deliberately left. Each of the four is recorded in the code with its owner, so the deferral is explicit rather than an omission.
+
+**The proposed boundary did not survive its recheck, and the correction is the useful part.** `0.33.33.44.4` was scoped as the timer and duration arithmetic on an estimate of ~27 diagnostics. The live tree carried **six** there: the remaining `TS7006` were spread one per helper across twenty-three functions, not clustered in the arithmetic. The real boundary is that **`0.33.33.44.3` declared the models, so the helpers can now be typed from them** - every one of them either resolves a client or a project out of the catalogue, or formats a value the entry model already names. That is one behaviour, not twenty-one annotations.
+
+**It needed a shared `0.33.33.39` prerequisite, which was eliminated here rather than banked.** `BrowserRecord` carries `[key: string]: unknown`, and a published contract *interface* has no implicit index signature - so `NormalizedClientOption` could not be passed to the record helpers however exactly its shape matched. Annotating `getClient`'s return surfaced this as a **new** `TS2345`, which the shrink-only ledger correctly refused, so the prerequisite was not optional. `shared/records.js` reads seven named members and never indexes an arbitrary key, so the helper parameters now say so via a new `BrowserRecordFields`; `BrowserRecord` keeps its index signature for the readers that need it. The widening is strictly more permissive and **cost `0.33.33.39` nothing: 1,610 before and after.** Its blast radius is two files, both mine - `time-entry-dialog.js` and `shared/page-controller.js` - so it did not block the delegated lane.
+
+**Two guards and one coercion changed, each behaviour-identical.** `Boolean(client) &&` does not narrow, so the members after it stayed possibly-undefined; an early return narrows and answers the same value. `setDurationInputs` ran `Number.parseInt` on a **number** at every call site - declaring the parameter made that visible, and `String(...)` is now explicit rather than implied.
+
+**Measured: browser 7,158 to 7,132, `0.33.33.44` 1,350 to 1,324**, params 4,303 to 4,277 with state, `dom` and `assorted` all unmoved. `TS7006` in this file 27 to 1. **`0.33.33.40` through `.43` are byte-identical**, so the delegated lane is untouched.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
