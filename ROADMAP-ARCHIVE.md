@@ -2,7 +2,7 @@
 
 ## Version 0.33.33.40.3 - Type the Notes collection workflow
 
-**Model: High Effort** ? Collection hierarchy, modal lifecycle, and mutation recovery share one controller boundary.
+**Model: High Effort** - Collection hierarchy, modal lifecycle, and mutation recovery share one controller boundary.
 
 - [x] Typed collection grouping, hierarchy options, descendant exclusions, library/collection selection, action callbacks, and collection editor/mutation handlers inside the existing `notes.js` closure.
 - [x] Reused `BrowserNoteCollection` and the existing response normalizer. The normalizer still retains optional unchecked passthrough fields; its map callback now checks its return against the published contract. No response shape, shared declaration, API, or dependency changed.
