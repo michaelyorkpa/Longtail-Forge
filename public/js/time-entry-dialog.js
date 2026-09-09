@@ -24,6 +24,58 @@
     return pageController;
   }
 
+  /**
+   * One entry as this dialog's own `normalizeTimeEntries` rebuilds it.
+   *
+   * **An exact reconstruction of thirteen members**, none of them spread: the normaliser names
+   * every one and converts as it goes - `startTime` and `endTime` become `Date`, `billable` goes
+   * through `normalizeBillable`, `durationSeconds` through `Number`, and `invoiceStatus` falls
+   * back to `"unbilled"`. So this is the page's own model, not the wire record, and it is
+   * declared here rather than published: `time-entries.js` keeps a separate copy, and deciding
+   * whether those two are one model is its own boundary rather than this child's.
+   * @typedef {{
+   *   billable: string,
+   *   clientId: string,
+   *   clientName: string,
+   *   description: string,
+   *   durationSeconds: number,
+   *   endTime: Date,
+   *   entryId: string,
+   *   invoiceStatus: string,
+   *   projectId: string,
+   *   projectName: string,
+   *   startTime: Date,
+   *   tags: unknown[],
+   *   userId: string,
+   * }} NormalizedTimeEntry
+   */
+
+  /**
+   * What `configure` holds between opens.
+   *
+   * **A structural minimum, because `configure` spreads.** It names five members, then spreads
+   * the previous context and the incoming options over them, so a caller may carry more -
+   * `prepareContext` passes `params` through this way. The five named here are the ones this
+   * module reads; anything else belongs to the host that supplied it.
+   * @typedef {{
+   *   hostContext: TimeEntryDialogHostContext | null,
+   *   mode: string,
+   *   onSaved: ((result: unknown) => unknown) | null,
+   *   setStatus: ((message: string, options?: unknown) => unknown) | null,
+   *   tagOptions: unknown[],
+   * }} TimeEntryDialogContext
+   */
+
+  /**
+   * Only the host members this dialog calls back into.
+   * @typedef {{
+   *   cancel?: (detail: unknown) => unknown,
+   *   complete?: (detail: unknown) => unknown,
+   *   setStatus?: (message: string, options?: unknown) => unknown,
+   * }} TimeEntryDialogHostContext
+   */
+
+  /** @type {TimeEntryDialogContext | null} */
   let context = null;
   /**
    * The dialog element, its form, and its controls - all built once by `ensureDialog`.
@@ -43,11 +95,26 @@
   let form;
   /** @type {TimeEntryDialogFields} */
   let fields;
+  /**
+   * The client catalogue `normalizeClients` rebuilt, reused from its published contract rather
+   * than redescribed here - the shared helper already owns that shape.
+   * @type {NormalizedClientOption[]}
+   */
   let clients = [];
+  /**
+   * The entry being edited, or `null` when adding.
+   *
+   * **This is the round trip's hinge.** `prepareContext` finds it, `openDialog` writes it into
+   * the controls, and `saveEntry` reads those controls back and chooses the create or the update
+   * route by whether this slot is set. Typing it is what makes both halves checkable against the
+   * same model.
+   * @type {NormalizedTimeEntry | null}
+   */
   let selectedEntry = null;
   let tagPicker = null;
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTimezones} BrowserTimezones */
+  /** @typedef {import("../../src/types/browser-contracts.js").NormalizedClientOption} NormalizedClientOption */
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
@@ -118,11 +185,19 @@
     return timeEntryDialogApi;
   }
 
+  /**
+   * @param {Record<string, string | undefined>} [params]
+   * @param {TimeEntryDialogHostContext | null} [hostContext]
+   */
   async function openAdd(params = {}, hostContext = null) {
     await prepareContext({ mode: "add", hostContext, params });
     return openDialog({ mode: "add", params });
   }
 
+  /**
+   * @param {Record<string, string | undefined>} [params]
+   * @param {TimeEntryDialogHostContext | null} [hostContext]
+   */
   async function openEdit(params = {}, hostContext = null) {
     const entryId = params.entryId || params.recordId || params.id || "";
 
@@ -134,6 +209,10 @@
     return openDialog({ entry: selectedEntry, mode: "edit", params });
   }
 
+  /**
+   * @param {{ entryId?: string, hostContext?: TimeEntryDialogHostContext | null, mode?: string,
+   *   params?: Record<string, string | undefined> }} [options]
+   */
   async function prepareContext({ entryId = "", hostContext = null, mode = "add", params = {} } = {}) {
     const api = requireApi();
     await namespace.timezones?.loadSessionTimezone?.();
@@ -162,6 +241,14 @@
     });
   }
 
+  /**
+   * `params` carries **form defaults**, not arbitrary host data: all seventeen members this
+   * module reads - the two client spellings, the two project spellings, the date, the two time
+   * spellings, the description, the invoice status and the identity aliases - are read as text
+   * through a `|| ""` chain and written straight into a control. Typing them as text states
+   * what this dialog requires of its host rather than accepting anything and coercing later.
+   * @param {{ entry?: NormalizedTimeEntry | null, mode?: string, params?: Record<string, string | undefined> }} [options]
+   */
   function openDialog({ entry = null, mode = "add", params = {} } = {}) {
     ensureDialog();
     const isEdit = mode === "edit";
@@ -364,6 +451,17 @@
     event.preventDefault();
     const client = getClient(fields.client.value);
     const project = getProject(fields.client.value, fields.project.value);
+
+    if (!client) {
+      // Defensive, and unreachable while the client select carries `required`: the browser
+      // refuses the submit before this handler runs. `getClient` can still answer nothing for a
+      // selection that is no longer in the catalogue, and the payload below reads
+      // `client.isWorkspaceScope` immediately - so this refuses through the same status path the
+      // handler already uses for its other invalid inputs rather than throwing past it.
+      setStatus("Select a client before saving.");
+      return;
+    }
+
     const startTime = createZonedDateTime(fields.date.value, fields.startTime.value);
     const durationSeconds = selectedEntry
       ? getDurationInputSeconds()
@@ -419,6 +517,11 @@
       }
 
       if (typeof context?.onSaved === "function") {
+        // Left spreading an unchecked value on purpose. `tests/unit/time-entry-save-contracts`
+        // requires this exact form: the decorated entry must travel on whole and nothing may
+        // be truncated for the callback. A record check here reads as a truncating rebuild to
+        // that contract even though it is behaviour-identical, so the resulting TS2698 stays
+        // and belongs to whichever child revisits that contract deliberately.
         await context.onSaved({ ...result, entryId: savedEntryId });
       }
       context?.hostContext?.complete?.({
@@ -541,7 +644,7 @@
 
     fields.tags.hidden = false;
     tagPicker = await namespace.tags.mountPicker(fields.tags, {
-      tags: context.tagOptions || [],
+      tags: context?.tagOptions || [],
       selectedTags: tags,
     });
   }
@@ -574,9 +677,19 @@
     return requireClientProjectOptions().normalizeClients(data, options);
   }
 
+  /**
+   * @param {unknown} data the `/api/time-entries` body, unchecked as it arrives
+   * @returns {NormalizedTimeEntry[]}
+   */
   function normalizeTimeEntries(data) {
-    return Array.isArray(data?.entries)
-      ? data.entries.map((entry) => ({
+    // Narrowed here rather than at the caller: `api.getJson` answers `unknown`, and this is
+    // the function that already decides what a usable body is. `isSaveResponseRecord` is not
+    // reused because all three of its uses are genuinely save responses.
+    const envelope = typeof data === "object" && data !== null ? data : {};
+    const entries = "entries" in envelope ? envelope.entries : undefined;
+
+    return Array.isArray(entries)
+      ? entries.map((entry) => ({
           billable: normalizeBillable(entry.billable),
           clientId: entry.client_id,
           clientName: entry.client_name,
@@ -763,6 +876,10 @@
     return workspaceUsesBillableFlag() && fields.billable.value === "yes" ? "yes" : "no";
   }
 
+  /**
+   * @param {string} message
+   * @param {{ isError?: boolean }} [options]
+   */
   function setStatus(message, options = {}) {
     if (fields.status) {
       fields.status.textContent = message || "";
