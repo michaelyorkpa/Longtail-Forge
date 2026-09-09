@@ -1168,15 +1168,6 @@ Today's measurement: `public/js/notes.js` alone is **4,682 lines with 391 top-le
 
 **Later `0.33.33.40.x` children are not drawn yet.** The remaining 378 parameter and 23 assorted diagnostics have not been clustered, and `0.33.33.40.1` deliberately did not touch them. Draw those boundaries from the classifier after `0.33.33.40.2`, not from this section.
 
-#### 0.33.33.40.3 - Type the Notes collection workflow
-
-**Model: High Effort** — Collection hierarchy, modal lifecycle, and mutation recovery share one controller boundary.
-
-- [ ] Type collection grouping, hierarchy options, descendant exclusions, library/collection selection, and the collection action/editor dialogs in `public/js/notes.js`, including their local DOM lookups and callbacks.
-- [ ] Reuse `BrowserNoteCollection` and its existing response normalizer; preserve optional passthrough fields, service-owned access/counts, archived filtering, parent exclusions, confirmations, save/reload ordering, and modal focus return.
-- [ ] Preserve classic-script delivery and the Notes closure. Shared declarations/helpers, unrelated Notes editor/revision/link workflows, and dependency maintenance remain outside this child.
-- [ ] Record fresh canonical compiler/classifier evidence, regenerate only the branch-local ledger, and prove collection behavior on isolated desktop/mobile tests plus the canonical checkpoint gate. Starting tree `aa9bee22`: browser 7,577; Notes 772 = 468 owned (372 params / 73 state / 23 assorted) + 304 DOM.
-
 ### 0.33.33.41 - Type Tasks and Task Dialog browser controllers
 
 **Model: High Effort** - Task lifecycle, recurrence, reminders, checklist, timers, and editor state share one high-risk workflow.

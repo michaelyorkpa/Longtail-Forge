@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.40.3 - Type the Notes collection workflow
+
+**Model: High Effort** ? Collection hierarchy, modal lifecycle, and mutation recovery share one controller boundary.
+
+- [x] Typed collection grouping, hierarchy options, descendant exclusions, library/collection selection, action callbacks, and collection editor/mutation handlers inside the existing `notes.js` closure.
+- [x] Reused `BrowserNoteCollection` and the existing response normalizer. The normalizer still retains optional unchecked passthrough fields; its map callback now checks its return against the published contract. No response shape, shared declaration, API, or dependency changed.
+- [x] Narrowed the collection controls by their actual DOM constructors at the existing cache step. Missing controls remain optional during caching and event binding. Required values fail at the existing access statement, including after awaited operations; no eager page-wide assertion or fabricated control was introduced.
+- [x] Preserved hierarchy order/indentation, service-owned access and counts, archived filtering, parent/descendant exclusions, confirmations, mutation payloads, save/reload ordering, rejected-save recovery, and dialog focus.
+- [x] Added `tests/e2e/notes-collections.spec.mjs`: desktop and mobile prove root/child/grandchild rendering, parent exclusions, focus return, failed PUT recovery without draft loss, rename/create refresh, cancelled and confirmed empty deletion, and archived action disabling. The managed run used `LTF_E2E_PORT=8102` and this worktree's own `data/e2e`; both viewport cases and authentication setup passed. The existing Notes UI workflow regression also passed.
+- [x] Regenerated the branch-local ledger through canonical governance. Starting `aa9bee22`: browser **7,577 -> 7,470**, Notes **772 -> 665**. Notes-owned **468 -> 419** (params **372 -> 335**, state **73 -> 62**, assorted **23 -> 22**); Notes DOM **304 -> 246**. Exactly **49 owned + 58 DOM = 107** diagnostics removed, counted once. Other owners are unchanged; unknown, namespace, server/tests, scripts, and explicit-any remain zero.
+
+This is branch-local evidence, authoritative only after protected integration and recomputation. Remaining Notes descriptor/field adapters, note editor state, links, revisions, attachments, and other controller debt stay open under `.40`; no `.38`, `.40`, `.44`, or version-wide closure is claimed. Dependency maintenance remains Claude's lane. `origin/nightly` was still `aa9bee22` at the clean implementation checkpoint; no integrated lockfile update was available to adopt.
+
+No docs change needed: behavior is preserved and durable documentation is deferred to branch closeout. Final local gate: `npm run verify:slice` with `LTF_REGRESSION_BASE_SHA=aa9bee22324f7ce1f7d4b34f37577fd3cb990aa1`, covering the complete implementation-to-handoff range rather than only uncommitted bookkeeping. Commit-range gate: `npm run checkpoint:validate` before publication.
+
 ## Version 0.33.33.44.1 - The Workspace Settings operator readouts
 
 **Model: Medium Effort** - the retained lane's first checkpoint under the two-lane split, and the first measurement that had to prove lane isolation as well as its own boundary.
