@@ -13,10 +13,10 @@
   const workspaceUsersList = document.querySelector("[data-workspace-users-list]");
   const closeWorkspaceUsersButton = document.querySelector("[data-close-workspace-users]");
   const workspaceSettingsStatus = findElement("[data-workspace-settings-status]");
-  const runtimeDiagnosticsSummary = document.querySelector("[data-runtime-diagnostics-summary]");
+  const runtimeDiagnosticsSummary = findElement("[data-runtime-diagnostics-summary]");
   const runtimeDiagnosticsWarnings = document.querySelector("[data-runtime-diagnostics-warnings]");
-  const jobObservabilitySummary = document.querySelector("[data-job-observability-summary]");
-  const jobObservabilityFailures = document.querySelector("[data-job-observability-failures]");
+  const jobObservabilitySummary = findElement("[data-job-observability-summary]");
+  const jobObservabilityFailures = findElement("[data-job-observability-failures]");
   const jobObservabilityMoreButton = document.querySelector("[data-job-observability-more]");
   const workspaceBackupSummary = document.querySelector("[data-workspace-backup-summary]");
   const workspaceBackupStatus = findElement("[data-workspace-backup-status]");
@@ -35,6 +35,13 @@
   const confirmWorkspaceDeletionButton = findButton("[data-confirm-workspace-deletion]");
   const JOB_FAILURE_PAGE_SIZE = 5;
   let activeWorkspaceId = "";
+  /**
+   * The failures shown so far, accumulated across `Load more` pages.
+   *
+   * `renderJobObservability` appends the incoming page to this list when `options.append` is
+   * set and replaces it otherwise, so the slot holds exactly what the readout is displaying.
+   * @type {BrowserJobFailureSummary[]}
+   */
   let jobObservabilityFailureItems = [];
   let jobObservabilityNextCursor = "";
   let settingsCatalog = null;
@@ -273,6 +280,39 @@
    * behaviour under the guise of typing.
    * @returns {HTMLDialogElement}
    */
+  /**
+   * The three operator-readout containers.
+   *
+   * **Optional sections, required renderers.** Each readout's loader already declines when its
+   * container is absent - `loadRuntimeDiagnostics` answers `false` and `loadJobObservability`
+   * returns - so the render helpers below are only reachable once presence has been established.
+   * These guards say that in a form the compiler can read, and raise named errors if a helper is
+   * ever called outside its loader rather than dereferencing `null`.
+   * @returns {HTMLElement}
+   */
+  function requireRuntimeDiagnosticsSummary() {
+    if (!runtimeDiagnosticsSummary) {
+      throw new Error("Workspace settings requires its runtime diagnostics summary.");
+    }
+    return runtimeDiagnosticsSummary;
+  }
+
+  /** @returns {HTMLElement} */
+  function requireJobObservabilitySummary() {
+    if (!jobObservabilitySummary) {
+      throw new Error("Workspace settings requires its job observability summary.");
+    }
+    return jobObservabilitySummary;
+  }
+
+  /** @returns {HTMLElement} */
+  function requireJobObservabilityFailures() {
+    if (!jobObservabilityFailures) {
+      throw new Error("Workspace settings requires its job observability failures list.");
+    }
+    return jobObservabilityFailures;
+  }
+
   function requireWorkspaceDeletionDialog() {
     if (!workspaceDeletionDialog) {
       throw new Error("Workspace settings requires its deletion dialog.");
@@ -1040,6 +1080,7 @@
   }
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserRuntimeDiagnostics} BrowserRuntimeDiagnostics */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserJobFailureSummary} BrowserJobFailureSummary */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserRuntimePathScope} BrowserRuntimePathScope */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserRuntimeHealthStatus} BrowserRuntimeHealthStatus */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserScannerHealthStatus} BrowserScannerHealthStatus */
@@ -1234,12 +1275,12 @@
   }
 
   function renderRuntimeDiagnosticsLoading() {
-    runtimeDiagnosticsSummary.replaceChildren(createRuntimeDiagnosticItem("Runtime", "Loading..."));
+    requireRuntimeDiagnosticsSummary().replaceChildren(createRuntimeDiagnosticItem("Runtime", "Loading..."));
     renderRuntimeDiagnosticWarnings([]);
   }
 
   function renderRuntimeDiagnosticsError(error) {
-    runtimeDiagnosticsSummary.replaceChildren(createRuntimeDiagnosticItem("Runtime", "Unavailable"));
+    requireRuntimeDiagnosticsSummary().replaceChildren(createRuntimeDiagnosticItem("Runtime", "Unavailable"));
 
     const message = error?.status === 403
       ? "Runtime diagnostics require workspace settings access."
@@ -1247,6 +1288,7 @@
     renderRuntimeDiagnosticWarnings([message]);
   }
 
+  /** @param {BrowserRuntimeDiagnostics} diagnostics */
   function renderRuntimeDiagnostics(diagnostics) {
     const database = diagnostics.database;
     const sqlite = database.sqlite;
@@ -1256,7 +1298,7 @@
     const worker = diagnostics.worker;
     const workerStatus = worker.status;
 
-    runtimeDiagnosticsSummary.replaceChildren(
+    requireRuntimeDiagnosticsSummary().replaceChildren(
       createRuntimeDiagnosticItem("Database Provider", formatRuntimeValue(database.provider)),
       createRuntimeDiagnosticItem("SQLite Journal", formatRuntimeValue(sqlite.journalMode)),
       createRuntimeDiagnosticItem("Foreign Keys", sqlite.foreignKeysEnabled ? "Enabled" : "Disabled"),
@@ -1454,13 +1496,13 @@
   function renderJobObservabilityLoading() {
     jobObservabilityFailureItems = [];
     jobObservabilityNextCursor = "";
-    jobObservabilitySummary.replaceChildren(createRuntimeDiagnosticItem("Jobs", "Loading..."));
-    jobObservabilityFailures.replaceChildren();
+    requireJobObservabilitySummary().replaceChildren(createRuntimeDiagnosticItem("Jobs", "Loading..."));
+    requireJobObservabilityFailures().replaceChildren();
     updateJobObservabilityMoreButton(false);
   }
 
   function renderJobObservabilityError(error) {
-    jobObservabilitySummary.replaceChildren(createRuntimeDiagnosticItem("Jobs", "Unavailable"));
+    requireJobObservabilitySummary().replaceChildren(createRuntimeDiagnosticItem("Jobs", "Unavailable"));
 
     const message = error?.status === 403
       ? "Job observability requires workspace settings access."
@@ -1468,10 +1510,11 @@
     const note = document.createElement("p");
     note.className = "job-observability-note";
     note.textContent = message;
-    jobObservabilityFailures.replaceChildren(note);
+    requireJobObservabilityFailures().replaceChildren(note);
     updateJobObservabilityMoreButton(false);
   }
 
+  /** @param {BrowserJobReadout} jobs @param {{ append?: boolean }} [options] */
   function renderJobObservability(jobs, options = {}) {
     const counts = jobs.counts;
     const recentFailures = jobs.recentFailures;
@@ -1483,7 +1526,7 @@
       : incomingItems;
     jobObservabilityNextCursor = String(pagination.nextCursor || "").trim();
 
-    jobObservabilitySummary.replaceChildren(
+    requireJobObservabilitySummary().replaceChildren(
       createRuntimeDiagnosticItem("Pending", formatRuntimeNumber(counts.pending)),
       createRuntimeDiagnosticItem("Running", formatRuntimeNumber(counts.running)),
       createRuntimeDiagnosticItem("Failed", formatRuntimeNumber(counts.failed)),
@@ -1495,14 +1538,15 @@
     updateJobObservabilityMoreButton(Boolean(pagination.hasMore && jobObservabilityNextCursor));
   }
 
+  /** @param {BrowserJobFailureSummary[]} items */
   function renderJobFailureItems(items) {
-    jobObservabilityFailures.replaceChildren();
+    requireJobObservabilityFailures().replaceChildren();
 
     if (items.length === 0) {
       const note = document.createElement("p");
       note.className = "job-observability-note";
       note.textContent = "No recent failed or dead-letter jobs.";
-      jobObservabilityFailures.appendChild(note);
+      requireJobObservabilityFailures().appendChild(note);
       return;
     }
 
@@ -1513,7 +1557,7 @@
       list.appendChild(createJobFailureRow(item));
     }
 
-    jobObservabilityFailures.appendChild(list);
+    requireJobObservabilityFailures().appendChild(list);
   }
 
   function createJobFailureRow(item) {
@@ -1563,6 +1607,7 @@
     return item;
   }
 
+  /** @param {BrowserRuntimeDiagnostics} diagnostics @returns {string[]} */
   function readRuntimeDiagnosticWarnings(diagnostics) {
     const warnings = [];
     const database = diagnostics.database;
