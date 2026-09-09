@@ -1,5 +1,24 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.40.4 - Type the Notes editor lifecycle
+
+**Model: High Effort** ? Editor hydration fallback, modal settlement, and secure/visibility state require exact lifecycle and failure-order preservation.
+
+- [x] Typed `openEditor`, `hydrateEditorNote`, `closeEditor`, `cancelEditor`, `updateSecureWarning`, `updateSecureUiState`, `updateSecureVisibilityOptions`, `populateWorkspaceVisibilityOptions`, and their `workspaceVisibilityOptions` reader. All nine functions have zero diagnostics on the completed source.
+- [x] Reused `BrowserNoteRecord` and its checked envelope reader. A file-local seed picks only lifecycle fields from that contract: action inputs may contain only an ID, and failed hydration returns the original partial input by identity. The editor store now admits that actual fallback; the full detail contract and selected-note store remain unchanged. Linked rows and their contracts remain later work.
+- [x] Typed the lifecycle's host callback state from the module-actions producer, preserving once-only cancellation/completion, refresh passthrough, and focus triggers. The Notes-owned manifest produces visibility value/label pairs; workspace projection and secure-mode filtering retain their existing choices and ordering.
+- [x] Narrowed editor controls at their existing cache step and required accesses at their existing statements. Hydration still settles before editor field initialization; no required lookup was hoisted across an await or into shell startup. Optional warning/visibility/copy-link/detail/dialog controls remain optional where they were already guarded.
+- [x] Recorded the second local demand for the collection lookup/value guards: the note editor uses the same guards. They are named `findNotesControl` and `requireNotesValue` and remain inside the Notes closure; no shared helper, namespace declaration, or publication changed.
+- [x] Removed only the `state.activeBucketForCreate` read in editor default selection after confirming it has no writer and the state object has no escaping alias. The actual `defaultLibraryForCreate()` fallback still owns default Library selection. No fabricated state field was added.
+- [x] Retained the Notes UI source assertions for saved-note security locking and direct project-ID handoff at the new required-value access form. Their behavioral claims remain unchanged.
+- [x] Four focused unit cases prove hydration identity/fallback, required-access timing after hydration, optional and wrong-subtype lookup behavior, and once-only cancellation with state clearing. Isolated rendered proof passes in desktop and mobile (four viewport cases plus authentication setup) for Business/Family/Personal defaults and visibility, secure toggles, cancel/Escape reopening, focus return, saved-detail refresh, and failed hydration with populated or ID-only input.
+- [x] Fresh dependency adoption: `npm ci` completed against merged baseline `41b8862a5ecfd1e5a2344de8ba34a503915ed521` with zero vulnerabilities; installed Vitest is **4.1.11**, qs **6.16.0**. No package/lock change belongs to this child, and every recorded proof uses the updated dependency tree.
+- [x] Canonical branch-local evidence: browser **7,470 -> 7,331**, Notes **665 -> 526**. Notes-owned **419 -> 382** (params **335 -> 322**, state **62 -> 38**, assorted **22 -> 22**); Notes DOM **246 -> 144**. Exactly **37 owned + 102 DOM = 139** diagnostics removed once. Reusing corrected control types also resolves reads of those controls outside the named function region without editing those workflows. Other owners are unchanged; unknown, namespace, server/tests, scripts, and explicit-any remain zero.
+
+The ledger is evidence for this branch only; the integrator recomputes it from the integrated source. Links, revisions, attachments, tags, filters, search, and the remaining Notes controller debt stay open for `.40.5+`; this does not close `.40`, `.38`, `.44`, or the version-wide branch.
+
+No docs change needed: existing behavior is preserved and durable documentation is deferred to branch closeout. Rendered commands set `LTF_E2E_PORT=8102` and use this worktree's `data/e2e`. Final `npm run verify:slice` uses `LTF_REGRESSION_BASE_SHA=41b8862a5ecfd1e5a2344de8ba34a503915ed521` to cover the complete implementation/handoff range, with the inherited legacy `SECURE_NOTES_MASTER_KEY` alias absent only from the verification child so the missing-key regression is isolated. `npm run checkpoint:validate` validates the completed commit range before publication.
+
 ## Version 0.33.33.44.2 - The Time Entry Dialog control record
 
 **Model: Medium Effort** - one declaration carried more than half this file's debt, and the work was proving the record could honestly be called complete.
@@ -15,6 +34,7 @@
 - [x] **Measured honestly by family.** Total **7,470 to 7,356**; `state` **1,637 to 1,525**, `dom` **1,353 to 1,351**, `params` and `assorted` unmoved. Owner `0.33.33.44` **1,528 to 1,409**; `.39` through `.43` unchanged. Exactly one file's counts moved, 203 to 89. Owner sum 6,005 equals params 4,341 + state 1,525 + assorted 139.
 
 Proved by breaking each one, restored from an explicit byte copy in a `finally` with hash verification and no stash: **16 breaks, all 16 refused, and every mutation checked with `node --check` first so a syntax error could not be scored as a pass.** One further break - deleting a blank line above the project listing - was **inert and is recorded as inert rather than counted**: the guard still returned, so nothing behavioural changed. It was re-aimed at the guard itself, which the suite refuses.
+
 
 ## Version 0.33.33.40.3 - Type the Notes collection workflow
 

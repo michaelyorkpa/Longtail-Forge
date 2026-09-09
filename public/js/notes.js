@@ -21,6 +21,28 @@
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCollection} BrowserNoteCollection */
 
   /**
+   * Editor inputs include an ID-only action parameter and list records. Hydration
+   * returns the original input on failure, so the editor cannot promise a full detail.
+   * @typedef {Partial<Pick<BrowserNoteRecord, "note_id" | "title" | "library_bucket" | "note_collection_id" | "note_type" | "visibility" | "security_mode" | "client_id" | "project_id" | "task_id" | "linked_user_id" | "linked_context" | "body_markdown">>} NotesEditorSeed
+   * @typedef {BrowserNoteRecord | NotesEditorSeed} NotesEditorNote
+   */
+  /**
+   * Only the host members this lifecycle consumes. The module-actions producer
+   * creates cancel/complete and captures the active element; refresh is passed through.
+   * @typedef {object} NotesEditorHostContext
+   * @property {Element | null} [trigger]
+   * @property {(detail: unknown) => unknown} [cancel]
+   * @property {(detail: unknown) => unknown} [complete]
+   * @property {((result: unknown) => unknown) | null} [refresh]
+   */
+  /**
+   * @typedef {object} NotesEditorOptions
+   * @property {NotesEditorNote} [defaults]
+   * @property {NotesEditorHostContext | null} [hostContext]
+   * @property {Element | null} [trigger]
+   */
+
+  /**
    * The note columns the producer selects by name in both projections and never nulls.
    *
    * These are the table's `NOT NULL` columns, which is why they are checked rather than assumed:
@@ -549,11 +571,12 @@
      */
     editorAttachmentController: null,
     editorContextSummaries: {},
+    /** @type {NotesEditorHostContext | null} */
     editorHostContext: null,
     editorHostContextSettled: false,
     /**
-     * The note the editor is editing, or `null` when the editor is creating or closed.
-     * @type {BrowserNoteRecord | null}
+     * Hydrated detail or the original partial input after a failed read; null when closed or creating.
+     * @type {NotesEditorNote | null}
      */
     editorNote: null,
     editorSelectedTarget: null,
@@ -693,27 +716,27 @@
   let collectionLibraryFilter = null;
   /** @type {HTMLElement | null} */
   let collectionActionsMount = null;
-  /** @type {Element | null} */
+  /** @type {HTMLDialogElement | null} */
   let dialog = null;
   /** @type {Element | null} */
   let form = null;
-  /** @type {Element | null} */
+  /** @type {HTMLElement | null} */
   let dialogTitle = null;
   /** @type {Element | null} */
   let notificationToggle = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | null} */
   let titleInput = null;
   /** @type {HTMLSelectElement | null} */
   let libraryInput = null;
   /** @type {HTMLSelectElement | null} */
   let collectionInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let typeInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let visibilityInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let securityInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLElement | null} */
   let secureWarning = null;
   /** @type {Element | null} */
   let contextClientInput = null;
@@ -729,21 +752,21 @@
   let contextList = null;
   /** @type {Element | null} */
   let contextSelectedMessage = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let clientInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let projectInput = null;
   /** @type {Element | null} */
   let primaryClientField = null;
   /** @type {Element | null} */
   let primaryProjectField = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | null} */
   let taskInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | null} */
   let userInput = null;
   /** @type {Element | null} */
   let suggestionMessage = null;
-  /** @type {Element | null} */
+  /** @type {HTMLDetailsElement | null} */
   let detailsGroup = null;
   /** @type {Element | null} */
   let tagsDialog = null;
@@ -763,23 +786,23 @@
   let tagsToggle = null;
   /** @type {Element | null} */
   let filesToggle = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let copyLinkButton = null;
-  /** @type {Element | null} */
+  /** @type {HTMLTextAreaElement | null} */
   let bodyInput = null;
   /** @type {Element | null} */
   let markdownEditor = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let previewToggle = null;
-  /** @type {Element | null} */
+  /** @type {HTMLElement | null} */
   let preview = null;
-  /** @type {Element | null} */
+  /** @type {HTMLElement | null} */
   let formStatus = null;
   /** @type {Element | null} */
   let cancelButton = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let saveButton = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let saveCloseButton = null;
   /** @type {Element | null} */
   let bulkToolbar = null;
@@ -850,14 +873,14 @@
   let editor = null;
 
   /**
-   * Collection controls remain optional during shell caching. Check their actual DOM
+   * Notes editor and collection controls remain optional during shell caching. Check their actual DOM
    * subtype without making a missing dialog fail before its workflow is invoked.
    * @template {HTMLElement} T
    * @param {string} selector
    * @param {{new(): T}} constructor
    * @returns {T | null}
    */
-  function findCollectionControl(selector, constructor) {
+  function findNotesControl(selector, constructor) {
     const element = document.querySelector(selector);
     return element instanceof constructor ? element : null;
   }
@@ -869,8 +892,8 @@
    * @param {T | null} value
    * @returns {T}
    */
-  function requireCollectionValue(value) {
-    if (value === null) throw new TypeError("Required Notes collection value is unavailable.");
+  function requireNotesValue(value) {
+    if (value === null) throw new TypeError("Required Notes value is unavailable.");
     return value;
   }
 
@@ -881,7 +904,7 @@
     visibilityFilter = document.querySelector("[data-note-filter-visibility]");
     securityFilter = document.querySelector("[data-note-filter-security]");
     typeFilter = document.querySelector("[data-note-filter-type]");
-    collectionFilter = findCollectionControl("[data-note-filter-collection]", HTMLSelectElement);
+    collectionFilter = findNotesControl("[data-note-filter-collection]", HTMLSelectElement);
     contextFilter = document.querySelector("[data-note-filter-context]");
     ownerFilter = document.querySelector("[data-note-filter-owner]");
     tagFilter = document.querySelector("[data-note-filter-tags]");
@@ -893,20 +916,20 @@
     prevButton = document.querySelector("[data-notes-prev]");
     nextButton = document.querySelector("[data-notes-next]");
     pageLabel = document.querySelector("[data-notes-page]");
-    collectionPanel = findCollectionControl("[data-notes-collections-panel]", HTMLElement);
-    collectionLibraryFilter = findCollectionControl("[data-note-collection-library-filter]", HTMLSelectElement);
-    collectionActionsMount = findCollectionControl("[data-note-collection-actions]", HTMLElement);
-    dialog = document.querySelector("[data-note-dialog]");
+    collectionPanel = findNotesControl("[data-notes-collections-panel]", HTMLElement);
+    collectionLibraryFilter = findNotesControl("[data-note-collection-library-filter]", HTMLSelectElement);
+    collectionActionsMount = findNotesControl("[data-note-collection-actions]", HTMLElement);
+    dialog = findNotesControl("[data-note-dialog]", HTMLDialogElement);
     form = document.querySelector("[data-note-form]");
-    dialogTitle = document.querySelector("[data-note-dialog-title]");
+    dialogTitle = findNotesControl("[data-note-dialog-title]", HTMLElement);
     notificationToggle = document.querySelector("[data-note-notification-toggle]");
-    titleInput = document.querySelector("[data-note-title]");
-    libraryInput = findCollectionControl("[data-note-library]", HTMLSelectElement);
-    collectionInput = findCollectionControl("[data-note-collection]", HTMLSelectElement);
-    typeInput = document.querySelector("[data-note-type]");
-    visibilityInput = document.querySelector("[data-note-visibility]");
-    securityInput = document.querySelector("[data-note-security]");
-    secureWarning = document.querySelector("[data-note-secure-warning]");
+    titleInput = findNotesControl("[data-note-title]", HTMLInputElement);
+    libraryInput = findNotesControl("[data-note-library]", HTMLSelectElement);
+    collectionInput = findNotesControl("[data-note-collection]", HTMLSelectElement);
+    typeInput = findNotesControl("[data-note-type]", HTMLSelectElement);
+    visibilityInput = findNotesControl("[data-note-visibility]", HTMLSelectElement);
+    securityInput = findNotesControl("[data-note-security]", HTMLSelectElement);
+    secureWarning = findNotesControl("[data-note-secure-warning]", HTMLElement);
     contextClientInput = document.querySelector("[data-note-context-client]");
     contextTargetTypeInput = document.querySelector("[data-note-context-target-type]");
     contextSearchInput = document.querySelector("[data-note-context-search]");
@@ -914,14 +937,14 @@
     contextApplyButton = document.querySelector("[data-note-context-apply]");
     contextList = document.querySelector("[data-note-context-list]");
     contextSelectedMessage = document.querySelector("[data-note-context-selected]");
-    clientInput = document.querySelector("[data-note-client-id]");
-    projectInput = document.querySelector("[data-note-project-id]");
+    clientInput = findNotesControl("[data-note-client-id]", HTMLSelectElement);
+    projectInput = findNotesControl("[data-note-project-id]", HTMLSelectElement);
     primaryClientField = document.querySelector("[data-note-primary-client-field]");
     primaryProjectField = document.querySelector("[data-note-primary-project-field]");
-    taskInput = document.querySelector("[data-note-task-id]");
-    userInput = document.querySelector("[data-note-user-id]");
+    taskInput = findNotesControl("[data-note-task-id]", HTMLInputElement);
+    userInput = findNotesControl("[data-note-user-id]", HTMLInputElement);
     suggestionMessage = document.querySelector("[data-note-library-suggestion]");
-    detailsGroup = document.querySelector("[data-note-details-group]");
+    detailsGroup = findNotesControl("[data-note-details-group]", HTMLDetailsElement);
     tagsDialog = document.querySelector("[data-note-tags-dialog]");
     tagsEditor = document.querySelector("[data-note-tags-editor]");
     tagsDialogCloseButton = document.querySelector("[data-note-tags-dialog-close]");
@@ -931,15 +954,15 @@
     filesSaveFirstWarning = document.querySelector("[data-note-files-save-first-warning]");
     tagsToggle = document.querySelector("[data-note-tags-toggle]");
     filesToggle = document.querySelector("[data-note-files-toggle]");
-    copyLinkButton = document.querySelector("[data-copy-note-link]");
-    bodyInput = document.querySelector("[data-note-body]");
+    copyLinkButton = findNotesControl("[data-copy-note-link]", HTMLButtonElement);
+    bodyInput = findNotesControl("[data-note-body]", HTMLTextAreaElement);
     markdownEditor = document.querySelector("[data-note-markdown-editor]");
-    previewToggle = document.querySelector("[data-note-preview-toggle]");
-    preview = document.querySelector("[data-note-preview]");
-    formStatus = document.querySelector("[data-note-form-status]");
+    previewToggle = findNotesControl("[data-note-preview-toggle]", HTMLButtonElement);
+    preview = findNotesControl("[data-note-preview]", HTMLElement);
+    formStatus = findNotesControl("[data-note-form-status]", HTMLElement);
     cancelButton = document.querySelector("[data-note-cancel]");
-    saveButton = document.querySelector("[data-note-save]");
-    saveCloseButton = document.querySelector("[data-note-save-close]");
+    saveButton = findNotesControl("[data-note-save]", HTMLButtonElement);
+    saveCloseButton = findNotesControl("[data-note-save-close]", HTMLButtonElement);
     bulkToolbar = document.querySelector("[data-note-bulk-toolbar]");
     bulkEditButton = document.querySelector("[data-note-bulk-edit]");
     bulkClearButton = document.querySelector("[data-note-bulk-clear]");
@@ -954,20 +977,20 @@
     bulkTagActionInput = document.querySelector("[data-note-bulk-tag-action]");
     bulkTagsEditor = document.querySelector("[data-note-bulk-tags]");
     bulkFormStatus = document.querySelector("[data-note-bulk-form-status]");
-    collectionDialog = findCollectionControl("[data-note-collection-dialog]", HTMLDialogElement);
-    collectionForm = findCollectionControl("[data-note-collection-form]", HTMLFormElement);
-    collectionDialogTitle = findCollectionControl("[data-note-collection-dialog-title]", HTMLElement);
-    collectionDialogCloseButton = findCollectionControl("[data-note-collection-dialog-close]", HTMLButtonElement);
-    collectionTitleInput = findCollectionControl("[data-note-collection-title]", HTMLInputElement);
-    collectionLibraryInput = findCollectionControl("[data-note-collection-library]", HTMLSelectElement);
-    collectionParentInput = findCollectionControl("[data-note-collection-parent]", HTMLSelectElement);
-    collectionFormStatus = findCollectionControl("[data-note-collection-form-status]", HTMLElement);
-    collectionCancelButton = findCollectionControl("[data-note-collection-cancel]", HTMLButtonElement);
-    collectionSaveButton = findCollectionControl("[data-note-collection-save]", HTMLButtonElement);
-    collectionActionsDialog = findCollectionControl("[data-note-collection-actions-dialog]", HTMLDialogElement);
-    collectionActionsDialogTitle = findCollectionControl("[data-note-collection-actions-dialog-title]", HTMLElement);
-    collectionActionsDialogBody = findCollectionControl("[data-note-collection-actions-dialog-body]", HTMLElement);
-    collectionActionsDialogCloseButton = findCollectionControl("[data-note-collection-actions-dialog-close]", HTMLButtonElement);
+    collectionDialog = findNotesControl("[data-note-collection-dialog]", HTMLDialogElement);
+    collectionForm = findNotesControl("[data-note-collection-form]", HTMLFormElement);
+    collectionDialogTitle = findNotesControl("[data-note-collection-dialog-title]", HTMLElement);
+    collectionDialogCloseButton = findNotesControl("[data-note-collection-dialog-close]", HTMLButtonElement);
+    collectionTitleInput = findNotesControl("[data-note-collection-title]", HTMLInputElement);
+    collectionLibraryInput = findNotesControl("[data-note-collection-library]", HTMLSelectElement);
+    collectionParentInput = findNotesControl("[data-note-collection-parent]", HTMLSelectElement);
+    collectionFormStatus = findNotesControl("[data-note-collection-form-status]", HTMLElement);
+    collectionCancelButton = findNotesControl("[data-note-collection-cancel]", HTMLButtonElement);
+    collectionSaveButton = findNotesControl("[data-note-collection-save]", HTMLButtonElement);
+    collectionActionsDialog = findNotesControl("[data-note-collection-actions-dialog]", HTMLDialogElement);
+    collectionActionsDialogTitle = findNotesControl("[data-note-collection-actions-dialog-title]", HTMLElement);
+    collectionActionsDialogBody = findNotesControl("[data-note-collection-actions-dialog-body]", HTMLElement);
+    collectionActionsDialogCloseButton = findNotesControl("[data-note-collection-actions-dialog-close]", HTMLButtonElement);
 
     editor = requireNamespace().notesEditor?.createPlainTextarea(bodyInput);
   }
@@ -3029,6 +3052,11 @@
     return icon;
   }
 
+  /**
+   * @param {NotesEditorNote | null} [note]
+   * @param {NotesEditorOptions} [options]
+   * @returns {Promise<string>}
+   */
   async function openEditor(note = null, options = {}) {
     note = await hydrateEditorNote(note);
     const view = requireView();
@@ -3040,40 +3068,40 @@
     state.editorSelectedTarget = null;
     state.editorStagedTargets = [];
     state.libraryManuallyChanged = false;
-    dialogTitle.textContent = note ? "Edit Note" : "Create Note";
-    titleInput.value = note?.title || defaults.title || "";
-    libraryInput.value = note?.library_bucket || defaults.library_bucket || state.activeBucketForCreate || defaultLibraryForCreate();
-    populateNoteCollectionOptions(note?.library_bucket || libraryInput.value);
-    collectionInput.value = note?.note_collection_id || defaults.note_collection_id || "";
-    if (collectionInput.value && ![...collectionInput.options].some((option) => option.value === collectionInput.value)) {
-      collectionInput.value = "";
+    requireNotesValue(dialogTitle).textContent = note ? "Edit Note" : "Create Note";
+    requireNotesValue(titleInput).value = note?.title || defaults.title || "";
+    requireNotesValue(libraryInput).value = note?.library_bucket || defaults.library_bucket || defaultLibraryForCreate();
+    populateNoteCollectionOptions(note?.library_bucket || requireNotesValue(libraryInput).value);
+    requireNotesValue(collectionInput).value = note?.note_collection_id || defaults.note_collection_id || "";
+    if (requireNotesValue(collectionInput).value && ![...requireNotesValue(collectionInput).options].some((option) => option.value === requireNotesValue(collectionInput).value)) {
+      requireNotesValue(collectionInput).value = "";
     }
     resetLegacyNoteKindOptions();
     ensureNoteKindOption(note?.note_type);
-    typeInput.value = note?.note_type || defaults.note_type || "general";
+    requireNotesValue(typeInput).value = note?.note_type || defaults.note_type || "general";
     populateWorkspaceVisibilityOptions(note?.visibility || defaults.visibility || "internal");
-    securityInput.value = note?.security_mode || defaults.security_mode || "normal";
-    securityInput.disabled = Boolean(note);
+    requireNotesValue(securityInput).value = note?.security_mode || defaults.security_mode || "normal";
+    requireNotesValue(securityInput).disabled = Boolean(note);
     updateSecureUiState();
     const selectedClientId = note?.client_id || defaults.client_id || "";
     const selectedProjectId = note?.project_id || defaults.project_id || "";
-    clientInput.value = selectedClientId;
-    projectInput.value = selectedProjectId;
-    taskInput.value = note?.task_id || "";
-    userInput.value = note?.linked_user_id || "";
+    requireNotesValue(clientInput).value = selectedClientId;
+    requireNotesValue(projectInput).value = selectedProjectId;
+    requireNotesValue(taskInput).value = note?.task_id || "";
+    requireNotesValue(userInput).value = note?.linked_user_id || "";
     state.editorContextSummaries = note?.linked_context || {};
     await loadPrimaryContextOptions({
       clientId: selectedClientId,
       projectId: selectedProjectId,
     });
     editor?.setValue(note?.body_markdown || defaults.body_markdown || "");
-    bodyInput.value = note?.body_markdown || defaults.body_markdown || "";
-    preview.hidden = true;
-    previewToggle.setAttribute("aria-pressed", "false");
+    requireNotesValue(bodyInput).value = note?.body_markdown || defaults.body_markdown || "";
+    requireNotesValue(preview).hidden = true;
+    requireNotesValue(previewToggle).setAttribute("aria-pressed", "false");
     updatePreviewLayoutState(false);
-    formStatus.textContent = "";
-    saveButton.disabled = false;
-    saveCloseButton.disabled = false;
+    requireNotesValue(formStatus).textContent = "";
+    requireNotesValue(saveButton).disabled = false;
+    requireNotesValue(saveCloseButton).disabled = false;
     if (copyLinkButton) {
       copyLinkButton.hidden = !note?.note_id;
       copyLinkButton.disabled = !note?.note_id;
@@ -3089,14 +3117,19 @@
     await loadEditorLinkTargets();
     updateLibrarySuggestion();
     const openDialog = dialog;
+    /** @type {Promise<string>} */
     const closeResult = new Promise((resolve) => {
       openDialog?.addEventListener("close", () => resolve(openDialog.returnValue || "closed"), { once: true });
     });
     view.showModal(dialog, { trigger: options.trigger || options.hostContext?.trigger || null });
-    titleInput.focus();
+    requireNotesValue(titleInput).focus();
     return closeResult;
   }
 
+  /**
+   * @param {NotesEditorNote | null} [note]
+   * @returns {Promise<NotesEditorNote | null>}
+   */
   async function hydrateEditorNote(note = null) {
     const api = requireApi();
     const noteId = note?.note_id || "";
@@ -3133,6 +3166,9 @@
     updateFilesUtilityState();
   }
 
+  /**
+   * @param {boolean} [secureMode]
+   */
   function updateSecureVisibilityOptions(secureMode = false) {
     if (!visibilityInput) {
       return;
@@ -3153,6 +3189,9 @@
     }
   }
 
+  /**
+   * @param {string} [selectedValue]
+   */
   function populateWorkspaceVisibilityOptions(selectedValue = visibilityInput?.value || "internal") {
     if (!visibilityInput) {
       return;
@@ -3164,14 +3203,22 @@
     updateSecureVisibilityOptions(isSecureEditorMode());
   }
 
+  /**
+   * Notes-owned manifest visibility entries are string value/label pairs; the
+   * workspace projection only filters them and modalFieldOptions preserves pairs.
+   * @returns {Array<[string, string]>}
+   */
   function workspaceVisibilityOptions() {
     if (normalizeWorkspaceType(state.workspaceType) === "personal") {
       return [];
     }
     return modalFieldOptions(notesEditorModalDescriptor(), "visibility")
-      .filter(([value]) => value !== "client_visible" || usesBusinessScope());
+      .filter(/** @param {[string, string]} option */ ([value]) => value !== "client_visible" || usesBusinessScope());
   }
 
+  /**
+   * @param {{cancelHost?: boolean, returnValue?: string}} [options]
+   */
   function closeEditor(options = {}) {
     const view = requireView();
     if (options.cancelHost) {
@@ -4422,15 +4469,15 @@
 
     state.collectionDialogMode = mode || "create";
     state.collectionEditingId = collection?.note_library_collection_id || "";
-    requireCollectionValue(collectionDialogTitle).textContent = collection ? "Edit Collection" : "Create Collection";
-    requireCollectionValue(collectionTitleInput).value = collection?.title || "";
-    requireCollectionValue(collectionLibraryInput).value = libraryBucket;
-    requireCollectionValue(collectionLibraryInput).disabled = Boolean(collection);
+    requireNotesValue(collectionDialogTitle).textContent = collection ? "Edit Collection" : "Create Collection";
+    requireNotesValue(collectionTitleInput).value = collection?.title || "";
+    requireNotesValue(collectionLibraryInput).value = libraryBucket;
+    requireNotesValue(collectionLibraryInput).disabled = Boolean(collection);
     populateCollectionParentOptions(collection, parent);
-    requireCollectionValue(collectionFormStatus).textContent = "";
-    requireCollectionValue(collectionSaveButton).disabled = false;
+    requireNotesValue(collectionFormStatus).textContent = "";
+    requireNotesValue(collectionSaveButton).disabled = false;
     view.showModal(collectionDialog, { parent: null });
-    requireCollectionValue(collectionTitleInput).focus();
+    requireNotesValue(collectionTitleInput).focus();
   }
 
   function closeCollectionDialog() {
@@ -4447,13 +4494,13 @@
   async function saveCollection(event) {
     const api = requireApi();
     event.preventDefault();
-    requireCollectionValue(collectionSaveButton).disabled = true;
-    requireCollectionValue(collectionFormStatus).textContent = "Saving collection...";
+    requireNotesValue(collectionSaveButton).disabled = true;
+    requireNotesValue(collectionFormStatus).textContent = "Saving collection...";
 
     const payload = {
-      title: requireCollectionValue(collectionTitleInput).value,
-      libraryBucket: requireCollectionValue(collectionLibraryInput).value,
-      parentCollectionId: requireCollectionValue(collectionParentInput).value || null,
+      title: requireNotesValue(collectionTitleInput).value,
+      libraryBucket: requireNotesValue(collectionLibraryInput).value,
+      parentCollectionId: requireNotesValue(collectionParentInput).value || null,
     };
 
     try {
@@ -4466,8 +4513,8 @@
       closeCollectionDialog();
       setStatus("");
     } catch (error) {
-      requireCollectionValue(collectionFormStatus).textContent = requireErrors().caughtMessage(error, "Collection could not be saved.");
-      requireCollectionValue(collectionSaveButton).disabled = false;
+      requireNotesValue(collectionFormStatus).textContent = requireErrors().caughtMessage(error, "Collection could not be saved.");
+      requireNotesValue(collectionSaveButton).disabled = false;
     }
   }
 
@@ -4477,7 +4524,7 @@
   async function archiveCollection(collection) {
     const confirmed = await requireModalDialogs().confirm({
       title: "Archive collection",
-      message: `Archive "${requireCollectionValue(collection).title}"? Notes stay in the collection and are not archived.`,
+      message: `Archive "${requireNotesValue(collection).title}"? Notes stay in the collection and are not archived.`,
       confirmLabel: "Archive",
     });
 
@@ -4485,7 +4532,7 @@
       return;
     }
 
-    await mutateCollection(`/api/notes/collections/${encodeURIComponent(requireCollectionValue(collection).note_library_collection_id)}/archive`);
+    await mutateCollection(`/api/notes/collections/${encodeURIComponent(requireNotesValue(collection).note_library_collection_id)}/archive`);
   }
 
   /**
@@ -4494,7 +4541,7 @@
   async function deleteEmptyCollection(collection) {
     const confirmed = await requireModalDialogs().confirm({
       title: "Delete empty collection",
-      message: `Delete "${requireCollectionValue(collection).title}" if it has no notes and no active child collections?`,
+      message: `Delete "${requireNotesValue(collection).title}" if it has no notes and no active child collections?`,
       confirmLabel: "Delete Empty",
       danger: true,
     });
@@ -4503,7 +4550,7 @@
       return;
     }
 
-    await mutateCollection(`/api/notes/collections/${encodeURIComponent(requireCollectionValue(collection).note_library_collection_id)}/delete-empty`);
+    await mutateCollection(`/api/notes/collections/${encodeURIComponent(requireNotesValue(collection).note_library_collection_id)}/delete-empty`);
   }
 
   /**
