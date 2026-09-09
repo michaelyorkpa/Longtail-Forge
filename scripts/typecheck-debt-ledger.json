@@ -331,6 +331,7 @@
         "tests/e2e/login.spec.mjs",
         "tests/e2e/mobile-nav.spec.mjs",
         "tests/e2e/modal.spec.mjs",
+        "tests/e2e/notes-collections.spec.mjs",
         "tests/e2e/overflow.spec.mjs",
         "tests/e2e/public-legal.spec.mjs",
         "tests/e2e/reporting-host-console.spec.mjs",
@@ -568,7 +569,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 7577,
+      "errorCount": 7470,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1025,7 +1026,7 @@
         "public/js/notes.js": [
           {
             "code": 18047,
-            "count": 99
+            "count": 85
           },
           {
             "code": 2322,
@@ -1033,7 +1034,7 @@
           },
           {
             "code": 2339,
-            "count": 449
+            "count": 390
           },
           {
             "code": 2345,
@@ -1041,7 +1042,7 @@
           },
           {
             "code": 2740,
-            "count": 2
+            "count": 1
           },
           {
             "code": 7005,
@@ -1049,7 +1050,7 @@
           },
           {
             "code": 7006,
-            "count": 174
+            "count": 142
           },
           {
             "code": 7019,
@@ -1065,7 +1066,7 @@
           },
           {
             "code": 7053,
-            "count": 9
+            "count": 8
           }
         ],
         "public/js/notifications.js": [
@@ -2554,8 +2555,8 @@
     }
   },
   "totals": {
-    "files": 1149,
-    "errors": 7577,
+    "files": 1150,
+    "errors": 7470,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

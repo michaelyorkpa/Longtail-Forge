@@ -434,6 +434,7 @@
     return factory;
   }
   const PAGE_SIZE = 12;
+  /** @type {Record<string, string>} */
   const BUCKET_LABELS = {
     active_work: "Active Work",
     ongoing_area: "Ongoing Areas",
@@ -662,7 +663,7 @@
   let securityFilter = null;
   /** @type {Element | null} */
   let typeFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let collectionFilter = null;
   /** @type {Element | null} */
   let contextFilter = null;
@@ -686,11 +687,11 @@
   let nextButton = null;
   /** @type {Element | null} */
   let pageLabel = null;
-  /** @type {Element | null} */
+  /** @type {HTMLElement | null} */
   let collectionPanel = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let collectionLibraryFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLElement | null} */
   let collectionActionsMount = null;
   /** @type {Element | null} */
   let dialog = null;
@@ -702,9 +703,9 @@
   let notificationToggle = null;
   /** @type {Element | null} */
   let titleInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let libraryInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let collectionInput = null;
   /** @type {Element | null} */
   let typeInput = null;
@@ -808,33 +809,33 @@
   let bulkTagsEditor = null;
   /** @type {Element | null} */
   let bulkFormStatus = null;
-  /** @type {Element | null} */
+  /** @type {HTMLDialogElement | null} */
   let collectionDialog = null;
-  /** @type {Element | null} */
+  /** @type {HTMLFormElement | null} */
   let collectionForm = null;
-  /** @type {Element | null} */
+  /** @type {HTMLElement | null} */
   let collectionDialogTitle = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let collectionDialogCloseButton = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | null} */
   let collectionTitleInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let collectionLibraryInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let collectionParentInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLElement | null} */
   let collectionFormStatus = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let collectionCancelButton = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let collectionSaveButton = null;
-  /** @type {Element | null} */
+  /** @type {HTMLDialogElement | null} */
   let collectionActionsDialog = null;
-  /** @type {Element | null} */
+  /** @type {HTMLElement | null} */
   let collectionActionsDialogTitle = null;
-  /** @type {Element | null} */
+  /** @type {HTMLElement | null} */
   let collectionActionsDialogBody = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let collectionActionsDialogCloseButton = null;
 
   /**
@@ -848,6 +849,31 @@
    */
   let editor = null;
 
+  /**
+   * Collection controls remain optional during shell caching. Check their actual DOM
+   * subtype without making a missing dialog fail before its workflow is invoked.
+   * @template {HTMLElement} T
+   * @param {string} selector
+   * @param {{new(): T}} constructor
+   * @returns {T | null}
+   */
+  function findCollectionControl(selector, constructor) {
+    const element = document.querySelector(selector);
+    return element instanceof constructor ? element : null;
+  }
+
+  /**
+   * Narrow at the existing required access, including after an awaited refresh.
+   * Optional controls and initial shell caching keep their existing no-op behavior.
+   * @template T
+   * @param {T | null} value
+   * @returns {T}
+   */
+  function requireCollectionValue(value) {
+    if (value === null) throw new TypeError("Required Notes collection value is unavailable.");
+    return value;
+  }
+
   function cacheNotesElements() {
     statusMessage = document.querySelector("[data-notes-status]");
     filtersForm = document.querySelector("[data-notes-filters]");
@@ -855,7 +881,7 @@
     visibilityFilter = document.querySelector("[data-note-filter-visibility]");
     securityFilter = document.querySelector("[data-note-filter-security]");
     typeFilter = document.querySelector("[data-note-filter-type]");
-    collectionFilter = document.querySelector("[data-note-filter-collection]");
+    collectionFilter = findCollectionControl("[data-note-filter-collection]", HTMLSelectElement);
     contextFilter = document.querySelector("[data-note-filter-context]");
     ownerFilter = document.querySelector("[data-note-filter-owner]");
     tagFilter = document.querySelector("[data-note-filter-tags]");
@@ -867,16 +893,16 @@
     prevButton = document.querySelector("[data-notes-prev]");
     nextButton = document.querySelector("[data-notes-next]");
     pageLabel = document.querySelector("[data-notes-page]");
-    collectionPanel = document.querySelector("[data-notes-collections-panel]");
-    collectionLibraryFilter = document.querySelector("[data-note-collection-library-filter]");
-    collectionActionsMount = document.querySelector("[data-note-collection-actions]");
+    collectionPanel = findCollectionControl("[data-notes-collections-panel]", HTMLElement);
+    collectionLibraryFilter = findCollectionControl("[data-note-collection-library-filter]", HTMLSelectElement);
+    collectionActionsMount = findCollectionControl("[data-note-collection-actions]", HTMLElement);
     dialog = document.querySelector("[data-note-dialog]");
     form = document.querySelector("[data-note-form]");
     dialogTitle = document.querySelector("[data-note-dialog-title]");
     notificationToggle = document.querySelector("[data-note-notification-toggle]");
     titleInput = document.querySelector("[data-note-title]");
-    libraryInput = document.querySelector("[data-note-library]");
-    collectionInput = document.querySelector("[data-note-collection]");
+    libraryInput = findCollectionControl("[data-note-library]", HTMLSelectElement);
+    collectionInput = findCollectionControl("[data-note-collection]", HTMLSelectElement);
     typeInput = document.querySelector("[data-note-type]");
     visibilityInput = document.querySelector("[data-note-visibility]");
     securityInput = document.querySelector("[data-note-security]");
@@ -928,20 +954,20 @@
     bulkTagActionInput = document.querySelector("[data-note-bulk-tag-action]");
     bulkTagsEditor = document.querySelector("[data-note-bulk-tags]");
     bulkFormStatus = document.querySelector("[data-note-bulk-form-status]");
-    collectionDialog = document.querySelector("[data-note-collection-dialog]");
-    collectionForm = document.querySelector("[data-note-collection-form]");
-    collectionDialogTitle = document.querySelector("[data-note-collection-dialog-title]");
-    collectionDialogCloseButton = document.querySelector("[data-note-collection-dialog-close]");
-    collectionTitleInput = document.querySelector("[data-note-collection-title]");
-    collectionLibraryInput = document.querySelector("[data-note-collection-library]");
-    collectionParentInput = document.querySelector("[data-note-collection-parent]");
-    collectionFormStatus = document.querySelector("[data-note-collection-form-status]");
-    collectionCancelButton = document.querySelector("[data-note-collection-cancel]");
-    collectionSaveButton = document.querySelector("[data-note-collection-save]");
-    collectionActionsDialog = document.querySelector("[data-note-collection-actions-dialog]");
-    collectionActionsDialogTitle = document.querySelector("[data-note-collection-actions-dialog-title]");
-    collectionActionsDialogBody = document.querySelector("[data-note-collection-actions-dialog-body]");
-    collectionActionsDialogCloseButton = document.querySelector("[data-note-collection-actions-dialog-close]");
+    collectionDialog = findCollectionControl("[data-note-collection-dialog]", HTMLDialogElement);
+    collectionForm = findCollectionControl("[data-note-collection-form]", HTMLFormElement);
+    collectionDialogTitle = findCollectionControl("[data-note-collection-dialog-title]", HTMLElement);
+    collectionDialogCloseButton = findCollectionControl("[data-note-collection-dialog-close]", HTMLButtonElement);
+    collectionTitleInput = findCollectionControl("[data-note-collection-title]", HTMLInputElement);
+    collectionLibraryInput = findCollectionControl("[data-note-collection-library]", HTMLSelectElement);
+    collectionParentInput = findCollectionControl("[data-note-collection-parent]", HTMLSelectElement);
+    collectionFormStatus = findCollectionControl("[data-note-collection-form-status]", HTMLElement);
+    collectionCancelButton = findCollectionControl("[data-note-collection-cancel]", HTMLButtonElement);
+    collectionSaveButton = findCollectionControl("[data-note-collection-save]", HTMLButtonElement);
+    collectionActionsDialog = findCollectionControl("[data-note-collection-actions-dialog]", HTMLDialogElement);
+    collectionActionsDialogTitle = findCollectionControl("[data-note-collection-actions-dialog-title]", HTMLElement);
+    collectionActionsDialogBody = findCollectionControl("[data-note-collection-actions-dialog-body]", HTMLElement);
+    collectionActionsDialogCloseButton = findCollectionControl("[data-note-collection-actions-dialog-close]", HTMLButtonElement);
 
     editor = requireNamespace().notesEditor?.createPlainTextarea(bodyInput);
   }
@@ -2416,6 +2442,9 @@
     }
   }
 
+  /**
+   * @param {string} bucket
+   */
   async function selectBucket(bucket) {
     state.activeBucket = bucket || "all";
     state.page = 1;
@@ -2472,6 +2501,9 @@
     updateCollectionPanelSelection();
   }
 
+  /**
+   * @param {BrowserNoteCollection | null} collection
+   */
   function collectionActions(collection) {
     const view = requireView();
     const trigger = notesIconButton({
@@ -2486,6 +2518,7 @@
   }
 
   /**
+   * @param {BrowserNoteCollection | null} [collection]
    * @param {HTMLButtonElement | null} [trigger] The button that opened the dialog, so focus
    * returns to it on close. Its one caller always supplies one.
    */
@@ -2530,6 +2563,9 @@
     view.closeModal(collectionActionsDialog);
   }
 
+  /**
+   * @param {() => unknown} callback
+   */
   function afterCollectionActionsDialogClosed(callback) {
     if (typeof callback !== "function") {
       return;
@@ -2543,6 +2579,11 @@
     closeCollectionActionsDialog();
   }
 
+  /**
+   * @param {string} label
+   * @param {() => unknown} onClick
+   * @param {{role?: string, disabled?: boolean, title?: string}} [options]
+   */
   function collectionDialogAction(label, onClick, options = {}) {
     const view = requireView();
     return view.createActionButton({
@@ -2554,6 +2595,9 @@
     });
   }
 
+  /**
+   * @param {string} collectionId
+   */
   function selectCollection(collectionId) {
     state.selectedCollectionId = collectionId || "";
     state.page = 1;
@@ -4366,6 +4410,10 @@
     await mutateNote(`/api/notes/${encodeURIComponent(note.note_id)}/restore`);
   }
 
+  /**
+   * @param {string} mode
+   * @param {{collection?: BrowserNoteCollection | null, parent?: BrowserNoteCollection | null}} [options]
+   */
   function openCollectionDialog(mode, options = {}) {
     const view = requireView();
     const collection = options.collection || null;
@@ -4374,15 +4422,15 @@
 
     state.collectionDialogMode = mode || "create";
     state.collectionEditingId = collection?.note_library_collection_id || "";
-    collectionDialogTitle.textContent = collection ? "Edit Collection" : "Create Collection";
-    collectionTitleInput.value = collection?.title || "";
-    collectionLibraryInput.value = libraryBucket;
-    collectionLibraryInput.disabled = Boolean(collection);
+    requireCollectionValue(collectionDialogTitle).textContent = collection ? "Edit Collection" : "Create Collection";
+    requireCollectionValue(collectionTitleInput).value = collection?.title || "";
+    requireCollectionValue(collectionLibraryInput).value = libraryBucket;
+    requireCollectionValue(collectionLibraryInput).disabled = Boolean(collection);
     populateCollectionParentOptions(collection, parent);
-    collectionFormStatus.textContent = "";
-    collectionSaveButton.disabled = false;
+    requireCollectionValue(collectionFormStatus).textContent = "";
+    requireCollectionValue(collectionSaveButton).disabled = false;
     view.showModal(collectionDialog, { parent: null });
-    collectionTitleInput.focus();
+    requireCollectionValue(collectionTitleInput).focus();
   }
 
   function closeCollectionDialog() {
@@ -4393,16 +4441,19 @@
     }
   }
 
+  /**
+   * @param {Event} event
+   */
   async function saveCollection(event) {
     const api = requireApi();
     event.preventDefault();
-    collectionSaveButton.disabled = true;
-    collectionFormStatus.textContent = "Saving collection...";
+    requireCollectionValue(collectionSaveButton).disabled = true;
+    requireCollectionValue(collectionFormStatus).textContent = "Saving collection...";
 
     const payload = {
-      title: collectionTitleInput.value,
-      libraryBucket: collectionLibraryInput.value,
-      parentCollectionId: collectionParentInput.value || null,
+      title: requireCollectionValue(collectionTitleInput).value,
+      libraryBucket: requireCollectionValue(collectionLibraryInput).value,
+      parentCollectionId: requireCollectionValue(collectionParentInput).value || null,
     };
 
     try {
@@ -4415,15 +4466,18 @@
       closeCollectionDialog();
       setStatus("");
     } catch (error) {
-      collectionFormStatus.textContent = requireErrors().caughtMessage(error, "Collection could not be saved.");
-      collectionSaveButton.disabled = false;
+      requireCollectionValue(collectionFormStatus).textContent = requireErrors().caughtMessage(error, "Collection could not be saved.");
+      requireCollectionValue(collectionSaveButton).disabled = false;
     }
   }
 
+  /**
+   * @param {BrowserNoteCollection | null} collection
+   */
   async function archiveCollection(collection) {
     const confirmed = await requireModalDialogs().confirm({
       title: "Archive collection",
-      message: `Archive "${collection.title}"? Notes stay in the collection and are not archived.`,
+      message: `Archive "${requireCollectionValue(collection).title}"? Notes stay in the collection and are not archived.`,
       confirmLabel: "Archive",
     });
 
@@ -4431,13 +4485,16 @@
       return;
     }
 
-    await mutateCollection(`/api/notes/collections/${encodeURIComponent(collection.note_library_collection_id)}/archive`);
+    await mutateCollection(`/api/notes/collections/${encodeURIComponent(requireCollectionValue(collection).note_library_collection_id)}/archive`);
   }
 
+  /**
+   * @param {BrowserNoteCollection | null} collection
+   */
   async function deleteEmptyCollection(collection) {
     const confirmed = await requireModalDialogs().confirm({
       title: "Delete empty collection",
-      message: `Delete "${collection.title}" if it has no notes and no active child collections?`,
+      message: `Delete "${requireCollectionValue(collection).title}" if it has no notes and no active child collections?`,
       confirmLabel: "Delete Empty",
       danger: true,
     });
@@ -4446,9 +4503,12 @@
       return;
     }
 
-    await mutateCollection(`/api/notes/collections/${encodeURIComponent(collection.note_library_collection_id)}/delete-empty`);
+    await mutateCollection(`/api/notes/collections/${encodeURIComponent(requireCollectionValue(collection).note_library_collection_id)}/delete-empty`);
   }
 
+  /**
+   * @param {string} url
+   */
   async function mutateCollection(url) {
     const api = requireApi();
     setStatus("Saving collection...");
@@ -5203,6 +5263,9 @@
     typeInput?.querySelectorAll("[data-legacy-note-kind='true']").forEach((option) => option.remove());
   }
 
+  /**
+   * @param {string} value
+   */
   function libraryLabel(value) {
     return BUCKET_LABELS[value] || formatToken(value);
   }
@@ -5221,7 +5284,7 @@
   function normalizeCollections(collections) {
     return (Array.isArray(collections) ? collections : [])
       .filter(isResponseRecord)
-      .map((collection) => ({
+      .map(/** @returns {BrowserNoteCollection} */ (collection) => ({
         ...collection,
         note_library_collection_id: collectionText(collection.note_library_collection_id) || collectionText(collection.id),
         parent_collection_id: collectionText(collection.parent_collection_id),
@@ -5247,7 +5310,11 @@
     return state.collections.filter((collection) => collection.status !== "deleted");
   }
 
+  /**
+   * @param {BrowserNoteCollection[]} collections
+   */
   function groupCollectionsByBucket(collections) {
+    /** @type {Map<string, BrowserNoteCollection[]>} */
     const groups = new Map();
 
     for (const collection of collections) {
@@ -5258,7 +5325,11 @@
     return [...groups.entries()].sort((left, right) => bucketSortValue(left[0]) - bucketSortValue(right[0]));
   }
 
+  /**
+   * @param {BrowserNoteCollection[]} collections
+   */
   function groupCollectionsByParent(collections) {
+    /** @type {Map<string, BrowserNoteCollection[]>} */
     const groups = new Map();
 
     for (const collection of collections) {
@@ -5282,6 +5353,7 @@
   }
 
   function collectionFilterOptions() {
+    /** @type {(HTMLOptionElement | HTMLOptGroupElement)[]} */
     const controls = [
       createOption("", "All collections"),
       createOption("__uncategorized", "Uncategorized"),
@@ -5309,9 +5381,17 @@
     return controls;
   }
 
+  /**
+   * @param {BrowserNoteCollection[]} [collections]
+   */
   function hierarchicalCollectionOptions(collections = []) {
     const byParent = groupCollectionsByParent(collections);
 
+    /**
+     * @param {BrowserNoteCollection} collection
+     * @param {number} [depth]
+     * @returns {HTMLOptionElement[]}
+     */
     function optionsForCollection(collection, depth = 0) {
       const option = createOption(
         collection.note_library_collection_id,
@@ -5326,19 +5406,33 @@
     return (byParent.get("") || []).flatMap((collection) => optionsForCollection(collection, 0));
   }
 
+  /**
+   * @param {BrowserNoteCollection} collection
+   * @param {number} [depth]
+   */
   function collectionSelectLabel(collection, depth = 0) {
     return `${depth > 0 ? `${"  ".repeat(depth)}- ` : ""}${collection.title || "Collection"}`;
   }
 
+  /**
+   * @param {HTMLSelectElement | null} select
+   * @param {string} value
+   */
   function collectionFilterHasValue(select, value) {
     return [...(select?.querySelectorAll("option") || [])].some((option) => option.value === value);
   }
 
+  /**
+   * @param {string} bucket
+   */
   function bucketSortValue(bucket) {
     const index = COLLECTION_BUCKET_ORDER.indexOf(bucket);
     return index === -1 ? COLLECTION_BUCKET_ORDER.length : index;
   }
 
+  /**
+   * @param {string | null | undefined} collectionId
+   */
   function collectionLabel(collectionId) {
     if (!collectionId) {
       return "";
@@ -5348,6 +5442,9 @@
     return collection?.path_cache || collection?.title || "Archived or unavailable collection";
   }
 
+  /**
+   * @param {BrowserNoteCollection} collection
+   */
   function collectionOptionLabel(collection) {
     const depth = Math.max(0, Number(collection.depth || 0));
     const prefix = depth > 0 ? `${"  ".repeat(depth)}- ` : "";
@@ -5371,6 +5468,10 @@
     collectionInput.value = options.some((option) => option.value === previousValue) ? previousValue : "";
   }
 
+  /**
+   * @param {BrowserNoteCollection | null} [currentCollection]
+   * @param {BrowserNoteCollection | null} [preferredParent]
+   */
   function populateCollectionParentOptions(currentCollection = null, preferredParent = null) {
     const parentInput = collectionParentInput;
     if (!parentInput) {
@@ -5399,6 +5500,10 @@
     }
   }
 
+  /**
+   * @param {BrowserNoteCollection | null} collection
+   * @returns {string[]}
+   */
   function collectionDescendantIds(collection) {
     if (!collection) {
       return [];
@@ -5410,6 +5515,7 @@
 
     while (stack.length > 0) {
       const next = stack.shift();
+      if (!next) break;
       descendants.push(next.note_library_collection_id);
       stack.push(...(byParent.get(next.note_library_collection_id) || []));
     }
@@ -5620,6 +5726,9 @@
     return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
   }
 
+  /**
+   * @param {unknown} value
+   */
   function formatToken(value) {
     return String(value || "")
       .replace(/[_-]+/g, " ")
@@ -5665,10 +5774,18 @@
     return error?.message || fallback;
   }
 
+  /**
+   * @param {unknown} left
+   * @param {unknown} right
+   */
   function compareText(left, right) {
     return String(left || "").localeCompare(String(right || ""));
   }
 
+  /**
+   * @param {string} value
+   * @param {string} label
+   */
   function createOption(value, label) {
     const option = document.createElement("option");
 
