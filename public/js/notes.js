@@ -790,7 +790,7 @@
   let filesDialogCloseButton = null;
   /** @type {Element | null} */
   let filesSaveFirstWarning = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let tagsToggle = null;
   /** @type {Element | null} */
   let filesToggle = null;
@@ -960,7 +960,7 @@
     filesEditor = document.querySelector("[data-note-files-editor]");
     filesDialogCloseButton = document.querySelector("[data-note-files-dialog-close]");
     filesSaveFirstWarning = document.querySelector("[data-note-files-save-first-warning]");
-    tagsToggle = document.querySelector("[data-note-tags-toggle]");
+    tagsToggle = findNotesControl("[data-note-tags-toggle]", HTMLButtonElement);
     filesToggle = document.querySelector("[data-note-files-toggle]");
     copyLinkButton = findNotesControl("[data-copy-note-link]", HTMLButtonElement);
     bodyInput = findNotesControl("[data-note-body]", HTMLTextAreaElement);
@@ -1686,6 +1686,11 @@
     }
   }
 
+  /**
+   * The descriptor renderer binds the control and selected value before invoking this behavior.
+   * Both callbacks forward these options/config to the published search-options surface.
+   * @param {{mountSearchOptions?: (options: unknown[], config: import("../../src/types/browser-contracts.js").BrowserSearchOptionsConfig) => void, setOptions?: (options: unknown[], config: import("../../src/types/browser-contracts.js").BrowserSearchOptionsConfig) => void}} [context]
+   */
   async function hydrateNoteTagFilterOptions({ mountSearchOptions, setOptions } = {}) {
     if (!state.availableTags.length) {
       await loadTags();
@@ -5145,6 +5150,11 @@
     return item;
   }
 
+  /**
+   * Editor hydration can retain an ID-only seed on failure. Only a full checked note supplies
+   * tags, whose elements remain unknown and are normalized by the published picker itself.
+   * @param {(NotesEditorNote & Partial<Pick<BrowserNoteRecord, "tags">>) | null} note
+   */
   async function mountTagEditor(note) {
     // Captured above the guard because the guard reads the surface on **both** of its paths:
     // the `tagsToggle` branch reads it again when `tagsEditor` is absent.
@@ -5155,7 +5165,11 @@
       return;
     }
 
-    tagsToggle.hidden = false;
+    if (tagsToggle) {
+      tagsToggle.hidden = false;
+    } else {
+      requireNotesValue(tagsToggle);
+    }
     state.tagsDialogNoteId = note?.note_id || "";
     state.tagPicker = await tagSurface.mountPicker(tagsEditor, {
       allowCreate: true,
@@ -5230,7 +5244,10 @@
     closeFilesDialog();
     tagsToggle?.setAttribute("aria-expanded", "true");
     view.showModal(tagsDialog, { parent: dialog, trigger: tagsToggle });
-    tagsDialog.querySelector("[data-tag-picker-input]")?.focus();
+    const input = tagsDialog.querySelector("[data-tag-picker-input]");
+    if (input instanceof HTMLInputElement) {
+      input.focus();
+    }
   }
 
   function closeTagsDialog() {
@@ -5824,10 +5841,16 @@
     return badge;
   }
 
+  /**
+   * Note readers establish the array, not a catalogue record for each assignment. Keep those
+   * elements unknown here; the display reads only color/name/slug and the DOM coerces to text.
+   * @param {BrowserNoteRecord["tags"]} [tags]
+   * @param {{limit?: number, showOverflow?: boolean}} [options]
+   */
   function tagChips(tags = [], options = {}) {
     const wrapper = document.createElement("span");
     const normalizedTags = Array.isArray(tags) ? tags : [];
-    const limit = Number.isInteger(options.limit) && options.limit >= 0 ? options.limit : normalizedTags.length;
+    const limit = typeof options.limit === "number" && Number.isInteger(options.limit) && options.limit >= 0 ? options.limit : normalizedTags.length;
     const visibleTags = normalizedTags.slice(0, limit);
     const hiddenCount = Math.max(0, normalizedTags.length - visibleTags.length);
 
@@ -5838,15 +5861,24 @@
     }
 
     visibleTags.forEach((tag) => {
+      // Keep the original null-member failure. Other values retain property lookup/fallback
+      // behavior without claiming that an unchecked assignment is a catalogue record.
+      if (tag === null || tag === undefined) {
+        throw new TypeError("Invalid Notes tag.");
+      }
+      const fields = typeof tag === "object" || typeof tag === "function" ? tag : {};
+      const color = "color" in fields ? fields.color : undefined;
+      const name = "name" in fields ? fields.name : undefined;
+      const slug = "slug" in fields ? fields.slug : undefined;
       const chip = document.createElement("span");
       const swatch = document.createElement("span");
       const label = document.createElement("span");
 
       chip.className = "tag-chip";
       swatch.className = "tag-chip-swatch";
-      swatch.style.backgroundColor = tag.color || "#64748b";
+      swatch.style.backgroundColor = String(color || "#64748b");
       swatch.setAttribute("aria-hidden", "true");
-      label.textContent = tag.name || tag.slug || "Tag";
+      label.textContent = String(name || slug || "Tag");
       chip.append(swatch, label);
       wrapper.append(chip);
     });
