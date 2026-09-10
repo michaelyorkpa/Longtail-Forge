@@ -62,12 +62,25 @@ const cases = [
     '    } catch (error) {\n      timeEntries = [];\n      setTimeEntryStatus("Entries could not be loaded.");'],
 
   // --- the empty and non-ok answers stay distinct from a short read --------------------------------
-  ["an empty response starts being treated as a refusal",
-    "    const rows = isTimeEntryRecord(data) && Array.isArray(data.entries) ? data.entries : [];",
-    "    const rows = isTimeEntryRecord(data) && Array.isArray(data.entries) ? data.entries : [null];"],
-  ["a non-ok entries response starts claiming rows were refused",
-    "        : { entries: [], refused: 0 };",
-    "        : { entries: [], refused: 1 };"],
+  // --- the envelope, and the three ways a response fails to be an answer -------------------------
+  ["an unreadable envelope is read as an empty collection again",
+    "    if (!isTimeEntryRecord(data) || !Array.isArray(data.entries)) {\n      return null;\n    }",
+    "    if (false) {\n      return null;\n    }"],
+  ["a body carrying no entries member is accepted",
+    "!isTimeEntryRecord(data) || !Array.isArray(data.entries)",
+    "!isTimeEntryRecord(data)"],
+  ["a valid empty collection is refused along with the unreadable ones",
+    "    if (!isTimeEntryRecord(data) || !Array.isArray(data.entries)) {",
+    "    if (!isTimeEntryRecord(data) || !Array.isArray(data.entries) || data.entries.length === 0) {"],
+  ["the loader stops refusing an unreadable envelope",
+    "      if (!entryCollection) {",
+    "      if (false && !entryCollection) {"],
+  ["a failed request is treated as an empty day again",
+    "      if (!entriesResponse.ok) {",
+    "      if (false) {"],
+  ["a failed request is reported without its status",
+    "        throw new Error(`Could not load time entries: ${entriesResponse.status}`);",
+    '        throw new Error("Could not load time entries.");'],
 ];
 
 let caught = 0;

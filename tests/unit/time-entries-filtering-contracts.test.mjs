@@ -209,15 +209,19 @@ describe("Time Entries filtering, date ranges and ordering", () => {
     assert.deepEqual(plain(readEntries(api, { entries: [wireRow({ tags: [{ tag_id: "t1" }] })] })[0].tags), [{ tag_id: "t1" }]);
   });
 
-  it("answers an empty list for a body that is not a record or carries no entries array", () => {
+  it("refuses an envelope it cannot read, and keeps that distinct from an empty one", () => {
     const { api } = filteringCase();
 
-    for (const body of [null, undefined, 42, "entries", [], { entries: null }, { entries: "no" }]) {
-      const collection = api.readTimeEntryCollection(body);
-      assert.equal(collection.entries.length, 0, `body ${JSON.stringify(body ?? null)}`);
-      // Nothing was offered, so nothing was refused: an unreadable envelope is not a short read.
-      assert.equal(collection.refused, 0, `body ${JSON.stringify(body ?? null)}`);
+    // `0.33.33.44.15`: a body carrying no `entries` array made no claim about the workspace, so
+    // it is refused outright rather than reported as a read that found nothing.
+    for (const body of [null, undefined, 42, "entries", [], {}, { entries: null }, { entries: "no" }, { rows: [] }]) {
+      assert.equal(api.readTimeEntryCollection(body), null, `body ${JSON.stringify(body ?? null)}`);
     }
+
+    // An empty array is a real answer and is read as one, with nothing refused.
+    const empty = api.readTimeEntryCollection({ entries: [] });
+    assert.equal(empty.entries.length, 0);
+    assert.equal(empty.refused, 0);
   });
 
   it("orders by end time through the same numbers the subtraction produced", () => {

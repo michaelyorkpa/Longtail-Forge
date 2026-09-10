@@ -34,9 +34,11 @@ const cases = [
   ["a rival record predicate appears beside the one the page has",
     "  function isTimeEntryRow(value) {",
     '  function isBulkRecord(value) {\n    return typeof value === "object" && value !== null && !Array.isArray(value);\n  }\n\n  function isTimeEntryRow(value) {'],
+  // Retargeted by `0.33.33.44.15`, which moved the envelope check above the row read so an
+  // unreadable body is refused outright rather than read as an empty collection.
   ["the body stops being checked for an entries array",
-    "const rows = isTimeEntryRecord(data) && Array.isArray(data.entries) ? data.entries : [];",
-    "const rows = data?.entries || [];"],
+    "    if (!isTimeEntryRecord(data) || !Array.isArray(data.entries)) {\n      return null;\n    }",
+    "    if (!isTimeEntryRecord(data)) {\n      return null;\n    }"],
   ["the duration loses the fallback that makes it a number",
     "durationSeconds: Number(entry.duration_seconds) || 0,",
     "durationSeconds: Number(entry.duration_seconds),"],

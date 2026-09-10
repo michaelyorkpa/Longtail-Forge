@@ -49,6 +49,7 @@ function loaderCase(options = {}) {
       events.push(["fetch", url]);
       return {
         ok: url === "/api/time-entries" ? options.entriesOk !== false : true,
+        status: 503,
         json: async () => bodies[url],
       };
     },
@@ -80,6 +81,15 @@ function loaderCase(options = {}) {
   const api = vm.runInContext(`({ ${LIFTED.join(", ")} })`, context);
   return { api, context, events };
 }
+
+/**
+ * What reached the console. The status text is deliberately the same for every failure, so the
+ * log is the only place the *reason* is distinguishable.
+ * @param {unknown[]} events
+ */
+const logged = (events) => String(
+  /** @type {unknown[]} */ (events.find((event) => Array.isArray(event) && event[0] === "console") || [])[1],
+);
 
 /** @param {unknown[]} events */
 const statuses = (events) => events
@@ -173,14 +183,74 @@ describe("Time Entries loader failure policy", () => {
     assert.deepEqual(statuses(events), ["Loading entries...", ""]);
   });
 
-  it("keeps the pre-existing non-ok behaviour unchanged, and says so", async () => {
-    // A non-ok entries response answered an empty list before this checkpoint and still does.
-    // That is a *different* shape of problem from a shortened read and was not in scope here;
-    // it is pinned so the difference stays deliberate rather than drifting into silence.
+  it("refuses a failed request rather than calling it an empty day", async () => {
+    // `0.33.33.44.14` left this path answering `[]`, which says the workspace has no entries -
+    // a claim a 500 never made. `0.33.33.44.15` refuses it under the authorized policy change.
     const { api, context, events } = loaderCase({ entriesOk: false, entriesBody: { entries: [wireRow()] } });
 
     await api.loadTimeEntryData();
 
+    assert.equal(context.timeEntries.length, 0);
+    assert.equal(events.includes("rendered"), false);
+    assert.deepEqual(statuses(events), ["Loading entries...", "Entries could not be loaded."]);
+    // The log names the status it refused on, which is what separates this from the other two.
+    assert.match(logged(events), /Could not load time entries: 503/);
+  });
+
+  it("refuses an envelope it cannot read, which is not the same as an empty collection", async () => {
+    for (const body of [null, 42, "entries", [], {}, { entries: null }, { entries: "no" }, { rows: [] }]) {
+      const { api, context, events } = loaderCase({ entriesBody: body });
+
+      await api.loadTimeEntryData();
+
+      assert.equal(context.timeEntries.length, 0, `body ${JSON.stringify(body ?? null)}`);
+      assert.equal(events.includes("rendered"), false, `body ${JSON.stringify(body ?? null)}`);
+      assert.deepEqual(statuses(events), ["Loading entries...", "Entries could not be loaded."]);
+      // Refused as an envelope, and said so - not as a row refusal and not as a dereference.
+      assert.match(logged(events), /carried no readable entry collection/, `body ${JSON.stringify(body ?? null)}`);
+    }
+  });
+
+  it("preserves the last whole collection through a failed request and an unreadable envelope", async () => {
+    const { api, context, events } = loaderCase({ entriesBody: { entries: [wireRow({ entry_id: "a" })] } });
+
+    await api.loadTimeEntryData();
+    const whole = context.timeEntries;
+    assert.equal(whole.length, 1);
+
+    // A failed request, then an unreadable envelope. Both keep what was already on screen.
+    for (const failure of [{ ok: false, body: { entries: [] } }, { ok: true, body: { rows: [] } }]) {
+      events.length = 0;
+      context.fetch = async (/** @type {string} */ url) => ({
+        ok: url === "/api/time-entries" ? failure.ok : true,
+        status: 503,
+        json: async () => (url === "/api/time-entries" ? failure.body : { clients: [], view: "options", users: [] }),
+      });
+
+      await api.loadTimeEntryData();
+
+      assert.equal(context.timeEntries, whole);
+      assert.equal(context.timeEntries.length, 1);
+      assert.equal(events.includes("rendered"), false);
+      assert.deepEqual(statuses(events), ["Loading entries...", "Entries could not be loaded."]);
+    }
+  });
+
+  it("lets a valid empty collection replace what was there, because that is a real answer", async () => {
+    const { api, context, events } = loaderCase({ entriesBody: { entries: [wireRow({ entry_id: "a" })] } });
+
+    await api.loadTimeEntryData();
+    assert.equal(context.timeEntries.length, 1);
+
+    events.length = 0;
+    context.fetch = async (/** @type {string} */ url) => ({
+      ok: true,
+      json: async () => (url === "/api/time-entries" ? { entries: [] } : { clients: [], view: "options", users: [] }),
+    });
+
+    await api.loadTimeEntryData();
+
+    // An emptied day is a fact the server stated, so it replaces and repaints normally.
     assert.equal(context.timeEntries.length, 0);
     assert.ok(events.includes("rendered"));
     assert.deepEqual(statuses(events), ["Loading entries...", ""]);
