@@ -4471,6 +4471,12 @@
     };
   }
 
+  /**
+   * The picker shallow-copies row metadata while preserving `link` and `target` references.
+   * Their producers are `editorLinkedContextItem` (unchecked note links) and `editorStagedTargetItem`.
+   * Keep both payloads unknown here: their removal/matching owners read their members.
+   * @param {{link?: unknown, target?: unknown}} [item]
+   */
   function handleEditorLinkedContextRemove(item = {}) {
     if (item.link) {
       removeEditorNoteLink(state.editorNote || {}, item.link);
@@ -5305,23 +5311,32 @@
     }
   }
 
+  /**
+   * Called with a DOM Event, no options, or a preferred suggestion from a linked target.
+   * `readSelectedLinkTarget` parses dataset JSON without checking its members, so that caller
+   * still owns the unchecked target. Check only this scalar here, not the whole target record.
+   * @param {object} [options]
+   */
   function updateLibrarySuggestion(options = {}) {
-    const suggestion = options.preferredSuggestion || deriveSuggestedLibraryBucket();
-    const current = libraryInput.value;
+    const suggestion = ("preferredSuggestion" in options ? options.preferredSuggestion : undefined) || deriveSuggestedLibraryBucket();
+    if (typeof suggestion !== "string") {
+      throw new TypeError("Invalid Notes library suggestion.");
+    }
+    const current = requireNotesValue(libraryInput).value;
 
-    suggestionMessage.textContent = `Suggested Library: ${libraryLabel(suggestion)}`;
+    requireNotesValue(suggestionMessage).textContent = `Suggested Library: ${libraryLabel(suggestion)}`;
     if (!state.libraryManuallyChanged && !state.editingNoteId && current !== suggestion && current === defaultLibraryForCreate()) {
-      libraryInput.value = suggestion;
+      requireNotesValue(libraryInput).value = suggestion;
       populateNoteCollectionOptions(suggestion);
     }
   }
 
   function deriveSuggestedLibraryBucket() {
-    if (taskInput.value) {
+    if (requireNotesValue(taskInput).value) {
       return "active_work";
     }
 
-    if (clientInput.value || projectInput.value || userInput.value) {
+    if (requireNotesValue(clientInput).value || requireNotesValue(projectInput).value || requireNotesValue(userInput).value) {
       return "ongoing_area";
     }
 

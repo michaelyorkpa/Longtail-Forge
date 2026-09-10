@@ -1,0 +1,60 @@
+/* global document, window */
+import { expect, test } from "@playwright/test";
+
+test("Notes preserves create suggestions and manual choices across staged and saved link removal", async ({ page, request }, testInfo) => {
+  const suffix = `${testInfo.project.name}-${testInfo.workerIndex}`;
+  const taskResponse = await request.post("/api/tasks", { data: { title: `Suggestion Task ${suffix}` } });
+  expect(taskResponse.status(), await taskResponse.text()).toBe(201);
+  const task = (await taskResponse.json()).task;
+  const clientResponse = await request.post("/api/clients", { data: { name: `Suggestion Client ${suffix}` } });
+  expect(clientResponse.status(), await clientResponse.text()).toBe(201);
+  const client = (await clientResponse.json()).client;
+  const projectResponse = await request.post(`/api/clients/${client.id}/projects`, { data: { name: `Suggestion Project ${suffix}` } });
+  expect(projectResponse.status(), await projectResponse.text()).toBe(201);
+  const project = (await projectResponse.json()).project;
+  /** @type {string[]} */
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/notes.html"); await page.locator("[data-note-create]").click();
+  const editor = page.locator("[data-note-dialog]"); await expect(editor).toBeVisible();
+  const library = editor.locator("[data-note-library]"); const suggestion = editor.locator("[data-note-library-suggestion]");
+  await expect(library).toHaveValue("reference"); await expect(suggestion).toHaveText("Suggested Library: Reference Library");
+  await editor.locator("[data-note-title]").fill(`Linked suggestion ${suffix}`);
+  await editor.locator(".notes-context-panel > summary").click();
+  await editor.locator("[data-note-context-target-type]").selectOption("task");
+  const records = editor.locator("[data-note-context-results]");
+  await expect(records.locator(`option[value="${task.task_id}"]`)).toHaveCount(1);
+  await records.selectOption(task.task_id); await editor.locator("[data-note-context-apply]").click();
+  const row = editor.locator(`[data-note-context-list] [data-target-id="${task.task_id}"]`);
+  await expect(row).toBeVisible(); await expect(library).toHaveValue("active_work"); await expect(suggestion).toHaveText("Suggested Library: Active Work");
+  await row.getByRole("button", { name: "Remove linked context", exact: true }).click(); await expect(row).toHaveCount(0);
+  await expect(suggestion).toHaveText("Suggested Library: Reference Library"); await expect(library).toHaveValue("active_work");
+  await library.selectOption("reference");
+  await records.selectOption(task.task_id); await editor.locator("[data-note-context-apply]").click();
+  await expect(row).toBeVisible(); await expect(suggestion).toHaveText("Suggested Library: Active Work"); await expect(library).toHaveValue("reference");
+  const creation = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/notes" && response.request().method() === "POST");
+  await editor.locator("[data-note-save-close]").click(); const created = await creation; expect(created.status()).toBe(201);
+  const note = (await created.json()).note; await expect(editor).toBeHidden();
+  const saved = await request.get(`/api/notes/${note.note_id}`); expect(saved.status()).toBe(200);
+  expect((await saved.json()).note.links).toHaveLength(1); expect((await saved.json()).note.library_bucket).toBe("reference");
+  await page.evaluate((noteId) => {
+    const dialog = window.LongtailForge?.notesDialog; if (!dialog) throw new Error("Notes editor unavailable.");
+    void dialog.openNoteEditor({ mode: "edit", noteId });
+  }, note.note_id);
+  await expect(editor).toBeVisible(); await expect(library).toHaveValue("reference");
+  const contextPanel = editor.locator(".notes-context-panel");
+  if (!(await contextPanel.evaluate((panel) => panel.hasAttribute("open")))) await contextPanel.locator(":scope > summary").click();
+  await expect(row).toBeVisible();
+  const removed = page.waitForResponse((response) => response.url().includes(`/api/notes/${note.note_id}/links/`) && response.url().endsWith("/remove"));
+  await row.getByRole("button", { name: "Remove linked context", exact: true }).click(); expect((await removed).status()).toBe(200);
+  await expect(row).toHaveCount(0); await expect(editor).toBeVisible(); await expect(library).toHaveValue("reference");
+  const details = editor.locator("[data-note-details-group]");
+  if (!(await details.evaluate((panel) => panel.hasAttribute("open")))) await details.locator(":scope > summary").click();
+  await editor.locator("[data-note-client-id]").selectOption(client.id);
+  await expect(suggestion).toHaveText("Suggested Library: Ongoing Areas"); await expect(library).toHaveValue("reference");
+  await editor.locator("[data-note-project-id]").selectOption(project.id); await expect(library).toHaveValue("reference");
+  await editor.locator("[data-note-cancel]").click(); await expect(editor).toBeHidden();
+  const after = await request.get(`/api/notes/${note.note_id}`); expect(after.status()).toBe(200);
+  expect((await after.json()).note.links).toHaveLength(0); expect((await after.json()).note.library_bucket).toBe("reference");
+  expect(errors).toEqual([]); expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
