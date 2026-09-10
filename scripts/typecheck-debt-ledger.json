@@ -376,6 +376,7 @@
         "tests/mutations/notes-visibility-scoping.breaks.mjs",
         "tests/mutations/time-entries-bulk-tags.breaks.mjs",
         "tests/mutations/time-entries-filtering.breaks.mjs",
+        "tests/mutations/time-entries-loader-policy.breaks.mjs",
         "tests/mutations/time-entry-dialog-corrections.breaks.mjs",
         "tests/mutations/user-admin-add-user.breaks.mjs",
         "tests/mutations/user-admin-edit-user.breaks.mjs",
@@ -499,6 +500,7 @@
         "tests/unit/test-support-harnesses.test.mjs",
         "tests/unit/time-entries-bulk-tags-contracts.test.mjs",
         "tests/unit/time-entries-filtering-contracts.test.mjs",
+        "tests/unit/time-entries-loader-policy-contracts.test.mjs",
         "tests/unit/time-entry-dialog-control-contracts.test.mjs",
         "tests/unit/time-entry-dialog-helper-contracts.test.mjs",
         "tests/unit/time-entry-dialog-normalizer-contracts.test.mjs",
@@ -619,7 +621,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 6425,
+      "errorCount": 6396,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1718,23 +1720,15 @@
           },
           {
             "code": 2339,
-            "count": 3
+            "count": 2
           },
           {
             "code": 2345,
             "count": 1
           },
           {
-            "code": 7005,
-            "count": 6
-          },
-          {
             "code": 7006,
-            "count": 52
-          },
-          {
-            "code": 7034,
-            "count": 2
+            "count": 32
           }
         ],
         "public/js/time-tracking-dashboard.js": [
@@ -2521,8 +2515,8 @@
     }
   },
   "totals": {
-    "files": 1200,
-    "errors": 6425,
+    "files": 1202,
+    "errors": 6396,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
