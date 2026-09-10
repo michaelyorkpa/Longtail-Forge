@@ -1415,6 +1415,16 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,425 to 6,396, `0.33.33.44` 1,185 to 1,156**, params 4,013 to 3,993, state 1,392 to 1,383. Every code fell or held and none is new - TS7005 6 to 0, TS7034 2 to 0, TS7006 52 to 32. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.15 - Finish the Time Entries failure-policy distinction
+
+**Complete: a review-directed behavioural correction with no diagnostic movement**, which is the honest shape for this one - it changes what the page does with a response, not how it is typed. See the archive entry.
+
+**`0.33.33.44.14` left two failed reads still saying "no entries".** A body carrying no `entries` array was read as an empty collection with nothing refused, and a non-ok response answered `[]` outright. Both assert something the server never said: that the workspace has no time entries. Under the authorized failure-policy change all three failure modes now take one path - request failed, envelope unreadable, or rows refused - and every one of them preserves the last collection that was whole and reports the failure.
+
+**`{ entries: [] }` remains a real answer** and still replaces what was there and repaints, because an emptied day is a fact the server stated. That distinction is the point of the checkpoint and is asserted from both sides.
+
+**Measured: browser 6,396, unchanged**, and `0.33.33.44` 1,156, unchanged. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
