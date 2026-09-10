@@ -1331,6 +1331,18 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,857, `0.33.33.44` 1,300 to 1,288**, `dom` 1,151 to 1,114. Every code fell or held - TS18047 63 to 42, TS2339 38 to 21, TS7006 49 to 43, TS7005 20 to 17, TS7034 6 to 5, TS2551 2 to 1 - and no new code survives. `0.33.33.39` through `.43` are unchanged.
 
+#### 0.33.33.44.8 - The User Admin permission matrix
+
+**Complete: 42 diagnostics, and the named cluster is at zero.** See the archive entry. `public/js/user-admin.js` goes **138 to 96**; the six named functions carried **32** on the recheck, exactly as scoped, with no correction.
+
+**The model declared here is the page's own, and the wire member is untouched.** `BrowserRoleAssignment.permission_overrides` stays `unknown` - nothing validates what the server sends, and this child does not pretend otherwise. What it declares is the value this module *produces*: `createDefaultPermissionOverrides` builds every member and `normalizePermissionOverrides` coerces every member of an arbitrary input into that shape. **That is the difference `0.33.33.44.6` was about**, so the input is declared `unknown` and only the output is claimed.
+
+**The claim is demonstrated, not asserted.** Twenty cases run the shipped normaliser against hostile inputs - `null`, a function, an array, a string `operationAccess`, a non-record resource entry, non-boolean operation values - and require every declared member to come back a boolean. The three flags were already coerced; **the nested records were not**, and `Object.entries` on a string answered index keys that were written straight into the matrix as resource keys. They are narrowed now.
+
+**Reading the whole function found a rule worth protecting.** A third block mirrors `allowManualTime`/`allowEditTime` onto `time_entries` create/update/delete - so a `time_entries` operation override is *overwritten* by the allowances, and `delete` appears even when the catalogue does not list it. My first fixture assumed otherwise and was wrong; the behaviour is pre-existing and correct, and now has its own case and two breaks.
+
+**Measured: browser 6,821 to 6,779, `0.33.33.44` 1,288 to 1,264**, `dom` 1,114 to 1,096. Every code fell or held - TS2339 21 to 11, TS18047 42 to 32, TS7006 43 to 32, TS7005 17 to 12, TS7031 6 to 3, TS7034 5 to 3, TS2551 1 to 0 - with no new code and `unknown` still at zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.

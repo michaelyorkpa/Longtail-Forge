@@ -69,12 +69,12 @@
   const roleAssignmentScopeSelect = document.querySelector("[data-role-assignment-scope]");
   const addRoleAssignmentButton = document.querySelector("[data-add-role-assignment]");
   const roleAssignmentList = document.querySelector("[data-role-assignment-list]");
-  const configureDraftPermissionsButton = document.querySelector("[data-configure-draft-permissions]");
-  const rolePermissionsDialog = document.querySelector("[data-role-permissions-dialog]");
-  const rolePermissionsForm = document.querySelector("[data-role-permissions-form]");
-  const rolePermissionsSummary = document.querySelector("[data-role-permissions-summary]");
-  const permissionMatrix = document.querySelector("[data-permission-matrix]");
-  const cancelRolePermissionsButton = document.querySelector("[data-cancel-role-permissions]");
+  const configureDraftPermissionsButton = findUserAdminControl("[data-configure-draft-permissions]", HTMLButtonElement);
+  const rolePermissionsDialog = findUserAdminControl("[data-role-permissions-dialog]", HTMLDialogElement);
+  const rolePermissionsForm = findUserAdminControl("[data-role-permissions-form]", HTMLFormElement);
+  const rolePermissionsSummary = findUserAdminControl("[data-role-permissions-summary]", HTMLElement);
+  const permissionMatrix = findUserAdminControl("[data-permission-matrix]", HTMLElement);
+  const cancelRolePermissionsButton = findUserAdminControl("[data-cancel-role-permissions]", HTMLButtonElement);
 
   /** @type {BrowserUserRecord[]} */
   let users = [];
@@ -82,6 +82,10 @@
   /** @type {{ id?: unknown, name?: unknown, projects?: { id?: unknown, name?: unknown }[] }[]} */
   let clients = [];
   let workspaces = [];
+  /**
+   * The resource catalogue, as `readPermissionResourceCatalog` vouched for it.
+   * @type {BrowserPermissionResource[]}
+   */
   let permissionResources = [];
   /** @type {BrowserWorkspaceType} */
   let activeWorkspaceType = "business";
@@ -108,7 +112,14 @@
   /** @type {AddUserAccountLookup | null} */
   let accountLookup = null;
   let pendingRoleAssignments = [];
+  /** @type {PermissionOverrides} */
   let draftPermissionOverrides = createDefaultPermissionOverrides();
+  /**
+   * What the permission dialog is currently editing, or `null` when it is closed.
+   * @typedef {{ onSave: (overrides: PermissionOverrides) => void, overrides: PermissionOverrides }} PermissionDialogTarget
+   */
+
+  /** @type {PermissionDialogTarget | null} */
   let editingPermissionTarget = null;
   let openedUserFromQuery = false;
   let managedUserSessions = [];
@@ -161,7 +172,7 @@
     });
   });
 
-  rolePermissionsForm.addEventListener("submit", (event) => {
+  requireUserAdminValue(rolePermissionsForm, "permission form").addEventListener("submit", (event) => {
     event.preventDefault();
     savePermissionDialog();
   });
@@ -1711,19 +1722,24 @@
     };
   }
 
+  /**
+   * @param {{ title: string, overrides: unknown, onSave: (overrides: PermissionOverrides) => void }} target
+   */
   function openPermissionDialog({ title, overrides, onSave }) {
     editingPermissionTarget = {
       onSave,
       overrides: normalizePermissionOverrides(overrides),
     };
-    rolePermissionsSummary.textContent = title;
+    requireUserAdminValue(rolePermissionsSummary, "permission summary").textContent = title;
     renderPermissionMatrix(editingPermissionTarget.overrides);
-    rolePermissionsDialog.showModal();
+    requireUserAdminValue(rolePermissionsDialog, "permission dialog").showModal();
   }
 
   function closePermissionDialog() {
-    if (rolePermissionsDialog.open) {
-      rolePermissionsDialog.close();
+    const dialog = requireUserAdminValue(rolePermissionsDialog, "permission dialog");
+
+    if (dialog.open) {
+      dialog.close();
     }
 
     editingPermissionTarget = null;
@@ -1739,8 +1755,11 @@
     closePermissionDialog();
   }
 
+  /** @param {PermissionOverrides} overrides */
   function renderPermissionMatrix(overrides) {
-    permissionMatrix.replaceChildren();
+    const matrix = requireUserAdminValue(permissionMatrix, "permission matrix");
+
+    matrix.replaceChildren();
 
     permissionResources.forEach((resource) => {
       const row = document.createElement("fieldset");
@@ -1764,7 +1783,7 @@
       });
 
       row.append(legend, operations);
-      permissionMatrix.appendChild(row);
+      matrix.appendChild(row);
     });
 
     const billingLabel = document.createElement("label");
@@ -1775,61 +1794,113 @@
     billingCheckbox.checked = Boolean(overrides.restrictBilling);
     billingCheckbox.dataset.permissionFlag = "restrictBilling";
     billingLabel.append(billingCheckbox, document.createTextNode("Restrict billing detail edits"));
-    permissionMatrix.appendChild(billingLabel);
+    matrix.appendChild(billingLabel);
   }
 
+  /** @returns {PermissionOverrides} */
   function readPermissionMatrix() {
+    const matrix = requireUserAdminValue(permissionMatrix, "permission matrix");
     const overrides = normalizePermissionOverrides(editingPermissionTarget?.overrides || {});
-    const checkboxes = permissionMatrix.querySelectorAll("[data-permission-resource]");
+    const checkboxes = matrix.querySelectorAll("[data-permission-resource]");
 
     checkboxes.forEach((checkbox) => {
-      const resource = checkbox.dataset.permissionResource;
-      const operation = checkbox.dataset.permissionOperation;
+      if (!(checkbox instanceof HTMLInputElement)) {
+        return;
+      }
+
+      // The selector is the attribute, so both datasets are present on anything it matches. The
+      // fallbacks name that rather than assert it, and miss the record exactly as an absent
+      // dataset already did.
+      const resource = checkbox.dataset.permissionResource ?? "";
+      const operation = checkbox.dataset.permissionOperation ?? "";
 
       overrides.operationAccess[resource][operation] = checkbox.checked;
     });
 
-    overrides.restrictBilling = Boolean(permissionMatrix.querySelector("[data-permission-flag='restrictBilling']")?.checked);
+    const billingFlag = matrix.querySelector("[data-permission-flag='restrictBilling']");
+
+    overrides.restrictBilling = Boolean(billingFlag instanceof HTMLInputElement && billingFlag.checked);
     overrides.allowManualTime = getOperationAllowed(overrides, "time_entries", "create");
     overrides.allowEditTime = getOperationAllowed(overrides, "time_entries", "update");
 
     return overrides;
   }
 
+/**
+   * The permission overrides **this page has normalised**, which is not the wire member.
+   *
+   * `BrowserRoleAssignment.permission_overrides` is declared `unknown` deliberately, and this
+   * child does not change that: nothing validates the value the server sends. What *is*
+   * established is the value this module produces - `createDefaultPermissionOverrides` builds
+   * every member, and `normalizePermissionOverrides` coerces every member of an arbitrary input
+   * into that shape with `Boolean(...)` and `!== false`. So this model is true of anything those
+   * two return, and it is declared here rather than published for exactly that reason.
+   * @typedef {{
+   *   allowEditTime: boolean,
+   *   allowManualTime: boolean,
+   *   operationAccess: Record<string, Record<string, boolean>>,
+   *   restrictBilling: boolean,
+   * }} PermissionOverrides
+   */
+
+  /** @returns {PermissionOverrides} */
   function createDefaultPermissionOverrides() {
+    /** @type {Record<string, Record<string, boolean>>} */
+    const operationAccess = {};
+
+    permissionResources.forEach((resource) => {
+      /** @type {Record<string, boolean>} */
+      const operations = {};
+
+      resource.operations.forEach((operation) => {
+        operations[operation] = true;
+      });
+
+      operationAccess[resource.key] = operations;
+    });
+
     return {
       restrictBilling: false,
       allowManualTime: true,
       allowEditTime: true,
-      operationAccess: permissionResources.reduce((access, resource) => {
-        access[resource.key] = resource.operations.reduce((operations, operation) => {
-          operations[operation] = true;
-          return operations;
-        }, {});
-        return access;
-      }, {}),
+      operationAccess,
     };
   }
 
+  /**
+   * @param {unknown} [overrides] as the wire member carries it: unvalidated, and typed `unknown`
+   *   by `BrowserRoleAssignment` on purpose
+   * @returns {PermissionOverrides}
+   */
   function normalizePermissionOverrides(overrides = {}) {
     const normalized = createDefaultPermissionOverrides();
-    const operationAccess = overrides.operationAccess || {};
+    // Narrowed rather than trusted. The three flags were already coerced; the nested records were
+    // not, and `Object.entries` on a non-record answered index keys that were then written into
+    // the matrix. A non-record now contributes nothing, which is what the defaults already meant.
+    const source = isResponseRecord(overrides) ? overrides : {};
+    const operationAccess = isResponseRecord(source.operationAccess) ? source.operationAccess : {};
 
-    normalized.restrictBilling = Boolean(overrides.restrictBilling);
-    normalized.allowManualTime = overrides.allowManualTime !== false;
-    normalized.allowEditTime = overrides.allowEditTime !== false;
+    normalized.restrictBilling = Boolean(source.restrictBilling);
+    normalized.allowManualTime = source.allowManualTime !== false;
+    normalized.allowEditTime = source.allowEditTime !== false;
 
     Object.entries(operationAccess).forEach(([resourceKey, operations]) => {
       normalized.operationAccess[resourceKey] ||= {};
 
-      Object.entries(operations || {}).forEach(([operation, allowed]) => {
+      Object.entries(isResponseRecord(operations) ? operations : {}).forEach(([operation, allowed]) => {
         normalized.operationAccess[resourceKey][operation] = allowed !== false;
       });
     });
 
     permissionResources.forEach((resource) => {
+      const resourceAccess = operationAccess[resource.key];
+
+      if (!isResponseRecord(resourceAccess)) {
+        return;
+      }
+
       resource.operations.forEach((operation) => {
-        if (operationAccess[resource.key]?.[operation] === false) {
+        if (resourceAccess[operation] === false) {
           normalized.operationAccess[resource.key][operation] = false;
         }
       });
@@ -1848,10 +1919,16 @@
     return JSON.parse(JSON.stringify(normalizePermissionOverrides(overrides)));
   }
 
+  /**
+   * @param {PermissionOverrides} overrides
+   * @param {string} resource
+   * @param {string} operation
+   */
   function getOperationAllowed(overrides, resource, operation) {
     return overrides.operationAccess?.[resource]?.[operation] !== false;
   }
 
+  /** @param {string} operation */
   function formatOperationLabel(operation) {
     return operation.charAt(0).toUpperCase() + operation.slice(1);
   }

@@ -86,9 +86,11 @@ const cases = [
   ["the save validation order is inverted",
     '    if (!user || !isValidEmail(username)) {\n      setUserAdminStatus("Enter a valid email address.", true);\n      return;\n    }\n\n    if (!displayName) {\n      setUserAdminStatus("Display name is required.", true);\n      return;\n    }',
     '    if (!displayName) {\n      setUserAdminStatus("Display name is required.", true);\n      return;\n    }\n\n    if (!user || !isValidEmail(username)) {\n      setUserAdminStatus("Enter a valid email address.", true);\n      return;\n    }'],
+  // Anchored through the acquisition line: `0.33.33.44.8` gave the permission dialog the same
+  // capture-then-check shape, so `if (dialog.open)` alone is no longer unique.
   ["the dialog is closed twice",
-    "    if (dialog.open) {\n      dialog.close();\n    }",
-    "    dialog.close();"],
+    '    const dialog = requireUserAdminValue(editUserDialog, "edit-user dialog");\n\n    if (dialog.open) {\n      dialog.close();\n    }',
+    '    const dialog = requireUserAdminValue(editUserDialog, "edit-user dialog");\n\n    dialog.close();'],
   ["closing stops rendering the empty membership state",
     "    renderWorkspaceMemberships([], null);\n    renderManagedUserSessions([]);",
     "    renderManagedUserSessions([]);"],

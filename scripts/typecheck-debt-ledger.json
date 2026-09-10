@@ -365,6 +365,7 @@
         "tests/mutations/time-entry-dialog-corrections.breaks.mjs",
         "tests/mutations/user-admin-add-user.breaks.mjs",
         "tests/mutations/user-admin-edit-user.breaks.mjs",
+        "tests/mutations/user-admin-permission-matrix.breaks.mjs",
         "tests/time-tracking/time-tracking-billing.test.mjs",
         "tests/typecheck/browser-database-boundary.fixture.mjs",
         "tests/typecheck/client-project-contracts.fixture.mjs",
@@ -481,6 +482,7 @@
         "tests/unit/user-admin-add-user-contracts.test.mjs",
         "tests/unit/user-admin-bootstrap-contracts.test.mjs",
         "tests/unit/user-admin-edit-user-contracts.test.mjs",
+        "tests/unit/user-admin-permission-matrix-contracts.test.mjs",
         "tests/unit/user-list-response-contracts.test.mjs",
         "tests/unit/user-record-contract.test.mjs",
         "tests/unit/user-settings-contracts.test.mjs",
@@ -589,7 +591,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 6821,
+      "errorCount": 6779,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1772,7 +1774,7 @@
         "public/js/user-admin.js": [
           {
             "code": 18047,
-            "count": 42
+            "count": 32
           },
           {
             "code": 2322,
@@ -1780,14 +1782,10 @@
           },
           {
             "code": 2339,
-            "count": 21
+            "count": 11
           },
           {
             "code": 2531,
-            "count": 1
-          },
-          {
-            "code": 2551,
             "count": 1
           },
           {
@@ -1796,19 +1794,19 @@
           },
           {
             "code": 7005,
-            "count": 17
+            "count": 12
           },
           {
             "code": 7006,
-            "count": 43
+            "count": 32
           },
           {
             "code": 7031,
-            "count": 6
+            "count": 3
           },
           {
             "code": 7034,
-            "count": 5
+            "count": 3
           }
         ],
         "public/js/user-settings.js": [
@@ -2537,8 +2535,8 @@
     }
   },
   "totals": {
-    "files": 1170,
-    "errors": 6821,
+    "files": 1172,
+    "errors": 6779,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
