@@ -50,7 +50,7 @@
   const generatedPasswordInput = findUserAdminControl("[data-generated-password]", HTMLInputElement);
   const copyGeneratedPasswordButton = findUserAdminControl("[data-copy-generated-password]", HTMLButtonElement);
   const userAdminStatus = findUserAdminControl("[data-user-admin-status]", HTMLElement);
-  const userList = document.querySelector("[data-user-list]");
+  const userList = findUserAdminControl("[data-user-list]", HTMLElement);
   const editUserDialog = findUserAdminControl("[data-edit-user-dialog]", HTMLDialogElement);
   const editUserForm = findUserAdminControl("[data-edit-user-form]", HTMLFormElement);
   const editUserIdInput = findUserAdminControl("[data-edit-user-id]", HTMLInputElement);
@@ -61,7 +61,7 @@
   const cancelEditUserButton = findUserAdminControl("[data-cancel-edit-user]", HTMLButtonElement);
   const resetEditUserPasswordButton = findUserAdminControl("[data-reset-edit-user-password]", HTMLButtonElement);
   const saveEditUserButton = findUserAdminControl("[data-save-edit-user]", HTMLButtonElement);
-  const workspaceMembershipList = document.querySelector("[data-workspace-membership-list]");
+  const workspaceMembershipList = findUserAdminControl("[data-workspace-membership-list]", HTMLElement);
   const userSessionList = findUserAdminControl("[data-user-session-list]", HTMLElement);
   const refreshUserSessionsButton = findUserAdminControl("[data-refresh-user-sessions]", HTMLButtonElement);
   const revokeUserSessionsButton = findUserAdminControl("[data-revoke-user-sessions]", HTMLButtonElement);
@@ -89,6 +89,12 @@
    * @type {BrowserUserAdminClientScope[]}
    */
   let clients = [];
+  /**
+   * The workspaces this administrator may assign membership in, as
+   * `readAssignableWorkspaces` vouched for them: every element checked by `isAssignableWorkspace`
+   * before the bootstrap accepts the body at all.
+   * @type {BrowserAssignableWorkspace[]}
+   */
   let workspaces = [];
   /**
    * The resource catalogue, as `readPermissionResourceCatalog` vouched for it.
@@ -1108,8 +1114,11 @@
     openEditUserDialog(user);
   }
 
+  /** @param {BrowserUserRecord[]} users */
   function renderUserRows(users) {
-    userList.replaceChildren();
+    const rows = requireUserAdminValue(userList, "user list");
+
+    rows.replaceChildren();
 
     if (users.length === 0) {
       const row = document.createElement("tr");
@@ -1118,7 +1127,7 @@
       cell.colSpan = 4;
       cell.textContent = "No users yet.";
       row.appendChild(cell);
-      userList.appendChild(row);
+      rows.appendChild(row);
       return;
     }
 
@@ -1131,10 +1140,11 @@
         createTableCell(formatUserStatus(user.userStatus)),
         createActionsCell(user),
       );
-      userList.appendChild(row);
+      rows.appendChild(row);
     });
   }
 
+  /** @param {BrowserUserRecord} user */
   function createActionsCell(user) {
     const cell = document.createElement("td");
     const actions = document.createElement("div");
@@ -1163,6 +1173,12 @@
     return cell;
   }
 
+  /**
+   * @param {string} label
+   * @param {() => void} onClick
+   * @param {boolean} [disabled]
+   * @param {string} [className]
+   */
   function createUserActionButton(label, onClick, disabled = false, className = "") {
     const button = document.createElement("button");
 
@@ -1681,13 +1697,15 @@
    * than the call site being changed to suit an inference. The body already reads `user?.user_id`.
    */
   function renderWorkspaceMemberships(memberships, user = getEditingUser()) {
-    workspaceMembershipList.replaceChildren();
+    const membershipList = requireUserAdminValue(workspaceMembershipList, "membership list");
+
+    membershipList.replaceChildren();
 
     if (!workspaces.length) {
       const item = document.createElement("li");
 
       item.textContent = "No assignable workspaces.";
-      workspaceMembershipList.appendChild(item);
+      membershipList.appendChild(item);
       return;
     }
 
@@ -1700,9 +1718,11 @@
       const name = document.createElement("span");
       const checkbox = document.createElement("input");
       const status = document.createElement("span");
-      const isPersonalOwnerOnly = workspace.workspaceType === "personal" &&
+      // `Boolean(...)` states the sense this already relied on: `ownerUserId` is nullable, so the
+      // chain answers `string | boolean | null` and the three reads below all use it as a flag.
+      const isPersonalOwnerOnly = Boolean(workspace.workspaceType === "personal" &&
         workspace.ownerUserId &&
-        workspace.ownerUserId !== user?.user_id;
+        workspace.ownerUserId !== user?.user_id);
 
       checkbox.type = "checkbox";
       checkbox.dataset.workspaceMembership = workspace.workspaceId;
@@ -1715,14 +1735,26 @@
         ? "Owner only"
         : activeWorkspaceIds.has(workspace.workspaceId) ? "Active" : "Inactive";
       item.append(checkbox, name, status);
-      workspaceMembershipList.appendChild(item);
+      membershipList.appendChild(item);
     });
   }
 
+  /**
+   * The workspace identities the membership checkboxes are currently offering.
+   *
+   * **This is sent**, as `workspaceMemberships` on the user update, so what it answers is a
+   * payload claim rather than a reading of the page. Every identity comes from
+   * `workspace.workspaceId` - a `BrowserAssignableWorkspace` member the bootstrap already
+   * vouched for - written onto the checkbox by `renderWorkspaceMemberships`.
+   * @returns {string[]}
+   */
   function readSelectedWorkspaceMemberships() {
-    return [...workspaceMembershipList.querySelectorAll("[data-workspace-membership]")]
-      .filter((checkbox) => checkbox.checked)
-      .map((checkbox) => checkbox.dataset.workspaceMembership);
+    return [...requireUserAdminValue(workspaceMembershipList, "membership list")
+      .querySelectorAll("[data-workspace-membership]")]
+      .filter((checkbox) => checkbox instanceof HTMLInputElement && checkbox.checked)
+      // The selector is the attribute, so anything it matches carries the dataset. The fallback
+      // names that rather than asserting it.
+      .map((checkbox) => (checkbox instanceof HTMLElement ? checkbox.dataset.workspaceMembership : "") ?? "");
   }
 
   /** @param {PendingRoleAssignment} assignment */
@@ -1749,6 +1781,12 @@
     return `${role?.role_name || assignment.role_id} - ${scopeLabel}${advanced.length ? ` (${advanced.join(", ")})` : ""}`;
   }
 
+  /**
+   * @param {BrowserAssignableWorkspace} workspace
+   *
+   * Shared with the Add User flow, which passes the same contract:
+   * `0.33.33.44.5` left this untyped rather than settle this cluster's boundary from there.
+   */
   function formatWorkspaceMembershipName(workspace) {
     const workspaceName = workspace.workspaceName || workspace.workspaceId || "Workspace";
     const ownerUsername = workspace.ownerUsername || "";
@@ -1996,6 +2034,7 @@
     return normalized;
   }
 
+  /** @param {unknown} overrides @returns {PermissionOverrides} */
   function clonePermissionOverrides(overrides) {
     return JSON.parse(JSON.stringify(normalizePermissionOverrides(overrides)));
   }
@@ -2014,18 +2053,26 @@
     return operation.charAt(0).toUpperCase() + operation.slice(1);
   }
 
+  /** @param {BrowserUserRecord} user */
   async function resetUserPassword(user) {
     await runUserAction({
       url: `/api/users/${encodeURIComponent(user.user_id)}/reset-password`,
       method: "PUT",
       successMessage: `Reset password for ${user.username}.`,
       onSuccess: (body) => {
-        showGeneratedPassword(body.initialPassword || "");
+        // Narrowed here rather than through `readUserCreation`: reset-password is a **different
+        // producer** from the create response, and `create-user-response-contracts` recorded that
+        // distinction deliberately. This does the callback typing that comment assigned to
+        // `0.33.33.44` without borrowing a reader for an envelope this route never promised.
+        const initialPassword = isResponseRecord(body) ? body.initialPassword : "";
+
+        showGeneratedPassword(typeof initialPassword === "string" ? initialPassword : "");
         closeEditUserDialog();
       },
     });
   }
 
+  /** @param {BrowserUserRecord} user */
   async function deactivateUser(user) {
     await runUserAction({
       url: `/api/users/${encodeURIComponent(user.user_id)}/deactivate`,
@@ -2034,6 +2081,7 @@
     });
   }
 
+  /** @param {BrowserUserRecord} user */
   async function reactivateUser(user) {
     await runUserAction({
       url: `/api/users/${encodeURIComponent(user.user_id)}/reactivate`,
@@ -2042,6 +2090,7 @@
     });
   }
 
+  /** @param {BrowserUserRecord} user */
   async function toggleUserStatus(user) {
     if (user.userStatus === "inactive") {
       await reactivateUser(user);
@@ -2051,6 +2100,7 @@
     await deactivateUser(user);
   }
 
+  /** @param {BrowserUserRecord} user */
   async function deleteUser(user) {
     const shouldDelete = await requireModalDialogs().confirm({
       title: "Delete user?",
@@ -2071,6 +2121,9 @@
     });
   }
 
+  /**
+   * @param {{ url: string, method: string, successMessage: string, onSuccess?: (body: unknown) => void }} action
+   */
   async function runUserAction({ url, method, successMessage, onSuccess = () => {} }) {
     setUserAdminStatus("Saving user change...");
 
@@ -2123,16 +2176,19 @@
     }, 1600);
   }
 
+  /** @param {string} value */
   function createTableCell(value) {
     const cell = document.createElement("td");
     cell.textContent = value || "";
     return cell;
   }
 
+  /** @param {BrowserUserRecord} user */
   function formatUsername(user) {
     return user.protectedUser ? `${user.username} (protected)` : user.username;
   }
 
+  /** @param {BrowserUserRecord["userStatus"]} userStatus */
   function formatUserStatus(userStatus) {
     return userStatus === "inactive" ? "Inactive" : "Active";
   }
@@ -2153,10 +2209,12 @@
     timezoneSelect.value = timezone;
   }
 
+  /** @param {unknown} value */
   function isValidEmail(value) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
   }
 
+  /** @param {string} message @param {boolean} [isError] */
   function setUserAdminStatus(message, isError = false) {
     requirePageController().setStatus(userAdminStatus, message, { isError });
     requireUserAdminValue(userAdminStatus, "status region").classList.toggle("is-error", isError);

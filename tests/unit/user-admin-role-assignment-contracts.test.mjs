@@ -274,9 +274,15 @@ describe("assignment behaviour this child must not have moved", () => {
     // Deliberately not a list of names: naming unconverted controls turns this into a maintenance
     // tax on every later child, which is exactly how the sibling suite broke when this one landed.
     const bare = [...page.matchAll(/= document\.querySelector\("\[data-/g)].length;
-    assert.ok(bare > 0, "controls no landed child owns are still bare");
+    // Retargeted by `0.33.33.44.11`, which typed the last two controls: no bare ones remain to
+    // point at, so the durable claim became the completion fact instead.
+    assert.equal(bare, 0, "every control on this page now goes through the checked lookup");
     // `userSessionList` left this list when `0.33.33.44.10` took ownership of it.
-    assert.ok(!/requireUserAdminValue\((workspaceMembershipList|userList)/.test(executable),
-      "and no control of an unowned cluster gained a required access here");
+    // The name-based half is gone: `0.33.33.44.11` owns those controls now, so the completion
+    // fact above is the durable claim. The narrower one this cluster owns is asserted by argument
+    // in the case above.
+    assert.equal([...page.matchAll(/findUserAdminControl\("\[data-/g)].length,
+      [...page.matchAll(/const \w+ = findUserAdminControl\(/g)].length,
+      "every checked acquisition is a control declaration, not an inline lookup");
   });
 });

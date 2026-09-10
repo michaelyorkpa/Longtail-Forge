@@ -167,8 +167,16 @@ describe("the consumer", () => {
     for (const raw of ["body.accountCreated", "body.initialPassword"]) {
       assert.ok(!createUser.includes(raw), `createUser must no longer read ${raw} off an unknown body`);
     }
-    assert.match(extractFunctionBlock(page, "resetUserPassword"), /showGeneratedPassword\(body\.initialPassword \|\| ""\)/,
-      "and that other producer's read is left exactly as it was");
+    // `0.33.33.44.11` did the parameter work this comment assigned to `0.33.33.44`, so the read is
+    // now narrowed rather than raw. The claim this case actually protects is unchanged and is
+    // asserted directly: reset-password must **not** borrow the create reader, because it is a
+    // different producer.
+    const resetUserPassword = extractFunctionBlock(page, "resetUserPassword");
+    assert.match(resetUserPassword, /const initialPassword = isResponseRecord\(body\) \? body\.initialPassword : "";/,
+      "that other producer's read is narrowed in place");
+    // The call, not the name: the comment recording this decision necessarily mentions it.
+    assert.ok(!resetUserPassword.replace(/(^|\s)\/\/[^\n]*/g, "$1").includes("readUserCreation("),
+      "and still does not borrow the create response's reader");
     assert.match(page, /const created = readUserCreation\(body\);/);
     assert.match(page, /renderUsers\(created\.users\);/, "the list comes from the narrowed envelope");
     assert.match(page, /`Created \$\{created\.user\?\.username \|\| username\}/,

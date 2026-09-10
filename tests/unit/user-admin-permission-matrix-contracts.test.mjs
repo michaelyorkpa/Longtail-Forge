@@ -305,7 +305,9 @@ describe("permission behaviour this child must not have moved", () => {
     // cluster by cluster, and this cluster's own required accesses stay inside it - which the
     // case above already checks by argument.
     const bare = [...page.matchAll(/= document\.querySelector\("\[data-/g)].length;
-    assert.ok(bare > 0, "controls no landed child owns are still bare");
+    // Retargeted by `0.33.33.44.11`, which typed the last two controls: no bare ones remain to
+    // point at, so the durable claim became the completion fact instead.
+    assert.equal(bare, 0, "every control on this page now goes through the checked lookup");
     const checked = [...page.matchAll(/findUserAdminControl\("\[data-/g)].length;
     assert.ok(checked > CONTROLS.length,
       "and more than this cluster's own six are checked, because earlier children landed too");

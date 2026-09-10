@@ -116,8 +116,9 @@ describe("each Add User control is checked against the tag its own template rend
       assert.match(page, new RegExp(`const ${slot} = findUserAdminControl\\(`), `${slot} is checked`);
     }
     const bare = [...page.matchAll(/= document\.querySelector\("\[data-/g)].length;
-    assert.ok(bare > 0,
-      "and the permissions, membership, session and row-action controls still await their children");
+    // Retargeted by `0.33.33.44.11`, which typed the last two controls: no bare ones remain to
+    // point at, so the durable claim became the completion fact instead.
+    assert.equal(bare, 0, "every control on this page now goes through the checked lookup");
   });
 });
 
