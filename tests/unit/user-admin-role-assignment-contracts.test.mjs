@@ -275,7 +275,8 @@ describe("assignment behaviour this child must not have moved", () => {
     // tax on every later child, which is exactly how the sibling suite broke when this one landed.
     const bare = [...page.matchAll(/= document\.querySelector\("\[data-/g)].length;
     assert.ok(bare > 0, "controls no landed child owns are still bare");
-    assert.ok(!/requireUserAdminValue\((workspaceMembershipList|userSessionList|userList)/.test(executable),
-      "and no control of another cluster gained a required access here");
+    // `userSessionList` left this list when `0.33.33.44.10` took ownership of it.
+    assert.ok(!/requireUserAdminValue\((workspaceMembershipList|userList)/.test(executable),
+      "and no control of an unowned cluster gained a required access here");
   });
 });

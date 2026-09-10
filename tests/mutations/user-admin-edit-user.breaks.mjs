@@ -38,12 +38,16 @@ const cases = [
   ["a bare binding stops naming its failure",
     'requireUserAdminValue(cancelEditUserButton, "cancel button").addEventListener("click", closeEditUserDialog);',
     'cancelEditUserButton?.addEventListener("click", closeEditUserDialog);'],
+  // Re-aimed by `0.33.33.44.10`, which typed the sessions half and reflowed the expression.
   ["the focus target is optional-chained, turning a throw into a no-op",
-    "(options.focusSessions ? refreshUserSessionsButton : usernameInput).focus();",
-    "(options.focusSessions ? refreshUserSessionsButton : usernameInput)?.focus();"],
-  ["a control from another cluster gains a required access",
-    "  const userSessionList = document.querySelector(\"[data-user-session-list]\");",
-    '  const userSessionList = requireUserAdminValue(document.querySelector("[data-user-session-list]"), "session list");'],
+    '      ? requireUserAdminValue(refreshUserSessionsButton, "refresh sessions button")\n      : usernameInput).focus();',
+    "      ? refreshUserSessionsButton\n      : usernameInput)?.focus();"],
+  // Re-aimed by `0.33.33.44.10`, which converted the control this used to target. Anchored on
+  // this dialog's own control instead, so a later child cannot invalidate it: the rule under test
+  // is that a required access may only target a control acquired through the checked lookup.
+  ["a required access targets a control that was never checked",
+    'requireUserAdminValue(cancelEditUserButton, "cancel button")',
+    'requireUserAdminValue(document.querySelector("[data-cancel-edit-user]"), "cancel button")'],
 
   // --- the validated slot ------------------------------------------------------------------------
   ["the users slot loses its record type",

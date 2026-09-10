@@ -1,5 +1,22 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.44.10 - The User Admin managed sessions
+
+**Model: Medium Effort** - the readers here were already thorough, so the work was verifying that rather than repeating it, and closing two deferrals earlier children recorded.
+
+- [x] **The recheck matched the scope.** Sixteen in the cluster and its two bindings, plus the two the `0.33.33.44.7` focus deferral held: **22** in all. The cluster ends at zero and the file goes 56 to 34.
+- [x] **The readers establish what this child relies on, and that was checked rather than assumed.** `isManagedSession` requires every text member, a `sessionReference` that matches `SESSION_REFERENCE_PATTERN` - not merely text - and a boolean `isCurrent`. `readManagedSessionList` requires the container to be a record, every element to satisfy that predicate, and `user` to satisfy its own. `loadUserSessions` already threw when it answered `null`, so nothing unvouched reached the renderer before this child either.
+- [x] **So the slot is typed from that chain, and the compiler now checks it end to end.** `managedUserSessions` is `BrowserManagedSession[]`, written exactly once inside `renderManagedUserSessions`, whose parameter is declared - and a case enumerates both call sites to show they pass either the reader's own `sessions` or an empty list. This is the `0.33.33.44.7` pattern applied again, and it is what makes the declaration verified rather than asserted.
+- [x] **`readSessionRevocation` is proven by running it, not by reading it.** The reader is lifted from the page's own source and given twelve hostile bodies - `null`, `undefined`, a number, a string, an array, `{}`, a missing `revokedCount`, a string count, `NaN`, `Infinity`, `ok: "true"`, `ok: false` - and answers `null` for every one. A zero count is accepted as a real answer, and a body carrying extra members returns only the two vouched ones.
+- [x] **The `0.33.33.44.7` deferral is closed.** That child left the edit dialog's focus target as a union it could not resolve, because `refreshUserSessionsButton` was a bare query owned by the managed-sessions child. This is that child. Both halves are now typed and required, the code records which child deferred it and why it can close, and the throw-on-absent behaviour is **still** unchanged - a break that softens it to a no-op is refused.
+- [x] **A `0.33.33.44.8` oversight is closed with it.** That child typed the permission dialog's cancel control but left its binding bare. An oversight is not a deferral, so it is fixed here rather than recorded as owned work, and a break that reverts it is refused.
+- [x] **Three controls, checked against the template**, reusing the two existing helpers with no third added. The session list stays `HTMLElement`, and a case collects every member read off it to prove that is not laziness - a break narrowing it to `HTMLUListElement` is refused because nothing reads a list-specific member.
+- [x] **Sixteen source-and-behaviour cases and a committed twenty-eight-break harness that refuses all twenty-eight**, `node --check` gated, byte-restored with SHA-256 verification. One anchor had to be made unique through the line that follows it, because three functions in this file guard on a 401 identically.
+- [x] **Behaviour held, including the parts easy to lose.** The refresh button is disabled while loading and re-enabled in the `finally`, so a failure cannot strand it; a 401 returns quietly without rendering or reporting while any other failure empties the list and says so; the revoke-all button follows the list length; and each row keeps its current-session label, its `"IP unavailable"` fallback and its own session on the per-row revoke.
+- [x] **Canonical evidence.** Browser **6,663 to 6,641**; `0.33.33.44` **1,243 to 1,235**; `dom` 1,030 to 1,016; params 4,092 to 4,085. `user-admin.js` **56 to 34**. Every code fell or held - TS18047 17 to 7, TS7006 25 to 18, TS2339 6 to 2, TS2531 1 to 0 - with **no new code** and `unknown` still zero. `0.33.33.39` through `.43` unchanged, so the delegated lane is untouched.
+
+The 34 that remain are workspace memberships and the user-row actions - two later `0.33.33.44` children. This does not close `.44`, `.38`, or the version-wide branch. Managed rendered runs use `LTF_E2E_PORT=8101`.
+
 ## Version 0.33.33.40.9
 
 **Model: High Effort** - prove the defaults producer against hostile inputs while preserving editor payload provenance, secure/plain separation, and partial-save ordering.
