@@ -370,6 +370,7 @@
         "tests/mutations/notes-note-viewer.breaks.mjs",
         "tests/mutations/notes-primary-context.breaks.mjs",
         "tests/mutations/notes-visibility-scoping.breaks.mjs",
+        "tests/mutations/time-entries-filtering.breaks.mjs",
         "tests/mutations/time-entry-dialog-corrections.breaks.mjs",
         "tests/mutations/user-admin-add-user.breaks.mjs",
         "tests/mutations/user-admin-edit-user.breaks.mjs",
@@ -489,6 +490,7 @@
         "tests/unit/task-timer-contracts.test.mjs",
         "tests/unit/tasks-dialog-surface-contracts.test.mjs",
         "tests/unit/test-support-harnesses.test.mjs",
+        "tests/unit/time-entries-filtering-contracts.test.mjs",
         "tests/unit/time-entry-dialog-control-contracts.test.mjs",
         "tests/unit/time-entry-dialog-helper-contracts.test.mjs",
         "tests/unit/time-entry-dialog-normalizer-contracts.test.mjs",
@@ -609,7 +611,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 6548,
+      "errorCount": 6471,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1704,11 +1706,11 @@
         "public/js/time-entries.js": [
           {
             "code": 18047,
-            "count": 41
+            "count": 4
           },
           {
             "code": 2339,
-            "count": 40
+            "count": 12
           },
           {
             "code": 2345,
@@ -1716,15 +1718,15 @@
           },
           {
             "code": 7005,
-            "count": 15
+            "count": 13
           },
           {
             "code": 7006,
-            "count": 64
+            "count": 55
           },
           {
             "code": 7034,
-            "count": 6
+            "count": 5
           }
         ],
         "public/js/time-tracking-dashboard.js": [
@@ -2511,8 +2513,8 @@
     }
   },
   "totals": {
-    "files": 1190,
-    "errors": 6548,
+    "files": 1192,
+    "errors": 6471,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

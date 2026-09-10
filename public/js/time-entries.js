@@ -1,16 +1,54 @@
 // Time Entries reuses the reporting data sources, then writes changes back by entry ID.
 (function attachTimeEntriesPage() {
-  const filterClientSelect = document.querySelector("[data-time-entry-filter-client]");
-  const filterProjectSelect = document.querySelector("[data-time-entry-filter-project]");
-  const filterStatusSelect = document.querySelector("[data-time-entry-filter-status]");
-  const filterPeriodSelect = document.querySelector("[data-time-entry-filter-period]");
-  const filterCustomDates = document.querySelector("[data-time-entry-filter-custom-dates]");
-  const filterStartDateInput = document.querySelector("[data-time-entry-filter-start-date]");
-  const filterEndDateInput = document.querySelector("[data-time-entry-filter-end-date]");
-  const filterUsersSelect = document.querySelector("[data-time-entry-filter-users]");
+  /**
+   * One filter control, at the subtype `views/protected/time-entries.html` renders, or `null`.
+   *
+   * **Typed-or-null on purpose**, the same reading `0.33.33.44.5` settled for User Administration.
+   * The markup is static and always carries these controls, but acquisition runs at module
+   * evaluation - outside the `try` in `loadTimeEntryData` - so refusing here would turn a missing
+   * control into a dead page instead of the "Entries could not be loaded." status it produces
+   * today. The subtype is settled here; presence is settled at the statement that already
+   * dereferenced it.
+   * @template T
+   * @param {string} selector
+   * @param {{ new (): T }} constructor
+   * @returns {T | null}
+   */
+  function findTimeEntryControl(selector, constructor) {
+    const element = document.querySelector(selector);
+    return element instanceof constructor ? element : null;
+  }
+
+  /**
+   * Narrow at an access this page already made unguarded.
+   *
+   * Controls the page already guarded keep their guards - the tag filter is read through `?.` and
+   * an explicit absence check, and stays optional. This is only for the statements that
+   * dereferenced a control directly, which is what makes it required.
+   * @template T
+   * @param {T | null} value
+   * @param {string} name
+   * @returns {T}
+   */
+  function requireTimeEntryValue(value, name) {
+    if (value === null) {
+      throw new TypeError(`Time Entries requires its ${name}.`);
+    }
+
+    return value;
+  }
+
+  const filterClientSelect = findTimeEntryControl("[data-time-entry-filter-client]", HTMLSelectElement);
+  const filterProjectSelect = findTimeEntryControl("[data-time-entry-filter-project]", HTMLSelectElement);
+  const filterStatusSelect = findTimeEntryControl("[data-time-entry-filter-status]", HTMLSelectElement);
+  const filterPeriodSelect = findTimeEntryControl("[data-time-entry-filter-period]", HTMLSelectElement);
+  const filterCustomDates = findTimeEntryControl("[data-time-entry-filter-custom-dates]", HTMLElement);
+  const filterStartDateInput = findTimeEntryControl("[data-time-entry-filter-start-date]", HTMLInputElement);
+  const filterEndDateInput = findTimeEntryControl("[data-time-entry-filter-end-date]", HTMLInputElement);
+  const filterUsersSelect = findTimeEntryControl("[data-time-entry-filter-users]", HTMLSelectElement);
   const filterTagControl = document.querySelector("[data-time-entry-filter-tag-control]");
-  const filterTagSelect = document.querySelector("[data-time-entry-filter-tag]");
-  const sortSelect = document.querySelector("[data-time-entry-sort]");
+  const filterTagSelect = findTimeEntryControl("[data-time-entry-filter-tag]", HTMLSelectElement);
+  const sortSelect = findTimeEntryControl("[data-time-entry-sort]", HTMLSelectElement);
   const addTimeEntryButton = document.querySelector("[data-add-time-entry]");
   const timeEntryStatus = document.querySelector("[data-time-entry-status]");
   const timeEntryTable = document.querySelector("[data-time-entry-table]");
@@ -24,6 +62,14 @@
   let timeEntrySettings = {
     billingPeriod: { type: "calendarMonth", startDay: 1 },
   };
+  /**
+   * The rows this page filters, orders and renders.
+   *
+   * Typed from what `normalizeTimeEntries` establishes rather than from the wire: every element
+   * has been through the checked row predicate, so each declared member is a fact the compiler
+   * can hold the readers to.
+   * @type {NormalizedTimeEntry[]}
+   */
   let timeEntries = [];
   let timeEntryUsers = [];
   let timeEntryTagOptions = [];
@@ -33,22 +79,22 @@
 
   initializeTimeEntries();
 
-  filterStatusSelect.addEventListener("change", renderEntries);
-  filterPeriodSelect.addEventListener("change", () => {
+  requireTimeEntryValue(filterStatusSelect, "status filter").addEventListener("change", renderEntries);
+  requireTimeEntryValue(filterPeriodSelect, "period filter").addEventListener("change", () => {
     updateFilterDateState();
     renderEntries();
   });
-  filterStartDateInput.addEventListener("change", renderEntries);
-  filterEndDateInput.addEventListener("change", renderEntries);
-  filterUsersSelect.addEventListener("change", renderEntries);
+  requireTimeEntryValue(filterStartDateInput, "custom start date").addEventListener("change", renderEntries);
+  requireTimeEntryValue(filterEndDateInput, "custom end date").addEventListener("change", renderEntries);
+  requireTimeEntryValue(filterUsersSelect, "user filter").addEventListener("change", renderEntries);
   filterTagSelect?.addEventListener("change", renderEntries);
-  sortSelect.addEventListener("change", renderEntries);
+  requireTimeEntryValue(sortSelect, "sort control").addEventListener("change", renderEntries);
   addTimeEntryButton.addEventListener("click", openAddDialog);
-  filterClientSelect.addEventListener("change", () => {
+  requireTimeEntryValue(filterClientSelect, "client filter").addEventListener("change", () => {
     populateFilterProjects();
     renderEntries();
   });
-  filterProjectSelect.addEventListener("change", renderEntries);
+  requireTimeEntryValue(filterProjectSelect, "project filter").addEventListener("change", renderEntries);
   bulkActionSelect?.addEventListener("change", updateBulkControls);
   bulkApplyButton?.addEventListener("click", applyBulkTagAction);
   selectAllInput?.addEventListener("change", toggleVisibleSelection);
@@ -224,10 +270,14 @@
 
   /**
    * A plain JSON object, which is the least a wire body can be before any member is read.
+   *
+   * Named for the page rather than for its first caller: the bulk response and the entries
+   * response ask the same question, and `0.33.33.44.12` found this one already here rather than
+   * adding a second predicate beside it.
    * @param {unknown} value
    * @returns {value is Record<string, unknown>}
    */
-  function isBulkRecord(value) {
+  function isTimeEntryRecord(value) {
     return typeof value === "object" && value !== null && !Array.isArray(value);
   }
 
@@ -245,7 +295,7 @@
    * @returns {BrowserTagBulkAssignmentResult | null}
    */
   function readTagBulkAssignment(body) {
-    if (!isBulkRecord(body)) {
+    if (!isTimeEntryRecord(body)) {
       return null;
     }
     const { action: actionWord, changed, changed_count: changedCount, errors, skipped_count: skippedCount, target_type: targetType } = body;
@@ -353,15 +403,16 @@
   }
 
   function populateFilterProjects() {
-    const client = getClient(filterClientSelect.value);
-    filterProjectSelect.replaceChildren(createOption("", "All projects"));
+    const projectFilter = requireTimeEntryValue(filterProjectSelect, "project filter");
+    const client = getClient(requireTimeEntryValue(filterClientSelect, "client filter").value);
+    projectFilter.replaceChildren(createOption("", "All projects"));
     const projects = client
       ? client.projects
       : getAllFilterProjects();
-    filterProjectSelect.disabled = projects.length === 0;
+    projectFilter.disabled = projects.length === 0;
 
     sortByName(projects).forEach((project) => {
-      filterProjectSelect.appendChild(createOption(project.id, project.name));
+      projectFilter.appendChild(createOption(project.id, project.name));
     });
   }
 
@@ -420,7 +471,23 @@
     return cell;
   }
 
+  /**
+   * A tag carrying the identity the tag filter compares against.
+   *
+   * The entry's `tags` are `unknown[]` because only the array itself was ever checked. This
+   * narrows at the one read that takes a member off an element, so an element without a string
+   * `tag_id` simply does not match - which is what the unchecked read did too.
+   * @param {unknown} value
+   * @returns {value is { tag_id: string }}
+   */
+  function isTagWithIdentity(value) {
+    return isTimeEntryRecord(value) && typeof value.tag_id === "string";
+  }
+
+  /** @returns {NormalizedTimeEntry[]} */
   function getFilteredEntries() {
+    const clientFilter = requireTimeEntryValue(filterClientSelect, "client filter");
+    const projectFilter = requireTimeEntryValue(filterProjectSelect, "project filter");
     const selectedUsers = getSelectedUserIds();
     const selectedDateRange = getSelectedDateRange();
     const selectedTagId = filterTagSelect?.value || "";
@@ -437,17 +504,24 @@
         if (selectedTagId === noTagsValue || selectedTagId === "__no_effective_tags__") {
           return (entry.tags || []).length === 0;
         }
-        return (entry.tags || []).some((tag) => tag.tag_id === selectedTagId);
+        return (entry.tags || []).some((tag) => isTagWithIdentity(tag) && tag.tag_id === selectedTagId);
       })
-      .filter((entry) => !filterClientSelect.value || matchesClient(entry, getClient(filterClientSelect.value)))
-      .filter((entry) => !filterProjectSelect.value || matchesProject(entry, getProject(filterClientSelect.value, filterProjectSelect.value)))
+      .filter((entry) => !clientFilter.value || matchesClient(entry, getClient(clientFilter.value)))
+      .filter((entry) => !projectFilter.value || matchesProject(entry, getProject(clientFilter.value, projectFilter.value)))
       .sort(compareEntries);
   }
 
+  /**
+   * @param {NormalizedTimeEntry} firstEntry
+   * @param {NormalizedTimeEntry} secondEntry
+   * @returns {number}
+   */
   function compareEntries(firstEntry, secondEntry) {
-    switch (sortSelect.value) {
+    switch (requireTimeEntryValue(sortSelect, "sort control").value) {
+      // `endTime` is a `Date`, and the subtraction that ordered these rows was always calling
+      // `valueOf`. Stating `getTime()` is the same number, now written where it happens.
       case "end_asc":
-        return firstEntry.endTime - secondEntry.endTime;
+        return firstEntry.endTime.getTime() - secondEntry.endTime.getTime();
       case "duration_desc":
         return secondEntry.durationSeconds - firstEntry.durationSeconds;
       case "duration_asc":
@@ -460,7 +534,7 @@
         );
       case "end_desc":
       default:
-        return secondEntry.endTime - firstEntry.endTime;
+        return secondEntry.endTime.getTime() - firstEntry.endTime.getTime();
     }
   }
 
@@ -628,24 +702,91 @@
     return requireClientProjectOptions().optionLabel(client);
   }
 
+  /**
+   * The wire columns `/api/time-entries` guarantees as text.
+   *
+   * Traced rather than assumed, and the same ten `0.33.33.44.6` settled for the dialog: the route
+   * maps every row through `timeEntryRowToAppValue`, which calls `normalizeTimeEntry` in
+   * `src/utils/normalizers.js`, and that returns `String(...).trim()` for each of these. It is the
+   * same producer feeding both pages, so both check the same list.
+   *
+   * `duration_seconds` is deliberately string-valued on the wire and is read here through
+   * `Number(...) || 0`, and `billable` and `tags` reach their own checks below, so none of the
+   * three belongs in this list.
+   */
+  const TIME_ENTRY_TEXT_COLUMNS = Object.freeze([
+    "client_id", "client_name", "description", "end_time", "entry_id",
+    "invoice_status", "project_id", "project_name", "start_time", "user_id",
+  ]);
+
+  /**
+   * @typedef {{
+   *   billable: "yes" | "no" | "",
+   *   clientId: string,
+   *   clientName: string,
+   *   description: string,
+   *   durationSeconds: number,
+   *   endTime: Date,
+   *   entryId: string,
+   *   invoiceStatus: string,
+   *   projectId: string,
+   *   projectName: string,
+   *   startTime: Date,
+   *   tags: unknown[],
+   *   userId: string,
+   * }} NormalizedTimeEntry
+   *
+   * `tags` stays `unknown[]` because nothing establishes its elements: the body is only checked
+   * with `Array.isArray`, and the shared `renderTagList` takes `unknown[]` too. The one place a
+   * member is read off an element narrows at that read instead of declaring over it.
+   */
+
+  /**
+   * @typedef {{
+   *   client_id: string, client_name: string, description: string, end_time: string,
+   *   entry_id: string, invoice_status: string, project_id: string, project_name: string,
+   *   start_time: string, user_id: string,
+   * }} TimeEntryTextColumns
+   */
+
+  /**
+   * A row this page can read every declared member off.
+   *
+   * Checked, not coerced: the predicate carries the ten columns it proved, so the mapping below
+   * reads them as the strings the check established rather than re-asserting them. Against the
+   * real producer nothing is dropped - the server already guarantees all ten - so this refuses a
+   * body that never reaches the page in practice rather than silently building a row whose
+   * declared members were never established.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown> & TimeEntryTextColumns}
+   */
+  function isTimeEntryRow(value) {
+    return isTimeEntryRecord(value)
+      && TIME_ENTRY_TEXT_COLUMNS.every((column) => typeof value[column] === "string");
+  }
+
+  /**
+   * @param {unknown} data
+   * @returns {NormalizedTimeEntry[]}
+   */
   function normalizeTimeEntries(data) {
-    return Array.isArray(data?.entries)
-      ? data.entries.map((entry) => ({
-          entryId: entry.entry_id,
-          userId: entry.user_id,
-          clientId: entry.client_id,
-          clientName: entry.client_name,
-          projectId: entry.project_id,
-          projectName: entry.project_name,
-          description: entry.description,
-          startTime: new Date(entry.start_time),
-          endTime: new Date(entry.end_time),
-          durationSeconds: Number(entry.duration_seconds) || 0,
-          billable: normalizeEntryBillable(entry.billable),
-          invoiceStatus: entry.invoice_status || "unbilled",
-          tags: Array.isArray(entry.tags) ? entry.tags : [],
-        }))
-      : [];
+    const entries = isTimeEntryRecord(data) && Array.isArray(data.entries) ? data.entries : [];
+
+    return entries.filter(isTimeEntryRow).map((entry) => ({
+      entryId: entry.entry_id,
+      userId: entry.user_id,
+      clientId: entry.client_id,
+      clientName: entry.client_name,
+      projectId: entry.project_id,
+      projectName: entry.project_name,
+      description: entry.description,
+      startTime: new Date(entry.start_time),
+      endTime: new Date(entry.end_time),
+      durationSeconds: Number(entry.duration_seconds) || 0,
+      billable: normalizeEntryBillable(entry.billable),
+      invoiceStatus: entry.invoice_status || "unbilled",
+      tags: Array.isArray(entry.tags) ? entry.tags : [],
+    }));
   }
 
   function normalizeSettings(settings) {
@@ -680,14 +821,16 @@
       usersById.set(user.userId, user.username || user.userId);
     });
 
-    filterUsersSelect.replaceChildren();
+    const userFilter = requireTimeEntryValue(filterUsersSelect, "user filter");
+
+    userFilter.replaceChildren();
 
     [...usersById.entries()]
       .sort((firstUser, secondUser) => firstUser[1].localeCompare(secondUser[1], undefined, {
         sensitivity: "base",
       }))
       .forEach(([userId, label]) => {
-        filterUsersSelect.appendChild(createOption(userId, label));
+        userFilter.appendChild(createOption(userId, label));
       });
   }
 
@@ -855,40 +998,71 @@
     return value === "__no_effective_tags__" ? noTagsFilterValue() : value;
   }
 
+  /** @returns {string[]} */
   function getSelectedUserIds() {
-    return [...filterUsersSelect.selectedOptions].map((option) => option.value);
+    const userFilter = requireTimeEntryValue(filterUsersSelect, "user filter");
+
+    return [...userFilter.selectedOptions].map((option) => option.value);
   }
 
+  /**
+   * @param {NormalizedTimeEntry} entry
+   * @returns {boolean}
+   */
   function matchesStatusFilter(entry) {
+    const statusFilter = requireTimeEntryValue(filterStatusSelect, "status filter");
+
     if (getEffectiveEntryBillable(entry) !== "yes") {
-      return !filterStatusSelect.value;
+      return !statusFilter.value;
     }
 
-    return !filterStatusSelect.value || entry.invoiceStatus === filterStatusSelect.value;
+    return !statusFilter.value || entry.invoiceStatus === statusFilter.value;
   }
 
+  /**
+   * The two answers a date filter can give, kept as one discriminated shape because
+   * `isEntryInRange` branches on exactly that: `invalid` first, then the window.
+   *
+   * `start` and `end` are declared absent on the invalid side rather than omitted, so reading
+   * `range?.invalid` stays legal on both and the guard narrows instead of asserting.
+   * @typedef {{ invalid: true, start?: undefined, end?: undefined }} TimeEntryInvalidRange
+   * @typedef {{ invalid?: false, start: Date, end: Date }} TimeEntryWindow
+   * @typedef {TimeEntryInvalidRange | TimeEntryWindow} TimeEntryDateRange
+   */
+
+  /**
+   * The window the list is filtered to, or `null` for every entry.
+   *
+   * `invalid` is its own answer rather than an empty window: `isEntryInRange` refuses every row
+   * for it, which is how a half-typed custom range shows nothing instead of everything.
+   * @returns {TimeEntryDateRange | null}
+   */
   function getSelectedDateRange() {
-    if (filterPeriodSelect.value === "all") {
+    const periodFilter = requireTimeEntryValue(filterPeriodSelect, "period filter");
+
+    if (periodFilter.value === "all") {
       return null;
     }
 
-    if (filterPeriodSelect.value === "custom") {
+    if (periodFilter.value === "custom") {
       return getCustomDateRange();
     }
 
-    return getBillingPeriodRange(timeEntrySettings.billingPeriod, filterPeriodSelect.value);
+    return getBillingPeriodRange(timeEntrySettings.billingPeriod, periodFilter.value);
   }
 
+  /** @returns {TimeEntryDateRange} */
   function getCustomDateRange() {
-    const startDate = parseDateInput(filterStartDateInput.value);
-    const endDate = parseDateInput(filterEndDateInput.value);
+    const endDateInput = requireTimeEntryValue(filterEndDateInput, "custom end date");
+    const startDate = parseDateInput(requireTimeEntryValue(filterStartDateInput, "custom start date").value);
+    const endDate = parseDateInput(endDateInput.value);
 
     if (!startDate || !endDate || startDate > endDate) {
       return { invalid: true };
     }
 
     const exclusiveEndDate = new Date(
-      requireTimezones().zonedDateTimeToUtcIso(addDateInputDays(filterEndDateInput.value, 1), "00:00:00"),
+      requireTimezones().zonedDateTimeToUtcIso(addDateInputDays(endDateInput.value, 1), "00:00:00"),
     );
     return { start: startDate, end: exclusiveEndDate };
   }
@@ -939,6 +1113,11 @@
     return new Date(date.getFullYear(), date.getMonth() + monthCount, date.getDate());
   }
 
+  /**
+   * @param {NormalizedTimeEntry} entry
+   * @param {TimeEntryDateRange | null} range
+   * @returns {boolean}
+   */
   function isEntryInRange(entry, range) {
     if (range?.invalid) {
       return false;
@@ -1032,6 +1211,10 @@
       : billableValues.find((value) => value === "yes") || "yes";
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {"yes" | "no" | ""}
+   */
   function normalizeEntryBillable(value) {
     if (value === "yes" || value === true) {
       return "yes";
@@ -1063,15 +1246,16 @@
 
   function setDefaultCustomDates() {
     const today = new Date();
-    filterStartDateInput.value = formatDateInput(new Date(today.getFullYear(), today.getMonth(), 1));
-    filterEndDateInput.value = formatDateInput(today);
+    requireTimeEntryValue(filterStartDateInput, "custom start date").value =
+      formatDateInput(new Date(today.getFullYear(), today.getMonth(), 1));
+    requireTimeEntryValue(filterEndDateInput, "custom end date").value = formatDateInput(today);
   }
 
   function updateFilterDateState() {
-    const isCustom = filterPeriodSelect.value === "custom";
-    filterCustomDates.hidden = !isCustom;
-    filterStartDateInput.disabled = !isCustom;
-    filterEndDateInput.disabled = !isCustom;
+    const isCustom = requireTimeEntryValue(filterPeriodSelect, "period filter").value === "custom";
+    requireTimeEntryValue(filterCustomDates, "custom date fields").hidden = !isCustom;
+    requireTimeEntryValue(filterStartDateInput, "custom start date").disabled = !isCustom;
+    requireTimeEntryValue(filterEndDateInput, "custom end date").disabled = !isCustom;
   }
 
   function createOption(value, text) {
@@ -1103,7 +1287,7 @@
       clientCount: timeEntryClients.length,
       entryCount: timeEntries.length,
       selectedEntryId: "",
-      sortMode: sortSelect.value,
+      sortMode: requireTimeEntryValue(sortSelect, "sort control").value,
       userCount: timeEntryUsers.length,
       workspaceShowsClientTools: workspaceShowsClientTools(),
     }),

@@ -1381,6 +1381,18 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,602 to 6,568, `0.33.33.44` 1,235 to 1,210**, `dom` 1,011 to 1,002. Every code fell to zero for this file, no new code, `unknown` still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.12 - Time Entries filtering, date ranges and ordering
+
+**Complete: 77 diagnostics across ten functions in `public/js/time-entries.js`**, from 167 to 90. See the archive entry. The named boundary was 48; the ten filter controls it reads are declared once and read from six other functions, so the conversion closed those sites too rather than leaving the page half-narrowed.
+
+**The rows are typed from a producer that was made to check, not from the wire.** `normalizeTimeEntries` copied ten wire members unchecked, so any declaration over it would have been an assertion - the same unsoundness `0.33.33.44.6` corrected in the dialog. The server's `normalizeTimeEntry` guarantees exactly those ten as text, traced through `timeEntryRowToAppValue`, so the page checks the same ten and the predicate carries them forward.
+
+**`tags` is deliberately left `unknown[]`.** Only the array was ever checked and the shared `renderTagList` takes `unknown[]` too, so the one read that takes a member off an element narrows at that read instead of declaring over it.
+
+**A rival predicate was found and refused rather than shipped.** A first pass added `isTimeEntryRecord` beside the page's existing `isBulkRecord`, which had an identical body and a general doc and was simply named for its first caller. The two were consolidated into one, and a case now pins the count at one.
+
+**Measured: browser 6,548 to 6,471, `0.33.33.44` 1,210 to 1,198**, `dom` 982 to 917, params 4,036 to 4,027, state 1,407 to 1,404. No new code, `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
