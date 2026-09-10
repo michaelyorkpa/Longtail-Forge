@@ -331,6 +331,7 @@
         "tests/e2e/login.spec.mjs",
         "tests/e2e/mobile-nav.spec.mjs",
         "tests/e2e/modal.spec.mjs",
+        "tests/e2e/notes-bulk-edit.spec.mjs",
         "tests/e2e/notes-collections.spec.mjs",
         "tests/e2e/notes-editor-lifecycle.spec.mjs",
         "tests/e2e/notes-link-editor.spec.mjs",
@@ -359,6 +360,7 @@
         "tests/e2e/workspace-rename-shell-label.spec.mjs",
         "tests/e2e/workspace-settings-rejected-save.spec.mjs",
         "tests/e2e/workspace-switch-landing.spec.mjs",
+        "tests/mutations/notes-bulk-edit.breaks.mjs",
         "tests/mutations/notes-link-editor.breaks.mjs",
         "tests/mutations/notes-note-viewer.breaks.mjs",
         "tests/mutations/notes-primary-context.breaks.mjs",
@@ -423,6 +425,7 @@
         "tests/unit/note-mutation-identity-contracts.test.mjs",
         "tests/unit/note-response-contracts.test.mjs",
         "tests/unit/note-revision-list-contracts.test.mjs",
+        "tests/unit/notes-bulk-edit.test.mjs",
         "tests/unit/notes-editor-lifecycle.test.mjs",
         "tests/unit/notes-effective-security.test.mjs",
         "tests/unit/notes-external-link-preference-contracts.test.mjs",
@@ -591,7 +594,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 6779,
+      "errorCount": 6739,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1048,19 +1051,15 @@
         "public/js/notes.js": [
           {
             "code": 18047,
-            "count": 53
+            "count": 45
           },
           {
             "code": 2339,
-            "count": 145
+            "count": 119
           },
           {
             "code": 2345,
             "count": 12
-          },
-          {
-            "code": 2740,
-            "count": 1
           },
           {
             "code": 7005,
@@ -1068,7 +1067,7 @@
           },
           {
             "code": 7006,
-            "count": 138
+            "count": 133
           },
           {
             "code": 7031,
@@ -2535,8 +2534,8 @@
     }
   },
   "totals": {
-    "files": 1172,
-    "errors": 6779,
+    "files": 1175,
+    "errors": 6739,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
