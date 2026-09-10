@@ -46,17 +46,17 @@
   const filterStartDateInput = findTimeEntryControl("[data-time-entry-filter-start-date]", HTMLInputElement);
   const filterEndDateInput = findTimeEntryControl("[data-time-entry-filter-end-date]", HTMLInputElement);
   const filterUsersSelect = findTimeEntryControl("[data-time-entry-filter-users]", HTMLSelectElement);
-  const filterTagControl = document.querySelector("[data-time-entry-filter-tag-control]");
+  const filterTagControl = findTimeEntryControl("[data-time-entry-filter-tag-control]", HTMLElement);
   const filterTagSelect = findTimeEntryControl("[data-time-entry-filter-tag]", HTMLSelectElement);
   const sortSelect = findTimeEntryControl("[data-time-entry-sort]", HTMLSelectElement);
   const addTimeEntryButton = document.querySelector("[data-add-time-entry]");
   const timeEntryStatus = document.querySelector("[data-time-entry-status]");
   const timeEntryTable = document.querySelector("[data-time-entry-table]");
-  const bulkToolbar = document.querySelector("[data-time-entry-bulk-toolbar]");
-  const bulkActionSelect = document.querySelector("[data-time-entry-bulk-action]");
-  const bulkTagsControl = document.querySelector("[data-time-entry-bulk-tags]");
-  const bulkApplyButton = document.querySelector("[data-time-entry-bulk-apply]");
-  const selectAllInput = document.querySelector("[data-time-entry-select-all]");
+  const bulkToolbar = findTimeEntryControl("[data-time-entry-bulk-toolbar]", HTMLDetailsElement);
+  const bulkActionSelect = findTimeEntryControl("[data-time-entry-bulk-action]", HTMLSelectElement);
+  const bulkTagsControl = findTimeEntryControl("[data-time-entry-bulk-tags]", HTMLElement);
+  const bulkApplyButton = findTimeEntryControl("[data-time-entry-bulk-apply]", HTMLButtonElement);
+  const selectAllInput = findTimeEntryControl("[data-time-entry-select-all]", HTMLInputElement);
 
   let timeEntryClients = [];
   let timeEntrySettings = {
@@ -72,8 +72,30 @@
    */
   let timeEntries = [];
   let timeEntryUsers = [];
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTagCatalogRecord} BrowserTagCatalogRecord */
+
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTagPickerController} BrowserTagPickerController */
+
+  /**
+   * The tag catalogue this page offers, both in the filter and in the bulk picker.
+   *
+   * Established by the published surface rather than by this page: `loadTags` answers
+   * `Promise<BrowserTagCatalogRecord[]>`, and `loadTagOptions` returns that or an empty list on
+   * either refusal path, so `tag_id`, `name` and `slug` are facts here rather than hopes.
+   * @type {BrowserTagCatalogRecord[]}
+   */
   let timeEntryTagOptions = [];
+  /**
+   * The mounted bulk picker, or `null` before it mounts and when the surface declines.
+   *
+   * `mountPicker` is declared to answer `BrowserTagPickerController | null`, so absence is a
+   * state this page has always had to hold. The reads below keep their optional calls: this
+   * checkpoint types the slot, and does not re-decide how a mounted picker is spoken to.
+   * @type {BrowserTagPickerController | null}
+   */
   let bulkTagPicker = null;
+  /** @type {MutationObserver | null} */
   let bulkTagObserver = null;
   const selectedEntryIds = new Set();
 
@@ -449,6 +471,7 @@
     });
   }
 
+  /** @param {NormalizedTimeEntry} entry */
   function createSelectionCell(entry) {
     const cell = document.createElement("td");
     const checkbox = document.createElement("input");
@@ -834,6 +857,7 @@
       });
   }
 
+  /** @returns {Promise<BrowserTagCatalogRecord[]>} */
   async function loadTagOptions() {
     const tagSurface = requireNamespace().tags;
 
@@ -948,6 +972,7 @@
     renderEntries();
   }
 
+  /** @param {NormalizedTimeEntry[]} entries */
   function syncSelectionToEntries(entries) {
     const visibleIds = new Set(entries.map((entry) => entry.entryId));
     [...selectedEntryIds].forEach((entryId) => {
@@ -957,6 +982,7 @@
     });
   }
 
+  /** @param {NormalizedTimeEntry[]} [entries] */
   function updateSelectionControls(entries = getFilteredEntries()) {
     if (!selectAllInput) {
       return;
