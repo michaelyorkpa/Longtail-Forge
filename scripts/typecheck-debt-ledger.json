@@ -333,6 +333,7 @@
         "tests/e2e/modal.spec.mjs",
         "tests/e2e/notes-bulk-edit.spec.mjs",
         "tests/e2e/notes-collections.spec.mjs",
+        "tests/e2e/notes-editor-defaults.spec.mjs",
         "tests/e2e/notes-editor-lifecycle.spec.mjs",
         "tests/e2e/notes-link-editor.spec.mjs",
         "tests/e2e/notes-note-viewer.spec.mjs",
@@ -361,6 +362,7 @@
         "tests/e2e/workspace-settings-rejected-save.spec.mjs",
         "tests/e2e/workspace-switch-landing.spec.mjs",
         "tests/mutations/notes-bulk-edit.breaks.mjs",
+        "tests/mutations/notes-editor-defaults.breaks.mjs",
         "tests/mutations/notes-link-editor.breaks.mjs",
         "tests/mutations/notes-note-viewer.breaks.mjs",
         "tests/mutations/notes-primary-context.breaks.mjs",
@@ -426,6 +428,7 @@
         "tests/unit/note-response-contracts.test.mjs",
         "tests/unit/note-revision-list-contracts.test.mjs",
         "tests/unit/notes-bulk-edit.test.mjs",
+        "tests/unit/notes-editor-defaults.test.mjs",
         "tests/unit/notes-editor-lifecycle.test.mjs",
         "tests/unit/notes-effective-security.test.mjs",
         "tests/unit/notes-external-link-preference-contracts.test.mjs",
@@ -594,7 +597,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 6739,
+      "errorCount": 6703,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1051,11 +1054,11 @@
         "public/js/notes.js": [
           {
             "code": 18047,
-            "count": 45
+            "count": 32
           },
           {
             "code": 2339,
-            "count": 119
+            "count": 96
           },
           {
             "code": 2345,
@@ -2534,8 +2537,8 @@
     }
   },
   "totals": {
-    "files": 1175,
-    "errors": 6739,
+    "files": 1178,
+    "errors": 6703,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -1262,7 +1262,14 @@
     return button;
   }
 
-  /** @param {NotesViewerHostContext | null} hostContext */
+  /**
+   * Dispatch members are caller-owned editor seeds and focus inputs. Defaults are independently
+   * normalized from unknown by normalizeNoteEditorDefaults rather than promised by this input.
+   * @typedef {Omit<NotesViewerParams, "note"> & {note?: NotesEditorNote, record?: NotesEditorNote,
+   *   noteRecord?: NotesEditorNote, mode?: unknown, actionMode?: unknown}} NotesEditorOpenParams
+   * @param {NotesEditorOpenParams} params
+   * @param {NotesViewerHostContext | null} hostContext
+   */
   async function openNoteEditor(params = {}, hostContext = null) {
     await prepareNoteDialogData();
 
@@ -1513,19 +1520,33 @@
     return params.noteId || params.note_id || params.recordId || params.id || "";
   }
 
+  /**
+   * A produced form seed: the keys come from the published note record, and every value
+   * is established here as a string. This is not a new response contract.
+   * @typedef {{[Key in keyof Pick<BrowserNoteRecord, "body_markdown" | "client_id" | "library_bucket" |
+   *   "note_collection_id" | "note_type" | "project_id" | "security_mode" | "title" | "visibility">]: string}} NotesEditorDefaults
+   * @param {unknown} params
+   * @returns {NotesEditorDefaults}
+   */
   function normalizeNoteEditorDefaults(params = {}) {
-    const context = params.context || {};
+    const input = isResponseRecord(params) ? params : {};
+    const context = isResponseRecord(input.context) ? input.context : {};
     return {
-      body_markdown: params.body_markdown || params.bodyMarkdown || params.body || "",
-      client_id: params.client_id || params.clientId || context.clientId || "",
-      library_bucket: params.library_bucket || params.libraryBucket || "",
-      note_collection_id: params.note_collection_id || params.noteCollectionId || "",
-      note_type: params.note_type || params.noteType || "",
-      project_id: params.project_id || params.projectId || context.projectId || "",
-      security_mode: params.security_mode || params.securityMode || "",
-      title: params.title || "",
-      visibility: params.visibility || "",
+      body_markdown: noteDefaultString(input.body_markdown) || noteDefaultString(input.bodyMarkdown) || noteDefaultString(input.body),
+      client_id: noteDefaultString(input.client_id) || noteDefaultString(input.clientId) || noteDefaultString(context.clientId),
+      library_bucket: noteDefaultString(input.library_bucket) || noteDefaultString(input.libraryBucket),
+      note_collection_id: noteDefaultString(input.note_collection_id) || noteDefaultString(input.noteCollectionId),
+      note_type: noteDefaultString(input.note_type) || noteDefaultString(input.noteType),
+      project_id: noteDefaultString(input.project_id) || noteDefaultString(input.projectId) || noteDefaultString(context.projectId),
+      security_mode: noteDefaultString(input.security_mode) || noteDefaultString(input.securityMode),
+      title: noteDefaultString(input.title),
+      visibility: noteDefaultString(input.visibility),
     };
+  }
+
+  /** @param {unknown} value @returns {string} */
+  function noteDefaultString(value) {
+    return typeof value === "string" ? value : "";
   }
 
   // 0.33.33.35.1.2: null means the server did not deliver this surface, which is the whole
@@ -3466,8 +3487,8 @@
 
   async function saveNoteForm({ closeOnSuccess = true } = {}) {
     const api = requireApi();
-    saveButton.disabled = true;
-    saveCloseButton.disabled = true;
+    requireNotesValue(saveButton).disabled = true;
+    requireNotesValue(saveCloseButton).disabled = true;
     setEditorFormStatus("Saving note...");
     const wasEditing = Boolean(state.editingNoteId);
 
@@ -3512,13 +3533,13 @@
       } else {
         setEditorFormStatus("Note saved.");
       }
-      saveButton.disabled = false;
-      saveCloseButton.disabled = false;
+      requireNotesValue(saveButton).disabled = false;
+      requireNotesValue(saveCloseButton).disabled = false;
       return result;
     } catch (error) {
       setEditorFormStatus(safeNoteErrorMessage(error, "Note could not be saved."), true);
-      saveButton.disabled = false;
-      saveCloseButton.disabled = false;
+      requireNotesValue(saveButton).disabled = false;
+      requireNotesValue(saveCloseButton).disabled = false;
       throw error;
     }
   }
@@ -3546,18 +3567,20 @@
 
   function readEditorPayload() {
     return {
-      title: titleInput.value,
-      body_markdown: editor?.getValue() || bodyInput.value,
-      library_bucket: libraryInput.value,
-      noteCollectionId: collectionInput.value || null,
-      note_type: typeInput.value,
+      title: requireNotesValue(titleInput).value,
+      body_markdown: editor?.getValue() || requireNotesValue(bodyInput).value,
+      library_bucket: requireNotesValue(libraryInput).value,
+      noteCollectionId: requireNotesValue(collectionInput).value || null,
+      note_type: requireNotesValue(typeInput).value,
       ...(normalizeWorkspaceType(state.workspaceType) === "personal" ? {} : { visibility: readEditorVisibility() }),
-      security_mode: securityInput.value,
+      security_mode: requireNotesValue(securityInput).value,
       tagIds: state.tagPicker?.readTagIds?.() || [],
+      // The two Primary Context expressions are behaviorally pinned by notes-primary-context-regression.mjs.
+      // Their nullable-control reads remain owned by a future explicit contract reconciliation.
       client_id: usesBusinessScope() ? normalizeText(clientInput.value) || null : null,
       project_id: normalizeText(projectInput.value) || null,
       task_id: null,
-      linked_user_id: normalizeText(userInput.value) || null,
+      linked_user_id: normalizeText(requireNotesValue(userInput).value) || null,
       links: !state.editingNoteId ? stagedLinkPayloads() : [],
     };
   }
