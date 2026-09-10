@@ -1355,6 +1355,18 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,739 to 6,699, `0.33.33.44` 1,264 to 1,243**, `dom` 1,062 to 1,043. Every code fell or held - TS18047 32 to 17, TS7005 12 to 1, TS7006 32 to 25, TS2339 11 to 6, TS7034 3 to 1 - with no new code and `unknown` still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.10 - The User Admin managed sessions
+
+**Complete: 22 diagnostics, and the named cluster is at zero.** See the archive entry. `public/js/user-admin.js` goes **56 to 34**. The recheck found **16** in the cluster and its two bindings, plus the two the `0.33.33.44.7` focus deferral held.
+
+**The readers already established these records, so this child verified that and used it.** `readManagedSessionList` requires a record, an array whose every element satisfies `isManagedSession` - text members, a `sessionReference` matching its pattern, a boolean `isCurrent` - and a `user` satisfying its own predicate; `loadUserSessions` already refuses when it answers `null`. Typing the slot therefore makes the compiler check the chain end to end rather than the declaration asserting it, and a case enumerates both `renderManagedUserSessions` call sites to show neither passes an unchecked list.
+
+**`readSessionRevocation` is proven by running it.** Twelve hostile bodies - a missing count, a string count, `NaN`, `Infinity`, `ok: false` - all answer `null`, a zero count is accepted as a real answer, and extra members are dropped rather than carried.
+
+**Two deferrals from earlier children are closed here.** `0.33.33.44.7` left the edit dialog's focus target a union because its sessions half was a bare query; that half is typed now, and the throw-on-absent behaviour is still unchanged rather than softened to a no-op. `0.33.33.44.8` typed the permission dialog's cancel control but left its binding bare - an oversight rather than a deferral, so it is closed rather than recorded as owned work.
+
+**Measured: browser 6,663 to 6,641, `0.33.33.44` 1,243 to 1,235**, `dom` 1,030 to 1,016. Every code fell or held - TS18047 17 to 7, TS7006 25 to 18, TS2339 6 to 2, TS2531 1 to 0 - with no new code and `unknown` still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
