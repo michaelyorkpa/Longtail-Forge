@@ -58,20 +58,43 @@
   const bulkApplyButton = findTimeEntryControl("[data-time-entry-bulk-apply]", HTMLButtonElement);
   const selectAllInput = findTimeEntryControl("[data-time-entry-select-all]", HTMLInputElement);
 
+  /**
+   * The client and project catalogue the filters and billing resolution read.
+   *
+   * Established by the shared surface rather than by this page: `clientProjectOptions`
+   * publishes `normalizeClients` as **total** over `unknown`, answering
+   * `NormalizedClientOption[]`, so `id`, `projects`, `billable` and the optional
+   * `isWorkspaceScope` are facts here rather than hopes.
+   * @type {NormalizedClientOption[]}
+   */
   let timeEntryClients = [];
+  /** @type {TimeEntrySettings} */
   let timeEntrySettings = {
     billingPeriod: { type: "calendarMonth", startDay: 1 },
+    workspaceCapabilities: {},
   };
   /**
    * The rows this page filters, orders and renders.
    *
-   * Typed from what `normalizeTimeEntries` establishes rather than from the wire: every element
-   * has been through the checked row predicate, so each declared member is a fact the compiler
-   * can hold the readers to.
+   * Typed from what `readTimeEntryCollection` establishes rather than from the wire: every
+   * element has been through the checked row predicate, so each declared member is a fact the
+   * compiler can hold the readers to. It holds the last collection that could be read whole -
+   * a response the page had to refuse leaves this untouched rather than shortening it.
    * @type {NormalizedTimeEntry[]}
    */
   let timeEntries = [];
+  /** @type {NormalizedTimeEntryUser[]} */
   let timeEntryUsers = [];
+
+  /** @typedef {import("../../src/types/browser-contracts.js").NormalizedClientOption} NormalizedClientOption */
+
+  /** @typedef {import("../../src/types/browser-contracts.js").NormalizedProjectOption} NormalizedProjectOption */
+
+  /** @typedef {import("../../src/types/browser-contracts.js").NormalizedBillingPeriod} NormalizedBillingPeriod */
+
+  /** @typedef {{ userId: string, username: string, userStatus: "active" | "inactive" }} NormalizedTimeEntryUser */
+
+  /** @typedef {{ billingPeriod: NormalizedBillingPeriod, workspaceCapabilities: Record<string, unknown> }} TimeEntrySettings */
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTagCatalogRecord} BrowserTagCatalogRecord */
 
@@ -372,16 +395,31 @@
         ? normalizeSettings(await settingsResponse.json())
         : normalizeSettings({});
       timeEntryClients = normalizeClients(await clientsResponse.json());
-      timeEntries = entriesResponse.ok
-        ? normalizeTimeEntries(await entriesResponse.json())
-        : [];
+      // **A partial read is a failed read.** The rows this page cannot vouch for are still rows
+      // the workspace has, so admitting the readable ones and rendering them would report a
+      // shorter day than the one that was worked. Refusing here leaves `timeEntries` holding the
+      // last collection that *was* whole - the assignment below never runs - and the catch says
+      // so, which is the only honest pair of outcomes for an authoritative list.
+      const entryCollection = entriesResponse.ok
+        ? readTimeEntryCollection(await entriesResponse.json())
+        : { entries: [], refused: 0 };
+
+      if (entryCollection.refused > 0) {
+        throw new Error(
+          `The time entry response could not be read: ${entryCollection.refused} of `
+          + `${entryCollection.entries.length + entryCollection.refused} entries were refused.`,
+        );
+      }
+
+      timeEntries = entryCollection.entries;
       timeEntryTagOptions = await loadTagOptions();
       timeEntryUsers = usersResponse.ok
         ? normalizeUsers(await usersResponse.json())
         : [];
 
-      populateClientOptions(filterClientSelect, "All clients");
-      selectWorkspaceScopeClientIfNeeded(filterClientSelect);
+      const clientFilter = requireTimeEntryValue(filterClientSelect, "client filter");
+      populateClientOptions(clientFilter, "All clients");
+      selectWorkspaceScopeClientIfNeeded(clientFilter);
       populateFilterProjects();
       populateUserOptions();
       populateTagFilter();
@@ -404,6 +442,7 @@
     openEntryFromUrl();
   }
 
+  /** @param {HTMLSelectElement} select @param {string} placeholder */
   function populateClientOptions(select, placeholder) {
     select.replaceChildren(createOption("", placeholder));
 
@@ -412,6 +451,7 @@
     });
   }
 
+  /** @param {HTMLSelectElement} select */
   function selectWorkspaceScopeClientIfNeeded(select) {
     if (workspaceShowsClientTools()) {
       return;
@@ -717,10 +757,12 @@
     return clientProjectOptions;
   }
 
+  /** @param {unknown} data @returns {NormalizedClientOption[]} */
   function normalizeClients(data) {
     return requireClientProjectOptions().normalizeClients(data);
   }
 
+  /** @param {{ displayName?: string, name?: string, optionLabel?: string }} client @returns {string} */
   function clientOptionLabel(client) {
     return requireClientProjectOptions().optionLabel(client);
   }
@@ -789,13 +831,31 @@
   }
 
   /**
+   * What the time-entry response could be read as, and how much of it could not.
+   *
+   * **`refused` exists because dropping rows silently is a different answer from reading them.**
+   * `0.33.33.44.12` made the row check sound but left the filter quiet, so a body carrying one
+   * readable and one unreadable entry produced a *shorter* collection that the loader then
+   * presented as complete, with the status cleared. This page's entry list is authoritative -
+   * totals and invoicing are read off it - so a partial read must not look like a whole one.
+   * The count is answered here and the policy is applied by the loader, which is the only place
+   * that knows what the page was already showing.
    * @param {unknown} data
+   * @returns {{ entries: NormalizedTimeEntry[], refused: number }}
+   */
+  function readTimeEntryCollection(data) {
+    const rows = isTimeEntryRecord(data) && Array.isArray(data.entries) ? data.entries : [];
+    const entries = readTimeEntryRows(rows);
+
+    return { entries, refused: rows.length - entries.length };
+  }
+
+  /**
+   * @param {unknown[]} rows
    * @returns {NormalizedTimeEntry[]}
    */
-  function normalizeTimeEntries(data) {
-    const entries = isTimeEntryRecord(data) && Array.isArray(data.entries) ? data.entries : [];
-
-    return entries.filter(isTimeEntryRow).map((entry) => ({
+  function readTimeEntryRows(rows) {
+    return rows.filter(isTimeEntryRow).map((entry) => ({
       entryId: entry.entry_id,
       userId: entry.user_id,
       clientId: entry.client_id,
@@ -812,29 +872,57 @@
     }));
   }
 
+  /** @param {unknown} settings @returns {TimeEntrySettings} */
   function normalizeSettings(settings) {
     const billingPeriodType = readModuleSettingValue(settings, "client-projects", "billingPeriodType", "calendarMonth");
     const billingPeriodStartDay = readModuleSettingValue(settings, "client-projects", "billingPeriodStartDay", 1);
     return {
       billingPeriod: normalizeBillingPeriod({ type: billingPeriodType, startDay: billingPeriodStartDay }),
-      workspaceCapabilities: settings?.workspaceCapabilities || {},
+      workspaceCapabilities: isTimeEntryRecord(settings) && isTimeEntryRecord(settings.workspaceCapabilities)
+        ? settings.workspaceCapabilities
+        : {},
     };
   }
 
+  /**
+   * One module setting, or the fallback when the body does not carry it.
+   *
+   * The value stays `unknown`: `/api/settings` publishes whatever each module registered, and
+   * nothing here establishes its type. Callers narrow it - `normalizeBillingPeriod` is total
+   * over anything - rather than this reader declaring over a value it only found.
+   * @param {unknown} settings
+   * @param {string} moduleId
+   * @param {string} settingId
+   * @param {unknown} fallback
+   * @returns {unknown}
+   */
   function readModuleSettingValue(settings, moduleId, settingId, fallback) {
-    const moduleDefinition = (settings?.moduleSettings || []).find((item) => item.moduleId === moduleId);
-    const setting = (moduleDefinition?.settings || []).find((item) => item.id === settingId);
-    return setting && Object.hasOwn(setting, "value") ? setting.value : fallback;
+    const moduleSettings = isTimeEntryRecord(settings) && Array.isArray(settings.moduleSettings)
+      ? settings.moduleSettings
+      : [];
+    const moduleDefinition = moduleSettings.find(
+      (item) => isTimeEntryRecord(item) && item.moduleId === moduleId,
+    );
+    const definitionSettings = isTimeEntryRecord(moduleDefinition) && Array.isArray(moduleDefinition.settings)
+      ? moduleDefinition.settings
+      : [];
+    const setting = definitionSettings.find((item) => isTimeEntryRecord(item) && item.id === settingId);
+    return isTimeEntryRecord(setting) && Object.hasOwn(setting, "value") ? setting.value : fallback;
   }
 
+  /** @param {unknown} data @returns {NormalizedTimeEntryUser[]} */
   function normalizeUsers(data) {
-    return Array.isArray(data?.users)
-      ? data.users.map((user) => ({
-          userId: String(user.user_id || "").trim(),
-          username: String(user.username || "").trim(),
-          userStatus: user.userStatus === "inactive" ? "inactive" : "active",
-        }))
-      : [];
+    const users = isTimeEntryRecord(data) && Array.isArray(data.users) ? data.users : [];
+
+    return users.map((user) => {
+      const record = isTimeEntryRecord(user) ? user : {};
+
+      return {
+        userId: String(record.user_id || "").trim(),
+        username: String(record.username || "").trim(),
+        userStatus: record.userStatus === "inactive" ? "inactive" : "active",
+      };
+    });
   }
 
   function populateUserOptions() {
@@ -1157,9 +1245,11 @@
     );
   }
 
+  /** @param {unknown} period @returns {NormalizedBillingPeriod} */
   function normalizeBillingPeriod(period) {
-    const type = period?.type === "custom" ? "custom" : "calendarMonth";
-    const startDay = Math.min(28, Math.max(1, Number.parseInt(period?.startDay, 10) || 1));
+    const source = isTimeEntryRecord(period) ? period : {};
+    const type = source.type === "custom" ? "custom" : "calendarMonth";
+    const startDay = Math.min(28, Math.max(1, Number.parseInt(String(source.startDay), 10) || 1));
 
     return {
       type,
@@ -1167,10 +1257,12 @@
     };
   }
 
+  /** @param {string} clientId @returns {NormalizedClientOption | undefined} */
   function getClient(clientId) {
     return timeEntryClients.find((client) => client.id === clientId);
   }
 
+  /** @param {string} clientId @param {string} projectId @returns {NormalizedProjectOption | undefined} */
   function getProject(clientId, projectId) {
     if (clientId) {
       return getClient(clientId)?.projects.find((project) => project.id === projectId);

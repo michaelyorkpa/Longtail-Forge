@@ -9,7 +9,8 @@ const source = reader.readText("public/js/time-entries.js");
 
 const LIFTED = [
   "findTimeEntryControl", "requireTimeEntryValue",
-  "isTimeEntryRecord", "isTimeEntryRow", "normalizeTimeEntries", "normalizeEntryBillable",
+  "isTimeEntryRecord", "isTimeEntryRow", "readTimeEntryCollection", "readTimeEntryRows",
+  "normalizeEntryBillable",
   "isTagWithIdentity", "getSelectedUserIds", "matchesStatusFilter", "isEntryInRange",
   "getSelectedDateRange", "getCustomDateRange", "parseDateInput", "addDateInputDays",
   "compareEntries", "getFilteredEntries", "setDefaultCustomDates", "updateFilterDateState",
@@ -41,6 +42,20 @@ const isDate = (value) => Object.prototype.toString.call(value) === "[object Dat
 
 /** @param {{ entryId: string }[]} rows */
 const entryIds = (rows) => rows.map((entry) => entry.entryId);
+
+/**
+ * The rows a body could be read as. `0.33.33.44.14` split the reader in two - what was read,
+ * and how much was refused - so the cases that only care about the rows say so here.
+ * @typedef {{ billable: string, clientId: string, clientName: string, description: string,
+ *   durationSeconds: number, endTime: Date, entryId: string, invoiceStatus: string,
+ *   projectId: string, projectName: string, startTime: Date, tags: unknown[],
+ *   userId: string }} LiftedTimeEntry
+ *
+ * @param {{ readTimeEntryCollection: (body: unknown) => { entries: LiftedTimeEntry[], refused: number } }} api
+ * @param {unknown} body
+ * @returns {LiftedTimeEntry[]}
+ */
+const readEntries = (api, body) => api.readTimeEntryCollection(body).entries;
 
 /** @param {string} source_ @param {string} name */
 function constant(source_, name) {
@@ -136,7 +151,7 @@ function setFilters(testCase, values) {
 describe("Time Entries filtering, date ranges and ordering", () => {
   it("keeps a row the server guarantees and establishes every declared member by running the check", () => {
     const { api } = filteringCase();
-    const [entry] = api.normalizeTimeEntries({ entries: [wireRow()] });
+    const [entry] = readEntries(api, { entries: [wireRow()] });
 
     assert.equal(entry.entryId, "entry-1");
     assert.equal(entry.userId, "user-1");
@@ -161,13 +176,15 @@ describe("Time Entries filtering, date ranges and ordering", () => {
     assert.equal(columns.length, 10);
     for (const column of columns) {
       assert.equal(
-        api.normalizeTimeEntries({ entries: [wireRow({ [column]: 42 })] }).length, 0,
+        readEntries(api, { entries: [wireRow({ [column]: 42 })] }).length, 0,
         `a non-string ${column} must not reach the page`,
       );
       assert.equal(
-        api.normalizeTimeEntries({ entries: [wireRow({ [column]: undefined })] }).length, 0,
+        readEntries(api, { entries: [wireRow({ [column]: undefined })] }).length, 0,
         `a missing ${column} must not reach the page`,
       );
+      // And the refusal is counted, which is what stops the loader calling a short read whole.
+      assert.equal(api.readTimeEntryCollection({ entries: [wireRow({ [column]: 42 })] }).refused, 1);
     }
   });
 
@@ -175,28 +192,31 @@ describe("Time Entries filtering, date ranges and ordering", () => {
     const { api } = filteringCase();
 
     // A numeric duration is not a text column and must still be admitted, then converted.
-    const [numericDuration] = api.normalizeTimeEntries({ entries: [wireRow({ duration_seconds: 90 })] });
+    const [numericDuration] = readEntries(api, { entries: [wireRow({ duration_seconds: 90 })] });
     assert.equal(numericDuration.durationSeconds, 90);
-    const [unreadableDuration] = api.normalizeTimeEntries({ entries: [wireRow({ duration_seconds: "x" })] });
+    const [unreadableDuration] = readEntries(api, { entries: [wireRow({ duration_seconds: "x" })] });
     assert.equal(unreadableDuration.durationSeconds, 0);
 
-    assert.equal(api.normalizeTimeEntries({ entries: [wireRow({ billable: true })] })[0].billable, "yes");
-    assert.equal(api.normalizeTimeEntries({ entries: [wireRow({ billable: false })] })[0].billable, "no");
-    assert.equal(api.normalizeTimeEntries({ entries: [wireRow({ billable: "maybe" })] })[0].billable, "");
+    assert.equal(readEntries(api, { entries: [wireRow({ billable: true })] })[0].billable, "yes");
+    assert.equal(readEntries(api, { entries: [wireRow({ billable: false })] })[0].billable, "no");
+    assert.equal(readEntries(api, { entries: [wireRow({ billable: "maybe" })] })[0].billable, "");
 
     // An empty status is text, so it passes the column check and then takes the default.
-    assert.equal(api.normalizeTimeEntries({ entries: [wireRow({ invoice_status: "" })] })[0].invoiceStatus, "unbilled");
-    assert.equal(api.normalizeTimeEntries({ entries: [wireRow({ invoice_status: "invoiced" })] })[0].invoiceStatus, "invoiced");
+    assert.equal(readEntries(api, { entries: [wireRow({ invoice_status: "" })] })[0].invoiceStatus, "unbilled");
+    assert.equal(readEntries(api, { entries: [wireRow({ invoice_status: "invoiced" })] })[0].invoiceStatus, "invoiced");
 
-    assert.equal(api.normalizeTimeEntries({ entries: [wireRow({ tags: "nope" })] })[0].tags.length, 0);
-    assert.deepEqual(plain(api.normalizeTimeEntries({ entries: [wireRow({ tags: [{ tag_id: "t1" }] })] })[0].tags), [{ tag_id: "t1" }]);
+    assert.equal(readEntries(api, { entries: [wireRow({ tags: "nope" })] })[0].tags.length, 0);
+    assert.deepEqual(plain(readEntries(api, { entries: [wireRow({ tags: [{ tag_id: "t1" }] })] })[0].tags), [{ tag_id: "t1" }]);
   });
 
   it("answers an empty list for a body that is not a record or carries no entries array", () => {
     const { api } = filteringCase();
 
     for (const body of [null, undefined, 42, "entries", [], { entries: null }, { entries: "no" }]) {
-      assert.equal(api.normalizeTimeEntries(body).length, 0, `body ${JSON.stringify(body ?? null)}`);
+      const collection = api.readTimeEntryCollection(body);
+      assert.equal(collection.entries.length, 0, `body ${JSON.stringify(body ?? null)}`);
+      // Nothing was offered, so nothing was refused: an unreadable envelope is not a short read.
+      assert.equal(collection.refused, 0, `body ${JSON.stringify(body ?? null)}`);
     }
   });
 
@@ -303,7 +323,7 @@ describe("Time Entries filtering, date ranges and ordering", () => {
     const { api, context } = testCase;
     // `tags` is `unknown[]`: the array was checked and its elements never were. A reader that
     // takes `tag_id` off these without narrowing throws on the first one.
-    context.timeEntries = api.normalizeTimeEntries({
+    context.timeEntries = readEntries(api, {
       entries: [
         wireRow({ entry_id: "a", tags: [null, "t1", 7, { tag_id: 9 }] }),
         wireRow({ entry_id: "b", tags: [{ tag_id: "t1" }] }),
@@ -321,7 +341,7 @@ describe("Time Entries filtering, date ranges and ordering", () => {
   it("runs every filter together over the real rows", () => {
     const testCase = filteringCase();
     const { api, context } = testCase;
-    context.timeEntries = api.normalizeTimeEntries({
+    context.timeEntries = readEntries(api, {
       entries: [
         wireRow({ entry_id: "a", user_id: "u1", client_id: "c1", project_id: "p1", end_time: "2026-03-02T10:00:00.000Z", tags: [{ tag_id: "t1" }] }),
         wireRow({ entry_id: "b", user_id: "u2", client_id: "c1", project_id: "p1", end_time: "2026-03-03T10:00:00.000Z", tags: [] }),
@@ -358,7 +378,7 @@ describe("Time Entries filtering, date ranges and ordering", () => {
   it("filters to the selected users through the select's own selection", () => {
     const testCase = filteringCase();
     const { api, context, document, control } = testCase;
-    context.timeEntries = api.normalizeTimeEntries({
+    context.timeEntries = readEntries(api, {
       entries: [wireRow({ entry_id: "a", user_id: "u1" }), wireRow({ entry_id: "b", user_id: "u2" })],
     });
     setFilters(testCase, {

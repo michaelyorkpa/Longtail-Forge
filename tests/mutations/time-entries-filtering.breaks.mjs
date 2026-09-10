@@ -17,8 +17,8 @@ const beforeHash = hash(original);
 const cases = [
   // --- the checked producer -------------------------------------------------------------------
   ["the row check is dropped and unchecked rows reach the page",
-    "return entries.filter(isTimeEntryRow).map((entry) => ({",
-    "return entries.map((entry) => ({"],
+    "return rows.filter(isTimeEntryRow).map((entry) => ({",
+    "return rows.map((entry) => ({"],
   ["the column check weakens from text to mere presence",
     '&& TIME_ENTRY_TEXT_COLUMNS.every((column) => typeof value[column] === "string");',
     "&& TIME_ENTRY_TEXT_COLUMNS.every((column) => value[column] !== undefined);"],
@@ -35,8 +35,8 @@ const cases = [
     "  function isTimeEntryRow(value) {",
     '  function isBulkRecord(value) {\n    return typeof value === "object" && value !== null && !Array.isArray(value);\n  }\n\n  function isTimeEntryRow(value) {'],
   ["the body stops being checked for an entries array",
-    "const entries = isTimeEntryRecord(data) && Array.isArray(data.entries) ? data.entries : [];",
-    "const entries = data?.entries || [];"],
+    "const rows = isTimeEntryRecord(data) && Array.isArray(data.entries) ? data.entries : [];",
+    "const rows = data?.entries || [];"],
   ["the duration loses the fallback that makes it a number",
     "durationSeconds: Number(entry.duration_seconds) || 0,",
     "durationSeconds: Number(entry.duration_seconds),"],

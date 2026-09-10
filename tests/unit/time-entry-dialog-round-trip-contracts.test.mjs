@@ -75,8 +75,12 @@ describe("the entry model is this page's own, and it is exact", () => {
     assert.match(page, /time-entries\.js` keeps a separate copy/,
       "and the reason is recorded where the model is declared");
     const other = readFileSync(new URL("../../public/js/time-entries.js", import.meta.url), "utf8");
-    assert.match(other, /function normalizeTimeEntries\(data\) \{/,
-      "that separate copy really does exist");
+    // Retargeted by `0.33.33.44.14`, which renamed that page's reader to
+    // `readTimeEntryCollection` when it began reporting refusals. The claim here was never the
+    // function's name - it is that the other page declares its own copy of this model - so it is
+    // asserted against the declaration itself, which a rename cannot move.
+    assert.match(other, /\}\} NormalizedTimeEntry/,
+      "that separate copy of the model really does exist");
   });
 });
 
