@@ -5,6 +5,8 @@ import { FakeDocument } from "../../scripts/test-support/fake-dom.mjs";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 
 const source = createProjectTextReader().readText("public/js/notes.js");
+const shared = createProjectTextReader().readText("public/js/shared/view-builder.js");
+const sharedNames = ["normalizePickerRecords", "pickerLabel", "pickerOptionalLabel"];
 const names = ["deriveSuggestedLibraryBucket", "updateLibrarySuggestion", "defaultLibraryForCreate", "populateNoteCollectionOptions", "collectionOptionLabel", "createOption", "libraryLabel", "formatToken", "requireNotesValue", "handleEditorLinkedContextRemove", "removeEditorStagedTarget", "editorLinkTargetMatches", "removeEditorNoteLink"];
 /** @param {unknown} value */
 const plain = (value) => { assert.notEqual(value, undefined, "Expected an observation."); return JSON.parse(JSON.stringify(value)); };
@@ -32,7 +34,7 @@ function fixture() {
   });
   context.libraryInput.value = "reference";
   const labels = source.match(/const BUCKET_LABELS = [\s\S]*?;/); assert.ok(labels);
-  const api = vm.runInContext(`${labels[0]}\n${names.map((name) => extractFunctionBlock(source, name)).join("\n")}\n({${names.join(",")}})`, context);
+  const api = vm.runInContext(`${labels[0]}\n${names.map((name) => extractFunctionBlock(source, name)).join("\n")}\n${sharedNames.map((name) => extractFunctionBlock(shared, name)).join("\n")}\n({${[...names, ...sharedNames].join(",")}})`, context);
   return { api, context, state, events };
 }
 
@@ -128,7 +130,11 @@ describe("Notes linked context and library suggestion", () => {
     context.removeEditorStagedTarget = (/** @type {unknown} */ target) => { events.push([target]); };
     const note = { note_id: "saved" }; const link = { opaque: true }; const target = { targetType: "task", targetId: "t" };
     state.editorNote = note;
-    assert.equal(api.handleEditorLinkedContextRemove({ link, target }), undefined);
+    const rawRow = { link, target, displayLabel: "  Saved link  " };
+    const normalizedRow = api.normalizePickerRecords([rawRow])[0];
+    assert.notEqual(normalizedRow, rawRow); assert.equal(normalizedRow.displayLabel, "Saved link");
+    assert.equal(normalizedRow.link, link); assert.equal(normalizedRow.target, target);
+    assert.equal(api.handleEditorLinkedContextRemove(normalizedRow), undefined);
     const call = events[0]; assert.ok(Array.isArray(call)); assert.equal(call[0], note); assert.equal(call[1], link); assert.equal(events.length, 1);
     state.editorNote = null; api.handleEditorLinkedContextRemove({ link });
     const fallback = events[1]; assert.ok(Array.isArray(fallback)); assert.deepEqual(plain(fallback[0]), {}); assert.equal(fallback[1], link);

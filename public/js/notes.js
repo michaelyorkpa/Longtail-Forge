@@ -4472,8 +4472,8 @@
   }
 
   /**
-   * The picker returns the module row unchanged. Its `link` comes from the note's unchecked
-   * links array (`editorLinkedContextItem`); `target` comes through `editorStagedTargetItem`.
+   * The picker shallow-copies row metadata while preserving `link` and `target` references.
+   * Their producers are `editorLinkedContextItem` (unchecked note links) and `editorStagedTargetItem`.
    * Keep both payloads unknown here: their removal/matching owners read their members.
    * @param {{link?: unknown, target?: unknown}} [item]
    */
