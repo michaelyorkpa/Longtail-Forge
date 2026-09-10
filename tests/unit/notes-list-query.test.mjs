@@ -18,6 +18,21 @@ function constant(text, name) {
 }
 /** @param {unknown} value */
 const plain = (value) => JSON.parse(JSON.stringify(value));
+/**
+ * The text a browser exposes once markup is parsed. Scanned rather than pattern-replaced: a
+ * single-pass tag strip leaves `<script` behind on nested angle brackets, and that is an
+ * incomplete sanitization whether or not the value ever reaches a real document.
+ * @param {string} value
+ */
+function renderedText(value) {
+  let text = ""; let depth = 0;
+  for (const character of value) {
+    if (character === "<") depth += 1;
+    else if (character === ">") depth = Math.max(0, depth - 1);
+    else if (depth === 0) text += character;
+  }
+  return text;
+}
 function listCase() {
   const document = new FakeDocument();
   /** @type {unknown[]} */
@@ -40,7 +55,7 @@ function listCase() {
   for (const name of names) vm.runInContext(extractFunctionBlock(source, name), context);
   let html = "";
   Object.defineProperty(context.preview, "innerHTML", { get: () => html, set: (/** @type {string} */ value) => {
-    events.push(["html", value]); html = value; context.preview.textContent = value.replace(/<[^>]*>/g, "");
+    events.push(["html", value]); html = value; context.preview.textContent = renderedText(value);
   } });
   const columns = vm.runInContext("({ required: REQUIRED_NOTE_COLUMNS, nullable: NULLABLE_NOTE_COLUMNS })", context);
   /** @type {Record<string, unknown>} */
