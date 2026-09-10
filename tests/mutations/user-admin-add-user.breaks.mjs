@@ -51,11 +51,13 @@ const cases = [
   ["a guarded status write is made required",
     "if (newUserAccountStatus) {\n      newUserAccountStatus.textContent = \"\";\n    }",
     'requireUserAdminValue(newUserAccountStatus, "account status").textContent = "";'],
-  // Re-aimed by `0.33.33.44.7`, which typed the edit-user controls this break used to target.
-  // Any control no landed child owns serves the same purpose.
-  ["a control outside this boundary gains a required access",
-    "  const permissionMatrix = document.querySelector(\"[data-permission-matrix]\");",
-    '  const permissionMatrix = requireUserAdminValue(document.querySelector("[data-permission-matrix]"), "permission matrix");'],
+  // Re-aimed twice as later children typed the controls it used to target, so it now anchors on
+  // something stable: this flow's own form, with its checked acquisition replaced by a raw query.
+  // That is exactly the rule under test - a required access may only target a checked control -
+  // and it cannot be invalidated by another cluster being converted.
+  ["a required access targets a control that was never checked",
+    'requireUserAdminValue(userAdminForm, "add-user form").addEventListener("submit"',
+    'requireUserAdminValue(document.querySelector("[data-user-admin-form]"), "add-user form").addEventListener("submit"'],
 
   // --- the readers this page already owned ---------------------------------------------------------
   ["the roles member reverts to an unchecked array",
