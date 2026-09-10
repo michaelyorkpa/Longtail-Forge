@@ -690,21 +690,21 @@
   let statusFilter = null;
   /** @type {HTMLSelectElement | null} */
   let visibilityFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let securityFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let typeFilter = null;
   /** @type {HTMLSelectElement | null} */
   let collectionFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | null} */
   let contextFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | null} */
   let ownerFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | null} */
   let tagFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | null} */
   let updatedFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let sortSelect = null;
   /** @type {Element | null} */
   let notesList = null;
@@ -712,9 +712,9 @@
   let detailPanel = null;
   /** @type {Element | null} */
   let createButton = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let prevButton = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let nextButton = null;
   /** @type {Element | null} */
   let pageLabel = null;
@@ -910,19 +910,19 @@
     filtersForm = document.querySelector("[data-notes-filters]");
     statusFilter = document.querySelector("[data-note-filter-status]");
     visibilityFilter = findNotesControl("[data-note-filter-visibility]", HTMLSelectElement);
-    securityFilter = document.querySelector("[data-note-filter-security]");
-    typeFilter = document.querySelector("[data-note-filter-type]");
+    securityFilter = findNotesControl("[data-note-filter-security]", HTMLSelectElement);
+    typeFilter = findNotesControl("[data-note-filter-type]", HTMLSelectElement);
     collectionFilter = findNotesControl("[data-note-filter-collection]", HTMLSelectElement);
-    contextFilter = document.querySelector("[data-note-filter-context]");
-    ownerFilter = document.querySelector("[data-note-filter-owner]");
-    tagFilter = document.querySelector("[data-note-filter-tags]");
-    updatedFilter = document.querySelector("[data-note-filter-updated]");
-    sortSelect = document.querySelector("[data-note-sort]");
+    contextFilter = findNotesControl("[data-note-filter-context]", HTMLInputElement);
+    ownerFilter = findNotesControl("[data-note-filter-owner]", HTMLInputElement);
+    tagFilter = findNotesControl("[data-note-filter-tags]", HTMLInputElement);
+    updatedFilter = findNotesControl("[data-note-filter-updated]", HTMLInputElement);
+    sortSelect = findNotesControl("[data-note-sort]", HTMLSelectElement);
     notesList = document.querySelector("[data-notes-list]");
     detailPanel = document.querySelector("[data-note-detail]");
     createButton = document.querySelector("[data-note-create]");
-    prevButton = document.querySelector("[data-notes-prev]");
-    nextButton = document.querySelector("[data-notes-next]");
+    prevButton = findNotesControl("[data-notes-prev]", HTMLButtonElement);
+    nextButton = findNotesControl("[data-notes-next]", HTMLButtonElement);
     pageLabel = document.querySelector("[data-notes-page]");
     collectionPanel = findNotesControl("[data-notes-collections-panel]", HTMLElement);
     collectionLibraryFilter = findNotesControl("[data-note-collection-library-filter]", HTMLSelectElement);
@@ -2481,6 +2481,13 @@
     }
   }
 
+  /**
+   * GET /api/notes forwards these string query values to normalizeListFilters and
+   * normalizeNoteListPagination. Every emitted key is read there; optional filters
+   * remain omitted instead of being declared as required response-record members.
+   * @param {string} [cursor]
+   * @returns {URLSearchParams}
+   */
   function buildNotesListQuery(cursor = "") {
     const params = new URLSearchParams();
 
@@ -2590,16 +2597,20 @@
   function renderNotes() {
     const pageNotes = state.notes || [];
 
-    pageLabel.textContent = `Page ${state.page}`;
-    prevButton.disabled = state.notesCursorStack.length === 0;
-    nextButton.disabled = !state.notesNextCursor;
+    requireNotesValue(pageLabel).textContent = `Page ${state.page}`;
+    requireNotesValue(prevButton).disabled = state.notesCursorStack.length === 0;
+    requireNotesValue(nextButton).disabled = !state.notesNextCursor;
 
     if (pageNotes.length === 0) {
       renderEmptyList("No notes match the current filters.");
       return;
     }
 
-    notesList.replaceChildren(...pageNotes.map(noteListItem));
+    if (notesList) {
+      notesList.replaceChildren(...pageNotes.map(noteListItem));
+    } else {
+      requireNotesValue(notesList);
+    }
     syncNotesBulkToolbar();
   }
 
@@ -4580,14 +4591,14 @@
 
   async function renderPreview() {
     const api = requireApi();
-    if (preview.hidden) {
+    if (requireNotesValue(preview).hidden) {
       return;
     }
 
-    const markdown = editor?.getValue() || bodyInput.value;
+    const markdown = editor?.getValue() || requireNotesValue(bodyInput).value;
     const requestId = state.previewRequestId + 1;
     state.previewRequestId = requestId;
-    preview.textContent = "Loading preview...";
+    requireNotesValue(preview).textContent = "Loading preview...";
 
     try {
       const rendered = readMarkdownPreview(await api.postJson("/api/notes/preview", { body_markdown: markdown }));
@@ -4597,16 +4608,20 @@
       if (!rendered) {
         throw new Error("The Markdown preview could not be read.");
       }
-      preview.innerHTML = rendered.bodyHtml;
+      if (preview) {
+        preview.innerHTML = rendered.bodyHtml;
+      } else {
+        requireNotesValue(preview);
+      }
       applyExternalMarkdownLinkPreference(preview);
-      if (!preview.textContent.trim()) {
-        preview.replaceChildren(emptyPreviewNode());
+      if (!requireNotesValue(preview).textContent.trim()) {
+        requireNotesValue(preview).replaceChildren(emptyPreviewNode());
       }
     } catch (error) {
       if (requestId !== state.previewRequestId) {
         return;
       }
-      preview.textContent = safeNoteErrorMessage(error, "Preview could not be rendered.");
+      requireNotesValue(preview).textContent = safeNoteErrorMessage(error, "Preview could not be rendered.");
     }
   }
 
