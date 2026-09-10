@@ -630,6 +630,11 @@
      * @type {BrowserNoteRecord | null}
      */
     selectedNote: null,
+    /**
+     * Row IDs from checked state.notes (BrowserNoteListItem); retries use readBulkFailures' string IDs.
+     * Detail refresh uses the same published note_id member, not a fabricated selected-note record.
+     * @type {Set<BrowserNoteRecord["note_id"]>}
+     */
     selectedNoteIds: new Set(),
     selectedCollectionId: new URLSearchParams(window.location.search).get("collection") || "",
     filesDialogNoteId: "",
@@ -807,33 +812,33 @@
   let saveButton = null;
   /** @type {HTMLButtonElement | null} */
   let saveCloseButton = null;
-  /** @type {Element | null} */
+  /** @type {HTMLDetailsElement | null} */
   let bulkToolbar = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let bulkEditButton = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let bulkClearButton = null;
-  /** @type {Element | null} */
+  /** @type {HTMLDialogElement | null} */
   let bulkDialog = null;
-  /** @type {Element | null} */
+  /** @type {HTMLFormElement | null} */
   let bulkForm = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let bulkCancelButton = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let bulkApplyButton = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let bulkLibraryInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let bulkCollectionInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let bulkTypeInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let bulkVisibilityInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let bulkTagActionInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLElement | null} */
   let bulkTagsEditor = null;
-  /** @type {Element | null} */
+  /** @type {HTMLElement | null} */
   let bulkFormStatus = null;
   /** @type {HTMLDialogElement | null} */
   let collectionDialog = null;
@@ -966,20 +971,20 @@
     cancelButton = document.querySelector("[data-note-cancel]");
     saveButton = findNotesControl("[data-note-save]", HTMLButtonElement);
     saveCloseButton = findNotesControl("[data-note-save-close]", HTMLButtonElement);
-    bulkToolbar = document.querySelector("[data-note-bulk-toolbar]");
-    bulkEditButton = document.querySelector("[data-note-bulk-edit]");
-    bulkClearButton = document.querySelector("[data-note-bulk-clear]");
-    bulkDialog = document.querySelector("[data-note-bulk-dialog]");
-    bulkForm = document.querySelector("[data-note-bulk-form]");
-    bulkCancelButton = document.querySelector("[data-note-bulk-cancel]");
-    bulkApplyButton = document.querySelector("[data-note-bulk-apply]");
-    bulkLibraryInput = document.querySelector("[data-note-bulk-library]");
-    bulkCollectionInput = document.querySelector("[data-note-bulk-collection]");
-    bulkTypeInput = document.querySelector("[data-note-bulk-type]");
-    bulkVisibilityInput = document.querySelector("[data-note-bulk-visibility]");
-    bulkTagActionInput = document.querySelector("[data-note-bulk-tag-action]");
-    bulkTagsEditor = document.querySelector("[data-note-bulk-tags]");
-    bulkFormStatus = document.querySelector("[data-note-bulk-form-status]");
+    bulkToolbar = findNotesControl("[data-note-bulk-toolbar]", HTMLDetailsElement);
+    bulkEditButton = findNotesControl("[data-note-bulk-edit]", HTMLButtonElement);
+    bulkClearButton = findNotesControl("[data-note-bulk-clear]", HTMLButtonElement);
+    bulkDialog = findNotesControl("[data-note-bulk-dialog]", HTMLDialogElement);
+    bulkForm = findNotesControl("[data-note-bulk-form]", HTMLFormElement);
+    bulkCancelButton = findNotesControl("[data-note-bulk-cancel]", HTMLButtonElement);
+    bulkApplyButton = findNotesControl("[data-note-bulk-apply]", HTMLButtonElement);
+    bulkLibraryInput = findNotesControl("[data-note-bulk-library]", HTMLSelectElement);
+    bulkCollectionInput = findNotesControl("[data-note-bulk-collection]", HTMLSelectElement);
+    bulkTypeInput = findNotesControl("[data-note-bulk-type]", HTMLSelectElement);
+    bulkVisibilityInput = findNotesControl("[data-note-bulk-visibility]", HTMLSelectElement);
+    bulkTagActionInput = findNotesControl("[data-note-bulk-tag-action]", HTMLSelectElement);
+    bulkTagsEditor = findNotesControl("[data-note-bulk-tags]", HTMLElement);
+    bulkFormStatus = findNotesControl("[data-note-bulk-form-status]", HTMLElement);
     collectionDialog = findNotesControl("[data-note-collection-dialog]", HTMLDialogElement);
     collectionForm = findNotesControl("[data-note-collection-form]", HTMLFormElement);
     collectionDialogTitle = findNotesControl("[data-note-collection-dialog-title]", HTMLElement);
@@ -2693,6 +2698,7 @@
     updateCollectionPanelSelection();
   }
 
+  /** @param {BrowserNoteListItem} note */
   function noteListItem(note) {
     const row = document.createElement("div");
     const selection = document.createElement("input");
@@ -2747,6 +2753,7 @@
     return row;
   }
 
+  /** @param {BrowserNoteRecord["note_id"]} noteId @param {boolean} selected */
   function toggleBulkNoteSelection(noteId, selected) {
     if (selected) {
       state.selectedNoteIds.add(noteId);
@@ -2776,8 +2783,11 @@
     if (bulkToolbar && selectedCount > 0) {
       bulkToolbar.open = true;
     }
-    const count = bulkToolbar?.viewParts?.count || bulkToolbar?.querySelector("[data-view-bulk-selection-count]");
-    if (count) {
+    // The shared factory publishes viewParts, but this DOM lookup has not proved that expando.
+    const parts = bulkToolbar && "viewParts" in bulkToolbar ? bulkToolbar.viewParts : null;
+    const publishedCount = isResponseRecord(parts) && parts.count instanceof HTMLElement ? parts.count : null;
+    const count = publishedCount || bulkToolbar?.querySelector("[data-view-bulk-selection-count]");
+    if (count instanceof HTMLElement) {
       count.textContent = `${selectedCount} selected`;
       count.hidden = selectedCount === 0;
     }
@@ -2800,16 +2810,16 @@
     try {
       const result = await api.getJson("/api/notes/collections", { cache: "no-store" });
       state.bulkCollections = normalizeCollections(readEnvelopeMember(result, "collections"));
-      bulkLibraryInput.value = "";
-      bulkTypeInput.value = "";
-      bulkTagActionInput.value = "";
+      requireNotesValue(bulkLibraryInput).value = "";
+      requireNotesValue(bulkTypeInput).value = "";
+      requireNotesValue(bulkTagActionInput).value = "";
       populateBulkVisibilityOptions();
       populateBulkCollectionOptions();
       await mountBulkTagPicker();
       setBulkFormStatus(`${state.selectedNoteIds.size} notes selected.`);
-      bulkApplyButton.disabled = false;
+      requireNotesValue(bulkApplyButton).disabled = false;
       view.showModal(bulkDialog, { trigger: bulkEditButton });
-      bulkLibraryInput.focus();
+      requireNotesValue(bulkLibraryInput).focus();
       setStatus("");
     } catch (error) {
       setStatus(requireErrors().caughtMessage(error, "Notes bulk editor could not be opened."), true);
@@ -2877,6 +2887,7 @@
     });
   }
 
+  /** @param {Event} event */
   async function applyBulkEdit(event) {
     const api = requireApi();
     event.preventDefault();
@@ -2902,7 +2913,7 @@
       return;
     }
 
-    bulkApplyButton.disabled = true;
+    requireNotesValue(bulkApplyButton).disabled = true;
     setBulkFormStatus("Updating notes...");
     try {
       const results = [];
@@ -2925,7 +2936,7 @@
       const updatedNoteIds = new Set(results.flatMap((result) => bulkChangedIds(result)));
       const failedNoteIds = new Set(failures
         .map((failure) => failure.note_id || failure.target_id)
-        .filter(Boolean));
+        .filter(/** @returns {noteId is string} */ (noteId) => Boolean(noteId)));
       state.selectedNoteIds = failedNoteIds;
       if (isNotesWorkspaceSurface) {
         await Promise.all([loadCollections(), loadNotes()]);
@@ -2945,14 +2956,21 @@
 
       const firstError = failures[0];
       setBulkFormStatus(firstError?.message || "Selected notes could not be updated.", true);
-      bulkApplyButton.disabled = false;
+      requireNotesValue(bulkApplyButton).disabled = false;
     } catch (error) {
       setBulkFormStatus(requireErrors().caughtMessage(error, "Selected notes could not be updated."), true);
-      bulkApplyButton.disabled = false;
+      requireNotesValue(bulkApplyButton).disabled = false;
     }
   }
 
+  /**
+   * Only select-control values establish these optional writes. No state-derived record or
+   * inferred enum is promised; null is the explicit Uncategorized sentinel conversion.
+   * @typedef {{libraryBucket?: string, noteCollectionId?: string | null, noteType?: string, visibility?: string}} NotesBulkChanges
+   * @returns {NotesBulkChanges}
+   */
   function readBulkNoteChanges() {
+    /** @type {NotesBulkChanges} */
     const changes = {};
     if (bulkLibraryInput?.value) {
       changes.libraryBucket = bulkLibraryInput.value;
@@ -2971,6 +2989,10 @@
     return changes;
   }
 
+  /**
+   * The bulk caller supplies normalized IDs; retain the existing local array compatibility.
+   * @param {Set<BrowserNoteRecord["note_id"]> | Array<string | {note_id?: BrowserNoteRecord["note_id"], target_id?: string}>} updatedNoteIds
+   */
   async function refreshSelectedNoteAfterBulk(updatedNoteIds = []) {
     const api = requireApi();
     const selectedId = state.selectedNote?.note_id || "";
