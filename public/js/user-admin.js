@@ -65,10 +65,10 @@
   const userSessionList = document.querySelector("[data-user-session-list]");
   const refreshUserSessionsButton = document.querySelector("[data-refresh-user-sessions]");
   const revokeUserSessionsButton = document.querySelector("[data-revoke-user-sessions]");
-  const roleAssignmentRoleSelect = document.querySelector("[data-role-assignment-role]");
-  const roleAssignmentScopeSelect = document.querySelector("[data-role-assignment-scope]");
-  const addRoleAssignmentButton = document.querySelector("[data-add-role-assignment]");
-  const roleAssignmentList = document.querySelector("[data-role-assignment-list]");
+  const roleAssignmentRoleSelect = findUserAdminControl("[data-role-assignment-role]", HTMLSelectElement);
+  const roleAssignmentScopeSelect = findUserAdminControl("[data-role-assignment-scope]", HTMLSelectElement);
+  const addRoleAssignmentButton = findUserAdminControl("[data-add-role-assignment]", HTMLButtonElement);
+  const roleAssignmentList = findUserAdminControl("[data-role-assignment-list]", HTMLElement);
   const configureDraftPermissionsButton = findUserAdminControl("[data-configure-draft-permissions]", HTMLButtonElement);
   const rolePermissionsDialog = findUserAdminControl("[data-role-permissions-dialog]", HTMLDialogElement);
   const rolePermissionsForm = findUserAdminControl("[data-role-permissions-form]", HTMLFormElement);
@@ -78,8 +78,16 @@
 
   /** @type {BrowserUserRecord[]} */
   let users = [];
+  /**
+   * The assignable roles, as `readRoleOptions` vouched for them.
+   * @type {BrowserRoleOption[]}
+   */
   let roles = [];
   /** @type {{ id?: unknown, name?: unknown, projects?: { id?: unknown, name?: unknown }[] }[]} */
+  /**
+   * The client and project scopes, as `readClientProjectScopes` vouched for them.
+   * @type {BrowserUserAdminClientScope[]}
+   */
   let clients = [];
   let workspaces = [];
   /**
@@ -111,6 +119,35 @@
 
   /** @type {AddUserAccountLookup | null} */
   let accountLookup = null;
+  /**
+   * One row of the assignment list this dialog is building.
+   *
+   * **This is not `BrowserRoleAssignment`, and declaring it as one would be false.** The slot
+   * holds two kinds of row: assignments `readRoleAssignments` vouched for, which carry
+   * `assignment_id`, `client_id` and `project_id`; and rows `addPendingRoleAssignment` builds
+   * locally, which carry **none of those three**. Only the four members below are on every row.
+   *
+   * Those same four are exactly what the receiver reads. `normalizeAssignments` in
+   * `src/services/permissions.service.js` takes `role_id`, `scope_type`, `scope_id` and
+   * `permission_overrides` off each entry and derives `client_id`/`project_id` itself - it never
+   * reads `assignment_id`. So this model is a statement about the **outgoing payload**, checked
+   * against the consumer rather than assumed from the record that happens to share the slot.
+   *
+   * `permission_overrides` stays `unknown`: a server-sourced row carries whatever the server
+   * sent, and `0.33.33.44.8` established that only `normalizePermissionOverrides` output is
+   * `PermissionOverrides`.
+   * @typedef {{
+   *   role_id: string,
+   *   scope_type: string,
+   *   scope_id: string | null,
+   *   permission_overrides: unknown,
+   *   assignment_id?: string,
+   *   client_id?: string | null,
+   *   project_id?: string | null,
+   * }} PendingRoleAssignment
+   */
+
+  /** @type {PendingRoleAssignment[]} */
   let pendingRoleAssignments = [];
   /** @type {PermissionOverrides} */
   let draftPermissionOverrides = createDefaultPermissionOverrides();
@@ -155,12 +192,12 @@
 
   requireUserAdminValue(cancelEditUserButton, "cancel button").addEventListener("click", closeEditUserDialog);
 
-  addRoleAssignmentButton.addEventListener("click", addPendingRoleAssignment);
+  requireUserAdminValue(addRoleAssignmentButton, "add assignment button").addEventListener("click", addPendingRoleAssignment);
 
-  roleAssignmentRoleSelect.addEventListener("change", renderScopeOptions);
+  requireUserAdminValue(roleAssignmentRoleSelect, "role select").addEventListener("change", renderScopeOptions);
 
-  configureDraftPermissionsButton.addEventListener("click", () => {
-    const role = roles.find((item) => item.role_id === roleAssignmentRoleSelect.value);
+  requireUserAdminValue(configureDraftPermissionsButton, "configure permissions button").addEventListener("click", () => {
+    const role = roles.find((item) => item.role_id === requireUserAdminValue(roleAssignmentRoleSelect, "role select").value);
     const scopeLabel = role ? formatScopeLabel(getDraftAssignment(role)) : "New assignment";
 
     openPermissionDialog({
@@ -1450,7 +1487,9 @@
   }
 
   function renderRoleOptions() {
-    roleAssignmentRoleSelect.replaceChildren();
+    const roleSelect = requireUserAdminValue(roleAssignmentRoleSelect, "role select");
+
+    roleSelect.replaceChildren();
 
     roles.forEach((role) => {
       const option = document.createElement("option");
@@ -1458,7 +1497,7 @@
       option.value = role.role_id;
       option.textContent = role.role_name;
       option.dataset.scopeType = role.assignable_scope_type;
-      roleAssignmentRoleSelect.appendChild(option);
+      roleSelect.appendChild(option);
     });
 
     if (newUserRoleSelect) {
@@ -1468,6 +1507,7 @@
     renderScopeOptions();
   }
 
+  /** @param {string} value @param {string} label */
   function createRoleOption(value, label) {
     const option = document.createElement("option");
 
@@ -1477,11 +1517,13 @@
   }
 
   function renderScopeOptions() {
-    const role = roles.find((item) => item.role_id === roleAssignmentRoleSelect.value);
+    const roleSelect = requireUserAdminValue(roleAssignmentRoleSelect, "role select");
+    const scopeSelect = requireUserAdminValue(roleAssignmentScopeSelect, "scope select");
+    const role = roles.find((item) => item.role_id === roleSelect.value);
     const scopeType = role?.assignable_scope_type || "workspace";
 
-    roleAssignmentScopeSelect.replaceChildren();
-    roleAssignmentScopeSelect.disabled = scopeType === "workspace" || scopeType === "global";
+    scopeSelect.replaceChildren();
+    scopeSelect.disabled = scopeType === "workspace" || scopeType === "global";
 
     if (scopeType === "global") {
       appendScopeOption("all", "All");
@@ -1505,16 +1547,18 @@
     });
   }
 
+  /** @param {string} value @param {string} label */
   function appendScopeOption(value, label) {
     const option = document.createElement("option");
 
     option.value = value;
     option.textContent = label;
-    roleAssignmentScopeSelect.appendChild(option);
+    requireUserAdminValue(roleAssignmentScopeSelect, "scope select").appendChild(option);
   }
 
   function addPendingRoleAssignment() {
-    const role = roles.find((item) => item.role_id === roleAssignmentRoleSelect.value);
+    const roleSelect = requireUserAdminValue(roleAssignmentRoleSelect, "role select");
+    const role = roles.find((item) => item.role_id === roleSelect.value);
 
     if (!role) {
       setUserAdminStatus("Choose a role before adding an assignment.", true);
@@ -1553,13 +1597,15 @@
   }
 
   function renderPendingRoleAssignments() {
-    roleAssignmentList.replaceChildren();
+    const assignmentList = requireUserAdminValue(roleAssignmentList, "assignment list");
+
+    assignmentList.replaceChildren();
 
     if (pendingRoleAssignments.length === 0) {
       const emptyItem = document.createElement("li");
 
       emptyItem.textContent = "No roles assigned.";
-      roleAssignmentList.appendChild(emptyItem);
+      assignmentList.appendChild(emptyItem);
       return;
     }
 
@@ -1598,7 +1644,7 @@
 
       controls.append(permissionsButton, removeButton);
       item.append(label, controls);
-      roleAssignmentList.appendChild(item);
+      assignmentList.appendChild(item);
     });
   }
 
@@ -1656,10 +1702,13 @@
       .map((checkbox) => checkbox.dataset.workspaceMembership);
   }
 
+  /** @param {PendingRoleAssignment} assignment */
   function formatRoleAssignment(assignment) {
     const role = roles.find((item) => item.role_id === assignment.role_id);
     const scopeLabel = formatScopeLabel(assignment);
-    const overrides = assignment.permission_overrides || {};
+    // Normalised rather than read raw: a server-sourced row carries whatever the server sent, and
+    // the defaults answer the same falsy values the bare `|| {}` did for an absent member.
+    const overrides = normalizePermissionOverrides(assignment.permission_overrides);
     const advanced = [];
 
     if (overrides.restrictBilling) {
@@ -1688,6 +1737,10 @@
     return `${workspaceName} [${ownerUsername}]`;
   }
 
+  /**
+   * @param {{ scope_type: string, scope_id: string | null }} assignment the two members this
+   *   reads, so a staged row and a saved one both satisfy it
+   */
   function formatScopeLabel(assignment) {
     if (assignment.scope_type === "all" || assignment.scope_id === "all") {
       return "All";
@@ -1712,13 +1765,18 @@
     return "Project";
   }
 
+  /** @param {BrowserRoleOption} role */
   function getDraftAssignment(role) {
     const scopeType = role.assignable_scope_type === "global" ? "all" : role.assignable_scope_type;
 
     return {
       role_id: role.role_id,
       scope_type: scopeType,
-      scope_id: scopeType === "all" ? "all" : scopeType === "workspace" ? "workspace" : roleAssignmentScopeSelect.value,
+      scope_id: scopeType === "all"
+        ? "all"
+        : scopeType === "workspace"
+          ? "workspace"
+          : requireUserAdminValue(roleAssignmentScopeSelect, "scope select").value,
     };
   }
 
