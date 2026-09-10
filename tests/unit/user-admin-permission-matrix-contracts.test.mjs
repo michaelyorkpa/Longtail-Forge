@@ -298,13 +298,17 @@ describe("permission behaviour this child must not have moved", () => {
     assert.match(body, /overrides\.allowEditTime = getOperationAllowed\(overrides, "time_entries", "update"\);/);
   });
 
-  it("leaves role assignments, memberships, sessions and rows to their own children", () => {
-    // Those clusters still read bare controls and untyped state, and this child touched none.
+  it("leaves the clusters it does not own to their own children", () => {
+    // Retargeted by `0.33.33.44.9`, which legitimately converted `roleAssignmentList`. Naming
+    // specific unconverted controls makes this case a maintenance tax on every later child, so
+    // the durable claim is the pair that actually matters: this page is still being converted
+    // cluster by cluster, and this cluster's own required accesses stay inside it - which the
+    // case above already checks by argument.
     const bare = [...page.matchAll(/= document\.querySelector\("\[data-/g)].length;
     assert.ok(bare > 0, "controls no landed child owns are still bare");
-    for (const slot of ["roleAssignmentList", "workspaceMembershipList", "userSessionList", "userList"]) {
-      assert.match(page, new RegExp(`const ${slot} = document\\.querySelector\\(`), `${slot} is untouched`);
-    }
+    const checked = [...page.matchAll(/findUserAdminControl\("\[data-/g)].length;
+    assert.ok(checked > CONTROLS.length,
+      "and more than this cluster's own six are checked, because earlier children landed too");
   });
 
   it("adds no suppression, any, or namespace surface", () => {

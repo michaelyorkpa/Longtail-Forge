@@ -1343,6 +1343,18 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,821 to 6,779, `0.33.33.44` 1,288 to 1,264**, `dom` 1,114 to 1,096. Every code fell or held - TS2339 21 to 11, TS18047 42 to 32, TS7006 43 to 32, TS7005 17 to 12, TS7031 6 to 3, TS7034 5 to 3, TS2551 1 to 0 - with no new code and `unknown` still at zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.9 - The User Admin role assignments
+
+**Complete: 40 diagnostics, and the named cluster is at zero.** See the archive entry. `public/js/user-admin.js` goes **96 to 56**. The recheck found **26**, not the estimated ~24: `getDraftAssignment` carried three and `formatScopeLabel` one, neither counted in the estimate.
+
+**`pendingRoleAssignments` is not `BrowserRoleAssignment[]`, and declaring it as one would have been false.** The slot holds two kinds of row: assignments `readRoleAssignments` vouched for, which carry `assignment_id`, `client_id` and `project_id`; and rows `addPendingRoleAssignment` builds locally, which carry **none of those three**. Only four members are on every row.
+
+**Because that slot is sent, its element type is a claim about an outgoing payload - so it was checked against the receiver.** `normalizeAssignments` in `src/services/permissions.service.js` reads `role_id`, `scope_type`, `scope_id` and `permission_overrides` off each entry, derives `client_id`/`project_id` itself, and **never reads `assignment_id`**. The model names exactly those four as required and the three saved-only members as optional, and a case asserts that against the service source rather than against the record that happens to share the slot.
+
+**The same discipline found a second, smaller boundary.** `getDraftAssignment` answers three members and has no `permission_overrides`, so requiring the full model on `formatScopeLabel` was a claim its own caller could not meet - a `TS2741` the compiler raised immediately. That label reads two members, so it declares two.
+
+**Measured: browser 6,739 to 6,699, `0.33.33.44` 1,264 to 1,243**, `dom` 1,062 to 1,043. Every code fell or held - TS18047 32 to 17, TS7005 12 to 1, TS7006 32 to 25, TS2339 11 to 6, TS7034 3 to 1 - with no new code and `unknown` still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.

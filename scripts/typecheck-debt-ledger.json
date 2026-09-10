@@ -368,6 +368,7 @@
         "tests/mutations/user-admin-add-user.breaks.mjs",
         "tests/mutations/user-admin-edit-user.breaks.mjs",
         "tests/mutations/user-admin-permission-matrix.breaks.mjs",
+        "tests/mutations/user-admin-role-assignments.breaks.mjs",
         "tests/time-tracking/time-tracking-billing.test.mjs",
         "tests/typecheck/browser-database-boundary.fixture.mjs",
         "tests/typecheck/client-project-contracts.fixture.mjs",
@@ -486,6 +487,7 @@
         "tests/unit/user-admin-bootstrap-contracts.test.mjs",
         "tests/unit/user-admin-edit-user-contracts.test.mjs",
         "tests/unit/user-admin-permission-matrix-contracts.test.mjs",
+        "tests/unit/user-admin-role-assignment-contracts.test.mjs",
         "tests/unit/user-list-response-contracts.test.mjs",
         "tests/unit/user-record-contract.test.mjs",
         "tests/unit/user-settings-contracts.test.mjs",
@@ -594,7 +596,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 6739,
+      "errorCount": 6699,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1773,7 +1775,7 @@
         "public/js/user-admin.js": [
           {
             "code": 18047,
-            "count": 32
+            "count": 17
           },
           {
             "code": 2322,
@@ -1781,7 +1783,7 @@
           },
           {
             "code": 2339,
-            "count": 11
+            "count": 6
           },
           {
             "code": 2531,
@@ -1793,11 +1795,11 @@
           },
           {
             "code": 7005,
-            "count": 12
+            "count": 1
           },
           {
             "code": 7006,
-            "count": 32
+            "count": 25
           },
           {
             "code": 7031,
@@ -1805,7 +1807,7 @@
           },
           {
             "code": 7034,
-            "count": 3
+            "count": 1
           }
         ],
         "public/js/user-settings.js": [
@@ -2534,8 +2536,8 @@
     }
   },
   "totals": {
-    "files": 1175,
-    "errors": 6739,
+    "files": 1177,
+    "errors": 6699,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
