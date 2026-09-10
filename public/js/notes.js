@@ -688,7 +688,7 @@
   let filtersForm = null;
   /** @type {Element | null} */
   let statusFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let visibilityFilter = null;
   /** @type {Element | null} */
   let securityFilter = null;
@@ -909,7 +909,7 @@
     statusMessage = document.querySelector("[data-notes-status]");
     filtersForm = document.querySelector("[data-notes-filters]");
     statusFilter = document.querySelector("[data-note-filter-status]");
-    visibilityFilter = document.querySelector("[data-note-filter-visibility]");
+    visibilityFilter = findNotesControl("[data-note-filter-visibility]", HTMLSelectElement);
     securityFilter = document.querySelector("[data-note-filter-security]");
     typeFilter = document.querySelector("[data-note-filter-type]");
     collectionFilter = findNotesControl("[data-note-filter-collection]", HTMLSelectElement);
@@ -1564,41 +1564,67 @@
     return surface ? scopeNotesVisibilityContributions(surface) : null;
   }
 
+  /**
+   * @param {unknown} surface
+   * @returns {import("../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor}
+   */
   function scopeNotesVisibilityContributions(surface = {}) {
+    // Reuse the contribution reader: projection must not declare unchecked input members.
+    const descriptor = requireView().normalizeSurfaceDescriptor(surface);
     const workspaceType = normalizeWorkspaceType(
       state.workspaceType || window.LongtailForge?.workspaceContext?.workspaceType || "",
     );
     if (!workspaceType || workspaceType === "business") {
-      return surface;
+      return descriptor;
     }
 
+    /** @param {import("../../src/types/framework-contracts.js").ViewFieldDescriptor[]} fields */
     const scopeFields = (fields = []) => fields
       .filter((field) => workspaceType !== "personal" || field.field !== "visibility")
       .map((field) => field.field === "visibility" ? {
         ...field,
-        options: (field.options || []).filter((option) => (Array.isArray(option) ? option[0] : option.value) !== "client_visible"),
+        options: scopeNotesVisibilityOptions(field.options),
       } : field);
+    const header = descriptor.detail?.header;
 
     return {
-      ...surface,
-      filters: (surface.filters || [])
+      ...descriptor,
+      filters: (descriptor.filters || [])
         .filter((filter) => workspaceType !== "personal" || filter.field !== "visibility")
         .map((filter) => filter.field === "visibility" ? {
           ...filter,
-          options: (filter.options || []).filter((option) => (Array.isArray(option) ? option[0] : option.value) !== "client_visible"),
+          options: scopeNotesVisibilityOptions(filter.options),
         } : filter),
-      detail: workspaceType === "personal" && surface.detail ? {
-        ...surface.detail,
-        header: surface.detail.header ? {
-          ...surface.detail.header,
-          badges: (surface.detail.header.badges || []).filter((badge) => badge.field !== "visibility"),
-        } : surface.detail.header,
-      } : surface.detail,
-      modals: (surface.modals || []).map((modal) => ["note-editor", "note-bulk-editor"].includes(modal.id) ? {
+      detail: workspaceType === "personal" && descriptor.detail ? {
+        ...descriptor.detail,
+        header: header ? {
+          ...header,
+          // Header entries remain opaque under the shared contribution contract. Only
+          // the visibility field is ours; other badge metadata belongs to its renderer.
+          badges: (Array.isArray(header.badges) ? header.badges : [])
+            .filter((badge) => !isResponseRecord(badge) || badge.field !== "visibility"),
+        } : header,
+      } : descriptor.detail,
+      modals: (descriptor.modals || []).map((modal) => ["note-editor", "note-bulk-editor"].includes(modal.id) ? {
         ...modal,
         fields: scopeFields(modal.fields),
       } : modal),
     };
+  }
+
+  /** @param {unknown[]} [options] */
+  function scopeNotesVisibilityOptions(options = []) {
+    // Options are intentionally unknown in the contribution contract. Do not promise
+    // a record shape merely to compare its value; preserve unrelated option metadata.
+    return options.filter((option) => (Array.isArray(option) ? option[0]
+      : isResponseRecord(option) ? option.value : undefined) !== "client_visible");
+  }
+
+  /** @param {unknown} option @returns {[string, string] | null} */
+  function readNotesVisibilityOption(option) {
+    const value = Array.isArray(option) ? option[0] : isResponseRecord(option) ? option.value : undefined;
+    const label = Array.isArray(option) ? option[1] : isResponseRecord(option) ? option.label : undefined;
+    return typeof value === "string" && typeof label === "string" ? [value, label] : null;
   }
 
   function decorateNotesDeclarativeSurface(surface) {
@@ -1873,14 +1899,17 @@
     return view.createElement("option", { text: label, attrs: { value } });
   }
 
+  /** @returns {Partial<import("../../src/types/framework-contracts.js").ViewModalDescriptor>} */
   function notesEditorModalDescriptor() {
     return notesViewSurfaceDescriptor()?.modals?.find((modal) => modal.id === "note-editor") || {};
   }
 
+  /** @returns {Partial<import("../../src/types/framework-contracts.js").ViewModalDescriptor>} */
   function notesBulkEditorModalDescriptor() {
     return notesViewSurfaceDescriptor()?.modals?.find((modal) => modal.id === "note-bulk-editor") || {};
   }
 
+  /** @returns {Partial<import("../../src/types/framework-contracts.js").ViewModalDescriptor>} */
   function notesCollectionModalDescriptor() {
     return notesViewSurfaceDescriptor()?.modals?.find((modal) => modal.id === "note-collection") || {};
   }
@@ -2362,7 +2391,7 @@
     const personalWorkspace = normalizeWorkspaceType(state.workspaceType) === "personal";
     for (const control of [visibilityFilter, visibilityInput, bulkVisibilityInput]) {
       const field = control?.closest("label, [data-view-field]");
-      if (field) {
+      if (field instanceof HTMLElement) {
         field.hidden = personalWorkspace;
         field.style.display = personalWorkspace ? "none" : "";
       }
@@ -2372,11 +2401,11 @@
       const selectedValue = visibilityFilter.value || "all";
       const options = notesViewSurfaceDescriptor()?.filters
         ?.find((filter) => filter.field === "visibility")?.options || [];
-      visibilityFilter.replaceChildren(...options.map((option) => {
-        const [value, label] = Array.isArray(option) ? option : [option.value, option.label];
+      const pairs = options.map(readNotesVisibilityOption).filter((option) => option !== null);
+      visibilityFilter.replaceChildren(...pairs.map(([value, label]) => {
         return notesOptionElement(value, label);
       }));
-      visibilityFilter.value = options.some((option) => (Array.isArray(option) ? option[0] : option.value) === selectedValue)
+      visibilityFilter.value = pairs.some(([value]) => value === selectedValue)
         ? selectedValue
         : "all";
     }
@@ -4732,6 +4761,7 @@
     targetSearch.placeholder = linkedRecordsField(descriptor, "target_search").placeholder || "Search records";
     targetResults.required = true;
 
+    /** @type {Partial<import("../../src/types/framework-contracts.js").ViewActionDescriptor>} */
     const addAction = descriptor.actions?.find((action) => action.id === "add-link") || {};
     const add = view.createActionButton({
       icon: "add",
