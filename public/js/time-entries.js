@@ -400,9 +400,21 @@
       // shorter day than the one that was worked. Refusing here leaves `timeEntries` holding the
       // last collection that *was* whole - the assignment below never runs - and the catch says
       // so, which is the only honest pair of outcomes for an authoritative list.
-      const entryCollection = entriesResponse.ok
-        ? readTimeEntryCollection(await entriesResponse.json())
-        : { entries: [], refused: 0 };
+      // **A failed read is not an empty day.** Three ways this response can fail to be an answer,
+      // and all three now take the same path: the request itself failed, the envelope could not be
+      // read, or some rows could not. `0.33.33.44.14` closed the third; `0.33.33.44.15` closes the
+      // first two, which until now both said "no entries" - a claim the server never made. Every
+      // failure leaves `timeEntries` holding the last collection that *was* whole, because the
+      // assignment is below the guards, and the catch reports it.
+      if (!entriesResponse.ok) {
+        throw new Error(`Could not load time entries: ${entriesResponse.status}`);
+      }
+
+      const entryCollection = readTimeEntryCollection(await entriesResponse.json());
+
+      if (!entryCollection) {
+        throw new Error("The time entry response carried no readable entry collection.");
+      }
 
       if (entryCollection.refused > 0) {
         throw new Error(
@@ -840,11 +852,22 @@
    * totals and invoicing are read off it - so a partial read must not look like a whole one.
    * The count is answered here and the policy is applied by the loader, which is the only place
    * that knows what the page was already showing.
+   *
+   * **`null` is a third answer, and it is not the same as an empty one.** `0.33.33.44.14` folded a
+   * body that carries no `entries` array into "read, zero rows, nothing refused", which says the
+   * workspace has no entries - a claim the body never made. A missing or non-array member means
+   * the envelope could not be read at all, and it is refused the way `readTagBulkAssignment`
+   * refuses one: `null`, so the caller takes its failure path. `{ entries: [] }` is a real answer
+   * and stays one.
    * @param {unknown} data
-   * @returns {{ entries: NormalizedTimeEntry[], refused: number }}
+   * @returns {{ entries: NormalizedTimeEntry[], refused: number } | null}
    */
   function readTimeEntryCollection(data) {
-    const rows = isTimeEntryRecord(data) && Array.isArray(data.entries) ? data.entries : [];
+    if (!isTimeEntryRecord(data) || !Array.isArray(data.entries)) {
+      return null;
+    }
+
+    const rows = data.entries;
     const entries = readTimeEntryRows(rows);
 
     return { entries, refused: rows.length - entries.length };

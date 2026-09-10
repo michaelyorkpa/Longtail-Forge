@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.44.15 - Finish the Time Entries failure-policy distinction
+
+**Model: High Effort** - a bounded follow-up that changes behaviour and moves no diagnostic, which is exactly what a failure-policy correction should look like.
+
+- [x] **The review found `0.33.33.44.14` incomplete, and it was.** That child refused a *short* read but still let two other failures pass as answers: a body carrying no `entries` array was read as an empty collection with `refused: 0`, and a non-ok response answered `[]` outright. Both state that the workspace has no time entries - a claim neither a malformed envelope nor a 503 ever made.
+- [x] **`readTimeEntryCollection` now has a third answer.** `null` means the envelope itself could not be read, refused the way `readTagBulkAssignment` in this same file already refuses one, so the idiom is the estate's own rather than a new invention. A missing member, a non-array member, a non-record body and a bare array all take it.
+- [x] **The non-ok path is refused under the authorized policy change**, naming the status it refused on. Together with the envelope refusal and the row refusal, all three failure modes reach one outcome: the assignment sits below every guard, so `timeEntries` keeps the last collection that was whole, the page is not repainted, and the catch reports it.
+- [x] **`{ entries: [] }` is still a real answer**, and the tests assert that from both sides: it replaces the previous rows, renders, and clears the status, while every failure mode preserves and reports. That is the distinction the review asked for, and it would be trivially easy to lose by treating "empty" and "unreadable" as one case.
+- [x] **The status text is deliberately identical for all three failures**, so the *reason* is only distinguishable in the log. Two breaks proved the tests had not been asserting it: blanking the envelope guard still produced the same status through a null dereference, and dropping the status code from the failed-request message changed nothing observable. Both assertions now read the log, and both breaks are caught.
+- [x] **Ten loader cases and a committed sixteen-break harness that refuses all sixteen**, with the two sibling Time Entries harnesses re-run green at 41/41 and 46/46. One older break was retargeted rather than weakened: `0.33.33.44.12`'s "the body stops being checked for an entries array" now aims at the envelope guard this child moved above the row read.
+- [x] **Canonical evidence.** Browser **6,396, unchanged**; `0.33.33.44` **1,156, unchanged**; the debt ledger is byte-identical. No diagnostic moved because none should have: this checkpoint changes what the page does with a response, not how it is typed. `unknown` still zero, server/tests and scripts still zero, `0.33.33.39` through `.43` unchanged.
+
+Left for later children of `0.33.33.44`: the entry table rendering and row actions, the date arithmetic helpers, the delegating formatter tail, and the three remaining bare controls. This does not close `.44`, `.38`, or the version-wide branch. Managed rendered runs use `LTF_E2E_PORT=8101`.
+
 ## Version 0.33.33.44.14 - Time Entries data layer and its failure policy
 
 **Model: High Effort** - the child that had to correct a defect its own branch shipped before it could finish typing the layer that produced it.
