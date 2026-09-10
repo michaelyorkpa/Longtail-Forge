@@ -338,6 +338,7 @@
         "tests/e2e/notes-link-editor.spec.mjs",
         "tests/e2e/notes-note-viewer.spec.mjs",
         "tests/e2e/notes-primary-context.spec.mjs",
+        "tests/e2e/notes-visibility-scoping.spec.mjs",
         "tests/e2e/overflow.spec.mjs",
         "tests/e2e/public-legal.spec.mjs",
         "tests/e2e/reporting-host-console.spec.mjs",
@@ -366,6 +367,7 @@
         "tests/mutations/notes-link-editor.breaks.mjs",
         "tests/mutations/notes-note-viewer.breaks.mjs",
         "tests/mutations/notes-primary-context.breaks.mjs",
+        "tests/mutations/notes-visibility-scoping.breaks.mjs",
         "tests/mutations/time-entry-dialog-corrections.breaks.mjs",
         "tests/mutations/user-admin-add-user.breaks.mjs",
         "tests/mutations/user-admin-edit-user.breaks.mjs",
@@ -437,6 +439,7 @@
         "tests/unit/notes-link-editor.test.mjs",
         "tests/unit/notes-note-viewer.test.mjs",
         "tests/unit/notes-primary-context.test.mjs",
+        "tests/unit/notes-visibility-scoping.test.mjs",
         "tests/unit/notification-bell-summary-contracts.test.mjs",
         "tests/unit/notification-list-contracts.test.mjs",
         "tests/unit/notification-preference-json-boundary.test.mjs",
@@ -601,7 +604,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 6641,
+      "errorCount": 6602,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1062,7 +1065,7 @@
           },
           {
             "code": 2339,
-            "count": 96
+            "count": 76
           },
           {
             "code": 2345,
@@ -1074,7 +1077,7 @@
           },
           {
             "code": 7006,
-            "count": 133
+            "count": 114
           },
           {
             "code": 7031,
@@ -2537,8 +2540,8 @@
     }
   },
   "totals": {
-    "files": 1182,
-    "errors": 6641,
+    "files": 1185,
+    "errors": 6602,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
