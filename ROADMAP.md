@@ -1405,6 +1405,16 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,459 to 6,437, `0.33.33.44` 1,198 to 1,185**, `dom` 913 to 904, params 4,021 to 4,018, state 1,402 to 1,392. No new code, `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.14 - Time Entries data layer and its failure policy
+
+**Complete: 29 diagnostics in `public/js/time-entries.js`**, 68 to 39, plus a review-directed failure-policy correction. See the archive entry.
+
+**The correction comes first, because it is a defect this branch shipped.** `0.33.33.44.12` made the row check sound but left the filter silent, so a response carrying one readable and one unreadable entry produced a **shorter** collection that the loader then presented as complete and cleared the status over. The entry list is authoritative - totals and invoicing read off it - so a partial read is now a failed read: the reader answers what it read *and how much it refused*, the loader refuses any short read, `timeEntries` keeps the last collection that was whole, and the status reports the failure. Proved through the loader and display path, not only through the normalizer.
+
+**The remaining readers are typed from producers that were traced.** `clientProjectOptions.normalizeClients` is published as **total** over `unknown` answering `NormalizedClientOption[]`, so the client catalogue is established rather than asserted. `/api/settings` is configuration with documented fallbacks, so an unreadable settings shape takes the fallback the page already published - deliberately the opposite policy from the entry collection, and recorded as such.
+
+**Measured: browser 6,425 to 6,396, `0.33.33.44` 1,185 to 1,156**, params 4,013 to 3,993, state 1,392 to 1,383. Every code fell or held and none is new - TS7005 6 to 0, TS7034 2 to 0, TS7006 52 to 32. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
