@@ -114,7 +114,9 @@ describe("presence is settled where the page already dereferenced", () => {
     ]) {
       const body = slice(opener).replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|\s)\/\/[^\n]*/g, "$1");
       for (const [, argument] of body.matchAll(/requireUserAdminValue\(([^,]+),/g)) {
-        assert.ok(slots.has(argument.trim()),
+        // `refreshUserSessionsButton` is the one legitimate exception: the focus target is a
+        // union that genuinely spans two clusters, and `0.33.33.44.10` typed the sessions half.
+        assert.ok(slots.has(argument.trim()) || argument.trim() === "refreshUserSessionsButton",
           `${argument.trim()} in ${opener.trim()} is not one of this dialog's ten controls`);
       }
     }
@@ -128,14 +130,14 @@ describe("presence is settled where the page already dereferenced", () => {
     assert.match(executable, /requireUserAdminValue\(resetEditUserPasswordButton, "reset-password button"\)\.addEventListener\("click"/);
   });
 
-  it("leaves the focus target alone, because the other half belongs to sessions", () => {
+  it("has both halves of the focus target typed, now that sessions landed", () => {
+    // `0.33.33.44.7` left this a union it could not resolve, because the sessions half was a bare
+    // query owned by a later child. `0.33.33.44.10` is that child, so this case now asserts the
+    // closure rather than the deferral - and the throw-on-absent behaviour is still unchanged.
     const body = slice("  async function openEditUserDialog(user, options = {}) {");
-    assert.match(body, /\(options\.focusSessions \? refreshUserSessionsButton : usernameInput\)\.focus\(\);/,
-      "the expression is unchanged, so an absent control still throws as it always did");
+    assert.match(body, /\(options\.focusSessions\s*\n\s*\? requireUserAdminValue\(refreshUserSessionsButton, "refresh sessions button"\)\s*\n\s*: usernameInput\)\.focus\(\);/);
     assert.ok(!/refreshUserSessionsButton\?\./.test(executable),
       "optional chaining would have turned that throw into a silent no-op");
-    assert.match(body, /owned by\s*\n?\s*\/\/ the managed-sessions child/,
-      "and the remaining diagnostic names its owner");
   });
 });
 

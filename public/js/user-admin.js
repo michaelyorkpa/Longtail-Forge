@@ -62,9 +62,9 @@
   const resetEditUserPasswordButton = findUserAdminControl("[data-reset-edit-user-password]", HTMLButtonElement);
   const saveEditUserButton = findUserAdminControl("[data-save-edit-user]", HTMLButtonElement);
   const workspaceMembershipList = document.querySelector("[data-workspace-membership-list]");
-  const userSessionList = document.querySelector("[data-user-session-list]");
-  const refreshUserSessionsButton = document.querySelector("[data-refresh-user-sessions]");
-  const revokeUserSessionsButton = document.querySelector("[data-revoke-user-sessions]");
+  const userSessionList = findUserAdminControl("[data-user-session-list]", HTMLElement);
+  const refreshUserSessionsButton = findUserAdminControl("[data-refresh-user-sessions]", HTMLButtonElement);
+  const revokeUserSessionsButton = findUserAdminControl("[data-revoke-user-sessions]", HTMLButtonElement);
   const roleAssignmentRoleSelect = findUserAdminControl("[data-role-assignment-role]", HTMLSelectElement);
   const roleAssignmentScopeSelect = findUserAdminControl("[data-role-assignment-scope]", HTMLSelectElement);
   const addRoleAssignmentButton = findUserAdminControl("[data-add-role-assignment]", HTMLButtonElement);
@@ -159,6 +159,15 @@
   /** @type {PermissionDialogTarget | null} */
   let editingPermissionTarget = null;
   let openedUserFromQuery = false;
+  /**
+   * The sessions `readManagedSessionList` vouched for.
+   *
+   * Written only by `renderManagedUserSessions`, whose two callers pass that reader's own
+   * `sessions` or an empty list - so the compiler checks this chain rather than the declaration
+   * asserting it. `isManagedSession` establishes every text member, a `sessionReference`
+   * matching its pattern, and a boolean `isCurrent`.
+   * @type {BrowserManagedSession[]}
+   */
   let managedUserSessions = [];
   let currentUserId = "";
 
@@ -214,7 +223,7 @@
     savePermissionDialog();
   });
 
-  cancelRolePermissionsButton.addEventListener("click", closePermissionDialog);
+  requireUserAdminValue(cancelRolePermissionsButton, "cancel permissions button").addEventListener("click", closePermissionDialog);
 
   requireUserAdminValue(resetEditUserPasswordButton, "reset-password button").addEventListener("click", async () => {
     const user = getEditingUser();
@@ -224,14 +233,14 @@
     }
   });
 
-  refreshUserSessionsButton.addEventListener("click", async () => {
+  requireUserAdminValue(refreshUserSessionsButton, "refresh sessions button").addEventListener("click", async () => {
     const user = getEditingUser();
     if (user) {
       await loadUserSessions(user);
     }
   });
 
-  revokeUserSessionsButton.addEventListener("click", async () => {
+  requireUserAdminValue(revokeUserSessionsButton, "revoke sessions button").addEventListener("click", async () => {
     const user = getEditingUser();
     if (user) {
       await revokeAllUserSessions(user);
@@ -1187,10 +1196,12 @@
     renderPendingRoleAssignments();
     requireUserAdminValue(editUserDialog, "edit-user dialog").showModal();
     renderManagedUserSessions([]);
-    // The focus target is still a union: `refreshUserSessionsButton` is a bare query owned by
-    // the managed-sessions child, so `.focus()` stays unresolved until that child types it. The
-    // edit-user half is typed, and the throw-on-absent behaviour is deliberately unchanged.
-    (options.focusSessions ? refreshUserSessionsButton : usernameInput).focus();
+    // `0.33.33.44.7` left this union unresolved because `refreshUserSessionsButton` was a bare
+    // query owned by the managed-sessions child. That child is this one, so both halves are now
+    // typed and the throw-on-absent behaviour is still deliberately unchanged.
+    (options.focusSessions
+      ? requireUserAdminValue(refreshUserSessionsButton, "refresh sessions button")
+      : usernameInput).focus();
 
     try {
       const [body] = await Promise.all([
@@ -1301,9 +1312,13 @@
       : null;
   }
 
+  /** @param {BrowserUserRecord} user */
   async function loadUserSessions(user) {
-    refreshUserSessionsButton.disabled = true;
-    userSessionList.replaceChildren(createSessionStatusItem("Loading active sessions..."));
+    const refreshButton = requireUserAdminValue(refreshUserSessionsButton, "refresh sessions button");
+
+    refreshButton.disabled = true;
+    requireUserAdminValue(userSessionList, "session list")
+      .replaceChildren(createSessionStatusItem("Loading active sessions..."));
 
     try {
       const managed = readManagedSessionList(await requireApi().getJson(
@@ -1321,17 +1336,21 @@
       renderManagedUserSessions([]);
       setUserAdminStatus(requireErrors().caughtMessage(error, "Active sessions could not be loaded."), true);
     } finally {
-      refreshUserSessionsButton.disabled = false;
+      refreshButton.disabled = false;
     }
   }
 
+  /** @param {BrowserManagedSession[]} nextSessions */
   function renderManagedUserSessions(nextSessions) {
+    const sessionList = requireUserAdminValue(userSessionList, "session list");
+
     managedUserSessions = Array.isArray(nextSessions) ? nextSessions : [];
-    userSessionList.replaceChildren();
-    revokeUserSessionsButton.disabled = managedUserSessions.length === 0;
+    sessionList.replaceChildren();
+    requireUserAdminValue(revokeUserSessionsButton, "revoke sessions button").disabled =
+      managedUserSessions.length === 0;
 
     if (!managedUserSessions.length) {
-      userSessionList.appendChild(createSessionStatusItem("No active sessions are connected to this workspace."));
+      sessionList.appendChild(createSessionStatusItem("No active sessions are connected to this workspace."));
       return;
     }
 
@@ -1348,10 +1367,11 @@
       revokeButton.textContent = "Revoke";
       revokeButton.addEventListener("click", () => revokeUserSession(getEditingUser(), session));
       item.append(detail, revokeButton);
-      userSessionList.appendChild(item);
+      sessionList.appendChild(item);
     });
   }
 
+  /** @param {BrowserUserRecord | undefined} user @param {BrowserManagedSession} session */
   async function revokeUserSession(user, session) {
     if (!user || !session?.sessionReference) {
       return;
@@ -1384,6 +1404,7 @@
     }
   }
 
+  /** @param {BrowserUserRecord} user */
   async function revokeAllUserSessions(user) {
     const confirmed = await requireModalDialogs().confirm({
       title: "Log out workspace sessions?",
@@ -1414,12 +1435,14 @@
     }
   }
 
+  /** @param {string} message */
   function createSessionStatusItem(message) {
     const item = document.createElement("li");
     item.textContent = message;
     return item;
   }
 
+  /** @param {BrowserManagedSession["createdAt"]} value an ISO timestamp the reader vouched for */
   function formatSessionDate(value) {
     const date = new Date(value || "");
     return Number.isNaN(date.getTime()) ? "unknown" : date.toLocaleString();
