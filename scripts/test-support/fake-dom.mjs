@@ -148,6 +148,8 @@ export function fakeDomConstructors() {
   return {
     Element: elementConstructor(),
     HTMLElement: elementConstructor(),
+    HTMLButtonElement: elementConstructor("BUTTON"),
+    HTMLDetailsElement: elementConstructor("DETAILS"),
     HTMLInputElement: elementConstructor("INPUT"),
     HTMLSelectElement: elementConstructor("SELECT"),
     HTMLTextAreaElement: elementConstructor("TEXTAREA"),
@@ -288,6 +290,9 @@ export class FakeElement {
     this.colSpan = 1;
     this.disabled = false;
     this.hidden = false;
+    // The third state of the checkbox this already models with `checked`: a select-all control
+    // that is neither fully on nor fully off shows it, and a test cannot assert what is absent.
+    this.indeterminate = false;
     this.multiple = false;
     this.open = false;
     this.required = false;

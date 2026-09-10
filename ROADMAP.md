@@ -1393,6 +1393,18 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,548 to 6,471, `0.33.33.44` 1,210 to 1,198**, `dom` 982 to 917, params 4,036 to 4,027, state 1,407 to 1,404. No new code, `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.13 - Time Entries bulk tag actions and selection
+
+**Complete: 22 diagnostics across nine functions in `public/js/time-entries.js`**, 90 to 68. See the archive entry. The six bulk and tag-filter controls are **typed-or-null and left optional**, because every read already guards them - the conversion must not turn an absent optional control into a thrown page.
+
+**Both new slots are established by published contracts rather than by this page.** `loadTags` answers `Promise<BrowserTagCatalogRecord[]>` and `mountPicker` answers `Promise<BrowserTagPickerController | null>`, so `timeEntryTagOptions` and `bulkTagPicker` are typed from the surface that produces them. The optional call spellings on the picker are left exactly as they were: this child types the slot and does not re-decide how a mounted picker is spoken to.
+
+**The bulk response was already checked**, through the single `isTimeEntryRecord` `0.33.33.44.12` consolidated, so `applyBulkTagAction` reads a `BrowserTagBulkAssignmentResult` whose counts the reader refused to invent.
+
+**Two additive extensions to the shared fake DOM** were prerequisites, not scope creep: `HTMLDetailsElement` and `HTMLButtonElement` stand-ins for the two subtypes this page now narrows on, and `indeterminate`, the third state of the checkbox the fake already modelled with `checked`.
+
+**Measured: browser 6,459 to 6,437, `0.33.33.44` 1,198 to 1,185**, `dom` 913 to 904, params 4,021 to 4,018, state 1,402 to 1,392. No new code, `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
