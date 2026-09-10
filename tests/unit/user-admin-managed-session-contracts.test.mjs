@@ -218,8 +218,14 @@ describe("session behaviour this child must not have moved", () => {
 
   it("leaves the clusters it does not own to their own children", () => {
     const bare = [...page.matchAll(/= document\.querySelector\("\[data-/g)].length;
-    assert.ok(bare > 0, "controls no landed child owns are still bare");
-    assert.ok(!/requireUserAdminValue\((workspaceMembershipList|userList)/.test(executable),
-      "and no control of another cluster gained a required access here");
+    // Retargeted by `0.33.33.44.11`, which typed the last two controls: no bare ones remain to
+    // point at, so the durable claim became the completion fact instead.
+    assert.equal(bare, 0, "every control on this page now goes through the checked lookup");
+    // The name-based half is gone: `0.33.33.44.11` owns those controls now, so the completion
+    // fact above is the durable claim. What stays checkable here is the narrower one this cluster
+    // owns, asserted by argument in the case above.
+    assert.equal([...page.matchAll(/findUserAdminControl\("\[data-/g)].length,
+      [...page.matchAll(/const \w+ = findUserAdminControl\(/g)].length,
+      "every checked acquisition is a control declaration, not an inline lookup");
   });
 });

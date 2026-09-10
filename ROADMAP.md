@@ -1367,6 +1367,20 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,663 to 6,641, `0.33.33.44` 1,243 to 1,235**, `dom` 1,030 to 1,016. Every code fell or held - TS18047 17 to 7, TS7006 25 to 18, TS2339 6 to 2, TS2531 1 to 0 - with no new code and `unknown` still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.11 - The User Admin workspace memberships and user rows
+
+**Complete: 34 diagnostics, and `public/js/user-admin.js` reaches zero** - from **285** when `0.33.33.44.5` opened it. See the archive entry. The recheck confirmed 34 across 19 functions, and the two clusters were taken together because they interleave: `formatWorkspaceMembershipName`, `createTableCell`, `setUserAdminStatus` and the `workspaces` slot are read by both, and `0.33.33.44.5` explicitly left the name formatter untyped rather than settle this boundary from the Add User side.
+
+**The page now performs exactly one `document.querySelector`, inside the checked lookup.** All forty controls go through it, none bare. The file carries **no suppression, no `any`, and no cast this estate did not already have** - the three that remain predate `0.33.33.44.5` and sit inside readers that check every element before asserting.
+
+**`readSelectedWorkspaceMemberships` is sent, so its return is a payload claim** - the same distinction `0.33.33.44.9` drew for the assignment list. Every identity it answers comes from `workspace.workspaceId`, a `BrowserAssignableWorkspace` member the bootstrap already refused the body without.
+
+**An earlier child's boundary was respected rather than crossed.** A first pass routed `resetUserPassword`'s response read through `readUserCreation`; `create-user-response-contracts` had already recorded that reset-password is a **different producer** and assigned this callback typing to `0.33.33.44` while explicitly declining to conflate the two. The read is narrowed in place instead, and that contract was retargeted to assert the claim it actually protects rather than the spelling it happened to pin.
+
+**One more latent hole closed:** `isPersonalOwnerOnly` chained through a nullable `ownerUserId`, so it answered `string | boolean | null` while three reads used it as a flag - the same shape as the `hidden` hole `0.33.33.44.5` found.
+
+**Measured: browser 6,602 to 6,568, `0.33.33.44` 1,235 to 1,210**, `dom` 1,011 to 1,002. Every code fell to zero for this file, no new code, `unknown` still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
