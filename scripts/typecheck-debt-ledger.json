@@ -372,6 +372,7 @@
         "tests/e2e/workspace-settings-rejected-save.spec.mjs",
         "tests/e2e/workspace-switch-landing.spec.mjs",
         "tests/mutations/audit-log-filter-query.breaks.mjs",
+        "tests/mutations/audit-log-rendering.breaks.mjs",
         "tests/mutations/notes-bulk-edit.breaks.mjs",
         "tests/mutations/notes-editor-defaults.breaks.mjs",
         "tests/mutations/notes-follow-toggle.breaks.mjs",
@@ -414,6 +415,7 @@
         "tests/unit/attachment-panel-list-contracts.test.mjs",
         "tests/unit/audit-log-contracts.test.mjs",
         "tests/unit/audit-log-filter-query-contracts.test.mjs",
+        "tests/unit/audit-log-rendering-contracts.test.mjs",
         "tests/unit/bounded-pagination.test.mjs",
         "tests/unit/bulk-action-response-contract.test.mjs",
         "tests/unit/calendar-subscription-contracts.test.mjs",
@@ -638,7 +640,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 6153,
+      "errorCount": 6072,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -674,32 +676,6 @@
           {
             "code": 7053,
             "count": 3
-          }
-        ],
-        "public/js/audit-log.js": [
-          {
-            "code": 18047,
-            "count": 26
-          },
-          {
-            "code": 2339,
-            "count": 11
-          },
-          {
-            "code": 2531,
-            "count": 2
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 40
-          },
-          {
-            "code": 7034,
-            "count": 1
           }
         ],
         "public/js/calendar-settings.js": [
@@ -2492,8 +2468,8 @@
     }
   },
   "totals": {
-    "files": 1219,
-    "errors": 6153,
+    "files": 1221,
+    "errors": 6072,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
