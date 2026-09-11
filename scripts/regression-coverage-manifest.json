@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19053,
+    "activeAssertionCount": 19062,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19867,
+    "effectiveAssertionCount": 19876,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -4098,11 +4098,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 250,
+      "assertionCount": 259,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes ui workflow contract.",
-      "entryPointAssertionCount": 250,
+      "entryPointAssertionCount": 259,
       "id": "legacy.notes.ui.workflow",
       "legacy": true,
       "path": "scripts/notes-ui-workflow-regression.mjs",

@@ -258,6 +258,35 @@ LIMIT 1;
   return (await projectNoteSecurity(workspaceId, [noteRowToAppValue(row)]))[0];
 }
 
+/**
+ * The slugs already taken from one base, in the exact scope the unique index constrains.
+ *
+ * `idx_notes_workspace_slug` is `UNIQUE (workspace_id, slug) WHERE slug IS NOT NULL AND
+ * deleted_at IS NULL`, so this matches that predicate rather than a looser one: a deleted note or
+ * a note with no slug never blocks a new one.
+ *
+ * The `LIKE` pattern needs no escaping because the base always comes from `slugifyNoteTitle`,
+ * which emits only `[a-z0-9-]` - no `%`, `_` or backslash can reach it. The separator is included
+ * in the pattern so `meeting-notes` cannot be blocked by `meeting-notes-and-actions`.
+ * @param {string} workspaceId
+ * @param {string} baseSlug
+ * @param {string} [excludeNoteId]
+ * @returns {Promise<string[]>}
+ */
+async function readTakenSlugsFromBase(workspaceId, baseSlug, excludeNoteId = "") {
+  const rows = /** @type {{ slug: string }[]} */ (await db.query(`
+SELECT slug
+FROM notes
+WHERE workspace_id = :workspaceId
+  AND deleted_at IS NULL
+  AND slug IS NOT NULL
+  AND (slug = :baseSlug OR slug LIKE :pattern)
+  AND note_id <> :excludeNoteId;
+`, { baseSlug, excludeNoteId, pattern: `${baseSlug}-%`, workspaceId }));
+
+  return rows.map((row) => String(row.slug));
+}
+
 /** @param {string} workspaceId @param {string[]} [noteIds] @returns {Promise<NoteRecord[]>} */
 async function readByIds(workspaceId, noteIds = []) {
   const ids = [...new Set((Array.isArray(noteIds) ? noteIds : [])
@@ -2202,6 +2231,7 @@ export const notesRepository = {
   projectEffectiveSecurity,
   queryList,
   readById,
+  readTakenSlugsFromBase,
   readByIds,
   readCatalogSecuritySnapshot,
   readCollectionById,

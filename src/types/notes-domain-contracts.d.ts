@@ -675,6 +675,12 @@ export interface NotesRepository {
   queryList(workspaceId: string, options?: NoteQueryOptions): Promise<NoteQueryListResult>;
   readById(workspaceId: string, noteId: string): Promise<NoteRecord | null>;
   readByIds(workspaceId: string, noteIds?: string[]): Promise<NoteRecord[]>;
+  /**
+   * Slugs already taken from one base, in the exact scope `idx_notes_workspace_slug` constrains:
+   * active, non-deleted rows that carry a slug. Used to disambiguate a derived slug so duplicate
+   * display titles do not collide.
+   */
+  readTakenSlugsFromBase(workspaceId: string, baseSlug: string, excludeNoteId?: string): Promise<string[]>;
   readCatalogSecuritySnapshot(workspaceId: string, collectionIds?: string[]): Promise<CatalogSecuritySnapshot>;
   readCollectionById(workspaceId: string, collectionId: string): Promise<NoteCollectionRecord | null>;
   readLinkById(workspaceId: string, noteId: string, linkId: string): Promise<NoteLinkRecord | null>;
