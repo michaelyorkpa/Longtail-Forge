@@ -7161,6 +7161,10 @@ summary.view-info-panel-title {
     align-items: end;
 }
 
+.notes-link-form[hidden] {
+    display: none;
+}
+
 .notes-link-item {
     display: flex;
     flex-wrap: wrap;

@@ -14,7 +14,7 @@ const manifest = vm.runInNewContext(`(${literal[1]})`, { NOTE_PERMISSIONS: new P
 const names = ["scopeNotesVisibilityContributions", "scopeNotesVisibilityOptions", "readNotesVisibilityOption", "applyWorkspaceVisibilityControls",
   "notesViewSurfaceDescriptor", "notesEditorModalDescriptor", "notesBulkEditorModalDescriptor", "notesCollectionModalDescriptor", "modalFieldOptions",
   "populateWorkspaceVisibilityOptions", "workspaceVisibilityOptions", "updateSecureVisibilityOptions", "normalizeWorkspaceType", "normalizeText",
-  "usesBusinessScope", "workspaceHasClientTools", "isResponseRecord", "findNotesControl"];
+  "usesBusinessScope", "workspaceHasClientTools", "isResponseRecord", "findNotesControl", "isNoteFieldOptionPair"];
 /** @param {unknown} value */
 const plain = (value) => JSON.parse(JSON.stringify(value));
 /** @param {string} [workspaceType] */
