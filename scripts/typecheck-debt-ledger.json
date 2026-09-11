@@ -329,6 +329,7 @@
         "tests/e2e/client-projects-restricted-descriptor.spec.mjs",
         "tests/e2e/console.spec.mjs",
         "tests/e2e/dashboard-bootstrap-sequencing.spec.mjs",
+        "tests/e2e/hidden-label-controls.spec.mjs",
         "tests/e2e/login.spec.mjs",
         "tests/e2e/mobile-nav.spec.mjs",
         "tests/e2e/modal.spec.mjs",
@@ -374,6 +375,7 @@
         "tests/e2e/workspace-switch-landing.spec.mjs",
         "tests/mutations/audit-log-filter-query.breaks.mjs",
         "tests/mutations/audit-log-rendering.breaks.mjs",
+        "tests/mutations/hidden-label-safeguard.breaks.mjs",
         "tests/mutations/notes-bulk-edit.breaks.mjs",
         "tests/mutations/notes-editor-defaults.breaks.mjs",
         "tests/mutations/notes-editor-fields-links.breaks.mjs",
@@ -2459,7 +2461,7 @@
     }
   },
   "totals": {
-    "files": 1224,
+    "files": 1226,
     "errors": 6044,
     "explicitAny": 0
   },
