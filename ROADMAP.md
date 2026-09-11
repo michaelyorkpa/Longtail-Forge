@@ -1425,6 +1425,18 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,396, unchanged**, and `0.33.33.44` 1,156, unchanged. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.16 - Isolate the accounts behind the competing workspace specs
+
+**Complete: a test-isolation repair, with no product change and no diagnostic movement.** See the archive entry.
+
+**Workspace isolation alone would not have worked, and that is a property of the product.** `usersService.switchActiveWorkspace` writes `usersRepository.updateActiveWorkspace(userId, ...)` **and** `sessionsRepository.updateActiveWorkspaceForUser(userId, ...)` - the second keyed by user, not session - so every session an account holds moves together. The unit of isolation has to be the **account**, and a committed test proves it rather than asserting it.
+
+**The account is worker-scoped and the workspace is test-scoped**, because provisioning costs a login and `LONGTAIL_AUTH_THROTTLE_*` is a real security control this repair does not relax. A Playwright worker runs one test at a time, so worker-scoped state is never concurrently shared - the execution model, not an assumption - and sequential reuse is reset by giving each test a freshly created workspace it owns.
+
+**Isolating the writers fixed the reader for free.** `client-projects-add-dialog-flow` only *reads* the active workspace name; once nothing renames the shared workspace, it cannot observe a rename mid-flight.
+
+**Measured: browser 6,378, unchanged.** Five consecutive full-suite runs at 203 passed with concurrency enabled and nothing skipped, serialized or weakened.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
