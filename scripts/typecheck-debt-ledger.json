@@ -379,6 +379,7 @@
         "tests/mutations/notes-primary-context.breaks.mjs",
         "tests/mutations/notes-tag-surface.breaks.mjs",
         "tests/mutations/notes-visibility-scoping.breaks.mjs",
+        "tests/mutations/role-assignments-target.breaks.mjs",
         "tests/mutations/time-entries-bulk-tags.breaks.mjs",
         "tests/mutations/time-entries-filtering.breaks.mjs",
         "tests/mutations/time-entries-loader-policy.breaks.mjs",
@@ -479,6 +480,7 @@
         "tests/unit/required-member-acquisition-contracts.test.mjs",
         "tests/unit/resume-producer-payload.test.mjs",
         "tests/unit/role-assignment-contracts.test.mjs",
+        "tests/unit/role-assignments-target-contracts.test.mjs",
         "tests/unit/runtime-configuration.test.mjs",
         "tests/unit/runtime-diagnostics-contracts.test.mjs",
         "tests/unit/settings-renderer-surface-contracts.test.mjs",
@@ -630,7 +632,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 6330,
+      "errorCount": 6224,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1144,28 +1146,6 @@
           {
             "code": 7034,
             "count": 4
-          }
-        ],
-        "public/js/role-assignments.js": [
-          {
-            "code": 18047,
-            "count": 44
-          },
-          {
-            "code": 2339,
-            "count": 23
-          },
-          {
-            "code": 7005,
-            "count": 17
-          },
-          {
-            "code": 7006,
-            "count": 20
-          },
-          {
-            "code": 7034,
-            "count": 2
           }
         ],
         "public/js/search.js": [
@@ -2506,8 +2486,8 @@
     }
   },
   "totals": {
-    "files": 1211,
-    "errors": 6330,
+    "files": 1213,
+    "errors": 6224,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

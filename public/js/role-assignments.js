@@ -1,38 +1,88 @@
 (function attachRoleAssignmentsPage() {
-  const lookupForm = document.querySelector("[data-role-account-lookup]");
-  const accountEmailInput = document.querySelector("[data-role-account-email]");
-  const findAccountButton = document.querySelector("[data-find-role-account]");
-  const statusElement = asStatusElement(document.querySelector("[data-role-assignment-status]"));
-  const targetSection = document.querySelector("[data-role-target]");
-  const targetHeading = document.querySelector("[data-role-target-heading]");
-  const targetAccount = document.querySelector("[data-role-target-account]");
-  const assignmentList = document.querySelector("[data-delegated-role-list]");
-  const addAssignmentForm = document.querySelector("[data-add-delegated-role]");
-  const roleSelect = document.querySelector("[data-delegated-role]");
-  const scopeSelect = document.querySelector("[data-delegated-scope]");
-  const addAssignmentButton = document.querySelector("[data-add-delegated-role-button]");
+  /**
+   * One control, at the subtype `views/protected/role-assignments.html` renders, or `null`.
+   *
+   * **Typed-or-null on purpose**, the reading `0.33.33.44.5` settled and `0.33.33.44.12` reused:
+   * the markup is static and always carries these controls, but acquisition runs at module
+   * evaluation - outside every `try` on this page - so refusing here would turn a missing control
+   * into a dead page instead of the status this page already produces. The subtype is settled
+   * here; presence is settled at the statement that already dereferenced it.
+   * @template T
+   * @param {string} selector
+   * @param {{ new (): T }} constructor
+   * @returns {T | null}
+   */
+  function findRoleControl(selector, constructor) {
+    const element = document.querySelector(selector);
+    return element instanceof constructor ? element : null;
+  }
 
+  /**
+   * Narrow at an access this page already made unguarded.
+   * @template T
+   * @param {T | null} value
+   * @param {string} name
+   * @returns {T}
+   */
+  function requireRoleValue(value, name) {
+    if (value === null) {
+      throw new TypeError(`Role Assignments requires its ${name}.`);
+    }
+
+    return value;
+  }
+
+  const lookupForm = findRoleControl("[data-role-account-lookup]", HTMLFormElement);
+  const accountEmailInput = findRoleControl("[data-role-account-email]", HTMLInputElement);
+  const findAccountButton = findRoleControl("[data-find-role-account]", HTMLButtonElement);
+  const statusElement = asStatusElement(document.querySelector("[data-role-assignment-status]"));
+  const targetSection = findRoleControl("[data-role-target]", HTMLElement);
+  const targetHeading = findRoleControl("[data-role-target-heading]", HTMLElement);
+  const targetAccount = findRoleControl("[data-role-target-account]", HTMLElement);
+  const assignmentList = findRoleControl("[data-delegated-role-list]", HTMLElement);
+  const addAssignmentForm = findRoleControl("[data-add-delegated-role]", HTMLFormElement);
+  const roleSelect = findRoleControl("[data-delegated-role]", HTMLSelectElement);
+  const scopeSelect = findRoleControl("[data-delegated-scope]", HTMLSelectElement);
+  const addAssignmentButton = findRoleControl("[data-add-delegated-role-button]", HTMLButtonElement);
+
+  /**
+   * The roles this workspace may delegate.
+   *
+   * Established by `readRoleOptions`, which filters the body through `isRoleOption` and answers
+   * `BrowserRoleOption[]` - so `role_id`, `role_name` and `scopes` are facts here.
+   * @type {BrowserRoleOption[]}
+   */
   let roleOptions = [];
+  /**
+   * The account being administered, or `null` before one is found.
+   *
+   * Rebuilt by `normalizeTarget` from a match `readAssignmentLookup` already vouched for: that
+   * reader refuses a malformed match outright and filters `assignments` through
+   * `isDelegatedAssignment`, so every element here is a checked `BrowserDelegatedRoleAssignment`.
+   * @type {NormalizedAssignmentTarget | null}
+   */
   let target = null;
   let busy = false;
 
   loadRoleOptions();
 
-  lookupForm.addEventListener("submit", async (event) => {
+  requireRoleValue(lookupForm, "account lookup form").addEventListener("submit", async (event) => {
     event.preventDefault();
     await findAccount();
   });
 
-  accountEmailInput.addEventListener("input", () => {
-    if (target && normalizeEmail(accountEmailInput.value) !== target.username) {
+  const emailInput = requireRoleValue(accountEmailInput, "account email field");
+
+  emailInput.addEventListener("input", () => {
+    if (target && normalizeEmail(emailInput.value) !== target.username) {
       clearTarget();
       setStatus("");
     }
   });
 
-  roleSelect.addEventListener("change", renderScopeOptions);
+  requireRoleValue(roleSelect, "role select").addEventListener("change", renderScopeOptions);
 
-  addAssignmentForm.addEventListener("submit", async (event) => {
+  requireRoleValue(addAssignmentForm, "add assignment form").addEventListener("submit", async (event) => {
     event.preventDefault();
     await confirmAddAssignment();
   });
@@ -261,9 +311,14 @@
     return status;
   }
 
+
   /**
-   * A status element the message helpers can drive. They set `hidden`, which only an
-   * `HTMLElement` has; anything else was already a silent no-op and stays one.
+   * This page's own status node, kept rather than retired.
+   *
+   * `0.33.33.38.3.1` retired `workspace-settings.js`'s copy and
+   * `workspace-deletion-dialog-dom-contracts` pins that the retirement was **scoped to that one
+   * page** - this cohort of five keeps its own helper. `0.33.33.44.19` removed it here and that
+   * contract refused the sweep, correctly.
    * @param {Element | null} node
    * @returns {HTMLElement | null}
    */
@@ -304,9 +359,9 @@
   }
 
   async function findAccount() {
-    const username = normalizeEmail(accountEmailInput.value);
-    if (!accountEmailInput.checkValidity() || !username) {
-      accountEmailInput.reportValidity();
+    const username = normalizeEmail(emailInput.value);
+    if (!emailInput.checkValidity() || !username) {
+      emailInput.reportValidity();
       return;
     }
 
@@ -321,14 +376,14 @@
 
       if (!lookup.match) {
         setStatus("No active workspace member matched that email.");
-        accountEmailInput.focus();
+        emailInput.focus();
         return;
       }
 
       target = normalizeTarget(lookup.match);
       renderTarget();
       setStatus("");
-      targetHeading.focus();
+      requireRoleValue(targetHeading, "target heading").focus();
     } catch (error) {
       handleLoadError(error, "The account could not be found.");
     } finally {
@@ -339,7 +394,7 @@
   async function confirmAddAssignment() {
     if (!target?.assignmentRevision) {
       setStatus("Find the account again before changing assignments.", true);
-      accountEmailInput.focus();
+      emailInput.focus();
       return;
     }
 
@@ -352,7 +407,7 @@
 
     if (target.assignments.some((item) => assignmentKey(item) === assignmentKey(assignment))) {
       setStatus("That delegable assignment is already present.", true);
-      roleSelect.focus();
+      requireRoleValue(roleSelect, "role select").focus();
       return;
     }
 
@@ -370,6 +425,10 @@
     );
   }
 
+  /**
+   * @param {BrowserDelegatedRoleAssignment} assignment
+   * @param {HTMLButtonElement} trigger
+   */
   async function confirmRemoveAssignment(assignment, trigger) {
     const descriptor = describeAssignment(assignment);
     if (!target?.assignmentRevision || !descriptor) return;
@@ -389,36 +448,43 @@
     );
 
     if (saved) {
-      targetHeading.focus();
+      requireRoleValue(targetHeading, "target heading").focus();
     } else if (trigger?.isConnected) {
       trigger.focus();
     }
   }
 
+  /**
+   * @param {BrowserRoleAssignmentUpdate["assignments"]} assignments
+   * @param {string} successMessage
+   * @returns {Promise<boolean>}
+   */
   async function saveAssignments(assignments, successMessage) {
+    // Only reachable with a found account: every caller runs from the target's own controls.
+    const account = requireRoleValue(target, "assignment target");
     setBusy(true);
     setStatus("Updating role assignments...");
 
     try {
       const body = await requireApi().putJson(
-        `/api/users/${encodeURIComponent(target.userId)}/role-assignments`,
+        `/api/users/${encodeURIComponent(account.userId)}/role-assignments`,
         {
-          assignmentRevision: target.assignmentRevision,
+          assignmentRevision: account.assignmentRevision,
           assignments,
         },
       );
       const update = readAssignmentUpdate(body);
-      target.assignments = update.assignments;
-      target.assignmentRevision = update.assignmentRevision || "";
+      account.assignments = update.assignments;
+      account.assignmentRevision = update.assignmentRevision || "";
       renderTarget();
       setStatus(successMessage);
       return true;
     } catch (error) {
       if (requireErrors().caughtStatus(error) === 409) {
-        target.assignmentRevision = "";
+        account.assignmentRevision = "";
         renderTarget();
         setStatus("Assignments changed. Find the account again before making another change.", true);
-        findAccountButton.focus();
+        requireRoleValue(findAccountButton, "find account button").focus();
         return false;
       }
       if (requireErrors().caughtStatus(error) === 401) {
@@ -438,10 +504,15 @@
       return;
     }
 
-    targetSection.hidden = false;
-    targetHeading.textContent = target.displayName || target.username;
-    targetAccount.textContent = target.username;
-    assignmentList.replaceChildren();
+    const section = requireRoleValue(targetSection, "target section");
+    const heading = requireRoleValue(targetHeading, "target heading");
+    const account = requireRoleValue(targetAccount, "target account");
+    const list = requireRoleValue(assignmentList, "assignment list");
+
+    section.hidden = false;
+    heading.textContent = target.displayName || target.username;
+    account.textContent = target.username;
+    list.replaceChildren();
 
     if (!target.assignments.length) {
       const emptyItem = document.createElement("li");
@@ -449,10 +520,18 @@
       message.className = "muted-text";
       message.textContent = "No delegable assignments are currently shown.";
       emptyItem.appendChild(message);
-      assignmentList.appendChild(emptyItem);
+      list.appendChild(emptyItem);
     } else {
       target.assignments.forEach((assignment) => {
         const descriptor = describeAssignment(assignment);
+
+        // Unreachable for a checked element: `readAssignmentLookup` already dropped anything
+        // `isDelegatedAssignment` refused, so every assignment here describes. Skipping is the
+        // same answer that reader gives, rather than the throw an undescribable entry used to get.
+        if (!descriptor) {
+          return;
+        }
+
         const item = document.createElement("li");
         const label = document.createElement("span");
         const removeButton = document.createElement("button");
@@ -461,14 +540,14 @@
         removeButton.type = "button";
         removeButton.className = "danger-button";
         removeButton.textContent = "Remove";
-        removeButton.disabled = busy || !target.assignmentRevision;
+        removeButton.disabled = busy || !target?.assignmentRevision;
         removeButton.setAttribute(
           "aria-label",
           `Remove ${descriptor.roleLabel} at ${descriptor.scopeLabel}`,
         );
         removeButton.addEventListener("click", () => confirmRemoveAssignment(assignment, removeButton));
         item.append(label, removeButton);
-        assignmentList.appendChild(item);
+        list.appendChild(item);
       });
     }
 
@@ -476,41 +555,44 @@
   }
 
   function renderRoleOptions() {
-    const previousRoleId = roleSelect.value;
-    roleSelect.replaceChildren(createOption("", "Choose a role"));
+    const select = requireRoleValue(roleSelect, "role select");
+    const previousRoleId = select.value;
+    select.replaceChildren(createOption("", "Choose a role"));
 
     roleOptions.forEach((role) => {
-      roleSelect.appendChild(createOption(role.role_id, role.role_name || "Available role"));
+      select.appendChild(createOption(role.role_id, role.role_name || "Available role"));
     });
 
-    roleSelect.value = roleOptions.some((role) => role.role_id === previousRoleId)
+    select.value = roleOptions.some((role) => role.role_id === previousRoleId)
       ? previousRoleId
       : roleOptions[0]?.role_id || "";
     renderScopeOptions();
   }
 
   function renderScopeOptions() {
+    const select = requireRoleValue(scopeSelect, "scope select");
     const role = selectedRole();
-    const previousScopeId = scopeSelect.value;
-    scopeSelect.replaceChildren(createOption("", "Choose a scope"));
+    const previousScopeId = select.value;
+    select.replaceChildren(createOption("", "Choose a scope"));
 
     (role?.scopes || []).forEach((scope) => {
-      scopeSelect.appendChild(createOption(scope.scopeId, scope.label || "Available scope"));
+      select.appendChild(createOption(scope.scopeId, scope.label || "Available scope"));
     });
 
-    scopeSelect.value = (role?.scopes || []).some((scope) => scope.scopeId === previousScopeId)
+    select.value = (role?.scopes || []).some((scope) => scope.scopeId === previousScopeId)
       ? previousScopeId
       : role?.scopes?.[0]?.scopeId || "";
     updateControls();
   }
 
+  /** @returns {BrowserRoleOption | null} */
   function selectedRole() {
-    return roleOptions.find((role) => role.role_id === roleSelect.value) || null;
+    return roleOptions.find((role) => role.role_id === requireRoleValue(roleSelect, "role select").value) || null;
   }
 
   function selectedAssignment() {
     const role = selectedRole();
-    const scopeId = String(scopeSelect.value || "");
+    const scopeId = String(requireRoleValue(scopeSelect, "scope select").value || "");
     if (!role || !scopeId) return null;
 
     return {
@@ -520,6 +602,10 @@
     };
   }
 
+  /**
+   * @param {BrowserDelegatedRoleAssignment | null} assignment
+   * @returns {{ roleLabel: string, scopeLabel: string } | null}
+   */
   function describeAssignment(assignment) {
     if (!assignment) return null;
     const role = roleOptions.find((option) => option.role_id === assignment.role_id);
@@ -531,6 +617,20 @@
     };
   }
 
+  /**
+   * @typedef {{
+   *   assignmentRevision: string,
+   *   assignments: BrowserDelegatedRoleAssignment[],
+   *   displayName: string,
+   *   userId: string,
+   *   username: string,
+   * }} NormalizedAssignmentTarget
+   */
+
+  /**
+   * @param {import("../../src/types/browser-contracts.js").BrowserAssignmentLookupTarget} match
+   * @returns {NormalizedAssignmentTarget}
+   */
   function normalizeTarget(match) {
     return {
       assignmentRevision: String(match.assignmentRevision || ""),
@@ -541,14 +641,17 @@
     };
   }
 
+  /** @param {unknown} value @returns {string} */
   function normalizeEmail(value) {
     return String(value || "").trim().toLowerCase();
   }
 
+  /** @param {BrowserDelegatedRoleAssignment} assignment @returns {string} */
   function assignmentKey(assignment) {
     return [assignment.role_id, assignment.scope_type, assignment.scope_id].join(":");
   }
 
+  /** @param {string} value @param {string} label @returns {HTMLOptionElement} */
   function createOption(value, label) {
     const option = document.createElement("option");
     option.value = value;
@@ -558,13 +661,14 @@
 
   function clearTarget() {
     target = null;
-    targetSection.hidden = true;
-    targetHeading.textContent = "";
-    targetAccount.textContent = "";
-    assignmentList.replaceChildren();
+    requireRoleValue(targetSection, "target section").hidden = true;
+    requireRoleValue(targetHeading, "target heading").textContent = "";
+    requireRoleValue(targetAccount, "target account").textContent = "";
+    requireRoleValue(assignmentList, "assignment list").replaceChildren();
     updateControls();
   }
 
+  /** @param {boolean} nextBusy */
   function setBusy(nextBusy) {
     busy = nextBusy;
     updateControls();
@@ -573,30 +677,43 @@
   function updateControls() {
     const hasTarget = Boolean(target);
     const hasRevision = Boolean(target?.assignmentRevision);
-    findAccountButton.disabled = busy;
-    accountEmailInput.disabled = busy;
-    roleSelect.disabled = busy || !hasTarget || !hasRevision || roleOptions.length === 0;
-    scopeSelect.disabled = busy || !hasTarget || !hasRevision || !selectedRole();
-    addAssignmentButton.disabled = busy || !hasTarget || !hasRevision || !selectedAssignment();
-    assignmentList.querySelectorAll("button").forEach((button) => {
+    requireRoleValue(findAccountButton, "find account button").disabled = busy;
+    requireRoleValue(accountEmailInput, "account email field").disabled = busy;
+    requireRoleValue(roleSelect, "role select").disabled = busy || !hasTarget || !hasRevision || roleOptions.length === 0;
+    requireRoleValue(scopeSelect, "scope select").disabled = busy || !hasTarget || !hasRevision || !selectedRole();
+    requireRoleValue(addAssignmentButton, "add assignment button").disabled = busy || !hasTarget || !hasRevision || !selectedAssignment();
+    requireRoleValue(assignmentList, "assignment list").querySelectorAll("button").forEach((button) => {
       button.disabled = busy || !hasRevision;
     });
   }
 
+  /** @param {string} message @param {boolean} [isError] */
   function setStatus(message, isError = false) {
     requireStatusMessage().set(statusElement, message, {
       type: isError ? "error" : "",
     });
   }
 
+  /** @param {unknown} error @param {string} fallbackMessage */
   function handleLoadError(error, fallbackMessage) {
-    if (error.status === 401) {
+    // Narrowed inline and read as plain members. Two contracts constrain this:
+    // `optional-member-root-contracts` pins that the 401 redirect returns *before* anything
+    // reaches the namespace root - so `requireErrors()`, which throws without a root, cannot be
+    // used here - and that same suite lifts this function with only `requireNamespace` beside it,
+    // so it may not call `isResponseRecord` either. `in` answers both without a cast, and the
+    // properties touched and their order are exactly what shipped.
+    const caught = typeof error === "object" && error !== null ? error : {};
+    const status = "status" in caught ? caught.status : undefined;
+
+    if (status === 401) {
       window.location.replace("/login.html");
       return;
     }
-    if (error.status === 403) {
+    if (status === 403) {
       void requireNamespace().recovery?.permissionDenied();
     }
-    setStatus(error.message || fallbackMessage, true);
+
+    const message = "message" in caught ? caught.message : undefined;
+    setStatus(typeof message === "string" && message ? message : fallbackMessage, true);
   }
 })();
