@@ -1516,6 +1516,7 @@
     return mode === "edit" ? "edit" : "add";
   }
 
+  /** @param {Pick<NotesViewerParams, "noteId" | "note_id" | "recordId" | "id">} [params] */
   function readNoteEditorId(params = {}) {
     return params.noteId || params.note_id || params.recordId || params.id || "";
   }
@@ -3622,10 +3623,8 @@
       ...(normalizeWorkspaceType(state.workspaceType) === "personal" ? {} : { visibility: readEditorVisibility() }),
       security_mode: requireNotesValue(securityInput).value,
       tagIds: state.tagPicker?.readTagIds?.() || [],
-      // The two Primary Context expressions are behaviorally pinned by notes-primary-context-regression.mjs.
-      // Their nullable-control reads remain owned by a future explicit contract reconciliation.
-      client_id: usesBusinessScope() ? normalizeText(clientInput.value) || null : null,
-      project_id: normalizeText(projectInput.value) || null,
+      client_id: usesBusinessScope() ? normalizeText(requireNotesValue(clientInput).value) || null : null,
+      project_id: normalizeText(requireNotesValue(projectInput).value) || null,
       task_id: null,
       linked_user_id: normalizeText(requireNotesValue(userInput).value) || null,
       links: !state.editingNoteId ? stagedLinkPayloads() : [],
@@ -3638,6 +3637,7 @@
       : visibilityInput?.value || "internal";
   }
 
+  /** @param {Pick<NotesLinkTargetInput, "clientId" | "projectId">} [selected] */
   async function loadPrimaryContextOptions(selected = {}) {
     updatePrimaryContextVisibility();
     const selectedProjectId = selected.projectId || projectInput?.value || "";
@@ -3807,6 +3807,11 @@
       unavailableTargetLabel("client");
   }
 
+  /**
+   * readNoteLinkTargets owns response validation; it retains provider status without
+   * checking it. Keep that extra member unknown at this consumer's normalization.
+   * @param {Partial<BrowserNoteLinkTarget> & { status?: unknown }} [client]
+   */
   function isActivePrimaryClientTarget(client = {}) {
     return normalizeText(client.status).toLowerCase() === "active";
   }

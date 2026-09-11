@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import vm from "node:vm";
+import { extractFunctionBlock } from "./test-support/source-scan.mjs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -70,11 +72,9 @@ async function assertBrowserPrimaryContextContract() {
   assert.match(notesJs, /function primaryProjectFallbackOption\(selectedProjectId = ""\)/, "Saved Primary Context project values should stay selectable even when provider paging omits them");
   assert.match(notesJs, /populatePrimaryClientOptions\(derivedClientId\);[\s\S]*populatePrimaryProjectOptions\(selectedProjectId\);/, "Primary Context option loading should preserve selected direct context values");
   assert.doesNotMatch(notesJs, /primaryContextManuallyChanged|readEditorPrimaryContextPayload|inferPrimaryContextFromEditorTargets|primaryContextFromTarget|taskLinkPrimaryContext|applyContextTarget/, "Linked Context must not create, update, delete, or recover Primary Context");
-  assert.match(notesJs, /state\.primaryContextClients = clients\.filter\(isActivePrimaryClientTarget\)/);
-  assert.match(notesJs, /function isActivePrimaryClientTarget\(client = \{\}\)/);
-  assert.match(notesJs, /normalizeText\(client\.status\)\.toLowerCase\(\) === "active"/);
-  assert.match(notesJs, /client_id: usesBusinessScope\(\) \? normalizeText\(clientInput\.value\) \|\| null : null/);
-  assert.match(notesJs, /project_id: normalizeText\(projectInput\.value\) \|\| null/);
+  // Execute the filtered load and payload reads: annotations and checked access may
+  // change spelling, but active membership, absence, scope and timing must not change.
+  await assertPrimaryContextReadBehavior(notesJs);
   assert.match(notesJs, /function primaryProjectOptionLabel\(project = \{\}\)/);
   assert.match(notesJs, /return `\$\{projectName\} - \$\{contextName\}`;/);
   assert.match(notesJs, /function linkRecordNodes\(note\)[\s\S]*notePrimaryContextItem\(note\)[\s\S]*linkItem\(note, link\)/);
@@ -83,6 +83,54 @@ async function assertBrowserPrimaryContextContract() {
   assert.match(notesJs, /\["noteTaskId", "noteUserId"\]/);
   assert.doesNotMatch(notesJs, /linked\.push\(`Client: \$\{contextSummaryLabel\("client"\)\}`\)|linked\.push\(`Project: \$\{contextSummaryLabel\("project"\)\}`\)/);
   assert.match(notesCss, /\.notes-primary-context\s*\{[\s\S]*border-top:\s*1px solid var\(--color-border-subtle\);/);
+}
+
+/** @param {string} source */
+async function assertPrimaryContextReadBehavior(source) {
+  const active = { targetId: "active", status: " Active " };
+  const clients = [active, { targetId: "inactive", status: "Inactive" }, { targetId: "missing" }];
+  const projects = [{ targetId: "project", projectId: "project", clientId: "active" }];
+  const context = vm.createContext({
+    state: { workspaceType: "business", primaryContextClients: [], primaryContextProjects: [], editingNoteId: "", tagPicker: null },
+    business: true, editor: null,
+    clientInput: { value: " active ", disabled: false }, projectInput: { value: " project ", disabled: false },
+    ...Object.fromEntries(["titleInput", "bodyInput", "libraryInput", "collectionInput", "typeInput", "securityInput", "userInput", "visibilityInput"].map((name) => [name, { value: "" }])),
+    fetchLinkTargets: async (/** @type {{targetType: string}} */ query) => query.targetType === "client" ? clients : projects,
+    updatePrimaryContextVisibility: () => {}, populateLinkClientContextSelect: () => {},
+    findPrimaryContextProject: () => null, primaryContextSummaryForSelection: () => ({}),
+    populatePrimaryClientOptions: () => {}, populatePrimaryProjectOptions: () => {}, stagedLinkPayloads: () => [],
+  });
+  const names = ["loadPrimaryContextOptions", "isActivePrimaryClientTarget", "readEditorPayload", "readEditorVisibility", "requireNotesValue", "normalizeText", "normalizeWorkspaceType"];
+  const api = vm.runInContext(`function usesBusinessScope() { return business; }
+${names.map((name) => extractFunctionBlock(source, name)).join("\n")}
+({${names.join(",")}})`, context);
+  await assert.doesNotReject(() => api.loadPrimaryContextOptions(), "Primary Context load must tolerate omitted selections");
+  assert.deepEqual(context.state.primaryContextClients, [active], "Primary Context must offer only active clients from the directory");
+  assert.equal(context.state.primaryContextProjects, projects, "Primary Context must preserve the project directory identity");
+  assert.doesNotThrow(() => assert.equal(api.isActivePrimaryClientTarget(), false), "Primary Context filter must tolerate an absent client");
+  assert.equal(api.isActivePrimaryClientTarget({}), false, "Primary Context filter must reject a missing status");
+  assert.equal(api.isActivePrimaryClientTarget({ status: " ACTIVE " }), true, "Primary Context status matching must remain normalized");
+  assert.throws(() => api.isActivePrimaryClientTarget(null), /null/, "An explicit null client retains its existing failure");
+  const payload = api.readEditorPayload();
+  assert.equal(payload.client_id, "active", "Primary Context must normalize the business client ID");
+  assert.equal(payload.project_id, "project", "Primary Context must normalize and retain project identity");
+  context.clientInput.value = " "; context.projectInput.value = " ";
+  assert.equal(api.readEditorPayload().client_id, null, "Primary Context empty client means null");
+  assert.equal(api.readEditorPayload().project_id, null, "Primary Context empty project means null");
+  context.business = false; context.clientInput = null; context.projectInput.value = " project ";
+  assert.doesNotThrow(() => api.readEditorPayload(), "Non-business payload must not require a client control");
+  assert.equal(api.readEditorPayload().client_id, null, "Non-business payload must omit client scope");
+  assert.equal(api.readEditorPayload().project_id, "project", "Non-business payload must retain the project");
+  context.business = true;
+  let projectReads = 0;
+  Object.defineProperty(context.projectInput, "value", { get() { projectReads += 1; return "project"; } });
+  assert.throws(() => api.readEditorPayload(), /Required Notes value/, "Business client control must be required at its read");
+  assert.equal(projectReads, 0, "Missing business client must fail before reading the project");
+  context.business = false; context.projectInput = null;
+  let userReads = 0;
+  Object.defineProperty(context.userInput, "value", { get() { userReads += 1; return "user"; } });
+  assert.throws(() => api.readEditorPayload(), /Required Notes value/, "Project control must remain required outside business scope");
+  assert.equal(userReads, 0, "Missing project must fail before reading the linked user");
 }
 
 /** @typedef {import("../src/types/http-contracts.js").WorkspaceRequestSession} NotesSession */
