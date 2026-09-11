@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.44.18 - Time Entries table rendering, and the file reaches zero
+
+**Model: High Effort** - the second file in this lane to close outright, and the one where finishing cost less than stopping.
+
+- [x] **39 diagnostics, `public/js/time-entries.js` 39 to zero** - from **167** when `0.33.33.44.12` opened it, across seven children. The named boundary was 14: the table rendering, the row actions, and the three formatters. The remaining 25 were date arithmetic and a tail of delegating helpers - parameter annotations with no contract decisions in them - so the file was finished rather than left one checkpoint short of a completion fact.
+- [x] **The page performs exactly one `document.querySelector`**, inside `findTimeEntryControl`, and the file carries **no cast and no suppression**. A case pins the count at one and matches the helper's own body, so a rival lookup is refused even though it would pass any name-based rule - the same claim `0.33.33.44.11` arrived at for User Administration.
+- [x] **The table is required once per render, not three times.** `renderEntries` dereferenced `timeEntryTable` three times in one pass; it now binds the checked value once at the top, so a missing table fails at the same statement it always failed at, with a named message.
+- [x] **A sink inventory caught the rename, which is the inventory working.** Binding the table locally changed `timeEntryTable.innerHTML` to `table.innerHTML`, and `public-demo-cross-role-content-safety` refused the unreviewed spelling. It was **reviewed and updated, not worked around**: the assigned value is still the constant empty string, so no content reaches the sink, and the element is still the page's own table body. The refusal is exactly what that regression exists to do.
+- [x] **Two collaborators were typed from what they already establish.** `formatDuration` accepts a number or a wire string because `parseInt` already stringifies its argument - saying so is the same call, written where it happens - and `formatEntryStatus` answers `N/A` for a non-billable entry before consulting the invoice status at all.
+- [x] **One additive extension to the shared fake DOM**, a prerequisite rather than scope creep: `innerHTML` now models the clearing form, which is the only form this estate's browser code uses on a container it owns. A non-empty assignment stores the string and still clears the children rather than pretending to parse markup - a fake that silently accepted markup and produced no nodes would let a test assert a structure that never existed.
+- [x] **Thirteen behavioural cases and a committed twenty-six-break harness that refuses all twenty-six**, with the three sibling Time Entries harnesses re-run green at 16/16, 41/41 and 46/46. **Three breaks were initially inert and all three exposed missing assertions**: the hours column was never asserted to carry its own row's duration, the non-array tag guard was never exercised, and the control declarations are invisible to lifted cases, which now have a source claim of their own.
+- [x] **Canonical evidence.** Browser **6,369 to 6,330**; `0.33.33.44` **1,156 to 1,121**; params 3,991 to 3,950; `dom` 881 to 875; assorted 123 to 122; state unchanged. `time-entries.js` **39 to 0**. No new code, `unknown` still zero, explicit-any zero, server/tests and scripts still zero after the new suite was typed rather than absorbed. `0.33.33.39` through `.43` unchanged.
+
+`0.33.33.44` continues with the remaining page controllers; this file is finished. This does not close `.44`, `.38`, or the version-wide branch. Managed rendered runs use `LTF_E2E_PORT=8101`.
+
 ## Version 0.33.33.40.15
 
 **Model: High Effort** - reconcile executable Primary Context protection while preserving workspace scope, saved identity, default values and required-control timing.
