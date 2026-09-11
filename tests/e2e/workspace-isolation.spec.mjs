@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createOwnedWorkspace, expect, test } from "./support/isolated-workspace.mjs";
 import { usesManagedServer } from "./support/e2e-env.mjs";
 
@@ -39,7 +40,7 @@ managedServerTest("two sessions of one account share its active workspace, so se
 
     // Switching in one session must move the other, because the record they read is the
     // account's. This is `sessionsRepository.updateActiveWorkspaceForUser(userId, ...)` observed.
-    const moved = await createOwnedWorkspace(isolatedAccount.api, `WS shared-${Date.now().toString(36)}`);
+    const moved = await createOwnedWorkspace(isolatedAccount.api, `WS shared-${randomUUID()}`);
     expect(moved.workspaceName).not.toBe("");
 
     // Both sessions answer the same workspace, because the record they read is the account's and
@@ -66,7 +67,8 @@ managedServerTest("an isolated workspace keeps its own name while another test r
     const admin = await playwright.request.newContext({
       baseURL: isolatedWorkspace.account.baseURL, storageState: adminState,
     });
-    const rivalName = `rival-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    // A username is a security context, so the identity comes from `randomUUID`.
+    const rivalName = `rival-${randomUUID()}`;
     const createdRival = await admin.post("/api/users", {
       data: { username: `${rivalName}@longtailforge.local`, displayName: "Rival", timezone: "America/New_York" },
     });

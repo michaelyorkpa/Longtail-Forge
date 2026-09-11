@@ -14,6 +14,7 @@
 // worker runs exactly one test at a time, so worker-scoped state is never *concurrently* shared;
 // that is the execution model, not an assumption. Sequential reuse is reset by giving each test a
 // freshly created workspace of its own, which also moves the account onto it.
+import { randomUUID } from "node:crypto";
 import { test as base, expect } from "@playwright/test";
 import { usesManagedServer } from "./e2e-env.mjs";
 
@@ -38,7 +39,9 @@ import { usesManagedServer } from "./e2e-env.mjs";
  * @param {{ project: { name: string }, workerIndex: number }} info
  */
 function uniqueLabel(label, info) {
-  const unique = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  // `randomUUID` rather than `Math.random`: this name becomes an account username, which is a
+  // security context - CodeQL is right to refuse the weaker source.
+  const unique = randomUUID();
   return `${label}-${info.project.name}-w${info.workerIndex}-${unique}`;
 }
 
