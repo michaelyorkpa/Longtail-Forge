@@ -1437,6 +1437,18 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,378, unchanged.** Five consecutive full-suite runs at 203 passed with concurrency enabled and nothing skipped, serialized or weakened.
 
+#### 0.33.33.44.17 - Accept duplicate note titles by disambiguating the slug
+
+**Complete: a server-side defect fix, established before it was changed.** See the archive entry.
+
+**The intended behaviour was settled from the product, not assumed.** Nothing resolves a note by slug - there is no `WHERE slug =` read for notes anywhere - wiki links are separate metadata in `note_wiki_links` where the module's own documentation says "broken or unresolved wiki links are allowed", and `idx_notes_workspace_slug` is **partial** on `slug IS NOT NULL`, so the product already stored many notes with no slug at all. Duplicate display titles are therefore legitimate, and the 500 was unambiguously a defect.
+
+**A probe established the behaviour before any edit.** A second note with the same title escaped as a raw `SQLITE_CONSTRAINT_UNIQUE` with no status and reached the client as a 500. So did a *different* title that slugified the same - `Plan` and `Plan!!!` - because punctuation is stripped. Titles with nothing slugifiable already stored `null` and coexisted happily, which is the evidence that uniqueness was never a product invariant.
+
+**Derived slugs are disambiguated; caller-supplied slugs are not.** Asking for a specific slug is a different request from accepting a derived one. Renaming keeps the slug the note already had, so nothing moves under existing references, and a deleted note's slug becomes available again because the index ignores deleted rows.
+
+**Measured: browser 6,378, unchanged; server/tests and scripts still zero.** The coverage was added to the existing Notes workflow regression rather than as a new script, because the estate's consolidation ratchet allows the discovered-script count to fall and not rise.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
