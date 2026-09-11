@@ -217,12 +217,11 @@ describe("the notes consumer", () => {
     // definition also contains its name.
     assert.match(consumer, /readNoteRevisions\(await api\.getJson\(`\/api\/notes\/\$\{encodeURIComponent\(note\.note_id\)\}\/revisions`/,
       "the revision history is another child's read and is untouched");
-    // `result.note.note_id` was on this list until `0.33.33.38.4.2.2` adopted the established
-    // note boundary for the archive and restore mutations. A sibling child doing its job is not
-    // this one widening, so the claim is asserted against that boundary - anchored on the call
-    // site, because the reader's own definition also contains its name.
-    assert.match(consumer, /await selectNote\(requireNoteFromEnvelope\(result\)\.note_id\);/,
-      "result.note.note_id is another child's read and is untouched");
+    // Archive/restore acknowledgments establish identity, not full detail. Keep this
+    // peer-surface guard at the checked mutation reader; its own suite executes the
+    // refresh ordering and post-write failure protections.
+    assert.match(consumer, /await selectNote\(requireNoteMutationId\(result\)\);/,
+      "mutation identity remains checked at the Notes-owned acknowledgment boundary");
     // `result.targets || []` was on this list until `0.33.33.38.4.12.2` claimed the link-target
     // directory. A sibling child doing its job is not this one widening, so the claim is now
     // asserted against that boundary - anchored on the call site, because the reader's own
