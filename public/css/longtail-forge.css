@@ -8607,6 +8607,26 @@ label {
     font-weight: 600;
 }
 
+/*
+ * The rule above is an author rule, so it outranks the user-agent stylesheet's
+ * `[hidden] { display: none }`. Every `<label hidden>` therefore renders anyway, and these five
+ * controls are hidden by their own page in normal use: the Audit Log client and workspace
+ * filters when their catalogue is empty, the Time Entries tag filter when the workspace has no
+ * tags, and the User Admin scope fields for whichever scope is not selected.
+ *
+ * Scoped to exactly those five rather than to every label, because a general `label[hidden]`
+ * rule would change surfaces this checkpoint has not verified. `until-found` is excluded so a
+ * find-in-page reveal still works if one of these ever adopts it, which `display: none` would
+ * otherwise prevent.
+ */
+[data-audit-client-filter-control][hidden]:not([hidden="until-found"]),
+[data-audit-workspace-filter-control][hidden]:not([hidden="until-found"]),
+[data-time-entry-filter-tag-control][hidden]:not([hidden="until-found"]),
+[data-new-user-client-scope-field][hidden]:not([hidden="until-found"]),
+[data-new-user-project-scope-field][hidden]:not([hidden="until-found"]) {
+    display: none;
+}
+
 .inline-option {
     display: flex;
     width: fit-content;
