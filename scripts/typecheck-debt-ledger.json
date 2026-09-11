@@ -343,6 +343,7 @@
         "tests/e2e/notes-primary-context-pins.spec.mjs",
         "tests/e2e/notes-primary-context.spec.mjs",
         "tests/e2e/notes-tag-surface.spec.mjs",
+        "tests/e2e/notes-view-registration.spec.mjs",
         "tests/e2e/notes-visibility-scoping.spec.mjs",
         "tests/e2e/overflow.spec.mjs",
         "tests/e2e/public-legal.spec.mjs",
@@ -378,6 +379,7 @@
         "tests/mutations/notes-note-viewer.breaks.mjs",
         "tests/mutations/notes-primary-context.breaks.mjs",
         "tests/mutations/notes-tag-surface.breaks.mjs",
+        "tests/mutations/notes-view-registration.breaks.mjs",
         "tests/mutations/notes-visibility-scoping.breaks.mjs",
         "tests/mutations/time-entries-bulk-tags.breaks.mjs",
         "tests/mutations/time-entries-filtering.breaks.mjs",
@@ -460,6 +462,7 @@
         "tests/unit/notes-primary-context-pins.test.mjs",
         "tests/unit/notes-primary-context.test.mjs",
         "tests/unit/notes-tag-surface.test.mjs",
+        "tests/unit/notes-view-registration.test.mjs",
         "tests/unit/notes-visibility-scoping.test.mjs",
         "tests/unit/notification-bell-summary-contracts.test.mjs",
         "tests/unit/notification-list-contracts.test.mjs",
@@ -630,7 +633,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 6330,
+      "errorCount": 6318,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1099,23 +1102,23 @@
           },
           {
             "code": 7005,
-            "count": 2
+            "count": 1
           },
           {
             "code": 7006,
-            "count": 110
+            "count": 104
           },
           {
             "code": 7031,
-            "count": 5
-          },
-          {
-            "code": 7034,
             "count": 2
           },
           {
+            "code": 7034,
+            "count": 1
+          },
+          {
             "code": 7053,
-            "count": 8
+            "count": 7
           }
         ],
         "public/js/notifications.js": [
@@ -2506,8 +2509,8 @@
     }
   },
   "totals": {
-    "files": 1211,
-    "errors": 6330,
+    "files": 1214,
+    "errors": 6318,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

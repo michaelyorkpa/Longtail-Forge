@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import vm from "node:vm";
+import { extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 import { describe, it } from "vitest";
 
 /** @param {string} path */
@@ -20,28 +22,25 @@ function functionBody(source, opener, closer = "\n}\n") {
 
 /** The shipped note-envelope reader, instantiated from the page's own source. */
 function shippedReader() {
-  /** @param {string} opener */
-  const slice = (opener) => {
-    const start = page.indexOf(opener);
-    assert.notEqual(start, -1, opener + " must exist in the page source");
-    return page.slice(start, page.indexOf("\n  }\n", start) + 4);
-  };
-  return new Function([
+  const context = vm.createContext({});
+  return vm.runInContext([
     "const REQUIRED_NOTE_COLUMNS = " + JSON.stringify(readTable("REQUIRED_NOTE_COLUMNS")) + ";",
     "const NULLABLE_NOTE_COLUMNS = " + JSON.stringify(readTable("NULLABLE_NOTE_COLUMNS")) + ";",
     "const REQUIRED_NOTE_DETAIL_COLUMNS = " + JSON.stringify(readTable("REQUIRED_NOTE_DETAIL_COLUMNS")) + ";",
     "const NULLABLE_NOTE_DETAIL_COLUMNS = " + JSON.stringify(readTable("NULLABLE_NOTE_DETAIL_COLUMNS")) + ";",
     "const OPTIONAL_NOTE_DETAIL_MEMBERS = " + JSON.stringify(readTable("OPTIONAL_NOTE_DETAIL_MEMBERS")) + ";",
-    slice("  function isResponseRecord(value) {"),
-    slice("  function hasTextColumns(value, columns) {"),
-    slice("  function hasNullableTextColumns(value, columns) {"),
-    slice("  function hasArrayMembers(value, members) {"),
-    slice("  function hasOptionalTextColumns(value, columns) {"),
-    slice("  function isNoteListItem(value) {"),
-    slice("  function isNoteRecord(value) {"),
-    slice("  function requireNoteFromEnvelope(result) {"),
-    "return { requireNoteFromEnvelope, isNoteRecord };",
-  ].join("\n"))();
+    extractFunctionBlock(page, "isResponseRecord"),
+    extractFunctionBlock(page, "hasTextColumns"),
+    extractFunctionBlock(page, "hasNullableTextColumns"),
+    extractFunctionBlock(page, "hasArrayMembers"),
+    extractFunctionBlock(page, "hasOptionalTextColumns"),
+    extractFunctionBlock(page, "isNoteListItem"),
+    extractFunctionBlock(page, "isNoteRecord"),
+    extractFunctionBlock(page, "requireNoteFromEnvelope"),
+    extractFunctionBlock(page, "hasNoteIdentity"),
+    extractFunctionBlock(page, "requireNoteMutationId"),
+    "({ requireNoteFromEnvelope, isNoteRecord, requireNoteMutationId })",
+  ].join("\n"), context);
 }
 
 /** @param {string} name */
@@ -52,8 +51,8 @@ function readTable(name) {
   return [...body.matchAll(/"([a-z_]+)"/g)].map((entry) => entry[1]);
 }
 
-/** A note shaped the way the mutation routes answer one. */
-function noteRecord(overrides = {}) {
+/** A full-detail fixture; archive/restore do NOT attach these detail integrations. */
+function detailRecord(overrides = {}) {
   /** @type {Record<string, unknown>} */
   const record = { links: [], tags: [] };
   for (const key of [...readTable("REQUIRED_NOTE_COLUMNS"), ...readTable("REQUIRED_NOTE_DETAIL_COLUMNS")]) {
@@ -103,8 +102,8 @@ describe("the mutation producers", () => {
   });
 });
 
-describe("the adoption reuses the established note boundary", () => {
-  it("adds no second note record and no second parser", () => {
+describe("the adoption distinguishes identity from full detail", () => {
+  it("adds no second full note record or full-detail parser", () => {
     assert.equal((contracts.match(/export interface BrowserNoteRecord\b/g) || []).length, 1,
       "there must be exactly one browser note record");
     assert.doesNotMatch(contracts, /BrowserNoteMutationResult|BrowserNoteArchiveResponse|BrowserCreatedNote/,
@@ -117,13 +116,12 @@ describe("the adoption reuses the established note boundary", () => {
       "over exactly one note predicate");
   });
 
-  it("relies on the note record's own non-empty identifier proof", () => {
-    assert.match(functionBody(page, "  function isNoteListItem(value) {", "\n  }\n"),
-      /&& value\.note_id !== "";/,
-      "the note record already refuses an empty identifier");
-    const mutate = functionBody(page, "  async function mutateNote(url) {", "\n  }\n");
-    assert.doesNotMatch(mutate, /note_id \|\| ""|\?\?\s*""/,
-      "so the mutation must not invent a fallback identifier");
+  it("requires a usable mutation identity without inventing a fallback", () => {
+    const { requireNoteMutationId } = shippedReader();
+    assert.equal(requireNoteMutationId({ note: { note_id: " note_1 " } }), " note_1 ");
+    for (const note_id of [undefined, null, "", " ", "\t\n", 7, false, {}, ["note_1"]]) {
+      assert.throws(() => requireNoteMutationId({ note: { note_id } }), /usable note ID/);
+    }
   });
 
   it("leaves the unconsumed search document alone", () => {
@@ -137,11 +135,11 @@ describe("the adoption reuses the established note boundary", () => {
   });
 });
 
-describe("the shipped reader, run against real bodies", () => {
+describe("the shipped full-detail reader, run against its promised shape", () => {
   const { requireNoteFromEnvelope, isNoteRecord } = shippedReader();
 
-  it("answers the note a real mutation envelope carries", () => {
-    const note = noteRecord();
+  it("answers a full detail by identity", () => {
+    const note = detailRecord();
     /** @type {Record<string, unknown>} */
     const result = requireNoteFromEnvelope({ note });
     assert.equal(result, note, "the vouched note must be answered by identity");
@@ -156,20 +154,20 @@ describe("the shipped reader, run against real bodies", () => {
   });
 
   it("refuses a note whose identifier is empty", () => {
-    assert.equal(isNoteRecord(noteRecord({ note_id: "" })), false,
+    assert.equal(isNoteRecord(detailRecord({ note_id: "" })), false,
       "an empty identifier is not a note this page can select");
-    assert.throws(() => requireNoteFromEnvelope({ note: noteRecord({ note_id: "" }) }),
+    assert.throws(() => requireNoteFromEnvelope({ note: detailRecord({ note_id: "" }) }),
       /The note response did not contain a note\./,
       "so the envelope carrying it is refused");
   });
 
   it("refuses a note that is malformed in any promised column", () => {
     for (const key of ["note_id", "title", "status", "body_markdown", "owner_display_name"]) {
-      assert.throws(() => requireNoteFromEnvelope({ note: noteRecord({ [key]: null }) }),
+      assert.throws(() => requireNoteFromEnvelope({ note: detailRecord({ [key]: null }) }),
         /The note response did not contain a note\./,
         "a malformed " + key + " must refuse the envelope");
     }
-    assert.throws(() => requireNoteFromEnvelope({ note: noteRecord({ links: undefined }) }),
+    assert.throws(() => requireNoteFromEnvelope({ note: detailRecord({ links: undefined }) }),
       /The note response did not contain a note\./,
       "and so must a missing links collection");
   });
@@ -182,24 +180,61 @@ describe("the notes consumer", () => {
     assert.ok(!page.includes("result.note.note_id"), "the raw identity read must be gone");
   });
 
-  it("takes the identifier from the vouched note", () => {
-    assert.match(mutate, /await selectNote\(requireNoteFromEnvelope\(result\)\.note_id\);/,
-      "the selection must use the note the envelope reader vouched for");
+  it("reads minimal mutation envelopes while refusing malformed envelopes", () => {
+    const { requireNoteMutationId, requireNoteFromEnvelope } = shippedReader();
+    for (const status of ["archived", "active"]) {
+      const result = { note: { note_id: "note_1", status } };
+      assert.equal(requireNoteMutationId(result), "note_1");
+      assert.throws(() => requireNoteFromEnvelope(result), /did not contain a note/);
+    }
+    for (const bad of [undefined, null, [], 3, "note", {}, { note: null }, { note: [] }, { note: "note_1" }]) {
+      assert.throws(() => requireNoteMutationId(bad), /usable note ID/);
+    }
+    assert.throws(() => requireNoteMutationId({ note: Object.assign([], { note_id: "note_1" }) }), /usable note ID/);
   });
 
-  it("still refreshes the lists before it reads the response", () => {
-    const reload = mutate.indexOf("await Promise.all([loadCollections(), loadNotes()]);");
-    assert.notEqual(reload, -1, "the lists must be refreshed after the mutation");
-    const vouch = mutate.indexOf("requireNoteFromEnvelope(");
-    assert.notEqual(vouch, -1, "the response must be vouched for");
-    assert.ok(reload < vouch,
-      "the write has already committed, so the lists must reload even when the response cannot be read");
+  it("keeps the full-detail promise strict for tags, links and owner information", () => {
+    const { requireNoteFromEnvelope } = shippedReader();
+    for (const key of ["tags", "links", "owner_display_name"]) {
+      for (const value of [undefined, null, 1, {}]) {
+        assert.throws(() => requireNoteFromEnvelope({ note: detailRecord({ [key]: value }) }), /did not contain a note/);
+      }
+    }
   });
 
-  it("routes the refusal into the page's existing note error path", () => {
-    assert.match(mutate, /\} catch \(error\) \{\n\s+setStatus\(safeNoteErrorMessage\(error, "Note could not be updated\."\), true\);/,
-      "the refusal must land in the existing catch");
-    assert.doesNotMatch(mutate, /alert\(|showModal|window\.confirm/, "and add no new failure surface");
+  it("refreshes both lists after writing and before reading identity, then selects the authoritative detail", async () => {
+    const f = mutationFixture();
+    const mutation = f.api.mutateNote("/api/notes/note_1/archive");
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(f.calls, ["post", "collections", "notes"]);
+    assert.equal(f.identityReads(), 0);
+    f.releaseCollections(); await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(f.identityReads(), 0);
+    f.releaseNotes(); await mutation;
+    assert.deepEqual(f.calls, ["post", "collections", "notes", "get:note_1", "detail:note_1", "render", "close-drawer", "url:note_1"]);
+    assert.equal(f.context.state.selectedNote, f.detail);
+    assert.ok(f.identityReads() > 0);
+    assert.deepEqual(f.status.at(-1), ["", undefined]);
+  });
+
+  it("never replays a committed mutation when its response, refresh or detail read is unreadable", async () => {
+    for (const failure of ["response", "collections", "notes", "detail", "detail-shape"]) {
+      const f = mutationFixture(failure); f.releaseCollections(); f.releaseNotes();
+      await assert.doesNotReject(() => f.api.mutateNote("/api/notes/note_1/restore"));
+      assert.equal(f.calls.filter((call) => call === "post").length, 1, failure);
+      assert.equal(f.calls.includes("detail:note_1"), false, failure);
+      assert.match(String(f.status.at(-1)?.[0]), /Note was updated, but/);
+      assert.equal(f.status.at(-1)?.[1], true);
+      if (failure === "response") assert.deepEqual(f.calls, ["post", "collections", "notes"]);
+    }
+  });
+
+  it("preserves the failed-write error path without claiming success or starting refresh", async () => {
+    const f = mutationFixture("post"); f.releaseCollections(); f.releaseNotes();
+    await assert.doesNotReject(() => f.api.mutateNote("/api/notes/note_1/archive"));
+    assert.deepEqual(f.calls, ["post"]);
+    assert.deepEqual(f.status.at(-1), ["Note could not be updated.", true]);
+    assert.doesNotMatch(mutate, /alert\(|showModal|window\.confirm/);
   });
 
   it("leaves the other Notes producers to their own children", () => {
@@ -219,3 +254,36 @@ describe("the notes consumer", () => {
       "and the link-target directory belongs to 0.33.33.38.4.12.2");
   });
 });
+
+/** @param {string} [failure] */
+function mutationFixture(failure = "") {
+  const detail = detailRecord();
+  /** @type {string[]} */ const calls = [];
+  /** @type {unknown[][]} */ const status = [];
+  let releaseCollections = () => {}, releaseNotes = () => {}, reads = 0;
+  const collections = new Promise((resolve) => { releaseCollections = () => resolve(undefined); });
+  const notes = new Promise((resolve) => { releaseNotes = () => resolve(undefined); });
+  const result = failure === "response" ? { note: { note_id: [] } } : { note: { get note_id() { reads += 1; return "note_1"; } } };
+  const context = vm.createContext({
+    ...shippedReader(), state: { selectedNote: null },
+    requireApi: () => ({
+      postJson: async () => { calls.push("post"); if (failure === "post") throw Error("private write error"); return result; },
+      getJson: async (/** @type {string} */ url) => {
+        calls.push(`get:${url.split("/").at(-1)}`);
+        if (failure === "detail") throw Error("private read error");
+        return { note: failure === "detail-shape" ? { ...detail, tags: null } : detail };
+      },
+    }),
+    loadCollections: async () => { calls.push("collections"); await collections; if (failure === "collections") throw Error("private collections error"); },
+    loadNotes: async () => { calls.push("notes"); await notes; if (failure === "notes") throw Error("private list error"); },
+    setStatus: (/** @type {unknown} */ text, /** @type {unknown} */ error) => status.push([text, error]),
+    safeNoteErrorMessage: (/** @type {unknown} */ error, /** @type {string} */ fallback) => fallback,
+    renderDetail: (/** @type {{note_id: string}} */ note) => calls.push(`detail:${note.note_id}`),
+    renderNotes: () => calls.push("render"), closeNotesSlideOutDrawer: () => calls.push("close-drawer"),
+    updateUrl: (/** @type {string} */ id) => calls.push(`url:${id}`),
+    renderDetailPrompt: () => calls.push("prompt"), isSecureError: () => false,
+  });
+  vm.runInContext(["mutateNote", "selectNote"].map((name) => extractFunctionBlock(page, name)).join("\n"), context);
+  return { context, detail, calls, status, releaseCollections, releaseNotes, identityReads: () => reads,
+    api: vm.runInContext("({mutateNote,selectNote})", context) };
+}
