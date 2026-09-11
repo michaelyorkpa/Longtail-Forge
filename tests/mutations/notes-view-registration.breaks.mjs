@@ -76,15 +76,29 @@ const cases = [
   ["workflow seed copies caller context", "requireNoteWorkflowEditorSeed", "return note;", "return { ...note };"],
   ["workflow identity copies record", "requireNoteWorkflowIdentity", "return note;", "return { ...note };"],
 
+  ["regression rejects edit routed to archive", "workflowMap", "openEditor(requireNoteWorkflowEditorSeed(note))", "archiveNote(requireNoteWorkflowEditorSeed(note))", "regression"],
+  ["regression rejects archive routed to restore", "workflowMap", "archiveNote(requireNoteWorkflowIdentity(note))", "restoreNote(requireNoteWorkflowIdentity(note))", "regression"],
+  ["regression rejects restore routed to archive", "workflowMap", "restoreNote(requireNoteWorkflowIdentity(note))", "archiveNote(requireNoteWorkflowIdentity(note))", "regression"],
+
+  ["peer guards reject unchecked mutation identity", "mutateNote", "requireNoteMutationId(result)", "result.note.note_id", "peers"],
+
+  ["regression rejects copied workflow identity", "requireNoteWorkflowIdentity", "return note;", "return { ...note };", "regression"],
+
 ];
 
+const verificationEnv = { ...process.env };
+for (const key of ["LONGTAIL_LOCAL_STORAGE_ROOT", "LONGTAIL_PUBLIC_URL", "SUPER_ADMIN_PASSWORD", "SECURE_NOTES_MASTER_KEY"]) delete verificationEnv[key];
 let caught = 0;
 /** @type {string[]} */ const inert = [];
 const command = ["node_modules/vitest/vitest.mjs", "run", "tests/unit/notes-view-registration.test.mjs", "tests/unit/note-mutation-identity-contracts.test.mjs"];
 try {
   const baseline = spawnSync(process.execPath, command, { encoding: "utf8", windowsHide: true });
   assert.equal(baseline.status, 0, baseline.stdout + baseline.stderr);
-  for (const [label, name, from, to] of cases) {
+  const regressionBaseline = spawnSync(process.execPath, ["scripts/notes-ui-workflow-regression.mjs"], { encoding: "utf8", windowsHide: true, env: verificationEnv });
+  assert.equal(regressionBaseline.status, 0, regressionBaseline.stdout + regressionBaseline.stderr);
+  const peerBaseline = spawnSync(process.execPath, ["node_modules/vitest/vitest.mjs", "run", "tests/unit/markdown-preview-contracts.test.mjs", "tests/unit/note-link-target-contracts.test.mjs"], { encoding: "utf8", windowsHide: true });
+  assert.equal(peerBaseline.status, 0, peerBaseline.stdout + peerBaseline.stderr);
+  for (const [label, name, from, to, proof] of cases) {
     assert.ok(label && name && from && to !== undefined);
     const region = name === "workflowMap"
       ? source.slice(source.indexOf("const NOTE_WORKFLOW_HANDLERS ="), source.indexOf("const NOTE_EDITOR_TOOLBAR_ACTIONS ="))
@@ -94,13 +108,15 @@ try {
       writeFileSync(sourcePath, source.replace(region, region.replaceAll(from, to)));
       const syntax = spawnSync(process.execPath, ["--check", sourcePath], { encoding: "utf8", windowsHide: true });
       assert.equal(syntax.status, 0, `${label}: syntax failure is not a caught break\n${syntax.stderr}`);
-      const result = spawnSync(process.execPath, command, { encoding: "utf8", windowsHide: true });
+      const result = spawnSync(process.execPath, proof === "regression" ? ["scripts/notes-ui-workflow-regression.mjs"]
+        : proof === "peers" ? ["node_modules/vitest/vitest.mjs", "run", "tests/unit/markdown-preview-contracts.test.mjs", "tests/unit/note-link-target-contracts.test.mjs"] : command,
+        { encoding: "utf8", windowsHide: true, env: verificationEnv });
       const output = result.stdout + result.stderr;
       if (result.status === 0) { inert.push(label); console.log(`INERT: ${label} - re-aim before claiming coverage`); }
       else {
         assert.equal(result.status, 1, output);
         assert.match(output, /AssertionError/, `${label}: infrastructure or runtime crash is not assertion coverage\n${output}`);
-        caught += 1; console.log(`CAUGHT (syntax valid, assertion failed): ${label}`);
+        caught += 1; console.log(`CAUGHT (${proof || "unit"}; syntax valid, assertion failed): ${label}`);
       }
     } finally {
       writeFileSync(sourcePath, original);

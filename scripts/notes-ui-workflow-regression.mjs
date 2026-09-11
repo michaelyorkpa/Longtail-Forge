@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import vm from "node:vm";
+import { extractFunctionBlock } from "./test-support/source-scan.mjs";
 import { appVersion } from "../src/core/version.js";
 import { requireFirstRow } from "./test-support/database-row-assertions.mjs";
 import { workspaceSessionFixture } from "./test-support/session-fixtures.mjs";
@@ -189,9 +191,7 @@ async function assertProtectedView(session) {
   assert.match(notesModuleSource, /actionStrip:\s*\{[\s\S]*?behavior:\s*"notes\.workflow\.edit"[\s\S]*?behavior:\s*"notes\.workflow\.archive"[\s\S]*?behavior:\s*"notes\.workflow\.restore"/, "Notes descriptor should declare the workflow action strip behaviors");
   assert.match(notesModuleSource, /actionStrip:\s*\{[\s\S]*?requiredPermissions:\s*\[NOTE_PERMISSIONS\.UPDATE\]/, "Edit action should require the note update permission");
   assert.match(notesJs, /NOTE_WORKFLOW_HANDLERS/, "Notes should dispatch workflow actions through a registered behavior map");
-  assert.match(notesJs, /"notes\.workflow\.edit": \(note\) => openEditor\(note\)/, "Edit workflow should map to the editor");
-  assert.match(notesJs, /"notes\.workflow\.archive": \(note\) => archiveNote\(note\)/, "Archive workflow should map to the archive handler");
-  assert.match(notesJs, /"notes\.workflow\.restore": \(note\) => restoreNote\(note\)/, "Restore workflow should map to the restore handler");
+  assertNotesWorkflowDispatch(notesJs);
   assert.match(notesJs, /renderDescriptorActionMenu\(detailActionButtons\(note\)/, "Notes detail should render the workflow actions through the framework overflow-menu helper");
   assert.match(notesJs, /button\.dataset\.noteAction = action\.id/, "Action menu buttons should carry their declarative action id");
   assert.doesNotMatch(notesJs, /function detailActionsMenu/, "The hand-built <details> actions menu should be replaced by the framework action menu");
@@ -534,4 +534,28 @@ LIMIT 1;
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.deepEqual(rows, [{ integrity_check: "ok" }]);
+}
+
+/** Execute the routing claim rather than pinning calls that cannot validate their inputs.
+ * @param {string} source
+ */
+function assertNotesWorkflowDispatch(source) {
+  /** @type {unknown[][]} */ const calls = [];
+  const result = { edit: Symbol("edit"), archive: Symbol("archive"), restore: Symbol("restore") };
+  const context = vm.createContext({
+    openEditor: (/** @type {unknown} */ note) => { calls.push(["edit", note]); return result.edit; },
+    archiveNote: (/** @type {unknown} */ note) => { calls.push(["archive", note]); return result.archive; },
+    restoreNote: (/** @type {unknown} */ note) => { calls.push(["restore", note]); return result.restore; },
+  });
+  const map = source.slice(source.indexOf("const NOTE_WORKFLOW_HANDLERS ="), source.indexOf("const NOTE_EDITOR_TOOLBAR_ACTIONS ="));
+  const functions = ["isResponseRecord", "hasNoteIdentity", "requireNoteWorkflowIdentity", "isNoteWorkflowEditorSeed", "requireNoteWorkflowEditorSeed", "runNoteWorkflow"];
+  const run = vm.runInContext(`${map}\n${functions.map((name) => extractFunctionBlock(source, name)).join("\n")}\nrunNoteWorkflow`, context);
+  const seed = { note_id: "workflow-id", title: "Partial editor seed", client_id: null };
+  for (const [action, outcome] of Object.entries(result)) {
+    assert.doesNotThrow(() => assert.equal(run(`notes.workflow.${action}`, seed), outcome, `${action} must return its own handler result`));
+    assert.equal(calls[0]?.[1], seed, "the original record must reach the handler by identity");
+    assert.deepEqual(calls.splice(0), [[action, seed]], `${action} must call only its own handler with the original record`);
+    assert.throws(() => run(`notes.workflow.${action}`, { note_id: [] }), /workflow/i, "malformed identities must not dispatch");
+    assert.deepEqual(calls, [], "a refused input must not reach an editor or write");
+  }
 }

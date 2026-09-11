@@ -378,11 +378,10 @@ describe("the notes consumer", () => {
     // anchored on the call site, because the reader's own definition also contains its name.
     assert.match(page, /readOpenExternalLinksNewTab\(await api\.getJson\("\/api\/user\/settings"/,
       "settings.openExternalLinksNewTab is another child's read and is untouched");
-    // `result.note.note_id` was on this list until `0.33.33.38.4.2.2` adopted the established
-    // note boundary for the archive and restore mutations. A sibling child doing its job is not
-    // this one widening, so the claim is asserted against that boundary - anchored on the call
-    // site, because the reader's own definition also contains its name.
-    assert.match(page, /await selectNote\(requireNoteFromEnvelope\(result\)\.note_id\);/,
-      "result.note.note_id is another child's read and is untouched");
+    // Archive/restore acknowledgments establish identity, not full detail. Keep this
+    // peer-surface guard at the checked mutation reader; its own suite executes the
+    // refresh ordering and post-write failure protections.
+    assert.match(page, /await selectNote\(requireNoteMutationId\(result\)\);/,
+      "mutation identity remains checked at the Notes-owned acknowledgment boundary");
   });
 });

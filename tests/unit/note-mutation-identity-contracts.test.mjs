@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import { setImmediate } from "node:timers";
 import { extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 import { describe, it } from "vitest";
 
@@ -233,8 +234,16 @@ describe("the notes consumer", () => {
     const f = mutationFixture("post"); f.releaseCollections(); f.releaseNotes();
     await assert.doesNotReject(() => f.api.mutateNote("/api/notes/note_1/archive"));
     assert.deepEqual(f.calls, ["post"]);
-    assert.deepEqual(f.status.at(-1), ["Note could not be updated.", true]);
+    assert.deepEqual(f.status.at(-1), ["Note update could not be confirmed. Reload Notes to check its current state.", true]);
     assert.doesNotMatch(mutate, /alert\(|showModal|window\.confirm/);
+  });
+
+  it("reports an unconfirmed outcome when the shared API cannot parse a successful write response", async () => {
+    const f = mutationFixture("post-response"); f.releaseCollections(); f.releaseNotes();
+    await assert.doesNotReject(() => f.api.mutateNote("/api/notes/note_1/archive"));
+    assert.equal(f.committedWrites(), 1);
+    assert.deepEqual(f.calls, ["post"]);
+    assert.deepEqual(f.status.at(-1), ["Note update could not be confirmed. Reload Notes to check its current state.", true]);
   });
 
   it("leaves the other Notes producers to their own children", () => {
@@ -260,14 +269,19 @@ function mutationFixture(failure = "") {
   const detail = detailRecord();
   /** @type {string[]} */ const calls = [];
   /** @type {unknown[][]} */ const status = [];
-  let releaseCollections = () => {}, releaseNotes = () => {}, reads = 0;
+  let releaseCollections = () => {}, releaseNotes = () => {}, reads = 0, writes = 0;
+  const parseResponse = vm.runInNewContext(`${extractFunctionBlock(read("public/js/shared/api-client.js"), "parseJsonResponse")}\nparseJsonResponse`);
   const collections = new Promise((resolve) => { releaseCollections = () => resolve(undefined); });
   const notes = new Promise((resolve) => { releaseNotes = () => resolve(undefined); });
   const result = failure === "response" ? { note: { note_id: [] } } : { note: { get note_id() { reads += 1; return "note_1"; } } };
   const context = vm.createContext({
     ...shippedReader(), state: { selectedNote: null },
     requireApi: () => ({
-      postJson: async () => { calls.push("post"); if (failure === "post") throw Error("private write error"); return result; },
+      postJson: async () => {
+        calls.push("post"); if (failure === "post") throw Error("private write error");
+        writes += 1;
+        return failure === "post-response" ? parseResponse(new globalThis.Response("not JSON", { status: 200 })) : result;
+      },
       getJson: async (/** @type {string} */ url) => {
         calls.push(`get:${url.split("/").at(-1)}`);
         if (failure === "detail") throw Error("private read error");
@@ -284,6 +298,6 @@ function mutationFixture(failure = "") {
     renderDetailPrompt: () => calls.push("prompt"), isSecureError: () => false,
   });
   vm.runInContext(["mutateNote", "selectNote"].map((name) => extractFunctionBlock(page, name)).join("\n"), context);
-  return { context, detail, calls, status, releaseCollections, releaseNotes, identityReads: () => reads,
+  return { context, detail, calls, status, releaseCollections, releaseNotes, identityReads: () => reads, committedWrites: () => writes,
     api: vm.runInContext("({mutateNote,selectNote})", context) };
 }

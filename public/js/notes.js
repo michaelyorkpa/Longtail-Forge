@@ -5377,7 +5377,7 @@
     } catch (error) {
       setStatus(writeCompleted
         ? "Note was updated, but its current state could not be refreshed. Reload Notes to check it."
-        : safeNoteErrorMessage(error, "Note could not be updated."), true);
+        : `${safeNoteErrorMessage(error, "Note update could not be confirmed.")} Reload Notes to check its current state.`, true);
     }
   }
 
