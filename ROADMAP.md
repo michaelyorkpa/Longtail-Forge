@@ -1509,6 +1509,18 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,153 to 6,072**, params 3,913 to 3,873, `dom` 757 to 722, state 1,361 to 1,355. `0.33.33.44` 1,074 to 1,028. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.22 - Restore the hidden state for five label-wrapped controls
+
+**Complete: a rendering repair, with no typing change.** See the archive entry. `label { display: grid }` in `public/css/longtail-forge.css` is an author rule, so it outranks the user-agent stylesheet's `[hidden] { display: none }` - and five `<label hidden>` controls across three pages rendered even while their own page marked them hidden. Every controller was already setting `hidden` correctly; only the stylesheet was wrong.
+
+**The five: Audit Log's client and workspace filters, Time Entries' tag filter, and User Admin's client and project scope fields.** Each is hidden in ordinary use - an empty catalogue, a workspace with no tags, the scope the selected role does not use - so this was visible to any user of those pages, not an edge case.
+
+**Scoped to exactly those five, not to every label.** A general `label[hidden]` rule would have changed surfaces this checkpoint did not verify, and the 27 existing per-surface `[hidden]` safeguards are left alone. `:not([hidden="until-found"])` is excluded from each selector so a find-in-page reveal still works if one of these controls ever adopts it, which a bare `display: none` would otherwise prevent. No `!important`, no refactor.
+
+**Proven by driving the transitions, not by reading the attribute.** The attribute was always set correctly, so asserting it would have proven nothing. `tests/e2e/hidden-label-controls.spec.mjs` switches roles, empties and refills catalogues, and reloads with and without tags, on desktop and mobile - checking that each control is actually hidden when intended and, when shown again, visible with real layout and a usable input. **Eight breaks, eight caught, zero inert**: removing any single one of the five selectors fails the suite on its own.
+
+**Measured: browser 6,044 and `0.33.33.44` 1,028, both unchanged.** This checkpoint changes a stylesheet and adds proof; it changes no JavaScript, no permission, and no visibility policy.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
