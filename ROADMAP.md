@@ -1469,6 +1469,14 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,330 to 6,224, `0.33.33.44` 1,121 to 1,078**, params 3,950 to 3,930, state 1,383 to 1,360, `dom` 875 to 812. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.19.1 - Prove the Remove gate at the expression that decides it
+
+**Complete: a correction to `0.33.33.44.19`'s own evidence, with no production change.** See the archive entry. That checkpoint aimed its mutations at `removeButton.disabled` inside `renderTarget` and blamed the lifted fixture when they proved inert. The real cause is in the source: `renderTarget` reaches `updateControls`, which rewrites `disabled` on every button in the list, so the mutated assignment is always discarded - a rendered run would have shown the same thing.
+
+**The mutations now aim at the surviving expression and they bite**, and the cases drive `setBusy`/`updateControls` against already-rendered buttons across every busy/revision combination, because the page changes that state without re-rendering. The harness reports **30/30 with zero inert**, up from 26 with a recorded hole. The redundant assignment in `renderTarget` is left exactly as it ships.
+
+**Measured: browser 6,224 and `0.33.33.44` 1,078, both unchanged.**
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
