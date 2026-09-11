@@ -1477,6 +1477,20 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,224 and `0.33.33.44` 1,078, both unchanged.**
 
+#### 0.33.33.44.20 - Audit Log filter query and option population
+
+**Complete: 53 named, 59 measured.** `buildFilterParams` (34), `populateFilterOptions` (10) and `populateWorkspaceOptions` (9) all reach zero, and `public/js/audit-log.js` falls 140 to 81. The extra six are the same controls read outside these three functions: converting a declaration turns a `Property does not exist on type 'Element'` into a `possibly null`, which is neutral, but two top-level listeners and three later reads were already paying both, so they fell out with them. Eleven controls - pagination, export, status and the table - are deliberately untouched and still acquire themselves bare.
+
+**The emitted keys were traced through the receiver rather than assumed.** `getAuditEndpoint` sends this query to two routes, but `listSecurityEvents` calls `list` with `securityOnly`, so both share one `normalizeFilters` and there is a single contract. All eight names it reads are emitted, none is emitted into the void, and the suite pins the set rather than the spelling of any one. The dates are the subtle pair: this page converts client-side and emits an absolute instant, which the service normalizes as UTC - its bare `YYYY-MM-DD` branch serves other callers, not this one.
+
+**One behaviour is provable only in a browser, so it is proven in one.** A real `<select>` derives `value` from its options and resets when they are replaced; the fake DOM models `value` as a plain property that `replaceChildren` never disturbs. The selection-restoring branch in `replaceSelectOptions` is therefore invisible to the lifted fixture, and `tests/e2e/audit-log-filter-selection.spec.mjs` refuses it instead. The harness routes that one case to the rendered runner and reports which runner caught each. **41/41, zero inert.** No assertion was written against the fixture's own modelling.
+
+**One mutation was withdrawn as genuinely inert, not as uncovered.** Deleting the empty-catalogue early return in `populateWorkspaceOptions` leaves an identical control: the fall-through rebuilds the same lone placeholder and its trailing assignment is a self-assignment when no option matches. The guard is readability, so it is left exactly as it ships and no assertion was invented to catch it.
+
+**A pre-existing rendering defect was found and left alone.** `label { display: grid }` in `public/css/longtail-forge.css` is an author rule, so it beats the user-agent `[hidden] { display: none }`, and the client and workspace filter controls are `<label hidden>` with no `[hidden]` safeguard of their own. Both controllers set `hidden` correctly and both controls still render. This checkpoint types the surface and does not change its CSS; the e2e pins the attribute the controller writes rather than claiming a visibility this page does not have.
+
+**Measured: browser 6,212 to 6,153**, params 3,921 to 3,913, `dom` 812 to 757, state 1,357 to 1,361 - the four are a reclassification inside this one file, where a checked lookup turns a missing-property diagnostic into a possibly-null one. `0.33.33.44` 1,078 to 1,074. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
