@@ -150,8 +150,12 @@ export function fakeDomConstructors() {
     HTMLElement: elementConstructor(),
     HTMLButtonElement: elementConstructor("BUTTON"),
     HTMLDetailsElement: elementConstructor("DETAILS"),
+    HTMLFormElement: elementConstructor("FORM"),
     HTMLInputElement: elementConstructor("INPUT"),
     HTMLSelectElement: elementConstructor("SELECT"),
+    // The other element family that carries `focus`, so a page restoring focus to its trigger can
+    // be asked about both without the fixture answering for only one of them.
+    SVGElement: elementConstructor("SVG"),
     HTMLTextAreaElement: elementConstructor("TEXTAREA"),
   };
 }

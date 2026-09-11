@@ -260,7 +260,10 @@ describe("the reader", () => {
       "one entry the browser cannot vouch for makes the history unreadable, not shorter");
     assert.match(page, /if \(!result\) \{\s+throw new Error\("The audit log response could not be read\."\);/,
       "and the page takes the load-error path it already had");
-    assert.match(page, /catch \(error\) \{\s+setStatus\(auditViewSelect\.value === "security"/,
+    // `0.33.33.44.21` moved the acquisition, not the path: the view filter is now required at the
+    // read instead of dereferenced bare. The claim here is still that the load-error path reports
+    // through `setStatus` with the message for the view being shown.
+    assert.match(page, /catch \(error\) \{\s+setStatus\(requireAuditValue\(auditViewSelect, "view filter"\)\.value === "security"/,
       "which is a real path this page already owned");
   });
 

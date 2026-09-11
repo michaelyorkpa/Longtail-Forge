@@ -1,6 +1,6 @@
 (function attachAuditLogPage() {
-  const auditFilterForm = document.querySelector("[data-audit-filters]");
-  const auditViewSelect = document.querySelector("[data-audit-view-filter]");
+  const auditFilterForm = findAuditControl("[data-audit-filters]", HTMLFormElement);
+  const auditViewSelect = findAuditControl("[data-audit-view-filter]", HTMLSelectElement);
   const dateFromInput = findAuditControl("[data-audit-date-from]", HTMLInputElement);
   const dateToInput = findAuditControl("[data-audit-date-to]", HTMLInputElement);
   const userFilterSelect = findAuditControl("[data-audit-user-filter]", HTMLSelectElement);
@@ -12,16 +12,32 @@
   const workspaceFilterControl = findAuditControl("[data-audit-workspace-filter-control]", HTMLElement);
   const workspaceFilterSelect = findAuditControl("[data-audit-workspace-filter]", HTMLSelectElement);
   const showUtcInput = findAuditControl("[data-audit-show-utc]", HTMLInputElement);
-  const resetButton = document.querySelector("[data-audit-reset]");
-  const exportFilteredButton = document.querySelector("[data-audit-export-filtered]");
-  const exportAllButton = document.querySelector("[data-audit-export-all]");
-  const pageSizeSelect = document.querySelector("[data-audit-page-size]");
-  const previousPageButton = document.querySelector("[data-audit-previous-page]");
-  const nextPageButton = document.querySelector("[data-audit-next-page]");
-  const pageSummary = document.querySelector("[data-audit-page-summary]");
-  const auditStatus = document.querySelector("[data-audit-status]");
-  const auditLogBody = document.querySelector("[data-audit-log-body]");
+  const resetButton = findAuditControl("[data-audit-reset]", HTMLButtonElement);
+  const exportFilteredButton = findAuditControl("[data-audit-export-filtered]", HTMLButtonElement);
+  const exportAllButton = findAuditControl("[data-audit-export-all]", HTMLButtonElement);
+  const pageSizeSelect = findAuditControl("[data-audit-page-size]", HTMLSelectElement);
+  const previousPageButton = findAuditControl("[data-audit-previous-page]", HTMLButtonElement);
+  const nextPageButton = findAuditControl("[data-audit-next-page]", HTMLButtonElement);
+  const pageSummary = findAuditControl("[data-audit-page-summary]", HTMLElement);
+  const auditStatus = findAuditControl("[data-audit-status]", HTMLElement);
+  const auditLogBody = findAuditControl("[data-audit-log-body]", HTMLElement);
 
+  /**
+   * One audit row as this page holds it.
+   *
+   * `normalizeAuditLog` coerces every member it reads to a string, so the nullable members
+   * `BrowserAuditLogEntry` declares - the actor, the record, and the three JSON snapshots - are
+   * already resolved to `""` before anything renders them, which is why nothing downstream
+   * re-checks them for null. `workspace_id` is not carried: this page never reads it off a row.
+   * @typedef {Record<
+   *   "action" | "actor_user_id" | "actor_user_name" | "audit_id" | "change_type" | "created_at"
+   *   | "ip_address" | "metadata_json" | "new_value_json" | "previous_value_json" | "record_id"
+   *   | "record_label" | "record_type" | "record_url",
+   *   string
+   * >} NormalizedAuditLog
+   */
+
+  /** @type {NormalizedAuditLog[]} */
   let auditLogs = [];
   let currentPage = 1;
   let totalAuditLogs = 0;
@@ -60,33 +76,33 @@
 
   initializeAuditLog();
 
-  auditFilterForm.addEventListener("submit", (event) => {
+  requireAuditValue(auditFilterForm, "filter form").addEventListener("submit", (event) => {
     event.preventDefault();
     currentPage = 1;
     loadAuditLogs();
   });
 
-  resetButton.addEventListener("click", () => {
-    auditFilterForm.reset();
+  requireAuditValue(resetButton, "reset button").addEventListener("click", () => {
+    requireAuditValue(auditFilterForm, "filter form").reset();
     setDefaultWorkspaceFilter();
     currentPage = 1;
     loadAuditLogs();
   });
 
-  exportFilteredButton.addEventListener("click", () => {
+  requireAuditValue(exportFilteredButton, "filtered export button").addEventListener("click", () => {
     window.location.href = `${getAuditEndpoint()}/export.csv?${buildFilterParams().toString()}`;
   });
 
-  exportAllButton.addEventListener("click", () => {
+  requireAuditValue(exportAllButton, "full export button").addEventListener("click", () => {
     window.location.href = `${getAuditEndpoint()}/export.csv`;
   });
 
-  auditViewSelect.addEventListener("change", () => {
+  requireAuditValue(auditViewSelect, "view filter").addEventListener("change", () => {
     currentPage = 1;
     loadAuditLogs();
   });
 
-  pageSizeSelect.addEventListener("change", () => {
+  requireAuditValue(pageSizeSelect, "page size select").addEventListener("change", () => {
     currentPage = 1;
     loadAuditLogs();
   });
@@ -101,7 +117,7 @@
     loadAuditLogs();
   });
 
-  previousPageButton.addEventListener("click", () => {
+  requireAuditValue(previousPageButton, "previous page button").addEventListener("click", () => {
     if (currentPage <= 1) {
       return;
     }
@@ -110,7 +126,7 @@
     loadAuditLogs();
   });
 
-  nextPageButton.addEventListener("click", () => {
+  requireAuditValue(nextPageButton, "next page button").addEventListener("click", () => {
     if (currentPage >= getTotalPages()) {
       return;
     }
@@ -342,7 +358,7 @@
       populateFilterOptions(result.filterOptions, result.workspaceId);
       renderAuditLogs();
     } catch (error) {
-      setStatus(auditViewSelect.value === "security"
+      setStatus(requireAuditValue(auditViewSelect, "view filter").value === "security"
         ? "Security events are available only to workspace administrators."
         : "Audit log could not be loaded.");
       console.error(error);
@@ -353,13 +369,15 @@
     await requireTimezones().loadSessionTimezone();
     await requireNamespace().workspaceContextReady;
     if (new URLSearchParams(window.location.search).get("view") === "security") {
-      auditViewSelect.value = "security";
+      requireAuditValue(auditViewSelect, "view filter").value = "security";
     }
     await loadAuditLogs();
   }
 
   function getAuditEndpoint() {
-    return auditViewSelect.value === "security" ? "/api/security-events" : "/api/audit-logs";
+    return requireAuditValue(auditViewSelect, "view filter").value === "security"
+      ? "/api/security-events"
+      : "/api/audit-logs";
   }
 
   /**
@@ -374,16 +392,22 @@
    * @returns {void}
    */
   function populateFilterOptions(filterOptions, selectedWorkspaceId) {
-    replaceSelectOptions(userFilterSelect, "All users", normalizeOptions(filterOptions.users));
-    replaceSelectOptions(clientFilterSelect, "All clients", normalizeOptions(filterOptions.clients));
-    replaceSelectOptions(projectFilterSelect, "All projects", normalizeOptions(filterOptions.projects));
+    replaceSelectOptions(requireAuditValue(userFilterSelect, "user filter"), "All users", normalizeOptions(filterOptions.users));
+    replaceSelectOptions(requireAuditValue(clientFilterSelect, "client filter"), "All clients", normalizeOptions(filterOptions.clients));
+    replaceSelectOptions(requireAuditValue(projectFilterSelect, "project filter"), "All projects", normalizeOptions(filterOptions.projects));
     requireAuditValue(clientFilterControl, "client filter control").hidden
       = requireAuditValue(clientFilterSelect, "client filter").options.length <= 1;
-    replaceSelectOptions(recordTypeFilterSelect, "All record types", normalizeEnumOptions(filterOptions.recordTypes));
-    replaceSelectOptions(changeTypeFilterSelect, "All change types", normalizeEnumOptions(filterOptions.changeTypes));
+    replaceSelectOptions(requireAuditValue(recordTypeFilterSelect, "record type filter"), "All record types", normalizeEnumOptions(filterOptions.recordTypes));
+    replaceSelectOptions(requireAuditValue(changeTypeFilterSelect, "change type filter"), "All change types", normalizeEnumOptions(filterOptions.changeTypes));
     populateWorkspaceOptions(filterOptions.workspaces, selectedWorkspaceId);
   }
 
+  /**
+   * @param {HTMLSelectElement} select
+   * @param {string} allLabel
+   * @param {BrowserAuditFilterOption[]} options
+   * @returns {void}
+   */
   function replaceSelectOptions(select, allLabel, options) {
     const selectedValue = select.value;
     select.replaceChildren(createOption("", allLabel));
@@ -397,7 +421,9 @@
   }
 
   function renderAuditLogs() {
-    auditLogBody.replaceChildren();
+    const body = requireAuditValue(auditLogBody, "log table body");
+
+    body.replaceChildren();
     updatePagination();
 
     if (auditLogs.length === 0) {
@@ -405,22 +431,23 @@
       const cell = document.createElement("td");
 
       cell.colSpan = 7;
-      cell.textContent = auditViewSelect.value === "security"
+      cell.textContent = requireAuditValue(auditViewSelect, "view filter").value === "security"
         ? "No security events match these filters."
         : "No audit log entries match these filters.";
       row.appendChild(cell);
-      auditLogBody.appendChild(row);
+      body.appendChild(row);
       setStatus("");
       return;
     }
 
     auditLogs.forEach((log) => {
-      auditLogBody.appendChild(createAuditRow(log));
+      body.appendChild(createAuditRow(log));
     });
 
     updateStatus();
   }
 
+  /** @param {NormalizedAuditLog} log @returns {HTMLTableRowElement} */
   function createAuditRow(log) {
     const row = document.createElement("tr");
     const metadata = parseJson(log.metadata_json);
@@ -434,7 +461,7 @@
       userButton.className = "link-button";
       userButton.textContent = log.actor_user_name || log.actor_user_id;
       userButton.addEventListener("click", () => {
-        userFilterSelect.value = log.actor_user_id;
+        requireAuditValue(userFilterSelect, "user filter").value = log.actor_user_id;
         currentPage = 1;
         loadAuditLogs();
       });
@@ -526,6 +553,7 @@
     return params;
   }
 
+  /** @param {unknown} options @returns {BrowserAuditFilterOption[]} */
   function normalizeOptions(options) {
     return Array.isArray(options)
       ? options
@@ -537,6 +565,7 @@
       : [];
   }
 
+  /** @param {unknown} values @returns {BrowserAuditFilterOption[]} */
   function normalizeEnumOptions(values) {
     return Array.isArray(values)
       ? values
@@ -575,17 +604,20 @@
   function setDefaultWorkspaceFilter() {
     const contextWorkspaceId = window.LongtailForge?.workspaceContext?.workspaceId || "";
 
-    if (contextWorkspaceId && [...workspaceFilterSelect.options].some((option) => option.value === contextWorkspaceId)) {
-      workspaceFilterSelect.value = contextWorkspaceId;
+    const select = requireAuditValue(workspaceFilterSelect, "workspace filter");
+
+    if (contextWorkspaceId && [...select.options].some((option) => option.value === contextWorkspaceId)) {
+      select.value = contextWorkspaceId;
     }
   }
 
   function updatePagination() {
     const totalPages = getTotalPages();
 
-    previousPageButton.disabled = currentPage <= 1;
-    nextPageButton.disabled = currentPage >= totalPages;
-    pageSummary.textContent = `Page ${Math.min(currentPage, totalPages)} of ${totalPages}`;
+    requireAuditValue(previousPageButton, "previous page button").disabled = currentPage <= 1;
+    requireAuditValue(nextPageButton, "next page button").disabled = currentPage >= totalPages;
+    requireAuditValue(pageSummary, "page summary").textContent
+      = `Page ${Math.min(currentPage, totalPages)} of ${totalPages}`;
   }
 
   function updateStatus() {
@@ -598,7 +630,9 @@
     const start = (currentPage - 1) * pageSize + 1;
     const end = Math.min(start + auditLogs.length - 1, totalAuditLogs);
 
-    const entryLabel = auditViewSelect.value === "security" ? "security events" : "audit log entries";
+    const entryLabel = requireAuditValue(auditViewSelect, "view filter").value === "security"
+      ? "security events"
+      : "audit log entries";
     setStatus(`Showing ${start}-${end} of ${totalAuditLogs} ${entryLabel}.`);
   }
 
@@ -611,9 +645,10 @@
   }
 
   function getPageSize() {
-    return Number.parseInt(pageSizeSelect.value, 10) || 50;
+    return Number.parseInt(requireAuditValue(pageSizeSelect, "page size select").value, 10) || 50;
   }
 
+  /** @param {NormalizedAuditLog} log @returns {void} */
   function openAuditDetailDialog(log) {
     const dialog = createDialog("Audit Details", "audit-detail-dialog");
     const content = document.createElement("div");
@@ -628,8 +663,10 @@
     appendDetail(content, "Action", log.action);
     appendDetail(content, "Change Type", formatEnum(log.change_type));
     appendDetail(content, "Record Type", formatEnum(log.record_type));
-    if (metadata?.summary) {
-      appendDetail(content, "Summary", metadata.summary);
+    const summary = readSnapshotText(metadata, "summary");
+
+    if (summary) {
+      appendDetail(content, "Summary", summary);
     }
     appendDetail(content, "IP Address", log.ip_address);
     appendRecordDetail(content, log);
@@ -645,10 +682,11 @@
 
     actionRow.className = "form-actions";
     actionRow.append(jsonButton, closeButton);
-    dialog.querySelector("form").append(content, actionRow);
+    requireAuditValue(dialog.querySelector("form"), "detail dialog form").append(content, actionRow);
     showDialog(dialog);
   }
 
+  /** @param {HTMLElement} container @param {NormalizedAuditLog} log @returns {void} */
   function appendRecordDetail(container, log) {
     const wrapper = document.createElement("div");
     const label = document.createElement("dt");
@@ -669,6 +707,7 @@
     container.appendChild(wrapper);
   }
 
+  /** @param {NormalizedAuditLog} log @returns {void} */
   function openJsonDialog(log) {
     const dialog = createDialog("Audit JSON", "audit-json-dialog");
     const body = document.createElement("div");
@@ -688,23 +727,25 @@
     actionRow.className = "form-actions";
     actionRow.appendChild(closeButton);
 
-    dialog.querySelector("form").append(body, actionRow);
+    requireAuditValue(dialog.querySelector("form"), "JSON dialog form").append(body, actionRow);
     showDialog(dialog);
   }
 
+  /** @param {string} label @param {string} jsonText @returns {HTMLElement} */
   function createJsonDetails(label, jsonText) {
     const details = document.createElement("details");
     const summary = document.createElement("summary");
     const pre = document.createElement("pre");
     const parsed = parseJson(jsonText);
 
-    details.open = jsonText && jsonText.length < 800;
+    details.open = Boolean(jsonText && jsonText.length < 800);
     summary.textContent = label;
     pre.textContent = parsed === null ? "None" : JSON.stringify(parsed, null, 2);
     details.append(summary, pre);
     return details;
   }
 
+  /** @param {string} title @param {string} className @returns {HTMLDialogElement} */
   function createDialog(title, className) {
     const trigger = document.activeElement;
     const dialog = document.createElement("dialog");
@@ -729,7 +770,7 @@
       () => {
         dialog.remove();
 
-        if (trigger && typeof trigger.focus === "function") {
+        if (trigger instanceof HTMLElement || trigger instanceof SVGElement) {
           trigger.focus();
         }
       },
@@ -738,6 +779,7 @@
     return dialog;
   }
 
+  /** @param {HTMLDialogElement} dialog @returns {void} */
   function showDialog(dialog) {
     if (typeof dialog.showModal === "function") {
       dialog.showModal();
@@ -751,6 +793,7 @@
     }
   }
 
+  /** @param {HTMLElement} container @param {string} labelText @param {string} valueText @returns {void} */
   function appendDetail(container, labelText, valueText) {
     const wrapper = document.createElement("div");
     const label = document.createElement("dt");
@@ -762,6 +805,10 @@
     container.appendChild(wrapper);
   }
 
+  /**
+   * @param {BrowserAuditLogEntry} log
+   * @returns {NormalizedAuditLog}
+   */
   function normalizeAuditLog(log) {
     return {
       action: String(log.action || ""),
@@ -781,18 +828,66 @@
     };
   }
 
+  /**
+   * Read one member off a parsed JSON snapshot.
+   *
+   * **The snapshot stays `unknown`, deliberately.** `BrowserAuditLogEntry` declares these three
+   * members as JSON *strings* and says why: typing them as records would promise a shape no
+   * producer agrees on, since every writer passes its own metadata. So this narrows at the read
+   * instead of declaring a record the wire never guaranteed - and it tolerates the snapshot being
+   * an array, a number, or the raw text `parseJson` hands back when parsing fails.
+   *
+   * Falsy members answer `""` so the caller's `||` chain falls through exactly as it did when it
+   * read the member directly: a `0` or an empty string still yields to the next source rather
+   * than being coerced into a truthy `"0"`.
+   * @param {unknown} snapshot
+   * @param {string} member
+   * @returns {string}
+   */
+  function readSnapshotText(snapshot, member) {
+    if (typeof snapshot !== "object" || snapshot === null || Array.isArray(snapshot)) {
+      return "";
+    }
+
+    const value = Object.hasOwn(snapshot, member)
+      ? /** @type {Record<string, unknown>} */ (snapshot)[member]
+      : undefined;
+    return value ? String(value) : "";
+  }
+
+  /**
+   * @typedef {Record<"client_id" | "client_name" | "project_id" | "project_name", string>} AuditRowContext
+   */
+
+  /**
+   * The client and project a row belongs to, preferring metadata, then the after-snapshot, then
+   * the before-snapshot - the order this page has always read them in.
+   * @param {NormalizedAuditLog} log
+   * @param {unknown} metadata
+   * @returns {AuditRowContext}
+   */
   function getAuditContext(log, metadata) {
     const newValue = parseJson(log.new_value_json);
     const previousValue = parseJson(log.previous_value_json);
+    /** @param {string} member */
+    const read = (member) => readSnapshotText(metadata, member)
+      || readSnapshotText(newValue, member)
+      || readSnapshotText(previousValue, member)
+      || "";
 
     return {
-      client_id: metadata?.client_id || newValue?.client_id || previousValue?.client_id || "",
-      client_name: metadata?.client_name || newValue?.client_name || previousValue?.client_name || "",
-      project_id: metadata?.project_id || newValue?.project_id || previousValue?.project_id || "",
-      project_name: metadata?.project_name || newValue?.project_name || previousValue?.project_name || "",
+      client_id: read("client_id"),
+      client_name: read("client_name"),
+      project_id: read("project_id"),
+      project_name: read("project_name"),
     };
   }
 
+  /**
+   * @param {NormalizedAuditLog} log
+   * @param {AuditRowContext} context
+   * @returns {string}
+   */
   function getClientLabel(log, context) {
     if (context?.client_name) {
       return context.client_name;
@@ -805,6 +900,11 @@
     return "None";
   }
 
+  /**
+   * @param {NormalizedAuditLog} log
+   * @param {AuditRowContext} context
+   * @returns {string}
+   */
   function getClientId(log, context) {
     if (context?.client_id) {
       return String(context.client_id);
@@ -813,6 +913,11 @@
     return log.record_type === "client" ? log.record_id : "";
   }
 
+  /**
+   * @param {NormalizedAuditLog} log
+   * @param {AuditRowContext} context
+   * @returns {string}
+   */
   function getProjectLabel(log, context) {
     if (context?.project_name) {
       return context.project_name;
@@ -825,6 +930,11 @@
     return "None";
   }
 
+  /**
+   * @param {NormalizedAuditLog} log
+   * @param {AuditRowContext} context
+   * @returns {string}
+   */
   function getProjectId(log, context) {
     if (context?.project_id) {
       return String(context.project_id);
@@ -833,6 +943,13 @@
     return log.record_type === "project" ? log.record_id : "";
   }
 
+  /**
+   * A cell that filters the table to the value it shows, when that value is actually offered.
+   * @param {string} label
+   * @param {string} value
+   * @param {HTMLSelectElement | null} select
+   * @returns {Node}
+   */
   function createFilterButton(label, value, select) {
     const text = label || "None";
 
@@ -853,6 +970,13 @@
     return button;
   }
 
+  /**
+   * Parse a JSON snapshot, answering `unknown` because all three outcomes are real: `null` for
+   * an absent snapshot, whatever the writer stringified, or - on a parse failure - the raw text
+   * itself, which this page shows rather than discards.
+   * @param {string} jsonText
+   * @returns {unknown}
+   */
   function parseJson(jsonText) {
     if (!jsonText) {
       return null;
@@ -865,13 +989,14 @@
     }
   }
 
+  /** @param {Node | string} content @returns {HTMLTableCellElement} */
   function createCell(content) {
     const cell = document.createElement("td");
 
     if (content && typeof content === "object" && typeof content.nodeType === "number") {
       cell.appendChild(content);
     } else {
-      cell.textContent = content || "None";
+      cell.textContent = String(content || "None");
       cell.title = cell.textContent;
       cell.classList.add("audit-truncate");
     }
@@ -879,6 +1004,7 @@
     return cell;
   }
 
+  /** @param {string} value @param {string} label @returns {HTMLOptionElement} */
   function createOption(value, label) {
     const option = document.createElement("option");
     option.value = value;
@@ -886,6 +1012,7 @@
     return option;
   }
 
+  /** @param {string} value @returns {string} */
   function formatEnum(value) {
     return String(value || "")
       .split("_")
@@ -894,13 +1021,15 @@
       .join(" ") || "None";
   }
 
+  /** @param {string} value @returns {string} */
   function formatDateTime(value) {
-    const timezone = showUtcInput.checked ? "UTC" : undefined;
+    const timezone = requireAuditValue(showUtcInput, "UTC toggle").checked ? "UTC" : undefined;
 
     return requireTimezones().formatDateTime(value, timezone) || "None";
   }
 
+  /** @param {string} message @returns {void} */
   function setStatus(message) {
-    auditStatus.textContent = message;
+    requireAuditValue(auditStatus, "status line").textContent = message;
   }
 })();

@@ -21,6 +21,7 @@ const browserGlobals = {
   Node: "readonly",
   setInterval: "readonly",
   setTimeout: "readonly",
+  SVGElement: "readonly",
   URL: "readonly",
   URLSearchParams: "readonly",
   window: "readonly",
