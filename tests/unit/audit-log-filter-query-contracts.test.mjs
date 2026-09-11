@@ -327,22 +327,14 @@ describe("Audit Log filter acquisition", () => {
   });
 
   /**
-   * **A scope pin, not a durable contract.** `0.33.33.44.20` owns the filter query and the option
-   * catalogues; the page's pagination, export, status and table controls are a later checkpoint's
-   * work and still acquire themselves bare. A checkpoint that converts one of them should move
-   * this number down, not work around it - and it cannot reach zero while the helper's own query
-   * remains, which is the twelfth.
+   * `0.33.33.44.20` left eleven controls outside its scope and pinned that number so a later
+   * checkpoint would move it rather than work around it. `0.33.33.44.21` converted them, so the
+   * scope pin becomes the completion claim the sibling pages already carry: **the page performs
+   * exactly one `document.querySelector`**, inside the checked lookup. That single fact is sharper
+   * than any name-based rule - a rival helper adds a second query and is refused by it.
    */
-  it("leaves exactly the eleven controls outside this checkpoint's scope unconverted", () => {
-    const UNCONVERTED = [
-      "auditFilterForm", "auditViewSelect", "resetButton", "exportFilteredButton", "exportAllButton",
-      "pageSizeSelect", "previousPageButton", "nextPageButton", "pageSummary", "auditStatus",
-      "auditLogBody",
-    ];
-
-    for (const name of UNCONVERTED) {
-      assert.match(source, new RegExp(`const ${name} = document\\.querySelector\\(`));
-    }
-    assert.equal(source.split("document.querySelector").length - 1, UNCONVERTED.length + 1);
+  it("performs exactly one document query, inside the checked lookup", () => {
+    assert.equal(source.split("document.querySelector").length - 1, 1);
+    assert.match(source, /function findAuditControl\(selector, constructor\) \{\n\s+const element = document\.querySelector\(selector\);/);
   });
 });

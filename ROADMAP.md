@@ -1491,6 +1491,24 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,212 to 6,153**, params 3,921 to 3,913, `dom` 812 to 757, state 1,357 to 1,361 - the four are a reclassification inside this one file, where a checked lookup turns a missing-property diagnostic into a possibly-null one. `0.33.33.44` 1,078 to 1,074. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.21 - Audit Log rendering, and the file reaches zero
+
+**Complete: 81 diagnostics, and `public/js/audit-log.js` reaches zero** - the fourth file in this lane to close outright. See the archive entry. The named boundary was the rendering, pagination, filter buttons and row normalizer plus the eleven controls `0.33.33.44.20` left bare; converting those closed their consumers across the file and the remainder was parameter annotation, so the file was finished.
+
+**The root was one declaration.** `let auditLogs = []` was an implicit `any[]`, and everything downstream inherited it. Typing `normalizeAuditLog` from the already-validated `BrowserAuditLogEntry` and declaring the page's own `NormalizedAuditLog` settled nine functions at once, because that normalizer resolves every nullable member to a string before anything renders it.
+
+**The JSON snapshots stayed `unknown`, as their contract asks.** `BrowserAuditLogEntry` says why those three members are strings rather than records: every writer passes its own metadata, so no shape is agreed. A file-local `readSnapshotText` narrows at the read instead, and it answers `""` for a falsy member so the context chain's run of `||` still falls through exactly as it did - coercing a `0` into a truthy `"0"` would have changed which source wins.
+
+**`0.33.33.44.20`'s scope pin did its job.** That checkpoint pinned the eleven unconverted controls and said a later checkpoint should move the number rather than work around it. This one converted them, so the pin became the completion claim the sibling pages carry: **the page performs exactly one `document.querySelector`**, inside the checked lookup. Its harness still catches 41/41 against the converted source, which is the evidence that the conversion preserved behaviour.
+
+**A sibling contract refused a spelling and was right to.** `audit-log-contracts` pins that the load-error path reports through `setStatus` with the message for the view being shown. The acquisition moved, the path did not, so the pin was updated to the new spelling rather than loosened.
+
+**53 breaks, 53 caught, zero inert.** Nine were inert on the first run; six were real gaps in the assertions - a fixture whose client and project were both `None` could not see the two columns swap, and one whose select carried no placeholder could not see the empty-value guard matter. One was withdrawn as genuinely inert.
+
+**The `[hidden]` rendering defect found in `0.33.33.44.20` is scoped separately, on measured evidence.** `label { display: grid }` defeats the user-agent `[hidden] { display: none }` on **five `<label hidden>` controls across three pages** - Audit Log's client and workspace filters, Time Entries' tag filter, and User Admin's two scope fields - none of which carries the `[hidden]` safeguard rule this stylesheet already adds in 27 other places. That is a cross-page CSS fix needing rendered verification, not a typing change, so this checkpoint reports it rather than patching a third surface ad hoc.
+
+**Measured: browser 6,153 to 6,072**, params 3,913 to 3,873, `dom` 757 to 722, state 1,361 to 1,355. `0.33.33.44` 1,074 to 1,028. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
