@@ -1,13 +1,6 @@
 (function attachNotesPage() {
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
 
-  /**
-   * The view factory this controller cannot run without.
-   *
-   * Acquired per call rather than once at module scope, so a missing factory still
-   * fails at exactly the moment it failed before `0.33.33.38.1` declared it.
-   * @returns {BrowserViewFactory}
-   */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
   
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
@@ -290,6 +283,53 @@
     return note;
   }
 
+  /** @param {unknown} note @returns {note is Pick<BrowserNoteRecord, "note_id">} */
+  function hasNoteIdentity(note) {
+    return isResponseRecord(note) && typeof note.note_id === "string" && note.note_id.trim() !== "";
+  }
+
+  /**
+   * Archive/restore acknowledge the updated row without attaching detail integrations.
+   * Only its identity is needed to select the authoritative full detail after refresh.
+   * @param {unknown} result
+   * @returns {BrowserNoteRecord["note_id"]}
+   */
+  function requireNoteMutationId(result) {
+    const note = isResponseRecord(result) ? result.note : null;
+    if (!hasNoteIdentity(note)) {
+      throw new Error("The note update response did not contain a usable note ID.");
+    }
+    return note.note_id;
+  }
+
+  /** @param {unknown} note @returns {Pick<BrowserNoteRecord, "note_id">} */
+  function requireNoteWorkflowIdentity(note) {
+    if (!hasNoteIdentity(note)) throw new Error("A note ID is required for this workflow.");
+    return note;
+  }
+
+  /**
+   * The generic renderer does not establish a Notes record. Validate only the optional
+   * fields openEditor reads, retaining ID-only/default seeds and the original object.
+   * linked_context stays unknown in the published note contract; no inner claim is made.
+   * @param {unknown} note
+   * @returns {note is NotesEditorSeed}
+   */
+  function isNoteWorkflowEditorSeed(note) {
+    return isResponseRecord(note)
+      && ["note_id", "title", "library_bucket", "note_type", "visibility", "security_mode", "body_markdown"]
+        .every((key) => note[key] === undefined || typeof note[key] === "string")
+      && ["note_collection_id", "client_id", "project_id", "task_id", "linked_user_id"]
+        .every((key) => note[key] === undefined || note[key] === null || typeof note[key] === "string")
+      && (note.note_id === undefined || note.note_id === "" || hasNoteIdentity(note));
+  }
+
+  /** @param {unknown} note @returns {NotesEditorSeed} */
+  function requireNoteWorkflowEditorSeed(note) {
+    if (!isNoteWorkflowEditorSeed(note)) throw new Error("Invalid Notes editor workflow input.");
+    return note;
+  }
+
   /**
    * The pagination record a note list envelope carries, or `null`.
    *
@@ -448,6 +488,11 @@
     return dialogs;
   }
 
+  /**
+   * The view factory this controller cannot run without.
+   * Acquired per call so absence fails at the existing use, not at module startup.
+   * @returns {BrowserViewFactory}
+   */
   function requireView() {
     const factory = window.LongtailForge?.view;
     if (!factory) {
@@ -506,10 +551,15 @@
   const LINK_CLIENT_CONTEXT_WORKSPACE = "workspace";
   const NOTE_BULK_COLLECTION_UNCATEGORIZED = "__uncategorized";
   const OPEN_EXTERNAL_LINKS_STORAGE_KEY = "lf_open_external_links_new_tab";
+  /**
+   * The shared renderer forwards an unknown record. Each Notes-owned adapter validates
+   * the fields its consumer needs; the factory contract remains module-neutral.
+   * @type {Partial<Record<string, (note: unknown) => unknown>>}
+   */
   const NOTE_WORKFLOW_HANDLERS = {
-    "notes.workflow.edit": (note) => openEditor(note),
-    "notes.workflow.archive": (note) => archiveNote(note),
-    "notes.workflow.restore": (note) => restoreNote(note),
+    "notes.workflow.edit": (note) => openEditor(requireNoteWorkflowEditorSeed(note)),
+    "notes.workflow.archive": (note) => archiveNote(requireNoteWorkflowIdentity(note)),
+    "notes.workflow.restore": (note) => restoreNote(requireNoteWorkflowIdentity(note)),
   };
   const NOTE_EDITOR_TOOLBAR_ACTIONS = Object.freeze([
     { command: "bold", text: "B", label: "Bold" },
@@ -1181,18 +1231,19 @@
       return;
     }
     requireDescriptorRenderers().registerBehavior("notes.create", () => openEditor());
-    requireDescriptorRenderers().registerBehavior("notes.sidebar.library", ({ container }) => {
+    requireDescriptorRenderers().registerBehavior("notes.sidebar.library", (/** @type {{container: HTMLElement}} */ { container }) => {
       container.replaceChildren(createNotesLibraryChrome());
     });
-    requireDescriptorRenderers().registerBehavior("notes.sidebar.notes-list-footer", ({ container }) => {
+    requireDescriptorRenderers().registerBehavior("notes.sidebar.notes-list-footer", (/** @type {{container: HTMLElement}} */ { container }) => {
       container.replaceChildren(createNotesListSortControl(), createNotesPagination());
     });
     requireDescriptorRenderers().registerBehavior("notes.filters.tags", hydrateNoteTagFilterOptions);
     Object.keys(NOTE_WORKFLOW_HANDLERS).forEach((behaviorId) => {
-      requireDescriptorRenderers().registerBehavior(behaviorId, ({ record }) => runNoteWorkflow(behaviorId, record || state.selectedNote));
+      requireDescriptorRenderers().registerBehavior(behaviorId, (/** @type {{record: unknown}} */ { record }) => runNoteWorkflow(behaviorId, record || state.selectedNote));
     });
   }
 
+  /** @param {string} behaviorId @param {unknown} note */
   function runNoteWorkflow(behaviorId, note) {
     const handler = NOTE_WORKFLOW_HANDLERS[behaviorId];
     if (!handler || !note) {
@@ -1362,8 +1413,10 @@
     return hostContext?.result || closeResult;
   }
 
+  /** @param {string} noteId */
   function createNoteViewDialog(noteId) {
     const view = requireView();
+    /** @type {import("../../src/types/browser-contracts.js").BrowserViewModalElement | null} */
     let dialog = null;
     const body = view.createElement("div", {
       className: "notes-view-body",
@@ -3096,10 +3149,12 @@
       closeNotesSlideOutDrawer();
       updateUrl(noteId);
       setStatus("");
+      return true;
     } catch (error) {
       const message = safeNoteErrorMessage(error, "Note could not be loaded.");
       renderDetailPrompt(message, { locked: isSecureError(error) });
       setStatus(message, true);
+      return false;
     }
   }
 
@@ -5307,14 +5362,22 @@
   async function mutateNote(url) {
     const api = requireApi();
     setStatus("Saving note...");
+    let writeCompleted = false;
 
     try {
       const result = await api.postJson(url, {});
+      writeCompleted = true;
       await Promise.all([loadCollections(), loadNotes()]);
-      await selectNote(requireNoteFromEnvelope(result).note_id);
+      const selected = await selectNote(requireNoteMutationId(result));
+      if (!selected) {
+        setStatus("Note was updated, but its details could not be refreshed. Reload Notes to check its current state.", true);
+        return;
+      }
       setStatus("");
     } catch (error) {
-      setStatus(safeNoteErrorMessage(error, "Note could not be updated."), true);
+      setStatus(writeCompleted
+        ? "Note was updated, but its current state could not be refreshed. Reload Notes to check it."
+        : `${safeNoteErrorMessage(error, "Note update could not be confirmed.")} Reload Notes to check its current state.`, true);
     }
   }
 
