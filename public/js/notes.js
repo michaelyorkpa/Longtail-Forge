@@ -730,7 +730,7 @@
   let form = null;
   /** @type {HTMLElement | null} */
   let dialogTitle = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let notificationToggle = null;
   /** @type {HTMLInputElement | null} */
   let titleInput = null;
@@ -930,7 +930,7 @@
     dialog = findNotesControl("[data-note-dialog]", HTMLDialogElement);
     form = document.querySelector("[data-note-form]");
     dialogTitle = findNotesControl("[data-note-dialog-title]", HTMLElement);
-    notificationToggle = document.querySelector("[data-note-notification-toggle]");
+    notificationToggle = findNotesControl("[data-note-notification-toggle]", HTMLButtonElement);
     titleInput = findNotesControl("[data-note-title]", HTMLInputElement);
     libraryInput = findNotesControl("[data-note-library]", HTMLSelectElement);
     collectionInput = findNotesControl("[data-note-collection]", HTMLSelectElement);
@@ -3417,6 +3417,7 @@
     }
   }
 
+  /** @param {NotesEditorNote | null} note */
   async function writeNoteNotificationFollowFields(note) {
     if (!notificationToggle) {
       return;
@@ -3477,6 +3478,7 @@
     }
   }
 
+  /** @param {import("../../src/types/browser-contracts.js").BrowserNotificationSubscriptionResult["isFollowing"]} isFollowing */
   function writeNoteNotificationFollowState(isFollowing) {
     if (!notificationToggle) {
       return;

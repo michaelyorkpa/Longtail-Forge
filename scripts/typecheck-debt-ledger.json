@@ -335,6 +335,7 @@
         "tests/e2e/notes-collections.spec.mjs",
         "tests/e2e/notes-editor-defaults.spec.mjs",
         "tests/e2e/notes-editor-lifecycle.spec.mjs",
+        "tests/e2e/notes-follow-toggle.spec.mjs",
         "tests/e2e/notes-link-editor.spec.mjs",
         "tests/e2e/notes-linked-context.spec.mjs",
         "tests/e2e/notes-list-query.spec.mjs",
@@ -367,6 +368,7 @@
         "tests/e2e/workspace-switch-landing.spec.mjs",
         "tests/mutations/notes-bulk-edit.breaks.mjs",
         "tests/mutations/notes-editor-defaults.breaks.mjs",
+        "tests/mutations/notes-follow-toggle.breaks.mjs",
         "tests/mutations/notes-link-editor.breaks.mjs",
         "tests/mutations/notes-linked-context.breaks.mjs",
         "tests/mutations/notes-list-query.breaks.mjs",
@@ -446,6 +448,7 @@
         "tests/unit/notes-editor-lifecycle.test.mjs",
         "tests/unit/notes-effective-security.test.mjs",
         "tests/unit/notes-external-link-preference-contracts.test.mjs",
+        "tests/unit/notes-follow-toggle.test.mjs",
         "tests/unit/notes-link-editor.test.mjs",
         "tests/unit/notes-linked-context.test.mjs",
         "tests/unit/notes-list-query.test.mjs",
@@ -621,7 +624,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 6396,
+      "errorCount": 6378,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1082,7 +1085,7 @@
           },
           {
             "code": 2339,
-            "count": 53
+            "count": 37
           },
           {
             "code": 2345,
@@ -1094,7 +1097,7 @@
           },
           {
             "code": 7006,
-            "count": 112
+            "count": 110
           },
           {
             "code": 7031,
@@ -2515,8 +2518,8 @@
     }
   },
   "totals": {
-    "files": 1202,
-    "errors": 6396,
+    "files": 1205,
+    "errors": 6378,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
