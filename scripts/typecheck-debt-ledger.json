@@ -335,6 +335,7 @@
         "tests/e2e/notes-bulk-edit.spec.mjs",
         "tests/e2e/notes-collections.spec.mjs",
         "tests/e2e/notes-editor-defaults.spec.mjs",
+        "tests/e2e/notes-editor-fields-links.spec.mjs",
         "tests/e2e/notes-editor-lifecycle.spec.mjs",
         "tests/e2e/notes-follow-toggle.spec.mjs",
         "tests/e2e/notes-link-editor.spec.mjs",
@@ -375,6 +376,7 @@
         "tests/mutations/audit-log-rendering.breaks.mjs",
         "tests/mutations/notes-bulk-edit.breaks.mjs",
         "tests/mutations/notes-editor-defaults.breaks.mjs",
+        "tests/mutations/notes-editor-fields-links.breaks.mjs",
         "tests/mutations/notes-follow-toggle.breaks.mjs",
         "tests/mutations/notes-link-editor.breaks.mjs",
         "tests/mutations/notes-linked-context.breaks.mjs",
@@ -457,6 +459,7 @@
         "tests/unit/note-revision-list-contracts.test.mjs",
         "tests/unit/notes-bulk-edit.test.mjs",
         "tests/unit/notes-editor-defaults.test.mjs",
+        "tests/unit/notes-editor-fields-links.test.mjs",
         "tests/unit/notes-editor-lifecycle.test.mjs",
         "tests/unit/notes-effective-security.test.mjs",
         "tests/unit/notes-external-link-preference-contracts.test.mjs",
@@ -640,7 +643,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 6072,
+      "errorCount": 6044,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1075,31 +1078,19 @@
           },
           {
             "code": 2339,
-            "count": 30
+            "count": 21
           },
           {
             "code": 2345,
             "count": 12
           },
           {
-            "code": 7005,
-            "count": 1
-          },
-          {
             "code": 7006,
-            "count": 104
-          },
-          {
-            "code": 7031,
-            "count": 2
-          },
-          {
-            "code": 7034,
-            "count": 1
+            "count": 90
           },
           {
             "code": 7053,
-            "count": 7
+            "count": 6
           }
         ],
         "public/js/notifications.js": [
@@ -2468,8 +2459,8 @@
     }
   },
   "totals": {
-    "files": 1221,
-    "errors": 6072,
+    "files": 1224,
+    "errors": 6044,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
