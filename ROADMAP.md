@@ -1449,6 +1449,16 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,378, unchanged; server/tests and scripts still zero.** The coverage was added to the existing Notes workflow regression rather than as a new script, because the estate's consolidation ratchet allows the discovered-script count to fall and not rise.
 
+#### 0.33.33.44.18 - Time Entries table rendering, and the file reaches zero
+
+**Complete: 39 diagnostics, and `public/js/time-entries.js` reaches zero** - the second file in this lane to close outright, from 167 when `0.33.33.44.12` opened it. See the archive entry. The named boundary was 14; the remainder was date arithmetic and a tail of delegating helpers, all mechanical annotation with no contract decisions, so the file was finished rather than left one checkpoint short.
+
+**The page now performs exactly one `document.querySelector`**, inside the checked lookup, and carries no cast and no suppression. That single claim is sharper than any name-based rule: a rival helper adds a second query and is refused by it.
+
+**A sink inventory caught a rename, which is the inventory working.** `renderEntries` binds the required table once per render, so `timeEntryTable.innerHTML` became `table.innerHTML`, and `public-demo-cross-role-content-safety` refused the new spelling. Reviewed and updated rather than worked around: the assigned value is still the constant empty string, so no content reaches the sink.
+
+**Measured: browser 6,369 to 6,330, `0.33.33.44` 1,156 to 1,121**, params 3,991 to 3,950, `dom` 881 to 875, assorted 123 to 122. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.

@@ -167,7 +167,10 @@ async function proveBrowserSinkInventory() {
     'public/js/stop-watch.js:this.clientSelect.innerHTML = "";',
     'public/js/stop-watch.js:this.clientSelect.innerHTML = "";',
     'public/js/stop-watch.js:this.projectSelect.innerHTML = "";',
-    'public/js/time-entries.js:timeEntryTable.innerHTML = "";',
+    // `0.33.33.44.18` renamed the local binding when the table became a checked lookup required
+    // once per render. Reviewed and unchanged as a sink: the assigned value is still the constant
+    // empty string, so no content reaches it, and the element is still the page's own table body.
+    'public/js/time-entries.js:table.innerHTML = "";',
     'public/js/time-entry-dialog.js:wrapper.innerHTML = dialogMarkup();',
     'public/js/time-tracking-timer-dialog.js:wrapper.innerHTML = dialogMarkup();',
   ].sort();
