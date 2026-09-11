@@ -29,6 +29,7 @@ try {
   await assertProtectedView(session);
   await assertNavigation(session);
   await assertNoteDetailHtml(session);
+  await assertDuplicateTitlesAreAccepted(session);
   await assertDisabledModuleState(session);
   await assertIntegrity();
 
@@ -376,6 +377,63 @@ async function assertNavigation(session) {
   assert.equal(flattenNavigation(adminSettingsMenu?.items).some((item) => item.href === "files.html"), false, "The Files workspace page should not appear under Settings -> Admin");
   assert.ok(notesLink, "Notes should appear in authenticated navigation while module is enabled");
   assert.equal(notesLink.label, "Notes");
+}
+
+/**
+ * Duplicate and slug-colliding titles are accepted, with the slug disambiguated.
+ *
+ * **Added here rather than as a new regression script**: the estate's consolidation ratchet allows
+ * the discovered-script count to fall and not rise, and this is Notes workflow behaviour, which is
+ * what this script already covers.
+ *
+ * Before `0.33.33.44.17` the second create escaped as `SQLITE_CONSTRAINT_UNIQUE` from `insertNote`
+ * and reached the client as a 500. Duplicate display titles are legitimate: nothing resolves a note
+ * by slug, wiki links are separate metadata where unresolved links are allowed, and
+ * `idx_notes_workspace_slug` is partial on `slug IS NOT NULL` - so the product already stored many
+ * notes with no slug at all.
+ * @param {NotesSession} session
+ */
+async function assertDuplicateTitlesAreAccepted(session) {
+  /** @param {string} title @param {Record<string, unknown>} [extra] */
+  const create = async (title, extra = {}) => (await notesService.create({
+    body_markdown: "Duplicate title fixture",
+    library_bucket: "reference",
+    title,
+    ...extra,
+  }, session)).note;
+
+  const first = await create("Shared Workflow Title");
+  const second = await create("Shared Workflow Title");
+
+  assert.equal(first.slug, "shared-workflow-title");
+  assert.equal(second.slug, "shared-workflow-title-2", "a duplicate title is accepted with a disambiguated slug");
+  assert.equal(first.title, second.title, "only the slug differs; the display titles stay identical");
+
+  // Punctuation is stripped, so distinct titles can slugify the same and collide identically.
+  const punctuated = await create("Shared Workflow Title!!!");
+  assert.equal(punctuated.slug, "shared-workflow-title-3");
+
+  // Nothing slugifiable stores no slug, and several such notes coexist - the index is partial.
+  assert.equal((await create("***")).slug, null);
+  assert.equal((await create("???")).slug, null);
+
+  // A caller-supplied slug is honoured exactly: asking for one is not the same as accepting one.
+  assert.equal((await create("Unrelated Workflow Title", { slug: "workflow-chosen-slug" })).slug, "workflow-chosen-slug");
+
+  // Renaming keeps the slug the note already had, so nothing moves under existing references.
+  const renamed = (await notesService.update(first.note_id, { ...first, title: "Renamed Workflow Title" }, session)).note;
+  assert.equal(renamed.slug, "shared-workflow-title");
+
+  const stored = await querySql(`
+SELECT slug
+FROM notes
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND deleted_at IS NULL
+  AND slug IS NOT NULL
+ORDER BY slug;
+`);
+  const slugs = stored.map((row) => String(row.slug));
+  assert.deepEqual(slugs, [...new Set(slugs)], "every stored slug stays unique, which is what the index requires");
 }
 
 /** @param {NotesSession} session */

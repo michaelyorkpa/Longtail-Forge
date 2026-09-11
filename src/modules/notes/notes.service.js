@@ -1102,6 +1102,57 @@ function deriveLibrarySuggestion(payload = {}) {
 }
 
 /**
+ * How many disambiguated slugs to consider before giving up and storing none.
+ *
+ * Bounded so a pathological workspace cannot turn one create into an unbounded scan. Exhausting it
+ * stores `null`, which the partial index permits and which the product already produces for any
+ * title with no slugifiable characters - so the note is still created.
+ */
+const NOTE_SLUG_DISAMBIGUATION_LIMIT = 200;
+
+/**
+ * A free slug derived from the title, or `null` when none is derivable.
+ *
+ * **Duplicate display titles are legitimate, and the schema already says so.** Nothing resolves a
+ * note by slug - there is no `WHERE slug =` read for notes anywhere - wiki links are separate
+ * metadata in `note_wiki_links` where "broken or unresolved links are allowed", and the unique
+ * index is partial (`WHERE slug IS NOT NULL`), so the product already stores many notes with no
+ * slug at all. Before `0.33.33.44.17` a second note with the same title - or merely a title that
+ * slugified the same, such as `Plan` and `Plan!!!` - escaped as a raw `SQLITE_CONSTRAINT_UNIQUE`
+ * and reached the client as a 500.
+ *
+ * Only *derived* slugs are disambiguated. A caller-supplied slug is left exactly as given, because
+ * asking for a specific slug is a different request from accepting one.
+ * @param {string} workspaceId
+ * @param {string} title
+ * @param {string} [excludeNoteId]
+ * @returns {Promise<string | null>}
+ */
+async function resolveDerivedNoteSlug(workspaceId, title, excludeNoteId = "") {
+  const base = slugifyNoteTitle(title);
+
+  if (!base) {
+    return null;
+  }
+
+  const taken = new Set(await notesRepository.readTakenSlugsFromBase(workspaceId, base, excludeNoteId));
+
+  if (!taken.has(base)) {
+    return base;
+  }
+
+  for (let suffix = 2; suffix <= NOTE_SLUG_DISAMBIGUATION_LIMIT; suffix += 1) {
+    const candidate = `${base}-${suffix}`;
+
+    if (!taken.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+/**
  * @param {import("zod").output<typeof CreateNoteSchema> | import("zod").output<typeof UpdateNoteSchema> | Partial<NotePersistenceInput>} payload
  * @param {NotesWorkspaceSession} session
  * @param {NotesServiceNoteLike | null} previousNote
@@ -1204,7 +1255,8 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
     note_id: previousNote?.note_id || normalizeOptionalText("note_id" in payload ? payload.note_id : "") || undefined,
     workspace_id: session.workspace_id,
     title,
-    slug: normalizeOptionalText(payload.slug ?? previousNote?.slug) || slugifyNoteTitle(title),
+    slug: normalizeOptionalText(payload.slug ?? previousNote?.slug)
+      || await resolveDerivedNoteSlug(session.workspace_id, title, previousNote?.note_id || ""),
     ...secureFields,
     note_type: normalizeEnum(payload.noteType || payload.note_type || previousNote?.note_type || NOTE_TYPES.GENERAL, NOTE_TYPE_VALUES, "Note Kind"),
     library_bucket: libraryBucket,
