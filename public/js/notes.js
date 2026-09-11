@@ -1973,9 +1973,28 @@
     return notesViewSurfaceDescriptor()?.modals?.find((modal) => modal.id === "note-collection") || {};
   }
 
+  /**
+   * The manifest supplies tuple options; the shared descriptor reader also preserves
+   * record options unchanged. The two fields: [] render overrides do not replace
+   * modal.fields. Establish the two strings consumed by Notes without discarding
+   * tuple metadata or inventing a stricter shared option contract.
+   * @param {Partial<import("../../src/types/framework-contracts.js").ViewModalDescriptor>} modal
+   * @param {string} fieldName
+   * @returns {Array<[string, string]>}
+   */
   function modalFieldOptions(modal, fieldName) {
     const field = (modal.fields || []).find((entry) => entry.field === fieldName);
-    return (field?.options || []).map((entry) => (Array.isArray(entry) ? entry : [entry.value ?? "", entry.label ?? entry.value ?? ""]));
+    return (field?.options || []).map((entry) => {
+      const option = Array.isArray(entry) ? entry
+        : isResponseRecord(entry) ? [entry.value ?? "", entry.label ?? entry.value ?? ""] : null;
+      if (!isNoteFieldOptionPair(option)) throw new Error("Notes field options require string values and labels.");
+      return option;
+    });
+  }
+
+  /** @param {unknown} value @returns {value is [string, string]} */
+  function isNoteFieldOptionPair(value) {
+    return Array.isArray(value) && typeof value[0] === "string" && typeof value[1] === "string";
   }
 
   function noteFieldLabel(labelText, control) {
@@ -1983,6 +2002,7 @@
     return view.createElement("label", { children: [labelText, control] });
   }
 
+  /** @param {string} dataName @param {Partial<Pick<import("../../src/types/framework-contracts.js").ViewFieldDescriptor, "type" | "required">>} [attrs] */
   function noteInput(dataName, attrs = {}) {
     const view = requireView();
     const input = view.createElement("input", { attrs: { type: attrs.type || "text", required: Boolean(attrs.required) } });
@@ -1990,6 +2010,7 @@
     return input;
   }
 
+  /** @param {string} dataName @param {Pick<import("../../src/types/framework-contracts.js").ViewFieldDescriptor, "rows">} [attrs] */
   function noteTextarea(dataName, attrs = {}) {
     const view = requireView();
     const textarea = view.createElement("textarea", { attrs: { rows: attrs.rows || 10 } });
@@ -1997,6 +2018,7 @@
     return textarea;
   }
 
+  /** @param {string} dataName @param {unknown[][]} options */
   function noteSelect(dataName, options) {
     const view = requireView();
     const select = view.createElement("select");
@@ -4325,6 +4347,7 @@
     updateLibrarySuggestion({ preferredSuggestion: target.suggestedLibraryBucket });
   }
 
+  /** @param {Partial<Pick<BrowserNoteLinkTarget, "moduleId" | "targetType" | "targetId">>} [target] */
   function linkPayloadFromTarget(target = {}) {
     return {
       moduleId: target.moduleId,
@@ -4829,6 +4852,7 @@
     }
   }
 
+  /** @param {BrowserNoteRecord} note */
   function renderLinksPanel(note) {
     const view = requireView();
     const descriptor = notesLinkedRecordsDescriptor();
@@ -4843,6 +4867,7 @@
     const typeField = noteFieldLabel("Type", targetType);
     const searchField = noteFieldLabel("Search records", targetSearch);
     const resultsField = noteFieldLabel("Record", targetResults);
+    /** @type {number | null} */
     let searchTimer = null;
 
     populateLinkTargetTypeSelect(targetType);
@@ -4895,7 +4920,7 @@
     };
     targetType.addEventListener("change", loadTargets);
     targetSearch.addEventListener("input", () => {
-      window.clearTimeout(searchTimer);
+      window.clearTimeout(searchTimer ?? undefined);
       searchTimer = window.setTimeout(loadTargets, 180);
     });
     form?.addEventListener("submit", async (event) => {
@@ -4915,6 +4940,11 @@
     return section;
   }
 
+  /**
+   * @param {import("../../src/types/framework-contracts.js").ViewLinkedRecordsDescriptor} descriptor
+   * @param {string} fieldName
+   * @returns {Partial<import("../../src/types/framework-contracts.js").ViewFieldDescriptor>}
+   */
   function linkedRecordsField(descriptor, fieldName) {
     return descriptor.fields?.find((field) => field.field === fieldName) || {};
   }
@@ -4955,8 +4985,24 @@
     });
   }
 
+  /**
+   * readLinkedContextSummary produces these labels, independently of the picker directory.
+   * No claim is made about the other opaque linked_context members.
+   * @param {unknown} value
+   * @returns {value is Partial<Pick<BrowserNoteLinkTarget, "label">>}
+   */
+  function isNoteContextLabel(value) {
+    return isResponseRecord(value) && (value.label === undefined || typeof value.label === "string");
+  }
+
+  /** @param {Partial<Pick<BrowserNoteRecord, "linked_context" | "client_id" | "project_id">>} [note] */
   function notePrimaryContextSummary(note = {}) {
     const context = note.linked_context || {};
+    if (!isResponseRecord(context)
+      || (context.client != null && !isNoteContextLabel(context.client))
+      || (context.project != null && !isNoteContextLabel(context.project))) {
+      throw new Error("Notes primary context contains an unreadable label.");
+    }
     const parts = [];
 
     if (usesBusinessScope() && (note.client_id || context.client)) {
@@ -4969,16 +5015,32 @@
     return parts.join(" / ");
   }
 
+  /**
+   * Stored links come from decorateNoteLinks/shapeSafeNoteLink, not the picker directory.
+   * Check only the display and removal members this row consumes; retain the original record.
+   * @param {unknown} value
+   * @returns {value is Pick<import("../../src/types/notes-domain-contracts.js").NotesServiceTarget, "sourceUrl" | "source_url" | "targetType" | "target_type" | "label" | "subtitle" | "noteLinkId" | "note_link_id">}
+   */
+  function isNoteLinkDisplay(value) {
+    return isResponseRecord(value)
+      && ["sourceUrl", "source_url", "targetType", "target_type", "label", "subtitle", "noteLinkId", "note_link_id"]
+        .every((key) => value[key] === undefined || typeof value[key] === "string");
+  }
+
+  /** @param {BrowserNoteRecord} note @param {unknown} link */
   function linkItem(note, link) {
     const view = requireView();
+    if (!isNoteLinkDisplay(link)) throw new Error("Notes linked context contains an unreadable record.");
     const sourceUrl = link.sourceUrl || link.source_url || "";
     const targetType = link.targetType || link.target_type || "";
+    /** @type {Readonly<Partial<Record<string, string>>>} */
+    const typeLabels = LINK_TARGET_TYPE_LABELS;
     const title = view.createElement(sourceUrl ? "a" : "strong", {
       text: link.label || "Unavailable linked context",
       attrs: sourceUrl ? { href: sourceUrl } : {},
     });
     const subtitle = view.createElement("small", {
-      text: link.subtitle || (LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType)),
+      text: link.subtitle || (typeLabels[targetType] || formatToken(targetType)),
     });
     const label = view.createElement("span", { className: "notes-link-item-label", children: [title, subtitle] });
     const remove = view.createActionButton({ icon: "delete", iconOnly: true, label: "Remove", title: "Remove", role: "secondary", onClick: () => removeNoteLink(note, link) });
