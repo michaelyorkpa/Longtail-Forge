@@ -71,11 +71,23 @@ const cases = [
   ["the assignment label loses its scope",
     "        label.textContent = `${descriptor.roleLabel} — ${descriptor.scopeLabel}`;",
     "        label.textContent = `${descriptor.roleLabel}`;"],
-  // **Withdrawn, and recorded rather than counted.** Three aimings of the Remove gate - dropping
-  // either half of `busy || !target?.assignmentRevision`, and inverting it whole - all left the
-  // rendered `disabled` unchanged in the lifted fixture, so none of them could bite. The cases
-  // below still assert the intended behaviour and pass on correct source, but that assertion is
-  // **not break-proven**, and no break is kept here pretending otherwise.
+  // **Aimed at the gate that decides the final state.** `0.33.33.44.19` mutated
+  // `removeButton.disabled` inside `renderTarget` and found every aiming inert, then recorded that
+  // as a fixture limit. It was not: `renderTarget` reaches `updateControls`, which rewrites
+  // `disabled` on every button in the list, so the earlier assignment is always discarded. These
+  // mutate the surviving expression instead.
+  ["the Remove gate stops closing on a stale revision",
+    "      button.disabled = busy || !hasRevision;",
+    "      button.disabled = busy;"],
+  ["the Remove gate stops closing while the page is busy",
+    "      button.disabled = busy || !hasRevision;",
+    "      button.disabled = !hasRevision;"],
+  ["the Remove gate is inverted",
+    "      button.disabled = busy || !hasRevision;",
+    "      button.disabled = !busy && hasRevision;"],
+  ["the rendered rows stop being re-gated on a later sync",
+    '    requireRoleValue(assignmentList, "assignment list").querySelectorAll("button").forEach((button) => {\n      button.disabled = busy || !hasRevision;\n    });',
+    "    void hasRevision;"],
 
   // --- the scope options --------------------------------------------------------------------------------
   ["the scope list stops following the selected role",
