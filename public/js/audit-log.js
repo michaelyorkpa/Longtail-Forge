@@ -1,17 +1,17 @@
 (function attachAuditLogPage() {
   const auditFilterForm = document.querySelector("[data-audit-filters]");
   const auditViewSelect = document.querySelector("[data-audit-view-filter]");
-  const dateFromInput = document.querySelector("[data-audit-date-from]");
-  const dateToInput = document.querySelector("[data-audit-date-to]");
-  const userFilterSelect = document.querySelector("[data-audit-user-filter]");
-  const clientFilterControl = document.querySelector("[data-audit-client-filter-control]");
-  const clientFilterSelect = document.querySelector("[data-audit-client-filter]");
-  const projectFilterSelect = document.querySelector("[data-audit-project-filter]");
-  const recordTypeFilterSelect = document.querySelector("[data-audit-record-type-filter]");
-  const changeTypeFilterSelect = document.querySelector("[data-audit-change-type-filter]");
-  const workspaceFilterControl = document.querySelector("[data-audit-workspace-filter-control]");
-  const workspaceFilterSelect = document.querySelector("[data-audit-workspace-filter]");
-  const showUtcInput = document.querySelector("[data-audit-show-utc]");
+  const dateFromInput = findAuditControl("[data-audit-date-from]", HTMLInputElement);
+  const dateToInput = findAuditControl("[data-audit-date-to]", HTMLInputElement);
+  const userFilterSelect = findAuditControl("[data-audit-user-filter]", HTMLSelectElement);
+  const clientFilterControl = findAuditControl("[data-audit-client-filter-control]", HTMLElement);
+  const clientFilterSelect = findAuditControl("[data-audit-client-filter]", HTMLSelectElement);
+  const projectFilterSelect = findAuditControl("[data-audit-project-filter]", HTMLSelectElement);
+  const recordTypeFilterSelect = findAuditControl("[data-audit-record-type-filter]", HTMLSelectElement);
+  const changeTypeFilterSelect = findAuditControl("[data-audit-change-type-filter]", HTMLSelectElement);
+  const workspaceFilterControl = findAuditControl("[data-audit-workspace-filter-control]", HTMLElement);
+  const workspaceFilterSelect = findAuditControl("[data-audit-workspace-filter]", HTMLSelectElement);
+  const showUtcInput = findAuditControl("[data-audit-show-utc]", HTMLInputElement);
   const resetButton = document.querySelector("[data-audit-reset]");
   const exportFilteredButton = document.querySelector("[data-audit-export-filtered]");
   const exportAllButton = document.querySelector("[data-audit-export-all]");
@@ -25,6 +25,38 @@
   let auditLogs = [];
   let currentPage = 1;
   let totalAuditLogs = 0;
+
+  /**
+   * **Typed-or-null on purpose**, the reading `0.33.33.44.5` settled and `0.33.33.44.12`,
+   * `0.33.33.44.18` and `0.33.33.44.19` reused: the markup is static and always carries these
+   * controls, but acquisition runs at module evaluation - outside every `try` on this page - so
+   * refusing here would turn a missing control into a dead page instead of the status this page
+   * already produces. The subtype is settled here; presence is settled at the statement that
+   * already dereferenced it.
+   * @template T
+   * @param {string} selector
+   * @param {{ new (): T }} constructor
+   * @returns {T | null}
+   */
+  function findAuditControl(selector, constructor) {
+    const element = document.querySelector(selector);
+    return element instanceof constructor ? element : null;
+  }
+
+  /**
+   * Narrow at an access this page already made unguarded.
+   * @template T
+   * @param {T | null} value
+   * @param {string} name
+   * @returns {T}
+   */
+  function requireAuditValue(value, name) {
+    if (value === null) {
+      throw new TypeError(`Audit Log requires its ${name}.`);
+    }
+
+    return value;
+  }
 
   initializeAuditLog();
 
@@ -59,12 +91,12 @@
     loadAuditLogs();
   });
 
-  workspaceFilterSelect.addEventListener("change", () => {
+  requireAuditValue(workspaceFilterSelect, "workspace filter").addEventListener("change", () => {
     currentPage = 1;
     loadAuditLogs();
   });
 
-  showUtcInput.addEventListener("change", () => {
+  requireAuditValue(showUtcInput, "UTC toggle").addEventListener("change", () => {
     currentPage = 1;
     loadAuditLogs();
   });
@@ -330,11 +362,23 @@
     return auditViewSelect.value === "security" ? "/api/security-events" : "/api/audit-logs";
   }
 
-  function populateFilterOptions(filterOptions = {}, selectedWorkspaceId = "") {
+  /**
+   * The six catalogues, already vouched for.
+   *
+   * `readAuditLogEnvelope` refuses a body whose `filterOptions` does not satisfy
+   * `isAuditFilterOptions`, and this is that reader's only caller, so the members are typed here
+   * rather than re-validated. The two defaults this signature used to carry were unreachable -
+   * the single call site passes both - and typing the parameters retires them.
+   * @param {BrowserAuditFilterOptions} filterOptions
+   * @param {string} selectedWorkspaceId
+   * @returns {void}
+   */
+  function populateFilterOptions(filterOptions, selectedWorkspaceId) {
     replaceSelectOptions(userFilterSelect, "All users", normalizeOptions(filterOptions.users));
     replaceSelectOptions(clientFilterSelect, "All clients", normalizeOptions(filterOptions.clients));
     replaceSelectOptions(projectFilterSelect, "All projects", normalizeOptions(filterOptions.projects));
-    clientFilterControl.hidden = clientFilterSelect.options.length <= 1;
+    requireAuditValue(clientFilterControl, "client filter control").hidden
+      = requireAuditValue(clientFilterSelect, "client filter").options.length <= 1;
     replaceSelectOptions(recordTypeFilterSelect, "All record types", normalizeEnumOptions(filterOptions.recordTypes));
     replaceSelectOptions(changeTypeFilterSelect, "All change types", normalizeEnumOptions(filterOptions.changeTypes));
     populateWorkspaceOptions(filterOptions.workspaces, selectedWorkspaceId);
@@ -416,40 +460,58 @@
     return row;
   }
 
+  /**
+   * The outgoing query for both audit endpoints.
+   *
+   * Every key here is read by one receiver. `listSecurityEvents` calls `list` with `securityOnly`,
+   * so `/api/audit-logs` and `/api/security-events` share a single `normalizeFilters`, and these
+   * eight names are exactly the ones it consumes. The dates are the subtle pair: this page
+   * converts them client-side and emits an absolute instant, which the service normalizes as UTC
+   * rather than re-applying a zone - its bare `YYYY-MM-DD` path serves other callers, not this one.
+   * @returns {URLSearchParams}
+   */
   function buildFilterParams() {
     const params = new URLSearchParams();
-    const timezone = showUtcInput.checked ? "UTC" : undefined;
+    const timezone = requireAuditValue(showUtcInput, "UTC toggle").checked ? "UTC" : undefined;
+    const dateFrom = requireAuditValue(dateFromInput, "start date input").value;
+    const dateTo = requireAuditValue(dateToInput, "end date input").value;
+    const actorUserId = requireAuditValue(userFilterSelect, "user filter").value;
+    const clientId = requireAuditValue(clientFilterSelect, "client filter").value;
+    const projectId = requireAuditValue(projectFilterSelect, "project filter").value;
+    const recordType = requireAuditValue(recordTypeFilterSelect, "record type filter").value;
+    const changeType = requireAuditValue(changeTypeFilterSelect, "change type filter").value;
+    const workspaceId = requireAuditValue(workspaceFilterSelect, "workspace filter").value;
 
-    if (dateFromInput.value) {
-      params.set("dateFrom", requireTimezones().zonedDateTimeToUtcIso(dateFromInput.value, "00:00:00", timezone));
+    if (dateFrom) {
+      params.set("dateFrom", requireTimezones().zonedDateTimeToUtcIso(dateFrom, "00:00:00", timezone));
     }
 
-    if (dateToInput.value) {
-      params.set("dateTo", requireTimezones().zonedDateTimeToUtcIso(dateToInput.value, "23:59:59", timezone));
+    if (dateTo) {
+      params.set("dateTo", requireTimezones().zonedDateTimeToUtcIso(dateTo, "23:59:59", timezone));
     }
 
-    if (userFilterSelect.value) {
-      params.set("actorUserId", userFilterSelect.value);
+    if (actorUserId) {
+      params.set("actorUserId", actorUserId);
     }
 
-    if (clientFilterSelect.value) {
-      params.set("clientId", clientFilterSelect.value);
+    if (clientId) {
+      params.set("clientId", clientId);
     }
 
-    if (projectFilterSelect.value) {
-      params.set("projectId", projectFilterSelect.value);
+    if (projectId) {
+      params.set("projectId", projectId);
     }
 
-    if (recordTypeFilterSelect.value) {
-      params.set("recordType", recordTypeFilterSelect.value);
+    if (recordType) {
+      params.set("recordType", recordType);
     }
 
-    if (changeTypeFilterSelect.value) {
-      params.set("changeType", changeTypeFilterSelect.value);
+    if (changeType) {
+      params.set("changeType", changeType);
     }
 
-    if (workspaceFilterSelect.value) {
-      params.set("workspaceId", workspaceFilterSelect.value);
+    if (workspaceId) {
+      params.set("workspaceId", workspaceId);
     }
 
     return params;
@@ -484,20 +546,30 @@
       : [];
   }
 
+  /**
+   * The workspace catalogue is empty unless the caller is a super administrator, which is why the
+   * control is hidden rather than emptied. `selectedWorkspaceId` is the scope the service
+   * resolved, so it can be a workspace id or the literal `"all"`; it is honoured only when the
+   * catalogue still offers it, and the current selection stands otherwise.
+   * @param {BrowserAuditFilterOption[]} workspaces
+   * @param {string} selectedWorkspaceId
+   * @returns {void}
+   */
   function populateWorkspaceOptions(workspaces, selectedWorkspaceId) {
     const options = normalizeOptions(workspaces);
+    const select = requireAuditValue(workspaceFilterSelect, "workspace filter");
 
-    workspaceFilterControl.hidden = options.length === 0;
+    requireAuditValue(workspaceFilterControl, "workspace filter control").hidden = options.length === 0;
 
     if (options.length === 0) {
-      workspaceFilterSelect.replaceChildren(createOption("", "Current workspace"));
+      select.replaceChildren(createOption("", "Current workspace"));
       return;
     }
 
-    replaceSelectOptions(workspaceFilterSelect, "Current workspace", options);
-    workspaceFilterSelect.value = options.some((option) => option.value === selectedWorkspaceId)
+    replaceSelectOptions(select, "Current workspace", options);
+    select.value = options.some((option) => option.value === selectedWorkspaceId)
       ? selectedWorkspaceId
-      : workspaceFilterSelect.value;
+      : select.value;
   }
 
   function setDefaultWorkspaceFilter() {
