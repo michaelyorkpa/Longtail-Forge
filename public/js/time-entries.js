@@ -49,9 +49,9 @@
   const filterTagControl = findTimeEntryControl("[data-time-entry-filter-tag-control]", HTMLElement);
   const filterTagSelect = findTimeEntryControl("[data-time-entry-filter-tag]", HTMLSelectElement);
   const sortSelect = findTimeEntryControl("[data-time-entry-sort]", HTMLSelectElement);
-  const addTimeEntryButton = document.querySelector("[data-add-time-entry]");
-  const timeEntryStatus = document.querySelector("[data-time-entry-status]");
-  const timeEntryTable = document.querySelector("[data-time-entry-table]");
+  const addTimeEntryButton = findTimeEntryControl("[data-add-time-entry]", HTMLButtonElement);
+  const timeEntryStatus = findTimeEntryControl("[data-time-entry-status]", HTMLElement);
+  const timeEntryTable = findTimeEntryControl("[data-time-entry-table]", HTMLElement);
   const bulkToolbar = findTimeEntryControl("[data-time-entry-bulk-toolbar]", HTMLDetailsElement);
   const bulkActionSelect = findTimeEntryControl("[data-time-entry-bulk-action]", HTMLSelectElement);
   const bulkTagsControl = findTimeEntryControl("[data-time-entry-bulk-tags]", HTMLElement);
@@ -134,7 +134,7 @@
   requireTimeEntryValue(filterUsersSelect, "user filter").addEventListener("change", renderEntries);
   filterTagSelect?.addEventListener("change", renderEntries);
   requireTimeEntryValue(sortSelect, "sort control").addEventListener("change", renderEntries);
-  addTimeEntryButton.addEventListener("click", openAddDialog);
+  requireTimeEntryValue(addTimeEntryButton, "add entry button").addEventListener("click", openAddDialog);
   requireTimeEntryValue(filterClientSelect, "client filter").addEventListener("change", () => {
     populateFilterProjects();
     renderEntries();
@@ -491,8 +491,9 @@
   }
 
   function renderEntries() {
+    const table = requireTimeEntryValue(timeEntryTable, "entry table");
     // The table is rebuilt from state after every filter change or save.
-    timeEntryTable.innerHTML = "";
+    table.innerHTML = "";
     const entries = getFilteredEntries();
     syncSelectionToEntries(entries);
     updateSelectionControls(entries);
@@ -504,7 +505,7 @@
       cell.colSpan = 7;
       cell.textContent = "No entries match these filters.";
       row.appendChild(cell);
-      timeEntryTable.appendChild(row);
+      table.appendChild(row);
       return;
     }
 
@@ -519,7 +520,7 @@
         createTableCell(formatEntryStatus(entry)),
         createActionsCell(entry),
       );
-      timeEntryTable.appendChild(row);
+      table.appendChild(row);
     });
   }
 
@@ -613,6 +614,7 @@
     }
   }
 
+  /** @param {NormalizedTimeEntry} entry */
   function createActionsCell(entry) {
     const cell = document.createElement("td");
     const actions = document.createElement("div");
@@ -629,6 +631,12 @@
     return cell;
   }
 
+  /**
+   * @param {string} label
+   * @param {string} icon
+   * @param {{ danger?: boolean }} [options]
+   * @returns {HTMLElement}
+   */
   function createTimeEntryActionButton(label, icon, options = {}) {
     if (window.LongtailForge?.icons?.createIconButton) {
       return window.LongtailForge.icons.createIconButton({
@@ -660,6 +668,7 @@
     return timeEntryDialog;
   }
 
+  /** @param {string} entryId */
   async function openEditDialog(entryId) {
     setTimeEntryStatus("Opening entry...");
 
@@ -698,6 +707,7 @@
     }
   }
 
+  /** @param {NormalizedTimeEntry} entry */
   function createProjectCell(entry) {
     const cell = createTableCell(entry.projectName);
 
@@ -713,6 +723,7 @@
     return cell;
   }
 
+  /** @param {NormalizedTimeEntry} entry */
   async function deleteEntry(entry) {
     const shouldDelete = await requireModalDialogs().confirm({
       title: "Delete entry?",
@@ -1131,6 +1142,7 @@
     return window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__";
   }
 
+  /** @param {string} value @returns {string} */
   function normalizeTagFilterValue(value) {
     return value === "__no_effective_tags__" ? noTagsFilterValue() : value;
   }
@@ -1204,6 +1216,15 @@
     return { start: startDate, end: exclusiveEndDate };
   }
 
+  /**
+   * Shift a `YYYY-MM-DD` control value by whole days, in UTC.
+   *
+   * UTC on purpose: the value is a date the user typed, not an instant, so month arithmetic must
+   * not shift across a local DST boundary.
+   * @param {string} value
+   * @param {number} dayCount
+   * @returns {string}
+   */
   function addDateInputDays(value, dayCount) {
     const [year, month, day] = value.split("-").map(Number);
     const date = new Date(Date.UTC(year, month - 1, day + dayCount));
@@ -1215,6 +1236,11 @@
     ].join("-");
   }
 
+  /**
+   * @param {unknown} period
+   * @param {string} mode
+   * @returns {TimeEntryWindow}
+   */
   function getBillingPeriodRange(period, mode) {
     const today = new Date();
     const normalizedPeriod = normalizeBillingPeriod(period);
@@ -1236,6 +1262,7 @@
     };
   }
 
+  /** @param {Date} date @param {number} startDay @returns {Date} */
   function getCurrentCustomPeriodStart(date, startDay) {
     const currentMonthStart = new Date(date.getFullYear(), date.getMonth(), startDay);
 
@@ -1246,6 +1273,7 @@
     return new Date(date.getFullYear(), date.getMonth() - 1, startDay);
   }
 
+  /** @param {Date} date @param {number} monthCount @returns {Date} */
   function addMonths(date, monthCount) {
     return new Date(date.getFullYear(), date.getMonth() + monthCount, date.getDate());
   }
@@ -1298,14 +1326,17 @@
     return timeEntryClients.flatMap((client) => client.projects || []);
   }
 
+  /** @param {NormalizedTimeEntry} entry @param {NormalizedClientOption | undefined} client */
   function matchesClient(entry, client) {
     return requireRecords().matchesClient(entry, client);
   }
 
+  /** @param {NormalizedTimeEntry} entry @param {NormalizedProjectOption | undefined} project */
   function matchesProject(entry, project) {
     return requireRecords().matchesProject(entry, project);
   }
 
+  /** @param {string} value @returns {Date | null} */
   function parseDateInput(value) {
     if (!value) {
       return null;
@@ -1316,20 +1347,24 @@
     return Number.isFinite(date.getTime()) ? date : null;
   }
 
+  /** @param {Date} date @returns {string} */
   function formatDate(date) {
     return Number.isFinite(date.getTime())
       ? requireTimezones().formatDate(date)
       : "";
   }
 
+  /** @param {number} seconds @returns {string} */
   function formatHours(seconds) {
     return formatDuration(seconds);
   }
 
+  /** @param {string} status @returns {string} */
   function formatInvoiceStatus(status) {
     return requireFormatters().entryStatus(status);
   }
 
+  /** @param {NormalizedTimeEntry} entry @returns {string} */
   function formatEntryStatus(entry) {
     if (getEffectiveEntryBillable(entry) !== "yes") {
       return "N/A";
@@ -1338,6 +1373,7 @@
     return formatInvoiceStatus(entry.invoiceStatus);
   }
 
+  /** @param {NormalizedTimeEntry} entry @returns {"yes" | "no" | ""} */
   function getEffectiveEntryBillable(entry) {
     const client = timeEntryClients.find((currentClient) => matchesClient(entry, currentClient));
     const project = client?.projects.find((currentProject) => matchesProject(entry, currentProject));
@@ -1368,12 +1404,16 @@
     return "";
   }
 
+  /** @param {Date} date @returns {string} */
   function formatDateInput(date) {
     return requireTimezones().formatDateInput(date);
   }
 
+  /** @param {number | string} totalSeconds @returns {string} */
   function formatDuration(totalSeconds) {
-    const normalizedSeconds = Math.max(0, Number.parseInt(totalSeconds, 10) || 0);
+    // `parseInt` already stringifies its argument, and both a number and a wire string reach here.
+    // Saying so is the same call, written where it happens.
+    const normalizedSeconds = Math.max(0, Number.parseInt(String(totalSeconds), 10) || 0);
     const hours = Math.floor(normalizedSeconds / 3600);
     const minutes = Math.floor((normalizedSeconds % 3600) / 60);
     const seconds = normalizedSeconds % 60;
@@ -1399,20 +1439,28 @@
     requireTimeEntryValue(filterEndDateInput, "custom end date").disabled = !isCustom;
   }
 
+  /** @param {string} value @param {string} text @returns {HTMLOptionElement} */
   function createOption(value, text) {
     return requirePageController().createOption(value, text);
   }
 
+  /** @param {string} text @returns {HTMLElement} */
   function createTableCell(text) {
     const cell = document.createElement("td");
     cell.textContent = text;
     return cell;
   }
 
+  /**
+   * @template {{ name?: string }} T
+   * @param {T[]} items
+   * @returns {T[]}
+   */
   function sortByName(items) {
     return requirePageController().sortByName(items);
   }
 
+  /** @param {string} message */
   function setTimeEntryStatus(message) {
     requirePageController().setStatus(timeEntryStatus, message);
   }

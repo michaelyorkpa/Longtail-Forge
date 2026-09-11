@@ -513,6 +513,27 @@ export class FakeElement {
     this._textContent = String(value ?? "");
     this.children = [];
   }
+
+  /** @returns {string} */
+  get innerHTML() {
+    return this._innerHTML || "";
+  }
+
+  /**
+   * Only the clearing form is modelled, which is the only form this estate's browser code uses on
+   * a container it owns: `element.innerHTML = ""` empties it.
+   *
+   * A non-empty assignment stores the string and still clears the children rather than pretending
+   * to parse it - a fake that silently accepted markup and produced no nodes would let a test
+   * assert against a structure that never existed. Any spec that needs parsed markup should assert
+   * the assigned string, as `notes-list-query` does.
+   * @param {unknown} value
+   */
+  set innerHTML(value) {
+    this._innerHTML = String(value ?? "");
+    this.children = [];
+    this._textContent = "";
+  }
 }
 
 export class FakeClassList {
