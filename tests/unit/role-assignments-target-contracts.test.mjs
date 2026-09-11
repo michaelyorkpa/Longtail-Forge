@@ -144,22 +144,45 @@ describe("Role Assignments target and control rendering", () => {
     assert.equal(list.children[0].children[0].textContent, "No delegable assignments are currently shown.");
   });
 
-  it("disables Remove while busy or when the revision is gone", () => {
-    // One fresh fixture per state: reusing a case across renders let a stale row satisfy the
-    // assertion, which is how a break that dropped the revision check first went unnoticed.
+  it("disables Remove through the gate that actually decides it", () => {
+    // **`renderTarget` does not decide this.** It sets `removeButton.disabled`, then its own chain
+    // reaches `updateControls`, which rewrites `disabled` on every button in the list - so the
+    // effective gate is `busy || !hasRevision` there, and the earlier assignment never survives.
+    // `0.33.33.44.19` aimed its mutations at the discarded line and read the inertness as a
+    // fixture limit; it was not one, and a rendered run would have shown the same thing.
     /** @param {{ revision?: string, busy?: boolean }} state */
     const removeDisabled = (state) => {
       const testCase = targetCase();
       testCase.context.target = foundTarget({ assignmentRevision: state.revision ?? "rev-1" });
       testCase.context.busy = state.busy ?? false;
       testCase.api.renderTarget();
-      const row = testCase.control("[data-delegated-role-list]").children[0];
-      return row.children[1].disabled;
+      return testCase.control("[data-delegated-role-list]").children[0].children[1].disabled;
     };
 
-    assert.equal(removeDisabled({}), false, "a live revision and an idle page leave Remove usable");
+    assert.equal(removeDisabled({}), false, "a live revision on an idle page leaves Remove usable");
     assert.equal(removeDisabled({ revision: "" }), true, "a stale revision closes Remove");
     assert.equal(removeDisabled({ busy: true }), true, "a busy page closes Remove");
+    assert.equal(removeDisabled({ busy: true, revision: "" }), true, "both together keep it closed");
+  });
+
+  it("closes Remove on a later control sync, not only at render time", () => {
+    // The state can change without a re-render - `setBusy` runs on every request - so the gate has
+    // to hold when `updateControls` is reached on its own.
+    const testCase = targetCase();
+    testCase.context.target = foundTarget();
+    testCase.api.renderTarget();
+    const removeButton = testCase.control("[data-delegated-role-list]").children[0].children[1];
+    assert.equal(removeButton.disabled, false);
+
+    testCase.api.setBusy(true);
+    assert.equal(removeButton.disabled, true, "going busy closes the rendered Remove button");
+
+    testCase.api.setBusy(false);
+    assert.equal(removeButton.disabled, false, "and idling reopens it");
+
+    testCase.context.target = foundTarget({ assignmentRevision: "" });
+    testCase.api.updateControls();
+    assert.equal(removeButton.disabled, true, "losing the revision closes it without a re-render");
   });
 
   it("offers the selected role's scopes and keeps a selection that is still offered", () => {
