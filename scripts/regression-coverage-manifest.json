@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19053,
+    "activeAssertionCount": 19067,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19867,
+    "effectiveAssertionCount": 19881,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -3998,11 +3998,11 @@
     },
     {
       "area": "notes",
-      "assertionCount": 67,
+      "assertionCount": 81,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy notes primary context contract.",
-      "entryPointAssertionCount": 67,
+      "entryPointAssertionCount": 81,
       "id": "legacy.notes.primary.context",
       "legacy": true,
       "path": "scripts/notes-primary-context-regression.mjs",
