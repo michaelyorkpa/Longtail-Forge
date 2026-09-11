@@ -1459,6 +1459,16 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,369 to 6,330, `0.33.33.44` 1,156 to 1,121**, params 3,991 to 3,950, `dom` 881 to 875, assorted 123 to 122. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.19 - Role Assignments, and the file reaches zero
+
+**Complete: 106 diagnostics, and `public/js/role-assignments.js` reaches zero** - the third file in this lane to close outright. See the archive entry. The named boundary was 35; converting the shared controls closed their consumers across the file, and the remainder was parameter annotation, so the file was finished.
+
+**Its producers were already checked, and that is why this was ready.** `readRoleOptions` filters through `isRoleOption` and answers `BrowserRoleOption[]`; `readAssignmentLookup` refuses a malformed match outright and filters `assignments` through `isDelegatedAssignment`. Both slots are declared from what those readers establish rather than asserted over them.
+
+**Two existing contracts refused changes I made, and both were right.** `workspace-deletion-dialog-dom-contracts` pins that retiring `asStatusElement` was **scoped to one page** - this cohort of five keeps its own helper - so the sweep was reverted. And `optional-member-root-contracts` pins that the 401 path never reaches the namespace root, which `requireErrors()` would have broken; the read is narrowed inline instead, touching the same properties in the same order.
+
+**Measured: browser 6,330 to 6,224, `0.33.33.44` 1,121 to 1,078**, params 3,950 to 3,930, state 1,383 to 1,360, `dom` 875 to 812. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
