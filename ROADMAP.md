@@ -1521,6 +1521,22 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,044 and `0.33.33.44` 1,028, both unchanged.** This checkpoint changes a stylesheet and adds proof; it changes no JavaScript, no permission, and no visibility policy.
 
+#### 0.33.33.44.23 - User Settings, and the file reaches zero
+
+**The named file was already at zero, and measuring first is what found that.** `public/js/user-admin.js` carries no diagnostics - `0.33.33.44.8` closed it with the permission-matrix work - so the instruction's premise did not hold. The largest ready `0.33.33.44` file is `public/js/user-settings.js` at **146**, and that is what this checkpoint took.
+
+**Complete: 146 diagnostics, and `public/js/user-settings.js` reaches zero** - the fifth file in this lane to close outright. See the archive entry. Ready for the same reason the others were: `readUserSettings`, `readUserSettingsProfile` and `readWorkspaceRemoval` already refuse a body they cannot vouch for, and five predicates back them, so every state slot is declared from what a checked producer establishes.
+
+**The subtypes were measured in a browser, not read off markup.** This page ships an empty `[data-settings-host="user"]`; `shared/settings-host.js` mounts the whole surface synchronously, ahead of this file in script order. So a rendered probe answered what each of the 34 controls actually is - which is how the theme auto-source shell turned out to be a `<fieldset>` rather than a `<div>`.
+
+**A selector collision surfaced, and typing removed it.** `applyThemeMode` writes `data-theme-auto-source` onto `document.documentElement` as theme state, so `querySelectorAll` on that attribute collected the `<html>` element alongside the radio. Nothing read the difference - the extra node only ever received the two expando properties the loop assigns, and the checked-input search never selected it - so this was a latent collision the declared subtype removes, not a defect anyone had seen.
+
+**`formatWorkspaceType` reached past its own members.** Indexing a plain object literal with a name carried on `Object.prototype` answered that member instead of falling through, so `"constructor"` returned a function where a label belonged. No producer sends those words; the read is now own-members-only, the same discipline `0.33.33.44.21` applied to audit snapshots.
+
+**51 breaks, 51 caught, zero inert.** Ten were inert on the first run and nine were real gaps in the assertions - most importantly, the lifted fixture builds its own control collections, so changes to the two declaration lines were invisible to it until they were pinned as source facts. One was withdrawn: `normalizeThemeAutoSource` answers `"system"` on both branches, so no input it is given is distinguishable from any other.
+
+**Measured: browser 6,044 to 5,898**, params 3,873 to 3,816, `dom` 722 to 625, state 1,355 to 1,336, assorted 122 to 121. `0.33.33.44` 1,028 to 979. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
