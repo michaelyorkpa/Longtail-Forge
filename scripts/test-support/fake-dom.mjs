@@ -150,6 +150,7 @@ export function fakeDomConstructors() {
     HTMLElement: elementConstructor(),
     HTMLButtonElement: elementConstructor("BUTTON"),
     HTMLDetailsElement: elementConstructor("DETAILS"),
+    HTMLDialogElement: elementConstructor("DIALOG"),
     HTMLFormElement: elementConstructor("FORM"),
     HTMLInputElement: elementConstructor("INPUT"),
     HTMLSelectElement: elementConstructor("SELECT"),

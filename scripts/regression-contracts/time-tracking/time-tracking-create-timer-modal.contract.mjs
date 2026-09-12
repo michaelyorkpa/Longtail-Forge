@@ -99,7 +99,11 @@ assert.match(
 
 assert.match(
   timerDialog,
-  /function updateBillableDefault\(\)[\s\S]*!workspaceUsesBillableFlag\(\)[\s\S]*fields\.billable\.value = "no"[\s\S]*const billableSource = project \|\| client;[\s\S]*fields\.billable\.value = billableSource\?\.billable === "no" \? "no" : "yes";/,
+  // `0.33.33.44.24` bound the control once through the checked lookup, so the writes now name a
+  // local rather than `fields.billable`. The claim is unchanged - the source preference and both
+  // answers are the same - and `tests/unit/timer-dialog-options-contracts.test.mjs` now proves it
+  // by execution as well as by spelling.
+  /function updateBillableDefault\(\)[\s\S]*!workspaceUsesBillableFlag\(\)[\s\S]*billable\.value = "no"[\s\S]*const billableSource = project \|\| client;[\s\S]*billable\.value = billableSource\?\.billable === "no" \? "no" : "yes";/,
   "Manual timer billable default should be disabled outside Business and otherwise inherit from the selected Project or Client",
 );
 assert.match(
@@ -109,7 +113,10 @@ assert.match(
 );
 assert.match(
   timerDialog,
-  /function startManualTimer\(\{ client, project \}\)[\s\S]*nextManualTimerSlot\(\)[\s\S]*api\.putJson\(`\/api\/active-timers\/\$\{encodeURIComponent\(timerSlot\)\}`[\s\S]*billable: workspaceBillableValue\(\)[\s\S]*description: fields\.description\.value\.trim\(\)[\s\S]*timer_status: "running"/,
+  // `0.33.33.44.24` reads the description through the checked lookup rather than off `fields`
+  // directly. The route, the workspace-safe billable value and the trimmed description are all
+  // unchanged; only how the control is acquired moved.
+  /function startManualTimer\(\{ client, project \}\)[\s\S]*nextManualTimerSlot\(\)[\s\S]*api\.putJson\(`\/api\/active-timers\/\$\{encodeURIComponent\(timerSlot\)\}`[\s\S]*billable: workspaceBillableValue\(\)[\s\S]*description: requireTimerValue\(fields\.description, "description field"\)\.value\.trim\(\)[\s\S]*timer_status: "running"/,
   "Manual timers should start through the existing active-timer route with workspace-safe billable and description",
 );
 assert.match(

@@ -56,7 +56,10 @@ async function assertStaticContracts() {
   assert.doesNotMatch(timeEntriesSource, /timeEntries\.forEach\(\(entry\)[\s\S]*usersById\.set\(entry\.userId, entry\.userId\)/, "historical entries must not reintroduce inactive user IDs into the user filter");
   assert.match(timeTrackerView, /data-stopwatch-billable-control[\s\S]*data-stopwatch-billable/, "the Time Tracker Billable control should have a workspace-aware wrapper");
   assert.match(stopwatchSource, /function workspaceUsesBillableFlag\(\)[\s\S]*workspaceType === "business"[\s\S]*function billableValue\(input\)[\s\S]*\? "yes" : "no"/, "manual timers should hide and coerce Billable outside Business workspaces");
-  assert.match(timerDialogSource, /billableControl\.hidden = !workspaceUsesBillableFlag\(\)[\s\S]*billable: workspaceBillableValue\(\)/, "Create Timer should hide and coerce its Billable field");
+  // `0.33.33.44.24` acquires the control through the checked lookup, so the write names it there
+  // rather than reaching through `fields`. Both halves of the claim - hidden outside Business, and
+  // the coerced value sent with the timer - are unchanged.
+  assert.match(timerDialogSource, /billableControl, "billable control"\)\.hidden = !workspaceUsesBillableFlag\(\)[\s\S]*billable: workspaceBillableValue\(\)/, "Create Timer should hide and coerce its Billable field");
   assert.match(entryDialogSource, /billableControl\.hidden = !workspaceUsesBillableFlag\(\)[\s\S]*billable: workspaceBillableValue\(\)/, "Time Entry should hide and coerce its Billable field");
   assert.match(projectsSource, /withoutUnsupportedBillingFields[\s\S]*field !== "billingDisplay"[\s\S]*"project-billable"/, "project read surfaces should omit billing metadata outside Business workspaces");
   assert.match(userSettingsView, /data-settings-host="user"/, "User Settings should expose the minimal framework host");

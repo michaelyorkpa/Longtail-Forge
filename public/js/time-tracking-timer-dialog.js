@@ -29,14 +29,184 @@
   const TIMER_ACTION_ID = "time-tracking.timer.create";
   const MAX_MANUAL_TIMER_SLOTS = 4;
 
+  /** @typedef {import("../../src/types/browser-contracts.js").NormalizedClientOption} NormalizedClientOption */
+  /** @typedef {import("../../src/types/browser-contracts.js").NormalizedProjectOption} NormalizedProjectOption */
+
+  /**
+   * The four callbacks this dialog offers back to whichever host opened it.
+   *
+   * **Every member is optional and none is given a signature**, which is the whole point.
+   * `0.33.33.38.2.2.6.4.1` withdrew the published `ModuleActionHostOptions` because a
+   * host-supplied callback shape is read defensively and typing it constrains callers the
+   * runtime does not constrain. This is file-local and names only what this dialog itself
+   * reaches for, so it constrains no caller and reinstates no shared contract - a host that
+   * offers none of them, or offers others besides, is unaffected.
+   *
+   * The optional-call spelling at each site is kept rather than replaced by a checked reader:
+   * `host?.complete?.(...)` throws when the member exists but is not callable, and a reader
+   * answering null would have turned that into a silent skip. That is a behaviour change, and
+   * this checkpoint is typing the dialog rather than deciding how it should fail.
+   * @typedef {object} TimerDialogHost
+   * @property {((detail?: unknown) => unknown)} [cancel]
+   * @property {((detail?: unknown) => unknown)} [complete]
+   * @property {((...args: unknown[]) => unknown)} [refresh]
+   * @property {((message?: unknown, options?: unknown) => unknown)} [setStatus]
+   */
+
+  /**
+   * The first of several spellings a record carries, as text.
+   *
+   * Two producers need this and neither is a declared record: the parameters come from whichever
+   * surface asked for this dialog, and the task rows come off the wire. Own members only, and
+   * falsy answers keep falling through exactly as the `||` chains they replace did - so a `0` or
+   * an empty string still yields to the next spelling rather than being coerced into truthy text.
+   * @param {unknown} source
+   * @param {...string} names
+   * @returns {string}
+   */
+  function readText(source, ...names) {
+    if (typeof source !== "object" || source === null) {
+      return "";
+    }
+
+    for (const name of names) {
+      const value = Object.hasOwn(source, name)
+        ? /** @type {Record<string, unknown>} */ (source)[name]
+        : undefined;
+      if (value) {
+        return String(value);
+      }
+    }
+
+    return "";
+  }
+
+  /**
+   * The task rows a task-options response carries, before any of them is read.
+   * @param {unknown} data
+   * @returns {unknown[]}
+   */
+  function taskOptionRows(data) {
+    if (typeof data !== "object" || data === null || !Object.hasOwn(data, "options")) {
+      return [];
+    }
+
+    const options = /** @type {Record<string, unknown>} */ (data).options;
+    if (typeof options !== "object" || options === null || !Object.hasOwn(options, "tasks")) {
+      return [];
+    }
+
+    const tasks = /** @type {Record<string, unknown>} */ (options).tasks;
+    return Array.isArray(tasks) ? tasks : [];
+  }
+
+  /**
+   * The nine controls this dialog renders, each at the subtype `dialogMarkup` writes.
+   *
+   * **Typed-or-null on purpose**, the reading `0.33.33.44.5` settled and this lane has reused
+   * since - but the reason is unusual here and worth stating: this dialog authors its own markup
+   * and appends it, so the controls exist because `ensureDialog` just created them. They are
+   * still acquired as nullable, because the surface can also be found already in the document
+   * from an earlier open, and that copy is whatever the document actually holds rather than what
+   * this file last wrote. The subtype is settled at acquisition; presence is settled at the
+   * statement that already dereferenced it.
+   * @typedef {object} TimerDialogFields
+   * @property {HTMLSelectElement | null} billable
+   * @property {HTMLElement | null} billableControl
+   * @property {HTMLButtonElement | null} cancel
+   * @property {HTMLSelectElement | null} client
+   * @property {HTMLTextAreaElement | null} description
+   * @property {HTMLSelectElement | null} project
+   * @property {HTMLButtonElement | null} save
+   * @property {HTMLElement | null} status
+   * @property {HTMLSelectElement | null} task
+   */
+
+  /**
+   * One task this dialog can start a timer against, as `normalizeTaskOptions` rebuilds it.
+   * @typedef {object} TimerTaskOption
+   * @property {string} client_id
+   * @property {string} id
+   * @property {string} label
+   * @property {string} optionLabel
+   * @property {string} project_id
+   * @property {string} status
+   */
+
+  /**
+   * What `prepareContext` settles before the dialog opens: the host that asked for it, the
+   * parameters it was asked with, and the status writer that reports back to that host.
+   * @typedef {object} TimerDialogContext
+   * @property {TimerDialogHost | null} hostContext
+   * @property {Record<string, unknown>} params
+   * @property {(message: string, options?: Record<string, unknown>) => void} setStatus
+   */
+
+  /** @type {TimerDialogContext | null} */
   let context = null;
+  /** @type {HTMLDialogElement | null} */
   let dialog = null;
+  /** @type {HTMLFormElement | null} */
   let form = null;
-  let fields = {};
+  /** @type {TimerDialogFields} */
+  let fields = emptyTimerDialogFields();
+  /** @type {NormalizedClientOption[]} */
   let clients = [];
+  /** @type {TimerTaskOption[]} */
   let taskOptions = [];
+  /** @type {BrowserActiveTimerSlotRecord[]} */
   let activeManualTimers = [];
   let dialogSettled = false;
+
+  /**
+   * The record before any control is acquired, so the shape is the same in every state rather
+   * than an empty object that later grows nine members.
+   * @returns {TimerDialogFields}
+   */
+  function emptyTimerDialogFields() {
+    return {
+      billable: null,
+      billableControl: null,
+      cancel: null,
+      client: null,
+      description: null,
+      project: null,
+      save: null,
+      status: null,
+      task: null,
+    };
+  }
+
+  /**
+   * Acquire one control from a named root, at the subtype the caller names.
+   *
+   * The root is a parameter because this dialog queries two of them: the document, for the
+   * surface itself, and that surface, for the nine controls inside it.
+   * @template {Element} T
+   * @param {ParentNode} root
+   * @param {string} selector
+   * @param {{ new (): T }} constructor
+   * @returns {T | null}
+   */
+  function findTimerControl(root, selector, constructor) {
+    const element = root.querySelector(selector);
+    return element instanceof constructor ? element : null;
+  }
+
+  /**
+   * Narrow at an access this dialog already made unguarded.
+   * @template T
+   * @param {T | null} value
+   * @param {string} name
+   * @returns {T}
+   */
+  function requireTimerValue(value, name) {
+    if (value === null) {
+      throw new TypeError(`The time tracking timer dialog requires its ${name}.`);
+    }
+
+    return value;
+  }
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
@@ -74,6 +244,7 @@
     }
     return apiClient;
   }
+  /** @param {Record<string, unknown>} [params] @param {TimerDialogHost | null} [hostContext] */
   async function openCreate(params = {}, hostContext = null) {
     await prepareContext({ hostContext, params });
     return openDialog(params);
@@ -126,6 +297,7 @@
     return timers.length === body.timers.length ? { timers } : null;
   }
 
+  /** @param {{ hostContext?: TimerDialogHost | null, params?: Record<string, unknown> }} [options] */
   async function prepareContext({ hostContext = null, params = {} } = {}) {
     const api = requireApi();
     await namespace.workspaceContextReady;
@@ -171,134 +343,151 @@
     return !Array.isArray(enabledModules) || enabledModules.length === 0 || enabledModules.includes("tasks");
   }
 
+  /** @param {Record<string, unknown>} [params] */
   function openDialog(params = {}) {
     ensureDialog();
     dialogSettled = false;
 
+    const surface = requireTimerValue(dialog, "dialog");
+    const clientSelect = requireTimerValue(fields.client, "client select");
+    const taskSelect = requireTimerValue(fields.task, "task select");
+
     populateClientOptions();
-    fields.client.value = params.clientId || params.client_id || "";
+    clientSelect.value = readText(params, "clientId", "client_id");
     selectWorkspaceScopeClientIfNeeded();
-    populateProjectOptions(params.projectId || params.project_id || "");
-    fields.task.value = params.taskId || params.task_id || "";
-    populateTaskOptions(fields.task.value);
-    fields.description.value = params.description || "";
-    if (fields.task.value) {
+    populateProjectOptions(readText(params, "projectId", "project_id"));
+    taskSelect.value = readText(params, "taskId", "task_id");
+    populateTaskOptions(taskSelect.value);
+    requireTimerValue(fields.description, "description field").value = readText(params, "description");
+    if (taskSelect.value) {
       handleTaskChange();
     } else {
       updateBillableDefault();
     }
-    fields.billableControl.hidden = !workspaceUsesBillableFlag();
+    requireTimerValue(fields.billableControl, "billable control").hidden = !workspaceUsesBillableFlag();
     if (!workspaceUsesBillableFlag()) {
-      fields.billable.value = "no";
+      requireTimerValue(fields.billable, "billable select").value = "no";
     }
     setStatus("");
-    fields.save.disabled = false;
+    requireTimerValue(fields.save, "save button").disabled = false;
 
-    if (typeof dialog.showModal === "function") {
-      dialog.showModal();
+    if (typeof surface.showModal === "function") {
+      surface.showModal();
     } else {
-      dialog.setAttribute("open", "");
+      surface.setAttribute("open", "");
     }
 
-    fields.client.focus();
+    clientSelect.focus();
 
     return new Promise((resolve) => {
-      dialog.addEventListener("close", () => {
+      surface.addEventListener("close", () => {
         if (!dialogSettled) {
           context?.hostContext?.cancel?.({ actionId: TIMER_ACTION_ID });
         }
-        resolve(dialog.returnValue || "closed");
+        resolve(surface.returnValue || "closed");
       }, { once: true });
     });
   }
 
   function ensureDialog() {
-    dialog = document.querySelector("[data-time-tracking-timer-dialog]");
+    dialog = findTimerControl(document, "[data-time-tracking-timer-dialog]", HTMLDialogElement);
 
     if (!dialog) {
       const wrapper = document.createElement("div");
       wrapper.innerHTML = dialogMarkup();
       document.body.append(...wrapper.children);
-      dialog = document.querySelector("[data-time-tracking-timer-dialog]");
+      dialog = findTimerControl(document, "[data-time-tracking-timer-dialog]", HTMLDialogElement);
     }
 
-    form = dialog.querySelector("[data-time-tracking-timer-dialog-form]");
+    const surface = requireTimerValue(dialog, "dialog");
+
+    form = findTimerControl(surface, "[data-time-tracking-timer-dialog-form]", HTMLFormElement);
     fields = {
-      billable: dialog.querySelector("[data-time-tracking-timer-dialog-billable]"),
-      billableControl: dialog.querySelector("[data-time-tracking-timer-dialog-billable-control]"),
-      cancel: dialog.querySelector("[data-time-tracking-timer-dialog-cancel]"),
-      client: dialog.querySelector("[data-time-tracking-timer-dialog-client]"),
-      description: dialog.querySelector("[data-time-tracking-timer-dialog-description]"),
-      project: dialog.querySelector("[data-time-tracking-timer-dialog-project]"),
-      save: dialog.querySelector("[data-time-tracking-timer-dialog-save]"),
-      status: dialog.querySelector("[data-time-tracking-timer-dialog-status]"),
-      task: dialog.querySelector("[data-time-tracking-timer-dialog-task]"),
+      billable: findTimerControl(surface, "[data-time-tracking-timer-dialog-billable]", HTMLSelectElement),
+      billableControl: findTimerControl(surface, "[data-time-tracking-timer-dialog-billable-control]", HTMLElement),
+      cancel: findTimerControl(surface, "[data-time-tracking-timer-dialog-cancel]", HTMLButtonElement),
+      client: findTimerControl(surface, "[data-time-tracking-timer-dialog-client]", HTMLSelectElement),
+      description: findTimerControl(surface, "[data-time-tracking-timer-dialog-description]", HTMLTextAreaElement),
+      project: findTimerControl(surface, "[data-time-tracking-timer-dialog-project]", HTMLSelectElement),
+      save: findTimerControl(surface, "[data-time-tracking-timer-dialog-save]", HTMLButtonElement),
+      status: findTimerControl(surface, "[data-time-tracking-timer-dialog-status]", HTMLElement),
+      task: findTimerControl(surface, "[data-time-tracking-timer-dialog-task]", HTMLSelectElement),
     };
 
-    if (form.dataset.timeTrackingTimerDialogBound === "true") {
+    const boundForm = requireTimerValue(form, "dialog form");
+
+    if (boundForm.dataset.timeTrackingTimerDialogBound === "true") {
       return;
     }
 
-    form.dataset.timeTrackingTimerDialogBound = "true";
-    form.addEventListener("submit", startTimer);
-    fields.cancel.addEventListener("click", cancelDialog);
-    fields.client.addEventListener("change", () => {
+    boundForm.dataset.timeTrackingTimerDialogBound = "true";
+    boundForm.addEventListener("submit", startTimer);
+    requireTimerValue(fields.cancel, "cancel button").addEventListener("click", cancelDialog);
+    requireTimerValue(fields.client, "client select").addEventListener("change", () => {
       populateProjectOptions();
       populateTaskOptions();
       updateBillableDefault();
     });
-    fields.project.addEventListener("change", () => {
+    requireTimerValue(fields.project, "project select").addEventListener("change", () => {
       populateTaskOptions();
       updateBillableDefault();
     });
-    fields.task.addEventListener("change", handleTaskChange);
+    requireTimerValue(fields.task, "task select").addEventListener("change", handleTaskChange);
   }
 
   function cancelDialog() {
     dialogSettled = true;
     context?.hostContext?.cancel?.({ actionId: TIMER_ACTION_ID });
-    dialog.close("cancel");
+    requireTimerValue(dialog, "dialog").close("cancel");
   }
 
   function populateClientOptions() {
-    fields.client.replaceChildren(createOption("", "Select a client"));
+    const clientSelect = requireTimerValue(fields.client, "client select");
+
+    clientSelect.replaceChildren(createOption("", "Select a client"));
     clients.forEach((client) => {
-      fields.client.appendChild(createOption(client.id, clientOptionLabel(client)));
+      clientSelect.appendChild(createOption(client.id, clientOptionLabel(client)));
     });
-    fields.client.disabled = clients.length === 0;
+    clientSelect.disabled = clients.length === 0;
   }
 
+  /** @param {string} [projectId] */
   function populateProjectOptions(projectId = "") {
-    const client = getClient(fields.client.value);
-    fields.project.replaceChildren(createOption("", "Select a project"));
-    fields.project.disabled = !client;
+    const projectSelect = requireTimerValue(fields.project, "project select");
+    const client = getClient(requireTimerValue(fields.client, "client select").value);
+
+    projectSelect.replaceChildren(createOption("", "Select a project"));
+    projectSelect.disabled = !client;
 
     if (!client) {
       return;
     }
 
     client.projects.forEach((project) => {
-      fields.project.appendChild(createOption(project.id, projectOptionLabel(project)));
+      projectSelect.appendChild(createOption(project.id, projectOptionLabel(project)));
     });
-    fields.project.value = client.projects.some((project) => project.id === projectId) ? projectId : "";
+    projectSelect.value = client.projects.some((project) => project.id === projectId) ? projectId : "";
   }
 
-  function populateTaskOptions(taskId = fields.task.value) {
-    const selectedProjectId = fields.project.value;
+  /** @param {string} [taskId] */
+  function populateTaskOptions(taskId = requireTimerValue(fields.task, "task select").value) {
+    const taskSelect = requireTimerValue(fields.task, "task select");
+    const selectedProjectId = requireTimerValue(fields.project, "project select").value;
     const taskCandidates = taskOptions.filter((task) => (
       task.project_id && (!selectedProjectId || task.project_id === selectedProjectId)
     ));
 
-    fields.task.replaceChildren(createOption("", "No task"));
+    taskSelect.replaceChildren(createOption("", "No task"));
     taskCandidates.forEach((task) => {
-      fields.task.appendChild(createOption(task.id, task.optionLabel || task.label || "Untitled Task"));
+      taskSelect.appendChild(createOption(task.id, task.optionLabel || task.label || "Untitled Task"));
     });
-    fields.task.value = taskCandidates.some((task) => task.id === taskId) ? taskId : "";
-    fields.task.disabled = taskOptions.length === 0;
+    taskSelect.value = taskCandidates.some((task) => task.id === taskId) ? taskId : "";
+    taskSelect.disabled = taskOptions.length === 0;
   }
 
   function handleTaskChange() {
-    const task = getTask(fields.task.value);
+    const description = requireTimerValue(fields.description, "description field");
+    const task = getTask(requireTimerValue(fields.task, "task select").value);
 
     if (!task) {
       updateBillableDefault();
@@ -307,29 +496,31 @@
 
     const clientId = findClientIdForTask(task);
     if (clientId) {
-      fields.client.value = clientId;
+      requireTimerValue(fields.client, "client select").value = clientId;
       populateProjectOptions(task.project_id || "");
-      fields.project.value = task.project_id || "";
+      requireTimerValue(fields.project, "project select").value = task.project_id || "";
     }
     populateTaskOptions(task.id);
-    if (!fields.description.value.trim()) {
-      fields.description.value = task.label || "";
+    if (!description.value.trim()) {
+      description.value = task.label || "";
     }
     updateBillableDefault();
   }
 
+  /** @param {Event} event */
   async function startTimer(event) {
     event.preventDefault();
-    const task = getTask(fields.task.value);
-    const client = getClient(fields.client.value);
-    const project = getProject(fields.client.value, fields.project.value);
+    const clientId = requireTimerValue(fields.client, "client select").value;
+    const task = getTask(requireTimerValue(fields.task, "task select").value);
+    const client = getClient(clientId);
+    const project = getProject(clientId, requireTimerValue(fields.project, "project select").value);
 
     if (!project) {
       setStatus("Select a project.", { isError: true });
       return;
     }
 
-    fields.save.disabled = true;
+    requireTimerValue(fields.save, "save button").disabled = true;
     setStatus("Starting timer...");
 
     try {
@@ -340,19 +531,58 @@
       dialogSettled = true;
       context?.hostContext?.complete?.({
         actionId: TIMER_ACTION_ID,
-        recordId: task?.id || result?.timer?.active_timer_id || "",
+        recordId: task?.id || startedTimerId(result),
         sourceType: task ? "task" : "manual",
-        timer: result?.timer || null,
+        timer: startedTimerRecord(result),
       });
-      dialog.close("complete");
+      requireTimerValue(dialog, "dialog").close("complete");
       setStatus("");
     } catch (error) {
       setStatus(requireErrors().caughtMessage(error, "Timer could not be started."), { isError: true });
     } finally {
-      fields.save.disabled = false;
+      requireTimerValue(fields.save, "save button").disabled = false;
     }
   }
 
+  /**
+   * The identifier a started timer acknowledged, when the acknowledgment carries one.
+   *
+   * **The acknowledgment is not cast to a timer record.** `putJson` answers `unknown`, and what
+   * comes back is a write receipt rather than a row this dialog renders; the one member read
+   * here is the id the host is told about, and everything else travels on untouched.
+   * @param {unknown} result
+   * @returns {string}
+   */
+  function startedTimerId(result) {
+    if (typeof result !== "object" || result === null || !Object.hasOwn(result, "timer")) {
+      return "";
+    }
+
+    const timer = /** @type {Record<string, unknown>} */ (result).timer;
+    if (typeof timer !== "object" || timer === null || !Object.hasOwn(timer, "active_timer_id")) {
+      return "";
+    }
+
+    // Coerced rather than required to be text, because the expression this replaces passed the
+    // member straight to the host whatever it was. A falsy id still answers "", as `|| ""` did.
+    const id = /** @type {Record<string, unknown>} */ (timer).active_timer_id;
+    return id ? String(id) : "";
+  }
+
+  /**
+   * The timer the acknowledgment carried, passed on exactly as it arrived.
+   * @param {unknown} result
+   * @returns {unknown}
+   */
+  function startedTimerRecord(result) {
+    if (typeof result !== "object" || result === null || !Object.hasOwn(result, "timer")) {
+      return null;
+    }
+
+    return /** @type {Record<string, unknown>} */ (result).timer || null;
+  }
+
+  /** @param {TimerTaskOption} task @returns {Promise<unknown>} */
   function startTaskTimer(task) {
     const api = requireApi();
     const now = new Date().toISOString();
@@ -361,12 +591,16 @@
       active_task_timer_id: "",
       accumulated_elapsed_seconds: 0,
       billable: workspaceBillableValue(),
-      description: fields.description.value.trim(),
+      description: requireTimerValue(fields.description, "description field").value.trim(),
       last_active_start_time: now,
       timer_status: "running",
     });
   }
 
+  /**
+   * @param {{ client: NormalizedClientOption | undefined, project: NormalizedProjectOption }} selection
+   * @returns {Promise<unknown>}
+   */
   function startManualTimer({ client, project }) {
     const api = requireApi();
     const timerSlot = nextManualTimerSlot();
@@ -380,7 +614,7 @@
       billable: workspaceBillableValue(),
       client_id: client?.isWorkspaceScope ? "" : client?.id || "",
       client_name: client?.isWorkspaceScope ? "" : client?.name || "",
-      description: fields.description.value.trim(),
+      description: requireTimerValue(fields.description, "description field").value.trim(),
       last_active_start_time: new Date().toISOString(),
       project_id: project.id,
       project_name: project.name,
@@ -389,6 +623,7 @@
     });
   }
 
+  /** @param {unknown} result @returns {Promise<void>} */
   async function notifyTimerStarted(result) {
     const detail = {
       actionId: TIMER_ACTION_ID,
@@ -421,35 +656,42 @@
 
     const workspaceClient = clients.find((client) => client.isWorkspaceScope);
     if (workspaceClient) {
-      fields.client.value = workspaceClient.id;
+      requireTimerValue(fields.client, "client select").value = workspaceClient.id;
       populateProjectOptions();
     }
   }
 
   function updateBillableDefault() {
+    const billable = requireTimerValue(fields.billable, "billable select");
+
     if (!workspaceUsesBillableFlag()) {
-      fields.billable.value = "no";
+      billable.value = "no";
       return;
     }
 
-    const client = getClient(fields.client.value);
-    const project = getProject(fields.client.value, fields.project.value);
+    const clientId = requireTimerValue(fields.client, "client select").value;
+    const client = getClient(clientId);
+    const project = getProject(clientId, requireTimerValue(fields.project, "project select").value);
     const billableSource = project || client;
-    fields.billable.value = billableSource?.billable === "no" ? "no" : "yes";
+    billable.value = billableSource?.billable === "no" ? "no" : "yes";
   }
 
+  /** @param {string} clientId @returns {NormalizedClientOption | undefined} */
   function getClient(clientId) {
     return clients.find((client) => client.id === clientId);
   }
 
+  /** @param {string} clientId @param {string} projectId @returns {NormalizedProjectOption | null} */
   function getProject(clientId, projectId) {
     return getClient(clientId)?.projects.find((project) => project.id === projectId) || null;
   }
 
+  /** @param {string} taskId @returns {TimerTaskOption | null} */
   function getTask(taskId) {
     return taskOptions.find((task) => task.id === taskId) || null;
   }
 
+  /** @param {TimerTaskOption} task @returns {string} */
   function findClientIdForTask(task) {
     const taskClientId = task.client_id || "";
     if (taskClientId) {
@@ -465,19 +707,21 @@
     ))?.id || "";
   }
 
+  /** @param {unknown} data @returns {TimerTaskOption[]} */
   function normalizeTaskOptions(data) {
-    return Array.isArray(data?.options?.tasks)
-      ? data.options.tasks
-          .filter((task) => task?.id && task?.status !== "complete" && task?.status !== "archived")
-          .map((task) => ({
-            client_id: task.client_id || "",
-            id: task.id || task.task_id,
-            label: task.label || task.title || "Untitled Task",
-            optionLabel: task.optionLabel || task.displayName || task.label || "Untitled Task",
-            project_id: task.project_id || "",
-            status: task.status || "open",
-          }))
-      : [];
+    return taskOptionRows(data)
+      .filter((task) => {
+        const status = readText(task, "status");
+        return readText(task, "id", "task_id") && status !== "complete" && status !== "archived";
+      })
+      .map((task) => ({
+        client_id: readText(task, "client_id"),
+        id: readText(task, "id", "task_id"),
+        label: readText(task, "label", "title") || "Untitled Task",
+        optionLabel: readText(task, "optionLabel", "displayName", "label") || "Untitled Task",
+        project_id: readText(task, "project_id"),
+        status: readText(task, "status") || "open",
+      }));
   }
 
   // Every page that loads this controller also loads `js/shared/client-project-options.js`,
@@ -492,10 +736,12 @@
     return clientProjectOptions;
   }
 
+  /** @param {NormalizedClientOption} client @returns {string} */
   function clientOptionLabel(client) {
     return requireClientProjectOptions().optionLabel(client);
   }
 
+  /** @param {NormalizedProjectOption} project @returns {string} */
   function projectOptionLabel(project) {
     return requireClientProjectOptions().optionLabel(project);
   }
@@ -510,13 +756,16 @@
   }
 
   function workspaceBillableValue() {
-    return workspaceUsesBillableFlag() && fields.billable.value === "yes" ? "yes" : "no";
+    return workspaceUsesBillableFlag()
+      && requireTimerValue(fields.billable, "billable select").value === "yes" ? "yes" : "no";
   }
 
+  /** @param {string} value @param {string} text @returns {HTMLOptionElement} */
   function createOption(value, text) {
     return requirePageController().createOption(value, text);
   }
 
+  /** @param {string} message @param {{ isError?: boolean }} [options] @returns {void} */
   function setStatus(message, options = {}) {
     if (fields.status) {
       fields.status.textContent = message || "";
