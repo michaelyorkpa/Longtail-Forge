@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.40.18
+
+**Model: High Effort** - preserve strict input validation while confining display failure to the unreadable row or summary.
+
+- Baseline: `f37c1f1366a43face0d1f33ccf118489dfdd5261`, clean worktree and fresh `agent/0.33.33-codex-row-degradation`. Package files match the previous baseline; no install or dependency edit.
+- Scope: return `null` from `linkItem` and an empty summary from `notePrimaryContextSummary` when their existing predicates reject display data. Reuse `linkRecordNodes`' existing null filtering and empty state; keep readable rows, their order, URLs, identities and actions. The nine `.40.17` functions start at zero within **140 Notes / 6,044 browser** diagnostics.
+- Construction faults remain strict: `modalFieldOptions` still throws for a malformed option list. Those entries define the manifest's controls at construction; silently deleting one could alter available workflow choices. Display rows, by contrast, are independently optional context beside a readable note.
+- Correct the local tuple declaration to `[string, string, ...unknown[]]`: only the first two values are validated, while trailing metadata is preserved without claiming its type. The actual manifest's `["active", "Active", true]` filter tuple and longer compatibility tuples retain identity and all members. The forwarding `workspaceVisibilityOptions` annotation must carry the same width; its filter now infers the producer's type rather than reasserting two members. No shared contract changes.
+- [x] Branch-local diagnostics are unchanged: all nine functions **0 to 0**, Notes **140 to 140**, Notes-owned **117 to 117** (97 parameter / 6 state / 14 assorted), browser **6,044 to 6,044**. Regeneration leaves the ledger byte-identical. Other owners, unknown and namespace remain unchanged; server/tests, scripts, declarations and explicit-any remain zero.
+- [x] Lifted proof: the existing suite now has **16 cases**, including direct predicate rejection, row-level omission, surviving row order and the unreadable-only empty state. The visibility suite also passes (**24 focused cases**). `check:fast` passes **149 unit files / 2,859 tests** and lint.
+- [x] The existing harness catches **79/79**, zero inert: all previous 74 breaks plus both reinstated throws, unreadable summary/row rendering and retained null rows. Existing breaks still catch loosening each of the three predicates. Every mutant passes `node --check` before it can count; the per-case and outer `finally` blocks restore SHA-256 **`ed938ab4095edaf9b1f7b01b64b6cf6add9a1d70ab8d343b74ff830a4b67312f`**. No break was withdrawn or re-aimed in this child.
+- [x] Rendered proof on isolated **8102**: **5/5**, two cases on desktop/mobile plus setup. The expanded existing spec corrupts only its page's delivered display data, keeps real saved links and checks the server data stayed unchanged. One unreadable link leaves Primary Context and the readable row; unreadable primary context leaves the readable row; wholly unreadable context renders the original empty state while the note title/body and active form remain visible. The previous active/archive/restore and tuple/record option proofs still execute. No page errors, horizontal overflow or fixture leaks; screenshots reviewed.
+- Final delivery gate: canonical `verify:slice` with `LTF_REGRESSION_BASE_SHA=f37c1f1366a43face0d1f33ccf118489dfdd5261` against the finished tree, then full-range `checkpoint:validate` and normal feature-branch push. Exact-HEAD results accompany delivery.
+
+Excluded: all predicate runtime logic is unchanged, as are `requireNoteFromEnvelope`, `isNoteRecord`, `NotesEditorSeed`, the `.40.16` identity readers, server/shared contracts, and the entire stylesheet (including the completed Notes hidden-form rule). No regression script is added. Standing Notes exclusions remain outside this corrective boundary. Durable documentation is deferred to version closeout; Claude retains sole integration ownership.
+
 ## Version 0.33.33.44.22 - Restore the hidden state for five label-wrapped controls
 
 **Model: High Effort** - a rendering repair found by a typing checkpoint, fixed where the fault actually was rather than where it was noticed.

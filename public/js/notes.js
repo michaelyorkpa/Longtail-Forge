@@ -1980,7 +1980,7 @@
    * tuple metadata or inventing a stricter shared option contract.
    * @param {Partial<import("../../src/types/framework-contracts.js").ViewModalDescriptor>} modal
    * @param {string} fieldName
-   * @returns {Array<[string, string]>}
+   * @returns {Array<[string, string, ...unknown[]]>}
    */
   function modalFieldOptions(modal, fieldName) {
     const field = (modal.fields || []).find((entry) => entry.field === fieldName);
@@ -1992,7 +1992,7 @@
     });
   }
 
-  /** @param {unknown} value @returns {value is [string, string]} */
+  /** @param {unknown} value @returns {value is [string, string, ...unknown[]]} */
   function isNoteFieldOptionPair(value) {
     return Array.isArray(value) && typeof value[0] === "string" && typeof value[1] === "string";
   }
@@ -3411,15 +3411,15 @@
 
   /**
    * Notes-owned manifest visibility entries are string value/label pairs; the
-   * workspace projection only filters them and modalFieldOptions preserves pairs.
-   * @returns {Array<[string, string]>}
+   * workspace projection only filters them and preserves trailing option metadata.
+   * @returns {Array<[string, string, ...unknown[]]>}
    */
   function workspaceVisibilityOptions() {
     if (normalizeWorkspaceType(state.workspaceType) === "personal") {
       return [];
     }
     return modalFieldOptions(notesEditorModalDescriptor(), "visibility")
-      .filter(/** @param {[string, string]} option */ ([value]) => value !== "client_visible" || usesBusinessScope());
+      .filter(([value]) => value !== "client_visible" || usesBusinessScope());
   }
 
   /**
@@ -5001,7 +5001,7 @@
     if (!isResponseRecord(context)
       || (context.client != null && !isNoteContextLabel(context.client))
       || (context.project != null && !isNoteContextLabel(context.project))) {
-      throw new Error("Notes primary context contains an unreadable label.");
+      return "";
     }
     const parts = [];
 
@@ -5030,7 +5030,7 @@
   /** @param {BrowserNoteRecord} note @param {unknown} link */
   function linkItem(note, link) {
     const view = requireView();
-    if (!isNoteLinkDisplay(link)) throw new Error("Notes linked context contains an unreadable record.");
+    if (!isNoteLinkDisplay(link)) return null;
     const sourceUrl = link.sourceUrl || link.source_url || "";
     const targetType = link.targetType || link.target_type || "";
     /** @type {Readonly<Partial<Record<string, string>>>} */
