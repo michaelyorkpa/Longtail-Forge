@@ -154,6 +154,41 @@ managedServerTest("Notes links use real directory identities and authoritative p
     const restoredDetail = await api.get(`/api/notes/${noteId}`); expect(restoredDetail.status()).toBe(200);
     expect((await restoredDetail.json()).note.links.map((/** @type {{label: string}} */ link) => link.label)).toEqual([targetTitle]);
     await page.screenshot({ path: testInfo.outputPath("linked-context-restored.png") });
+    // Corrupt only this page's delivered display data. The saved note, real link,
+    // permissions and writes remain authoritative and unchanged on the server.
+    let displayCase = "one-link";
+    let delivered = 0;
+    await page.route(`**/api/notes/${noteId}`, async (route) => {
+      const response = await route.fetch(); expect(response.status(), await response.text()).toBe(200);
+      const body = await response.json(); expect(body.note.note_id).toBe(noteId); expect(body.note.links).toHaveLength(1);
+      const unreadable = { ...body.note.links[0], label: { privateMarker: "UNREADABLE LINK" } };
+      if (displayCase === "one-link") body.note.links.push(unreadable);
+      else {
+        body.note.linked_context = "UNREADABLE PRIMARY CONTEXT";
+        if (displayCase === "all-context") body.note.links = [unreadable];
+      }
+      delivered += 1; await route.fulfill({ response, json: body });
+    });
+    for (displayCase of ["one-link", "primary", "all-context"]) {
+      const before = delivered;
+      await page.reload(); await expect(panel).toBeVisible(); await panel.locator(":scope > summary").click();
+      expect(delivered).toBeGreaterThan(before);
+      await expect(page.locator("[data-note-detail] h2")).toHaveText(`Linked note ${suffix}`);
+      await expect(page.locator("[data-note-detail] .notes-rendered-body")).toHaveText("Linked context proof");
+      await expect(page.locator("[data-note-detail]")).not.toContainText("UNREADABLE");
+      await expect(form).toBeVisible();
+      await expect(panel.locator(".notes-link-item")).toHaveCount(displayCase === "one-link" ? 2 : displayCase === "primary" ? 1 : 0);
+      if (displayCase === "one-link") await expect(primary).toContainText(projectName);
+      else await expect(primary).toHaveCount(0);
+      if (displayCase === "all-context") await expect(panel.locator(".notes-empty-state")).toHaveText("No linked context.");
+      else await expect(panel.getByRole("link", { name: targetTitle })).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`linked-context-degraded-${displayCase}.png`), fullPage: true });
+    }
+    await page.unroute(`**/api/notes/${noteId}`);
+    const unchanged = await api.get(`/api/notes/${noteId}`); expect(unchanged.status()).toBe(200);
+    const unchangedNote = (await unchanged.json()).note;
+    expect(unchangedNote.links.map((/** @type {{label: string}} */ link) => link.label)).toEqual([targetTitle]);
+    expect(unchangedNote.linked_context.project.label).toBe(projectName);
     expect(await page.evaluate(() => (document.scrollingElement?.scrollWidth || 0) <= window.innerWidth + 1)).toBe(true);
     expect(errors).toEqual([]);
   } finally {
