@@ -400,6 +400,7 @@
         "tests/mutations/user-admin-memberships-and-rows.breaks.mjs",
         "tests/mutations/user-admin-permission-matrix.breaks.mjs",
         "tests/mutations/user-admin-role-assignments.breaks.mjs",
+        "tests/mutations/user-settings-preferences.breaks.mjs",
         "tests/time-tracking/time-tracking-billing.test.mjs",
         "tests/typecheck/browser-database-boundary.fixture.mjs",
         "tests/typecheck/client-project-contracts.fixture.mjs",
@@ -540,6 +541,7 @@
         "tests/unit/user-list-response-contracts.test.mjs",
         "tests/unit/user-record-contract.test.mjs",
         "tests/unit/user-settings-contracts.test.mjs",
+        "tests/unit/user-settings-preferences-contracts.test.mjs",
         "tests/unit/work-candidate-query-edge.test.mjs",
         "tests/unit/work-candidate-ranking.test.mjs",
         "tests/unit/workbench-bootstrap-contracts.test.mjs",
@@ -645,7 +647,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 6044,
+      "errorCount": 5898,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1735,36 +1737,6 @@
             "count": 5
           }
         ],
-        "public/js/user-settings.js": [
-          {
-            "code": 18047,
-            "count": 44
-          },
-          {
-            "code": 2339,
-            "count": 56
-          },
-          {
-            "code": 2551,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 9
-          },
-          {
-            "code": 7006,
-            "count": 31
-          },
-          {
-            "code": 7034,
-            "count": 4
-          },
-          {
-            "code": 7053,
-            "count": 1
-          }
-        ],
         "public/js/workbench.js": [
           {
             "code": 18047,
@@ -2461,8 +2433,8 @@
     }
   },
   "totals": {
-    "files": 1226,
-    "errors": 6044,
+    "files": 1228,
+    "errors": 5898,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
