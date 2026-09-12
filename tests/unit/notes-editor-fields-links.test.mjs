@@ -69,6 +69,10 @@ describe("Notes editor field constructors and linked-context panel", () => {
 
   it("retains tuple identity and metadata and reads the record vocabulary emitted by the shared field normalizer", () => {
     const { api } = fixture();
+    const manifestTuple = manifest.filters.find((/** @type {{field: string}} */ field) => field.field === "status").options[0];
+    assert.deepEqual(plain(manifestTuple), ["active", "Active", true]);
+    const preserved = api.modalFieldOptions({ fields: [{ field: "status", options: [manifestTuple] }] }, "status");
+    assert.strictEqual(preserved[0], manifestTuple); assert.equal(preserved[0][2], true);
     const tuple = ["private", "Private", true, { opaque: true }];
     const records = api.normalizeFieldOptions([["public", "Public"], ["internal", "Internal"]]);
     const options = [tuple, ...records, {}, { value: "fallback" }, { label: "Label only" }, { value: null, label: null }, { value: "v", label: "" }];
@@ -138,9 +142,15 @@ describe("Notes editor field constructors and linked-context panel", () => {
     assert.equal(api.notePrimaryContextSummary(), ""); assert.equal(api.notePrimaryContextSummary({ linked_context: { client: null, project: null } }), "");
   });
 
-  it("does not declare opaque or malformed context labels to be strings", () => {
+  it("omits an unreadable primary summary while keeping the context-label predicate strict", () => {
     const { api } = fixture();
-    for (const context of ["bad", [], { client: "bad" }, { project: [] }, { client: { label: 4 } }, { project: { label: {} } }]) assert.throws(() => api.notePrimaryContextSummary({ linked_context: context }), /unreadable label/);
+    for (const context of ["bad", [], { client: "bad" }, { project: [] }, { client: { label: 4 } }, { project: { label: {} } }]) {
+      const note = { client_id: "c", project_id: "p", linked_context: context };
+      assert.doesNotThrow(() => api.notePrimaryContextSummary(note));
+      assert.equal(api.notePrimaryContextSummary(note), ""); assert.equal(api.notePrimaryContextItem(note), null);
+    }
+    for (const label of [null, [], "bad", { label: 4 }, { label: false }, { label: null }, { label: {} }]) assert.equal(api.isNoteContextLabel(label), false);
+    for (const label of [{}, { label: undefined }, { label: "" }, { label: "Readable" }]) assert.equal(api.isNoteContextLabel(label), true);
   });
 
   it("renders camel and stored-link aliases, URL precedence, fallback labels and exact removal identities", async () => {
@@ -159,10 +169,38 @@ describe("Notes editor field constructors and linked-context panel", () => {
     assert.equal(api.linkItem(note, { targetType: "project", target_type: "task" }).querySelector("small").textContent, "Project");
   });
 
-  it("refuses unreadable stored-link members without invoking removal", () => {
+  it("skips unreadable stored-link members without loosening the reader or invoking removal", () => {
     const { api, calls } = fixture();
-    for (const link of [null, [], "bad", { sourceUrl: {} }, { source_url: 4 }, { label: false }, { targetType: 4 }, { target_type: [] }, { subtitle: {} }, { noteLinkId: 4 }, { note_link_id: false }]) assert.throws(() => api.linkItem({ status: "active" }, link), /unreadable record/);
+    for (const link of [null, [], "bad", { sourceUrl: {} }, { source_url: 4 }, { label: false }, { targetType: 4 }, { target_type: [] }, { subtitle: {} }, { noteLinkId: 4 }, { note_link_id: false }]) {
+      assert.equal(api.isNoteLinkDisplay(link), false);
+      assert.doesNotThrow(() => api.linkItem({ status: "active" }, link));
+      assert.equal(api.linkItem({ status: "active" }, link), null);
+    }
     assert.deepEqual(calls, []);
+  });
+
+  it("renders remaining linked rows in order and uses the existing empty state when all context is unreadable", async () => {
+    const { api, context } = fixture();
+    const valid = [{ label: "First", sourceUrl: "/first" }, { label: "Last", source_url: "/last" }];
+    const unreadable = { label: { secret: "must not render" }, sourceUrl: "/bad" };
+    /** @type {Pick<import("../../src/types/browser-contracts.js").BrowserNoteRecord, "note_id" | "status" | "client_id" | "linked_context" | "links">} */
+    const note = { note_id: "n", status: "active", client_id: "c", linked_context: { client: { label: "Client" } }, links: [valid[0], unreadable, valid[1]] };
+    assert.doesNotThrow(() => api.renderLinksPanel(note));
+    let panel = api.renderLinksPanel(note);
+    assert.deepEqual(Array.from(panel.querySelector(".notes-link-list").children, (/** @type {import("../../scripts/test-support/fake-dom.mjs").FakeElement} */ row) => row.querySelector(".notes-link-item-label").children[0].textContent), ["Primary Context", "First", "Last"]);
+    note.linked_context = { client: { label: { secret: "must not render" } } };
+    assert.equal(api.linkRecordNodes(note).length, 2);
+    panel = api.renderLinksPanel(note);
+    assert.equal(panel.querySelector(".notes-primary-context-row"), null);
+    assert.deepEqual(Array.from(panel.querySelector(".notes-link-list").children, (/** @type {import("../../scripts/test-support/fake-dom.mjs").FakeElement} */ row) => row.querySelector("a").getAttribute("href")), ["/first", "/last"]);
+    note.links = [unreadable]; context.descriptor.emptyState.message = "No readable context";
+    panel = api.renderLinksPanel(note);
+    assert.equal(panel.querySelector(".notes-link-list").children.length, 1);
+    assert.ok(panel.querySelector(".notes-empty-state"), "Unreadable-only context must retain the existing empty state");
+    assert.equal(panel.querySelector(".notes-empty-state").textContent, "No readable context");
+    assert.equal(panel.querySelector("[data-note-link-form]").hidden, false);
+    assert.strictEqual(note.links[0], unreadable);
+    await setImmediate();
   });
 
   it("projects only the three established target identity members and preserves optional defaults", () => {
