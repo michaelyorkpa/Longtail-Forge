@@ -1537,6 +1537,22 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 6,044 to 5,898**, params 3,873 to 3,816, `dom` 722 to 625, state 1,355 to 1,336, assorted 122 to 121. `0.33.33.44` 1,028 to 979. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.24 - Time Tracking timer dialog, and the file reaches zero
+
+**Complete: 124 diagnostics, and `public/js/time-tracking-timer-dialog.js` reaches zero** - the sixth file in this lane to close outright, and the densest yet at 124 in 566 lines. See the archive entry.
+
+**Measuring first found a different shape than the previous files.** Half the debt - 50 of 63 missing-property diagnostics - belonged to a single `let fields = {}`, a record of nine controls. Declaring that record, and the four state slots beside it, settled most of the file; `state` alone falls 1,336 to 1,245.
+
+**This dialog authors its own markup, so the subtypes were read rather than probed.** `dialogMarkup` is in this file, which made every one of the nine subtypes a fact already in the source - a `<textarea>` for the description, a `<label>` for the billable control, four `<select>`s.
+
+**A first attempt was withdrawn mid-checkpoint.** Routing the four host callbacks through a checked reader broke `module-actions-regression`, and the reader was also less faithful: `host?.complete?.(...)` throws when a member exists but is not callable, where a reader answering null would have silently skipped. The defensive `?.` spelling is kept and the host typed file-locally with every member optional - which honours `0.33.33.38.2.2.6.4.1`'s withdrawal of the published host contract rather than reinstating it.
+
+**Three sibling contracts refused `fields.X` spellings, and all three were updated rather than worked around.** The billable default, the manual-timer start and the billable-hide claims are behavioural; the acquisition moved and the behaviour did not. Each pin now names the new spelling with a note saying which changed.
+
+**55 breaks, 55 caught, zero inert.** Three were inert on the first run: two were assertion gaps - the surface is queried at two sites and pinning one left the other free, and a requested task the filter drops needed its own case - and one was withdrawn, because the fake DOM coalesces `textContent` through `String(value ?? "")` and cannot see a nullish message reach it.
+
+**Measured: browser 5,898 to 5,774**, state 1,336 to 1,245, params 3,816 to 3,785, `dom` 625 to 623. `0.33.33.44` 979 to 857. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
