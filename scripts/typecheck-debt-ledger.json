@@ -394,6 +394,7 @@
         "tests/mutations/time-entries-loader-policy.breaks.mjs",
         "tests/mutations/time-entries-rendering.breaks.mjs",
         "tests/mutations/time-entry-dialog-corrections.breaks.mjs",
+        "tests/mutations/timer-dialog-options.breaks.mjs",
         "tests/mutations/user-admin-add-user.breaks.mjs",
         "tests/mutations/user-admin-edit-user.breaks.mjs",
         "tests/mutations/user-admin-managed-sessions.breaks.mjs",
@@ -531,6 +532,7 @@
         "tests/unit/time-entry-dialog-normalizer-contracts.test.mjs",
         "tests/unit/time-entry-dialog-round-trip-contracts.test.mjs",
         "tests/unit/time-entry-save-contracts.test.mjs",
+        "tests/unit/timer-dialog-options-contracts.test.mjs",
         "tests/unit/user-admin-add-user-contracts.test.mjs",
         "tests/unit/user-admin-bootstrap-contracts.test.mjs",
         "tests/unit/user-admin-edit-user-contracts.test.mjs",
@@ -647,7 +649,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 5898,
+      "errorCount": 5774,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1711,32 +1713,6 @@
             "count": 2
           }
         ],
-        "public/js/time-tracking-timer-dialog.js": [
-          {
-            "code": 18047,
-            "count": 13
-          },
-          {
-            "code": 2339,
-            "count": 63
-          },
-          {
-            "code": 7005,
-            "count": 20
-          },
-          {
-            "code": 7006,
-            "count": 21
-          },
-          {
-            "code": 7031,
-            "count": 2
-          },
-          {
-            "code": 7034,
-            "count": 5
-          }
-        ],
         "public/js/workbench.js": [
           {
             "code": 18047,
@@ -2433,8 +2409,8 @@
     }
   },
   "totals": {
-    "files": 1228,
-    "errors": 5898,
+    "files": 1230,
+    "errors": 5774,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
