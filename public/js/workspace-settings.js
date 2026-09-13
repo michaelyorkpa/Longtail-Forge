@@ -9,18 +9,18 @@
   const auditLoggingEnabledInput = findInput("[data-audit-logging-enabled]");
   const auditRetentionDaysSelect = findSelect("[data-audit-retention-days]");
   const openWorkspaceUsersButton = document.querySelector("[data-open-workspace-users]");
-  const workspaceUsersDialog = document.querySelector("[data-workspace-users-dialog]");
-  const workspaceUsersList = document.querySelector("[data-workspace-users-list]");
+  const workspaceUsersDialog = findDialog("[data-workspace-users-dialog]");
+  const workspaceUsersList = findElement("[data-workspace-users-list]");
   const closeWorkspaceUsersButton = document.querySelector("[data-close-workspace-users]");
   const workspaceSettingsStatus = findElement("[data-workspace-settings-status]");
   const runtimeDiagnosticsSummary = findElement("[data-runtime-diagnostics-summary]");
   const runtimeDiagnosticsWarnings = document.querySelector("[data-runtime-diagnostics-warnings]");
   const jobObservabilitySummary = findElement("[data-job-observability-summary]");
   const jobObservabilityFailures = findElement("[data-job-observability-failures]");
-  const jobObservabilityMoreButton = document.querySelector("[data-job-observability-more]");
+  const jobObservabilityMoreButton = findButton("[data-job-observability-more]");
   const workspaceBackupSummary = document.querySelector("[data-workspace-backup-summary]");
   const workspaceBackupStatus = findElement("[data-workspace-backup-status]");
-  const createWorkspaceBackupButton = document.querySelector("[data-create-workspace-backup]");
+  const createWorkspaceBackupButton = findButton("[data-create-workspace-backup]");
   const workspaceDeletionSummary = findElement("[data-workspace-deletion-summary]");
   const workspaceDeletionStatus = findElement("[data-workspace-deletion-status]");
   const openWorkspaceDeletionButton = findButton("[data-open-workspace-deletion]");
@@ -44,8 +44,11 @@
    */
   let jobObservabilityFailureItems = [];
   let jobObservabilityNextCursor = "";
+  /** @type {unknown} */
   let settingsCatalog = null;
+  /** @type {BrowserWorkspaceDeletionState | null} */
   let workspaceDeletionState = null;
+  /** @type {"request" | "cancel"} */
   let workspaceDeletionDialogMode = "request";
   const settingsPageController = requireSettingsPageController().create({
     root: document.querySelector("[data-settings-host='workspace']"),
@@ -442,7 +445,10 @@
       }
 
       settingsCatalog = catalog;
-      activeWorkspaceId = settings.workspaceId || settings.workspace_id || "";
+      // `normalizeSettings` already reads both spellings and answers one trimmed `workspaceId`,
+      // so the second alternative here could never be reached: the object it reads from has no
+      // such member. The remaining `|| ""` is what the normalizer's own empty answer falls to.
+      activeWorkspaceId = settings.workspaceId || "";
       requireWorkspaceNameInput().value = settings.workspaceName;
       setWorkspaceTypeValue(settings.workspaceType);
       renderModuleSettings(settingsCatalog);
@@ -696,12 +702,13 @@
     } catch (error) {
       requireOpenWorkspaceDeletionButton().hidden = true;
       requireOpenWorkspaceDeletionCancelButton().hidden = true;
-      renderWorkspaceDeletionMessage(error?.status === 403
+      renderWorkspaceDeletionMessage(requireErrors().caughtStatus(error) === 403
         ? "Workspace deletion requires a Workspace Administrator or Super Admin."
-        : error?.message || "Workspace deletion state could not be loaded.", "error");
+        : requireErrors().caughtMessage(error, "Workspace deletion state could not be loaded."), "error");
     }
   }
 
+  /** @param {BrowserWorkspaceDeletionState | null} deletion @param {string} [placeholder] */
   function renderWorkspaceDeletionSummary(deletion, placeholder = "This workspace is not pending deletion.") {
     if (!workspaceDeletionSummary) return;
     workspaceDeletionState = deletion;
@@ -728,11 +735,18 @@
     renderWorkspaceDeletionMessage("The workspace remains fully operational during the grace period. Cancel before the displayed time to restore its normal lifecycle state.", "warning");
   }
 
+  /** @param {"request" | "cancel"} mode */
   function openWorkspaceDeletionDialog(mode) {
     if (!workspaceDeletionDialog || !workspaceDeletionState) return;
     workspaceDeletionDialogMode = mode;
     const canceling = mode === "cancel";
-    requireWorkspaceDeletionDialog().querySelector(".view-modal-title").textContent = canceling ? "Cancel Workspace Deletion" : "Delete Workspace";
+    // `view.createModal` always builds the title element, so this reads through rather than
+    // guarding: an absent title leaves the heading alone instead of throwing mid-dialog, which
+    // is what the untyped read did only by accident of the element always being there.
+    const deletionDialogTitle = requireWorkspaceDeletionDialog().querySelector(".view-modal-title");
+    if (deletionDialogTitle) {
+      deletionDialogTitle.textContent = canceling ? "Cancel Workspace Deletion" : "Delete Workspace";
+    }
     requireWorkspaceDeletionDialogExplanation().textContent = canceling
       ? `Cancel the pending deletion of ${workspaceDeletionState.workspaceName}. Its data and access remain unchanged.`
       : `Schedule ${workspaceDeletionState.workspaceName} for deletion after a 30-day grace period. Sessions, memberships, navigation, modules, jobs, Files, Search, and notifications remain operational during the grace period.`;
@@ -772,12 +786,13 @@
       renderWorkspaceDeletionSummary(deletion);
       await requireNamespace().refreshAppShell?.();
     } catch (error) {
-      requireWorkspaceDeletionDialogStatus().textContent = error?.message || "Workspace deletion state could not be changed.";
+      requireWorkspaceDeletionDialogStatus().textContent = requireErrors().caughtMessage(error, "Workspace deletion state could not be changed.");
     } finally {
       requireConfirmWorkspaceDeletionButton().disabled = false;
     }
   }
 
+  /** @param {string} message @param {"info" | "warning" | "error"} [type] */
   function renderWorkspaceDeletionMessage(message, type = "info") {
     if (!workspaceDeletionStatus) return;
     workspaceDeletionStatus.replaceChildren();
@@ -788,6 +803,7 @@
     workspaceDeletionStatus.appendChild(note);
   }
 
+  /** @param {BrowserWorkspaceBackupReceipt | null} backup @param {string} [placeholder] */
   function renderWorkspaceBackupSummary(backup, placeholder = "No workspace backup has been created yet.") {
     if (!workspaceBackupSummary) return;
     workspaceBackupSummary.replaceChildren();
@@ -808,13 +824,15 @@
       : "The package contains no Secure Notes key material.");
   }
 
+  /** @param {unknown} error */
   function renderWorkspaceBackupError(error) {
-    const message = error?.status === 403
+    const message = requireErrors().caughtStatus(error) === 403
       ? "Workspace backup requires a Workspace Administrator or Super Admin."
-      : error?.message || "Workspace backup could not be created.";
+      : requireErrors().caughtMessage(error, "Workspace backup could not be created.");
     renderWorkspaceBackupMessage(message, "error");
   }
 
+  /** @param {string} message @param {"info" | "error" | "success"} [type] */
   function renderWorkspaceBackupMessage(message, type = "info") {
     if (!workspaceBackupStatus) return;
     workspaceBackupStatus.replaceChildren();
@@ -825,6 +843,7 @@
     workspaceBackupStatus.appendChild(note);
   }
 
+  /** @param {unknown} value */
   function formatByteCount(value) {
     const bytes = Math.max(0, Number(value) || 0);
     if (bytes < 1024) return `${bytes} B`;
@@ -946,19 +965,27 @@
     }
   }
 
-  function normalizeSettings(settings) {
+  /**
+   * **The body is read as a record, through the predicate this page already carries.** A body
+   * that is not one answers the same canonical shape it always did - every member below reads
+   * through `?.` and falls back - so substituting an empty record reaches the identical result
+   * by a shorter path.
+   * @param {unknown} body the body `/api/settings` answered
+   */
+  function normalizeSettings(body) {
     // Keep one canonical client-side settings shape even when the API omits older fields.
-    const workspaceName = String(settings?.workspaceName || "").trim();
-    const workspaceType = normalizeWorkspaceType(settings?.workspaceType || settings?.workspace_type);
+    const settings = isCatalogRecord(body) ? body : {};
+    const workspaceName = String(settings.workspaceName || "").trim();
+    const workspaceType = normalizeWorkspaceType(settings.workspaceType || settings.workspace_type);
 
     return {
-      workspaceId: String(settings?.workspaceId || settings?.workspace_id || "").trim(),
+      workspaceId: String(settings.workspaceId || settings.workspace_id || "").trim(),
       workspaceName,
       workspaceType,
-      enabledModules: Array.isArray(settings?.enabledModules) ? settings.enabledModules : [],
-      moduleSettings: normalizeModuleSettings(settings?.moduleSettings, settings),
-      modules: Array.isArray(settings?.modules) ? settings.modules : [],
-      audit: normalizeAuditSettings(settings?.audit),
+      enabledModules: Array.isArray(settings.enabledModules) ? settings.enabledModules : [],
+      moduleSettings: normalizeModuleSettings(settings.moduleSettings, settings),
+      modules: Array.isArray(settings.modules) ? settings.modules : [],
+      audit: normalizeAuditSettings(settings.audit),
     };
   }
 
@@ -1279,12 +1306,13 @@
     renderRuntimeDiagnosticWarnings([]);
   }
 
+  /** @param {unknown} error */
   function renderRuntimeDiagnosticsError(error) {
     requireRuntimeDiagnosticsSummary().replaceChildren(createRuntimeDiagnosticItem("Runtime", "Unavailable"));
 
-    const message = error?.status === 403
+    const message = requireErrors().caughtStatus(error) === 403
       ? "Runtime diagnostics require workspace settings access."
-      : error?.message || "Runtime diagnostics could not be loaded.";
+      : requireErrors().caughtMessage(error, "Runtime diagnostics could not be loaded.");
     renderRuntimeDiagnosticWarnings([message]);
   }
 
@@ -1457,6 +1485,7 @@
     return isJobReadout(jobs) ? jobs : null;
   }
 
+  /** @param {{ append?: boolean, cursor?: string }} [options] */
   async function loadJobObservability(options = {}) {
     if (!jobObservabilitySummary || !jobObservabilityFailures) {
       return;
@@ -1501,12 +1530,13 @@
     updateJobObservabilityMoreButton(false);
   }
 
+  /** @param {unknown} error */
   function renderJobObservabilityError(error) {
     requireJobObservabilitySummary().replaceChildren(createRuntimeDiagnosticItem("Jobs", "Unavailable"));
 
-    const message = error?.status === 403
+    const message = requireErrors().caughtStatus(error) === 403
       ? "Job observability requires workspace settings access."
-      : error?.message || "Job observability could not be loaded.";
+      : requireErrors().caughtMessage(error, "Job observability could not be loaded.");
     const note = document.createElement("p");
     note.className = "job-observability-note";
     note.textContent = message;
@@ -1560,6 +1590,7 @@
     requireJobObservabilityFailures().appendChild(list);
   }
 
+  /** @param {BrowserJobFailureSummary} item */
   function createJobFailureRow(item) {
     const row = document.createElement("article");
     const header = document.createElement("div");
@@ -1586,6 +1617,7 @@
     return row;
   }
 
+  /** @param {boolean} show */
   function updateJobObservabilityMoreButton(show) {
     if (!jobObservabilityMoreButton) {
       return;
@@ -1595,6 +1627,7 @@
     jobObservabilityMoreButton.disabled = !show;
   }
 
+  /** @param {string} label @param {string} value */
   function createRuntimeDiagnosticItem(label, value) {
     const item = document.createElement("div");
     const labelElement = document.createElement("span");
@@ -1647,6 +1680,7 @@
     return [...runtimeWarnings, ...warnings];
   }
 
+  /** @param {readonly string[]} warnings */
   function renderRuntimeDiagnosticWarnings(warnings) {
     if (!runtimeDiagnosticsWarnings) {
       return;
@@ -1670,18 +1704,28 @@
     }
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserRuntimePathLocation} BrowserRuntimePathLocation */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserRuntimeStorageDiagnostics} BrowserRuntimeStorageDiagnostics */
+
+  /** @param {BrowserRuntimePathLocation | null} location */
   function formatRuntimeLocation(location) {
     return String(location?.display || "").trim() || "Unavailable";
   }
 
-  function formatStorageProvider(storage = {}) {
+  /** @param {BrowserRuntimeStorageDiagnostics} storage */
+  function formatStorageProvider(storage) {
     const provider = formatRuntimeValue(storage.provider);
     const status = formatStorageStatus(storage.health);
 
     return status === "Unavailable" ? provider : `${provider} (${status})`;
   }
 
-  function formatStorageStatus(health = {}) {
+  /**
+   * Both health records answer the same two questions, so this reads the pair they share
+   * rather than either published shape in full.
+   * @param {{ available: boolean | null, status: string }} health
+   */
+  function formatStorageStatus(health) {
     const status = String(health.status || "").trim().toLowerCase();
 
     if (status === "ok" || health.available === true) {
@@ -1695,7 +1739,8 @@
     return formatRuntimeValue(status);
   }
 
-  function formatScannerStatus(health = {}) {
+  /** @param {{ available: boolean | null, status: string }} health */
+  function formatScannerStatus(health) {
     const status = String(health.status || "").trim().toLowerCase();
 
     if (status === "disabled") {
@@ -1717,12 +1762,14 @@
     return formatRuntimeValue(status);
   }
 
+  /** @param {unknown} value */
   function formatRuntimeNumber(value) {
     const number = Number(value);
 
     return Number.isFinite(number) ? String(number) : "0";
   }
 
+  /** @param {unknown} value */
   function formatRuntimeDate(value) {
     const text = String(value || "").trim();
 
@@ -1745,6 +1792,7 @@
     });
   }
 
+  /** @param {unknown} values */
   function formatRuntimeList(values) {
     const items = Array.isArray(values)
       ? values.map((value) => String(value || "").trim()).filter(Boolean)
@@ -1753,12 +1801,14 @@
     return items.length > 0 ? items.join(", ") : "None";
   }
 
+  /** @param {unknown} value */
   function formatJobStatus(value) {
     const normalized = String(value || "").trim();
 
     return normalized === "dead" ? "Dead-letter" : formatRuntimeValue(normalized);
   }
 
+  /** @param {unknown} value */
   function formatRuntimeValue(value) {
     const normalized = String(value || "").trim();
 
@@ -1781,6 +1831,7 @@
       .join(" ");
   }
 
+  /** @param {unknown} moduleSettings @param {Record<string, unknown>} [settings] */
   function normalizeModuleSettings(moduleSettings, settings) {
     return requireSettingsRenderer().normalizeContributions(moduleSettings, {
       modules: settings?.modules,
@@ -1791,23 +1842,27 @@
     return requireSettingsRenderer().collectPayload(requireWorkspaceSettingsForm());
   }
 
+  /** @param {unknown} value */
   function normalizeWorkspaceType(value) {
     const workspaceType = String(value || "").trim();
     return ["business", "personal", "family"].includes(workspaceType) ? workspaceType : "business";
   }
 
+  /** @param {unknown} workspaceType */
   function setWorkspaceTypeValue(workspaceType) {
     if (workspaceTypeSelect) {
       workspaceTypeSelect.value = normalizeWorkspaceType(workspaceType);
     }
   }
 
-  function normalizeAuditSettings(audit) {
+  /** @param {unknown} value */
+  function normalizeAuditSettings(value) {
+    const audit = isCatalogRecord(value) ? value : {};
     const retentionOptions = [7, 14, 30, 60, 90, 180, 365];
-    const retentionDays = Number.parseInt(audit?.retentionDays, 10);
+    const retentionDays = Number.parseInt(String(audit.retentionDays ?? ""), 10);
 
     return {
-      loggingEnabled: audit?.loggingEnabled === false ? false : true,
+      loggingEnabled: audit.loggingEnabled === false ? false : true,
       retentionDays: retentionOptions.includes(retentionDays) ? retentionDays : 30,
     };
   }
@@ -1947,6 +2002,7 @@
     return users.every(isWorkspaceUserRecord) ? { currentUserId, users } : null;
   }
 
+  /** @param {readonly BrowserUserRecord[]} users */
   function renderWorkspaceUsers(users) {
     const activeUsers = users.filter((user) =>
       (user.workspaceMemberships || []).some((membership) =>
@@ -1954,10 +2010,11 @@
       ),
     );
 
-    workspaceUsersList.replaceChildren();
+    const usersList = requireWorkspaceUsersList();
+    usersList.replaceChildren();
 
     if (activeUsers.length === 0) {
-      workspaceUsersList.appendChild(createWorkspaceUsersPlaceholder("No users are assigned to this workspace."));
+      usersList.appendChild(createWorkspaceUsersPlaceholder("No users are assigned to this workspace."));
       return;
     }
 
@@ -1974,10 +2031,27 @@
         window.location.href = `user-admin.html?user=${encodeURIComponent(user.user_id)}`;
       });
       row.append(name, editButton);
-      workspaceUsersList.appendChild(row);
+      usersList.appendChild(row);
     });
   }
 
+  /**
+   * The workspace users list, required wherever the dialog draws into it.
+   *
+   * Checked at the use point like this page's other required controls, so a missing list raises
+   * at the same place the null dereference did - with a named error rather than "Cannot read
+   * properties of null". `openWorkspaceUsersDialog` still returns early when it is absent, so
+   * this only ever runs for a dialog that was opened.
+   * @returns {HTMLElement}
+   */
+  function requireWorkspaceUsersList() {
+    if (!workspaceUsersList) {
+      throw new Error("Workspace settings requires the workspace users list.");
+    }
+    return workspaceUsersList;
+  }
+
+  /** @param {string} message */
   function createWorkspaceUsersPlaceholder(message) {
     const placeholder = document.createElement("p");
 
@@ -1993,16 +2067,38 @@
     });
   }
 
+  /** @param {string} message */
   function setWorkspaceSettingsStatus(message) {
     requireStatusMessage().set(workspaceSettingsStatus, message);
   }
 
+  /**
+   * A caught member, read **without acquiring the namespace**.
+   *
+   * `requireErrors()` is the shared reader and every other handler on this page uses it. This one
+   * does not, because the branch it feeds is the expired-session redirect: keeping the recovery
+   * path free of namespace reads means it cannot be taken out by a load ordering that leaves any
+   * member missing, and it costs one small reader to keep that true.
+   *
+   * **`in` rather than `Object.hasOwn`**, because a thrown value may carry the member on its
+   * prototype - which is the rule `0.33.33.40.20` settled for caught values.
+   * @param {unknown} error
+   * @param {"status" | "message"} member
+   * @returns {unknown}
+   */
+  function caughtMember(error, member) {
+    return typeof error === "object" && error !== null && member in error
+      ? /** @type {Record<string, unknown>} */ (error)[member]
+      : undefined;
+  }
+
+  /** @param {unknown} error @param {string} fallbackMessage */
   function handleApiError(error, fallbackMessage) {
-    if (error?.status === 401) {
+    if (caughtMember(error, "status") === 401) {
       window.location.replace("/login.html");
       return;
     }
 
-    requireStatusMessage().set(workspaceSettingsStatus, error?.message || fallbackMessage, { type: "error" });
+    requireStatusMessage().set(workspaceSettingsStatus, String(caughtMember(error, "message") || fallbackMessage), { type: "error" });
   }
 })();
