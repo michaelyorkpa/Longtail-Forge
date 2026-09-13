@@ -4,6 +4,68 @@ import { expect, test } from "./support/isolated-workspace.mjs";
 import { usesManagedServer } from "./support/e2e-env.mjs";
 
 const managedTest = usesManagedServer ? test : test.skip;
+managedTest("Notes replace previous detail when a prompt or caught message is unreadable", async ({ isolatedWorkspace }, testInfo) => {
+  const { page, api } = isolatedWorkspace;
+  const title = `Prompt ${testInfo.project.name}-${randomUUID()}`;
+  let noteId = "";
+  /** @type {string[]} */ const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  // These private functions have no public invocation route for a non-string
+  // prompt now that the helper returns checked strings. Add test-only events to
+  // this page's delivered script, inside its real closure. Neither function nor
+  // its DOM mount is replaced: assertions inspect the actual selected-note panel.
+  await page.route(/\/js\/notes\.js(?:\?|$)/, async (route) => {
+    const response = await route.fetch(); expect(response.status()).toBe(200);
+    const source = await response.text(), end = source.lastIndexOf("})();");
+    expect(end).toBeGreaterThan(0);
+    const probe = `
+      document.addEventListener("notes-prompt-proof", (event) => {
+        if (event instanceof CustomEvent) renderDetailPrompt(event.detail);
+      });
+      document.addEventListener("notes-error-proof", (event) => {
+        if (event instanceof CustomEvent) renderDetailPrompt(safeNoteErrorMessage(event.detail, "Note could not be loaded."), { locked: isSecureError(event.detail) });
+      });
+    `;
+    await route.fulfill({ response, body: source.slice(0, end) + probe + source.slice(end) });
+  });
+  try {
+    const created = await api.post("/api/notes", { data: { title, bodyMarkdown: "Previous readable note body" } });
+    expect(created.status(), await created.text()).toBe(201);
+    const saved = (await created.json()).note; expect(typeof saved.note_id).toBe("string"); expect(saved.note_id.length).toBeGreaterThan(0); noteId = saved.note_id;
+    const detail = page.locator("[data-note-detail]");
+    const scenarios = [
+      { event: "notes-prompt-proof", value: { unreadable: true }, expected: "Note details could not be displayed.", locked: false },
+      { event: "notes-prompt-proof", value: null, expected: "Note details could not be displayed.", locked: false },
+      { event: "notes-prompt-proof", value: "<b>Literal failure</b>", expected: "<b>Literal failure</b>", locked: false },
+      { event: "notes-error-proof", value: { message: 42 }, expected: "Note could not be loaded.", locked: false },
+      { event: "notes-error-proof", value: { message: "Readable failure" }, expected: "Readable failure", locked: false },
+      { event: "notes-error-proof", value: { message: ["cipher", "SECRET"] }, expected: "Secure note is locked or could not be decrypted. Check secure-note access and server key configuration.", locked: true },
+    ];
+    for (const [index, scenario] of scenarios.entries()) {
+      await page.goto(`/notes.html?note=${encodeURIComponent(noteId)}`);
+      await expect(detail.locator("h2")).toHaveText(title);
+      await expect(detail.locator(".notes-rendered-body")).toHaveText("Previous readable note body");
+      await page.evaluate(({ event, value }) => document.dispatchEvent(new window.CustomEvent(event, { detail: value })), scenario);
+      const prompt = detail.locator(".notes-empty-state");
+      await expect(prompt).toBeVisible(); await expect(detail).toHaveText(scenario.expected);
+      await expect(detail.locator("h2, .notes-rendered-body, [data-note-action], b")).toHaveCount(0);
+      await expect(detail).not.toContainText(title); await expect(detail).not.toContainText("Previous readable note body");
+      await expect(detail.locator(".notes-locked-state")).toHaveCount(scenario.locked ? 1 : 0);
+      await expect(detail).not.toContainText("SECRET");
+      await page.screenshot({ path: testInfo.outputPath(`detail-prompt-${index}.png`), fullPage: true });
+    }
+    const persisted = await api.get(`/api/notes/${noteId}`); expect(persisted.status()).toBe(200);
+    expect((await persisted.json()).note.body_markdown).toBe("Previous readable note body");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(errors).toEqual([]);
+  } finally {
+    if (noteId) {
+      const deleted = await api.post(`/api/notes/${noteId}/delete`, { data: {} }); expect(deleted.status(), await deleted.text()).toBe(200);
+      expect((await deleted.json()).note.status).toBe("deleted");
+    }
+  }
+});
+
 managedTest("Notes preserve readable detail through revision restore, incomplete history and secure-row omission", async ({ isolatedWorkspace }, testInfo) => {
   const { page, api } = isolatedWorkspace;
   const title = `Revision ${testInfo.project.name}-${randomUUID()}`;

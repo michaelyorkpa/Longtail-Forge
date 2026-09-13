@@ -3179,8 +3179,8 @@
       setStatus("");
       return true;
     } catch (error) {
-      const message = safeNoteErrorMessage(error ?? {}, "Note could not be loaded.");
-      renderDetailPrompt(message, { locked: isSecureError(error ?? {}) });
+      const message = safeNoteErrorMessage(error, "Note could not be loaded.");
+      renderDetailPrompt(message, { locked: isSecureError(error) });
       setStatus(message, true);
       return false;
     }
@@ -3242,8 +3242,7 @@
       prompt.classList.add("notes-empty-state--sidebar-hint");
       prompt.append("Open the ", inlineFilterIcon(), " sidebar and select a note to view here.");
     } else {
-      if (typeof message !== "string") return;
-      prompt.textContent = message;
+      prompt.textContent = typeof message === "string" ? message : "Note details could not be displayed.";
     }
     requireNotesValue(detailPanel).replaceChildren(prompt);
   }
@@ -5263,7 +5262,7 @@
       else if (items.length === 0) items.push(emptyText("No revisions."));
       list.replaceChildren(...items);
     } catch (error) {
-      list.replaceChildren(emptyText(safeNoteErrorMessage(error ?? {}, "Revisions could not be loaded.")));
+      list.replaceChildren(emptyText(safeNoteErrorMessage(error, "Revisions could not be loaded.")));
     }
   }
 
@@ -5298,7 +5297,7 @@
         await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/revisions/${encodeURIComponent(revision.note_revision_id)}/restore`, {});
         await selectNote(note.note_id);
       } catch (error) {
-        setStatus(safeNoteErrorMessage(error ?? {}, "Revision could not be restored."), true);
+        setStatus(safeNoteErrorMessage(error, "Revision could not be restored."), true);
       }
     });
     item.append(title, meta, excerpt, restore);
@@ -6198,16 +6197,22 @@
     return securityInput?.value === "secure";
   }
 
+  /** @param {unknown} [error] @returns {boolean} */
   function isSecureError(error = {}) {
-    return /secure|decrypt|encrypt|cipher|crypto|key|nonce|auth|authenticate|unsupported state|payload/i.test(String(error?.message || error || ""));
+    const caught = error !== null && (typeof error === "object" || typeof error === "function") ? error : {};
+    const message = "message" in caught ? caught.message : undefined;
+    return /secure|decrypt|encrypt|cipher|crypto|key|nonce|auth|authenticate|unsupported state|payload/i.test(String(message || error || ""));
   }
 
+  /** @param {unknown} [error] @param {string} [fallback] @returns {string} */
   function safeNoteErrorMessage(error = {}, fallback = "Note action failed.") {
     if (isSecureError(error)) {
       return "Secure note is locked or could not be decrypted. Check secure-note access and server key configuration.";
     }
 
-    return error?.message || fallback;
+    const caught = error !== null && (typeof error === "object" || typeof error === "function") ? error : {};
+    const message = "message" in caught ? caught.message : undefined;
+    return typeof message === "string" && message ? message : fallback;
   }
 
   /**
