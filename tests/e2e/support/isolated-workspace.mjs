@@ -63,7 +63,7 @@ export async function createOwnedWorkspace(api, workspaceName) {
       return {
         workspaceName,
         workspaceType,
-        workspaceId: body.workspace?.workspace_id || body.workspaceId || "",
+        workspaceId: body.workspace?.workspace_id || body.workspace?.workspaceId || body.workspaceId || "",
       };
     }
     refusals.push(`${workspaceType}: ${attempt.status()} ${await attempt.text()}`);

@@ -1,5 +1,50 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.40.24
+
+**Model: High Effort** - measure the scattered Notes remainder, preserve checked note display and action contracts, and prove the authorized shared-fixture identity correction against the real route.
+
+- Baseline: `3ef849b46c3346fca6a300bd2eaac6b991e48e76`, fetched and branched from clean `origin/nightly` as `agent/0.33.33-codex-note-context-display`. Package files are unchanged; no install or dependency edit.
+- Measurement was reported before typing: **91 raw / 77 owned** across **57 named-function buckets**. No large cluster exists. The largest reported bucket is outer `attachNotesPage`, containing three separate module-action `open` callbacks with two diagnostics each; the largest actual body has three. The top ten, ties in source order, were:
+
+| Baseline function / bucket | Diagnostics | Baseline line |
+| --- | ---: | ---: |
+| `attachNotesPage` (three `open` callbacks) | 6 | 1154 / 1166 / 1178 |
+| `decorateNotesFilter` | 3 | 1736 |
+| `appendNotesQueryParam` | 3 | 2599 |
+| `setStatus` | 3 | 6294 |
+| `noteWorkflowActionButton` | 2 | 1306 |
+| `openNoteViewer` | 2 | 1366 |
+| `normalizeNoteEditorMode` | 2 | 1568 |
+| `notesOptionElement` | 2 | 1957 |
+| `noteFieldLabel` | 2 | 2001 |
+| `renderDetail` | 2 | 3199 |
+
+- Chosen surface: **note detail display and its action controls**, from the checked record through selected-note rendering, linked rows, the read-only viewer and edit/archive/restore controls. It connects more ready helpers than the smaller Files utility surface. The larger individual counts describe unrelated filter/query/status work; the editor context summaries cross other opaque stored shapes. Those remain separate boundaries rather than being collected for volume.
+
+| Chosen helper | Before | After |
+| --- | ---: | ---: |
+| `createNoteActionStrip` | 1 | 0 |
+| `detailActionButtons` | 1 | 0 |
+| `noteWorkflowActionButton` | 2 | 0 |
+| `openNoteViewer` | 2 | 0 |
+| `renderNoteViewError` | 1 | 0 |
+| `noteViewBodyElement` | 1 | 0 |
+| `noteViewEditAction` | 1 | 0 |
+| `renderDetail` | 2 | 0 |
+| `linkRecordNodes` | 2 | 0 |
+
+- Reused `BrowserNoteRecord`, `BrowserViewModalElement`, `ViewActionDescriptor` and `ViewDetailDescriptor.actionStrip`; no new response contract. The actual fallback action-strip producer establishes its declared label/actions/roles. Optional absent action behavior stays inert; order, archive/restore choice, disabled archived editing and the original note identity are retained. `noteViewErrorMessage` and the error renderer accept `unknown` at their own boundaries and use the unchanged thrown-value reader, including inherited error messages.
+- The native button-tag query establishes the viewer Edit control before button-specific state is used. A missing or non-button Edit field is refused locally **after** the title and readable body/error are rendered, rather than refusing the whole viewer. The required main detail panel remains required at the original replacement point, after child construction and before mounts. The body lookup remains optional. The explicit null filter in `linkRecordNodes` narrows the existing `Node | null` row producers for downstream rendering; strict row predicates, primary-first ordering, Business scope and empty-state behavior are unchanged.
+- Branch-local diagnostics: Notes **91 -> 78**, owner **77 -> 65** (**69/4/4 -> 59/4/2** params/state/assorted); unowned DOM **14 -> 13**. The thirteen removals are **10 params, 2 assorted, 1 DOM**. Browser **5208 -> 5195**, using this integrated baseline rather than the previous branch ledger. Other owners remain `.39` 1610, `.41` 1142, `.42` 528, `.43` 897, `.44` 399. Unknown, namespace and explicit-any remain zero. **312 other named function bodies** are byte-identical, including the settled strict readers, whole-history refusal/projection, error helpers and committed-write/failed-refresh distinction. No other browser controller, stylesheet, server, shared contract or package file changes.
+- **Explicitly authorized shared-fixture correction:** the sole edit in `tests/e2e/support/isolated-workspace.mjs` adds `body.workspace?.workspaceId` between the existing nested snake-case and root camelCase fallbacks. Both legacy branches, their precedence and the empty fallback remain. The actual lifted creator proves every branch. The rendered test proves a non-empty fixture ID equals the real authenticated session's active workspace and the newly created note's `workspace_id`; cleanup verifies the created note is deleted. The previous target-picker spec is unchanged.
+- Ten lifted cases execute Notes functions with `node:vm` and the actual shared view builder/fallback action producer. Boundary recorders assert forwarded identities, options and ordering; they do not claim to implement the shared menu. Assigned HTML is asserted without fake parsing or regex tag stripping. Required-control timing, optional missing/malformed Edit fields, one-shot handoff, safe error replacement, row degradation and the fixture's real fallback vocabulary are covered.
+- The committed `notes-detail-display.breaks.mjs` harness catches **39/39, zero inert**. Every break is syntax-gated; both mutated files restore in per-case and outer `finally` with SHA-256 verification: Notes `e5258c38e9c9cf70e52dca1cf3e38e739fe92516b2237ba08a4fa4a7bffceecf`, fixture `f18cd335b7fd318d41ccfcbb40d692a9f9b9d0d373806210c9588de73f78f205`. No declaration-only mutation is credited as runtime proof. The harness records the initial cross-VM comparison, fake prepend and asynchronous click setup corrections; inspecting the shared fake's actual once handling ruled out a product defect. No inert break was dropped or withdrawn.
+- Focused rendered proof: **3/3** (desktop/mobile plus setup) on **8102**, managed against this worktree's `data/e2e`, isolated UUID accounts/workspaces/notes, bounded request gates and verified cleanup. It exercises the real action menu, archive/restore, viewer-to-editor handoff, readable rows amid a malformed row, absent and non-button Edit controls, error replacement and no edit-only fields in the viewer. Screenshots retain readable content on both layouts. No shared account workspace, shared auth-state file, server key, integrator data or process is changed by the spec.
+- Final verification uses the full baseline-to-head `verify:slice` plan, which escalates this shared-fixture path to typecheck/unit/lint and the full regression buckets (including permission coverage), followed by full-range `checkpoint:validate`. Exact final gate outcomes accompany the delivery SHA. A pre-commit conductor invocation selected an empty explicit base-to-HEAD range and is not credited as final verification; the completed commit range is verified for delivery. The initial strict probe caught six new test-fixture annotation issues; those were corrected without suppressions or weakened assertions before final verification. The ledger is branch-local evidence for canonical recomputation at integration.
+
+Excluded: the remaining filters/query/status, module-action callbacks, editor context summaries, attachments, revisions, tags, search and all other Notes concerns; all other browser files, CSS, server and shared contracts; any fixture change beyond the single authorized fallback line. No new regression script, suppression, unchecked cast or explicit-any. No docs change needed: completed checkpoint moved to roadmap archive. Durable documentation and release packaging remain deferred to version closeout. Claude retains sole integration and merge ownership; the archive entry becomes authoritative only after protected integration.
+
 ## Version 0.33.33.40.23
 
 **Model: High Effort** - measure the scattered Notes remainder, establish the shared picker producer, and prove selection, scope, recovery and the explicitly authorized rendering correction.
