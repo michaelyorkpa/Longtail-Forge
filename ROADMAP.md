@@ -1625,6 +1625,22 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 5,339 to 5,276**, params 3,552 to 3,505, state 1,128 to 1,117, `dom` 559 to 558, assorted 100 to 96. `0.33.33.44` 518 to 456. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.30 - Time Tracking report renderer, and the file reaches zero
+
+**Complete: 57 diagnostics, and `public/js/time-tracking-reporting.js` reaches zero** - the twelfth file in this lane to close outright. See the archive entry.
+
+**Measuring confirmed no cluster**: 57 across 25 functions with a largest of 4, so the whole file was the boundary.
+
+**The split is between what this file reads and what it produces.** The bootstrap body and the run result are untrusted wire values whose scope, project and row vocabularies are Time Tracking's own contribution rather than a framework contract - so they are read as records and nothing was published for them. The display row `flattenVisibleRows` builds is named precisely, because this file is its producer, and the tag options come from the published `BrowserTagCatalogRecord` rather than a local restatement.
+
+**All fourteen pins across three contract files pass unchanged.** `reporting-host` holds nine claims about this file, `dashboard-workbench-regression` three and `tag-usability-ui` one; every pinned spelling was preserved deliberately, including `context.view.createDataTable` and `setFilterHidden("scope", bootstrap.clientFiltersVisible === false)`. This is the first file in this lane to move without needing a single pin updated.
+
+**A documentation error from `0.33.33.44.27` was corrected.** The `ReportingRenderer` typedef in `reporting.js` named `render`'s parameters `(context, result)` while the host calls `render(envelope.result, createRendererContext())`. Nothing was mistyped - every parameter is `unknown` and a function type does not bind by name - but the order a reader would take from it was wrong, and the renderer this checkpoint typed is the one that implements it.
+
+**100 breaks, 100 caught, zero inert.** Eleven were inert on the first run: six were assertion gaps, one a fixture limit now closed by building a real table in the stub, and **four were withdrawn** as provably redundant - two `|| 0` fallbacks the formatters already apply, a record guard no JSON value can distinguish, and a project list whose order the depth walk does not read.
+
+**Measured: browser 5,276 to 5,219**, params 3,505 to 3,455, state 1,117 to 1,110, `dom` 558 and assorted 96 unchanged. `0.33.33.44` 456 to 399. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
