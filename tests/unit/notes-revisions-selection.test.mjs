@@ -86,12 +86,12 @@ describe("Notes revision history and detail selection", () => {
   });
 
   it("returns false for failed or malformed reads, preserves the old selection, and sanitizes secure failures", async () => {
-    for (const failure of [new Error("ordinary failure"), new Error("cipher key SECRET"), null, undefined, "decrypt SECRET"]) {
-      const f = fixture(), old = f.state.selectedNote; f.context.getAnswer = Promise.reject(failure);
+    for (const failure of [new Error("ordinary failure"), new Error("cipher key SECRET"), null, undefined, "decrypt SECRET", { message: 42 }, { message: { detail: "unreadable" } }]) {
+      const f = fixture(), old = f.state.selectedNote; f.detail.textContent = "Previous note detail"; f.context.getAnswer = Promise.reject(failure);
       assert.equal(await f.api.selectNote("n"), false); assert.strictEqual(f.state.selectedNote, old);
       assert.equal(f.calls.some(([kind]) => ["detail", "list", "drawer", "url"].includes(String(kind))), false);
       const prompt = f.detail.children[0]; assert.ok(prompt); assert.equal(prompt.textContent.includes("SECRET"), false);
-      assert.equal(f.calls.at(-1)?.[2], true);
+      assert.equal(f.calls.at(-1)?.[2], true); assert.doesNotMatch(f.detail.textContent, /Previous note detail/);
       if (String(failure).includes("cipher") || String(failure).includes("decrypt")) assert.equal(prompt.classList.contains("notes-locked-state"), true);
     }
     const f = fixture(); f.context.getAnswer = Promise.resolve({ note: { note_id: "n" } });
@@ -116,17 +116,69 @@ describe("Notes revision history and detail selection", () => {
     assert.doesNotMatch(String(failed.calls.at(-1)?.[1]), /was updated/);
   });
 
-  it("renders only readable prompts, retains the prior surface for unreadable messages, and preserves required-control timing", () => {
+  it("always replaces stale detail with readable text or an explicit fallback, preserving required-control timing", () => {
     const f = fixture(); f.api.renderDetailPrompt("<literal>", { locked: true });
     const prompt = f.detail.children[0]; assert.ok(prompt); assert.equal(prompt.textContent, "<literal>"); assert.equal(prompt.classList.contains("notes-locked-state"), true);
-    for (const value of [null, undefined, false, 0, [], { message: "wrong" }]) { f.api.renderDetailPrompt(value); assert.strictEqual(f.detail.children[0], prompt); }
+    for (const value of [null, undefined, false, 0, 42, [], { message: "wrong" }, Symbol("unreadable")]) {
+      f.detail.replaceChildren(prompt); assert.equal(f.detail.textContent, "<literal>");
+      assert.doesNotThrow(() => f.api.renderDetailPrompt(value));
+      assert.notStrictEqual(f.detail.children[0], prompt);
+      assert.equal(f.detail.textContent, "Note details could not be displayed.");
+    }
     f.api.renderBlankDetailPrompt(); assert.match(f.detail.textContent, /Open the .* sidebar and select a note/);
     assert.ok(f.detail.querySelector(".notes-empty-state-icon"));
     f.api.renderDetailPrompt(42, { sidebarHint: true }); assert.match(f.detail.textContent, /Open the /);
     f.api.renderDetailPrompt(""); assert.equal(f.detail.textContent, "");
     let creations = 0; const original = f.document.createElement.bind(f.document);
     f.document.createElement = (/** @type {string} */ tag) => { creations += 1; return original(tag); };
-    f.context.detailPanel = null; assert.throws(() => f.api.renderDetailPrompt("Readable"), /Required Notes value/); assert.equal(creations, 1);
+    f.context.detailPanel = null;
+    for (const value of ["Readable", null, { message: 42 }]) {
+      creations = 0; assert.throws(() => f.api.renderDetailPrompt(value), /Required Notes value/); assert.equal(creations, 1);
+    }
+  });
+
+  it("accepts unknown errors at the helper and returns only readable nonempty messages or the caller fallback", () => {
+    const f = fixture();
+    for (const value of [null, undefined, false, 0, 42, 1n, Symbol("ordinary"), "ordinary", [], {}, { message: null }, { message: false },
+      { message: 0 }, { message: 42 }, { message: {} }, { message: ["ordinary"] }, { message: "" }]) {
+      assert.equal(f.api.safeNoteErrorMessage(value, "Caller fallback"), "Caller fallback");
+    }
+    assert.equal(f.api.safeNoteErrorMessage(), "Note action failed.");
+    assert.equal(f.api.safeNoteErrorMessage({ message: 42 }, ""), "");
+    for (const value of [new Error("Readable failure"), { message: "Readable failure" }, Object.create({ message: "Readable failure" }),
+      Object.assign(() => {}, { message: "Readable failure" }), vm.runInNewContext('new Error("Readable failure")')]) {
+      assert.equal(f.api.safeNoteErrorMessage(value), "Readable failure");
+    }
+    assert.equal(f.api.safeNoteErrorMessage({ message: "  " }), "  ", "Truthy whitespace retains existing behavior");
+    let reads = 0;
+    assert.equal(f.api.safeNoteErrorMessage({ get message() { reads += 1; return "Readable failure"; } }), "Readable failure");
+    assert.equal(reads, 2, "Classification and display each read once, as before");
+  });
+
+  it("retains secure classification for message and raw error forms without forwarding sensitive details", () => {
+    const f = fixture(), locked = "Secure note is locked or could not be decrypted. Check secure-note access and server key configuration.";
+    for (const word of ["secure", "decrypt", "encrypt", "cipher", "crypto", "key", "nonce", "auth", "authenticate", "unsupported state", "payload"]) {
+      for (const value of [word.toUpperCase() + " SECRET", { message: word + " SECRET" }, { message: [word, "SECRET"] },
+        Object.assign(() => {}, { message: word + " SECRET" }), Object.create({ message: word + " SECRET" }), { toString: () => word + " SECRET" }]) {
+        assert.equal(f.api.isSecureError(value), true); assert.equal(f.api.safeNoteErrorMessage(value, "Caller fallback"), locked);
+      }
+    }
+    assert.equal(f.api.isSecureError(), false);
+    assert.equal(f.api.isSecureError({ message: "ordinary", toString: () => "cipher SECRET" }), false, "Truthy message retains precedence over the raw value");
+    assert.equal(f.api.isSecureError({ message: "", toString: () => "cipher SECRET" }), true, "Falsy message still falls through to raw value");
+    let reads = 0;
+    assert.equal(f.api.safeNoteErrorMessage({ get message() { reads += 1; return "cipher SECRET"; } }), locked);
+    assert.equal(reads, 1, "Secure return precedes a second message read");
+  });
+
+  it("confirms the current API throw producer stringifies hostile wire messages before Notes sees them", () => {
+    const f = fixture(); vm.runInContext(read("public/js/shared/error-contract.js"), f.context);
+    for (const message of [42, { detail: "ordinary" }, ["ordinary"], false, null]) {
+      const thrown = f.context.window.LongtailForge.errors.createError({ error: { message } }, "Request failed", 503);
+      assert.equal(typeof thrown.message, "string"); assert.equal(typeof f.api.safeNoteErrorMessage(thrown), "string");
+    }
+    const thrown = f.context.window.LongtailForge.errors.createError({ error: { message: ["cipher", "SECRET"] } }, "Request failed", 503);
+    assert.equal(f.api.isSecureError(thrown), true); assert.doesNotMatch(f.api.safeNoteErrorMessage(thrown), /SECRET/);
   });
 
   it("transitions only a saved note and awaits follow then tags before files/context, retaining required-control timing", async () => {

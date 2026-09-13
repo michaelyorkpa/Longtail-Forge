@@ -419,7 +419,7 @@ describe("an unreadable history is not an empty one", () => {
 
   it("keeps a real empty history apart from an unreadable one", () => {
     assert.match(load, /emptyText\("No revisions\."\)/, "a valid empty history says there are none");
-    assert.match(load, /\} catch \(error\) \{\n\s+list\.replaceChildren\(emptyText\(safeNoteErrorMessage\(error \?\? \{\}, "Revisions could not be loaded\."\)\)\);/,
+    assert.match(load, /\} catch \(error\) \{\n\s+list\.replaceChildren\(emptyText\(safeNoteErrorMessage\(error, "Revisions could not be loaded\."\)\)\);/,
       "and an unreadable one takes the existing failure path");
     assert.notEqual(load.indexOf('"No revisions."'), load.indexOf('"Revisions could not be loaded."'),
       "the two outcomes must not share a message");
