@@ -81,7 +81,11 @@ assert.match(calendarSettings, /window\.addEventListener\("pagehide", clearSecre
 assert.doesNotMatch(calendarSettings, /(?:localStorage|sessionStorage)[^\n]*calendar/i, "the raw bearer URL must not enter browser storage");
 assert.match(calendarSettings, /getJson\("\/api\/private-feeds\/calendar-subscriptions"/, "ordinary loads should use the safe collection endpoint");
 assert.match(calendarSettings, /const secret = readCalendarSubscriptionSecret\(\s*await api\.postJson\("\/api\/private-feeds\/calendar-subscriptions", payload\),\s*\);\s*showSecret\(secret\?\.feedUrl \|\| ""/, "creation should consume the one-time URL response only after the browser has vouched for it");
-assert.match(calendarSettings, /const secret = readCalendarSubscriptionSecret\(await api\.postJson\(\s*`\/api\/private-feeds\/calendar-subscriptions\/\$\{encodeURIComponent\(subscription\.subscriptionId\)\}\/rotate`,\s*\)\);\s*showSecret\(secret\?\.feedUrl \|\| ""/, "owner rotation should consume the replacement URL only after the browser has vouched for it");
+// `0.33.33.44.25` states the absent body explicitly: `postJson` declares it, and `requestJson`
+// treats `undefined` as a real request shape, omitting both the body and the Content-Type header.
+// Passing `{}` would have added both, so the argument is now pinned as well - the claim that the
+// browser vouches for the replacement URL before `showSecret` consumes it is unchanged.
+assert.match(calendarSettings, /const secret = readCalendarSubscriptionSecret\(await api\.postJson\(\s*`\/api\/private-feeds\/calendar-subscriptions\/\$\{encodeURIComponent\(subscription\.subscriptionId\)\}\/rotate`,\s*undefined,\s*\)\);\s*showSecret\(secret\?\.feedUrl \|\| ""/, "owner rotation should consume the replacement URL only after the browser has vouched for it");
 assert.match(calendarSettings, /deleteJson\([^]*calendar-subscriptions\/\$\{encodeURIComponent\(subscription\.subscriptionId\)\}[^]*reloadSubscriptionsAfterRemoval/, "row revocation and deletion should remove the unique collection item and refresh the list");
 assert.match(calendarSettings, /subscription\.status === "active" && subscription\.ownedByCurrentUser/, "only an active owner row should render Rotate");
 assert.match(calendarSettings, /subscription\.status === "active"[^]*rowAction\("Revoke"/, "administrators should be able to revoke any active row");

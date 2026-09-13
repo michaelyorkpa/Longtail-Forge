@@ -1553,6 +1553,20 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 5,898 to 5,774**, state 1,336 to 1,245, params 3,816 to 3,785, `dom` 625 to 623. `0.33.33.44` 979 to 857. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.25 - Calendar Settings, and the file reaches zero
+
+**Complete: 117 diagnostics, and `public/js/calendar-settings.js` reaches zero** - the seventh file in this lane to close outright. See the archive entry.
+
+**The cohort check came first, and it settled the shape of the work.** This file carries its own `asStatusElement` and two status nodes, so it sits inside the cohort `workspace-deletion-dialog-dom-contracts` pins - the helper stays, exactly as in `user-settings.js` and `role-assignments.js`, and the completion claim is that every *other* control goes through the checked lookup.
+
+**Typing surfaced two real contract breaches, and neither was fixed by guessing.** The rotate request called `postJson` with one argument where the contract declares two; `requestJson` treats an absent body as a real request shape, omitting both the body and the Content-Type header, so `{}` would have been a different request on the wire. The absence is now stated as an explicit `undefined` - and the security contract that pins that call now pins the argument too. Separately, the page's IIFE took no parameter but was invoked with `window`; the stray argument was never read and is gone.
+
+**The `[hidden]` inventory from `0.33.33.44.22` held up.** Three controls here are `<label>` and `<fieldset>` elements toggled from JavaScript, which that checkpoint's static-markup sweep could not have seen - but all three already carry `[hidden]` safeguards among the 27 this stylesheet had, so the measurement correctly excluded them.
+
+**64 breaks, 64 caught, zero inert.** Six were inert on the first run and all six were assertion gaps, not fixture limits: a default never exercised because every case set the value, a preference never tested with both spellings present, a truthy-versus-exact ownership flag, a prototype-chain read, a focus target that cannot take focus, and one ambiguous anchor that matched two functions.
+
+**Measured: browser 5,757 to 5,640**, params 3,785 to 3,738, state 1,245 to 1,224, `dom` 623 to 569, assorted 121 to 109. `0.33.33.44` 857 to 791. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.

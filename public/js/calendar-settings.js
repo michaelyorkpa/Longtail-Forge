@@ -1,25 +1,108 @@
 /* global CSS */
 
 (function attachCalendarSettingsPage() {
-const createForm = document.querySelector("[data-calendar-subscription-create-form]");
-const nameInput = document.querySelector("[data-calendar-subscription-name]");
-const scopeSelect = document.querySelector("[data-calendar-subscription-scope]");
-const clientField = document.querySelector("[data-calendar-subscription-client-field]");
-const clientSelect = document.querySelector("[data-calendar-subscription-client]");
-const projectField = document.querySelector("[data-calendar-subscription-project-field]");
-const projectSelect = document.querySelector("[data-calendar-subscription-project]");
-const createButton = document.querySelector("[data-create-calendar-subscription]");
-const availability = document.querySelector("[data-calendar-subscription-availability]");
+const createForm = findCalendarControl("[data-calendar-subscription-create-form]", HTMLFormElement);
+const nameInput = findCalendarControl("[data-calendar-subscription-name]", HTMLInputElement);
+const scopeSelect = findCalendarControl("[data-calendar-subscription-scope]", HTMLSelectElement);
+const clientField = findCalendarControl("[data-calendar-subscription-client-field]", HTMLElement);
+const clientSelect = findCalendarControl("[data-calendar-subscription-client]", HTMLSelectElement);
+const projectField = findCalendarControl("[data-calendar-subscription-project-field]", HTMLElement);
+const projectSelect = findCalendarControl("[data-calendar-subscription-project]", HTMLSelectElement);
+const createButton = findCalendarControl("[data-create-calendar-subscription]", HTMLButtonElement);
+const availability = findCalendarControl("[data-calendar-subscription-availability]", HTMLElement);
 const createStatus = asStatusElement(document.querySelector("[data-calendar-subscription-create-status]"));
-const secretPanel = document.querySelector("[data-calendar-subscription-secret-panel]");
-const secretDetail = document.querySelector("[data-calendar-subscription-secret-detail]");
-const secretInput = document.querySelector("[data-calendar-subscription-url]");
-const revealButton = document.querySelector("[data-reveal-calendar-subscription]");
-const copyButton = document.querySelector("[data-copy-calendar-subscription]");
+const secretPanel = findCalendarControl("[data-calendar-subscription-secret-panel]", HTMLElement);
+const secretDetail = findCalendarControl("[data-calendar-subscription-secret-detail]", HTMLElement);
+const secretInput = findCalendarControl("[data-calendar-subscription-url]", HTMLInputElement);
+const revealButton = findCalendarControl("[data-reveal-calendar-subscription]", HTMLButtonElement);
+const copyButton = findCalendarControl("[data-copy-calendar-subscription]", HTMLButtonElement);
 const secretStatus = asStatusElement(document.querySelector("[data-calendar-subscription-secret-status]"));
-const subscriptionList = document.querySelector("[data-calendar-subscription-list]");
-const listStatus = document.querySelector("[data-calendar-subscription-list-status]");
+const subscriptionList = findCalendarControl("[data-calendar-subscription-list]", HTMLElement);
+const listStatus = findCalendarControl("[data-calendar-subscription-list-status]", HTMLElement);
 
+/**
+ * **Typed-or-null on purpose**, the reading `0.33.33.44.5` settled and this lane has reused since.
+ *
+ * This page ships an empty settings host and `shared/settings-host.js` mounts the surface
+ * synchronously ahead of this file, so the controls are here at module evaluation because of that
+ * script order rather than because the view carries them. Acquisition still runs outside every
+ * `try` on this page, so refusing here would turn a load-order change into a dead page instead of
+ * the status this page already produces.
+ * @template {Element} T
+ * @param {string} selector
+ * @param {{ new (): T }} constructor
+ * @returns {T | null}
+ */
+function findCalendarControl(selector, constructor) {
+  const element = document.querySelector(selector);
+  return element instanceof constructor ? element : null;
+}
+
+/**
+ * Narrow at an access this page already made unguarded.
+ * @template T
+ * @param {T | null} value
+ * @param {string} name
+ * @returns {T}
+ */
+function requireCalendarValue(value, name) {
+  if (value === null) {
+    throw new TypeError(`Calendar Settings requires its ${name}.`);
+  }
+
+  return value;
+}
+
+/**
+ * One project as `normalizeProjects` rebuilds it for the scope pickers.
+ * @typedef {object} CalendarProjectOption
+ * @property {string} id
+ * @property {string} label
+ */
+
+/**
+ * The same project as the combined picker offers it, carrying the group it came from. Only the
+ * combined list adds one - a client's own project list is already grouped by the control above it.
+ * @typedef {CalendarProjectOption & { groupLabel?: string }} CalendarGroupedProjectOption
+ */
+
+/**
+ * One client, with the projects it owns already rebuilt.
+ * @typedef {object} CalendarClientOption
+ * @property {string} id
+ * @property {string} label
+ * @property {CalendarProjectOption[]} projects
+ */
+
+/**
+ * One subscription row as this page holds it.
+ *
+ * Every member `normalizeSubscriptions` writes is settled before anything renders it: the three
+ * timestamps stay nullable because the wire really does omit them - a subscription that has never
+ * been rotated has no rotation time - while the rest are coerced to text.
+ * @typedef {object} CalendarSubscriptionRow
+ * @property {string | null} createdAt
+ * @property {string} name
+ * @property {boolean} ownedByCurrentUser
+ * @property {string} ownerLabel
+ * @property {string | null} revokedAt
+ * @property {string | null} rotatedAt
+ * @property {string} scopeLabel
+ * @property {string} status
+ * @property {string} subscriptionId
+ * @property {string} timezone
+ */
+
+/**
+ * @typedef {object} CalendarSettingsState
+ * @property {CalendarClientOption[]} clients
+ * @property {CalendarSubscriptionRow[]} subscriptions
+ * @property {boolean} tasksEnabled
+ * @property {string} workspaceType
+ * @property {CalendarProjectOption[]} workspaceProjects
+ */
+
+/** @type {CalendarSettingsState} */
 const state = {
   clients: [],
   subscriptions: [],
@@ -250,6 +333,7 @@ async function readWorkspaceContext() {
   }
 }
 
+/** @param {Event} event */
 async function createSubscription(event) {
   const api = requireApi();
   event.preventDefault();
@@ -266,7 +350,7 @@ async function createSubscription(event) {
       await api.postJson("/api/private-feeds/calendar-subscriptions", payload),
     );
     showSecret(secret?.feedUrl || "", secret?.subscription || null, "created");
-    createForm.reset();
+    requireCalendarValue(createForm, "create form").reset();
     renderClientOptions();
     renderScopeFields();
     await reloadSubscriptions();
@@ -281,6 +365,14 @@ async function createSubscription(event) {
   }
 }
 
+/**
+ * The create request this form describes, or nothing when it is not yet complete.
+ *
+ * The scope member is optional because the form genuinely adds one only for the scope it is in:
+ * a workspace subscription carries neither.
+ * @typedef {{ name: string, scopeType: string, clientId?: string, projectId?: string }} CalendarCreatePayload
+ * @returns {CalendarCreatePayload | null}
+ */
 function readCreatePayload() {
   const name = String(nameInput?.value || "").trim();
   const scopeType = String(scopeSelect?.value || "workspace");
@@ -290,6 +382,7 @@ function readCreatePayload() {
     return null;
   }
 
+  /** @type {CalendarCreatePayload} */
   const payload = { name, scopeType };
   if (scopeType === "client") {
     payload.clientId = String(clientSelect?.value || "");
@@ -310,6 +403,10 @@ function readCreatePayload() {
   return payload;
 }
 
+/**
+ * @typedef {{ action?: string, subscriptionId: string }} CalendarSubscriptionFocus
+ * @param {CalendarSubscriptionFocus | null} [focus]
+ */
 async function reloadSubscriptions(focus = null) {
   const api = requireApi();
   const body = await api.getJson("/api/private-feeds/calendar-subscriptions", { cache: "no-store" });
@@ -320,22 +417,29 @@ async function reloadSubscriptions(focus = null) {
   }
 }
 
+/** @param {Event} event */
 async function handleSubscriptionAction(event) {
-  const button = event.target.closest("[data-calendar-subscription-action]");
-  if (!button) {
+  const target = event.target instanceof Element ? event.target : null;
+  const button = target?.closest("[data-calendar-subscription-action]");
+  if (!(button instanceof HTMLElement)) {
     return;
   }
   const subscription = state.subscriptions.find((item) => item.subscriptionId === button.dataset.subscriptionId);
   if (!subscription) {
     return;
   }
-  if (button.dataset.calendarSubscriptionAction === "rotate") {
+  // A dataset member is absent as `undefined`, and an absent action matched neither branch
+  // before; reading it as "" keeps both comparisons answering exactly what they answered.
+  const action = button.dataset.calendarSubscriptionAction || "";
+
+  if (action === "rotate") {
     await rotateSubscription(subscription, button);
-  } else if (["revoke", "delete"].includes(button.dataset.calendarSubscriptionAction)) {
+  } else if (["revoke", "delete"].includes(action)) {
     await removeSubscription(subscription, button);
   }
 }
 
+/** @param {CalendarSubscriptionRow} subscription @param {HTMLElement} trigger */
 async function rotateSubscription(subscription, trigger) {
   const api = requireApi();
   const confirmed = await requireModalDialogs().confirm({
@@ -353,8 +457,12 @@ async function rotateSubscription(subscription, trigger) {
   setListBusy(subscription.subscriptionId, true);
   setStatus(listStatus, `Rotating ${subscription.name}...`);
   try {
+    // Sent with no body, which `requestJson` treats as a real request shape: it omits both the
+    // body and the Content-Type header. Passing `{}` here would add both, so the absence is
+    // stated rather than filled in.
     const secret = readCalendarSubscriptionSecret(await api.postJson(
       `/api/private-feeds/calendar-subscriptions/${encodeURIComponent(subscription.subscriptionId)}/rotate`,
+      undefined,
     ));
     showSecret(secret?.feedUrl || "", secret?.subscription || null, "rotated");
     await reloadSubscriptions({ action: "rotate", subscriptionId: subscription.subscriptionId });
@@ -370,6 +478,7 @@ async function rotateSubscription(subscription, trigger) {
   }
 }
 
+/** @param {CalendarSubscriptionRow} subscription @param {HTMLElement} trigger */
 async function removeSubscription(subscription, trigger) {
   const api = requireApi();
   const isActive = subscription.status === "active";
@@ -406,12 +515,13 @@ async function removeSubscription(subscription, trigger) {
   }
 }
 
+/** @param {string} subscriptionId */
 async function reloadSubscriptionsAfterRemoval(subscriptionId) {
   const removedIndex = state.subscriptions.findIndex((item) => item.subscriptionId === subscriptionId);
   await reloadSubscriptions();
   const rows = [...(subscriptionList?.querySelectorAll("tr[data-subscription-id]") || [])];
   const focusRow = rows[Math.min(Math.max(removedIndex, 0), rows.length - 1)];
-  (focusRow || createButton)?.focus();
+  focusCalendarElement(focusRow || createButton);
 }
 
 function renderScopeFields() {
@@ -484,10 +594,12 @@ function renderProjectOptions() {
           groupLabel: client.label,
         }))),
       ];
+  /** @type {CalendarGroupedProjectOption[]} */
+  const groupedProjects = projects;
   const previousValue = projectSelect.value;
   projectSelect.replaceChildren(
     option("", projects.length > 0 ? "Choose a project" : "No readable projects"),
-    ...projects.map((project) => option(
+    ...groupedProjects.map((project) => option(
       project.id,
       project.groupLabel ? `${project.groupLabel} / ${project.label}` : project.label,
     )),
@@ -531,6 +643,7 @@ function renderSubscriptions() {
   }
 }
 
+/** @param {CalendarSubscriptionRow} subscription @returns {HTMLElement} */
 function actionCell(subscription) {
   const tableCell = document.createElement("td");
   const actions = document.createElement("div");
@@ -557,6 +670,13 @@ function actionCell(subscription) {
   return tableCell;
 }
 
+/**
+ * @param {string} label
+ * @param {string} actionName
+ * @param {string} subscriptionId
+ * @param {{ danger?: boolean, disabled?: boolean }} [options]
+ * @returns {HTMLButtonElement}
+ */
 function rowAction(label, actionName, subscriptionId, options = {}) {
   const button = document.createElement("button");
   button.type = "button";
@@ -570,16 +690,22 @@ function rowAction(label, actionName, subscriptionId, options = {}) {
   return button;
 }
 
+/** @param {string} subscriptionId @param {boolean} isBusy */
 function setListBusy(subscriptionId, isBusy) {
   subscriptionList
     ?.querySelectorAll(`[data-subscription-id="${CSS.escape(subscriptionId)}"] button`)
     .forEach((button) => {
+      if (!(button instanceof HTMLButtonElement)) {
+        return;
+      }
+
       button.disabled = isBusy || (
         button.dataset.calendarSubscriptionAction === "rotate" && !state.tasksEnabled
       );
     });
 }
 
+/** @param {CalendarSubscriptionFocus} focus */
 function restoreSubscriptionFocus(focus) {
   const row = subscriptionList?.querySelector(
     `tr[data-subscription-id="${CSS.escape(focus.subscriptionId)}"]`,
@@ -587,22 +713,26 @@ function restoreSubscriptionFocus(focus) {
   const action = focus.action && row?.querySelector(
     `[data-calendar-subscription-action="${CSS.escape(focus.action)}"]`,
   );
-  (action || row)?.focus();
+  focusCalendarElement(action || row);
 }
 
+/** @param {string} feedUrl @param {unknown} subscription @param {string} operation */
 function showSecret(feedUrl, subscription, operation) {
   currentSecret = String(feedUrl || "");
   if (!currentSecret) {
     clearSecret();
     return;
   }
-  secretInput.value = currentSecret;
-  secretInput.type = "password";
-  revealButton.textContent = "Reveal URL";
-  secretPanel.hidden = false;
-  secretDetail.textContent = `${subscription?.name || "This subscription"} was ${operation}. Copy this private URL now.`;
+  const field = requireCalendarValue(secretInput, "subscription URL field");
+
+  field.value = currentSecret;
+  field.type = "password";
+  requireCalendarValue(revealButton, "reveal button").textContent = "Reveal URL";
+  requireCalendarValue(secretPanel, "secret panel").hidden = false;
+  requireCalendarValue(secretDetail, "secret detail").textContent
+    = `${readSubscriptionName(subscription)} was ${operation}. Copy this private URL now.`;
   setStatus(secretStatus, "");
-  secretInput.focus();
+  field.focus();
 }
 
 function clearSecret() {
@@ -620,9 +750,11 @@ function toggleSecretVisibility() {
   if (!currentSecret) {
     return;
   }
-  const reveal = secretInput.type === "password";
-  secretInput.type = reveal ? "text" : "password";
-  revealButton.textContent = reveal ? "Hide URL" : "Reveal URL";
+  const field = requireCalendarValue(secretInput, "subscription URL field");
+  const reveal = field.type === "password";
+
+  field.type = reveal ? "text" : "password";
+  requireCalendarValue(revealButton, "reveal button").textContent = reveal ? "Hide URL" : "Reveal URL";
 }
 
 async function copySecret() {
@@ -632,9 +764,11 @@ async function copySecret() {
   try {
     await navigator.clipboard.writeText(currentSecret);
   } catch {
-    secretInput.select();
+    const field = requireCalendarValue(secretInput, "subscription URL field");
+
+    field.select();
     document.execCommand("copy");
-    secretInput.setSelectionRange(0, 0);
+    field.setSelectionRange(0, 0);
   }
   setStatus(secretStatus, "Calendar subscription URL copied.", {
     clearAfter: 1600,
@@ -656,6 +790,7 @@ function renderAvailability() {
   }
 }
 
+/** @param {boolean} isBusy */
 function setCreateBusy(isBusy) {
   for (const control of [nameInput, scopeSelect, clientSelect, projectSelect, createButton]) {
     if (control) {
@@ -664,6 +799,7 @@ function setCreateBusy(isBusy) {
   }
 }
 
+/** @param {unknown} subscriptions @returns {CalendarSubscriptionRow[]} */
 function normalizeSubscriptions(subscriptions) {
   return Array.isArray(subscriptions) ? subscriptions.map((subscription) => ({
     createdAt: subscription?.createdAt || null,
@@ -679,6 +815,7 @@ function normalizeSubscriptions(subscriptions) {
   })).filter((subscription) => subscription.subscriptionId) : [];
 }
 
+/** @param {unknown} clients @returns {CalendarClientOption[]} */
 function normalizeClients(clients) {
   return Array.isArray(clients) ? clients.map((client) => ({
     id: String(client?.id || ""),
@@ -687,6 +824,7 @@ function normalizeClients(clients) {
   })).filter((client) => client.id) : [];
 }
 
+/** @param {unknown} projects @returns {CalendarProjectOption[]} */
 function normalizeProjects(projects) {
   return Array.isArray(projects) ? projects.map((project) => ({
     id: String(project?.id || ""),
@@ -694,6 +832,7 @@ function normalizeProjects(projects) {
   })).filter((project) => project.id) : [];
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeWorkspaceType(value) {
   const workspaceType = String(value || "").trim().toLowerCase();
   return ["business", "personal", "family"].includes(workspaceType)
@@ -705,10 +844,12 @@ function usesBusinessScopes() {
   return state.workspaceType === "business";
 }
 
+/** @param {string} value @returns {string} */
 function formatWorkspaceType(value) {
   return value === "family" ? "Family" : "Personal";
 }
 
+/** @param {string} value @param {string} label @returns {HTMLOptionElement} */
 function option(value, label) {
   const element = document.createElement("option");
   element.value = value;
@@ -716,29 +857,82 @@ function option(value, label) {
   return element;
 }
 
+/** @param {string} value @returns {HTMLElement} */
 function cell(value) {
   const element = document.createElement("td");
   element.textContent = value || "—";
   return element;
 }
 
+/** @param {string} status @returns {string} */
 function formatStatus(status) {
   return status === "active" ? "Active" : "Revoked";
 }
 
+/** @param {string | null} value @returns {string} */
 function formatDate(value) {
   return value ? new Date(value).toLocaleString() : "—";
 }
 
+/**
+ * @param {HTMLElement | null} element
+ * @param {string} message
+ * @param {{ clearAfter?: number, isError?: boolean, type?: string }} [options]
+ * @returns {void}
+ */
 function setStatus(element, message, options = {}) {
   requireStatusMessage().set(element, message, options);
 }
 
+/**
+ * @param {unknown} error
+ * @param {HTMLElement | null} statusElement
+ * @param {string} fallbackMessage
+ * @returns {void}
+ */
+/**
+ * Restore focus to whichever element survived a reload.
+ *
+ * Narrowed rather than optional-chained on the call sites, because only an `HTMLElement` carries
+ * `focus`; every element these two restorations choose from is one.
+ * @param {Element | null | undefined} element
+ * @returns {void}
+ */
+function focusCalendarElement(element) {
+  if (element instanceof HTMLElement) {
+    element.focus();
+  }
+}
+
+/**
+ * The name an acknowledged subscription carries, when it carries one.
+ * @param {unknown} subscription
+ * @returns {string}
+ */
+function readSubscriptionName(subscription) {
+  if (typeof subscription !== "object" || subscription === null || !Object.hasOwn(subscription, "name")) {
+    return "This subscription";
+  }
+
+  const name = /** @type {Record<string, unknown>} */ (subscription).name;
+  return name ? String(name) : "This subscription";
+}
+
+/**
+ * @param {unknown} error
+ * @param {HTMLElement | null} statusElement
+ * @param {string} fallbackMessage
+ * @returns {void}
+ */
 function handleApiError(error, statusElement, fallbackMessage) {
-  if (error?.status === 401) {
+  const caught = typeof error === "object" && error !== null ? error : {};
+
+  if ("status" in caught && caught.status === 401) {
     window.location.replace("/login.html");
     return;
   }
-  setStatus(statusElement, error?.message || fallbackMessage, { type: "error" });
+
+  const message = "message" in caught ? caught.message : undefined;
+  setStatus(statusElement, typeof message === "string" && message ? message : fallbackMessage, { type: "error" });
 }
-}(window));
+}());
