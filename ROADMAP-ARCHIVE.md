@@ -1,5 +1,51 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.40.23
+
+**Model: High Effort** - measure the scattered Notes remainder, establish the shared picker producer, and prove selection, scope, recovery and the explicitly authorized rendering correction.
+
+- Baseline: `99779e04b6ad28a81a448b9c2e9b3bfcb5a5d976`, fetched from origin and branched clean as `agent/0.33.33-codex-notes-next-surface`. Package files are byte-identical; no install or dependency edit.
+- Measurement was reported before typing: **102 raw diagnostics / 85 owned**, across **66 named-function buckets**. The largest bucket is the outer `attachNotesPage`, whose six diagnostics actually belong to three module-action `open` callbacks, two each. No single function body has six; the largest remaining bodies have three. The top ten under that reported attribution, ties in source order, are:
+
+| Baseline function / bucket | Diagnostics | Baseline line |
+| --- | ---: | ---: |
+| `attachNotesPage` (three `open` callbacks) | 6 | 1153 / 1165 / 1177 |
+| `decorateNotesFilter` | 3 | 1735 |
+| `appendNotesQueryParam` | 3 | 2598 |
+| `setStatus` | 3 | 6263 |
+| `noteWorkflowActionButton` | 2 | 1305 |
+| `openNoteViewer` | 2 | 1365 |
+| `normalizeNoteEditorMode` | 2 | 1567 |
+| `notesOptionElement` | 2 | 1956 |
+| `noteFieldLabel` | 2 | 2000 |
+| `renderDetail` | 2 | 3198 |
+
+- The chosen coherent surface is the **linked-record picker**: its provider and client options, result control, selected record, shared parts and debounced requests. There is no large cluster. The scattered three-diagnostic functions concern unrelated filters, queries and page status; collecting them would not describe one surface. The picker instead connects nine small helpers through an established shared producer.
+
+| Chosen helper | Before | After |
+| --- | ---: | ---: |
+| `populateLinkTargetSelect` | 2 | 0 |
+| `populateLinkTargetTypeSelect` | 2 | 0 |
+| `queueEditorLinkTargetSearch` | 1 | 0 |
+| `handleEditorLinkClientContextChange` | 1 | 0 |
+| `readLinkTargetClientContext` | 1 | 0 |
+| `linkTargetProviderOptions` | 1 | 0 |
+| `replaceLinkTargetOptions` | 1 | 0 |
+| `readSelectedLinkTarget` | 1 | 0 |
+| `editorContextPickerParts` | 1 | 0 |
+
+- `BrowserNoteLinkTarget` is the published directory record. Both selected-record callers receive options serialized by `populateLinkTargetSelect` from the already checked directory; malformed stored JSON now refuses only the selection. The directory's existing whole-response validation is unchanged. The local option input is derived from the existing record adapter and DOM option properties, not a new wire contract.
+- `createLinkedContextPicker` is a shared producer, and `BrowserViewLinkedContextPickerParts` already publishes its controls and closure methods. The Notes reader checks only its four consumed members, preserves valid parts by identity and uses the existing plain-control fallback for absent or unreadable parts. Client scope still comes from the live checked select before state, and stays Business-only. Menu order, selection retention, 180ms cancellation, loading/empty/failure states and query vocabulary are retained.
+- Branch-local diagnostics: Notes **102 -> 91**, owner **85 -> 77** (**74/6/5 -> 69/4/4** params/state/assorted); unowned DOM **17 -> 14**. The eleven removals are **5 params, 2 state, 1 assorted, 3 DOM**. Browser **5339 -> 5328**; server/tests, scripts, declaration probe, explicit-any, unknown and namespace remain zero. All other browser per-file diagnostic entries are identical. `.39` and `.41`-`.44` source files are unchanged; **313 other named function bodies** in Notes are byte-identical, including the settled strict readers, history projection, error helpers and committed-write/failed-refresh distinction.
+- Eleven lifted cases use `node:vm`, the actual state/provider initializers and the actual shared view builder. The committed target-picker harness catches **42/42, zero inert**, syntax-gates each break and restores bytes in `finally`, SHA-256 **`7f2d93fa3d313a880cc326276729859addc8efdb5b9af5a709ff93fb7fdd314b`**. Its comments distinguish repaired assertion/diagnostic gaps from three withdrawn redundancies; no incidental exception or output-buffer failure is counted as an assertion catch.
+- One existing Notes behavioral contract fixture needed reconciliation: its lifted decoder lacked the checked-reader dependency, and its fabricated option held only an outgoing link payload. It now lifts the real reader/constants and supplies the complete record that the real option producer serializes. The assertion protecting the exact three-field outgoing payload is unchanged. The initial attribution to a production boundary mismatch was corrected after tracing both real callers. No regression script or shared test support is added or edited.
+- Current proof: **3097 unit tests / 158 files**, **348/348 full regressions**, **413 permission checks**, lint and strict-ledger governance pass. An initial full-unit run under simultaneous heavy jobs timed out in an existing compiler-probe test; a serial run passed without a timeout change. Final focused browser proof passes **5/5** (Business and Personal on desktop/mobile plus setup), on isolated port **8102**, with UUID records, independent accounts/workspaces and verified note cleanup. Earlier browser artifacts were preserved before reruns. Actual option `disabled` state, provider display label versus full title, and asynchronous option-list transitions are asserted using their real semantics.
+- **Explicitly authorized scope amendment: a pre-existing rendering defect, separate from typing.** Untouched baseline Notes source reproduced the Personal client field as visible on both layouts: the shared picker set `hidden`, but its field's `display: grid` overrode the native hidden treatment. User approval extends this checkpoint only to `.notes-context-panel .view-linked-context-picker-field[hidden] { display: none; }` beside the existing Notes context styles in the shared `public/css/longtail-forge.css`. The original visibility assertion stays intact. Removing exactly this addition reproduces the prior stylesheet bytes, including LF endings and both lanes' existing safeguards. No global rule, `!important`, JavaScript visibility change, workspace/permission change or server change.
+- The rendered cases assert computed `display: none` in Personal, `grid` and usable client selection in Business, and all other picker fields remaining available. The Personal case uses the real shell workspace selector to return to its own Business workspace; normal navigation rebuilds the editor, and the test proves restored grid layout and successful scoped requests. It never removes the hidden attribute or fabricates workspace state. The switch response is observed and forwarded unchanged before navigation so its body remains available to the test; navigation and request waits are bounded.
+- **Shared fixture finding for the integrator:** `createOwnedWorkspace` currently checks `body.workspace.workspace_id || body.workspaceId`, while the service publishes `body.workspace.workspaceId`; its returned `workspaceId` is empty. Shared support remains untouched. This test reads its actual Business identity from its own authenticated session and its Personal identity from the actual creation response, then switches back to that owned workspace for note cleanup. This is a fixture-reader gap, not an application limitation or a reason to weaken an assertion. The earlier scoped-locator mistake and response-after-navigation observation failure were corrected in the test, with artifacts retained before every rerun.
+- Final delivery uses canonical `verify:slice` against the full baseline-to-head range and then `checkpoint:validate`. The unchanged Notes source and unit/mutation inputs retain the full unit, full regression, permission and 42-break evidence above; the finished CSS/E2E tree has fresh rendered and lint proof. Exact conductor and commit-range validation outcomes accompany the delivery SHA.
+
+Excluded: all other Notes concerns (including the remaining filter/query/status/action/detail functions, primary-context summaries, link-row display and writes, attachments, revisions, tags and search); all other browser controllers, server and shared contracts; stylesheet changes beyond the single authorized Notes rule. No new regression script, suppression, cast or explicit-any. No docs change needed: completed checkpoint moved to roadmap archive. Durable documentation and release packaging remain deferred to version closeout; this branch-local entry becomes authoritative only after protected integration. Claude retains sole integration and merge ownership.
 ## Version 0.33.33.44.30 - Time Tracking report renderer, and the file reaches zero
 
 **Model: High Effort** - the checkpoint where fourteen sibling pins had to survive untouched, and where the host's own documentation of this file's contract turned out to be wrong.

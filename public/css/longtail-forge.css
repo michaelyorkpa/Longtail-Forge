@@ -7344,6 +7344,10 @@ summary.view-info-panel-title {
     min-width: 0;
 }
 
+.notes-context-panel .view-linked-context-picker-field[hidden] {
+    display: none;
+}
+
 .notes-editor-form input,
 .notes-editor-form select,
 .notes-editor-form textarea,
