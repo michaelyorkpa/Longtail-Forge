@@ -5,6 +5,138 @@ const statusMessage = document.querySelector("[data-help-status]");
 const sectionsContainer = document.querySelector("[data-help-sections]");
 const articleContainer = document.querySelector("[data-help-article]");
 
+/**
+ * A record this page read out of a Help response, with no member guaranteed.
+ *
+ * The wire shapes are the server's `HelpSectionPayload`, `HelpArticleListPayload` and
+ * `HelpArticleDetailPayload`, which are declared and checked **there** - in a program this one
+ * does not include. Restating them here would create a second, unchecked copy that could drift
+ * from the first without either side noticing, so this page states only what it verifies:
+ * that the value it reads from is a record.
+ * @typedef {Record<string, unknown>} HelpRecord
+ */
+
+/**
+ * A Help section, as **this page's own normalizer** produces it.
+ *
+ * Named precisely rather than left open, because `normalizeSections` is the producer: every
+ * member below is written by it, so the shape is a local fact rather than a claim about the wire.
+ * @typedef {object} HelpSection
+ * @property {string} id
+ * @property {string} title
+ * @property {string} description
+ * @property {number} sortOrder
+ * @property {string} ownerType
+ * @property {string} moduleId
+ * @property {string} sourceLabel
+ */
+
+/**
+ * A Help article, as `normalizeArticles` produces it. Named for the same reason as
+ * {@link HelpSection}.
+ * @typedef {object} HelpArticle
+ * @property {string} id
+ * @property {string} slug
+ * @property {string} sectionId
+ * @property {string} title
+ * @property {string} summary
+ * @property {string} description
+ * @property {number} sortOrder
+ * @property {readonly unknown[]} tags
+ * @property {string} ownerType
+ * @property {string} moduleId
+ * @property {string} sourceLabel
+ */
+
+/**
+ * One navigation entry that resolves to an article.
+ *
+ * **Only `id`, `title` and `type` are guaranteed.** `navigationArticle` writes all seven, but
+ * `createNavigationItem` also builds one by re-typing a group that carries its own article id,
+ * and a group is not required to carry the other four.
+ * @typedef {object} HelpNavigationArticle
+ * @property {"article"} type
+ * @property {string} id
+ * @property {string} title
+ * @property {string} [moduleId]
+ * @property {string} [ownerType]
+ * @property {string} [slug]
+ * @property {string} [sourceLabel]
+ */
+
+/**
+ * One navigation entry that holds other entries.
+ *
+ * `sectionsWithArticles` builds the fallback navigation from three members only, so everything
+ * a declared group carries beyond `children`, `title` and `type` is optional here.
+ * @typedef {object} HelpNavigationGroup
+ * @property {"group"} type
+ * @property {string} title
+ * @property {HelpNavigationItem[]} children
+ * @property {string} [id]
+ * @property {string} [moduleId]
+ * @property {string} [ownerType]
+ * @property {string} [slug]
+ * @property {string} [sourceLabel]
+ */
+
+/** @typedef {HelpNavigationArticle | HelpNavigationGroup} HelpNavigationItem */
+
+/**
+ * The record a Help member carries, or `null`.
+ *
+ * Arrays are refused because every caller asks this for a member it will read *by name*, and an
+ * array answers `undefined` for each of them anyway.
+ * @param {unknown} value
+ * @returns {HelpRecord | null}
+ */
+function helpRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? /** @type {HelpRecord} */ (value)
+    : null;
+}
+
+/**
+ * A Help list, with every entry read as a record.
+ *
+ * A malformed entry becomes `{}` rather than being dropped, because the normalizers already
+ * drop what they cannot use - `normalizeSections` and `normalizeArticles` both filter on an id
+ * and a title - so removing it here would take that decision away from them.
+ * @param {unknown} value
+ * @returns {HelpRecord[]}
+ */
+function helpRecordList(value) {
+  /** @type {readonly unknown[]} */
+  const entries = Array.isArray(value) ? value : [];
+  return entries.map((entry) => helpRecord(entry) || {});
+}
+
+/**
+ * A Help member as text.
+ *
+ * **`String(value || "")`, not `String(value ?? "")`**, because every site this replaces read
+ * `member || ""` - so `0`, `false` and `""` must all still reach the empty string rather than
+ * their own spellings. A truthy non-string is the only value that changes: it becomes its text
+ * instead of staying raw, which is what the two `localeCompare` sorts below already required of
+ * it and would otherwise have thrown on.
+ * @param {unknown} value
+ * @returns {string}
+ */
+function helpText(value) {
+  return String(value || "");
+}
+
+/**
+ * @typedef {object} HelpPageState
+ * @property {HelpArticle[]} articles
+ * @property {string} defaultArticleId
+ * @property {HelpNavigationItem[]} navigation
+ * @property {number} navGroupCounter
+ * @property {HelpSection[]} sections
+ * @property {string} selectedArticleId
+ */
+
+/** @type {HelpPageState} */
 const state = {
   articles: [],
   defaultArticleId: "",
@@ -46,10 +178,13 @@ async function initialize() {
       throw new Error(errorMessage(body) || "Help is unavailable.");
     }
 
-    state.sections = normalizeSections(body.sections);
-    state.articles = normalizeArticles(body.articles);
-    state.navigation = normalizeNavigation(body.navigation);
-    state.defaultArticleId = body.defaultArticleId || body.defaultArticleSlug || "";
+    // Narrowed after the failure branch, so `errorMessage` keeps reading the body exactly as it
+    // arrived rather than one this page substituted.
+    const payload = helpRecord(body) || {};
+    state.sections = normalizeSections(payload.sections);
+    state.articles = normalizeArticles(payload.articles);
+    state.navigation = normalizeNavigation(payload.navigation);
+    state.defaultArticleId = helpText(payload.defaultArticleId || payload.defaultArticleSlug);
     renderSections();
 
     if (state.articles.length === 0) {
@@ -71,6 +206,10 @@ async function initialize() {
   }
 }
 
+/**
+ * @param {unknown} articleId an id or a slug, from the URL, a click, or the default
+ * @param {{ replaceUrl?: boolean }} [options]
+ */
 async function selectArticle(articleId, options = {}) {
   const article = findArticle(articleId);
 
@@ -93,7 +232,7 @@ async function selectArticle(articleId, options = {}) {
       throw new Error(errorMessage(body) || "Article is unavailable.");
     }
 
-    renderArticle(body.article || article);
+    renderArticle(helpRecord(helpRecord(body)?.article) || article);
     setStatus("");
   } catch (error) {
     setStatus(requireErrors().caughtMessage(error, "Article is unavailable."), true);
@@ -117,6 +256,7 @@ function renderSections() {
   sectionsContainer.replaceChildren(...navigation.map((item) => createNavigationItem(item, 1)));
 }
 
+/** @param {HelpNavigationItem} item @param {number} [depth] */
 function createNavigationItem(item, depth = 1) {
   if (item.type === "article") {
     return createArticleLink(item, depth);
@@ -147,7 +287,9 @@ function createNavigationItem(item, depth = 1) {
   list.className = "help-article-list";
   list.id = groupId;
   list.replaceChildren(
-    ...(item.id ? [createArticleLink({ ...item, type: "article" }, depth + 1)] : []),
+    // `id` is restated after the spread only so the narrowing the guard already performed
+    // survives it; the value is the one the spread carried.
+    ...(item.id ? [createArticleLink({ ...item, id: item.id, type: "article" }, depth + 1)] : []),
     ...(item.children || []).map((child) => createNavigationItem(child, depth + 1)),
   );
   const expanded = shouldStartGroupExpanded(item, depth);
@@ -157,6 +299,7 @@ function createNavigationItem(item, depth = 1) {
   return group;
 }
 
+/** @param {HelpNavigationArticle} article @param {number} [depth] */
 function createArticleLink(article, depth = 1) {
   const button = document.createElement("button");
   const title = document.createElement("span");
@@ -175,6 +318,11 @@ function createArticleLink(article, depth = 1) {
   return button;
 }
 
+/**
+ * **The detail body or the list entry, whichever the response yielded.** Both reach here, so the
+ * parameter is a record rather than a `HelpArticle`: the detail comes straight off the wire.
+ * @param {HelpRecord} article
+ */
 function renderArticle(article) {
   if (!articleContainer) {
     return;
@@ -187,13 +335,13 @@ function renderArticle(article) {
   const body = document.createElement("div");
 
   header.className = "help-article-header";
-  title.textContent = article.title || "Untitled article";
+  title.textContent = helpText(article.title) || "Untitled article";
   meta.className = "help-article-meta";
   meta.textContent = articleMetaParts(article).join(" - ");
   header.append(title, meta);
 
   summary.className = "help-article-summary";
-  summary.textContent = article.summary || article.description || "";
+  summary.textContent = helpText(article.summary || article.description);
 
   body.className = "help-article-body";
   body.replaceChildren(...articleBodyNodes(article));
@@ -201,6 +349,7 @@ function renderArticle(article) {
   articleContainer.replaceChildren(header, summary, body);
 }
 
+/** @param {HelpRecord} article */
 function articleBodyNodes(article) {
   if (article.bodyHtml) {
     return renderSafeHtmlNodes(article.bodyHtml);
@@ -209,12 +358,17 @@ function articleBodyNodes(article) {
   return renderMarkdownNodes(article.bodyMarkdown || article.body || "");
 }
 
+/** @param {string} message */
 function renderArticlePrompt(message) {
   articleContainer?.replaceChildren(emptyElement(message));
 }
 
+/** @returns {HelpNavigationItem[]} */
 function sectionsWithArticles() {
+  /** @typedef {{ id: string, title: string, sortOrder: number, articles: HelpArticle[] }} HelpSectionBucket */
+  /** @type {Map<string, HelpSectionBucket>} */
   const sectionsById = new Map(state.sections.map((section) => [section.id, { ...section, articles: [] }]));
+  /** @type {HelpSectionBucket} */
   const fallbackSection = {
     id: "uncategorized",
     title: "Other",
@@ -240,10 +394,16 @@ function sectionsWithArticles() {
 
 function updateSelectedArticleLinks() {
   document.querySelectorAll("[data-help-article-id]").forEach((button) => {
+    // `dataset` lives on `HTMLElement`, and `querySelectorAll` answers `Element`. Every match is
+    // a button this page built, so the narrowing states what the selector already implies.
+    if (!(button instanceof HTMLElement)) {
+      return;
+    }
     button.setAttribute("aria-pressed", String(button.dataset.helpArticleId === state.selectedArticleId));
   });
 }
 
+/** @param {HelpNavigationItem} item @param {number} depth */
 function shouldStartGroupExpanded(item, depth) {
   if (navigationItemContainsArticle(item, state.selectedArticleId)) {
     return true;
@@ -256,6 +416,11 @@ function shouldStartGroupExpanded(item, depth) {
   return normalizeNavigationTitle(item.title) === "longtail forge";
 }
 
+/**
+ * @param {HelpNavigationItem | null | undefined} item
+ * @param {string} articleId
+ * @returns {boolean}
+ */
 function navigationItemContainsArticle(item, articleId) {
   if (!articleId || !item) {
     return false;
@@ -265,13 +430,15 @@ function navigationItemContainsArticle(item, articleId) {
     return true;
   }
 
-  return (item.children || []).some((child) => navigationItemContainsArticle(child, articleId));
+  return (item.type === "group" ? item.children || [] : []).some((child) => navigationItemContainsArticle(child, articleId));
 }
 
+/** @param {unknown} title */
 function normalizeNavigationTitle(title) {
-  return String(title || "").trim().toLowerCase();
+  return helpText(title).trim().toLowerCase();
 }
 
+/** @param {HelpArticle} article */
 function updateUrl(article) {
   const params = new URLSearchParams(window.location.search);
   params.set("article", article.slug || article.id);
@@ -283,64 +450,85 @@ function readSelectedArticleFromUrl() {
   return params.get("article") || params.get("id") || params.get("slug") || "";
 }
 
+/** @param {unknown} articleIdOrSlug */
 function findArticle(articleIdOrSlug) {
   return state.articles.find((article) => (
     article.id === articleIdOrSlug || article.slug === articleIdOrSlug
   ));
 }
 
+/** @param {unknown} [sections] @returns {HelpSection[]} */
 function normalizeSections(sections = []) {
-  return (Array.isArray(sections) ? sections : [])
+  return helpRecordList(sections)
     .map((section) => ({
-      id: section.id || "",
-      title: section.title || "",
-      description: section.description || "",
+      id: helpText(section.id),
+      title: helpText(section.title),
+      description: helpText(section.description),
       sortOrder: Number(section.sortOrder || 0),
-      ownerType: section.ownerType || "module",
-      moduleId: section.moduleId || "",
-      sourceLabel: section.sourceLabel || "",
+      ownerType: helpText(section.ownerType) || "module",
+      moduleId: helpText(section.moduleId),
+      sourceLabel: helpText(section.sourceLabel),
     }))
     .filter((section) => section.id && section.title)
     .sort((left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0) ||
       left.title.localeCompare(right.title));
 }
 
+/** @param {unknown} [articles] @returns {HelpArticle[]} */
 function normalizeArticles(articles = []) {
-  return (Array.isArray(articles) ? articles : [])
+  return helpRecordList(articles)
     .map((article) => ({
-      id: article.id || "",
-      slug: article.slug || "",
-      sectionId: article.sectionId || "",
-      title: article.title || "",
-      summary: article.summary || article.description || "",
-      description: article.description || "",
+      id: helpText(article.id),
+      slug: helpText(article.slug),
+      sectionId: helpText(article.sectionId),
+      title: helpText(article.title),
+      summary: helpText(article.summary || article.description),
+      description: helpText(article.description),
       sortOrder: Number(article.sortOrder || 0),
-      tags: Array.isArray(article.tags) ? article.tags : [],
-      ownerType: article.ownerType || "module",
-      moduleId: article.moduleId || "",
-      sourceLabel: article.sourceLabel || "",
+      tags: /** @type {readonly unknown[]} */ (Array.isArray(article.tags) ? article.tags : []),
+      ownerType: helpText(article.ownerType) || "module",
+      moduleId: helpText(article.moduleId),
+      sourceLabel: helpText(article.sourceLabel),
     }))
     .filter((article) => article.id && article.title)
     .sort((left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0) ||
       left.title.localeCompare(right.title));
 }
 
+/**
+ * **The entries are passed on raw, not read as records first.** `normalizeNavigationItem`
+ * answers `null` for anything that is not a record, and that answer is how a malformed entry is
+ * *dropped*; substituting an empty record here would turn each one into an untitled group.
+ * @param {unknown} [items]
+ * @returns {HelpNavigationItem[]}
+ */
 function normalizeNavigation(items = []) {
-  return (Array.isArray(items) ? items : [])
-    .map(normalizeNavigationItem)
-    .filter(Boolean);
+  /** @type {readonly unknown[]} */
+  const entries = Array.isArray(items) ? items : [];
+  /** @type {HelpNavigationItem[]} */
+  const normalized = [];
+  for (const entry of entries) {
+    const item = normalizeNavigationItem(entry);
+    if (item) {
+      normalized.push(item);
+    }
+  }
+  return normalized;
 }
 
+/** @param {unknown} item @returns {HelpNavigationItem | null} */
 function normalizeNavigationItem(item) {
-  if (!item || typeof item !== "object") {
+  const entry = helpRecord(item);
+
+  if (!entry) {
     return null;
   }
 
-  const type = item.type === "article" ? "article" : "group";
-  const children = normalizeNavigation(item.children);
+  const type = entry.type === "article" ? "article" : "group";
+  const children = normalizeNavigation(entry.children);
 
   if (type === "article") {
-    const article = findArticle(item.id || item.slug || "");
+    const article = findArticle(entry.id || entry.slug || "");
 
     if (!article) {
       return null;
@@ -348,22 +536,23 @@ function normalizeNavigationItem(item) {
 
     return {
       ...navigationArticle(article),
-      title: item.title || article.title,
+      title: helpText(entry.title) || article.title,
     };
   }
 
   return {
-    id: item.id || "",
-    moduleId: item.moduleId || "",
-    ownerType: item.ownerType || "",
-    slug: item.slug || "",
+    id: helpText(entry.id),
+    moduleId: helpText(entry.moduleId),
+    ownerType: helpText(entry.ownerType),
+    slug: helpText(entry.slug),
     children,
-    sourceLabel: item.sourceLabel || "",
-    title: item.title || "Help",
+    sourceLabel: helpText(entry.sourceLabel),
+    title: helpText(entry.title) || "Help",
     type: "group",
   };
 }
 
+/** @param {HelpArticle} article @returns {HelpNavigationArticle} */
 function navigationArticle(article) {
   return {
     id: article.id,
@@ -376,9 +565,11 @@ function navigationArticle(article) {
   };
 }
 
+/** @param {HelpRecord} article @returns {string[]} */
 function articleMetaParts(article) {
+  /** @type {string[]} */
   const parts = [];
-  const source = article.sourceLabel || sourceLabel(article);
+  const source = helpText(article.sourceLabel) || sourceLabel(article);
 
   if (source) {
     parts.push(source);
@@ -392,16 +583,24 @@ function articleMetaParts(article) {
   return parts;
 }
 
+/**
+ * **A record rather than one of the two article shapes**, because both reach it: a navigation
+ * entry on its way to a link label, and a detail body straight off the wire.
+ * @param {HelpRecord} article
+ * @returns {string}
+ */
 function sourceLabel(article) {
   if (article.ownerType === "framework") {
     return "Framework";
   }
 
-  return article.moduleId || "Module";
+  return helpText(article.moduleId) || "Module";
 }
 
+/** @param {unknown} markdown @returns {Node[]} */
 function renderMarkdownNodes(markdown) {
   const lines = normalizeMarkdown(markdown).split("\n");
+  /** @type {Node[]} */
   const nodes = [];
   let index = 0;
 
@@ -487,22 +686,27 @@ function renderMarkdownNodes(markdown) {
   return nodes.length > 0 ? nodes : [emptyElement("This article is empty.")];
 }
 
+/** @param {unknown} html @returns {Node[]} */
 function renderSafeHtmlNodes(html) {
   const parser = new DOMParser();
   const documentNode = parser.parseFromString(String(html || ""), "text/html");
   const nodes = Array.from(documentNode.body.childNodes)
     .map((node) => importSafeHelpNode(node))
-    .filter(Boolean);
+    .filter((node) => node !== null);
 
   return nodes.length > 0 ? nodes : [emptyElement("This article is empty.")];
 }
 
+/** @param {Node} node @returns {Node | null} */
 function importSafeHelpNode(node) {
   if (node.nodeType === Node.TEXT_NODE) {
     return document.createTextNode(node.textContent || "");
   }
 
-  if (node.nodeType !== Node.ELEMENT_NODE) {
+  // The second half is the narrowing the first already implies - a node reporting `ELEMENT_NODE`
+  // is an `Element` - and it is spelled out because `tagName`, `getAttribute` and `hasAttribute`
+  // below live on `Element` rather than on `Node`. It can only ever refuse, never admit.
+  if (node.nodeType !== Node.ELEMENT_NODE || !(node instanceof Element)) {
     return null;
   }
 
@@ -540,7 +744,10 @@ function importSafeHelpNode(node) {
 
   const element = document.createElement(tagName);
 
-  if (tagName === "a") {
+  // Each narrowing below states the tag the branch already established - `createElement("a")`
+  // answers an anchor and `createElement("input")` an input. They can only skip an assignment,
+  // never permit one the allowlist or `safeHelpHref` refused.
+  if (tagName === "a" && element instanceof HTMLAnchorElement) {
     const safeHref = safeHelpHref(node.getAttribute("href") || "");
     if (safeHref) {
       element.href = safeHref;
@@ -557,7 +764,7 @@ function importSafeHelpNode(node) {
     }
   }
 
-  if (tagName === "input" && node.getAttribute("type") === "checkbox") {
+  if (tagName === "input" && element instanceof HTMLInputElement && node.getAttribute("type") === "checkbox") {
     element.type = "checkbox";
     element.disabled = true;
     element.checked = node.hasAttribute("checked");
@@ -565,10 +772,11 @@ function importSafeHelpNode(node) {
 
   element.replaceChildren(...Array.from(node.childNodes)
     .map((child) => importSafeHelpNode(child))
-    .filter(Boolean));
+    .filter((child) => child !== null));
   return element;
 }
 
+/** @param {unknown} markdown @returns {string} */
 function normalizeMarkdown(markdown) {
   return String(markdown || "")
     .replace(/\r\n?/g, "\n")
@@ -576,6 +784,7 @@ function normalizeMarkdown(markdown) {
     .trim();
 }
 
+/** @param {readonly string[]} lines @param {number} index */
 function isParagraphLine(lines, index) {
   const trimmed = lines[index].trim();
 
@@ -587,6 +796,7 @@ function isParagraphLine(lines, index) {
     !isTableStart(lines, index);
 }
 
+/** @param {string} code */
 function codeBlockElement(code) {
   const pre = document.createElement("pre");
   const element = document.createElement("code");
@@ -596,18 +806,22 @@ function codeBlockElement(code) {
   return pre;
 }
 
+/** @param {readonly string[]} lines @param {number} index */
 function isTableStart(lines, index) {
   return isTableRow(lines[index]) && isTableDivider(lines[index + 1] || "");
 }
 
+/** @param {string | undefined} line */
 function isTableRow(line) {
   return /^\s*\|.+\|\s*$/.test(line || "");
 }
 
+/** @param {string} line */
 function isTableDivider(line) {
   return /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line || "");
 }
 
+/** @param {readonly string[]} lines */
 function tableElement(lines) {
   const table = document.createElement("table");
   const thead = document.createElement("thead");
@@ -636,6 +850,7 @@ function tableElement(lines) {
   return table;
 }
 
+/** @param {unknown} line @returns {string[]} */
 function splitTableCells(line) {
   return String(line || "")
     .trim()
@@ -645,7 +860,9 @@ function splitTableCells(line) {
     .map((cell) => cell.trim());
 }
 
+/** @param {unknown} value @returns {Node[]} */
 function inlineMarkdownNodes(value) {
+  /** @type {Node[]} */
   const nodes = [];
   const pattern = /(`([^`]+)`)|(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(\[([^\]]+)]\(([^)\s]+)\))/g;
   let cursor = 0;
@@ -677,12 +894,14 @@ function inlineMarkdownNodes(value) {
   return nodes;
 }
 
+/** @param {Node[]} nodes @param {string} value */
 function appendTextNode(nodes, value) {
   if (value) {
     nodes.push(document.createTextNode(value));
   }
 }
 
+/** @param {string} label @param {unknown} href */
 function linkElement(label, href) {
   const anchor = document.createElement("a");
   const safeHref = safeHelpHref(href);
@@ -697,6 +916,7 @@ function linkElement(label, href) {
   return anchor;
 }
 
+/** @param {unknown} href @returns {string} */
 function safeHelpHref(href) {
   const value = String(href || "").trim();
 
@@ -711,6 +931,7 @@ function safeHelpHref(href) {
   return "";
 }
 
+/** @param {string} message */
 function emptyElement(message) {
   const element = document.createElement("p");
   element.className = "placeholder-copy";
@@ -719,6 +940,7 @@ function emptyElement(message) {
 }
 
 
+/** @param {string} message @param {boolean} [isError] */
 function setStatus(message, isError = false) {
   if (!statusMessage) {
     return;
@@ -728,6 +950,7 @@ function setStatus(message, isError = false) {
   statusMessage.classList.toggle("is-error", isError);
 }
 
+/** @param {Response} response @returns {Promise<unknown>} */
 async function readJson(response) {
   try {
     return await response.json();
@@ -736,6 +959,7 @@ async function readJson(response) {
   }
 }
 
+/** @param {unknown} body @returns {string} */
 function errorMessage(body) {
   return window.LongtailForge?.errors?.read?.(body, "").message || "";
 }
