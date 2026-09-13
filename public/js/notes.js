@@ -1257,6 +1257,7 @@
     return notesViewSurfaceDescriptor()?.detail?.actionStrip || notesWorkflowActionStripDescriptor();
   }
 
+  /** @returns {NonNullable<import("../../src/types/framework-contracts.js").ViewDetailDescriptor["actionStrip"]>} */
   function notesWorkflowActionStripDescriptor() {
     return {
       label: "Note actions",
@@ -1272,6 +1273,7 @@
     return notesViewSurfaceDescriptor()?.detail?.linkedRecords || null;
   }
 
+  /** @param {BrowserNoteRecord} note */
   function createNoteActionStrip(note) {
     const label = notesActionStripDescriptor().label || "Note actions";
     return requireDescriptorRenderers().renderDescriptorActionMenu(detailActionButtons(note), {
@@ -1281,6 +1283,7 @@
     });
   }
 
+  /** @param {BrowserNoteRecord} note */
   function detailActionButtons(note) {
     const actions = notesActionStripDescriptor().actions || [];
     const actionById = new Map(actions.map((action) => [action.id, action]));
@@ -1303,12 +1306,13 @@
     return buttons;
   }
 
+  /** @param {import("../../src/types/framework-contracts.js").ViewActionDescriptor} action @param {BrowserNoteRecord} note */
   function noteWorkflowActionButton(action, note) {
     const view = requireView();
     const button = view.createActionButton({
       label: action.label || action.id,
       role: action.role,
-      onClick: () => runNoteWorkflow(action.behavior, note),
+      onClick: () => typeof action.behavior === "string" ? runNoteWorkflow(action.behavior, note) : undefined,
     });
     button.dataset.noteAction = action.id;
     return button;
@@ -1406,7 +1410,6 @@
       const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
       renderNoteViewDialog(dialog, requireNoteFromEnvelope(result), params, hostContext);
     } catch (error) {
-      // Error-input typing remains owned by the deferred Notes error-helper boundary.
       renderNoteViewError(dialog, error);
       hostContext?.setStatus?.(noteViewErrorMessage(error), { isError: true });
     }
@@ -1488,6 +1491,8 @@
     noteViewBodyElement(dialog)?.replaceChildren(meta, tags, body);
 
     const editAction = noteViewEditAction(dialog);
+    // A missing edit control does not invalidate the note body already rendered.
+    if (!editAction) return;
     editAction.disabled = note.status === "archived";
     editAction.title = note.status === "archived"
       ? "Restore archived notes before editing."
@@ -1499,20 +1504,27 @@
     }, hostContext), { once: true });
   }
 
+  /** @param {import("../../src/types/browser-contracts.js").BrowserViewModalElement} dialog @param {unknown} error */
   function renderNoteViewError(dialog, error = {}) {
     dialog.viewParts.title.textContent = "Note unavailable";
     noteViewBodyElement(dialog)?.replaceChildren(emptyText(noteViewErrorMessage(error)));
     const editAction = noteViewEditAction(dialog);
+    if (!editAction) return;
     editAction.disabled = true;
     editAction.title = "This note cannot be edited from here.";
   }
 
+  /** @param {ParentNode | null | undefined} dialog */
   function noteViewBodyElement(dialog) {
     return dialog?.querySelector("[data-note-view-body]");
   }
 
+  /** @param {ParentNode | null | undefined} dialog */
   function noteViewEditAction(dialog) {
-    return dialog?.querySelector("[data-note-view-action='edit']");
+    // The Notes modal producer creates buttons. The tag lookup establishes their
+    // DOM type before button-specific state is used; an unreadable control is absent.
+    return [...(dialog?.querySelectorAll("button") || [])]
+      .find((button) => button.dataset.noteViewAction === "edit") || null;
   }
 
   /**
@@ -1542,6 +1554,7 @@
     });
   }
 
+  /** @param {unknown} error */
   function noteViewErrorMessage(error = {}) {
     if (isSecureError(error)) {
       return "Secure note is locked or could not be decrypted. Check secure-note access and server key configuration.";
@@ -3196,6 +3209,7 @@
     }
   }
 
+  /** @param {BrowserNoteRecord} note */
   function renderDetail(note) {
     const view = requireView();
     const title = view.createElement("h2", { text: note.title || "Untitled note" });
@@ -3230,7 +3244,7 @@
 
     // Client/Project/Task/User context lives in the Linked Context panel; the metadata row carries all
     // note-level metadata (incl. Created/Updated/Owner) so it is not duplicated here.
-    detailPanel.replaceChildren(...[header, collectionBreadcrumb, tags, tagsRule, body, links, files, revisions]
+    requireNotesValue(detailPanel).replaceChildren(...[header, collectionBreadcrumb, tags, tagsRule, body, links, files, revisions]
       .filter((node) => node !== null && node !== undefined));
     mountFilesPanel(note, files.querySelector("[data-note-files-mount]"));
     loadRevisions(note, revisions.querySelector("[data-note-revisions-list]"));
@@ -5008,6 +5022,7 @@
     return descriptor.fields?.find((field) => field.field === fieldName) || {};
   }
 
+  /** @param {BrowserNoteRecord} note */
   function linkRecordNodes(note) {
     const view = requireView();
     const primaryContext = notePrimaryContextItem(note);
@@ -5015,7 +5030,7 @@
     const items = [
       primaryContext,
       ...links.map((link) => linkItem(note, link)),
-    ].filter(Boolean);
+    ].filter((item) => item !== null);
 
     if (items.length === 0) {
       return [view.createElement("p", {
