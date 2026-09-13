@@ -335,6 +335,7 @@
         "tests/e2e/modal.spec.mjs",
         "tests/e2e/notes-bulk-edit.spec.mjs",
         "tests/e2e/notes-collections.spec.mjs",
+        "tests/e2e/notes-detail-display.spec.mjs",
         "tests/e2e/notes-editor-defaults.spec.mjs",
         "tests/e2e/notes-editor-fields-links.spec.mjs",
         "tests/e2e/notes-editor-lifecycle.spec.mjs",
@@ -384,6 +385,7 @@
         "tests/mutations/help-article.breaks.mjs",
         "tests/mutations/hidden-label-safeguard.breaks.mjs",
         "tests/mutations/notes-bulk-edit.breaks.mjs",
+        "tests/mutations/notes-detail-display.breaks.mjs",
         "tests/mutations/notes-editor-defaults.breaks.mjs",
         "tests/mutations/notes-editor-fields-links.breaks.mjs",
         "tests/mutations/notes-follow-toggle.breaks.mjs",
@@ -480,6 +482,7 @@
         "tests/unit/note-response-contracts.test.mjs",
         "tests/unit/note-revision-list-contracts.test.mjs",
         "tests/unit/notes-bulk-edit.test.mjs",
+        "tests/unit/notes-detail-display.test.mjs",
         "tests/unit/notes-editor-defaults.test.mjs",
         "tests/unit/notes-editor-fields-links.test.mjs",
         "tests/unit/notes-editor-lifecycle.test.mjs",
@@ -674,7 +677,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 5143,
+      "errorCount": 5130,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1027,19 +1030,15 @@
         "public/js/notes.js": [
           {
             "code": 18047,
-            "count": 5
+            "count": 4
           },
           {
             "code": 2339,
             "count": 14
           },
           {
-            "code": 2345,
-            "count": 2
-          },
-          {
             "code": 7006,
-            "count": 66
+            "count": 56
           },
           {
             "code": 7053,
@@ -2252,8 +2251,8 @@
     }
   },
   "totals": {
-    "files": 1255,
-    "errors": 5143,
+    "files": 1258,
+    "errors": 5130,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
