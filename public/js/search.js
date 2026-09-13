@@ -1,26 +1,126 @@
 (function initializeSearchPage() {
-const searchForm = document.querySelector("[data-search-form]");
-const textInput = document.querySelector("[data-search-text]");
-const moduleSelect = document.querySelector("[data-search-module]");
-const recordTypeSelect = document.querySelector("[data-search-record-type]");
-const clientSelect = document.querySelector("[data-search-client]");
-const projectSelect = document.querySelector("[data-search-project]");
-const tagSelect = document.querySelector("[data-search-tag]");
-const noteCollectionInput = document.querySelector("[data-search-note-collection]");
-const statusSelect = document.querySelector("[data-search-status-filter]");
-const clientControl = document.querySelector("[data-search-client-control]");
-const clearButton = document.querySelector("[data-search-clear]");
-const indexMaintenance = document.querySelector("[data-search-index-maintenance]");
-const rebuildIndexButton = document.querySelector("[data-search-rebuild-index]");
-const rebuildStatus = document.querySelector("[data-search-rebuild-status]");
-const statusMessage = document.querySelector("[data-search-status]");
-const searchMeta = document.querySelector("[data-search-meta]");
-const resultsList = document.querySelector("[data-search-results]");
-const pagination = document.querySelector("[data-search-pagination]");
-const previousButton = document.querySelector("[data-search-previous]");
-const nextButton = document.querySelector("[data-search-next]");
-const pageSummary = document.querySelector("[data-search-page-summary]");
+/**
+ * The page's controls, each narrowed to the subtype the page actually drives.
+ *
+ * **`document.querySelector` answers `Element`, and this page reads `value`, `disabled` and
+ * `hidden` off almost all of them.** These five checks are the markup contract restated where the
+ * page reads it: `search.html` ships a real form, text and collection inputs, five selects, and
+ * buttons for clear, rebuild and paging. A control that is not what the page expects answers
+ * `null` here rather than being typed into something it is not, and every read below already
+ * guards for absence.
+ * @param {string} selector
+ * @returns {HTMLFormElement | null}
+ */
+function findForm(selector) {
+  const node = document.querySelector(selector);
+  return node instanceof HTMLFormElement ? node : null;
+}
 
+/** @param {string} selector @returns {HTMLInputElement | null} */
+function findInput(selector) {
+  const node = document.querySelector(selector);
+  return node instanceof HTMLInputElement ? node : null;
+}
+
+/** @param {string} selector @returns {HTMLSelectElement | null} */
+function findSelect(selector) {
+  const node = document.querySelector(selector);
+  return node instanceof HTMLSelectElement ? node : null;
+}
+
+/** @param {string} selector @returns {HTMLButtonElement | null} */
+function findButton(selector) {
+  const node = document.querySelector(selector);
+  return node instanceof HTMLButtonElement ? node : null;
+}
+
+/**
+ * A rendered element this page reads `hidden` or `textContent` from.
+ * @param {string} selector
+ * @returns {HTMLElement | null}
+ */
+function findElement(selector) {
+  const node = document.querySelector(selector);
+  return node instanceof HTMLElement ? node : null;
+}
+
+const searchForm = findForm("[data-search-form]");
+const textInput = findInput("[data-search-text]");
+const moduleSelect = findSelect("[data-search-module]");
+const recordTypeSelect = findSelect("[data-search-record-type]");
+const clientSelect = findSelect("[data-search-client]");
+const projectSelect = findSelect("[data-search-project]");
+const tagSelect = findSelect("[data-search-tag]");
+const noteCollectionInput = findInput("[data-search-note-collection]");
+const statusSelect = findSelect("[data-search-status-filter]");
+const clientControl = findElement("[data-search-client-control]");
+const clearButton = findButton("[data-search-clear]");
+const indexMaintenance = findElement("[data-search-index-maintenance]");
+const rebuildIndexButton = findButton("[data-search-rebuild-index]");
+const rebuildStatus = findElement("[data-search-rebuild-status]");
+const statusMessage = findElement("[data-search-status]");
+const searchMeta = findElement("[data-search-meta]");
+const resultsList = findElement("[data-search-results]");
+const pagination = findElement("[data-search-pagination]");
+const previousButton = findButton("[data-search-previous]");
+const nextButton = findButton("[data-search-next]");
+const pageSummary = findElement("[data-search-page-summary]");
+
+/**
+ * A record this page read out of a search response, with no member guaranteed.
+ *
+ * The result rows, their contexts and the client/project options are all untrusted wire values,
+ * and their vocabularies belong to whichever module contributed the searchable type - so the
+ * page states what it verifies, that it is reading from a record, rather than naming members it
+ * does not own.
+ * @typedef {Record<string, unknown>} SearchRecord
+ */
+
+/**
+ * The eight filters this page carries, as **its own three producers** write them.
+ *
+ * Named precisely rather than left open, because `emptyFilters`, `readFiltersFromUrl` and
+ * `readFiltersFromControls` are the only builders and each writes all eight as strings. The URL
+ * round-trip reads them back by these same names.
+ * @typedef {object} SearchFilters
+ * @property {string} text
+ * @property {string} source
+ * @property {string} recordType
+ * @property {string} clientId
+ * @property {string} projectId
+ * @property {string} tagId
+ * @property {string} noteCollectionId
+ * @property {string} status
+ */
+
+/**
+ * One searchable type, as `normalizeSearchTargets` produces it.
+ *
+ * The published workspace context declares `searchTargets` as an unknown list on purpose - it is
+ * assembled from module contributions - so this page's own normalizer is what gives it a shape.
+ * @typedef {object} SearchTarget
+ * @property {string} id
+ * @property {string} label
+ * @property {string} moduleId
+ * @property {string} recordType
+ * @property {string} sourceLabel
+ */
+
+/**
+ * One client or project the filters offer, as this page's normalizers produce it.
+ * @typedef {{ id: string, name: string }} SearchFilterOption
+ */
+
+/**
+ * @typedef {object} SearchPageState
+ * @property {SearchRecord | null} clientProjects
+ * @property {SearchFilters} filters
+ * @property {number} page
+ * @property {number} pageSize
+ * @property {SearchTarget[]} searchTargets
+ */
+
+/** @type {SearchPageState} */
 const state = {
   clientProjects: null,
   filters: readFiltersFromUrl(),
@@ -28,6 +128,47 @@ const state = {
   pageSize: 25,
   searchTargets: [],
 };
+
+/**
+ * The record a search member carries, or `null`.
+ *
+ * Arrays are refused because every caller asks this for a member it will read *by name*, and an
+ * array answers `undefined` for each of them anyway.
+ * @param {unknown} value
+ * @returns {SearchRecord | null}
+ */
+function searchRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? /** @type {SearchRecord} */ (value)
+    : null;
+}
+
+/**
+ * A search list, with every entry read as a record.
+ *
+ * A malformed entry becomes an empty record rather than being dropped, because the normalizers
+ * below already filter what they cannot use - on an id, or on a record type - so removing it here
+ * would take that decision away from them.
+ * @param {unknown} value
+ * @returns {SearchRecord[]}
+ */
+function searchRecordList(value) {
+  /** @type {readonly unknown[]} */
+  const entries = Array.isArray(value) ? value : [];
+  return entries.map((entry) => searchRecord(entry) || {});
+}
+
+/**
+ * A search member as text.
+ *
+ * `String(value || "")` rather than `String(value ?? "")`, so the falsy members the untyped reads
+ * sent to their own fallbacks still reach the empty string.
+ * @param {unknown} value
+ * @returns {string}
+ */
+function searchText(value) {
+  return String(value || "");
+}
 
 searchForm?.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -130,7 +271,8 @@ async function rebuildSearchIndex() {
       throw new Error(errorMessage(body) || "Search index rebuild failed.");
     }
 
-    const jobId = body?.jobId || body?.job?.jobId || "";
+    const receipt = searchRecord(body);
+    const jobId = searchText(receipt?.jobId || searchRecord(receipt?.job)?.jobId);
     setRebuildStatus(jobId ? `Index rebuild queued. Job ${jobId}.` : "Index rebuild queued.");
   } catch (error) {
     setRebuildStatus(requireErrors().caughtMessage(error, "Search index rebuild failed."), true);
@@ -217,10 +359,13 @@ async function loadResults() {
   }
 }
 
-function renderResults(body = {}) {
-  const results = Array.isArray(body.results) ? body.results : [];
-  const page = body.pagination?.page || state.page;
-  const hasMore = body.pagination?.hasMore === true;
+/** @param {unknown} responseBody */
+function renderResults(responseBody) {
+  const body = searchRecord(responseBody) || {};
+  const results = searchRecordList(body.results);
+  const pagination = searchRecord(body.pagination);
+  const page = Number(pagination?.page) || state.page;
+  const hasMore = pagination?.hasMore === true;
 
   state.page = page;
   setStatus(results.length > 0 ? `${results.length} result${results.length === 1 ? "" : "s"} shown` : "No matching results");
@@ -235,21 +380,27 @@ function renderResults(body = {}) {
   renderPagination(hasMore);
 }
 
-function renderMeta(body = {}) {
+/** @param {SearchRecord} body */
+function renderMeta(body) {
   if (!searchMeta) {
     return;
   }
 
+  /** @type {string[]} */
   const parts = [];
   if (body.targetCount !== undefined) {
+    // Interpolated rather than read through `searchText`, which sends a falsy member to the empty
+    // string: a workspace with **zero** searchable types passes the guard above and must still
+    // report "0 searchable types" rather than a blank one.
     parts.push(`${body.targetCount} searchable ${body.targetCount === 1 ? "type" : "types"}`);
   }
   if (body.backend) {
-    parts.push(body.backend);
+    parts.push(searchText(body.backend));
   }
   searchMeta.textContent = parts.join(" - ");
 }
 
+/** @param {SearchResultGroup} group */
 function createResultGroup(group) {
   const section = document.createElement("section");
   const heading = document.createElement("h2");
@@ -263,9 +414,24 @@ function createResultGroup(group) {
   return section;
 }
 
+/**
+ * Whether a result's target carries a URL to navigate to.
+ *
+ * **`target` is the one nested member this page names**, because its own contract pins the
+ * claim: a result title links to `result.target.url`. Everything else on a result stays unnamed
+ * for the reason `SearchRecord` gives - the vocabulary belongs to the contributing module.
+ * @param {unknown} value
+ * @returns {value is { url: string }}
+ */
+function hasResultTargetUrl(value) {
+  const target = searchRecord(value);
+  return typeof target?.url === "string" && target.url !== "";
+}
+
+/** @param {SearchRecord} result */
 function createResultRow(result) {
   const row = document.createElement("article");
-  const title = result.target?.url ? document.createElement("a") : document.createElement("span");
+  const title = hasResultTargetUrl(result.target) ? document.createElement("a") : document.createElement("span");
   const source = document.createElement("span");
   const status = document.createElement("span");
   const snippet = document.createElement("p");
@@ -274,17 +440,20 @@ function createResultRow(result) {
 
   row.className = "search-result-row";
   title.className = "search-result-title";
-  title.textContent = result.title || "Untitled result";
-  if (result.target?.url) {
+  title.textContent = searchText(result.title) || "Untitled result";
+  // The same read that chose the element decides the assignment, but that correlation is not one
+  // the compiler can follow across two expressions - so the narrowing restates it. It can only
+  // ever refuse, and only for a value that would not have been an anchor in the first place.
+  if (hasResultTargetUrl(result.target) && title instanceof HTMLAnchorElement) {
     title.href = result.target.url;
   }
 
   source.className = "search-result-source";
-  source.textContent = result.sourceLabel || result.source || result.recordType || "Result";
+  source.textContent = searchText(result.sourceLabel || result.source || result.recordType) || "Result";
   status.className = "search-result-status";
-  status.textContent = result.status || "active";
+  status.textContent = searchText(result.status) || "active";
   snippet.className = "search-result-snippet";
-  snippet.textContent = result.snippet || result.summary || "";
+  snippet.textContent = searchText(result.snippet || result.summary);
   meta.className = "search-result-meta";
   meta.textContent = resultMetaParts(result).join(" - ");
   tags.className = "search-result-tags";
@@ -297,6 +466,7 @@ function createResultRow(result) {
   return row;
 }
 
+/** @param {...Node} items */
 function createResultBadgeRow(...items) {
   const row = document.createElement("div");
   row.className = "search-result-badges";
@@ -313,23 +483,36 @@ function createResultBadgeRow(...items) {
  * Publishing that member to satisfy the guard would be a runtime change, and the near-miss
  * TypeScript suggests instead - `createTag` - posts a new tag, so the dead branch was worse than
  * it looked. `0.33.33.38.2.2.9` recorded this defect; `0.33.33.38.2.2.10` removes it.
- * @param {{name?: string, slug?: string}} tag
+ * @param {SearchRecord} tag
  * @returns {HTMLSpanElement}
  */
 function createTagChip(tag) {
   const chip = document.createElement("span");
   chip.className = "tag-chip";
-  chip.textContent = tag.name || tag.slug || "Tag";
+  // Coerced in place rather than through `searchText`, because this builder is deliberately
+  // self-contained: `tag-surface-declaration` evaluates it standalone to prove it reaches for
+  // nothing outside itself, which is the whole point of the dead branch that was removed here.
+  chip.textContent = String(tag.name || tag.slug || "Tag");
   return chip;
 }
 
+/**
+ * One rendered group of results that share a source and a record type.
+ * @typedef {{ label: string, results: SearchRecord[] }} SearchResultGroup
+ */
+
+/** @param {SearchRecord[]} results @returns {SearchResultGroup[]} */
 function groupResults(results) {
+  /** @type {Map<string, SearchResultGroup>} */
   const groups = new Map();
 
   for (const result of results) {
+    // Interpolated rather than read through `searchText`, which is both what the grouping
+    // contract pins and the more faithful spelling: a result carrying none of the three source
+    // members keeps its own distinct key instead of collapsing into the empty one.
     const key = `${result.sourceLabel || result.source || result.moduleId}:${result.recordType}`;
     const group = groups.get(key) || {
-      label: result.sourceLabel || result.source || result.recordType || result.moduleId || "Results",
+      label: searchText(result.sourceLabel || result.source || result.recordType || result.moduleId) || "Results",
       results: [],
     };
 
@@ -340,6 +523,7 @@ function groupResults(results) {
   return [...groups.values()];
 }
 
+/** @param {boolean} hasMore */
 function renderPagination(hasMore) {
   if (!pagination || !previousButton || !nextButton || !pageSummary) {
     return;
@@ -364,6 +548,7 @@ function renderLoadingState() {
   resultsList?.replaceChildren(emptyElement("Loading search results..."));
 }
 
+/** @param {string} message */
 function renderErrorState(message) {
   setStatus(message, true);
   if (searchMeta) {
@@ -427,28 +612,32 @@ function populateClientProjectFilters() {
   }
 }
 
+/** @param {SearchRecord | null} data @returns {SearchFilterOption[]} */
 function normalizeClients(data) {
-  return (Array.isArray(data?.clients) ? data.clients : [])
+  return searchRecordList(data?.clients)
     .filter((client) => client.id && client.status !== "Inactive")
-    .map((client) => ({ id: client.id, name: client.name || client.id }))
+    .map((client) => ({ id: searchText(client.id), name: searchText(client.name) || searchText(client.id) }))
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
+/** @param {SearchRecord | null} data @returns {SearchFilterOption[]} */
 function normalizeProjects(data) {
+  /** @type {SearchFilterOption[]} */
   const projects = [];
 
-  for (const project of Array.isArray(data?.workspaceProjects) ? data.workspaceProjects : []) {
+  for (const project of searchRecordList(data?.workspaceProjects)) {
     if (project.id && project.status !== "Inactive") {
-      projects.push({ id: project.id, name: project.name || project.id });
+      projects.push({ id: searchText(project.id), name: searchText(project.name) || searchText(project.id) });
     }
   }
 
-  for (const client of Array.isArray(data?.clients) ? data.clients : []) {
-    for (const project of Array.isArray(client.projects) ? client.projects : []) {
+  for (const client of searchRecordList(data?.clients)) {
+    for (const project of searchRecordList(client.projects)) {
       if (project.id && project.status !== "Inactive") {
+        const projectName = searchText(project.name) || searchText(project.id);
         projects.push({
-          id: project.id,
-          name: client.name ? `${client.name} / ${project.name || project.id}` : project.name || project.id,
+          id: searchText(project.id),
+          name: client.name ? `${searchText(client.name)} / ${projectName}` : projectName,
         });
       }
     }
@@ -485,6 +674,7 @@ function applyFiltersToControls() {
   }
 }
 
+/** @returns {SearchFilters} */
 function readFiltersFromControls() {
   return {
     text: textInput?.value?.trim() || "",
@@ -498,6 +688,7 @@ function readFiltersFromControls() {
   };
 }
 
+/** @returns {SearchFilters} */
 function readFiltersFromUrl() {
   const params = new URLSearchParams(window.location.search);
 
@@ -549,16 +740,19 @@ function buildUrlParams() {
   return params;
 }
 
+/** @param {URLSearchParams} params @param {string} key @param {string} value */
 function appendParam(params, key, value) {
   if (value) {
     params.set(key, value);
   }
 }
 
+/** @param {SearchFilters} filters */
 function hasSearchCriteria(filters) {
   return Object.values(filters).some((value) => String(value || "").trim());
 }
 
+/** @returns {SearchFilters} */
 function emptyFilters() {
   return {
     text: "",
@@ -572,16 +766,18 @@ function emptyFilters() {
   };
 }
 
+/** @param {unknown} [targets] @returns {SearchTarget[]} */
 function normalizeSearchTargets(targets = []) {
+  /** @type {Set<string>} */
   const seen = new Set();
 
-  return (Array.isArray(targets) ? targets : [])
+  return searchRecordList(targets)
     .map((target) => ({
-      id: target.id || `${target.moduleId || ""}:${target.recordType || ""}`,
-      label: target.label || target.sourceLabel || target.recordType || "",
-      moduleId: target.moduleId || "",
-      recordType: target.recordType || "",
-      sourceLabel: target.sourceLabel || target.label || target.moduleId || "",
+      id: searchText(target.id) || `${searchText(target.moduleId)}:${searchText(target.recordType)}`,
+      label: searchText(target.label || target.sourceLabel || target.recordType),
+      moduleId: searchText(target.moduleId),
+      recordType: searchText(target.recordType),
+      sourceLabel: searchText(target.sourceLabel || target.label || target.moduleId),
     }))
     .filter((target) => {
       if ((!target.moduleId && !target.sourceLabel) || !target.recordType || seen.has(target.id)) {
@@ -592,6 +788,7 @@ function normalizeSearchTargets(targets = []) {
     });
 }
 
+/** @param {unknown} moduleId */
 function moduleLabel(moduleId) {
   return String(moduleId || "")
     .split("-")
@@ -609,10 +806,14 @@ function readCachedSearchTargets() {
   }
 }
 
+/** @param {SearchRecord} result @returns {string[]} */
 function resultMetaParts(result) {
+  /** @type {string[]} */
   const parts = [];
-  const clientName = result.context?.client?.name || result.context?.project?.clientName || "";
-  const projectName = result.context?.project?.name || "";
+  const context = searchRecord(result.context);
+  const contextProject = searchRecord(context?.project);
+  const clientName = searchText(searchRecord(context?.client)?.name || contextProject?.clientName);
+  const projectName = searchText(contextProject?.name);
 
   if (clientName) {
     parts.push(clientName);
@@ -621,7 +822,7 @@ function resultMetaParts(result) {
     parts.push(projectName);
   }
   if (result.collectionPath) {
-    parts.push(result.collectionPath);
+    parts.push(searchText(result.collectionPath));
   }
   if (result.updatedAt) {
     parts.push(`Updated ${formatDate(result.updatedAt)}`);
@@ -630,10 +831,12 @@ function resultMetaParts(result) {
   return parts;
 }
 
+/** @param {unknown} tags @returns {SearchRecord[]} */
 function normalizeTags(tags) {
-  return Array.isArray(tags) ? tags.filter((tag) => tag && (tag.name || tag.slug || tag.tagId)) : [];
+  return searchRecordList(tags).filter((tag) => tag.name || tag.slug || tag.tagId);
 }
 
+/** @param {string} value @param {string} label */
 function createOption(value, label) {
   const option = document.createElement("option");
   option.value = value;
@@ -649,10 +852,12 @@ function tagFilterNoTagsOption() {
   return window.LongtailForge?.tags?.noTagsOption?.() || createOption("__no_tags__", "No Tags");
 }
 
+/** @param {string} value */
 function tagSelectHasValue(value) {
   return [...(tagSelect?.options || [])].some((option) => option.value === value);
 }
 
+/** @param {string} message */
 function emptyElement(message) {
   const element = document.createElement("p");
   element.className = "placeholder-copy";
@@ -660,6 +865,7 @@ function emptyElement(message) {
   return element;
 }
 
+/** @param {string} message @param {boolean} [isError] */
 function setStatus(message, isError = false) {
   if (!statusMessage) {
     return;
@@ -669,6 +875,7 @@ function setStatus(message, isError = false) {
   statusMessage.classList.toggle("is-error", isError);
 }
 
+/** @param {string} message @param {boolean} [isError] */
 function setRebuildStatus(message, isError = false) {
   if (!rebuildStatus) {
     return;
@@ -678,6 +885,7 @@ function setRebuildStatus(message, isError = false) {
   rebuildStatus.classList.toggle("is-error", isError);
 }
 
+/** @param {Response} response @returns {Promise<unknown>} */
 async function readJson(response) {
   try {
     return await response.json();
@@ -686,18 +894,26 @@ async function readJson(response) {
   }
 }
 
+/** @param {unknown} body @returns {string} */
 function errorMessage(body) {
   return window.LongtailForge?.errors?.read?.(body, "").message || "";
 }
 
+/**
+ * **The numeric branch is kept separate on purpose.** `new Date(1700000000000)` is an instant
+ * while `new Date("1700000000000")` is not a date at all, so coercing everything to text first
+ * would silently turn an epoch timestamp into the raw number on screen.
+ * @param {unknown} value
+ * @returns {string}
+ */
 function formatDate(value) {
   if (!value) {
     return "";
   }
 
-  const date = new Date(value);
+  const date = typeof value === "number" ? new Date(value) : new Date(String(value));
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return String(value);
   }
 
   return date.toLocaleString(undefined, {
