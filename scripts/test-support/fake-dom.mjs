@@ -467,6 +467,27 @@ export class FakeElement {
   }
 
   /**
+   * The nearest ancestor matching the selector, starting with this element - the platform's own
+   * rule, so a control that is itself the wrapper answers itself.
+   * @param {string} selector
+   * @returns {FakeNode | null}
+   */
+  closest(selector) {
+    /** @type {FakeNode | null} */
+    let node = /** @type {FakeNode} */ (/** @type {unknown} */ (this));
+
+    while (node) {
+      if (node.nodeType === 1 && matchesSelector(node, selector)) {
+        return node;
+      }
+
+      node = node.parentNode;
+    }
+
+    return null;
+  }
+
+  /**
    * @param {string} selector
    * @returns {FakeNode}
    */
