@@ -20,14 +20,111 @@
   }
   const dashboardBootstrap = window.LongtailForge?.dashboardBootstrap;
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewActionInput} BrowserViewActionInput */
+  /** @typedef {import("../../src/types/browser-contracts.js").DashboardPanelRenderer} DashboardPanelRenderer */
+
+  /**
+   * A record this page read out of the dashboard body, with no member guaranteed.
+   *
+   * **Every shape below this page reads is one of these**, and the reason they are not named
+   * individually is the reason `BrowserWorkbenchContribution` guarantees only `moduleId`: the
+   * regions, signals, warnings and panel contributions are a module's own declaration carried
+   * through `/api/dashboard`, and naming their members here would freeze one module's
+   * vocabulary into every module's contract. The page already reads each member defensively;
+   * this states that the value it reads *from* is a record, which is the only part it checks.
+   * @typedef {Record<string, unknown>} DashboardRecord
+   */
+
+  /**
+   * The record a dashboard member carries, or `null`.
+   *
+   * Arrays are refused because every caller asks this for a member it will read *by name*,
+   * and an array answers `undefined` for each of them anyway - so refusing it here reaches the
+   * same fallbacks by a shorter path rather than a different one.
+   * @param {unknown} value
+   * @returns {DashboardRecord | null}
+   */
+  function dashboardRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value)
+      ? /** @type {DashboardRecord} */ (value)
+      : null;
+  }
+
+  /**
+   * A dashboard list, with every entry read as a record.
+   *
+   * **A malformed entry becomes `{}` rather than being dropped**, because that is what the
+   * untyped page did: it read `entry.label` off whatever the list held, got `undefined`, and
+   * rendered the entry with its defaults. Filtering the list instead would remove a row the
+   * page has always drawn.
+   * @param {unknown} value
+   * @returns {DashboardRecord[]}
+   */
+  function dashboardRecordList(value) {
+    /** @type {readonly unknown[]} */
+    const entries = Array.isArray(value) ? value : [];
+    return entries.map((entry) => dashboardRecord(entry) || {});
+  }
+
+  /**
+   * The action descriptors a dashboard empty state carries, or none.
+   *
+   * The array is passed through **unchanged** rather than rebuilt: `createEmptyState` already
+   * accepts a node or an options bag per entry and coerces each one, so re-reading the entries
+   * here would only narrow what the factory is willing to draw.
+   * @param {unknown} value
+   * @returns {BrowserViewActionInput}
+   */
+  function dashboardActionInput(value) {
+    return Array.isArray(value) ? value : [];
+  }
+
+  /**
+   * The regions the layout declares, read from the snapshot each time rather than cached.
+   *
+   * Both callers already re-read it: the container is rebuilt from the current snapshot, and
+   * `dashboardRegionLabel` is asked during a render that a later snapshot can replace.
+   * @returns {DashboardRecord[]}
+   */
+  function dashboardLayoutRegions() {
+    return dashboardRecordList(dashboardRecord(dashboardData?.layout)?.regions);
+  }
+
+  /**
+   * A rendered panel, as a node.
+   *
+   * A renderer's return is `unknown` by contract, and the untyped page handed whatever it
+   * produced straight to `appendChild`, which throws on a non-node. This throws for the same
+   * values at the same point, naming the renderer contract rather than the DOM method: nothing
+   * that reached the DOM before is dropped, and nothing that threw before now passes silently.
+   * @param {unknown} value
+   * @returns {Node}
+   */
+  function requireDashboardPanelNode(value) {
+    if (!(value instanceof Node)) {
+      throw new TypeError("A dashboard panel renderer must return nodes.");
+    }
+    return value;
+  }
+
+  /** @type {DashboardRecord | null} */
   let dashboardData = null;
+  /** @type {DashboardRecord[]} */
   let dashboardPanels = [];
+  /** @type {HTMLElement | null} */
   let dashboardStatus = null;
+  /** @type {HTMLElement | null} */
   let dashboardPulseRegion = null;
+  /** @type {HTMLElement | null} */
   let dashboardWarningsRegion = null;
+  /** @type {HTMLElement | null} */
   let dashboardRegionContainer = null;
 
+  // Values are optional, so the `!renderer` guard in `renderRegisteredDashboardPanels` is a
+  // real check rather than a formality the compiler has already decided can never fire.
+  /** @type {Record<string, DashboardPanelRenderer | undefined>} */
   const dashboardPanelRenderers = {};
+  /** @type {Map<string, { body: HTMLElement, section: HTMLElement }>} */
   const dashboardRegionBodies = new Map();
   const dashboardDataPromises = dashboardBootstrap?.dataPromises || new Map();
   const KNOWN_DASHBOARD_PLACEMENTS = new Set([
@@ -135,11 +232,19 @@
     };
   }
 
+  /**
+   * **The body is kept by identity, not rebuilt.** `createDashboardRendererContext` hands
+   * `dashboardData` to module-contributed renderers, and the published contract names it
+   * without typing it - so a renderer may read a member this page never asks for. Reading the
+   * snapshot into a fresh object would silently drop those members from every contribution.
+   * @param {unknown} data
+   */
   async function renderDashboardSnapshot(data) {
-    dashboardData = data;
-    dashboardPanels = dashboardData?.extensionPoints?.dashboardPanels || [];
+    dashboardData = dashboardRecord(data);
+    const extensionPoints = dashboardRecord(dashboardData?.extensionPoints);
+    dashboardPanels = dashboardRecordList(extensionPoints?.dashboardPanels);
     warmDashboardPanelData();
-    const browserAssetsReady = loadDashboardBrowserAssets(dashboardData?.extensionPoints?.browserAssets);
+    const browserAssetsReady = loadDashboardBrowserAssets(extensionPoints?.browserAssets);
 
     renderDashboardRegions();
     renderWorkspacePulse();
@@ -158,6 +263,7 @@
     }
   }
 
+  /** @param {unknown} assets */
   async function loadDashboardBrowserAssets(assets) {
     const loader = window.LongtailForge?.esModuleBridge?.loadContributedAssets;
 
@@ -222,21 +328,19 @@
     dashboardRegionBodies.clear();
     dashboardRegionContainer.replaceChildren();
 
-    const regions = Array.isArray(dashboardData?.layout?.regions)
-      ? dashboardData.layout.regions
-      : [];
+    const regions = dashboardLayoutRegions();
 
     for (const region of regions) {
-      const regionId = normalizeDashboardPlacement(region?.id);
+      const regionId = normalizeDashboardPlacement(region.id);
       const section = dashboardView.createElement("section", {
         className: ["dashboard-region", `dashboard-region--${regionId}`],
-        attrs: { "aria-label": region?.label || regionId },
+        attrs: { "aria-label": region.label || regionId },
         dataset: { dashboardRegion: regionId },
         hidden: true,
       });
       const heading = dashboardView.createElement("h2", {
         className: "dashboard-region-heading",
-        text: region?.label || regionId,
+        text: region.label || regionId,
       });
       const body = dashboardView.createElement("div", {
         className: ["dashboard-region-body", `dashboard-region-body--${regionId}`],
@@ -255,9 +359,9 @@
       return;
     }
 
-    const pulse = dashboardData?.pulse || {};
-    const signals = Array.isArray(pulse.signals) ? pulse.signals : [];
-    const primaryAction = pulse.primaryAction || { label: "Open Workbench", href: "workbench.html" };
+    const pulse = dashboardRecord(dashboardData?.pulse) || {};
+    const signals = dashboardRecordList(pulse.signals);
+    const primaryAction = dashboardRecord(pulse.primaryAction) || { label: "Open Workbench", href: "workbench.html" };
     const signalList = dashboardView.createElement("dl", {
       className: "dashboard-pulse-signals",
       children: signals.map((signal) => dashboardView.createElement("div", {
@@ -289,7 +393,7 @@
               text: "Workspace Pulse",
             }),
             dashboardView.createElement("h2", {
-              text: pulse.title || dashboardData?.workspace?.name || "Workspace",
+              text: pulse.title || dashboardRecord(dashboardData?.workspace)?.name || "Workspace",
             }),
             dashboardView.createElement("p", {
               className: "dashboard-pulse-summary",
@@ -311,7 +415,7 @@
       return;
     }
 
-    const warnings = Array.isArray(dashboardData?.setupWarnings) ? dashboardData.setupWarnings : [];
+    const warnings = dashboardRecordList(dashboardData?.setupWarnings);
     dashboardWarningsRegion.replaceChildren();
     dashboardWarningsRegion.hidden = warnings.length === 0;
 
@@ -348,7 +452,12 @@
     }
 
     for (const contribution of dashboardPanels) {
-      const renderer = dashboardPanelRenderers[contribution.renderer];
+      // Indexed by the coerced identifier rather than the raw member, which is the same lookup
+      // a property access already performed - including the `"undefined"` key an absent
+      // `renderer` reaches for, which `registerPanelRenderer` can never have written because it
+      // refuses an empty identifier. A symbol is the one value `String` would reject instead of
+      // coercing, and a JSON body cannot carry one.
+      const renderer = dashboardPanelRenderers[String(contribution.renderer)];
 
       if (!renderer) {
         continue;
@@ -358,7 +467,7 @@
       const target = dashboardRegionBodies.get(normalizeDashboardPlacement(contribution.placement)) ||
         dashboardRegionBodies.get("main");
 
-      renderedPanels.forEach((panel) => target?.body.appendChild(panel));
+      renderedPanels.forEach((panel) => target?.body.appendChild(requireDashboardPanelNode(panel)));
     }
 
     renderModuleOverviewEmptyState();
@@ -391,7 +500,7 @@
     }
 
     target.body.appendChild(createDashboardRegionEmptyState(
-      dashboardData?.moduleOverview?.emptyState,
+      dashboardRecord(dashboardRecord(dashboardData?.moduleOverview)?.emptyState),
       {
         className: "dashboard-module-overview-empty",
         message: "Enabled modules can contribute compact overview cards here.",
@@ -407,14 +516,14 @@
       return;
     }
 
-    const activityState = dashboardData?.recentActivity || {};
+    const activityState = dashboardRecord(dashboardData?.recentActivity) || {};
 
     if (activityState.status === "hidden") {
       return;
     }
 
     target.body.appendChild(createDashboardRegionEmptyState(
-      activityState.emptyState,
+      dashboardRecord(activityState.emptyState),
       {
         className: "dashboard-recent-activity-empty",
         message: "A safe activity digest is deferred.",
@@ -423,17 +532,25 @@
     ));
   }
 
-  function createDashboardRegionEmptyState(emptyState = {}, fallback = {}) {
+  /**
+   * **`emptyState` is optional-or-absent rather than defaulted.** Its callers read it out of the
+   * snapshot, where a missing branch answers nothing at all; reading through it here says that
+   * once instead of asking each caller to substitute an empty record first.
+   * @param {DashboardRecord | null} emptyState the descriptor the snapshot carried, if any
+   * @param {{ className?: string, message?: string, title?: string }} fallback this page's own copy
+   */
+  function createDashboardRegionEmptyState(emptyState, fallback) {
     const dashboardView = requireView();
     return dashboardView.createEmptyState({
       className: fallback.className || "",
       headingLevel: 3,
-      title: emptyState.title || fallback.title || "Nothing to show yet",
-      message: emptyState.message || fallback.message || "More context will appear here when it is available.",
-      actions: Array.isArray(emptyState.actions) ? emptyState.actions : [],
+      title: emptyState?.title || fallback.title || "Nothing to show yet",
+      message: emptyState?.message || fallback.message || "More context will appear here when it is available.",
+      actions: dashboardActionInput(emptyState?.actions),
     });
   }
 
+  /** @param {unknown} rendered */
   function normalizeRenderedPanels(rendered) {
     if (!rendered) {
       return [];
@@ -442,6 +559,14 @@
     return Array.isArray(rendered) ? rendered.filter(Boolean) : [rendered];
   }
 
+  /**
+   * The context a panel renderer is handed.
+   *
+   * **Left as a literal rather than annotated**, because `DashboardPanelRenderer` names these
+   * seven members without typing them - a host-supplied callback shape is read defensively, and
+   * typing it would constrain renderers the runtime does not constrain.
+   * @param {DashboardRecord} contribution
+   */
   function createDashboardRendererContext(contribution) {
     return {
       dashboardData,
@@ -449,11 +574,28 @@
       loadContributionData,
       setStatus: setDashboardStatus,
       view: window.LongtailForge?.view,
-      createPanel: (options = {}) => createDashboardPanel(contribution, options),
+      createPanel: (/** @type {DashboardPanelOptions} */ options = {}) => createDashboardPanel(contribution, options),
       createDashboardPanel,
     };
   }
 
+  /**
+   * What a renderer may ask this page to draw around its panel body.
+   *
+   * Every member is optional and read for its value rather than its type, because a renderer
+   * builds this bag itself - `createPanel` is reached through the context, so the caller is a
+   * module rather than this file.
+   * @typedef {object} DashboardPanelOptions
+   * @property {unknown} [ariaLabel]
+   * @property {unknown} [children]
+   * @property {unknown} [className]
+   * @property {unknown} [title]
+   */
+
+  /**
+   * @param {DashboardRecord} [contribution]
+   * @param {DashboardPanelOptions} [options]
+   */
   function createDashboardPanel(contribution = {}, options = {}) {
     const dashboardView = requireView();
     const panel = dashboardView.createElement("article", {
@@ -485,11 +627,18 @@
     return panel;
   }
 
+  /** @param {string} regionId */
   function dashboardRegionLabel(regionId) {
-    const regions = Array.isArray(dashboardData?.layout?.regions) ? dashboardData.layout.regions : [];
-    return String(regions.find((region) => normalizeDashboardPlacement(region?.id) === regionId)?.label || "").trim();
+    const regions = dashboardLayoutRegions();
+    return String(regions.find((region) => normalizeDashboardPlacement(region.id) === regionId)?.label || "").trim();
   }
 
+  /**
+   * **Both parameters stay `unknown`**: this is reached through the renderer context, so the
+   * caller is a module rather than this file, and each is compared rather than coerced.
+   * @param {unknown} renderer
+   * @param {unknown} [id]
+   */
   function findDashboardContribution(renderer, id = "") {
     return dashboardPanels.find((panel) => (
       panel.renderer === renderer &&
@@ -497,8 +646,12 @@
     ));
   }
 
+  /**
+   * @param {unknown} contribution
+   * @param {unknown} [fallbackRoute]
+   */
   async function loadContributionData(contribution, fallbackRoute = "") {
-    const route = String(contribution?.dataRoute || fallbackRoute || "").trim();
+    const route = String(dashboardRecord(contribution)?.dataRoute || fallbackRoute || "").trim();
 
     if (!route) {
       return {};
@@ -517,17 +670,25 @@
     return dashboardDataPromises.get(route);
   }
 
+  /** @param {unknown} placement */
   function normalizeDashboardPlacement(placement) {
     const value = String(placement || "").trim();
     return KNOWN_DASHBOARD_PLACEMENTS.has(value) ? value : "main";
   }
 
+  /**
+   * @param {unknown} message
+   * @param {{ isError?: unknown }} [options]
+   */
   function setDashboardStatus(message, options = {}) {
     if (!dashboardStatus) {
       return;
     }
 
-    dashboardStatus.textContent = message || "";
+    // `textContent` coerces whatever it is assigned, so naming the coercion here changes the
+    // spelling rather than the result. `hidden` still reads the original value's truthiness,
+    // because a message of `0` has always hidden the status line and still does.
+    dashboardStatus.textContent = String(message || "");
     dashboardStatus.hidden = !message;
     dashboardStatus.dataset.viewTone = options.isError ? "danger" : "info";
     dashboardStatus.setAttribute("role", options.isError ? "alert" : "status");

@@ -1597,6 +1597,20 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 5,522 to 5,413**, params 3,666 to 3,599, state 1,196 to 1,152, `dom` and assorted unchanged. `0.33.33.44` 689 to 580. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.28 - Dashboard panel host, and the file reaches zero
+
+**Complete: 62 diagnostics, and `public/js/dashboard.js` reaches zero** - the tenth file in this lane to close outright. See the archive entry.
+
+**Measuring the remainder first changed which file this was.** Ranked by raw diagnostics the next file was `search.js` at 82; ranked by what the lane's 580 actually counts it was this one, because 34 of those 82 are `dom`-family and belong to no owner. The two orders disagree for the first time in this lane, so both are reported rather than one being assumed.
+
+**Every snapshot branch is read as an unguaranteed record**, for the reason `BrowserWorkbenchContribution` already records: the regions, signals, warnings and contributions are a module's own declaration carried through `/api/dashboard`, and naming their members would freeze one module's vocabulary into every module's contract. Nothing was published to the shared declaration, and the renderer context stays a literal because its published contract names its seven members without typing them.
+
+**The body is kept by identity rather than rebuilt**, because a contributed renderer may read a member this page never asks for - so reading the snapshot into a fresh object would silently drop it from every contribution.
+
+**70 breaks, 70 caught, zero inert.** Four were inert on the first run: two were assertion gaps, one was a fixture limit now pinned as a source fact, and **two were withdrawn** because each spelling answers the same thing for every value a caller can pass - one of them proven inert for the compiler too, at a 0 to 0 diagnostic delta.
+
+**Measured: browser 5,413 to 5,351**, params 3,599 to 3,561, state 1,152 to 1,128, `dom` and assorted unchanged. `0.33.33.44` 580 to 518. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.

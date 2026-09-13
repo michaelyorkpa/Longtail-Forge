@@ -373,9 +373,13 @@ assert.match(
   /dashboardStatus = dashboardView\.createStatusMessage\(/,
   "dashboard browser script must build dashboard status through LongtailForge.view",
 );
+// `0.33.33.44.28` indexes the registry by the coerced identifier, which is the lookup a property
+// access already performed - the key a contribution reaches for is unchanged, including the
+// `"undefined"` one an absent `renderer` asks for, which `registerPanelRenderer` can never write.
+// The claim here is unchanged: the panel is still rendered from the contribution's own metadata.
 assert.match(
   files.dashboard,
-  /renderRegisteredDashboardPanels[\s\S]*dashboardPanels[\s\S]*dashboardPanelRenderers\[contribution\.renderer\]/,
+  /renderRegisteredDashboardPanels[\s\S]*dashboardPanels[\s\S]*dashboardPanelRenderers\[String\(contribution\.renderer\)\]/,
   "dashboard browser script must render panels from contribution metadata",
 );
 assert.match(
@@ -413,14 +417,18 @@ assert.match(
   /dashboard-region-body--\$\{regionId\}/,
   "dashboard browser script must mark region bodies for module overview grid styling",
 );
+// `0.33.33.44.28` reads each snapshot branch through `dashboardRecord`, which answers nothing for
+// a member that is not a record - the same fallback the optional chain reached, since a branch
+// that is not a record carries no `emptyState` either. Both claims below are unchanged: each
+// region still draws its own quiet state from its own branch of the snapshot.
 assert.match(
   files.dashboard,
-  /renderModuleOverviewEmptyState[\s\S]*dashboardData\?\.moduleOverview\?\.emptyState/,
+  /renderModuleOverviewEmptyState[\s\S]*dashboardRecord\(dashboardRecord\(dashboardData\?\.moduleOverview\)\?\.emptyState\)/,
   "dashboard browser script must render a quiet Module Overview empty state for sparse workspaces",
 );
 assert.match(
   files.dashboard,
-  /renderRecentActivityState[\s\S]*dashboardData\?\.recentActivity[\s\S]*dashboard-recent-activity-empty/,
+  /renderRecentActivityState[\s\S]*dashboardRecord\(dashboardData\?\.recentActivity\)[\s\S]*dashboard-recent-activity-empty/,
   "dashboard browser script must render the Recent Activity region as a quiet deferred state when no safe rows exist",
 );
 assert.match(
