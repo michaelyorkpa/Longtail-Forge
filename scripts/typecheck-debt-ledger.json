@@ -380,6 +380,7 @@
         "tests/mutations/audit-log-rendering.breaks.mjs",
         "tests/mutations/calendar-settings-scope.breaks.mjs",
         "tests/mutations/dashboard-panel.breaks.mjs",
+        "tests/mutations/help-article.breaks.mjs",
         "tests/mutations/hidden-label-safeguard.breaks.mjs",
         "tests/mutations/notes-bulk-edit.breaks.mjs",
         "tests/mutations/notes-editor-defaults.breaks.mjs",
@@ -451,6 +452,7 @@
         "tests/unit/final-publication-contracts.test.mjs",
         "tests/unit/focus-mode-resolution.test.mjs",
         "tests/unit/guarded-member-root-contracts.test.mjs",
+        "tests/unit/help-article-contracts.test.mjs",
         "tests/unit/identifiers.test.mjs",
         "tests/unit/install-playwright-browser.test.mjs",
         "tests/unit/job-status-contracts.test.mjs",
@@ -665,7 +667,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 5339,
+      "errorCount": 5276,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -879,32 +881,6 @@
           {
             "code": 7034,
             "count": 1
-          }
-        ],
-        "public/js/help.js": [
-          {
-            "code": 2322,
-            "count": 2
-          },
-          {
-            "code": 2339,
-            "count": 11
-          },
-          {
-            "code": 2698,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 46
-          },
-          {
-            "code": 7022,
-            "count": 1
-          },
-          {
-            "code": 7023,
-            "count": 2
           }
         ],
         "public/js/lists.js": [
@@ -2321,8 +2297,8 @@
     }
   },
   "totals": {
-    "files": 1246,
-    "errors": 5339,
+    "files": 1248,
+    "errors": 5276,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -1611,6 +1611,20 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 5,413 to 5,351**, params 3,599 to 3,561, state 1,152 to 1,128, `dom` and assorted unchanged. `0.33.33.44` 580 to 518. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.29 - Help article page, and the file reaches zero
+
+**Complete: 63 diagnostics, and `public/js/help.js` reaches zero** - the eleventh file in this lane to close outright. See the archive entry.
+
+**Measuring first confirmed the previous checkpoint's reading**: 63 across 40 functions with a largest of 5, so the whole file was the boundary rather than a named cohort.
+
+**The wire shapes were not restated.** `HelpSectionPayload`, `HelpArticleListPayload` and `HelpArticleDetailPayload` are declared and checked in the server program, which the browser program does not include - so restating them here would create a second, unchecked copy free to drift from the first. The page states only what it verifies: that it is reading from a record. What it *does* name precisely is what its own normalizers produce, because those functions are the producer rather than a claim about the wire.
+
+**Two pre-existing behaviours are pinned rather than changed.** `safeHelpHref` admits a protocol-relative href such as `//host/path` and does not mark it `rel="noopener noreferrer"`, because the relative-path alternative re-admits what the `\/(?!\/)` lookahead means to refuse; and a one-column markdown table renders as paragraphs, because the divider pattern requires a column separator. Both shipped this way and both are now asserted, so the next change to either has to decide about them deliberately.
+
+**96 breaks, 96 caught, zero inert.** Fifteen were inert on the first run: eight were assertion gaps, and **six were withdrawn**. Four of those six are the executable-scheme denylist in `safeHelpHref`, which is provably redundant with the allowlist that follows - verified empirically against every casing and padding - and ships unchanged as defense in depth.
+
+**Measured: browser 5,339 to 5,276**, params 3,552 to 3,505, state 1,128 to 1,117, `dom` 559 to 558, assorted 100 to 96. `0.33.33.44` 518 to 456. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.

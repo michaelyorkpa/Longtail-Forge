@@ -150,6 +150,10 @@ export function fakeDomConstructors() {
     // a `FakeElement` with `nodeType` 3, and a page asking `instanceof Node` before `appendChild`
     // is asking whether the DOM would accept the value at all - which a text node satisfies.
     Node: class FakeNodeConstructor {
+      // The two `nodeType` constants browser code compares against. They carry the DOM's own
+      // values because a page reading `Node.TEXT_NODE` is reading this number, not a name.
+      static ELEMENT_NODE = 1;
+      static TEXT_NODE = 3;
       /** @param {unknown} value */
       static [Symbol.hasInstance](value) {
         return value instanceof FakeElement;
@@ -157,6 +161,7 @@ export function fakeDomConstructors() {
     },
     Element: elementConstructor(),
     HTMLElement: elementConstructor(),
+    HTMLAnchorElement: elementConstructor("A"),
     HTMLButtonElement: elementConstructor("BUTTON"),
     HTMLDetailsElement: elementConstructor("DETAILS"),
     HTMLDialogElement: elementConstructor("DIALOG"),
@@ -331,6 +336,18 @@ export class FakeElement {
     child.parentNode = this;
     if (!child.ownerDocument) child.ownerDocument = this.ownerDocument;
     return child;
+  }
+
+  /**
+   * The same list `children` answers, under the name a page walking text nodes asks for.
+   *
+   * **They are one list here because this fake stores text nodes alongside elements**, which is
+   * also why it is the honest answer for `childNodes` rather than for `children`: a page reading
+   * `childNodes` expects the text nodes to be in it, and they are.
+   * @returns {FakeNode[]}
+   */
+  get childNodes() {
+    return this.children;
   }
 
   /**
