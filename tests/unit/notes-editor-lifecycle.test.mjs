@@ -14,6 +14,29 @@ function lifecycle(names, globals) {
 }
 
 describe("Notes editor lifecycle", () => {
+  it("completed saves close with complete, clear transient state and do not cancel the settled host", () => {
+    /** @type {unknown[]} */ const events = [];
+    const document = new FakeDocument(), dialog = document.createElement("dialog"), copyLinkButton = document.createElement("button");
+    const state = { editingNoteId: "saved", editorNote: { note_id: "saved" }, editorSelectedTarget: {}, editorStagedTargets: [{}],
+      filesDialogNoteId: "saved", tagsDialogNoteId: "saved", editorHostContextSettled: false,
+      editorHostContext: { complete: (/** @type {unknown} */ detail) => events.push(["complete", detail]), cancel: () => events.push("cancel") } };
+    const api = lifecycle(["completeNoteEditorHostContext", "cancelNoteEditorHostContext", "closeEditor", "handleEditorDialogClose"], {
+      state, dialog, copyLinkButton, resetNoteNotificationFollowFields: () => events.push("reset-follow"),
+      requireView: () => ({ closeModal: (/** @type {typeof dialog} */ target, /** @type {string} */ value) => {
+        assert.strictEqual(target, dialog); assert.equal(state.editorNote, null); assert.equal(state.editorSelectedTarget, null);
+        assert.equal(JSON.stringify(state.editorStagedTargets), "[]"); assert.equal(state.filesDialogNoteId, ""); assert.equal(state.tagsDialogNoteId, "");
+        events.push(["close", value]); target.close(value);
+      } }),
+    });
+    dialog.addEventListener("close", api.handleEditorDialogClose); dialog.showModal();
+    const detail = { actionId: "notes.add", recordId: "saved", title: "Title" };
+    api.completeNoteEditorHostContext(detail); api.closeEditor({ returnValue: "complete" });
+    assert.equal(dialog.open, false); assert.equal(dialog.returnValue, "complete");
+    assert.equal(state.editorHostContext, null); assert.equal(state.editorHostContextSettled, true);
+    assert.equal(copyLinkButton.hidden, true); assert.equal(copyLinkButton.disabled, true);
+    assert.equal(JSON.stringify(events), JSON.stringify([["complete", detail], "reset-follow", ["close", "complete"]]));
+  });
+
   it("hydrates without caching, preserves detail identity, and falls back to the exact input", async () => {
     const input = { note_id: "saved-note", title: "Older title" };
     const detail = { ...input, title: "Current title", body_markdown: "Current body" };
