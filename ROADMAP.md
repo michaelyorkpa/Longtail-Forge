@@ -1567,6 +1567,22 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 5,757 to 5,640**, params 3,785 to 3,738, state 1,245 to 1,224, `dom` 623 to 569, assorted 121 to 109. `0.33.33.44` 857 to 791. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.26 - Stop Watch, and the file reaches zero
+
+**Complete: 109 diagnostics, and `public/js/stop-watch.js` reaches zero** - the eighth file in this lane to close outright, and the first that is class-based. See the archive entry.
+
+**The reader comparison came first, and it settled how to reuse rather than duplicate.** The three active-timer readers this page shares with the timer dialog are **byte-identical** and already carry the settled typing, and `active-timer-list-contracts` pins them character-for-character so neither page can drift. So the reuse was to leave them exactly alone - a one-sided edit would have failed that contract. The task normalizers, by contrast, are deliberately **not** shared: this page requires a project up front and never reads a client off a task.
+
+**This page builds what it cannot find, so the lookup means something different here.** Every acquisition reads `existing(...) || create(...)`, and the constructor's own comment states the intent - existing markup preferred, missing controls created for resilience. Checking the subtype extends that intent: an element of the wrong kind is exactly the case the fallback exists for, where before it would have been kept and then read as though it were a select.
+
+**That check immediately caught a mistake of mine.** I narrowed the billable control as a select; it is an `<input type="checkbox">` the page reads `.checked` from. Shipping that would have sent a real checkbox down the fallback path and built a second one. The compiler refused it on the first run, and the subtype is now pinned by its own test.
+
+**A latent trap is now typed rather than left to coincidence.** `pause`, `resetTimeTracker` and `handleClientChange` take options records but are registered directly as listeners, so a click hands them the `Event` where options are expected. An event carries none of those members, so it has always taken the path an empty object takes - `optionFlag` reads the member rather than assuming the shape, which keeps that true. The registration is deliberately unchanged.
+
+**40 breaks, 40 caught, zero inert.** Five were inert on the first run: three were assertion gaps - including two call sites inside the class the fixture does not instantiate, pinned as counted source facts because `persist` is read at two sites - and two were withdrawn, one because the fake DOM answers every element to `HTMLElement` and one because a `typeof` guard already decides what the presence check was being credited for.
+
+**Measured: browser 5,633 to 5,524**, params 3,738 to 3,666, state 1,224 to 1,196, `dom` 569 to 562, assorted 109 to 100. `0.33.33.44` 791 to 689. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
