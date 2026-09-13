@@ -46,7 +46,10 @@ for (const primitive of [
 assert.match(reportingHost, /fetch\("\/api\/reporting\/catalog"/);
 assert.match(reportingHost, /reports\.find\(\(report\) => report\.reportKey === requestedReportKey\)[\s\S]*reports\[0\]/);
 assert.match(reportingHost, /loadRendererAssets\(report\.rendererAssets \|\| \[\]\)/);
-assert.match(reportingHost, /reportRenderers\.get\(report\.renderer\)/);
+// `0.33.33.44.27` reads the id through a fallback, because a catalog contribution may omit it.
+// The lookup is unchanged: `registerRenderer` refuses an empty identifier, so neither the absent
+// id nor the empty string it becomes can match a registration - both reach the unavailable path.
+assert.match(reportingHost, /reportRenderers\.get\(report\.renderer \|\| ""\)/);
 assert.match(reportingHost, /registerRenderer[\s\S]*reportRenderers\.set/);
 assert.match(reportingHost, /filter\.type === "custom-date-range"[\s\S]*createCustomDateRangeField/);
 assert.match(reportingHost, /filter\.type === "project-multi-select"[\s\S]*\? "multi-select"/);
@@ -62,7 +65,10 @@ assert.match(reportingHost, /encodeURIComponent\(report\.reportKey\)[\s\S]*\/run
 assert.match(reportingHost, /query\.set\("report", report\.reportKey\)/);
 assert.match(reportingHost, /title: "No reports available"/);
 assert.match(reportingHost, /title: "Report view unavailable"/);
-assert.match(reportingHost, /payload\.reportKey !== report\.reportKey \|\| payload\.renderer !== report\.renderer/);
+// `0.33.33.44.27` reads the answer through `readExecutionEnvelope`, which asks for each member
+// rather than assuming the body carries it. The claim is unchanged - a run that answers a
+// different report or renderer than the one asked for still reaches the unavailable path.
+assert.match(reportingHost, /envelope\.reportKey !== report\.reportKey \|\| envelope\.renderer !== \(report\.renderer \|\| ""\)/);
 assert.doesNotMatch(
   reportingHost,
   /time-tracking|project-time-billing|time-project-billing|\/api\/reporting\/bootstrap|\/api\/reporting\/project-summary|Billing Rate|Billable Amount|childRows|expandedProjectRows/,

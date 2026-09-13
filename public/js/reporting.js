@@ -38,8 +38,74 @@
     }
     return factory;
   }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTagFilterPickerController} BrowserTagFilterPickerController */
+
+  /**
+   * One filter a report contributes, as this host reads it.
+   *
+   * **Every member is optional except the two this page indexes by.** The catalog is a data-only
+   * contribution assembled by whichever module owns the report, so this describes what the host
+   * reaches for rather than what a contributor must send - `type` and `id` are the two it cannot
+   * work without, and the rest are read behind their own guards.
+   * @typedef {object} ReportingFilter
+   * @property {string} id
+   * @property {string} type
+   * @property {unknown} [defaultValue]
+   * @property {string} [label]
+   * @property {string[]} [queryKeys]
+   * @property {boolean} [required]
+   * @property {unknown} [visibleWhen]
+   */
+
+  /**
+   * One report in the catalog, as this host reads it.
+   * @typedef {object} ReportingReport
+   * @property {string} reportKey
+   * @property {ReportingFilter[]} [filters]
+   * @property {string} [label]
+   * @property {string} [renderer]
+   * @property {unknown[]} [rendererAssets]
+   */
+
+  /**
+   * What one rendered filter field keeps: the controls it owns, the contribution it came from,
+   * the wrapper it lives in, and - for a tag filter only - the picker mounted on its input.
+   * @typedef {object} ReportingFilterField
+   * @property {Map<string, BrowserViewFieldControl>} controls
+   * @property {ReportingFilter} filter
+   * @property {HTMLElement} wrapper
+   * @property {BrowserTagFilterPickerController | null} [tagFilterController]
+   */
+
+  /**
+   * A registered renderer, as this host reads it.
+   *
+   * `registerRenderer` refuses a registration without a callable `render`, so that one is
+   * required; the other three are optional because a renderer that does not offer them is a real
+   * state every call site already guards with `typeof === "function"`.
+   * @typedef {object} ReportingRenderer
+   * @property {(context?: unknown, result?: unknown) => unknown} render
+   * @property {(context?: unknown) => unknown} [initializeFilters]
+   * @property {(context?: unknown, result?: unknown) => unknown} [synchronizeFilters]
+   * @property {(context?: unknown) => unknown} [validateFilters]
+   */
+
+  /** @type {Map<string, ReportingRenderer>} */
   const reportRenderers = new Map();
+  /** @type {Map<string, Promise<void>>} */
   const rendererAssetLoads = new Map();
+
+  /**
+   * @typedef {object} ReportingState
+   * @property {ReportingReport[]} reports
+   * @property {ReportingReport | null} selectedReport
+   * @property {ReportingRenderer | null} renderer
+   * @property {Map<string, ReportingFilterField>} filterFields
+   * @property {number} selectionGeneration
+   * @property {number} executionGeneration
+   */
+
+  /** @type {ReportingState} */
   const reportingState = {
     reports: [],
     selectedReport: null,
@@ -49,11 +115,39 @@
     executionGeneration: 0,
   };
 
+  /**
+   * The report picker, as whichever control the view factory rendered for a `select` field.
+   * The contract's union is three controls and all three carry `value`, which is the only member
+   * read here - so it is kept as the union rather than narrowed to a guess about the renderer.
+   * @type {BrowserViewFieldControl | null}
+   */
   let reportSelector = null;
+  /** @type {HTMLElement | null} */
   let reportSelectorPanel = null;
+  /** @type {HTMLElement | null} */
   let reportFilterPanel = null;
+  /** @type {HTMLElement | null} */
   let reportStatus = null;
+  /** @type {HTMLElement | null} */
   let reportResultsHost = null;
+
+  /**
+   * Narrow at an access this host already made unguarded.
+   *
+   * These five are built by `buildReportingHost` at load, so a missing one means the host never
+   * assembled - the same failure the bare dereference produced, now named.
+   * @template T
+   * @param {T | null} value
+   * @param {string} name
+   * @returns {T}
+   */
+  function requireReportingValue(value, name) {
+    if (value === null) {
+      throw new TypeError(`Reporting requires its ${name}.`);
+    }
+
+    return value;
+  }
 
   publishReportingApi();
   buildReportingHost();
@@ -69,17 +163,25 @@
     };
   }
 
+  /** @param {unknown} [rendererId] @param {unknown} [registration] @returns {void} */
   function registerRenderer(rendererId, registration) {
     const normalizedId = String(rendererId || "").trim();
     const normalizedRegistration = typeof registration === "function"
       ? { render: registration }
       : registration;
 
-    if (!normalizedId || !normalizedRegistration || typeof normalizedRegistration.render !== "function") {
+    if (!normalizedId || typeof normalizedRegistration !== "object" || normalizedRegistration === null) {
       return;
     }
 
-    reportRenderers.set(normalizedId, normalizedRegistration);
+    const render = Object.hasOwn(normalizedRegistration, "render")
+      ? /** @type {Record<string, unknown>} */ (normalizedRegistration).render
+      : undefined;
+    if (typeof render !== "function") {
+      return;
+    }
+
+    reportRenderers.set(normalizedId, /** @type {ReportingRenderer} */ (normalizedRegistration));
   }
 
   function buildReportingHost() {
@@ -111,7 +213,7 @@
       fields: [selectorField],
     }));
     reportFilterPanel = createReportFilterPanel([]);
-    reportFilterPanel.hidden = true;
+    requireReportingValue(reportFilterPanel, "filter panel").hidden = true;
     reportStatus = reportingView.createStatusMessage({ hidden: true });
     reportStatus.dataset.reportingStatus = "";
     reportResultsHost = reportingView.createListShell({
@@ -128,8 +230,8 @@
       reportResultsHost,
     );
 
-    reportSelector.addEventListener("change", () => {
-      selectReport(reportSelector.value);
+    requireReportingValue(reportSelector, "report selector").addEventListener("change", () => {
+      selectReport(requireReportingValue(reportSelector, "report selector").value);
     });
   }
 
@@ -160,7 +262,7 @@
       const requestedReportKey = query.get("report") || query.get("reportKey") || "";
       const selectedReport = reportingState.reports.find((report) => report.reportKey === requestedReportKey)
         || reportingState.reports[0];
-      reportSelector.value = selectedReport.reportKey;
+      requireReportingValue(reportSelector, "report selector").value = selectedReport.reportKey;
       await selectReport(selectedReport.reportKey, { initial: true });
     } catch (error) {
       renderReportingError("Reports could not be loaded.");
@@ -170,25 +272,26 @@
 
   function renderReportSelector() {
     const reportingView = requireView();
-    reportSelector.replaceChildren(...reportingState.reports.map((report) => reportingView.createElement("option", {
+    requireReportingValue(reportSelector, "report selector").replaceChildren(...reportingState.reports.map((report) => reportingView.createElement("option", {
       attrs: { value: report.reportKey },
       text: report.label || "Report",
     })));
-    reportSelector.disabled = reportingState.reports.length === 0;
+    requireReportingValue(reportSelector, "report selector").disabled = reportingState.reports.length === 0;
   }
 
   function renderEmptyCatalog() {
     const reportingView = requireView();
     reportingState.selectedReport = null;
     reportingState.renderer = null;
-    reportFilterPanel.hidden = true;
+    requireReportingValue(reportFilterPanel, "filter panel").hidden = true;
     setReportingStatus("");
-    reportResultsHost.replaceChildren(reportingView.createEmptyState({
+    requireReportingValue(reportResultsHost, "results host").replaceChildren(reportingView.createEmptyState({
       title: "No reports available",
       message: "No reports are available for this workspace and your current access.",
     }));
   }
 
+  /** @param {string} reportKey @param {{ initial?: boolean }} [options] @returns {Promise<void>} */
   async function selectReport(reportKey, options = {}) {
     const report = reportingState.reports.find((candidate) => candidate.reportKey === reportKey)
       || reportingState.reports[0];
@@ -201,9 +304,9 @@
     reportingState.executionGeneration += 1;
     reportingState.selectedReport = report;
     reportingState.renderer = null;
-    reportSelector.value = report.reportKey;
+    requireReportingValue(reportSelector, "report selector").value = report.reportKey;
     renderReportFilters(report.filters || []);
-    reportResultsHost.replaceChildren();
+    requireReportingValue(reportResultsHost, "results host").replaceChildren();
     setReportingStatus(`Loading ${report.label || "report"}...`);
 
     try {
@@ -212,7 +315,7 @@
         return;
       }
 
-      const renderer = reportRenderers.get(report.renderer);
+      const renderer = reportRenderers.get(report.renderer || "");
       if (!renderer) {
         renderRendererUnavailable();
         return;
@@ -243,10 +346,11 @@
     }
 
     if (!options.initial) {
-      reportSelector.focus();
+      requireReportingValue(reportSelector, "report selector").focus();
     }
   }
 
+  /** @param {HTMLElement[]} fields @returns {HTMLElement} */
   function createReportFilterPanel(fields) {
     const reportingView = requireView();
     const panel = reportingView.createFilterPanel({
@@ -260,15 +364,17 @@
     return panel;
   }
 
+  /** @param {ReportingFilter[]} filters @returns {void} */
   function renderReportFilters(filters) {
     reportingState.filterFields.clear();
     const fields = filters.map(createReportFilterField);
     const nextPanel = createReportFilterPanel(fields);
-    reportFilterPanel.replaceWith(nextPanel);
+    requireReportingValue(reportFilterPanel, "filter panel").replaceWith(nextPanel);
     reportFilterPanel = nextPanel;
-    reportFilterPanel.hidden = filters.length === 0;
+    requireReportingValue(reportFilterPanel, "filter panel").hidden = filters.length === 0;
   }
 
+  /** @param {ReportingFilter} filter @returns {HTMLElement} */
   function createReportFilterField(filter) {
     const reportingView = requireView();
     if (filter.type === "custom-date-range") {
@@ -299,8 +405,9 @@
       controlDataset: { reportingFilterControl: filter.id },
     });
     const control = fieldControl(wrapper);
+    /** @type {ReportingFilterField} */
     const fieldState = {
-      controls: new Map([[filter.queryKeys[0], control]]),
+      controls: new Map([[filterQueryKeys(filter)[0] || filter.id, control]]),
       filter,
       wrapper,
     };
@@ -319,9 +426,10 @@
     return wrapper;
   }
 
+  /** @param {ReportingFilter} filter @returns {HTMLElement} */
   function createCustomDateRangeField(filter) {
     const reportingView = requireView();
-    const [startKey, endKey] = filter.queryKeys;
+    const [startKey, endKey] = filterQueryKeys(filter);
     const startField = createDateField(filter.id, startKey, "Start Date");
     const endField = createDateField(filter.id, endKey, "End Date");
     const startInput = fieldControl(startField);
@@ -345,6 +453,7 @@
     return wrapper;
   }
 
+  /** @param {string} filterId @param {string} queryKey @param {string} label @returns {BrowserViewFieldElement} */
   function createDateField(filterId, queryKey, label) {
     const reportingView = requireView();
     return reportingView.createField({
@@ -359,6 +468,7 @@
     });
   }
 
+  /** @param {string} value @param {string} label @param {{ disabled?: boolean, selected?: boolean }} [options] @returns {HTMLOptionElement} */
   function createOption(value, label, options = {}) {
     const reportingView = requireView();
     const option = reportingView.createElement("option", {
@@ -370,9 +480,13 @@
     return option;
   }
 
+  /** @param {Event} event @returns {Promise<void>} */
   async function handleReportFilterChange(event) {
-    const control = event.target.closest?.("[data-reporting-filter-control]");
-    if (!control || !reportFilterPanel.contains(control) || !reportingState.renderer) {
+    const eventTarget = event.target instanceof Element ? event.target : null;
+    const control = eventTarget?.closest("[data-reporting-filter-control]");
+    const panel = requireReportingValue(reportFilterPanel, "filter panel");
+
+    if (!(control instanceof HTMLElement) || !panel.contains(control) || !reportingState.renderer) {
       return;
     }
 
@@ -405,6 +519,7 @@
     };
   }
 
+  /** @param {string} filterId @param {string} [queryKey] @returns {BrowserViewFieldControl | null} */
   function getFilterControl(filterId, queryKey = "") {
     const field = reportingState.filterFields.get(filterId);
     if (!field) {
@@ -413,6 +528,7 @@
     return queryKey ? field.controls.get(queryKey) || null : field.controls.values().next().value || null;
   }
 
+  /** @param {string} filterId @returns {unknown} */
   function getFilterValue(filterId) {
     const field = reportingState.filterFields.get(filterId);
     if (!field) {
@@ -424,9 +540,9 @@
     }
     const control = getFilterControl(filterId);
     if (field.filter.type === "boolean") {
-      return Boolean(control?.checked);
+      return control instanceof HTMLInputElement && control.checked;
     }
-    if (control?.multiple) {
+    if (control instanceof HTMLSelectElement && control.multiple) {
       return [...control.selectedOptions].map((option) => option.value);
     }
     if (field.filter.type === "tag") {
@@ -436,6 +552,7 @@
     return control?.value || "";
   }
 
+  /** @param {string} filterId @param {unknown} value @returns {void} */
   function setFilterValue(filterId, value) {
     const field = reportingState.filterFields.get(filterId);
     if (!field || value === undefined || value === null) {
@@ -443,8 +560,12 @@
     }
 
     if (field.filter.type === "custom-date-range") {
+      const range = typeof value === "object" && value !== null ? value : {};
+
       [...field.controls].forEach(([queryKey, control]) => {
-        const nextValue = value?.[queryKey];
+        const nextValue = Object.hasOwn(range, queryKey)
+          ? /** @type {Record<string, unknown>} */ (range)[queryKey]
+          : undefined;
         if (nextValue !== undefined) {
           control.value = String(nextValue || "");
         }
@@ -454,10 +575,12 @@
 
     const control = getFilterControl(filterId);
     if (field.filter.type === "boolean") {
-      control.checked = parseBoolean(value, Boolean(field.filter.defaultValue));
+      if (control instanceof HTMLInputElement) {
+        control.checked = parseBoolean(value, Boolean(field.filter.defaultValue));
+      }
       return;
     }
-    if (control?.multiple) {
+    if (control instanceof HTMLSelectElement && control.multiple) {
       const values = new Set(normalizeListValue(value));
       [...control.options].forEach((option) => {
         option.selected = values.has(option.value);
@@ -468,21 +591,30 @@
       const nextValue = Array.isArray(value) ? value[0] || "all" : value || "all";
       if (field.tagFilterController) {
         field.tagFilterController.setValue(nextValue);
-      } else {
+      } else if (control) {
         control.value = String(nextValue);
       }
       return;
     }
-    setSelectValueWhenAvailable(control, String(value || ""));
+    if (control) {
+      setSelectValueWhenAvailable(control, String(value || ""));
+    }
   }
 
+  /**
+     * @param {string} filterId
+     * @param {unknown} options
+     * @param {{ placeholder?: string, preserveValue?: boolean, selectAll?: boolean,
+   *   selectedValues?: unknown, value?: unknown }} [config]
+     * @returns {void}
+     */
   function setFilterOptions(filterId, options, config = {}) {
     const field = reportingState.filterFields.get(filterId);
     const control = getFilterControl(filterId);
     if (field?.filter.type === "tag" && field.tagFilterController) {
       const noTagsValue = window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__";
       const tags = (Array.isArray(options) ? options : [])
-        .map((option) => ({
+        .map((/** @type {Record<string, unknown>} */ option) => ({
           tag_id: String(option?.value ?? option?.id ?? ""),
           name: String(option?.label ?? option?.name ?? ""),
         }))
@@ -496,7 +628,7 @@
       field.tagFilterController.setValue(requestedValue);
       return;
     }
-    if (!control || control.tagName !== "SELECT") {
+    if (!(control instanceof HTMLSelectElement)) {
       return;
     }
 
@@ -512,7 +644,7 @@
     if (!control.multiple && config.placeholder) {
       optionNodes.push(createOption("", config.placeholder));
     }
-    for (const option of Array.isArray(options) ? options : []) {
+    for (const option of /** @type {Record<string, unknown>[]} */ (Array.isArray(options) ? options : [])) {
       optionNodes.push(createOption(
         String(option?.value ?? option?.id ?? ""),
         String(option?.label ?? option?.name ?? ""),
@@ -535,6 +667,7 @@
     }
   }
 
+  /** @param {string} filterId @param {unknown} hidden @returns {void} */
   function setFilterHidden(filterId, hidden) {
     const field = reportingState.filterFields.get(filterId);
     if (field) {
@@ -543,6 +676,7 @@
     }
   }
 
+  /** @param {string} filterId @param {unknown} disabled @returns {void} */
   function setFilterDisabled(filterId, disabled) {
     const field = reportingState.filterFields.get(filterId);
     if (!field) {
@@ -554,16 +688,17 @@
     });
   }
 
+  /** @param {URLSearchParams} query @returns {void} */
   function applyQueryFilterValues(query) {
     for (const [filterId, field] of reportingState.filterFields) {
       if (field.filter.type === "custom-date-range") {
-        const values = Object.fromEntries(field.filter.queryKeys
+        const values = Object.fromEntries(filterQueryKeys(field.filter)
           .filter((queryKey) => query.has(queryKey))
           .map((queryKey) => [queryKey, query.get(queryKey)]));
         setFilterValue(filterId, values);
         continue;
       }
-      const queryKey = field.filter.queryKeys[0];
+      const queryKey = filterQueryKeys(field.filter)[0];
       if (query.has(queryKey)) {
         setFilterValue(filterId, query.getAll(queryKey));
       }
@@ -577,7 +712,9 @@
         continue;
       }
 
-      const visible = getFilterValue(condition.filterId) === condition.equals;
+      const visible = typeof condition === "object" && condition !== null
+        && getFilterValue(String(/** @type {Record<string, unknown>} */ (condition).filterId || ""))
+          === /** @type {Record<string, unknown>} */ (condition).equals;
       field.wrapper.hidden = !visible;
       field.controls.forEach((control) => {
         if (!visible) {
@@ -601,7 +738,7 @@
     const validationMessage = validateReportFilters(report, renderer);
     if (validationMessage) {
       reportingState.executionGeneration += 1;
-      reportResultsHost.replaceChildren();
+      requireReportingValue(reportResultsHost, "results host").replaceChildren();
       setReportingStatus(validationMessage);
       return;
     }
@@ -609,7 +746,7 @@
     const generation = ++reportingState.executionGeneration;
     const params = buildExecutionParams(report.filters || []);
     setReportingStatus(`Loading ${report.label || "report"} results...`);
-    reportResultsHost.replaceChildren();
+    requireReportingValue(reportResultsHost, "results host").replaceChildren();
 
     try {
       const response = await fetch(
@@ -620,16 +757,17 @@
       if (generation !== reportingState.executionGeneration) {
         return;
       }
-      if (!response.ok || payload?.status !== "ready") {
-        renderReportingError(payload?.error?.message || "The report could not be run.");
+      const envelope = readExecutionEnvelope(payload);
+      if (!response.ok || envelope.status !== "ready") {
+        renderReportingError(envelope.errorMessage || "The report could not be run.");
         return;
       }
-      if (payload.reportKey !== report.reportKey || payload.renderer !== report.renderer) {
+      if (envelope.reportKey !== report.reportKey || envelope.renderer !== (report.renderer || "")) {
         renderRendererUnavailable();
         return;
       }
 
-      const rendered = await renderer.render(payload.result, createRendererContext());
+      const rendered = await renderer.render(envelope.result, createRendererContext());
       if (generation !== reportingState.executionGeneration) {
         return;
       }
@@ -643,8 +781,9 @@
     }
   }
 
+  /** @param {ReportingReport | null} report @param {ReportingRenderer | null} renderer @returns {string} */
   function validateReportFilters(report, renderer) {
-    for (const filter of report.filters || []) {
+    for (const filter of report?.filters || []) {
       if (!filter.required || !filterIsVisible(filter)) {
         continue;
       }
@@ -654,12 +793,13 @@
       }
     }
 
-    if (typeof renderer.validateFilters === "function") {
+    if (typeof renderer?.validateFilters === "function") {
       return String(renderer.validateFilters(createRendererContext()) || "");
     }
     return "";
   }
 
+  /** @param {ReportingFilter[]} filters @returns {URLSearchParams} */
   function buildExecutionParams(filters) {
     const params = new URLSearchParams();
     for (const filter of filters) {
@@ -668,48 +808,105 @@
       }
       const value = getFilterValue(filter.id);
       if (filter.type === "custom-date-range") {
-        filter.queryKeys.forEach((queryKey) => {
-          if (value?.[queryKey]) {
-            params.set(queryKey, value[queryKey]);
+        const range = typeof value === "object" && value !== null ? value : {};
+
+        filterQueryKeys(filter).forEach((queryKey) => {
+          const rangeValue = Object.hasOwn(range, queryKey)
+            ? /** @type {Record<string, unknown>} */ (range)[queryKey]
+            : undefined;
+          if (rangeValue) {
+            params.set(queryKey, String(rangeValue));
           }
         });
       } else if (Array.isArray(value)) {
         if (value.length) {
-          params.set(filter.queryKeys[0], value.join(","));
+          params.set(filterQueryKeys(filter)[0], value.join(","));
         }
       } else if (filter.type === "boolean") {
-        params.set(filter.queryKeys[0], value ? "true" : "false");
+        params.set(filterQueryKeys(filter)[0], value ? "true" : "false");
       } else if (value) {
-        params.set(filter.queryKeys[0], value);
+        params.set(filterQueryKeys(filter)[0], String(value));
       }
     }
     return params;
   }
 
+  /**
+   * What a report execution answered, as this host reads it.
+   *
+   * The body is a wire value, so each member is asked for rather than assumed - and the failure
+   * message is read two levels down, which is why it is resolved here instead of at the guard.
+   * @param {unknown} payload
+   * @returns {{ errorMessage: string, renderer: string, reportKey: string, result: unknown, status: string }}
+   */
+  function readExecutionEnvelope(payload) {
+    const body = typeof payload === "object" && payload !== null
+      ? /** @type {Record<string, unknown>} */ (payload)
+      : {};
+    const error = typeof body.error === "object" && body.error !== null
+      ? /** @type {Record<string, unknown>} */ (body.error)
+      : {};
+
+    return {
+      errorMessage: typeof error.message === "string" ? error.message : "",
+      renderer: typeof body.renderer === "string" ? body.renderer : "",
+      reportKey: typeof body.reportKey === "string" ? body.reportKey : "",
+      result: body.result,
+      status: typeof body.status === "string" ? body.status : "",
+    };
+  }
+
+  /**
+   * The query keys a filter contributes, or its own id when it names none.
+   *
+   * A contribution may omit them - the catalog is data-only and assembled by whichever module
+   * owns the report - and every call site already fell back to the filter's id, so this states
+   * that fallback once instead of at each read.
+   * @param {ReportingFilter} filter
+   * @returns {string[]}
+   */
+  function filterQueryKeys(filter) {
+    return Array.isArray(filter.queryKeys) && filter.queryKeys.length > 0
+      ? filter.queryKeys
+      : [filter.id];
+  }
+
+  /** @param {ReportingFilter} filter @returns {boolean} */
   function filterIsVisible(filter) {
     if (!filter.visibleWhen) {
       return true;
     }
-    return getFilterValue(filter.visibleWhen.filterId) === filter.visibleWhen.equals;
+    const condition = typeof filter.visibleWhen === "object" && filter.visibleWhen !== null
+      ? /** @type {Record<string, unknown>} */ (filter.visibleWhen)
+      : null;
+
+    return condition !== null
+      && getFilterValue(String(condition.filterId || "")) === condition.equals;
   }
 
+  /** @param {unknown} rendered @returns {void} */
   function renderExecutionResult(rendered) {
     const reportingView = requireView();
-    if (rendered?.state === "empty") {
+    const answer = typeof rendered === "object" && rendered !== null
+      ? /** @type {Record<string, unknown>} */ (rendered)
+      : null;
+
+    if (answer?.state === "empty") {
       setReportingStatus("");
-      reportResultsHost.replaceChildren(reportingView.createEmptyState({
-        title: rendered.title || "No results",
-        message: rendered.message || "No records match these report filters.",
+      requireReportingValue(reportResultsHost, "results host").replaceChildren(reportingView.createEmptyState({
+        title: String(answer.title || "No results"),
+        message: String(answer.message || "No records match these report filters."),
       }));
       return;
     }
 
-    const content = rendered?.content || rendered;
-    if (!content || typeof content.nodeType !== "number") {
+    const content = answer?.content || rendered;
+    if (typeof content !== "object" || content === null || typeof /** @type {Record<string, unknown>} */ (content).nodeType !== "number") {
       renderReportingError("Report results could not be displayed.");
       return;
     }
-    reportResultsHost.replaceChildren(content);
+    requireReportingValue(reportResultsHost, "results host")
+      .replaceChildren(/** @type {Node} */ (content));
     setReportingStatus("");
   }
 
@@ -719,6 +916,7 @@
     });
   }
 
+  /** @param {string} message @param {{ title?: string, tone?: string }} [options] @returns {void} */
   function renderReportingError(message, options = {}) {
     const reportingView = requireView();
     setReportingStatus(message, { isError: true });
@@ -729,16 +927,18 @@
     }));
   }
 
+  /** @param {string} message @param {{ isError?: boolean, tone?: string }} [options] @returns {void} */
   function setReportingStatus(message, options = {}) {
     if (!reportStatus) {
       return;
     }
-    reportStatus.textContent = message || "";
-    reportStatus.hidden = !message;
+    requireReportingValue(reportStatus, "status line").textContent = message || "";
+    requireReportingValue(reportStatus, "status line").hidden = !message;
     reportStatus.dataset.viewTone = options.isError ? "error" : "info";
     reportStatus.setAttribute("role", options.isError ? "alert" : "status");
   }
 
+  /** @param {{ replace?: boolean }} [options] @returns {void} */
   function syncReportingUrl(options = {}) {
     const report = reportingState.selectedReport;
     if (!report || !window.history?.replaceState) {
@@ -748,7 +948,7 @@
     query.delete("reportKey");
     query.set("report", report.reportKey);
     for (const filter of report.filters || []) {
-      filter.queryKeys.forEach((queryKey) => query.delete(queryKey));
+      filterQueryKeys(filter).forEach((queryKey) => query.delete(queryKey));
     }
     const executionParams = buildExecutionParams(report.filters || []);
     executionParams.forEach((value, queryKey) => query.set(queryKey, value));
@@ -759,22 +959,28 @@
     }
   }
 
+  /** @param {unknown[]} assets @returns {Promise<void>} */
   async function loadRendererAssets(assets) {
     for (const asset of assets) {
       await loadRendererAsset(asset);
     }
   }
 
+  /** @param {unknown} asset @returns {Promise<void>} */
   function loadRendererAsset(asset) {
-    const path = String(asset?.path || "").trim();
-    const type = String(asset?.type || "").trim();
+    const record = typeof asset === "object" && asset !== null
+      ? /** @type {Record<string, unknown>} */ (asset)
+      : {};
+    const path = String(record.path || "").trim();
+    const type = String(record.type || "").trim();
     if (!path || !["script", "style"].includes(type)) {
       return Promise.reject(new Error("The report renderer asset is invalid."));
     }
 
     const key = `${type}:${new window.URL(path, document.baseURI).href}`;
-    if (rendererAssetLoads.has(key)) {
-      return rendererAssetLoads.get(key);
+    const pending = rendererAssetLoads.get(key);
+    if (pending) {
+      return pending;
     }
 
     const promise = new Promise((resolve, reject) => {
@@ -799,6 +1005,7 @@
     return promise;
   }
 
+  /** @param {Response} response @returns {Promise<unknown>} */
   async function readJsonResponse(response) {
     const text = await response.text();
     if (!text) {
@@ -811,12 +1018,14 @@
     }
   }
 
+  /** @param {BrowserViewFieldControl} startInput @param {BrowserViewFieldControl} endInput @returns {void} */
   function setDefaultDateRange(startInput, endInput) {
     const today = new Date();
     startInput.value = formatDateInput(new Date(today.getFullYear(), today.getMonth(), 1));
     endInput.value = formatDateInput(today);
   }
 
+  /** @param {Date} date @returns {string} */
   function formatDateInput(date) {
     if (window.LongtailForge?.formatters?.dateInput) {
       return window.LongtailForge.formatters.dateInput(date);
@@ -827,6 +1036,7 @@
     return `${year}-${month}-${day}`;
   }
 
+  /** @param {unknown} value @returns {string[]} */
   function normalizeListValue(value) {
     const values = Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
     return [...new Set(values.flatMap((item) => String(item || "").split(","))
@@ -834,16 +1044,22 @@
       .filter(Boolean))];
   }
 
+  /** @param {BrowserViewFieldControl} select @param {unknown} value @returns {void} */
   function setSelectValueWhenAvailable(select, value) {
     if (!select) {
       return;
     }
     const normalizedValue = String(value || "");
+    if (!(select instanceof HTMLSelectElement)) {
+      select.value = normalizedValue;
+      return;
+    }
     if ([...select.options].some((option) => option.value === normalizedValue)) {
       select.value = normalizedValue;
     }
   }
 
+  /** @param {unknown} value @param {boolean} [fallback] @returns {boolean} */
   function parseBoolean(value, fallback = false) {
     const scalar = Array.isArray(value) ? value[0] : value;
     if (typeof scalar === "boolean") {

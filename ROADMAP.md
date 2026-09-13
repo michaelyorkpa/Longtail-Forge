@@ -1583,6 +1583,20 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 5,633 to 5,524**, params 3,738 to 3,666, state 1,224 to 1,196, `dom` 569 to 562, assorted 109 to 100. `0.33.33.44` 791 to 689. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.27 - Framework Reporting host, and the file reaches zero
+
+**Complete: 109 diagnostics, and `public/js/reporting.js` reaches zero** - the ninth file in this lane to close outright. See the archive entry.
+
+**The tag-filter question resolved to "nothing to reconcile."** `reporting.js` and `tasks.js` reach the **same published surface**, `LongtailForge.tags.mountFilterPicker`, and both already narrow to an input before mounting - because the view primitive can answer a select or a textarea and the picker mounts only on an input. Neither page carries its own copy, so there was no duplicated controller; the picker is now typed from its published `BrowserTagFilterPickerController` rather than a local shape.
+
+**Measuring first said there was no cluster, and that was the finding.** 109 diagnostics spread across 38 functions with the largest at 13 - so the honest target was the whole file, not a boundary. Declaring the catalog shapes first *raised* the count to 123 before it fell, because the declarations exposed the dereferences they had been hiding.
+
+**Nothing about the catalog was invented.** The contributions are data-only and assembled by whichever module owns a report, so `ReportingFilter` names what the host reaches for rather than what a contributor must send: every member is optional except the two it indexes by. `filterQueryKeys` states once the fallback each of six call sites already made, and `readExecutionEnvelope` asks the run's answer for its four members rather than assuming a shape.
+
+**39 breaks, 39 caught, zero inert.** Eleven were inert on the first run. Six were assertion gaps - including three guards that live in `executeSelectedReport`, which the fixture cannot run, now pinned as source facts. **Three were withdrawn**, each because a later check already decides what the guard was being credited for; one anchor was malformed and one matched a pattern the file carries twice.
+
+**Measured: browser 5,522 to 5,413**, params 3,666 to 3,599, state 1,196 to 1,152, `dom` and assorted unchanged. `0.33.33.44` 689 to 580. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
