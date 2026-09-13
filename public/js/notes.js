@@ -546,6 +546,7 @@
     user: "User",
   };
   const DEFAULT_LINK_TARGET_TYPE = "project";
+  /** The Notes menu omits the backend-compatible workspace target. @type {Array<Exclude<BrowserNoteLinkTargetType, "workspace">>} */
   const LINK_TARGET_TYPE_ORDER = ["project", "task", "note", "list", "client", "user"];
   const LINK_CLIENT_CONTEXT_ALL = "all";
   const LINK_CLIENT_CONTEXT_WORKSPACE = "workspace";
@@ -796,7 +797,7 @@
   let securityInput = null;
   /** @type {HTMLElement | null} */
   let secureWarning = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let contextClientInput = null;
   /** @type {HTMLSelectElement | null} */
   let contextTargetTypeInput = null;
@@ -988,7 +989,7 @@
     visibilityInput = findNotesControl("[data-note-visibility]", HTMLSelectElement);
     securityInput = findNotesControl("[data-note-security]", HTMLSelectElement);
     secureWarning = findNotesControl("[data-note-secure-warning]", HTMLElement);
-    contextClientInput = document.querySelector("[data-note-context-client]");
+    contextClientInput = findNotesControl("[data-note-context-client]", HTMLSelectElement);
     contextTargetTypeInput = findNotesControl("[data-note-context-target-type]", HTMLSelectElement);
     contextSearchInput = findNotesControl("[data-note-context-search]", HTMLInputElement);
     contextResultsInput = findNotesControl("[data-note-context-results]", HTMLSelectElement);
@@ -3920,7 +3921,7 @@
   }
 
   function queueEditorLinkTargetSearch() {
-    window.clearTimeout(state.linkTargetSearchTimer);
+    window.clearTimeout(state.linkTargetSearchTimer ?? undefined);
     state.linkTargetSearchTimer = window.setTimeout(() => loadEditorLinkTargets(), 180);
   }
 
@@ -4107,6 +4108,7 @@
     return targets;
   }
 
+  /** @param {HTMLSelectElement | null} select @param {BrowserNoteLinkTarget[]} targets */
   function populateLinkTargetSelect(select, targets = []) {
     const records = targets.map((target) => ({
       ...pickerRecordFromTarget(target),
@@ -4123,12 +4125,13 @@
     });
   }
 
+  /** @param {HTMLSelectElement | null} select */
   function populateLinkTargetTypeSelect(select) {
     if (!select) {
       return;
     }
 
-    const selectedValue = availableLinkTargetTypes().includes(select.value) ? select.value : defaultLinkTargetType();
+    const selectedValue = availableLinkTargetTypes().some((targetType) => targetType === select.value) ? select.value : defaultLinkTargetType();
     const options = availableLinkTargetTypes().map((targetType) => {
       const option = document.createElement("option");
       option.value = targetType;
@@ -4248,6 +4251,12 @@
     }));
   }
 
+  /**
+   * The record adapter's output or the local loading/failure option literals.
+   * This is a local option input, not a new directory response contract.
+   * @param {Array<Partial<ReturnType<typeof pickerRecordFromTarget>> & Partial<Pick<HTMLOptionElement, "value" | "label" | "disabled">>>} records
+   * @param {HTMLSelectElement | null} select
+   */
   function replaceLinkTargetOptions(records = [], select = contextResultsInput) {
     const parts = select === contextResultsInput ? editorContextPickerParts() : {};
     if (select === contextResultsInput && typeof parts.setRecords === "function") {
@@ -4325,6 +4334,7 @@
     return "";
   }
 
+  /** @param {HTMLSelectElement | null} select @returns {BrowserNoteLinkTarget | null} */
   function readSelectedLinkTarget(select) {
     const option = select?.selectedOptions?.[0];
 
@@ -4333,7 +4343,9 @@
     }
 
     try {
-      return JSON.parse(option.dataset.target);
+      /** @type {unknown} */
+      const target = JSON.parse(option.dataset.target);
+      return isNoteLinkTarget(target) ? target : null;
     } catch {
       return null;
     }
@@ -4495,8 +4507,27 @@
     })));
   }
 
+  /** @typedef {Partial<Pick<import("../../src/types/browser-contracts.js").BrowserViewLinkedContextPickerParts, "clientContextSelect" | "setClientContexts" | "setRecords" | "setLinkedItems">>} NotesContextPickerParts */
+
+  /**
+   * createLinkedContextPicker publishes these controls and closure methods. An absent
+   * or unreadable parts bag uses the existing plain-control fallback, not a failed editor.
+   * @param {unknown} value
+   * @returns {value is NotesContextPickerParts}
+   */
+  function isNotesContextPickerParts(value) {
+    return isResponseRecord(value)
+      && (value.clientContextSelect === undefined || value.clientContextSelect instanceof HTMLSelectElement)
+      && (value.setClientContexts === undefined || typeof value.setClientContexts === "function")
+      && (value.setRecords === undefined || typeof value.setRecords === "function")
+      && (value.setLinkedItems === undefined || typeof value.setLinkedItems === "function");
+  }
+
+  /** @returns {NotesContextPickerParts} */
   function editorContextPickerParts() {
-    return contextList?.closest("[data-note-context-picker]")?.viewParts || {};
+    const picker = contextList?.closest("[data-note-context-picker]");
+    const parts = picker && "viewParts" in picker ? picker.viewParts : null;
+    return isNotesContextPickerParts(parts) ? parts : {};
   }
 
   function editorPrimaryContextItem() {
@@ -5490,8 +5521,8 @@
 
   /**
    * Called with a DOM Event, no options, or a preferred suggestion from a linked target.
-   * `readSelectedLinkTarget` parses dataset JSON without checking its members, so that caller
-   * still owns the unchecked target. Check only this scalar here, not the whole target record.
+   * `readSelectedLinkTarget` now checks its directory record; this boundary also accepts
+   * DOM Events and absent options. Check the resulting scalar for all three callers.
    * @param {object} [options]
    */
   function updateLibrarySuggestion(options = {}) {

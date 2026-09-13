@@ -15,7 +15,7 @@ const manifest = vm.runInNewContext(`(${manifestLiteral[1]})`, { NOTE_PERMISSION
 const names = ["requireView", "modalFieldOptions", "isNoteFieldOptionPair", "noteSelect", "noteInput", "noteTextarea", "notesOptionElement", "noteFieldLabel",
   "renderLinksPanel", "linkItem", "linkPayloadFromTarget", "linkedRecordsField", "notePrimaryContextSummary", "isNoteContextLabel", "isNoteLinkDisplay",
   "isResponseRecord", "formatToken", "unavailableTargetLabel", "usesBusinessScope", "workspaceHasClientTools", "normalizeWorkspaceType", "normalizeText", "linkRecordNodes", "notePrimaryContextItem",
-  "scopeNotesVisibilityContributions", "scopeNotesVisibilityOptions", "readSelectedLinkTarget"];
+  "scopeNotesVisibilityContributions", "scopeNotesVisibilityOptions", "readSelectedLinkTarget", "isNoteLinkTarget"];
 /** @param {unknown} value */
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
@@ -47,6 +47,10 @@ function fixture() {
   vm.runInContext(extractFunctionBlock(renderer, "renderDescriptorLinkedRecordsPanel"), context);
   context.requireDescriptorRenderers = () => ({ renderDescriptorLinkedRecordsPanel: context.renderDescriptorLinkedRecordsPanel });
   const labels = source.match(/const LINK_TARGET_TYPE_LABELS = \{[\s\S]*?\n  \};/); assert.ok(labels);
+  for (const name of ["NOTE_LINK_TARGET_TYPES", "NOTE_LINK_TARGET_TEXT"]) {
+    const start = source.indexOf(`const ${name} =`); assert.ok(start >= 0);
+    vm.runInContext(source.slice(start, source.indexOf(";", start) + 1), context);
+  }
   vm.runInContext(`${labels[0]}\n${names.map((name) => extractFunctionBlock(source, name)).join("\n")}\n${extractFunctionBlock(builder, "normalizeFieldOptions")}`, context);
   return { api: vm.runInContext(`({${names.join(",")},normalizeFieldOptions})`, context), context, calls, timers, view, document: browser.document };
 }
@@ -257,7 +261,11 @@ describe("Notes editor field constructors and linked-context panel", () => {
     assert.equal(results.disabled, false); assert.equal(results.textContent, "No records available"); assert.deepEqual(plain(calls[0]), ["fetch", { targetType: "task", search: "latest", limit: 40 }]);
     calls.length = 0; const form = panel.querySelector("[data-note-link-form]");
     assert.equal(form.dispatchEvent({ type: "submit" }), false); await setImmediate(); assert.deepEqual(calls, []);
-    const option = document.createElement("option"); option.dataset.target = JSON.stringify({ ...records[0], label: "Extra" }); option.selected = true; results.replaceChildren(option);
+    // populateLinkTargetSelect serializes the checked directory record, not the
+    // smaller outgoing link payload whose exact projection is asserted below.
+    const target = { ...vm.runInContext('Object.fromEntries(NOTE_LINK_TARGET_TEXT.map((key) => [key, ""]))', context), ...records[0], label: "Extra", isAvailable: true };
+    assert.equal(api.isNoteLinkTarget(target), true);
+    const option = document.createElement("option"); option.dataset.target = JSON.stringify(target); option.selected = true; results.replaceChildren(option);
     assert.equal(form.dispatchEvent({ type: "submit" }), false); await setImmediate();
     assert.equal(calls.length, 1); assert.equal(calls[0][0], "add"); assert.strictEqual(calls[0][1], note); assert.deepEqual(plain(calls[0][2]), records[0]);
   });
