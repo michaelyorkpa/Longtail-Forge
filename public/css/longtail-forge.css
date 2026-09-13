@@ -7132,6 +7132,10 @@ summary.view-info-panel-title {
     background: transparent;
 }
 
+.notes-files-panel .file-attachment-upload[hidden] {
+    display: none;
+}
+
 .notes-files-panel .file-attachments-header {
     /* The panel summary already labels this "Files"; keep only the attachment count, right-aligned. */
     justify-content: flex-end;
