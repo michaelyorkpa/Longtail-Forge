@@ -146,6 +146,15 @@ export function fakeDomConstructors() {
   };
 
   return {
+    // The one stand-in that is deliberately wider than `Element`: this fake models a text node as
+    // a `FakeElement` with `nodeType` 3, and a page asking `instanceof Node` before `appendChild`
+    // is asking whether the DOM would accept the value at all - which a text node satisfies.
+    Node: class FakeNodeConstructor {
+      /** @param {unknown} value */
+      static [Symbol.hasInstance](value) {
+        return value instanceof FakeElement;
+      }
+    },
     Element: elementConstructor(),
     HTMLElement: elementConstructor(),
     HTMLButtonElement: elementConstructor("BUTTON"),

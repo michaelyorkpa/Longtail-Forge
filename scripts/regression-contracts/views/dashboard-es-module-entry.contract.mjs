@@ -62,7 +62,11 @@ checks += explicitImports.length + 4;
 
 assert.match(dashboardService, /listActiveModuleBrowserAssets\(session\.workspace_id, session, "dashboard"\)/);
 assert.match(dashboardService, /extensionPoints:\s*\{\s*browserAssets,\s*dashboardPanels/);
-assert.match(dashboard, /const browserAssetsReady = loadDashboardBrowserAssets\(dashboardData\?\.extensionPoints\?\.browserAssets\)[\s\S]*await browserAssetsReady;[\s\S]*renderRegisteredDashboardPanels\(\)/);
+// `0.33.33.44.28` reads `extensionPoints` once and reaches `browserAssets` and `dashboardPanels`
+// through the same local, rather than walking the snapshot twice. The sequencing claim is
+// unchanged: the assets are requested before the regions render and awaited before the registered
+// panels do, so a contributed renderer is loaded by the time its panel is drawn.
+assert.match(dashboard, /const extensionPoints = dashboardRecord\(dashboardData\?\.extensionPoints\)[\s\S]*const browserAssetsReady = loadDashboardBrowserAssets\(extensionPoints\?\.browserAssets\)[\s\S]*await browserAssetsReady;[\s\S]*renderRegisteredDashboardPanels\(\)/);
 assert.match(dashboard, /esModuleBridge\?\.loadContributedAssets/);
 assert.doesNotMatch(dashboard, /tasks\.needs-attention|tasks\.calendar|tasks\.today-upcoming|tasks\.pressure|time-tracking\.active-timers/);
 checks += 5;
