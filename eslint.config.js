@@ -35,6 +35,7 @@ const nodeGlobals = {
   structuredClone: "readonly",
   setTimeout: "readonly",
   URL: "readonly",
+  URLSearchParams: "readonly",
 };
 
 export default [
