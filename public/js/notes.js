@@ -839,11 +839,11 @@
   let filesEditor = null;
   /** @type {Element | null} */
   let filesDialogCloseButton = null;
-  /** @type {Element | null} */
+  /** @type {HTMLElement | null} */
   let filesSaveFirstWarning = null;
   /** @type {HTMLButtonElement | null} */
   let tagsToggle = null;
-  /** @type {Element | null} */
+  /** @type {HTMLButtonElement | null} */
   let filesToggle = null;
   /** @type {HTMLButtonElement | null} */
   let copyLinkButton = null;
@@ -1010,9 +1010,9 @@
     filesDialog = document.querySelector("[data-note-files-dialog]");
     filesEditor = document.querySelector("[data-note-files-editor]");
     filesDialogCloseButton = document.querySelector("[data-note-files-dialog-close]");
-    filesSaveFirstWarning = document.querySelector("[data-note-files-save-first-warning]");
+    filesSaveFirstWarning = findNotesControl("[data-note-files-save-first-warning]", HTMLElement);
     tagsToggle = findNotesControl("[data-note-tags-toggle]", HTMLButtonElement);
-    filesToggle = document.querySelector("[data-note-files-toggle]");
+    filesToggle = findNotesControl("[data-note-files-toggle]", HTMLButtonElement);
     copyLinkButton = findNotesControl("[data-copy-note-link]", HTMLButtonElement);
     bodyInput = findNotesControl("[data-note-body]", HTMLTextAreaElement);
     markdownEditor = document.querySelector("[data-note-markdown-editor]");
@@ -5153,6 +5153,7 @@
     return view.createElement("details", { className: "notes-detail-section notes-files-panel", children: [summary, mount] });
   }
 
+  /** @param {BrowserNoteRecord} note @param {Element | null} [mount] */
   function mountFilesPanel(note, mount) {
     if (!mount || isSecureNote(note)) {
       return;
@@ -5180,6 +5181,7 @@
     });
   }
 
+  /** @param {Partial<Pick<BrowserNoteRecord, "visibility">>} note */
   function fileVisibilityForNote(note) {
     if (note.visibility === "client_visible") {
       return "client";
@@ -5399,6 +5401,11 @@
     });
   }
 
+  /**
+   * A failed editor hydration can retain a seed: its writer does not establish status.
+   * Keep that member unknown here; the existing archived comparison claims no string type.
+   * @param {(NotesEditorNote & {status?: unknown}) | null} [note]
+   */
   function mountNoteEditorFiles(note) {
     // Read once and test the binding rather than a boolean derived from it: `!filesAvailable`
     // is exactly `!filesEditor || !fileAttachments`, but a boolean cannot narrow the surface
@@ -5492,9 +5499,11 @@
     closeTagsDialog();
     filesToggle?.setAttribute("aria-expanded", "true");
     view.showModal(filesDialog, { parent: dialog, trigger: filesToggle });
-    const focusTarget = state.filesDialogNoteId
+    const candidate = state.filesDialogNoteId
       ? filesDialog.querySelector("[data-file-attachment-input]")
       : filesDialog.querySelector("[data-note-files-save-first-warning]");
+    // An absent or unreadable focus field must not refuse the already-open Files utility.
+    const focusTarget = candidate instanceof HTMLElement ? candidate : null;
     focusTarget?.focus();
   }
 
