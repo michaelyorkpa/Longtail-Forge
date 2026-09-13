@@ -376,6 +376,7 @@
         "tests/e2e/workspace-switch-landing.spec.mjs",
         "tests/mutations/audit-log-filter-query.breaks.mjs",
         "tests/mutations/audit-log-rendering.breaks.mjs",
+        "tests/mutations/calendar-settings-scope.breaks.mjs",
         "tests/mutations/hidden-label-safeguard.breaks.mjs",
         "tests/mutations/notes-bulk-edit.breaks.mjs",
         "tests/mutations/notes-editor-defaults.breaks.mjs",
@@ -426,6 +427,7 @@
         "tests/unit/audit-log-rendering-contracts.test.mjs",
         "tests/unit/bounded-pagination.test.mjs",
         "tests/unit/bulk-action-response-contract.test.mjs",
+        "tests/unit/calendar-settings-scope-contracts.test.mjs",
         "tests/unit/calendar-subscription-contracts.test.mjs",
         "tests/unit/catalog-security-response-contracts.test.mjs",
         "tests/unit/client-project-options.test.mjs",
@@ -652,7 +654,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 5757,
+      "errorCount": 5640,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -688,36 +690,6 @@
           {
             "code": 7053,
             "count": 3
-          }
-        ],
-        "public/js/calendar-settings.js": [
-          {
-            "code": 18047,
-            "count": 12
-          },
-          {
-            "code": 2322,
-            "count": 4
-          },
-          {
-            "code": 2339,
-            "count": 62
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2554,
-            "count": 2
-          },
-          {
-            "code": 2698,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 35
           }
         ],
         "public/js/calendar.js": [
@@ -2412,8 +2384,8 @@
     }
   },
   "totals": {
-    "files": 1233,
-    "errors": 5757,
+    "files": 1235,
+    "errors": 5640,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
