@@ -3158,6 +3158,12 @@
     bulkFormStatus.classList.toggle("error-text", isError);
   }
 
+  /**
+   * mutateNote consumes false to distinguish a completed write from a failed refresh.
+   * Other callers await completion or ignore it; acquisition still precedes the catch.
+   * @param {string} noteId
+   * @returns {Promise<boolean>}
+   */
   async function selectNote(noteId) {
     const api = requireApi();
     setStatus("Loading note...");
@@ -3173,8 +3179,8 @@
       setStatus("");
       return true;
     } catch (error) {
-      const message = safeNoteErrorMessage(error, "Note could not be loaded.");
-      renderDetailPrompt(message, { locked: isSecureError(error) });
+      const message = safeNoteErrorMessage(error ?? {}, "Note could not be loaded.");
+      renderDetailPrompt(message, { locked: isSecureError(error ?? {}) });
       setStatus(message, true);
       return false;
     }
@@ -3227,6 +3233,7 @@
     loadRevisions(note, revisions.querySelector("[data-note-revisions-list]"));
   }
 
+  /** @param {unknown} message @param {{locked?: boolean, sidebarHint?: boolean}} [options] */
   function renderDetailPrompt(message, options = {}) {
     const prompt = document.createElement("p");
 
@@ -3235,9 +3242,10 @@
       prompt.classList.add("notes-empty-state--sidebar-hint");
       prompt.append("Open the ", inlineFilterIcon(), " sidebar and select a note to view here.");
     } else {
+      if (typeof message !== "string") return;
       prompt.textContent = message;
     }
-    detailPanel.replaceChildren(prompt);
+    requireNotesValue(detailPanel).replaceChildren(prompt);
   }
 
   function renderBlankDetailPrompt() {
@@ -3669,6 +3677,7 @@
     }
   }
 
+  /** @param {BrowserNoteRecord | null} [note] */
   async function transitionCreatedNoteToEdit(note) {
     if (!note?.note_id) {
       return;
@@ -3678,8 +3687,8 @@
     state.editorNote = note;
     state.editorContextSummaries = note.linked_context || state.editorContextSummaries;
     state.editorStagedTargets = [];
-    dialogTitle.textContent = "Edit Note";
-    securityInput.disabled = true;
+    requireNotesValue(dialogTitle).textContent = "Edit Note";
+    requireNotesValue(securityInput).disabled = true;
     if (copyLinkButton) {
       copyLinkButton.hidden = false;
       copyLinkButton.disabled = false;
@@ -5116,6 +5125,7 @@
     return "workspace";
   }
 
+  /** @param {BrowserNoteRecord} note */
   function renderRevisionsPanel(note) {
     const view = requireView();
     const summary = view.createElement("summary", { text: "Revisions" });
@@ -5225,6 +5235,7 @@
     return /** @type {BrowserNoteRevisionSummary[]} */ (body.revisions);
   }
 
+  /** @param {BrowserNoteRecord} note @param {Element | null} list */
   async function loadRevisions(note, list) {
     const api = requireApi();
     if (!list) {
@@ -5232,20 +5243,34 @@
     }
 
     try {
-      const revisions = readNoteRevisions(await api.getJson(`/api/notes/${encodeURIComponent(note.note_id)}/revisions`, { cache: "no-store" }));
+      let incomplete = false;
+      // This display projection drops only rejected rows and announces omissions.
+      // The strict history reader still validates the envelope and all retained rows.
+      const revisions = readNoteRevisions(await api.getJson(`/api/notes/${encodeURIComponent(note.note_id)}/revisions`, { cache: "no-store" }).then((body) => {
+        if (!isResponseRecord(body) || !Array.isArray(body.revisions)) return body;
+        const readable = body.revisions.filter(isNoteRevisionSummary);
+        if (readable.length === body.revisions.length) return body;
+        incomplete = true;
+        return { ...body, revisions: readable };
+      }));
 
       if (!revisions) {
         throw new Error("The revision history could not be read.");
       }
 
-      list.replaceChildren(...(revisions.length ? revisions.map((revision) => revisionItem(note, revision)) : [emptyText("No revisions.")]));
+      const items = revisions.map((revision) => revisionItem(note, revision)).filter((item) => item !== null);
+      if (incomplete) items.push(emptyText("Some revisions could not be read. History is incomplete."));
+      else if (items.length === 0) items.push(emptyText("No revisions."));
+      list.replaceChildren(...items);
     } catch (error) {
-      list.replaceChildren(emptyText(safeNoteErrorMessage(error, "Revisions could not be loaded.")));
+      list.replaceChildren(emptyText(safeNoteErrorMessage(error ?? {}, "Revisions could not be loaded.")));
     }
   }
 
+  /** @param {BrowserNoteRecord} note @param {unknown} revision */
   function revisionItem(note, revision) {
     const api = requireApi();
+    if (!isNoteRevisionSummary(revision)) return null;
     const item = document.createElement("article");
     const title = document.createElement("strong");
     const meta = document.createElement("p");
@@ -5273,7 +5298,7 @@
         await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/revisions/${encodeURIComponent(revision.note_revision_id)}/restore`, {});
         await selectNote(note.note_id);
       } catch (error) {
-        setStatus(safeNoteErrorMessage(error, "Revision could not be restored."), true);
+        setStatus(safeNoteErrorMessage(error ?? {}, "Revision could not be restored."), true);
       }
     });
     item.append(title, meta, excerpt, restore);

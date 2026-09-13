@@ -407,25 +407,25 @@ describe("an unreadable history is not an empty one", () => {
       "and the boundary is the reader");
   });
 
-  it("refuses before anything is rendered", () => {
+  it("refuses an unreadable envelope before anything is rendered", () => {
     const refusal = load.indexOf("if (!revisions) {");
     assert.notEqual(refusal, -1, "an unreadable history must be refused");
     assert.match(load, /if \(!revisions\) \{\n\s+throw new Error\("The revision history could not be read\."\);\n\s+\}/,
       "by throwing into the existing catch rather than rendering an empty history");
-    const render = load.indexOf("list.replaceChildren(...(revisions.length");
+    const render = load.indexOf("list.replaceChildren(...items)");
     assert.notEqual(render, -1, "and the list must still be rendered");
     assert.ok(refusal < render, "the refusal comes first");
   });
 
   it("keeps a real empty history apart from an unreadable one", () => {
     assert.match(load, /emptyText\("No revisions\."\)/, "a valid empty history says there are none");
-    assert.match(load, /\} catch \(error\) \{\n\s+list\.replaceChildren\(emptyText\(safeNoteErrorMessage\(error, "Revisions could not be loaded\."\)\)\);/,
+    assert.match(load, /\} catch \(error\) \{\n\s+list\.replaceChildren\(emptyText\(safeNoteErrorMessage\(error \?\? \{\}, "Revisions could not be loaded\."\)\)\);/,
       "and an unreadable one takes the existing failure path");
     assert.notEqual(load.indexOf('"No revisions."'), load.indexOf('"Revisions could not be loaded."'),
       "the two outcomes must not share a message");
   });
 
-  it("refuses the whole history for one malformed revision", () => {
+  it("keeps the strict reader's whole-history refusal for one malformed revision", () => {
     const wire = { revisions: [revision(), { note_revision_id: "revision_2" }, revision({ note_revision_id: "revision_3" })] };
     assert.equal(readNoteRevisions(wire), null,
       "a shortened history rendered as a complete one tells the viewer that edits never happened");
