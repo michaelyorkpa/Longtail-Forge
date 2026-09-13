@@ -1657,6 +1657,18 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 5,208 to 5,143**, params 3,450 to 3,404, state 1,108 to 1,102, `dom` 555 to 544, assorted 95 to 93. `0.33.33.44` 399 to 345. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.32 - Search page, and the file reaches zero
+
+**Complete: 82 diagnostics, and `public/js/search.js` reaches zero** - the fourteenth file in this lane to close outright. See the archive entry.
+
+**The file and the lane figures diverge here, and that divergence was the work.** 34 of the 82 are `dom`-family and belong to no owner, so `0.33.33.44` falls 48 while the file falls 82. The cause is that this page carried **no checked-lookup vocabulary at all** - twenty-one raw `document.querySelector` reads feeding `value`, `disabled` and `hidden` across every renderer. So the filter pair the measurement highlighted was not separable: the same lookups feed the results, the pagination and the rebuild control. The whole file was the boundary, and adding the five `find*` helpers this lane already uses elsewhere resolved the `dom` family outright.
+
+**All six pin sets pass unchanged, and two spellings were restored rather than updated.** The grouping key and the searchable-type count are interpolated rather than read through the page's own `searchText`, because that reader sends a falsy member to the empty string - which would collapse a sourceless result into the empty group and report a workspace with **zero** searchable types as a blank line. `createTagChip` coerces in place for a related reason: a sibling suite evaluates it standalone to prove it reaches for nothing outside itself.
+
+**103 breaks, 103 caught, zero inert.** Four were inert or malformed on the first run: two assertion gaps, one mutation whose replacement was malformed, one anchor written at the wrong indentation, and one break that only a sibling suite can refuse - so that suite joined the harness's proof set rather than the break being withdrawn.
+
+**Measured: browser 5,130 to 5,048**, params 3,394 to 3,354, state 1,102 to 1,095, `dom` 543 to 509, assorted 91 to 90. `0.33.33.44` 345 to 297. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
