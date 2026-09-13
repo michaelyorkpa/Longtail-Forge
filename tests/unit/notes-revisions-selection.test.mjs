@@ -58,12 +58,13 @@ function fixture() {
   const state = { selectedNote: note({ title: "Old selection" }), workspaceType: "business", editingNoteId: "", editorNote: null,
     editorContextSummaries: { old: true }, editorStagedTargets: [{ label: "Staged" }] };
   const context = vm.createContext({ ...browser, state, calls, detailPanel: detail, dialogTitle: title, securityInput: security, copyLinkButton: copy,
+    collectionAnswer: Promise.resolve(), notesAnswer: Promise.resolve(),
     getAnswer: Promise.resolve({ note: note() }), postAnswer: Promise.resolve({ note: note() }), followAnswer: Promise.resolve(), tagAnswer: Promise.resolve(),
     requireApi: () => { calls.push(["api"]); if (context.apiError) throw context.apiError; return transport; },
     setStatus: (/** @type {unknown} */ message, /** @type {boolean} */ error = false) => calls.push(["status", message, error]),
     renderDetail: (/** @type {unknown} */ value) => { calls.push(["detail", value]); if (context.renderError) throw context.renderError; },
     renderNotes: () => calls.push(["list"]), closeNotesSlideOutDrawer: () => calls.push(["drawer"]), updateUrl: (/** @type {unknown} */ id) => calls.push(["url", id]),
-    loadCollections: () => { calls.push(["collections"]); return Promise.resolve(); }, loadNotes: () => { calls.push(["reload-list"]); return Promise.resolve(); },
+    loadCollections: () => { calls.push(["collections"]); return context.collectionAnswer; }, loadNotes: () => { calls.push(["reload-list"]); return context.notesAnswer; },
     writeNoteNotificationFollowFields: (/** @type {unknown} */ value) => { calls.push(["follow", value]); return context.followAnswer; },
     mountTagEditor: (/** @type {unknown} */ value) => { calls.push(["tags", value]); return context.tagAnswer; },
     mountNoteEditorFiles: (/** @type {unknown} */ value) => calls.push(["files", value]), renderEditorContextSelection: () => calls.push(["context"]),
@@ -114,6 +115,36 @@ describe("Notes revision history and detail selection", () => {
     const failed = fixture(); failed.context.postAnswer = Promise.reject(new Error("write failed"));
     await failed.api.mutateNote("/mutation"); assert.match(String(failed.calls.at(-1)?.[1]), /Note update|write failed/);
     assert.doesNotMatch(String(failed.calls.at(-1)?.[1]), /was updated/);
+  });
+
+  it("keeps committed-write refresh failures distinct, without retrying or presenting them as failed writes", async () => {
+    for (const failingRefresh of ["collectionAnswer", "notesAnswer"]) {
+      const f = fixture(); f.context[failingRefresh] = Promise.reject(new Error("Refresh failure"));
+      assert.equal(await f.api.mutateNote("/archive"), undefined);
+      assert.deepEqual(f.calls.at(-1), ["status", "Note was updated, but its current state could not be refreshed. Reload Notes to check it.", true]);
+      assert.equal(f.calls.filter(([kind]) => kind === "post").length, 1);
+      assert.equal(f.calls.some(([kind]) => kind === "get"), false);
+    }
+    const invalid = fixture(); invalid.context.postAnswer = Promise.resolve({ note: { title: "No identity" } });
+    assert.equal(await invalid.api.mutateNote("/archive"), undefined);
+    assert.deepEqual(invalid.calls.at(-1), ["status", "Note was updated, but its current state could not be refreshed. Reload Notes to check it.", true]);
+    const missing = fixture(), failure = new Error("API unavailable"); missing.context.apiError = failure;
+    await assert.rejects(missing.api.mutateNote("/archive"), (error) => error === failure);
+    assert.deepEqual(missing.calls, [["api"]], "API acquisition remains before status and the catch");
+  });
+
+  it("waits for the POST before refreshing and for both refreshes before selecting the saved identity", async () => {
+    const f = fixture(), write = deferred(), collections = deferred(), notes = deferred();
+    f.context.postAnswer = write.promise; f.context.collectionAnswer = collections.promise; f.context.notesAnswer = notes.promise;
+    const saving = f.api.mutateNote("/restore");
+    assert.deepEqual(plain(f.calls), [["api"], ["status", "Saving note...", false], ["post", "/restore", {}]]);
+    write.resolve({ note: { note_id: "changed / id" } }); await setImmediate();
+    assert.deepEqual(plain(f.calls.slice(3)), [["collections"], ["reload-list"]]);
+    collections.resolve(); await setImmediate(); assert.equal(f.calls.some(([kind]) => kind === "get"), false);
+    notes.resolve(); assert.equal(await saving, undefined);
+    assert.ok(f.calls.some(([kind, url]) => kind === "get" && url === "/api/notes/changed%20%2F%20id"));
+    assert.deepEqual(f.calls.at(-1), ["status", "", false]);
+    assert.equal(f.calls.filter(([kind]) => kind === "post").length, 1);
   });
 
   it("always replaces stale detail with readable text or an explicit fallback, preserving required-control timing", () => {

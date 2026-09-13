@@ -3598,6 +3598,7 @@
     formStatus.classList.toggle("error-text", isError);
   }
 
+  /** @param {Event} event @returns {Promise<void>} */
   async function saveNote(event) {
     event.preventDefault();
     const wasCreating = !state.editingNoteId;
@@ -5445,6 +5446,7 @@
     filesToggle?.setAttribute("aria-expanded", "false");
   }
 
+  /** @param {string} url @returns {Promise<void>} */
   async function mutateNote(url) {
     const api = requireApi();
     setStatus("Saving note...");
