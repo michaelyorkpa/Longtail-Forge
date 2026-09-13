@@ -366,6 +366,18 @@ export class FakeElement {
   }
 
   /**
+   * How many **element** children this node holds.
+   *
+   * Counted rather than aliased to `children.length`, because this fake keeps text nodes in the
+   * same list: a page asking `childElementCount` is asking how many elements it drew, and a text
+   * node is not one. Pages use it to decide whether a container has anything worth showing.
+   * @returns {number}
+   */
+  get childElementCount() {
+    return this.children.filter((child) => child.nodeType === 1).length;
+  }
+
+  /**
    * @param {FakeNode} child
    * @returns {FakeNode}
    */
