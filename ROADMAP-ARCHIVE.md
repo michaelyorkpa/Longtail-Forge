@@ -1,5 +1,49 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.40.25
+
+**Model: High Effort** - measure the flat Notes remainder, trace the published Files boundary and partial editor seed, and prove real attachment mounting and dialog focus alongside lifted behavior.
+
+- Baseline: `94b5f61fd8188c43840ffe067fd1ac6c25c996d0`, clean and fetched before branching from `origin/nightly` as `agent/0.33.33-codex-notes-flat-tail`. Package files are unchanged; no install or dependency edit.
+- Reported before typing: **78 raw / 65 owned** across **48 named-function buckets**. No large cluster exists. The outer `attachNotesPage` bucket holds three distinct module-action `open` callbacks with two diagnostics each; no actual body holds six, and the largest actual body has three. The top ten, ties in source order, were:
+
+| Baseline function / bucket | Diagnostics | Baseline line |
+| --- | ---: | ---: |
+| `attachNotesPage` (three `open` callbacks) | 6 | 1154 / 1166 / 1178 |
+| `decorateNotesFilter` | 3 | 1749 |
+| `appendNotesQueryParam` | 3 | 2612 |
+| `setStatus` | 3 | 6309 |
+| `normalizeNoteEditorMode` | 2 | 1581 |
+| `notesOptionElement` | 2 | 1970 |
+| `noteFieldLabel` | 2 | 2014 |
+| `primaryContextSummaryForSelection` | 2 | 3862 |
+| `noteHasLink` | 2 | 4412 |
+| `contextSummaryLabel` | 2 | 4497 |
+
+- Chosen surface: **Notes Files utility lifecycle**. These five helpers share the published attachment surface, note visibility mapping, editor mount/controller state and stacked Files dialog. The larger-looking editor-context set mixes stored links/context summaries with picker-directory inputs from different producers; the picker contract cannot honestly describe every stored row. The unrelated filter/query/status and module-action callbacks remain separate boundaries.
+
+| Chosen helper | Before | After |
+| --- | ---: | ---: |
+| `mountFilesPanel` | 2 | 0 |
+| `fileVisibilityForNote` | 1 | 0 |
+| `mountNoteEditorFiles` | 2 | 0 |
+| `updateFilesUtilityState` | 2 | 0 |
+| `openFilesDialog` | 2 | 0 |
+
+- Reused `BrowserNoteRecord`, the published `BrowserFileAttachments` mount/options/controller contract and existing `findNotesControl`. The Notes shell produces an HTML paragraph warning and an actual action button; the cache checks these optional controls without making absence fatal. The shared Files producer creates a native upload input. `openFilesDialog` checks its optional focus candidate only after the existing close-Tags/show-Files sequence: an absent or non-HTML field is refused locally rather than refusing the already-open utility. Valid input/warning focus, trigger identity, parent stacking and close ordering remain.
+- `mountNoteEditorFiles` also receives a retained seed after failed hydration. `NotesEditorSeed` does not establish `status`; its existing archived comparison therefore keeps that member `unknown` in the parameter intersection rather than declaring a string over an unchecked seed. The record/seed producers, raw comparison, default scopes and secure/plain decisions are untouched. The visibility helper takes only the published record's optional visibility member. No new response contract or widened shared contract.
+- Branch-local diagnostics: Notes **78 -> 69**, owned **65 -> 61** (**59/4/2 -> 55/4/2** params/state/assorted), ownerless DOM **13 -> 8**. The nine removals are **4 params and 5 DOM**. Browser **5130 -> 5121** from this integrated baseline. Other owners remain `.39` 1610, `.41` 1142, `.42` 528, `.43` 897, `.44` 345. Families become params 3390, state 1102, DOM 538, assorted 91; unknown and namespace remain zero. **317 of 320 named function bodies are byte-identical**; only the enclosing `attachNotesPage`, `cacheNotesElements` and `openFilesDialog` bodies differ. All established readers, history refusal/projection, error helpers and committed-write/failed-refresh distinction remain byte-identical. The other four selected helper bodies are unchanged; `updateFilesUtilityState` clears through checked-cache inference.
+- Nine lifted cases use `node:vm`, the actual state initializer, Notes Files shell, checked cache and shared view builder. Boundary recorders assert exact mount options, identities, returned controllers and dispatch order without claiming to implement the shared Files component. Cases cover all visibility branches, archived flags, secure/effective-secure/unsaved/unavailable states, partial seeds, teardown, warning/ARIA state, dialog ordering and optional focus.
+- `notes-files-utility.breaks.mjs` catches **42/42, zero inert**, with `node --check` before every mutant and byte restoration in per-case and outer `finally`: SHA-256 `2a330967aaa72204e1bcab17474395a239763d3dc7de829f9a8b77b65da99677`. Real state initializers make their mutations observable. The fake aliases HTML/Element constructors, so constructor-only distinctions have narrow source-fact pins backed by actual SVG browser proof. The harness records the fixture's missing `replaceWith` and the initial cyclic-DOM assertion output overflow; neither was credited as a product defect or a caught break. The same exact empty-call assertion now emits a bounded count and the complete campaign was rerun. No inert break was dropped or withdrawn.
+- The whole `scripts/` tree was searched for affected spellings; stacked-modal and attachment-shell contracts still pass their original ownership assertions. No regression script was added or edited. Documentation ownership was reviewed with `docs:suggest`; durable documentation and release packaging remain deferred to version closeout. The ledger is branch-local evidence for canonical recomputation at integration.
+- **Explicitly authorized rendering correction:** desktop and mobile demonstrated a pre-existing defect: the archived upload form carried `hidden=true` but remained visible because `.file-attachment-upload` sets `display: block`. This checkpoint is narrowly extended to add `.notes-files-panel .file-attachment-upload[hidden] { display: none; }` beside the existing Notes Files styles in **shared `public/css/longtail-forge.css`**. Only that form is hidden; attachment display, JavaScript visibility decisions, archive behavior, permissions, server enforcement and the shared Files component remain unchanged. The existing failing rendered assertion is retained. No global hidden rule, important escalation, unrelated CSS cleanup or consolidation; existing stylesheet bytes and line endings are preserved around the four-line addition. This is an authorized correction to a pre-existing rendering defect, separate from the typing work. Failure traces/screenshots were preserved before rerunning.
+- Final focused rendered proof: **5/5** (two desktop, two mobile, setup) on **8102**, managed against this worktree's `data/e2e`, using isolated UUID accounts/workspaces/notes/files and verified cleanup. The original archived-form `toBeHidden()` assertion remains; the panel and attachment row stay visible. An active editor submits a real upload, and the real archive/restore action lifecycle restores the panel's form and submits a second upload. SVG focus remains refused locally without refusing the utility, and an absent shared Files surface still hides its toggle. Screenshots were inspected on mobile; all viewport assertions pass.
+- Attachment accessibility follows the **actual delivered list response**: metadata remains readable through the real API; pending scans keep Download hidden and show the existing recovery notice; an available file must download its exact original bytes. The final run observed pending scans on both layouts. The available/download branch succeeded on desktop in the preceding rendered run. The new unconditional-download assertion was an incorrect test assumption: uploads queue scans, and inspection of the actual worker and this worktree's isolated job records established that one job is claimed per poll with higher-priority notifications first. A 20-second completion assumption also failed for the mobile queue. The final test asserts the real response's availability rather than assuming a queue deadline, does not manufacture availability, and retains every original visibility assertion. No scanner, worker, permission or server setting changes.
+- Final verification uses the required full `check` (typecheck, unit, lint and all regression buckets, including permissions), followed by one canonical `verify:slice` against `94b5f61fd8188c43840ffe067fd1ac6c25c996d0..HEAD` and full-range `checkpoint:validate`. The committed-path plan is focused Notes/release and does not include the full unit/lint/regression gate; that required full gate is run separately on the finished tree. Exact conductor and commit-range outcomes accompany the delivery SHA. The **42/42** harness evidence is reused, not rerun for the CSS addition: Notes source, lifted unit input and harness bytes are unchanged. The final strict ledger checks all new tests; it remains branch-local evidence only.
+
+
+Excluded: the remaining Notes filters/query/status, module-action callbacks, editor context summaries and all other surfaces; every other browser file, shared contract, server and all dependency changes; CSS beyond the expressly authorized Notes Files rule. No new regression script, explicit-any, suppression, unchecked cast or weakened baseline. No docs change needed: completed checkpoint moved to roadmap archive. Claude retains sole integration and merge ownership; the archive entry becomes authoritative only after protected integration.
+
 ## Version 0.33.33.40.24
 
 **Model: High Effort** - measure the scattered Notes remainder, preserve checked note display and action contracts, and prove the authorized shared-fixture identity correction against the real route.
