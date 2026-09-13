@@ -2096,6 +2096,7 @@
     return toolbar;
   }
 
+  /** @param {(typeof NOTE_EDITOR_TOOLBAR_ACTIONS)[number]} action */
   function createNoteEditorToolbarButton(action) {
     const view = requireView();
     const button = view.createActionButton({
@@ -2119,6 +2120,7 @@
     return button;
   }
 
+  /** @param {HTMLElement} toolbar @param {HTMLElement} bodyField @param {HTMLElement} preview */
   function createNoteMarkdownEditorSection(toolbar, bodyField, preview) {
     const view = requireView();
     const body = view.createElement("div", {
@@ -4668,8 +4670,20 @@
     }[targetType] || "Unavailable linked context";
   }
 
+  /** @param {Event} event */
   function handleEditorCommand(event) {
-    const command = event.target?.dataset?.noteCommand;
+    const target = event.target;
+    const toolbar = event.currentTarget;
+    if (!(target instanceof Element) || !(toolbar instanceof HTMLElement)) {
+      return;
+    }
+    const button = target.closest("button[data-note-command]");
+    if (!(button instanceof HTMLButtonElement)
+        || button.closest("[data-note-editor-toolbar]") !== toolbar
+        || button.disabled) {
+      return;
+    }
+    const command = button.dataset.noteCommand;
 
     if (!command) {
       return;
@@ -4680,16 +4694,21 @@
   }
 
   function togglePreview() {
-    const pressed = previewToggle.getAttribute("aria-pressed") === "true";
+    const pressed = requireNotesValue(previewToggle).getAttribute("aria-pressed") === "true";
     const visible = !pressed;
-    previewToggle.setAttribute("aria-pressed", String(visible));
-    preview.hidden = !visible;
+    requireNotesValue(previewToggle).setAttribute("aria-pressed", String(visible));
+    if (preview) {
+      preview.hidden = !visible;
+    } else {
+      requireNotesValue(preview);
+    }
     updatePreviewLayoutState(visible);
     if (visible) {
       void renderPreview();
     }
   }
 
+  /** @param {boolean} visible */
   function updatePreviewLayoutState(visible) {
     markdownEditor?.classList.toggle("is-preview-visible", visible);
   }
@@ -6116,6 +6135,7 @@
     }
   }
 
+  /** @param {Element | null | undefined} container */
   function applyExternalMarkdownLinkPreference(container) {
     if (!container) {
       return;
@@ -6136,7 +6156,9 @@
     });
   }
 
+  /** The sole caller reads a nullable DOM attribute. @param {string | null} value */
   function isAbsoluteHttpUrl(value = "") {
+    if (value === null) return false;
     try {
       const parsed = new window.URL(value);
       return parsed.protocol === "http:" || parsed.protocol === "https:";
@@ -6149,6 +6171,7 @@
     return window.localStorage.getItem(OPEN_EXTERNAL_LINKS_STORAGE_KEY) === "true";
   }
 
+  /** @param {boolean} value */
   function storeOpenExternalLinksPreference(value) {
     window.localStorage.setItem(OPEN_EXTERNAL_LINKS_STORAGE_KEY, value ? "true" : "false");
   }
