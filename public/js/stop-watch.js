@@ -1,17 +1,183 @@
 // Multi-timer setup: each timer card owns its own state, while this module coordinates counts.
 (function attachStopWatchPage() {
-  const timerGrid =
-    document.querySelector("[data-timer-grid]") || createTimerGrid();
-  const timerCountSelect = document.querySelector("[data-timer-count]");
-  const timerTemplate = (
-    document.getElementById("stopwatch") || createTimeTrackerRoot(1)
-  ).cloneNode(true);
+  /**
+   * The control the markup already carries, at the subtype this page needs - or nothing.
+   *
+   * **This page builds what it cannot find, so the answer is a fallback trigger rather than a
+   * refusal.** Every acquisition here reads `existing(...) || create(...)`, and the comment in
+   * `StopwatchTimer`'s constructor states the intent: existing markup is preferred, missing
+   * controls are created for resilience. Checking the subtype extends that intent rather than
+   * narrowing it - an element of the wrong kind is exactly the case resilience is for, and
+   * before this it would have been kept and then read as though it were a select.
+   * @template {Element} T
+   * @param {ParentNode} root
+   * @param {string} selector
+   * @param {{ new (): T }} constructor
+   * @returns {T | null}
+   */
+  function existingStopwatchControl(root, selector, constructor) {
+    const element = root.querySelector(selector);
+    return element instanceof constructor ? element : null;
+  }
 
+  /**
+   * One boolean option a caller supplied, or nothing.
+   *
+   * **These methods are registered directly as listeners**, so a click or change hands them the
+   * `Event` itself where an options record is expected. An `Event` carries none of these members,
+   * so it has always taken exactly the path an empty object takes - this reads the member rather
+   * than assuming the shape, which keeps that true instead of leaving it to coincidence. The
+   * registration is deliberately unchanged: rewiring it would alter what each listener receives,
+   * and this checkpoint is typing the page rather than redesigning its event wiring.
+   * @param {unknown} options
+   * @param {string} name
+   * @returns {boolean | undefined}
+   */
+  function optionFlag(options, name) {
+    if (typeof options !== "object" || options === null || !Object.hasOwn(options, name)) {
+      return undefined;
+    }
+
+    const value = /** @type {Record<string, unknown>} */ (options)[name];
+    return typeof value === "boolean" ? value : undefined;
+  }
+
+  /**
+   * One member of a persisted timer row, as text.
+   *
+   * The rows come off `/api/active-timers`, so they are `unknown` members rather than a declared
+   * record. Own members only, and a falsy member answers "" so the `||` fallbacks each caller
+   * already wrote keep choosing exactly what they chose before.
+   * @param {unknown} source
+   * @param {...string} names
+   * @returns {string}
+   */
+  function readTimerText(source, ...names) {
+    if (typeof source !== "object" || source === null) {
+      return "";
+    }
+
+    for (const name of names) {
+      const value = Object.hasOwn(source, name)
+        ? /** @type {Record<string, unknown>} */ (source)[name]
+        : undefined;
+      if (value) {
+        return String(value);
+      }
+    }
+
+    return "";
+  }
+
+  /**
+   * The identifier a persisted timer acknowledged, when the acknowledgment carries one.
+   *
+   * `putJson` answers `unknown` and what comes back is a write receipt, not a row this page
+   * renders; only the id it keeps is read, and everything else travels on untouched.
+   * @param {unknown} result
+   * @returns {string}
+   */
+  function startedTimerId(result) {
+    if (typeof result !== "object" || result === null || !Object.hasOwn(result, "timer")) {
+      return "";
+    }
+
+    return readTimerText(/** @type {Record<string, unknown>} */ (result).timer, "active_timer_id");
+  }
+
+  /**
+   * The task rows a task-options response carries, before any of them is read.
+   * @param {unknown} data
+   * @returns {unknown[]}
+   */
+  function taskOptionRows(data) {
+    if (typeof data !== "object" || data === null || !Object.hasOwn(data, "options")) {
+      return [];
+    }
+
+    const options = /** @type {Record<string, unknown>} */ (data).options;
+    if (typeof options !== "object" || options === null || !Object.hasOwn(options, "tasks")) {
+      return [];
+    }
+
+    const tasks = /** @type {Record<string, unknown>} */ (options).tasks;
+    return Array.isArray(tasks) ? tasks : [];
+  }
+
+  /**
+   * The wrapper a control sits in, preferring its own marker and falling back to the label around
+   * it. `closest` answers an `Element`, and only an `HTMLElement` carries the `hidden` this page
+   * writes - so the narrowing is where the answer is read rather than asserted over it. A control
+   * in neither wrapper answers nothing, which is the state the callers already tolerated.
+   * @param {Element} control
+   * @param {string} selector
+   * @param {string} fallbackSelector
+   * @returns {HTMLElement | null}
+   */
+  function closestStopwatchElement(control, selector, fallbackSelector) {
+    const wrapper = control.closest(selector) || control.closest(fallbackSelector);
+    return wrapper instanceof HTMLElement ? wrapper : null;
+  }
+
+  const timerGrid =
+    existingStopwatchControl(document, "[data-timer-grid]", HTMLElement) || createTimerGrid();
+  const timerCountSelect = existingStopwatchControl(document, "[data-timer-count]", HTMLSelectElement);
+
+  /**
+   * The count control, at the reads that already dereferenced it.
+   *
+   * Unlike every timer control, this one is **not** built when missing - the page has no fallback
+   * for it - so the reads that assumed it stay assuming it, and say so by name if it is ever gone.
+   * The debug snapshot below keeps its own `? :` guard, because a console helper reporting nothing
+   * is a real answer there.
+   * @returns {HTMLSelectElement}
+   */
+  function requireTimerCountSelect() {
+    if (!timerCountSelect) {
+      throw new TypeError("The time tracker requires its timer count control.");
+    }
+
+    return timerCountSelect;
+  }
+  const timerTemplate = /** @type {HTMLElement} */ ((
+    document.getElementById("stopwatch") || createTimeTrackerRoot(1)
+  ).cloneNode(true));
+
+  /**
+   * The clients and projects this page offers come from the **shared** normalizer, not a local
+   * one: `normalizeClientProjectOptions` delegates to `LongtailForge.clientProjectOptions`, the
+   * same producer the timer dialog reads. So the published contracts are used rather than a
+   * hand-rolled shape - which is also where `billable` lives, the member the timer's own default
+   * reads off whichever of the two is selected.
+   * @typedef {import("../../src/types/browser-contracts.js").NormalizedClientOption} StopwatchClientOption
+   * @typedef {import("../../src/types/browser-contracts.js").NormalizedProjectOption} StopwatchProjectOption
+   */
+
+  /**
+   * One task this page can start a timer against.
+   *
+   * **Not the timer dialog's shape, deliberately.** That one carries `client_id` and filters by
+   * project when the list is painted; this one requires a project up front and never reads a
+   * client off the task, so the two normalizers diverge for their two consumers. Only the
+   * active-timer readers are pinned identical across the pair.
+   * @typedef {object} StopwatchTaskOption
+   * @property {string} id
+   * @property {string} label
+   * @property {string} optionLabel
+   * @property {string} project_id
+   * @property {string} status
+   */
+
+  /** @type {StopwatchClientOption[]} */
   let clients = [];
+  /** @type {unknown[]} */
   let tagOptions = [];
+  /** @type {StopwatchTaskOption[]} */
   let taskOptions = [];
+  /** @type {StopwatchTimer[]} */
   let timers = [];
 
+  /** @type {{ loaded: boolean }} */
   const timerPersistence = {
     loaded: false,
   };
@@ -114,10 +280,12 @@
     return window.LongtailForge?.workspaceContext?.workspaceType === "business";
   }
 
+  /** @param {HTMLInputElement} input @returns {"no" | "yes"} */
   function billableValue(input) {
     return workspaceUsesBillableFlag() && input.checked ? "yes" : "no";
   }
 
+  /** @param {number} timerCount @returns {void} */
   function setTimerCount(timerCount) {
     const nextTimerCount = clampTimerCount(timerCount);
 
@@ -127,7 +295,7 @@
       removeTimers(nextTimerCount);
     }
 
-    timerGrid.style.setProperty("--timer-count", nextTimerCount);
+    timerGrid.style.setProperty("--timer-count", String(nextTimerCount));
 
     if (timerCountSelect) {
       timerCountSelect.value = String(nextTimerCount);
@@ -135,7 +303,7 @@
   }
 
   async function handleTimerCountChange() {
-    const nextCount = Number(timerCountSelect.value);
+    const nextCount = Number(requireTimerCountSelect().value);
 
     if (nextCount === timers.length) {
       return;
@@ -147,7 +315,7 @@
         || await confirmTimerRemoval(removedTimers);
 
       if (!shouldDiscard) {
-        timerCountSelect.value = String(timers.length);
+        requireTimerCountSelect().value = String(timers.length);
         return;
       }
     }
@@ -155,6 +323,7 @@
     setTimerCount(nextCount);
   }
 
+  /** @param {number} nextTimerCount @returns {void} */
   function appendTimers(nextTimerCount) {
     for (
       let timerNumber = timers.length + 1;
@@ -172,6 +341,7 @@
     }
   }
 
+  /** @param {number} nextTimerCount @returns {void} */
   function removeTimers(nextTimerCount) {
     const removedTimers = timers.splice(nextTimerCount);
 
@@ -182,30 +352,34 @@
     });
   }
 
+  /** @param {number} timerNumber @returns {HTMLElement} */
   function getTimerRootForNumber(timerNumber) {
     if (timerNumber === 1) {
-      const existingRoot = timerGrid.querySelector("#stopwatch");
+      const existingRoot = existingStopwatchControl(timerGrid, "#stopwatch", HTMLElement);
 
       if (existingRoot) {
         return existingRoot;
       }
     }
 
-    return timerTemplate.cloneNode(true);
+    return /** @type {HTMLElement} */ (timerTemplate.cloneNode(true));
   }
 
+  /** @param {unknown} timerCount @returns {number} */
   function clampTimerCount(timerCount) {
-    if ([1, 2, 3, 4].includes(timerCount)) {
+    if (typeof timerCount === "number" && [1, 2, 3, 4].includes(timerCount)) {
       return timerCount;
     }
 
     return 1;
   }
 
+  /** @param {number} nextCount @returns {boolean} */
   function hasDiscardableTimers(nextCount) {
     return timers.slice(nextCount).some((timer) => timer.hasElapsedTime());
   }
 
+  /** @param {StopwatchTimer[]} removedTimers @returns {Promise<boolean>} */
   function confirmTimerRemoval(removedTimers) {
     const timerLabels = removedTimers
       .filter((timer) => timer.hasElapsedTime())
@@ -224,6 +398,7 @@
     });
   }
 
+  /** @param {StopwatchTimer} activeTimer @returns {Promise<void>} */
   async function pauseOtherTimers(activeTimer) {
     // Only one timer should actively run at a time.
     await Promise.all(timers.map((timer) => {
@@ -294,6 +469,7 @@
     return timers.length === body.timers.length ? { timers } : null;
   }
 
+  /** @param {unknown} [options] @returns {Promise<void>} */
   async function loadActiveTimers(options = {}) {
     try {
       const list = readActiveTimerList(await requireApi().getJson("/api/active-timers", {
@@ -310,7 +486,7 @@
 
       setTimerCount(clampTimerCount(maxTimerSlot));
 
-      if (options.resetExisting === true) {
+      if (optionFlag(options, "resetExisting") === true) {
         timers.forEach((timer) => timer.clearLocalStateForReload());
       }
 
@@ -358,42 +534,42 @@
   }
 
   class StopwatchTimer {
+    /** @param {HTMLElement} root @param {number} timerNumber */
     constructor(root, timerNumber) {
       // Existing markup is preferred, but missing controls are created for resilience.
       this.root = root;
       this.timerNumber = timerNumber;
       this.clientSelect =
-        root.querySelector("[data-stopwatch-client]") ||
+        existingStopwatchControl(root, "[data-stopwatch-client]", HTMLSelectElement) ||
         createSelect(root, "Client", "client", "Select a client");
-      this.clientControl = this.clientSelect.closest("[data-client-workspace-control]") ||
-        this.clientSelect.closest("label");
+      this.clientControl = closestStopwatchElement(this.clientSelect, "[data-client-workspace-control]", "label");
       this.projectSelect =
-        root.querySelector("[data-stopwatch-project]") ||
+        existingStopwatchControl(root, "[data-stopwatch-project]", HTMLSelectElement) ||
         createSelect(root, "Project", "project", "Select a project");
       this.descriptionInput =
-        root.querySelector("[data-stopwatch-description]") ||
+        existingStopwatchControl(root, "[data-stopwatch-description]", HTMLInputElement) ||
         createDescriptionInput(root);
       const taskLinkControl = ensureTaskLinkControl(root);
       this.taskSelect = taskLinkControl.select;
       this.linkTaskButton = taskLinkControl.button;
       decorateTaskLinkButton(this.linkTaskButton);
       this.tagsContainer =
-        root.querySelector("[data-stopwatch-tags]") ||
+        existingStopwatchControl(root, "[data-stopwatch-tags]", HTMLElement) ||
         createTagsContainer(root);
       this.display =
-        root.querySelector("[data-stopwatch-display]") || createDisplay(root);
+        existingStopwatchControl(root, "[data-stopwatch-display]", HTMLElement) || createDisplay(root);
       this.startButton =
-        root.querySelector("[data-stopwatch-start]") ||
+        existingStopwatchControl(root, "[data-stopwatch-start]", HTMLButtonElement) ||
         createButton(root, "Start", "start");
       this.pauseButton =
-        root.querySelector("[data-stopwatch-pause]") ||
+        existingStopwatchControl(root, "[data-stopwatch-pause]", HTMLButtonElement) ||
         createButton(root, "Pause", "pause");
       this.stopButton =
-        root.querySelector("[data-stopwatch-stop]") ||
+        existingStopwatchControl(root, "[data-stopwatch-stop]", HTMLButtonElement) ||
         createButton(root, "Save & End", "stop");
       this.stopButton.textContent = "Save & End";
       this.resetButton =
-        root.querySelector("[data-stopwatch-reset]") ||
+        existingStopwatchControl(root, "[data-stopwatch-reset]", HTMLButtonElement) ||
         createButton(root, "Discard", "reset", { danger: true });
       this.resetButton.textContent = "Discard";
       this.resetButton.classList.add("danger-button");
@@ -404,29 +580,34 @@
         stopButton: this.stopButton,
       });
       this.clearOnResetInput =
-        root.querySelector("[data-stopwatch-clear-on-reset]") ||
+        existingStopwatchControl(root, "[data-stopwatch-clear-on-reset]", HTMLInputElement) ||
         createClearOnResetInput(root);
       this.billableInput =
-        root.querySelector("[data-stopwatch-billable]") ||
+        existingStopwatchControl(root, "[data-stopwatch-billable]", HTMLInputElement) ||
         createBillableInput(root);
-      this.billableControl = this.billableInput.closest("[data-stopwatch-billable-control]") ||
-        this.billableInput.closest("label");
-      this.billableControl.hidden = !workspaceUsesBillableFlag();
+      this.billableControl = closestStopwatchElement(this.billableInput, "[data-stopwatch-billable-control]", "label");
+      if (this.billableControl) {
+        this.billableControl.hidden = !workspaceUsesBillableFlag();
+      }
       if (!workspaceUsesBillableFlag()) {
         this.billableInput.checked = false;
       }
       this.statusMessage =
-        root.querySelector("[data-stopwatch-status]") ||
+        existingStopwatchControl(root, "[data-stopwatch-status]", HTMLElement) ||
         createStatusMessage(root);
       this.activeIndicator =
-        root.querySelector("[data-stopwatch-active-indicator]") ||
+        existingStopwatchControl(root, "[data-stopwatch-active-indicator]", HTMLElement) ||
         createActiveIndicator(root);
 
       this.elapsedMilliseconds = 0;
       this.startedAt = 0;
+      /** @type {Date | null} */
       this.activeStartTime = null;
+      /** @type {number | null} */
       this.timerId = null;
+      /** @type {StopwatchClientOption[]} */
       this.clients = [];
+      /** @type {StopwatchTaskOption[]} */
       this.taskOptions = [];
       this.isSaving = false;
       this.confirmedClientId = this.clientSelect.value;
@@ -468,7 +649,7 @@
 
     dispose() {
       // Removed timer cards drop their listeners before leaving the DOM.
-      window.clearInterval(this.timerId);
+      window.clearInterval(this.timerId ?? undefined);
       this.startButton.removeEventListener("click", this.startTimeTracker);
       this.pauseButton.removeEventListener("click", this.pause);
       this.stopButton.removeEventListener("click", this.stopTimeTracker);
@@ -481,11 +662,13 @@
       this.linkTaskButton.removeEventListener("click", this.linkRunningTimerToTask);
     }
 
+    /** @param {StopwatchClientOption[]} clients @returns {void} */
     setClients(clients) {
       this.clients = clients;
       this.populateClientOptions();
     }
 
+    /** @param {StopwatchTaskOption[]} options @returns {void} */
     setTaskOptions(options) {
       this.taskOptions = Array.isArray(options) ? options : [];
       this.populateTaskOptions();
@@ -537,14 +720,15 @@
       await this.saveTimeEntry();
     }
 
+    /** @param {unknown} [options] a listener supplies the event itself; see `optionFlag` */
     async pause(options = {}) {
       if (!this.timerId) {
         return;
       }
 
-      const shouldPersist = options.persist !== false;
+      const shouldPersist = optionFlag(options, "persist") !== false;
 
-      window.clearInterval(this.timerId);
+      window.clearInterval(this.timerId ?? undefined);
       this.timerId = null;
       this.updateElapsedTime();
       this.updateButtons();
@@ -575,7 +759,7 @@
           { timer_slot: String(this.timerNumber) },
         );
 
-        window.clearInterval(this.timerId);
+        window.clearInterval(this.timerId ?? undefined);
         this.timerId = null;
         this.persistedActiveTimerId = "";
         await loadActiveTimers({ resetExisting: true });
@@ -606,13 +790,14 @@
       await this.resetTimeTrackerWithoutConfirmation({ compactAfterRemoval: true });
     }
 
+    /** @param {unknown} [options] a listener supplies the event itself; see `optionFlag` */
     async resetTimeTrackerWithoutConfirmation(options = {}) {
-      const shouldPersist = options.persist !== false;
-      const shouldClearInfo = options.ignoreClearPreference || this.clearOnResetInput.checked;
-      const shouldClearElapsed = options.forceClearElapsed !== false;
-      const shouldCompactAfterRemoval = options.compactAfterRemoval === true;
+      const shouldPersist = optionFlag(options, "persist") !== false;
+      const shouldClearInfo = optionFlag(options, "ignoreClearPreference") || this.clearOnResetInput.checked;
+      const shouldClearElapsed = optionFlag(options, "forceClearElapsed") !== false;
+      const shouldCompactAfterRemoval = optionFlag(options, "compactAfterRemoval") === true;
 
-      window.clearInterval(this.timerId);
+      window.clearInterval(this.timerId ?? undefined);
       this.timerId = null;
       if (shouldPersist) {
         await this.discardPersistedState();
@@ -664,8 +849,8 @@
       const endTime = new Date();
       const startTime = new Date(endTime.getTime() - durationSeconds * 1000);
       const entry = {
-        client_id: selectedClient?.isWorkspaceScope ? "" : selectedClient.id,
-        client_name: selectedClient?.isWorkspaceScope ? "" : selectedClient.name,
+        client_id: selectedClient && !selectedClient.isWorkspaceScope ? selectedClient.id : "",
+        client_name: selectedClient && !selectedClient.isWorkspaceScope ? selectedClient.name : "",
         project_id: selectedProject.id,
         project_name: selectedProject.name,
         description: this.descriptionInput.value.trim(),
@@ -737,8 +922,9 @@
       }
     }
 
+    /** @param {unknown} [options] a listener supplies the event itself; see `optionFlag` */
     async handleClientChange(options = {}) {
-      const shouldReset = options.shouldReset !== false;
+      const shouldReset = optionFlag(options, "shouldReset") !== false;
 
       if (shouldReset && !await this.confirmTimerReset("Changing the client")) {
         // Restore the last confirmed values when the user cancels a destructive change.
@@ -779,6 +965,7 @@
       this.confirmedProjectId = this.projectSelect.value;
     }
 
+    /** @param {string} actionLabel @returns {Promise<boolean>} */
     async confirmTimerReset(actionLabel) {
       if (!this.hasElapsedTime()) {
         return true;
@@ -799,6 +986,7 @@
       return shouldContinue;
     }
 
+    /** @param {StopwatchProjectOption[]} projects @param {string} [previousProjectId] @returns {void} */
     populateProjectOptions(projects, previousProjectId = this.projectSelect.value) {
       this.projectSelect.innerHTML = "";
       this.projectSelect.appendChild(createOption("", "Select a project"));
@@ -817,6 +1005,7 @@
       this.populateTaskOptions();
     }
 
+    /** @param {string} [taskId] @returns {void} */
     populateTaskOptions(taskId = this.taskSelect.value) {
       const projectId = this.projectSelect.value;
       const candidates = this.taskOptions.filter((task) => task.project_id === projectId);
@@ -836,9 +1025,10 @@
       return this.clients.find((client) => client.id === this.clientSelect.value);
     }
 
+    /** @param {StopwatchClientOption | undefined} client @returns {StopwatchProjectOption | undefined} */
     getSelectedProject(client) {
       if (!client || !Array.isArray(client.projects)) {
-        return null;
+        return undefined;
       }
 
       return client.projects.find(
@@ -896,6 +1086,7 @@
       return Boolean(this.timerId);
     }
 
+    /** @param {string} message @param {string} [type] @returns {void} */
     setStatus(message, type = "") {
       this.statusMessage.textContent = message;
       this.statusMessage.classList.toggle("is-saved", type === "saved");
@@ -914,6 +1105,7 @@
       this.billableInput.checked = billableSource?.billable !== "no";
     }
 
+    /** @param {string[]} [selectedTagIds] @returns {void} */
     mountTagPicker(selectedTagIds = []) {
       if (!this.tagsContainer || !window.LongtailForge?.tags?.mountPicker) {
         if (this.tagsContainer) {
@@ -935,24 +1127,27 @@
       return this.tagPicker?.readTagIds?.() || [];
     }
 
+    /** @param {unknown} timerData @returns {void} */
     restoreFromPersistedTimer(timerData) {
       this.isRestoring = true;
-      this.persistedActiveTimerId = timerData.active_timer_id || "";
-      this.clientSelect.value = timerData.client_id || this.findClientIdForProject(timerData.project_id) || "";
+      const projectId = readTimerText(timerData, "project_id");
+
+      this.persistedActiveTimerId = readTimerText(timerData, "active_timer_id");
+      this.clientSelect.value = readTimerText(timerData, "client_id") || this.findClientIdForProject(projectId);
 
       const selectedClient = this.getSelectedClient();
-      this.populateProjectOptions(selectedClient ? selectedClient.projects : [], timerData.project_id);
-      this.projectSelect.value = timerData.project_id || "";
-      this.descriptionInput.value = timerData.description || "";
-      this.billableInput.checked = workspaceUsesBillableFlag() && timerData.billable !== "no";
+      this.populateProjectOptions(selectedClient ? selectedClient.projects : [], projectId);
+      this.projectSelect.value = projectId;
+      this.descriptionInput.value = readTimerText(timerData, "description");
+      this.billableInput.checked = workspaceUsesBillableFlag() && readTimerText(timerData, "billable") !== "no";
       this.confirmedClientId = this.clientSelect.value;
       this.confirmedProjectId = this.projectSelect.value;
 
       const accumulatedMilliseconds =
-        (Number(timerData.accumulated_elapsed_seconds) || 0) * 1000;
+        (Number(readTimerText(timerData, "accumulated_elapsed_seconds")) || 0) * 1000;
 
-      if (timerData.timer_status === "running") {
-        const lastActiveStartTime = new Date(timerData.last_active_start_time || Date.now());
+      if (readTimerText(timerData, "timer_status") === "running") {
+        const lastActiveStartTime = new Date(readTimerText(timerData, "last_active_start_time") || Date.now());
         const runningMilliseconds = Number.isFinite(lastActiveStartTime.getTime())
           ? Date.now() - lastActiveStartTime.getTime()
           : 0;
@@ -964,8 +1159,8 @@
       } else {
         this.elapsedMilliseconds = accumulatedMilliseconds;
         this.startedAt = Date.now() - this.elapsedMilliseconds;
-        this.activeStartTime = timerData.last_active_start_time
-          ? new Date(timerData.last_active_start_time)
+        this.activeStartTime = readTimerText(timerData, "last_active_start_time")
+          ? new Date(readTimerText(timerData, "last_active_start_time"))
           : new Date(Date.now() - this.elapsedMilliseconds);
       }
 
@@ -976,7 +1171,7 @@
     }
 
     clearLocalStateForReload() {
-      window.clearInterval(this.timerId);
+      window.clearInterval(this.timerId ?? undefined);
       this.timerId = null;
       this.elapsedMilliseconds = 0;
       this.startedAt = 0;
@@ -997,6 +1192,7 @@
       this.updateButtons();
     }
 
+    /** @param {string} projectId @returns {string} */
     findClientIdForProject(projectId) {
       const projectKey = String(projectId || "").trim();
       const matchingClient = this.clients.find((client) => (
@@ -1015,6 +1211,7 @@
       await this.persistActiveTimer(this.timerId ? "running" : "paused");
     }
 
+    /** @param {string} timerStatus @returns {Promise<void>} */
     async persistActiveTimer(timerStatus) {
       const selectedClient = this.getSelectedClient();
       const selectedProject = this.getSelectedProject(selectedClient);
@@ -1044,7 +1241,7 @@
           `/api/active-timers/${encodeURIComponent(this.timerNumber)}`,
           payload,
         );
-        this.persistedActiveTimerId = result?.timer?.active_timer_id || this.persistedActiveTimerId;
+        this.persistedActiveTimerId = startedTimerId(result) || this.persistedActiveTimerId;
         timerPersistence.loaded = true;
         this.updateButtons();
       } catch (error) {
@@ -1073,11 +1270,22 @@
   initializeTimeTracker();
 
   if (timerCountSelect) {
-    timerCountSelect.addEventListener("input", handleTimerCountChange);
-    timerCountSelect.addEventListener("change", handleTimerCountChange);
+    requireTimerCountSelect().addEventListener("input", handleTimerCountChange);
+    requireTimerCountSelect().addEventListener("change", handleTimerCountChange);
   }
 
-  window.timeTrackerDebug = {
+  /**
+   * A console-only snapshot, published through a locally declared view of `window`.
+   *
+   * `browser-contracts.d.ts` augments `Window` with `LongtailForge` alone, and adding a member
+   * there for a debug hook would be a shared-contract change this page checkpoint has no business
+   * making. The member is optional on this local view, so the assignment declares what already
+   * happens at runtime without asserting anything about `Window` itself.
+   * @type {Window & { timeTrackerDebug?: Record<string, unknown> }}
+   */
+  const debugWindow = window;
+
+  debugWindow.timeTrackerDebug = {
     snapshot: () => ({
       // Handy manual check from the browser console after changing timer rendering.
       selectedTimerCount: timerCountSelect ? timerCountSelect.value : "",
@@ -1121,6 +1329,7 @@
     },
   };
 
+  /** @param {HTMLElement} root @param {number} timerNumber @returns {void} */
   function prepareTimerRoot(root, timerNumber) {
     root.dataset.stopwatch = "";
     root.classList.add("timer-card");
@@ -1142,6 +1351,7 @@
     return grid;
   }
 
+  /** @param {number} timerNumber @returns {HTMLElement} */
   function createTimeTrackerRoot(timerNumber) {
     const element = document.createElement("section");
     element.className = "timer-card";
@@ -1170,6 +1380,13 @@
     return element;
   }
 
+  /**
+   * @param {HTMLElement} parent
+   * @param {string} labelText
+   * @param {string} fieldName
+   * @param {string} placeholder
+   * @returns {HTMLSelectElement}
+   */
   function createSelect(parent, labelText, fieldName, placeholder) {
     const details = getDetailsContainer(parent);
     const label = document.createElement("label");
@@ -1189,6 +1406,7 @@
     return select;
   }
 
+  /** @param {HTMLElement} parent @returns {HTMLInputElement} */
   function createDescriptionInput(parent) {
     const details = getDetailsContainer(parent);
     const label = document.createElement("label");
@@ -1205,9 +1423,10 @@
     return input;
   }
 
+  /** @param {HTMLElement} parent @returns {{ button: HTMLButtonElement, select: HTMLSelectElement }} */
   function ensureTaskLinkControl(parent) {
-    const existingSelect = parent.querySelector("[data-stopwatch-task]");
-    const existingButton = parent.querySelector("[data-stopwatch-link-task]");
+    const existingSelect = existingStopwatchControl(parent, "[data-stopwatch-task]", HTMLSelectElement);
+    const existingButton = existingStopwatchControl(parent, "[data-stopwatch-link-task]", HTMLButtonElement);
 
     if (existingSelect && existingButton) {
       return { button: existingButton, select: existingSelect };
@@ -1235,6 +1454,7 @@
     return { button, select };
   }
 
+  /** @param {HTMLElement} parent @returns {HTMLElement} */
   function createTagsContainer(parent) {
     const details = getDetailsContainer(parent);
     const element = document.createElement("div");
@@ -1243,8 +1463,9 @@
     return element;
   }
 
+  /** @param {HTMLElement} parent @returns {HTMLElement} */
   function getDetailsContainer(parent) {
-    let details = parent.querySelector("[data-stopwatch-details]");
+    let details = existingStopwatchControl(parent, "[data-stopwatch-details]", HTMLElement);
 
     if (!details) {
       details = document.createElement("div");
@@ -1255,6 +1476,7 @@
     return details;
   }
 
+  /** @param {HTMLElement} parent @returns {HTMLElement} */
   function createStatusMessage(parent) {
     const element = document.createElement("p");
     element.dataset.stopwatchStatus = "";
@@ -1264,6 +1486,7 @@
     return element;
   }
 
+  /** @param {HTMLElement} parent @returns {HTMLInputElement} */
   function createClearOnResetInput(parent) {
     const label = document.createElement("label");
     label.className = "reset-option";
@@ -1281,6 +1504,7 @@
     return input;
   }
 
+  /** @param {HTMLElement} parent @returns {HTMLInputElement} */
   function createBillableInput(parent) {
     const label = document.createElement("label");
     label.className = "reset-option";
@@ -1300,6 +1524,7 @@
     return input;
   }
 
+  /** @param {HTMLElement} parent @returns {HTMLElement} */
   function createDisplay(parent) {
     const element = document.createElement("output");
     element.dataset.stopwatchDisplay = "";
@@ -1309,6 +1534,7 @@
     return element;
   }
 
+  /** @param {HTMLElement} parent @returns {HTMLElement} */
   function createActiveIndicator(parent) {
     const title = parent.querySelector("[data-stopwatch-title]");
     const element = document.createElement("p");
@@ -1327,8 +1553,15 @@
     return element;
   }
 
+  /**
+   * @param {HTMLElement} parent
+   * @param {string} label
+   * @param {string} action
+   * @param {{ danger?: boolean }} [options]
+   * @returns {HTMLButtonElement}
+   */
   function createButton(parent, label, action, options = {}) {
-    let controls = parent.querySelector("[data-stopwatch-controls]");
+    let controls = existingStopwatchControl(parent, "[data-stopwatch-controls]", HTMLElement);
 
     if (!controls) {
       controls = document.createElement("div");
@@ -1346,6 +1579,11 @@
     return button;
   }
 
+  /**
+   * @param {{ pauseButton: HTMLButtonElement, resetButton: HTMLButtonElement,
+   *   startButton: HTMLButtonElement, stopButton: HTMLButtonElement }} controls
+   * @returns {void}
+   */
   function decorateStopwatchControls({ pauseButton, resetButton, startButton, stopButton }) {
     const icons = window.LongtailForge?.icons;
 
@@ -1359,6 +1597,7 @@
     icons.decorateButton(resetButton, { icon: "delete", label: "Discard timer", text: "Discard", iconOnly: false, variant: "danger" });
   }
 
+  /** @param {HTMLButtonElement} button @returns {void} */
   function decorateTaskLinkButton(button) {
     window.LongtailForge?.icons?.decorateButton?.(button, {
       icon: "link",
@@ -1380,14 +1619,17 @@
     return clientProjectOptions;
   }
 
+  /** @param {unknown} data @returns {StopwatchClientOption[]} */
   function normalizeClientProjectOptions(data) {
     return requireClientProjectOptions().normalizeClients(data);
   }
 
+  /** @param {StopwatchClientOption} client @returns {string} */
   function clientOptionLabel(client) {
     return requireClientProjectOptions().optionLabel(client);
   }
 
+  /** @param {StopwatchProjectOption} project @returns {string} */
   function projectOptionLabel(project) {
     return requireClientProjectOptions().optionLabel(project);
   }
@@ -1404,18 +1646,22 @@
     return !Array.isArray(enabledModules) || enabledModules.length === 0 || enabledModules.includes("tasks");
   }
 
+  /** @param {unknown} data @returns {StopwatchTaskOption[]} */
   function normalizeTaskOptions(data) {
-    return Array.isArray(data?.options?.tasks)
-      ? data.options.tasks
-          .filter((task) => task?.id && task?.project_id && task?.status !== "complete" && task?.status !== "archived")
-          .map((task) => ({
-            id: task.id || task.task_id,
-            label: task.label || task.title || "Untitled Task",
-            optionLabel: task.optionLabel || task.displayName || task.label || "Untitled Task",
-            project_id: task.project_id || "",
-            status: task.status || "open",
-          }))
-      : [];
+    return taskOptionRows(data)
+      .filter((task) => (
+        readTimerText(task, "id", "task_id")
+        && readTimerText(task, "project_id")
+        && readTimerText(task, "status") !== "complete"
+        && readTimerText(task, "status") !== "archived"
+      ))
+      .map((task) => ({
+        id: readTimerText(task, "id", "task_id"),
+        label: readTimerText(task, "label", "title") || "Untitled Task",
+        optionLabel: readTimerText(task, "optionLabel", "displayName", "label") || "Untitled Task",
+        project_id: readTimerText(task, "project_id"),
+        status: readTimerText(task, "status") || "open",
+      }));
   }
 
   async function loadTagOptions() {
@@ -1425,10 +1671,12 @@
     timers.forEach((timer) => timer.mountTagPicker(timer.readTagIds()));
   }
 
+  /** @param {string} value @param {string} label @returns {HTMLOptionElement} */
   function createOption(value, label) {
     return requirePageController().createOption(value, label);
   }
 
+  /** @param {number} milliseconds @returns {string} */
   function formatTime(milliseconds) {
     const totalSeconds = Math.floor(milliseconds / 1000);
     const hours = Math.floor(totalSeconds / 3600);
@@ -1438,10 +1686,12 @@
     return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
   }
 
+  /** @param {number} value @returns {string} */
   function pad(value) {
     return String(value).padStart(2, "0");
   }
 
+  /** @param {string} value @returns {string} */
   function capitalize(value) {
     return value.charAt(0).toUpperCase() + value.slice(1);
   }
