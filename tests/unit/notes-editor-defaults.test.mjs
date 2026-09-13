@@ -5,7 +5,7 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
 
 const source = createProjectTextReader().readText("public/js/notes.js");
 const names = ["normalizeNoteEditorDefaults", "noteDefaultString", "isResponseRecord", "openNoteEditor",
-  "normalizeNoteEditorMode", "readNoteEditorId", "readEditorPayload", "readEditorVisibility", "saveNoteForm", "requireNotesValue", "normalizeText"];
+  "normalizeNoteEditorMode", "readNoteEditorId", "readEditorPayload", "readEditorVisibility", "saveNote", "saveNoteForm", "requireNotesValue", "normalizeText"];
 const keys = ["body_markdown", "client_id", "library_bucket", "note_collection_id", "note_type", "project_id", "security_mode", "title", "visibility"];
 /** @param {Record<string, unknown>} [overrides] */
 function editorCase(overrides = {}) {
@@ -127,6 +127,33 @@ describe("Notes editor defaults and payload", () => {
     assert.deepEqual(plain(api.readEditorPayload().tagIds), []); assert.equal(api.readEditorPayload().project_id, null);
     assert.equal(api.readEditorPayload().linked_user_id, null);
     context.titleInput = null; assert.throws(() => api.readEditorPayload(), /Required Notes value/);
+  });
+
+  it("the native submit prevents navigation, keeps create open, then closes the saved edit", async () => {
+    const f = editorCase(); let prevented = 0;
+    const event = { preventDefault() { prevented += 1; f.events.push("prevent-default"); } };
+    assert.equal(await f.api.saveNote(event), undefined); assert.equal(prevented, 1);
+    assert.equal(f.events[0], "prevent-default");
+    assert.equal(f.state.editingNoteId, f.note.note_id);
+    assert.equal(f.events.some((value) => Array.isArray(value) && value[0] === "close"), false);
+    f.events.length = 0;
+    assert.equal(await f.api.saveNote(event), undefined); assert.equal(prevented, 2);
+    assert.ok(f.events.some((value) => Array.isArray(value) && value[0] === "put"));
+    assert.ok(f.events.some((value) => Array.isArray(value) && value[0] === "close" && value[1].returnValue === "complete"));
+  });
+
+  it("the submit adapter awaits the save and catches its already-reported failure", async () => {
+    const f = editorCase(); let release = () => {}; let settled = false;
+    const failure = new Error("Route rejected save");
+    const pending = new Promise((resolve, reject) => { release = () => reject(failure); });
+    f.context.requireApi = () => ({ postJson: () => pending });
+    const saving = f.api.saveNote({ preventDefault() {} }).then(() => { settled = true; });
+    await flush(); assert.equal(settled, false); assert.equal(f.context.saveButton.disabled, true);
+    release(); await assert.doesNotReject(saving);
+    assert.equal(settled, true); assert.equal(f.context.saveButton.disabled, false); assert.equal(f.context.saveCloseButton.disabled, false);
+    assert.deepEqual(plain(f.events.at(-1)), ["status", "Safe save failure", true]);
+    assert.equal(f.events.some((value) => Array.isArray(value) && ["close", "complete"].includes(value[0])), false);
+    await assert.rejects(f.api.saveNote(null), { name: "TypeError" });
   });
 
   it("keeps create open after transition and sends the next save as an encoded update", async () => {
