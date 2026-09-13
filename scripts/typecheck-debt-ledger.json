@@ -405,6 +405,7 @@
         "tests/mutations/time-entries-loader-policy.breaks.mjs",
         "tests/mutations/time-entries-rendering.breaks.mjs",
         "tests/mutations/time-entry-dialog-corrections.breaks.mjs",
+        "tests/mutations/time-tracking-reporting.breaks.mjs",
         "tests/mutations/timer-dialog-options.breaks.mjs",
         "tests/mutations/user-admin-add-user.breaks.mjs",
         "tests/mutations/user-admin-edit-user.breaks.mjs",
@@ -550,6 +551,7 @@
         "tests/unit/time-entry-dialog-normalizer-contracts.test.mjs",
         "tests/unit/time-entry-dialog-round-trip-contracts.test.mjs",
         "tests/unit/time-entry-save-contracts.test.mjs",
+        "tests/unit/time-tracking-reporting-contracts.test.mjs",
         "tests/unit/timer-dialog-options-contracts.test.mjs",
         "tests/unit/user-admin-add-user-contracts.test.mjs",
         "tests/unit/user-admin-bootstrap-contracts.test.mjs",
@@ -667,7 +669,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 5276,
+      "errorCount": 5219,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1579,28 +1581,6 @@
             "count": 30
           }
         ],
-        "public/js/time-tracking-reporting.js": [
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 7005,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 47
-          },
-          {
-            "code": 7023,
-            "count": 3
-          },
-          {
-            "code": 7034,
-            "count": 2
-          }
-        ],
         "public/js/workbench.js": [
           {
             "code": 18047,
@@ -2297,8 +2277,8 @@
     }
   },
   "totals": {
-    "files": 1248,
-    "errors": 5276,
+    "files": 1250,
+    "errors": 5219,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

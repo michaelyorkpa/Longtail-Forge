@@ -83,10 +83,17 @@
    * `registerRenderer` refuses a registration without a callable `render`, so that one is
    * required; the other three are optional because a renderer that does not offer them is a real
    * state every call site already guards with `typeof === "function"`.
+   * **The parameter names below are the order this host actually calls in**, which
+   * `0.33.33.44.30` found the first version of this typedef had wrong: `render` is called
+   * `render(envelope.result, createRendererContext())` - the run's answer first - while
+   * `synchronizeFilters` is called with the context first and the filter that moved second.
+   * Both were written `(context, result)`. Nothing was mistyped, because every parameter is
+   * `unknown` and a function type does not bind by name; the renderer that implements these
+   * already took them in the real order. Only the documentation was wrong, and only for a reader.
    * @typedef {object} ReportingRenderer
-   * @property {(context?: unknown, result?: unknown) => unknown} render
+   * @property {(result?: unknown, context?: unknown) => unknown} render
    * @property {(context?: unknown) => unknown} [initializeFilters]
-   * @property {(context?: unknown, result?: unknown) => unknown} [synchronizeFilters]
+   * @property {(context?: unknown, changedFilterId?: unknown) => unknown} [synchronizeFilters]
    * @property {(context?: unknown) => unknown} [validateFilters]
    */
 

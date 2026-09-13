@@ -302,6 +302,21 @@ export class FakeElement {
     /** @type {Record<string, string>} */
     this.dataset = {};
     this.classList = new FakeClassList(this);
+    // Custom properties only, which is all the estate's pages set through it - each one a layout
+    // value a renderer computes per row. Reading one back is what a test asserts about.
+    /** @type {Record<string, string>} */
+    const customProperties = {};
+    this.style = {
+      customProperties,
+      /** @param {string} name @param {unknown} value */
+      setProperty(name, value) {
+        customProperties[name] = String(value);
+      },
+      /** @param {string} name */
+      getPropertyValue(name) {
+        return customProperties[name] ?? "";
+      },
+    };
     /** @type {Map<string, FakeListenerEntry[]>} */
     this.listeners = new Map();
     this._textContent = "";
