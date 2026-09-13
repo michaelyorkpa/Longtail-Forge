@@ -446,9 +446,16 @@ describe("form behaviour this child must not have moved", () => {
     // Spent: `0.33.33.38.3.2` took the deletion dialog as the next cohort. What survives of this
     // claim is that THIS child did not reach into it - the deletion controls are captured by
     // their own checked lookups, added by that child rather than this one.
+    // Spent again: `0.33.33.44.31` took the users dialog, the users list and the two remaining
+    // buttons as it closed the file. **An exclusion records what a checkpoint left, not a
+    // requirement that it stay left** - so what survives here is the same claim as above, that
+    // this child added none of them. Each is captured by a checked lookup this page already
+    // declared, added by the later checkpoint rather than borrowed into this one.
     assert.match(page, /const workspaceDeletionNameInput = findInput\(/,
       "the deletion dialog now has its own checked lookups");
-    assert.match(page, /const workspaceUsersDialog = document\.querySelector\(/,
-      "and so is the users dialog");
+    assert.match(page, /const workspaceUsersDialog = findDialog\(/,
+      "and so does the users dialog");
+    assert.equal((page.match(/function findDialog/g) || []).length, 1,
+      "declared once in this page, as the other lookup helpers are");
   });
 });

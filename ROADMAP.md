@@ -1641,6 +1641,22 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 5,276 to 5,219**, params 3,505 to 3,455, state 1,117 to 1,110, `dom` 558 and assorted 96 unchanged. `0.33.33.44` 456 to 399. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.31 - Workspace Settings, and the file reaches zero
+
+**Complete: 65 diagnostics, and `public/js/workspace-settings.js` reaches zero** - the thirteenth file in this lane to close outright, and by far the longest at 2,008 lines. See the archive entry.
+
+**Measuring confirmed no cluster**: 65 across 38 functions with a largest of 7, so the whole file was the boundary.
+
+**Length was not the difficulty; the pin spread was.** This file already carried the lane's checked-lookup vocabulary, so most of the work was routing the four remaining raw queries through helpers it had already declared. What needed care was the fourteen sibling pins across **five** contract files - including two `doesNotMatch` guards that refuse storage credentials, signed URLs and job internals. Those two are the real hazard when adding annotations here, because a typedef member named `accessKey` or `dedupeKey` would breach them. All fourteen pass unchanged, and the suite now asserts both guards in the file's own tests as well.
+
+**One exclusion pin was spent rather than worked around.** A sibling suite asserted that the users dialog was still a raw query, recording what `0.33.33.38.3.2` had left alone. An exclusion records what a checkpoint left, not a requirement that it stay left - so it was updated the same way that file had already updated its deletion-dialog claim once before.
+
+**The compiler surfaced one dead fallback.** `loadSettingsForm` read `settings.workspace_id` off `normalizeSettings`' own answer, which has no such member because that normalizer already consults both spellings and answers one. The outer alternative could never be reached; it is gone, and the normalizer is now the single place both spellings are read.
+
+**95 breaks, 95 caught, zero inert.** Thirteen were inert on the first run: eleven were assertion gaps, one mutation was badly aimed and re-aimed, and **two were withdrawn** as provably redundant.
+
+**Measured: browser 5,208 to 5,143**, params 3,450 to 3,404, state 1,108 to 1,102, `dom` 555 to 544, assorted 95 to 93. `0.33.33.44` 399 to 345. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
