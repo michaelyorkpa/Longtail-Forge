@@ -1695,10 +1695,15 @@
     return typeof value === "string" && typeof label === "string" ? [value, label] : null;
   }
 
+  /**
+   * The shared renderer establishes the surface. Dataset lives on native prototypes;
+   * check its bag rather than excluding SVG/MathML hooks or asserting a descendant tag.
+   * @param {import("../../src/types/browser-contracts.js").BrowserViewSurfaceElement} surface
+   */
   function decorateNotesDeclarativeSurface(surface) {
     const view = requireView();
     const createAction = surface.querySelector('[data-surface-action="notes.create"], [data-surface-action="create-note"]');
-    if (createAction) {
+    if (createAction && "dataset" in createAction && isResponseRecord(createAction.dataset)) {
       createAction.dataset.noteCreate = "";
     }
 
@@ -1708,7 +1713,7 @@
     header?.after(status);
 
     const filterForm = surface.querySelector("[data-view-filter-form]");
-    if (filterForm) {
+    if (filterForm && "dataset" in filterForm && isResponseRecord(filterForm.dataset)) {
       filterForm.classList.add("notes-filters");
       filterForm.dataset.notesFilters = "";
     }
@@ -1739,17 +1744,18 @@
     const detail = surface.querySelector(".view-slideout-sidebar-main")
       || surface.querySelector(".view-sidebar-detail-primary")
       || surface.querySelector(".view-stacked-detail");
-    if (detail) {
+    if (detail && "dataset" in detail && isResponseRecord(detail.dataset)) {
       detail.classList.add("notes-detail-panel");
       detail.dataset.noteDetail = "";
       detail.replaceChildren();
     }
   }
 
+  /** @param {import("../../src/types/browser-contracts.js").BrowserViewSurfaceElement} surface @param {string} fieldName @param {string} datasetName */
   function decorateNotesFilter(surface, fieldName, datasetName) {
     const wrapper = surface.querySelector(`[data-view-field="${fieldName}"]`);
     const control = wrapper?.querySelector(`[data-view-input="${fieldName}"]`);
-    if (control) {
+    if (control && "dataset" in control && isResponseRecord(control.dataset)) {
       control.dataset[datasetName] = "";
     }
   }
