@@ -461,6 +461,7 @@
         "tests/unit/client-project-record-contracts.test.mjs",
         "tests/unit/create-user-response-contracts.test.mjs",
         "tests/unit/dashboard-panel-contracts.test.mjs",
+        "tests/unit/developer-example-contracts.test.mjs",
         "tests/unit/fallback-object-acquisition-contracts.test.mjs",
         "tests/unit/file-attachment-list-contracts.test.mjs",
         "tests/unit/file-preview-contracts.test.mjs",
@@ -699,16 +700,12 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4893,
+      "errorCount": 4888,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
             "code": 2339,
             "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 1
           }
         ],
         "public/js/api-keys.js": [
@@ -807,12 +804,6 @@
           {
             "code": 7006,
             "count": 13
-          }
-        ],
-        "public/js/developer-example.js": [
-          {
-            "code": 2339,
-            "count": 1
           }
         ],
         "public/js/files-settings.js": [
@@ -1393,10 +1384,6 @@
           {
             "code": 2339,
             "count": 16
-          },
-          {
-            "code": 7006,
-            "count": 3
           }
         ],
         "public/js/tags.js": [
@@ -2206,8 +2193,8 @@
     }
   },
   "totals": {
-    "files": 1281,
-    "errors": 4893,
+    "files": 1282,
+    "errors": 4888,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

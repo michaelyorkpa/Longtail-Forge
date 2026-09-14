@@ -192,6 +192,7 @@
     workspaceSelect.disabled = workspaceSelect.options.length === 0;
   }
 
+  /** @param {Event} event */
   async function startSupportView(event) {
     event.preventDefault();
     if (!entryForm.reportValidity()) {
@@ -236,11 +237,13 @@
     return "/dashboard.html";
   }
 
+  /** @param {number} totalSeconds */
   function formatDuration(totalSeconds) {
     const minutes = Math.max(1, Math.ceil(totalSeconds / 60));
     return `${minutes} minute${minutes === 1 ? "" : "s"}`;
   }
 
+  /** @param {string} message @param {boolean} [isError] */
   function setStatus(message, isError = false) {
     statusText.textContent = message;
     statusText.classList.toggle("error-text", isError);
