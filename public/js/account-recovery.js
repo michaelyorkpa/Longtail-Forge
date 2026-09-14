@@ -65,6 +65,7 @@
     return errors;
   }
 
+  /** @param {string} message */
   function setStatus(message) {
     if (status) status.textContent = message;
   }
