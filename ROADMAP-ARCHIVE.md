@@ -1,5 +1,35 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.40.30
+
+**Model: Medium Effort** - a bounded Notes label and legacy-option adapter over established local literals and published scalar contracts.
+
+- Baseline: `521c41a4aee90191741905b3352481b071645e25`, fetched and confirmed as `origin/nightly` after a clean-worktree check. Fresh branch `agent/0.33.33-codex-notes-ready-readers`; package files byte-identical to the previous checkpoint, with no install or dependency change.
+- Reported before choosing: **36 raw / 32 owned**, across **22 buckets**. The remainder is flat: the six-diagnostic bucket is three different registered `open` callbacks, two each; every other body has at most two. Top ten, ties in source order:
+
+| Baseline function / bucket | Diagnostics |
+| --- | ---: |
+| Three registered `open` callbacks | 6 (2 each) |
+| `normalizeNoteEditorMode` | 2 |
+| `primaryContextSummaryForSelection` | 2 |
+| `noteHasLink` | 2 |
+| `contextSummaryLabel` | 2 |
+| `editorLinkedContextRows` | 2 |
+| `editorLinkedContextItem` | 2 |
+| `contextTypeLabel` | 2 |
+| `openEditorForLinkedTarget` | 2 |
+| `noteKindLabel` | 2 |
+
+- Chosen surface: **Note Kind and linked-target label helpers**. `noteKindLabel` **2 to 0**, `ensureNoteKindOption` **1 to 0**, `contextTypeLabel` **2 to 0**. Their label producers are the local `NOTE_KIND_LABELS` and `LINK_TARGET_TYPE_LABELS` literals, neither written elsewhere. `BrowserNoteRecord.note_type` establishes a string, not membership in the local label table; the file-local `isKnownNoteKind` checks own-key membership before indexing. `renderEditorContextSelection` forwards the checked directory's published `BrowserNoteLinkTarget.targetType` vocabulary. `ensureNoteKindOption` accepts unknown at its existing `normalizeText` boundary, including optional note fields and the URL-driven caller, and preserves the legacy set, duplicate avoidance, optional-control behavior and reset lifecycle.
+- One deliberate defensive difference: unknown/prototype-named Note Kind strings take the token fallback instead of returning inherited object members. Known labels and ordinary unknown-token formatting are unchanged. The server's `NOTE_TYPE_VALUES` accepts the eight current and five legacy kinds; no server, wire contract or accepted save vocabulary changes here. No new response contract, widened contract, cast, suppression or explicit any.
+- The larger callback bucket remains outside: `BrowserModuleActions.register` deliberately leaves the contribution descriptor unnamed, and `module-actions.openRegisteredDialog` forwards unchecked parameters. A receiving Notes signature does not validate that producer. Stored links/context still need their own checked-data boundary; the URL-linked editor also passes unrestricted query strings and retains its earlier closure-order finding. None was relabelled as an integrator blocker or swept into this label surface.
+- Folded-in correction: `isResponseRecord` now documents exactly a non-null, non-array object, including native DOM dataset bags. Its predicate body and all .40.29 `in` guards remain byte-identical; the own-member rule for wire reads is unchanged. This comment correction needs no mutation campaign.
+- Branch-local figures: Notes **36 to 31 raw / 32 to 27 owned**, three parameter and two state removals, leaving **23 params, 2 state, 2 assorted and 4 ownerless DOM**. Browser **4893 to 4888**. Every other owner unchanged: .39 1610, .41 1142, .42 528, .43 897, .44 186. The generated ledger is evidence for this branch; integration recomputes canonical figures.
+- Risk-based units: **8/8 passed** across the four new lifted label/legacy-option cases and four existing surface-decoration cases. Tests lift the actual producer literals and set, cover all thirteen Note Kind labels, all seven target-type labels, own-key refusal/token fallback, legacy normalization and deduplication, optional controls and selective reset. No fixture supplies the implementation's label table. No mutation campaign or shared-runner adoption was warranted; no equivalent/invalid mutation credit or survivor percentage is claimed.
+- Rendered proof: **3/3 passed**, including setup and normal parallel desktop/mobile, port **8102**, this worktree's managed `data/e2e`, isolated UUID accounts/workspaces. A real legacy-task note opens, shows its legacy label, retains the usable legacy option through a real save and authoritative read, and a subsequent Create removes that generated option and restores the eight current options and General default. Cleanup verifies the created note is deleted. Screenshots inspected; console/overflow assertions pass. The initial test locator incorrectly nested the detail-panel scope inside its action-menu `has` filter, so it never activated Edit; corrected only that locator and retained all assertions. Both failure traces/screenshots and the log were copied to `notes-30-failed-render-b55h50d8` under the local temporary directory before rerunning.
+- Minimality: reversing the comment, three annotations, the one lookup expression and the new membership reader recovers the exact baseline source bytes. `contextTypeLabel`, `ensureNoteKindOption`, `isResponseRecord`, and both .40.29 decoration bodies are byte-identical. Final Notes SHA-256: `f9a7aa79bfee38da9c118e3dd272989cc84deb4011e04035ed901c907fd3e00e`. No other browser file, shared contract, server, CSS, package, regression script or shared mutation runner changed.
+- Focused lint and full-strict governance passed: server/tests and scripts zero, declarations zero, explicit-any zero. Whole `scripts/` spelling search found no source contract needing reconciliation. `docs:suggest` reviewed Notes/e2e owners; durable docs and release metadata remain deferred under the version-wide checkpoint contract. Canonical `verify:slice` and full-range `checkpoint:validate` follow the intended commits; final results accompany the delivered SHA. Protected CI and integration remain Claude's responsibility.
+
 ## Version 0.33.33.40.29
 
 **Model: Medium Effort** - a bounded Notes adapter over an established shared surface, with native DOM proof for the changed narrowing.
