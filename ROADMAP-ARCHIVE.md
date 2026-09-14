@@ -1,5 +1,47 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.40.26
+
+**Model: High Effort** - measure the flat Notes remainder, trace shared text and child coercion contracts, and preserve required DOM access timing with lifted and rendered proof.
+
+- Baseline: `88899e1bc2c8ee09cf93e9f9bb15540196cee450`, fetched from a clean worktree before branching from `origin/nightly` as `agent/0.33.33-codex-notes-helper-surface`. Package files remain byte-identical to the previous baseline; no install or dependency change.
+- Reported before choosing or typing: **69 raw / 61 owned** across **43 named-function buckets**. No large cluster exists. The six in outer `attachNotesPage` are three distinct module-action `open` callbacks with two each; the largest actual body has three. Top ten, ties in source order:
+
+| Baseline function / bucket | Diagnostics | Baseline line |
+| --- | ---: | ---: |
+| `attachNotesPage` (three `open` callbacks) | 6 | 1154 / 1166 / 1178 |
+| `decorateNotesFilter` | 3 | 1749 |
+| `appendNotesQueryParam` | 3 | 2612 |
+| `setStatus` | 3 | 6318 |
+| `normalizeNoteEditorMode` | 2 | 1581 |
+| `notesOptionElement` | 2 | 1970 |
+| `noteFieldLabel` | 2 | 2014 |
+| `primaryContextSummaryForSelection` | 2 | 3862 |
+| `noteHasLink` | 2 | 4412 |
+| `contextSummaryLabel` | 2 | 4497 |
+
+- Chosen surface: **Notes text and control projections**. These nine helpers share native DOM text assignment and the published view-builder text/attribute/child input contracts, turning messages and controls into labels, options, status and empty states. This is a contract-shaped boundary, not a lifecycle cluster. Action dispatch, filter/query decoration and stored context summaries have different readers and remain separate work rather than being gathered for volume.
+
+| Chosen helper | Before | After |
+| --- | ---: | ---: |
+| `notesOptionElement` | 2 | 0 |
+| `noteFieldLabel` | 2 | 0 |
+| `emptyText` | 1 | 0 |
+| `lockedNotice` | 1 | 0 |
+| `statusBadge` | 1 | 0 |
+| `renderEmptyList` | 2 | 0 |
+| `setStatus` | 3 | 0 |
+| `setEditorFormStatus` | 1 | 0 |
+| `setBulkFormStatus` | 1 | 0 |
+
+- `notesOptionElement` delegates the unmodified `noteSelect` tuple members and other option producers to the shared builder. `BrowserViewAttributeBag[string]` and `BrowserViewTextValue` deliberately accept unknown inputs: the actual builder skips nullish text, stringifies other text, and applies its established attribute rules. `noteFieldLabel` reuses `BrowserViewChildren` for both forwarded children, preserving nodes, nested arrays, omitted children, ordering and identity. No hand-written response shape or narrowed substitute for the shared contract.
+- Native message/label callers establish strings through literals, templates, existing checked note/error readers and `BrowserErrorContract.readBulkFailures`; the latter validates each failure's string message before the bulk status reads it. Required page status and list mounts now use existing `requireNotesValue` at the original access. An absent required list still fails after prompt construction but before toolbar synchronization; an absent editor status still falls back to page status; absent bulk status still does nothing. The surface is meaningless without its required message/list mount, so that refusal stays mandatory rather than silently retaining stale content. No new wire reader, row refusal, coercion, or error-helper change.
+- Branch-local diagnostics: Notes **69 -> 55**, owned **61 -> 50** (**55/4/2 -> 44/4/2** params/state/assorted), ownerless DOM **8 -> 5**; removals **11 params / 3 DOM**. Remaining diagnostics occupy **34 named-function buckets**. Browser **5039 -> 5025**; families params **3339**, state **1095**, DOM **501**, assorted **90**, unknown/namespace **0**. Other owners unchanged: `.39` **1610**, `.41` **1142**, `.42` **528**, `.43` **897**, `.44` **297**. Server/tests and scripts stay zero, explicit-any zero, declaration probe clean. The ledger is branch-local evidence for canonical recomputation at integration.
+- Minimality: nine parameter annotations and three required-access wrappers; **317/320 named function bodies byte-identical**. Only enclosing `attachNotesPage`, `renderEmptyList` and `setStatus` bodies differ. All established readers, history refusal/projection, error helpers and committed-write/failed-refresh distinction are byte-identical. No other browser file, shared contract, server, CSS, package, regression script or existing test changes.
+- Eight lifted `node:vm` cases execute the actual helpers and shared view builder. They prove option coercion, label/control ordering and identity, literal empty/locked/badge content, status error/reset behavior, optional editor/bulk status semantics, stale-list replacement and construction-before-required-refusal timing. No fixture-generated answer is substituted for the shared producer.
+- `notes-text-surfaces.breaks.mjs`: **40/40 caught, zero inert**, each gated by `node --check`, with per-case and outer `finally` SHA-256 restoration to `939dcb23a3c44b8aa06e2eb4be0f7bdd3c7fcabfb8d604fbd31e5a68c3202d93`. One initial optional-chain assignment mutant was invalid syntax; the gate refused it without coverage credit. It was re-aimed at a valid optional early return and the entire campaign rerun. The harness records that diagnosis; no inert mutation was dropped, withdrawn or credited through a spelling-only assertion.
+- Rendered proof: **5/5** (two desktop, two mobile, setup), port **8102**, this worktree's managed `data/e2e`, isolated UUID accounts/workspaces/note and verified deletion. Real editor labels/options remain usable; literal save errors do not create markup and recovery clears error styling; real bulk writes update the note and page status; empty-list replacement clears stale content. Private display helpers are invoked inside the delivered controller closure while preserving their bodies and native DOM. An instrumented real SVG text element remains a valid page-status `Element`; required-list absence still refuses. Native literal projections and status screenshots were inspected. A viewport-only mobile status assertion was strengthened to center the message through native scrolling and check hit testing against the sticky footer; both layouts pass with no product/CSS change. Prior artifacts were preserved before the strengthened run.
+- Whole `scripts/` spelling search found no Notes source pins requiring reconciliation; no regression script added. `docs:suggest` ownership reviewed; durable docs/release metadata remain deferred under the version-wide contract. Full `check` supplies the requested unit, lint, full regression and discovered permission coverage; canonical `verify:slice` runs over the completed baseline-to-HEAD range, then full-range `checkpoint:validate`. Exact final conductor results accompany the delivered SHA; no post-verification source change is implied.
 ## Version 0.33.33.44.33 - Notes settings catalog manager, and the file reaches zero
 
 **Model: High Effort** - the checkpoint where a mutation broke the page by not terminating, and exposed a flaw every harness in this estate shared.

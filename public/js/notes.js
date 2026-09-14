@@ -1967,6 +1967,7 @@
     return button;
   }
 
+  /** @param {import("../../src/types/browser-contracts.js").BrowserViewAttributeBag[string]} value @param {import("../../src/types/browser-contracts.js").BrowserViewTextValue} label */
   function notesOptionElement(value, label) {
     const view = requireView();
     return view.createElement("option", { text: label, attrs: { value } });
@@ -2011,6 +2012,7 @@
     return Array.isArray(value) && typeof value[0] === "string" && typeof value[1] === "string";
   }
 
+  /** @param {import("../../src/types/browser-contracts.js").BrowserViewChildren} labelText @param {import("../../src/types/browser-contracts.js").BrowserViewChildren} control */
   function noteFieldLabel(labelText, control) {
     const view = requireView();
     return view.createElement("label", { children: [labelText, control] });
@@ -3166,6 +3168,7 @@
     renderDetail(note);
   }
 
+  /** @param {string} message */
   function setBulkFormStatus(message, isError = false) {
     if (!bulkFormStatus) {
       return;
@@ -3605,6 +3608,7 @@
     notificationToggle.disabled = true;
   }
 
+  /** @param {string} message */
   function setEditorFormStatus(message, isError = false) {
     if (!formStatus) {
       setStatus(message, isError);
@@ -5581,12 +5585,13 @@
       : "reference";
   }
 
+  /** @param {string} message */
   function renderEmptyList(message) {
     const empty = document.createElement("p");
 
     empty.className = "notes-empty-state";
     empty.textContent = message;
-    notesList.replaceChildren(empty);
+    requireNotesValue(notesList).replaceChildren(empty);
     syncNotesBulkToolbar();
   }
 
@@ -6064,6 +6069,7 @@
     return Array.isArray(tools) && tools.includes("clients_projects");
   }
 
+  /** @param {string} message */
   function emptyText(message) {
     const empty = document.createElement("p");
 
@@ -6072,6 +6078,7 @@
     return empty;
   }
 
+  /** @param {string} message */
   function lockedNotice(message) {
     const notice = document.createElement("p");
 
@@ -6080,6 +6087,7 @@
     return notice;
   }
 
+  /** @param {string} label */
   function statusBadge(label) {
     const badge = document.createElement("span");
 
@@ -6315,8 +6323,9 @@
     return option;
   }
 
+  /** @param {string} message */
   function setStatus(message, isError = false) {
-    statusMessage.textContent = message;
-    statusMessage.classList.toggle("error-text", isError);
+    requireNotesValue(statusMessage).textContent = message;
+    requireNotesValue(statusMessage).classList.toggle("error-text", isError);
   }
 })();
