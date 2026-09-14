@@ -1,5 +1,34 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.40.29
+
+**Model: Medium Effort** - a bounded Notes adapter over an established shared surface, with native DOM proof for the changed narrowing.
+
+- Baseline: `d1cb8a800257230eadd874d4678b864e0743c5ad`, fetched and confirmed as `origin/nightly` after verifying the worktree clean; fresh branch `agent/0.33.33-codex-notes-context-records`. Package files remain byte-identical to the previous checkpoint; no install or dependency change.
+- Reported before choosing: **40 raw / 36 owned** across **24 buckets**. There is no large cluster: the six in the outer bucket belong to three separate registered `open` callbacks (two each), and the largest actual function has three. Top ten, ties in source order:
+
+| Baseline function / bucket | Diagnostics |
+| --- | ---: |
+| Three module-action `open` callbacks | 6 (2 each) |
+| `decorateNotesFilter` | 3 |
+| `normalizeNoteEditorMode` | 2 |
+| `primaryContextSummaryForSelection` | 2 |
+| `noteHasLink` | 2 |
+| `contextSummaryLabel` | 2 |
+| `editorLinkedContextRows` | 2 |
+| `editorLinkedContextItem` | 2 |
+| `contextTypeLabel` | 2 |
+| `openEditorForLinkedTarget` | 2 |
+
+- Chosen ready surface: **Notes decoration of the rendered workspace surface**. `decorateNotesDeclarativeSurface` **1 to 0**, `decorateNotesFilter` **3 to 0**. These two functions share one established producer, `BrowserViewDescriptorRenderers.renderSurface`, which constructs and returns the published `BrowserViewSurfaceElement`. The larger stored-link/context group requires its own checked-data boundary: `BrowserNoteRecord.links` and `linked_context` remain opaque, and the picker-directory contract does not establish the separate stored-link shaper's output. That group, action callbacks and all other helpers remain outside this checkpoint; none is labelled an integrator blocker.
+- Reuse the published surface type, with local string keys for existing filter hooks. Dataset is inherited on native element prototypes, so `in` is appropriate for this DOM member; `Object.hasOwn` would reject valid native HTML, SVG and MathML elements. The existing `isResponseRecord` establishes the bag as an object before assignment without asserting a descendant tag or authoring a contract. Missing/unreadable optional hooks are refused locally; normal supported elements retain their hooks, attributes, classes, identity, values, selector precedence and replacement behavior. The required surface parameter still fails at its existing access when absent.
+- Branch-local figures: Notes **40 to 36 raw / 36 to 32 owned**; four parameter diagnostics removed, leaving **26 params, 4 state, 2 assorted and 4 ownerless DOM**. Browser **4930 to 4926**. Every other owner unchanged: .39 1610, .41 1142, .42 528, .43 897, .44 219. The generated ledger is branch evidence; integration recomputes canonical figures.
+- Exact minimality: reversing the two JSDoc annotations and four dataset checks recovers the baseline source bytes. Every other Notes body, including the .40.28 query ownership guard and all settled readers, remains unchanged. Final Notes SHA-256: `2903b8f762719173e5fb065c13418adf61fc7bd04ba9a08f82dd0305dc79a696`. No other browser file, server, CSS, shared contract, package or regression script changed.
+- Risk-based proof: **four focused lifted cases** cover all eight scoped filter hooks, retained values/identity, action aliases, status insertion call, index and detail precedence/fallbacks, chrome/detail replacement, missing optional descendants and unreadable bags. The fake selector engine assumes a dataset and initially threw before Notes reached the hostile bag; that fixture limitation was isolated at the query seam, with native selectors independently exercised below. The fake DOM also lacks `after`; units assert the supplied node identity, while the browser proves actual sibling placement. Neither fixture limitation is described as a product limit.
+- Rendered proof: **5/5 passed** (desktop/mobile plus setup), port **8102**, this worktree's managed `data/e2e`, isolated UUID account/workspace fixtures and a real note with verified deletion. The delivered workspace's Create action opens the editor; all eight filter hooks exist; Archive/Active status changes issue real queries and restore the note list. A probe invokes the unchanged private function bodies on real HTML, SVG, MathML and XML namespace elements: prototype-backed bags preserve metadata and detail replacement; an absent XML bag leaves only that optional hook untouched while status insertion still proceeds. Screenshots were inspected. Existing artifacts were copied before the rendered run; no failing rendered case was skipped or weakened.
+- No mutation campaign was required or executed for these two small helpers; no percentage, survivor or invalid-mutation credit is claimed. The shared runner and existing Notes harnesses remain byte-identical, with no adoption or competing runner in this checkpoint. Focused lint passed; full-strict governance passed with zero server/test/script or declaration diagnostics and zero explicit-any nodes. Canonical `verify:slice` and full-range `checkpoint:validate` run after the intended commits; final results accompany the delivered SHA.
+- Whole `scripts/` spelling search found no source contract needing reconciliation. `docs:suggest` reviewed Notes and e2e owners; durable documentation and release metadata remain deferred under the version-wide checkpoint contract. Protected CI, PR creation and integration remain Claude's responsibility.
+
 ## Version 0.33.33.40.28
 
 **Model: High Effort** - measure the flat Notes remainder, type established mutation identities, and diagnose and repair the authorized local directory-response race with real rendered writes.
