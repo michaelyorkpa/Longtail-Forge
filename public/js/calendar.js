@@ -61,6 +61,36 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskCalendarOccurrence} BrowserTaskCalendarOccurrence */
 
+  /**
+   * A project row for the filter, as **this file's own `flattenCalendarProjectOptions` builds it**.
+   *
+   * Deliberately not the published `NormalizedProjectOption`: that is the shape the shared
+   * client/project helper answers, and this is the flattened row this page derives from it,
+   * carrying a client id it has already resolved and two prepared labels. Naming the published
+   * type here would claim a vocabulary this file does not produce. The four members are exactly
+   * what `populateCalendarProjectFilter` reads.
+   * @typedef {{ id: string, clientId: string, label: string, projectLabel: string }} CalendarProjectOption
+   */
+
+  /**
+   * An element the host has already built, or a refusal naming which one is missing.
+   *
+   * Used only where a cached element is read from a **different** function than the one that
+   * assigned it, so the compiler cannot carry the narrowing. It throws at the same statement the
+   * unguarded dereference threw at before, with the element named instead of
+   * "Cannot set properties of null" - it does not add a guard that silently skips work.
+   * @template T
+   * @param {T | null} value
+   * @param {string} name
+   * @returns {T}
+   */
+  function requireCalendarElement(value, name) {
+    if (value === null) {
+      throw new TypeError(`The calendar requires its ${name}, which the host has not built.`);
+    }
+    return value;
+  }
+
   /** @type {ReadonlyArray<{ id: import("../../src/types/browser-contracts.js").BrowserTaskCalendarViewId, label: string }>} */
   const CALENDAR_VIEW_OPTIONS = [
     { id: "month", label: "Month" },
@@ -90,17 +120,39 @@
     statuses: [...DEFAULT_CALENDAR_STATUSES],
     /** @type {import("../../src/types/browser-contracts.js").NormalizedClientOption[]} */
     clients: [],
+    /** @type {CalendarProjectOption[]} */
     projects: [],
   };
   let calendarViewFromQuery = false;
 
+  /**
+   * The elements `buildCalendarHost` caches, each `null` until it has run.
+   *
+   * **Twenty-two of this file's thirty-three diagnostics came from these eight lines**: eight
+   * uninitialised declarations, and the fourteen reads that inherited their implicit `any`. They
+   * are annotated rather than initialised, because `null` is the real state before the host is
+   * built and every guard below already reads them that way.
+   *
+   * The three filters are `HTMLSelectElement` because that is what `createElement("select", ...)
+   * returns - the view factory is overloaded on the tag name, so this is the assignment's own
+   * type rather than a cast. Each is read through `.value`, `.options` or `.selectedOptions`,
+   * which a flat `HTMLElement` does not carry.
+   */
+  /** @type {HTMLElement | null} */
   let calendarStatus = null;
+  /** @type {HTMLElement | null} */
   let calendarPeriodLabel = null;
+  /** @type {HTMLButtonElement[]} */
   let calendarViewButtons = [];
+  /** @type {HTMLElement | null} */
   let calendarBodyRegion = null;
+  /** @type {HTMLSelectElement | null} */
   let calendarClientFilter = null;
+  /** @type {HTMLSelectElement | null} */
   let calendarProjectFilter = null;
+  /** @type {HTMLElement | null} */
   let calendarClientFilterControl = null;
+  /** @type {HTMLSelectElement | null} */
   let calendarStatusFilter = null;
 
   applyCalendarQueryParams();
@@ -256,18 +308,24 @@
       dataset: { calendarClientFilterControl: "" },
     });
 
+    // Each handler reads the cached control **when the event fires**, not the one narrowed when
+    // the listener was attached. That is the existing behaviour and it is kept: capturing the
+    // element instead would quietly change which control a handler follows. The compiler cannot
+    // carry a narrowing across a callback boundary, so these read through the same refusal used
+    // wherever a cached element is reached from another scope.
     calendarClientFilter.addEventListener("change", () => {
-      calendarState.clientId = calendarClientFilter.value;
+      calendarState.clientId = requireCalendarElement(calendarClientFilter, "client filter").value;
       populateCalendarProjectFilter();
-      calendarState.projectId = calendarProjectFilter.value;
+      calendarState.projectId = requireCalendarElement(calendarProjectFilter, "project filter").value;
       loadCalendarWindow();
     });
     calendarProjectFilter.addEventListener("change", () => {
-      calendarState.projectId = calendarProjectFilter.value;
+      calendarState.projectId = requireCalendarElement(calendarProjectFilter, "project filter").value;
       loadCalendarWindow();
     });
     calendarStatusFilter.addEventListener("change", () => {
-      calendarState.statuses = [...calendarStatusFilter.selectedOptions].map((option) => option.value);
+      const statusFilter = requireCalendarElement(calendarStatusFilter, "status filter");
+      calendarState.statuses = [...statusFilter.selectedOptions].map((option) => option.value);
       loadCalendarWindow();
     });
 
@@ -295,6 +353,7 @@
     });
   }
 
+  /** @param {-1 | 1} direction */
   function shiftCalendarPeriod(direction) {
     const anchor = calendarState.anchor;
 
@@ -335,7 +394,12 @@
     }
   }
 
+  /**
+   * @param {readonly import("../../src/types/browser-contracts.js").NormalizedClientOption[]} clients
+   * @returns {CalendarProjectOption[]}
+   */
   function flattenCalendarProjectOptions(clients) {
+    /** @type {CalendarProjectOption[]} */
     const projects = [];
 
     for (const client of clients) {
@@ -407,6 +471,7 @@
     calendarProjectFilter.value = projects.some((project) => project.id === previousValue) ? previousValue : "";
   }
 
+  /** @param {string} value @param {string} label */
   function createCalendarOption(value, label) {
     const calendarView = requireView();
     return calendarView.createElement("option", {
@@ -415,6 +480,7 @@
     });
   }
 
+  /** @param {(typeof CALENDAR_VIEW_OPTIONS)[number]} option */
   function createViewSwitchButton(option) {
     const calendarView = requireView();
     const button = calendarView.createElement("button", {
@@ -460,8 +526,8 @@
         projectId: calendarState.projectId,
         statuses: calendarState.statuses,
       });
-      calendarPeriodLabel.textContent = range.label;
-      taskCalendar.renderCalendarBody(calendarBodyRegion, {
+      requireCalendarElement(calendarPeriodLabel, "period label").textContent = range.label;
+      taskCalendar.renderCalendarBody(requireCalendarElement(calendarBodyRegion, "body region"), {
         viewId: calendarState.view,
         range,
         data: calendarState.data,
@@ -502,6 +568,7 @@
     });
   }
 
+  /** @param {string} message @param {{ isError?: unknown }} [options] */
   function setCalendarStatus(message, options = {}) {
     if (!calendarStatus) {
       return;
