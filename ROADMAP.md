@@ -1669,6 +1669,20 @@ Second, the previous wording said to "delete the browser ledger section at zero"
 
 **Measured: browser 5,130 to 5,048**, params 3,394 to 3,354, state 1,102 to 1,095, `dom` 543 to 509, assorted 91 to 90. `0.33.33.44` 345 to 297. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
 
+#### 0.33.33.44.33 - Notes settings catalog manager, and the file reaches zero
+
+**Complete: 41 diagnostics, and `public/js/notes-settings.js` reaches zero** - the fifteenth file in this lane to close outright. See the archive entry.
+
+**The boundary question answered itself.** All 41 diagnostics sat in lines 567 to 972, so the catalog manager was simply what remained of a file three earlier checkpoints had already worked. The published `BrowserNoteCatalogSettingsRow` was already imported here, so the catalog reads take it rather than anything hand-rolled - and **one parameter carried eleven of the diagnostics**: `openCatalogEditor(catalog = null)` inferred `null`, which made every optional read on it resolve to `never`.
+
+**The harness gained a bounded suite run, and the reason is a real flaw it exposed.** A mutation that removes the cycle guard from `catalogDescendantIds` makes its walk loop forever on the cyclic fixture, so the vitest child never exited and an unbounded `spawnSync` wedged the campaign for forty minutes rather than reporting the case. A timeout is a refusal - the suite did not pass - and is now reported as its own kind, `suite did not terminate`, so a non-terminating mutation is caught rather than fatal. **Every harness in this estate shared that flaw**; this is the first mutation able to trigger it.
+
+**The shrink-only gate refused the first ledger write, correctly.** The new harness carried one strict diagnostic - reading Node's own `code` off an `Error` that does not declare it - now read through `in`.
+
+**84 breaks, 84 caught, zero inert.** Sixteen were inert on the first bounded run: ten were surfaces that cannot be lifted and are now pinned as source facts, five were assertion gaps, and **one was withdrawn** as provably redundant.
+
+**Measured: browser 5,039 to 4,998**, params 3,350 to 3,320, state 1,095 to 1,086, `dom` 504 to 502, assorted 90 unchanged. `0.33.33.44` 297 to 258. `unknown` still zero, server/tests and scripts still zero. `0.33.33.39` through `.43` unchanged.
+
 ### 0.33.33.45 - Extract proven module-development helper defaults
 
 **Model: High Effort** - Shared module defaults and factories affect every first-party module and must satisfy the Two-Module Rule.
