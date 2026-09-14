@@ -353,6 +353,7 @@
         "tests/e2e/notes-tag-surface.spec.mjs",
         "tests/e2e/notes-target-picker.spec.mjs",
         "tests/e2e/notes-text-surfaces.spec.mjs",
+        "tests/e2e/notes-value-readers.spec.mjs",
         "tests/e2e/notes-view-registration.spec.mjs",
         "tests/e2e/notes-visibility-scoping.spec.mjs",
         "tests/e2e/overflow.spec.mjs",
@@ -404,6 +405,7 @@
         "tests/mutations/notes-tag-surface.breaks.mjs",
         "tests/mutations/notes-target-picker.breaks.mjs",
         "tests/mutations/notes-text-surfaces.breaks.mjs",
+        "tests/mutations/notes-value-readers.breaks.mjs",
         "tests/mutations/notes-view-registration.breaks.mjs",
         "tests/mutations/notes-visibility-scoping.breaks.mjs",
         "tests/mutations/reporting-filter.breaks.mjs",
@@ -509,6 +511,7 @@
         "tests/unit/notes-tag-surface.test.mjs",
         "tests/unit/notes-target-picker.test.mjs",
         "tests/unit/notes-text-surfaces.test.mjs",
+        "tests/unit/notes-value-readers.test.mjs",
         "tests/unit/notes-view-registration.test.mjs",
         "tests/unit/notes-visibility-scoping.test.mjs",
         "tests/unit/notification-bell-summary-contracts.test.mjs",
@@ -689,7 +692,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4945,
+      "errorCount": 4937,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1032,11 +1035,11 @@
           },
           {
             "code": 2339,
-            "count": 9
+            "count": 8
           },
           {
             "code": 7006,
-            "count": 41
+            "count": 34
           },
           {
             "code": 7053,
@@ -2217,8 +2220,8 @@
     }
   },
   "totals": {
-    "files": 1270,
-    "errors": 4945,
+    "files": 1273,
+    "errors": 4937,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
