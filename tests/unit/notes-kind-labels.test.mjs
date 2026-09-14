@@ -5,7 +5,7 @@ import { createFakeBrowserContext } from "../../scripts/test-support/fake-dom.mj
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 
 const source = createProjectTextReader().readText("public/js/notes.js");
-const names = ["isKnownNoteKind", "noteKindLabel", "ensureNoteKindOption", "resetLegacyNoteKindOptions", "contextTypeLabel", "normalizeText", "formatToken"];
+const names = ["isKnownNoteKind", "noteKindLabel", "ensureNoteKindOption", "resetLegacyNoteKindOptions", "isKnownContextTargetType", "contextTypeLabel", "normalizeText", "formatToken"];
 function fixture() {
   const browser = createFakeBrowserContext();
   const typeInput = browser.document.createElement("select");
@@ -56,10 +56,25 @@ describe("Notes kind labels and legacy options", () => {
     assert.doesNotThrow(() => f.api.ensureNoteKindOption("client")); assert.doesNotThrow(() => f.api.resetLegacyNoteKindOptions());
   });
 
-  it("uses the directory's seven established target types without changing labels", () => {
+  it("keeps directory labels and formats the wider strings forwarded by the URL editor", () => {
     const { api } = fixture();
     for (const [type, label] of Object.entries({ workspace: "Workspace", client: "Client", list: "List", note: "Note", project: "Project", task: "Task", user: "User" })) {
+      assert.equal(api.isKnownContextTargetType(type), true);
       assert.equal(api.contextTypeLabel(type), label);
     }
+    for (const [type, label] of [["future_record", "Future Record"], ["", "Context"], ["constructor", "Constructor"], ["toString", "ToString"]]) {
+      assert.equal(api.isKnownContextTargetType(type), false); assert.equal(api.contextTypeLabel(type), label);
+    }
+  });
+
+  it("establishes the URL producer's string domain without pretending it is a directory result", async () => {
+    /** @type {unknown[]} */ const opened = [];
+    const context = vm.createContext({ URLSearchParams, window: { location: { search: "?targetType=future_record&targetId=fixture-id" } },
+      openEditorForLinkedTarget: (/** @type {unknown} */ target) => opened.push(target),
+      selectNote: () => { throw new Error("Unexpected saved-note selection"); },
+    });
+    vm.runInContext(extractFunctionBlock(source, "openNoteFromUrl"), context);
+    await vm.runInContext("openNoteFromUrl()", context);
+    assert.deepEqual(JSON.parse(JSON.stringify(opened)), [{ clientId: "", libraryBucket: "", moduleId: "", noteKind: "", projectId: "", targetId: "fixture-id", targetType: "future_record" }]);
   });
 });

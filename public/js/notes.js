@@ -4715,9 +4715,18 @@
     return refreshed;
   }
 
-  /** @param {BrowserNoteLinkTarget["targetType"]} targetType */
+  /** @param {string} value @returns {value is keyof typeof LINK_TARGET_TYPE_LABELS} */
+  function isKnownContextTargetType(value) {
+    return Object.hasOwn(LINK_TARGET_TYPE_LABELS, value);
+  }
+
+  /**
+   * Directory targets have a closed vocabulary; the URL editor also forwards strings.
+   * Keep that wider local input and check membership in the Notes-owned label literal.
+   * @param {string} targetType
+   */
   function contextTypeLabel(targetType) {
-    return LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType || "context");
+    return isKnownContextTargetType(targetType) ? LINK_TARGET_TYPE_LABELS[targetType] : formatToken(targetType || "context");
   }
 
   function unavailableTargetLabel(targetType = "") {
