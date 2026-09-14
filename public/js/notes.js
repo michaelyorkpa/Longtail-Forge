@@ -4692,6 +4692,7 @@
     }
   }
 
+  /** @param {BrowserNoteRecord["note_id"]} noteId */
   async function refreshEditorNote(noteId) {
     const api = requireApi();
     const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
@@ -4801,10 +4802,12 @@
     }
   }
 
+  /** @param {Pick<BrowserNoteRecord, "note_id">} note */
   async function archiveNote(note) {
     await mutateNote(`/api/notes/${encodeURIComponent(note.note_id)}/archive`);
   }
 
+  /** @param {Pick<BrowserNoteRecord, "note_id">} note */
   async function restoreNote(note) {
     await mutateNote(`/api/notes/${encodeURIComponent(note.note_id)}/restore`);
   }
@@ -5130,16 +5133,18 @@
     return view.createElement("div", { className: "notes-link-item", children: [label, remove] });
   }
 
+  /** @param {Pick<BrowserNoteRecord, "note_id">} note @param {unknown} payload */
   async function addNoteLink(note, payload) {
     const api = requireApi();
     await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/links`, payload);
     await selectNote(note.note_id);
   }
 
+  /** @param {Pick<BrowserNoteRecord, "note_id">} note @param {Pick<import("../../src/types/notes-domain-contracts.js").NotesServiceTarget, "noteLinkId" | "note_link_id">} link */
   async function removeNoteLink(note, link) {
     const api = requireApi();
     const noteLinkId = link.noteLinkId || link.note_link_id;
-    await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/links/${encodeURIComponent(noteLinkId)}/remove`, {});
+    await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/links/${encodeURIComponent(String(noteLinkId))}/remove`, {});
     await selectNote(note.note_id);
   }
 

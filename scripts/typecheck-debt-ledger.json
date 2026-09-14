@@ -397,6 +397,7 @@
         "tests/mutations/notes-linked-context.breaks.mjs",
         "tests/mutations/notes-list-query.breaks.mjs",
         "tests/mutations/notes-markdown-surface.breaks.mjs",
+        "tests/mutations/notes-mutation-entrypoints.breaks.mjs",
         "tests/mutations/notes-note-viewer.breaks.mjs",
         "tests/mutations/notes-primary-context.breaks.mjs",
         "tests/mutations/notes-revisions-selection.breaks.mjs",
@@ -503,6 +504,7 @@
         "tests/unit/notes-linked-context.test.mjs",
         "tests/unit/notes-list-query.test.mjs",
         "tests/unit/notes-markdown-surface.test.mjs",
+        "tests/unit/notes-mutation-entrypoints.test.mjs",
         "tests/unit/notes-note-viewer.test.mjs",
         "tests/unit/notes-primary-context-pins.test.mjs",
         "tests/unit/notes-primary-context.test.mjs",
@@ -692,7 +694,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4937,
+      "errorCount": 4930,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1039,7 +1041,7 @@
           },
           {
             "code": 7006,
-            "count": 34
+            "count": 27
           },
           {
             "code": 7053,
@@ -2220,8 +2222,8 @@
     }
   },
   "totals": {
-    "files": 1273,
-    "errors": 4937,
+    "files": 1275,
+    "errors": 4930,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
