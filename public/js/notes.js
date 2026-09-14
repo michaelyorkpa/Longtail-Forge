@@ -4692,6 +4692,7 @@
     }
   }
 
+  /** @param {BrowserNoteRecord["note_id"]} noteId */
   async function refreshEditorNote(noteId) {
     const api = requireApi();
     const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
@@ -4801,10 +4802,12 @@
     }
   }
 
+  /** @param {Pick<BrowserNoteRecord, "note_id">} note */
   async function archiveNote(note) {
     await mutateNote(`/api/notes/${encodeURIComponent(note.note_id)}/archive`);
   }
 
+  /** @param {Pick<BrowserNoteRecord, "note_id">} note */
   async function restoreNote(note) {
     await mutateNote(`/api/notes/${encodeURIComponent(note.note_id)}/restore`);
   }
@@ -4983,38 +4986,72 @@
     section.querySelector(".notes-link-list")?.replaceChildren(...linkRecordNodes(note));
 
     const form = section.querySelector("[data-note-link-form]");
-    const loadTargets = async () => {
+    let queryVersion = 0;
+    let queryReady = () => false;
+    let submitting = false;
+    const readReadyTarget = () => {
+      if (locked || submitting || !queryReady() || targetResults.disabled) return null;
+      const target = readSelectedLinkTarget(targetResults);
+      return target?.targetId && target.targetType === targetType.value ? target : null;
+    };
+    const syncAdd = () => { add.disabled = !readReadyTarget(); };
+    const invalidateQuery = () => {
+      queryVersion += 1;
+      queryReady = () => false;
       targetResults.disabled = true;
       targetResults.replaceChildren(new window.Option("Loading records...", ""));
+      syncAdd();
+    };
+    const loadTargets = async () => {
+      const version = queryVersion;
+      const requestedType = targetType.value;
+      const requestedSearch = targetSearch.value;
+      const isCurrentQuery = () => version === queryVersion
+        && requestedType === targetType.value && requestedSearch === targetSearch.value;
       try {
-        populateLinkTargetSelect(targetResults, await fetchLinkTargets({
-          targetType: targetType.value,
-          search: targetSearch.value,
-          limit: 40,
-        }));
+        const targets = await fetchLinkTargets({ targetType: requestedType, search: requestedSearch, limit: 40 });
+        if (!isCurrentQuery()) return;
+        populateLinkTargetSelect(targetResults, targets);
+        queryReady = isCurrentQuery;
       } catch {
+        if (!isCurrentQuery()) return;
         targetResults.replaceChildren(new window.Option("No records available", ""));
       } finally {
-        targetResults.disabled = false;
+        if (isCurrentQuery()) {
+          targetResults.disabled = false;
+          syncAdd();
+        }
       }
     };
-    targetType.addEventListener("change", loadTargets);
+    targetType.addEventListener("change", () => {
+      window.clearTimeout(searchTimer ?? undefined);
+      invalidateQuery();
+      loadTargets();
+    });
     targetSearch.addEventListener("input", () => {
       window.clearTimeout(searchTimer ?? undefined);
+      invalidateQuery();
       searchTimer = window.setTimeout(loadTargets, 180);
     });
+    targetResults.addEventListener("change", syncAdd);
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const target = readSelectedLinkTarget(targetResults);
-      if (!target) {
-        return;
+      const target = readReadyTarget();
+      if (!target) return;
+      submitting = true;
+      syncAdd();
+      try {
+        await addNoteLink(note, {
+          targetType: target.targetType,
+          targetId: target.targetId,
+          moduleId: target.moduleId,
+        });
+      } finally {
+        submitting = false;
+        syncAdd();
       }
-      await addNoteLink(note, {
-        targetType: target.targetType,
-        targetId: target.targetId,
-        moduleId: target.moduleId,
-      });
     });
+    invalidateQuery();
     loadTargets();
 
     return section;
@@ -5130,16 +5167,18 @@
     return view.createElement("div", { className: "notes-link-item", children: [label, remove] });
   }
 
+  /** @param {Pick<BrowserNoteRecord, "note_id">} note @param {unknown} payload */
   async function addNoteLink(note, payload) {
     const api = requireApi();
     await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/links`, payload);
     await selectNote(note.note_id);
   }
 
+  /** @param {Pick<BrowserNoteRecord, "note_id">} note @param {Pick<import("../../src/types/notes-domain-contracts.js").NotesServiceTarget, "noteLinkId" | "note_link_id">} link */
   async function removeNoteLink(note, link) {
     const api = requireApi();
     const noteLinkId = link.noteLinkId || link.note_link_id;
-    await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/links/${encodeURIComponent(noteLinkId)}/remove`, {});
+    await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/links/${encodeURIComponent(String(noteLinkId))}/remove`, {});
     await selectNote(note.note_id);
   }
 

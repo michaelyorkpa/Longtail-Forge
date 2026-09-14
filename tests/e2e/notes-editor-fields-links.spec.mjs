@@ -61,6 +61,7 @@ managedServerTest("Notes editor and collection fields render both supported opti
 
 managedServerTest("Notes links use real directory identities and authoritative primary and saved-link labels", async ({ isolatedWorkspace }, testInfo) => {
   const { page, api, workspaceType } = isolatedWorkspace;
+  const sequence = await captureNotesLinkSequence(page, testInfo);
   expect(workspaceType).toBe("business");
   const suffix = `${testInfo.project.name}-${testInfo.retry}-${randomUUID()}`;
   /** @type {Array<() => Promise<void>>} */ const cleanup = [];
@@ -104,18 +105,34 @@ managedServerTest("Notes links use real directory identities and authoritative p
     const search = panel.locator("[data-note-link-search]"), results = panel.locator("[data-note-link-results]");
     await expect(search).toHaveAttribute("type", "search"); await expect(search).toHaveAttribute("placeholder", "Search records");
     await expect(results).toHaveJSProperty("required", true);
-    await panel.locator("[data-note-link-target-type]").selectOption("note"); await search.fill(targetTitle);
+    await test.step("Wait for the requested note search and its rendered result", async () => {
+      const searched = page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.pathname === "/api/notes/link-targets" && url.searchParams.get("targetType") === "note"
+          && url.searchParams.get("q") === targetTitle && response.request().method() === "GET";
+      });
+      await panel.locator("[data-note-link-target-type]").selectOption("note"); await search.fill(targetTitle);
+      const response = await searched; expect(response.status(), await response.text()).toBe(200); await response.finished();
+      // This UUID search has one result; the earlier unsearched response has two.
+      // Both readiness and its actual projection must precede choosing the option.
+      await expect(results.locator("option")).toHaveCount(1);
+      await expect(results.locator(`option[value="${targetId}"]`)).toHaveAttribute("title", `${targetTitle} - Reference Library`);
+      await expect(results).toBeEnabled();
+    });
     // notes.service truncates picker titles to 20 characters; the title/aria label
     // retain the full name. Prove both outputs instead of assuming the option is unabridged.
     await expect(results.locator(`option[value="${targetId}"]`)).toHaveText(`${targetTitle.slice(0, 17).trimEnd()}...`);
     await expect(results.locator(`option[value="${targetId}"]`)).toHaveAttribute("title", `${targetTitle} - Reference Library`);
     await expect(results.locator(`option[value="${targetId}"]`)).toHaveAttribute("aria-label", `${targetTitle} - Reference Library`);
-    await results.selectOption(targetId);
+    await results.selectOption(targetId); await expect(results).toHaveValue(targetId);
     const directoryTarget = await results.locator(`option[value="${targetId}"]`).getAttribute("data-target");
     expect(directoryTarget).toBeTruthy(); const target = JSON.parse(directoryTarget || "{}");
     expect(target.targetType).toBe("note"); expect(target.targetId).toBe(targetId);
     const write = page.waitForResponse((response) => new URL(response.url()).pathname === `/api/notes/${noteId}/links` && response.request().method() === "POST");
-    await panel.locator("[data-note-link-add]").click(); const added = await write; expect(added.status(), await added.text()).toBe(201);
+    const added = await test.step("Activate Add and await the already-installed link response wait", async () => {
+      await panel.locator("[data-note-link-add]").click(); return await write;
+    });
+    expect(added.status(), await added.text()).toBe(201);
     expect(added.request().postDataJSON()).toEqual({ moduleId: target.moduleId, targetType: "note", targetId });
     await expect(panel.locator(".notes-link-item")).toHaveCount(2);
     const detailResponse = await api.get(`/api/notes/${noteId}`); expect(detailResponse.status()).toBe(200);
@@ -141,9 +158,22 @@ managedServerTest("Notes links use real directory identities and authoritative p
     // A restored note must offer a working editing form, alongside its primary
     // context. Submit through it again to prove the CSS did not hide all forms.
     await panel.locator(":scope > summary").click(); await expect(form).toBeVisible();
-    await panel.locator("[data-note-link-target-type]").selectOption("note"); await search.fill(targetTitle);
+    await test.step("Wait for the requested note search and its rendered result", async () => {
+      const searched = page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.pathname === "/api/notes/link-targets" && url.searchParams.get("targetType") === "note"
+          && url.searchParams.get("q") === targetTitle && response.request().method() === "GET";
+      });
+      await panel.locator("[data-note-link-target-type]").selectOption("note"); await search.fill(targetTitle);
+      const response = await searched; expect(response.status(), await response.text()).toBe(200); await response.finished();
+      // This UUID search has one result; the earlier unsearched response has two.
+      // Both readiness and its actual projection must precede choosing the option.
+      await expect(results.locator("option")).toHaveCount(1);
+      await expect(results.locator(`option[value="${targetId}"]`)).toHaveAttribute("title", `${targetTitle} - Reference Library`);
+      await expect(results).toBeEnabled();
+    });
     await expect(results.locator(`option[value="${targetId}"]`)).toHaveAttribute("title", `${targetTitle} - Reference Library`);
-    await results.selectOption(targetId); await expect(panel.locator("[data-note-link-add]")).toBeEnabled();
+    await results.selectOption(targetId); await expect(results).toHaveValue(targetId); await expect(panel.locator("[data-note-link-add]")).toBeEnabled();
     const restoreWrite = page.waitForResponse((response) => new URL(response.url()).pathname === `/api/notes/${noteId}/links` && response.request().method() === "POST");
     await panel.locator("[data-note-link-add]").click(); const restoredAdded = await restoreWrite;
     expect(restoredAdded.status(), await restoredAdded.text()).toBe(201);
@@ -192,6 +222,7 @@ managedServerTest("Notes links use real directory identities and authoritative p
     expect(await page.evaluate(() => (document.scrollingElement?.scrollWidth || 0) <= window.innerWidth + 1)).toBe(true);
     expect(errors).toEqual([]);
   } finally {
+    await sequence.finish();
     for (const dispose of cleanup) await dispose();
   }
 });
@@ -203,3 +234,218 @@ function identity(value, member, key) {
   if (!record || typeof record !== "object" || typeof record[key] !== "string" || !record[key]) throw new Error("Missing fixture identity.");
   return String(record[key]);
 }
+
+
+// Local evidence for this Notes workflow: requests, completions, native form
+// activation and each result replacement use test-runner receipt time; the
+// controlled browser clock may be paused while real network work completes.
+/** @param {import("@playwright/test").Page} page @param {import("@playwright/test").TestInfo} info */
+async function captureNotesLinkSequence(page, info) {
+  const started = Date.now();
+  /** @type {Array<{ at: number, kind: string, data: unknown }>} */ const timeline = [];
+  /** @param {string} kind @param {unknown} data */
+  const record = (kind, data) => { timeline.push({ at: Date.now(), kind, data }); };
+  /** @param {import("@playwright/test").Request} request */
+  const tracked = (request) => /\/api\/notes\/(?:link-targets|[^/]+\/links)(?:\?|$)/.test(request.url());
+  page.on("request", (request) => { if (tracked(request)) record("request-start", { url: request.url(), method: request.method(), body: request.postData() }); });
+  page.on("response", (response) => { if (tracked(response.request())) record("response", { url: response.url(), status: response.status() }); });
+  page.on("requestfinished", (request) => { if (tracked(request)) record("request-finished", { url: request.url() }); });
+  page.on("requestfailed", (request) => { if (tracked(request)) record("request-failed", { url: request.url(), failure: request.failure() }); });
+  page.on("console", (message) => {
+    const text = message.text();
+    if (text.startsWith("NOTES_LINK_SEQUENCE ")) {
+      const row = JSON.parse(text.slice("NOTES_LINK_SEQUENCE ".length));
+      timeline.push({ ...row, at: Date.now() });
+    }
+  });
+  await page.addInitScript(() => {
+    /** @param {string} event */
+    const snapshot = (event) => {
+      const panel = document.querySelector("[data-note-links-panel]");
+      if (!panel) return;
+      const select = panel.querySelector("[data-note-link-results]");
+      const search = panel.querySelector("[data-note-link-search]");
+      const type = panel.querySelector("[data-note-link-target-type]");
+      const add = panel.querySelector("[data-note-link-add]");
+      if (!(select instanceof window.HTMLSelectElement)) return;
+      console.debug("NOTES_LINK_SEQUENCE " + JSON.stringify({ at: Date.now(), kind: "dom", data: {
+        event, value: select.value, disabled: select.disabled,
+        loading: select.textContent?.includes("Loading records..."),
+        query: search instanceof window.HTMLInputElement ? search.value : null,
+        type: type instanceof window.HTMLSelectElement ? type.value : null,
+        addDisabled: add instanceof window.HTMLButtonElement ? add.disabled : null,
+        options: [...select.options].map((option) => ({ value: option.value, label: option.textContent })),
+      } }));
+    };
+    for (const name of ["input", "change", "click", "submit", "invalid"]) {
+      document.addEventListener(name, (event) => {
+        if (event.target instanceof window.Element && event.target.closest("[data-note-links-panel]")) snapshot(name);
+      }, true);
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+      new window.MutationObserver((records) => {
+        if (records.some((record) => {
+          const element = record.target instanceof window.Element ? record.target : record.target.parentElement;
+          return element?.closest("[data-note-links-panel]") || [...record.addedNodes].some((node) => node instanceof window.Element && (node.matches("[data-note-links-panel]") || node.querySelector("[data-note-links-panel]")));
+        })) snapshot("results-or-state-change");
+      }).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["disabled"] });
+    });
+  });
+  return {
+    record,
+    finish: async () => {
+      timeline.sort((a, b) => a.at - b.at);
+      await info.attach("notes-link-sequence", { body: JSON.stringify({ durationMs: Date.now() - started, timeline: timeline.map((row) => ({ ...row, elapsedMs: row.at - started })) }, null, 2), contentType: "application/json" });
+    },
+  };
+}
+
+managedServerTest("Notes link picker retains the searched selection when older real directory responses finish last", async ({ isolatedWorkspace }, testInfo) => {
+  const { page, api } = isolatedWorkspace;
+  const sequence = await captureNotesLinkSequence(page, testInfo);
+  const suffix = randomUUID();
+  /** @type {string[]} */ const ids = [];
+  /** @type {Array<{ query: string, type: string, release: () => void, ready: boolean, delivered: boolean, fail: boolean }>} */ const held = [];
+  let releaseAll = false, holdSearches = false, clockPaused = false;
+  /** @type {unknown[]} */ const writes = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && /\/api\/notes\/[^/]+\/links$/.test(new URL(request.url()).pathname)) writes.push(request.postDataJSON());
+  });
+  await page.clock.install({ time: new Date("2026-09-14T12:00:00Z") });
+  try {
+    const createdIds = await test.step("Create isolated real notes", async () => {
+      for (const title of [`A source ${suffix}`, `Z target ${suffix}`]) {
+        const response = await api.post("/api/notes", { data: { title, bodyMarkdown: "Directory ordering proof" } });
+        expect(response.status(), await response.text()).toBe(201);
+        ids.push(identity(await response.json(), "note", "note_id"));
+      }
+      return ids;
+    });
+    const [noteId, targetId] = createdIds, targetTitle = `Z target ${suffix}`;
+    await page.route("**/api/notes/link-targets?*", async (route) => {
+      const url = new URL(route.request().url());
+      /** @type {() => void} */ let release = () => {};
+      const pending = new Promise((done) => { release = () => done(undefined); });
+      const entry = { type: url.searchParams.get("targetType") || "", query: url.searchParams.get("q") || "", release: () => release(), ready: false, delivered: false, fail: false };
+      held.push(entry);
+      const response = await route.fetch(); expect(response.status(), await response.text()).toBe(200);
+      entry.ready = true; sequence.record("real-response-held", { type: entry.type, query: entry.query, status: response.status() });
+      if (!releaseAll && (!entry.query || holdSearches)) await pending;
+      if (entry.fail) await route.abort("failed");
+      else await route.fulfill({ response });
+      entry.delivered = true; sequence.record("real-response-delivered", { type: entry.type, query: entry.query });
+    });
+    await page.goto(`/notes.html?note=${noteId}`);
+    const panel = page.locator("[data-note-links-panel]"), results = panel.locator("[data-note-link-results]");
+    await expect(panel).toBeVisible(); await panel.locator(":scope > summary").click();
+    await expect.poll(() => held.some((entry) => entry.type === "project" && entry.ready)).toBe(true);
+    await test.step("Overlap initial, changed-type and searched requests", async () => {
+      await panel.locator("[data-note-link-target-type]").selectOption("note");
+      await expect.poll(() => held.some((entry) => entry.type === "note" && !entry.query && entry.ready)).toBe(true);
+      await panel.locator("[data-note-link-search]").fill(targetTitle);
+      await expect.poll(() => held.some((entry) => entry.query === targetTitle && entry.delivered)).toBe(true);
+      await expect(results.locator(`option[value="${targetId}"]`)).toHaveAttribute("title", `${targetTitle} - Reference Library`);
+      await expect(results).toBeEnabled(); await results.selectOption(targetId); await expect(results).toHaveValue(targetId);
+    });
+    /** @param {(typeof held)[number]} entry */
+    const finish = async (entry) => {
+      const matches = (/** @type {import("@playwright/test").Request} */ request) => {
+        const url = new URL(request.url());
+        return url.pathname === "/api/notes/link-targets" && url.searchParams.get("targetType") === entry.type && (url.searchParams.get("q") || "") === entry.query;
+      };
+      const completed = entry.fail
+        ? page.waitForEvent("requestfailed", { predicate: matches })
+        : page.waitForResponse((response) => matches(response.request())).then((response) => response.finished());
+      entry.release(); await completed;
+      await expect.poll(() => entry.delivered).toBe(true);
+      // A bounded render boundary after the real response body (or transport failure).
+      if (clockPaused) await page.clock.runFor(32);
+      else await page.evaluate(() => new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve(undefined)))));
+    };
+    const add = panel.locator("[data-note-link-add]"), search = panel.locator("[data-note-link-search]");
+    await test.step("Finish the older note and initial project responses after selection", async () => {
+      for (const type of ["note", "project"]) {
+        const entry = held.find((item) => item.type === type && !item.query); expect(entry).toBeTruthy();
+        if (!entry) throw new Error("Missing held real directory response.");
+        await finish(entry);
+        // The baseline artifact records two options, then none here: both were stale overwrites.
+        await expect(results.locator("option")).toHaveCount(1);
+        await expect(results).toHaveValue(targetId); await expect(results).toBeEnabled(); await expect(add).toBeEnabled();
+        sequence.record(`after-older-${type}`, { value: await results.inputValue(), addDisabled: await add.isDisabled() });
+      }
+    });
+    holdSearches = true;
+    await page.clock.pauseAt(new Date("2026-09-14T12:10:00Z")); clockPaused = true;
+    /** @param {string} query */
+    const startQuery = async (query) => {
+      const previousCount = held.length;
+      await search.fill(query); await expect(results).toBeDisabled(); await expect(add).toBeDisabled();
+      await page.clock.runFor(180);
+      await expect.poll(() => held.slice(previousCount).some((entry) => entry.query === query && entry.ready)).toBe(true);
+      const entry = held.slice(previousCount).find((item) => item.query === query);
+      if (!entry) throw new Error("Missing requested real response.");
+      return entry;
+    };
+    const loading = async () => {
+      await expect(results).toBeDisabled(); await expect(results.locator("option")).toHaveText(["Loading records..."]); await expect(add).toBeDisabled();
+      await search.press("Enter"); // Native form activation must not submit an obsolete selection.
+      expect(writes).toEqual([]);
+    };
+    await test.step("Refuse an older response during the next query's debounce interval", async () => {
+      const older = await startQuery(`target ${suffix}`);
+      await search.fill(`source ${suffix}`);
+      await finish(older); // Only 32ms of the real 180ms debounce have elapsed.
+      expect(held.some((entry) => entry.query === `source ${suffix}`)).toBe(false);
+      await loading();
+      await page.clock.runFor(148);
+      await expect.poll(() => held.some((entry) => entry.query === `source ${suffix}` && entry.ready)).toBe(true);
+    });
+    await test.step("Ignore obsolete failures and finally blocks while the current query loads", async () => {
+      const older = held.find((entry) => entry.query === `source ${suffix}`);
+      if (!older) throw new Error("Missing obsolete response.");
+      const current = await startQuery(`missing ${suffix}`);
+      older.fail = true; await finish(older); await loading();
+      // The current transport failure is distinct from a successful empty directory.
+      current.fail = true; await finish(current);
+      await expect(results).toBeEnabled(); await expect(results.locator("option")).toHaveText(["No records available"]); await expect(add).toBeDisabled();
+      await search.press("Enter"); expect(writes).toEqual([]);
+    });
+    await test.step("Recover from a current failure and a real valid-empty result", async () => {
+      const recovered = await startQuery(`Z target ${suffix}`);
+      await finish(recovered);
+      await expect(results).toHaveValue(targetId); await expect(add).toBeEnabled();
+      const empty = await startQuery(`no-match-${suffix}`); await finish(empty);
+      await expect(results).toBeEnabled(); await expect(results.locator("option")).toHaveCount(0); await expect(add).toBeDisabled();
+      await search.press("Enter"); expect(writes).toEqual([]);
+      const success = await startQuery(suffix); await finish(success);
+      await expect(results.locator(`option[value="${targetId}"]`)).toHaveCount(1);
+      await results.selectOption(targetId); await expect(results).toHaveValue(targetId); await expect(add).toBeEnabled();
+    });
+    await page.clock.resume(); clockPaused = false;
+    const outcome = await test.step("Activate Add with its response wait already installed", async () => {
+      const write = page.waitForResponse((response) => new URL(response.url()).pathname === `/api/notes/${noteId}/links` && response.request().method() === "POST")
+        .then(async (response) => ({ kind: "response", status: response.status(), payload: response.request().postDataJSON(), body: await response.text() }))
+        .catch((error) => ({ kind: "no-response", error: String(error) }));
+      await panel.locator("[data-note-link-add]").click();
+      return await write;
+    });
+    sequence.record("write-outcome", outcome);
+    expect(outcome.kind, JSON.stringify(outcome)).toBe("response");
+    if ("status" in outcome) {
+      expect(outcome.status, outcome.body).toBe(201);
+      expect(outcome.payload).toEqual({ moduleId: "notes", targetType: "note", targetId });
+      expect(writes).toEqual([{ moduleId: "notes", targetType: "note", targetId }]);
+      await expect(panel.locator(".notes-link-item")).toHaveCount(1);
+      await panel.locator(":scope > summary").click();
+      await expect(panel.locator(".notes-link-item a")).toHaveText(targetTitle);
+      await panel.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath("after-controlled-overlap.png") });
+    }
+  } finally {
+    releaseAll = true; for (const entry of held) entry.release();
+    await sequence.finish();
+    for (const id of ids.reverse()) {
+      const response = await api.post(`/api/notes/${id}/delete`); expect(response.status(), await response.text()).toBe(200);
+    }
+  }
+});

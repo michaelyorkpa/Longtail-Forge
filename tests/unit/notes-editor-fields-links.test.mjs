@@ -15,7 +15,7 @@ const manifest = vm.runInNewContext(`(${manifestLiteral[1]})`, { NOTE_PERMISSION
 const names = ["requireView", "modalFieldOptions", "isNoteFieldOptionPair", "noteSelect", "noteInput", "noteTextarea", "notesOptionElement", "noteFieldLabel",
   "renderLinksPanel", "linkItem", "linkPayloadFromTarget", "linkedRecordsField", "notePrimaryContextSummary", "isNoteContextLabel", "isNoteLinkDisplay",
   "isResponseRecord", "formatToken", "unavailableTargetLabel", "usesBusinessScope", "workspaceHasClientTools", "normalizeWorkspaceType", "normalizeText", "linkRecordNodes", "notePrimaryContextItem",
-  "scopeNotesVisibilityContributions", "scopeNotesVisibilityOptions", "readSelectedLinkTarget", "isNoteLinkTarget"];
+  "scopeNotesVisibilityContributions", "scopeNotesVisibilityOptions", "readSelectedLinkTarget", "isNoteLinkTarget", "replaceLinkTargetOptions", "pickerRecordFromTarget", "targetPickerDisplayLabel", "targetPickerSecondaryLabel", "providerDisplayLabel", "primaryProjectOptionLabel"];
 /** @param {unknown} value */
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
@@ -25,14 +25,11 @@ function fixture() {
   /** @type {Map<number, { callback: () => Promise<void>, delay: number }>} */ const timers = new Map();
   let nextTimer = 0;
   const context = vm.createContext({ ...browser, calls, state: { workspaceType: "business" },
-    descriptor: plain(manifest.detail.linkedRecords), fetchAnswer: Promise.resolve([]),
+    descriptor: plain(manifest.detail.linkedRecords), fetchAnswer: Promise.resolve([]), writeAnswer: Promise.resolve(), contextResultsInput: null,
     fetchLinkTargets: (/** @type {unknown} */ query) => { calls.push(["fetch", query]); return context.fetchAnswer; },
     notesLinkedRecordsDescriptor: () => context.descriptor,
     populateLinkTargetTypeSelect: (/** @type {import("../../scripts/test-support/fake-dom.mjs").FakeElement} */ select) => { select.value = "project"; },
-    // This boundary supplies directory results; the tests observe Notes' loading,
-    // request, debounce and submission behavior, not this stand-in's option layout.
-    populateLinkTargetSelect: (/** @type {unknown} */ select, /** @type {unknown} */ targets) => calls.push(["populate", select, targets]),
-    addNoteLink: (/** @type {unknown} */ note, /** @type {unknown} */ payload) => calls.push(["add", note, payload]),
+    addNoteLink: (/** @type {unknown} */ note, /** @type {unknown} */ payload) => { calls.push(["add", note, payload]); return context.writeAnswer; },
     removeNoteLink: (/** @type {unknown} */ note, /** @type {unknown} */ link) => calls.push(["remove", note, link]),
   });
   context.window.Option = function (/** @type {string} */ text, /** @type {string} */ value) {
@@ -52,6 +49,14 @@ function fixture() {
     vm.runInContext(source.slice(start, source.indexOf(";", start) + 1), context);
   }
   vm.runInContext(`${labels[0]}\n${names.map((name) => extractFunctionBlock(source, name)).join("\n")}\n${extractFunctionBlock(builder, "normalizeFieldOptions")}`, context);
+  vm.runInContext(extractFunctionBlock(source, "populateLinkTargetSelect"), context);
+  const populate = context.populateLinkTargetSelect;
+  context.populateLinkTargetSelect = (/** @type {import("../../scripts/test-support/fake-dom.mjs").FakeElement} */ select, /** @type {unknown[]} */ targets) => {
+    calls.push(["populate", select, targets]); populate(select, targets);
+    // Fake DOM has no native automatic first-option selection. Model only that
+    // native default here; real desktop/mobile selects independently prove it.
+    if (select.options[0]) select.options[0].selected = true;
+  };
   return { api: vm.runInContext(`({${names.join(",")},normalizeFieldOptions})`, context), context, calls, timers, view, document: browser.document };
 }
 
@@ -266,7 +271,46 @@ describe("Notes editor field constructors and linked-context panel", () => {
     const target = { ...vm.runInContext('Object.fromEntries(NOTE_LINK_TARGET_TEXT.map((key) => [key, ""]))', context), ...records[0], label: "Extra", isAvailable: true };
     assert.equal(api.isNoteLinkTarget(target), true);
     const option = document.createElement("option"); option.dataset.target = JSON.stringify(target); option.selected = true; results.replaceChildren(option);
+    assert.equal(form.dispatchEvent({ type: "submit" }), false); await setImmediate(); assert.deepEqual(calls, [], "A valid-looking option after a failed query is still obsolete");
+    context.fetchAnswer = Promise.resolve([target]); type.dispatchEvent({ type: "change" }); await setImmediate(); calls.length = 0;
     assert.equal(form.dispatchEvent({ type: "submit" }), false); await setImmediate();
     assert.equal(calls.length, 1); assert.equal(calls[0][0], "add"); assert.strictEqual(calls[0][1], note); assert.deepEqual(plain(calls[0][2]), records[0]);
   });
+  it("owns successes, failures, debounce and submission by the current captured query", async () => {
+    const { api, context, calls, timers } = fixture();
+    const pending = () => {
+      /** @type {(value: unknown[]) => void} */ let resolve = () => {};
+      /** @type {(reason: unknown) => void} */ let reject = () => {};
+      const promise = new Promise((done, fail) => { resolve = done; reject = fail; });
+      return { promise, resolve, reject };
+    };
+    const initial = pending(); context.fetchAnswer = initial.promise;
+    const panel = api.renderLinksPanel({ note_id: "n", status: "active", links: [] });
+    const results = panel.querySelector("[data-note-link-results]"), search = panel.querySelector("[data-note-link-search]"), type = panel.querySelector("[data-note-link-target-type]");
+    const add = panel.querySelector("[data-note-link-add]"), form = panel.querySelector("[data-note-link-form]");
+    const target = { ...vm.runInContext('Object.fromEntries(NOTE_LINK_TARGET_TEXT.map((key) => [key, ""]))', context), moduleId: "notes", targetType: "note", targetId: "intended", isAvailable: true };
+    const changed = pending(); context.fetchAnswer = changed.promise; type.value = "note"; type.dispatchEvent({ type: "change" });
+    const searched = pending(); context.fetchAnswer = searched.promise; search.value = "current"; search.dispatchEvent({ type: "input" });
+    assert.equal(add.disabled, true); const timer = [...timers.values()][0]; timer.callback();
+    assert.deepEqual(plain(calls.filter((call) => call[0] === "fetch")), [["fetch", { targetType: "project", search: "", limit: 40 }], ["fetch", { targetType: "note", search: "", limit: 40 }], ["fetch", { targetType: "note", search: "current", limit: 40 }]]);
+    searched.resolve([target]); await setImmediate(); assert.equal(add.disabled, false);
+    const selected = results.selectedOptions[0];
+    changed.resolve([]); initial.reject(new Error("obsolete")); await setImmediate();
+    assert.strictEqual(results.selectedOptions[0], selected); assert.equal(add.disabled, false); assert.equal(results.disabled, false);
+    const older = pending(); context.fetchAnswer = older.promise; type.dispatchEvent({ type: "change" });
+    search.value = "next"; search.dispatchEvent({ type: "input" });
+    older.resolve([target]); await setImmediate();
+    assert.equal(results.disabled, true); assert.equal(add.disabled, true); assert.equal(results.textContent, "Loading records...");
+    form.dispatchEvent({ type: "submit" }); assert.equal(calls.filter((call) => call[0] === "add").length, 0);
+    const latest = pending(); context.fetchAnswer = latest.promise; [...timers.values()][0].callback();
+    latest.resolve([target]); await setImmediate(); assert.equal(add.disabled, false);
+    // Directly changing a control without its event still cannot make an old query actionable.
+    search.value = "unannounced"; form.dispatchEvent({ type: "submit" }); assert.equal(calls.filter((call) => call[0] === "add").length, 0); search.value = "next";
+    const write = pending(); context.writeAnswer = write.promise;
+    form.dispatchEvent({ type: "submit" }); form.dispatchEvent({ type: "submit" });
+    assert.equal(add.disabled, true); assert.deepEqual(plain(calls.filter((call) => call[0] === "add")), [["add", { note_id: "n", status: "active", links: [] }, { targetType: "note", targetId: "intended", moduleId: "notes" }]]);
+    // Completion of a write must not enable Add for a newer loading query.
+    search.value = "after-write"; search.dispatchEvent({ type: "input" }); write.resolve([]); await setImmediate(); assert.equal(add.disabled, true);
+  });
+
 });
