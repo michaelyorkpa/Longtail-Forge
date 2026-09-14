@@ -1,4 +1,24 @@
 (function initializeNotificationsPage() {
+/**
+ * The published vocabulary this page already vouches for.
+ *
+ * **Nothing new is named here.** `BrowserNotification` was already imported for the state slot and
+ * for the reader's own type predicate, so the renderers below were reading a checked record while
+ * declaring nothing about it. These aliases only shorten the same imports the file already makes.
+ * @typedef {import("../../src/types/browser-contracts.js").BrowserNotification} BrowserNotification
+ * @typedef {import("../../src/types/browser-contracts.js").BrowserNotificationFilterOptions} BrowserNotificationFilterOptions
+ * @typedef {import("../../src/types/browser-contracts.js").BrowserBoundedPagination} BrowserBoundedPagination
+ */
+
+/**
+ * One display group, as **this page's own `groupNotificationsForDisplay` builds it**.
+ *
+ * Not a published shape: the server sends a flat list and the grouping is this page's presentation
+ * choice, keyed by whichever mode the reader's preferences select. The three members are exactly
+ * what `createNotificationGroup` reads.
+ * @typedef {{ id: string, label: string, notifications: BrowserNotification[] }} NotificationDisplayGroup
+ */
+
 const notificationList = document.querySelector("[data-notification-page-list]");
 const notificationStatus = document.querySelector("[data-notification-status]");
 const moduleFilter = document.querySelector("[data-notification-module-filter]");
@@ -276,6 +296,7 @@ async function loadPreferences() {
   }
 }
 
+/** @param {Partial<BrowserNotificationFilterOptions>} [filterOptions] */
 function populateModuleFilter(filterOptions = {}) {
   if (!moduleFilter) {
     return;
@@ -310,6 +331,7 @@ function renderNotifications() {
   renderPagination();
 }
 
+/** @param {readonly BrowserNotification[]} notifications */
 function groupNotificationsForDisplay(notifications) {
   const groupingMode = normalizeGroupingMode(state.groupingPreferences?.groupingMode);
   const groups = new Map();
@@ -329,6 +351,7 @@ function groupNotificationsForDisplay(notifications) {
   return [...groups.values()];
 }
 
+/** @param {NotificationDisplayGroup} group */
 function createNotificationGroup(group) {
   const section = document.createElement("section");
   const heading = document.createElement("h2");
@@ -344,6 +367,7 @@ function createNotificationGroup(group) {
   return section;
 }
 
+/** @param {readonly BrowserNotification[]} notifications */
 function sortNotificationsForDisplay(notifications) {
   const priorityOrder = new Map([
     ["urgent", 0],
@@ -359,6 +383,7 @@ function sortNotificationsForDisplay(notifications) {
   ));
 }
 
+/** @param {BrowserNotification} notification @param {string} groupingMode */
 function notificationGroupKey(notification, groupingMode) {
   if (groupingMode === "notification_type") {
     const label = notificationUpdateTypeLabel(notification);
@@ -420,13 +445,22 @@ function renderPagination() {
   notificationList.after(controls);
 }
 
+/**
+  * @param {Partial<BrowserBoundedPagination>} [pagination]
+  *
+  * `Partial`, and the reads stay defensive, because this is the normalizer: its whole job is to
+  * answer a usable pair for a page whose reader has already refused a malformed body. `String`
+  * around `total` is what the published `number | null` needs to reach `parseInt`, and changes
+  * nothing - `parseInt` coerces its first argument to a string either way.
+  */
 function normalizeNotificationPagination(pagination = {}) {
   return {
     hasMore: pagination.hasMore === true,
-    total: Number.parseInt(pagination.total, 10) || 0,
+    total: Number.parseInt(String(pagination.total), 10) || 0,
   };
 }
 
+/** @param {BrowserNotification} notification */
 function createNotificationRow(notification) {
   const row = document.createElement("article");
   const heading = document.createElement("div");
@@ -476,6 +510,7 @@ function createNotificationRow(notification) {
   return row;
 }
 
+/** @param {string} label @param {string} icon @param {{ danger?: boolean }} [options] */
 function createNotificationActionButton(label, icon, options = {}) {
   try {
     if (window.LongtailForge?.icons?.createIconButton) {
@@ -499,19 +534,25 @@ function createNotificationActionButton(label, icon, options = {}) {
   return button;
 }
 
+/** @param {BrowserNotification} notification */
 function notificationDisplayTitle(notification) {
   return notification.displayTitle || notification.target?.label || notification.title || "Notification";
 }
 
+/** @param {BrowserNotification} notification */
 function notificationContextTitle(notification) {
   if (notification.target?.recordType !== "task") {
     return "";
   }
 
-  const context = notification.target?.context || {};
+  // The `|| {}` stand-in is gone, not the fallback. An empty object literal has no members, so
+  // every read through it was a property access on `{}` and the published optional `context` was
+  // invisible; the optional chain below is what the runtime always did. Same reading as
+  // `calendar.js` took for the same idiom.
+  const context = notification.target?.context;
   const workspaceType = window.LongtailForge?.workspaceContext?.workspaceType || "business";
-  const projectName = String(context.projectName || "").trim();
-  const clientName = String(context.clientName || "").trim();
+  const projectName = String(context?.projectName || "").trim();
+  const clientName = String(context?.clientName || "").trim();
 
   if (workspaceType === "business") {
     return [clientName, projectName].filter(Boolean).join(" / ");
@@ -520,6 +561,7 @@ function notificationContextTitle(notification) {
   return projectName;
 }
 
+/** @param {BrowserNotification} notification */
 function notificationMetaParts(notification) {
   const date = formatDate(notification.created_at);
 
@@ -534,19 +576,23 @@ function notificationMetaParts(notification) {
   ].filter(Boolean);
 }
 
+/** @param {BrowserNotification} notification */
 function notificationUpdateTypeLabel(notification) {
   return notification.updateTypeLabel || notification.displayType || notification.event_type || "Notification";
 }
 
+/** @param {BrowserNotification} notification */
 function notificationPriority(notification) {
   const priority = String(notification?.priority || "normal").trim().toLowerCase();
   return ["low", "normal", "high", "urgent"].includes(priority) ? priority : "normal";
 }
 
+/** @param {string} value */
 function normalizeGroupingMode(value) {
   return ["client_project", "notification_type", "record_type"].includes(value) ? value : "client_project";
 }
 
+/** @param {unknown} recordType */
 function formatRecordType(recordType) {
   return String(recordType || "notification")
     .split(/[-_]/)
@@ -555,6 +601,7 @@ function formatRecordType(recordType) {
     .join(" ") || "Notification";
 }
 
+/** @param {boolean} canManageWorkspaceDefaults */
 function renderPreferences(canManageWorkspaceDefaults) {
   const preferences = getNotificationPreferences();
 
@@ -575,6 +622,7 @@ function renderPreferences(canManageWorkspaceDefaults) {
   });
 }
 
+/** @param {string} notificationId @param {string} action */
 async function mutateNotification(notificationId, action) {
   try {
     const response = await fetch(`/api/notifications/${encodeURIComponent(notificationId)}/${action}`, {
@@ -602,6 +650,7 @@ async function markAllRead() {
   await refreshNotificationCount();
 }
 
+/** @param {Event} event */
 async function savePreferences(event) {
   event.preventDefault();
   const preferenceHelper = getNotificationPreferences();
@@ -627,6 +676,7 @@ async function savePreferences(event) {
   }
 }
 
+/** @param {string} value @param {string} label */
 function optionElement(value, label) {
   const option = document.createElement("option");
   option.value = value;
@@ -634,6 +684,7 @@ function optionElement(value, label) {
   return option;
 }
 
+/** @param {string} text */
 function emptyElement(text) {
   const empty = document.createElement("p");
   empty.className = "placeholder-copy";
@@ -641,6 +692,7 @@ function emptyElement(text) {
   return empty;
 }
 
+/** @param {string} message @param {boolean} [isError] */
 function setStatus(message, isError = false) {
   if (!notificationStatus) {
     return;
@@ -675,6 +727,7 @@ async function refreshNotificationCount() {
   }
 }
 
+/** @param {string} value */
 function formatDate(value) {
   const date = new Date(value || "");
   return Number.isNaN(date.getTime()) ? "" : date.toLocaleString();
