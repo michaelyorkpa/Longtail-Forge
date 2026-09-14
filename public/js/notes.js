@@ -4986,38 +4986,72 @@
     section.querySelector(".notes-link-list")?.replaceChildren(...linkRecordNodes(note));
 
     const form = section.querySelector("[data-note-link-form]");
-    const loadTargets = async () => {
+    let queryVersion = 0;
+    let queryReady = () => false;
+    let submitting = false;
+    const readReadyTarget = () => {
+      if (locked || submitting || !queryReady() || targetResults.disabled) return null;
+      const target = readSelectedLinkTarget(targetResults);
+      return target?.targetId && target.targetType === targetType.value ? target : null;
+    };
+    const syncAdd = () => { add.disabled = !readReadyTarget(); };
+    const invalidateQuery = () => {
+      queryVersion += 1;
+      queryReady = () => false;
       targetResults.disabled = true;
       targetResults.replaceChildren(new window.Option("Loading records...", ""));
+      syncAdd();
+    };
+    const loadTargets = async () => {
+      const version = queryVersion;
+      const requestedType = targetType.value;
+      const requestedSearch = targetSearch.value;
+      const isCurrentQuery = () => version === queryVersion
+        && requestedType === targetType.value && requestedSearch === targetSearch.value;
       try {
-        populateLinkTargetSelect(targetResults, await fetchLinkTargets({
-          targetType: targetType.value,
-          search: targetSearch.value,
-          limit: 40,
-        }));
+        const targets = await fetchLinkTargets({ targetType: requestedType, search: requestedSearch, limit: 40 });
+        if (!isCurrentQuery()) return;
+        populateLinkTargetSelect(targetResults, targets);
+        queryReady = isCurrentQuery;
       } catch {
+        if (!isCurrentQuery()) return;
         targetResults.replaceChildren(new window.Option("No records available", ""));
       } finally {
-        targetResults.disabled = false;
+        if (isCurrentQuery()) {
+          targetResults.disabled = false;
+          syncAdd();
+        }
       }
     };
-    targetType.addEventListener("change", loadTargets);
+    targetType.addEventListener("change", () => {
+      window.clearTimeout(searchTimer ?? undefined);
+      invalidateQuery();
+      loadTargets();
+    });
     targetSearch.addEventListener("input", () => {
       window.clearTimeout(searchTimer ?? undefined);
+      invalidateQuery();
       searchTimer = window.setTimeout(loadTargets, 180);
     });
+    targetResults.addEventListener("change", syncAdd);
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const target = readSelectedLinkTarget(targetResults);
-      if (!target) {
-        return;
+      const target = readReadyTarget();
+      if (!target) return;
+      submitting = true;
+      syncAdd();
+      try {
+        await addNoteLink(note, {
+          targetType: target.targetType,
+          targetId: target.targetId,
+          moduleId: target.moduleId,
+        });
+      } finally {
+        submitting = false;
+        syncAdd();
       }
-      await addNoteLink(note, {
-        targetType: target.targetType,
-        targetId: target.targetId,
-        moduleId: target.moduleId,
-      });
     });
+    invalidateQuery();
     loadTargets();
 
     return section;
