@@ -15,6 +15,87 @@
   dashboard.registerPanelRenderer("time-tracking.recent-time", renderRecentTimePanel);
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+
+  /**
+   * A record this renderer read out of a dashboard value, with no member guaranteed.
+   *
+   * **The contribution, the effort summary and its rows are all untrusted**: the contribution is
+   * a module's own declaration carried through the dashboard manifest, and the summary is a wire
+   * body the host hands straight through. `DashboardPanelRenderer` types both parameters as
+   * `unknown` for exactly that reason, so this renderer states what it verifies - that it is
+   * reading from a record - rather than naming a vocabulary it does not own.
+   * @typedef {Record<string, unknown>} TimeTrackingRecord
+   */
+
+  /**
+   * What this renderer uses from the context the Dashboard host builds for it.
+   *
+   * **`view` is stated as required, and nothing here validates it.** The host reads it optionally
+   * from the same namespace this file reads, and every draw below has always dereferenced it
+   * without a guard - so an absent factory fails at exactly the line it failed at before. This
+   * names the precondition rather than pretending to check it, which is the same reading
+   * `0.33.33.44.30` settled for the Reporting renderer on the other side of the same question.
+   * @typedef {object} TimeTrackingPanelContext
+   * @property {BrowserViewFactory} view
+   * @property {(options?: { ariaLabel?: unknown, children?: unknown, className?: unknown, title?: unknown }) => HTMLElement} createPanel
+   */
+
+  /**
+   * One metric the strip displays, as **this file's own callers build it**.
+   *
+   * Named precisely rather than left open, because the two content builders are the only
+   * producers and each writes both members at the call site.
+   * @typedef {{ label: string, value: unknown }} TimeTrackingMetric
+   */
+
+  /**
+   * The record a dashboard member carries, or `null`.
+   *
+   * Arrays are refused because every caller asks this for a member it will read *by name*, and an
+   * array answers `undefined` for each of them anyway.
+   * @param {unknown} value
+   * @returns {TimeTrackingRecord | null}
+   */
+  function timeTrackingRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value)
+      ? /** @type {TimeTrackingRecord} */ (value)
+      : null;
+  }
+
+  /**
+   * A dashboard list, with every entry read as a record.
+   *
+   * A malformed entry becomes an empty record rather than being dropped, because that is what the
+   * untyped page did: it read `row.title` off whatever the list held, got `undefined`, and drew
+   * the row with its fallback. Filtering here would remove a row the panel has always shown.
+   * @param {unknown} value
+   * @returns {TimeTrackingRecord[]}
+   */
+  function timeTrackingRecordList(value) {
+    /** @type {readonly unknown[]} */
+    const entries = Array.isArray(value) ? value : [];
+    return entries.map((entry) => timeTrackingRecord(entry) || {});
+  }
+
+  /**
+   * The panel context, narrowed at the one boundary where this file is the callee.
+   *
+   * **`DashboardPanelRenderer` types the context as `unknown` on purpose** - a host-supplied
+   * callback shape is read defensively, and typing it would constrain hosts the runtime does not
+   * constrain. That decision belongs to the contract, so the narrowing belongs here instead, and
+   * it checks the two members this renderer actually reaches for rather than asserting a shape.
+   * A context missing either throws where the first unguarded dereference threw before.
+   * @param {unknown} value
+   * @returns {TimeTrackingPanelContext}
+   */
+  function requirePanelContext(value) {
+    const context = timeTrackingRecord(value);
+    if (!context || typeof context.createPanel !== "function" || !context.view) {
+      throw new TypeError("Time Tracking dashboard panels require the host's view factory and panel builder.");
+    }
+    return /** @type {TimeTrackingPanelContext} */ (context);
+  }
 
   /**
    * The API client this file cannot run without.
@@ -32,7 +113,13 @@
     }
     return apiClient;
   }
-  function renderActiveTimersPanel(contribution, context) {
+  /**
+   * @param {unknown} contributionValue
+   * @param {unknown} contextValue
+   */
+  function renderActiveTimersPanel(contributionValue, contextValue) {
+    const contribution = timeTrackingRecord(contributionValue) || {};
+    const context = requirePanelContext(contextValue);
     const body = createPanelBody(context, "Loading active timers...");
     const panel = context.createPanel({
       className: "time-tracking-dashboard-panel",
@@ -44,7 +131,13 @@
     return panel;
   }
 
-  function renderRecentTimePanel(contribution, context) {
+  /**
+   * @param {unknown} contributionValue
+   * @param {unknown} contextValue
+   */
+  function renderRecentTimePanel(contributionValue, contextValue) {
+    const contribution = timeTrackingRecord(contributionValue) || {};
+    const context = requirePanelContext(contextValue);
     const body = createPanelBody(context, "Loading recent time...");
     const panel = context.createPanel({
       className: "time-tracking-dashboard-panel",
@@ -56,9 +149,15 @@
     return panel;
   }
 
+  /**
+   * @param {HTMLElement} body
+   * @param {TimeTrackingRecord} contribution
+   * @param {TimeTrackingPanelContext} context
+   * @param {(data: TimeTrackingRecord, context: TimeTrackingPanelContext) => Node} renderContent
+   */
   async function hydrateTimeTrackingPanel(body, contribution, context, renderContent) {
     try {
-      const data = await loadEffortSummary(contribution);
+      const data = timeTrackingRecord(await loadEffortSummary(contribution)) || {};
       body.replaceChildren(renderContent(data, context));
     } catch (error) {
       renderError(body, context, "Time Tracking summary could not be loaded.");
@@ -66,6 +165,7 @@
     }
   }
 
+  /** @param {TimeTrackingRecord} contribution @returns {Promise<unknown>} */
   async function loadEffortSummary(contribution) {
     const route = String(contribution?.dataRoute || DEFAULT_EFFORT_SUMMARY_ROUTE);
 
@@ -76,6 +176,7 @@
     return effortSummaryPromises.get(route);
   }
 
+  /** @param {string} route @returns {Promise<unknown>} */
   function contextLoad(route) {
     const loadRoute = window.LongtailForge?.dashboardBootstrap?.loadRoute;
     return typeof loadRoute === "function"
@@ -83,9 +184,10 @@
       : requireApi().getJson(route, { cache: "no-store" });
   }
 
+  /** @param {TimeTrackingRecord} data @param {TimeTrackingPanelContext} context */
   function createActiveTimersContent(data, context) {
-    const activeTimers = data?.activeTimers || {};
-    const rows = Array.isArray(activeTimers.rows) ? activeTimers.rows : [];
+    const activeTimers = timeTrackingRecord(data?.activeTimers) || {};
+    const rows = timeTrackingRecordList(activeTimers.rows);
 
     return context.view.createElement("div", {
       className: "time-tracking-dashboard-content",
@@ -96,14 +198,15 @@
           { label: "Paused", value: activeTimers.pausedCount || 0 },
         ]),
         createTimeTrackingRows(context, rows, "No active or paused timers."),
-        createActionRow(context, [activeTimers.action]),
+        createActionRow(context, timeTrackingRecordList([activeTimers.action])),
       ],
     });
   }
 
+  /** @param {TimeTrackingRecord} data @param {TimeTrackingPanelContext} context */
   function createRecentTimeContent(data, context) {
-    const recentTime = data?.recentTime || {};
-    const rows = Array.isArray(recentTime.rows) ? recentTime.rows : [];
+    const recentTime = timeTrackingRecord(data?.recentTime) || {};
+    const rows = timeTrackingRecordList(recentTime.rows);
     const windowDays = Number(recentTime.windowDays) || 7;
 
     return context.view.createElement("div", {
@@ -115,11 +218,12 @@
           { label: "Entries", value: recentTime.entriesCount || 0 },
         ]),
         createTimeTrackingRows(context, rows, "No recent saved time."),
-        createActionRow(context, recentTime.actions || []),
+        createActionRow(context, timeTrackingRecordList(recentTime.actions)),
       ],
     });
   }
 
+  /** @param {TimeTrackingPanelContext} context @param {readonly TimeTrackingMetric[]} metrics */
   function createMetricStrip(context, metrics) {
     return context.view.createElement("div", {
       className: "time-tracking-dashboard-metrics",
@@ -132,6 +236,11 @@
     });
   }
 
+  /**
+   * @param {TimeTrackingPanelContext} context
+   * @param {readonly TimeTrackingRecord[]} rows
+   * @param {string} emptyMessage
+   */
   function createTimeTrackingRows(context, rows, emptyMessage) {
     if (rows.length === 0) {
       return context.view.createElement("p", {
@@ -146,8 +255,9 @@
     });
   }
 
+  /** @param {TimeTrackingPanelContext} context @param {TimeTrackingRecord} [row] */
   function createTimeTrackingRow(context, row = {}) {
-    const action = row.action || {};
+    const action = timeTrackingRecord(row.action) || {};
     const meta = [
       row.sourceLabel,
       row.contextLabel,
@@ -189,6 +299,7 @@
     });
   }
 
+  /** @param {TimeTrackingPanelContext} context @param {readonly TimeTrackingRecord[]} [actions] */
   function createActionRow(context, actions = []) {
     const availableActions = actions.filter((action) => action?.href);
 
@@ -206,6 +317,7 @@
     });
   }
 
+  /** @param {TimeTrackingPanelContext} context @param {string} message */
   function createPanelBody(context, message) {
     return context.view.createElement("div", {
       className: "dashboard-panel-body",
@@ -214,6 +326,7 @@
     });
   }
 
+  /** @param {HTMLElement} body @param {TimeTrackingPanelContext} context @param {string} message */
   function renderError(body, context, message) {
     body.replaceChildren(context.view.createEmptyState({
       title: "Time Tracking data unavailable",
@@ -221,6 +334,7 @@
     }));
   }
 
+  /** @param {unknown} seconds */
   function formatHours(seconds) {
     return typeof formatters?.hours === "function"
       ? formatters.hours(seconds)

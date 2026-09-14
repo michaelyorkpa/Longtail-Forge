@@ -58,7 +58,12 @@ managedServerTest("renaming a workspace repaints the app shell", async ({ isolat
   expect(response.status()).toBe(200);
 
   const nameInput = page.locator("[data-workspace-name-input]");
-  await expect(nameInput).toBeVisible();
+  // **The input is visible before it is filled.** Its value arrives with the settings fetch, so
+  // `toBeVisible` is satisfied by an empty box and `inputValue` can read `""` under full-suite
+  // load - which is how this read failed once while the failure snapshot taken straight afterwards
+  // showed the name present. Waiting on the value is bounded synchronisation, not a sleep, and the
+  // assertion below is unchanged: the name must still be non-empty.
+  await expect(nameInput).not.toHaveValue("");
   const originalName = await nameInput.inputValue();
   expect(originalName.length).toBeGreaterThan(0);
 
