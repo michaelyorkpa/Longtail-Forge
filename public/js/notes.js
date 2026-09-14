@@ -145,7 +145,7 @@
   }
 
   /**
-   * A response body that is a plain object.
+   * A non-null, non-array object; this also accepts native DOM dataset bags.
    *
    * A type predicate rather than a cast: `0.33.33.38.2.4.5` established that an annotation checks
    * and a cast asserts, and a `JSON.parse` result is the value that most needs the check.
@@ -4715,8 +4715,18 @@
     return refreshed;
   }
 
+  /** @param {string} value @returns {value is keyof typeof LINK_TARGET_TYPE_LABELS} */
+  function isKnownContextTargetType(value) {
+    return Object.hasOwn(LINK_TARGET_TYPE_LABELS, value);
+  }
+
+  /**
+   * Directory targets have a closed vocabulary; the URL editor also forwards strings.
+   * Keep that wider local input and check membership in the Notes-owned label literal.
+   * @param {string} targetType
+   */
   function contextTypeLabel(targetType) {
-    return LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType || "context");
+    return isKnownContextTargetType(targetType) ? LINK_TARGET_TYPE_LABELS[targetType] : formatToken(targetType || "context");
   }
 
   function unavailableTargetLabel(targetType = "") {
@@ -5782,10 +5792,22 @@
     window.history.replaceState({}, "", url);
   }
 
-  function noteKindLabel(value) {
-    return NOTE_KIND_LABELS[value] || formatToken(value);
+  /**
+   * The local literal establishes every own label. Wire note_type is only a string,
+   * so unknown tokens keep their formatted fallback rather than claiming a known key.
+   * @param {string} value
+   * @returns {value is keyof typeof NOTE_KIND_LABELS}
+   */
+  function isKnownNoteKind(value) {
+    return Object.hasOwn(NOTE_KIND_LABELS, value);
   }
 
+  /** @param {BrowserNoteRecord["note_type"]} value */
+  function noteKindLabel(value) {
+    return isKnownNoteKind(value) ? NOTE_KIND_LABELS[value] : formatToken(value);
+  }
+
+  /** @param {unknown} value */
   function ensureNoteKindOption(value) {
     const noteKind = normalizeText(value);
 
