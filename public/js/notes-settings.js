@@ -46,6 +46,22 @@
   }
 
   /**
+   * The settings host this page mounts its dialogs into.
+   *
+   * Checked at the use point like this estate's other required surfaces: the page attaches its
+   * catalog controls long before a dialog is opened, and a throw during module evaluation would
+   * take those with it. Each call raises where the null dereference did, with a named error
+   * rather than "Cannot read properties of null".
+   * @returns {Element}
+   */
+  function requireNotesSettingsHost() {
+    if (!notesSettingsHost) {
+      throw new Error("Notes settings requires its settings host.");
+    }
+    return notesSettingsHost;
+  }
+
+  /**
    * The narrowing contract for the values this file catches.
    *
    * A `catch` binding is `unknown` and no declaration can change that: anything can be
@@ -192,6 +208,17 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCatalogSettings} BrowserNoteCatalogSettings */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCatalogSettingsRow} BrowserNoteCatalogSettingsRow */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewModalFormElement} BrowserViewModalFormElement */
+
+  /**
+   * The security action a row's control asks for.
+   *
+   * **Not `BrowserNoteCatalogSecurityAction`, and the extra word is the reason.** The published
+   * action is what the *server* is asked to do - enable or remove. `retry` is this page's own
+   * word for "do again whatever the failed transition was", which it resolves against the row's
+   * `securityTransitionAction` before the request is built.
+   * @typedef {"enable" | "remove" | "retry"} CatalogSecurityRequest
+   */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteLibraryBucket} BrowserNoteLibraryBucket */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCatalogStatus} BrowserNoteCatalogStatus */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNoteCatalogSecurityPolicy} BrowserNoteCatalogSecurityPolicy */
@@ -564,19 +591,20 @@
       tableClassName: "notes-catalog-table",
       hierarchy: { depthField: "depth", parentField: "parentCatalogId" },
       columns: [
-        { key: "selection", label: "Select", render: (catalog) => catalogSelectionControl(catalog) },
+        { key: "selection", label: "Select", render: (/** @type {BrowserNoteCatalogSettingsRow} */ catalog) => catalogSelectionControl(catalog) },
         { key: "path", label: "Catalog", header: true },
-        { key: "library", label: "Library", render: (catalog) => libraryLabel(catalog.libraryBucket) },
-        { key: "status", label: "Status", render: (catalog) => statusChip(catalog.status) },
-        { key: "security", label: "Security", render: (catalog) => catalogSecurityStatus(catalog) },
-        { key: "updated", label: "Updated", render: (catalog) => formatDateTime(catalog.updatedAt) },
-        { key: "actions", label: "Actions", align: "right", render: (catalog) => catalogActions(catalog) },
+        { key: "library", label: "Library", render: (/** @type {BrowserNoteCatalogSettingsRow} */ catalog) => libraryLabel(catalog.libraryBucket) },
+        { key: "status", label: "Status", render: (/** @type {BrowserNoteCatalogSettingsRow} */ catalog) => statusChip(catalog.status) },
+        { key: "security", label: "Security", render: (/** @type {BrowserNoteCatalogSettingsRow} */ catalog) => catalogSecurityStatus(catalog) },
+        { key: "updated", label: "Updated", render: (/** @type {BrowserNoteCatalogSettingsRow} */ catalog) => formatDateTime(catalog.updatedAt) },
+        { key: "actions", label: "Actions", align: "right", render: (/** @type {BrowserNoteCatalogSettingsRow} */ catalog) => catalogActions(catalog) },
       ],
       rows: visibleCatalogs,
       emptyMessage: "No Notes catalogs match this status filter.",
     }));
   }
 
+  /** @param {BrowserNoteCatalogSettingsRow} catalog */
   function catalogSelectionControl(catalog) {
     const control = document.createElement("input");
     control.type = "checkbox";
@@ -593,6 +621,7 @@
     return control;
   }
 
+  /** @param {BrowserNoteCatalogSettingsRow} catalog */
   function catalogActions(catalog) {
     const view = requireView();
     const editButton = view.createActionButton({
@@ -627,6 +656,7 @@
     });
   }
 
+  /** @param {BrowserNoteCatalogSettingsRow} catalog */
   function catalogSecurityAction(catalog) {
     const view = requireView();
     if (!state.canManageSecurity || catalog.status !== "active" || catalog.securityTransitionState === "securing") {
@@ -634,6 +664,7 @@
     }
 
     let label = "Enable Security";
+    /** @type {CatalogSecurityRequest} */
     let action = "enable";
     let role = "secondary";
     if (catalog.securityTransitionState === "failed") {
@@ -653,8 +684,10 @@
     return button;
   }
 
+  /** @param {BrowserNoteCatalogSettingsRow} catalog */
   function catalogSecurityStatus(catalog) {
     const view = requireView();
+    /** @type {string[]} */
     const labels = [];
     if (catalog.securityInherited) {
       labels.push("Secure (inherited)");
@@ -677,6 +710,7 @@
     return element;
   }
 
+  /** @param {BrowserNoteCatalogSettingsRow} catalog @param {CatalogSecurityRequest} requestedAction */
   async function openCatalogSecurityDialog(catalog, requestedAction) {
     const api = requireApi();
     const transitionAction = requestedAction === "retry" ? catalog.securityTransitionAction : requestedAction;
@@ -693,9 +727,15 @@
     }
   }
 
-  // Only the preflight is annotated: it is the narrowed response handed straight in, and the
-  // other two parameters are this page's own values rather than anything the server answered.
-  /** @param {BrowserNoteCatalogSecurityPreflight} preflight */
+  // The preflight is the narrowed response handed straight in; the other two are this page's own
+  // values, which `0.33.33.44.33` names from the published row and this file's own request word
+  // rather than leaving implicit. The distinction that comment drew still holds - one crossed the
+  // wire and two did not - it is simply no longer the reason either is left unannotated.
+  /**
+   * @param {BrowserNoteCatalogSettingsRow} catalog
+   * @param {CatalogSecurityRequest} requestedAction
+   * @param {BrowserNoteCatalogSecurityPreflight} preflight
+   */
   function showCatalogSecurityConfirmation(catalog, requestedAction, preflight) {
     const api = requireApi();
     const view = requireView();
@@ -774,7 +814,7 @@
       }
     });
 
-    notesSettingsHost.appendChild(dialog);
+    requireNotesSettingsHost().appendChild(dialog);
     if (typeof dialog.showModal === "function") dialog.showModal();
     else dialog.setAttribute("open", "");
     const focusField = passwordField || confirmationField;
@@ -791,10 +831,12 @@
     }
   }
 
+  /** @param {unknown} value */
   function safeFailureLabel(value) {
     return String(value || "catalog security transition failed").replaceAll("_", " ").slice(0, 120);
   }
 
+  /** @param {string} label @param {"archive" | "restore"} action @param {boolean} disabled */
   function catalogBulkButton(label, action, disabled) {
     const view = requireView();
     const button = view.createActionButton({ label, role: action === "archive" ? "destructive" : "primary", type: "button", disabled });
@@ -802,6 +844,7 @@
     return button;
   }
 
+  /** @param {"archive" | "restore"} action */
   async function runBulkCatalogAction(action) {
     const api = requireApi();
     const catalogIds = [...state.selectedCatalogIds];
@@ -831,6 +874,7 @@
     }
   }
 
+  /** @param {BrowserNoteCatalogSettingsRow | null} [catalog] the row being edited, or nothing to create one */
   function openCatalogEditor(catalog = null) {
     const api = requireApi();
     const view = requireView();
@@ -858,6 +902,7 @@
     const libraryControl = fieldControl(libraryField);
 
     const populateParents = () => {
+      /** @type {Set<unknown>} */
       const excludedIds = catalog ? catalogDescendantIds(catalog.catalogId) : new Set();
       excludedIds.add(catalog?.catalogId);
       const parentOptions = [viewOption("", "Root catalog")];
@@ -865,7 +910,11 @@
         .filter((candidate) => candidate.status === "active" && candidate.libraryBucket === libraryControl.value && !excludedIds.has(candidate.catalogId))
         .forEach((candidate) => parentOptions.push(viewOption(candidate.catalogId, candidate.path || candidate.title)));
       parentControl.replaceChildren(...parentOptions);
-      parentControl.value = parentOptions.some((option) => option.value === catalog?.parentCatalogId) ? catalog.parentCatalogId : "";
+      // Read once rather than compared and then re-read: an absent parent answers the empty
+      // string, which is the root option's own value, so it selects the same option the
+      // `undefined` comparison fell through to.
+      const parentCatalogId = catalog?.parentCatalogId || "";
+      parentControl.value = parentOptions.some((option) => option.value === parentCatalogId) ? parentCatalogId : "";
     };
     populateParents();
     libraryControl.addEventListener("change", populateParents);
@@ -898,7 +947,7 @@
       }
     });
 
-    notesSettingsHost.appendChild(dialog);
+    requireNotesSettingsHost().appendChild(dialog);
     if (typeof dialog.showModal === "function") {
       dialog.showModal();
     } else {
@@ -907,6 +956,7 @@
     fieldControl(titleField).focus();
   }
 
+  /** @param {BrowserViewModalFormElement} dialog */
   function closeDialog(dialog) {
     if (typeof dialog.close === "function") {
       dialog.close();
@@ -916,8 +966,11 @@
     dialog.remove();
   }
 
+  /** @param {string} catalogId @returns {Set<string>} */
   function catalogDescendantIds(catalogId) {
+    /** @type {Set<string>} */
     const descendants = new Set();
+    /** @type {(string | undefined)[]} */
     const queue = [catalogId];
     while (queue.length > 0) {
       const parentId = queue.shift();
@@ -931,6 +984,7 @@
     return descendants;
   }
 
+  /** @param {string} status */
   function statusChip(status) {
     const view = requireView();
     return view.createElement("span", { className: "surface-chip", text: status === "archived" ? "Archived" : "Active" });
@@ -944,10 +998,20 @@
     ];
   }
 
+  /**
+   * The label for a library bucket, or the reference default.
+   *
+   * The bucket is nullable on the published row, so the lookup takes whatever it is handed and
+   * falls back - which is what the untyped read did, by the same `||`.
+   * @param {unknown} value
+   */
   function libraryLabel(value) {
-    return new Map(libraryOptions().map((option) => [option.value, option.label])).get(value) || "Reference Library";
+    /** @type {Map<unknown, string>} */
+    const labels = new Map(libraryOptions().map((option) => [option.value, option.label]));
+    return labels.get(value) || "Reference Library";
   }
 
+  /** @param {string} value @param {string} label */
   function viewOption(value, label) {
     const option = document.createElement("option");
     option.value = value;
@@ -955,19 +1019,25 @@
     return option;
   }
 
+  /** @param {unknown} value */
   function formatDateTime(value) {
     if (!value) {
       return "-";
     }
-    const parsed = new Date(value);
+    // The numeric branch is kept separate because `new Date(1700000000000)` is an instant while
+    // `new Date("1700000000000")` is not a date at all - coercing first would show a dash where
+    // the row carries an epoch stamp.
+    const parsed = typeof value === "number" ? new Date(value) : new Date(String(value));
     return Number.isNaN(parsed.getTime()) ? "-" : parsed.toLocaleString();
   }
 
+  /** @param {string} message @param {{ isError?: boolean, type?: string }} [options] */
   function setCatalogStatus(message, options = {}) {
     const element = asStatusElement(notesSettingsAuxiliary?.querySelector("[data-notes-catalog-status]") || null);
     requireStatusMessage().set(element, message, options.isError ? { type: "error" } : options);
   }
 
+  /** @param {string} message @param {{ isError?: boolean, type?: string }} [options] */
   function setPageStatus(message, options = {}) {
     requireStatusMessage().set(notesSettingsStatus, message, options.isError ? { type: "error" } : options);
   }
