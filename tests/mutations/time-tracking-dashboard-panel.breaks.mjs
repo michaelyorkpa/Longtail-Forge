@@ -1,17 +1,11 @@
-import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { runMutationCampaign } from "../../scripts/test-support/mutation-runner.mjs";
 
 // Run explicitly, with no server or other verification reading this source concurrently.
-// This harness is not a standing gate; it proves the checkpoint's new behavioral assertions.
-const sourcePath = "public/js/time-tracking-dashboard.js";
-const suites = ["tests/unit/time-tracking-dashboard-panel-contracts.test.mjs"];
-const original = Buffer.from(readFileSync(sourcePath));
-const source = original.toString("utf8");
-/** @param {Buffer} bytes */
-const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
-const beforeHash = hash(original);
+// This harness is not a standing gate; it proves the checkpoint's behavioral assertions.
+//
+// Execution, bounding, outcome classification and byte restoration come from the shared runner.
+// The case table below stays here, because what this file claims about the Time Tracking
+// dashboard panels is this checkpoint's own statement and nobody else's.
 
 /** @type {[string, string, string][]} name, find, replace */
 const cases = [
@@ -29,14 +23,20 @@ const cases = [
     "  /** @param {unknown} seconds */\n  function formatHours(seconds) {",
     "  function formatCurrency(amount) {\n    return String(amount);\n  }\n\n  /** @param {unknown} seconds */\n  function formatHours(seconds) {"],
   ["the host context is cast rather than checked",
-    '    if (!context || typeof context.createPanel !== "function" || !context.view) {\n      throw new TypeError("Time Tracking dashboard panels require the host\'s view factory and panel builder.");\n    }',
-    "    if (false) {\n      throw new TypeError(\"unreachable\");\n    }"],
+    '    if (!context || typeof context.createPanel !== "function"\n      || !view || typeof view.createElement !== "function" || typeof view.createEmptyState !== "function") {',
+    "    if (false) {"],
   ["the panel builder stops being checked as callable",
-    '    if (!context || typeof context.createPanel !== "function" || !context.view) {',
-    "    if (!context || !context.view) {"],
-  ["the view factory stops being checked",
-    '    if (!context || typeof context.createPanel !== "function" || !context.view) {',
-    '    if (!context || typeof context.createPanel !== "function") {'],
+    '!context || typeof context.createPanel !== "function"\n      || !view',
+    "!context\n      || !view"],
+  ["a view that is not a record is read through anyway",
+    '      || !view || typeof view.createElement !== "function"',
+    '      || typeof view.createElement !== "function"'],
+  ["the element builder stops being checked as callable",
+    '|| typeof view.createElement !== "function" || typeof view.createEmptyState !== "function"',
+    '|| typeof view.createEmptyState !== "function"'],
+  ["the empty-state builder stops being checked as callable",
+    ' || typeof view.createEmptyState !== "function") {',
+    ") {"],
 
   // --- the wire readers ----------------------------------------------------------------------
   ["a primitive is taken as a record",
@@ -245,45 +245,9 @@ const cases = [
     "      : `${(Number(seconds) || 0).toFixed(2)} hrs`;"],
 ];
 
-let caught = 0;
-let missed = 0;
-
-try {
-  for (const [name, find, replace] of cases) {
-    const occurrences = source.split(find).length - 1;
-    assert.equal(occurrences, 1, `anchor for "${name}" must appear exactly once (found ${occurrences})`);
-    writeFileSync(sourcePath, source.replace(find, replace), "utf8");
-
-    const syntax = spawnSync("node", ["--check", sourcePath], { encoding: "utf8", shell: true });
-    // **Bounded, because a mutation can break a page by not terminating.** `0.33.33.44.33` lost
-    // forty minutes to an unbounded run when a removed loop guard made a lifted walk loop forever.
-    // A timeout is a refusal - the suite did not pass - reported as its own kind so the reader
-    // knows the mutation hung rather than failed an assertion.
-    const suite = spawnSync("node", ["node_modules/vitest/vitest.mjs", "run", ...suites], {
-      encoding: "utf8", shell: true, timeout: 120000, killSignal: "SIGKILL",
-    });
-    writeFileSync(sourcePath, original);
-
-    const syntaxValid = syntax.status === 0;
-    const timedOut = suite.signal === "SIGKILL"
-      || (suite.error instanceof Error && "code" in suite.error && suite.error.code === "ETIMEDOUT");
-    const refused = syntaxValid && (timedOut || suite.status !== 0);
-    if (refused) {
-      caught += 1;
-      console.log(`CAUGHT (${timedOut ? "syntax valid, suite did not terminate" : "syntax valid, assertion failed"}): ${name}`);
-    } else {
-      missed += 1;
-      console.log(`MISSED${syntaxValid ? "" : " (INVALID SYNTAX)"}: ${name}`);
-    }
-  }
-} finally {
-  writeFileSync(sourcePath, original);
-  const afterHash = hash(Buffer.from(readFileSync(sourcePath)));
-  assert.equal(afterHash, beforeHash, "source must be restored byte-for-byte");
-  console.log(`Restored SHA-256 ${afterHash}`);
-}
-
-console.log(`${caught}/${cases.length} caught; ${missed} inert.`);
-if (missed > 0) {
-  process.exitCode = 1;
-}
+runMutationCampaign({
+  sourcePath: "public/js/time-tracking-dashboard.js",
+  suites: ["tests/unit/time-tracking-dashboard-panel-contracts.test.mjs"],
+  cases: cases.map(([name, find, replace]) => ({ name, find, replace })),
+  suiteTimeoutMs: 60000,
+});

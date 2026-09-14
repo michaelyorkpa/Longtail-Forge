@@ -1,17 +1,11 @@
-import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { runMutationCampaign } from "../../scripts/test-support/mutation-runner.mjs";
 
 // Run explicitly, with no server or other verification reading this source concurrently.
-// This harness is not a standing gate; it proves the checkpoint's new behavioral assertions.
-const sourcePath = "public/js/notes-settings.js";
-const suites = ["tests/unit/notes-settings-catalog-contracts.test.mjs"];
-const original = Buffer.from(readFileSync(sourcePath));
-const source = original.toString("utf8");
-/** @param {Buffer} bytes */
-const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
-const beforeHash = hash(original);
+// This harness is not a standing gate; it proves the checkpoint's behavioral assertions.
+//
+// Execution, bounding, outcome classification and byte restoration come from the shared runner.
+// The case table below stays here, because what it claims about the Notes settings catalog
+// manager is this checkpoint's own statement.
 
 /** @type {[string, string, string][]} name, find, replace */
 const cases = [
@@ -295,49 +289,29 @@ const cases = [
     "`/api/notes/collections/${catalog.catalogId}/security/preflight?action=${transitionAction}`"],
 ];
 
-let caught = 0;
-let missed = 0;
+/**
+ * The one mutation that breaks the page by **not returning**, bounded where it actually hangs.
+ *
+ * Removing the cycle guard from `catalogDescendantIds` makes its walk revisit a parent cycle
+ * forever. `0.33.33.44.33` learned that the hard way and then paid for it on every later run,
+ * because proving it meant waiting out the whole suite's two-minute bound. Calling the lifted
+ * function directly, against the smallest cycle that reproduces it, answers in seconds and names
+ * the call that hangs instead of reporting that something, somewhere, did not finish. The suite
+ * bound stays as the outer protection for anything this probe does not anticipate.
+ * @type {Record<string, { lift: string[], invoke: string, setup: string, timeoutMs: number }>}
+ */
+const probes = {
+  "a descendant walk never terminates on a cycle": {
+    lift: ["catalogDescendantIds"],
+    setup: 'var state = { catalogs: [{ catalogId: "b", parentCatalogId: "a" }, { catalogId: "a", parentCatalogId: "b" }] };',
+    invoke: 'catalogDescendantIds("a");',
+    timeoutMs: 5000,
+  },
+};
 
-try {
-  for (const [name, find, replace] of cases) {
-    const occurrences = source.split(find).length - 1;
-    assert.equal(occurrences, 1, `anchor for "${name}" must appear exactly once (found ${occurrences})`);
-    writeFileSync(sourcePath, source.replace(find, replace), "utf8");
-
-    const syntax = spawnSync("node", ["--check", sourcePath], { encoding: "utf8", shell: true });
-    // **Bounded, because a mutation can break the page by not terminating.** Removing the cycle
-    // guard from `catalogDescendantIds` makes its walk loop forever on the cyclic fixture, so an
-    // unbounded run wedges the whole campaign instead of reporting the case. A timeout is a
-    // refusal - the suite did not pass - but it is reported as its own kind so the reader knows
-    // the mutation hung rather than failed an assertion.
-    const suite = spawnSync("node", ["node_modules/vitest/vitest.mjs", "run", ...suites], {
-      encoding: "utf8", shell: true, timeout: 120000, killSignal: "SIGKILL",
-    });
-    writeFileSync(sourcePath, original);
-
-    const syntaxValid = syntax.status === 0;
-    // `code` is Node's own addition to the error it reports for a timeout, not a member of
-    // `Error` - so it is read through `in`, which is the rule this estate settled for values
-    // whose shape the declaration does not carry.
-    const timedOut = suite.signal === "SIGKILL"
-      || (suite.error instanceof Error && "code" in suite.error && suite.error.code === "ETIMEDOUT");
-    const refused = syntaxValid && (timedOut || suite.status !== 0);
-    if (refused) {
-      caught += 1;
-      console.log(`CAUGHT (${timedOut ? "syntax valid, suite did not terminate" : "syntax valid, assertion failed"}): ${name}`);
-    } else {
-      missed += 1;
-      console.log(`MISSED${syntaxValid ? "" : " (INVALID SYNTAX)"}: ${name}`);
-    }
-  }
-} finally {
-  writeFileSync(sourcePath, original);
-  const afterHash = hash(Buffer.from(readFileSync(sourcePath)));
-  assert.equal(afterHash, beforeHash, "source must be restored byte-for-byte");
-  console.log(`Restored SHA-256 ${afterHash}`);
-}
-
-console.log(`${caught}/${cases.length} caught; ${missed} inert.`);
-if (missed > 0) {
-  process.exitCode = 1;
-}
+runMutationCampaign({
+  sourcePath: "public/js/notes-settings.js",
+  suites: ["tests/unit/notes-settings-catalog-contracts.test.mjs"],
+  cases: cases.map(([name, find, replace]) => ({ name, find, replace, probe: probes[name] })),
+  suiteTimeoutMs: 60000,
+});

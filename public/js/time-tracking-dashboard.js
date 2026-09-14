@@ -15,7 +15,6 @@
   dashboard.registerPanelRenderer("time-tracking.recent-time", renderRecentTimePanel);
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
-  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
 
   /**
    * A record this renderer read out of a dashboard value, with no member guaranteed.
@@ -31,13 +30,19 @@
   /**
    * What this renderer uses from the context the Dashboard host builds for it.
    *
-   * **`view` is stated as required, and nothing here validates it.** The host reads it optionally
-   * from the same namespace this file reads, and every draw below has always dereferenced it
-   * without a guard - so an absent factory fails at exactly the line it failed at before. This
-   * names the precondition rather than pretending to check it, which is the same reading
-   * `0.33.33.44.30` settled for the Reporting renderer on the other side of the same question.
+   * **The declared shape is exactly the checked shape.** An earlier spelling named `view` as the
+   * published `BrowserViewFactory` while `requirePanelContext` only checked that it was truthy,
+   * so `view: true` and `view: {}` both satisfied the check and were then handed back as a full
+   * factory - a promise nothing had established. This names only the two functions this file ever
+   * calls on it, which is what the guard can honestly verify. Narrowing the declaration rather
+   * than widening the check is deliberate: this renderer is a *consumer*, so it should state the
+   * least it needs, and the host stays free to publish whatever else it likes.
+   * @typedef {object} TimeTrackingPanelView
+   * @property {(tag: string, options?: Record<string, unknown>) => HTMLElement} createElement
+   * @property {(options?: Record<string, unknown>) => HTMLElement} createEmptyState
+   *
    * @typedef {object} TimeTrackingPanelContext
-   * @property {BrowserViewFactory} view
+   * @property {TimeTrackingPanelView} view
    * @property {(options?: { ariaLabel?: unknown, children?: unknown, className?: unknown, title?: unknown }) => HTMLElement} createPanel
    */
 
@@ -83,16 +88,21 @@
    *
    * **`DashboardPanelRenderer` types the context as `unknown` on purpose** - a host-supplied
    * callback shape is read defensively, and typing it would constrain hosts the runtime does not
-   * constrain. That decision belongs to the contract, so the narrowing belongs here instead, and
-   * it checks the two members this renderer actually reaches for rather than asserting a shape.
-   * A context missing either throws where the first unguarded dereference threw before.
+   * constrain. That decision belongs to the contract, so the narrowing belongs here instead.
+   *
+   * **Every member the returned type declares is verified here**, including both view functions
+   * this file calls. A truthiness check on `view` is not enough to hand back something that says
+   * it can build elements: `view: true` and `view: {}` are both truthy and neither can. A context
+   * missing any of the three throws where the first unguarded dereference threw before.
    * @param {unknown} value
    * @returns {TimeTrackingPanelContext}
    */
   function requirePanelContext(value) {
     const context = timeTrackingRecord(value);
-    if (!context || typeof context.createPanel !== "function" || !context.view) {
-      throw new TypeError("Time Tracking dashboard panels require the host's view factory and panel builder.");
+    const view = context && timeTrackingRecord(context.view);
+    if (!context || typeof context.createPanel !== "function"
+      || !view || typeof view.createElement !== "function" || typeof view.createEmptyState !== "function") {
+      throw new TypeError("Time Tracking dashboard panels require the host's panel builder and a view factory that can create elements and empty states.");
     }
     return /** @type {TimeTrackingPanelContext} */ (context);
   }

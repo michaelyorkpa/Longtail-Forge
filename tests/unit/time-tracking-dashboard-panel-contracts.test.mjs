@@ -145,14 +145,35 @@ describe("Time Tracking dashboard wire readers", () => {
 
   /**
    * **`DashboardPanelRenderer` types the context as `unknown` on purpose**, so the narrowing
-   * belongs here - and it checks the two members this renderer reaches for rather than asserting
-   * a shape it was handed.
+   * belongs here - and what it checks must be everything the returned type promises.
+   *
+   * The three `view` cases below are the ones an earlier spelling accepted: it tested `view` for
+   * truthiness only, so `view: true` and `view: {}` passed and were handed back as something that
+   * says it can build elements. A guard that admits those is not narrowing, it is asserting.
    */
-  it("requires the host's view factory and panel builder, and names what is missing", () => {
+  it("requires a panel builder and a view that can actually build, and names what is missing", () => {
     const testCase = panelCase();
+    const panelBuilder = () => testCase.document.createElement("div");
+    const element = () => testCase.document.createElement("div");
     assert.equal(testCase.api.requirePanelContext(testCase.context), testCase.context);
-    for (const bad of [null, undefined, "context", { view: {} }, { createPanel: () => {} }, { view: {}, createPanel: "no" }]) {
-      assert.throws(() => testCase.api.requirePanelContext(bad), /view factory and panel builder/, JSON.stringify(bad));
+
+    const refused = [
+      null, undefined, "context", ["view"],
+      { view: testCase.view },
+      { createPanel: panelBuilder },
+      { view: testCase.view, createPanel: "no" },
+      { view: true, createPanel: panelBuilder },
+      { view: {}, createPanel: panelBuilder },
+      { view: { createElement: element }, createPanel: panelBuilder },
+      { view: { createEmptyState: element }, createPanel: panelBuilder },
+      { view: { createElement: "no", createEmptyState: element }, createPanel: panelBuilder },
+    ];
+    for (const bad of refused) {
+      assert.throws(
+        () => testCase.api.requirePanelContext(bad),
+        /panel builder and a view factory that can create elements and empty states/,
+        `must refuse ${JSON.stringify(bad)}`,
+      );
     }
   });
 });
@@ -238,6 +259,10 @@ describe("Time Tracking dashboard panels", () => {
     const body = testCase.document.createElement("div");
     body.appendChild(testCase.document.createElement("span"));
     await testCase.api.hydrateTimeTrackingPanel(body, {}, testCase.context, () => testCase.document.createElement("p"));
+    // Assert the empty state exists before reading it. Reading `[0].options` straight away turns
+    // a missing announcement into a TypeError, which fails the suite without any assertion having
+    // decided anything - and a crash is not proof this test would have noticed.
+    assert.equal(testCase.callsOf("#empty-state").length, 1, "a failed summary must be announced");
     const emptyState = testCase.callsOf("#empty-state")[0];
     assert.equal(emptyState.options.title, "Time Tracking data unavailable");
     assert.equal(emptyState.options.message, "Time Tracking summary could not be loaded.");
@@ -316,7 +341,12 @@ describe("Time Tracking dashboard effort summary loading", () => {
   it("uses its own fetch when the published loader is not callable", async () => {
     const testCase = panelCase({ effortSummary: {} });
     testCase.sandbox.window.LongtailForge.dashboardBootstrap = { loadRoute: "/api/effort" };
-    await testCase.api.contextLoad("/api/effort");
+    // Calling a published `loadRoute` that is not callable throws, and `contextLoad` is not an
+    // async function, so it throws **synchronously**. The callback is `async` for exactly that
+    // reason: it turns the synchronous throw into a rejection, so `doesNotReject` reports an
+    // assertion failure instead of letting the raw TypeError be the whole result. The check is
+    // that this page does not call what it did not verify.
+    await assert.doesNotReject(async () => testCase.api.contextLoad("/api/effort"));
     assert.deepEqual(testCase.apiRoutes, ["/api/effort"]);
   });
 
@@ -444,6 +474,7 @@ describe("Time Tracking dashboard rows", () => {
   it("says so when there is nothing to list, rather than drawing an empty list", () => {
     const testCase = panelCase();
     testCase.api.createTimeTrackingRows(testCase.context, [], "No active or paused timers.");
+    assert.equal(testCase.callsOf("p").length, 1, "an empty list must say so rather than draw nothing");
     const empty = testCase.callsOf("p")[0];
     assert.equal(empty.options.text, "No active or paused timers.");
     assert.equal(empty.options.className, "dashboard-task-empty");
@@ -498,6 +529,7 @@ describe("Time Tracking dashboard rows", () => {
   it("links a row that has an action and leaves one that does not", () => {
     const linked = panelCase();
     linked.api.createTimeTrackingRow(linked.context, row);
+    assert.equal(linked.callsOf("a").length, 1, "a row with somewhere to go must link there");
     const anchor = linked.callsOf("a")[0];
     assert.deepEqual(plain(anchor.options.attrs), { href: "/tasks.html?task=1" });
     assert.equal(anchor.options.text, "Open task");
@@ -560,7 +592,11 @@ describe("Time Tracking dashboard hours", () => {
 
   it("falls back to its own formatting when the formatter is absent or not callable", () => {
     assert.equal(panelCase().api.formatHours(5400), "1.50 hrs");
-    assert.equal(panelCase({ formatters: { hours: "nope" } }).api.formatHours(5400), "1.50 hrs");
+    // A published `hours` that is not callable must not be called. Asserting no throw is what
+    // makes that an assertion rather than a crash the suite merely reports.
+    const uncallable = panelCase({ formatters: { hours: "nope" } });
+    assert.doesNotThrow(() => uncallable.api.formatHours(5400));
+    assert.equal(uncallable.api.formatHours(5400), "1.50 hrs");
   });
 
   it("answers zero hours for a value it cannot read", () => {
@@ -588,10 +624,24 @@ describe("Time Tracking dashboard shapes this renderer states rather than invent
    * The narrowing belongs here rather than in the contract, which types the context `unknown` on
    * purpose - and it checks rather than asserts.
    */
-  it("narrows the host context by checking what it uses, not by casting", () => {
+  /**
+   * **The declared context shape must not promise more than the guard checks.** This is the pin
+   * that would have caught the earlier spelling, where `view` was declared as the published
+   * `BrowserViewFactory` and only tested for truthiness.
+   */
+  it("narrows the host context by checking every member the returned type declares", () => {
     assert.match(source, /function requirePanelContext\(value\)/);
-    assert.match(source, /typeof context\.createPanel !== "function" \|\| !context\.view/);
-    assert.match(source, /throw new TypeError\("Time Tracking dashboard panels require the host's view factory and panel builder\."\)/);
+    assert.match(source, /const view = context && timeTrackingRecord\(context\.view\);/);
+    assert.match(source, /typeof context\.createPanel !== "function"/);
+    assert.match(source, /typeof view\.createElement !== "function"/);
+    assert.match(source, /typeof view\.createEmptyState !== "function"/);
+
+    // The view is declared as exactly the two functions checked above - no published factory type.
+    assert.match(source, /@typedef \{object\} TimeTrackingPanelView/);
+    assert.match(source, /@property \{\(tag: string, options\?: Record<string, unknown>\) => HTMLElement\} createElement/);
+    assert.match(source, /@property \{\(options\?: Record<string, unknown>\) => HTMLElement\} createEmptyState/);
+    assert.match(source, /@property \{TimeTrackingPanelView\} view/);
+    assert.doesNotMatch(source, /BrowserViewFactory\} view/);
   });
 
   it("keeps the prewarmed promise map it shares with the entry module", () => {

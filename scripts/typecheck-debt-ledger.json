@@ -483,6 +483,7 @@
         "tests/unit/managed-session-contracts.test.mjs",
         "tests/unit/markdown-preview-contracts.test.mjs",
         "tests/unit/module-settings-catalog-contracts.test.mjs",
+        "tests/unit/mutation-runner-contracts.test.mjs",
         "tests/unit/namespace-root-closure-contracts.test.mjs",
         "tests/unit/normalized-list-record-contracts.test.mjs",
         "tests/unit/note-catalog-settings-contracts.test.mjs",
@@ -2171,6 +2172,7 @@
         "scripts/test-support/http-payload-assertions.mjs",
         "scripts/test-support/isolated-regression-retry.mjs",
         "scripts/test-support/json-record-assertions.mjs",
+        "scripts/test-support/mutation-runner.mjs",
         "scripts/test-support/package-manifest-assertions.mjs",
         "scripts/test-support/public-demo-files-ingress-probe.mjs",
         "scripts/test-support/regression-bucket-orchestrator.mjs",
@@ -2220,7 +2222,7 @@
     }
   },
   "totals": {
-    "files": 1273,
+    "files": 1275,
     "errors": 4937,
     "explicitAny": 0
   },
