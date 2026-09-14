@@ -737,7 +737,7 @@
   let statusMessage = null;
   /** @type {Element | null} */
   let filtersForm = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let statusFilter = null;
   /** @type {HTMLSelectElement | null} */
   let visibilityFilter = null;
@@ -959,7 +959,7 @@
   function cacheNotesElements() {
     statusMessage = document.querySelector("[data-notes-status]");
     filtersForm = document.querySelector("[data-notes-filters]");
-    statusFilter = document.querySelector("[data-note-filter-status]");
+    statusFilter = findNotesControl("[data-note-filter-status]", HTMLSelectElement);
     visibilityFilter = findNotesControl("[data-note-filter-visibility]", HTMLSelectElement);
     securityFilter = findNotesControl("[data-note-filter-security]", HTMLSelectElement);
     typeFilter = findNotesControl("[data-note-filter-type]", HTMLSelectElement);
@@ -2611,6 +2611,7 @@
     return params;
   }
 
+  /** @param {URLSearchParams} params @param {string} key @param {unknown} value */
   function appendNotesQueryParam(params, key, value, ignoredValue = "") {
     const text = normalizeText(value);
 
@@ -3839,6 +3840,7 @@
     projectInput.value = options.some((option) => option.value === selectedProjectId) ? selectedProjectId : "";
   }
 
+  /** @param {readonly HTMLOptionElement[]} [options] */
   function optionListHasValue(options = [], value = "") {
     return options.some((option) => option.value === value);
   }
@@ -4630,8 +4632,9 @@
     }
   }
 
+  /** @param {HTMLSelectElement | null | undefined} select @param {string} fallback */
   function selectedOptionText(select, fallback) {
-    const selected = [...(select?.options || [])].find((option) => option.value === select.value);
+    const selected = [...(select?.options || [])].find((option) => option.value === select?.value);
     return normalizeText(selected?.textContent) || fallback;
   }
 
@@ -6257,6 +6260,7 @@
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
+  /** @param {unknown} value */
   function normalizeText(value) {
     return String(value || "").trim();
   }

@@ -1,5 +1,45 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.40.27
+
+**Model: High Effort** - measure the flat Notes remainder, establish native query and select-value producers, and prove local control refusal with bounded mutation and rendered tests.
+
+- Baseline: `68b97a1bec132e270684c6a4e051c2181fe1bb89`, clean and fetched before branching from `origin/nightly` as `agent/0.33.33-codex-notes-context-helpers`. Package files remain byte-identical to the previous baseline; no dependency install or change.
+- Reported before choosing or typing: **55 raw / 50 owned** across **34 named-function buckets**. No large cluster exists. The six in outer `attachNotesPage` are three separate module-action `open` callbacks with two each; the largest actual body holds three. Top ten, ties in source order:
+
+| Baseline function / bucket | Diagnostics | Baseline line |
+| --- | ---: | ---: |
+| `attachNotesPage` (three `open` callbacks) | 6 | 1154 / 1166 / 1178 |
+| `decorateNotesFilter` | 3 | 1749 |
+| `appendNotesQueryParam` | 3 | 2614 |
+| `normalizeNoteEditorMode` | 2 | 1581 |
+| `primaryContextSummaryForSelection` | 2 | 3866 |
+| `noteHasLink` | 2 | 4416 |
+| `contextSummaryLabel` | 2 | 4501 |
+| `editorLinkedContextRows` | 2 | 4578 |
+| `editorLinkedContextItem` | 2 | 4591 |
+| `selectedOptionText` | 2 | 4633 |
+
+- Chosen surface: **Notes query and select-value readers**. These five helpers share the existing text normalizer and native URLSearchParams/select/option contracts. The larger-looking stored-link/context set consumes opaque `BrowserNoteRecord.links` and `linked_context`, which the picker-directory contract does not establish; that needs its own checked-data boundary and remains separate work, not an integrator blocker. Action dispatch, filter decoration and editor-mode normalization are also outside this boundary.
+
+| Chosen helper | Before | After |
+| --- | ---: | ---: |
+| `normalizeText` | 1 | 0 |
+| `appendNotesQueryParam` | 3 | 0 |
+| `activeStatusFilter` | 1 | 0 |
+| `selectedOptionText` | 2 | 0 |
+| `optionListHasValue` | 1 | 0 |
+
+- Producer trace: the Notes manifest makes Status a select; the existing `findNotesControl` now establishes the cached `HTMLSelectElement`. Primary client/project option producers and their fallbacks construct native `window.Option` instances, so the membership helper accepts a readonly native-option array. Selection labels come from native `HTMLOptionElement.textContent`. Query construction supplies a real `URLSearchParams`, string keys, and values normalized by the existing `String(value || "").trim()` behavior. No new response contract or speculative stored-record shape.
+- Preserve falsy-to-empty coercion, case, one String conversion and thrown coercion identity; query `.set` replaces duplicate keys while omitted/ignored values leave existing keys intact. Selection labels use the first matching value, not the selected flag or last duplicate, and keep the caller's fallback unchanged. The optional callback access preserves native-select read behavior: a missing select already supplies an empty option array and never runs the callback.
+- Failure granularity: absent or wrong-kind Status controls are refused locally and default to active; Archive still answers archived before any control read. The rest of the surface remains available. Native input and SVG replacements are executed in the rendered proof, not claimed from an annotation. No required-control timing, wire reader, thrown-value reader, history refusal/projection, error helper or committed-write/failed-refresh distinction changes.
+- Branch-local diagnostics: Notes **55 -> 47**, owned **50 -> 43** (**44/4/2 -> 37/4/2** params/state/assorted), ownerless DOM **5 -> 4**; removals **7 params / 1 DOM**. Browser **4984 -> 4976**; final families params **3302**, state **1086**, DOM **498**, assorted **90**, unknown/namespace **0**. Other owners unchanged: `.39` **1610**, `.41` **1142**, `.42` **528**, `.43` **897**, `.44` **258**. Server/tests and scripts stay zero, explicit-any zero, declaration probe clean. This ledger is branch-local evidence, not the integrated canonical ledger.
+- Precise reversibility: removing the four added parameter-annotation lines and reverting the Status slot annotation, its checked cache assignment and the optional selection callback access recovers **exact baseline source bytes**. **317/320 named function bodies are byte-identical**; only enclosing `attachNotesPage`, `cacheNotesElements` and `selectedOptionText` differ. Every settled reader remains unchanged. No other browser file, shared contract, server, CSS, package, regression script or existing test changed.
+- Eight lifted `node:vm` cases execute the actual five helpers and control-cache function. They cover coercion, query omission/replacement/encoding, native control identity and local refusal, Archive read ordering, first-value selection labels, fallbacks and exact option membership. The fixture's own state is not credited as proof of declaration lines.
+- `notes-value-readers.breaks.mjs`: **29/29 caught by assertions, zero inert, zero timeout refusals**. Each mutant passes `node --check` first. Every suite uses a **30-second** timeout and in-process threaded workers; syntax checks have a **10-second** timeout. A timeout is reported distinctly as a nontermination refusal. Before the baseline run the harness saves and verifies an independent source-byte backup, retained after success. Per-case and outer `finally` restoration verifies SHA-256 **`fd3d88560fea4b692f3f8dd9c01b73e51acf1883632b530750e16e2c36f41d8b`**, including verification of the retained backup. The first campaign exposed a missing assertion around the absent-control read: an incidental TypeError was refused rather than credited. The test now explicitly asserts that read does not throw, and the **entire campaign** was rerun. The harness records this diagnosis; no inert mutation was dropped or withdrawn.
+- Rendered proof: **5/5** (two desktop, two mobile, setup), port **8102**, this worktree's managed `data/e2e`, isolated UUID accounts/workspaces and notes with verified deletion. Real active/archived notes prove Status queries, Archive override, omitted libraryBucket and recovery to the active list. Actual select/input/SVG/absent controls exercise the checked cache and default; native duplicate-value options prove first-value label identity, literal text, fallback and restored usability. Screenshots were inspected. Failure artifacts were preserved before rerunning: initial cleanup attempted to delete an archived note and now restores it first; an installed Playwright label-text lookup included nested option text, so the test now addresses the actual combobox by its exact accessible name. These were fixture corrections, not product limitations or weakened visibility assertions.
+- Whole `scripts/` spelling search found no source pins requiring reconciliation; no regression script added. `docs:suggest` ownership reviewed; durable docs and release metadata remain deferred under the version-wide contract. Full `check` supplies requested unit, lint, full regressions and discovered permission coverage; canonical `verify:slice` runs on the completed baseline-to-HEAD range, then full-range `checkpoint:validate`. Exact final verification results accompany the delivered SHA.
+
 ## Version 0.33.33.44.34 - Time Tracking dashboard panels, and the file reaches zero
 
 **Model: High Effort** - the checkpoint where all eleven inert mutations were a different kind of gap, and the one that could not be observed was withdrawn rather than tested around.
