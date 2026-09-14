@@ -272,10 +272,17 @@ describe("the notes settings consumer", () => {
     }
   });
 
+  /**
+   * `0.33.33.44.33` annotated the confirmation's other two parameters as well, so the tag no
+   * longer sits alone on one line. **The claim is unchanged and is now stricter**: the preview
+   * is still the narrowed `BrowserNoteCatalogSecurityPreflight`, and the catalog and the request
+   * word are named beside it rather than left implicit. This matches the tag wherever in the
+   * block it sits.
+   */
   it("hands the narrowed preview straight into the confirmation", () => {
     assert.match(
       consumer,
-      /\/\*\* @param \{BrowserNoteCatalogSecurityPreflight\} preflight \*\//,
+      /@param \{BrowserNoteCatalogSecurityPreflight\} preflight\b/,
       "the confirmation must receive the narrowed preview",
     );
     assert.match(

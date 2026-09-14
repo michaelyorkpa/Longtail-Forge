@@ -399,6 +399,7 @@
         "tests/mutations/notes-primary-context.breaks.mjs",
         "tests/mutations/notes-revisions-selection.breaks.mjs",
         "tests/mutations/notes-save-lifecycle.breaks.mjs",
+        "tests/mutations/notes-settings-catalog.breaks.mjs",
         "tests/mutations/notes-tag-surface.breaks.mjs",
         "tests/mutations/notes-target-picker.breaks.mjs",
         "tests/mutations/notes-view-registration.breaks.mjs",
@@ -501,6 +502,7 @@
         "tests/unit/notes-primary-context-pins.test.mjs",
         "tests/unit/notes-primary-context.test.mjs",
         "tests/unit/notes-revisions-selection.test.mjs",
+        "tests/unit/notes-settings-catalog-contracts.test.mjs",
         "tests/unit/notes-tag-surface.test.mjs",
         "tests/unit/notes-target-picker.test.mjs",
         "tests/unit/notes-view-registration.test.mjs",
@@ -682,7 +684,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 5039,
+      "errorCount": 4998,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1016,20 +1018,6 @@
           {
             "code": 7034,
             "count": 5
-          }
-        ],
-        "public/js/notes-settings.js": [
-          {
-            "code": 18047,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 10
-          },
-          {
-            "code": 7006,
-            "count": 28
           }
         ],
         "public/js/notes.js": [
@@ -2234,8 +2222,8 @@
     }
   },
   "totals": {
-    "files": 1263,
-    "errors": 5039,
+    "files": 1265,
+    "errors": 4998,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
