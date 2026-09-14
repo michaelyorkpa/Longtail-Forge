@@ -383,6 +383,7 @@
         "tests/e2e/workspace-switch-landing.spec.mjs",
         "tests/mutations/audit-log-filter-query.breaks.mjs",
         "tests/mutations/audit-log-rendering.breaks.mjs",
+        "tests/mutations/calendar-adapter.breaks.mjs",
         "tests/mutations/calendar-settings-scope.breaks.mjs",
         "tests/mutations/dashboard-panel.breaks.mjs",
         "tests/mutations/help-article.breaks.mjs",
@@ -451,6 +452,7 @@
         "tests/unit/audit-log-rendering-contracts.test.mjs",
         "tests/unit/bounded-pagination.test.mjs",
         "tests/unit/bulk-action-response-contract.test.mjs",
+        "tests/unit/calendar-adapter-contracts.test.mjs",
         "tests/unit/calendar-settings-scope-contracts.test.mjs",
         "tests/unit/calendar-subscription-contracts.test.mjs",
         "tests/unit/catalog-security-response-contracts.test.mjs",
@@ -695,7 +697,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4930,
+      "errorCount": 4897,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -731,28 +733,6 @@
           {
             "code": 7053,
             "count": 3
-          }
-        ],
-        "public/js/calendar.js": [
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7005,
-            "count": 14
-          },
-          {
-            "code": 7006,
-            "count": 6
-          },
-          {
-            "code": 7034,
-            "count": 8
           }
         ],
         "public/js/clients-projects.js": [
@@ -2224,8 +2204,8 @@
     }
   },
   "totals": {
-    "files": 1277,
-    "errors": 4930,
+    "files": 1279,
+    "errors": 4897,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
