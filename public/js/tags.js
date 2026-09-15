@@ -99,6 +99,12 @@
     }
   }
 
+  /**
+   * `Event` rather than `SubmitEvent`: the form is reached through `querySelector`, so it is an
+   * `Element` and its listener is handed the base event. Narrowing here would have declared a
+   * listener the registration could not accept.
+   * @param {Event} event
+   */
   async function saveTag(event) {
     event.preventDefault();
     const tagId = tagIdInput?.value || "";
@@ -141,6 +147,7 @@
       : [emptyElement("No tags found")]));
   }
 
+  /** @param {BrowserTagCatalogRecord} tag */
   function createTagRow(tag) {
     const row = document.createElement("article");
     const swatch = document.createElement("span");
@@ -181,6 +188,18 @@
     return row;
   }
 
+  /**
+   * One row action, built through the shared icon surface when it is available.
+   *
+   * **The signature is annotated from above rather than inline**, because the tags contract
+   * matches `function createTagActionButton(label, icon, options = {})` and the danger read
+   * `variant: options.danger ? "danger" : ""` as literal text. Both spellings are preserved
+   * exactly; only the declaration above them is new.
+   * @param {string} label
+   * @param {string} icon
+   * @param {{ danger?: boolean }} [options]
+   * @returns {HTMLButtonElement}
+   */
   function createTagActionButton(label, icon, options = {}) {
     if (window.LongtailForge?.icons?.createIconButton) {
       return window.LongtailForge.icons.createIconButton({
@@ -198,6 +217,7 @@
     return button;
   }
 
+  /** @param {BrowserTagCatalogRecord} tag */
   function editTag(tag) {
     if (tagIdInput) {
       tagIdInput.value = tag.tag_id || "";
@@ -218,6 +238,7 @@
     renderTagConflictMessage();
   }
 
+  /** @param {BrowserTagCatalogRecord} tag */
   async function mutateTagStatus(tag) {
     const action = tag.status === "active" ? "archive" : "restore";
     setStatus(`${action === "archive" ? "Archiving" : "Restoring"} tag`);
@@ -247,6 +268,7 @@
     tagNameInput?.focus();
   }
 
+  /** @param {HTMLElement} container @param {BrowserTagCatalogRecord} tag */
   function renderTagMetadata(container, tag) {
     container.replaceChildren(
       metadataBadge(`Slug: ${tag.slug || "none"}`),
@@ -256,6 +278,7 @@
     );
   }
 
+  /** @param {string} text */
   function metadataBadge(text) {
     const badge = document.createElement("span");
     badge.className = "tag-metadata-badge";
@@ -263,6 +286,7 @@
     return badge;
   }
 
+  /** @param {BrowserTagCatalogRecord} tag */
   function usageText(tag) {
     const count = Number(tag.usage_count || 0);
     const direct = Number(tag.direct_usage_count || 0);
@@ -363,6 +387,7 @@
     return /** @type {import("../../src/types/browser-contracts.js").BrowserTagCatalogRecord[]} */ (body.tags);
   }
 
+  /** @param {URLSearchParams} params */
   async function fetchTags(params) {
     const response = await fetch(`/api/tags?${params}`, { cache: "no-store" });
     if (!response.ok) {
@@ -380,6 +405,7 @@
     return tags;
   }
 
+  /** @param {string | null | undefined} value */
   function formatDate(value) {
     const date = value ? new Date(value) : null;
 
@@ -394,6 +420,7 @@
     });
   }
 
+  /** @param {string} message @param {boolean} [isError] */
   function setStatus(message, isError = false) {
     if (!tagStatus) {
       return;
@@ -403,6 +430,7 @@
     tagStatus.className = isError ? "error-message" : "";
   }
 
+  /** @param {string} message */
   function emptyElement(message) {
     const element = document.createElement("p");
     element.className = "empty-state";
@@ -410,6 +438,7 @@
     return element;
   }
 
+  /** @param {Response} response @param {string} fallback */
   async function responseError(response, fallback) {
     try {
       const body = await response.json();
@@ -419,6 +448,7 @@
     }
   }
 
+  /** @param {unknown} value */
   function slugify(value) {
     return String(value || "")
       .trim()
@@ -428,8 +458,26 @@
       .slice(0, 80);
   }
 
+  /**
+   * Delay a call until the input settles, forwarding whatever arguments arrive.
+   *
+   * **The rest parameter is typed generically rather than as a list of unrelated values.** This
+   * helper exists to pass its caller's arguments through untouched, so the returned function is
+   * declared to accept exactly what the callback accepts - `unknown[]` would have described a
+   * forwarder that discards that relationship, and a widened annotation would have described
+   * nothing at all. The single caller passes a niladic loader, so `Args` resolves to `[]`.
+   * @template {unknown[]} Args
+   * @param {(...args: Args) => unknown} callback
+   * @param {number} delay
+   * @returns {(...args: Args) => void}
+   */
   function debounce(callback, delay) {
-    let timer = null;
+    /**
+     * `undefined` rather than `null`, because that is what `clearTimeout` accepts and what an
+     * unset timer already meant here: both values cancel nothing.
+     * @type {number | undefined}
+     */
+    let timer;
     return (...args) => {
       window.clearTimeout(timer);
       timer = window.setTimeout(() => callback(...args), delay);
