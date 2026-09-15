@@ -7,7 +7,7 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
 const source = createProjectTextReader().readText("public/js/notes.js");
 const shared = createProjectTextReader().readText("public/js/shared/view-builder.js");
 const sharedNames = ["normalizePickerRecords", "pickerLabel", "pickerOptionalLabel"];
-const names = ["deriveSuggestedLibraryBucket", "updateLibrarySuggestion", "defaultLibraryForCreate", "populateNoteCollectionOptions", "collectionOptionLabel", "createOption", "libraryLabel", "formatToken", "requireNotesValue", "handleEditorLinkedContextRemove", "removeEditorStagedTarget", "editorLinkTargetMatches", "removeEditorNoteLink"];
+const names = ["isResponseRecord", "deriveSuggestedLibraryBucket", "updateLibrarySuggestion", "defaultLibraryForCreate", "populateNoteCollectionOptions", "collectionOptionLabel", "createOption", "libraryLabel", "formatToken", "requireNotesValue", "handleEditorLinkedContextRemove", "removeEditorStagedTarget", "editorLinkTargetMatches", "removeEditorNoteLink"];
 /** @param {unknown} value */
 const plain = (value) => { assert.notEqual(value, undefined, "Expected an observation."); return JSON.parse(JSON.stringify(value)); };
 function fixture() {

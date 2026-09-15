@@ -16,7 +16,7 @@
   /**
    * Editor inputs include an ID-only action parameter and list records. Hydration
    * returns the original input on failure, so the editor cannot promise a full detail.
-   * @typedef {Partial<Pick<BrowserNoteRecord, "note_id" | "title" | "library_bucket" | "note_collection_id" | "note_type" | "visibility" | "security_mode" | "client_id" | "project_id" | "task_id" | "linked_user_id" | "linked_context" | "body_markdown">>} NotesEditorSeed
+   * @typedef {Partial<Pick<BrowserNoteRecord, "note_id" | "title" | "library_bucket" | "note_collection_id" | "note_type" | "visibility" | "security_mode" | "client_id" | "project_id" | "task_id" | "linked_user_id" | "linked_context" | "body_markdown" | "links">>} NotesEditorSeed
    * @typedef {BrowserNoteRecord | NotesEditorSeed} NotesEditorNote
    */
   /**
@@ -3871,12 +3871,43 @@
     return option;
   }
 
-  function primaryContextSummaryForSelection(targetType, selectedId = "") {
-    const summary = state.editorContextSummaries?.[targetType] || {};
+  /**
+   * Saved links come from decorateNoteLinks, not the picker directory. Its camelCase
+   * projection and legacy snake_case rows both reach this editor. Unsupported saved
+   * target types remain readable/removable; this is not a contract for new writes.
+   * Only consumed text is declared. Extra decorator metadata remains unmodelled.
+   * @typedef {Partial<Record<"moduleId" | "module_id" | "targetType" | "target_type" | "targetId" | "target_id" | "noteLinkId" | "note_link_id" | "label" | "displayLabel" | "display_label" | "secondaryLabel" | "secondary_label" | "sourceUrl" | "source_url" | "clientId" | "client_id" | "projectId" | "project_id" | "clientName" | "client_name" | "projectName" | "project_name" | "workspaceName" | "workspace_name", string>>} NotesDecoratedLink
+   * @typedef {Pick<NotesDecoratedLink, "moduleId" | "module_id" | "targetType" | "target_type" | "targetId" | "target_id">} NotesSavedLinkIdentity
+   */
 
-    if (!summary || typeof summary !== "object") {
-      return {};
-    }
+  /** @param {unknown} value @returns {value is NotesDecoratedLink} */
+  function isNotesDecoratedLink(value) {
+    return isResponseRecord(value) && [
+      "moduleId", "module_id", "targetType", "target_type", "targetId", "target_id",
+      "noteLinkId", "note_link_id", "label", "displayLabel", "display_label",
+      "secondaryLabel", "secondary_label", "sourceUrl", "source_url",
+      "clientId", "client_id", "projectId", "project_id", "clientName", "client_name",
+      "projectName", "project_name", "workspaceName", "workspace_name",
+    ].every((key) => value[key] === undefined || (Object.hasOwn(value, key) && typeof value[key] === "string"));
+  }
+
+  /**
+   * readLinkedContextSummary and setTaskCreatedPrimaryContextSummaries own this bag.
+   * The latter retains an unchecked status, so status stays unknown until normalized.
+   * Neither an inherited table entry nor an unreadable summary supplies a label.
+   * @param {string} targetType
+   * @returns {Omit<NotesDecoratedLink, "targetType" | "target_type"> & { status?: unknown }}
+   */
+  function readEditorContextSummary(targetType) {
+    /** @type {unknown} */
+    const summaries = state.editorContextSummaries;
+    const summary = isResponseRecord(summaries) && Object.hasOwn(summaries, targetType) ? summaries[targetType] : null;
+    return isNotesDecoratedLink(summary) ? summary : {};
+  }
+
+  /** @param {string} targetType */
+  function primaryContextSummaryForSelection(targetType, selectedId = "") {
+    const summary = readEditorContextSummary(targetType);
 
     const summaryIds = [
       summary.targetId,
@@ -3911,6 +3942,7 @@
     updateLibrarySuggestion();
   }
 
+  /** @param {BrowserNoteLinkTarget["projectId"]} projectId */
   function findPrimaryContextProject(projectId) {
     return state.primaryContextProjects.find((project) => (project.projectId || project.targetId || "") === projectId) || null;
   }
@@ -4421,8 +4453,9 @@
     return links;
   }
 
+  /** @param {NotesEditorNote} note @param {NotesSavedLinkIdentity} target */
   function noteHasLink(note = {}, target = {}) {
-    return (note.links || []).some((link) => editorLinkTargetMatches(link, target));
+    return (note.links || []).some((link) => isNotesDecoratedLink(link) && editorLinkTargetMatches(link, target));
   }
 
   /** @param {NotesLinkTargetInput} target */
@@ -4437,7 +4470,7 @@
     return `${target.moduleId || target.module_id || ""}:${targetType}:${targetId}`;
   }
 
-  /** @param {NotesLinkTargetInput} link @param {NotesLinkTargetInput} target */
+  /** @param {NotesSavedLinkIdentity} link @param {NotesSavedLinkIdentity} target */
   function editorLinkTargetMatches(link = {}, target = {}) {
     const linkModuleId = link.moduleId || link.module_id || "";
     const targetModuleId = target.moduleId || target.module_id || "";
@@ -4506,8 +4539,9 @@
       : "No linked context selected.";
   }
 
+  /** @param {string} targetType */
   function contextSummaryLabel(targetType) {
-    return state.editorContextSummaries?.[targetType]?.label || unavailableTargetLabel(targetType);
+    return readEditorContextSummary(targetType).label || unavailableTargetLabel(targetType);
   }
 
   function renderEditorContextPanel() {
@@ -4528,8 +4562,8 @@
     }
 
     contextList.replaceChildren(...items.map((item) => view.createElement("div", {
-      className: ["notes-link-item", item.className],
-      text: [item.displayLabel, item.secondaryLabel, item.hintLabel].filter(Boolean).join(" - "),
+      className: ["notes-link-item", "className" in item ? item.className : undefined],
+      text: [item.displayLabel, item.secondaryLabel, "hintLabel" in item ? item.hintLabel : undefined].filter(Boolean).join(" - "),
     })));
   }
 
@@ -4585,7 +4619,8 @@
 
   function editorLinkedContextRows() {
     const note = state.editorNote || {};
-    const rows = (note.links || []).map((link) => editorLinkedContextItem(note, link));
+    /** @type {Array<NonNullable<ReturnType<typeof editorLinkedContextItem>> | ReturnType<typeof editorStagedTargetItem>>} */
+    const rows = (note.links || []).map((link) => editorLinkedContextItem(note, link)).filter((row) => row !== null);
 
     for (const target of state.editorStagedTargets || []) {
       if (!noteHasLink(note, target)) {
@@ -4596,20 +4631,27 @@
     return rows;
   }
 
+  /** @param {NotesEditorNote} note @param {unknown} link */
   function editorLinkedContextItem(note, link) {
+    if (!isNotesDecoratedLink(link)) return null;
     const targetType = link.targetType || link.target_type || "";
+    // Only known types receive picker-specific label formatting. Unknown saved types
+    // keep their original identity and the existing generic/unavailable presentation.
+    const displayType = isKnownContextTargetType(targetType) ? targetType : undefined;
 
     return {
       displayLabel: targetPickerDisplayLabel({
         ...link,
-        targetType,
+        targetType: displayType,
+        target_type: undefined,
       }),
       link,
       moduleId: link.moduleId || link.module_id || "",
-      removable: note.status !== "archived",
+      removable: !("status" in note) || note.status !== "archived",
       secondaryLabel: targetPickerSecondaryLabel({
         ...link,
-        targetType,
+        targetType: displayType,
+        target_type: undefined,
       }),
       sourceUrl: link.sourceUrl || link.source_url || "",
       targetId: link.targetId || link.target_id || "",
@@ -4626,7 +4668,7 @@
 
   /**
    * The picker shallow-copies row metadata while preserving `link` and `target` references.
-   * Their producers are `editorLinkedContextItem` (unchecked note links) and `editorStagedTargetItem`.
+   * Their producers are `editorLinkedContextItem` (checked saved rows) and `editorStagedTargetItem`.
    * Keep both payloads unknown here: their removal/matching owners read their members.
    * @param {{link?: unknown, target?: unknown}} [item]
    */
@@ -4644,11 +4686,15 @@
     return normalizeText(selected?.textContent) || fallback;
   }
 
-  /** @param {NotesEditorNote | null | undefined} note */
+  /** @param {NotesEditorNote | null | undefined} note @param {unknown} link */
   async function removeEditorNoteLink(note, link) {
     const api = requireApi();
     const noteId = note?.note_id || state.editingNoteId;
-    const noteLinkId = link.noteLinkId || link.note_link_id;
+    // Removal needs only the row identity; unreadable display metadata cannot block it.
+    const noteLinkId = isResponseRecord(link)
+      ? (Object.hasOwn(link, "noteLinkId") && typeof link.noteLinkId === "string" && link.noteLinkId)
+        || (Object.hasOwn(link, "note_link_id") && typeof link.note_link_id === "string" && link.note_link_id)
+      : "";
 
     if (!noteId || !noteLinkId) {
       return;
@@ -5676,6 +5722,10 @@
     }
   }
 
+  /**
+   * openNoteFromUrl supplies strings from URLSearchParams, not a checked directory row.
+   * @param {{clientId: string, libraryBucket: string, moduleId: string, noteKind: string, projectId: string, targetId: string, targetType: string}} target
+   */
   async function openEditorForLinkedTarget(target) {
     if (contextTargetTypeInput) {
       contextTargetTypeInput.value = target.targetType;
@@ -5684,14 +5734,21 @@
       contextSearchInput.value = target.targetId;
     }
     await openEditor();
+    // A URL may name an unsupported type. Refuse that new link, leaving the editor
+    // lifecycle intact; saved unsupported links still have their soft-read path.
+    const targetType = target.targetType;
+    if (!isKnownContextTargetType(targetType)) return;
     const matchedTarget = state.linkTargets.find((item) => item.targetType === target.targetType && item.targetId === target.targetId) || {
       clientId: target.clientId,
       moduleId: target.moduleId,
       projectId: target.projectId,
       targetId: target.targetId,
-      targetType: target.targetType,
+      targetType,
+      // The previous fallback read answered undefined. Keep that answer, allowing
+      // updateLibrarySuggestion to derive its normal suggestion from editor inputs.
+      suggestedLibraryBucket: undefined,
     };
-    await applyTaskCreatedPrimaryContext(target, matchedTarget);
+    await applyTaskCreatedPrimaryContext({ ...target, targetType }, matchedTarget);
     stageEditorLinkTarget(matchedTarget);
     if (target.noteKind && typeInput) {
       ensureNoteKindOption(target.noteKind);

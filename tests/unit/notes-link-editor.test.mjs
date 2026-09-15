@@ -4,7 +4,7 @@ import { describe, it } from "vitest";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 
 const source = createProjectTextReader().readText("public/js/notes.js");
-const names = [
+const names = ["isResponseRecord", "isNotesDecoratedLink",
   "pickerRecordFromTarget", "targetPickerDisplayLabel", "targetPickerSecondaryLabel",
   "primaryProjectOptionLabel", "providerDisplayLabel", "normalizeText", "unavailableTargetLabel",
   "editorLinkTargetKey", "editorLinkTargetMatches", "stageEditorLinkTarget", "stagedTargetExists",
