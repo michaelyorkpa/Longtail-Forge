@@ -5724,20 +5724,21 @@
 
   /**
    * openNoteFromUrl supplies strings from URLSearchParams, not a checked directory row.
-   * @param {{clientId: string, libraryBucket: string, moduleId: string, noteKind: string, projectId: string, targetId: string, targetType: string}} target
+   * @param {{clientId: string, libraryBucket: string, moduleId: string, noteKind: string, projectId: string, targetId: string, targetType: string}} input
    */
-  async function openEditorForLinkedTarget(target) {
+  async function openEditorForLinkedTarget(input) {
     if (contextTargetTypeInput) {
-      contextTargetTypeInput.value = target.targetType;
+      contextTargetTypeInput.value = input.targetType;
     }
     if (contextSearchInput) {
-      contextSearchInput.value = target.targetId;
+      contextSearchInput.value = input.targetId;
     }
     await openEditor();
     // A URL may name an unsupported type. Refuse that new link, leaving the editor
     // lifecycle intact; saved unsupported links still have their soft-read path.
-    const targetType = target.targetType;
+    const targetType = input.targetType;
     if (!isKnownContextTargetType(targetType)) return;
+    const target = { ...input, targetType };
     const matchedTarget = state.linkTargets.find((item) => item.targetType === target.targetType && item.targetId === target.targetId) || {
       clientId: target.clientId,
       moduleId: target.moduleId,
@@ -5748,7 +5749,7 @@
       // updateLibrarySuggestion to derive its normal suggestion from editor inputs.
       suggestedLibraryBucket: undefined,
     };
-    await applyTaskCreatedPrimaryContext({ ...target, targetType }, matchedTarget);
+    await applyTaskCreatedPrimaryContext(target, matchedTarget);
     stageEditorLinkTarget(matchedTarget);
     if (target.noteKind && typeInput) {
       ensureNoteKindOption(target.noteKind);
