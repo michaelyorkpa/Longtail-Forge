@@ -71,7 +71,11 @@ check("shared footer owns a quiet bottom-right drawer on protected shell pages",
   assert.match(footer, /drawer\.setAttribute\("aria-hidden", "true"\)/);
   assert.match(footer, /setAttribute\("aria-expanded", "false"\)/);
   assert.match(footer, /event\.key === "Escape"/);
-  assert.match(footer, /root\.contains\(event\.target\)/);
+  // An outside click still dismisses the drawer; `0.33.33.44.39` narrowed the target first,
+  // because `contains` takes a `Node` and an event target is only an `EventTarget`. Pinning
+  // the narrowing alongside the containment read keeps the behaviour and forbids a cast.
+  assert.match(footer, /const clickedNode = event\.target instanceof Node \? event\.target : null;/);
+  assert.match(footer, /root\.contains\(clickedNode\)/);
   assert.match(footer, /shell\.toggle\.focus\(\)/);
 });
 

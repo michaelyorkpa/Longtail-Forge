@@ -41,6 +41,74 @@
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
   /**
+   * One quick action, proved to be a record and read member by member.
+   *
+   * **The estate publishes no quick-action record, and that is deliberate.**
+   * `BrowserStoredWorkspaceContext.quickActions` is `unknown[]` because the list is restored
+   * from stored settings: the server builds it from a frozen in-repo definition set, but
+   * nothing between that producer and this file proves what survived the round trip. So the
+   * members are named here, as the reads this file actually makes, and every one of them is
+   * `unknown` - this narrowing buys member access, not trust. Each read below coerces or
+   * guards at the point of use.
+   * @typedef {Record<string, unknown>} FooterQuickAction
+   */
+
+  /**
+   * The drawer controls `setQuickActionDrawerOpen` needs, which is not the whole shell.
+   *
+   * Three of its four callers hand it a literal holding only the two elements it sets
+   * attributes on, so requiring the whole shell would describe a caller that does not exist.
+   * `list` is optional for the same reason, and is already read with `?.`.
+   * @typedef {object} QuickActionDrawerControls
+   * @property {HTMLElement} drawer
+   * @property {HTMLElement} toggle
+   * @property {HTMLElement} [list]
+   */
+
+  /**
+   * The mounted quick-action capture surface.
+   * @typedef {object} QuickActionShell
+   * @property {HTMLElement} drawer
+   * @property {HTMLElement} list
+   * @property {HTMLElement} root
+   * @property {HTMLElement} status
+   * @property {HTMLButtonElement} toggle
+   */
+
+  /**
+   * One script a quick action needs before its dialog can open.
+   * @typedef {object} QuickActionDependency
+   * @property {string} src
+   * @property {boolean} [module]
+   * @property {() => unknown} [test]
+   */
+
+  /**
+   * The status and refresh channels this host hands the module registry.
+   *
+   * **`BrowserModuleActions.open` declares `options` as `unknown` on purpose.** Its published
+   * comment records that naming the shape was tried and withdrawn, because `refresh` is
+   * supplied by the host but called by the module dialog with a detail neither validates. So
+   * no contextual type reaches these two callbacks and the host names them itself. Annotating
+   * the object through this alias, rather than each parameter inline, is also what keeps the
+   * pinned `refresh: (detail) => ...` spelling intact.
+   * @typedef {object} QuickActionHostChannels
+   * @property {(detail?: unknown) => void} refresh
+   * @property {(message?: unknown, options?: { isError?: unknown }) => void} setStatus
+   */
+
+  /**
+   * A value read as a record, or `null` when it is not one.
+   * @param {unknown} value
+   * @returns {Record<string, unknown> | null}
+   */
+  function footerRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value)
+      ? /** @type {Record<string, unknown>} */ (value)
+      : null;
+  }
+
+  /**
    * The narrowing contract for the values this file catches.
    *
    * A `catch` binding is `unknown` and no declaration can change that: anything can be
@@ -59,9 +127,14 @@
   function updateFooterMetrics() {
     const root = document.documentElement;
     const viewportHeight = window.innerHeight || root.clientHeight || 0;
+    // The fallback stands in for a host with no layout box at all. It carried only `top`
+    // while the reader below asks for `bottom` too, so `bottom` was `undefined`, failed the
+    // `Number.isFinite` check, and collapsed to `footerTop` - which on this path *is*
+    // `viewportHeight`. Naming `bottom` states the shape the reader already assumed and
+    // answers the same number, because `viewportHeight` is always finite.
     const footerRect = typeof footer.getBoundingClientRect === "function"
       ? footer.getBoundingClientRect()
-      : { top: viewportHeight };
+      : { bottom: viewportHeight, top: viewportHeight };
     const footerTop = Number.isFinite(footerRect.top) ? footerRect.top : viewportHeight;
     const footerBottom = Number.isFinite(footerRect.bottom) ? footerRect.bottom : footerTop;
     const visibleFooterOffset = Math.max(
@@ -108,6 +181,7 @@
 
   updateFooterBrand();
   updateFooterMetrics();
+  /** @type {QuickActionShell | null} */
   let quickActionCaptureShell = null;
   mountQuickActionCapture();
   window.addEventListener?.("resize", updateFooterMetrics);
@@ -181,6 +255,7 @@
       });
   }
 
+  /** @param {QuickActionShell | null | undefined} shell */
   function syncQuickActionCapture(shell) {
     if (!shell) {
       return;
@@ -200,6 +275,7 @@
     updateFooterMetrics();
   }
 
+  /** @returns {QuickActionShell} */
   function createQuickActionShell() {
     const root = document.createElement("section");
     const toggle = createQuickActionToggle();
@@ -260,7 +336,13 @@
       }
     });
     document.addEventListener("click", (event) => {
-      if (toggle.getAttribute("aria-expanded") !== "true" || root.contains(event.target)) {
+      // `contains` takes a `Node | null`, and an event target is only an `EventTarget`. The
+      // two values a document click can actually carry are unchanged by this: a node inside
+      // the drawer still keeps it open, and `null` still answers `false` and closes it. A
+      // target that is an `EventTarget` but not a `Node` now closes the drawer where it used
+      // to throw inside the listener - no click on `document` produces one.
+      const clickedNode = event.target instanceof Node ? event.target : null;
+      if (toggle.getAttribute("aria-expanded") !== "true" || root.contains(clickedNode)) {
         return;
       }
 
@@ -289,11 +371,27 @@
     return button;
   }
 
+  /** @param {QuickActionShell} shell @param {FooterQuickAction[]} actions */
   function renderQuickActions(shell, actions) {
     const actionButtons = actions.map((action) => createQuickActionItem(action, shell));
     shell.list.replaceChildren(...actionButtons);
   }
 
+  /**
+   * A value as `textContent` accepts it.
+   *
+   * **`textContent` is a nullable IDL attribute**, so assigning `undefined` sets `null` and
+   * empties the element - it does not render the word "undefined" the way `title` and
+   * `dataset` do. Reproducing that conversion here keeps every read below answering exactly
+   * what the untyped page answered.
+   * @param {unknown} value
+   * @returns {string | null}
+   */
+  function footerText(value) {
+    return value === null || value === undefined ? null : String(value);
+  }
+
+  /** @param {FooterQuickAction} action @param {QuickActionShell} shell */
   function createQuickActionItem(action, shell) {
     const button = document.createElement("button");
     const body = document.createElement("span");
@@ -302,21 +400,25 @@
 
     button.className = "quick-action-capture-action";
     button.type = "button";
-    button.dataset.quickActionId = action.id;
-    button.dataset.quickActionType = action.actionType;
-    button.title = action.temporaryFallback && action.temporaryLabel ? action.temporaryLabel : action.description || action.label;
+    button.dataset.quickActionId = String(action.id);
+    button.dataset.quickActionType = String(action.actionType);
+    button.title = String(action.temporaryFallback && action.temporaryLabel ? action.temporaryLabel : action.description || action.label);
     decorateQuickActionButton(button, {
-      icon: action.icon || "add",
-      label: action.label,
+      // `|| "add"` already decided the falsy cases, so the coercion only reaches a truthy
+      // value - and a truthy non-string name is one the icon registry throws on either way.
+      icon: String(action.icon || "add"),
+      // An absent label stays absent, so the icon writer still refuses a button with neither
+      // a label nor text, exactly as it did when this read was untyped.
+      label: footerText(action.label) ?? undefined,
     });
 
     body.className = "quick-action-capture-action-body";
     label.className = "quick-action-capture-action-label";
-    label.textContent = action.label;
+    label.textContent = footerText(action.label);
     description.className = "quick-action-capture-action-description";
-    description.textContent = action.temporaryFallback && action.temporaryLabel
+    description.textContent = footerText(action.temporaryFallback && action.temporaryLabel
       ? action.temporaryLabel
-      : action.description || "";
+      : action.description || "");
 
     body.append(label);
     if (description.textContent) {
@@ -327,39 +429,62 @@
     return button;
   }
 
+  /** @param {FooterQuickAction} action @param {HTMLButtonElement} button @param {QuickActionShell} shell */
   async function activateQuickAction(action, button, shell) {
+    // The truthiness check is unchanged, and `String` reproduces the coercion the assignment
+    // to `location.href` already performed, so a non-string href still navigates where it did.
     if (action.actionType === "fallback-link" && action.href) {
-      window.location.href = action.href;
+      window.location.href = String(action.href);
       return;
     }
 
-    if (action.actionType !== "module-action" || !action.moduleActionId) {
+    // `open` takes the action id as a `string`, and the truthiness check alone never proved
+    // one. Both guards refuse the same stored payloads they always did; the only value whose
+    // treatment moves is a truthy non-string id, which now reports "not available yet"
+    // instead of being handed to the registry. The producer emits `""` or a string literal.
+    if (action.actionType !== "module-action" || typeof action.moduleActionId !== "string" || !action.moduleActionId) {
       setQuickActionStatus(shell.status, "This quick action is not available yet.", true);
       return;
     }
 
     button.disabled = true;
-    setQuickActionStatus(shell.status, `Opening ${action.label}...`);
+    setQuickActionStatus(shell.status, `Opening ${String(action.label)}...`);
 
     try {
       const moduleActions = await ensureQuickActionDependencies(action.moduleActionId);
+      /** @type {QuickActionHostChannels} */
+      const hostChannels = {
+        refresh: (detail) => notifyQuickActionHostRefresh(action, detail),
+        setStatus: (message, options = {}) => setQuickActionStatus(shell.status, message, options.isError),
+      };
       await moduleActions.open(action.moduleActionId, {
         context: {
           currentPage: readQuickActionPageContext(),
           source: "quick-action-capture",
         },
-      }, {
-        refresh: (detail) => notifyQuickActionHostRefresh(action, detail),
-        setStatus: (message, options = {}) => setQuickActionStatus(shell.status, message, options.isError),
-      });
+      }, hostChannels);
       setQuickActionStatus(shell.status, "");
     } catch (error) {
-      setQuickActionStatus(shell.status, requireErrors().caughtMessage(error, `${action.label} could not be opened.`), true);
+      setQuickActionStatus(shell.status, requireErrors().caughtMessage(error, `${String(action.label)} could not be opened.`), true);
     } finally {
       button.disabled = false;
     }
   }
 
+  /**
+   * Announce that a quick action's dialog finished, carrying whatever detail it handed back.
+   *
+   * **The detail is the module dialog's, and nothing validates it** - the registry's own
+   * contract says so. Spreading is the only thing this function does with it, so the guard is
+   * written to match what a spread already does: **any non-null object**, arrays included,
+   * because `{...[1, 2]}` really does contribute indices. The four in-tree callers all pass a
+   * record, so that path is unchanged, and `null`, `undefined` and every non-string primitive
+   * contributed no members before and contribute none now. **A string detail is the one value
+   * whose treatment moves**: spreading one used to scatter its character indices into the
+   * event detail, and now contributes nothing. No caller sends one.
+   * @param {FooterQuickAction} action
+   * @param {unknown} [detail]
+   */
   function notifyQuickActionHostRefresh(action, detail = {}) {
     const registeredAction = window.LongtailForge?.moduleActions?.list?.({ includeUnavailable: true })
       ?.find((entry) => entry.actionId === action.moduleActionId);
@@ -368,7 +493,7 @@
         actionId: action.moduleActionId || action.id,
         recordType: registeredAction?.recordType || "",
         quickActionId: action.id,
-        ...detail,
+        ...(typeof detail === "object" && detail !== null ? detail : {}),
       },
     }));
   }
@@ -380,6 +505,7 @@
    * the map's own keys - `toString` would have answered a function rather than nothing. Walking
    * its entries answers only for the keys it actually declares.
    * @param {string} moduleActionId
+   * @returns {QuickActionDependency[]}
    */
   function quickActionDependenciesFor(moduleActionId) {
     for (const [actionId, dependencies] of Object.entries(quickActionDependencySets)) {
@@ -411,6 +537,7 @@
     return moduleActions;
   }
 
+  /** @param {QuickActionDependency} dependency */
   function loadQuickActionScript(dependency) {
     if (dependency.test?.()) {
       return Promise.resolve();
@@ -424,14 +551,7 @@
 
     const promise = dependency.module
       ? import(key)
-      : new Promise((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = versionedSrc;
-          script.async = false;
-          script.addEventListener("load", () => resolve());
-          script.addEventListener("error", () => reject(new Error(`Could not load ${dependency.src}.`)));
-          document.body.appendChild(script);
-        });
+      : appendQuickActionScriptTag(dependency, versionedSrc);
 
     const checkedPromise = promise.then(() => {
       if (!dependency.test?.()) {
@@ -443,9 +563,40 @@
     return checkedPromise;
   }
 
+  /**
+   * Append the script tag this dependency names, resolving once it loads.
+   *
+   * **Extracted for the declared return type, and it must stay a function.** `resolve()` is
+   * called with no argument, which needs a `Promise<void>` to be legal; hoisting the
+   * `new Promise` into an annotated local instead would have built the tag - and appended it
+   * to the document - even for the `import()` branch that never wants one.
+   * @param {QuickActionDependency} dependency
+   * @param {string} versionedSrc
+   * @returns {Promise<void>}
+   */
+  function appendQuickActionScriptTag(dependency, versionedSrc) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = versionedSrc;
+      script.async = false;
+      script.addEventListener("load", () => resolve());
+      script.addEventListener("error", () => reject(new Error(`Could not load ${dependency.src}.`)));
+      document.body.appendChild(script);
+    });
+  }
+
+  /**
+   * The quick actions this workspace published, each read as a record.
+   *
+   * A malformed entry becomes an empty record rather than being dropped, which is what the
+   * untyped page did: it read `entry.label` off whatever the list held, got `undefined`, and
+   * drew the button anyway. Filtering here would remove an affordance the footer has always
+   * shown. This mirrors the same decision in `time-tracking-dashboard.js`.
+   * @returns {FooterQuickAction[]}
+   */
   function readQuickActions() {
     const actions = window.LongtailForge?.workspaceContext?.quickActions || [];
-    return Array.isArray(actions) ? actions : [];
+    return Array.isArray(actions) ? actions.map((entry) => footerRecord(entry) || {}) : [];
   }
 
   function readQuickActionPageContext() {
@@ -456,27 +607,54 @@
     };
   }
 
+  /**
+   * @param {QuickActionDrawerControls} shell
+   * @param {boolean} isOpen
+   * @param {{ returnFocus?: boolean }} [options]
+   */
   function setQuickActionDrawerOpen(shell, isOpen, options = {}) {
     shell.toggle.setAttribute("aria-expanded", String(isOpen));
     shell.drawer.hidden = !isOpen;
     shell.drawer.setAttribute("aria-hidden", String(!isOpen));
 
     if (isOpen) {
-      window.setTimeout(() => shell.list?.querySelector("button:not(:disabled)")?.focus(), 0);
+      // `querySelector` answers an `Element`, and only an `HTMLElement` can take focus. The
+      // selector asks for a button, so this narrowing refuses nothing the drawer can hold.
+      window.setTimeout(() => {
+        const firstAction = shell.list?.querySelector("button:not(:disabled)");
+        if (firstAction instanceof HTMLElement) {
+          firstAction.focus();
+        }
+      }, 0);
     } else if (options.returnFocus !== false && typeof shell.toggle.focus === "function") {
       shell.toggle.focus();
     }
   }
 
+  /**
+   * @param {HTMLElement | null | undefined} status
+   * @param {unknown} message
+   * @param {unknown} [isError]
+   */
   function setQuickActionStatus(status, message, isError = false) {
     if (!status) {
       return;
     }
 
-    status.textContent = message || "";
+    status.textContent = String(message || "");
     status.classList.toggle("is-error", Boolean(isError));
   }
 
+  /**
+   * Hand a button to the icon surface, or write plain text when that surface is absent.
+   *
+   * **The options are `string` because `BrowserIconButtonOptions` is.** Two of the three
+   * callers pass literals; the third is the only one holding stored values, so it coerces
+   * there rather than widening this signature and pushing the problem into the published
+   * contract's own reads.
+   * @param {HTMLButtonElement} button
+   * @param {{ icon?: string, label?: string, text?: string }} options
+   */
   function decorateQuickActionButton(button, options) {
     if (!window.LongtailForge?.icons?.decorateButton) {
       button.textContent = options.text || options.label || "";
