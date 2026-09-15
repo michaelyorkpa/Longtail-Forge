@@ -384,6 +384,7 @@
         "tests/e2e/workspace-rename-shell-label.spec.mjs",
         "tests/e2e/workspace-settings-rejected-save.spec.mjs",
         "tests/e2e/workspace-switch-landing.spec.mjs",
+        "tests/mutations/api-key-scope-rendering.breaks.mjs",
         "tests/mutations/audit-log-filter-query.breaks.mjs",
         "tests/mutations/audit-log-rendering.breaks.mjs",
         "tests/mutations/calendar-adapter.breaks.mjs",
@@ -448,6 +449,7 @@
         "tests/typecheck/time-tracking-server-contracts.fixture.mjs",
         "tests/unit/active-timer-list-contracts.test.mjs",
         "tests/unit/api-key-contracts.test.mjs",
+        "tests/unit/api-key-scope-rendering.test.mjs",
         "tests/unit/app-shell-readiness-pair-contracts.test.mjs",
         "tests/unit/asset-version.test.mjs",
         "tests/unit/attachment-count-contracts.test.mjs",
@@ -708,7 +710,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4812,
+      "errorCount": 4786,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -724,22 +726,6 @@
           {
             "code": 2339,
             "count": 10
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 21
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 3
           }
         ],
         "public/js/clients-projects.js": [
@@ -2167,8 +2153,8 @@
     }
   },
   "totals": {
-    "files": 1290,
-    "errors": 4812,
+    "files": 1292,
+    "errors": 4786,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
