@@ -3,6 +3,22 @@
   const moduleSettingsStatus = asStatusElement(document.querySelector("[data-module-settings-status]"));
   const moduleSettingsFields = document.querySelector('[data-settings-attachment="module"]');
 
+  /**
+   * The settings snapshot this page holds, as its own normalizer builds it.
+   *
+   * **Earned by construction.** `normalizeSettings` writes all five members by name and coerces
+   * each one, so this is what that function answers rather than what the route is hoped to send.
+   * The two lists stay `unknown[]` because the normalizer proves only that they are arrays: it
+   * checks no element, and claiming otherwise would be stronger than the runtime.
+   * @typedef {object} ModuleSettingsSnapshot
+   * @property {{ loggingEnabled: boolean, retentionDays: number }} audit
+   * @property {unknown[]} enabledModules
+   * @property {unknown[]} modules
+   * @property {string} workspaceName
+   * @property {string} workspaceType
+   */
+
+  /** @type {ModuleSettingsSnapshot | null} */
   let currentSettings = null;
   /** @type {unknown} */
   let settingsCatalog = null;
@@ -155,6 +171,19 @@
   /** @param {unknown} value @returns {value is Record<string, unknown>} */
   function isCatalogRecord(value) {
     return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  /**
+   * A value read as a record, or an empty one when it is not.
+   *
+   * Built on the catalog check already here rather than a second copy of it. Answering `{}`
+   * rather than `null` keeps the readers free of optional chains that would only ever describe
+   * the same answer: each went on to take a member and receive `undefined`.
+   * @param {unknown} value
+   * @returns {Record<string, unknown>}
+   */
+  function moduleSettingsRecord(value) {
+    return isCatalogRecord(value) ? value : {};
   }
 
   /**
@@ -311,7 +340,12 @@
 
   function renderModuleSettings() {
     const moduleId = currentModuleSettingsId();
-    const moduleDefinition = currentSettings?.modules.find((module) => module.id === moduleId) || null;
+    // The snapshot proves `modules` is an array and nothing about its elements, so each is read
+    // as a record here. A non-record entry answers the empty record and matches no module id,
+    // which is what comparing `undefined` to the id already did.
+    const moduleDefinition = currentSettings?.modules
+      .map(moduleSettingsRecord)
+      .find((module) => module.id === moduleId) || null;
     if (moduleDefinition && moduleDefinition.status !== "enabled") {
       requireSettingsRenderer().renderDisabledModuleRecovery(moduleSettingsFields, moduleDefinition || {
         id: moduleId,
@@ -347,26 +381,31 @@
     return { frameworkSettings, moduleSettings };
   }
 
+  /** @param {unknown} settings @returns {ModuleSettingsSnapshot} */
   function normalizeSettings(settings) {
+    const source = moduleSettingsRecord(settings);
     return {
-      workspaceName: String(settings?.workspaceName || "").trim(),
-      workspaceType: normalizeWorkspaceType(settings?.workspaceType || settings?.workspace_type),
-      enabledModules: Array.isArray(settings?.enabledModules) ? settings.enabledModules : [],
-      modules: Array.isArray(settings?.modules) ? settings.modules : [],
-      audit: normalizeAuditSettings(settings?.audit),
+      workspaceName: String(source.workspaceName || "").trim(),
+      workspaceType: normalizeWorkspaceType(source.workspaceType || source.workspace_type),
+      enabledModules: Array.isArray(source.enabledModules) ? source.enabledModules : [],
+      modules: Array.isArray(source.modules) ? source.modules : [],
+      audit: normalizeAuditSettings(source.audit),
     };
   }
 
+  /** @param {unknown} value @returns {string} */
   function normalizeWorkspaceType(value) {
     const workspaceType = String(value || "").trim();
     return ["business", "personal", "family"].includes(workspaceType) ? workspaceType : "business";
   }
 
+  /** @param {unknown} audit @returns {{ loggingEnabled: boolean, retentionDays: number }} */
   function normalizeAuditSettings(audit) {
     const retentionOptions = [7, 14, 30, 60, 90, 180, 365];
-    const retentionDays = Number.parseInt(audit?.retentionDays, 10);
+    const source = moduleSettingsRecord(audit);
+    const retentionDays = Number.parseInt(String(source.retentionDays), 10);
     return {
-      loggingEnabled: audit?.loggingEnabled === false ? false : true,
+      loggingEnabled: source.loggingEnabled === false ? false : true,
       retentionDays: retentionOptions.includes(retentionDays) ? retentionDays : 30,
     };
   }
@@ -375,6 +414,16 @@
     setStatus("Settings saved.", { type: "success", clearAfter: 1600 });
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserStatusMessageOptions} BrowserStatusMessageOptions */
+
+  /**
+   * Report through the shared status surface.
+   *
+   * The options are the published ones rather than a local restatement: this forwards them to
+   * that surface unchanged apart from the error spelling it already translated.
+   * @param {string} message
+   * @param {BrowserStatusMessageOptions} [options]
+   */
   function setStatus(message, options = {}) {
     requireStatusMessage().set(moduleSettingsStatus, message, options.isError ? { type: "error" } : options);
   }
