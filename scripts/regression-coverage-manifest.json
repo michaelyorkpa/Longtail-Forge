@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19079,
+    "activeAssertionCount": 19080,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19893,
+    "effectiveAssertionCount": 19894,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -4335,11 +4335,11 @@
     },
     {
       "area": "framework",
-      "assertionCount": 65,
+      "assertionCount": 66,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy quick action capture contract.",
-      "entryPointAssertionCount": 65,
+      "entryPointAssertionCount": 66,
       "id": "legacy.quick.action.capture",
       "legacy": true,
       "path": "scripts/quick-action-capture-regression.mjs",
