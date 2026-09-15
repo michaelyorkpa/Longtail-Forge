@@ -9,6 +9,7 @@
   const apiKeyStatus = document.querySelector("[data-api-key-status]");
   const apiKeyList = document.querySelector("[data-api-key-list]");
 
+  /** @type {NormalizedApiScope[]} */
   let availableScopes = [];
 
   loadApiKeys();
@@ -88,6 +89,20 @@
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApiKeyRecord} BrowserApiKeyRecord */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApiKeySecret} BrowserApiKeySecret */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApiScope} BrowserApiScope */
+
+  /**
+   * One scope as this page renders it, after trimming.
+   *
+   * **`Omit<BrowserApiScope, "scope">` rather than a new vocabulary.** The published record
+   * writes `id` and `scope` as the same value twice, and this page reads only `id`, so the
+   * derived row drops the duplicate and keeps every other member under the estate's own names.
+   * @typedef {Omit<BrowserApiScope, "scope">} NormalizedApiScope
+   */
+
+  /**
+   * One owner's scopes, grouped for a fieldset.
+   * @typedef {{ id: string, label: string, scopes: NormalizedApiScope[] }} ApiScopeGroup
+   */
 
   /** The seven text columns the list selects beside the two nullable ones and the scopes. */
   const API_KEY_ENTRY_TEXT = Object.freeze([
@@ -284,6 +299,7 @@
     });
   }
 
+  /** @param {NormalizedApiScope} scope */
   function createScopeOption(scope) {
     const label = document.createElement("label");
     const checkbox = document.createElement("input");
@@ -302,6 +318,7 @@
     return label;
   }
 
+  /** @param {NormalizedApiScope[]} scopes @returns {ApiScopeGroup[]} */
   function groupScopesByOwner(scopes) {
     const groupsById = scopes.reduce((groups, scope) => {
       const moduleId = scope.moduleId || "framework";
@@ -326,25 +343,51 @@
       .sort((left, right) => left.label.localeCompare(right.label));
   }
 
+  /**
+   * Order two scopes by access, then label, then id.
+   *
+   * **The table is read by own key.** Indexing it with a wire string read the prototype too,
+   * so a scope whose access named a member of `Object.prototype` answered a *function* - and
+   * `?? 10` does not catch one, because a function is not nullish. It would have reached the
+   * subtraction and made the comparator answer `NaN`. This is the own-key discipline settled
+   * in `0.33.33.40.30`: `Object.hasOwn` for a literal table keyed by a wire value.
+   * @param {NormalizedApiScope} left
+   * @param {NormalizedApiScope} right
+   */
   function compareScopes(left, right) {
+    /** @type {Record<string, number>} */
     const accessOrder = { read: 0, write: 1, manage: 2, admin: 3 };
+    /** @param {string} access */
+    const rank = (access) => (Object.hasOwn(accessOrder, access) ? accessOrder[access] : 10);
 
-    return (accessOrder[left.access] ?? 10) - (accessOrder[right.access] ?? 10)
+    return (rank(left.access) - rank(right.access))
       || String(left.label || left.id).localeCompare(String(right.label || right.id))
       || String(left.id).localeCompare(String(right.id));
   }
 
+  /**
+   * The owner label for a module id, or one derived from the id itself.
+   *
+   * Read by own key for the same reason as `compareScopes`: indexing this literal with a wire
+   * string answered `Object.prototype`'s members, so a module id of `toString` returned a
+   * function rather than falling through to the derived label.
+   * @param {string} moduleId
+   */
   function moduleScopeLabel(moduleId) {
-    return {
+    /** @type {Record<string, string>} */
+    const ownerLabels = {
       "client-projects": "Clients and Projects",
       "time-tracking": "Time Tracking",
       framework: "Framework",
-    }[moduleId] || moduleId
+    };
+
+    return (Object.hasOwn(ownerLabels, moduleId) ? ownerLabels[moduleId] : "") || moduleId
       .split("-")
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(" ");
   }
 
+  /** @param {BrowserApiKeyListEntry[]} apiKeys */
   function renderApiKeys(apiKeys) {
     apiKeyList.replaceChildren();
 
@@ -375,6 +418,7 @@
     });
   }
 
+  /** @param {BrowserApiKeyListEntry} apiKey */
   function createActionCell(apiKey) {
     const cell = document.createElement("td");
 
@@ -393,6 +437,7 @@
     return cell;
   }
 
+  /** @param {BrowserApiKeyListEntry} apiKey */
   async function revokeApiKey(apiKey) {
     const shouldRevoke = await requireModalDialogs().confirm({
       title: "Revoke API key?",
@@ -426,40 +471,51 @@
       .map((checkbox) => checkbox.value);
   }
 
+  /**
+   * Trim the catalogue's scopes into the rows this page renders.
+   *
+   * **`access` was being dropped here, and two readers depend on it.** The catalogue writes it
+   * by name and `isApiScope` proves it is text, but this rebuilt the row without it - so
+   * `createScopeOption` saw `undefined`, compared it against `"write"`, and labelled every
+   * scope "Read" including the write and manage ones, while `compareScopes` scored them all
+   * 10 and never applied its access ordering. Carrying it through is a behaviour change on
+   * both surfaces, and a deliberate one: this is pre-existing and is not introduced here.
+   *
+   * The parameter is `BrowserApiScope[]` because that is what the only caller passes, proved
+   * by `isApiScope` before it arrives. The earlier bare-string branch described a caller that
+   * does not exist, and the trimming stays because a catalogue entry may still be padded.
+   * @param {BrowserApiScope[]} scopes
+   * @returns {NormalizedApiScope[]}
+   */
   function normalizeAvailableScopes(scopes) {
-    return scopes.map((scope) => {
-      if (typeof scope === "string") {
-        return {
-          id: scope,
-          label: scope,
-          description: "",
-        };
-      }
-
-      return {
-        id: String(scope.id || scope.scope || "").trim(),
-        label: String(scope.label || scope.id || scope.scope || "").trim(),
-        description: String(scope.description || "").trim(),
-        moduleId: String(scope.moduleId || "").trim(),
-      };
-    }).filter((scope) => scope.id);
+    return scopes.map((scope) => ({
+      access: scope.access.trim(),
+      description: scope.description.trim(),
+      id: (scope.id || scope.scope).trim(),
+      label: (scope.label || scope.id || scope.scope).trim(),
+      moduleId: scope.moduleId.trim(),
+    })).filter((scope) => scope.id);
   }
 
+  /** @param {string} rawKey */
   function showRawKey(rawKey) {
     apiKeySecretInput.value = rawKey;
     apiKeySecretPanel.hidden = !rawKey;
   }
 
+  /** @param {string} value */
   function createCell(value) {
     const cell = document.createElement("td");
     cell.textContent = value || "";
     return cell;
   }
 
+  /** @param {string} status */
   function formatStatus(status) {
     return status === "revoked" ? "Revoked" : "Active";
   }
 
+  /** @param {string | null} value */
   function formatDate(value) {
     if (!value) {
       return "";
@@ -468,6 +524,7 @@
     return new Date(value).toLocaleString();
   }
 
+  /** @param {string} message @param {boolean} [isError] */
   function setApiKeyStatus(message, isError = false) {
     apiKeyStatus.textContent = message;
     apiKeyStatus.classList.toggle("is-error", isError);
