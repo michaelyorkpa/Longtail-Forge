@@ -336,6 +336,7 @@
         "tests/e2e/notes-bulk-edit.spec.mjs",
         "tests/e2e/notes-collections.spec.mjs",
         "tests/e2e/notes-detail-display.spec.mjs",
+        "tests/e2e/notes-dom-closeout.spec.mjs",
         "tests/e2e/notes-editor-defaults.spec.mjs",
         "tests/e2e/notes-editor-fields-links.spec.mjs",
         "tests/e2e/notes-editor-lifecycle.spec.mjs",
@@ -506,6 +507,7 @@
         "tests/unit/note-revision-list-contracts.test.mjs",
         "tests/unit/notes-bulk-edit.test.mjs",
         "tests/unit/notes-detail-display.test.mjs",
+        "tests/unit/notes-dom-closeout.test.mjs",
         "tests/unit/notes-editor-defaults.test.mjs",
         "tests/unit/notes-editor-fields-links.test.mjs",
         "tests/unit/notes-editor-lifecycle.test.mjs",
@@ -712,7 +714,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4773,
+      "errorCount": 4769,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -972,16 +974,6 @@
           {
             "code": 7034,
             "count": 5
-          }
-        ],
-        "public/js/notes.js": [
-          {
-            "code": 18047,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 3
           }
         ],
         "public/js/notifications.js": [
@@ -2151,8 +2143,8 @@
     }
   },
   "totals": {
-    "files": 1294,
-    "errors": 4773,
+    "files": 1296,
+    "errors": 4769,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

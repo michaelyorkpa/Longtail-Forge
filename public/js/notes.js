@@ -2370,7 +2370,7 @@
     bulkFormControl(dialog, "collection").dataset.noteBulkCollection = "";
     bulkFormControl(dialog, "noteType").dataset.noteBulkType = "";
     const bulkVisibility = dialog.viewParts.form.querySelector('[data-view-input="visibility"]');
-    if (bulkVisibility) {
+    if (bulkVisibility && "dataset" in bulkVisibility && isResponseRecord(bulkVisibility.dataset)) {
       bulkVisibility.dataset.noteBulkVisibility = "";
     }
     bulkFormControl(dialog, "tagAction").dataset.noteBulkTagAction = "";
@@ -2964,7 +2964,7 @@
   function clearBulkSelection() {
     state.selectedNoteIds.clear();
     notesList?.querySelectorAll(".notes-list-select").forEach((input) => {
-      input.checked = false;
+      if (input instanceof HTMLInputElement) input.checked = false;
     });
     syncNotesBulkToolbar();
   }
@@ -3238,7 +3238,7 @@
 
   function closeNotesSlideOutDrawer() {
     const trigger = document.querySelector("[data-view-slideout-sidebar-trigger]");
-    if (trigger?.getAttribute("aria-expanded") === "true") {
+    if (trigger instanceof HTMLElement && trigger.getAttribute("aria-expanded") === "true") {
       trigger.click();
     }
   }
@@ -4554,7 +4554,7 @@
     } else if (target?.targetType) {
       linked.push(`${contextTypeLabel(target.targetType)}: ${target.label || unavailableTargetLabel(target.targetType)}`);
     } else {
-      if (userInput.value) {
+      if (requireNotesValue(userInput).value) {
         linked.push(`User: ${contextSummaryLabel("user")}`);
       }
     }
