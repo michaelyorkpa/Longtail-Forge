@@ -79,8 +79,11 @@
   }
 
   let context = null;
+  /** @type {import("../../src/types/browser-contracts.js").BrowserMountedPanel | null} */
   let fileAttachmentsController = null;
+  /** @type {import("../../src/types/browser-contracts.js").BrowserMountedPanel | null} */
   let notesPanelController = null;
+  /** @type {import("../../src/types/browser-contracts.js").BrowserTagPickerController | null} */
   let tagPicker = null;
   let recurrenceDraft = defaultRecurrenceDraft();
   let taskTimers = [];
