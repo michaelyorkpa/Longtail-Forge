@@ -22,6 +22,7 @@
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
 
+  /** @param {string} name */
   function readCookie(name) {
     const cookie = document.cookie
       .split(";")
@@ -31,13 +32,30 @@
     return cookie ? decodeURIComponent(cookie.split("=").slice(1).join("=")) : "";
   }
 
+  /**
+   * Wrap `window.fetch` so same-origin API mutations carry the CSRF header, once.
+   *
+   * **The marker is read by own key rather than declared onto the DOM's `fetch` type.**
+   * Saying `window.fetch` *is* a guarded fetch would assert the very thing this line exists to
+   * find out, and the marker is not part of the platform's contract - it is this module's own
+   * stamp, and only ever its own. `Object.hasOwn` asks exactly the question the read was
+   * asking: does this function carry our mark? It answers the same for every value this file
+   * produces, and refuses an inherited one, which the truthiness read would have accepted.
+   */
   function installCsrfFetchGuard() {
-    if (typeof window.fetch !== "function" || window.fetch.__longtailCsrfGuard) {
+    // Declared inside the guard, not beside the other constants: the composition regression
+    // lifts this function on its own and runs it, so a name declared at module scope would be
+    // a free variable there. The marker stays this function's business either way.
+    const guardMarker = "__longtailCsrfGuard";
+
+    if (typeof window.fetch !== "function" || Object.hasOwn(window.fetch, guardMarker)) {
       return;
     }
 
     const originalFetch = window.fetch.bind(window);
+    /** @type {Promise<string> | null} */
     let pendingToken = null;
+    /** @param {RequestInfo | URL} input @param {RequestInit} [init] */
     const guardedFetch = async function (input, init = {}) {
       const url = resolveRequestUrl(input);
       const method = resolveRequestMethod(input, init);
@@ -52,7 +70,7 @@
       headers.set(CSRF_HEADER_NAME, csrfToken);
       return originalFetch(input, { ...init, headers });
     };
-    guardedFetch.__longtailCsrfGuard = true;
+    guardedFetch[guardMarker] = true;
     window.fetch = guardedFetch;
 
     async function loadCsrfToken() {
@@ -74,6 +92,7 @@
     }
   }
 
+  /** @param {RequestInfo | URL} input @returns {URL | null} */
   function resolveRequestUrl(input) {
     try {
       const value = typeof input === "string" || input instanceof window.URL ? input : input.url;
@@ -83,25 +102,40 @@
     }
   }
 
+  /** @param {RequestInfo | URL} input @param {RequestInit} init */
   function resolveRequestMethod(input, init) {
     const inputMethod = typeof window.Request === "function" && input instanceof window.Request ? input.method : "GET";
     return String(init.method || inputMethod || "GET").toUpperCase();
   }
 
+  /** @param {URL} url @param {string} method */
   function isProtectedApiMutation(url, method) {
     return !["GET", "HEAD", "OPTIONS"].includes(method)
       && url.pathname.startsWith("/api/")
       && !url.pathname.startsWith("/api/v1/");
   }
 
+  /** @param {string} value */
   function normalizeThemeMode(value) {
     return ["light", "auto", "dark"].includes(value) ? value : "light";
   }
 
+  /**
+   * The auto-theme source, of which there is currently exactly one.
+   *
+   * **Both arms answer `"system"`, and that is left exactly as it stands.** The branch is
+   * pre-existing, it is behaviour-neutral, and nothing about typing this file requires
+   * collapsing it - the parameter is still the module's input even while every value maps to
+   * the same answer. Recorded here rather than tidied away, so that narrowing the vocabulary
+   * to one source stays a visible decision rather than becoming an accident.
+   * @param {string} value
+   * @returns {string}
+   */
   function normalizeThemeAutoSource(value) {
     return value === "system" ? "system" : "system";
   }
 
+  /** @param {string} themeModeValue @param {string} themeAutoSourceValue */
   function resolveThemeMode(themeModeValue, themeAutoSourceValue) {
     const normalizedThemeMode = normalizeThemeMode(themeModeValue);
 
@@ -112,6 +146,7 @@
     return resolveAutoThemeMode(themeAutoSourceValue);
   }
 
+  /** @param {string} themeAutoSourceValue */
   function resolveAutoThemeMode(themeAutoSourceValue) {
     if (normalizeThemeAutoSource(themeAutoSourceValue) === "system" && typeof window.matchMedia === "function") {
       return window.matchMedia(SYSTEM_THEME_QUERY).matches ? "dark" : "light";
