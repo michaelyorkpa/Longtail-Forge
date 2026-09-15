@@ -1,12 +1,44 @@
 (function attachSupportViewAuditPage() {
+  /**
+   * One of this page's filter controls, when the view really rendered a select there.
+   *
+   * **Narrowed where it is acquired, not where it is used.** `replaceOptions` genuinely needs a
+   * select - it reads `value` and refills the control's children - and declaring that honestly
+   * means the five call sites must hand it one. A matching element that is not a select answers
+   * `null` and takes the same absent-control path a missing one already took.
+   * @param {string} selector
+   * @returns {HTMLSelectElement | null}
+   */
+  function findAuditSelect(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLSelectElement ? element : null;
+  }
+
+  /**
+   * One filter control this page cannot read or refill without.
+   *
+   * **It throws rather than skipping.** Narrowing the cached controls left their nullness as the
+   * remaining complaint, and answering that with an early return would leave a filter silently
+   * empty or a query silently unfiltered. This fails at the same statement the `value` read
+   * already failed at, and names what the view did not render.
+   * @param {HTMLSelectElement | null} select
+   * @returns {HTMLSelectElement}
+   */
+  function requireAuditSelect(select) {
+    if (!select) {
+      throw new TypeError("The Support View audit page requires its filter controls.");
+    }
+    return select;
+  }
+
   const filtersForm = document.querySelector("[data-support-view-audit-filters]");
   const fromInput = document.querySelector("[data-support-view-audit-from]");
   const toInput = document.querySelector("[data-support-view-audit-to]");
-  const actorSelect = document.querySelector("[data-support-view-audit-actor]");
-  const targetSelect = document.querySelector("[data-support-view-audit-target]");
-  const workspaceSelect = document.querySelector("[data-support-view-audit-workspace]");
-  const eventSelect = document.querySelector("[data-support-view-audit-event]");
-  const outcomeSelect = document.querySelector("[data-support-view-audit-outcome]");
+  const actorSelect = findAuditSelect("[data-support-view-audit-actor]");
+  const targetSelect = findAuditSelect("[data-support-view-audit-target]");
+  const workspaceSelect = findAuditSelect("[data-support-view-audit-workspace]");
+  const eventSelect = findAuditSelect("[data-support-view-audit-event]");
+  const outcomeSelect = findAuditSelect("[data-support-view-audit-outcome]");
   const resetButton = document.querySelector("[data-support-view-audit-reset]");
   const exportButton = document.querySelector("[data-support-view-audit-export]");
   const pageSizeSelect = document.querySelector("[data-support-view-audit-page-size]");
@@ -309,13 +341,13 @@
   function buildFilterParams() {
     const params = new URLSearchParams();
     const values = {
-      actorUserId: actorSelect.value,
+      actorUserId: requireAuditSelect(actorSelect).value,
       dateFrom: fromInput.value,
       dateTo: toInput.value,
-      effectiveUserId: targetSelect.value,
-      eventType: eventSelect.value,
-      outcome: outcomeSelect.value,
-      workspaceId: workspaceSelect.value,
+      effectiveUserId: requireAuditSelect(targetSelect).value,
+      eventType: requireAuditSelect(eventSelect).value,
+      outcome: requireAuditSelect(outcomeSelect).value,
+      workspaceId: requireAuditSelect(workspaceSelect).value,
     };
     Object.entries(values).forEach(([key, value]) => {
       if (value) {
@@ -333,6 +365,7 @@
     return params;
   }
 
+  /** @param {BrowserSupportViewAuditFilterOptions} options */
   function populateFilters(options) {
     replaceOptions(actorSelect, "All administrators", options.actors);
     replaceOptions(targetSelect, "All viewed users", options.effectiveUsers);
@@ -341,12 +374,23 @@
     replaceOptions(outcomeSelect, "All outcomes", formatOptions(options.outcomes));
   }
 
+  /**
+   * Refill one filter control, keeping its all-values entry first.
+   *
+   * The control is the element this page cached, narrowed once at acquisition. An absent one is
+   * refused by name rather than skipped: reading `value` off it already threw here, and
+   * answering silently would leave a filter permanently empty with nothing said.
+   * @param {HTMLSelectElement | null} select
+   * @param {string} allLabel
+   * @param {readonly { label?: string, value: string }[]} options
+   */
   function replaceOptions(select, allLabel, options) {
-    const selected = select.value;
+    const control = requireAuditSelect(select);
+    const selected = control.value;
     const allOption = document.createElement("option");
     allOption.value = "";
     allOption.textContent = allLabel;
-    select.replaceChildren(allOption);
+    control.replaceChildren(allOption);
     (Array.isArray(options) ? options : []).forEach((item) => {
       if (!item?.value || !item?.label) {
         return;
@@ -354,13 +398,17 @@
       const option = document.createElement("option");
       option.value = String(item.value);
       option.textContent = String(item.label);
-      select.appendChild(option);
+      control.appendChild(option);
     });
-    if ([...select.options].some((option) => option.value === selected)) {
-      select.value = selected;
+    if ([...control.options].some((option) => option.value === selected)) {
+      control.value = selected;
     }
   }
 
+  /**
+   * Filter values rendered with a readable label, which the value supplies when none is sent.
+   * @param {readonly BrowserSupportViewAuditFilterValue[]} options
+   */
   function formatOptions(options) {
     return (Array.isArray(options) ? options : []).map((item) => ({
       label: formatEnum(item.label || item.value),
@@ -368,6 +416,7 @@
     }));
   }
 
+  /** @param {readonly BrowserSupportViewAuditEvent[]} events */
   function renderRows(events) {
     tableBody.replaceChildren();
     if (events.length === 0) {
@@ -395,12 +444,14 @@
     });
   }
 
+  /** @param {BrowserSupportViewAuditEvent} event */
   function formatEvent(event) {
     const eventLabel = formatEnum(event.eventType);
     const action = event.actionId || event.routeId;
     return action ? `${eventLabel}: ${action}` : eventLabel;
   }
 
+  /** @param {unknown} value */
   function cell(value) {
     const element = document.createElement("td");
     element.textContent = String(value || "None");
@@ -408,6 +459,7 @@
     return element;
   }
 
+  /** @param {unknown} value */
   function formatEnum(value) {
     return String(value || "")
       .split(/[._:-]/)
@@ -438,6 +490,7 @@
     setStatus(`Showing ${start}-${end} of ${totalEvents} Support View events.`);
   }
 
+  /** @param {string} message @param {boolean} [isError] */
   function setStatus(message, isError = false) {
     statusText.textContent = message;
     statusText.classList.toggle("error-text", isError);
