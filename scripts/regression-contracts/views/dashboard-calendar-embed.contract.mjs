@@ -94,7 +94,7 @@ assert.match(
 );
 assert.match(
   tasksDashboardJs,
-  /\["month", "week", "day"\]\.map\(\(viewId\) => createViewButton\(viewId\)\)/,
+  /const viewIds = \["month", "week", "day"\];[\s\S]*const viewButtons = viewIds\.map\(\(viewId\) => createViewButton\(viewId\)\)/,
   "the dashboard calendar must offer month, week, and day views",
 );
 assert.match(

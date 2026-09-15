@@ -51,6 +51,55 @@ dashboard.registerPanelRenderer("tasks.today-upcoming", renderTasksTodayUpcoming
 dashboard.registerPanelRenderer("tasks.pressure", renderTasksPressureContribution);
 dashboard.registerPanelRenderer("task-summary", renderTasksPressureContribution);
 
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+/** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskCalendarViewId} BrowserTaskCalendarViewId */
+/**
+ * Only the channels used here, from dashboard.js:createDashboardRendererContext.
+ * The registry deliberately accepts unknown; this local guard establishes callable channels,
+ * not a new published host or task-record contract. The view methods reuse their producer type.
+ * @typedef {object} TasksDashboardContext
+ * @property {Pick<BrowserViewFactory, "createElement" | "createEmptyState">} view
+ * @property {(options: {className: string, title: unknown, children: (Node | null)[]}) => HTMLElement} createPanel
+ * @property {(contribution: unknown, fallbackRoute: string) => Promise<unknown>} loadContributionData
+ * @property {(message: string, options: {isError: boolean}) => void} setStatus
+ *
+ * @typedef {object} TasksDashboardPanelOptions
+ * @property {string} className
+ * @property {string} errorMessage
+ * @property {string} errorTitle
+ * @property {string} loadingMessage
+ * @property {unknown} title
+ * @property {(context: TasksDashboardContext, summary?: Record<string, unknown>) => HTMLElement} renderContent
+ */
+
+/** @param {unknown} value @returns {value is Record<string, unknown>} */
+function isTasksDashboardRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Summary rows/metrics/actions are a Tasks-owned projection, not BrowserTaskRecord.
+ * Keep their own display values opaque: the view factory owns text/attribute coercion.
+ * Copy only own entries so inherited names cannot become wire data. Unreadable records
+ * now use the existing empty-object defaults instead of refusing a whole panel;
+ * no required member is invented.
+ * @param {unknown} value @returns {Record<string, unknown>}
+ */
+function tasksDashboardRecord(value) {
+  return isTasksDashboardRecord(value) ? Object.fromEntries(Object.entries(value)) : {};
+}
+
+/** @param {unknown} context @returns {asserts context is TasksDashboardContext} */
+function requireTasksDashboardContext(context) {
+  if (!isTasksDashboardRecord(context) || !isTasksDashboardRecord(context.view)
+    || typeof context.view.createElement !== "function" || typeof context.view.createEmptyState !== "function"
+    || typeof context.createPanel !== "function" || typeof context.loadContributionData !== "function"
+    || typeof context.setStatus !== "function") {
+    throw new TypeError("Tasks Dashboard requires its host panel, data, status and view channels.");
+  }
+}
+
+/** @param {unknown} contribution @param {unknown} context */
 function renderTasksNeedsAttentionContribution(contribution, context) {
   return renderTasksDashboardContribution(contribution, context, {
     className: "dashboard-task-attention-panel",
@@ -58,12 +107,13 @@ function renderTasksNeedsAttentionContribution(contribution, context) {
     errorTitle: "Needs Attention unavailable",
     loadingMessage: "Loading attention signals...",
     renderContent: createTasksNeedsAttentionContent,
-    title: contribution.label || "Needs Attention",
+    title: tasksDashboardRecord(contribution).label || "Needs Attention",
   });
 }
 
 /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskCalendarOccurrence} BrowserTaskCalendarOccurrence */
-function renderTasksCalendarContribution(contribution, context) {
+/** @param {unknown} contribution @param {unknown} contextValue */
+function renderTasksCalendarContribution(contribution, contextValue) {
   const optionalTaskCalendar = window.LongtailForge?.taskCalendar;
 
   if (!optionalTaskCalendar) {
@@ -73,6 +123,8 @@ function renderTasksCalendarContribution(contribution, context) {
   // Re-bound after the guard so the nested `hydrate` sees the narrowed surface. The Dashboard
   // still contributes no panel at all when the helper is unpublished; this is the same object.
   const taskCalendar = optionalTaskCalendar;
+  requireTasksDashboardContext(contextValue);
+  const context = contextValue;
 
   const state = {
     view: taskCalendar.resolveDefaultView(taskCalendar.readPreferredCalendarView()),
@@ -88,7 +140,9 @@ function renderTasksCalendarContribution(contribution, context) {
     attrs: { role: "status" },
     text: "Loading calendar...",
   });
-  const viewButtons = ["month", "week", "day"].map((viewId) => createViewButton(viewId));
+  /** @type {BrowserTaskCalendarViewId[]} */
+  const viewIds = ["month", "week", "day"];
+  const viewButtons = viewIds.map((viewId) => createViewButton(viewId));
   const toolbar = context.view.createElement("div", {
     className: "dashboard-calendar-toolbar",
     children: [
@@ -102,7 +156,7 @@ function renderTasksCalendarContribution(contribution, context) {
   });
   const panel = context.createPanel({
     className: "dashboard-task-calendar-panel",
-    title: contribution.label || "Calendar",
+    title: tasksDashboardRecord(contribution).label || "Calendar",
     children: [
       toolbar,
       body,
@@ -113,6 +167,7 @@ function renderTasksCalendarContribution(contribution, context) {
   hydrate();
   return panel;
 
+  /** @param {BrowserTaskCalendarViewId} viewId */
   function createViewButton(viewId) {
     const button = context.view.createElement("button", {
       className: "calendar-view-button",
@@ -211,6 +266,7 @@ function renderTasksCalendarContribution(contribution, context) {
   }
 }
 
+/** @param {unknown} contribution @param {unknown} context */
 function renderTasksTodayUpcomingContribution(contribution, context) {
   return renderTasksDashboardContribution(contribution, context, {
     className: "dashboard-task-upcoming-panel",
@@ -218,10 +274,11 @@ function renderTasksTodayUpcomingContribution(contribution, context) {
     errorTitle: "Today / Upcoming unavailable",
     loadingMessage: "Loading upcoming work...",
     renderContent: createTasksTodayUpcomingContent,
-    title: contribution.label || "Today / Upcoming",
+    title: tasksDashboardRecord(contribution).label || "Today / Upcoming",
   });
 }
 
+/** @param {unknown} contribution @param {unknown} context */
 function renderTasksPressureContribution(contribution, context) {
   return renderTasksDashboardContribution(contribution, context, {
     className: "task-summary-panel dashboard-task-pressure-panel",
@@ -229,11 +286,13 @@ function renderTasksPressureContribution(contribution, context) {
     errorTitle: "Tasks unavailable",
     loadingMessage: "Loading task pressure...",
     renderContent: createTasksPressureContent,
-    title: contribution.label || "Tasks",
+    title: tasksDashboardRecord(contribution).label || "Tasks",
   });
 }
 
+/** @param {unknown} contribution @param {unknown} context @param {TasksDashboardPanelOptions} options */
 function renderTasksDashboardContribution(contribution, context, options) {
+  requireTasksDashboardContext(context);
   const body = context.view.createElement("div", {
     className: "dashboard-panel-body",
     attrs: { role: "status" },
@@ -249,10 +308,11 @@ function renderTasksDashboardContribution(contribution, context, options) {
   return panel;
 }
 
+/** @param {HTMLElement} body @param {unknown} contribution @param {TasksDashboardContext} context @param {TasksDashboardPanelOptions} options */
 async function hydrateTasksDashboardPanel(body, contribution, context, options) {
   try {
     const summary = await context.loadContributionData(contribution, DEFAULT_TASK_SUMMARY_ROUTE);
-    body.replaceChildren(options.renderContent(context, summary));
+    body.replaceChildren(options.renderContent(context, tasksDashboardRecord(summary)));
   } catch (error) {
     body.replaceChildren(context.view.createEmptyState({
       title: options.errorTitle,
@@ -262,7 +322,10 @@ async function hydrateTasksDashboardPanel(body, contribution, context, options) 
   }
 }
 
-function createTasksNeedsAttentionContent(context, summary = {}) {
+/** @param {TasksDashboardContext} context @param {Record<string, unknown>} [summaryValue] */
+function createTasksNeedsAttentionContent(context, summaryValue = {}) {
+  /** @type {Record<string, unknown> & {actions: Record<string, unknown>}} */
+  const summary = { ...summaryValue, actions: tasksDashboardRecord(summaryValue.actions) };
   return context.view.createElement("div", {
     className: "dashboard-task-card-content",
     children: [
@@ -272,7 +335,10 @@ function createTasksNeedsAttentionContent(context, summary = {}) {
   });
 }
 
-function createTasksTodayUpcomingContent(context, summary = {}) {
+/** @param {TasksDashboardContext} context @param {Record<string, unknown>} [summaryValue] */
+function createTasksTodayUpcomingContent(context, summaryValue = {}) {
+  /** @type {Record<string, unknown> & {actions: Record<string, unknown>}} */
+  const summary = { ...summaryValue, actions: tasksDashboardRecord(summaryValue.actions) };
   return context.view.createElement("div", {
     className: "dashboard-task-card-content",
     children: [
@@ -282,7 +348,14 @@ function createTasksTodayUpcomingContent(context, summary = {}) {
   });
 }
 
-function createTasksPressureContent(context, summary = {}) {
+/** @param {TasksDashboardContext} context @param {Record<string, unknown>} [summaryValue] */
+function createTasksPressureContent(context, summaryValue = {}) {
+  /** @type {Record<string, unknown> & {actions: Record<string, unknown>, pressureRows: unknown[]}} */
+  const summary = {
+    ...summaryValue,
+    actions: tasksDashboardRecord(summaryValue.actions),
+    pressureRows: Array.isArray(summaryValue.pressureRows) ? summaryValue.pressureRows : [],
+  };
   return context.view.createElement("div", {
     className: "task-summary-content",
     children: [
@@ -293,7 +366,9 @@ function createTasksPressureContent(context, summary = {}) {
   });
 }
 
-function createDashboardTaskMetricGrid(context, metrics = {}) {
+/** @param {TasksDashboardContext} context @param {unknown} [metricsValue] */
+function createDashboardTaskMetricGrid(context, metricsValue = {}) {
+  const metrics = tasksDashboardRecord(metricsValue);
   const orderedMetrics = ["overdue", "dueSoon", "blocked", "assignedToMe"]
     .map((key) => metrics[key])
     .filter(Boolean);
@@ -304,7 +379,9 @@ function createDashboardTaskMetricGrid(context, metrics = {}) {
   });
 }
 
-function createTaskMetric(context, metric = {}) {
+/** @param {TasksDashboardContext} context @param {unknown} [metricValue] */
+function createTaskMetric(context, metricValue = {}) {
+  const metric = tasksDashboardRecord(metricValue);
   const content = [
     context.view.createElement("strong", { text: String(metric.value ?? 0) }),
     context.view.createElement("span", { text: metric.label || "Metric" }),
@@ -321,7 +398,9 @@ function createTaskMetric(context, metric = {}) {
   return context.view.createElement("span", { children: content });
 }
 
+/** @param {TasksDashboardContext} context @param {unknown} rows @param {string} emptyMessage */
 function createDashboardTaskRows(context, rows, emptyMessage) {
+  /** @type {unknown[]} */
   const taskRows = Array.isArray(rows) ? rows : [];
 
   if (taskRows.length === 0) {
@@ -337,11 +416,14 @@ function createDashboardTaskRows(context, rows, emptyMessage) {
   });
 }
 
-function createDashboardTaskRow(context, row = {}) {
+/** @param {TasksDashboardContext} context @param {unknown} [rowValue] */
+function createDashboardTaskRow(context, rowValue = {}) {
+  const row = tasksDashboardRecord(rowValue);
+  /** @type {unknown[]} */
   const reasons = Array.isArray(row.reasons) && row.reasons.length > 0
     ? row.reasons
     : [row.reasonBadge].filter(Boolean);
-  const action = row.action || {};
+  const action = tasksDashboardRecord(row.action);
   const metaItems = [row.sourceLabel, row.contextLabel, row.dueLabel, row.timerStatus]
     .filter(Boolean)
     .map((item) => context.view.createElement("span", { text: item }));
@@ -384,8 +466,9 @@ function createDashboardTaskRow(context, row = {}) {
   });
 }
 
+/** @param {TasksDashboardContext} context @param {unknown[]} [actions] */
 function createDashboardTaskActions(context, actions = []) {
-  const availableActions = actions.filter((action) => action?.href);
+  const availableActions = actions.map(tasksDashboardRecord).filter((action) => action.href);
 
   if (availableActions.length === 0) {
     return null;
