@@ -397,6 +397,7 @@
         "tests/mutations/footer-quick-action.breaks.mjs",
         "tests/mutations/help-article.breaks.mjs",
         "tests/mutations/hidden-label-safeguard.breaks.mjs",
+        "tests/mutations/login-public-demo.breaks.mjs",
         "tests/mutations/notes-bulk-edit.breaks.mjs",
         "tests/mutations/notes-detail-display.breaks.mjs",
         "tests/mutations/notes-editor-defaults.breaks.mjs",
@@ -498,6 +499,7 @@
         "tests/unit/list-summary-response-contracts.test.mjs",
         "tests/unit/lists-item-suggestion-contracts.test.mjs",
         "tests/unit/lists-view-descriptor-boundary.test.mjs",
+        "tests/unit/login-public-demo-contracts.test.mjs",
         "tests/unit/lookup-response-contracts.test.mjs",
         "tests/unit/managed-session-contracts.test.mjs",
         "tests/unit/markdown-preview-contracts.test.mjs",
@@ -722,7 +724,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4662,
+      "errorCount": 4631,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -897,30 +899,14 @@
         "public/js/login.js": [
           {
             "code": 18047,
-            "count": 16
+            "count": 9
           },
           {
             "code": 2339,
-            "count": 19
+            "count": 17
           },
           {
             "code": 2531,
-            "count": 1
-          },
-          {
-            "code": 2740,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 19
-          },
-          {
-            "code": 7034,
             "count": 1
           }
         ],
@@ -2099,8 +2085,8 @@
     }
   },
   "totals": {
-    "files": 1304,
-    "errors": 4662,
+    "files": 1306,
+    "errors": 4631,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
