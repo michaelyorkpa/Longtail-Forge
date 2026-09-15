@@ -428,6 +428,7 @@
         "tests/mutations/role-assignments-target.breaks.mjs",
         "tests/mutations/search-filters-results.breaks.mjs",
         "tests/mutations/stopwatch-timer.breaks.mjs",
+        "tests/mutations/support-view-audit-filters.breaks.mjs",
         "tests/mutations/tag-page-rendering.breaks.mjs",
         "tests/mutations/task-editor-normalizers.breaks.mjs",
         "tests/mutations/theme-init-csrf-guard.breaks.mjs",
@@ -580,6 +581,7 @@
         "tests/unit/stopwatch-timer-contracts.test.mjs",
         "tests/unit/stored-context-acquisition-contracts.test.mjs",
         "tests/unit/support-view-audit-contracts.test.mjs",
+        "tests/unit/support-view-audit-filters.test.mjs",
         "tests/unit/support-view-target-contracts.test.mjs",
         "tests/unit/tag-bulk-assignment-contracts.test.mjs",
         "tests/unit/tag-catalogue-contracts.test.mjs",
@@ -731,7 +733,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4588,
+      "errorCount": 4567,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1300,15 +1302,11 @@
         "public/js/support-view-audit.js": [
           {
             "code": 18047,
-            "count": 27
+            "count": 22
           },
           {
             "code": 2339,
-            "count": 13
-          },
-          {
-            "code": 7006,
-            "count": 11
+            "count": 8
           }
         ],
         "public/js/support-view.js": [
@@ -2070,8 +2068,8 @@
     }
   },
   "totals": {
-    "files": 1313,
-    "errors": 4588,
+    "files": 1315,
+    "errors": 4567,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
