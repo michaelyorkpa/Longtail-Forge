@@ -421,6 +421,7 @@
         "tests/mutations/role-assignments-target.breaks.mjs",
         "tests/mutations/search-filters-results.breaks.mjs",
         "tests/mutations/stopwatch-timer.breaks.mjs",
+        "tests/mutations/theme-init-csrf-guard.breaks.mjs",
         "tests/mutations/time-entries-bulk-tags.breaks.mjs",
         "tests/mutations/time-entries-filtering.breaks.mjs",
         "tests/mutations/time-entries-loader-policy.breaks.mjs",
@@ -583,6 +584,7 @@
         "tests/unit/task-timer-contracts.test.mjs",
         "tests/unit/tasks-dialog-surface-contracts.test.mjs",
         "tests/unit/test-support-harnesses.test.mjs",
+        "tests/unit/theme-init-csrf-guard.test.mjs",
         "tests/unit/time-entries-bulk-tags-contracts.test.mjs",
         "tests/unit/time-entries-filtering-contracts.test.mjs",
         "tests/unit/time-entries-loader-policy-contracts.test.mjs",
@@ -712,7 +714,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4773,
+      "errorCount": 4757,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1466,24 +1468,6 @@
             "count": 7
           }
         ],
-        "public/js/theme-init.js": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 12
-          },
-          {
-            "code": 7034,
-            "count": 1
-          }
-        ],
         "public/js/workbench.js": [
           {
             "code": 18047,
@@ -2151,8 +2135,8 @@
     }
   },
   "totals": {
-    "files": 1294,
-    "errors": 4773,
+    "files": 1296,
+    "errors": 4757,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
