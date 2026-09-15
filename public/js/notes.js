@@ -26,7 +26,7 @@
    * @property {Element | null} [trigger]
    * @property {(detail: unknown) => unknown} [cancel]
    * @property {(detail: unknown) => unknown} [complete]
-   * @property {((result: unknown) => unknown) | null} [refresh]
+   * @property {unknown} [refresh] - forwarded unchecked by the host; saveNoteForm checks callability.
    */
   /**
    * @typedef {object} NotesEditorOptions
@@ -1145,12 +1145,32 @@
     ...notesDialogApi,
   });
 
+  /**
+   * These three Notes-owned contributions supply the context that register(unknown)
+   * deliberately cannot. Reuse the existing receiving parameter/host contracts;
+   * this describes our openers, not a shared extensibility vocabulary or validation.
+   * createHostContext supplies cancel/complete, a result promise and status forwarding.
+   * Its refresh value is unchecked and stays unknown until the existing callable guard.
+   * @template Params
+   * @typedef {object} NotesModuleActionRegistration
+   * @property {string} actionId
+   * @property {string} id
+   * @property {string} label
+   * @property {string} mode
+   * @property {string} moduleId
+   * @property {(params?: Params, hostContext?: NotesViewerHostContext | null) => Promise<unknown>} open
+   * @property {string} recordType
+   * @property {string[]} requiredModules
+   * @property {string[]} requiredPermissions
+   * @property {string} title
+   */
   namespace.moduleActions?.register?.({
     actionId: "notes.add",
     id: "notes.add",
     label: "Add Note",
     mode: "add",
     moduleId: "notes",
+    /** @type {NotesModuleActionRegistration<NotesEditorOpenParams>["open"]} */
     open: (params, hostContext) => openNoteEditor({ ...params, mode: "add" }, hostContext),
     recordType: "note",
     requiredModules: ["notes"],
@@ -1163,6 +1183,7 @@
     label: "Edit Note",
     mode: "edit",
     moduleId: "notes",
+    /** @type {NotesModuleActionRegistration<NotesEditorOpenParams>["open"]} */
     open: (params, hostContext) => openNoteEditor({ ...params, mode: "edit" }, hostContext),
     recordType: "note",
     requiredModules: ["notes"],
@@ -1175,6 +1196,7 @@
     label: "View Note",
     mode: "view",
     moduleId: "notes",
+    /** @type {NotesModuleActionRegistration<NotesViewerParams>["open"]} */
     open: (params, hostContext) => openNoteViewer(params, hostContext),
     recordType: "note",
     requiredModules: ["notes"],
@@ -1578,6 +1600,7 @@
     return state.dialogDataReady;
   }
 
+  /** @param {Pick<NotesEditorOpenParams, "mode" | "actionMode">} [params] */
   function normalizeNoteEditorMode(params = {}) {
     const mode = String(params.mode || params.actionMode || "").toLowerCase();
     return mode === "edit" ? "edit" : "add";
@@ -1952,6 +1975,7 @@
     return pagination;
   }
 
+  /** @param {import("../../src/types/browser-contracts.js").BrowserIconCreateButtonOptions} options */
   function notesIconButton(options) {
     const view = requireView();
     if (window.LongtailForge?.icons?.createIconButton) {
@@ -3637,6 +3661,7 @@
     }
   }
 
+  /** @param {Event | null} [event] */
   async function saveAndCloseNote(event) {
     event?.preventDefault();
     try {
@@ -5827,6 +5852,7 @@
     };
   }
 
+  /** @param {BrowserNoteRecord["note_id"]} noteId */
   function updateUrl(noteId) {
     const url = new window.URL(window.location.href);
     url.searchParams.set("note", noteId);
@@ -6367,6 +6393,7 @@
     window.localStorage.setItem(OPEN_EXTERNAL_LINKS_STORAGE_KEY, value ? "true" : "false");
   }
 
+  /** @param {BrowserNoteRecord["updated_at"] | null | undefined} value */
   function formatDate(value) {
     if (!value) {
       return "";
@@ -6406,6 +6433,12 @@
     return "";
   }
 
+  /**
+   * BrowserNoteRecord declares the stored mode, but not the repository's effective
+   * projection. That extra wire member stays unknown here; exact equality already
+   * answers the question without asserting a shape or changing the runtime read.
+   * @param {(Partial<Pick<BrowserNoteRecord, "security_mode">> & {effective_security_mode?: unknown}) | null | undefined} note
+   */
   function isSecureNote(note) {
     return note?.effective_security_mode === "secure" || note?.security_mode === "secure";
   }

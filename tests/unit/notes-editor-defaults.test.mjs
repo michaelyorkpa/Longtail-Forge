@@ -175,6 +175,16 @@ describe("Notes editor defaults and payload", () => {
     assert.deepEqual(plain(events[complete]), ["complete", { actionId: "notes.edit", recordId: note.note_id, title: note.title }]);
   });
 
+  it("retains noncallable host refresh values without refusing an otherwise valid save", async () => {
+    for (const refresh of [undefined, null, false, true, 17, "opaque", { retained: true }]) {
+      const f = editorCase(); f.context.state.editorHostContext.refresh = refresh;
+      assert.equal(await f.api.saveNoteForm(), f.result);
+      assert.equal(f.events.some((event) => Array.isArray(event) && event[0] === "host-refresh"), false);
+      assert.ok(f.events.some((event) => Array.isArray(event) && event[0] === "complete"));
+      assert.ok(f.events.some((event) => Array.isArray(event) && event[0] === "close"));
+    }
+  });
+
   it("waits for persistence and host refresh and preserves partial-save failure without rollback", async () => {
     const { api, context, state, events, result } = editorCase();
     let release = () => {};
