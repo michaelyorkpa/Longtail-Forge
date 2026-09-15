@@ -39,33 +39,94 @@
     }
     return apiClient;
   }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRecord} BrowserTaskRecord */
+  /** @typedef {keyof Pick<BrowserTaskRecord, "task_id" | "resume_note" | "status" | "blocked_reason">} ResumeTaskField */
+
+  /** @param {unknown} value @returns {value is Record<string, unknown>} */
+  function isResumeFieldContainer(value) {
+    return value !== null && (typeof value === "object" || typeof value === "function");
+  }
+
+  /**
+   * Options are host input, so inherited channels and their receiver stay intact.
+   * Null still fails before the operation's try block; ordinary scalar options have no
+   * named channels and reach the same missing-task outcome as before.
+   * @param {unknown} value @returns {Record<string, unknown>}
+   */
+  function readResumeOptions(value) {
+    if (value === null || value === undefined) {
+      throw new TypeError("Resume-note options must not be null or undefined.");
+    }
+    return isResumeFieldContainer(value) ? value : {};
+  }
+
+  /**
+   * Read only the consumed own wire field. Its value stays opaque because these paths
+   * deliberately coerce it; this does not promise a complete BrowserTaskRecord.
+   * @param {unknown} task @param {ResumeTaskField} field @returns {unknown}
+   */
+  function resumeTaskField(task, field) {
+    return isResumeFieldContainer(task) && Object.hasOwn(task, field) ? task[field] : undefined;
+  }
+
+  /**
+   * Preserve the original response task and its metadata for callbacks/outcomes.
+   * The published readTask reader validates a complete record; requiring that here would
+   * replace the existing partial-response handoff with null for unrelated missing fields.
+   * @param {unknown} response @returns {unknown}
+   */
+  function readResumeTaskResponse(response) {
+    return isResumeFieldContainer(response) && Object.hasOwn(response, "task") ? response.task || null : null;
+  }
+
+  /**
+   * Keep optional-call semantics: absent is ignored, noncallable throws at this point,
+   * and a callback receives the original options object as its receiver. Its return is
+   * still discarded, not awaited; callback errors keep the surrounding operation's handling.
+   * @param {Record<string, unknown>} options
+   * @param {"onSaved" | "onConsumed" | "onError"} channel @param {unknown} value
+   */
+  function callResumeChannel(options, channel, value) {
+    const callback = options[channel];
+    if (callback === null || callback === undefined) return;
+    if (typeof callback !== "function") throw new TypeError(`Resume-note ${channel} must be callable.`);
+    Reflect.apply(callback, options, [value]);
+  }
+
+  /** @param {Record<string, unknown>} [options] */
   function taskIdFrom(options = {}) {
-    return String(options.taskId || options.task?.task_id || "").trim();
+    return String(options.taskId || resumeTaskField(options.task, "task_id") || "").trim();
   }
 
+  /** @param {Record<string, unknown>} [options] */
   function savedResumeNote(options = {}) {
-    return String(options.resumeNote ?? options.task?.resume_note ?? "").trim();
+    return String(options.resumeNote ?? resumeTaskField(options.task, "resume_note") ?? "").trim();
   }
 
+  /** @param {string} taskId */
   async function readCurrentTask(taskId) {
     const result = await requireApi().getJson(`/api/tasks/${encodeURIComponent(taskId)}`, {
       cache: "no-store",
     });
-    return result?.task || null;
+    return readResumeTaskResponse(result);
   }
 
+  /** @param {unknown} task */
   function isActiveTask(task) {
-    return task && ["open", "in_progress", "blocked"].includes(String(task.status || "").trim());
+    return task && ["open", "in_progress", "blocked"].includes(String(resumeTaskField(task, "status") || "").trim());
   }
 
+  /** @param {unknown} task */
   function hasBlockedContext(task) {
     return Boolean(task) && (
-      String(task.status || "").trim() === "blocked"
-      || Boolean(String(task.blocked_reason || "").trim())
+      String(resumeTaskField(task, "status") || "").trim() === "blocked"
+      || Boolean(String(resumeTaskField(task, "blocked_reason") || "").trim())
     );
   }
 
-  async function consume(options = {}) {
+  /** @param {unknown} [input] */
+  async function consume(input = {}) {
+    const options = readResumeOptions(input);
     const taskId = taskIdFrom(options);
 
     if (!taskId) {
@@ -77,7 +138,7 @@
       if (!isActiveTask(task)) {
         return { consumed: false, reason: "inactive-task", task };
       }
-      if (!String(task.resume_note || "").trim()) {
+      if (!String(resumeTaskField(task, "resume_note") || "").trim()) {
         capturedTaskIds.delete(taskId);
         return { consumed: false, reason: "no-note", task };
       }
@@ -85,17 +146,19 @@
       const updated = await requireApi().putJson(`/api/tasks/${encodeURIComponent(taskId)}`, {
         resume_note_action: "consume",
       });
-      const updatedTask = updated?.task || null;
+      const updatedTask = readResumeTaskResponse(updated);
       capturedTaskIds.delete(taskId);
-      options.onConsumed?.(updatedTask);
+      callResumeChannel(options, "onConsumed", updatedTask);
       return { consumed: true, task: updatedTask };
     } catch (error) {
-      options.onError?.(error);
+      callResumeChannel(options, "onError", error);
       return { consumed: false, error, reason: "error" };
     }
   }
 
-  async function offer(options = {}) {
+  /** @param {unknown} [input] */
+  async function offer(input = {}) {
+    const options = readResumeOptions(input);
     const taskId = taskIdFrom(options);
 
     if (!taskId) {
@@ -117,7 +180,7 @@
       if (hasBlockedContext(task)) {
         return { captured: false, reason: "blocked-task", task };
       }
-      if (String(task.resume_note || "").trim()) {
+      if (String(resumeTaskField(task, "resume_note") || "").trim()) {
         return { captured: false, reason: "existing-note", task };
       }
 
@@ -139,10 +202,10 @@
         resume_note_action: "capture",
       });
       capturedTaskIds.add(taskId);
-      options.onSaved?.(updated?.task || null);
-      return { captured: true, task: updated?.task || null };
+      callResumeChannel(options, "onSaved", readResumeTaskResponse(updated));
+      return { captured: true, task: readResumeTaskResponse(updated) };
     } catch (error) {
-      options.onError?.(error);
+      callResumeChannel(options, "onError", error);
       return { captured: false, error, reason: "error" };
     } finally {
       pendingTaskIds.delete(taskId);
