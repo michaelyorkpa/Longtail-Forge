@@ -378,6 +378,7 @@
         "tests/e2e/task-direct-completion.spec.mjs",
         "tests/e2e/task-editor-parent-save.spec.mjs",
         "tests/e2e/task-focus-exit-capture.spec.mjs",
+        "tests/e2e/task-resume-capture.spec.mjs",
         "tests/e2e/tasks-dashboard-consumer.spec.mjs",
         "tests/e2e/user-settings-appearance.spec.mjs",
         "tests/e2e/view-shell-cold-load.spec.mjs",
@@ -588,6 +589,7 @@
         "tests/unit/task-record-contracts.test.mjs",
         "tests/unit/task-recurrence-continuity-contracts.test.mjs",
         "tests/unit/task-relationship-contracts.test.mjs",
+        "tests/unit/task-resume-capture.test.mjs",
         "tests/unit/task-timer-contracts.test.mjs",
         "tests/unit/tasks-dashboard-consumer.test.mjs",
         "tests/unit/tasks-dialog-surface-contracts.test.mjs",
@@ -722,7 +724,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4662,
+      "errorCount": 4642,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1382,16 +1384,6 @@
           {
             "code": 7053,
             "count": 6
-          }
-        ],
-        "public/js/task-resume-note-capture.js": [
-          {
-            "code": 2339,
-            "count": 17
-          },
-          {
-            "code": 7006,
-            "count": 3
           }
         ],
         "public/js/tasks.js": [
@@ -2099,8 +2091,8 @@
     }
   },
   "totals": {
-    "files": 1304,
-    "errors": 4662,
+    "files": 1306,
+    "errors": 4642,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
