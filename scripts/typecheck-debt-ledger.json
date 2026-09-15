@@ -422,6 +422,7 @@
         "tests/mutations/role-assignments-target.breaks.mjs",
         "tests/mutations/search-filters-results.breaks.mjs",
         "tests/mutations/stopwatch-timer.breaks.mjs",
+        "tests/mutations/tag-page-rendering.breaks.mjs",
         "tests/mutations/theme-init-csrf-guard.breaks.mjs",
         "tests/mutations/time-entries-bulk-tags.breaks.mjs",
         "tests/mutations/time-entries-filtering.breaks.mjs",
@@ -572,6 +573,7 @@
         "tests/unit/support-view-target-contracts.test.mjs",
         "tests/unit/tag-bulk-assignment-contracts.test.mjs",
         "tests/unit/tag-catalogue-contracts.test.mjs",
+        "tests/unit/tag-page-rendering.test.mjs",
         "tests/unit/tag-surface-declaration.test.mjs",
         "tests/unit/task-behavior-handler-lookup.test.mjs",
         "tests/unit/task-block-recovery-engine.test.mjs",
@@ -716,7 +718,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4753,
+      "errorCount": 4729,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1341,23 +1343,7 @@
         "public/js/tags.js": [
           {
             "code": 2339,
-            "count": 27
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 19
-          },
-          {
-            "code": 7019,
-            "count": 1
-          },
-          {
-            "code": 7034,
-            "count": 1
+            "count": 25
           }
         ],
         "public/js/task-dialog.js": [
@@ -2127,8 +2113,8 @@
     }
   },
   "totals": {
-    "files": 1298,
-    "errors": 4753,
+    "files": 1300,
+    "errors": 4729,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
