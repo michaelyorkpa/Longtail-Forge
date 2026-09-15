@@ -248,6 +248,7 @@
     };
   }
 
+  /** @param {Record<string, unknown>} [params] */
   function normalizeTaskEditorMode(params = {}) {
     const explicitMode = String(params.mode || params.action || "").toLowerCase();
     if (["add", "create", "new"].includes(explicitMode)) {
@@ -265,9 +266,10 @@
     return params.task || params.taskId || params.task_id || params.recordId || params.id ? "edit" : "add";
   }
 
+  /** @param {unknown} value */
   function normalizeTaskEditorFocusTarget(value) {
     const normalized = String(value || "").trim().toLowerCase().replace(/-/g, "_");
-    return {
+    const aliases = {
       assign: "assignees",
       assignee: "assignees",
       assignees: "assignees",
@@ -287,14 +289,25 @@
       recurrence: "recurrence",
       recurring: "recurrence",
       timer: "timer",
-    }[normalized] || "";
+    };
+    // Only authored aliases identify controls; inherited object names use the title fallback.
+    return Object.entries(aliases).find(([key]) => key === normalized)?.[1] || "";
   }
 
+  /** @param {Record<string, unknown>} [params] */
   function normalizeTaskEditorDefaults(params = {}) {
-    const sourceContext = params.context || params.sourceContext || {};
+    /**
+     * Object boxes primitives and leaves objects intact, matching property access/spread.
+     * Values remain opaque: these are host defaults, not a validated task response.
+     * @param {unknown} value @returns {Record<string, unknown>}
+     */
+    function inputFields(value) {
+      return Object(value);
+    }
+    const sourceContext = inputFields(params.context || params.sourceContext || {});
     const defaults = {
-      ...(sourceContext.defaults || {}),
-      ...(params.defaults || {}),
+      ...inputFields(sourceContext.defaults || {}),
+      ...inputFields(params.defaults || {}),
     };
     for (const key of [
       "blockedReason",

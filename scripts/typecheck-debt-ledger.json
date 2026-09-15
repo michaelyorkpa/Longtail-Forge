@@ -376,6 +376,7 @@
         "tests/e2e/task-blocked-recovery.spec.mjs",
         "tests/e2e/task-bulk-project-assignment.spec.mjs",
         "tests/e2e/task-direct-completion.spec.mjs",
+        "tests/e2e/task-editor-normalizers.spec.mjs",
         "tests/e2e/task-editor-parent-save.spec.mjs",
         "tests/e2e/task-focus-exit-capture.spec.mjs",
         "tests/e2e/task-resume-capture.spec.mjs",
@@ -428,6 +429,7 @@
         "tests/mutations/search-filters-results.breaks.mjs",
         "tests/mutations/stopwatch-timer.breaks.mjs",
         "tests/mutations/tag-page-rendering.breaks.mjs",
+        "tests/mutations/task-editor-normalizers.breaks.mjs",
         "tests/mutations/theme-init-csrf-guard.breaks.mjs",
         "tests/mutations/time-entries-bulk-tags.breaks.mjs",
         "tests/mutations/time-entries-filtering.breaks.mjs",
@@ -587,6 +589,7 @@
         "tests/unit/task-block-recovery-engine.test.mjs",
         "tests/unit/task-calendar-surface-contracts.test.mjs",
         "tests/unit/task-calendar-window-contracts.test.mjs",
+        "tests/unit/task-editor-normalizers.test.mjs",
         "tests/unit/task-list-contracts.test.mjs",
         "tests/unit/task-list-engine.test.mjs",
         "tests/unit/task-option-catalog-contracts.test.mjs",
@@ -728,7 +731,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4602,
+      "errorCount": 4588,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1331,7 +1334,7 @@
           },
           {
             "code": 2339,
-            "count": 484
+            "count": 473
           },
           {
             "code": 2345,
@@ -1351,7 +1354,7 @@
           },
           {
             "code": 7006,
-            "count": 156
+            "count": 155
           },
           {
             "code": 7034,
@@ -1359,7 +1362,7 @@
           },
           {
             "code": 7053,
-            "count": 6
+            "count": 4
           }
         ],
         "public/js/tasks.js": [
@@ -2067,8 +2070,8 @@
     }
   },
   "totals": {
-    "files": 1310,
-    "errors": 4602,
+    "files": 1313,
+    "errors": 4588,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
