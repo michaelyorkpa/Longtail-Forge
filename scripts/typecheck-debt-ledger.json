@@ -399,6 +399,7 @@
         "tests/mutations/help-article.breaks.mjs",
         "tests/mutations/hidden-label-safeguard.breaks.mjs",
         "tests/mutations/login-public-demo.breaks.mjs",
+        "tests/mutations/module-settings-snapshot.breaks.mjs",
         "tests/mutations/notes-bulk-edit.breaks.mjs",
         "tests/mutations/notes-detail-display.breaks.mjs",
         "tests/mutations/notes-editor-defaults.breaks.mjs",
@@ -505,6 +506,7 @@
         "tests/unit/managed-session-contracts.test.mjs",
         "tests/unit/markdown-preview-contracts.test.mjs",
         "tests/unit/module-settings-catalog-contracts.test.mjs",
+        "tests/unit/module-settings-snapshot.test.mjs",
         "tests/unit/mutation-runner-contracts.test.mjs",
         "tests/unit/namespace-root-closure-contracts.test.mjs",
         "tests/unit/normalized-list-record-contracts.test.mjs",
@@ -726,7 +728,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4611,
+      "errorCount": 4602,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -915,18 +917,6 @@
         "public/js/module-settings.js": [
           {
             "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 7005,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 5
-          },
-          {
-            "code": 7034,
             "count": 1
           }
         ],
@@ -2077,8 +2067,8 @@
     }
   },
   "totals": {
-    "files": 1308,
-    "errors": 4611,
+    "files": 1310,
+    "errors": 4602,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
