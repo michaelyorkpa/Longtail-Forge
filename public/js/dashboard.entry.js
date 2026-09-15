@@ -16,6 +16,27 @@ const loadedStyles = new Map();
 /** @typedef {import("../../src/types/browser-contracts.js").BrowserCachedFetch} BrowserCachedFetch */
 
 /**
+ * A value read as a record, or `null` when it is not one.
+ *
+ * **The `unknown` parameters below are the published contract's, not a choice made here.**
+ * `BrowserEsModuleBridge` and `BrowserDashboardBootstrap` were written from this file and
+ * deliberately declare what the writers actually check rather than what they hope to receive -
+ * the bridge's own comment says naming the manifest's shape would be stronger than the runtime.
+ * Honouring that means proving a value is a record before reading members off it, which is what
+ * this does.
+ * It answers an **empty record rather than null** for anything else, because every reader here
+ * went on to read a member and get `undefined`. That keeps the readers free of optional chains
+ * that would only ever be describing the same answer.
+ * @param {unknown} value
+ * @returns {Record<string, unknown>}
+ */
+function dashboardRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? /** @type {Record<string, unknown>} */ (value)
+    : {};
+}
+
+/**
  * The API client this file cannot run without.
  *
  * Acquired per call rather than once at module scope, so a missing client still fails at
@@ -31,6 +52,14 @@ function requireApi() {
   }
   return apiClient;
 }
+/**
+ * The versioned, origin-checked URL for one local asset.
+ *
+ * Signatures here match what BrowserEsModuleBridge publishes for this file, rather than a
+ * narrower guess: the declaration was written from these writers and says what they check.
+ * @param {unknown} [assetPath]
+ * @returns {string}
+ */
 function versionedAssetUrl(assetPath) {
   const url = new URL(String(assetPath || ""), document.baseURI);
 
@@ -51,6 +80,7 @@ function versionedAssetUrl(assetPath) {
   return url.href;
 }
 
+/** @param {unknown} [assetPath] @returns {Promise<unknown>} */
 async function importScript(assetPath) {
   const url = versionedAssetUrl(assetPath);
 
@@ -65,6 +95,7 @@ async function importScript(assetPath) {
   return loadedScripts.get(url);
 }
 
+/** @param {unknown} [assetPath] @returns {Promise<Event>} */
 async function loadStyle(assetPath) {
   const url = versionedAssetUrl(assetPath);
 
@@ -87,10 +118,12 @@ async function loadStyle(assetPath) {
   return loadedStyles.get(url);
 }
 
+/** @param {readonly unknown[]} assetPaths @returns {Promise<void>} */
 async function importScripts(assetPaths) {
   await Promise.all(assetPaths.map((assetPath) => importScript(assetPath)));
 }
 
+/** @param {unknown} [assets] @returns {Promise<void>} */
 async function loadContributedAssets(assets) {
   await Promise.all((Array.isArray(assets) ? assets : []).map((asset) => {
     if (asset?.type === "style") {
@@ -191,8 +224,16 @@ async function loadDashboardManifest() {
   });
 }
 
+/**
+ * Start each contributed panel's data request, so the panel finds it already in flight.
+ *
+ * The manifest body is `unknown` where it is produced and stays `unknown` here, so the two
+ * hops to the panel list are proved rather than assumed. Every value the optional chain used
+ * to answer `undefined` for still reaches the same empty loop.
+ * @param {unknown} data
+ */
 function warmDashboardPanelData(data) {
-  const panels = data?.extensionPoints?.dashboardPanels;
+  const panels = dashboardRecord(dashboardRecord(data).extensionPoints).dashboardPanels;
 
   for (const panel of Array.isArray(panels) ? panels : []) {
     loadDashboardRoute(dashboardPanelRoute(panel)).catch(() => {});
@@ -201,6 +242,7 @@ function warmDashboardPanelData(data) {
   return data;
 }
 
+/** @param {unknown} [routeValue] @returns {Promise<unknown>} */
 function loadDashboardRoute(routeValue) {
   const route = String(routeValue || "").trim();
 
@@ -215,10 +257,26 @@ function loadDashboardRoute(routeValue) {
   return dashboardDataPromises.get(route);
 }
 
+/**
+ * The data route a panel descriptor names, with the calendar panel's range folded in.
+ *
+ * `BrowserDashboardBootstrap` publishes this as `routeForPanel(panel?: unknown)`, so the
+ * descriptor is proved to be a record here instead of being read through a default that
+ * inferred an empty shape. A descriptor that is not a record answers the empty route, which is
+ * what reading `dataRoute` off `{}` already produced.
+ * @param {unknown} [panel]
+ * @returns {string}
+ */
 function dashboardPanelRoute(panel = {}) {
-  const route = String(panel.dataRoute || "").trim();
+  // Narrowed into its own name, because assigning back into the parameter does not narrow a
+  // declared `unknown` - measured, not assumed. The parameter keeps the spelling three suites
+  // slice this function by, and the declared type stays `unknown`, which is what the published
+  // surface promises to accept. A descriptor that is not a record becomes the empty record,
+  // which is what reading `dataRoute` off the old `{}` default already produced.
+  const descriptor = dashboardRecord(panel);
+  const route = String(descriptor.dataRoute || "").trim();
 
-  if (panel.renderer !== "tasks.calendar" || route !== "/api/tasks/calendar") {
+  if (descriptor.renderer !== "tasks.calendar" || route !== "/api/tasks/calendar") {
     return route;
   }
 
@@ -235,6 +293,7 @@ function dashboardPanelRoute(panel = {}) {
   return `${route}?${params.toString()}`;
 }
 
+/** @param {string} view @param {Date} anchor */
 function dashboardCalendarRange(view, anchor) {
   if (view === "day") {
     const day = dashboardDateKey(anchor);
@@ -253,10 +312,12 @@ function dashboardCalendarRange(view, anchor) {
   return { start: dashboardDateKey(start), end: dashboardDateKey(end) };
 }
 
+/** @param {Date} date @param {number} days */
 function dashboardAddDays(date, days) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
 
+/** @param {Date} date */
 function dashboardDateKey(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");

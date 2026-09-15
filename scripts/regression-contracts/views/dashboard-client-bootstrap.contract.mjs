@@ -67,8 +67,11 @@ assert.match(
 );
 assert.match(
   dashboardEntry,
-  /panel\.renderer !== "tasks\.calendar"[\s\S]*new Date\(\)[\s\S]*statuses: "open,in_progress,blocked"/,
-  "the Dashboard calendar warm route must be Today-anchored and active-status scoped",
+  // `0.33.33.44.43` proved the panel descriptor is a record before reading it, because the
+  // published `routeForPanel(panel?: unknown)` promises to accept anything. The renderer read
+  // moved onto the proved value, so the narrowing is pinned alongside the behaviour it gates.
+  /const descriptor = dashboardRecord\(panel\);[\s\S]*descriptor\.renderer !== "tasks\.calendar"[\s\S]*new Date\(\)[\s\S]*statuses: "open,in_progress,blocked"/,
+  "the Dashboard calendar warm route must be Today-anchored and active-status scoped, from a descriptor proved to be a record",
 );
 
 const hostWarm = dashboardHost.indexOf("warmDashboardPanelData();");
