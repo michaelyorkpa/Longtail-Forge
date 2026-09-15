@@ -351,6 +351,7 @@
         "tests/e2e/notes-primary-context.spec.mjs",
         "tests/e2e/notes-revisions-selection.spec.mjs",
         "tests/e2e/notes-save-lifecycle.spec.mjs",
+        "tests/e2e/notes-saved-links.spec.mjs",
         "tests/e2e/notes-surface-decoration.spec.mjs",
         "tests/e2e/notes-tag-surface.spec.mjs",
         "tests/e2e/notes-target-picker.spec.mjs",
@@ -519,6 +520,7 @@
         "tests/unit/notes-primary-context-pins.test.mjs",
         "tests/unit/notes-primary-context.test.mjs",
         "tests/unit/notes-revisions-selection.test.mjs",
+        "tests/unit/notes-saved-links.test.mjs",
         "tests/unit/notes-settings-catalog-contracts.test.mjs",
         "tests/unit/notes-surface-decoration.test.mjs",
         "tests/unit/notes-tag-surface.test.mjs",
@@ -706,7 +708,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4826,
+      "errorCount": 4812,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -991,15 +993,11 @@
           },
           {
             "code": 2339,
-            "count": 8
+            "count": 5
           },
           {
             "code": 7006,
-            "count": 20
-          },
-          {
-            "code": 7053,
-            "count": 2
+            "count": 11
           }
         ],
         "public/js/notifications.js": [
@@ -2169,8 +2167,8 @@
     }
   },
   "totals": {
-    "files": 1288,
-    "errors": 4826,
+    "files": 1290,
+    "errors": 4812,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
