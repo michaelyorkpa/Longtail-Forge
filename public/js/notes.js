@@ -3238,7 +3238,7 @@
 
   function closeNotesSlideOutDrawer() {
     const trigger = document.querySelector("[data-view-slideout-sidebar-trigger]");
-    if (trigger instanceof HTMLElement && trigger.getAttribute("aria-expanded") === "true") {
+    if (trigger instanceof HTMLElement && trigger?.getAttribute("aria-expanded") === "true") {
       trigger.click();
     }
   }
