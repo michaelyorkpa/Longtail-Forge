@@ -2,7 +2,29 @@
 (function attachLoginPage() {
   const THEME_STORAGE_KEY = "lf_theme";
   const THEME_AUTO_SOURCE_STORAGE_KEY = "lf_theme_auto_source";
-  const loginForm = document.querySelector("[data-login-form]");
+  /**
+   * One public demo account, as this page's own normalizer proves it.
+   *
+   * **Earned by construction rather than claimed.** `normalizePublicDemoAccounts` rebuilds every
+   * member by name and then refuses the whole account unless each one is a non-empty string or a
+   * non-empty list, so the shape below is what survives that check - not what the route is hoped
+   * to send. The estate publishes no demo-account record, so it is named here.
+   * @typedef {object} PublicDemoAccount
+   * @property {string[]} allowedActions
+   * @property {string[]} expectedDenials
+   * @property {string} password
+   * @property {string[]} representativeRecords
+   * @property {string} roleName
+   * @property {string} scopeLabel
+   * @property {string} username
+   */
+
+  // `new FormData` takes an `HTMLFormElement`, and `querySelector` answers an `Element`. The
+  // narrowing happens once, where the element is acquired, rather than at the one call that
+  // needs it. A matching element that is not a form now leaves the page unwired instead of
+  // reaching `FormData` with something it would refuse; the login view always renders a form.
+  const loginFormElement = document.querySelector("[data-login-form]");
+  const loginForm = loginFormElement instanceof HTMLFormElement ? loginFormElement : null;
   const loginStatus = document.querySelector("[data-login-status]");
   const requiredPasswordForm = document.querySelector("[data-required-password-form]");
   const requiredCurrentPasswordInput = document.querySelector("[data-required-current-password]");
@@ -146,36 +168,82 @@
     }
   }
 
+  /**
+   * The login form this page cannot hide, reset or search without.
+   *
+   * **It throws rather than returning, and that is the point.** Narrowing the cached element to
+   * an `HTMLFormElement` left its nullness as the remaining complaint, and answering that with
+   * an early return would have silently skipped showing the password-change form. This fails at
+   * the same statement the property read already failed at, naming what is missing.
+   * @returns {HTMLFormElement}
+   */
+  function requireLoginForm() {
+    if (!loginForm) {
+      throw new TypeError("The login page requires its login form.");
+    }
+    return loginForm;
+  }
+
+  /** @param {string} [currentPassword] */
   function showRequiredPasswordChange(currentPassword = "") {
-    loginForm.hidden = true;
+    const form = requireLoginForm();
+    form.hidden = true;
     requiredPasswordForm.hidden = false;
     requiredCurrentPasswordInput.value = currentPassword;
-    loginForm.reset();
+    form.reset();
     (currentPassword ? requiredNewPasswordInput : requiredCurrentPasswordInput).focus();
   }
 
+  /** @param {string} message */
   function setLoginStatus(message) {
     if (loginStatus) {
       loginStatus.textContent = message;
     }
   }
 
+  /** @param {string} message */
   function setRequiredPasswordStatus(message) {
     if (requiredPasswordStatus) {
       requiredPasswordStatus.textContent = message;
     }
   }
 
+  /**
+   * The stored theme mode, defaulting anything unrecognised to light.
+   *
+   * The value arrives from a wire body, so it is declared `unknown`. Asking whether it is a
+   * string first is equivalent to what the membership test already answered on its own: a
+   * non-string never matched any entry in the list.
+   * @param {unknown} value
+   * @returns {string}
+   */
   function normalizeThemeMode(value) {
-    return ["light", "auto", "dark"].includes(value) ? value : "light";
+    return typeof value === "string" && ["light", "auto", "dark"].includes(value) ? value : "light";
   }
 
+  /**
+   * The auto-theme source, of which there is currently exactly one.
+   *
+   * Both arms answer the same word. That is pre-existing and behaviour-neutral, and typing this
+   * file does not require collapsing it, so it is recorded rather than tidied - the same
+   * treatment `theme-init.js` received in `0.33.33.44.41`, where the identical branch appears.
+   * @param {unknown} value
+   * @returns {string}
+   */
   function normalizeThemeAutoSource(value) {
     return value === "system" ? "system" : "system";
   }
 
+  /**
+   * The landing path this user prefers, defaulting anything unrecognised to the dashboard.
+   *
+   * **This decides where a freshly authenticated session is sent**, so the closed list is the
+   * contract. The string check is equivalent to the membership test it guards.
+   * @param {unknown} value
+   * @returns {string}
+   */
   function normalizeLandingPath(value) {
-    return [
+    return typeof value === "string" && [
       "/dashboard.html",
       "/workbench.html",
       "/tasks.html",
@@ -212,11 +280,15 @@
     }
   }
 
+  /** @param {PublicDemoAccount[]} accounts @param {string} notice */
   function renderPublicDemoAccountChooser(accounts, notice) {
-    const usernameInput = loginForm.querySelector('[name="username"]');
-    const passwordInput = loginForm.querySelector('[name="password"]');
-    const submitButton = loginForm.querySelector('button[type="submit"]');
-    const heading = loginForm.querySelector("h1");
+    // Its only caller has already refused an absent form, so this restates that rather than
+    // discovering it; the four control checks below keep their own early return.
+    const form = requireLoginForm();
+    const usernameInput = form.querySelector('[name="username"]');
+    const passwordInput = form.querySelector('[name="password"]');
+    const submitButton = form.querySelector('button[type="submit"]');
+    const heading = form.querySelector("h1");
     if (!usernameInput || !passwordInput || !submitButton || !heading) {
       return;
     }
@@ -278,6 +350,7 @@
     helperStatus.setAttribute("aria-live", "polite");
     helper.append(helperStatus);
 
+    /** @type {PublicDemoAccount | null} */
     let selectedAccount = null;
     select.addEventListener("change", () => {
       selectedAccount = accounts.find((account) => account.username === select.value) || null;
@@ -306,6 +379,7 @@
     }
   }
 
+  /** @param {HTMLElement} container @param {PublicDemoAccount | null} account */
   function renderPublicDemoAccountDetails(container, account) {
     container.replaceChildren();
     if (!account) {
@@ -323,6 +397,7 @@
     appendDemoGuidanceList(container, "Expected limits", account.expectedDenials);
   }
 
+  /** @param {HTMLElement} container @param {string} headingText @param {string[]} items */
   function appendDemoGuidanceList(container, headingText, items) {
     const group = document.createElement("div");
     const heading = document.createElement("h3");
@@ -337,12 +412,22 @@
     container.append(group);
   }
 
+  /**
+   * The six demo accounts the route offers, or none at all.
+   *
+   * **`flatMap` rather than `map(...).filter(Boolean)`**, which answers the same list in the
+   * same order: `filter(Boolean)` does not tell the compiler the refused entries are gone, so
+   * the duplicate-username check below would have been reading a member off a possibly-absent
+   * account. Nothing about which accounts survive has changed.
+   * @param {unknown} value
+   * @returns {PublicDemoAccount[]}
+   */
   function normalizePublicDemoAccounts(value) {
     if (!Array.isArray(value)) {
       return [];
     }
 
-    const accounts = value.map((account) => {
+    const accounts = value.flatMap((account) => {
       const normalized = {
         allowedActions: normalizePublicDemoTextList(account?.allowedActions),
         expectedDenials: normalizePublicDemoTextList(account?.expectedDenials),
@@ -353,9 +438,9 @@
         username: normalizePublicDemoText(account?.username),
       };
       return Object.values(normalized).every((item) => Array.isArray(item) ? item.length > 0 : Boolean(item))
-        ? normalized
-        : null;
-    }).filter(Boolean);
+        ? [normalized]
+        : [];
+    });
 
     if (new Set(accounts.map((account) => account.username)).size !== accounts.length) {
       return [];
@@ -363,16 +448,19 @@
     return accounts;
   }
 
+  /** @param {unknown} value @returns {string[]} */
   function normalizePublicDemoTextList(value) {
     return Array.isArray(value)
       ? value.map(normalizePublicDemoText).filter(Boolean)
       : [];
   }
 
+  /** @param {unknown} value @returns {string} */
   function normalizePublicDemoText(value) {
     return typeof value === "string" ? value.trim() : "";
   }
 
+  /** @param {unknown} body @param {string} fallback @param {number} status */
   function apiError(body, fallback, status) {
     return window.LongtailForge?.errors?.createError?.(body, fallback, status)
       || new Error(fallback);
