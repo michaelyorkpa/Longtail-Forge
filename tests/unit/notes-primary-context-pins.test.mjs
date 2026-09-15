@@ -5,7 +5,7 @@ import { FakeDocument } from "../../scripts/test-support/fake-dom.mjs";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 
 const source = createProjectTextReader().readText("public/js/notes.js");
-const names = ["readNoteEditorId", "readEditorPayload", "loadPrimaryContextOptions", "isActivePrimaryClientTarget", "requireNotesValue", "normalizeText", "normalizeWorkspaceType", "usesBusinessScope", "workspaceHasClientTools", "readEditorVisibility", "updatePrimaryContextVisibility", "populatePrimaryClientOptions", "populatePrimaryProjectOptions", "findPrimaryContextProject", "primaryContextSummaryForSelection", "primaryClientFallbackOption", "primaryProjectFallbackOption", "optionListHasValue", "primaryClientOptionLabel", "primaryProjectOptionLabel", "providerDisplayLabel", "unavailableTargetLabel"];
+const names = ["isResponseRecord", "isNotesDecoratedLink", "readEditorContextSummary", "readNoteEditorId", "readEditorPayload", "loadPrimaryContextOptions", "isActivePrimaryClientTarget", "requireNotesValue", "normalizeText", "normalizeWorkspaceType", "usesBusinessScope", "workspaceHasClientTools", "readEditorVisibility", "updatePrimaryContextVisibility", "populatePrimaryClientOptions", "populatePrimaryProjectOptions", "findPrimaryContextProject", "primaryContextSummaryForSelection", "primaryClientFallbackOption", "primaryProjectFallbackOption", "optionListHasValue", "primaryClientOptionLabel", "primaryProjectOptionLabel", "providerDisplayLabel", "unavailableTargetLabel"];
 function fixture() {
   const document = new FakeDocument();
   const active = { targetId: "client-target", clientId: "client-a", status: " Active ", label: "Active client", displayLabel: "  Active client  ", isAvailable: false };
