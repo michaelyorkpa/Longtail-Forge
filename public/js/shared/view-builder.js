@@ -5,15 +5,80 @@
   // there, so the factory's writer list and member sets are untouched. The modal constructors
   // stay here because they are built from this file's element factory.
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewModalStack} BrowserViewModalStack */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewAttributeBag} BrowserViewAttributeBag */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewElementOptions} BrowserViewElementOptions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFieldControl} BrowserViewFieldControl */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFieldMessageOptions} BrowserViewFieldMessageOptions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFieldOptions} BrowserViewFieldOptions */
+
+  /**
+   * A field descriptor as this factory reads one.
+   *
+   * `createField` is published taking `unknown`, which withheld the shape **from callers**; the
+   * framework's own `ViewFieldDescriptor` is what a contributor writes, and every member is
+   * optional here because the factory answers a fallback for each absent one. Three members are
+   * read that the framework descriptor does not declare - `checked`, `spellcheck` and `value` -
+   * and they are named `unknown` as **findings for the descriptor's owner**, not repaired here.
+   * @typedef {Partial<import("../../../src/types/framework-contracts.js").ViewFieldDescriptor> & { checked?: unknown, spellcheck?: unknown, value?: unknown }} FieldDescriptor
+   */
+
+  /**
+   * The bag `createField` hands its control builders: the caller's own options plus the values
+   * it resolved first. Neither is published, because nothing outside this file calls either
+   * builder - and they differ, because the radio path resolves no single control type.
+   * @typedef {BrowserViewFieldOptions & { fieldId: string, fieldKey: string }} FieldBuilderOptions
+   */
+
+  /** @typedef {FieldBuilderOptions & { fieldType: string }} FieldControlOptions */
+
+  /**
+   * One option after `normalizeFieldOptions` has flattened the three spellings it accepts.
+   * @typedef {ReturnType<typeof normalizeFieldOptions>[number]} NormalizedFieldOption
+   */
+
+  /**
+   * A control `collectFieldValues` reads a value off.
+   *
+   * The query answers `Element`, which is the honest type for a selector. The seven members
+   * below are **optional additions, not claims**: `dataset` and `name` exist on the HTML
+   * controls this factory builds but not on every `Element`, and `checked`, `multiple`,
+   * `selectedOptions`, `type` and `value` exist only on the control subtypes. Each is read for
+   * truthiness, compared to a string, or coerced, so a match without one behaves exactly as it
+   * does today. `[data-view-input]` is written only by `createFieldControl` and
+   * `createRadioControls`, so in practice every match is a `BrowserViewFieldControl`.
+   * @typedef {Element & {
+   *   checked?: unknown,
+   *   dataset?: Record<string, unknown>,
+   *   disabled?: unknown,
+   *   multiple?: unknown,
+   *   name?: unknown,
+   *   selectedOptions?: ArrayLike<{ value?: unknown }>,
+   *   type?: unknown,
+   *   value?: unknown,
+   * }} FieldValueControl
+   */
 
   const root = global.LongtailForge || {};
   let idCounter = 0;
 
+  /** @param {string} prefix */
   function nextId(prefix) {
     idCounter += 1;
     return `${prefix}-${Date.now()}-${idCounter}`;
   }
 
+  /**
+   * The element factory, **left untyped by `0.33.33.39.12` and blocked on a recorded decision.**
+   *
+   * Its published member is overloaded exactly as `document.createElement` is, which is what the
+   * body does, and declaring that here closes nine diagnostics rather than adding eight - but it
+   * also gives every `create*` member below a real return type, and one of them then contradicts
+   * its own published contract. `createModal` attaches `viewParts.footer = null` whenever a modal
+   * carries neither actions nor a footer, while `BrowserViewModalParts.footer` is declared
+   * non-nullable. Nothing crashes today, because every unguarded consumer passes actions; the
+   * declaration is simply not true of the writer. **Correcting it is a shared-contract change
+   * reaching three other lanes' files, so it is escalated rather than taken here.**
+   */
   function createElement(tagName, options = {}) {
     const element = document.createElement(tagName);
 
@@ -37,6 +102,10 @@
     return element;
   }
 
+  /**
+   * @param {FieldDescriptor} [field]
+   * @param {BrowserViewFieldOptions} [options]
+   */
   function createField(field = {}, options = {}) {
     const fieldKey = String(field.field || field.id || "").trim();
     const labelText = String(field.label || fieldKey || "Field");
@@ -106,6 +175,11 @@
     return shell;
   }
 
+  /**
+   * @param {string} fieldId
+   * @param {readonly Element[]} controls
+   * @param {BrowserViewFieldOptions} [options]
+   */
   function createFieldMessage(fieldId, controls, options = {}) {
     const messageId = `${fieldId}-message`;
     const message = createElement("span", {
@@ -119,6 +193,10 @@
       hidden: true,
     });
 
+    /**
+     * @param {unknown} value
+     * @param {BrowserViewFieldMessageOptions} [messageOptions]
+     */
     const setMessage = (value, messageOptions = {}) => {
       const text = String(value ?? "").trim();
       const invalid = Boolean(messageOptions.invalid);
@@ -150,6 +228,11 @@
     return { message, setMessage };
   }
 
+  /**
+   * @param {FieldDescriptor} field
+   * @param {FieldControlOptions} options
+   * @returns {BrowserViewFieldControl}
+   */
   function createFieldControl(field, options) {
     const commonAttrs = {
       id: options.fieldId,
@@ -199,6 +282,7 @@
 
     const tagName = options.fieldType === "textarea" ? "textarea" : "input";
     const inputType = inputTypeForField(options.fieldType);
+    /** @type {BrowserViewFieldControl & { checked?: unknown }} */
     const control = createElement(tagName, {
       className: [
         options.fieldType === "switch" ? "view-field-switch-control" : "",
@@ -230,6 +314,10 @@
     return control;
   }
 
+  /**
+   * @param {FieldDescriptor} field
+   * @param {FieldBuilderOptions} options
+   */
   function createRadioControls(field, options) {
     const hasBoundValue = options.value !== undefined && options.value !== null;
     const selectedValue = hasBoundValue ? String(options.value) : field.default === undefined ? "" : String(field.default);
@@ -262,6 +350,7 @@
     });
   }
 
+  /** @param {unknown} type */
   function normalizeFieldType(type) {
     const value = String(type || "text").trim().toLowerCase();
     if (value === "boolean" || value === "checkbox") {
@@ -279,6 +368,7 @@
     return value || "text";
   }
 
+  /** @param {string} type */
   function inputTypeForField(type) {
     if (["number", "date", "time", "checkbox", "boolean"].includes(type)) {
       return type === "boolean" ? "checkbox" : type;
@@ -289,6 +379,7 @@
     return "text";
   }
 
+  /** @param {unknown} [options] */
   function normalizeFieldOptions(options = []) {
     if (!Array.isArray(options)) {
       return [];
@@ -315,11 +406,13 @@
     });
   }
 
+  /** @param {unknown} value */
   function normalizeFieldValues(value) {
     const values = Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
     return values.map((item) => String(item));
   }
 
+  /** @param {unknown} value */
   function normalizeCheckedValue(value) {
     if (typeof value === "string") {
       return ["true", "1", "yes", "on"].includes(value.trim().toLowerCase());
@@ -327,12 +420,24 @@
     return Boolean(value);
   }
 
+  /**
+   * Read every bound control inside a scope.
+   *
+   * **The guard proves the method, not the type.** `scope` is an element at every call site and
+   * is declared as one here; the published member keeps `unknown`, because a caller is not
+   * obliged to know what this file requires, and the runtime check is unchanged.
+   * @param {Element | null | undefined} scope
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewCollectFieldValuesOptions} [options]
+   * @returns {Record<string, unknown>}
+   */
   function collectFieldValues(scope, options = {}) {
     if (!scope || typeof scope.querySelectorAll !== "function") {
       return {};
     }
 
+    /** @type {Record<string, unknown>} */
     const payload = {};
+    /** @type {FieldValueControl[]} */
     const controls = Array.from(scope.querySelectorAll("[data-view-input]"));
     const collectedRadioFields = new Set();
     for (const control of controls) {
@@ -367,6 +472,12 @@
     return payload;
   }
 
+  /**
+   * @template {Element} Target
+   * @param {Target} element
+   * @param {unknown} className
+   * @returns {Target}
+   */
   function addClasses(element, className) {
     if (!className) {
       return element;
@@ -379,6 +490,12 @@
     return element;
   }
 
+  /**
+   * @template {Element} Target
+   * @param {Target} element
+   * @param {BrowserViewAttributeBag | null} [attrs]
+   * @returns {Target}
+   */
   function setAttributes(element, attrs = {}) {
     Object.entries(attrs || {}).forEach(([name, value]) => {
       if (value === false || value === null || value === undefined) {
@@ -394,6 +511,12 @@
     return element;
   }
 
+  /**
+   * @template {HTMLElement} Target
+   * @param {Target} element
+   * @param {BrowserViewAttributeBag | null} [dataset]
+   * @returns {Target}
+   */
   function setDataset(element, dataset = {}) {
     Object.entries(dataset || {}).forEach(([name, value]) => {
       if (value !== null && value !== undefined) {
@@ -403,6 +526,12 @@
     return element;
   }
 
+  /**
+   * @template {Node} Parent
+   * @param {Parent} parent
+   * @param {unknown} children
+   * @returns {Parent}
+   */
   function appendChildren(parent, children) {
     if (children === null || children === undefined) {
       return parent;
@@ -413,6 +542,12 @@
     return parent;
   }
 
+  /**
+   * @template {Node} Parent
+   * @param {Parent} parent
+   * @param {unknown} child
+   * @returns {Parent}
+   */
   function appendChild(parent, child) {
     if (child === null || child === undefined || child === false) {
       return parent;
@@ -429,6 +564,12 @@
     return parent;
   }
 
+  /**
+   * @template {Element} Parent
+   * @param {Parent} parent
+   * @param {unknown} [children]
+   * @returns {Parent}
+   */
   function replaceElementChildren(parent, children = []) {
     const childList = Array.isArray(children) ? children : [children];
     if (typeof parent.replaceChildren === "function") {
@@ -441,10 +582,16 @@
     return parent;
   }
 
+  /** @param {unknown} value @returns {value is Node} */
   function isNode(value) {
-    return Boolean(value && typeof value === "object" && typeof value.nodeType === "number");
+    return Boolean(value && typeof value === "object" && "nodeType" in value && typeof value.nodeType === "number");
   }
 
+  /**
+   * @param {unknown} level
+   * @param {unknown} text
+   * @param {BrowserViewElementOptions} [options]
+   */
   function createHeading(level, text, options = {}) {
     const safeLevel = Math.min(Math.max(Number(level) || 2, 1), 6);
     return createElement(`h${safeLevel}`, {
@@ -453,6 +600,7 @@
     });
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewPageHeaderOptions} [options] */
   function createPageHeader(options = {}) {
     const headingLevel = options.headingLevel || 1;
     const header = createElement("header", {
@@ -483,6 +631,7 @@
     return header;
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewStatusMessageOptions} [options] */
   function createStatusMessage(options = {}) {
     const tone = options.tone || "info";
     const role = options.role || (tone === "danger" || tone === "error" ? "alert" : "status");
@@ -498,6 +647,7 @@
     });
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewEmptyStateOptions} [options] */
   function createEmptyState(options = {}) {
     const section = createElement("section", {
       className: ["view-empty-state", "surface-card", options.className],
@@ -1870,6 +2020,10 @@
     return adapter.normalize(descriptor);
   }
 
+  /**
+   * @param {Element} element
+   * @param {Record<string, unknown>} parts
+   */
   function assignViewParts(element, parts) {
     Object.defineProperty(element, "viewParts", {
       configurable: true,
