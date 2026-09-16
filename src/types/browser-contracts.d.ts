@@ -1012,12 +1012,23 @@ export interface BrowserViewListShellParts {
 
 export interface BrowserViewModalParts {
   body: HTMLElement;
-  footer: HTMLElement;
+  /**
+   * Null when the modal carries neither actions nor a `footer`, which is what `createModal`
+   * has always done: it builds a footer only for `actions.length || options.footer`. The
+   * member was declared non-nullable and that was simply not true of the writer.
+   */
+  footer: HTMLElement | null;
   title: HTMLElement;
 }
 
 export interface BrowserViewModalFormParts extends BrowserViewModalParts {
   form: HTMLFormElement;
+  /**
+   * Never null. `createModalForm` builds its footer unconditionally, so a form modal keeps the
+   * stronger guarantee rather than inheriting the base's nullability - its consumers should not
+   * have to check for something that cannot be absent.
+   */
+  footer: HTMLElement;
 }
 
 export interface BrowserViewLinkedContextListParts<Item = unknown> {
