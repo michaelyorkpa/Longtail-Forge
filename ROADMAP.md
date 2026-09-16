@@ -1139,6 +1139,14 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **The descriptor is named locally and stays unnamed publicly.** `BrowserModuleActions.register` still accepts `unknown`, and `0.33.33.38.2.2.6.4.1`'s decision not to publish a descriptor shape stands. The local typedef names only the members the registry itself reads and leaves `canOpen`, `mode`, `recordType`, `label`, `title` and `workspaceTypes` under an index signature, so nothing about the module-contribution vocabulary is settled here. Which members are proved and which are preconditions is stated in the file.
 
+#### 0.33.33.39.5 - Type the file preview surface
+
+**Complete: 77 diagnostics to zero in `public/js/shared/file-preview.js`, with no DOM remainder.** See the archive entry. The `files.preview` dependency `0.33.33.39.4` declared, and the file whose response half was already validated while its row half was not.
+
+**The asymmetry is now stated rather than implied.** The preview *descriptor* is proved member by member, because this page addresses that route itself. A preview *row* is not: it arrives from the Files list response by way of a host page, and the local typedefs say so instead of letting a compiling declaration imply a check.
+
+**One read genuinely moved, and one hidden any went with it.** `attachment.file` had to stay `unknown`, because the published `BrowserFileActionRecord` declares that key as an unwrapping alias for the attachment rather than as the file metadata this page reads there; `previewFileRecord` reads it and preserves identity for every object. `previewAvailabilityForRow` also lost a `@param {*}`, which the explicit-any detector never counted.
+
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 
 **Open. Not started, and deliberately not decided by `0.33.33.38.2.2.5.2`.** That checkpoint removed an unsupported type assertion and a lookup that could never answer; it did not design a replacement, and it must not be read as having settled what should exist here.
