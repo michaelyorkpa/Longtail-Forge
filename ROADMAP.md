@@ -1173,6 +1173,14 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Nothing executable changed.** Removing the 98 added comment lines reproduces the baseline byte for byte.
 
+#### 0.33.33.39.9 - Type the view renderer's layout seam
+
+**Complete: 64 more diagnostics closed in `public/js/shared/view-renderer.js`, 225 to 161, which still needs further children.** See the archive entry.
+
+**The planned seam was abandoned on evidence, and the reason is recorded.** This child was drawn against the surface-state slot `0.33.33.39.8` left open. Measuring first showed that `notes-view-registration` executes `runBehaviorAction` with `surface: {}` - a plain object carrying none of the channels - so requiring them would refuse an input an existing contract exercises. **That is a failure-policy question, not a typing one**, and it is escalated rather than decided inside a typing checkpoint.
+
+**The alternative turned out to be the better boundary.** Each layout renderer's `state` parameter can name the shape that renderer reads without redeclaring the slot `renderSurface` builds, because the callers hand it down untyped. Ten renderers closed that way, plus the action strip they dispatch through.
+
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 
 **Open. Not started, and deliberately not decided by `0.33.33.38.2.2.5.2`.** That checkpoint removed an unsupported type assertion and a lookup that could never answer; it did not design a replacement, and it must not be read as having settled what should exist here.
