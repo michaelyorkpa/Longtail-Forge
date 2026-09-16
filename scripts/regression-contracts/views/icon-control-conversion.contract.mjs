@@ -21,9 +21,9 @@ assert.match(tasks, /title:\s*options\.title \|\| label/, "Tasks icon-only row a
 assert.match(tasks, /"Follow Notifications": "bell"/, "Tasks notification follow action must use the bell icon");
 
 assert.match(taskDialog, /function decorateTaskDialogControls\(\)/, "Task dialog must decorate task timer controls through a local helper");
-assert.match(taskDialog, /icons\.decorateButton\(fields\.timerStart,\s*\{ icon: "start"[\s\S]*text: "Start"[\s\S]*iconOnly: false/, "Task timer Start must be icon-plus-text");
-assert.match(taskDialog, /icons\.decorateButton\(fields\.timerFinalize,\s*\{ icon: "save"[\s\S]*text: "Save Time"[\s\S]*iconOnly: false/, "Task timer Save Time must keep visible text");
-assert.match(taskDialog, /icons\.decorateButton\(fields\.timerReset,\s*\{ icon: "restore"[\s\S]*variant: "danger"/, "Task timer Reset must preserve danger styling");
+assert.match(taskDialog, /icons\.decorateButton\(requireTaskIconButton\(fields\.timerStart\),\s*\{ icon: "start"[\s\S]*text: "Start"[\s\S]*iconOnly: false/, "Task timer Start must be icon-plus-text");
+assert.match(taskDialog, /icons\.decorateButton\(requireTaskIconButton\(fields\.timerFinalize\),\s*\{ icon: "save"[\s\S]*text: "Save Time"[\s\S]*iconOnly: false/, "Task timer Save Time must keep visible text");
+assert.match(taskDialog, /icons\.decorateButton\(requireTaskIconButton\(fields\.timerReset\),\s*\{ icon: "restore"[\s\S]*variant: "danger"/, "Task timer Reset must preserve danger styling");
 
 assert.match(stopWatch, /function decorateStopwatchControls\(/, "Time Tracker must decorate stopwatch controls through a local helper");
 assert.match(stopWatch, /icons\.decorateButton\(startButton,\s*\{ icon: "start"[\s\S]*text: "Start"[\s\S]*iconOnly: false/, "Time Tracker Start must be icon-plus-text");

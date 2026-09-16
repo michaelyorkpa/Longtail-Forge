@@ -58,7 +58,7 @@ assert.match(
 );
 assert.match(
   taskDialogJs,
-  /icons\.decorateButton\(fields\.workbenchOpen, \{ icon: "anvil", label: "Open in Workbench", text: "", title: "Open in Workbench", iconOnly: true \}\)/,
+  /icons\.decorateButton\(requireTaskIconButton\(fields\.workbenchOpen\), \{ icon: "anvil", label: "Open in Workbench", text: "", title: "Open in Workbench", iconOnly: true \}\)/,
   "the decorated Workbench handoff must stay icon-only with no visible text",
 );
 assert.match(
@@ -82,7 +82,7 @@ assert.match(
 );
 assert.match(
   taskDialogJs,
-  /fields\.workbenchOpen\.hidden = !currentTaskId;/,
+  /writeTaskControl\(fields\.workbenchOpen, "hidden", !currentTaskId\);/,
   "the Workbench handoff must only be visible when editing a persisted task",
 );
 checks += 2;

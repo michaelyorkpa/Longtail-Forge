@@ -66,7 +66,7 @@ assert.match(
 );
 assert.match(
   taskDialogScript,
-  /function writeChecklistFields\(task\)[\s\S]*fields\.checklistInput\.disabled = !canUseChecklist[\s\S]*fields\.checklistStatus\.textContent = canUseChecklist[\s\S]*formatChecklistProgress\(progress\)[\s\S]*fields\.checklistList\.replaceChildren\(\.\.\.items\.map\(\(item, index\) => checklistItemRow\(item, index, items\.length\)\)\)[\s\S]*fields\.checklistField\.open = items\.length > 0/,
+  /function writeChecklistFields\(task\)[\s\S]*writeTaskControl\(fields\.checklistInput, "disabled", !canUseChecklist[\s\S]*fields\.checklistStatus\.textContent = canUseChecklist[\s\S]*formatChecklistProgress\(progress\)[\s\S]*fields\.checklistList\.replaceChildren\(\.\.\.items\.map\(\(item, index\) => checklistItemRow\(item, index, items\.length\)\)\)[\s\S]*fields\.checklistField\.open = items\.length > 0/,
   "Checklist section should preserve unsaved-task gating, progress summary, row rendering, and auto-open behavior.",
 );
 assert.match(

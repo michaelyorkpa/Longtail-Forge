@@ -16,7 +16,7 @@ function fixture(overrides = {}) {
     replaceOptions: (/** @type {{options: unknown}} */ field, /** @type {unknown} */ options) => { field.options = options; },
     ...overrides,
   });
-  for (const name of ["taskProjectionFields", "optionalTaskProjectionFields", "requireTaskControl", "callTaskContextCollection", "taskContextOptionItems", "defaultTaskOptions", "usesClientScope", "setStatus", "notifyTaskEditorSaved", "mountTaskFileAttachments", "parentTaskOptions", "findProjectOption", "applySelectedProjectTaskDefaults", "populateFormOptions", "populateProjectInput", "saveTaskForm"])
+  for (const name of ["taskProjectionFields", "optionalTaskProjectionFields", "requireTaskControl", "writeTaskControl", "callTaskContextCollection", "taskContextOptionItems", "defaultTaskOptions", "usesClientScope", "setStatus", "notifyTaskEditorSaved", "mountTaskFileAttachments", "parentTaskOptions", "findProjectOption", "applySelectedProjectTaskDefaults", "populateFormOptions", "populateProjectInput", "saveTaskForm"])
     vm.runInContext(extractFunctionBlock(source, name), sandbox);
   return sandbox;
 }

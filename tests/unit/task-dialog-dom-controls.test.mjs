@@ -22,17 +22,108 @@ function fixture(overrides = {}) {
     handleTaskTagsDialogClose: () => {}, handleTaskFilesDialogClose: () => {},
     ...overrides.sandbox,
   });
-  for (const name of ["taskProjectionFields", "optionalTaskProjectionFields", "callTaskContextCollection", "taskContextOptionItems", "requireTaskControl", "requireTaskControlDataset", "taskDialogCloseReason", "focusTaskControl", "bindTaskUtilityDialogEvents", "ensureDialog", "openTaskTagsDialog", "populateFormOptions"])
+  for (const name of ["taskProjectionFields", "optionalTaskProjectionFields", "callTaskContextCollection", "taskContextOptionItems", "requireTaskControl", "writeTaskControl", "requireTaskControlDataset", "taskDialogCloseReason", "focusTaskControl", "bindTaskUtilityDialogEvents", "ensureDialog", "openTaskTagsDialog", "populateFormOptions"])
     vm.runInContext(extractFunctionBlock(source, name), sandbox);
   return { sandbox, calls, controls, form, run: (/** @type {string} */ expression) => vm.runInContext(expression, sandbox) };
 }
 
 describe("Task Dialog control readiness", () => {
+  it("retains every queried field handle and its null or optional-absence answer", () => {
+    const f = fixture();
+    /** @type {Map<string, unknown>} */ const answers = new Map();
+    for (const [shell, control] of Object.entries(f.controls)) {
+      control.querySelector = (/** @type {string} */ selector) => {
+        if (selector === "[data-task-form]") return f.form;
+        const value = selector === "[data-task-title]" ? null : { shell, selector, addEventListener() {} };
+        answers.set(`${shell}:${selector}`, value);
+        return value;
+      };
+    }
+    f.run("ensureDialog()");
+    const acquired = f.sandbox.fields;
+    assert.equal(Object.keys(acquired).length, 63);
+    assert.equal(Object.keys(acquired.recurrence).length, 5);
+    for (const value of [...Object.values(acquired).filter((entry) => entry !== acquired.recurrence), ...Object.values(acquired.recurrence)])
+      assert.ok([...answers.values()].includes(value));
+    assert.equal(acquired.titleInput, null);
+    assert.equal(acquired.timerStart, answers.get("[data-task-dialog]:[data-task-timer-start]"));
+    assert.equal(acquired.recurrence.form, answers.get("[data-task-recurrence-dialog]:[data-task-recurrence-form]"));
+    const missing = fixture({ "[data-task-tags-dialog]": null, "[data-task-files-dialog]": null });
+    missing.run("ensureDialog()");
+    for (const name of ["tagContainer", "tagDialogClose", "fileContainer", "fileDialogClose"])
+      assert.equal(missing.sandbox.fields[name], undefined);
+  });
+  it("evaluates the display value before a missing target fails, retaining setter receiver and errors", () => {
+    const f = fixture();
+    /** @type {string[]} */ const order = [];
+    const timer = {};
+    f.sandbox.readTaskTimerElapsedSeconds = (/** @type {unknown} */ value) => { assert.equal(value, timer); order.push("elapsed"); return 12; };
+    f.sandbox.formatDuration = (/** @type {unknown} */ value) => { assert.equal(value, 12); order.push("format"); return "00:12"; };
+    vm.runInContext(extractFunctionBlock(source, "updateTaskTimerDisplay"), f.sandbox);
+    for (const missing of [null, undefined]) {
+      f.sandbox.fields = { get timerDisplay() { order.push("target"); return missing; } };
+      order.length = 0;
+      assert.throws(() => f.sandbox.updateTaskTimerDisplay(timer), /Task dialog control is unavailable/);
+      assert.deepEqual(order, ["target", "elapsed", "format"]);
+    }
+    const failure = new Error("setter failure");
+    const display = Object.create({ set textContent(/** @type {unknown} */ value) {
+      assert.equal(this, display); assert.equal(value, "00:12"); order.push("write"); throw failure;
+    } });
+    f.sandbox.fields = { timerDisplay: display };
+    order.length = 0;
+    assert.throws(() => f.sandbox.updateTaskTimerDisplay(timer), (error) => error === failure);
+    assert.deepEqual(order, ["elapsed", "format", "write"]);
+    const rhsFailure = new Error("format failure");
+    f.sandbox.fields = { timerDisplay: null };
+    f.sandbox.formatDuration = () => { throw rhsFailure; };
+    assert.throws(() => f.sandbox.updateTaskTimerDisplay(timer), (error) => error === rhsFailure);
+  });
   it("retains values and refuses missing required controls", () => {
     const { sandbox } = fixture();
     const value = {};
     assert.equal(sandbox.requireTaskControl(value), value);
     for (const missing of [null, undefined]) assert.throws(() => sandbox.requireTaskControl(missing), /control is unavailable/);
+  });
+  it("keeps optional acquisition optional and checks icon handles only at decoration", () => {
+    const f = fixture();
+    for (const name of ["requireTaskIconButton", "decorateTaskDialogControls"])
+      vm.runInContext(extractFunctionBlock(source, name), f.sandbox);
+    f.sandbox.namespace = {};
+    assert.doesNotThrow(() => f.sandbox.decorateTaskDialogControls());
+    f.sandbox.namespace.icons = { decorateButton() { throw new Error("unexpected decoration"); } };
+    for (const missing of [null, undefined]) {
+      f.sandbox.fields = { timerStart: missing };
+      assert.throws(() => f.sandbox.decorateTaskDialogControls(), { name: "Error", message: "decorateButton requires a button element." });
+    }
+    const button = {};
+    assert.equal(f.sandbox.requireTaskIconButton(button), button);
+  });
+  it("keeps inherited setters, frozen writes and undefined values on the original handle", () => {
+    const f = fixture();
+    /** @type {unknown[]} */ const values = [];
+    const control = Object.create({ set value(/** @type {unknown} */ value) { assert.equal(this, control); values.push(value); } });
+    for (const value of [undefined, null, 0, false, { opaque: true }])
+      f.sandbox.writeTaskControl(control, "value", value);
+    assert.deepEqual(values, [undefined, null, 0, false, { opaque: true }]);
+    assert.doesNotThrow(() => f.sandbox.writeTaskControl(Object.freeze({ value: "fixed" }), "value", "ignored"));
+  });
+  it("keeps Files focus after modal display, including inherited SVG-style focus and absent matches", () => {
+    const f = fixture();
+    /** @type {string[]} */ const order = [];
+    vm.runInContext(extractFunctionBlock(source, "openTaskFilesDialog"), f.sandbox);
+    f.sandbox.fields = { fileToggle: { setAttribute() { order.push("expanded"); } } };
+    f.sandbox.currentTaskId = "saved";
+    f.sandbox.closeTaskTagsDialog = () => order.push("close tags");
+    f.sandbox.showTaskModal = () => order.push("show files");
+    const target = Object.create({ focus() { assert.equal(this, target); order.push("focus"); } });
+    f.sandbox.filesDialog = { querySelector() { order.push("query"); return target; } };
+    f.sandbox.openTaskFilesDialog();
+    assert.deepEqual(order, ["close tags", "expanded", "show files", "query", "focus"]);
+    f.sandbox.filesDialog.querySelector = () => null;
+    assert.doesNotThrow(() => f.sandbox.openTaskFilesDialog());
+    f.sandbox.filesDialog.querySelector = () => ({ focus: false });
+    assert.throws(() => f.sandbox.openTaskFilesDialog(), /Task dialog control cannot receive focus/);
   });
   it("reads inherited dataset once and retains its identity and opaque members", () => {
     const { sandbox } = fixture();
@@ -149,7 +240,7 @@ async function openedHost(reason, input = {}, inspect = () => {}) {
   });
   for (const name of ["ensureDialog", "ensureClientOption", "populateProjectInput", "syncClientFromSelectedProject", "applySelectedProjectTaskDefaults", "updateBlockedReasonState", "writeParentTaskFields", "writeTaskCompletionFields", "writeTaskMetadataRibbon", "writeChecklistFields", "selectAssignees", "writeRecurrenceFields", "writeRecurrenceContinuity", "writeRecurrenceRecovery", "writeReminderFields", "writeTaskTimerFields", "mountTaskTagPicker", "mountTaskFileAttachments", "mountTaskNotesPanel", "writeTaskNotificationFollowFields", "updateCompleteTaskActionState", "updateBlockTaskActionState", "showTaskModal", "focusTaskEditorTarget"])
     sandbox[name] = () => {};
-  for (const name of ["taskProjectionFields", "optionalTaskProjectionFields", "requireTaskControl", "taskDialogCloseReason", "open"])
+  for (const name of ["taskProjectionFields", "optionalTaskProjectionFields", "requireTaskControl", "writeTaskControl", "taskDialogCloseReason", "open"])
     vm.runInContext(extractFunctionBlock(source, name), sandbox);
   sandbox.selectAssignees = (/** @type {unknown} */ value) => { sandbox.selectedAssignees = value; };
   /** @type {Promise<{status: string, value?: unknown, error?: unknown}>} */
