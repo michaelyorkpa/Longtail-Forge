@@ -1155,6 +1155,14 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **A selected tag is honestly two shapes.** `ensureTag` answers a freshly created catalogue record directly, so the slot holds either that or a normalised tag. The union says so instead of the declaration claiming a normalisation that never happened.
 
+#### 0.33.33.39.7 - Type the attachment panel
+
+**Complete: 145 diagnostics to zero in `public/js/shared/file-attachments.js`, with no DOM remainder.** See the archive entry. Fifty-one functions in 1,315 lines, and the third shared file in a row whose response boundary was already proved while its presentation half was not.
+
+**The options are derived from the panel's own normaliser.** `PanelOptions` is `ReturnType<typeof normalizeOptions>`, so the defaults the panel guarantees and the shape every renderer reads cannot drift apart.
+
+**A finding the typing surfaced, recorded rather than repaired.** The panel looks for four permission flags - `canQuarantine`, `can_quarantine`, `canReport`, `can_report` - on both the attachment and its file record, and the validated `BrowserFileAttachment` promises none of them. They are named `unknown` and optional, which says exactly that: the panel looks, and finds one or does not. Whether the producer should send them is a Files decision.
+
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 
 **Open. Not started, and deliberately not decided by `0.33.33.38.2.2.5.2`.** That checkpoint removed an unsupported type assertion and a lookup that could never answer; it did not design a replacement, and it must not be read as having settled what should exist here.

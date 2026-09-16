@@ -470,6 +470,7 @@
         "tests/unit/app-shell-readiness-pair-contracts.test.mjs",
         "tests/unit/asset-version.test.mjs",
         "tests/unit/attachment-count-contracts.test.mjs",
+        "tests/unit/attachment-panel-labels.test.mjs",
         "tests/unit/attachment-panel-list-contracts.test.mjs",
         "tests/unit/audit-log-contracts.test.mjs",
         "tests/unit/audit-log-filter-query-contracts.test.mjs",
@@ -742,7 +743,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4221,
+      "errorCount": 4076,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1028,28 +1029,6 @@
           {
             "code": 7034,
             "count": 2
-          }
-        ],
-        "public/js/shared/file-attachments.js": [
-          {
-            "code": 2339,
-            "count": 10
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 132
-          },
-          {
-            "code": 7034,
-            "count": 1
-          },
-          {
-            "code": 7053,
-            "count": 1
           }
         ],
         "public/js/shared/formatters.js": [
@@ -2011,8 +1990,8 @@
     }
   },
   "totals": {
-    "files": 1324,
-    "errors": 4221,
+    "files": 1325,
+    "errors": 4076,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
