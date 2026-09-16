@@ -56,7 +56,7 @@ assert.match(
 );
 assert.match(
   taskDialogScript,
-  /async function moveChecklistItem\(itemId, direction\)[\s\S]*api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(currentTaskId\)\}\/checklist\/reorder`, \{[\s\S]*item_ids: items\.map\(\(candidate\) => candidate\.task_checklist_item_id\)/,
+  /async function moveChecklistItem\(itemId, direction\)[\s\S]*api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(currentTaskId\)\}\/checklist\/reorder`, \{[\s\S]*item_ids: items\.map\(\(candidate\) => taskProjectionFields\(candidate\)\.task_checklist_item_id\)/,
   "Checklist reorder should keep using the Tasks checklist reorder route.",
 );
 assert.match(
