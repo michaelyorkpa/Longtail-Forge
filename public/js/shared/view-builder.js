@@ -32,6 +32,29 @@
   /** @typedef {FieldBuilderOptions & { fieldType: string }} FieldControlOptions */
 
   /**
+   * One row of an index list, as this factory reads one.
+   *
+   * `BrowserViewIndexListOptions.items` is published as `readonly unknown[]`, which withheld the
+   * shape **from callers**; naming it inside the implementation is what lets the row builder be
+   * typed. Every member is optional because the builder answers a fallback for each absent one,
+   * and each is `unknown` because a row arrives from a page controller rather than from a
+   * contract - except `onSelect`, which is only ever handed to `addEventListener`.
+   * @typedef {object} IndexListItem
+   * @property {unknown} [chips]
+   * @property {unknown} [depth]
+   * @property {unknown} [hierarchyDepth]
+   * @property {unknown} [hierarchyParent]
+   * @property {unknown} [hierarchyPath]
+   * @property {unknown} [id]
+   * @property {unknown} [label]
+   * @property {unknown} [meta]
+   * @property {unknown} [parentId]
+   * @property {unknown} [path]
+   * @property {unknown} [selected]
+   * @property {EventListener} [onSelect]
+   */
+
+  /**
    * One option after `normalizeFieldOptions` has flattened the three spellings it accepts.
    * @typedef {ReturnType<typeof normalizeFieldOptions>[number]} NormalizedFieldOption
    */
@@ -689,6 +712,7 @@
     return section;
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewFilterPanelOptions} [options] */
   function createFilterPanel(options = {}) {
     const panel = createElement("details", {
       className: ["view-filter-panel", "surface-main-panel", options.className],
@@ -718,6 +742,7 @@
     return panel;
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewBulkActionToolbarOptions} [options] */
   function createBulkActionToolbar(options = {}) {
     const selectedCount = Math.max(0, Number(options.selectedCount) || 0);
     const toolbar = createElement("details", {
@@ -758,6 +783,7 @@
     return toolbar;
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewListShellOptions} [options] */
   function createListShell(options = {}) {
     const shell = createElement(options.tagName || "div", {
       className: ["view-list-shell", options.className],
@@ -771,6 +797,7 @@
     appendChildren(shell, options.before);
     appendChildren(shell, options.toolbar);
 
+    /** @type {HTMLElement | null} */
     let status = null;
     if (options.status !== false) {
       status = createElement(options.statusTagName || "p", {
@@ -793,6 +820,7 @@
     return shell;
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewCollapsibleIndexPanelOptions} [options] */
   function createCollapsibleIndexPanel(options = {}) {
     const details = createElement("details", {
       className: ["view-collapsible-index", "surface-main-panel", options.className],
@@ -833,10 +861,12 @@
     return details;
   }
 
+  /** @param {unknown} children */
   function hasChildren(children) {
     return children !== undefined && children !== null && (!Array.isArray(children) || children.length > 0);
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewIndexListOptions} [options] */
   function createIndexList(options = {}) {
     const list = createElement("ul", {
       className: ["view-index-list", options.className],
@@ -851,6 +881,7 @@
     return list;
   }
 
+  /** @param {IndexListItem} [item] */
   function createIndexListItem(item = {}) {
     const hierarchy = hierarchyMetadata(item);
     const listItem = createElement("li", {
@@ -894,6 +925,7 @@
     return listItem;
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewSplitListDetailOptions} [options] */
   function createSplitListDetail(options = {}) {
     const rootElement = createElement("div", {
       className: ["view-split-list-detail", options.className],
@@ -1959,10 +1991,12 @@
     return typeof column === "string" ? "" : column.align || "";
   }
 
+  /** @param {IndexListItem} [item] */
   function hierarchyMetadata(item = {}) {
     const depth = normalizedDepth(item.depth ?? item.hierarchyDepth);
     const parent = item.parentId ?? item.hierarchyParent;
     const path = item.path ?? item.hierarchyPath;
+    /** @type {Record<string, unknown>} */
     const dataset = {};
     if (depth > 0) {
       dataset.viewHierarchyDepth = depth;
@@ -1992,6 +2026,7 @@
     });
   }
 
+  /** @param {unknown} value */
   function normalizedDepth(value) {
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -2009,6 +2044,7 @@
     ), row);
   }
 
+  /** @param {unknown} value @param {string} message @returns {string} */
   function requiredText(value, message) {
     const text = String(value || "").trim();
     if (!text) {
@@ -2017,6 +2053,7 @@
     return text;
   }
 
+  /** @param {number} count */
   function bulkSelectionCountText(count) {
     return `${count} selected`;
   }

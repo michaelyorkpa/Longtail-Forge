@@ -1007,7 +1007,14 @@ export interface BrowserViewBulkActionToolbarParts {
 }
 
 export interface BrowserViewListShellParts {
-  status: HTMLElement;
+  /**
+   * Null when the caller passed `status: false`, which is what `createListShell` has always
+   * done: it builds the status region only for `options.status !== false`. Six production call
+   * sites ask for exactly that - three in `clients-projects.js`, one in `reporting.js` and two
+   * in `shared/file-attachments.js` - so unlike the modal footer this absence is on a path the
+   * running application takes, and the member was declared non-nullable anyway.
+   */
+  status: HTMLElement | null;
 }
 
 export interface BrowserViewModalParts {
