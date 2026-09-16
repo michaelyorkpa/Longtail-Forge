@@ -47,7 +47,7 @@ for (const taskOwnedFragment of [
   assert.match(taskDialogScript, new RegExp(taskOwnedFragment), `${taskOwnedFragment} should remain on the Tasks-owned field path`);
 }
 
-assert.match(taskDialogScript, /dialog\.querySelectorAll\("\[data-client-workspace-control\]"\)\.forEach\(\(element\) => \{[\s\S]*element\.hidden = !hasClientScope;/, "Task modal should still hide Client controls outside Business scope");
+assert.match(taskDialogScript, /requireTaskControl\(dialog\)\.querySelectorAll\("\[data-client-workspace-control\]"\)\.forEach\(\(element\) => \{[\s\S]*Reflect\.set\(element, "hidden", !hasClientScope\);/, "Task modal should still hide Client controls outside Business scope");
 assert.match(taskDialogScript, /function usesClientScope\(\)[\s\S]*workspaceType === "business"/, "Task modal should still derive Client visibility from workspace type");
 assert.match(taskDialogScript, /function createTaskRecurrenceDialog\(\)[\s\S]*view\.createModalForm\(\{[\s\S]*className: "task-recurrence-dialog"[\s\S]*formClassName: "task-recurrence-form"[\s\S]*fields: taskRecurrenceFieldNodes\(\)[\s\S]*actions: taskRecurrenceActions\(descriptor\)/, "Recurrence should use a framework modal shell with Tasks-owned fields and actions");
 assert.match(taskDialogScript, /dialog\.dataset\.taskRecurrenceDialog = ""[\s\S]*dialog\.viewParts\.form\.dataset\.taskRecurrenceForm = ""[\s\S]*dialog\.viewParts\.body\.classList\.add\("task-recurrence-fields"\)/, "Framework-built recurrence dialog should keep task hooks for recurrence behavior");
