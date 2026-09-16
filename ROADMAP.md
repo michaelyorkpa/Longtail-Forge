@@ -1217,6 +1217,14 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **No JavaScript executable line changed.** The whole correction is two declaration lines plus the JSDoc that lets the compiler see what `Object.defineProperty` already installed.
 
+#### 0.33.33.39.14 - Type the view builder's list and index surface
+
+**Complete: 87 diagnostics closed in `public/js/shared/view-builder.js`, 372 to 285, with several further children still needed.** See the archive entry.
+
+**The first child of this file to start from a checkable base.** `0.33.33.39.13` typed the element factory and made `assignViewParts` visible, so `createListShell` and `createBulkActionToolbar` inherit real `viewParts` contracts instead of propagating `any` - which is what let this child close 87 from a nine-function boundary.
+
+**One declaration was corrected, on the terms `0.33.33.39.13` set.** `createListShell` builds its status region only for `options.status !== false` and has always attached `null` otherwise, while `BrowserViewListShellParts.status` was declared non-nullable. **Unlike the modal footer, this absence is on a path the running application takes**: six production call sites pass `status: false` - three in `clients-projects.js`, one in `reporting.js`, two in `shared/file-attachments.js` - and **no production consumer reads the part at all**, so the correction costs nothing.
+
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 
 **Open. Not started, and deliberately not decided by `0.33.33.38.2.2.5.2`.** That checkpoint removed an unsupported type assertion and a lookup that could never answer; it did not design a replacement, and it must not be read as having settled what should exist here.
