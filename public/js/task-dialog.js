@@ -239,6 +239,8 @@
   /** @type {Element | null} */
   let form = null;
   let fields = {};
+  /** @typedef {ReturnType<typeof normalizeTaskEditorRequest> & {materializationRefreshPending?: boolean}} TaskEditorRequest */
+  /** @type {TaskEditorRequest | null} */
   let currentTaskEditorRequest = null;
   /** @type {ReturnType<typeof taskFormSnapshot> | null} */
   let initialTaskFormSnapshot = null;
@@ -292,6 +294,7 @@
    */
   async function openTaskEditor(params = {}, hostContext = null) {
     const api = requireApi();
+    /** @type {TaskEditorRequest} */
     const request = normalizeTaskEditorRequest(params, hostContext);
     currentTaskEditorRequest = request;
 
@@ -323,7 +326,7 @@
         if (request.taskId && request.mode === "edit") {
           // The caller may have handed us a list-row payload (checklistProgress but no
           // checklistItems). Refresh the single task detail so the editor renders items.
-          const detail = await api.getJson(`/api/tasks/${encodeURIComponent(request.taskId)}`, { cache: "no-store" });
+          const detail = await api.getJson(`/api/tasks/${encodeURIComponent(`${request.taskId}`)}`, { cache: "no-store" });
           request.task = detail?.task || request.task;
         }
       }
@@ -360,6 +363,11 @@
     return openTaskEditor({ ...params, mode: "edit" }, hostContext);
   }
 
+  /**
+   * Task seeds use the same local record precondition as currentTask; other host values stay opaque.
+   * @param {Record<string, unknown> & {task?: TaskDialogRecord | null}} [params]
+   * @param {unknown} [hostContext]
+   */
   function normalizeTaskEditorRequest(params = {}, hostContext = null) {
     const mode = normalizeTaskEditorMode(params);
     const duplicate = params.duplicate === true || mode === "duplicate";
@@ -369,7 +377,7 @@
     const instanceDate = String(params.instanceDate || params.instance_date || "").trim();
     const hasPlannedOccurrence = Boolean(templateId && instanceDate);
     const defaults = normalizeTaskEditorDefaults(params);
-    const returnFocusTo = params.returnFocusTo || params.trigger || hostContext?.trigger || document.activeElement || null;
+    const returnFocusTo = params.returnFocusTo || params.trigger || optionalTaskProjectionFields(hostContext)?.trigger || document.activeElement || null;
     const needsTaskFetch = Boolean(taskId) && !task && (mode === "edit" || duplicate);
 
     if (mode === "edit" && !task && !taskId && !hasPlannedOccurrence) {
@@ -487,12 +495,13 @@
     return defaults;
   }
 
+  /** @param {{hostContext?: unknown, taskId?: unknown, params?: unknown}} [options] */
   async function prepareStandaloneContext({ hostContext = null, taskId = "" } = {}) {
     const api = requireApi();
     await namespace.workspaceContextReady;
     await namespace.timezones?.loadSessionTimezone?.();
     const [taskResult, tasksResult, timersResult, tagOptions] = await Promise.all([
-      taskId ? api.getJson(`/api/tasks/${encodeURIComponent(taskId)}`, { cache: "no-store" }) : Promise.resolve(null),
+      taskId ? api.getJson(`/api/tasks/${encodeURIComponent(`${taskId}`)}`, { cache: "no-store" }) : Promise.resolve(null),
       api.getJson("/api/tasks", { cache: "no-store" }),
       loadTaskTimers(),
       loadTagOptions(),
@@ -508,7 +517,12 @@
       currentUserId: source.currentUserId || readCurrentUserId(),
       hostContext,
       options: source.options || defaultTaskOptions(),
-      setStatus: (message, options = {}) => hostContext?.setStatus?.(message, options),
+      setStatus: (/** @type {unknown} */ message, options = {}) => {
+        const callback = optionalTaskProjectionFields(hostContext)?.setStatus;
+        if (callback === null || callback === undefined) return undefined;
+        if (typeof callback !== "function") throw new TypeError("Task host setStatus is not callable.");
+        return Reflect.apply(callback, hostContext, [message, options]);
+      },
       tagOptions,
       task,
       taskTimers: requireTaskRecords().readTaskTimers(timersResult),
@@ -516,12 +530,19 @@
     };
   }
 
-  /** @returns {Promise<string>} the dialog's close reason */
+  /**
+   * @param {Partial<Pick<TaskEditorRequest, "task" | "duplicate" | "defaults" | "focusNotes" | "focusTarget" | "promptBlockedReason" | "returnFocusTo">> & {hostContext?: unknown}} [options]
+   * @returns {Promise<string>} the dialog's close reason
+   */
   async function open({ task = null, duplicate = false, defaults = {}, focusNotes = false, focusTarget = "", hostContext = null, promptBlockedReason = false, returnFocusTo = null } = {}) {
     ensureDialog();
     const isDuplicate = duplicate === true;
-    const statusDefault = taskDefaultStatuses().includes(defaults.status) ? defaults.status : "";
-    const priorityDefault = taskDefaultPriorities().includes(defaults.priority) ? defaults.priority : "";
+    /** @type {readonly unknown[]} */
+    const statuses = taskDefaultStatuses();
+    const statusDefault = statuses.includes(defaults.status) ? defaults.status : "";
+    /** @type {readonly unknown[]} */
+    const priorities = taskDefaultPriorities();
+    const priorityDefault = priorities.includes(defaults.priority) ? defaults.priority : "";
 
     currentTask = isDuplicate ? null : task;
     currentTaskId = isDuplicate ? "" : task?.task_id || "";
@@ -565,7 +586,7 @@
     writeTaskCompletionFields(isDuplicate ? null : task);
     writeTaskMetadataRibbon(isDuplicate ? null : task);
     writeChecklistFields(isDuplicate ? null : task);
-    selectAssignees(task?.assignee_ids || (task ? [] : [currentUserId()]));
+    selectAssignees(optionalTaskProjectionFields(task)?.assignee_ids || (task ? [] : [currentUserId()]));
     writeRecurrenceFields(isDuplicate ? null : task?.recurrenceDetails);
     writeRecurrenceContinuity(isDuplicate ? null : task?.recurrenceContinuity);
     writeRecurrenceRecovery(isDuplicate ? null : task?.recurrenceRecovery);
@@ -2351,6 +2372,7 @@
     closeTaskModal(recurrenceDialog, "saved");
   }
 
+  /** @param {unknown} [details] */
   function writeRecurrenceFields(details = {}) {
     const parsed = {
       ...defaultRecurrenceDraft(),
@@ -2561,6 +2583,7 @@
     return interval === 1 ? `Every ${unit}` : `Every ${interval} ${unit}s`;
   }
 
+  /** @param {unknown} [details] */
   function writeReminderFields(details = {}) {
     const policySource = details?.overrideEnabled
       ? details?.taskPolicy
