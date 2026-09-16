@@ -392,6 +392,14 @@
   /** @typedef {Partial<ViewItemRowsDescriptor>} DescriptorItemRows */
 
   /**
+   * A table's secondary row. `title` is read as a label fallback and the framework descriptor
+   * declares only `label`, so it joins the other members named here as findings.
+   * @typedef {Partial<import("../../../src/types/framework-contracts.js").ViewTableSecondaryRowDescriptor> & { title?: unknown }} DescriptorSecondaryRow
+   */
+
+  /** @typedef {Partial<import("../../../src/types/framework-contracts.js").ViewTableSelectionDescriptor>} DescriptorSelection */
+
+  /**
    * One column as this file hands it to `createDataTable`, which takes them as `unknown`.
    * The selection and row-action columns it prepends and appends carry no `header`, so the
    * member is optional here rather than absent from those two literals.
@@ -1008,10 +1016,29 @@
     }
   }
 
-  function recordId(record) {
-    return String(record?.id || record?.record_id || record?.list_id || record?.note_id || "");
+  /**
+   * A record this file reads members off without having proved any of them.
+   *
+   * Every consumer here is handed whatever the data source answered, so the proof answers what
+   * the optional chaining it replaced answered: `undefined` for every member of a non-record.
+   * @param {unknown} value
+   * @returns {value is Record<string, unknown>}
+   */
+  function isDescriptorRecord(value) {
+    return value !== null && typeof value === "object";
   }
 
+  /** @param {unknown} record @returns {string} */
+  function recordId(record) {
+    const fields = isDescriptorRecord(record) ? record : {};
+    return String(fields.id || fields.record_id || fields.list_id || fields.note_id || "");
+  }
+
+  /**
+   * @param {DescriptorTable | null | undefined} table
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderTableShell(table, view, state) {
     if (!table) {
       return null;
@@ -1064,6 +1091,10 @@
     return columns;
   }
 
+  /**
+   * @param {DescriptorTable} table
+   * @param {ViewPrimitives} view
+   */
   function tableSecondaryRows(table, view) {
     return (Array.isArray(table.secondaryRows) ? table.secondaryRows : []).map((row) => ({
       id: row.id,
@@ -1071,10 +1102,15 @@
       startColumn: row.startColumn,
       endBeforeColumn: row.endBeforeColumn,
       hideWhenEmpty: row.hideWhenEmpty !== false,
-      render: (record) => renderTableSecondaryRow(row, view, record),
+      render: (/** @type {unknown} */ record) => renderTableSecondaryRow(row, view, record),
     }));
   }
 
+  /**
+   * @param {DescriptorSecondaryRow} row
+   * @param {ViewPrimitives} view
+   * @param {unknown} record
+   */
   function renderTableSecondaryRow(row, view, record) {
     const hasValue = descriptorHasValue(readDescriptorValue(record, row.chipsField || row.field || row.id, []));
     if (!hasValue && row.hideWhenEmpty !== false) {
@@ -1097,11 +1133,16 @@
     });
   }
 
+  /** @param {unknown} value */
   function descriptorHasValue(value) {
     const values = Array.isArray(value) ? value : [value];
     return values.some((item) => item !== null && item !== undefined && item !== false && item !== "");
   }
 
+  /**
+   * @param {DescriptorTable} [table]
+   * @returns {DescriptorSelection | null}
+   */
   function tableSelection(table = {}) {
     if (!table.selection || table.selection.enabled === false) {
       return null;
@@ -1109,6 +1150,11 @@
     return table.selection;
   }
 
+  /**
+   * @param {DescriptorSelection} selection
+   * @param {ViewPrimitives} view
+   * @param {unknown} record
+   */
   function renderRowSelection(selection, view, record) {
     const id = recordId(record);
     const labelField = selection.labelField || "name";
@@ -1143,6 +1189,12 @@
     return undefined;
   }
 
+  /**
+   * @param {DescriptorColumn} column
+   * @param {DescriptorTable | null | undefined} table
+   * @param {ViewPrimitives} view
+   * @param {unknown} record
+   */
   function renderHierarchyLabel(column, table, view, record) {
     const value = readDescriptorValue(record, column.field || column.id, "");
     const depthField = column.depthField || table?.hierarchy?.depthField;
@@ -1155,6 +1207,14 @@
     });
   }
 
+  /**
+   * Called with a column and with a secondary row, which is why the parameter is the union:
+   * `tableColumnRenderer` routes a chip-list column here, and `renderTableSecondaryRow` routes
+   * a chip-list row here.
+   * @param {DescriptorColumn | DescriptorSecondaryRow} column
+   * @param {ViewPrimitives} view
+   * @param {unknown} record
+   */
   function renderChipList(column, view, record) {
     const chips = readDescriptorValue(record, column.chipsField || column.field || column.id, []);
     const chipList = Array.isArray(chips) ? chips : [chips];
@@ -1169,13 +1229,19 @@
     });
   }
 
+  /**
+   * @param {unknown} chip
+   * @param {unknown} labelField
+   * @returns {string}
+   */
   function chipDisplayLabel(chip, labelField) {
-    if (chip && typeof chip === "object") {
+    if (isDescriptorRecord(chip)) {
       return String(readDescriptorValue(chip, labelField || "label", chip.name || chip.title || chip.value || chip.id || ""));
     }
     return String(chip ?? "");
   }
 
+  /** @param {unknown} value @returns {number} */
   function normalizedHierarchyDepth(value) {
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -1530,7 +1596,10 @@
    * declare** - a table's `title`, a column's `key`, `align` and `header`, a linked-records
    * panel's `ariaLabel`, an action's `modal` and `modalId`. They are read as `unknown` and
    * recorded as findings for the descriptor contract's owner; nothing here repairs one.
-   * @typedef {Partial<ViewTableColumnDescriptor> & { align?: unknown, header?: unknown, key?: unknown }} DescriptorColumn
+   * @typedef {Partial<ViewTableColumnDescriptor> & {
+   *   align?: unknown, chipLabelField?: unknown, chipsField?: unknown, depthField?: unknown,
+   *   header?: unknown, key?: unknown
+   * }} DescriptorColumn
    */
 
   /** @typedef {Omit<Partial<ViewTableDescriptor>, "columns"> & { columns?: readonly DescriptorColumn[], title?: unknown }} DescriptorTable */
@@ -1689,8 +1758,11 @@
   }
 
   /**
+   * `fieldName` is `unknown` rather than `string` because this reader's own first statement
+   * answers the fallback for an absent one, and the published `readPath` it delegates to takes
+   * the path as `unknown` too. Four callers compose a name from members that may be absent.
    * @param {unknown} record
-   * @param {string} fieldName
+   * @param {unknown} fieldName
    * @param {unknown} [fallback]
    * @returns {unknown}
    */
