@@ -376,6 +376,7 @@
         "tests/e2e/task-blocked-recovery.spec.mjs",
         "tests/e2e/task-bulk-project-assignment.spec.mjs",
         "tests/e2e/task-dialog-dom-controls.spec.mjs",
+        "tests/e2e/task-dialog-record-state.spec.mjs",
         "tests/e2e/task-direct-completion.spec.mjs",
         "tests/e2e/task-editor-normalizers.spec.mjs",
         "tests/e2e/task-editor-operation-handles.spec.mjs",
@@ -435,6 +436,7 @@
         "tests/mutations/support-view-audit-filters.breaks.mjs",
         "tests/mutations/tag-page-rendering.breaks.mjs",
         "tests/mutations/task-dialog-dom-controls.breaks.mjs",
+        "tests/mutations/task-dialog-record-state.breaks.mjs",
         "tests/mutations/task-editor-normalizers.breaks.mjs",
         "tests/mutations/theme-init-csrf-guard.breaks.mjs",
         "tests/mutations/time-entries-bulk-tags.breaks.mjs",
@@ -600,6 +602,7 @@
         "tests/unit/task-calendar-surface-contracts.test.mjs",
         "tests/unit/task-calendar-window-contracts.test.mjs",
         "tests/unit/task-dialog-dom-controls.test.mjs",
+        "tests/unit/task-dialog-record-state.test.mjs",
         "tests/unit/task-editor-normalizers.test.mjs",
         "tests/unit/task-list-contracts.test.mjs",
         "tests/unit/task-list-engine.test.mjs",
@@ -742,7 +745,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4221,
+      "errorCount": 4180,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1275,7 +1278,7 @@
         "public/js/task-dialog.js": [
           {
             "code": 2339,
-            "count": 471
+            "count": 467
           },
           {
             "code": 2345,
@@ -1291,7 +1294,7 @@
           },
           {
             "code": 7005,
-            "count": 77
+            "count": 42
           },
           {
             "code": 7006,
@@ -1299,7 +1302,7 @@
           },
           {
             "code": 7034,
-            "count": 5
+            "count": 3
           },
           {
             "code": 7053,
@@ -2011,8 +2014,8 @@
     }
   },
   "totals": {
-    "files": 1324,
-    "errors": 4221,
+    "files": 1327,
+    "errors": 4180,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
