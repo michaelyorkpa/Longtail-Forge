@@ -351,6 +351,73 @@
     return container;
   }
 
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewFilterDescriptor} ViewFilterDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewIndexPanelDescriptor} ViewIndexPanelDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewItemRowsDescriptor} ViewItemRowsDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewSidebarPanelDescriptor} ViewSidebarPanelDescriptor */
+
+  /** The primitives every layout renderer is handed, derived from the checked accessor. */
+  /** @typedef {ReturnType<typeof requireViewPrimitives>} ViewPrimitives */
+
+  /**
+   * The surface state, as the layout renderers read it.
+   *
+   * **This does not redeclare the state slot.** `renderSurface` builds that object and hands it
+   * down untyped; this names what each renderer reads off it, which is what lets them be typed
+   * one at a time. Every member is optional because two of these renderers are also called with
+   * `null`, and because a renderer reads only its own few.
+   *
+   * `indexCollapsed` is written by `selectIndexRecord` and initialised nowhere - **a finding for
+   * the state slot, not something this child repairs.** `surface` is named only by the optional
+   * `refresh` the filter form probes, deliberately not by the surface element type: correcting
+   * that slot is the seam recorded below as its own child.
+   * @typedef {object} RendererState
+   * @property {boolean} [indexCollapsed]
+   * @property {Record<string, unknown>} [filterValues]
+   * @property {readonly unknown[]} [records]
+   * @property {unknown} [selectedRecord]
+   * @property {unknown} [selectedRecordId]
+   * @property {{ refresh?: () => unknown }} [surface]
+   */
+
+  /**
+   * The layout descriptor fragments, on the same terms `0.33.33.39.8` set: `Partial`, because the
+   * callers pass fragments, with each intersection naming a member the renderer reads that the
+   * framework descriptor does not declare.
+   * @typedef {Partial<ViewIndexPanelDescriptor> & { open?: unknown, title?: unknown }} DescriptorIndexPanel
+   */
+
+  /** @typedef {Partial<ViewSidebarPanelDescriptor> & { title?: unknown }} DescriptorSidebarPanel */
+
+  /** @typedef {Partial<ViewItemRowsDescriptor>} DescriptorItemRows */
+
+  /**
+   * One column as this file hands it to `createDataTable`, which takes them as `unknown`.
+   * The selection and row-action columns it prepends and appends carry no `header`, so the
+   * member is optional here rather than absent from those two literals.
+   * @typedef {object} RenderedTableColumn
+   * @property {unknown} key
+   * @property {unknown} label
+   * @property {unknown} [align]
+   * @property {unknown} [header]
+   * @property {unknown} [render]
+   */
+
+  /** @typedef {Partial<ViewFilterDescriptor>} DescriptorFilter */
+
+  /**
+   * What the slide-out toggle is built from. Three text members, because two of them reach
+   * `createIconButton`, which requires them, and the third is added as a class.
+   * @typedef {object} SlideOutSidebarButtonOptions
+   * @property {string} [className]
+   * @property {string} [icon]
+   * @property {string} [label]
+   */
+
+  /**
+   * @param {ViewPrimitives} view
+   * @param {SlideOutSidebarButtonOptions} [options]
+   */
   function createSlideOutSidebarButton(view, options = {}) {
     let button = null;
     if (root.icons?.createIconButton) {
@@ -370,7 +437,7 @@
         attrs: { type: "button" },
       });
     }
-    button.classList.add(options.className);
+    button.classList.add(String(options.className));
     return button;
   }
 
@@ -535,6 +602,12 @@
     });
   }
 
+  /**
+   * @param {readonly DescriptorFilter[] | null | undefined} filters
+   * @param {ViewPrimitives} view
+   * @param {RendererState | null} [state]
+   * @param {Record<string, unknown>} [options]
+   */
   function renderFilters(filters, view, state = null, options = {}) {
     if (!Array.isArray(filters) || filters.length === 0) {
       return null;
@@ -552,6 +625,12 @@
     return panel;
   }
 
+  /**
+   * @param {readonly DescriptorFilter[]} filters
+   * @param {ViewPrimitives} view
+   * @param {RendererState | null} [state]
+   * @param {string} [className]
+   */
   function renderFilterForm(filters, view, state = null, className = "view-filter-panel-fields") {
     const form = view.createElement("form", {
       className,
@@ -560,10 +639,11 @@
       },
     });
     form.append(...filters.map((filter) => renderFieldShell(filter, view, {
-      value: state ? state.filterValues?.[filter.field || filter.id] : undefined,
+      value: state ? state.filterValues?.[String(filter.field || filter.id)] : undefined,
     })));
 
     if (state) {
+      /** @param {Event} [event] */
       const applyFilters = (event) => {
         if (event && typeof event.preventDefault === "function") {
           event.preventDefault();
@@ -685,6 +765,12 @@
     return null;
   }
 
+  /**
+   * @param {DescriptorIndexPanel | null | undefined} indexPanel
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   * @param {Record<string, unknown>} [options]
+   */
   function renderIndexPanel(indexPanel, view, state, options = {}) {
     if (!indexPanel) {
       return null;
@@ -700,6 +786,12 @@
     });
   }
 
+  /**
+   * @param {DescriptorIndexPanel | null | undefined} indexPanel
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   * @param {Record<string, unknown>} [options]
+   */
   function renderIndexPanelBody(indexPanel, view, state, options = {}) {
     const records = state.records || [];
     const title = options.title || indexPanel?.title || indexPanel?.label || "Index";
@@ -781,6 +873,11 @@
     return null;
   }
 
+  /**
+   * @param {DescriptorSidebarPanel} panel
+   * @param {ViewPrimitives} view
+   * @param {Record<string, unknown>} [options]
+   */
   function renderSidebarPanelShell(panel, view, options = {}) {
     const title = panel.title || panel.label || options.fallbackTitle || "Panel";
     const body = (Array.isArray(options.body) ? options.body : [options.body]).filter(Boolean);
@@ -932,7 +1029,13 @@
     });
   }
 
+  /**
+   * @param {DescriptorTable} table
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function tableColumns(table, view, state) {
+    /** @type {RenderedTableColumn[]} */
     const columns = (table.columns || []).map((column) => ({
       key: column.field || column.id,
       label: column.label || column.field || column.id || "",
@@ -946,7 +1049,7 @@
         key: "__view_row_selection",
         label: Object.hasOwn(selection, "headerLabel") ? selection.headerLabel : selection.label || "Select",
         align: "center",
-        render: (record) => renderRowSelection(selection, view, record),
+        render: (/** @type {unknown} */ record) => renderRowSelection(selection, view, record),
       });
     }
     const rowActions = Array.isArray(table.rowActions) ? table.rowActions : [];
@@ -955,7 +1058,7 @@
         key: "__view_row_actions",
         label: Object.hasOwn(table, "rowActionsHeaderLabel") ? table.rowActionsHeaderLabel : "Actions",
         align: "right",
-        render: (record) => renderActions(rowActions, view, "Row actions", state, record),
+        render: (/** @type {unknown} */ record) => renderActions(rowActions, view, "Row actions", state, record),
       });
     }
     return columns;
@@ -1025,12 +1128,17 @@
     });
   }
 
+  /**
+   * @param {DescriptorColumn} column
+   * @param {DescriptorTable} table
+   * @param {ViewPrimitives} view
+   */
   function tableColumnRenderer(column = {}, table = {}, view) {
     if (column.formatter === "hierarchy-label") {
-      return (record) => renderHierarchyLabel(column, table, view, record);
+      return (/** @type {unknown} */ record) => renderHierarchyLabel(column, table, view, record);
     }
     if (column.formatter === "chip-list") {
-      return (record) => renderChipList(column, view, record);
+      return (/** @type {unknown} */ record) => renderChipList(column, view, record);
     }
     return undefined;
   }
@@ -1254,6 +1362,12 @@
     });
   }
 
+  /**
+   * @param {DescriptorItemRows} itemRows
+   * @param {Record<string, unknown>} item
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderItemRow(itemRows, item, view, state) {
     const children = [
       view.createElement("strong", {
@@ -1335,6 +1449,13 @@
     }));
   }
 
+  /**
+   * @param {readonly SecurableAction[]} actions
+   * @param {ViewPrimitives} view
+   * @param {string} ariaLabel
+   * @param {RendererState | null} [state]
+   * @param {unknown} [recordOverride]
+   */
   function renderActions(actions, view, ariaLabel, state = null, recordOverride = undefined) {
     if (!Array.isArray(actions) || actions.length === 0) {
       return null;
@@ -1363,6 +1484,10 @@
     });
   }
 
+  /**
+   * @param {readonly SecurableAction[]} [actions]
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewDetailActionMenuOptions} [options]
+   */
   function renderDescriptorActionMenu(actions = [], options = {}) {
     const view = requireViewPrimitives();
     return view.createDetailActionMenu({
