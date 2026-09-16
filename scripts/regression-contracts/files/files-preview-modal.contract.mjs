@@ -53,7 +53,10 @@ assert.match(actionIsolation, /\[data-file-action\], a, button, input, select, t
 
 assert.match(openPreview, /requireFilePreviewViewHelper\("createModal"\)[\s\S]*requireFilePreviewViewHelper\("showModal"\)/, "Preview should use the shared modal stack helpers");
 assert.match(openPreview, /activeFilePreviewDialog[\s\S]*view\.closeModal\(activeFilePreviewDialog, "replace"\)[\s\S]*view\.showModal\(dialog, \{ parent: options\.parent \|\| null, trigger \}\)[\s\S]*loadFilePreview\(dialog, row\)/, "Preview should replace an existing preview modal, return focus through the trigger, and load route-backed content");
-assert.match(buildPreview, /view\.createModal\(\{[\s\S]*title:\s*`Preview \$\{row\.fileName\}`[\s\S]*className:\s*"files-preview-dialog"[\s\S]*size:\s*"wide"[\s\S]*actions:\s*\[downloadAction,\s*closeButton\]\.filter\(Boolean\)/, "Preview modal should use the shared wide modal with Download and Close actions");
+// The action filter is spelled as an explicit null test rather than `Boolean`, which drops the
+// same entries: the download action is an element or `null` and the close button is always an
+// element, so `null` is the only falsy value either slot can hold. The claim is unchanged.
+assert.match(buildPreview, /view\.createModal\(\{[\s\S]*title:\s*`Preview \$\{row\.fileName\}`[\s\S]*className:\s*"files-preview-dialog"[\s\S]*size:\s*"wide"[\s\S]*actions:\s*\[downloadAction,\s*closeButton\]\.filter\(\(action\) => action !== null\)/, "Preview modal should use the shared wide modal with Download and Close actions");
 assert.match(buildPreview, /dialog\.dataset\.filePreviewDialog = ""[\s\S]*dialog\.dataset\.fileAttachmentId = row\.attachmentId \|\| ""/, "Preview modal should expose stable markers for tests and focus/debugging");
 
 assert.match(loadPreview, /api\.getJson\(`\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/preview`/, "Preview modal should read the attachment-scoped preview descriptor route");

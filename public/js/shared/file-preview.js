@@ -4,6 +4,7 @@
   // leaks into the shared type environment the way a top-level `const` leaks into the
   // shared lexical one, which is the thing `0.33.33.33` removed from this estate.
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFileActionRecord} FileActionRecord */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewModalElement} BrowserViewModalElement */
 
   /**
    * The part of a module-action host context an opener settles against.
@@ -13,12 +14,103 @@
    * @property {HTMLElement | null} [trigger]
    */
 
+  /**
+   * The `file` record an attachment carries, in the spellings this page has been handed.
+   *
+   * **Nothing here is validated, and the asymmetry with the rest of this file is the point.**
+   * The preview *descriptor* is proved member by member by `isFilePreviewDescriptor`, because
+   * it arrives from a route this page addresses itself. A row does not: it comes from the Files
+   * list response by way of a host page, or straight from a module action's params bag, and no
+   * checkpoint has drawn that boundary. These declarations state the reads the normalizers
+   * already made - a record that breaks one reaches the same defaults it always reached.
+   * @typedef {object} FilePreviewFileRecord
+   * @property {string} [displayName]
+   * @property {string} [display_name]
+   * @property {string} [extension]
+   * @property {string} [file_status]
+   * @property {number} [fileSizeBytes]
+   * @property {number} [file_size_bytes]
+   * @property {string} [originalFilename]
+   * @property {string} [original_filename]
+   * @property {string} [scanStatus]
+   * @property {string} [scan_status]
+   * @property {string} [status]
+   */
+
+  /**
+   * What the normalizers accept: an attachment, an already-normalized row, or a wrapper around
+   * either. `normalizeFilePreviewRow` decides which by looking, so one shape names all three.
+   *
+   * Every member is optional because every one of them is a fallback in some path, and the
+   * recursion through `attachment` is the same shape the published `BrowserFileActionRecord`
+   * already uses for the same reason. See {@link FilePreviewFileRecord} for what is and is not
+   * proved here.
+   * @typedef {object} FilePreviewInput
+   * @property {FilePreviewInput} [attachment]
+   * @property {string} [attachmentId]
+   * @property {boolean} [canPreviewInReview]
+   * @property {boolean} [can_preview_in_review]
+   * @property {boolean} [downloadable]
+   * @property {string} [extension]
+   * @property {unknown} [file]
+   * @property {string} [fileAttachmentId]
+   * @property {string} [file_attachment_id]
+   * @property {string} [fileId]
+   * @property {string} [file_id]
+   * @property {string} [fileName]
+   * @property {string} [filename]
+   * @property {string} [file_name]
+   * @property {number} [fileSizeBytes]
+   * @property {number} [file_size_bytes]
+   * @property {BrowserFilePreviewKind} [previewKind]
+   * @property {string} [previewReason]
+   * @property {boolean} [previewable]
+   * @property {BrowserFilePreviewState} [previewState]
+   * @property {string} [scanStatus]
+   * @property {string} [scan_status]
+   * @property {string} [status]
+   */
+
+  /**
+   * The eight members both normalizers always write, whatever they were handed.
+   *
+   * These are the ones the dialog reads without asking: the title, the dataset markers, the two
+   * request paths, and the download control's own test. Unlike the members above, they are
+   * produced here rather than accepted - each one ends in a `|| ""` or a `Boolean(...)` or a
+   * value from `previewAvailabilityForRow`, which is why they are required rather than optional.
+   * @typedef {object} FilePreviewRowMembers
+   * @property {string} attachmentId
+   * @property {boolean} downloadable
+   * @property {string} fileId
+   * @property {string} fileName
+   * @property {BrowserFilePreviewKind} previewKind
+   * @property {string} previewReason
+   * @property {boolean} previewable
+   * @property {BrowserFilePreviewState} previewState
+   */
+
+  /** @typedef {FilePreviewInput & FilePreviewRowMembers} FilePreviewRow */
+
+  /**
+   * The options `openFilePreview` takes from a host.
+   *
+   * `BrowserFilePreview.openFilePreview` still declares this `unknown`; this typedef is local to
+   * the file and reaches no consumer. `parent` stays `unknown` because it is forwarded straight
+   * into `showModal`, which declares it that way; `trigger` is an element because the focus test
+   * beside it reads `focus` off one.
+   * @typedef {object} FilePreviewOpenOptions
+   * @property {boolean} [canPreviewInReview]
+   * @property {unknown} [parent]
+   * @property {HTMLElement | null} [trigger]
+   */
+
   const namespace = global.LongtailForge || {};
   const TEXT_PREVIEW_MAX_BYTES = 512 * 1024;
   const IMAGE_PREVIEW_EXTENSIONS = new Set(["gif", "jpg", "jpeg", "png"]);
   const MARKDOWN_PREVIEW_EXTENSIONS = new Set(["md"]);
   const TEXT_PREVIEW_EXTENSIONS = new Set(["txt"]);
 
+  /** @type {BrowserViewModalElement | null} */
   let activeFilePreviewDialog = null;
 
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
@@ -57,6 +149,11 @@
     }
     return apiClient;
   }
+  /**
+   * @param {FilePreviewInput} [attachmentOrRow]
+   * @param {FilePreviewOpenOptions} [options]
+   * @returns {BrowserViewModalElement}
+   */
   function openFilePreview(attachmentOrRow = {}, options = {}) {
     requireFilePreviewViewHelper("createActionButton");
     requireFilePreviewViewHelper("closeModal");
@@ -89,8 +186,13 @@
     return dialog;
   }
 
+  /**
+   * @param {FilePreviewRow} row
+   * @returns {BrowserViewModalElement}
+   */
   function buildFilePreviewDialog(row) {
     const view = requireView();
+    /** @type {BrowserViewModalElement | null} */
     let dialog = null;
     const body = view.createElement("div", {
       className: "files-preview-body",
@@ -116,7 +218,7 @@
       className: "files-preview-dialog",
       size: "wide",
       body: [body],
-      actions: [downloadAction, closeButton].filter(Boolean),
+      actions: [downloadAction, closeButton].filter((action) => action !== null),
     });
     dialog.dataset.filePreviewDialog = "";
     dialog.dataset.fileAttachmentId = row.attachmentId || "";
@@ -130,6 +232,10 @@
     return dialog;
   }
 
+  /**
+   * @param {FilePreviewRow} row
+   * @returns {HTMLElement | null}
+   */
   function createPreviewDownloadAction(row) {
     if (!row.downloadable || !row.fileId) {
       return null;
@@ -333,6 +439,10 @@
     return { content, preview };
   }
 
+  /**
+   * @param {BrowserViewModalElement} dialog
+   * @param {FilePreviewRow} row
+   */
   async function loadFilePreview(dialog, row) {
     const api = requireApi();
     if (!row.attachmentId) {
@@ -387,6 +497,11 @@
     }
   }
 
+  /**
+   * @param {BrowserViewModalElement} dialog
+   * @param {BrowserFilePreviewDescriptor} preview
+   * @param {BrowserFilePreviewContent} content
+   */
   function renderFilePreviewContent(dialog, preview, content) {
     if (content.kind === "text") {
       renderFilePreviewText(dialog, content.text);
@@ -401,6 +516,10 @@
     renderFilePreviewState(dialog, preview);
   }
 
+  /**
+   * @param {BrowserViewModalElement} dialog
+   * @param {import("../../../src/types/browser-contracts.js").BrowserPreviewableFileDescriptor} preview
+   */
   function renderFilePreviewImage(dialog, preview) {
     const view = requireView();
     const image = createFilePreviewElement("img", {
@@ -423,6 +542,10 @@
     setFilePreviewStatus(dialog, "Loading image preview...");
   }
 
+  /**
+   * @param {BrowserViewModalElement} dialog
+   * @param {string} text
+   */
   function renderFilePreviewText(dialog, text) {
     setFilePreviewBody(dialog, createFilePreviewElement("pre", {
       className: "files-preview-text",
@@ -432,6 +555,10 @@
     }));
   }
 
+  /**
+   * @param {BrowserViewModalElement} dialog
+   * @param {string} html
+   */
   function renderFilePreviewMarkdown(dialog, html) {
     const view = requireView();
     const content = view.createElement("div", {
@@ -443,6 +570,10 @@
     setFilePreviewBody(dialog, content);
   }
 
+  /**
+   * @param {BrowserViewModalElement} dialog
+   * @param {{ state?: BrowserFilePreviewState }} [preview]
+   */
   function renderFilePreviewState(dialog, preview = {}) {
     const state = preview.state || "unavailable";
     const message = previewStateMessage(state);
@@ -450,10 +581,20 @@
     renderFilePreviewUnavailable(dialog, message, state === "unauthorized");
   }
 
+  /**
+   * @param {BrowserViewModalElement} dialog
+   * @param {string} message
+   * @param {boolean} [isError]
+   */
   function renderFilePreviewUnavailable(dialog, message, isError = false) {
     setFilePreviewBody(dialog, createFilePreviewStatus(message, isError));
   }
 
+  /**
+   * @param {string} message
+   * @param {boolean} [isError]
+   * @returns {HTMLElement}
+   */
   function createFilePreviewStatus(message, isError = false) {
     return requireView().createElement("p", {
       className: ["files-preview-status", isError ? "error-text" : ""],
@@ -462,10 +603,19 @@
     });
   }
 
+  /**
+   * @param {BrowserViewModalElement} dialog
+   * @param {string} message
+   * @param {boolean} [isError]
+   */
   function setFilePreviewStatus(dialog, message, isError = false) {
     setFilePreviewBody(dialog, createFilePreviewStatus(message, isError));
   }
 
+  /**
+   * @param {BrowserViewModalElement} dialog
+   * @param {Node} content
+   */
   function setFilePreviewBody(dialog, content) {
     const body = dialog.querySelector("[data-file-preview-body]");
 
@@ -523,13 +673,18 @@
     return attachmentOrRow.attachmentId || attachmentOrRow.file_attachment_id || attachmentOrRow.attachment?.file_attachment_id || "";
   }
 
+  /**
+   * @param {FilePreviewInput} [attachmentOrRow]
+   * @param {FilePreviewOpenOptions} [options]
+   * @returns {FilePreviewRow}
+   */
   function normalizeFilePreviewRow(attachmentOrRow = {}, options = {}) {
     if (attachmentOrRow?.attachment && attachmentOrRow.fileName) {
       return normalizeExistingPreviewRow(attachmentOrRow);
     }
 
     const attachment = attachmentOrRow?.attachment || attachmentOrRow || {};
-    const file = attachment.file || {};
+    const file = previewFileRecord(attachment.file);
     const fileId = attachment.fileId || attachment.file_id || "";
     const attachmentId = attachment.fileAttachmentId || attachment.file_attachment_id || "";
     const fileName = readableFileName(file);
@@ -567,6 +722,26 @@
     };
   }
 
+  /**
+   * A `file` record, read off a member the published bag type spells differently.
+   *
+   * `BrowserFileActionRecord.file` is one of the keys an *unwrapped* attachment may arrive
+   * under, so the published declaration of that member describes a params bag rather than the
+   * file metadata `normalizeFilePreviewRow` reads there. The two readings are both real and
+   * both at the same key, which is why {@link FilePreviewInput} leaves it `unknown` and this
+   * reads it. Identity is preserved for every object, so the record carried into the returned
+   * row is still the one the response sent.
+   * @param {unknown} value
+   * @returns {FilePreviewFileRecord}
+   */
+  function previewFileRecord(value) {
+    return value && typeof value === "object" ? value : {};
+  }
+
+  /**
+   * @param {FilePreviewInput} [row]
+   * @returns {FilePreviewRow}
+   */
   function normalizeExistingPreviewRow(row = {}) {
     const preview = row.previewState
       ? { kind: row.previewKind || previewKindForExtension(row.extension), reason: row.previewReason || "", state: row.previewState }
@@ -576,7 +751,7 @@
       ...row,
       attachmentId: row.attachmentId || row.fileAttachmentId || row.file_attachment_id || "",
       fileId: row.fileId || row.file_id || "",
-      fileName: row.fileName || row.filename || row.file_name || readableFileName(row.file || {}),
+      fileName: row.fileName || row.filename || row.file_name || readableFileName(previewFileRecord(row.file)),
       previewKind: preview.kind,
       previewReason: preview.reason,
       previewable: preview.state === "previewable",
@@ -586,7 +761,7 @@
   }
 
   /**
-   * @param {*} [row]
+   * @param {FilePreviewInput} [row]
    * @returns {BrowserFilePreviewAvailability}
    */
   function previewAvailabilityForRow(row = {}) {
@@ -648,8 +823,12 @@
     return "unsupported";
   }
 
+  /**
+   * @param {FilePreviewInput} [row]
+   * @returns {string}
+   */
   function previewUnavailableLabel(row = {}) {
-    const fileName = row.fileName || row.filename || row.file_name || readableFileName(row.file || {});
+    const fileName = row.fileName || row.filename || row.file_name || readableFileName(previewFileRecord(row.file));
 
     if (row.previewState === "too_large_for_preview") {
       return `Preview too large; download ${fileName}`;
@@ -660,6 +839,10 @@
     return `Preview unavailable for ${fileName}`;
   }
 
+  /**
+   * @param {unknown} state
+   * @returns {string}
+   */
   function previewStateMessage(state) {
     if (state === "download_only") {
       return "This file type is download-only.";
@@ -673,6 +856,11 @@
     return "Preview is not available for this file.";
   }
 
+  /**
+   * @param {string} tagName
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewElementOptions} [options]
+   * @returns {HTMLElement}
+   */
   function createFilePreviewElement(tagName, options = {}) {
     const view = requireView();
     if (view?.createElement) {
@@ -710,6 +898,12 @@
     return element;
   }
 
+  /**
+   * The helper names this file asks for before it builds anything, read off the factory by the
+   * key the caller names. `keyof` is what the four call sites already pass and what the template
+   * below already assumes when it spells the missing member out.
+   * @param {keyof BrowserViewFactory} name
+   */
   function requireFilePreviewViewHelper(name) {
     if (typeof currentView()?.[name] !== "function") {
       throw new Error(`LongtailForge.view.${name} is required for file preview.`);
@@ -735,10 +929,18 @@
     return factory;
   }
 
+  /**
+   * @param {FilePreviewFileRecord} [file]
+   * @returns {string}
+   */
   function readableFileName(file = {}) {
     return String(file.displayName || file.display_name || file.originalFilename || file.original_filename || "File").trim() || "File";
   }
 
+  /**
+   * @param {unknown} filename
+   * @returns {string}
+   */
   function extensionFromFilename(filename) {
     const match = String(filename || "").match(/\.([A-Za-z0-9]+)$/);
 
