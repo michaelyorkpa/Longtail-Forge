@@ -7,6 +7,83 @@
   let tagSuggestionId = 0;
 
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTagCatalogRecord} TagCatalogRecord */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTagLoadOptions} TagLoadOptions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTagPickerOptions} TagPickerOptions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTagPickerController} TagPickerController */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTagFilterPickerOptions} TagFilterPickerOptions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTagFilterPickerController} TagFilterPickerController */
+
+  /**
+   * The error the two mutating requests throw.
+   *
+   * `namespace.errors?.createError?.(...)` answers a `BrowserApiError`, which already carries a
+   * status and a body, but the `|| new Error(...)` fallback beside it does not - and both paths
+   * then have the status and the body attached to them by name. This names what the two arms have
+   * in common rather than asserting that the plain one is the richer type.
+   * @typedef {Error & { body?: unknown, status?: number }} TagRequestError
+   */
+
+  /**
+   * One tag as `normalizeTagList` rebuilds it, derived from that normaliser rather than restated.
+   *
+   * It is deliberately **not** `BrowserTagCatalogRecord`: this shape carries the assignment
+   * members - `assignment_source`, `tag_assignment_id`, `origin` and the rest - that a catalogue
+   * record does not describe, which is the distinction `0.33.33.38.4.14` recorded when it closed
+   * the catalogue boundary. Writing it as a `ReturnType` keeps the two from drifting apart.
+   * @typedef {ReturnType<typeof normalizeTagList>[number]} PickerTag
+   */
+
+  /**
+   * A tag the picker holds selected.
+   *
+   * **Two shapes reach this slot and the union says so rather than hiding one.** Most arrive
+   * through `normalizeTagList`. One does not: `ensureTag` answers `createTag`'s freshly created
+   * catalogue record directly, and `addSelectedTag` stores that. It works - a catalogue record
+   * names no assignment source, so the origin predicates answer `"manual"` for it and it is
+   * treated as a direct tag, which is what a tag you just created is - but it is not the
+   * normalised shape, and typing the slot as though it were would be the claim rather than the
+   * fact.
+   * @typedef {PickerTag | TagCatalogRecord} SelectedTag
+   */
+
+  /**
+   * The picker's own mutable state, which three module-level helpers read and write.
+   *
+   * `selectedTags` is annotated rather than inferred because its empty initializer would
+   * otherwise infer `never[]` and refuse every later write.
+   * @typedef {object} TagPickerState
+   * @property {number} activeSuggestionIndex
+   * @property {PickerTag[]} allTags
+   * @property {boolean} busy
+   * @property {SelectedTag[]} selectedTags
+   */
+
+  /**
+   * The filter picker's state. It holds no `busy` flag, because it performs no request.
+   * @typedef {object} TagFilterState
+   * @property {number} activeSuggestionIndex
+   * @property {PickerTag[]} allTags
+   * @property {string} value
+   */
+
+  /**
+   * One choice the filter offers: the two sentinels, and one per tag.
+   * @typedef {object} TagFilterChoice
+   * @property {string} value
+   * @property {string} label
+   * @property {string} [keywords]
+   * @property {PickerTag} [tag]
+   */
+
+  /**
+   * How a chip is drawn. Every member is read for truthiness, and `removable` decides the element
+   * as well as the affordance, which is why a chip that is removable is a button.
+   * @typedef {object} TagChipOptions
+   * @property {boolean} [removable]
+   * @property {boolean} [showOrigin]
+   * @property {boolean} [suppressible]
+   */
 
   /**
    * The narrowing contract for the values this file catches.
@@ -104,6 +181,10 @@
     return body.tag;
   }
 
+  /**
+   * @param {TagLoadOptions} [options]
+   * @returns {Promise<TagCatalogRecord[]>}
+   */
   async function loadTags(options = {}) {
     const params = new URLSearchParams({
       status: options.status || "active",
@@ -120,6 +201,10 @@
     return readTagCatalogEntries(body);
   }
 
+  /**
+   * @param {unknown} [payload]
+   * @returns {Promise<TagCatalogRecord>}
+   */
   async function createTag(payload = {}) {
     const response = await fetch("/api/tags", {
       method: "POST",
@@ -129,6 +214,7 @@
     const body = await readJsonResponse(response);
 
     if (!response.ok) {
+      /** @type {TagRequestError} */
       const error = namespace.errors?.createError?.(body, "Unable to create tag.", response.status)
         || new Error("Unable to create tag.");
       error.status = response.status;
@@ -146,6 +232,10 @@
     return tag;
   }
 
+  /**
+   * @param {string} assignmentId
+   * @returns {Promise<unknown>}
+   */
   async function suppressPropagatedTag(assignmentId) {
     const response = await fetch(`/api/tags/assignments/${encodeURIComponent(assignmentId)}/suppress`, {
       method: "POST",
@@ -155,6 +245,7 @@
     const body = await readJsonResponse(response);
 
     if (!response.ok) {
+      /** @type {TagRequestError} */
       const error = namespace.errors?.createError?.(
         body,
         "Unable to remove inherited tag.",
@@ -168,6 +259,10 @@
     return body;
   }
 
+  /**
+   * @param {Element | null | undefined} container
+   * @param {unknown[]} [tags]
+   */
   function renderTagList(container, tags = []) {
     if (!container) {
       return;
@@ -178,7 +273,19 @@
       : []));
   }
 
-  function createTagChip(tag, options = {}) {
+  /**
+   * One chip, for a tag this function proves rather than one it was promised.
+   *
+   * `renderTagList` is published as taking `unknown[]`, and a consumer relies on that, so the
+   * value reaching here can be anything. The record proof answers what the member reads already
+   * answered - `undefined` for every member of a non-record - and the three DOM sinks are the
+   * places a string is required, which is the coercion the DOM was performing anyway.
+   * @param {unknown} rawTag
+   * @param {TagChipOptions} [options]
+   * @returns {HTMLElement}
+   */
+  function createTagChip(rawTag, options = {}) {
+    const tag = isTagRecord(rawTag) ? rawTag : {};
     const chip = options.removable ? document.createElement("button") : document.createElement("span");
     const swatch = document.createElement("span");
     const label = document.createElement("span");
@@ -190,15 +297,19 @@
       chip.classList.add("tag-chip-system");
     }
     if (options.removable) {
-      chip.type = "button";
-      chip.dataset.tagPickerRemove = tag.tag_id || "";
+      // The surrounding condition already chose the button branch; `in` is what says so to the
+      // compiler without asserting a subtype the condition has decided.
+      if ("type" in chip) {
+        chip.type = "button";
+      }
+      chip.dataset.tagPickerRemove = String(tag.tag_id || "");
       chip.setAttribute("aria-label", `Remove ${tag.name || tag.slug || "tag"}`);
       chip.title = `Remove ${tag.name || tag.slug || "tag"}`;
     }
     swatch.className = "tag-chip-swatch";
-    swatch.style.backgroundColor = tag.color || DEFAULT_TAG_COLOR;
+    swatch.style.backgroundColor = String(tag.color || DEFAULT_TAG_COLOR);
     swatch.setAttribute("aria-hidden", "true");
-    label.textContent = tag.name || tag.slug || "Tag";
+    label.textContent = String(tag.name || tag.slug || "Tag");
     chip.append(swatch, label);
     if (options.showOrigin && !options.suppressible && !options.removable && !isDirectTag(tag)) {
       chip.append(createOriginBadge(tag));
@@ -206,27 +317,27 @@
     return chip;
   }
 
+  /**
+   * @param {Element | null | undefined} container
+   * @param {TagPickerOptions} [options]
+   * @returns {Promise<TagPickerController | null>}
+   */
   async function mountPicker(container, options = {}) {
     if (!container) {
       return null;
     }
 
+    /** @type {TagPickerState} */
     const state = {
       activeSuggestionIndex: -1,
       allTags: normalizeTagList(Array.isArray(options.tags) ? options.tags : await loadTags()),
       busy: false,
-      /**
-       * The tags the picker currently holds selected.
-       *
-       * Typed by `normalizeTagList`'s own return rather than by the catalogue record, because
-       * this slot holds that normaliser's internal picker shape - which carries the assignment
-       * members a catalogue tag does not. Annotated only because the empty initializer infers
-       * `never[]` once `loadTags` feeds `allTags` a typed array.
-       * @type {ReturnType<typeof normalizeTagList>}
-       */
       selectedTags: [],
     };
     const selectedIds = new Set(normalizeTagIds(options.selectedTags || options.selectedTagIds || []));
+    /** The accumulator, named so the fold has an element type rather than an empty one. */
+    /** @type {SelectedTag[]} */
+    const deduped = [];
     state.selectedTags = [
       ...normalizeTagList(options.selectedTags || []),
       ...state.allTags.filter((tag) => selectedIds.has(tag.tag_id)),
@@ -235,7 +346,7 @@
         tags.push(tag);
       }
       return tags;
-    }, []);
+    }, deduped);
 
     const fieldset = document.createElement("fieldset");
     const legend = document.createElement("legend");
@@ -281,6 +392,7 @@
       });
     }
 
+    /** @param {unknown} rawValue */
     async function addByText(rawValue) {
       const name = String(rawValue || "").trim().replace(/\s+/g, " ");
       if (!name || state.busy) {
@@ -341,7 +453,7 @@
 
       event.preventDefault();
       const activeSuggestion = suggestions.querySelector('[aria-selected="true"]');
-      if (activeSuggestion) {
+      if (activeSuggestion instanceof HTMLElement) {
         activeSuggestion.click();
         return;
       }
@@ -349,8 +461,8 @@
     });
 
     suggestions.addEventListener("click", async (event) => {
-      const button = event.target.closest("[data-tag-picker-suggestion]");
-      if (!button) {
+      const button = event.target instanceof Element && event.target.closest("[data-tag-picker-suggestion]");
+      if (!(button instanceof HTMLElement)) {
         return;
       }
 
@@ -372,8 +484,9 @@
     });
 
     selectedList.addEventListener("click", async (event) => {
-      const suppressButton = event.target.closest("[data-tag-picker-suppress]");
-      if (suppressButton) {
+      const suppressButton = event.target instanceof Element
+        && event.target.closest("[data-tag-picker-suppress]");
+      if (suppressButton instanceof HTMLButtonElement) {
         const assignmentId = suppressButton.dataset.tagPickerSuppress;
         if (!assignmentId || state.busy) {
           return;
@@ -384,7 +497,7 @@
         setStatus(status, "Removing inherited tag");
         try {
           await suppressPropagatedTag(assignmentId);
-          state.selectedTags = state.selectedTags.filter((tag) => tag.tag_assignment_id !== assignmentId);
+          state.selectedTags = state.selectedTags.filter((tag) => selectedTagAssignmentId(tag) !== assignmentId);
           setStatus(status, "Inherited tag removed from this record.");
         } catch (error) {
           suppressButton.disabled = false;
@@ -397,8 +510,8 @@
         return;
       }
 
-      const button = event.target.closest("[data-tag-picker-remove]");
-      if (!button) {
+      const button = event.target instanceof Element && event.target.closest("[data-tag-picker-remove]");
+      if (!(button instanceof HTMLElement)) {
         return;
       }
 
@@ -426,6 +539,7 @@
     return {
       readTagIds: () => state.selectedTags.filter(isDirectTag).map((tag) => tag.tag_id).filter(Boolean),
       refreshTags: pickerController.refreshTags,
+      /** @param {unknown} [tagIds] */
       setSelected: (tagIds = []) => {
         const nextIds = new Set(normalizeTagIds(tagIds));
         state.selectedTags = state.allTags.filter((tag) => nextIds.has(tag.tag_id));
@@ -434,6 +548,10 @@
     };
   }
 
+  /**
+   * @param {Element} container
+   * @param {SelectedTag[]} tags
+   */
   function renderSelectedTags(container, tags) {
     const hiddenInputs = tags.filter(isDirectTag).map((tag) => {
       const input = document.createElement("input");
@@ -449,6 +567,10 @@
     container.replaceChildren(...chips, ...hiddenInputs);
   }
 
+  /**
+   * @param {SelectedTag} tag
+   * @returns {HTMLElement}
+   */
   function createSelectedTagChip(tag) {
     if (isDirectTag(tag)) {
       return createTagChip(tag, { removable: true });
@@ -458,11 +580,11 @@
     wrapper.className = "tag-picker-readonly-tag";
     wrapper.append(createTagChip(tag, { showOrigin: true }));
 
-    if (isPropagatedTag(tag) && tag.tag_assignment_id) {
+    if (isPropagatedTag(tag) && selectedTagAssignmentId(tag)) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "tag-picker-suppress";
-      button.dataset.tagPickerSuppress = tag.tag_assignment_id;
+      button.dataset.tagPickerSuppress = selectedTagAssignmentId(tag);
       button.textContent = "Remove from this record";
       button.title = "Suppress this inherited tag on the current record";
       wrapper.append(button);
@@ -471,6 +593,12 @@
     return wrapper;
   }
 
+  /**
+   * @param {HTMLElement} container
+   * @param {TagPickerState} state
+   * @param {unknown} rawValue
+   * @param {{ allowCreate?: boolean }} [options]
+   */
   function renderSuggestions(container, state, rawValue, options = {}) {
     const value = String(rawValue || "").trim();
     const normalizedValue = normalizeSlug(value);
@@ -498,6 +626,10 @@
     syncTagSuggestionSelection(container, state);
   }
 
+  /**
+   * @param {PickerTag} tag
+   * @returns {HTMLButtonElement}
+   */
   function createSuggestionButton(tag) {
     const button = document.createElement("button");
     button.id = `tag-picker-suggestion-${++tagSuggestionId}`;
@@ -510,6 +642,10 @@
     return button;
   }
 
+  /**
+   * @param {string} name
+   * @returns {HTMLButtonElement}
+   */
   function createCreateSuggestionButton(name) {
     const button = document.createElement("button");
     button.id = `tag-picker-suggestion-${++tagSuggestionId}`;
@@ -522,6 +658,12 @@
     return button;
   }
 
+  /**
+   * @param {HTMLInputElement} input
+   * @param {Element} container
+   * @param {TagPickerState} state
+   * @param {number} direction
+   */
   function moveTagSuggestionSelection(input, container, state, direction) {
     const buttons = [...container.querySelectorAll("[data-tag-picker-suggestion]")];
     if (buttons.length === 0) {
@@ -537,6 +679,11 @@
     syncTagSuggestionSelection(container, state, input);
   }
 
+  /**
+   * @param {Element} container
+   * @param {TagPickerState} state
+   * @param {Element | null} [input]
+   */
   function syncTagSuggestionSelection(container, state, input = container.previousElementSibling) {
     const buttons = [...container.querySelectorAll("[data-tag-picker-suggestion]")];
     buttons.forEach((button, index) => {
@@ -553,12 +700,28 @@
     }
   }
 
+  /**
+   * @param {HTMLInputElement | null | undefined} input
+   * @param {TagFilterPickerOptions} [options]
+   * @returns {TagFilterPickerController | null}
+   */
   function mountFilterPicker(input, options = {}) {
     if (!input) {
       return null;
     }
 
-    input._tagFilterPickerCleanup?.();
+    /**
+     * The control, bound once the guard has proved it.
+     *
+     * Two reasons, and both are the compiler recording what the code already does: a parameter's
+     * narrowing does not reach the handlers below, every one of which is a closure; and the
+     * cleanup hook this function installs is its own expando, which the element type does not
+     * declare and which only this file writes or reads.
+     * @type {HTMLInputElement & { _tagFilterPickerCleanup?: () => void }}
+     */
+    const field = input;
+
+    field._tagFilterPickerCleanup?.();
     const state = {
       activeSuggestionIndex: -1,
       allTags: normalizeTagList(options.tags || []),
@@ -570,14 +733,15 @@
     suggestions.id = `tag-filter-suggestions-${++tagPickerId}`;
     suggestions.hidden = true;
     suggestions.setAttribute("role", "listbox");
-    suggestions.setAttribute("aria-label", `${input.getAttribute("aria-label") || "Tag filter"} suggestions`);
-    input.parentElement?.appendChild(suggestions);
-    input.autocomplete = "off";
-    input.setAttribute("aria-autocomplete", "list");
-    input.setAttribute("aria-controls", suggestions.id);
-    input.setAttribute("aria-expanded", "false");
-    input.setAttribute("role", "combobox");
+    suggestions.setAttribute("aria-label", `${field.getAttribute("aria-label") || "Tag filter"} suggestions`);
+    field.parentElement?.appendChild(suggestions);
+    field.autocomplete = "off";
+    field.setAttribute("aria-autocomplete", "list");
+    field.setAttribute("aria-controls", suggestions.id);
+    field.setAttribute("aria-expanded", "false");
+    field.setAttribute("role", "combobox");
 
+    /** @returns {TagFilterChoice[]} */
     function choices() {
       return [
         { value: "all", label: "All tags", keywords: "all any" },
@@ -598,13 +762,13 @@
     function writeSelectedChoice() {
       const choice = selectedChoice();
       state.value = choice.value;
-      input.value = choice.label;
-      input.dataset.tagFilterValue = choice.value;
-      input.dataset.tagFilterLabel = choice.label;
+      field.value = choice.label;
+      field.dataset.tagFilterValue = choice.value;
+      field.dataset.tagFilterLabel = choice.label;
     }
 
     function renderFilterSuggestions() {
-      const query = String(input.value || "").trim().toLowerCase();
+      const query = String(field.value || "").trim().toLowerCase();
       const matches = choices()
         .filter((choice) => !query || `${choice.label} ${choice.keywords || ""}`.toLowerCase().includes(query))
         .slice(0, 10);
@@ -628,7 +792,7 @@
       }
       suggestions.replaceChildren(...buttons);
       suggestions.hidden = buttons.length === 0;
-      input.setAttribute("aria-expanded", buttons.length > 0 ? "true" : "false");
+      field.setAttribute("aria-expanded", buttons.length > 0 ? "true" : "false");
       syncFilterSuggestionSelection();
     }
 
@@ -639,24 +803,31 @@
         button.classList.toggle("is-active", selected);
         button.setAttribute("aria-selected", selected ? "true" : "false");
         if (selected) {
-          input.setAttribute("aria-activedescendant", button.id);
+          field.setAttribute("aria-activedescendant", button.id);
           button.scrollIntoView?.({ block: "nearest" });
         }
       });
       if (!buttons.some((button) => button.getAttribute("aria-selected") === "true")) {
-        input.removeAttribute("aria-activedescendant");
+        field.removeAttribute("aria-activedescendant");
       }
     }
 
+    /**
+     * @param {unknown} value
+     * @param {{ notify?: boolean }} [options]
+     */
     function choose(value, { notify = true } = {}) {
       state.value = normalizeFilterValue(value);
       state.activeSuggestionIndex = -1;
       writeSelectedChoice();
       suggestions.hidden = true;
-      input.setAttribute("aria-expanded", "false");
-      input.removeAttribute("aria-activedescendant");
+      field.setAttribute("aria-expanded", "false");
+      field.removeAttribute("aria-activedescendant");
       if (notify) {
-        input.dispatchEvent(new input.ownerDocument.defaultView.Event("change", { bubbles: true }));
+        // The element's own realm when it has one, and this script's otherwise, which is the
+        // spelling `shared/view-builder.js` already uses for the same read.
+        const view = field.ownerDocument.defaultView || global;
+        field.dispatchEvent(new view.Event("change", { bubbles: true }));
       }
     }
 
@@ -666,7 +837,7 @@
     }
 
     function handleFocus() {
-      input.select?.();
+      field.select?.();
       renderFilterSuggestions();
     }
 
@@ -675,11 +846,12 @@
         if (!suggestions.contains(document.activeElement)) {
           writeSelectedChoice();
           suggestions.hidden = true;
-          input.setAttribute("aria-expanded", "false");
+          field.setAttribute("aria-expanded", "false");
         }
       }, 120);
     }
 
+    /** @param {KeyboardEvent} event */
     function handleKeydown(event) {
       const buttons = [...suggestions.querySelectorAll("[data-tag-filter-suggestion]")];
       if (["ArrowDown", "ArrowUp"].includes(event.key)) {
@@ -699,31 +871,33 @@
       if (event.key === "Escape") {
         writeSelectedChoice();
         suggestions.hidden = true;
-        input.setAttribute("aria-expanded", "false");
+        field.setAttribute("aria-expanded", "false");
         return;
       }
       if (event.key === "Enter") {
         const active = suggestions.querySelector('[data-tag-filter-suggestion][aria-selected="true"]')
           || suggestions.querySelector("[data-tag-filter-suggestion]");
-        if (active) {
+        if (active instanceof HTMLElement) {
           event.preventDefault();
           choose(active.dataset.tagFilterSuggestion);
         }
       }
     }
 
+    /** @param {MouseEvent} event */
     function handleSuggestionClick(event) {
-      const button = event.target.closest("[data-tag-filter-suggestion]");
-      if (button) {
+      const button = event.target instanceof Element && event.target.closest("[data-tag-filter-suggestion]");
+      if (button instanceof HTMLElement) {
         choose(button.dataset.tagFilterSuggestion);
-        input.focus();
+        field.focus();
       }
     }
 
-    input.addEventListener("input", handleInput);
-    input.addEventListener("focus", handleFocus);
-    input.addEventListener("blur", handleBlur);
-    input.addEventListener("keydown", handleKeydown);
+    field.addEventListener("input", handleInput);
+    field.addEventListener("focus", handleFocus);
+    field.addEventListener("blur", handleBlur);
+    field.addEventListener("keydown", handleKeydown);
+    /** @param {Event} event */
     const handleSuggestionMouseDown = (event) => event.preventDefault();
     suggestions.addEventListener("mousedown", handleSuggestionMouseDown);
     suggestions.addEventListener("click", handleSuggestionClick);
@@ -731,6 +905,7 @@
 
     const controller = {
       readValue: () => state.value,
+      /** @param {unknown} [tags] */
       setTags: (tags = []) => {
         state.allTags = normalizeTagList(tags);
         if (!choices().some((choice) => choice.value === state.value)) {
@@ -738,22 +913,30 @@
         }
         writeSelectedChoice();
       },
+      /**
+       * @param {unknown} value
+       * @param {{ notify?: boolean }} [setOptions]
+       */
       setValue: (value, setOptions = {}) => choose(value, { notify: setOptions.notify === true }),
-      destroy: () => input._tagFilterPickerCleanup?.(),
+      destroy: () => field._tagFilterPickerCleanup?.(),
     };
-    input._tagFilterPickerCleanup = () => {
-      input.removeEventListener("input", handleInput);
-      input.removeEventListener("focus", handleFocus);
-      input.removeEventListener("blur", handleBlur);
-      input.removeEventListener("keydown", handleKeydown);
+    field._tagFilterPickerCleanup = () => {
+      field.removeEventListener("input", handleInput);
+      field.removeEventListener("focus", handleFocus);
+      field.removeEventListener("blur", handleBlur);
+      field.removeEventListener("keydown", handleKeydown);
       suggestions.removeEventListener("mousedown", handleSuggestionMouseDown);
       suggestions.removeEventListener("click", handleSuggestionClick);
       suggestions.remove();
-      delete input._tagFilterPickerCleanup;
+      delete field._tagFilterPickerCleanup;
     };
     return controller;
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {string}
+   */
   function normalizeFilterValue(value) {
     const normalized = String(value || "").trim();
     return normalized === "__no_effective_tags__" ? NO_TAGS_FILTER_VALUE : normalized || "all";
@@ -766,6 +949,11 @@
     return hint;
   }
 
+  /**
+   * @param {string} name
+   * @param {TagPickerState} state
+   * @returns {Promise<SelectedTag>}
+   */
   async function ensureTag(name, state) {
     try {
       const tag = await createTag({ name });
@@ -789,6 +977,10 @@
     }
   }
 
+  /**
+   * @param {TagPickerState} state
+   * @param {SelectedTag} tag
+   */
   function addSelectedTag(state, tag) {
     if (!tag?.tag_id || state.selectedTags.some((selected) => selected.tag_id === tag.tag_id)) {
       return;
@@ -797,9 +989,13 @@
     state.selectedTags = [...state.selectedTags, tag];
   }
 
+  /**
+   * @param {Element | null | undefined} container
+   * @returns {string[]}
+   */
   function readTagIds(container) {
     return [...(container?.querySelectorAll("[data-tag-picker-selected]") || [])]
-      .map((input) => input.value)
+      .map((input) => input instanceof HTMLInputElement ? input.value : "")
       .filter(Boolean);
   }
 
@@ -811,6 +1007,11 @@
     return createFilterOption(NO_TAGS_FILTER_VALUE, "No Tags");
   }
 
+  /**
+   * @param {string} value
+   * @param {string} label
+   * @returns {HTMLOptionElement}
+   */
   function createFilterOption(value, label) {
     const option = document.createElement("option");
     option.value = value;
@@ -818,6 +1019,7 @@
     return option;
   }
 
+  /** @param {unknown} [tags] */
   function normalizeTagList(tags = []) {
     return (Array.isArray(tags) ? tags : [])
       .map((tag) => ({
@@ -841,6 +1043,10 @@
       .filter((tag) => tag.tag_id);
   }
 
+  /**
+   * @param {unknown} [tags]
+   * @returns {string[]}
+   */
   function normalizeTagIds(tags = []) {
     return (Array.isArray(tags) ? tags : [])
       .map((tag) => typeof tag === "string" ? tag : tag?.tag_id)
@@ -848,17 +1054,31 @@
       .filter(Boolean);
   }
 
+  /**
+   * @param {PickerTag[]} tags
+   * @param {unknown} value
+   * @returns {PickerTag | null}
+   */
   function findTagByNameOrSlug(tags, value) {
     const slug = normalizeSlug(value);
     const name = String(value || "").trim().toLowerCase();
     return tags.find((tag) => normalizeSlug(tag.slug || tag.name) === slug || String(tag.name || "").trim().toLowerCase() === name) || null;
   }
 
+  /**
+   * @param {PickerTag} tag
+   * @param {unknown} value
+   * @returns {boolean}
+   */
   function matchesTagSearch(tag, value) {
     const query = String(value || "").trim().toLowerCase();
     return String(tag.name || "").toLowerCase().includes(query) || String(tag.slug || "").toLowerCase().includes(query);
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {string}
+   */
   function normalizeSlug(value) {
     return String(value || "")
       .trim()
@@ -868,16 +1088,27 @@
       .slice(0, 80);
   }
 
+  /**
+   * @param {unknown} tags
+   * @param {unknown} tag
+   * @returns {PickerTag[]}
+   */
   function upsertTag(tags, tag) {
     return mergeTags(tags, [tag]);
   }
 
+  /**
+   * @param {unknown} currentTags
+   * @param {unknown} nextTags
+   * @returns {PickerTag[]}
+   */
   function mergeTags(currentTags, nextTags) {
     const byId = new Map(normalizeTagList(currentTags).map((tag) => [tag.tag_id, tag]));
     normalizeTagList(nextTags).forEach((tag) => byId.set(tag.tag_id, tag));
     return [...byId.values()].sort((a, b) => String(a.name || a.slug).localeCompare(String(b.name || b.slug)));
   }
 
+  /** @param {unknown} tag */
   function notifyTagCreated(tag) {
     const normalized = normalizeTagList(tag ? [tag] : [])[0];
     if (!normalized) {
@@ -894,27 +1125,68 @@
     }
   }
 
+  /**
+   * Where a tag's assignment says it came from, read off a record this proves itself.
+   *
+   * The three predicates below are handed everything from a normalised picker tag to a raw wire
+   * entry `renderTagList` was given, so no single declared shape covers their callers - a
+   * published interface carries no index signature and cannot satisfy one. The proof answers what
+   * the optional chaining it replaced answered: `undefined` for every member of a non-record,
+   * which `normalizeAssignmentSource` then reads as `"manual"`.
+   * @param {unknown} tag
+   * @returns {string}
+   */
+  function assignmentSourceOf(tag) {
+    const record = isTagRecord(tag) ? tag : {};
+
+    return normalizeAssignmentSource(record.assignment_source || record.origin || record.source);
+  }
+
+  /**
+   * The assignment a selected tag was made through, or the empty string where it has none.
+   *
+   * A freshly created catalogue record has no assignment member at all, which is why this reads
+   * the union rather than the member. The empty string stands where `undefined` stood: both
+   * differ from every assignment id, which is the only comparison either is used in.
+   * @param {SelectedTag} tag
+   * @returns {string}
+   */
+  function selectedTagAssignmentId(tag) {
+    return "tag_assignment_id" in tag ? tag.tag_assignment_id : "";
+  }
+
+  /** @param {unknown} tag */
   function isDirectTag(tag) {
-    return normalizeAssignmentSource(tag?.assignment_source || tag?.origin || tag?.source) === "manual";
+    return assignmentSourceOf(tag) === "manual";
   }
 
+  /** @param {unknown} tag */
   function isPropagatedTag(tag) {
-    return normalizeAssignmentSource(tag?.assignment_source || tag?.origin || tag?.source) === "propagated";
+    return assignmentSourceOf(tag) === "propagated";
   }
 
+  /** @param {unknown} tag */
   function isSystemTag(tag) {
-    return normalizeAssignmentSource(tag?.assignment_source || tag?.origin || tag?.source) === "system";
+    return assignmentSourceOf(tag) === "system";
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {string}
+   */
   function normalizeAssignmentSource(value) {
     const normalized = String(value || "manual").trim().toLowerCase();
     return ["manual", "propagated", "system"].includes(normalized) ? normalized : "manual";
   }
 
+  /**
+   * @param {Record<string, unknown>} tag
+   * @returns {HTMLElement}
+   */
   function createOriginBadge(tag) {
     const badge = document.createElement("span");
     badge.className = "tag-picker-origin";
-    badge.textContent = tag.origin_label || (isSystemTag(tag) ? "System" : "Inherited");
+    badge.textContent = String(tag.origin_label || (isSystemTag(tag) ? "System" : "Inherited"));
     return badge;
   }
 
@@ -935,6 +1207,11 @@
     }
   }
 
+  /**
+   * @param {HTMLElement | null} status
+   * @param {string} message
+   * @param {boolean} [isError]
+   */
   function setStatus(status, message, isError = false) {
     if (!status) {
       return;

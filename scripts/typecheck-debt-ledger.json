@@ -591,6 +591,7 @@
         "tests/unit/tag-bulk-assignment-contracts.test.mjs",
         "tests/unit/tag-catalogue-contracts.test.mjs",
         "tests/unit/tag-page-rendering.test.mjs",
+        "tests/unit/tag-picker-chips.test.mjs",
         "tests/unit/tag-surface-declaration.test.mjs",
         "tests/unit/task-behavior-handler-lookup.test.mjs",
         "tests/unit/task-block-recovery-engine.test.mjs",
@@ -738,7 +739,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4421,
+      "errorCount": 4320,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1168,24 +1169,6 @@
           {
             "code": 7006,
             "count": 3
-          }
-        ],
-        "public/js/shared/tags.js": [
-          {
-            "code": 18047,
-            "count": 3
-          },
-          {
-            "code": 2339,
-            "count": 34
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 63
           }
         ],
         "public/js/shared/task-calendar.js": [
@@ -2029,8 +2012,8 @@
     }
   },
   "totals": {
-    "files": 1320,
-    "errors": 4421,
+    "files": 1321,
+    "errors": 4320,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

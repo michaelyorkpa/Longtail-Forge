@@ -1147,6 +1147,14 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **One read genuinely moved, and one hidden any went with it.** `attachment.file` had to stay `unknown`, because the published `BrowserFileActionRecord` declares that key as an unwrapping alias for the attachment rather than as the file metadata this page reads there; `previewFileRecord` reads it and preserves identity for every object. `previewAvailabilityForRow` also lost a `@param {*}`, which the explicit-any detector never counted.
 
+#### 0.33.33.39.6 - Type the shared tag picker
+
+**Complete: 101 diagnostics to zero in `public/js/shared/tags.js`, including its six DOM ones.** See the archive entry. The picker seven module controllers mount, against the `BrowserTagPickerController` contract Codex's `0.33.33.41.5` had already adopted - typed against, not changed.
+
+**The picker tag is derived, not restated.** `PickerTag` is `ReturnType<typeof normalizeTagList>[number]`, so the shape the normaliser actually builds and the shape the helpers read cannot drift apart. `0.33.33.38.4.14` recorded why that shape is not `BrowserTagCatalogRecord`; this keeps the distinction without repeating it.
+
+**A selected tag is honestly two shapes.** `ensureTag` answers a freshly created catalogue record directly, so the slot holds either that or a normalised tag. The union says so instead of the declaration claiming a normalisation that never happened.
+
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 
 **Open. Not started, and deliberately not decided by `0.33.33.38.2.2.5.2`.** That checkpoint removed an unsupported type assertion and a lookup that could never answer; it did not design a replacement, and it must not be read as having settled what should exist here.
