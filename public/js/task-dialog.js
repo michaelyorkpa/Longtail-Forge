@@ -78,6 +78,62 @@
     return pageController;
   }
 
+  /**
+   * Required controls are checked at their first dereference, not at lookup.
+   * @template T
+   * @param {T | null | undefined} value
+   * @returns {T}
+   */
+  function requireTaskControl(value) {
+    if (value === null || value === undefined) {
+      throw new TypeError("Task dialog control is unavailable.");
+    }
+    return value;
+  }
+
+  /**
+   * Dataset is inherited on native controls, including SVG controls.
+   * @param {Element | null} element
+   * @returns {Record<string, unknown>}
+   */
+  function requireTaskControlDataset(element) {
+    /** @param {unknown} value @returns {value is Record<string, unknown>} */
+    function isDataset(value) {
+      return value !== null && (typeof value === "object" || typeof value === "function");
+    }
+    const control = requireTaskControl(element);
+    const dataset = "dataset" in control ? control.dataset : undefined;
+    if (isDataset(dataset)) {
+      return dataset;
+    }
+    throw new TypeError("Task dialog control dataset is unavailable.");
+  }
+
+  /** @param {Element | null} element */
+  function taskDialogCloseReason(element) {
+    const control = requireTaskControl(element);
+    const value = "returnValue" in control ? control.returnValue : undefined;
+    if (!value) {
+      return "closed";
+    }
+    if (typeof value === "string") {
+      return value;
+    }
+    throw new TypeError("Task dialog close reason must be text.");
+  }
+
+  /** @param {Element | null | undefined} element */
+  function focusTaskControl(element) {
+    if (element === null || element === undefined) {
+      return;
+    }
+    if ("focus" in element && typeof element.focus === "function") {
+      element.focus();
+      return;
+    }
+    throw new TypeError("Task dialog control cannot receive focus.");
+  }
+
   let context = null;
   /** @type {import("../../src/types/browser-contracts.js").BrowserMountedPanel | null} */
   let fileAttachmentsController = null;
@@ -92,10 +148,15 @@
   let currentTask = null;
   let currentTaskId = "";
   let currentParentTaskId = "";
+  /** @type {Element | null} */
   let dialog = null;
+  /** @type {Element | null} */
   let recurrenceDialog = null;
+  /** @type {Element | null} */
   let tagsDialog = null;
+  /** @type {Element | null} */
   let filesDialog = null;
+  /** @type {Element | null} */
   let form = null;
   let fields = {};
   let currentTaskEditorRequest = null;
@@ -448,7 +509,7 @@
       });
     }
     return new Promise((resolve) => {
-      dialog.addEventListener("close", () => {
+      requireTaskControl(dialog).addEventListener("close", () => {
         closeTaskUtilityDialogs();
         clearTaskTimerInterval();
         fileAttachmentsController?.destroy?.();
@@ -457,7 +518,7 @@
         notesPanelController = null;
         restoreTaskEditorFocus(returnFocusTo);
         currentTaskEditorRequest = null;
-        resolve(dialog.returnValue || "closed");
+        resolve(taskDialogCloseReason(dialog));
       }, { once: true });
     });
   }
@@ -481,6 +542,7 @@
       filesDialog = document.querySelector("[data-task-files-dialog]");
     }
 
+    dialog = requireTaskControl(dialog);
     form = dialog.querySelector("[data-task-form]");
     fields = {
       assignees: dialog.querySelector("[data-task-assignees]"),
@@ -546,6 +608,7 @@
       titleInput: dialog.querySelector("[data-task-title]"),
       workbenchOpen: dialog.querySelector("[data-task-workbench-open]"),
     };
+    recurrenceDialog = requireTaskControl(recurrenceDialog);
     fields.recurrence = {
       cancel: recurrenceDialog.querySelector("[data-task-recurrence-cancel]"),
       endDate: recurrenceDialog.querySelector("[data-task-recurrence-end-date]"),
@@ -557,12 +620,12 @@
     bindRecurrenceDialogEvents();
     bindTaskUtilityDialogEvents();
 
-    if (form.dataset.taskDialogBound === "true") {
+    if (requireTaskControlDataset(form).taskDialogBound === "true") {
       return;
     }
 
-    form.dataset.taskDialogBound = "true";
-    form.addEventListener("submit", saveTask);
+    requireTaskControlDataset(form).taskDialogBound = "true";
+    requireTaskControl(form).addEventListener("submit", saveTask);
     fields.cancel?.addEventListener("click", () => {
       context?.hostContext?.cancel?.({ actionId: currentTaskId ? "tasks.edit" : "tasks.add" });
       closeTaskModal(dialog, "cancel");
@@ -644,14 +707,14 @@
   }
 
   function bindTaskUtilityDialogEvents() {
-    if (tagsDialog && tagsDialog.dataset.taskTagsDialogBound !== "true") {
-      tagsDialog.dataset.taskTagsDialogBound = "true";
+    if (tagsDialog && requireTaskControlDataset(tagsDialog).taskTagsDialogBound !== "true") {
+      requireTaskControlDataset(tagsDialog).taskTagsDialogBound = "true";
       fields.tagDialogClose?.addEventListener("click", closeTaskTagsDialog);
       tagsDialog.addEventListener("close", handleTaskTagsDialogClose);
     }
 
-    if (filesDialog && filesDialog.dataset.taskFilesDialogBound !== "true") {
-      filesDialog.dataset.taskFilesDialogBound = "true";
+    if (filesDialog && requireTaskControlDataset(filesDialog).taskFilesDialogBound !== "true") {
+      requireTaskControlDataset(filesDialog).taskFilesDialogBound = "true";
       fields.fileDialogClose?.addEventListener("click", closeTaskFilesDialog);
       filesDialog.addEventListener("close", handleTaskFilesDialogClose);
     }
@@ -665,8 +728,8 @@
     const options = context?.options || defaultTaskOptions();
     const hasClientScope = usesClientScope();
 
-    dialog.querySelectorAll("[data-client-workspace-control]").forEach((element) => {
-      element.hidden = !hasClientScope;
+    requireTaskControl(dialog).querySelectorAll("[data-client-workspace-control]").forEach((element) => {
+      Reflect.set(element, "hidden", !hasClientScope);
     });
 
     replaceOptions(fields.client, hasClientScope
@@ -1391,7 +1454,7 @@
     closeTaskFilesDialog();
     fields.tagToggle?.setAttribute("aria-expanded", "true");
     showTaskModal(tagsDialog, { parent: dialog, trigger: fields.tagToggle });
-    tagsDialog.querySelector("[data-tag-picker-input]")?.focus();
+    focusTaskControl(tagsDialog.querySelector("[data-tag-picker-input]"));
   }
 
   function closeTaskTagsDialog() {

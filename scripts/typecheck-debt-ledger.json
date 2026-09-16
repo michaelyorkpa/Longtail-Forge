@@ -375,6 +375,7 @@
         "tests/e2e/tag-picker-workflows.spec.mjs",
         "tests/e2e/task-blocked-recovery.spec.mjs",
         "tests/e2e/task-bulk-project-assignment.spec.mjs",
+        "tests/e2e/task-dialog-dom-controls.spec.mjs",
         "tests/e2e/task-direct-completion.spec.mjs",
         "tests/e2e/task-editor-normalizers.spec.mjs",
         "tests/e2e/task-editor-operation-handles.spec.mjs",
@@ -433,6 +434,7 @@
         "tests/mutations/stopwatch-timer.breaks.mjs",
         "tests/mutations/support-view-audit-filters.breaks.mjs",
         "tests/mutations/tag-page-rendering.breaks.mjs",
+        "tests/mutations/task-dialog-dom-controls.breaks.mjs",
         "tests/mutations/task-editor-normalizers.breaks.mjs",
         "tests/mutations/theme-init-csrf-guard.breaks.mjs",
         "tests/mutations/time-entries-bulk-tags.breaks.mjs",
@@ -595,6 +597,7 @@
         "tests/unit/task-block-recovery-engine.test.mjs",
         "tests/unit/task-calendar-surface-contracts.test.mjs",
         "tests/unit/task-calendar-window-contracts.test.mjs",
+        "tests/unit/task-dialog-dom-controls.test.mjs",
         "tests/unit/task-editor-normalizers.test.mjs",
         "tests/unit/task-list-contracts.test.mjs",
         "tests/unit/task-list-engine.test.mjs",
@@ -737,7 +740,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4498,
+      "errorCount": 4399,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1309,12 +1312,8 @@
         ],
         "public/js/task-dialog.js": [
           {
-            "code": 18047,
-            "count": 67
-          },
-          {
             "code": 2339,
-            "count": 473
+            "count": 471
           },
           {
             "code": 2345,
@@ -1330,15 +1329,15 @@
           },
           {
             "code": 7005,
-            "count": 101
+            "count": 77
           },
           {
             "code": 7006,
-            "count": 155
+            "count": 154
           },
           {
             "code": 7034,
-            "count": 10
+            "count": 5
           },
           {
             "code": 7053,
@@ -2050,8 +2049,8 @@
     }
   },
   "totals": {
-    "files": 1319,
-    "errors": 4498,
+    "files": 1322,
+    "errors": 4399,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
