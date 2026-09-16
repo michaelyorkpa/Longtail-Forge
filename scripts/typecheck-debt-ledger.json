@@ -379,6 +379,7 @@
         "tests/e2e/task-editor-normalizers.spec.mjs",
         "tests/e2e/task-editor-operation-handles.spec.mjs",
         "tests/e2e/task-editor-parent-save.spec.mjs",
+        "tests/e2e/task-editor-snapshot.spec.mjs",
         "tests/e2e/task-editor-utility-controllers.spec.mjs",
         "tests/e2e/task-focus-exit-capture.spec.mjs",
         "tests/e2e/task-resume-capture.spec.mjs",
@@ -735,7 +736,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4555,
+      "errorCount": 4553,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1350,7 +1351,7 @@
           },
           {
             "code": 7005,
-            "count": 102
+            "count": 101
           },
           {
             "code": 7006,
@@ -1358,7 +1359,7 @@
           },
           {
             "code": 7034,
-            "count": 11
+            "count": 10
           },
           {
             "code": 7053,
@@ -2070,8 +2071,8 @@
     }
   },
   "totals": {
-    "files": 1317,
-    "errors": 4555,
+    "files": 1318,
+    "errors": 4553,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
