@@ -441,7 +441,10 @@ describe("the create response is validated and its failure is a failure", () => 
   });
 
   it("leaves the non-OK error path exactly as it was", () => {
-    assert.match(create, /if \(!response\.ok\) \{\n\s+const error = namespace\.errors\?\.createError\?\.\(body, "Unable to create tag\.", response\.status\)/,
+    // The declaration between the brace and the binding is `0.33.33.39.6`: the two arms of the
+    // `||` answer different types and only one of them carries a status, so what they have in
+    // common is named rather than asserted. The pin requires it as well as the construction.
+    assert.match(create, /if \(!response\.ok\) \{\n\s+\/\*\* @type \{TagRequestError\} \*\/\n\s+const error = namespace\.errors\?\.createError\?\.\(body, "Unable to create tag\.", response\.status\)/,
       "the error is still built from the unknown body by the shared helper");
     assert.match(create, /error\.status = response\.status;\n\s+error\.body = body;\n\s+throw error;/,
       "with the status and body still attached");
