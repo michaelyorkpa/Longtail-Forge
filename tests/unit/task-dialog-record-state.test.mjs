@@ -27,7 +27,7 @@ function fixture(extra = {}) {
     assert.ok(declaration);
     vm.runInContext(declaration[0], sandbox);
   }
-  for (const name of ["taskProjectionFields", "optionalTaskProjectionFields", "requireTaskControl", "configure", "applyTaskCompletionResult", "applyTaskTimerMutationResult", "applyChecklistResult", "currentTaskTimer", "upsertTaskTimer", "removeTaskTimer", "moveChecklistItem", "skipRecurrenceToCurrent", "refreshTaskTimers"])
+  for (const name of ["taskProjectionFields", "optionalTaskProjectionFields", "requireTaskControl", "writeTaskControl", "configure", "applyTaskCompletionResult", "applyTaskTimerMutationResult", "applyChecklistResult", "currentTaskTimer", "upsertTaskTimer", "removeTaskTimer", "moveChecklistItem", "skipRecurrenceToCurrent", "refreshTaskTimers"])
     vm.runInContext(extractFunctionBlock(source, name), sandbox);
   const run = (/** @type {string} */ expression) => vm.runInContext(expression, sandbox);
   const set = (/** @type {string} */ name, /** @type {unknown} */ value) => { sandbox.input = value; run(`${name} = input`); };
@@ -199,5 +199,16 @@ describe("Task record slots and opaque detail consumers", () => {
     }
     f.sandbox.writeTaskMetadataRibbon({});
     assert.equal(badges.find((badge) => badge.label === "TTC"), undefined);
+    vm.runInContext(extractFunctionBlock(source, "hasCompletedTaskMetrics"), f.sandbox);
+    f.set("currentTask", { status: "complete", completed_at: "today", completionMetrics: { duration_seconds: 12 } });
+    f.sandbox.writeTaskMetadataRibbon(new globalThis.Event("change"));
+    assert.equal(badges.find((badge) => badge.label === "TTC"), undefined);
+    f.sandbox.writeTaskMetadataRibbon();
+    assert.equal(badges.find((badge) => badge.label === "TTC")?.value, "duration:12");
+    for (const value of [null, false, 0, "seed"])
+      assert.doesNotThrow(() => f.sandbox.writeTaskMetadataRibbon(value));
+    const failure = new Error("completion getter failure");
+    const inherited = Object.create({ status: "complete", completed_at: "today", get completionMetrics() { throw failure; } });
+    assert.throws(() => f.sandbox.writeTaskMetadataRibbon(inherited), (error) => error === failure);
   });
 });

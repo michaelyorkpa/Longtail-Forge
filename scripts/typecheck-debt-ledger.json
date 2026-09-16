@@ -379,6 +379,7 @@
         "tests/e2e/task-dialog-dom-controls.spec.mjs",
         "tests/e2e/task-dialog-record-state.spec.mjs",
         "tests/e2e/task-direct-completion.spec.mjs",
+        "tests/e2e/task-editor-control-handles.spec.mjs",
         "tests/e2e/task-editor-normalizers.spec.mjs",
         "tests/e2e/task-editor-operation-handles.spec.mjs",
         "tests/e2e/task-editor-parent-save.spec.mjs",
@@ -756,7 +757,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 3611,
+      "errorCount": 3271,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1267,7 +1268,7 @@
         "public/js/task-dialog.js": [
           {
             "code": 2339,
-            "count": 396
+            "count": 56
           },
           {
             "code": 2345,
@@ -1991,8 +1992,8 @@
     }
   },
   "totals": {
-    "files": 1338,
-    "errors": 3611,
+    "files": 1339,
+    "errors": 3271,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

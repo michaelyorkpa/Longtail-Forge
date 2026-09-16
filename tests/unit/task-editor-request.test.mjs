@@ -14,7 +14,7 @@ function fixture(extra = {}) {
   const declaration = source.match(/  let currentTaskEditorRequest = [^;]+;/);
   assert.ok(declaration);
   vm.runInContext(declaration[0], sandbox);
-  for (const name of ["taskProjectionFields", "optionalTaskProjectionFields", "normalizeTaskEditorMode", "normalizeTaskEditorDefaults", "normalizeTaskEditorFocusTarget", "normalizeTaskEditorRequest", "openTaskEditor", "prepareStandaloneContext", "transitionCreatedTaskToEdit", "notifyTaskEditorSaved", "refreshMaterializedTaskRequest"])
+  for (const name of ["requireTaskControl", "writeTaskControl", "taskProjectionFields", "optionalTaskProjectionFields", "normalizeTaskEditorMode", "normalizeTaskEditorDefaults", "normalizeTaskEditorFocusTarget", "normalizeTaskEditorRequest", "openTaskEditor", "prepareStandaloneContext", "transitionCreatedTaskToEdit", "notifyTaskEditorSaved", "refreshMaterializedTaskRequest"])
     vm.runInContext(extractFunctionBlock(source, name), sandbox);
   const read = () => vm.runInContext("currentTaskEditorRequest", sandbox);
   return { sandbox, read };

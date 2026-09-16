@@ -86,9 +86,9 @@ function assertStaticContract() {
   assert.match(contractsSource, /estimate_minutes: optionalNullableNumberInput\("Estimate minutes"\)/);
   assert.match(dialogSource, /data-task-estimate-minutes/);
   assert.match(dialogSource, /taskEditorInput\(view, "number", \{[\s\S]*min: "0"[\s\S]*step: "15"/);
-  assert.match(dialogSource, /fields\.estimate\.value = task\?\.estimate_minutes \?\?/,
+  assert.match(dialogSource, /writeTaskControl\(fields\.estimate, "value", task\?\.estimate_minutes \?\?/,
     "duplicate mode should hydrate the source Task estimate through the canonical editor");
-  assert.match(dialogSource, /estimate_minutes: fields\.estimate\.value === "" \? null : Number\(fields\.estimate\.value\)/);
+  assert.match(dialogSource, /estimate_minutes: requireTaskControl\(fields\.estimate\)\.value === "" \? null : Number\(requireTaskControl\(fields\.estimate\)\.value\)/);
   assert.match(recurrenceServiceSource, /estimate_minutes: task\.estimate_minutes/);
   assert.match(recurrenceServiceSource, /estimate_minutes: template\.estimate_minutes/);
 }
