@@ -1163,6 +1163,16 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **A finding the typing surfaced, recorded rather than repaired.** The panel looks for four permission flags - `canQuarantine`, `can_quarantine`, `canReport`, `can_report` - on both the attachment and its file record, and the validated `BrowserFileAttachment` promises none of them. They are named `unknown` and optional, which says exactly that: the panel looks, and finds one or does not. Whether the producer should send them is a Files decision.
 
+#### 0.33.33.39.8 - Type the view renderer's descriptor surface
+
+**Complete: 85 diagnostics closed in `public/js/shared/view-renderer.js`, which keeps 225 and needs further children.** See the archive entry. **This is the lane's first deliberately partial file**, and the entry says so rather than implying a closeout: 310 diagnostics sit across 77 functions there, and the twelve largest cover only 125 of them, so no single boundary takes the file.
+
+**The descriptor vocabulary is adopted from the framework contracts, as fragments.** `ViewTableDescriptor`, `ViewModalDescriptor`, `ViewActionDescriptor` and their siblings already exist in `src/types/framework-contracts.d.ts`; the renderers take `Partial` of them, because the shipped callers pass fragments rather than whole descriptors and the published renderer signatures take `unknown` for that reason.
+
+**Six members are read that no framework descriptor declares**, each named `unknown` and recorded as a finding for that contract's owner: a table's `title`, a column's `key`, `align` and `header`, a linked-records panel's `ariaLabel`, and an action's `modal` and `modalId`.
+
+**Nothing executable changed.** Removing the 98 added comment lines reproduces the baseline byte for byte.
+
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 
 **Open. Not started, and deliberately not decided by `0.33.33.38.2.2.5.2`.** That checkpoint removed an unsupported type assertion and a lookup that could never answer; it did not design a replacement, and it must not be read as having settled what should exist here.
