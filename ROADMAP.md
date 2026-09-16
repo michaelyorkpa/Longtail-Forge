@@ -1189,6 +1189,16 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Five more members are read that no framework descriptor declares**, each named `unknown` and recorded: a column's `chipsField`, `chipLabelField` and `depthField`, a secondary row's `title`, and `readDescriptorValue`'s own `fieldName`, which was declared `string` while its first statement answers the fallback for an absent one and the published `readPath` it delegates to takes `unknown`.
 
+#### 0.33.33.39.11 - Type the view renderer's slide-out sidebar
+
+**Complete: 29 more diagnostics closed in `public/js/shared/view-renderer.js`, 133 to 104, which still needs further children.** See the archive entry.
+
+**The seam is a self-contained feature with a published controller.** `createSlideOutSidebarController` is a member of the frozen `LongtailForge.view` factory with published element, option and sync-option contracts, and the workbench inspector is its one runtime caller. The eleven functions behind it - the two layouts, the controller, the wiring, the two sync helpers, the two element helpers and the three focus helpers - are typed together because they only ever talk to each other.
+
+**Nothing executed it.** The only checks were a source-text pin on the workbench call site and an assertion that the export is a function. **Thirty-six lifted cases** now exercise the guard, the open/close/toggle lifecycle, the keyboard wiring, the synchronised ARIA state and the focus containment, and every one of six mutations to the changed lines was killed.
+
+**The four-element guard was a loop and is now four `if` statements**, because a loop's guard cannot narrow the member it checked. Same tests, same order, same messages - asserted, not asserted-to.
+
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 
 **Open. Not started, and deliberately not decided by `0.33.33.38.2.2.5.2`.** That checkpoint removed an unsupported type assertion and a lookup that could never answer; it did not design a replacement, and it must not be read as having settled what should exist here.

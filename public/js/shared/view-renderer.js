@@ -223,6 +223,11 @@
     return regionList.filter((region) => region.placement === placement);
   }
 
+  /**
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} descriptor
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderSlideOutSidebarLayout(descriptor, view, state) {
     const drawerId = `${descriptor.id || "view"}-slideout-sidebar`;
     const container = view.createElement("div", { className: "view-slideout-sidebar" });
@@ -285,6 +290,11 @@
     return container;
   }
 
+  /**
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} descriptor
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderTablePageSlideOutLayout(descriptor, view, state) {
     const drawerId = `${descriptor.id || "view"}-slideout-sidebar`;
     const container = view.createElement("div", { className: "view-slideout-sidebar" });
@@ -392,6 +402,42 @@
   /** @typedef {Partial<ViewItemRowsDescriptor>} DescriptorItemRows */
 
   /**
+   * The four controls a slide-out sidebar wires.
+   *
+   * **The guard proves presence; the element type is this controller's own requirement.**
+   * `createSlideOutSidebarController` checks that each carries `addEventListener` and throws by
+   * name when one does not - that is the whole of what it verifies. It then calls `setAttribute`
+   * on three of them, `focus` on one and reads `classList` and `hidden` on two, unguarded, and
+   * has always done so. Naming them elements states that standing requirement rather than adding
+   * a check for it; the published `BrowserViewSlideOutSidebarElements` keeps its `unknown`
+   * members, because a caller is not obliged to know what this file requires.
+   * @typedef {object} SlideOutSidebarElements
+   * @property {HTMLElement} backdrop
+   * @property {HTMLElement} closeButton
+   * @property {HTMLElement} drawer
+   * @property {HTMLElement} trigger
+   */
+
+  /**
+   * The one flag the sidebar keeps. `unknown` rather than a boolean because the flag is read off
+   * whatever surface state the host supplied, and `createSlideOutSidebarController` coerces it
+   * on entry precisely because it may arrive as anything.
+   * @typedef {object} SlideOutSidebarState
+   * @property {unknown} [slideOutSidebarOpen]
+   */
+
+  /**
+   * One focusable control inside the drawer.
+   *
+   * The query answers `Element`, which is the honest type for a selector: `[tabindex]` can match
+   * a node that is not an HTML control. The three members the focus helpers read are therefore
+   * **optional additions, not claims** - `disabled` is declared on no shared element type at all,
+   * and `hidden` and `focus` exist on HTML elements but not on every `Element`. Each is read for
+   * truthiness or called optionally, so a match without them behaves exactly as it does today.
+   * @typedef {Element & { disabled?: unknown, hidden?: unknown, focus?: () => void }} SlideOutFocusTarget
+   */
+
+  /**
    * A table's secondary row. `title` is read as a label fallback and the framework descriptor
    * declares only `label`, so it joins the other members named here as findings.
    * @typedef {Partial<import("../../../src/types/framework-contracts.js").ViewTableSecondaryRowDescriptor> & { title?: unknown }} DescriptorSecondaryRow
@@ -449,43 +495,69 @@
     return button;
   }
 
+  /**
+   * The four checks below were one loop over the names, and are unrolled because a loop's guard
+   * cannot narrow the member it checked. Each is the same test on the same member in the same
+   * order, throwing the same message; `controls` then carries the four the guard just proved.
+   * @param {Partial<SlideOutSidebarElements>} [elements]
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSlideOutSidebarOptions} [options]
+   */
   function createSlideOutSidebarController(elements = {}, options = {}) {
-    for (const name of ["backdrop", "closeButton", "drawer", "trigger"]) {
-      if (!elements[name]?.addEventListener) {
-        throw new Error(`Slide-out sidebar controllers require a ${name} element.`);
-      }
+    if (!elements.backdrop?.addEventListener) {
+      throw new Error("Slide-out sidebar controllers require a backdrop element.");
+    }
+    if (!elements.closeButton?.addEventListener) {
+      throw new Error("Slide-out sidebar controllers require a closeButton element.");
+    }
+    if (!elements.drawer?.addEventListener) {
+      throw new Error("Slide-out sidebar controllers require a drawer element.");
+    }
+    if (!elements.trigger?.addEventListener) {
+      throw new Error("Slide-out sidebar controllers require a trigger element.");
     }
 
+    /** @type {SlideOutSidebarElements} */
+    const controls = {
+      backdrop: elements.backdrop,
+      closeButton: elements.closeButton,
+      drawer: elements.drawer,
+      trigger: elements.trigger,
+    };
+    /** @type {SlideOutSidebarState} */
     const state = options.state || { slideOutSidebarOpen: Boolean(options.open) };
     state.slideOutSidebarOpen = Boolean(state.slideOutSidebarOpen);
-    wireSlideOutSidebar(state, elements);
-    syncSlideOutSidebarState(state, elements, { focus: false });
+    wireSlideOutSidebar(state, controls);
+    syncSlideOutSidebarState(state, controls, { focus: false });
 
     // `isOpen` was an enumerable accessor installed with `Object.defineProperty`, which is the
     // same property a literal getter declares once the object is frozen - and unlike the
     // defineProperty form it is part of the object's type.
     const controller = {
-      close: (syncOptions = {}) => setSlideOutSidebarOpen(state, elements, false, syncOptions),
+      close: (syncOptions = {}) => setSlideOutSidebarOpen(state, controls, false, syncOptions),
       get isOpen() {
         return Boolean(state.slideOutSidebarOpen);
       },
-      open: (syncOptions = {}) => setSlideOutSidebarOpen(state, elements, true, syncOptions),
-      sync: (syncOptions = {}) => syncSlideOutSidebarState(state, elements, syncOptions),
-      toggle: (syncOptions = {}) => setSlideOutSidebarOpen(state, elements, !state.slideOutSidebarOpen, syncOptions),
+      open: (syncOptions = {}) => setSlideOutSidebarOpen(state, controls, true, syncOptions),
+      sync: (syncOptions = {}) => syncSlideOutSidebarState(state, controls, syncOptions),
+      toggle: (syncOptions = {}) => setSlideOutSidebarOpen(state, controls, !state.slideOutSidebarOpen, syncOptions),
     };
     return Object.freeze(controller);
   }
 
+  /**
+   * @param {SlideOutSidebarState} state
+   * @param {SlideOutSidebarElements} elements
+   */
   function wireSlideOutSidebar(state, elements) {
     const close = () => setSlideOutSidebarOpen(state, elements, false);
     const toggle = () => setSlideOutSidebarOpen(state, elements, !state.slideOutSidebarOpen);
-    const closeOnEscape = (event) => {
+    const closeOnEscape = (/** @type {KeyboardEvent} */ event) => {
       if (event?.key === "Escape" && state.slideOutSidebarOpen) {
         event.preventDefault?.();
         close();
       }
     };
-    const containDrawerFocus = (event) => {
+    const containDrawerFocus = (/** @type {KeyboardEvent} */ event) => {
       if (event?.key === "Tab" && state.slideOutSidebarOpen) {
         containSlideOutSidebarFocus(event, elements.drawer);
       }
@@ -508,11 +580,22 @@
     elements.closeButton.setAttribute("data-view-slideout-sidebar-close", "");
   }
 
+  /**
+   * @param {SlideOutSidebarState} state
+   * @param {SlideOutSidebarElements} elements
+   * @param {unknown} open
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSlideOutSidebarSyncOptions} [options]
+   */
   function setSlideOutSidebarOpen(state, elements, open, options = {}) {
     state.slideOutSidebarOpen = Boolean(open);
     syncSlideOutSidebarState(state, elements, { focus: options.focus !== false });
   }
 
+  /**
+   * @param {SlideOutSidebarState} state
+   * @param {SlideOutSidebarElements} elements
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSlideOutSidebarSyncOptions} [options]
+   */
   function syncSlideOutSidebarState(state, elements, options = {}) {
     const open = Boolean(state.slideOutSidebarOpen);
     elements.trigger.setAttribute("aria-expanded", String(open));
@@ -533,6 +616,10 @@
     }
   }
 
+  /**
+   * @param {HTMLElement | null | undefined} element
+   * @param {unknown} hidden
+   */
   function setElementHidden(element, hidden) {
     if (!element) {
       return;
@@ -545,6 +632,11 @@
     }
   }
 
+  /**
+   * @param {Element | null | undefined} element
+   * @param {string} className
+   * @param {unknown} active
+   */
   function setElementClass(element, className, active) {
     if (!element?.classList) {
       return;
@@ -560,13 +652,19 @@
     }
   }
 
+  /** @param {SlideOutFocusTarget | null | undefined} drawer */
   function focusSlideOutSidebar(drawer) {
+    /** @type {SlideOutFocusTarget | null | undefined} */
     const focusTarget = slideOutSidebarFocusTargets(drawer)[0]
       || drawer?.querySelector?.("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])")
       || drawer;
     focusTarget?.focus?.();
   }
 
+  /**
+   * @param {KeyboardEvent} event
+   * @param {SlideOutFocusTarget | null | undefined} drawer
+   */
   function containSlideOutSidebarFocus(event, drawer) {
     const focusTargets = slideOutSidebarFocusTargets(drawer);
     if (focusTargets.length === 0) {
@@ -575,23 +673,30 @@
       return;
     }
 
+    /** @type {SlideOutFocusTarget | null | undefined} */
     const activeElement = global.document?.activeElement;
     const first = focusTargets[0];
     const last = focusTargets[focusTargets.length - 1];
     if (event.shiftKey && (activeElement === first || activeElement === drawer)) {
       event.preventDefault?.();
       last.focus?.();
-    } else if (!event.shiftKey && (activeElement === last || !focusTargets.includes(activeElement))) {
+    } else if (!event.shiftKey && (activeElement === last || !(activeElement && focusTargets.includes(activeElement)))) {
       event.preventDefault?.();
       first.focus?.();
     }
   }
 
+  /**
+   * @param {SlideOutFocusTarget | null | undefined} drawer
+   * @returns {SlideOutFocusTarget[]}
+   */
   function slideOutSidebarFocusTargets(drawer) {
     if (!drawer?.querySelectorAll) {
       return [];
     }
-    return [...drawer.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])")]
+    /** @type {SlideOutFocusTarget[]} */
+    const matches = [...drawer.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])")];
+    return matches
       .filter((element) => !element.disabled && !element.hidden && element.getAttribute?.("aria-hidden") !== "true");
   }
 
