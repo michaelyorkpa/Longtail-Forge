@@ -7,6 +7,86 @@
 
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFilePreview} BrowserFilePreview */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewElementOptions} BrowserViewElementOptions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewActionButtonOptions} BrowserViewActionButtonOptions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserFileAttachmentOptions} BrowserFileAttachmentOptions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserMountedPanel} BrowserMountedPanel */
+
+  /**
+   * The view factory, read lazily because host pages load it after this script.
+   *
+   * Every helper below takes it rather than reading it, and every one of them has a fallback for
+   * its absence - which is why it is optional here rather than required through a checked read.
+   * @typedef {BrowserViewFactory | undefined} PanelView
+   */
+
+  /**
+   * An attachment, plus the four permission flags this panel reads that the validated record
+   * does not promise.
+   *
+   * `isPanelAttachment` proves the members `shapeAttachment` writes; it does not forbid others,
+   * and `readActionBooleanFlag` looks for a boolean among five candidate spellings before falling
+   * back. Naming them `unknown` and optional says exactly that: the panel looks, and finds one or
+   * does not. **This is a finding rather than a repair** - whether the producer should send them
+   * is a Files decision, not a typing one.
+   * @typedef {BrowserFileAttachment & {
+   *   canQuarantine?: unknown, can_quarantine?: unknown, canReport?: unknown, can_report?: unknown
+   * }} PanelAttachment
+   */
+
+  /** The same four flags, in the nested file record, read by the same lookup. */
+  /**
+   * @typedef {BrowserFileAttachmentFile & {
+   *   canQuarantine?: unknown, can_quarantine?: unknown, canReport?: unknown, can_report?: unknown
+   * }} PanelAttachmentFile
+   */
+
+  /** The options as the panel holds them, derived from its own normaliser rather than restated. */
+  /** @typedef {ReturnType<typeof normalizeOptions>} PanelOptions */
+
+  /**
+   * One per-file outcome of the batch upload route, and the body that carries them.
+   *
+   * **Not validated.** `POST /api/files/upload/batch` answers 201 or 207 with a per-file result
+   * list, and `parseMultipartJsonResponse` parses it without checking anything. These declare the
+   * members the result list is read for; a body that breaks them reaches the same fallbacks it
+   * always reached - `"Upload failed."` for a missing error, `"File"` for a missing name. Closing
+   * this boundary properly belongs with the other wire boundaries, not here.
+   * @typedef {object} PanelUploadResult
+   * @property {unknown} [ok]
+   * @property {unknown} [error]
+   * @property {unknown} [originalFilename]
+   * @property {{ originalFilename?: unknown, scanStatus?: unknown, scan_status?: unknown, status?: unknown }} [file]
+   */
+
+  /**
+   * @typedef {object} PanelUploadResponse
+   * @property {unknown} [error]
+   * @property {PanelUploadResult[]} [results]
+   * @property {number} [failed]
+   * @property {number} [succeeded]
+   */
+
+  /**
+   * The panel's own mutable state, which every renderer and every action reads.
+   * @typedef {object} PanelState
+   * @property {BrowserFileAttachment[]} attachments
+   * @property {string} error
+   * @property {boolean} filesIngressAllowed
+   * @property {boolean} isLoading
+   * @property {boolean} isUploading
+   * @property {PanelOptions} options
+   * @property {PanelUploadResult[]} uploadResults
+   */
+
+  /**
+   * What one attachment's action strip was told about it, computed once by its row.
+   * @typedef {object} PanelActionState
+   * @property {boolean} isDeleted
+   * @property {boolean} isDownloadable
+   * @property {PanelOptions} options
+   */
 
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
@@ -58,6 +138,11 @@
     return dialogs;
   }
 
+  /**
+   * @param {Element | null} [container]
+   * @param {BrowserFileAttachmentOptions} [options]
+   * @returns {BrowserMountedPanel}
+   */
   function mount(container, options = {}) {
     if (!container) {
       throw new Error("Attachment container is required.");
@@ -92,6 +177,12 @@
     return controller;
   }
 
+  /**
+   * @param {PanelView} view
+   * @param {string} tagName
+   * @param {BrowserViewElementOptions} [options]
+   * @returns {HTMLElement}
+   */
   function createAttachmentElement(view, tagName, options = {}) {
     if (view?.createElement) {
       return view.createElement(tagName, options);
@@ -125,6 +216,35 @@
           element.appendChild(document.createTextNode(String(child)));
         }
       });
+    return element;
+  }
+
+  /**
+   * The two native controls this panel builds and then configures.
+   *
+   * `createAttachmentElement` answers an `HTMLElement`, because that is what the view factory's
+   * `createElement` declares for any tag name. These say which element the tag it was given
+   * produces, at the one place each is configured. The refusal throws rather than skipping,
+   * because a silently unconfigured control is an upload button that never disables or a file
+   * input that accepts one file - both worse than a failure that names itself.
+   * @param {HTMLElement} element
+   * @returns {HTMLInputElement}
+   */
+  function requireAttachmentInput(element) {
+    if (!(element instanceof HTMLInputElement)) {
+      throw new TypeError("The attachment upload control must be a file input.");
+    }
+    return element;
+  }
+
+  /**
+   * @param {HTMLElement} element
+   * @returns {HTMLButtonElement}
+   */
+  function requireAttachmentButton(element) {
+    if (!(element instanceof HTMLButtonElement)) {
+      throw new TypeError("The attachment action control must be a button.");
+    }
     return element;
   }
 
@@ -248,6 +368,10 @@
     return { attachments, pagination, sort: sortMode };
   }
 
+  /**
+   * @param {Element} container
+   * @param {PanelState} state
+   */
   async function refresh(container, state) {
     const api = requireApi();
     const { options } = state;
@@ -266,9 +390,9 @@
 
     try {
       const page = readPanelAttachmentList(await api.getJson(`/api/files/attachments?${new URLSearchParams({
-        moduleId: options.moduleId,
-        targetType: options.targetType,
-        targetId: options.targetId,
+        moduleId: String(options.moduleId),
+        targetType: String(options.targetType),
+        targetId: String(options.targetId),
       }).toString()}`, { cache: "no-store" }));
 
       if (!page) {
@@ -296,6 +420,10 @@
     }
   }
 
+  /**
+   * @param {Element} container
+   * @param {PanelState} state
+   */
   function render(container, state) {
     const { options } = state;
     const view = global.LongtailForge?.view;
@@ -325,6 +453,12 @@
     container.replaceChildren(createAttachmentPanelShell(state, view, header, children));
   }
 
+  /**
+   * @param {PanelState} state
+   * @param {PanelView} view
+   * @param {HTMLElement} header
+   * @param {HTMLElement[]} children
+   */
   function createAttachmentPanelShell(state, view, header, children) {
     const { options } = state;
     const attrs = {
@@ -365,10 +499,14 @@
     });
   }
 
+  /**
+   * @param {Element} container
+   * @param {PanelState} state
+   */
   function uploadControls(container, state) {
     const { options } = state;
     const view = global.LongtailForge?.view;
-    const input = createAttachmentElement(view, "input", {
+    const input = requireAttachmentInput(createAttachmentElement(view, "input", {
       attrs: {
         "data-file-attachment-input": "",
         accept: acceptedExtensions(options.acceptedCategories).join(","),
@@ -376,7 +514,7 @@
         type: "file",
       },
       dataset: { fileAttachmentInput: "true" },
-    });
+    }));
     const label = createAttachmentElement(view, "label", {
       children: ["Choose Files", input],
     });
@@ -433,6 +571,11 @@
     return form;
   }
 
+  /**
+   * @param {PanelState} state
+   * @param {PanelView} view
+   * @param {HTMLElement[]} children
+   */
   function createUploadShell(state, view, children) {
     if (view?.createListShell) {
       return view.createListShell({
@@ -463,6 +606,10 @@
     });
   }
 
+  /**
+   * @param {PanelState} state
+   * @param {PanelView} view
+   */
   function createUploadButton(state, view) {
     if (view?.createActionButton) {
       return view.createActionButton({
@@ -474,16 +621,22 @@
       });
     }
 
-    const button = createAttachmentElement(view, "button", {
+    const button = requireAttachmentButton(createAttachmentElement(view, "button", {
       attrs: { type: "submit" },
       text: state.isUploading ? "Uploading" : "Upload",
-    });
+    }));
 
     button.disabled = state.isUploading;
     return button;
   }
 
+  /**
+   * @param {Element} container
+   * @param {PanelState} state
+   * @param {PanelView} view
+   */
   function attachmentList(container, state, view) {
+    /** @type {HTMLElement[]} */
     const children = [];
 
     if (state.isLoading) {
@@ -507,6 +660,10 @@
     return createAttachmentListShell(view, children);
   }
 
+  /**
+   * @param {PanelView} view
+   * @param {HTMLElement[]} children
+   */
   function createAttachmentListShell(view, children) {
     if (view?.createListShell) {
       return view.createListShell({
@@ -524,6 +681,12 @@
     });
   }
 
+  /**
+   * @param {Element} container
+   * @param {PanelState} state
+   * @param {PanelAttachment} attachment
+   * @param {PanelView} view
+   */
   function attachmentItem(container, state, attachment, view) {
     const { options } = state;
     const file = attachment.file || {};
@@ -570,6 +733,13 @@
     return item;
   }
 
+  /**
+   * @param {PanelView} view
+   * @param {string} label
+   * @param {unknown} value
+   * @param {string} className
+   * @returns {HTMLElement | null}
+   */
   function createAttachmentMetaChip(view, label, value, className) {
     const text = String(value || "").trim();
 
@@ -587,6 +757,13 @@
     });
   }
 
+  /**
+   * @param {Element} container
+   * @param {PanelState} state
+   * @param {PanelAttachment} attachment
+   * @param {PanelView} view
+   * @param {PanelActionState} actionState
+   */
   function createAttachmentActions(container, state, attachment, view, actionState) {
     const { isDeleted, isDownloadable, options } = actionState;
     const file = attachment.file || {};
@@ -671,6 +848,10 @@
     return actions;
   }
 
+  /**
+   * @param {PanelView} view
+   * @param {Record<string, unknown> | null} row
+   */
   function createAttachmentPreviewAction(view, row) {
     const name = row?.fileName || "file";
 
@@ -695,6 +876,12 @@
     });
   }
 
+  /**
+   * @param {PanelView} view
+   * @param {string} fileId
+   * @param {PanelAttachmentFile} file
+   * @param {boolean} isDownloadable
+   */
   function createAttachmentDownloadAction(view, fileId, file, isDownloadable) {
     const name = file.displayName || file.originalFilename || "file";
     const label = `Download ${name}`;
@@ -720,6 +907,11 @@
     return download;
   }
 
+  /**
+   * @param {PanelView} view
+   * @param {BrowserViewActionButtonOptions & { hidden?: unknown }} options
+   * @returns {HTMLElement}
+   */
   function createAttachmentActionButton(view, options) {
     const button = view?.createActionButton
       ? view.createActionButton({
@@ -737,19 +929,31 @@
       : createAttachmentElement(view, "button");
 
     if (!view?.createActionButton) {
-      button.type = "button";
-      button.textContent = options.text || options.label;
-      button.title = options.title || options.label;
-      button.className = "file-attachment-action";
-      button.addEventListener("click", options.onClick);
-      button.dataset.surfaceAction = options.action;
-      button.dataset.surfaceActionRole = options.role;
+      // Every sink here coerces on assignment in a real DOM, so the text each one receives is
+      // the text it received before, and a listener that is not there is one the DOM already
+      // ignored rather than registered.
+      const control = requireAttachmentButton(button);
+      control.type = "button";
+      control.textContent = String(options.text || options.label);
+      control.title = String(options.title || options.label);
+      control.className = "file-attachment-action";
+      if (options.onClick) {
+        control.addEventListener("click", options.onClick);
+      }
+      control.dataset.surfaceAction = String(options.action);
+      control.dataset.surfaceActionRole = String(options.role);
     }
 
     button.hidden = Boolean(options.hidden);
     return button;
   }
 
+  /**
+   * @param {PanelAttachment} attachment
+   * @param {PanelAttachmentFile} file
+   * @param {PanelOptions} options
+   * @returns {Record<string, unknown> | null}
+   */
   function createAttachmentPreviewRow(attachment, file, options) {
     if (!namespace.filePreview?.normalizeFilePreviewRow) {
       return null;
@@ -760,6 +964,12 @@
     });
   }
 
+  /**
+   * @param {PanelAttachment} attachment
+   * @param {PanelAttachmentFile} file
+   * @param {PanelOptions} options
+   * @returns {boolean}
+   */
   function canPreviewAttachmentInReview(attachment, file, options) {
     return readActionBooleanFlag([
       options.canQuarantine,
@@ -770,6 +980,10 @@
     ], workspaceHasPermission("files.manage_quarantine")) === true;
   }
 
+  /**
+   * @param {PanelView} view
+   * @param {string} message
+   */
   function createAttachmentRecoveryState(view, message) {
     return createAttachmentElement(view, "p", {
       className: "file-attachment-recovery-state",
@@ -777,6 +991,10 @@
     });
   }
 
+  /**
+   * @param {PanelState} state
+   * @param {PanelView} view
+   */
   function uploadResultList(state, view) {
     const items = state.uploadResults.map((result) => createUploadResultItem(view, result));
 
@@ -796,6 +1014,10 @@
     });
   }
 
+  /**
+   * @param {PanelView} view
+   * @param {PanelUploadResult} result
+   */
   function createUploadResultItem(view, result) {
     const pendingReview = result.ok && (
       result.file?.status === "pending" ||
@@ -818,6 +1040,10 @@
     });
   }
 
+  /**
+   * @param {PanelState} state
+   * @returns {string}
+   */
   function uploadStatusMessage(state) {
     if (state.isUploading) {
       return "Uploading files...";
@@ -841,6 +1067,11 @@
     return "Select files to upload.";
   }
 
+  /**
+   * @param {Element} container
+   * @param {PanelState} state
+   * @param {File[]} files
+   */
   async function uploadFiles(container, state, files) {
     const { options } = state;
 
@@ -858,7 +1089,7 @@
       const result = await postMultipartJson("/api/files/upload/batch", buildUploadForm(options, files));
 
       state.uploadResults = result.results || [];
-      if (result.failed > 0) {
+      if ((result.failed || 0) > 0) {
         state.error = `${result.succeeded || 0} uploaded, ${result.failed} failed.`;
       }
       emit(container, state, "uploadCompleted", result);
@@ -873,6 +1104,11 @@
     }
   }
 
+  /**
+   * @param {PanelOptions} options
+   * @param {File[]} files
+   * @returns {FormData}
+   */
   function buildUploadForm(options, files) {
     const form = new FormData();
 
@@ -892,12 +1128,22 @@
     return form;
   }
 
+  /**
+   * @param {FormData} form
+   * @param {string} name
+   * @param {unknown} value
+   */
   function appendFormField(form, name, value) {
     if (value !== null && value !== undefined && String(value).trim() !== "") {
       form.append(name, String(value));
     }
   }
 
+  /**
+   * @param {string} url
+   * @param {FormData} form
+   * @returns {Promise<PanelUploadResponse>}
+   */
   async function postMultipartJson(url, form) {
     const response = await fetch(url, {
       body: form,
@@ -910,9 +1156,20 @@
         || new Error(`Upload failed: ${response.status}`);
     }
 
+    // An accepted upload always answers a body. One that did not used to reach `uploadFiles` and
+    // fail there on the first member read; it now fails here, on the same path, with the message
+    // this file already gives the sibling case of a body it cannot parse.
+    if (!body) {
+      throw new Error("Upload response could not be read.");
+    }
+
     return body;
   }
 
+  /**
+   * @param {Response} response
+   * @returns {Promise<PanelUploadResponse | null>}
+   */
   async function parseMultipartJsonResponse(response) {
     const text = await response.text();
 
@@ -930,6 +1187,14 @@
     }
   }
 
+  /**
+   * @param {PanelAttachment} attachment
+   * @param {PanelAttachmentFile} file
+   * @param {string} fileId
+   * @param {boolean} isDeleted
+   * @param {PanelOptions} options
+   * @returns {boolean}
+   */
   function isAttachmentReportable(attachment, file, fileId, isDeleted, options) {
     const allowed = readActionBooleanFlag([
       options.canReport,
@@ -942,6 +1207,14 @@
     return Boolean(fileId && !isDeleted && file.status !== "quarantined" && allowed);
   }
 
+  /**
+   * @param {PanelAttachment} attachment
+   * @param {PanelAttachmentFile} file
+   * @param {string} fileId
+   * @param {boolean} isDeleted
+   * @param {PanelOptions} options
+   * @returns {boolean}
+   */
   function isAttachmentQuarantineable(attachment, file, fileId, isDeleted, options) {
     const allowed = readActionBooleanFlag([
       options.canQuarantine,
@@ -969,11 +1242,20 @@
     return preview;
   }
 
+  /**
+   * @param {readonly unknown[]} values
+   * @param {boolean} fallback
+   * @returns {boolean}
+   */
   function readActionBooleanFlag(values, fallback) {
     const explicit = values.find((value) => typeof value === "boolean");
     return typeof explicit === "boolean" ? explicit : fallback;
   }
 
+  /**
+   * @param {string} permissionId
+   * @returns {boolean}
+   */
   function workspaceHasPermission(permissionId) {
     if (permissionId === "files.manage_quarantine") {
       return namespace.workspaceContext?.permissionHints?.filesManageQuarantine === true;
@@ -982,6 +1264,11 @@
     return false;
   }
 
+  /**
+   * @param {Element} container
+   * @param {PanelState} state
+   * @param {PanelAttachment} attachment
+   */
   async function removeAttachment(container, state, attachment) {
     const api = requireApi();
     const attachmentId = attachment.fileAttachmentId || attachment.file_attachment_id;
@@ -1000,6 +1287,11 @@
     }
   }
 
+  /**
+   * @param {Element} container
+   * @param {PanelState} state
+   * @param {PanelAttachment} attachment
+   */
   async function reportFile(container, state, attachment) {
     const api = requireApi();
     const fileId = attachment.fileId || attachment.file_id;
@@ -1034,6 +1326,11 @@
     }
   }
 
+  /**
+   * @param {Element} container
+   * @param {PanelState} state
+   * @param {PanelAttachment} attachment
+   */
   async function quarantineFile(container, state, attachment) {
     const api = requireApi();
     const fileId = attachment.fileId || attachment.file_id;
@@ -1064,6 +1361,11 @@
     }
   }
 
+  /**
+   * @param {Element} container
+   * @param {PanelState} state
+   * @param {PanelAttachment} attachment
+   */
   async function deleteFile(container, state, attachment) {
     const api = requireApi();
     const fileId = attachment.fileId || attachment.file_id;
@@ -1094,6 +1396,11 @@
     }
   }
 
+  /**
+   * @param {Element} container
+   * @param {PanelState} state
+   * @param {PanelAttachment} attachment
+   */
   async function restoreFile(container, state, attachment) {
     const api = requireApi();
     const fileId = attachment.fileId || attachment.file_id;
@@ -1112,8 +1419,17 @@
     }
   }
 
+  /**
+   * @param {Element} container
+   * @param {PanelState} state
+   * @param {string} name
+   * @param {Record<string, unknown>} [detail]
+   */
   function emit(container, state, name, detail = {}) {
-    const callback = state.options[`on${name.charAt(0).toUpperCase()}${name.slice(1)}`];
+    // The member is named from the event, so it cannot be resolved as a declared key. `Reflect.get`
+    // is the same read the bracket access performed, and it is how `public/js/task-dialog.js`
+    // spells the matching write.
+    const callback = Reflect.get(state.options, `on${name.charAt(0).toUpperCase()}${name.slice(1)}`);
 
     callback?.(detail);
     container.dispatchEvent(new CustomEvent(`longtailforge:file-attachments:${dashCase(name)}`, {
@@ -1136,6 +1452,7 @@
     return publicDemo.filesIngressAllowed === true;
   }
 
+  /** @param {BrowserFileAttachmentOptions} [options] */
   function normalizeOptions(options) {
     return {
       acceptedCategories: [],
@@ -1153,8 +1470,13 @@
     };
   }
 
+  /**
+   * @param {unknown} categories
+   * @returns {string[]}
+   */
   function acceptedExtensions(categories) {
-    const categorySet = new Set(categories || []);
+    const categorySet = new Set(Array.isArray(categories) ? categories : []);
+    /** @type {Record<string, string[]>} */
     const all = {
       archive: [".zip"],
       document: [".doc", ".docx"],
@@ -1169,13 +1491,21 @@
       return Object.values(all).flat();
     }
 
-    return [...categorySet].flatMap((category) => all[category] || []);
+    return [...categorySet].flatMap((category) => all[String(category)] || []);
   }
 
+  /**
+   * @param {unknown} categories
+   * @returns {string}
+   */
   function acceptedFileHint(categories) {
     return `Accepted: ${acceptedExtensions(categories).join(", ")}`;
   }
 
+  /**
+   * @param {PanelState} state
+   * @returns {string}
+   */
   function statusMessage(state) {
     if (state.error) {
       return state.error;
@@ -1190,6 +1520,10 @@
     return state.attachments.length === 1 ? "1 attachment" : `${state.attachments.length} attachments`;
   }
 
+  /**
+   * @param {unknown} message
+   * @param {boolean} [isError]
+   */
   function emptyState(message, isError = false) {
     return createAttachmentElement(global.LongtailForge?.view, "p", {
       className: isError ? "file-attachments-empty is-error" : "file-attachments-empty",
@@ -1197,6 +1531,11 @@
     });
   }
 
+  /**
+   * @param {unknown} message
+   * @param {boolean} [isError]
+   * @param {PanelView} [view]
+   */
   function createAttachmentEmptyState(message, isError = false, view) {
     if (view?.createEmptyState) {
       return view.createEmptyState({
@@ -1210,6 +1549,11 @@
     return emptyState(message, isError);
   }
 
+  /**
+   * @param {unknown} status
+   * @param {unknown} scanStatus
+   * @returns {string}
+   */
   function statusLabel(status, scanStatus) {
     if (status === "deleted") {
       return "Unavailable";
@@ -1230,6 +1574,10 @@
     return status ? formatToken(status) : "";
   }
 
+  /**
+   * @param {unknown} scanStatus
+   * @returns {string}
+   */
   function scanStatusLabel(scanStatus) {
     if (scanStatus === "not_required") {
       return "No review needed";
@@ -1247,6 +1595,11 @@
     return scanStatus ? formatToken(scanStatus) : "";
   }
 
+  /**
+   * @param {unknown} status
+   * @param {unknown} scanStatus
+   * @returns {string}
+   */
   function reviewStateLabel(status, scanStatus) {
     if (status === "quarantined") {
       return "In review";
@@ -1255,6 +1608,12 @@
     return scanStatusLabel(scanStatus);
   }
 
+  /**
+   * @param {PanelAttachmentFile} file
+   * @param {boolean} isDownloadable
+   * @param {boolean} isDeleted
+   * @returns {string}
+   */
   function attachmentRecoveryMessage(file, isDownloadable, isDeleted) {
     if (isDeleted) {
       return "This attachment is unavailable in normal work, but can be restored during the recovery window.";
@@ -1275,6 +1634,10 @@
     return "";
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {string}
+   */
   function formatBytes(value) {
     const bytes = Number(value || 0);
 
@@ -1291,12 +1654,20 @@
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {string}
+   */
   function formatToken(value) {
     return String(value || "")
       .replace(/[_-]+/g, " ")
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {string}
+   */
   function safeAttachmentStateToken(value) {
     return String(value || "unknown")
       .toLowerCase()
@@ -1304,6 +1675,10 @@
       .replace(/^-+|-+$/g, "") || "unknown";
   }
 
+  /**
+   * @param {string} value
+   * @returns {string}
+   */
   function dashCase(value) {
     return String(value || "").replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
   }
