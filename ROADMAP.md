@@ -1199,6 +1199,26 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **The four-element guard was a loop and is now four `if` statements**, because a loop's guard cannot narrow the member it checked. Same tests, same order, same messages - asserted, not asserted-to.
 
+#### 0.33.33.39.12 - Type the view builder's field and element primitives
+
+**Complete: 76 diagnostics closed in `public/js/shared/view-builder.js`, 458 to 382, the first of many children this file needs.** See the archive entry.
+
+**The file's option bags are already published, so this types the writer against a fixed contract** rather than changing one - the same shape `0.33.33.39.6` took. `createField`, its two control builders, the five field normalizers, the eight shared DOM helpers, `collectFieldValues` and the three leaf builders are typed against `BrowserViewElementOptions`, `BrowserViewFieldOptions`, `BrowserViewPageHeaderOptions`, `BrowserViewStatusMessageOptions`, `BrowserViewEmptyStateOptions` and `BrowserViewCollectFieldValuesOptions`.
+
+**One executable line changed in the whole checkpoint**, and the doubles could not see it: the fake DOM assigns `nodeType` as an own property, so an own-key spelling of the new guard survives both suites that execute this file. A lifted case written against a prototype now fails it.
+
+#### 0.33.33.39.13 - OPEN: decide whether the modal footer contract may admit null
+
+**`createElement` cannot be typed until this is decided, and it is the file's most connected function.** Declaring its published overload closes nine diagnostics rather than adding eight, but it also gives every `create*` member a real return type - and `createModal` then contradicts its own contract. `createModal` attaches `viewParts.footer = null` whenever a modal carries neither actions nor a `footer` option, while `BrowserViewModalParts.footer` is declared `HTMLElement`.
+
+**Nothing crashes today.** All three unguarded consumer groups - `files.js`, `notes.js` and `task-dialog.js` - construct their modals with a non-empty `actions` array, so a footer is always built for them; `shared/file-preview.js:228` already guards with `if (dialog.viewParts?.footer)`, which is where the nullable case is real. **This is a declaration that is not true of its writer, not a newly introduced user bug.**
+
+The decision is which side moves, and it is not mine to take alone because it reaches three other lanes:
+
+- **Correct the declaration** to `footer: HTMLElement | null`. No behaviour changes. Roughly eight consumer reads across `0.33.33.41`, `.43` and `.44`-owned files gain a null check, which is real work in Codex's lane and in the page controllers.
+- **Correct the writer** so a modal always builds a footer. One shared contract stays as written, but every footerless modal gains an empty element, which is a product change to rendered markup.
+- **Leave both and keep `createElement` untyped.** `view-builder.js` keeps its 382 and every future child of this file meets the same wall.
+
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 
 **Open. Not started, and deliberately not decided by `0.33.33.38.2.2.5.2`.** That checkpoint removed an unsupported type assertion and a lookup that could never answer; it did not design a replacement, and it must not be read as having settled what should exist here.
