@@ -134,6 +134,14 @@
     throw new TypeError("Task dialog control cannot receive focus.");
   }
 
+  /**
+   * Open host members stay opaque. The tag catalog is the local caller precondition:
+   * configure defaults it to [], and both in-repo loaders return the shared catalog or [].
+   * Optional because the host-only open writer can start without configure.
+   * This declaration does not validate or rewrite the host spread.
+   * @typedef {Record<string, unknown> & {tagOptions?: unknown[]}} TaskDialogContext
+   */
+  /** @type {TaskDialogContext | null} */
   let context = null;
   /** @type {import("../../src/types/browser-contracts.js").BrowserMountedPanel | null} */
   let fileAttachmentsController = null;
@@ -169,6 +177,51 @@
   /** @param {unknown} value */
   function optionalTaskProjectionFields(value) {
     return value === null || value === undefined ? undefined : taskProjectionFields(value);
+  }
+
+  /**
+   * Invoke an opaque collection operation at its existing consumption point.
+   * The result stays unknown: a callable member does not establish its output.
+   * @param {unknown} collection @param {string} name @param {unknown[]} args
+   * @returns {unknown}
+   */
+  function callTaskContextCollection(collection, name, args) {
+    const method = taskProjectionFields(collection)[name];
+    if (typeof method !== "function") {
+      throw new TypeError(`Task context collection ${name} is not callable.`);
+    }
+    return Reflect.apply(method, collection, args);
+  }
+
+  /**
+   * Materialize only the iterable result that the select-option spread already consumed.
+   * Keep iterator/next receivers, lookup counts, and abrupt completion order intact.
+   * @param {unknown} value @returns {unknown[]}
+   */
+  function taskContextOptionItems(value) {
+    const object = taskProjectionFields(value);
+    /** @type {unknown} */
+    const iteratorMethod = Reflect.get(object, Symbol.iterator);
+    if (typeof iteratorMethod !== "function") throw new TypeError("Task options are not iterable.");
+    /** @type {unknown} */
+    const iterator = Reflect.apply(iteratorMethod, value, []);
+    if (iterator === null || (typeof iterator !== "object" && typeof iterator !== "function")) {
+      throw new TypeError("Task option iterator is not an object.");
+    }
+    const next = taskProjectionFields(iterator).next;
+    /** @type {unknown[]} */
+    const items = [];
+    while (true) {
+      if (typeof next !== "function") throw new TypeError("Task option iterator next is not callable.");
+      /** @type {unknown} */
+      const step = Reflect.apply(next, iterator, []);
+      if (step === null || (typeof step !== "object" && typeof step !== "function")) {
+        throw new TypeError("Task option iterator result is not an object.");
+      }
+      const fields = taskProjectionFields(step);
+      if (fields.done) return items;
+      items.push(fields.value);
+    }
   }
 
   /** @type {TaskDialogRecord | null} */
@@ -658,7 +711,15 @@
     requireTaskControlDataset(form).taskDialogBound = "true";
     requireTaskControl(form).addEventListener("submit", saveTask);
     fields.cancel?.addEventListener("click", () => {
-      context?.hostContext?.cancel?.({ actionId: currentTaskId ? "tasks.edit" : "tasks.add" });
+      const host = context?.hostContext;
+      const callback = optionalTaskProjectionFields(host)?.cancel;
+      if (callback !== null && callback !== undefined) {
+        const args = [{ actionId: currentTaskId ? "tasks.edit" : "tasks.add" }];
+        if (typeof callback !== "function") {
+          throw new TypeError("Task host cancel is not callable.");
+        }
+        Reflect.apply(callback, host, args);
+      }
       closeTaskModal(dialog, "cancel");
     });
     fields.copyLink?.addEventListener("click", copyCurrentTaskLink);
@@ -701,8 +762,20 @@
     fields.fileToggle?.addEventListener("click", openTaskFilesDialog);
     fields.notificationToggle?.addEventListener("click", toggleTaskNotificationFollow);
     fields.workbenchOpen?.addEventListener("click", openTaskInWorkbench);
-    fields.notesContainer?.addEventListener("notes-linked-panel:link", () => context?.onNotesChanged?.());
-    fields.notesContainer?.addEventListener("notes-linked-panel:unlink", () => context?.onNotesChanged?.());
+    fields.notesContainer?.addEventListener("notes-linked-panel:link", () => {
+      const owner = context;
+      const callback = owner?.onNotesChanged;
+      if (callback === null || callback === undefined) return undefined;
+      if (typeof callback !== "function") throw new TypeError("Task notes callback is not callable.");
+      return Reflect.apply(callback, owner, []);
+    });
+    fields.notesContainer?.addEventListener("notes-linked-panel:unlink", () => {
+      const owner = context;
+      const callback = owner?.onNotesChanged;
+      if (callback === null || callback === undefined) return undefined;
+      if (typeof callback !== "function") throw new TypeError("Task notes callback is not callable.");
+      return Reflect.apply(callback, owner, []);
+    });
   }
 
   function decorateTaskDialogControls() {
@@ -756,7 +829,7 @@
       return;
     }
 
-    const options = context?.options || defaultTaskOptions();
+    const options = taskProjectionFields(context?.options || defaultTaskOptions());
     const hasClientScope = usesClientScope();
 
     requireTaskControl(dialog).querySelectorAll("[data-client-workspace-control]").forEach((element) => {
@@ -766,24 +839,31 @@
     replaceOptions(fields.client, hasClientScope
       ? [
         option("", workspaceProjectsLabel()),
-        ...(options.clients || []).map((client) => option(client.id, optionLabel(client))),
+        ...taskContextOptionItems(callTaskContextCollection(options.clients || [], "map", [
+          (/** @type {unknown} */ client) => option(taskProjectionFields(client).id, optionLabel(client)),
+        ])),
       ]
       : [option("", "No client")]);
     populateProjectInput(fields.project?.value || "");
     replaceOptions(
       fields.assignees,
-      (options.users || []).map((user) => option(user.user_id, displayUser(user))),
+      callTaskContextCollection(options.users || [], "map", [
+        (/** @type {unknown} */ user) => option(taskProjectionFields(user).user_id, displayUser(user)),
+      ]),
     );
   }
 
+  /** @param {unknown} [selectedProjectId] @param {unknown} [sourceTask] */
   function populateProjectInput(selectedProjectId = "", sourceTask = currentTask, { allowFallback = false } = {}) {
     const selectedClientId = usesClientScope() ? fields.client?.value || "" : "";
-    const projects = (context?.options?.projects || []).filter((project) =>
-      !usesClientScope() || (project.client_id || "") === selectedClientId,
-    );
+    const projects = callTaskContextCollection(optionalTaskProjectionFields(context?.options)?.projects || [], "filter", [
+      (/** @type {unknown} */ project) => !usesClientScope() || (taskProjectionFields(project).client_id || "") === selectedClientId,
+    ]);
     const projectOptions = [
       option("", "No project"),
-      ...projects.map((project) => option(project.id, optionLabel(project))),
+      ...taskContextOptionItems(callTaskContextCollection(projects, "map", [
+        (/** @type {unknown} */ project) => option(taskProjectionFields(project).id, optionLabel(project)),
+      ])),
     ];
 
     if (allowFallback && selectedProjectId && !optionListHasValue(projectOptions, selectedProjectId)) {
@@ -800,7 +880,7 @@
     writeTaskMetadataRibbon();
   }
 
-  /** @param {string} [selectedClientId] @param {Pick<TaskDialogRecord, "client_id" | "client_name"> | null} [sourceTask] */
+  /** @param {unknown} [selectedClientId] @param {unknown} [sourceTask] */
   function ensureClientOption(selectedClientId = "", sourceTask = currentTask) {
     if (!fields.client || !usesClientScope() || !selectedClientId || optionListHasValue([...fields.client.options], selectedClientId)) {
       return;
@@ -828,11 +908,11 @@
       return;
     }
 
-    const derivedClientId = project.client_id || "";
+    const derivedClientId = taskProjectionFields(project).client_id || "";
     if (fields.client.value !== derivedClientId) {
       ensureClientOption(derivedClientId, {
         client_id: derivedClientId,
-        client_name: project.client_name || project.clientName || "",
+        client_name: taskProjectionFields(project).client_name || taskProjectionFields(project).clientName || "",
       });
       fields.client.value = derivedClientId;
       populateProjectInput(fields.project.value);
@@ -842,7 +922,9 @@
   }
 
   function findProjectOption(projectId = "") {
-    return (context?.options?.projects || []).find((project) => project.id === projectId) || null;
+    return callTaskContextCollection(optionalTaskProjectionFields(context?.options)?.projects || [], "find", [
+      (/** @type {unknown} */ project) => taskProjectionFields(project).id === projectId,
+    ]) || null;
   }
 
   function workspaceProjectsLabel() {
@@ -858,11 +940,17 @@
       return;
     }
 
-    const project = (context?.options?.projects || []).find((item) => item.id === fields.project?.value);
-    const defaults = project?.taskDefaults || {};
+    const project = callTaskContextCollection(optionalTaskProjectionFields(context?.options)?.projects || [], "find", [
+      (/** @type {unknown} */ item) => taskProjectionFields(item).id === fields.project?.value,
+    ]);
+    const defaults = taskProjectionFields(optionalTaskProjectionFields(project)?.taskDefaults || {});
 
-    fields.status.value = taskDefaultStatuses().includes(defaults.status) ? defaults.status : "open";
-    fields.priority.value = taskDefaultPriorities().includes(defaults.priority) ? defaults.priority : "normal";
+    /** @type {readonly unknown[]} */
+    const statuses = taskDefaultStatuses();
+    fields.status.value = statuses.includes(defaults.status) ? defaults.status : "open";
+    /** @type {readonly unknown[]} */
+    const priorities = taskDefaultPriorities();
+    fields.priority.value = priorities.includes(defaults.priority) ? defaults.priority : "normal";
     writeTaskMetadataRibbon();
   }
 
@@ -888,11 +976,13 @@
     const modal = requireModalDialogs();
     const api = requireApi();
     const payload = readTaskFormPayload();
-    const editingTask = currentTask || (context?.tasks || []).find((task) => task.task_id === currentTaskId);
+    const editingTask = currentTask || callTaskContextCollection(context?.tasks || [], "find", [
+      (/** @type {unknown} */ task) => taskProjectionFields(task).task_id === currentTaskId,
+    ]);
     const wasEditing = Boolean(currentTaskId);
     const formChanges = taskFormChangeState(payload);
 
-    if (editingTask?.recurrence_template_id && formChanges.recurrenceTemplateChanged) {
+    if (optionalTaskProjectionFields(editingTask)?.recurrence_template_id && formChanges.recurrenceTemplateChanged) {
       const applyFuture = await modal.confirm({
         title: "Update recurring task",
         message: "Apply these changes to all future tasks in this recurrence?",
@@ -924,19 +1014,35 @@
       initialTaskFormSnapshot = taskFormSnapshot(payload);
       await notifyTaskEditorSaved(result);
       if (closeOnSuccess) {
-        const completedBySave = wasEditing && editingTask?.status !== "complete" && savedTask?.status === "complete";
+        const completedBySave = wasEditing && optionalTaskProjectionFields(editingTask)?.status !== "complete" && savedTask?.status === "complete";
         if (completedBySave) {
           applyTaskCompletionResult(result);
           setTaskCompletionStatus(result);
-          context?.hostContext?.complete?.(taskCompletionHostDetail(result));
+          const host = context?.hostContext;
+          const callback = optionalTaskProjectionFields(host)?.complete;
+          if (callback !== null && callback !== undefined) {
+            const args = [taskCompletionHostDetail(result)];
+            if (typeof callback !== "function") {
+              throw new TypeError("Task host complete is not callable.");
+            }
+            Reflect.apply(callback, host, args);
+          }
           closeTaskModal(dialog, "complete");
           return result;
         }
-        context?.hostContext?.complete?.({
+        const host = context?.hostContext;
+        const callback = optionalTaskProjectionFields(host)?.complete;
+        if (callback !== null && callback !== undefined) {
+          const args = [{
           actionId: wasEditing ? "tasks.edit" : "tasks.add",
           recordId: savedTask?.task_id || "",
           title: savedTask?.title || "",
-        });
+        }];
+          if (typeof callback !== "function") {
+            throw new TypeError("Task host complete is not callable.");
+          }
+          Reflect.apply(callback, host, args);
+        }
         closeTaskModal(dialog, "complete");
         setStatus("");
       }
@@ -996,7 +1102,15 @@
       applyTaskCompletionResult(result);
       await notifyTaskEditorSaved(result);
       setTaskCompletionStatus(result);
-      context?.hostContext?.complete?.(taskCompletionHostDetail(result));
+      const host = context?.hostContext;
+      const callback = optionalTaskProjectionFields(host)?.complete;
+      if (callback !== null && callback !== undefined) {
+        const args = [taskCompletionHostDetail(result)];
+        if (typeof callback !== "function") {
+          throw new TypeError("Task host complete is not callable.");
+        }
+        Reflect.apply(callback, host, args);
+      }
       closeTaskModal(dialog, "complete");
     } catch (error) {
       setStatus(requireErrors().caughtMessage(error, "Task was not completed."), { isError: true });
@@ -1188,66 +1302,88 @@
     }
   }
 
+  /** @param {unknown} taskId */
   function parentTaskOptions(taskId) {
     const selectedClientId = fields.client?.value === "all" ? "" : fields.client?.value || "";
     const selectedProjectId = fields.project?.value || "";
 
-    const candidates = (context?.tasks || [])
-      .filter((task) => task?.task_id && task.task_id !== taskId)
-      .filter((task) => taskId || !requireTaskLifecycleLegality().isTerminalStatus(task.status))
-      .filter((task) => !selectedClientId || !task.client_id || task.client_id === selectedClientId)
-      .filter((task) => !selectedProjectId || !task.project_id || task.project_id === selectedProjectId);
+    let candidates = callTaskContextCollection(context?.tasks || [], "filter", [
+      (/** @type {unknown} */ task) => optionalTaskProjectionFields(task)?.task_id && taskProjectionFields(task).task_id !== taskId,
+    ]);
+    candidates = callTaskContextCollection(candidates, "filter", [
+      (/** @type {unknown} */ task) => taskId || !requireTaskLifecycleLegality().isTerminalStatus(taskProjectionFields(task).status),
+    ]);
+    candidates = callTaskContextCollection(candidates, "filter", [
+      (/** @type {unknown} */ task) => !selectedClientId || !taskProjectionFields(task).client_id || taskProjectionFields(task).client_id === selectedClientId,
+    ]);
+    candidates = callTaskContextCollection(candidates, "filter", [
+      (/** @type {unknown} */ task) => !selectedProjectId || !taskProjectionFields(task).project_id || taskProjectionFields(task).project_id === selectedProjectId,
+    ]);
 
-    const byId = new Map(candidates.map((task) => [task.task_id, task]));
+    // The native Map constructor, not a declaration over the host collection, consumes entries.
+    /** @type {Map<unknown, unknown>} */
+    const byId = Reflect.construct(Map, [callTaskContextCollection(candidates, "map", [
+      (/** @type {unknown} */ task) => [taskProjectionFields(task).task_id, task],
+    ])]);
+    /** @type {Map<unknown, unknown[]>} */
     const childrenByParent = new Map();
-    candidates.forEach((task) => {
-      const parentId = task.parent_task_id || task.parentTask?.task_id || task.parent_task?.task_id || "";
+    callTaskContextCollection(candidates, "forEach", [(/** @type {unknown} */ task) => {
+      const parentId = taskProjectionFields(task).parent_task_id || optionalTaskProjectionFields(taskProjectionFields(task).parentTask)?.task_id || optionalTaskProjectionFields(taskProjectionFields(task).parent_task)?.task_id || "";
       const key = byId.has(parentId) ? parentId : "";
       if (!childrenByParent.has(key)) {
         childrenByParent.set(key, []);
       }
-      childrenByParent.get(key).push(task);
-    });
-    const compareByTitle = (left, right) => String(left?.title || "").localeCompare(String(right?.title || ""), undefined, { sensitivity: "base" });
+      requireTaskControl(childrenByParent.get(key)).push(task);
+    }]);
+    const compareByTitle = (/** @type {unknown} */ left, /** @type {unknown} */ right) => String(optionalTaskProjectionFields(left)?.title || "").localeCompare(String(optionalTaskProjectionFields(right)?.title || ""), undefined, { sensitivity: "base" });
     childrenByParent.forEach((children) => children.sort(compareByTitle));
+    /** @type {Array<Record<string, unknown> & {optionLabel: string}>} */
     const ordered = [];
     const visited = new Set();
-    const appendBranch = (task, depth) => {
-      if (!task?.task_id || visited.has(task.task_id)) {
+    const appendBranch = (/** @type {unknown} */ task, /** @type {number} */ depth) => {
+      if (!optionalTaskProjectionFields(task)?.task_id || visited.has(taskProjectionFields(task).task_id)) {
         return;
       }
-      visited.add(task.task_id);
+      visited.add(taskProjectionFields(task).task_id);
       ordered.push({
-        ...task,
-        optionLabel: `${depth > 0 ? `${"  ".repeat(depth)}- ` : ""}${task.title || "Untitled Task"}`,
+        ...taskProjectionFields(task),
+        optionLabel: `${depth > 0 ? `${"  ".repeat(depth)}- ` : ""}${taskProjectionFields(task).title || "Untitled Task"}`,
       });
-      (childrenByParent.get(task.task_id) || []).forEach((child) => appendBranch(child, depth + 1));
+      (childrenByParent.get(taskProjectionFields(task).task_id) || []).forEach((child) => appendBranch(child, depth + 1));
     };
     (childrenByParent.get("") || []).forEach((task) => appendBranch(task, 0));
-    candidates.filter((task) => !visited.has(task.task_id)).sort(compareByTitle).forEach((task) => appendBranch(task, 0));
+    const remaining = callTaskContextCollection(candidates, "filter", [
+      (/** @type {unknown} */ task) => !visited.has(taskProjectionFields(task).task_id),
+    ]);
+    const sorted = callTaskContextCollection(remaining, "sort", [compareByTitle]);
+    callTaskContextCollection(sorted, "forEach", [(/** @type {unknown} */ task) => appendBranch(task, 0)]);
     return ordered;
   }
 
   function applySelectedParentTaskInheritance() {
     const parentTaskId = fields.parentTask?.value || "";
-    const parentTask = (context?.tasks || []).find((task) => task.task_id === parentTaskId);
+    const parentTask = callTaskContextCollection(context?.tasks || [], "find", [
+      (/** @type {unknown} */ task) => taskProjectionFields(task).task_id === parentTaskId,
+    ]);
 
     if (!parentTask) {
       return;
     }
 
-    fields.dueDate.value = parentTask.due_date || "";
-    fields.dueTime.value = parentTask.due_time || "";
-    fields.priority.value = taskDefaultPriorities().includes(parentTask.priority) ? parentTask.priority : "normal";
+    fields.dueDate.value = taskProjectionFields(parentTask).due_date || "";
+    fields.dueTime.value = taskProjectionFields(parentTask).due_time || "";
+    /** @type {readonly unknown[]} */
+    const priorities = taskDefaultPriorities();
+    fields.priority.value = priorities.includes(taskProjectionFields(parentTask).priority) ? taskProjectionFields(parentTask).priority : "normal";
 
-    if (usesClientScope() && !fields.client.value && parentTask.client_id) {
-      ensureClientOption(parentTask.client_id, parentTask);
-      fields.client.value = parentTask.client_id;
+    if (usesClientScope() && !fields.client.value && taskProjectionFields(parentTask).client_id) {
+      ensureClientOption(taskProjectionFields(parentTask).client_id, parentTask);
+      fields.client.value = taskProjectionFields(parentTask).client_id;
       populateProjectInput(fields.project.value);
     }
 
-    if (!fields.project.value && parentTask.project_id) {
-      populateProjectInput(parentTask.project_id, parentTask, { allowFallback: true });
+    if (!fields.project.value && taskProjectionFields(parentTask).project_id) {
+      populateProjectInput(taskProjectionFields(parentTask).project_id, parentTask, { allowFallback: true });
       syncClientFromSelectedProject();
     } else {
       writeTaskMetadataRibbon();
@@ -1370,7 +1506,7 @@
     }
     fields.tagContainer.hidden = false;
     tagPicker = await namespace.tags.mountPicker(fields.tagContainer, {
-      tags: context.tagOptions || [],
+      tags: requireTaskControl(context).tagOptions || [],
       selectedTags: tags,
     });
   }
@@ -1404,9 +1540,27 @@
       targetType: "task",
       title: "Task Files",
       visibility: "private",
-      onAttachmentAdded: (detail) => context?.onAttachmentsChanged?.(detail),
-      onAttachmentRemoved: (detail) => context?.onAttachmentsChanged?.(detail),
-      onRefresh: (detail) => context?.onAttachmentsRefreshed?.(detail),
+      onAttachmentAdded: (detail) => {
+        const owner = context;
+        const callback = owner?.onAttachmentsChanged;
+        if (callback === null || callback === undefined) return undefined;
+        if (typeof callback !== "function") throw new TypeError("Task attachment callback is not callable.");
+        return Reflect.apply(callback, owner, [detail]);
+      },
+      onAttachmentRemoved: (detail) => {
+        const owner = context;
+        const callback = owner?.onAttachmentsChanged;
+        if (callback === null || callback === undefined) return undefined;
+        if (typeof callback !== "function") throw new TypeError("Task attachment callback is not callable.");
+        return Reflect.apply(callback, owner, [detail]);
+      },
+      onRefresh: (detail) => {
+        const owner = context;
+        const callback = owner?.onAttachmentsRefreshed;
+        if (callback === null || callback === undefined) return undefined;
+        if (typeof callback !== "function") throw new TypeError("Task attachment callback is not callable.");
+        return Reflect.apply(callback, owner, [detail]);
+      },
       onUploadFailed: ({ error } = {}) => setStatus(error?.message || "Task file upload failed.", { isError: true }),
       onUploadStarted: () => setStatus("Uploading task file..."),
       onUploadCompleted: () => setStatus("Task file uploaded."),
@@ -1598,7 +1752,7 @@
   async function refreshTaskTimers() {
     const result = await loadTaskTimers();
     taskTimers = requireTaskRecords().readTaskTimers(result);
-    context.taskTimers = taskTimers;
+    requireTaskControl(context).taskTimers = taskTimers;
     writeTaskTimerFields(currentTask);
   }
 
@@ -1819,7 +1973,7 @@
       return;
     }
 
-    const options = context?.options || defaultTaskOptions();
+    const options = taskProjectionFields(context?.options || defaultTaskOptions());
     const timerSurfaceAvailable = options.taskTimersEnabled !== false && options.timeTrackingEnabled !== false;
     const eligible = Boolean(
       task?.task_id &&
@@ -2059,7 +2213,7 @@
     const configuredCallback = context?.onSaved;
     const requestCallback = currentTaskEditorRequest?.onSaved;
     const requestRefresh = currentTaskEditorRequest?.refresh;
-    const hostRefresh = context?.hostContext?.refresh;
+    const hostRefresh = optionalTaskProjectionFields(context?.hostContext)?.refresh;
 
     if (typeof configuredCallback === "function") {
       await configuredCallback(result);
@@ -2091,7 +2245,7 @@
   }
 
   function readTaskTimerIneligibleReason(task) {
-    const options = context?.options || defaultTaskOptions();
+    const options = taskProjectionFields(context?.options || defaultTaskOptions());
 
     if (options.taskTimersEnabled === false) {
       return "Task timers are disabled.";
@@ -2129,12 +2283,12 @@
     } else {
       taskTimers.push(timer);
     }
-    context.taskTimers = taskTimers;
+    requireTaskControl(context).taskTimers = taskTimers;
   }
 
   function removeTaskTimer(taskId) {
     taskTimers = taskTimers.filter((timer) => timer.task_id !== taskId);
-    context.taskTimers = taskTimers;
+    requireTaskControl(context).taskTimers = taskTimers;
   }
 
   function clearTaskTimerInterval() {
@@ -2265,12 +2419,20 @@
       const result = await api.postJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/skip-to-current`, {});
       const skipTarget = requireTaskRecords().readSkipToCurrentTarget(result);
       const targetTaskId = skipTarget?.task_id || "";
-      context?.hostContext?.complete?.({
+      const host = context?.hostContext;
+      const callback = optionalTaskProjectionFields(host)?.complete;
+      if (callback !== null && callback !== undefined) {
+        const args = [{
         actionId: "tasks.skip-to-current",
         recordId: targetTaskId || currentTaskId,
         taskLifecycleAction: "skip-to-current",
         title: skipTarget?.title || currentTask?.title || "",
-      });
+      }];
+        if (typeof callback !== "function") {
+          throw new TypeError("Task host complete is not callable.");
+        }
+        Reflect.apply(callback, host, args);
+      }
       closeTaskModal(dialog, "complete");
       if (targetTaskId) {
         global.setTimeout(() => {
@@ -2530,6 +2692,7 @@
     return record?.optionLabel || record?.display_label || record?.displayName || record?.name || record?.title || "";
   }
 
+  /** @param {unknown} [value] */
   function optionListHasValue(options = [], value = "") {
     return options.some((item) => item.value === value);
   }
@@ -2577,7 +2740,7 @@
   }
 
   function usesClientScope() {
-    return (context?.options || defaultTaskOptions()).workspaceType === "business";
+    return taskProjectionFields(context?.options || defaultTaskOptions()).workspaceType === "business";
   }
 
   function setStatus(message, options = {}) {
@@ -2586,7 +2749,15 @@
       return;
     }
 
-    context?.hostContext?.setStatus?.(message, options);
+    const host = context?.hostContext;
+    const callback = optionalTaskProjectionFields(host)?.setStatus;
+    if (callback !== null && callback !== undefined) {
+      const args = [message, options];
+      if (typeof callback !== "function") {
+        throw new TypeError("Task host setStatus is not callable.");
+      }
+      Reflect.apply(callback, host, args);
+    }
   }
 
   function focusTaskEditorTarget(target) {

@@ -113,7 +113,7 @@ function assertStaticCompletionContract() {
   );
   assert.match(
     saveAndComplete,
-    /notifyTaskEditorSaved\(result\)[\s\S]*hostContext\?\.complete\?\.\(taskCompletionHostDetail\(result\)\)[\s\S]*closeTaskModal\(dialog, "complete"\)/,
+    /notifyTaskEditorSaved\(result\)[\s\S]*const host = context\?\.hostContext;[\s\S]*const callback = optionalTaskProjectionFields\(host\)\?\.complete;[\s\S]*callback !== null && callback !== undefined[\s\S]*const args = \[taskCompletionHostDetail\(result\)\];[\s\S]*typeof callback !== "function"[\s\S]*Reflect\.apply\(callback, host, args\)[\s\S]*closeTaskModal\(dialog, "complete"\)/,
     "editor completion should refresh its host, report lifecycle detail, and close",
   );
   assert.doesNotMatch(taskDialogSource, /offerCompletionNextAction|pendingTaskCompletionDetail/);
@@ -121,7 +121,7 @@ function assertStaticCompletionContract() {
 
   assert.match(
     saveTaskForm,
-    /editingTask\?\.recurrence_template_id && formChanges\.recurrenceTemplateChanged[\s\S]*title: "Update recurring task"/,
+    /optionalTaskProjectionFields\(editingTask\)\?\.recurrence_template_id && formChanges\.recurrenceTemplateChanged[\s\S]*title: "Update recurring task"/,
     "the recurrence scope question should require an actual template-backed form change",
   );
   assert.match(

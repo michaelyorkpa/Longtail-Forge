@@ -75,7 +75,7 @@ function assertStaticContract() {
     "Save-and-complete should persist only real pending edits before completion");
   assert.match(taskDialogScript, /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`, \{\}\)/,
     "Save-and-complete should call the dedicated protected complete route");
-  assert.match(taskDialogScript, /hostContext\?\.complete\?\.\(taskCompletionHostDetail\(result\)\)[\s\S]*closeTaskModal\(dialog, "complete"\)/,
+  assert.match(taskDialogScript, /const host = context\?\.hostContext;[\s\S]*const callback = optionalTaskProjectionFields\(host\)\?\.complete;[\s\S]*callback !== null && callback !== undefined[\s\S]*const args = \[taskCompletionHostDetail\(result\)\];[\s\S]*typeof callback !== "function"[\s\S]*Reflect\.apply\(callback, host, args\)[\s\S]*closeTaskModal\(dialog, "complete"\)/,
     "Save-and-complete should report completion to its host and close without a follow-up editor state");
   assert.doesNotMatch(taskDialogScript, /offerCompletionNextAction|pendingTaskCompletionDetail/,
     "Task completion should not retain or refocus the editor for Next Action");

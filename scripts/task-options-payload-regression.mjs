@@ -160,8 +160,8 @@ async function assertBrowserUsesServiceLabels() {
   assert.match(tasksScript, /state\.options\.clients\.map\(\(client\) => option\(client\.id, optionLabel\(client\)\)\)/, "Tasks filters should render service-owned client option labels");
   assert.match(tasksScript, /projectOptionsForClient\(selectedClientFilterValue\(\)\)\.map\(\(project\) => option\(project\.id, optionLabel\(project\)\)\)/, "Tasks filters should render service-owned project option labels");
   assert.doesNotMatch(tasksScript, /getClientDepth|getProjectDepth|treeIndent|sortClientOptions|sortProjectOptions/, "Tasks list should not rebuild picker hierarchy");
-  assert.match(taskDialog, /options\.clients \|\| \[\]\)\.map\(\(client\) => option\(client\.id, optionLabel\(client\)\)\)/, "Task dialog should render service-owned client option labels");
-  assert.match(taskDialog, /projects\.map\(\(project\) => option\(project\.id, optionLabel\(project\)\)\)/, "Task dialog should render service-owned project option labels");
+  assert.match(taskDialog, /callTaskContextCollection\(options\.clients \|\| \[\], "map", \[\s+\(\/\*\* @type \{unknown\} \*\/ client\) => option\(taskProjectionFields\(client\)\.id, optionLabel\(client\)\)/, "Task dialog should render service-owned client option labels");
+  assert.match(taskDialog, /callTaskContextCollection\(projects, "map", \[\s+\(\/\*\* @type \{unknown\} \*\/ project\) => option\(taskProjectionFields\(project\)\.id, optionLabel\(project\)\)/, "Task dialog should render service-owned project option labels");
   assert.doesNotMatch(taskDialog, /getClientTreeSortKey|getProjectTreeSortKey|getClientDepth|getProjectDepth|treeIndent/, "Task dialog should not rebuild picker hierarchy");
 }
 
