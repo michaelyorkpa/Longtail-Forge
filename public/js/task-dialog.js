@@ -142,9 +142,36 @@
   /** @type {import("../../src/types/browser-contracts.js").BrowserTagPickerController | null} */
   let tagPicker = null;
   let recurrenceDraft = defaultRecurrenceDraft();
+  /** @type {ReturnType<import("../../src/types/browser-contracts.js").BrowserTaskRecords["readTaskTimers"]>} */
   let taskTimers = [];
   /** @type {ReturnType<typeof global.setInterval> | null} */
   let taskTimerIntervalId = null;
+  /**
+   * Local editor state also accepts caller seeds and base-record timer responses.
+   * Detail projections retain the published reader's unknown members until consumed.
+   * @typedef {Partial<NonNullable<ReturnType<import("../../src/types/browser-contracts.js").BrowserTaskRecords["readTaskDetail"]>>>} TaskDialogRecord
+   */
+  /**
+   * Read an opaque detail projection with the same boxing and inherited-member behavior
+   * as ordinary property access. This does not validate or claim a wire member's type.
+   * Nullish required rows still throw; optional projections pass their existing fallback.
+   * @param {unknown} value @returns {Record<string, unknown>}
+   */
+  function taskProjectionFields(value) {
+    if (value === null || value === undefined) {
+      throw new TypeError("Task detail projection is unavailable.");
+    }
+    /** @type {Record<string, unknown>} */
+    const fields = Object(value);
+    return fields;
+  }
+
+  /** @param {unknown} value */
+  function optionalTaskProjectionFields(value) {
+    return value === null || value === undefined ? undefined : taskProjectionFields(value);
+  }
+
+  /** @type {TaskDialogRecord | null} */
   let currentTask = null;
   let currentTaskId = "";
   let currentParentTaskId = "";
@@ -773,6 +800,7 @@
     writeTaskMetadataRibbon();
   }
 
+  /** @param {string} [selectedClientId] @param {Pick<TaskDialogRecord, "client_id" | "client_name"> | null} [sourceTask] */
   function ensureClientOption(selectedClientId = "", sourceTask = currentTask) {
     if (!fields.client || !usesClientScope() || !selectedClientId || optionListHasValue([...fields.client.options], selectedClientId)) {
       return;
@@ -976,6 +1004,7 @@
     }
   }
 
+  /** @param {{task?: TaskDialogRecord | null, recurrenceContinuity?: TaskDialogRecord["recurrenceContinuity"]}} [result] */
   function applyTaskCompletionResult(result = {}) {
     if (!result.task) {
       return;
@@ -1587,7 +1616,7 @@
     setStatus(timerStatus === "running" ? "Starting task timer..." : "Pausing task timer...");
 
     try {
-      const result = await api.putJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer`, {
+      const result = await api.putJson(`/api/tasks/${encodeURIComponent(`${task.task_id}`)}/timer`, {
         active_task_timer_id: timer?.active_task_timer_id || "",
         timer_status: timerStatus,
         accumulated_elapsed_seconds: elapsedSeconds,
@@ -1617,7 +1646,7 @@
     setStatus("Saving task timer...");
 
     try {
-      const result = await api.postJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer/finalize`, {
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(`${task.task_id}`)}/timer/finalize`, {
         duration_seconds: durationSeconds,
         end_time: new Date().toISOString(),
       });
@@ -1651,7 +1680,7 @@
     }
 
     try {
-      const result = await api.deleteJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer`);
+      const result = await api.deleteJson(`/api/tasks/${encodeURIComponent(`${task.task_id}`)}/timer`);
       removeTaskTimer(task.task_id);
       applyTaskTimerMutationResult(result, task);
       setStatus("Task timer reset.");
@@ -1976,7 +2005,7 @@
   async function moveChecklistItem(itemId, direction) {
     const api = requireApi();
     const items = [...(currentTask?.checklistItems || [])];
-    const index = items.findIndex((item) => item.task_checklist_item_id === itemId);
+    const index = items.findIndex((item) => taskProjectionFields(item).task_checklist_item_id === itemId);
     const nextIndex = direction === "up" ? index - 1 : index + 1;
 
     if (index < 0 || nextIndex < 0 || nextIndex >= items.length) {
@@ -1989,7 +2018,7 @@
 
     try {
       applyChecklistResult(await api.postJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist/reorder`, {
-        item_ids: items.map((candidate) => candidate.task_checklist_item_id),
+        item_ids: items.map((candidate) => taskProjectionFields(candidate).task_checklist_item_id),
       }));
       setStatus("");
     } catch (error) {
@@ -2212,7 +2241,7 @@
     const modal = requireModalDialogs();
     const api = requireApi();
     event?.preventDefault();
-    const recovery = currentTask?.recurrenceRecovery;
+    const recovery = optionalTaskProjectionFields(currentTask?.recurrenceRecovery);
     if (!currentTaskId || !recovery?.available || recovery.blockedByActiveTimer) {
       return;
     }
@@ -2855,7 +2884,7 @@
     }
 
     const completionSeconds = hasCompletedTaskMetrics(task)
-      ? task?.completionMetrics?.duration_seconds
+      ? optionalTaskProjectionFields(task?.completionMetrics)?.duration_seconds
       : null;
     const badges = [
       { label: "Status", value: selectedText(fields.status) || formatToken(fields.status?.value) },
