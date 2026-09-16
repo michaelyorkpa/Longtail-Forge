@@ -5,6 +5,7 @@
   /** @typedef {import("../../../src/types/browser-contracts.js").ModuleActionDependency} ModuleActionDependency */
 
   const namespace = window.LongtailForge || {};
+  /** @type {Map<string, RegisteredModuleAction>} */
   const registeredActions = new Map();
   /** @type {Map<string, Promise<void>>} */
   const dependencyScriptLoads = new Map();
@@ -186,6 +187,87 @@
     ],
   });
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").ModuleActionOutcome} ModuleActionOutcome */
+  /** @typedef {import("../../../src/types/browser-contracts.js").ModuleActionSummary} ModuleActionSummary */
+
+  /**
+   * An action's dialog opener, as the registry calls it.
+   *
+   * `params` is `{}` rather than `unknown` because the registry spreads it and never reads a
+   * member of it. `{}` is "whatever the host passed that is not nullish", which is what `open`'s
+   * own `= {}` default leaves, and unlike `unknown` it stays spreadable - so the openers below
+   * keep forwarding a string or a bare object exactly as they did. `hostContext` is `unknown`
+   * because the registry only hands it back.
+   *
+   * `register` proves that an opener is a function and nothing else. It does not check how many
+   * parameters one declares, so this signature is what the registry calls with, not a fact about
+   * the descriptor that supplied it.
+   * @typedef {(params?: {}, hostContext?: unknown) => unknown} ModuleActionOpener
+   */
+
+  /**
+   * The members `register` reads off a descriptor.
+   *
+   * **This is not the module-contribution vocabulary.** `BrowserModuleActions.register` still
+   * accepts `unknown`, and `0.33.33.38.2.2.6.4.1`'s decision not to name a descriptor stands:
+   * this typedef is local to the registry, reaches no consumer, and settles nothing about what a
+   * module may contribute. `canOpen`, `mode`, `recordType`, `label`, `title` and `workspaceTypes`
+   * are deliberately absent - they ride the index signature as `unknown`, which is what every
+   * read of them already treats them as.
+   *
+   * **Nothing here is validated.** `register` proves exactly two things: that an identifier is
+   * present and that `open` is a function. The identifiers are `string` and the three lists are
+   * lists because that is what the registry's own unguarded reads require of them - `[...]` and
+   * `.every` throw for anything else, exactly where they threw before - not because a descriptor
+   * that breaks the precondition is refused. One still registers.
+   * @typedef {object} ModuleActionDescriptorMembers
+   * @property {string} [actionId]
+   * @property {string} [id]
+   * @property {ModuleActionOpener} [open]
+   * @property {unknown[]} [requiredModules]
+   * @property {unknown[]} [requiredPermissions]
+   * @property {unknown[]} [requiredWorkspaceCapabilities]
+   */
+
+  /** @typedef {Record<string, unknown> & ModuleActionDescriptorMembers} ModuleActionDescriptor */
+
+  /**
+   * The record the registry stores, which is a descriptor spread over the registry's defaults.
+   *
+   * Two of these members are proved rather than assumed: `open` is a function because `register`
+   * refuses a descriptor without one, and the identifiers are pinned after the spread so nothing
+   * a module supplies can overwrite them. Their being `string`, and the three lists being lists,
+   * carry over from {@link ModuleActionDescriptorMembers} unchanged and unchecked.
+   * @typedef {object} RegisteredModuleActionMembers
+   * @property {string} actionId
+   * @property {string} id
+   * @property {ModuleActionOpener} open
+   * @property {unknown[]} requiredModules
+   * @property {unknown[]} requiredPermissions
+   * @property {unknown[]} requiredWorkspaceCapabilities
+   */
+
+  /** @typedef {Record<string, unknown> & RegisteredModuleActionMembers} RegisteredModuleAction */
+
+  /**
+   * The host-supplied options bag `open` forwards into the host context.
+   *
+   * `BrowserModuleActions.open` still declares this `unknown`. The published shape that named it
+   * was withdrawn because declaring it there made a host's own refresh callback stop compiling;
+   * this one is local to the registry and reaches no consumer, so that withdrawal is intact. It
+   * names the five members the registry reads and validates none of them: four stay `unknown`
+   * behind the `typeof` guards that already read them, and `statusElement` is an element because
+   * that is what `BrowserPageController.setStatus` requires of the value this file forwards to
+   * it - not because the registry checks what the host passed.
+   * @typedef {object} ModuleActionOpenOptions
+   * @property {unknown} [onCancel]
+   * @property {unknown} [onComplete]
+   * @property {unknown} [refresh]
+   * @property {unknown} [setStatus]
+   * @property {HTMLElement | null} [statusElement]
+   */
+
+  /** @type {ModuleActionDescriptor[]} */
   const FIRST_PARTY_ACTIONS = [
     {
       id: "tasks.add",
@@ -374,17 +456,35 @@
     },
   ];
 
+  /**
+   * Whether a descriptor declares the opener `register` requires.
+   *
+   * A function rather than the inline `typeof` it replaced, because the spread below has to know
+   * that `open` is there and a check does not survive a call. It holds the same expression,
+   * evaluated at the same point in the same order, so a descriptor answers exactly as it did.
+   * @param {ModuleActionDescriptor} [action]
+   * @returns {action is ModuleActionDescriptor & { open: ModuleActionOpener }}
+   */
+  function declaresDialogOpener(action) {
+    return typeof action?.open === "function";
+  }
+
+  /**
+   * @param {ModuleActionDescriptor} [action]
+   * @returns {RegisteredModuleAction | null}
+   */
   function register(action) {
     const actionId = action?.actionId || action?.id || "";
-    const hasDialogOpener = typeof action?.open === "function";
+    const hasDialogOpener = declaresDialogOpener(action);
 
     if (!actionId || !hasDialogOpener) {
       return null;
     }
 
+    // The identifiers are pinned once, after the spread. An earlier copy of the same pair led
+    // the literal and could never win, so removing it changes nothing but the key order of a
+    // record nothing enumerates.
     const normalized = {
-      actionId,
-      id: actionId,
       moduleId: "",
       recordType: "",
       mode: "",
@@ -402,6 +502,10 @@
     return normalized;
   }
 
+  /**
+   * @param {{ includeUnavailable?: boolean }} [options]
+   * @returns {ModuleActionSummary[]}
+   */
   function list(options = {}) {
     return [...registeredActions.values()]
       .filter((action) => options.includeUnavailable || isActionAvailable(action))
@@ -419,6 +523,13 @@
       }));
   }
 
+  /**
+   * `params` and `options` stay as the defaults infer them - `{}`, which is every non-nullish
+   * value a host can pass - rather than the `unknown` the published signature names, because
+   * this file spreads the one and reads guarded members off the other.
+   * @param {string} actionId
+   * @returns {Promise<ModuleActionOutcome>}
+   */
   async function open(actionId, params = {}, options = {}) {
     const action = registeredActions.get(actionId);
 
@@ -442,6 +553,12 @@
     throw new Error(`Module action '${actionId}' does not provide a dialog opener.`);
   }
 
+  /**
+   * @param {RegisteredModuleAction} action
+   * @param {{}} params
+   * @param {ReturnType<typeof createHostContext>} hostContext
+   * @returns {Promise<ModuleActionOutcome>}
+   */
   async function openRegisteredDialog(action, params, hostContext) {
     try {
       const returnedResult = await action.open(params, hostContext);
@@ -457,21 +574,34 @@
     return hostContext.result;
   }
 
+  /**
+   * @param {RegisteredModuleAction} action
+   * @param {{}} params
+   * @param {ModuleActionOpenOptions} options
+   */
   function createHostContext(action, params, options) {
     const trigger = document.activeElement;
+    /** @type {(outcome: ModuleActionOutcome) => void} */
     let settle = () => {};
+    /** @type {Promise<ModuleActionOutcome>} */
     const result = new Promise((resolve) => {
       settle = resolve;
     });
     let settled = false;
 
+    /**
+     * @param {boolean} completed
+     * @param {unknown} [detail]
+     */
     function finish(completed, detail = {}) {
       if (settled) {
         return;
       }
 
       settled = true;
-      if (trigger && typeof trigger.focus === "function") {
+      // `focus` is inherited, so `in` is what reads it without asserting an element subtype the
+      // duck-typed guard never required. Anything the guard admitted it still admits.
+      if (trigger && "focus" in trigger && typeof trigger.focus === "function") {
         trigger.focus();
       }
       if (completed && typeof options.onComplete === "function") {
@@ -494,6 +624,10 @@
       params: { ...params },
       refresh: options.refresh || null,
       result,
+      /**
+       * @param {string} message
+       * @param {{ isError?: boolean }} [statusOptions]
+       */
       setStatus: (message, statusOptions = {}) => {
         if (typeof options.setStatus === "function") {
           options.setStatus(message, statusOptions);
@@ -505,6 +639,7 @@
     };
   }
 
+  /** @param {RegisteredModuleAction} action */
   function isActionAvailable(action) {
     return isModuleAvailable(action.moduleId) &&
       (action.requiredModules || []).every((moduleId) => isModuleAvailable(moduleId)) &&
@@ -512,6 +647,7 @@
       isWorkspaceTypeAvailable(action.workspaceTypes);
   }
 
+  /** @param {unknown} moduleId */
   function isModuleAvailable(moduleId) {
     if (!moduleId || moduleId === "framework") {
       return true;
@@ -529,6 +665,7 @@
     return enabledModules.includes(moduleId);
   }
 
+  /** @param {unknown} [workspaceTypes] */
   function isWorkspaceTypeAvailable(workspaceTypes = []) {
     if (!Array.isArray(workspaceTypes) || workspaceTypes.length === 0) {
       return true;
@@ -538,6 +675,7 @@
     return workspaceTypes.includes(workspaceType);
   }
 
+  /** @param {unknown} [requiredCapabilities] */
   function hasRequiredWorkspaceCapabilities(requiredCapabilities = []) {
     if (!Array.isArray(requiredCapabilities) || requiredCapabilities.length === 0) {
       return true;
@@ -548,6 +686,10 @@
     return requiredCapabilities.some((capability) => capabilities.includes(capability));
   }
 
+  /**
+   * @param {RegisteredModuleAction} action
+   * @returns {ModuleActionSummary}
+   */
   function toPublicAction(action) {
     return {
       actionId: action.actionId,

@@ -100,7 +100,10 @@ assert.match(
 );
 assert.match(
   moduleActions,
-  /const trigger = document\.activeElement[\s\S]*if \(trigger && typeof trigger\.focus === "function"\) \{[\s\S]*trigger\.focus\(\);/,
+  // The `in` test is the narrowing that lets the duck-typed guard read an inherited member
+  // without asserting an element subtype; it admits exactly what the guard always admitted, so
+  // the focus-return claim is unchanged and the pin requires both halves of it.
+  /const trigger = document\.activeElement[\s\S]*if \(trigger && "focus" in trigger && typeof trigger\.focus === "function"\) \{[\s\S]*trigger\.focus\(\);/,
   "The shared module-action host should retain focus return for dispatched modal actions",
 );
 assert.match(

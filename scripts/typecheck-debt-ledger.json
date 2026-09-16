@@ -510,6 +510,7 @@
         "tests/unit/lookup-response-contracts.test.mjs",
         "tests/unit/managed-session-contracts.test.mjs",
         "tests/unit/markdown-preview-contracts.test.mjs",
+        "tests/unit/module-actions-registry.test.mjs",
         "tests/unit/module-settings-catalog-contracts.test.mjs",
         "tests/unit/module-settings-snapshot.test.mjs",
         "tests/unit/mutation-runner-contracts.test.mjs",
@@ -735,7 +736,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4555,
+      "errorCount": 4500,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1099,28 +1100,6 @@
           {
             "code": 7031,
             "count": 3
-          }
-        ],
-        "public/js/shared/module-actions.js": [
-          {
-            "code": 1117,
-            "count": 2
-          },
-          {
-            "code": 2322,
-            "count": 1
-          },
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 2554,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 48
           }
         ],
         "public/js/shared/notes-editor.js": [
@@ -2070,8 +2049,8 @@
     }
   },
   "totals": {
-    "files": 1317,
-    "errors": 4555,
+    "files": 1318,
+    "errors": 4500,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
