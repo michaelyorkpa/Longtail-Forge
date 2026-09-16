@@ -99,6 +99,7 @@
   let form = null;
   let fields = {};
   let currentTaskEditorRequest = null;
+  /** @type {ReturnType<typeof taskFormSnapshot> | null} */
   let initialTaskFormSnapshot = null;
   let previousTaskEditorStatus = "open";
   /** @type {ReturnType<typeof performBlockCapture> | null} */
