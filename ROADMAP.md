@@ -1131,6 +1131,14 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **`overlayHost` is not declared on the namespace here.** That is `0.33.33.38.2` quiet-tail work; this child publishes the contract and checks the writer against it.
 
+#### 0.33.33.39.4 - Type the module-action registry
+
+**Complete: 55 diagnostics to zero in `public/js/shared/module-actions.js`, including its two DOM ones.** See the archive entry. The registry is the cross-module dispatch surface nine controllers open dialogs through, and it had the largest remaining `0.33.33.39` file at 53 owner-sum.
+
+**Thirty-two of the 48 parameters were one annotation.** The sixteen first-party `open: (params, hostContext) => ...` arrows take their types contextually from the array they live in, so the sixteen pinned opener spellings survive untouched while their 32 implicit parameters close together.
+
+**The descriptor is named locally and stays unnamed publicly.** `BrowserModuleActions.register` still accepts `unknown`, and `0.33.33.38.2.2.6.4.1`'s decision not to publish a descriptor shape stands. The local typedef names only the members the registry itself reads and leaves `canOpen`, `mode`, `recordType`, `label`, `title` and `workspaceTypes` under an index signature, so nothing about the module-contribution vocabulary is settled here. Which members are proved and which are preconditions is stated in the file.
+
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 
 **Open. Not started, and deliberately not decided by `0.33.33.38.2.2.5.2`.** That checkpoint removed an unsupported type assertion and a lookup that could never answer; it did not design a replacement, and it must not be read as having settled what should exist here.
