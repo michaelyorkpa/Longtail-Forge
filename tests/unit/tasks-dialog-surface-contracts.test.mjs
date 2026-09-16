@@ -148,7 +148,12 @@ describe("the surface is declared whole, and its members keep their own shapes",
   it("says the four openers resolve a close reason, because that is what they resolve", () => {
     const declared = interfaceBody("BrowserTasksDialog");
     assert.equal((declared.match(/\): Promise<string>;/g) || []).length, 4);
-    assert.match(slice(taskDialog, "async function open({"), /resolve\(dialog\.returnValue \|\| "closed"\)/);
+    assert.match(slice(taskDialog, "async function open({"), /resolve\(taskDialogCloseReason\(dialog\)\)/);
+    // The checked reader preserves close text and the default; executable domains
+    // are covered by task-dialog-dom-controls, including inherited returnValue.
+    const closeReason = slice(taskDialog, "function taskDialogCloseReason(element) {");
+    assert.match(closeReason, /if \(!value\) \{\s+return "closed";/);
+    assert.match(closeReason, /if \(typeof value === "string"\) \{\s+return value;/);
     for (const opener of ["function openAdd(params = {}, hostContext = null) {",
       "function openEdit(params = {}, hostContext = null) {"]) {
       assert.match(slice(taskDialog, opener), /return openTaskEditor\(\{ \.\.\.params, mode: "(add|edit)" \}, hostContext\);/);

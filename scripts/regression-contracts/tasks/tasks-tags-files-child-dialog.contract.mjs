@@ -40,7 +40,7 @@ assert.match(openTags, /closeTaskFilesDialog\(\)[\s\S]*fields\.tagToggle\?\.setA
 assert.match(openFiles, /closeTaskTagsDialog\(\)[\s\S]*fields\.fileToggle\?\.setAttribute\("aria-expanded", "true"\)[\s\S]*showTaskModal\(filesDialog, \{ parent: dialog, trigger: fields\.fileToggle \}\)[\s\S]*\[data-file-attachment-input\]/, "Files should open as a stacked child modal and focus upload when saved");
 assert.match(openFiles, /currentTaskId[\s\S]*fields\.fileDialogClose/, "Files should focus a safe control for unsaved tasks");
 assert.match(closeUtilities, /fields\.tagToggle\?\.setAttribute\("aria-expanded", "false"\)[\s\S]*fields\.fileToggle\?\.setAttribute\("aria-expanded", "false"\)[\s\S]*closeTaskTagsDialog\(\)[\s\S]*closeTaskFilesDialog\(\)/, "Parent close/reset should close child utility dialogs");
-assert.match(taskDialog, /dialog\.addEventListener\("close", \(\) => \{[\s\S]*closeTaskUtilityDialogs\(\)/, "Closing the Task editor should close Tags and Files child dialogs");
+assert.match(taskDialog, /requireTaskControl\(dialog\)\.addEventListener\("close", \(\) => \{[\s\S]*closeTaskUtilityDialogs\(\)/, "Closing the Task editor should close Tags and Files child dialogs");
 
 assert.match(tagMount, /namespace\.tags\?\.mountPicker[\s\S]*fields\.tagContainer[\s\S]*selectedTags: tags/, "Tags child dialog should still mount the Tags-owned picker");
 assert.match(taskDialog, /tagIds: readTaskTagIds\(\)/, "Task save should still read staged tag picker IDs");
