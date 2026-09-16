@@ -1383,6 +1383,72 @@
     });
   }
 
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewActionDescriptor} ViewActionDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewFieldDescriptor} ViewFieldDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewLinkedRecordsDescriptor} ViewLinkedRecordsDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewModalDescriptor} ViewModalDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewTableColumnDescriptor} ViewTableColumnDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewTableDescriptor} ViewTableDescriptor */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewAction} BrowserViewAction */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewActionButtonOptions} BrowserViewActionButtonOptions */
+
+  /**
+   * The descriptor fragments these renderers are actually handed.
+   *
+   * **`Partial` because the callers pass fragments, not whole framework descriptors.** `lists.js`
+   * renders a field grid from `{ fields: modal.fields || [] }` and from an empty `{ fields: [] }`;
+   * `files.js` passes a modal descriptor it builds itself. The published renderer signatures take
+   * `unknown` for that reason, and these say what each renderer reads without claiming a caller
+   * supplied a complete descriptor.
+   *
+   * **Each intersection names a member the renderer reads that the framework descriptor does not
+   * declare** - a table's `title`, a column's `key`, `align` and `header`, a linked-records
+   * panel's `ariaLabel`, an action's `modal` and `modalId`. They are read as `unknown` and
+   * recorded as findings for the descriptor contract's owner; nothing here repairs one.
+   * @typedef {Partial<ViewTableColumnDescriptor> & { align?: unknown, header?: unknown, key?: unknown }} DescriptorColumn
+   */
+
+  /** @typedef {Omit<Partial<ViewTableDescriptor>, "columns"> & { columns?: readonly DescriptorColumn[], title?: unknown }} DescriptorTable */
+
+  /** @typedef {{ fields?: readonly Partial<ViewFieldDescriptor>[] }} DescriptorFieldSource */
+
+  /** @typedef {Partial<ViewModalDescriptor>} DescriptorModal */
+
+  /** @typedef {Partial<ViewLinkedRecordsDescriptor> & { ariaLabel?: unknown }} DescriptorLinkedRecords */
+
+  /** @typedef {Partial<ViewActionDescriptor> & { modal?: unknown, modalId?: unknown }} DescriptorAction */
+
+  /**
+   * The published option bags, narrowed at the three members these renderers do more than forward.
+   *
+   * `columns` is mapped member by member, `actions` is filtered, and the two form slots are spread
+   * into `append` - each needs a list where the published bag accepts anything. The declarations
+   * state the requirement the code already made rather than adding a check to satisfy one.
+   * @typedef {import("../../../src/types/browser-contracts.js").BrowserViewDataTableOptions & { columns?: readonly DescriptorColumn[] }} DescriptorTableOptions
+   */
+
+  /**
+   * An action input the permission filter may also read `requiredPermissions` from.
+   *
+   * The shipped callers pass **nodes** - `files.js` sends its own close and save buttons - and
+   * the filter is applied to them all the same. It answers `true` unconditionally today, which
+   * `0.33.33.38.2.2.5.2` recorded and `0.33.33.39.2` is open about; the intersection says the
+   * filter reads that member without claiming a node carries it.
+   * @typedef {BrowserViewAction & { requiredPermissions?: unknown }} SecurableAction
+   */
+
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewModalFormOptions & { actions?: readonly SecurableAction[] }} DescriptorModalOptions */
+
+  /**
+   * @typedef {import("../../../src/types/browser-contracts.js").BrowserViewDescriptorLinkedRecordsOptions & {
+   *   formActions?: readonly (Node | string)[], formFields?: readonly (Node | string)[]
+   * }} DescriptorLinkedRecordsOptions
+   */
+
+  /**
+   * @param {DescriptorTable} [tableDescriptor]
+   * @param {DescriptorTableOptions} [options]
+   */
   function renderDescriptorDataTable(tableDescriptor = {}, options = {}) {
     const view = requireViewPrimitives();
     return view.createDataTable({
@@ -1402,6 +1468,10 @@
     });
   }
 
+  /**
+   * @param {DescriptorFieldSource} [fieldDescriptor]
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewDescriptorFieldGridOptions} [options]
+   */
   function renderDescriptorFieldGrid(fieldDescriptor = {}, options = {}) {
     const view = requireViewPrimitives();
     const values = options.values && typeof options.values === "object" ? options.values : {};
@@ -1425,6 +1495,10 @@
     });
   }
 
+  /**
+   * @param {DescriptorModal} [modal]
+   * @param {DescriptorModalOptions} [options]
+   */
   function renderDescriptorModalForm(modal = {}, options = {}) {
     const view = requireViewPrimitives();
     const actions = options.actions
@@ -1443,6 +1517,10 @@
     });
   }
 
+  /**
+   * @param {DescriptorLinkedRecords} [linkedRecords]
+   * @param {DescriptorLinkedRecordsOptions} [options]
+   */
   function renderDescriptorLinkedRecordsPanel(linkedRecords = {}, options = {}) {
     const view = requireViewPrimitives();
     const section = view.createInfoPanel({
@@ -1500,6 +1578,11 @@
     return value === undefined || value === null ? fallback : value;
   }
 
+  /**
+   * @param {unknown} title
+   * @param {Record<string, unknown> | null | undefined} emptyState
+   * @param {ReturnType<typeof requireViewPrimitives>} view
+   */
   function renderPlaceholder(title, emptyState, view) {
     return view.createEmptyState({
       title: emptyState?.title || title,
@@ -1507,7 +1590,14 @@
     });
   }
 
+  /**
+   * @param {DescriptorAction} [action]
+   * @param {unknown} [state]
+   * @param {unknown} [recordOverride]
+   * @returns {BrowserViewActionButtonOptions}
+   */
   function normalizeAction(action = {}, state = null, recordOverride = undefined) {
+    /** @type {BrowserViewActionButtonOptions} */
     const normalized = {
       label: action.label || action.id || "Action",
       role: action.role,
@@ -1524,6 +1614,14 @@
     return normalized;
   }
 
+  /**
+   * `state` is deliberately left uninferred: typing it requires the surface slot to carry the
+   * element's `refresh`, which `0.33.33.39.8` measured as transferring nullness diagnostics into
+   * two functions it had not measured. Neither parameter below is marked optional, because a
+   * required `state` sits between them.
+   * @param {DescriptorAction} action
+   * @param {unknown} recordOverride
+   */
   async function runDescriptorAction(action = {}, state, recordOverride = undefined) {
     const record = recordOverride !== undefined ? recordOverride : state.selectedRecord;
     try {
