@@ -76,13 +76,25 @@ assert.match(syncTaskStatusField, /fields\.status[\s\S]*task\?\.status[\s\S]*fie
 assert.match(writeTimerFields, /options\.taskTimersEnabled !== false[\s\S]*options\.timeTrackingEnabled !== false[\s\S]*fields\.timerStart\.disabled = !eligible \|\| timer\?\.timer_status === "running"[\s\S]*fields\.timerPause\.disabled = !eligible \|\| timer\?\.timer_status !== "running"[\s\S]*fields\.timerFinalize\.disabled = !eligible \|\| !timer[\s\S]*fields\.timerReset\.disabled = !timer/, "Timer state should preserve eligibility and disabled rules");
 assert.match(writeTimerFields, /Save the task before using a task timer\.[\s\S]*readTaskTimerIneligibleReason\(task\)[\s\S]*Running\.[\s\S]*Paused\.[\s\S]*No active timer\.[\s\S]*global\.setInterval\(\(\) => updateTaskTimerDisplay\(timer\), 1000\)/, "Timer state text and running display updates should remain task-owned");
 assert.match(currentTimer, /taskTimers\.find\(\(timer\) => timer\.task_id === taskId\)/, "Current task timer lookup should remain task-owned");
-assert.match(upsertTimer, /timer_status === "running" && item\.task_id !== timer\.task_id[\s\S]*timer_status: "paused"[\s\S]*context\.taskTimers = taskTimers/, "Starting one task timer should pause other running task timers in modal state");
-assert.match(removeTimer, /taskTimers = taskTimers\.filter\(\(timer\) => timer\.task_id !== taskId\)[\s\S]*context\.taskTimers = taskTimers/, "Removing a task timer should refresh modal timer state");
+assert.match(upsertTimer, /timer_status === "running" && item\.task_id !== timer\.task_id[\s\S]*timer_status: "paused"[\s\S]*requireTaskControl\(context\)\.taskTimers = taskTimers/, "Starting one task timer should pause other running task timers in modal state");
+assert.match(removeTimer, /taskTimers = taskTimers\.filter\(\(timer\) => timer\.task_id !== taskId\)[\s\S]*requireTaskControl\(context\)\.taskTimers = taskTimers/, "Removing a task timer should refresh modal timer state");
 
 assert.match(tagMount, /namespace\.tags\?\.mountPicker[\s\S]*fields\.tagToggle\.hidden = false[\s\S]*selectedTags: tags/, "Tags utility should remain mounted through the Tags-owned picker");
 assert.match(taskDialogScript, /tagIds: readTaskTagIds\(\)/, "Task saves should still include tag IDs from the Tags picker");
 assert.match(fileMount, /namespace\.fileAttachments\?\.mount[\s\S]*canRemove: Boolean\(task\?\.task_id\)[\s\S]*canUpload: Boolean\(task\?\.task_id\)[\s\S]*moduleId: "tasks"/, "Files utility should remain mounted through the Files-owned attachment helper");
-assert.match(fileMount, /saveFirstMessage: "Save the task before adding files\."[\s\S]*targetType: "task"[\s\S]*onAttachmentAdded: \(detail\) => context\?\.onAttachmentsChanged\?\.\(detail\)[\s\S]*onUploadCompleted: \(\) => setStatus\("Task file uploaded\."\)/, "Files utility should preserve task target, save-first, and callback behavior");
+assert.ok(
+  /saveFirstMessage: "Save the task before adding files\."[\s\S]*targetType: "task"[\s\S]*onAttachmentAdded: \(detail\) => \{\s*const owner = context;[\s\S]*onUploadCompleted: \(\) => setStatus\("Task file uploaded\."\)/.test(fileMount) &&
+  sourceContainsInOrder(fileMount, [
+  "onAttachmentAdded: (detail) => {",
+  "const owner = context;",
+  "const callback = owner?.onAttachmentsChanged;",
+  "callback === null || callback === undefined",
+  'typeof callback !== "function"',
+  "return Reflect.apply(callback, owner, [detail]);",
+  "onAttachmentRemoved:",
+]),
+  "Files utility should preserve task target, save-first, callback guard, receiver, detail and return behavior",
+);
 assert.match(notesMount, /namespace\.notesLinkedPanel\?\.mount[\s\S]*fields\.notesPanel\.open = options\.focus === true[\s\S]*moduleId: "tasks"[\s\S]*readonly: task\?\.status === "archived"[\s\S]*saveFirstMessage: "Save the task before adding notes\."[\s\S]*targetType: "task"[\s\S]*title: "Task Notes"/, "Notes utility should remain mounted through the Notes-owned linked panel helper");
 assert.match(followWriter, /namespace\.notificationSubscriptions\.readStatus\(namespace\.notificationSubscriptions\.taskTarget\(taskId\)\)[\s\S]*writeNotificationFollowState\(result\.isFollowing === true\)/, "Notification follow state should read through the shared subscription helper");
 assert.match(followToggle, /namespace\.notificationSubscriptions\.taskTarget\(currentTaskId\)[\s\S]*namespace\.notificationSubscriptions\.unfollow\(target\)[\s\S]*namespace\.notificationSubscriptions\.follow\(target\)[\s\S]*setStatus\(result\.isFollowing \? "Task notifications followed\." : "Task notifications unfollowed\."\)/, "Notification follow toggle should preserve follow/unfollow behavior");

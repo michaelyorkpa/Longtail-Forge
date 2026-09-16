@@ -12,7 +12,7 @@ const tasksPage = readText("public/js/tasks.js");
 const timeEntriesPage = readText("public/js/time-entries.js");
 const helper = readText("public/js/shared/tags.js");
 
-assert.match(taskDialog, /namespace\.tags\.mountPicker\(fields\.tagContainer,\s*\{[\s\S]*tags:\s*context\.tagOptions \|\| \[\][\s\S]*selectedTags:\s*tags/, "Task add/edit dialog must mount the shared inline tag picker with loaded tag options");
+assert.match(taskDialog, /namespace\.tags\.mountPicker\(fields\.tagContainer,\s*\{[\s\S]*tags:\s*requireTaskControl\(context\)\.tagOptions \|\| \[\][\s\S]*selectedTags:\s*tags/, "Task add/edit dialog must mount the shared inline tag picker with loaded tag options");
 assert.match(taskDialog, /tagIds:\s*readTaskTagIds\(\)/, "Task save payload must continue to read selected tag IDs from the shared picker");
 assert.match(taskDialog, /fields\.tagContainer\.hidden = true/, "Task dialog must hide inline tag controls when the shared Tags helper is unavailable");
 assert.match(taskDialog, /fields\.tagContainer\.hidden = false/, "Task dialog must reshow inline tag controls when the shared Tags helper is available");

@@ -22,7 +22,7 @@ function fixture(overrides = {}) {
     handleTaskTagsDialogClose: () => {}, handleTaskFilesDialogClose: () => {},
     ...overrides.sandbox,
   });
-  for (const name of ["requireTaskControl", "requireTaskControlDataset", "taskDialogCloseReason", "focusTaskControl", "bindTaskUtilityDialogEvents", "ensureDialog", "openTaskTagsDialog", "populateFormOptions"])
+  for (const name of ["taskProjectionFields", "optionalTaskProjectionFields", "callTaskContextCollection", "taskContextOptionItems", "requireTaskControl", "requireTaskControlDataset", "taskDialogCloseReason", "focusTaskControl", "bindTaskUtilityDialogEvents", "ensureDialog", "openTaskTagsDialog", "populateFormOptions"])
     vm.runInContext(extractFunctionBlock(source, name), sandbox);
   return { sandbox, calls, controls, form, run: (/** @type {string} */ expression) => vm.runInContext(expression, sandbox) };
 }

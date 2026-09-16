@@ -375,6 +375,7 @@
         "tests/e2e/tag-picker-workflows.spec.mjs",
         "tests/e2e/task-blocked-recovery.spec.mjs",
         "tests/e2e/task-bulk-project-assignment.spec.mjs",
+        "tests/e2e/task-dialog-context-consumers.spec.mjs",
         "tests/e2e/task-dialog-dom-controls.spec.mjs",
         "tests/e2e/task-dialog-record-state.spec.mjs",
         "tests/e2e/task-direct-completion.spec.mjs",
@@ -602,6 +603,8 @@
         "tests/unit/task-block-recovery-engine.test.mjs",
         "tests/unit/task-calendar-surface-contracts.test.mjs",
         "tests/unit/task-calendar-window-contracts.test.mjs",
+        "tests/unit/task-dialog-context-consumers.test.mjs",
+        "tests/unit/task-dialog-context-writers.test.mjs",
         "tests/unit/task-dialog-dom-controls.test.mjs",
         "tests/unit/task-dialog-record-state.test.mjs",
         "tests/unit/task-editor-normalizers.test.mjs",
@@ -746,7 +749,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 4035,
+      "errorCount": 3972,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1273,15 +1276,15 @@
           },
           {
             "code": 7005,
-            "count": 42
+            "count": 5
           },
           {
             "code": 7006,
-            "count": 154
+            "count": 130
           },
           {
             "code": 7034,
-            "count": 3
+            "count": 1
           },
           {
             "code": 7053,
@@ -1993,8 +1996,8 @@
     }
   },
   "totals": {
-    "files": 1328,
-    "errors": 4035,
+    "files": 1331,
+    "errors": 3972,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

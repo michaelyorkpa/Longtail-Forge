@@ -26,7 +26,7 @@ assert.doesNotMatch(taskDialogScript, /option\("all", "All Projects"\)/, "Task e
 assert.match(taskDialogScript, /client_id: usesClientScope\(\) \? fields\.client\.value : ""/, "Personal and Family task saves should keep client context empty");
 
 assert.match(taskDialogScript, /fields\.project\?\.addEventListener\("change", \(\) => \{[\s\S]*syncClientFromSelectedProject\(\);[\s\S]*applySelectedProjectTaskDefaults\(\);/, "Project changes should derive Client before project task defaults run");
-assert.match(taskDialogScript, /function syncClientFromSelectedProject\(\)[\s\S]*const project = findProjectOption\(fields\.project\.value\)[\s\S]*const derivedClientId = project\.client_id \|\| ""[\s\S]*fields\.client\.value = derivedClientId[\s\S]*populateProjectInput\(fields\.project\.value\)/, "Project selection should derive the Business client and preserve the selected project");
+assert.match(taskDialogScript, /function syncClientFromSelectedProject\(\)[\s\S]*const project = findProjectOption\(fields\.project\.value\)[\s\S]*const derivedClientId = taskProjectionFields\(project\)\.client_id \|\| ""[\s\S]*fields\.client\.value = derivedClientId[\s\S]*populateProjectInput\(fields\.project\.value\)/, "Project selection should derive the Business client and preserve the selected project");
 assert.match(taskDialogScript, /populateProjectInput\(selectedProjectId, task, \{ allowFallback: true \}\);[\s\S]*syncClientFromSelectedProject\(\);/, "Default project opens should derive Client before the modal is shown");
 
 assert.match(taskDialogScript, /function ensureClientOption\(selectedClientId = "", sourceTask = currentTask\)[\s\S]*clientFallbackLabel\(sourceTask/, "Edit opens should preserve missing selected clients with safe fallback labels");
