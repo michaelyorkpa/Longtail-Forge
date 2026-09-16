@@ -87,6 +87,7 @@
   let tagPicker = null;
   let recurrenceDraft = defaultRecurrenceDraft();
   let taskTimers = [];
+  /** @type {ReturnType<typeof global.setInterval> | null} */
   let taskTimerIntervalId = null;
   let currentTask = null;
   let currentTaskId = "";
@@ -100,6 +101,7 @@
   let currentTaskEditorRequest = null;
   let initialTaskFormSnapshot = null;
   let previousTaskEditorStatus = "open";
+  /** @type {ReturnType<typeof performBlockCapture> | null} */
   let activeBlockCapture = null;
 
 
