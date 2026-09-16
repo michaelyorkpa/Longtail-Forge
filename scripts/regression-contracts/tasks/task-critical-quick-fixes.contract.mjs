@@ -48,13 +48,13 @@ assert.match(tags, /input\.addEventListener\("keydown", async \(event\) => \{[\s
 
 assert.match(
   extractFunctionSpan(taskDialog, "parentTaskOptions"),
-  /taskId \|\| !requireTaskLifecycleLegality\(\)\.isTerminalStatus\(task\.status\)[\s\S]*!selectedClientId \|\| !task\.client_id \|\| task\.client_id === selectedClientId[\s\S]*selectedProjectId[\s\S]*childrenByParent[\s\S]*appendBranch[\s\S]*optionLabel/,
+  /taskId \|\| !requireTaskLifecycleLegality\(\)\.isTerminalStatus\(taskProjectionFields\(task\)\.status\)[\s\S]*!selectedClientId \|\| !taskProjectionFields\(task\)\.client_id \|\| taskProjectionFields\(task\)\.client_id === selectedClientId[\s\S]*selectedProjectId[\s\S]*childrenByParent[\s\S]*appendBranch[\s\S]*optionLabel/,
   "parent choices should preserve scope filters and render parent-before-child hierarchy labels",
 );
 const inheritance = extractFunctionSpan(taskDialog, "applySelectedParentTaskInheritance");
-assert.match(inheritance, /fields\.dueDate\.value = parentTask\.due_date[\s\S]*fields\.dueTime\.value = parentTask\.due_time[\s\S]*fields\.priority\.value/, "selecting a parent should inherit schedule and priority");
-assert.match(inheritance, /!fields\.client\.value && parentTask\.client_id[\s\S]*fields\.client\.value = parentTask\.client_id/, "selecting a parent should fill an empty client");
-assert.match(inheritance, /!fields\.project\.value && parentTask\.project_id[\s\S]*populateProjectInput\(parentTask\.project_id/, "selecting a parent should fill an empty project");
+assert.match(inheritance, /fields\.dueDate\.value = taskProjectionFields\(parentTask\)\.due_date[\s\S]*fields\.dueTime\.value = taskProjectionFields\(parentTask\)\.due_time[\s\S]*fields\.priority\.value/, "selecting a parent should inherit schedule and priority");
+assert.match(inheritance, /!fields\.client\.value && taskProjectionFields\(parentTask\)\.client_id[\s\S]*fields\.client\.value = taskProjectionFields\(parentTask\)\.client_id/, "selecting a parent should fill an empty client");
+assert.match(inheritance, /!fields\.project\.value && taskProjectionFields\(parentTask\)\.project_id[\s\S]*populateProjectInput\(taskProjectionFields\(parentTask\)\.project_id/, "selecting a parent should fill an empty project");
 
 assert.match(extractFunctionSpan(tasks, "renderTasks"), /nestedTaskDisplayRows\(tasks\)[\s\S]*taskNestingDepths\.set\(task, depth\)[\s\S]*createTaskRow\(task\)/, "the Tasks list should annotate and render its parent-before-child projection");
 assert.match(extractFunctionSpan(tasks, "nestedTaskDisplayRows"), /childrenByParentId[\s\S]*appendBranch\(child, depth \+ 1/, "nested task rows should retain descendant depth");
@@ -66,7 +66,7 @@ assert.match(extractFunctionSpan(taskDialog, "saveTaskForm"), /!wasEditing[\s\S]
 assert.match(extractFunctionSpan(taskDialog, "taskEditorModalDescriptor"), /id: "save-close", label: "Save & Close"[\s\S]*id: "save", label: "Save task"/, "the task editor should expose separate Save & Close and Save actions");
 
 assert.match(extractFunctionSpan(taskDialog, "populateFormOptions"), /option\("", workspaceProjectsLabel\(\)\)/, "Business task context should identify workspace-level projects explicitly");
-assert.match(extractFunctionSpan(taskDialog, "populateProjectInput"), /\(project\.client_id \|\| ""\) === selectedClientId/, "workspace-level context should show only projects without a client association");
+assert.match(extractFunctionSpan(taskDialog, "populateProjectInput"), /\(taskProjectionFields\(project\)\.client_id \|\| ""\) === selectedClientId/, "workspace-level context should show only projects without a client association");
 
 assert.match(extractFunctionSpan(capturePrompt, "open"), /dataset\.capturePromptInput[\s\S]*Cancel[\s\S]*Continue[\s\S]*createModalForm\([\s\S]*showModal/, "the shared capture prompt should use framework modal primitives with one input and explicit actions");
 assert.match(extractFunctionSpan(capturePrompt, "open"), /confirmed: false[\s\S]*if \(!value\)[\s\S]*reportValidity[\s\S]*confirmed: true, value/, "the shared capture prompt should only confirm a non-empty capture and should otherwise resolve as cancelled");

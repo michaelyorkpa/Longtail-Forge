@@ -175,7 +175,7 @@ check("Notes, Lists, and Files actions use module-owned canonical openers", () =
 });
 
 check("module-owned saves can signal host completion", () => {
-  assert.match(taskDialogScript, /hostContext\?\.complete/);
+  assert.match(taskDialogScript, /const host = context\?\.hostContext;[\s\S]*const callback = optionalTaskProjectionFields\(host\)\?\.complete;[\s\S]*callback !== null && callback !== undefined[\s\S]*const args = \[taskCompletionHostDetail\(result\)\];[\s\S]*typeof callback !== "function"[\s\S]*Reflect\.apply\(callback, host, args\)/);
   assert.match(timeEntryDialogScript, /hostContext\?\.complete/);
   assert.match(timeTrackingTimerDialogScript, /hostContext\?\.complete/);
   assert.match(timeTrackingTimerDialogScript, /hostContext\?\.refresh/);
