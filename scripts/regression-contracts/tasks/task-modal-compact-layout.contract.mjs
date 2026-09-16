@@ -22,7 +22,7 @@ assert.match(tasksView, /<link rel="stylesheet" href="css\/longtail-forge\.css">
 assert.match(taskDialogScript, /notificationToggle: dialog\.querySelector\("\[data-task-notification-toggle\]"\)/, "Task dialog should bind the notification bell toggle");
 assert.match(taskDialogScript, /toggleTaskNotificationFollow/, "Task dialog should follow or unfollow from the bell");
 assert.doesNotMatch(taskDialogScript, /toggleTaskNotificationPanel/, "Task dialog should not open a notification popover");
-assert.match(taskDialogScript, /icons\.decorateButton\(fields\.notificationToggle, \{ icon: "bell"/, "Notification toggle should be decorated as a bell icon button");
+assert.match(taskDialogScript, /icons\.decorateButton\(requireTaskIconButton\(fields\.notificationToggle\), \{ icon: "bell"/, "Notification toggle should be decorated as a bell icon button");
 assert.match(taskDialogScript, /function writeTaskMetadataRibbon/, "Task dialog should render the metadata ribbon from current field values");
 assert.match(taskDialogScript, /createDetailBadgeRow\(\{[\s\S]*ariaLabel:\s*"Task summary"[\s\S]*className:\s*"task-metadata-ribbon"[\s\S]*badges:\s*badges\.map\(createMetadataBadge\)/, "Task metadata ribbon should render through the framework detail badge helper");
 assert.match(taskDialogScript, /label: "TTC"/, "Completed task duration should appear as a TTC chip");

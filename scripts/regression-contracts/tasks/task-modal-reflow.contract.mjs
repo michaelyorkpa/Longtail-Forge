@@ -26,14 +26,14 @@ assert.match(tasksView, /css\/longtail-forge\.css/, "Task reflow should referenc
 assert.match(tasksView, /js\/shared\/icons\.js/, "Task reflow should reference shared icons");
 assert.match(tasksView, /js\/task-dialog\.js/, "Task reflow should reference Task dialog JS");
 
-assert.match(taskDialogScript, /fields\.taskDetailsPanel\.open = !task \|\| isDuplicate/, "Task Details should open for Add/Duplicate and collapse for Edit");
+assert.match(taskDialogScript, /writeTaskControl\(fields\.taskDetailsPanel, "open", !task \|\| isDuplicate/, "Task Details should open for Add/Duplicate and collapse for Edit");
 assert.match(taskDialogScript, /writeParentTaskFields/, "Task dialog should populate Parent Task options");
 assert.match(taskDialogScript, /readCurrentParentTaskId/, "Task dialog should read current parent relationship state");
 assert.match(taskDialogScript, /syncParentTaskRelationship/, "Task dialog should sync parent relationship on save");
 assert.match(taskDialogScript, /\/api\/tasks\/\$\{encodeURIComponent\(nextParentTaskId\)\}\/children/, "Task dialog should use the Tasks relationship API to add a parent");
 assert.match(taskDialogScript, /fields\.tagToggle\?\.addEventListener\("click", openTaskTagsDialog\)[\s\S]*fields\.fileToggle\?\.addEventListener\("click", openTaskFilesDialog\)/, "Task dialog should open Tags and Files child dialogs from footer buttons");
-assert.match(taskDialogScript, /icons\.decorateButton\(fields\.tagToggle, \{ icon: "tag"/, "Tags footer action should use a recognizable tag icon");
-assert.match(taskDialogScript, /icons\.decorateButton\(fields\.fileToggle, \{ icon: "file"/, "Files footer action should use a recognizable file icon");
+assert.match(taskDialogScript, /icons\.decorateButton\(requireTaskIconButton\(fields\.tagToggle\), \{ icon: "tag"/, "Tags footer action should use a recognizable tag icon");
+assert.match(taskDialogScript, /icons\.decorateButton\(requireTaskIconButton\(fields\.fileToggle\), \{ icon: "file"/, "Files footer action should use a recognizable file icon");
 assert.match(taskDialogScript, /function taskEditorFieldNodes\(\)/, "Task-owned editor field nodes should remain present");
 assert.doesNotMatch(taskDialogScript, /function taskEditorFieldMarkup\(\)|taskTemplateElements|document\.createElement\("template"\)|innerHTML/, "Task-owned editor fields should not use raw markup templates");
 assert.match(taskDialogScript, /data-task-details-panel/, "Task-owned editor fields should include Task Details");

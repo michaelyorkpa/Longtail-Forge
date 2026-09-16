@@ -51,11 +51,11 @@ assert.match(
 );
 
 for (const expectedCall of [
-  /icons\.decorateButton\(fields\.tagToggle, \{ icon: "tag", label: "Task tags", text: "Tags", title: "Task tags", iconOnly: false \}\)/,
-  /icons\.decorateButton\(fields\.fileToggle, \{ icon: "file", label: "Task files", text: "Files", title: "Task files", iconOnly: false \}\)/,
-  /icons\.decorateButton\(fields\.copyLink, \{ icon: "copy", label: "Copy task link", text: "Copy Link", title: "Copy task link", iconOnly: false \}\)/,
-  /icons\.decorateButton\(fields\.cancel, \{ icon: "close", label: "Cancel", text: "", title: "Cancel", iconOnly: true \}\)/,
-  /icons\.decorateButton\(fields\.save, \{ icon: "save", label: "Save task", text: "", title: "Save task", iconOnly: true \}\)/,
+  /icons\.decorateButton\(requireTaskIconButton\(fields\.tagToggle\), \{ icon: "tag", label: "Task tags", text: "Tags", title: "Task tags", iconOnly: false \}\)/,
+  /icons\.decorateButton\(requireTaskIconButton\(fields\.fileToggle\), \{ icon: "file", label: "Task files", text: "Files", title: "Task files", iconOnly: false \}\)/,
+  /icons\.decorateButton\(requireTaskIconButton\(fields\.copyLink\), \{ icon: "copy", label: "Copy task link", text: "Copy Link", title: "Copy task link", iconOnly: false \}\)/,
+  /icons\.decorateButton\(requireTaskIconButton\(fields\.cancel\), \{ icon: "close", label: "Cancel", text: "", title: "Cancel", iconOnly: true \}\)/,
+  /icons\.decorateButton\(requireTaskIconButton\(fields\.save\), \{ icon: "save", label: "Save task", text: "", title: "Save task", iconOnly: true \}\)/,
 ]) {
   assert.match(taskDialogScript, expectedCall, "task footer controls should keep visible utility labels and compact commit labels");
 }
