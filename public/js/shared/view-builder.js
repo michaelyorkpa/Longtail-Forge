@@ -68,16 +68,29 @@
   }
 
   /**
-   * The element factory, **left untyped by `0.33.33.39.12` and blocked on a recorded decision.**
+   * The element factory.
    *
-   * Its published member is overloaded exactly as `document.createElement` is, which is what the
-   * body does, and declaring that here closes nine diagnostics rather than adding eight - but it
-   * also gives every `create*` member below a real return type, and one of them then contradicts
-   * its own published contract. `createModal` attaches `viewParts.footer = null` whenever a modal
-   * carries neither actions nor a footer, while `BrowserViewModalParts.footer` is declared
-   * non-nullable. Nothing crashes today, because every unguarded consumer passes actions; the
-   * declaration is simply not true of the writer. **Correcting it is a shared-contract change
-   * reaching three other lanes' files, so it is escalated rather than taken here.**
+   * Overloaded exactly as its published member is, and for the reason the contract already gives:
+   * the body is `document.createElement(tagName)`, so a known tag name really does produce its
+   * own subtype. A flat `HTMLElement` here would be **weaker than the runtime** and would hide
+   * `.value`, `.selected` and `.checked` from this file's own callers - it also costs eight
+   * diagnostics rather than closing nine.
+   * @template {keyof HTMLElementTagNameMap} TagName
+   * @overload
+   * @param {TagName} tagName
+   * @param {BrowserViewElementOptions} [options]
+   * @returns {HTMLElementTagNameMap[TagName]}
+   */
+  /**
+   * @overload
+   * @param {string} tagName
+   * @param {BrowserViewElementOptions} [options]
+   * @returns {HTMLElement}
+   */
+  /**
+   * @param {string} tagName
+   * @param {BrowserViewElementOptions} [options]
+   * @returns {HTMLElement}
    */
   function createElement(tagName, options = {}) {
     const element = document.createElement(tagName);
@@ -2021,8 +2034,17 @@
   }
 
   /**
-   * @param {Element} element
-   * @param {Record<string, unknown>} parts
+   * Attach a frozen, non-enumerable `viewParts` record.
+   *
+   * Declared as an assertion because that is exactly what the body does: after this call the
+   * element carries the record, and every `create*` member below returns the element it just
+   * passed. Without it the compiler cannot see a property installed by `Object.defineProperty`,
+   * and each of those members looks like it returns a bare element. **No behaviour changes.**
+   * @template {Element} Target
+   * @template {Record<string, unknown>} Parts
+   * @param {Target} element
+   * @param {Parts} parts
+   * @returns {asserts element is Target & { readonly viewParts: Parts }}
    */
   function assignViewParts(element, parts) {
     Object.defineProperty(element, "viewParts", {
