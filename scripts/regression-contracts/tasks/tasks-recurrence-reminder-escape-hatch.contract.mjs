@@ -36,17 +36,17 @@ assert.match(
 );
 assert.match(
   taskDialogScript,
-  /function saveRecurrenceDraft\(event\)[\s\S]*event\.preventDefault\(\);[\s\S]*frequency: requireTaskControl\(requireTaskControl\(fields\.recurrence\)\.frequency\)\.value \|\| "WEEKLY"[\s\S]*interval: readPositiveInteger\(requireTaskControl\(fields\.recurrence\)\.interval, 1\)[\s\S]*endDate: requireTaskControl\(requireTaskControl\(fields\.recurrence\)\.endDate\)\.value \|\| ""[\s\S]*updateRecurrenceState\(\);[\s\S]*closeTaskModal\(recurrenceDialog, "saved"\)/,
+  /function saveRecurrenceDraft\(event\)[\s\S]*event\.preventDefault\(\);[\s\S]*frequency: taskProjectionFields\(requireTaskControl\(requireTaskControl\(fields\.recurrence\)\.frequency\)\)\.value \|\| "WEEKLY"[\s\S]*interval: readPositiveInteger\(requireTaskControl\(fields\.recurrence\)\.interval, 1\)[\s\S]*endDate: taskProjectionFields\(requireTaskControl\(requireTaskControl\(fields\.recurrence\)\.endDate\)\)\.value \|\| ""[\s\S]*updateRecurrenceState\(\);[\s\S]*closeTaskModal\(recurrenceDialog, "saved"\)/,
   "Saving recurrence should preserve the existing task-owned draft semantics and close through the modal stack helper.",
 );
 assert.match(
   taskDialogScript,
-  /function updateRecurrenceState\(\)[\s\S]*fields\.recurrenceDetails\.disabled = !fields\.recurring\.checked;[\s\S]*writeTaskControl\(fields\.recurrenceSummary, "textContent", fields\.recurring\.checked[\s\S]*formatRecurrenceSummary\(recurrenceDraft\)[\s\S]*"Not recurring\."/,
+  /function updateRecurrenceState\(\)[\s\S]*writeTaskControl\(fields\.recurrenceDetails, "disabled", !taskProjectionFields\(fields\.recurring\)\.checked\);[\s\S]*writeTaskControl\(fields\.recurrenceSummary, "textContent", taskProjectionFields\(fields\.recurring\)\.checked[\s\S]*formatRecurrenceSummary\(recurrenceDraft\)[\s\S]*"Not recurring\."/,
   "Recurrence summary and details-button enablement should still be task-owned.",
 );
 assert.match(
   taskDialogScript,
-  /function readRecurrencePayload\(\)[\s\S]*enabled: Boolean\(requireTaskControl\(fields\.recurring\)\.checked\)[\s\S]*applyTo: "instance"[\s\S]*frequency: recurrenceDraft\.frequency \|\| "WEEKLY"[\s\S]*interval: recurrenceDraft\.interval \|\| 1[\s\S]*endDate: recurrenceDraft\.endDate \|\| ""/,
+  /function readRecurrencePayload\(\)[\s\S]*enabled: Boolean\(taskProjectionFields\(requireTaskControl\(fields\.recurring\)\)\.checked\)[\s\S]*applyTo: "instance"[\s\S]*frequency: recurrenceDraft\.frequency \|\| "WEEKLY"[\s\S]*interval: recurrenceDraft\.interval \|\| 1[\s\S]*endDate: recurrenceDraft\.endDate \|\| ""/,
   "Task save payload should continue to include the recurrence payload shape expected by the Tasks service.",
 );
 
@@ -57,17 +57,17 @@ assert.match(
 );
 assert.match(
   taskDialogScript,
-  /function updateReminderOverrideState\(\)[\s\S]*writeTaskControl\(fields\.reminderOverrideFields, "hidden", !requireTaskControl\(fields\.reminderOverride\)\.checked\);/,
+  /function updateReminderOverrideState\(\)[\s\S]*writeTaskControl\(fields\.reminderOverrideFields, "hidden", !taskProjectionFields\(requireTaskControl\(fields\.reminderOverride\)\)\.checked\);/,
   "Reminder override controls should remain task-owned inline behavior.",
 );
 assert.match(
   taskDialogScript,
-  /function readTaskFormPayload\(\)[\s\S]*recurrence: readRecurrencePayload\(\)[\s\S]*reminderOverrideEnabled: requireTaskControl\(fields\.reminderOverride\)\.checked[\s\S]*reminderPolicy: readReminderPolicy\(\)/,
+  /function readTaskFormPayload\(\)[\s\S]*recurrence: readRecurrencePayload\(\)[\s\S]*reminderOverrideEnabled: taskProjectionFields\(requireTaskControl\(fields\.reminderOverride\)\)\.checked[\s\S]*reminderPolicy: readReminderPolicy\(\)/,
   "Task save payload should continue to submit recurrence and reminder override data.",
 );
 assert.match(
   taskDialogScript,
-  /function readReminderPolicy\(\)[\s\S]*reminderDateTimeHours2Enabled\)\.checked[\s\S]*reminderDateTimeHours2[\s\S]*reminderDateOnlyDays2Enabled\)\.checked[\s\S]*reminderDateOnlyDays2/,
+  /function readReminderPolicy\(\)[\s\S]*reminderDateTimeHours2Enabled\)\)\.checked[\s\S]*reminderDateTimeHours2[\s\S]*reminderDateOnlyDays2Enabled\)\)\.checked[\s\S]*reminderDateOnlyDays2/,
   "Disabled secondary reminders should be omitted independently from the Tasks-owned reminder policy payload.",
 );
 assert.match(

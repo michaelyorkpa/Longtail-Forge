@@ -102,9 +102,13 @@
     Reflect.set(requireTaskControl(control), member, value);
   }
 
-  /** @param {HTMLButtonElement | null | undefined} control */
+  /** @param {Element | null | undefined} control @returns {HTMLButtonElement} */
   function requireTaskIconButton(control) {
-    if (control === null || control === undefined) {
+    /** @param {Element | null | undefined} value @returns {value is HTMLButtonElement} */
+    function isButton(value) {
+      return Boolean(value && value.nodeType === 1 && String(value.tagName || "").toLowerCase() === "button");
+    }
+    if (!isButton(control)) {
       throw new Error("decorateButton requires a button element.");
     }
     return control;
@@ -168,6 +172,7 @@
   let notesPanelController = null;
   /** @type {import("../../src/types/browser-contracts.js").BrowserTagPickerController | null} */
   let tagPicker = null;
+  /** @type {{enabled: unknown, frequency: unknown, interval: number, endDate: unknown}} */
   let recurrenceDraft = defaultRecurrenceDraft();
   /** @type {ReturnType<import("../../src/types/browser-contracts.js").BrowserTaskRecords["readTaskTimers"]>} */
   let taskTimers = [];
@@ -246,6 +251,7 @@
   /** @type {TaskDialogRecord | null} */
   let currentTask = null;
   let currentTaskId = "";
+  /** @type {unknown} The parent selector may be supplied by a host. */
   let currentParentTaskId = "";
   /** @type {Element | null} */
   let dialog = null;
@@ -258,71 +264,71 @@
   /** @type {Element | null} */
   let form = null;
   /**
-   * Handle subtypes follow local markup; acquisition retains missing optional matches.
+   * Capture HTML handles without claiming control subtypes; optional matches stay nullable.
    * @typedef {Object} TaskDialogFields
-   * @property {HTMLSelectElement | null} [assignees]
-   * @property {HTMLButtonElement | null} [block]
-   * @property {HTMLButtonElement | null} [cancel]
-   * @property {HTMLSelectElement | null} [client]
-   * @property {HTMLButtonElement | null} [checklistAdd]
-   * @property {HTMLDetailsElement | null} [checklistField]
-   * @property {HTMLInputElement | null} [checklistInput]
+   * @property {HTMLElement | null} [assignees]
+   * @property {HTMLElement | null} [block]
+   * @property {HTMLElement | null} [cancel]
+   * @property {HTMLElement | null} [client]
+   * @property {HTMLElement | null} [checklistAdd]
+   * @property {HTMLElement | null} [checklistField]
+   * @property {HTMLElement | null} [checklistInput]
    * @property {HTMLElement | null} [checklistList]
    * @property {HTMLElement | null} [checklistStatus]
-   * @property {HTMLButtonElement | null} [complete]
-   * @property {HTMLButtonElement | null} [copyLink]
-   * @property {HTMLTextAreaElement | null} [description]
-   * @property {HTMLInputElement | null} [dueDate]
-   * @property {HTMLInputElement | null} [dueTime]
-   * @property {HTMLInputElement | null} [estimate]
+   * @property {HTMLElement | null} [complete]
+   * @property {HTMLElement | null} [copyLink]
+   * @property {HTMLElement | null} [description]
+   * @property {HTMLElement | null} [dueDate]
+   * @property {HTMLElement | null} [dueTime]
+   * @property {HTMLElement | null} [estimate]
    * @property {HTMLElement | null} [effectiveReminders]
    * @property {HTMLElement | null} [fileContainer]
    * @property {HTMLElement | null} [fileDialogClose]
-   * @property {HTMLButtonElement | null} [fileToggle]
+   * @property {HTMLElement | null} [fileToggle]
    * @property {HTMLElement | null} [notesContainer]
-   * @property {HTMLDetailsElement | null} [notesPanel]
-   * @property {HTMLSelectElement | null} [priority]
-   * @property {HTMLSelectElement | null} [project]
-   * @property {HTMLSelectElement | null} [parentTask]
-   * @property {HTMLButtonElement | null} [recurrenceDetails]
+   * @property {HTMLElement | null} [notesPanel]
+   * @property {HTMLElement | null} [priority]
+   * @property {HTMLElement | null} [project]
+   * @property {HTMLElement | null} [parentTask]
+   * @property {HTMLElement | null} [recurrenceDetails]
    * @property {HTMLElement | null} [recurrenceContinuity]
-   * @property {HTMLButtonElement | null} [recurrenceSkipCurrent]
+   * @property {HTMLElement | null} [recurrenceSkipCurrent]
    * @property {HTMLElement | null} [recurrenceField]
    * @property {HTMLElement | null} [recurrenceSummary]
-   * @property {HTMLInputElement | null} [recurring]
-   * @property {HTMLInputElement | null} [reminderDateOnlyDays1]
-   * @property {HTMLInputElement | null} [reminderDateOnlyDays2]
-   * @property {HTMLInputElement | null} [reminderDateOnlyDays2Enabled]
-   * @property {HTMLInputElement | null} [reminderDateTimeHours1]
-   * @property {HTMLInputElement | null} [reminderDateTimeHours2]
-   * @property {HTMLInputElement | null} [reminderDateTimeHours2Enabled]
-   * @property {HTMLInputElement | null} [reminderOverride]
+   * @property {HTMLElement | null} [recurring]
+   * @property {HTMLElement | null} [reminderDateOnlyDays1]
+   * @property {HTMLElement | null} [reminderDateOnlyDays2]
+   * @property {HTMLElement | null} [reminderDateOnlyDays2Enabled]
+   * @property {HTMLElement | null} [reminderDateTimeHours1]
+   * @property {HTMLElement | null} [reminderDateTimeHours2]
+   * @property {HTMLElement | null} [reminderDateTimeHours2Enabled]
+   * @property {HTMLElement | null} [reminderOverride]
    * @property {HTMLElement | null} [reminderOverrideFields]
-   * @property {HTMLSelectElement | null} [status]
+   * @property {HTMLElement | null} [status]
    * @property {HTMLElement | null} [tagContainer]
    * @property {HTMLElement | null} [tagDialogClose]
-   * @property {HTMLButtonElement | null} [tagToggle]
-   * @property {HTMLDetailsElement | null} [taskDetailsPanel]
-   * @property {HTMLButtonElement | null} [notificationToggle]
-   * @property {HTMLTextAreaElement | null} [blockedReason]
+   * @property {HTMLElement | null} [tagToggle]
+   * @property {HTMLElement | null} [taskDetailsPanel]
+   * @property {HTMLElement | null} [notificationToggle]
+   * @property {HTMLElement | null} [blockedReason]
    * @property {HTMLElement | null} [blockedReasonField]
    * @property {HTMLElement | null} [continuityRow]
    * @property {HTMLElement | null} [metadataRibbon]
-   * @property {HTMLTextAreaElement | null} [nextAction]
-   * @property {HTMLTextAreaElement | null} [resumeNote]
-   * @property {HTMLButtonElement | null} [save]
-   * @property {HTMLButtonElement | null} [saveClose]
+   * @property {HTMLElement | null} [nextAction]
+   * @property {HTMLElement | null} [resumeNote]
+   * @property {HTMLElement | null} [save]
+   * @property {HTMLElement | null} [saveClose]
    * @property {HTMLElement | null} [timerDisplay]
    * @property {HTMLElement | null} [timerField]
-   * @property {HTMLButtonElement | null} [timerFinalize]
-   * @property {HTMLButtonElement | null} [timerPause]
-   * @property {HTMLButtonElement | null} [timerReset]
-   * @property {HTMLButtonElement | null} [timerStart]
+   * @property {HTMLElement | null} [timerFinalize]
+   * @property {HTMLElement | null} [timerPause]
+   * @property {HTMLElement | null} [timerReset]
+   * @property {HTMLElement | null} [timerStart]
    * @property {HTMLElement | null} [timerStatus]
    * @property {HTMLElement | null} [title]
-   * @property {HTMLInputElement | null} [titleInput]
-   * @property {HTMLButtonElement | null} [workbenchOpen]
-   * @property {{cancel: HTMLElement | null, endDate: HTMLInputElement | null, form: HTMLElement | null, frequency: HTMLSelectElement | null, interval: HTMLInputElement | null}} [recurrence]
+   * @property {HTMLElement | null} [titleInput]
+   * @property {HTMLElement | null} [workbenchOpen]
+   * @property {{cancel: HTMLElement | null, endDate: HTMLElement | null, form: HTMLElement | null, frequency: HTMLElement | null, interval: HTMLElement | null}} [recurrence]
    */
   /** @type {TaskDialogFields} */
   let fields = {};
@@ -331,6 +337,7 @@
   let currentTaskEditorRequest = null;
   /** @type {ReturnType<typeof taskFormSnapshot> | null} */
   let initialTaskFormSnapshot = null;
+  /** @type {unknown} Preserve the host control value until the consuming comparison or write. */
   let previousTaskEditorStatus = "open";
   /** @type {ReturnType<typeof performBlockCapture> | null} */
   let activeBlockCapture = null;
@@ -648,7 +655,7 @@
     writeTaskControl(fields.workbenchOpen, "hidden", !currentTaskId);
     writeTaskControl(fields.titleInput, "value", isDuplicate && task?.title ? `Copy of ${task.title}` : task?.title || defaults.title || "");
     writeTaskControl(fields.status, "value", isDuplicate ? "open" : statusDefault || task?.status || "open");
-    previousTaskEditorStatus = isDuplicate ? "open" : task?.status || requireTaskControl(fields.status).value || "open";
+    previousTaskEditorStatus = isDuplicate ? "open" : task?.status || taskProjectionFields(requireTaskControl(fields.status)).value || "open";
     writeTaskControl(fields.priority, "value", task?.priority || priorityDefault || "normal");
     writeTaskControl(fields.estimate, "value", task?.estimate_minutes ?? defaults.estimateMinutes ?? defaults.estimate_minutes ?? "");
     const selectedClientId = task ? task.client_id || "" : defaults.clientId || defaults.client_id || "";
@@ -832,7 +839,7 @@
     });
     fields.copyLink?.addEventListener("click", copyCurrentTaskLink);
     fields.client?.addEventListener("change", () => {
-      populateProjectInput(requireTaskControl(fields.project).value);
+      populateProjectInput(taskProjectionFields(requireTaskControl(fields.project)).value);
       refreshParentTaskOptions();
     });
     fields.project?.addEventListener("change", () => {
@@ -952,7 +959,7 @@
         ])),
       ]
       : [option("", "No client")]);
-    populateProjectInput(fields.project?.value || "");
+    populateProjectInput(optionalTaskProjectionFields(fields.project)?.value || "");
     replaceOptions(
       fields.assignees,
       callTaskContextCollection(options.users || [], "map", [
@@ -963,7 +970,7 @@
 
   /** @param {unknown} [selectedProjectId] @param {unknown} [sourceTask] */
   function populateProjectInput(selectedProjectId = "", sourceTask = currentTask, { allowFallback = false } = {}) {
-    const selectedClientId = usesClientScope() ? fields.client?.value || "" : "";
+    const selectedClientId = usesClientScope() ? optionalTaskProjectionFields(fields.client)?.value || "" : "";
     const projects = callTaskContextCollection(optionalTaskProjectionFields(context?.options)?.projects || [], "filter", [
       (/** @type {unknown} */ project) => !usesClientScope() || (taskProjectionFields(project).client_id || "") === selectedClientId,
     ]);
@@ -982,7 +989,7 @@
 
     replaceOptions(fields.project, projectOptions);
 
-    if (optionListHasValue([...requireTaskControl(fields.project).options], selectedProjectId)) {
+    if (optionListHasValue([...taskContextOptionItems(taskProjectionFields(requireTaskControl(fields.project)).options)], selectedProjectId)) {
       writeTaskControl(fields.project, "value", selectedProjectId);
     }
     writeTaskMetadataRibbon();
@@ -990,7 +997,7 @@
 
   /** @param {unknown} [selectedClientId] @param {unknown} [sourceTask] */
   function ensureClientOption(selectedClientId = "", sourceTask = currentTask) {
-    if (!fields.client || !usesClientScope() || !selectedClientId || optionListHasValue([...fields.client.options], selectedClientId)) {
+    if (!fields.client || !usesClientScope() || !selectedClientId || optionListHasValue([...taskContextOptionItems(taskProjectionFields(fields.client).options)], selectedClientId)) {
       return;
     }
 
@@ -1005,30 +1012,31 @@
       return;
     }
 
-    if (!fields.project?.value) {
+    if (!optionalTaskProjectionFields(fields.project)?.value) {
       writeTaskMetadataRibbon();
       return;
     }
 
-    const project = findProjectOption(fields.project.value);
+    const project = findProjectOption(taskProjectionFields(fields.project).value);
     if (!project) {
       writeTaskMetadataRibbon();
       return;
     }
 
     const derivedClientId = taskProjectionFields(project).client_id || "";
-    if (fields.client.value !== derivedClientId) {
+    if (taskProjectionFields(fields.client).value !== derivedClientId) {
       ensureClientOption(derivedClientId, {
         client_id: derivedClientId,
         client_name: taskProjectionFields(project).client_name || taskProjectionFields(project).clientName || "",
       });
       writeTaskControl(fields.client, "value", derivedClientId);
-      populateProjectInput(fields.project.value);
+      populateProjectInput(taskProjectionFields(fields.project).value);
     } else {
       writeTaskMetadataRibbon();
     }
   }
 
+  /** @param {unknown} [projectId] */
   function findProjectOption(projectId = "") {
     return callTaskContextCollection(optionalTaskProjectionFields(context?.options)?.projects || [], "find", [
       (/** @type {unknown} */ project) => taskProjectionFields(project).id === projectId,
@@ -1049,7 +1057,7 @@
     }
 
     const project = callTaskContextCollection(optionalTaskProjectionFields(context?.options)?.projects || [], "find", [
-      (/** @type {unknown} */ item) => taskProjectionFields(item).id === fields.project?.value,
+      (/** @type {unknown} */ item) => taskProjectionFields(item).id === optionalTaskProjectionFields(fields.project)?.value,
     ]);
     const defaults = taskProjectionFields(optionalTaskProjectionFields(project)?.taskDefaults || {});
 
@@ -1194,7 +1202,7 @@
     }
 
     if (fields.complete) {
-      fields.complete.disabled = true;
+      writeTaskControl(fields.complete, "disabled", true);
     }
 
     try {
@@ -1277,9 +1285,9 @@
       option("", "No parent task"),
       ...parentTaskOptions(task?.task_id || "").map((candidate) => option(candidate.task_id, candidate.optionLabel || candidate.title)),
     ]);
-    fields.parentTask.value = [...fields.parentTask.options].some((item) => item.value === currentParentTaskId)
+    writeTaskControl(fields.parentTask, "value", [...taskContextOptionItems(taskProjectionFields(fields.parentTask).options)].some((item) => taskProjectionFields(item).value === currentParentTaskId)
       ? currentParentTaskId
-      : "";
+      : "");
   }
 
   function refreshParentTaskOptions() {
@@ -1287,14 +1295,14 @@
       return;
     }
 
-    const previousValue = fields.parentTask.value;
+    const previousValue = taskProjectionFields(fields.parentTask).value;
     replaceOptions(fields.parentTask, [
       option("", "No parent task"),
       ...parentTaskOptions(currentTaskId).map((candidate) => option(candidate.task_id, candidate.optionLabel || candidate.title)),
     ]);
-    fields.parentTask.value = [...fields.parentTask.options].some((item) => item.value === previousValue)
+    writeTaskControl(fields.parentTask, "value", [...taskContextOptionItems(taskProjectionFields(fields.parentTask).options)].some((item) => taskProjectionFields(item).value === previousValue)
       ? previousValue
-      : "";
+      : "");
   }
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRelationship} BrowserTaskRelationship */
@@ -1412,8 +1420,8 @@
 
   /** @param {unknown} taskId */
   function parentTaskOptions(taskId) {
-    const selectedClientId = fields.client?.value === "all" ? "" : fields.client?.value || "";
-    const selectedProjectId = fields.project?.value || "";
+    const selectedClientId = optionalTaskProjectionFields(fields.client)?.value === "all" ? "" : optionalTaskProjectionFields(fields.client)?.value || "";
+    const selectedProjectId = optionalTaskProjectionFields(fields.project)?.value || "";
 
     let candidates = callTaskContextCollection(context?.tasks || [], "filter", [
       (/** @type {unknown} */ task) => optionalTaskProjectionFields(task)?.task_id && taskProjectionFields(task).task_id !== taskId,
@@ -1469,7 +1477,7 @@
   }
 
   function applySelectedParentTaskInheritance() {
-    const parentTaskId = fields.parentTask?.value || "";
+    const parentTaskId = optionalTaskProjectionFields(fields.parentTask)?.value || "";
     const parentTask = callTaskContextCollection(context?.tasks || [], "find", [
       (/** @type {unknown} */ task) => taskProjectionFields(task).task_id === parentTaskId,
     ]);
@@ -1484,13 +1492,13 @@
     const priorities = taskDefaultPriorities();
     writeTaskControl(fields.priority, "value", priorities.includes(taskProjectionFields(parentTask).priority) ? taskProjectionFields(parentTask).priority : "normal");
 
-    if (usesClientScope() && !requireTaskControl(fields.client).value && taskProjectionFields(parentTask).client_id) {
+    if (usesClientScope() && !taskProjectionFields(requireTaskControl(fields.client)).value && taskProjectionFields(parentTask).client_id) {
       ensureClientOption(taskProjectionFields(parentTask).client_id, parentTask);
       writeTaskControl(fields.client, "value", taskProjectionFields(parentTask).client_id);
-      populateProjectInput(requireTaskControl(fields.project).value);
+      populateProjectInput(taskProjectionFields(requireTaskControl(fields.project)).value);
     }
 
-    if (!requireTaskControl(fields.project).value && taskProjectionFields(parentTask).project_id) {
+    if (!taskProjectionFields(requireTaskControl(fields.project)).value && taskProjectionFields(parentTask).project_id) {
       populateProjectInput(taskProjectionFields(parentTask).project_id, parentTask, { allowFallback: true });
       syncClientFromSelectedProject();
     } else {
@@ -1504,18 +1512,18 @@
       return;
     }
 
-    const nextParentTaskId = fields.parentTask.value || "";
+    const nextParentTaskId = taskProjectionFields(fields.parentTask).value || "";
 
     if (nextParentTaskId === currentParentTaskId) {
       return;
     }
 
     if (currentParentTaskId) {
-      await api.deleteJson(`/api/tasks/${encodeURIComponent(currentParentTaskId)}/children/${encodeURIComponent(taskId)}`);
+      await api.deleteJson(`/api/tasks/${encodeURIComponent(`${currentParentTaskId}`)}/children/${encodeURIComponent(taskId)}`);
     }
 
     if (nextParentTaskId) {
-      await api.postJson(`/api/tasks/${encodeURIComponent(nextParentTaskId)}/children`, {
+      await api.postJson(`/api/tasks/${encodeURIComponent(`${nextParentTaskId}`)}/children`, {
         child_task_id: taskId,
         is_blocking: false,
       });
@@ -1526,21 +1534,21 @@
 
   function readTaskFormPayload() {
     return {
-      title: requireTaskControl(fields.titleInput).value,
-      status: requireTaskControl(fields.status).value,
-      priority: requireTaskControl(fields.priority).value,
-      estimate_minutes: requireTaskControl(fields.estimate).value === "" ? null : Number(requireTaskControl(fields.estimate).value),
-      client_id: usesClientScope() ? requireTaskControl(fields.client).value : "",
-      project_id: requireTaskControl(fields.project).value,
-      due_date: requireTaskControl(fields.dueDate).value,
-      due_time: requireTaskControl(fields.dueTime).value,
-      next_action: requireTaskControl(fields.nextAction).value,
-      blocked_reason: requireTaskControl(fields.blockedReason).value,
-      resume_note: requireTaskControl(fields.resumeNote).value,
-      description: requireTaskControl(fields.description).value,
-      assignee_ids: [...requireTaskControl(fields.assignees).selectedOptions].map((selected) => selected.value),
+      title: taskProjectionFields(requireTaskControl(fields.titleInput)).value,
+      status: taskProjectionFields(requireTaskControl(fields.status)).value,
+      priority: taskProjectionFields(requireTaskControl(fields.priority)).value,
+      estimate_minutes: taskProjectionFields(requireTaskControl(fields.estimate)).value === "" ? null : Number(taskProjectionFields(requireTaskControl(fields.estimate)).value),
+      client_id: usesClientScope() ? taskProjectionFields(requireTaskControl(fields.client)).value : "",
+      project_id: taskProjectionFields(requireTaskControl(fields.project)).value,
+      due_date: taskProjectionFields(requireTaskControl(fields.dueDate)).value,
+      due_time: taskProjectionFields(requireTaskControl(fields.dueTime)).value,
+      next_action: taskProjectionFields(requireTaskControl(fields.nextAction)).value,
+      blocked_reason: taskProjectionFields(requireTaskControl(fields.blockedReason)).value,
+      resume_note: taskProjectionFields(requireTaskControl(fields.resumeNote)).value,
+      description: taskProjectionFields(requireTaskControl(fields.description)).value,
+      assignee_ids: [...taskContextOptionItems(taskProjectionFields(requireTaskControl(fields.assignees)).selectedOptions)].map((selected) => taskProjectionFields(selected).value),
       recurrence: readRecurrencePayload(),
-      reminderOverrideEnabled: requireTaskControl(fields.reminderOverride).checked,
+      reminderOverrideEnabled: taskProjectionFields(requireTaskControl(fields.reminderOverride)).checked,
       reminderPolicy: readReminderPolicy(),
       tagIds: readTaskTagIds(),
     };
@@ -1567,7 +1575,7 @@
     const normalized = {
       ...payload,
       assignee_ids: [...(payload.assignee_ids || [])].sort(),
-      parent_task_id: fields.parentTask?.value || "",
+      parent_task_id: optionalTaskProjectionFields(fields.parentTask)?.value || "",
       recurrence: {
         enabled: recurrence.enabled === true,
         endDate: recurrence.endDate || "",
@@ -1639,10 +1647,10 @@
       acceptedCategories: ["document", "image", "pdf", "text", "other"],
       canRemove: Boolean(task?.task_id),
       canUpload: Boolean(task?.task_id),
-      clientId: task?.client_id || fields.client?.value || "",
+      clientId: task?.client_id || optionalTaskProjectionFields(fields.client)?.value || "",
       emptyMessage: "No files attached to this task.",
       moduleId: "tasks",
-      projectId: task?.project_id || fields.project?.value || "",
+      projectId: task?.project_id || optionalTaskProjectionFields(fields.project)?.value || "",
       saveFirstMessage: "Save the task before adding files.",
       targetId: task?.task_id || "",
       targetType: "task",
@@ -1689,13 +1697,13 @@
 
     if (fields.notesPanel) {
       fields.notesPanel.hidden = false;
-      fields.notesPanel.open = options.focus === true;
+      writeTaskControl(fields.notesPanel, "open", options.focus === true);
     }
 
     notesPanelController = namespace.notesLinkedPanel.mount(fields.notesContainer, {
-      clientId: task?.client_id || fields.client?.value || "",
+      clientId: task?.client_id || optionalTaskProjectionFields(fields.client)?.value || "",
       moduleId: "tasks",
-      projectId: task?.project_id || fields.project?.value || "",
+      projectId: task?.project_id || optionalTaskProjectionFields(fields.project)?.value || "",
       readonly: task?.status === "archived",
       saveFirstMessage: "Save the task before adding notes.",
       targetId: task?.task_id || "",
@@ -1721,13 +1729,13 @@
     const canToggleNotifications = Boolean(taskId && namespace.notificationSubscriptions);
     writeNotificationFollowState(false);
     fields.notificationToggle.hidden = !canToggleNotifications;
-    fields.notificationToggle.disabled = !canToggleNotifications;
+    writeTaskControl(fields.notificationToggle, "disabled", !canToggleNotifications);
 
     if (!namespace.notificationSubscriptions || !canToggleNotifications) {
       return;
     }
 
-    fields.notificationToggle.disabled = true;
+    writeTaskControl(fields.notificationToggle, "disabled", true);
     fields.notificationToggle.title = "Checking notification follow state";
     fields.notificationToggle.setAttribute("aria-label", "Checking notification follow state");
 
@@ -1735,7 +1743,7 @@
       const result = await namespace.notificationSubscriptions.readStatus(namespace.notificationSubscriptions.taskTarget(taskId));
       writeNotificationFollowState(result.isFollowing === true);
     } catch {
-      fields.notificationToggle.disabled = true;
+      writeTaskControl(fields.notificationToggle, "disabled", true);
       fields.notificationToggle.title = "Notification follow state unavailable";
       fields.notificationToggle.setAttribute("aria-label", "Notification follow state unavailable");
     }
@@ -1803,7 +1811,7 @@
     }
 
     const isFollowing = fields.notificationToggle.dataset.isFollowing === "true";
-    fields.notificationToggle.disabled = true;
+    writeTaskControl(fields.notificationToggle, "disabled", true);
     fields.notificationToggle.title = isFollowing ? "Unfollowing task notifications" : "Following task notifications";
     fields.notificationToggle.setAttribute("aria-label", isFollowing ? "Unfollowing task notifications" : "Following task notifications");
     setStatus(isFollowing ? "Unfollowing task notifications..." : "Following task notifications...");
@@ -1830,7 +1838,7 @@
     const label = isFollowing ? "Unfollow task notifications" : "Follow task notifications";
     fields.notificationToggle.dataset.isFollowing = String(isFollowing);
     fields.notificationToggle.classList.toggle("is-following", isFollowing);
-    fields.notificationToggle.disabled = false;
+    writeTaskControl(fields.notificationToggle, "disabled", false);
     fields.notificationToggle.title = label;
     fields.notificationToggle.setAttribute("aria-label", label);
     fields.notificationToggle.setAttribute("aria-pressed", String(isFollowing));
@@ -1982,8 +1990,8 @@
       return;
     }
 
-    if ([...fields.status.options].some((item) => item.value === task.status)) {
-      fields.status.value = task.status;
+    if ([...taskContextOptionItems(taskProjectionFields(fields.status).options)].some((item) => taskProjectionFields(item).value === task.status)) {
+      writeTaskControl(fields.status, "value", task.status);
       previousTaskEditorStatus = task.status;
     }
     updateCompleteTaskActionState();
@@ -1999,7 +2007,7 @@
         if (updatedTask?.task_id === currentTask?.task_id) {
           applyTaskTimerMutationResult({ task: updatedTask }, currentTask);
           if (fields.resumeNote) {
-            fields.resumeNote.value = updatedTask.resume_note || "";
+            writeTaskControl(fields.resumeNote, "value", updatedTask.resume_note || "");
           }
         }
       },
@@ -2025,7 +2033,7 @@
 
     const visible = canCompleteCurrentTask();
     fields.complete.hidden = !visible;
-    fields.complete.disabled = !visible;
+    writeTaskControl(fields.complete, "disabled", !visible);
   }
 
   function updateBlockTaskActionState() {
@@ -2033,14 +2041,14 @@
       return;
     }
 
-    const status = fields.status?.value || currentTask?.status || "";
+    const status = optionalTaskProjectionFields(fields.status)?.value || currentTask?.status || "";
     const isBlocked = status === "blocked";
     const visible = Boolean(
       currentTaskId &&
       !requireTaskLifecycleLegality().isTerminalStatus(status),
     );
     const label = isBlocked ? "Resume task" : "Block task";
-    namespace.icons?.decorateButton?.(fields.block, {
+    namespace.icons?.decorateButton?.(requireTaskIconButton(fields.block), {
       icon: isBlocked ? "start" : "pause",
       iconOnly: true,
       label,
@@ -2049,11 +2057,11 @@
     });
     fields.block.dataset.taskBlockMode = isBlocked ? "resume" : "block";
     fields.block.hidden = !visible;
-    fields.block.disabled = !visible;
+    writeTaskControl(fields.block, "disabled", !visible);
   }
 
   function canCompleteCurrentTask() {
-    const status = fields.status?.value || currentTask?.status || "";
+    const status = optionalTaskProjectionFields(fields.status)?.value || currentTask?.status || "";
     return Boolean(
       currentTaskId &&
       requireTaskLifecycleLegality().canCompleteStatus(status),
@@ -2129,7 +2137,7 @@
       return;
     }
 
-    const label = fields.checklistInput.value.trim();
+    const label = callTaskContextCollection(taskProjectionFields(fields.checklistInput).value, "trim", []);
     if (!label) {
       fields.checklistInput.focus();
       return;
@@ -2140,7 +2148,7 @@
     try {
       const result = await api.postJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist`, { label });
       applyChecklistResult(result);
-      fields.checklistInput.value = "";
+      writeTaskControl(fields.checklistInput, "value", "");
       setStatus("");
     } catch (error) {
       setStatus(requireErrors().caughtMessage(error, "Checklist item was not added."), { isError: true });
@@ -2434,8 +2442,9 @@
   function selectAssignees(assigneeIds) {
     const selectedIds = new Set(assigneeIds);
 
-    [...requireTaskControl(fields.assignees).options].forEach((item) => {
-      item.selected = selectedIds.has(item.value);
+    [...taskContextOptionItems(taskProjectionFields(requireTaskControl(fields.assignees)).options)].forEach((item) => {
+      const option = taskProjectionFields(item);
+      option.selected = selectedIds.has(option.value);
     });
   }
 
@@ -2450,10 +2459,10 @@
   function saveRecurrenceDraft(event) {
     event.preventDefault();
     recurrenceDraft = {
-      enabled: requireTaskControl(fields.recurring).checked,
-      frequency: requireTaskControl(requireTaskControl(fields.recurrence).frequency).value || "WEEKLY",
+      enabled: taskProjectionFields(requireTaskControl(fields.recurring)).checked,
+      frequency: taskProjectionFields(requireTaskControl(requireTaskControl(fields.recurrence).frequency)).value || "WEEKLY",
       interval: readPositiveInteger(requireTaskControl(fields.recurrence).interval, 1),
-      endDate: requireTaskControl(requireTaskControl(fields.recurrence).endDate).value || "",
+      endDate: taskProjectionFields(requireTaskControl(requireTaskControl(fields.recurrence).endDate)).value || "",
     };
     updateRecurrenceState();
     closeTaskModal(recurrenceDialog, "saved");
@@ -2479,8 +2488,8 @@
       return;
     }
 
-    fields.recurrenceDetails.disabled = !fields.recurring.checked;
-    writeTaskControl(fields.recurrenceSummary, "textContent", fields.recurring.checked
+    writeTaskControl(fields.recurrenceDetails, "disabled", !taskProjectionFields(fields.recurring).checked);
+    writeTaskControl(fields.recurrenceSummary, "textContent", taskProjectionFields(fields.recurring).checked
       ? formatRecurrenceSummary(recurrenceDraft)
       : "Not recurring.");
   }
@@ -2494,7 +2503,7 @@
       return;
     }
     fields.recurrenceSkipCurrent.hidden = !recovery?.available;
-    fields.recurrenceSkipCurrent.disabled = recovery?.blockedByActiveTimer === true;
+    writeTaskControl(fields.recurrenceSkipCurrent, "disabled", recovery?.blockedByActiveTimer === true);
     fields.recurrenceSkipCurrent.title = recovery?.blockedByActiveTimer
       ? "Stop or save active timers on earlier tasks first."
       : "Complete earlier active instances and keep the next occurrence that has not passed.";
@@ -2627,7 +2636,7 @@
 
   function readRecurrencePayload() {
     return {
-      enabled: Boolean(requireTaskControl(fields.recurring).checked),
+      enabled: Boolean(taskProjectionFields(requireTaskControl(fields.recurring)).checked),
       applyTo: "instance",
       frequency: recurrenceDraft.frequency || "WEEKLY",
       interval: recurrenceDraft.interval || 1,
@@ -2693,25 +2702,25 @@
   }
 
   function updateReminderOverrideState() {
-    writeTaskControl(fields.reminderOverrideFields, "hidden", !requireTaskControl(fields.reminderOverride).checked);
+    writeTaskControl(fields.reminderOverrideFields, "hidden", !taskProjectionFields(requireTaskControl(fields.reminderOverride)).checked);
   }
 
   function updateSecondaryReminderState() {
-    writeTaskControl(fields.reminderDateTimeHours2, "disabled", !requireTaskControl(fields.reminderDateTimeHours2Enabled).checked);
-    writeTaskControl(fields.reminderDateOnlyDays2, "disabled", !requireTaskControl(fields.reminderDateOnlyDays2Enabled).checked);
+    writeTaskControl(fields.reminderDateTimeHours2, "disabled", !taskProjectionFields(requireTaskControl(fields.reminderDateTimeHours2Enabled)).checked);
+    writeTaskControl(fields.reminderDateOnlyDays2, "disabled", !taskProjectionFields(requireTaskControl(fields.reminderDateOnlyDays2Enabled)).checked);
   }
 
   function readReminderPolicy() {
     return {
       dateTime: [
         readPositiveInteger(fields.reminderDateTimeHours1, 2) * 60,
-        ...(requireTaskControl(fields.reminderDateTimeHours2Enabled).checked
+        ...(taskProjectionFields(requireTaskControl(fields.reminderDateTimeHours2Enabled)).checked
           ? [readPositiveInteger(fields.reminderDateTimeHours2, 24) * 60]
           : []),
       ],
       dateOnly: [
         readPositiveInteger(fields.reminderDateOnlyDays1, 3) * 1440,
-        ...(requireTaskControl(fields.reminderDateOnlyDays2Enabled).checked
+        ...(taskProjectionFields(requireTaskControl(fields.reminderDateOnlyDays2Enabled)).checked
           ? [readPositiveInteger(fields.reminderDateOnlyDays2, 1) * 1440]
           : []),
       ],
@@ -2734,8 +2743,9 @@
     return offsets.length > 0 ? offsets : [...fallback];
   }
 
+  /** @param {Element | null | undefined} input @param {number} fallback */
   function readPositiveInteger(input, fallback) {
-    return Math.max(1, Number.parseInt(input?.value, 10) || fallback);
+    return Math.max(1, Number.parseInt(`${optionalTaskProjectionFields(input)?.value}`, 10) || fallback);
   }
 
   function formatOffsetList(offsets, unit) {
@@ -2789,7 +2799,7 @@
       return;
     }
 
-    if ([...select.options].some((item) => item.value === previousValues[0])) {
+    if ([...select.options].some((item) => taskProjectionFields(item).value === previousValues[0])) {
       select.value = previousValues[0];
     }
   }
@@ -2912,19 +2922,19 @@
       return;
     }
 
-    const isBlocked = fields.status?.value === "blocked";
+    const isBlocked = optionalTaskProjectionFields(fields.status)?.value === "blocked";
     fields.blockedReasonField.hidden = !isBlocked;
-    fields.blockedReason.disabled = !isBlocked;
-    fields.blockedReason.required = isBlocked;
+    writeTaskControl(fields.blockedReason, "disabled", !isBlocked);
+    writeTaskControl(fields.blockedReason, "required", isBlocked);
     fields.continuityRow?.classList.toggle("is-blocked", isBlocked);
 
-    if (isBlocked && !fields.blockedReason.value.trim() && document.activeElement === fields.status) {
+    if (isBlocked && !callTaskContextCollection(taskProjectionFields(fields.blockedReason).value, "trim", []) && document.activeElement === fields.status) {
       fields.blockedReason.focus();
     }
   }
 
   async function handleTaskStatusChange(event) {
-    const nextStatus = fields.status?.value || "";
+    const nextStatus = optionalTaskProjectionFields(fields.status)?.value || "";
     updateBlockedReasonState();
     writeTaskMetadataRibbon();
     updateCompleteTaskActionState();
@@ -2942,7 +2952,7 @@
   }
 
   async function handleBlockResumeAction(event) {
-    const status = fields.status?.value || currentTask?.status || "";
+    const status = optionalTaskProjectionFields(fields.status)?.value || currentTask?.status || "";
     if (status === "blocked") {
       await resumeBlockedTask();
       return;
@@ -2954,7 +2964,7 @@
   }
 
   async function resumeBlockedTask() {
-    const previousReason = fields.blockedReason?.value || currentTask?.blocked_reason || "";
+    const previousReason = optionalTaskProjectionFields(fields.blockedReason)?.value || currentTask?.blocked_reason || "";
 
     writeTaskControl(fields.status, "value", "in_progress");
     writeTaskControl(fields.blockedReason, "value", "");
@@ -2996,8 +3006,8 @@
 
   async function performBlockCapture({ statusBefore = "open", trigger = null } = {}) {
     const priorStatus = statusBefore && statusBefore !== "blocked" ? statusBefore : "open";
-    const previousReason = fields.blockedReason?.value || "";
-    let blockedReason = previousReason.trim();
+    const previousReason = optionalTaskProjectionFields(fields.blockedReason)?.value || "";
+    let blockedReason = callTaskContextCollection(previousReason, "trim", []);
 
     writeTaskControl(fields.status, "value", "blocked");
     updateBlockedReasonState();
@@ -3066,7 +3076,7 @@
       ? formatChecklistProgress(progress)
       : "Save the task before adding checklist items.";
     fields.checklistList.replaceChildren(...items.map((item, index) => checklistItemRow(item, index, items.length)));
-    fields.checklistField.open = items.length > 0;
+    writeTaskControl(fields.checklistField, "open", items.length > 0);
   }
 
   function checklistItemRow(item, index, totalItems) {
@@ -3169,13 +3179,13 @@
       ? optionalTaskProjectionFields(optionalTaskProjectionFields(task)?.completionMetrics)?.duration_seconds
       : null;
     const badges = [
-      { label: "Status", value: selectedText(fields.status) || formatToken(fields.status?.value) },
-      { label: "Priority", value: selectedText(fields.priority) || formatToken(fields.priority?.value) },
-      fields.estimate?.value !== "" ? { label: "Estimate", value: formatEstimateMinutes(requireTaskControl(fields.estimate).value) } : null,
+      { label: "Status", value: selectedText(fields.status) || formatToken(optionalTaskProjectionFields(fields.status)?.value) },
+      { label: "Priority", value: selectedText(fields.priority) || formatToken(optionalTaskProjectionFields(fields.priority)?.value) },
+      optionalTaskProjectionFields(fields.estimate)?.value !== "" ? { label: "Estimate", value: formatEstimateMinutes(taskProjectionFields(requireTaskControl(fields.estimate)).value) } : null,
       usesClientScope() ? { label: "Client", value: selectedText(fields.client) || "No client" } : null,
       { label: "Project", value: selectedText(fields.project) || "No project" },
-      fields.dueDate?.value ? { label: "Due Date", value: fields.dueDate.value } : null,
-      fields.dueTime?.value ? { label: "Due Time", value: fields.dueTime.value } : null,
+      optionalTaskProjectionFields(fields.dueDate)?.value ? { label: "Due Date", value: taskProjectionFields(fields.dueDate).value } : null,
+      optionalTaskProjectionFields(fields.dueTime)?.value ? { label: "Due Time", value: taskProjectionFields(fields.dueTime).value } : null,
       completionSeconds !== null && completionSeconds !== undefined && Number.isFinite(Number(completionSeconds))
         ? { label: "TTC", value: formatDaysDuration(Number(completionSeconds)), className: "is-completion" }
         : null,
@@ -3200,16 +3210,20 @@
     };
   }
 
+  /** @param {Element | null | undefined} select */
   function selectedText(select) {
-    return select?.selectedOptions?.[0]?.textContent?.trim() || "";
+    const selected = optionalTaskProjectionFields(optionalTaskProjectionFields(select)?.selectedOptions)?.[0];
+    const text = optionalTaskProjectionFields(selected)?.textContent;
+    return (text === null || text === undefined ? undefined : callTaskContextCollection(text, "trim", [])) || "";
   }
 
   function hasCompletedTaskMetrics(task) {
-    return fields.status?.value === "complete" &&
+    return optionalTaskProjectionFields(fields.status)?.value === "complete" &&
       task?.status === "complete" &&
       Boolean(task?.completed_at || task?.completionMetrics?.completed_at);
   }
 
+  /** @param {unknown} [value] */
   function formatToken(value = "") {
     return String(value || "")
       .split("_")

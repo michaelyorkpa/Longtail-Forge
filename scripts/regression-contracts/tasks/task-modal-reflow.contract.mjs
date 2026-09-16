@@ -30,7 +30,7 @@ assert.match(taskDialogScript, /writeTaskControl\(fields\.taskDetailsPanel, "ope
 assert.match(taskDialogScript, /writeParentTaskFields/, "Task dialog should populate Parent Task options");
 assert.match(taskDialogScript, /readCurrentParentTaskId/, "Task dialog should read current parent relationship state");
 assert.match(taskDialogScript, /syncParentTaskRelationship/, "Task dialog should sync parent relationship on save");
-assert.match(taskDialogScript, /\/api\/tasks\/\$\{encodeURIComponent\(nextParentTaskId\)\}\/children/, "Task dialog should use the Tasks relationship API to add a parent");
+assert.match(taskDialogScript, /\/api\/tasks\/\$\{encodeURIComponent\(`\$\{nextParentTaskId\}`\)\}\/children/, "Task dialog should use the Tasks relationship API to add a parent");
 assert.match(taskDialogScript, /fields\.tagToggle\?\.addEventListener\("click", openTaskTagsDialog\)[\s\S]*fields\.fileToggle\?\.addEventListener\("click", openTaskFilesDialog\)/, "Task dialog should open Tags and Files child dialogs from footer buttons");
 assert.match(taskDialogScript, /icons\.decorateButton\(requireTaskIconButton\(fields\.tagToggle\), \{ icon: "tag"/, "Tags footer action should use a recognizable tag icon");
 assert.match(taskDialogScript, /icons\.decorateButton\(requireTaskIconButton\(fields\.fileToggle\), \{ icon: "file"/, "Files footer action should use a recognizable file icon");

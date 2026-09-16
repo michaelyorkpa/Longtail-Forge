@@ -131,7 +131,7 @@ function assertStaticCompletionContract() {
   );
   assert.match(
     extractFunctionBody(taskDialogSource, "readTaskFormPayload"),
-    /next_action: requireTaskControl\(fields\.nextAction\)\.value/,
+    /next_action: taskProjectionFields\(requireTaskControl\(fields\.nextAction\)\)\.value/,
     "Next Action should remain an ordinary editable Task field",
   );
   assert.doesNotMatch(
