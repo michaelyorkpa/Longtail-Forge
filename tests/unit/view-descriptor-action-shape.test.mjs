@@ -152,7 +152,11 @@ describe("view-renderer.js names the descriptor vocabulary it reads", () => {
    */
   it("names every member it reads that the framework descriptor does not declare", () => {
     assert.match(source, /columns\?: readonly DescriptorColumn\[\], title\?: unknown/);
-    assert.match(source, /align\?: unknown, header\?: unknown, key\?: unknown/);
+    // `0.33.33.39.10` added the three the table path reads off a column: the chip list's own
+    // field and label field, and the hierarchy label's depth field. The claim is unchanged.
+    assert.match(source, /align\?: unknown, chipLabelField\?: unknown, chipsField\?: unknown, depthField\?: unknown,/);
+    assert.match(source, /header\?: unknown, key\?: unknown/);
+    assert.match(source, /Partial<.*ViewTableSecondaryRowDescriptor> & \{ title\?: unknown \}/);
     assert.match(source, /Partial<ViewLinkedRecordsDescriptor> & \{ ariaLabel\?: unknown \}/);
     assert.match(source, /recorded as findings for the descriptor contract's owner/);
   });

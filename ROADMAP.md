@@ -1181,6 +1181,14 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **The alternative turned out to be the better boundary.** Each layout renderer's `state` parameter can name the shape that renderer reads without redeclaring the slot `renderSurface` builds, because the callers hand it down untyped. Ten renderers closed that way, plus the action strip they dispatch through.
 
+#### 0.33.33.39.10 - Type the view renderer's table rendering path
+
+**Complete: 28 more diagnostics closed in `public/js/shared/view-renderer.js`, 161 to 133, which still needs further children.** See the archive entry.
+
+**It completes what `0.33.33.39.9` had to stub.** That child typed `tableColumns` by stubbing `renderRowSelection`, `renderHierarchyLabel` and the action strip; this one types the rest of that path - secondary rows, the chip list, the hierarchy label, the selection control and the small readers they share - so all three are lifted for real.
+
+**Five more members are read that no framework descriptor declares**, each named `unknown` and recorded: a column's `chipsField`, `chipLabelField` and `depthField`, a secondary row's `title`, and `readDescriptorValue`'s own `fieldName`, which was declared `string` while its first statement answers the fallback for an absent one and the published `readPath` it delegates to takes `unknown`.
+
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 
 **Open. Not started, and deliberately not decided by `0.33.33.38.2.2.5.2`.** That checkpoint removed an unsupported type assertion and a lookup that could never answer; it did not design a replacement, and it must not be read as having settled what should exist here.
