@@ -9,7 +9,7 @@ function fixture() {
   const control = (/** @type {string} */ name) => ({ focus: () => calls.push(name), scrollIntoView: () => {} });
   const fields = { titleInput: control("title"), nextAction: control("next"), dueDate: control("date"), notesPanel: control("notes"), taskDetailsPanel: { open: false } };
   const sandbox = vm.createContext({ fields, context: null, document: { activeElement: null } });
-  for (const name of ["normalizeTaskEditorMode", "normalizeTaskEditorFocusTarget", "normalizeTaskEditorDefaults", "normalizeTaskEditorRequest", "focusTaskEditorTarget"])
+  for (const name of ["taskProjectionFields", "optionalTaskProjectionFields", "normalizeTaskEditorMode", "normalizeTaskEditorFocusTarget", "normalizeTaskEditorDefaults", "normalizeTaskEditorRequest", "focusTaskEditorTarget"])
     vm.runInContext(extractFunctionBlock(source, name), sandbox);
   return { calls, fields, sandbox, ...vm.runInContext("({mode:normalizeTaskEditorMode,defaults:normalizeTaskEditorDefaults,focus:normalizeTaskEditorFocusTarget,request:normalizeTaskEditorRequest,applyFocus:focusTaskEditorTarget})", sandbox) };
 }

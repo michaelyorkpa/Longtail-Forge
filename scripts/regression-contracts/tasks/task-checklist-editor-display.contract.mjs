@@ -80,7 +80,7 @@ assert.match(
 
 assertPatterns(openTaskEditor, [
   /if \(request\.taskId && request\.mode === "edit"\) \{/,
-  /api\.getJson\(`\/api\/tasks\/\$\{encodeURIComponent\(request\.taskId\)\}`,[\s\S]*\{ cache: "no-store" \}\)/,
+  /api\.getJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{request\.taskId\}`\)\}`,[\s\S]*\{ cache: "no-store" \}\)/,
   /request\.task = detail\?\.task \|\| request\.task/,
 ], "Opening the editor for an existing task should fetch single-task detail even when the caller passes a list row.");
 
