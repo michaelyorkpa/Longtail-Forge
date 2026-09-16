@@ -108,7 +108,7 @@ assert.match(
 );
 assert.match(
   taskDialogScript,
-  /const returnFocusTo = params\.returnFocusTo \|\| params\.trigger \|\| hostContext\?\.trigger \|\| document\.activeElement \|\| null;/,
+  /const returnFocusTo = params\.returnFocusTo \|\| params\.trigger \|\| optionalTaskProjectionFields\(hostContext\)\?\.trigger \|\| document\.activeElement \|\| null;/,
   "The canonical Task dialog should honor the Workbench trigger passed through module actions",
 );
 assert.match(

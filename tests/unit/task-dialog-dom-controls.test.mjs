@@ -109,8 +109,10 @@ describe("Task Dialog control readiness", () => {
  * returnValue retains the supplied value. Only opening dependencies are stubbed;
  * the entire real open() and its registered close listener execute.
  * @param {unknown} reason
+ * @param {Record<string, unknown>} [input]
+ * @param {(sandbox: import("node:vm").Context) => void} [inspect]
  */
-async function openedHost(reason) {
+async function openedHost(reason, input = {}, inspect = () => {}) {
   /** @type {string[]} */ const calls = [];
   /** @type {{callback: () => void, once: boolean} | undefined} */ let listener;
   const host = {
@@ -147,10 +149,11 @@ async function openedHost(reason) {
   });
   for (const name of ["ensureDialog", "ensureClientOption", "populateProjectInput", "syncClientFromSelectedProject", "applySelectedProjectTaskDefaults", "updateBlockedReasonState", "writeParentTaskFields", "writeTaskCompletionFields", "writeTaskMetadataRibbon", "writeChecklistFields", "selectAssignees", "writeRecurrenceFields", "writeRecurrenceContinuity", "writeRecurrenceRecovery", "writeReminderFields", "writeTaskTimerFields", "mountTaskTagPicker", "mountTaskFileAttachments", "mountTaskNotesPanel", "writeTaskNotificationFollowFields", "updateCompleteTaskActionState", "updateBlockTaskActionState", "showTaskModal", "focusTaskEditorTarget"])
     sandbox[name] = () => {};
-  for (const name of ["requireTaskControl", "taskDialogCloseReason", "open"])
+  for (const name of ["taskProjectionFields", "optionalTaskProjectionFields", "requireTaskControl", "taskDialogCloseReason", "open"])
     vm.runInContext(extractFunctionBlock(source, name), sandbox);
+  sandbox.selectAssignees = (/** @type {unknown} */ value) => { sandbox.selectedAssignees = value; };
   /** @type {Promise<{status: string, value?: unknown, error?: unknown}>} */
-  const outcome = sandbox.open({ returnFocusTo: trigger, hostContext: {
+  const outcome = sandbox.open({ ...input, returnFocusTo: trigger, hostContext: {
     complete: () => calls.push("host complete"), cancel: () => calls.push("host cancel"),
   } }).then(
     (/** @type {unknown} */ value) => ({ status: "fulfilled", value }),
@@ -158,6 +161,7 @@ async function openedHost(reason) {
   );
   for (let turn = 0; turn < 20 && !listener; turn++) await Promise.resolve();
   assert.ok(listener, "open must install its close listener after initialization");
+  inspect(sandbox);
   calls.length = 0;
   assert.doesNotThrow(() => host.close(), "validation failure must not escape the event listener");
   /** @type {ReturnType<typeof setTimeout> | undefined} */ let timer;
@@ -194,5 +198,31 @@ describe("Task Dialog open promise close path", () => {
       assert.match(String(result.error), /TypeError: Task dialog close reason must be text/);
       assert.equal(Object.hasOwn(result, "value"), false);
     }
+  });
+});
+
+// Execute the actual opening consumer as well as the unchanged close listener.
+describe("Task request forwarding into the low-level editor", () => {
+  it("preserves default getter reads and inherited seed assignees without changing the published record", async () => {
+    let statusReads = 0; let priorityReads = 0; let assigneeReads = 0;
+    const defaults = { get status() { statusReads++; return "open"; }, get priority() { priorityReads++; return "normal"; } };
+    const assignees = ["selected"];
+    const task = Object.create({ get assignee_ids() { assigneeReads++; return assignees; } });
+    await openedHost("cancel", { task, defaults }, (sandbox) => {
+      assert.equal(sandbox.selectedAssignees, assignees);
+      assert.equal(sandbox.fields.status.value, "open"); assert.equal(sandbox.fields.priority.value, "normal");
+    });
+    assert.equal(statusReads, 2); assert.equal(priorityReads, 2); assert.equal(assigneeReads, 1);
+    await openedHost("cancel", { task: { assignees: [{ user_id: "published" }] } }, (sandbox) => {
+      assert.deepEqual(Array.from(sandbox.selectedAssignees), [], "do not silently change the existing assignee_ids read to another field");
+    });
+    await openedHost("cancel", {}, (sandbox) => { assert.deepEqual(Array.from(sandbox.selectedAssignees), ["user"]); });
+    const repository = createProjectTextReader().readText("src/modules/tasks/tasks.repo.js");
+    const producer = vm.createContext({});
+    for (const name of ["assigneeRowToAppValue", "attachAssignees"])
+      vm.runInContext(extractFunctionBlock(repository, name), producer);
+    const [produced] = producer.attachAssignees([{ task_id: "task" }], [{ task_id: "task", user_id: "actual assignee" }]);
+    assert.deepEqual(Array.from(produced.assignee_ids), ["actual assignee"], "the real producer emits the member omitted by the shared declaration");
+    await openedHost("cancel", { task: produced }, (sandbox) => { assert.equal(sandbox.selectedAssignees, produced.assignee_ids); });
   });
 });
