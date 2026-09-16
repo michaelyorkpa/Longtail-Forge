@@ -103,3 +103,96 @@ describe("Task Dialog control readiness", () => {
     for (const value of [true, 3, {}, []]) assert.throws(() => sandbox.taskDialogCloseReason({ returnValue: value }), /close reason must be text/);
   });
 });
+
+/**
+ * A controlled non-native host: unlike HTMLDialogElement's native setter, its
+ * returnValue retains the supplied value. Only opening dependencies are stubbed;
+ * the entire real open() and its registered close listener execute.
+ * @param {unknown} reason
+ */
+async function openedHost(reason) {
+  /** @type {string[]} */ const calls = [];
+  /** @type {{callback: () => void, once: boolean} | undefined} */ let listener;
+  const host = {
+    get returnValue() {
+      assert.equal(sandbox.fileAttachmentsController, null);
+      assert.equal(sandbox.notesPanelController, null);
+      assert.equal(sandbox.currentTaskEditorRequest, null);
+      calls.push("read reason"); return reason;
+    },
+    /** @param {string} event @param {() => void} callback @param {{once?: boolean}} options */
+    addEventListener(event, callback, options) {
+      assert.equal(event, "close"); assert.equal(options.once, true);
+      listener = { callback, once: options.once === true };
+    },
+    close() {
+      const registered = listener;
+      if (!registered) return;
+      if (registered.once) listener = undefined;
+      registered.callback();
+    },
+  };
+  const trigger = {};
+  const sandbox = vm.createContext({
+    dialog: host,
+    fields: Object.fromEntries(["title", "copyLink", "workbenchOpen", "titleInput", "status", "priority", "estimate", "client", "dueDate", "dueTime", "nextAction", "blockedReason", "resumeNote", "description", "taskDetailsPanel"].map((name) => [name, {}])),
+    context: { onSaved: () => calls.push("saved callback") }, currentTaskEditorRequest: { mode: "add" },
+    fileAttachmentsController: { destroy: () => calls.push("destroy Files") },
+    notesPanelController: { destroy: () => calls.push("destroy Notes") },
+    taskDefaultStatuses: () => ["open"], taskDefaultPriorities: () => ["normal"], currentUserId: () => "user",
+    taskFormSnapshot: () => "snapshot", closeTaskUtilityDialogs: () => calls.push("close utilities"),
+    clearTaskTimerInterval: () => calls.push("dispose timer"),
+    restoreTaskEditorFocus: (/** @type {unknown} */ target) => { assert.equal(target, trigger); calls.push("restore focus"); },
+    requireApi: () => { throw new Error("close must not write or materialize"); },
+  });
+  for (const name of ["ensureDialog", "ensureClientOption", "populateProjectInput", "syncClientFromSelectedProject", "applySelectedProjectTaskDefaults", "updateBlockedReasonState", "writeParentTaskFields", "writeTaskCompletionFields", "writeTaskMetadataRibbon", "writeChecklistFields", "selectAssignees", "writeRecurrenceFields", "writeRecurrenceContinuity", "writeRecurrenceRecovery", "writeReminderFields", "writeTaskTimerFields", "mountTaskTagPicker", "mountTaskFileAttachments", "mountTaskNotesPanel", "writeTaskNotificationFollowFields", "updateCompleteTaskActionState", "updateBlockTaskActionState", "showTaskModal", "focusTaskEditorTarget"])
+    sandbox[name] = () => {};
+  for (const name of ["requireTaskControl", "taskDialogCloseReason", "open"])
+    vm.runInContext(extractFunctionBlock(source, name), sandbox);
+  /** @type {Promise<{status: string, value?: unknown, error?: unknown}>} */
+  const outcome = sandbox.open({ returnFocusTo: trigger, hostContext: {
+    complete: () => calls.push("host complete"), cancel: () => calls.push("host cancel"),
+  } }).then(
+    (/** @type {unknown} */ value) => ({ status: "fulfilled", value }),
+    (/** @type {unknown} */ error) => ({ status: "rejected", error }),
+  );
+  for (let turn = 0; turn < 20 && !listener; turn++) await Promise.resolve();
+  assert.ok(listener, "open must install its close listener after initialization");
+  calls.length = 0;
+  assert.doesNotThrow(() => host.close(), "validation failure must not escape the event listener");
+  /** @type {ReturnType<typeof setTimeout> | undefined} */ let timer;
+  try {
+    /** @type {Promise<never>} */ const deadline = new Promise((_, reject) => {
+      timer = globalThis.setTimeout(() => reject(new assert.AssertionError({ message: "open stayed pending after close" })), 1000);
+    });
+    const settled = await Promise.race([outcome, deadline]);
+    assert.deepEqual(calls, ["close utilities", "dispose timer", "destroy Files", "destroy Notes", "restore focus", "read reason"]);
+    assert.equal(sandbox.fileAttachmentsController, null);
+    assert.equal(sandbox.notesPanelController, null);
+    assert.equal(sandbox.currentTaskEditorRequest, null);
+    host.close();
+    assert.equal(calls.length, 6, "a repeated close must not repeat cleanup or host callbacks");
+    return settled;
+  } finally {
+    globalThis.clearTimeout(timer);
+  }
+}
+
+describe("Task Dialog open promise close path", () => {
+  it("passes familiar, unfamiliar and whitespace-only strings through unchanged after cleanup", async () => {
+    for (const value of ["cancel", "complete", "saved", "extension:custom-result", "  untouched  ", " ", "\n"])
+      assert.deepEqual(await openedHost(value), { status: "fulfilled", value });
+  });
+  it("preserves all ordinary falsy close defaults through the returned promise", async () => {
+    for (const value of [undefined, null, "", false, 0, -0, 0n, NaN])
+      assert.deepEqual(await openedHost(value), { status: "fulfilled", value: "closed" });
+  });
+  it("rejects truthy non-string host results promptly after cleanup without replay or callbacks", async () => {
+    for (const value of [true, 1, -1, 1n, Symbol("close"), {}, [], () => {}, Object("saved")]) {
+      const result = await openedHost(value);
+      assert.equal(result.status, "rejected");
+      assert.match(String(result.error), /TypeError: Task dialog close reason must be text/);
+      assert.equal(Object.hasOwn(result, "value"), false);
+    }
+  });
+});

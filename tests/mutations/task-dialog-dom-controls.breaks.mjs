@@ -7,6 +7,8 @@ import { runMutationCampaign } from "../../scripts/test-support/mutation-runner.
 // incidental throws outside assertions. Acceptance now uses doesNotThrow,
 // so those input-domain regressions are explicitly asserted; the full table reran.
 const cases = [
+  { name: "close validation escapes instead of rejecting open", find: "          reject(error);", replace: "          throw error;" },
+  { name: "close validation leaves open pending", find: "          reject(error);", replace: "          void error;" },
   { name: "non-extensible visibility becomes a throw", find: 'Reflect.set(element, "hidden", !hasClientScope);', replace: 'Object.assign(element, { hidden: !hasClientScope });' },
   { name: "workspace control visibility stops updating", find: 'Reflect.set(element, "hidden", !hasClientScope);', replace: 'Reflect.set(element, "unused", !hasClientScope);'  },
   { name: "required absence silently returns", find: 'throw new TypeError("Task dialog control is unavailable.");', replace: 'return value;' },

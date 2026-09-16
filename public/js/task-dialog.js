@@ -508,7 +508,7 @@
         trigger: returnFocusTo,
       });
     }
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       requireTaskControl(dialog).addEventListener("close", () => {
         closeTaskUtilityDialogs();
         clearTaskTimerInterval();
@@ -518,7 +518,11 @@
         notesPanelController = null;
         restoreTaskEditorFocus(returnFocusTo);
         currentTaskEditorRequest = null;
-        resolve(taskDialogCloseReason(dialog));
+        try {
+          resolve(taskDialogCloseReason(dialog));
+        } catch (error) {
+          reject(error);
+        }
       }, { once: true });
     });
   }
