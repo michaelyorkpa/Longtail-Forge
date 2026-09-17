@@ -375,6 +375,7 @@
         "tests/e2e/tag-picker-workflows.spec.mjs",
         "tests/e2e/task-blocked-recovery.spec.mjs",
         "tests/e2e/task-bulk-project-assignment.spec.mjs",
+        "tests/e2e/task-dialog-checklist-consumers.spec.mjs",
         "tests/e2e/task-dialog-context-consumers.spec.mjs",
         "tests/e2e/task-dialog-dom-controls.spec.mjs",
         "tests/e2e/task-dialog-record-state.spec.mjs",
@@ -442,6 +443,7 @@
         "tests/mutations/stopwatch-timer.breaks.mjs",
         "tests/mutations/support-view-audit-filters.breaks.mjs",
         "tests/mutations/tag-page-rendering.breaks.mjs",
+        "tests/mutations/task-dialog-checklist-consumers.breaks.mjs",
         "tests/mutations/task-dialog-dom-controls.breaks.mjs",
         "tests/mutations/task-dialog-record-state.breaks.mjs",
         "tests/mutations/task-editor-normalizers.breaks.mjs",
@@ -610,6 +612,7 @@
         "tests/unit/task-block-recovery-engine.test.mjs",
         "tests/unit/task-calendar-surface-contracts.test.mjs",
         "tests/unit/task-calendar-window-contracts.test.mjs",
+        "tests/unit/task-dialog-checklist-consumers.test.mjs",
         "tests/unit/task-dialog-context-consumers.test.mjs",
         "tests/unit/task-dialog-context-writers.test.mjs",
         "tests/unit/task-dialog-continuity.test.mjs",
@@ -772,7 +775,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 2755,
+      "errorCount": 2737,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1271,11 +1274,11 @@
           },
           {
             "code": 7006,
-            "count": 78
+            "count": 61
           },
           {
             "code": 7053,
-            "count": 3
+            "count": 2
           }
         ],
         "public/js/tasks.js": [
@@ -1983,8 +1986,8 @@
     }
   },
   "totals": {
-    "files": 1354,
-    "errors": 2755,
+    "files": 1357,
+    "errors": 2737,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
