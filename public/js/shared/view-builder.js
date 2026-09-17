@@ -32,6 +32,19 @@
   /** @typedef {FieldBuilderOptions & { fieldType: string }} FieldControlOptions */
 
   /**
+   * A modal's footer, which is built here rather than published.
+   *
+   * `createModalFooter` is internal - the factory publishes the modals that use it, not the
+   * footer itself - so its bag is named locally rather than pulled from a contract that does
+   * not exist.
+   * @typedef {object} ModalFooterOptions
+   * @property {import("../../../src/types/browser-contracts.js").BrowserViewActionInput} [actions]
+   * @property {unknown} [children]
+   * @property {unknown} [className]
+   * @property {import("../../../src/types/browser-contracts.js").BrowserViewActionInput} [utilityActions]
+   */
+
+  /**
    * One column, as the table builder reads it.
    *
    * `BrowserViewDataTableOptions` takes its columns as `readonly unknown[]`, and the renderer
@@ -1487,6 +1500,7 @@
     return panel;
   }
 
+  /** @param {unknown} size */
   function modalSizeClass(size) {
     return size === "wide" ? "view-modal--wide" : "";
   }
@@ -1538,6 +1552,7 @@
     return requireModalStack().isTopModal(dialog);
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewModalOptions} [options] */
   function createModal(options = {}) {
     const dialog = createElement("dialog", {
       className: ["view-modal", "surface-modal", modalSizeClass(options.size), options.className],
@@ -1546,7 +1561,7 @@
         "aria-modal": "true",
       },
     });
-    const titleId = options.titleId || nextId("view-modal-title");
+    const titleId = String(options.titleId || nextId("view-modal-title"));
     const title = createHeading(options.headingLevel || 2, requiredText(options.title, "Modals require a title."), {
       id: titleId,
       className: "view-modal-title",
@@ -1570,6 +1585,7 @@
     return dialog;
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewModalFormOptions} [options] */
   function createModalForm(options = {}) {
     const dialog = createElement("dialog", {
       className: ["view-modal", "surface-modal", modalSizeClass(options.size), options.className],
@@ -1584,7 +1600,7 @@
         method: options.method || "dialog",
       },
     });
-    const titleId = options.titleId || nextId("view-modal-form-title");
+    const titleId = String(options.titleId || nextId("view-modal-form-title"));
     const title = createHeading(options.headingLevel || 2, requiredText(options.title, "Modal forms require a title."), {
       id: titleId,
       className: "view-modal-title",
@@ -1602,6 +1618,7 @@
     return dialog;
   }
 
+  /** @param {ModalFooterOptions} [options] */
   function createModalFooter(options = {}) {
     const footer = createElement("div", {
       className: ["view-modal-footer", "surface-modal-footer", options.className],
@@ -1626,6 +1643,7 @@
     return footer;
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewFieldGridOptions} [options] */
   function createFieldGrid(options = {}) {
     const fields = options.fields || options.children || [];
     const grid = createElement("div", {
@@ -2362,6 +2380,7 @@
     return `${count} selected`;
   }
 
+  /** @param {unknown} descriptor */
   function normalizeSurfaceDescriptor(descriptor) {
     // Read from the captured root on every call, as before. The `|| {}` fallback was doing no
     // work the guard below does not already do: an adapter that is absent and one whose

@@ -994,9 +994,20 @@ export interface BrowserViewFieldParts {
 }
 
 export interface BrowserViewFieldGridParts {
+  /** Reads the grid's own bound controls. The one guarantee the writer really establishes. */
   collectValues(options?: BrowserViewCollectFieldValuesOptions): Record<string, unknown>;
-  controls: BrowserViewFieldControl[];
-  fields: BrowserViewFieldElement[];
+  /**
+   * Whatever the contributing children exposed as their own `viewParts.controls`, concatenated.
+   * A constructed field contributes `BrowserViewFieldControl`s, but the grid accepts any child
+   * and flattens whatever it finds - `createLinkedContextPicker` hands it ordinary labels and a
+   * button - so the grid **does not** establish that every entry is a bound control.
+   */
+  controls: readonly unknown[];
+  /**
+   * The children as given, wrapped when a single one was passed. **Not necessarily constructed
+   * fields**: the grid stores what it was handed, by identity and in order.
+   */
+  fields: readonly unknown[];
 }
 
 export interface BrowserViewBulkActionToolbarParts {
@@ -1282,7 +1293,13 @@ export interface BrowserViewFieldGridOptions {
   className?: BrowserViewClassNames;
   dataset?: BrowserViewAttributeBag;
   editable?: BrowserViewFlag;
-  fields?: readonly unknown[];
+  /**
+   * One field or a list of them. `createFieldGrid` reads
+   * `Array.isArray(fields) ? fields : [fields]`, so a single node has always been accepted
+   * and wrapped; the array-only declaration was narrower than the writer beneath it. Its
+   * precedence is unchanged: `fields` wins over `children`, and an explicit `[]` wins too.
+   */
+  fields?: BrowserViewChildren;
   surface?: BrowserViewTextValue;
 }
 
