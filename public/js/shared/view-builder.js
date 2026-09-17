@@ -1987,18 +1987,15 @@
   }
 
   /**
-   * The action button, **left untyped by `0.33.33.39.16` and blocked on a recorded decision.**
+   * The action button every other builder in this file reaches for its controls.
    *
-   * Declaring `BrowserViewActionButtonOptions` here closes nineteen diagnostics and turns seven
-   * others into assignment failures, because two published contracts disagree about the same
-   * five members. This bag declares `icon`, `title`, `type` and `variant` as `unknown` and
-   * `iconOnly` as a flag; `BrowserIconCreateButtonOptions`, which this function forwards them to
-   * raw, declares the first four as strings and `iconOnly` as a boolean. **Coercing at the
-   * forwarding site would change behaviour**: `icons.createIconButton` reads
-   * `options.iconOnly !== false`, which distinguishes `undefined` from `false`, so `Boolean(0)`
-   * would flip a falsy non-false flag. `button.type` is the same shape from the other side - the
-   * DOM types it as three literals while the runtime accepts any string and normalizes on read.
-   * **Reconciling the two is a shared-contract decision, recorded as `0.33.33.39.17`.**
+   * The five members it hands to `icons.createIconButton` - `icon`, `title`, `type`, `variant`
+   * and `iconOnly` - are forwarded **raw**, which is what `0.33.33.39.17` widened the creation
+   * contract to describe. Nothing is pre-normalized on the way, and `iconOnly` in particular
+   * must arrive exactly as it was given: the icon writer tests it with `!== false`, so it tells
+   * an absent flag apart from an explicit one.
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewActionButtonOptions} [options]
+   * @returns {HTMLButtonElement}
    */
   function createActionButton(options = {}) {
     const label = String(options.label || options.ariaLabel || options.text || "").trim();
@@ -2030,12 +2027,13 @@
       });
     } else {
       button = document.createElement("button");
-      button.type = options.type || "button";
+      Reflect.set(button, "type", options.type || "button");
       button.textContent = text || label;
       button.classList.add("action-button");
     }
 
-    button.type = options.type || button.type || "button";
+    // The same assignment the DOM already accepted; see `icons.createIconButton`.
+    Reflect.set(button, "type", options.type || button.type || "button");
     button.classList.add("view-action-button");
     addClasses(button, options.className);
 

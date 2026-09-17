@@ -1241,15 +1241,13 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Typing `normalizeActions` closed nothing outside its own seam**, which is worth saying because the checkpoint was drawn partly to find out. Its five callers were either already typed or are still untyped for reasons of their own; `createModal`, `createModalForm` and `createFieldGrid` are unchanged at 9, 11 and 7.
 
-#### 0.33.33.39.17 - OPEN: reconcile the action-button and icon-button option contracts
+#### 0.33.33.39.17 - Widen the icon-creation contract to describe its writer
 
-**`createActionButton` cannot be typed until this is decided.** `BrowserViewActionButtonOptions` declares `icon`, `title`, `type` and `variant` as `unknown` and `iconOnly` as a flag. `BrowserIconCreateButtonOptions`, which `createActionButton` forwards them to **raw**, declares the first four as strings and `iconOnly` as a boolean. Both are published; they cannot both be right.
+**Complete: 36 diagnostics closed - 26 in `view-builder.js` and 10 in `icons.js` - and `createActionButton` is typed.** See the archive entry.
 
-**Coercing at the forwarding site would change behaviour.** `icons.createIconButton` reads `options.iconOnly !== false`, which distinguishes `undefined` from `false`, so `Boolean(0)` would flip a falsy non-false flag from icon-only to labelled. The other four coerce safely, because the callee already does `String(...)` on each.
+**Only the creation bag moved.** `BrowserIconCreateButtonOptions` now overrides five members - `icon`, `title`, `type`, `variant` and `iconOnly` - each widened to what its own reads justify: a registry lookup, two native setters, three `===` comparisons and a `!== false` test. **`BrowserIconButtonOptions` is untouched, so `decorateButton`'s contract is unchanged**, and both writers keep `HTMLButtonElement`.
 
-`button.type` is the same disagreement from the other side: the DOM types it as three literals, while the runtime accepts any string and normalizes on read, so no truthful narrowing exists that does not change what a caller can pass.
-
-**This is the third declaration in this file found not to be true of its writer**, after the modal footer and the list-shell status. The first two were corrected under the decision that settled them; this one is escalated rather than assumed, because it is a disagreement between two published contracts rather than between a contract and its writer, and because the safe half and the unsafe half differ.
+**`iconOnly !== false` is preserved exactly**, which is the whole reason the flag could not be a boolean: an absent flag and an explicit `false` are different inputs, and a falsy non-false value is not a false one.
 
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 
