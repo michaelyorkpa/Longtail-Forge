@@ -28,8 +28,8 @@ assert.match(taskDialogScript, /const completionSeconds = hasCompletedTaskMetric
 assert.match(taskDialogScript, /task\?\.status === "complete"/, "TTC should require the saved task status to be complete");
 assert.match(taskDialogScript, /task\?\.completed_at \|\| task\?\.completionMetrics\?\.completed_at/, "TTC should require persisted completion metadata");
 assert.match(taskDialogScript, /completionSeconds !== null && completionSeconds !== undefined && Number\.isFinite\(Number\(completionSeconds\)\)/, "TTC should not render when completion seconds are null");
-assert.doesNotMatch(taskDialogScript, /fields\.status\?\.value === "archived"[\s\S]*label: "TTC"/, "Archived status should not produce a TTC chip");
-assert.match(taskDialogScript, /fields\.checklistField\.open = items\.length > 0/, "Checklist should open only when checklist items exist");
+assert.doesNotMatch(taskDialogScript, /optionalTaskProjectionFields\(fields\.status\)\?\.value === "archived"[\s\S]*label: "TTC"/, "Archived status should not produce a TTC chip");
+assert.match(taskDialogScript, /writeTaskControl\(fields\.checklistField, "open", items\.length > 0\)/, "Checklist should open only when checklist items exist");
 assert.doesNotMatch(taskDialogScript, /fields\.assignees\.closest\("details"\)\.open = selectedIds\.size > 0/, "Task Details should not collapse just because a task is unassigned");
 assert.match(taskDialogScript, /function openTaskTagsDialog\(\)[\s\S]*showTaskModal\(tagsDialog, \{ parent: dialog, trigger: fields\.tagToggle \}\)/, "Tags footer button should open a stacked child dialog");
 assert.match(taskDialogScript, /function openTaskFilesDialog\(\)[\s\S]*showTaskModal\(filesDialog, \{ parent: dialog, trigger: fields\.fileToggle \}\)/, "Files footer button should open a stacked child dialog");
