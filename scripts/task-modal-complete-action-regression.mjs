@@ -73,7 +73,7 @@ function assertStaticContract() {
   assert.match(taskDialogScript, /complete\.dataset\.completeTask = ""[\s\S]*complete\.hidden = true/, "Complete header button should start hidden until state gating passes");
   assert.match(taskDialogScript, /taskFormChangeState\(\)\.hasChanges[\s\S]*saveTaskForm\(\{[\s\S]*closeOnSuccess: false,[\s\S]*statusMessage: "Saving task before completion\.\.\."/,
     "Save-and-complete should persist only real pending edits before completion");
-  assert.match(taskDialogScript, /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`, \{\}\)/,
+  assert.match(taskDialogScript, /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{taskId\}`\)\}\/complete`, \{\}\)/,
     "Save-and-complete should call the dedicated protected complete route");
   assert.match(taskDialogScript, /const host = context\?\.hostContext;[\s\S]*const callback = optionalTaskProjectionFields\(host\)\?\.complete;[\s\S]*callback !== null && callback !== undefined[\s\S]*const args = \[taskCompletionHostDetail\(result\)\];[\s\S]*typeof callback !== "function"[\s\S]*Reflect\.apply\(callback, host, args\)[\s\S]*closeTaskModal\(dialog, "complete"\)/,
     "Save-and-complete should report completion to its host and close without a follow-up editor state");
@@ -81,7 +81,7 @@ function assertStaticContract() {
     "Task completion should not retain or refocus the editor for Next Action");
   assert.match(taskDialogScript, /taskCompletionHostDetail\(result\)[\s\S]*taskLifecycleAction: "complete"/,
     "Complete action should pass safe lifecycle detail to host surfaces");
-  assert.match(taskDialogScript, /taskCompletionHostDetail\(result\)[\s\S]*recurrenceQueued: result\.recurrenceJob\?\.queued === true/,
+  assert.match(taskDialogScript, /taskCompletionHostDetail\(result\)[\s\S]*recurrenceQueued: optionalTaskProjectionFields\(taskProjectionFields\(result\)\.recurrenceJob\)\?\.queued === true/,
     "Complete action should pass safe recurrence detail to host surfaces");
   assert.match(workbenchScript, /detail\.taskLifecycleAction === "complete"[\s\S]*setTaskCompletionStatus\(detail\)/,
     "Workbench should preserve completion-specific status messages from the modal");
