@@ -1255,13 +1255,19 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **A sixth child can finish this file, and it carries one contract question of the settled kind.** Typing the modal group and the field grid in a probe takes the file to **10**, and the residuals are the string-coercion class already resolved five times - except for one: `BrowserViewFieldGridOptions.fields` is declared `readonly unknown[]`, while `createFieldGrid` itself wraps a non-array and two callers hand it a `BrowserViewChildren`. Recorded as `0.33.33.39.19`. `createModalFooter` is not a published member and needs a local typedef rather than a published bag.
 
-#### 0.33.33.39.19 - OPEN: reconcile the field-grid contract with its writer and its callers
+#### 0.33.33.39.19 - Correct the field-grid contract, input and output
 
-**`BrowserViewFieldGridOptions.fields` is declared `readonly unknown[]` and is narrower than its own writer.** `createFieldGrid` reads `Array.isArray(fields) ? fields : [fields]` - it accepts a single field and wraps it. Two callers rely on that latitude: `createFilterPanel` passes `options.fields || []` and `createModalForm` passes `options.fields || options.body || []`, and both of those members are declared `BrowserViewChildren`, which is `unknown`.
+**Complete, delivered with `0.33.33.39.20`.** `BrowserViewFieldGridOptions.fields` is `BrowserViewChildren`, describing the `Array.isArray(fields) ? fields : [fields]` the writer already performs.
 
-**This is the same shape as `0.33.33.39.13`, `.14` and `.17`**: a declaration that is not true of the implementation beneath it. The settled resolution has been to widen the declaration to describe the writer - here, `fields` to `BrowserViewChildren` - which changes no behaviour and costs no consumer, because the writer already handles both forms. The alternative, making the two callers coerce, **would change behaviour**: wrapping a non-array where the writer currently wraps it identically is the same, but forcing an array where a caller passed a single node would not be.
+**The connected return contract was checked and was also untrue.** `BrowserViewFieldGridParts` promised `fields: BrowserViewFieldElement[]` and `controls: BrowserViewFieldControl[]`, but the grid stores whatever children it was handed and flattens whatever `viewParts.controls` it finds on them - and its own linked-context picker hands it ordinary labels and a button. Both are now `readonly unknown[]`. **`collectValues` keeps its precise return**, because that guarantee the writer does establish.
 
-It is recorded rather than assumed because it is a published-contract change, and because the last three were each approved explicitly.
+**No consumer cost, traced rather than assumed.** Nothing in the estate reads a grid's `fields` or `controls`; the only reader of grid metadata anywhere reads `collectValues`, which did not change.
+
+#### 0.33.33.39.20 - Type the view builder's modal group and field grid
+
+**Complete: 33 diagnostics closed in `public/js/shared/view-builder.js`, 34 to 1.** See the archive entry.
+
+**`view-builder.js` is not complete, and the remainder is exactly one diagnostic.** `handlePointerDown` keeps its untyped `event`, because `menu.contains` requires a `Node` while `Event.target` is an `EventTarget`; every honest route is a runtime check the handler does not make, or a cast. It belongs to a checkpoint that takes `event.target` across the estate, not to this file.
 
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 
