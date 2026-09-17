@@ -32,6 +32,30 @@
   /** @typedef {FieldBuilderOptions & { fieldType: string }} FieldControlOptions */
 
   /**
+   * A detail badge, as the badge builders read one.
+   *
+   * `BrowserViewDetailBadgeRowOptions` takes its badges as `readonly unknown[]`, so this names
+   * what the builder actually reads off one. Every member is `unknown` because a badge arrives
+   * from a page controller rather than from a contract.
+   * @typedef {object} DetailBadge
+   * @property {Record<string, unknown>} [attrs]
+   * @property {unknown} [className]
+   * @property {Record<string, unknown>} [dataset]
+   * @property {unknown} [focusable]
+   * @property {unknown} [label]
+   * @property {unknown} [text]
+   * @property {unknown} [title]
+   * @property {unknown} [value]
+   */
+
+  /**
+   * One term and definition in an info panel's list.
+   * @typedef {object} InfoPanelItem
+   * @property {unknown} [label]
+   * @property {unknown} [value]
+   */
+
+  /**
    * The linked-context shapes this file owns.
    *
    * The two published option bags take their lists as `readonly unknown[]`, so the normalizers
@@ -1128,6 +1152,7 @@
     return index >= 0 ? index : fallback;
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewDetailBadgeRowOptions} [options] */
   function createDetailBadgeRow(options = {}) {
     return createElement("div", {
       className: ["view-detail-badges", "surface-chip-row", options.className],
@@ -1140,6 +1165,7 @@
     });
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewDetailHeaderOptions} [options] */
   function createDetailHeader(options = {}) {
     const header = createElement("header", {
       className: ["view-detail-header", options.className],
@@ -1165,6 +1191,7 @@
     return header;
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewDetailActionStripOptions} [options] */
   function createDetailActionStrip(options = {}) {
     return createElement("div", {
       className: ["view-detail-action-strip", "surface-dense-actions", options.className],
@@ -1173,8 +1200,10 @@
     });
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewDetailActionMenuOptions} [options] */
   function createDetailActionMenu(options = {}) {
     const floating = options.floating !== false;
+    /** @type {import("../../../src/types/browser-contracts.js").BrowserViewAttributeBag} */
     const attrs = options.ariaLabel ? { "aria-label": options.ariaLabel } : {};
     if (floating) {
       attrs["data-view-floating-menu"] = "";
@@ -1200,6 +1229,17 @@
     return menu;
   }
 
+  /**
+   * Wire a floating action menu's open/close behaviour.
+   *
+   * The three handlers inside keep their untyped `event`, and that is deliberate. `Event.target`
+   * is an `EventTarget`, which carries neither `contains`'s `Node` nor `closest` - and every
+   * honest way to reach one is either a runtime check this code does not make today or a cast.
+   * **Three diagnostics stay here for a checkpoint that takes `event.target` across the estate.**
+   * @param {HTMLDetailsElement} menu
+   * @param {HTMLElement} summary
+   * @param {HTMLElement} list
+   */
   function wireFloatingDetailActionMenu(menu, summary, list) {
     const doc = menu.ownerDocument || document;
     const win = doc.defaultView || global;
@@ -1211,7 +1251,7 @@
         closeFloatingDetailActionMenu(menu, list);
       }
     };
-    const handleKeydown = (event) => {
+    const handleKeydown = (/** @type {KeyboardEvent} */ event) => {
       if (event.key === "Escape" && menu.open) {
         event.preventDefault();
         closeFloatingDetailActionMenu(menu, list);
@@ -1251,24 +1291,33 @@
     });
 
     list.addEventListener("click", (event) => {
-      if (event.target?.closest?.("button")) {
+      // The click target may be an element, which is exactly what the optional chaining below
+      // already says. `Partial<Element>` names that without asserting it, and without adding a
+      // check this handler has never made.
+      /** @type {Partial<Element> | null} */
+      const target = event.target;
+      if (target?.closest?.("button")) {
         closeFloatingDetailActionMenu(menu, list);
       }
     });
   }
 
+  /** @param {HTMLElement} currentMenu */
   function closeOtherFloatingDetailActionMenus(currentMenu) {
     const doc = currentMenu.ownerDocument || document;
     if (typeof doc.querySelectorAll !== "function") {
       return;
     }
-    doc.querySelectorAll(".view-detail-action-menu[data-view-floating-menu][open]").forEach((menu) => {
+    /** @type {NodeListOf<HTMLDetailsElement>} */
+    const openMenus = doc.querySelectorAll(".view-detail-action-menu[data-view-floating-menu][open]");
+    openMenus.forEach((menu) => {
       if (menu !== currentMenu) {
         menu.open = false;
       }
     });
   }
 
+  /** @param {HTMLDetailsElement} menu @param {HTMLElement} list */
   function closeFloatingDetailActionMenu(menu, list) {
     if (menu.open) {
       menu.open = false;
@@ -1276,6 +1325,7 @@
     resetFloatingDetailActionMenu(menu, list);
   }
 
+  /** @param {HTMLElement} menu @param {HTMLElement} list */
   function resetFloatingDetailActionMenu(menu, list) {
     menu.removeAttribute?.("data-view-floating-menu-positioned");
     menu.removeAttribute?.("data-view-floating-menu-placement");
@@ -1286,6 +1336,11 @@
     }
   }
 
+  /**
+   * @param {HTMLDetailsElement} menu
+   * @param {HTMLElement} summary
+   * @param {HTMLElement} list
+   */
   function positionFloatingDetailActionMenu(menu, summary, list) {
     if (!menu.open) {
       return;
@@ -1321,6 +1376,7 @@
     menu.setAttribute("data-view-floating-menu-positioned", "");
   }
 
+  /** @param {number} value @param {number} min @param {number} max */
   function clampNumber(value, min, max) {
     if (max < min) {
       return min;
@@ -1328,7 +1384,12 @@
     return Math.min(Math.max(value, min), max);
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewInfoPanelOptions} [options] */
   function createInfoPanel(options = {}) {
+    // The tag depends on an option, so the element is a union and `open` belongs to only one
+    // half of it. The member is named optional rather than proved, because the guard that
+    // establishes it reads `options.collapsible` rather than the element.
+    /** @type {HTMLElement & { open?: boolean }} */
     const panel = createElement(options.collapsible ? "details" : "section", {
       className: ["view-info-panel", "surface-main-panel", options.className],
       attrs: options.ariaLabel ? { "aria-label": options.ariaLabel } : {},
@@ -1355,9 +1416,10 @@
     if (Array.isArray(options.items) && options.items.length) {
       const list = createElement("dl", { className: "view-info-list" });
       options.items.forEach((item) => {
+        const entry = infoPanelItemFields(item);
         list.append(
-          createElement("dt", { text: item.label || "" }),
-          createElement("dd", { children: item.value || "" }),
+          createElement("dt", { text: entry.label || "" }),
+          createElement("dd", { children: entry.value || "" }),
         );
       });
       panel.appendChild(list);
@@ -1527,6 +1589,7 @@
     return grid;
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewInlineActionRowOptions} [options] */
   function createInlineActionRow(options = {}) {
     return createElement("div", {
       className: ["view-inline-action-row", "surface-dense-actions", options.className],
@@ -1923,6 +1986,20 @@
     return String(value || "").trim();
   }
 
+  /**
+   * The action button, **left untyped by `0.33.33.39.16` and blocked on a recorded decision.**
+   *
+   * Declaring `BrowserViewActionButtonOptions` here closes nineteen diagnostics and turns seven
+   * others into assignment failures, because two published contracts disagree about the same
+   * five members. This bag declares `icon`, `title`, `type` and `variant` as `unknown` and
+   * `iconOnly` as a flag; `BrowserIconCreateButtonOptions`, which this function forwards them to
+   * raw, declares the first four as strings and `iconOnly` as a boolean. **Coercing at the
+   * forwarding site would change behaviour**: `icons.createIconButton` reads
+   * `options.iconOnly !== false`, which distinguishes `undefined` from `false`, so `Boolean(0)`
+   * would flip a falsy non-false flag. `button.type` is the same shape from the other side - the
+   * DOM types it as three literals while the runtime accepts any string and normalizes on read.
+   * **Reconciling the two is a shared-contract decision, recorded as `0.33.33.39.17`.**
+   */
   function createActionButton(options = {}) {
     const label = String(options.label || options.ariaLabel || options.text || "").trim();
     const text = options.text === undefined ? label : String(options.text || "").trim();
@@ -1931,6 +2008,15 @@
       throw new Error("View action buttons require visible text or an accessible label.");
     }
 
+    // **A disagreement between two published contracts, recorded rather than resolved.**
+    // `BrowserViewActionButtonOptions` declares `icon`, `title`, `type` and `variant` as
+    // `unknown` and `iconOnly` as a flag; `BrowserIconCreateButtonOptions` declares the first
+    // four as strings and `iconOnly` as a boolean. This factory forwards them raw, so the two
+    // cannot both be right. **Coercing here would change behaviour**: `icons.createIconButton`
+    // reads `options.iconOnly !== false`, which distinguishes `undefined` from `false`, so
+    // `Boolean(0)` would flip a falsy non-false flag. `button.type` is the same shape from the
+    // other side - the DOM declares it as three literals while the runtime accepts any string
+    // and normalizes on read. Seven diagnostics stay here for whoever reconciles the two.
     let button = null;
     if (options.icon && root.icons?.createIconButton) {
       button = root.icons.createIconButton({
@@ -1955,13 +2041,13 @@
 
     if (!text && label) {
       button.setAttribute("aria-label", label);
-      button.title = options.title || label;
+      button.title = String(options.title || label);
     } else if (options.ariaLabel) {
-      button.setAttribute("aria-label", options.ariaLabel);
+      button.setAttribute("aria-label", String(options.ariaLabel));
     }
 
     if (options.title) {
-      button.title = options.title;
+      button.title = String(options.title);
     }
 
     if (options.disabled) {
@@ -1969,12 +2055,12 @@
     }
 
     if (options.action) {
-      button.dataset.surfaceAction = options.action;
+      button.dataset.surfaceAction = String(options.action);
     }
 
     const role = options.role || options.actionRole;
     if (role) {
-      button.dataset.surfaceActionRole = role;
+      button.dataset.surfaceActionRole = String(role);
     }
 
     if (typeof options.onClick === "function") {
@@ -1984,6 +2070,7 @@
     return button;
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewActionInput} actions */
   function normalizeActions(actions) {
     if (!actions) {
       return [];
@@ -1997,6 +2084,37 @@
     });
   }
 
+  /**
+   * Read an opaque list entry as the record its builder treats it as.
+   *
+   * Both lists are published as `readonly unknown[]` and both builders read members off whatever
+   * the caller put there. These answer exactly what the member access they replaced answered:
+   * `undefined` for every member of a value that is not a record, and **a `TypeError` for a
+   * nullish one**, which is what `entry.label` did and what a caller passing a hole in its list
+   * still gets. Only the message differs.
+   * @param {unknown} value
+   * @returns {DetailBadge}
+   */
+  function detailBadgeFields(value) {
+    if (value === null || value === undefined) {
+      throw new TypeError("View detail badges must be readable.");
+    }
+    return typeof value === "object" ? value : {};
+  }
+
+  /**
+   * The same, for one entry of an info panel's list.
+   * @param {unknown} value
+   * @returns {InfoPanelItem}
+   */
+  function infoPanelItemFields(value) {
+    if (value === null || value === undefined) {
+      throw new TypeError("View info panel items must be readable.");
+    }
+    return typeof value === "object" ? value : {};
+  }
+
+  /** @param {unknown} badges */
   function normalizeDetailBadges(badges) {
     if (!badges) {
       return [];
@@ -2018,20 +2136,23 @@
       });
   }
 
+  /** @param {unknown} [badge] */
   function createDetailBadge(badge = {}) {
-    const text = badge.text ?? detailBadgeText(badge);
+    const fields = detailBadgeFields(badge);
+    const text = fields.text ?? detailBadgeText(fields);
     return createElement("span", {
-      className: ["surface-chip", badge.className],
+      className: ["surface-chip", fields.className],
       text,
       attrs: {
-        ...(text ? { title: badge.title || text } : {}),
-        ...(badge.focusable ? { tabindex: "0" } : {}),
-        ...(badge.attrs || {}),
+        ...(text ? { title: fields.title || text } : {}),
+        ...(fields.focusable ? { tabindex: "0" } : {}),
+        ...(fields.attrs || {}),
       },
-      dataset: badge.dataset,
+      dataset: fields.dataset,
     });
   }
 
+  /** @param {DetailBadge} [badge] @returns {string} */
   function detailBadgeText(badge = {}) {
     const label = badge.label === null || badge.label === undefined ? "" : String(badge.label).trim();
     const value = badge.value === null || badge.value === undefined ? "" : String(badge.value).trim();

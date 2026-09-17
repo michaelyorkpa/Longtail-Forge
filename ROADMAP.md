@@ -1233,6 +1233,24 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Three executable lines changed, each provably equivalent**, and a published part that is not always mounted is recorded rather than changed.
 
+#### 0.33.33.39.16 - Type the view builder's detail and action surface
+
+**Complete: 83 diagnostics closed in `public/js/shared/view-builder.js`, 190 to 107, with further children still needed.** See the archive entry.
+
+**The action button is deliberately not typed, and `0.33.33.39.17` records why.** Declaring its published bag closes nineteen diagnostics and turns seven others into assignment failures, because two published contracts disagree about the same five members.
+
+**Typing `normalizeActions` closed nothing outside its own seam**, which is worth saying because the checkpoint was drawn partly to find out. Its five callers were either already typed or are still untyped for reasons of their own; `createModal`, `createModalForm` and `createFieldGrid` are unchanged at 9, 11 and 7.
+
+#### 0.33.33.39.17 - OPEN: reconcile the action-button and icon-button option contracts
+
+**`createActionButton` cannot be typed until this is decided.** `BrowserViewActionButtonOptions` declares `icon`, `title`, `type` and `variant` as `unknown` and `iconOnly` as a flag. `BrowserIconCreateButtonOptions`, which `createActionButton` forwards them to **raw**, declares the first four as strings and `iconOnly` as a boolean. Both are published; they cannot both be right.
+
+**Coercing at the forwarding site would change behaviour.** `icons.createIconButton` reads `options.iconOnly !== false`, which distinguishes `undefined` from `false`, so `Boolean(0)` would flip a falsy non-false flag from icon-only to labelled. The other four coerce safely, because the callee already does `String(...)` on each.
+
+`button.type` is the same disagreement from the other side: the DOM types it as three literals, while the runtime accepts any string and normalizes on read, so no truthful narrowing exists that does not change what a caller can pass.
+
+**This is the third declaration in this file found not to be true of its writer**, after the modal footer and the list-shell status. The first two were corrected under the decision that settled them; this one is escalated rather than assumed, because it is a disagreement between two published contracts rather than between a contract and its writer, and because the safe half and the unsafe half differ.
+
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 
 **Open. Not started, and deliberately not decided by `0.33.33.38.2.2.5.2`.** That checkpoint removed an unsupported type assertion and a lookup that could never answer; it did not design a replacement, and it must not be read as having settled what should exist here.

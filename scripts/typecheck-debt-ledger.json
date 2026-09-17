@@ -648,6 +648,7 @@
         "tests/unit/user-settings-preferences-contracts.test.mjs",
         "tests/unit/view-builder-node-and-values.test.mjs",
         "tests/unit/view-descriptor-action-shape.test.mjs",
+        "tests/unit/view-detail-action-surface.test.mjs",
         "tests/unit/view-linked-context-surface.test.mjs",
         "tests/unit/view-list-index-surface.test.mjs",
         "tests/unit/view-modal-footer-contract.test.mjs",
@@ -760,7 +761,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 3034,
+      "errorCount": 2951,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1189,15 +1190,11 @@
         "public/js/shared/view-builder.js": [
           {
             "code": 2339,
-            "count": 144
+            "count": 82
           },
           {
             "code": 7006,
-            "count": 45
-          },
-          {
-            "code": 7053,
-            "count": 1
+            "count": 25
           }
         ],
         "public/js/shared/view-renderer.js": [
@@ -1987,8 +1984,8 @@
     }
   },
   "totals": {
-    "files": 1342,
-    "errors": 3034,
+    "files": 1343,
+    "errors": 2951,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
