@@ -760,7 +760,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 3076,
+      "errorCount": 3034,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1263,7 +1263,7 @@
         "public/js/task-dialog.js": [
           {
             "code": 2339,
-            "count": 56
+            "count": 49
           },
           {
             "code": 2345,
@@ -1275,7 +1275,7 @@
           },
           {
             "code": 7006,
-            "count": 126
+            "count": 91
           },
           {
             "code": 7053,
@@ -1988,7 +1988,7 @@
   },
   "totals": {
     "files": 1342,
-    "errors": 3076,
+    "errors": 3034,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
