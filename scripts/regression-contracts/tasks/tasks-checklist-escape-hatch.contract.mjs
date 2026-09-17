@@ -66,7 +66,7 @@ assert.match(
 );
 assert.match(
   taskDialogScript,
-  /function writeChecklistFields\(task\)[\s\S]*writeTaskControl\(fields\.checklistInput, "disabled", !canUseChecklist[\s\S]*fields\.checklistStatus\.textContent = canUseChecklist[\s\S]*formatChecklistProgress\(progress\)[\s\S]*fields\.checklistList\.replaceChildren\(\.\.\.items\.map\(\(item, index\) => checklistItemRow\(item, index, items\.length\)\)\)[\s\S]*writeTaskControl\(fields\.checklistField, "open", items\.length > 0\)/,
+  /function writeChecklistFields\(task\)[\s\S]*writeTaskControl\(fields\.checklistInput, "disabled", !canUseChecklist[\s\S]*fields\.checklistStatus\.textContent = canUseChecklist[\s\S]*formatChecklistProgress\(progress\)[\s\S]*const list = fields\.checklistList;[\s\S]*const replaceChildren = list\.replaceChildren;[\s\S]*callTaskContextCollection\(items, "map", \[[\s\S]*Reflect\.apply\(checklistItemRow, undefined, \[item, index, taskProjectionFields\(items\)\.length\]\)[\s\S]*Reflect\.apply\(replaceChildren, list, taskContextOptionItems\(rows\)\)[\s\S]*const hasItems = [^;]*length > 0;[\s\S]*writeTaskControl\(fields\.checklistField, "open", Reflect\.apply\(hasItems, undefined, \[taskProjectionFields\(items\)\.length\]\)\)/,
   "Checklist section should preserve unsaved-task gating, progress summary, row rendering, and auto-open behavior.",
 );
 assert.match(
