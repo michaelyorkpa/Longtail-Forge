@@ -1281,17 +1281,23 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Three source-text pins were retargeted, not deleted.** Two unit contracts pinned the deferral comments this checkpoint retired, and one regression contract pinned a callback's parameter spelling. Each keeps the claim it owned and now holds it to what replaced it.
 
-#### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
+#### 0.33.33.39.2 - Decide the fate of the view-action permission hooks
 
-**Open. Not started, and deliberately not decided by `0.33.33.38.2.2.5.2`.** That checkpoint removed an unsupported type assertion and a lookup that could never answer; it did not design a replacement, and it must not be read as having settled what should exist here.
+**Decided and carried out by `0.33.33.39.22`: the two hooks are retired.** `actionPermissionsAllowed` returned `true` unconditionally and `assertActionPermissions` could not throw, so ten `actions.filter(...)` sites filtered nothing and the dispatcher's check refused nothing. **Nothing was enforced by them, and nothing ever was** - the enforcement point is the server, on the routes these actions dispatch to.
 
-**The situation, stated accurately.** `LongtailForge.viewActionSecurity.actionPermissionsAllowed` is unconditional and `assertActionPermissions` cannot throw. Descriptors across the modules still declare `requiredPermissions`, and the renderer still reads that metadata and still calls both hooks between confirmation and dispatch. Nothing is enforced by them, and nothing ever was.
+**Why retirement rather than a permission hint.** The second option remains available and is not foreclosed: `/api/app-shell/bootstrap` still publishes a role-accurate `workspaceContext.permissionIds`, and `buildWorkspaceContext` still declines to persist it. What retirement removes is the standing misreading - a published `BrowserViewActionSecurity.assertActionPermissions` reads like an authorization boundary to anyone who has not traced it. **A hint, if one is ever designed, is a new deliberate contract; it is not this pair reactivated.**
 
-**The server contract already exists; only the browser carry-through does not.** `/api/app-shell/bootstrap` publishes a role-accurate `workspaceContext.permissionIds` - `permission-regression` asserts it per role, including that a project admin sees `projects.manage` and not `clients.manage`. `buildWorkspaceContext` deliberately does not persist it, so this is not a contract that would have to be invented, and the decision is about whether it should reach the browser at all rather than whether it could.
+**`requiredPermissions` survives with the owners that read it**, audited before removal: `view-surface-descriptor.js` admits and validates it on every descriptor action, and `src/core/modules/manifest-contract.js` checks it against the declared permission set when a module manifest loads. The renderer was never an owner and no longer mentions it.
 
-- [ ] Decide between two outcomes and record why: **supply a deliberately designed, server-derived permission hint** for advisory UI gating, declared and validated like any other stored member; **or retire the unused hooks** after a caller and contract audit.
-- [ ] Whichever is chosen, an advisory hint is never an authorization boundary. Server-side enforcement stays where it is, and no hint may be described as protection.
-- [ ] If the hooks are retired, audit `requiredPermissions` on every descriptor first: the metadata may still be worth keeping for the server, for documentation, or for a future hint.
+#### 0.33.33.39.22 - Retire the view-action permission hooks
+
+**Complete, and it closes `0.33.33.39.2`.** See the archive entry. **Zero diagnostics eliminated, by design** - this removes dead hooks, not debt, and the canonical ledger is unchanged at browser **2,737** with `0.33.33.39` at **547**.
+
+**What went.** Two functions, their two published declaration members, ten no-op call sites in the renderer, its local delegate and the `SecurableAction` typedef that existed only to describe what the filter read.
+
+**What stayed, deliberately.** Server-side enforcement, confirmation, route interpolation, method validation and dispatch; the `requiredPermissions` metadata with its two real owners; and every permission test - `permission-regression` still reads `clients.manage` out of the client-projects descriptor and still asserts a project user's `POST /api/clients` is refused with **403**.
+
+**The behavioural claim is pass-through.** Ten sites used to rebuild their action lists through a filter; the lists now arrive whole - same entries, same order, same identities, including the DOM nodes `lists.js` and `files.js` pass. Eleven focused cases hold that, and eleven mutations were all killed.
 
 ### 0.33.33.40 - Type the Notes browser controller
 

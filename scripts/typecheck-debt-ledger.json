@@ -657,6 +657,7 @@
         "tests/unit/user-record-contract.test.mjs",
         "tests/unit/user-settings-contracts.test.mjs",
         "tests/unit/user-settings-preferences-contracts.test.mjs",
+        "tests/unit/view-action-permission-retirement.test.mjs",
         "tests/unit/view-builder-node-and-values.test.mjs",
         "tests/unit/view-data-table-surface.test.mjs",
         "tests/unit/view-descriptor-action-shape.test.mjs",
@@ -1986,7 +1987,7 @@
     }
   },
   "totals": {
-    "files": 1357,
+    "files": 1358,
     "errors": 2737,
     "explicitAny": 0
   },

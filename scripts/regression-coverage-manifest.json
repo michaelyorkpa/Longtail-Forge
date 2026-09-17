@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19080,
+    "activeAssertionCount": 19083,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19894,
+    "effectiveAssertionCount": 19897,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -8789,11 +8789,11 @@
     },
     {
       "area": "views",
-      "assertionCount": 26,
+      "assertionCount": 27,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy view renderer actions contract.",
-      "entryPointAssertionCount": 26,
+      "entryPointAssertionCount": 27,
       "id": "legacy.view.renderer.actions",
       "legacy": true,
       "path": "scripts/view-renderer-actions-regression.mjs",
@@ -8804,11 +8804,11 @@
     },
     {
       "area": "views",
-      "assertionCount": 41,
+      "assertionCount": 43,
       "contractAssertionCount": 0,
       "contractModules": [],
       "description": "Protects the legacy view shared capabilities contract.",
-      "entryPointAssertionCount": 41,
+      "entryPointAssertionCount": 43,
       "id": "legacy.view.shared.capabilities",
       "legacy": true,
       "path": "scripts/view-shared-capabilities-regression.mjs",

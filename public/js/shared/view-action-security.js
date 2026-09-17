@@ -1,11 +1,20 @@
 /**
- * The security-relevant half of descriptor action dispatch: permission gating, confirmation,
- * and route interpolation.
+ * The guarded half of descriptor action dispatch: confirmation, route interpolation, and the
+ * dispatch itself.
  *
  * Extracted from `public/js/shared/view-renderer.js` by `0.33.33.35.2`. The renderer keeps the
- * dispatch itself - deciding between a route, a behavior, and a modal, settling surface state,
- * and re-rendering - because that is rendering orchestration. What lives here is the part that
- * decides whether an action may run at all and what URL it runs against.
+ * orchestration - deciding between a route, a behavior, and a modal, settling surface state, and
+ * re-rendering. What lives here is what an action runs against and how it is confirmed first.
+ *
+ * **It carries no permission check, and `0.33.33.39.22` stopped implying one.** This module
+ * published `actionPermissionsAllowed` and `assertActionPermissions` for four checkpoints while
+ * the first returned `true` unconditionally and the second could not throw; the lookup behind
+ * them read two members the canonical workspace context has never had.
+ * **The enforcement point is the server and always was** - every route these actions dispatch to
+ * checks permissions itself and refuses an unauthorized caller - so retiring the pair removes a
+ * hook that was never connected rather than a control. Whether the browser should receive a
+ * deliberately designed, server-derived permission hint for advisory gating stays an open
+ * framework question; it is not answered by leaving two no-ops in a published contract.
  *
  * Two collaborators are supplied by the caller rather than resolved here, so this module never
  * acquires anything: the API client, and the descriptor value reader used to fill route tokens.
@@ -13,8 +22,8 @@
  * returns and knows nothing about what a descriptor ought to contain, which is the invariant
  * `0.33.33.35.1.2` established when the server descriptor became the single source of truth.
  *
- * It is not a bootstrap participant: it reads already-resolved workspace context for granted
- * permissions and never loads, awaits, or refreshes it.
+ * It is not a bootstrap participant: it reads no workspace context at all, and never loads,
+ * awaits, or refreshes it.
  *
  * @param {Window} global
  */
@@ -27,13 +36,17 @@
 
   /**
    * The parts of a descriptor action this module reads.
+   *
+   * `requiredPermissions` left this shape with `0.33.33.39.22`: nothing here reads it now. **The
+   * metadata itself stays** - `view-surface-descriptor.js` admits and validates it on every
+   * descriptor action, and `src/core/modules/manifest-contract.js` checks it against the declared
+   * permission set when a module manifest is loaded. Those are its owners; this module never was.
    * @typedef {{
    *   confirm?: unknown,
    *   id?: string,
    *   label?: string,
    *   method?: string,
    *   payload?: unknown,
-   *   requiredPermissions?: unknown,
    *   route?: string,
    * }} SecuredAction
    */
@@ -45,46 +58,6 @@
    */
 
   const namespace = global.LongtailForge || {};
-
-  /**
-   * Whether an action's declared permissions allow it here. **Always `true`.**
-   *
-   * This has never gated anything, and `0.33.33.38.2.2.5.2` removed the assertion that hid it.
-   * The check reached for `permissionIds` and then `permissions` on the workspace context
-   * through a type assertion naming two members the canonical context does not have:
-   * `buildWorkspaceContext` reconstructs fourteen members by name and no grant list is among
-   * them, so both reads were `undefined`, the `Array.isArray` guard failed, and every call
-   * returned `true`. Removing the assertion changes the answer for no caller.
-   *
-   * **The enforcement point is the server and always was.** The routes these actions dispatch
-   * to check permissions themselves and refuse an unauthorized caller whether or not this ran,
-   * so this is not a control that has been weakened - it is a hook that was never connected.
-   *
-   * It stays as a published hook rather than being deleted: `LongtailForge.viewActionSecurity`
-   * is a live surface and the renderer calls this between confirmation and dispatch. Whether
-   * the browser should receive a deliberately designed, server-derived permission hint for
-   * advisory gating - the app shell already computes a role-accurate `permissionIds` that the
-   * stored context deliberately drops - is an open framework decision, not this checkpoint's.
-   *
-   * `action` is unread and keeps its place in the published signature.
-   * @param {SecuredAction} [action]
-   * @returns {boolean}
-   */
-  function actionPermissionsAllowed(action = {}) {
-    void action;
-
-    return true;
-  }
-
-  /**
-   * @param {SecuredAction} action
-   * @returns {void}
-   */
-  function assertActionPermissions(action) {
-    if (!actionPermissionsAllowed(action)) {
-      throw new Error("You do not have permission to run this action.");
-    }
-  }
 
   /**
    * Confirm a destructive or guarded action, preferring the framework modal and falling back
@@ -163,8 +136,6 @@
   }
 
   namespace.viewActionSecurity = Object.freeze({
-    actionPermissionsAllowed,
-    assertActionPermissions,
     confirmDescriptorAction,
     interpolateRoute,
     runRouteAction,

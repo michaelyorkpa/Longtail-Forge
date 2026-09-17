@@ -588,16 +588,16 @@ export interface BrowserReporting {
 /**
  * `LongtailForge.viewActionSecurity`, published by `public/js/shared/view-action-security.js`.
  *
- * The security-relevant half of descriptor action dispatch, extracted from the view renderer by
- * `0.33.33.35.2`. The renderer keeps the dispatch; this decides whether an action may run and
- * what URL it runs against. Both collaborators are passed in so the module acquires nothing and
- * stays ignorant of descriptor semantics.
+ * The guarded half of descriptor action dispatch, extracted from the view renderer by
+ * `0.33.33.35.2`. The renderer keeps the orchestration; this confirms an action and settles what
+ * URL it runs against. Both collaborators are passed in so the module acquires nothing and stays
+ * ignorant of descriptor semantics.
+ *
+ * **It carries no permission check.** `0.33.33.39.22` retired `actionPermissionsAllowed` and
+ * `assertActionPermissions`, which returned `true` unconditionally and could not throw. Permission
+ * enforcement is the server's, on the routes these actions dispatch to.
  */
 export interface BrowserViewActionSecurity {
-  /** Whether every permission the action requires is granted in the current workspace. */
-  actionPermissionsAllowed(action?: BrowserSecuredAction): boolean;
-  /** Throws when the action's required permissions are not granted. */
-  assertActionPermissions(action: BrowserSecuredAction): void;
   /** Confirm a guarded action through the framework modal, falling back to the host confirm. */
   confirmDescriptorAction(action: BrowserSecuredAction): Promise<boolean>;
   /** Replace `{field}` route tokens using the supplied reader; unresolved tokens are left intact. */
@@ -609,14 +609,20 @@ export interface BrowserViewActionSecurity {
   ): Promise<void>;
 }
 
-/** The parts of a descriptor action `viewActionSecurity` reads. */
+/**
+ * The parts of a descriptor action `viewActionSecurity` reads.
+ *
+ * `requiredPermissions` left this shape with `0.33.33.39.22`, because nothing in that module
+ * reads it any more. The metadata keeps its owners: `view-surface-descriptor.js` admits and
+ * validates it on every descriptor action, and `src/core/modules/manifest-contract.js` checks it
+ * against the declared permission set when a module manifest loads.
+ */
 export interface BrowserSecuredAction {
   confirm?: unknown;
   id?: string;
   label?: string;
   method?: string;
   payload?: unknown;
-  requiredPermissions?: unknown;
   route?: string;
 }
 
