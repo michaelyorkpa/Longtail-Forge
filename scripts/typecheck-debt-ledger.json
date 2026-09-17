@@ -379,6 +379,7 @@
         "tests/e2e/task-dialog-dom-controls.spec.mjs",
         "tests/e2e/task-dialog-record-state.spec.mjs",
         "tests/e2e/task-direct-completion.spec.mjs",
+        "tests/e2e/task-editor-continuity.spec.mjs",
         "tests/e2e/task-editor-control-handles.spec.mjs",
         "tests/e2e/task-editor-normalizers.spec.mjs",
         "tests/e2e/task-editor-operation-handles.spec.mjs",
@@ -608,6 +609,7 @@
         "tests/unit/task-calendar-window-contracts.test.mjs",
         "tests/unit/task-dialog-context-consumers.test.mjs",
         "tests/unit/task-dialog-context-writers.test.mjs",
+        "tests/unit/task-dialog-continuity.test.mjs",
         "tests/unit/task-dialog-dom-controls.test.mjs",
         "tests/unit/task-dialog-record-state.test.mjs",
         "tests/unit/task-dialog-scheduling-fields.test.mjs",
@@ -763,7 +765,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 2927,
+      "errorCount": 2908,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1262,7 +1264,7 @@
         "public/js/task-dialog.js": [
           {
             "code": 2339,
-            "count": 35
+            "count": 19
           },
           {
             "code": 2345,
@@ -1274,7 +1276,7 @@
           },
           {
             "code": 7006,
-            "count": 82
+            "count": 79
           },
           {
             "code": 7053,
@@ -1986,8 +1988,8 @@
     }
   },
   "totals": {
-    "files": 1345,
-    "errors": 2927,
+    "files": 1347,
+    "errors": 2908,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
