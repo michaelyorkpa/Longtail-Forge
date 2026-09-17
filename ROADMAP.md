@@ -1225,6 +1225,14 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **One declaration was corrected, on the terms `0.33.33.39.13` set.** `createListShell` builds its status region only for `options.status !== false` and has always attached `null` otherwise, while `BrowserViewListShellParts.status` was declared non-nullable. **Unlike the modal footer, this absence is on a path the running application takes**: six production call sites pass `status: false` - three in `clients-projects.js`, one in `reporting.js`, two in `shared/file-attachments.js` - and **no production consumer reads the part at all**, so the correction costs nothing.
 
+#### 0.33.33.39.15 - Type the view builder's linked-context surface
+
+**Complete: 95 diagnostics closed in `public/js/shared/view-builder.js`, 285 to 190, with further children still needed.** See the archive entry.
+
+**The parts question is answered: two coincidental defects, not a systematic problem.** Every published `*Parts` interface was audited against its writer. `createListShell.status` and `createModal.footer` were the only two members attached conditionally, and both were already corrected by `0.33.33.39.13` and `0.33.33.39.14`. **No declaration needed correcting here** - the picker's `HTMLSelectElement`, `HTMLInputElement` and `HTMLButtonElement` members are proved by construction, because every one is built by a local `createElement` or `createActionButton` rather than found by a query.
+
+**Three executable lines changed, each provably equivalent**, and a published part that is not always mounted is recorded rather than changed.
+
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 
 **Open. Not started, and deliberately not decided by `0.33.33.38.2.2.5.2`.** That checkpoint removed an unsupported type assertion and a lookup that could never answer; it did not design a replacement, and it must not be read as having settled what should exist here.
