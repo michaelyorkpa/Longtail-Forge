@@ -32,6 +32,51 @@
   /** @typedef {FieldBuilderOptions & { fieldType: string }} FieldControlOptions */
 
   /**
+   * The linked-context shapes this file owns.
+   *
+   * The two published option bags take their lists as `readonly unknown[]`, so the normalizers
+   * are what give the pickers a shape at all - and `ReturnType` names it from the writer rather
+   * than restating it, which is what keeps the two from drifting.
+   * @typedef {ReturnType<typeof normalizePickerOptions>[number]} PickerOption
+   */
+
+  /** @typedef {ReturnType<typeof normalizePickerRecords>[number]} PickerRecord */
+
+  /**
+   * What `createPickerOption` accepts: the normalizers' own output, and the two literals the
+   * record list builds for a selected record and for its empty placeholder.
+   * @typedef {object} PickerOptionInput
+   * @property {unknown} [ariaLabel]
+   * @property {Record<string, unknown>} [dataset]
+   * @property {unknown} [disabled]
+   * @property {unknown} [label]
+   * @property {unknown} [selected]
+   * @property {unknown} [title]
+   * @property {unknown} [value]
+   */
+
+  /**
+   * How a linked-context row is rendered. `empty` is the placeholder the row list appends when
+   * nothing survives normalization, which is why only the list carries it.
+   * @typedef {object} LinkedContextRowOptions
+   * @property {unknown} [readonly]
+   * @property {unknown} [removeAction]
+   * @property {unknown} [removeLabel]
+   * @property {(item: unknown, event?: unknown) => unknown} [onRemove]
+   */
+
+  /** @typedef {LinkedContextRowOptions & { empty?: HTMLElement }} LinkedContextRowsOptions */
+
+  /**
+   * One labelled control in the picker's field grid. The control is required and is always one
+   * this file just built, which is why it is an element rather than something to be proved.
+   * @typedef {object} LinkedContextPickerField
+   * @property {HTMLElement} control
+   * @property {unknown} [label]
+   * @property {unknown} [width]
+   */
+
+  /**
    * One row of an index list, as this factory reads one.
    *
    * `BrowserViewIndexListOptions.items` is published as `readonly unknown[]`, which withheld the
@@ -1490,6 +1535,7 @@
     });
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewLinkedContextPickerOptions} [options] */
   function createLinkedContextPicker(options = {}) {
     const readonly = Boolean(options.readonly || options.disabled || options.permissionDisabled);
     const clientContextOptions = normalizePickerOptions(options.clientContexts || options.clientContextOptions || []);
@@ -1542,18 +1588,19 @@
       disabled: readonly || Boolean(options.useTargetDisabled),
       onClick: options.onUseTarget,
     });
+    /** @type {HTMLElement | null} */
     let clientContextField = null;
-    const renderLinkedItems = (items = []) => renderLinkedContextRows(rows, items, {
+    const renderLinkedItems = (/** @type {readonly unknown[]} */ items = []) => renderLinkedContextRows(rows, items, {
       empty,
       readonly,
       removeLabel: options.removeLabel,
       removeAction: options.removeAction,
       onRemove: options.onRemove,
     });
-    const setTargets = (targets = []) => {
+    const setTargets = (/** @type {readonly unknown[]} */ targets = []) => {
       replaceElementChildren(targetSelect, normalizePickerOptions(targets).map((target) => createPickerOption(target)));
     };
-    const setClientContexts = (clientContexts = []) => {
+    const setClientContexts = (/** @type {readonly unknown[]} */ clientContexts = []) => {
       const normalizedClientContexts = normalizePickerOptions(clientContexts);
       replaceElementChildren(clientContextSelect, normalizedClientContexts.map((clientContext) => createPickerOption(clientContext)));
       if (clientContextField) {
@@ -1561,7 +1608,7 @@
       }
       clientContextSelect.disabled = readonly || normalizedClientContexts.length === 0;
     };
-    const setRecords = (records = []) => {
+    const setRecords = (/** @type {readonly unknown[]} */ records = []) => {
       const normalizedRecords = normalizePickerRecords(records);
       replaceElementChildren(recordSelect, normalizedRecords.length
         ? normalizedRecords.map((record) => createPickerOption({
@@ -1581,7 +1628,7 @@
           }))
         : [createPickerOption({ value: "", label: options.noRecordsLabel || "No records found", disabled: true })]);
     };
-    const setReadonly = (isReadonly) => {
+    const setReadonly = (/** @type {unknown} */ isReadonly) => {
       const nextReadonly = Boolean(isReadonly);
       if (nextReadonly) {
         picker.classList.add("is-readonly");
@@ -1660,6 +1707,7 @@
     return picker;
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewLinkedContextListOptions} [options] */
   function createLinkedContextList(options = {}) {
     const rows = createElement("div", {
       className: ["view-linked-context-picker-list", options.className],
@@ -1683,7 +1731,7 @@
 
     assignViewParts(rows, {
       empty,
-      setLinkedItems: (items = []) => renderLinkedContextRows(rows, items, {
+      setLinkedItems: (/** @type {readonly unknown[]} */ items = []) => renderLinkedContextRows(rows, items, {
         empty,
         readonly: Boolean(options.readonly || options.disabled || options.permissionDisabled),
         removeLabel: options.removeLabel,
@@ -1694,6 +1742,11 @@
     return rows;
   }
 
+  /**
+   * @param {HTMLElement} rows
+   * @param {readonly unknown[]} [items]
+   * @param {LinkedContextRowsOptions} [options]
+   */
   function renderLinkedContextRows(rows, items = [], options = {}) {
     const normalizedItems = normalizePickerRecords(items);
     replaceElementChildren(rows, normalizedItems.map((item) => (
@@ -1710,7 +1763,8 @@
     return rows;
   }
 
-  function createLinkedContextPickerField(options = {}) {
+  /** @param {LinkedContextPickerField} options */
+  function createLinkedContextPickerField(options) {
     const control = options.control;
     const id = control.id || nextId("view-linked-context-picker-field");
     control.id = id;
@@ -1724,6 +1778,10 @@
     });
   }
 
+  /**
+   * @param {PickerRecord} item
+   * @param {LinkedContextRowOptions} [options]
+   */
   function createLinkedContextPickerRow(item, options = {}) {
     const fullLabel = item.title || item.fullLabel || item.ariaLabel || item.displayLabel;
     const title = createElement(item.sourceUrl ? "a" : "span", {
@@ -1770,13 +1828,18 @@
     row.appendChild(body);
 
     if (item.removable !== false) {
+      // The handler is read once rather than re-read inside the click, because narrowing a
+      // mutable property does not survive into a closure. `renderLinkedContextRows` builds this
+      // options object per row and nothing retains or mutates it, so the second read could never
+      // have observed a different handler.
+      const onRemove = options.onRemove;
       const removeButton = createActionButton({
         icon: "delete",
         iconOnly: true,
         label: options.removeLabel || "Remove linked context",
         action: options.removeAction || "remove-linked-context",
         disabled: options.readonly || item.disabled || item.isAvailable === false,
-        onClick: typeof options.onRemove === "function" ? (event) => options.onRemove(item, event) : undefined,
+        onClick: typeof onRemove === "function" ? (/** @type {unknown} */ event) => onRemove(item, event) : undefined,
       });
       row.appendChild(createElement("div", {
         className: "view-linked-context-picker-row-actions",
@@ -1787,6 +1850,7 @@
     return row;
   }
 
+  /** @param {unknown} options */
   function normalizePickerOptions(options) {
     return (Array.isArray(options) ? options : [options]).filter(Boolean).map((option) => {
       if (typeof option === "string") {
@@ -1811,6 +1875,7 @@
     });
   }
 
+  /** @param {unknown} records */
   function normalizePickerRecords(records) {
     return (Array.isArray(records) ? records : [records]).filter(Boolean).map((record) => ({
       ...record,
@@ -1827,6 +1892,7 @@
     }));
   }
 
+  /** @param {PickerOptionInput} option */
   function createPickerOption(option) {
     const title = pickerOptionalLabel(option.title || option.ariaLabel);
     const element = createElement("option", {
@@ -1837,17 +1903,22 @@
       },
       dataset: option.dataset,
     });
-    element.value = option.value;
+    // The native `value` setter coerces with ToString, which is what this spells out. Every
+    // caller reaches here through `normalizePickerOptions` or `normalizePickerRecords`, both of
+    // which answer `... || ""`, so the value is already text and no reachable input differs.
+    element.value = String(option.value);
     element.disabled = Boolean(option.disabled);
     element.selected = Boolean(option.selected);
     return element;
   }
 
+  /** @param {unknown} value @param {string} fallback @returns {string} */
   function pickerLabel(value, fallback) {
     const text = String(value || "").trim();
     return text || fallback;
   }
 
+  /** @param {unknown} value @returns {string} */
   function pickerOptionalLabel(value) {
     return String(value || "").trim();
   }
