@@ -54,7 +54,7 @@ assert.match(notesDocs, /Notes owns which note events are meaningful/, "Notes do
 assert.match(notesDocs, /Notes editor is the Notes reference implementation for the finalized converted-modal action standard/, "Notes docs should identify the reference modal standard");
 
 assert.match(viewBuilder, /function createModalFooter[\s\S]*surface-modal-footer-utilities[\s\S]*data-modal-footer-group": "utility"[\s\S]*surface-modal-footer-commit[\s\S]*data-modal-footer-group": "commit"/, "View builder should own utility and commit footer groups");
-assert.match(viewBuilder, /function createActionButton[\s\S]*button\.dataset\.surfaceActionRole = role/, "View builder action buttons should carry stable action roles");
+assert.match(viewBuilder, /function createActionButton[\s\S]*button\.dataset\.surfaceActionRole = String\(role\)/, "View builder action buttons should carry stable action roles");
 
 assert.match(taskDialog, /renderDescriptorModalForm\(descriptor, \{[\s\S]*utilityActions: taskEditorUtilityActions\(descriptor\)[\s\S]*actions: taskEditorCommitActions\(descriptor\)/, "Task editor should feed utility and commit actions into the framework modal footer");
 assert.match(taskDialog, /className: "surface-modal-footer-action"[\s\S]*role: action\.role/, "Task editor footer actions should use framework footer action class and stable roles");
