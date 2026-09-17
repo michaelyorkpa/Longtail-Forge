@@ -3263,6 +3263,9 @@
     };
   }
 
+  /**
+   * @param {{includeEditor?: unknown, includeRecurrence?: unknown, includeTags?: unknown, includeFiles?: unknown}} [options]
+   */
   function createTaskDialogElements(options = {}) {
     const includeEditor = options.includeEditor !== false;
     const includeRecurrence = options.includeRecurrence !== false;
@@ -3397,6 +3400,8 @@
   }
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewFactory} BrowserViewFactory */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewActionButtonOptions} BrowserViewActionButtonOptions */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewElementOptions} BrowserViewElementOptions */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers} BrowserViewDescriptorRenderers */
 
   /**
@@ -3457,6 +3462,7 @@
     };
   }
 
+  /** @param {ReturnType<typeof taskEditorModalDescriptor>} descriptor */
   function taskEditorUtilityActions(descriptor) {
     const view = requireTaskDialogView();
     return descriptor.utilityActions.map((action) => {
@@ -3483,6 +3489,9 @@
     });
   }
 
+  /**
+   * @param {{footerActions: readonly (ReturnType<typeof taskEditorModalDescriptor>["footerActions"][number] & Pick<BrowserViewActionButtonOptions, "iconOnly" | "text" | "title">)[]}} descriptor
+   */
   function taskEditorCommitActions(descriptor) {
     const view = requireTaskDialogView();
     return descriptor.footerActions.map((action) => {
@@ -3527,6 +3536,7 @@
     ];
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorTitleField(view) {
     return taskEditorLabel(view, "Title", view.createElement("input", {
       attrs: {
@@ -3537,6 +3547,7 @@
     }), { className: "task-title-field" });
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorMetadataRibbon(view) {
     return view.createElement("div", {
       className: ["task-metadata-ribbon", "view-detail-badges", "surface-chip-row"],
@@ -3547,6 +3558,7 @@
     });
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorDetailsSection(view) {
     return view.createElement("details", {
       className: ["task-details-field", "surface-modal-group"],
@@ -3607,6 +3619,7 @@
     });
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorChecklistSection(view) {
     return view.createElement("details", {
       className: ["task-checklist-field", "surface-modal-group"],
@@ -3638,6 +3651,7 @@
     });
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorChecklistAddButton(view) {
     const button = view.createActionButton({
       className: "task-checklist-add-button",
@@ -3652,6 +3666,7 @@
     return button;
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorRecurrenceSection(view) {
     return view.createElement("details", {
       className: ["task-recurrence-field", "surface-modal-group", "surface-divider-top"],
@@ -3683,6 +3698,7 @@
     });
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorTimerSection(view) {
     return view.createElement("section", {
       className: ["task-timer-field", "surface-modal-group"],
@@ -3713,6 +3729,7 @@
     });
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorReminderSection(view) {
     return view.createElement("details", {
       className: ["task-reminder-field", "surface-modal-group", "surface-divider-top"],
@@ -3763,6 +3780,7 @@
     });
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorNotesSection(view) {
     return view.createElement("details", {
       className: ["task-notes-field", "surface-modal-group", "surface-divider-top"],
@@ -3777,6 +3795,11 @@
     });
   }
 
+  /**
+   * @param {BrowserViewFactory} view
+   * @param {string} tagName
+   * @param {BrowserViewElementOptions["text"]} text
+   */
   function taskEditorSectionHeading(view, tagName, text) {
     return view.createElement(tagName, {
       className: "surface-modal-section-heading",
@@ -3784,6 +3807,12 @@
     });
   }
 
+  /**
+   * @param {BrowserViewFactory} view
+   * @param {BrowserViewElementOptions["text"]} label
+   * @param {BrowserViewElementOptions["children"]} controls
+   * @param {Pick<BrowserViewElementOptions, "className" | "attrs" | "hidden">} [options]
+   */
   function taskEditorLabel(view, label, controls, options = {}) {
     return view.createElement("label", {
       className: options.className,
@@ -3793,6 +3822,11 @@
     });
   }
 
+  /**
+   * @param {BrowserViewFactory} view
+   * @param {BrowserViewElementOptions["text"]} label
+   * @param {BrowserViewElementOptions["attrs"]} [attrs]
+   */
   function taskEditorInlineCheckbox(view, label, attrs = {}) {
     return view.createElement("label", {
       className: "inline-option",
@@ -3803,6 +3837,12 @@
     });
   }
 
+  /**
+   * @param {BrowserViewFactory} view
+   * @param {BrowserViewElementOptions["text"]} label
+   * @param {ReturnType<typeof taskEditorInput>} control
+   * @param {BrowserViewElementOptions["attrs"]} enableAttrs
+   */
   function taskEditorOptionalReminderField(view, label, control, enableAttrs) {
     return view.createElement("div", {
       className: "task-reminder-offset-field",
@@ -3822,6 +3862,7 @@
     });
   }
 
+  /** @param {BrowserViewFactory} view */
   function taskEditorContinuitySection(view) {
     return view.createElement("section", {
       className: ["task-continuity-row", "surface-modal-group"],
@@ -3854,6 +3895,11 @@
     });
   }
 
+  /**
+   * @param {BrowserViewFactory} view
+   * @param {BrowserViewElementOptions["attrs"]} [attrs]
+   * @param {readonly (readonly [unknown, unknown])[]} [options]
+   */
   function taskEditorSelect(view, attrs = {}, options = []) {
     return view.createElement("select", {
       attrs,
@@ -3864,6 +3910,11 @@
     });
   }
 
+  /**
+   * @param {BrowserViewFactory} view
+   * @param {unknown} type
+   * @param {BrowserViewElementOptions["attrs"]} [attrs]
+   */
   function taskEditorInput(view, type, attrs = {}) {
     return view.createElement("input", {
       attrs: {
@@ -3873,10 +3924,16 @@
     });
   }
 
+  /** @param {BrowserViewFactory} view @param {BrowserViewElementOptions["attrs"]} [attrs] */
   function taskEditorTextarea(view, attrs = {}) {
     return view.createElement("textarea", { attrs });
   }
 
+  /**
+   * @param {BrowserViewFactory} view
+   * @param {BrowserViewElementOptions["text"]} label
+   * @param {BrowserViewElementOptions["attrs"]} [attrs]
+   */
   function taskEditorButton(view, label, attrs = {}) {
     return view.createElement("button", {
       attrs: {
@@ -3974,6 +4031,7 @@
     ];
   }
 
+  /** @param {ReturnType<typeof taskRecurrenceModalDescriptor>} descriptor */
   function taskRecurrenceActions(descriptor) {
     const view = requireTaskDialogView();
     return descriptor.footerActions.map((action) => {
