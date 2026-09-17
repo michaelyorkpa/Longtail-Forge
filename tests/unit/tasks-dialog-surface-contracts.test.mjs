@@ -163,7 +163,7 @@ describe("the surface is declared whole, and its members keep their own shapes",
   it("leaves the continuity token opaque, because the poller validates nothing", () => {
     assert.match(interfaceBody("BrowserTasksDialog"), /pollRecurrenceContinuity\(taskId\?: unknown, options\?: unknown\): Promise<unknown>;/);
     const body = slice(taskDialog, "async function pollRecurrenceContinuity(taskId, options = {}) {");
-    assert.match(body, /continuity = result\?\.recurrenceContinuity \|\| continuity;/,
+    assert.match(body, /continuity = optionalTaskProjectionFields\(result\)\?\.recurrenceContinuity \|\| continuity;/,
       "it keeps whatever the body carried");
     assert.ok(!/isRecord|Array\.isArray\(continuity\)|typeof continuity/.test(body),
       "and validates none of it, so unknown is what it really answers");
@@ -300,10 +300,10 @@ describe("the page consumers keep the rules they already had", () => {
 
   it("keeps the recurrence polling behaviour it had", () => {
     const body = slice(taskDialog, "async function pollRecurrenceContinuity(taskId, options = {}) {");
-    assert.match(body, /Math\.max\(1, Number\.parseInt\(options\.attempts, 10\) \|\| 7\)/, "seven attempts by default");
-    assert.match(body, /Math\.max\(100, Number\.parseInt\(options\.delayMs, 10\) \|\| 1500\)/, "1500ms apart");
-    assert.match(body, /\["available", "ended"\]\.includes\(continuity\?\.status\)/, "stopping on a settled status");
-    assert.match(body, /await options\.onUpdate\(continuity, attempt\)/, "reporting each attempt");
+    assert.match(body, /Math\.max\(1, Number\.parseInt\(`\$\{settings\.attempts\}`, 10\) \|\| 7\)/, "seven attempts by default");
+    assert.match(body, /Math\.max\(100, Number\.parseInt\(`\$\{settings\.delayMs\}`, 10\) \|\| 1500\)/, "1500ms apart");
+    assert.match(body, /const status = optionalTaskProjectionFields\(continuity\)\?\.status;[\s\S]*status === "available" \|\| status === "ended"/, "stopping on a settled status");
+    assert.match(body, /await Reflect\.apply\(onUpdate, options, \[continuity, attempt\]\)/, "reporting each attempt");
   });
 
   it("keeps the editor's teardown on close", () => {
