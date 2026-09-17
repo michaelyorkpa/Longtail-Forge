@@ -36,32 +36,32 @@ assert.match(
 );
 assert.match(
   taskDialogScript,
-  /async function addChecklistItem\(\)[\s\S]*api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(currentTaskId\)\}\/checklist`, \{ label \}\)[\s\S]*applyChecklistResult\(result\)/,
+  /async function addChecklistItem\(\)[\s\S]*api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{currentTaskId\}`\)\}\/checklist`, \{ label \}\)[\s\S]*applyChecklistResult\(result\)/,
   "Checklist add should keep using the Tasks checklist API route and refresh path.",
 );
 assert.match(
   taskDialogScript,
-  /async function handleChecklistChange\(event\)[\s\S]*const action = checkbox\.checked \? "check" : "uncheck";[\s\S]*api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(currentTaskId\)\}\/checklist\/\$\{encodeURIComponent\(itemId\)\}\/\$\{action\}`, \{\}\)/,
+  /async function handleChecklistChange\(event\)[\s\S]*const action = checkbox\.checked \? "check" : "uncheck";[\s\S]*api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{currentTaskId\}`\)\}\/checklist\/\$\{encodeURIComponent\(itemId\)\}\/\$\{action\}`, \{\}\)/,
   "Checklist check/uncheck should keep using the Tasks checklist API route.",
 );
 assert.match(
   taskDialogScript,
-  /async function saveChecklistItemLabel\(row, itemId\)[\s\S]*api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(currentTaskId\)\}\/checklist\/\$\{encodeURIComponent\(itemId\)\}`, \{ label \}\)/,
+  /async function saveChecklistItemLabel\(row, itemId\)[\s\S]*api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{currentTaskId\}`\)\}\/checklist\/\$\{encodeURIComponent\(itemId\)\}`, \{ label \}\)/,
   "Checklist label edits should keep using the Tasks checklist API route.",
 );
 assert.match(
   taskDialogScript,
-  /async function deleteChecklistItem\(row, itemId\)[\s\S]*modal\.confirm\(\{[\s\S]*title: "Remove checklist item"[\s\S]*danger: true[\s\S]*api\.deleteJson\(`\/api\/tasks\/\$\{encodeURIComponent\(currentTaskId\)\}\/checklist\/\$\{encodeURIComponent\(itemId\)\}`\)/,
+  /async function deleteChecklistItem\(row, itemId\)[\s\S]*modal\.confirm\(\{[\s\S]*title: "Remove checklist item"[\s\S]*danger: true[\s\S]*api\.deleteJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{currentTaskId\}`\)\}\/checklist\/\$\{encodeURIComponent\(itemId\)\}`\)/,
   "Checklist delete should keep the confirmation and Tasks checklist API route.",
 );
 assert.match(
   taskDialogScript,
-  /async function moveChecklistItem\(itemId, direction\)[\s\S]*api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(currentTaskId\)\}\/checklist\/reorder`, \{[\s\S]*item_ids: items\.map\(\(candidate\) => taskProjectionFields\(candidate\)\.task_checklist_item_id\)/,
+  /async function moveChecklistItem\(itemId, direction\)[\s\S]*api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{currentTaskId\}`\)\}\/checklist\/reorder`, \{[\s\S]*item_ids: items\.map\(\(candidate\) => taskProjectionFields\(candidate\)\.task_checklist_item_id\)/,
   "Checklist reorder should keep using the Tasks checklist reorder route.",
 );
 assert.match(
   taskDialogScript,
-  /function applyChecklistResult\(result\)[\s\S]*checklistItems: result\?\.items \|\| currentTask\.checklistItems \|\| \[\][\s\S]*checklistProgress: result\?\.checklistProgress \|\| currentTask\.checklistProgress[\s\S]*writeChecklistFields\(currentTask\)[\s\S]*notifyTaskEditorSaved\(result\)/,
+  /function applyChecklistResult\(result\)[\s\S]*checklistItems: result\?\.items \|\| taskProjectionFields\(currentTask\)\.checklistItems \|\| \[\][\s\S]*checklistProgress: result\?\.checklistProgress \|\| taskProjectionFields\(currentTask\)\.checklistProgress[\s\S]*writeChecklistFields\(currentTask\)[\s\S]*notifyTaskEditorSaved\(result\)/,
   "Checklist results should refresh task-owned row state, progress, and host callbacks.",
 );
 assert.match(

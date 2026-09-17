@@ -179,8 +179,8 @@
   /** @type {ReturnType<typeof global.setInterval> | null} */
   let taskTimerIntervalId = null;
   /**
-   * Local editor state also accepts caller seeds and base-record timer responses.
-   * Detail projections retain the published reader's unknown members until consumed.
+   * The editor request accepts caller seeds with the published detail members optional.
+   * This seed precondition does not describe raw completion state, which stays opaque.
    * @typedef {Partial<NonNullable<ReturnType<import("../../src/types/browser-contracts.js").BrowserTaskRecords["readTaskDetail"]>>>} TaskDialogRecord
    */
   /**
@@ -248,8 +248,9 @@
     }
   }
 
-  /** @type {TaskDialogRecord | null} */
+  /** Raw completion responses retain their value and identity; readers establish members at use. @type {unknown} */
   let currentTask = null;
+  /** @type {unknown} */
   let currentTaskId = "";
   /** @type {unknown} The parent selector may be supplied by a host. */
   let currentParentTaskId = "";
@@ -1112,14 +1113,14 @@
 
     try {
       const result = wasEditing
-        ? await api.putJson(`/api/tasks/${encodeURIComponent(currentTaskId)}`, payload)
+        ? await api.putJson(`/api/tasks/${encodeURIComponent(`${currentTaskId}`)}`, payload)
         : await api.postJson("/api/tasks", payload);
       const savedTask = requireTaskRecords().readTaskDetail(result);
       await syncParentTaskRelationship(savedTask?.task_id || "");
       currentTask = savedTask;
       currentTaskId = savedTask?.task_id || "";
       rememberTaskInContext(currentTask);
-      if (currentTask?.status === "blocked") {
+      if (optionalTaskProjectionFields(currentTask)?.status === "blocked") {
         await refreshTaskTimers();
       }
       updateCompleteTaskActionState();
@@ -1192,6 +1193,7 @@
     await writeTaskNotificationFollowFields(task);
   }
 
+  /** @param {Event} [event] */
   async function saveAndCompleteTask(event) {
     const api = requireApi();
     event?.preventDefault();
@@ -1212,9 +1214,9 @@
           statusMessage: "Saving task before completion...",
         });
       }
-      const taskId = currentTask?.task_id || currentTaskId;
+      const taskId = optionalTaskProjectionFields(currentTask)?.task_id || currentTaskId;
       setStatus("Completing task...");
-      const result = await api.postJson(`/api/tasks/${encodeURIComponent(taskId)}/complete`, {});
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(`${taskId}`)}/complete`, {});
       applyTaskCompletionResult(result);
       await notifyTaskEditorSaved(result);
       setTaskCompletionStatus(result);
@@ -1234,44 +1236,53 @@
     }
   }
 
-  /** @param {{task?: TaskDialogRecord | null, recurrenceContinuity?: TaskDialogRecord["recurrenceContinuity"]}} [result] */
+  /** Evaluate the assigned value before refusing a nullish receiver, as assignment does.
+   * @param {unknown} task @param {unknown} continuity
+   */
+  function writeTaskCompletionContinuity(task, continuity) {
+    Reflect.set(taskProjectionFields(task), "recurrenceContinuity", continuity, task);
+  }
+
+  /** @param {unknown} [result] */
   function applyTaskCompletionResult(result = {}) {
-    if (!result.task) {
+    if (!taskProjectionFields(result).task) {
       return;
     }
 
-    currentTask = result.task;
-    currentTask.recurrenceContinuity = result.recurrenceContinuity || currentTask.recurrenceContinuity || null;
-    currentTaskId = result.task.task_id || currentTaskId;
+    currentTask = taskProjectionFields(result).task;
+    writeTaskCompletionContinuity(currentTask, taskProjectionFields(result).recurrenceContinuity || taskProjectionFields(currentTask).recurrenceContinuity || null);
+    currentTaskId = taskProjectionFields(taskProjectionFields(result).task).task_id || currentTaskId;
     rememberTaskInContext(currentTask);
     syncTaskStatusField(currentTask);
     updateBlockedReasonState();
     writeTaskCompletionFields(currentTask);
     writeTaskMetadataRibbon(currentTask);
-    writeRecurrenceContinuity(currentTask.recurrenceContinuity);
+    writeRecurrenceContinuity(taskProjectionFields(currentTask).recurrenceContinuity);
     writeTaskTimerFields(currentTask);
     updateCompleteTaskActionState();
   }
 
+  /** @param {unknown} [result] */
   function taskCompletionHostDetail(result = {}) {
     return {
       actionId: "tasks.complete",
-      createdTask: result.createdTask
+      createdTask: taskProjectionFields(result).createdTask
         ? {
-            task_id: result.createdTask.task_id || "",
-            title: result.createdTask.title || "",
+            task_id: taskProjectionFields(taskProjectionFields(result).createdTask).task_id || "",
+            title: taskProjectionFields(taskProjectionFields(result).createdTask).title || "",
           }
         : null,
-      recordId: result.task?.task_id || currentTaskId || "",
-      recurrenceQueued: result.recurrenceJob?.queued === true,
-      recurrenceContinuity: result.recurrenceContinuity || null,
+      recordId: optionalTaskProjectionFields(taskProjectionFields(result).task)?.task_id || currentTaskId || "",
+      recurrenceQueued: optionalTaskProjectionFields(taskProjectionFields(result).recurrenceJob)?.queued === true,
+      recurrenceContinuity: taskProjectionFields(result).recurrenceContinuity || null,
       taskLifecycleAction: "complete",
-      title: result.task?.title || currentTask?.title || "",
+      title: optionalTaskProjectionFields(taskProjectionFields(result).task)?.title || optionalTaskProjectionFields(currentTask)?.title || "",
     };
   }
 
+  /** @param {unknown} [result] */
   function setTaskCompletionStatus(result = {}) {
-    const continuityMessage = recurrenceContinuityMessage(result.recurrenceContinuity);
+    const continuityMessage = recurrenceContinuityMessage(taskProjectionFields(result).recurrenceContinuity);
     setStatus(continuityMessage || "Task completed.");
   }
 
@@ -1560,7 +1571,7 @@
     if (!initialTaskFormSnapshot) {
       return {
         hasChanges: true,
-        recurrenceTemplateChanged: Boolean(currentTask?.recurrence_template_id),
+        recurrenceTemplateChanged: Boolean(optionalTaskProjectionFields(currentTask)?.recurrence_template_id),
       };
     }
 
@@ -1817,7 +1828,10 @@
     setStatus(isFollowing ? "Unfollowing task notifications..." : "Following task notifications...");
 
     try {
-      const target = namespace.notificationSubscriptions.taskTarget(currentTaskId);
+      const subscriptions = namespace.notificationSubscriptions;
+      // The raw completion id is forwarded unchanged; no request-target shape is claimed here.
+      /** @type {unknown} */
+      const target = Reflect.apply(subscriptions.taskTarget, subscriptions, [currentTaskId]);
       const result = isFollowing
         ? await namespace.notificationSubscriptions.unfollow(target)
         : await namespace.notificationSubscriptions.follow(target);
@@ -1880,13 +1894,13 @@
       return;
     }
 
-    const timer = currentTaskTimer(task.task_id);
+    const timer = currentTaskTimer(taskProjectionFields(task).task_id);
     const elapsedSeconds = readTaskTimerElapsedSeconds(timer);
 
     setStatus(timerStatus === "running" ? "Starting task timer..." : "Pausing task timer...");
 
     try {
-      const result = await api.putJson(`/api/tasks/${encodeURIComponent(`${task.task_id}`)}/timer`, {
+      const result = await api.putJson(`/api/tasks/${encodeURIComponent(`${taskProjectionFields(task).task_id}`)}/timer`, {
         active_task_timer_id: timer?.active_task_timer_id || "",
         timer_status: timerStatus,
         accumulated_elapsed_seconds: elapsedSeconds,
@@ -1905,7 +1919,7 @@
   async function finalizeTaskTimer(event) {
     const api = requireApi();
     const task = currentTask;
-    const timer = task ? currentTaskTimer(task.task_id) : null;
+    const timer = task ? currentTaskTimer(taskProjectionFields(task).task_id) : null;
 
     if (!task || !timer) {
       return;
@@ -1916,11 +1930,11 @@
     setStatus("Saving task timer...");
 
     try {
-      const result = await api.postJson(`/api/tasks/${encodeURIComponent(`${task.task_id}`)}/timer/finalize`, {
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(`${taskProjectionFields(task).task_id}`)}/timer/finalize`, {
         duration_seconds: durationSeconds,
         end_time: new Date().toISOString(),
       });
-      removeTaskTimer(task.task_id);
+      removeTaskTimer(taskProjectionFields(task).task_id);
       applyTaskTimerMutationResult(result, task);
       offerTaskResumeNote(requireTaskRecords().readTask(result) || task, event?.currentTarget || null);
       setStatus("Task time saved.");
@@ -1940,7 +1954,7 @@
 
     const confirmed = await modal.confirm({
       title: "Reset task timer",
-      message: `Reset the timer for "${task.title}"?`,
+      message: `Reset the timer for "${taskProjectionFields(task).title}"?`,
       confirmLabel: "Reset",
       danger: true,
     });
@@ -1950,8 +1964,8 @@
     }
 
     try {
-      const result = await api.deleteJson(`/api/tasks/${encodeURIComponent(`${task.task_id}`)}/timer`);
-      removeTaskTimer(task.task_id);
+      const result = await api.deleteJson(`/api/tasks/${encodeURIComponent(`${taskProjectionFields(task).task_id}`)}/timer`);
+      removeTaskTimer(taskProjectionFields(task).task_id);
       applyTaskTimerMutationResult(result, task);
       setStatus("Task timer reset.");
     } catch (error) {
@@ -1966,7 +1980,7 @@
 
     if (result?.task) {
       currentTask = {
-        ...(currentTask || {}),
+        ...taskProjectionFields(currentTask || {}),
         ...result.task,
       };
       currentTaskId = result.task.task_id || currentTaskId;
@@ -2004,7 +2018,7 @@
       parent: dialog,
       trigger,
       onSaved(updatedTask) {
-        if (updatedTask?.task_id === currentTask?.task_id) {
+        if (updatedTask?.task_id === optionalTaskProjectionFields(currentTask)?.task_id) {
           applyTaskTimerMutationResult({ task: updatedTask }, currentTask);
           if (fields.resumeNote) {
             writeTaskControl(fields.resumeNote, "value", updatedTask.resume_note || "");
@@ -2041,7 +2055,7 @@
       return;
     }
 
-    const status = optionalTaskProjectionFields(fields.status)?.value || currentTask?.status || "";
+    const status = optionalTaskProjectionFields(fields.status)?.value || optionalTaskProjectionFields(currentTask)?.status || "";
     const isBlocked = status === "blocked";
     const visible = Boolean(
       currentTaskId &&
@@ -2061,7 +2075,7 @@
   }
 
   function canCompleteCurrentTask() {
-    const status = optionalTaskProjectionFields(fields.status)?.value || currentTask?.status || "";
+    const status = optionalTaskProjectionFields(fields.status)?.value || optionalTaskProjectionFields(currentTask)?.status || "";
     return Boolean(
       currentTaskId &&
       requireTaskLifecycleLegality().canCompleteStatus(status),
@@ -2146,7 +2160,7 @@
     setStatus("Adding checklist item...");
 
     try {
-      const result = await api.postJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist`, { label });
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(`${currentTaskId}`)}/checklist`, { label });
       applyChecklistResult(result);
       writeTaskControl(fields.checklistInput, "value", "");
       setStatus("");
@@ -2196,7 +2210,7 @@
     setStatus(checkbox.checked ? "Checking item..." : "Unchecking item...");
 
     try {
-      applyChecklistResult(await api.postJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist/${encodeURIComponent(itemId)}/${action}`, {}));
+      applyChecklistResult(await api.postJson(`/api/tasks/${encodeURIComponent(`${currentTaskId}`)}/checklist/${encodeURIComponent(itemId)}/${action}`, {}));
       setStatus("");
     } catch (error) {
       checkbox.checked = !checkbox.checked;
@@ -2240,7 +2254,7 @@
     setStatus("Saving checklist item...");
 
     try {
-      applyChecklistResult(await api.putJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist/${encodeURIComponent(itemId)}`, { label }));
+      applyChecklistResult(await api.putJson(`/api/tasks/${encodeURIComponent(`${currentTaskId}`)}/checklist/${encodeURIComponent(itemId)}`, { label }));
       setStatus("");
     } catch (error) {
       setStatus(requireErrors().caughtMessage(error, "Checklist item was not saved."), { isError: true });
@@ -2265,7 +2279,7 @@
     setStatus("Removing checklist item...");
 
     try {
-      applyChecklistResult(await api.deleteJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist/${encodeURIComponent(itemId)}`));
+      applyChecklistResult(await api.deleteJson(`/api/tasks/${encodeURIComponent(`${currentTaskId}`)}/checklist/${encodeURIComponent(itemId)}`));
       setStatus("");
     } catch (error) {
       setStatus(requireErrors().caughtMessage(error, "Checklist item was not removed."), { isError: true });
@@ -2274,7 +2288,7 @@
 
   async function moveChecklistItem(itemId, direction) {
     const api = requireApi();
-    const items = [...(currentTask?.checklistItems || [])];
+    const items = taskContextOptionItems(optionalTaskProjectionFields(currentTask)?.checklistItems || []);
     const index = items.findIndex((item) => taskProjectionFields(item).task_checklist_item_id === itemId);
     const nextIndex = direction === "up" ? index - 1 : index + 1;
 
@@ -2287,7 +2301,7 @@
     setStatus("Reordering checklist...");
 
     try {
-      applyChecklistResult(await api.postJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist/reorder`, {
+      applyChecklistResult(await api.postJson(`/api/tasks/${encodeURIComponent(`${currentTaskId}`)}/checklist/reorder`, {
         item_ids: items.map((candidate) => taskProjectionFields(candidate).task_checklist_item_id),
       }));
       setStatus("");
@@ -2303,9 +2317,9 @@
       rememberTaskInContext(currentTask);
     } else if (currentTask) {
       currentTask = {
-        ...currentTask,
-        checklistItems: result?.items || currentTask.checklistItems || [],
-        checklistProgress: result?.checklistProgress || currentTask.checklistProgress,
+        ...taskProjectionFields(currentTask),
+        checklistItems: result?.items || taskProjectionFields(currentTask).checklistItems || [],
+        checklistProgress: result?.checklistProgress || taskProjectionFields(currentTask).checklistProgress,
       };
     }
 
@@ -2516,7 +2530,7 @@
     const modal = requireModalDialogs();
     const api = requireApi();
     event?.preventDefault();
-    const recovery = optionalTaskProjectionFields(currentTask?.recurrenceRecovery);
+    const recovery = optionalTaskProjectionFields(optionalTaskProjectionFields(currentTask)?.recurrenceRecovery);
     if (!currentTaskId || !recovery?.available || recovery.blockedByActiveTimer) {
       return;
     }
@@ -2537,7 +2551,7 @@
     writeTaskControl(fields.recurrenceSkipCurrent, "disabled", true);
     setStatus("Recovering recurring task...");
     try {
-      const result = await api.postJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/skip-to-current`, {});
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(`${currentTaskId}`)}/skip-to-current`, {});
       const skipTarget = requireTaskRecords().readSkipToCurrentTarget(result);
       const targetTaskId = skipTarget?.task_id || "";
       const host = context?.hostContext;
@@ -2547,7 +2561,7 @@
         actionId: "tasks.skip-to-current",
         recordId: targetTaskId || currentTaskId,
         taskLifecycleAction: "skip-to-current",
-        title: skipTarget?.title || currentTask?.title || "",
+        title: skipTarget?.title || optionalTaskProjectionFields(currentTask)?.title || "",
       }];
         if (typeof callback !== "function") {
           throw new TypeError("Task host complete is not callable.");
@@ -2806,7 +2820,7 @@
     }
 
     const url = new global.URL("workbench.html", global.location.href);
-    url.searchParams.set("taskId", currentTaskId);
+    url.searchParams.set("taskId", `${currentTaskId}`);
     global.location.assign(url.toString());
   }
 
@@ -2990,7 +3004,7 @@
   }
 
   async function handleBlockResumeAction(event) {
-    const status = optionalTaskProjectionFields(fields.status)?.value || currentTask?.status || "";
+    const status = optionalTaskProjectionFields(fields.status)?.value || optionalTaskProjectionFields(currentTask)?.status || "";
     if (status === "blocked") {
       await resumeBlockedTask();
       return;
@@ -3002,7 +3016,7 @@
   }
 
   async function resumeBlockedTask() {
-    const previousReason = optionalTaskProjectionFields(fields.blockedReason)?.value || currentTask?.blocked_reason || "";
+    const previousReason = optionalTaskProjectionFields(fields.blockedReason)?.value || optionalTaskProjectionFields(currentTask)?.blocked_reason || "";
 
     writeTaskControl(fields.status, "value", "in_progress");
     writeTaskControl(fields.blockedReason, "value", "");
@@ -3195,7 +3209,8 @@
     };
   }
 
-  function writeTaskCompletionFields() {
+  /** @param {unknown} [_task] The existing callers pass a task; this projection still reads current state. */
+  function writeTaskCompletionFields(_task) {
     if (!fields?.metadataRibbon) {
       return;
     }

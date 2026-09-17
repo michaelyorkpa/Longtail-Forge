@@ -27,7 +27,7 @@ function fixture(extra = {}) {
     assert.ok(declaration);
     vm.runInContext(declaration[0], sandbox);
   }
-  for (const name of ["taskProjectionFields", "optionalTaskProjectionFields", "requireTaskControl", "writeTaskControl", "configure", "applyTaskCompletionResult", "applyTaskTimerMutationResult", "applyChecklistResult", "currentTaskTimer", "upsertTaskTimer", "removeTaskTimer", "moveChecklistItem", "skipRecurrenceToCurrent", "refreshTaskTimers"])
+  for (const name of ["taskProjectionFields", "optionalTaskProjectionFields", "requireTaskControl", "writeTaskControl", "configure", "writeTaskCompletionContinuity", "taskContextOptionItems", "applyTaskCompletionResult", "applyTaskTimerMutationResult", "applyChecklistResult", "currentTaskTimer", "upsertTaskTimer", "removeTaskTimer", "moveChecklistItem", "skipRecurrenceToCurrent", "refreshTaskTimers"])
     vm.runInContext(extractFunctionBlock(source, name), sandbox);
   const run = (/** @type {string} */ expression) => vm.runInContext(expression, sandbox);
   const set = (/** @type {string} */ name, /** @type {unknown} */ value) => { sandbox.input = value; run(`${name} = input`); };
