@@ -258,6 +258,21 @@ export class FakeDocument {
   }
 
   /**
+   * Namespaced elements, so a module that builds SVG can run under this double.
+   *
+   * The namespace is recorded rather than modelled: nothing in the estate branches on it, and a
+   * caller that reads it should see what it asked for.
+   * @param {string} namespaceURI
+   * @param {string} tagName
+   * @returns {FakeNode}
+   */
+  createElementNS(namespaceURI, tagName) {
+    const element = new FakeElement(tagName, this);
+    Reflect.set(element, "namespaceURI", String(namespaceURI));
+    return element;
+  }
+
+  /**
    * @param {unknown} text
    * @returns {FakeNode}
    */

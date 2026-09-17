@@ -190,6 +190,10 @@
     return icon;
   }
 
+  /**
+   * @param {import("../../../src/types/browser-contracts.js").BrowserIconCreateButtonOptions} [options]
+   * @returns {HTMLButtonElement}
+   */
   function createIconButton(options = {}) {
     const label = String(options.label || "").trim();
     const text = String(options.text || "").trim();
@@ -199,13 +203,16 @@
     }
 
     const button = document.createElement("button");
-    button.type = options.type || "button";
+    // The DOM declares `type` as three literals while the runtime accepts any string and
+    // normalizes on read. This is the same assignment through the same setter - no new
+    // validation, and no substituted default.
+    Reflect.set(button, "type", options.type || "button");
     button.classList.add("action-button");
 
     if (options.iconOnly !== false && !text) {
       button.classList.add("icon-button");
       button.setAttribute("aria-label", label);
-      button.title = options.title || label;
+      button.title = String(options.title || label);
     }
 
     applyVariant(button, options.variant);
@@ -236,6 +243,10 @@
     return button;
   }
 
+  /**
+   * @param {HTMLButtonElement} button
+   * @param {import("../../../src/types/browser-contracts.js").BrowserIconCreateButtonOptions} options
+   */
   function appendButtonContent(button, options) {
     const icon = createIcon(options.icon, { decorative: true, size: options.size });
     const text = String(options.text || "").trim();
@@ -260,6 +271,7 @@
     button.appendChild(label);
   }
 
+  /** @param {HTMLButtonElement} button @param {unknown} variant */
   function applyVariant(button, variant) {
     if (variant === "danger") {
       button.classList.add("danger-button");

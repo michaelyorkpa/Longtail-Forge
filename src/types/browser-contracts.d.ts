@@ -1966,9 +1966,33 @@ export interface BrowserIconButtonOptions {
   variant?: string;
 }
 
-export interface BrowserIconCreateButtonOptions extends BrowserIconButtonOptions {
-  /** Assigned to `button.type`. Defaults to `"button"`. */
-  type?: string;
+/**
+ * What `createIconButton` accepts, which is **wider than `decorateButton`'s bag on five members**.
+ *
+ * The creation writer coerces, compares or forwards each of these rather than requiring a type:
+ * `icon` reaches a registry lookup, which converts whatever it is given to a property key;
+ * `title` and `type` are written through native setters that perform ToString; `variant` is
+ * compared with `===` against three names, so anything else simply adds no class; and `iconOnly`
+ * is tested with `!== false`, which **distinguishes `undefined` from `false`** and is exactly why
+ * it cannot be a boolean. `BrowserViewActionButtonOptions` declares all five as `unknown` and
+ * `createActionButton` forwards them raw, so the two contracts disagreed until this one moved.
+ *
+ * `label`, `text`, `position` and `size` keep the parent's types: the view factory coerces the
+ * first two to trimmed strings before forwarding, and forwards neither of the other two.
+ * **`decorateButton` keeps `BrowserIconButtonOptions` unchanged**; only creation is wider.
+ */
+export interface BrowserIconCreateButtonOptions
+  extends Omit<BrowserIconButtonOptions, "icon" | "iconOnly" | "title" | "variant"> {
+  /** Reaches the registry lookup in `createIcon`, which throws on a name it does not hold. */
+  icon?: unknown;
+  /** Tested with `!== false`, so an absent flag and an explicit `false` are different inputs. */
+  iconOnly?: unknown;
+  /** Written through the native `title` setter, which performs ToString. */
+  title?: unknown;
+  /** Assigned to `button.type`, which the DOM normalizes on read. Defaults to `"button"`. */
+  type?: unknown;
+  /** Compared with `===` against `"danger"`, `"secondary"` and `"link"`. */
+  variant?: unknown;
 }
 
 /**
