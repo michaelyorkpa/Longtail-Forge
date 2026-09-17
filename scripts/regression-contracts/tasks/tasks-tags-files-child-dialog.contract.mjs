@@ -44,7 +44,7 @@ assert.match(taskDialog, /requireTaskControl\(dialog\)\.addEventListener\("close
 
 assert.match(tagMount, /namespace\.tags\?\.mountPicker[\s\S]*fields\.tagContainer[\s\S]*selectedTags: tags/, "Tags child dialog should still mount the Tags-owned picker");
 assert.match(taskDialog, /tagIds: readTaskTagIds\(\)/, "Task save should still read staged tag picker IDs");
-assert.match(fileMount, /namespace\.fileAttachments\.mount\(fields\.fileContainer, \{[\s\S]*canUpload: Boolean\(task\?\.task_id\)[\s\S]*saveFirstMessage: "Save the task before adding files\."[\s\S]*targetId: task\?\.task_id \|\| ""[\s\S]*targetType: "task"/, "Files child dialog should still mount the Files-owned helper with save-first behavior");
+assert.match(fileMount, /namespace\.fileAttachments\.mount\(fields\.fileContainer, \{[\s\S]*canUpload: Boolean\(optionalTaskProjectionFields\(task\)\?\.task_id\)[\s\S]*saveFirstMessage: "Save the task before adding files\."[\s\S]*targetId: optionalTaskProjectionFields\(task\)\?\.task_id \|\| ""[\s\S]*targetType: "task"/, "Files child dialog should still mount the Files-owned helper with save-first behavior");
 
 assert.doesNotMatch(fieldNodes, /data-task-tags-panel|data-task-files-panel|taskEditorFooterPanel/, "Task editor body should not include inline Tags or Files utility panels");
 assert.doesNotMatch(taskDialog, /taskOverlayHost|toggleTaskFooterPanel|toggleTaskFooterPanelFallback|taskEditorFooterPanel|data-task-tags-panel|data-task-files-panel/, "Task Tags and Files should no longer use parent-body overlay panel plumbing");

@@ -379,6 +379,7 @@
         "tests/e2e/task-dialog-context-consumers.spec.mjs",
         "tests/e2e/task-dialog-dom-controls.spec.mjs",
         "tests/e2e/task-dialog-record-state.spec.mjs",
+        "tests/e2e/task-dialog-tail-focus.spec.mjs",
         "tests/e2e/task-direct-completion.spec.mjs",
         "tests/e2e/task-editor-continuity.spec.mjs",
         "tests/e2e/task-editor-control-handles.spec.mjs",
@@ -446,6 +447,7 @@
         "tests/mutations/task-dialog-checklist-consumers.breaks.mjs",
         "tests/mutations/task-dialog-dom-controls.breaks.mjs",
         "tests/mutations/task-dialog-record-state.breaks.mjs",
+        "tests/mutations/task-dialog-tail-consumers.breaks.mjs",
         "tests/mutations/task-editor-normalizers.breaks.mjs",
         "tests/mutations/theme-init-csrf-guard.breaks.mjs",
         "tests/mutations/time-entries-bulk-tags.breaks.mjs",
@@ -620,6 +622,7 @@
         "tests/unit/task-dialog-record-state.test.mjs",
         "tests/unit/task-dialog-save-results.test.mjs",
         "tests/unit/task-dialog-scheduling-fields.test.mjs",
+        "tests/unit/task-dialog-tail-consumers.test.mjs",
         "tests/unit/task-editor-normalizers.test.mjs",
         "tests/unit/task-editor-request.test.mjs",
         "tests/unit/task-list-contracts.test.mjs",
@@ -775,7 +778,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 2737,
+      "errorCount": 2670,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1262,7 +1265,7 @@
         "public/js/task-dialog.js": [
           {
             "code": 2339,
-            "count": 11
+            "count": 2
           },
           {
             "code": 2345,
@@ -1274,11 +1277,7 @@
           },
           {
             "code": 7006,
-            "count": 61
-          },
-          {
-            "code": 7053,
-            "count": 2
+            "count": 5
           }
         ],
         "public/js/tasks.js": [
@@ -1986,8 +1985,8 @@
     }
   },
   "totals": {
-    "files": 1357,
-    "errors": 2737,
+    "files": 1360,
+    "errors": 2670,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

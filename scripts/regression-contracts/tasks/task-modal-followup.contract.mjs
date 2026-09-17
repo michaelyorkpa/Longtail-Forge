@@ -25,8 +25,8 @@ assert.match(taskDialogScript, /namespace\.notificationSubscriptions\.unfollow\(
 assert.doesNotMatch(taskDialogScript, /task-notification-popover|data-task-notification-field|data-task-notification-follow|data-task-notification-status|toggleTaskNotificationPanel/, "Fallback task dialog markup and controller should not reintroduce the notification popover");
 
 assert.match(taskDialogScript, /const completionSeconds = hasCompletedTaskMetrics\(task\)/, "TTC should only appear when saved completion metrics are available");
-assert.match(taskDialogScript, /task\?\.status === "complete"/, "TTC should require the saved task status to be complete");
-assert.match(taskDialogScript, /task\?\.completed_at \|\| task\?\.completionMetrics\?\.completed_at/, "TTC should require persisted completion metadata");
+assert.match(taskDialogScript, /optionalTaskProjectionFields\(task\)\?\.status === "complete"/, "TTC should require the saved task status to be complete");
+assert.match(taskDialogScript, /optionalTaskProjectionFields\(task\)\?\.completed_at \|\| optionalTaskProjectionFields\(optionalTaskProjectionFields\(task\)\?\.completionMetrics\)\?\.completed_at/, "TTC should require persisted completion metadata");
 assert.match(taskDialogScript, /completionSeconds !== null && completionSeconds !== undefined && Number\.isFinite\(Number\(completionSeconds\)\)/, "TTC should not render when completion seconds are null");
 assert.doesNotMatch(taskDialogScript, /optionalTaskProjectionFields\(fields\.status\)\?\.value === "archived"[\s\S]*label: "TTC"/, "Archived status should not produce a TTC chip");
 assert.match(taskDialogScript, /const hasItems = [^;]*length > 0;[\s\S]*writeTaskControl\(fields\.checklistField, "open", Reflect\.apply\(hasItems, undefined, \[taskProjectionFields\(items\)\.length\]\)\)/, "Checklist should open only when checklist items exist");

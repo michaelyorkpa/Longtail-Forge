@@ -114,7 +114,7 @@ check("Tasks actions use module-owned reusable dialog helpers", () => {
   assert.match(taskView, /js\/task-dialog\.js/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireTasksDialog\(\)\.openTaskEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => requireTasksDialog\(\)\.openTaskEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
-  assert.match(taskDialogScript, /namespace\.moduleActions\?\.register\?\.\(\{/);
+  assert.match(taskDialogScript, /namespace\.moduleActions\?\.register\?\.\(addTaskAction\)[\s\S]*namespace\.moduleActions\?\.register\?\.\(editTaskAction\)/);
   assert.match(taskDialogScript, /actionId: "tasks\.add"/);
   assert.match(taskDialogScript, /actionId: "tasks\.edit"/);
   assert.match(tasksScript, /tasksDialog\?\.configure/);
