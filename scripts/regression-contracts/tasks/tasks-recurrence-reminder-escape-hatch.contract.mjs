@@ -52,7 +52,7 @@ assert.match(
 
 assert.match(
   taskDialogScript,
-  /function writeReminderFields\(details = \{\}\)[\s\S]*details\?\.overrideEnabled[\s\S]*details\?\.taskPolicy[\s\S]*details\?\.effectivePolicy\?\.offsets[\s\S]*writeTaskControl\(fields\.reminderDateTimeHours2Enabled, "checked", timedHours\.length > 1[\s\S]*writeTaskControl\(fields\.reminderDateOnlyDays2Enabled, "checked", dateOnlyDays\.length > 1[\s\S]*updateSecondaryReminderState\(\)/,
+  /function writeReminderFields\(details = \{\}\)[\s\S]*detail\?\.overrideEnabled[\s\S]*detail\?\.taskPolicy[\s\S]*optionalTaskProjectionFields\(detail\?\.effectivePolicy\)\?\.offsets[\s\S]*writeTaskControl\(fields\.reminderDateTimeHours2Enabled, "checked", timedHours\.length > 1[\s\S]*writeTaskControl\(fields\.reminderDateOnlyDays2Enabled, "checked", dateOnlyDays\.length > 1[\s\S]*updateSecondaryReminderState\(\)/,
   "Reminder overrides should hydrate each secondary enable state from the saved override or effective policy.",
 );
 assert.match(
