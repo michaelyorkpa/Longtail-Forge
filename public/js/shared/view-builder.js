@@ -32,6 +32,35 @@
   /** @typedef {FieldBuilderOptions & { fieldType: string }} FieldControlOptions */
 
   /**
+   * One column, as the table builder reads it.
+   *
+   * `BrowserViewDataTableOptions` takes its columns as `readonly unknown[]`, and the renderer
+   * that feeds this builder assembles them itself - so this names what the builder reads rather
+   * than restating any framework descriptor. A column may also be a plain string, which the two
+   * label readers handle before they reach these members.
+   * @typedef {object} DataTableColumn
+   * @property {unknown} [align]
+   * @property {unknown} [field]
+   * @property {unknown} [header]
+   * @property {unknown} [id]
+   * @property {unknown} [key]
+   * @property {unknown} [label]
+   * @property {(row: unknown, rowIndex: number) => unknown} [render]
+   */
+
+  /**
+   * One secondary row, which spans a range of the columns beneath its record.
+   * @typedef {object} DataTableSecondaryRow
+   * @property {unknown} [className]
+   * @property {unknown} [content]
+   * @property {unknown} [endBeforeColumn]
+   * @property {unknown} [hideWhenEmpty]
+   * @property {unknown} [id]
+   * @property {unknown} [startColumn]
+   * @property {(row: unknown, rowIndex: number) => unknown} [render]
+   */
+
+  /**
    * A detail badge, as the badge builders read one.
    *
    * `BrowserViewDetailBadgeRowOptions` takes its badges as `readonly unknown[]`, so this names
@@ -1015,6 +1044,7 @@
     return rootElement;
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewDataTableOptions} [options] */
   function createDataTable(options = {}) {
     const columns = Array.isArray(options.columns) ? options.columns : [];
     const rows = Array.isArray(options.rows) ? options.rows : [];
@@ -1044,7 +1074,8 @@
       });
       const align = columnAlign(column);
       if (align) {
-        th.dataset.align = align;
+        // The native dataset setter performs ToString; a column may carry any alignment value.
+        th.dataset.align = String(align);
       }
       headerRow.appendChild(th);
     });
@@ -1077,6 +1108,12 @@
     return wrapper;
   }
 
+  /**
+   * @param {unknown} row
+   * @param {number} rowIndex
+   * @param {readonly unknown[]} columns
+   * @param {unknown} [hierarchy]
+   */
   function createDataRow(row, rowIndex, columns, hierarchy = null) {
     const metadata = rowHierarchyMetadata(row, hierarchy);
     const tr = createElement("tr", {
@@ -1085,14 +1122,15 @@
     });
 
     columns.forEach((column) => {
-      const cell = document.createElement(column.header ? "th" : "td");
-      if (column.header) {
+      const fields = dataTableColumnFields(column);
+      const cell = document.createElement(fields.header ? "th" : "td");
+      if (fields.header) {
         cell.setAttribute("scope", "row");
       }
 
       const align = columnAlign(column);
       if (align) {
-        cell.dataset.align = align;
+        cell.dataset.align = String(align);
       }
 
       appendChild(cell, renderCell(row, rowIndex, column));
@@ -1102,21 +1140,28 @@
     return tr;
   }
 
+  /**
+   * @param {unknown} row
+   * @param {number} rowIndex
+   * @param {readonly unknown[]} columns
+   * @param {unknown} [secondaryRow]
+   */
   function createDataSecondaryRow(row, rowIndex, columns, secondaryRow = {}) {
-    const content = typeof secondaryRow.render === "function"
-      ? secondaryRow.render(row, rowIndex)
-      : secondaryRow.content;
-    if ((content === null || content === undefined || content === false || content === "") && secondaryRow.hideWhenEmpty !== false) {
+    const definition = dataTableSecondaryRowFields(secondaryRow);
+    const content = typeof definition.render === "function"
+      ? definition.render(row, rowIndex)
+      : definition.content;
+    if ((content === null || content === undefined || content === false || content === "") && definition.hideWhenEmpty !== false) {
       return null;
     }
 
-    const startIndex = normalizedColumnIndex(columns, secondaryRow.startColumn, 0);
-    const endIndex = normalizedColumnIndex(columns, secondaryRow.endBeforeColumn, columns.length);
+    const startIndex = normalizedColumnIndex(columns, definition.startColumn, 0);
+    const endIndex = normalizedColumnIndex(columns, definition.endBeforeColumn, columns.length);
     const safeEndIndex = Math.max(startIndex + 1, endIndex);
     const tr = createElement("tr", {
-      className: ["view-data-table-secondary-row", secondaryRow.className],
+      className: ["view-data-table-secondary-row", definition.className],
       attrs: {
-        "data-view-table-secondary-row": secondaryRow.id || "",
+        "data-view-table-secondary-row": definition.id || "",
       },
     });
 
@@ -1144,11 +1189,20 @@
     return tr;
   }
 
+  /**
+   * @param {readonly unknown[]} columns
+   * @param {unknown} key
+   * @param {number} fallback
+   * @returns {number}
+   */
   function normalizedColumnIndex(columns, key, fallback) {
     if (!key) {
       return fallback;
     }
-    const index = columns.findIndex((column) => (column.key || column.id) === key);
+    const index = columns.findIndex((column) => {
+      const fields = dataTableColumnFields(column);
+      return (fields.key || fields.id) === key;
+    });
     return index >= 0 ? index : fallback;
   }
 
@@ -2160,25 +2214,78 @@
     return label || value;
   }
 
+  /**
+   * @param {unknown} row
+   * @param {number} rowIndex
+   * @param {unknown} column
+   */
   function renderCell(row, rowIndex, column) {
-    if (typeof column.render === "function") {
-      return column.render(row, rowIndex);
+    const fields = dataTableColumnFields(column);
+    if (typeof fields.render === "function") {
+      return fields.render(row, rowIndex);
     }
 
-    const key = column.key || column.field;
-    return key ? row?.[key] ?? "" : "";
+    const key = fields.key || fields.field;
+    return key ? dataTableRecordFields(row)[String(key)] ?? "" : "";
   }
 
+  /**
+   * Read an opaque table input as the record its reader treats it as.
+   *
+   * Columns, secondary rows and the hierarchy descriptor all arrive as `unknown`, and each
+   * reader takes members off whatever the caller supplied. These answer what the member access
+   * they replaced answered - `undefined` for every member of a value that is not a record - and
+   * **raise a `TypeError` for a nullish one**, which is what `column.align` and
+   * `Object.hasOwn(column, "label")` both already did. Only the message differs.
+   * @param {unknown} value
+   * @returns {DataTableColumn}
+   */
+  function dataTableColumnFields(value) {
+    if (value === null || value === undefined) {
+      throw new TypeError("View data table columns must be readable.");
+    }
+    return typeof value === "object" ? value : {};
+  }
+
+  /**
+   * The same, for one secondary row.
+   * @param {unknown} value
+   * @returns {DataTableSecondaryRow}
+   */
+  function dataTableSecondaryRowFields(value) {
+    if (value === null || value === undefined) {
+      throw new TypeError("View data table secondary rows must be readable.");
+    }
+    return typeof value === "object" ? value : {};
+  }
+
+  /**
+   * A record a table cell reads a value out of.
+   *
+   * Unlike the two above this one **does not throw**, because the reads it serves were written
+   * with optional chaining and a nullish guard. `Object(...)` boxes a primitive exactly as a
+   * member access does, so a string row answers what it answered before.
+   * @param {unknown} value
+   * @returns {Record<string, unknown>}
+   */
+  function dataTableRecordFields(value) {
+    return value === null || value === undefined ? {} : Object(value);
+  }
+
+  /** @param {unknown} column */
   function columnLabel(column) {
-    return typeof column === "string"
-      ? column
-      : Object.hasOwn(column, "label")
-        ? column.label
-        : column.header || column.key || "";
+    if (typeof column === "string") {
+      return column;
+    }
+    const fields = dataTableColumnFields(column);
+    return Object.hasOwn(fields, "label")
+      ? fields.label
+      : fields.header || fields.key || "";
   }
 
+  /** @param {unknown} column */
   function columnAlign(column) {
-    return typeof column === "string" ? "" : column.align || "";
+    return typeof column === "string" ? "" : dataTableColumnFields(column).align || "";
   }
 
   /** @param {IndexListItem} [item] */
@@ -2205,14 +2312,16 @@
     };
   }
 
+  /** @param {unknown} [row] @param {unknown} [hierarchy] */
   function rowHierarchyMetadata(row = {}, hierarchy = null) {
     if (!hierarchy) {
       return { dataset: {}, hasHierarchy: false };
     }
+    const fields = dataTableRecordFields(hierarchy);
     return hierarchyMetadata({
-      depth: readRowValue(row, hierarchy.depthField),
-      parentId: readRowValue(row, hierarchy.parentField),
-      path: readRowValue(row, hierarchy.pathField),
+      depth: readRowValue(row, fields.depthField),
+      parentId: readRowValue(row, fields.parentField),
+      path: readRowValue(row, fields.pathField),
     });
   }
 
@@ -2225,12 +2334,17 @@
     return Math.min(Math.floor(parsed), 12);
   }
 
+  /**
+   * @param {unknown} row
+   * @param {unknown} fieldName
+   * @returns {unknown}
+   */
   function readRowValue(row, fieldName) {
     if (!fieldName || !row || typeof row !== "object") {
       return undefined;
     }
-    return String(fieldName).split(".").reduce((value, key) => (
-      value === undefined || value === null ? undefined : value[key]
+    return String(fieldName).split(".").reduce((/** @type {unknown} */ value, key) => (
+      value === undefined || value === null ? undefined : dataTableRecordFields(value)[key]
     ), row);
   }
 
