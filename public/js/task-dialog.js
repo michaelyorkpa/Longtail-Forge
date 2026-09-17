@@ -2456,6 +2456,7 @@
     showTaskModal(recurrenceDialog, { parent: dialog, trigger: fields.recurrenceDetails });
   }
 
+  /** @param {Event} event */
   function saveRecurrenceDraft(event) {
     event.preventDefault();
     recurrenceDraft = {
@@ -2470,12 +2471,13 @@
 
   /** @param {unknown} [details] */
   function writeRecurrenceFields(details = {}) {
+    const detail = optionalTaskProjectionFields(details);
     const parsed = {
       ...defaultRecurrenceDraft(),
-      enabled: Boolean(details?.enabled),
-      frequency: details?.frequency || "WEEKLY",
-      interval: Number.parseInt(details?.interval, 10) || 1,
-      endDate: details?.endDate || details?.end_date || "",
+      enabled: Boolean(detail?.enabled),
+      frequency: detail?.frequency || "WEEKLY",
+      interval: Number.parseInt(`${detail?.interval}`, 10) || 1,
+      endDate: detail?.endDate || detail?.end_date || "",
     };
 
     recurrenceDraft = parsed;
@@ -2653,14 +2655,16 @@
     };
   }
 
+  /** @param {typeof recurrenceDraft} recurrence */
   function formatRecurrenceSummary(recurrence) {
-    const interval = Number.parseInt(recurrence.interval, 10) || 1;
+    const interval = Number.parseInt(`${recurrence.interval}`, 10) || 1;
     const frequency = String(recurrence.frequency || "WEEKLY").toUpperCase();
     const cadence = recurrenceCadenceLabel(frequency, interval);
 
     return recurrence.endDate ? `${cadence} until ${recurrence.endDate}.` : `${cadence}.`;
   }
 
+  /** @param {string} frequency @param {number} interval */
   function recurrenceCadenceLabel(frequency, interval) {
     if (frequency === "WEEKDAYS") {
       return interval === 1 ? "Every weekday" : `Every ${interval} weekdays`;
@@ -2670,26 +2674,29 @@
       return interval === 1 ? "Every weekend day" : `Every ${interval} weekend days`;
     }
 
-    const unit = {
+    /** @type {Record<string, unknown>} */
+    const units = {
       DAILY: "day",
       WEEKLY: "week",
       MONTHLY: "month",
-    }[frequency] || "week";
+    };
+    const unit = units[frequency] || "week";
 
     return interval === 1 ? `Every ${unit}` : `Every ${interval} ${unit}s`;
   }
 
   /** @param {unknown} [details] */
   function writeReminderFields(details = {}) {
-    const policySource = details?.overrideEnabled
-      ? details?.taskPolicy
-      : details?.effectivePolicy?.offsets;
+    const detail = optionalTaskProjectionFields(details);
+    const policySource = detail?.overrideEnabled
+      ? detail?.taskPolicy
+      : optionalTaskProjectionFields(detail?.effectivePolicy)?.offsets;
     const taskPolicy = normalizeReminderPolicy(policySource || {});
-    const effectivePolicy = normalizeReminderPolicy(details?.effectivePolicy?.offsets || {});
+    const effectivePolicy = normalizeReminderPolicy(optionalTaskProjectionFields(detail?.effectivePolicy)?.offsets || {});
     const timedHours = taskPolicy.dateTime.map((minutes) => Math.round(minutes / 60));
     const dateOnlyDays = taskPolicy.dateOnly.map((minutes) => Math.round(minutes / 1440));
 
-    writeTaskControl(fields.reminderOverride, "checked", Boolean(details?.overrideEnabled));
+    writeTaskControl(fields.reminderOverride, "checked", Boolean(detail?.overrideEnabled));
     writeTaskControl(fields.reminderDateTimeHours1, "value", String(timedHours[0] || 2));
     writeTaskControl(fields.reminderDateTimeHours2, "value", String(timedHours[1] || 24));
     writeTaskControl(fields.reminderDateTimeHours2Enabled, "checked", timedHours.length > 1);
@@ -2727,13 +2734,16 @@
     };
   }
 
+  /** @param {unknown} [policy] */
   function normalizeReminderPolicy(policy = {}) {
+    const offsets = taskProjectionFields(policy);
     return {
-      dateTime: normalizeOffsetList(policy.dateTime || policy.date_time, [120, 1440]),
-      dateOnly: normalizeOffsetList(policy.dateOnly || policy.date_only, [4320, 1440]),
+      dateTime: normalizeOffsetList(offsets.dateTime || offsets.date_time, [120, 1440]),
+      dateOnly: normalizeOffsetList(offsets.dateOnly || offsets.date_only, [4320, 1440]),
     };
   }
 
+  /** @param {unknown} values @param {readonly number[]} fallback */
   function normalizeOffsetList(values, fallback) {
     const offsets = (Array.isArray(values) ? values : [])
       .map((value) => Number.parseInt(value, 10))
@@ -2748,6 +2758,7 @@
     return Math.max(1, Number.parseInt(`${optionalTaskProjectionFields(input)?.value}`, 10) || fallback);
   }
 
+  /** @param {readonly number[]} offsets @param {string} unit */
   function formatOffsetList(offsets, unit) {
     const divisor = unit === "days" ? 1440 : 60;
     const label = unit === "days" ? "d" : "h";
