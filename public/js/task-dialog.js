@@ -2241,13 +2241,18 @@
     }
   }
 
+  /** @param {Element} row @param {string} itemId */
   async function saveChecklistItemLabel(row, itemId) {
     const api = requireApi();
     const input = row.querySelector("[data-task-checklist-label]");
-    const label = input?.value.trim() || "";
+    const label = (input == null ? undefined : callTaskContextCollection(taskProjectionFields(input).value, "trim", [])) || "";
 
     if (!label) {
-      input?.focus();
+      if (input != null) {
+        const focus = taskProjectionFields(input).focus;
+        if (typeof focus !== "function") throw new TypeError("Task checklist label cannot receive focus.");
+        Reflect.apply(focus, input, []);
+      }
       return;
     }
 
@@ -2261,10 +2266,11 @@
     }
   }
 
+  /** @param {Element} row @param {string} itemId */
   async function deleteChecklistItem(row, itemId) {
     const modal = requireModalDialogs();
     const api = requireApi();
-    const label = row.querySelector("[data-task-checklist-label]")?.value || "this checklist item";
+    const label = optionalTaskProjectionFields(row.querySelector("[data-task-checklist-label]"))?.value || "this checklist item";
     const confirmed = await modal.confirm({
       title: "Remove checklist item",
       message: `Remove "${label}" from this task?`,
@@ -2286,6 +2292,7 @@
     }
   }
 
+  /** @param {unknown} itemId @param {string} direction */
   async function moveChecklistItem(itemId, direction) {
     const api = requireApi();
     const items = taskContextOptionItems(optionalTaskProjectionFields(currentTask)?.checklistItems || []);
@@ -3113,38 +3120,48 @@
     }
   }
 
+  /** @param {unknown} task */
   function writeChecklistFields(task) {
     if (!fields?.checklistField || !fields?.checklistList || !fields?.checklistStatus) {
       return;
     }
 
-    const canUseChecklist = Boolean(task?.task_id);
-    const items = task?.checklistItems || [];
-    const progress = task?.checklistProgress || checklistProgress(items);
+    const canUseChecklist = Boolean(optionalTaskProjectionFields(task)?.task_id);
+    const items = optionalTaskProjectionFields(task)?.checklistItems || [];
+    const progress = optionalTaskProjectionFields(task)?.checklistProgress || checklistProgress(items);
 
     writeTaskControl(fields.checklistInput, "disabled", !canUseChecklist);
     writeTaskControl(fields.checklistAdd, "disabled", !canUseChecklist);
     fields.checklistStatus.textContent = canUseChecklist
       ? formatChecklistProgress(progress)
       : "Save the task before adding checklist items.";
-    fields.checklistList.replaceChildren(...items.map((item, index) => checklistItemRow(item, index, items.length)));
-    writeTaskControl(fields.checklistField, "open", items.length > 0);
+    const list = fields.checklistList;
+    const replaceChildren = list.replaceChildren;
+    // Native arrays supply numeric indices/length; opaque host maps retain their original arguments.
+    const rows = callTaskContextCollection(items, "map", [
+      (/** @type {unknown} */ item, /** @type {number} */ index) => Reflect.apply(checklistItemRow, undefined, [item, index, taskProjectionFields(items).length]),
+    ]);
+    Reflect.apply(replaceChildren, list, taskContextOptionItems(rows));
+    // Keep the native comparison, including coercion, on an opaque host length.
+    const hasItems = (/** @type {number} */ length) => length > 0;
+    writeTaskControl(fields.checklistField, "open", Reflect.apply(hasItems, undefined, [taskProjectionFields(items).length]));
   }
 
+  /** @param {unknown} item @param {number} index @param {number} totalItems */
   function checklistItemRow(item, index, totalItems) {
     const row = document.createElement("div");
     row.className = "task-checklist-item";
-    row.dataset.taskChecklistItem = item.task_checklist_item_id;
+    Reflect.set(row.dataset, "taskChecklistItem", taskProjectionFields(item).task_checklist_item_id);
 
     const toggle = document.createElement("input");
     toggle.type = "checkbox";
-    toggle.checked = Boolean(item.is_checked);
+    toggle.checked = Boolean(taskProjectionFields(item).is_checked);
     toggle.dataset.taskChecklistToggle = "true";
-    toggle.setAttribute("aria-label", `Mark ${item.label} complete`);
+    toggle.setAttribute("aria-label", `Mark ${taskProjectionFields(item).label} complete`);
 
     const label = document.createElement("input");
     label.type = "text";
-    label.value = item.label || "";
+    Reflect.set(label, "value", taskProjectionFields(item).label || "");
     label.maxLength = 240;
     label.dataset.taskChecklistLabel = "true";
     label.setAttribute("aria-label", "Checklist item label");
@@ -3160,6 +3177,7 @@
     return row;
   }
 
+  /** @param {"delete" | "down" | "save" | "up"} action @param {string} label */
   function checklistActionButton(action, label) {
     if (!namespace.icons?.createIconButton) {
       throw new Error("Task checklist actions require LongtailForge.icons.createIconButton.");
@@ -3179,6 +3197,7 @@
     return button;
   }
 
+  /** The four literal action producers above establish this vocabulary. @param {"delete" | "down" | "save" | "up"} action */
   function checklistActionIcon(action) {
     return {
       delete: "delete",
@@ -3188,24 +3207,27 @@
     }[action] || "more";
   }
 
+  /** @param {unknown} progress */
   function formatChecklistProgress(progress) {
-    const total = Number(progress?.total_count) || 0;
-    const completed = Number(progress?.completed_count) || 0;
-    const nextLabel = progress?.next_incomplete_item_label || "";
+    const total = Number(optionalTaskProjectionFields(progress)?.total_count) || 0;
+    const completed = Number(optionalTaskProjectionFields(progress)?.completed_count) || 0;
+    const nextLabel = optionalTaskProjectionFields(progress)?.next_incomplete_item_label || "";
     const base = `${completed} / ${total} complete`;
 
     return nextLabel ? `${base}. Next: ${nextLabel}` : base;
   }
 
+  /** @param {unknown} [items] */
   function checklistProgress(items = []) {
+    /** @type {unknown[]} */
     const activeItems = Array.isArray(items) ? items : [];
-    const completed = activeItems.filter((item) => item.is_checked).length;
-    const next = activeItems.find((item) => !item.is_checked);
+    const completed = activeItems.filter((item) => taskProjectionFields(item).is_checked).length;
+    const next = activeItems.find((item) => !taskProjectionFields(item).is_checked);
 
     return {
       total_count: activeItems.length,
       completed_count: completed,
-      next_incomplete_item_label: next?.label || "",
+      next_incomplete_item_label: optionalTaskProjectionFields(next)?.label || "",
     };
   }
 

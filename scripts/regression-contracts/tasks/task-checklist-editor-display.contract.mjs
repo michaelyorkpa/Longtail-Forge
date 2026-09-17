@@ -100,12 +100,12 @@ assert.doesNotMatch(taskSummaryRow, /checklistItems/, "List rows should not star
 
 assert.match(
   writeChecklistFields,
-  /const items = task\?\.checklistItems \|\| \[\]/,
+  /const items = optionalTaskProjectionFields\(task\)\?\.checklistItems \|\| \[\]/,
   "The task editor should read checklist rows from detail checklistItems.",
 );
 assert.match(
   writeChecklistFields,
-  /fields\.checklistList\.replaceChildren\(\.\.\.items\.map\(\(item, index\) => checklistItemRow\(item, index, items\.length\)\)\)/,
+  /const list = fields\.checklistList;[\s\S]*const replaceChildren = list\.replaceChildren;[\s\S]*callTaskContextCollection\(items, "map", \[[\s\S]*Reflect\.apply\(checklistItemRow, undefined, \[item, index, taskProjectionFields\(items\)\.length\]\)[\s\S]*Reflect\.apply\(replaceChildren, list, taskContextOptionItems\(rows\)\)/,
   "The task editor should render checklist rows from detail checklistItems.",
 );
 
