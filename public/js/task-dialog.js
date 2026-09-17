@@ -2496,6 +2496,7 @@
       : "Not recurring.");
   }
 
+  /** @param {unknown} continuity */
   function writeRecurrenceContinuity(continuity) {
     renderRecurrenceContinuity(fields.recurrenceContinuity, continuity);
   }
@@ -2565,55 +2566,76 @@
     }
   }
 
+  /** @param {unknown} [continuity] */
   function recurrenceContinuityMessage(continuity = {}) {
-    if (!continuity?.isRecurring) {
+    const detail = optionalTaskProjectionFields(continuity);
+    if (!detail?.isRecurring) {
       return "";
     }
 
-    if (continuity.status === "ended") {
+    if (detail.status === "ended") {
       return "Task completed. Recurring series ended.";
     }
 
-    const scheduled = continuity.nextScheduledDate
-      ? `Next scheduled ${continuity.nextScheduledDate}`
+    const scheduled = detail.nextScheduledDate
+      ? `Next scheduled ${detail.nextScheduledDate}`
       : "Recurring follow-up";
 
-    if (continuity.status === "available" && continuity.nextTask) {
+    if (detail.status === "available" && detail.nextTask) {
       return `Task completed. ${scheduled}.`;
     }
-    if (continuity.status === "handoff_failed") {
+    if (detail.status === "handoff_failed") {
       return `Task completed. ${scheduled}; automatic recovery is pending.`;
     }
     return `Task completed. ${scheduled} (creating now).`;
   }
 
+  /** @param {unknown} [container] @param {unknown} [continuity] */
   function renderRecurrenceContinuity(container, continuity = {}) {
     if (!container) {
       return;
     }
 
     const message = recurrenceContinuityMessage(continuity);
-    container.replaceChildren();
-    container.hidden = !message;
+    const target = taskProjectionFields(container);
+    const replaceChildren = target.replaceChildren;
+    if (typeof replaceChildren !== "function") {
+      throw new TypeError("Task continuity container replaceChildren is not callable.");
+    }
+    Reflect.apply(replaceChildren, container, []);
+    target.hidden = !message;
     if (!message) {
       return;
     }
 
-    container.append(document.createTextNode(message));
-    if (continuity.status === "available" && continuity.nextTask?.url) {
+    const appendMessage = target.append;
+    const messageNode = document.createTextNode(message);
+    if (typeof appendMessage !== "function") {
+      throw new TypeError("Task continuity container append is not callable.");
+    }
+    Reflect.apply(appendMessage, container, [messageNode]);
+    const detail = taskProjectionFields(continuity);
+    if (detail.status === "available" && optionalTaskProjectionFields(detail.nextTask)?.url) {
       const link = document.createElement("a");
       link.className = "button button-secondary button-compact";
-      link.href = continuity.nextTask.url;
+      Reflect.set(link, "href", taskProjectionFields(detail.nextTask).url);
       link.textContent = "Open next task";
-      container.append(document.createTextNode(" "), link);
+      const appendLink = target.append;
+      const space = document.createTextNode(" ");
+      if (typeof appendLink !== "function") {
+        throw new TypeError("Task continuity container append is not callable.");
+      }
+      Reflect.apply(appendLink, container, [space, link]);
     }
   }
 
+  /** @param {unknown} [taskId] @param {unknown} [options] */
   async function pollRecurrenceContinuity(taskId, options = {}) {
     const api = requireApi();
-    const attempts = Math.max(1, Number.parseInt(options.attempts, 10) || 7);
-    const delayMs = Math.max(100, Number.parseInt(options.delayMs, 10) || 1500);
-    let continuity = options.initialContinuity || null;
+    const settings = taskProjectionFields(options);
+    const attempts = Math.max(1, Number.parseInt(`${settings.attempts}`, 10) || 7);
+    const delayMs = Math.max(100, Number.parseInt(`${settings.delayMs}`, 10) || 1500);
+    let continuity = settings.initialContinuity || null;
 
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       if (attempt > 0) {
@@ -2621,14 +2643,19 @@
       }
 
       const result = await api.getJson(
-        `/api/tasks/${encodeURIComponent(taskId)}/recurrence-continuity`,
+        `/api/tasks/${encodeURIComponent(`${taskId}`)}/recurrence-continuity`,
         { cache: "no-store" },
       );
-      continuity = result?.recurrenceContinuity || continuity;
-      if (typeof options.onUpdate === "function") {
-        await options.onUpdate(continuity, attempt);
+      continuity = optionalTaskProjectionFields(result)?.recurrenceContinuity || continuity;
+      if (typeof settings.onUpdate === "function") {
+        const onUpdate = settings.onUpdate;
+        if (typeof onUpdate !== "function") {
+          throw new TypeError("Task continuity onUpdate is not callable.");
+        }
+        await Reflect.apply(onUpdate, options, [continuity, attempt]);
       }
-      if (["available", "ended"].includes(continuity?.status)) {
+      const status = optionalTaskProjectionFields(continuity)?.status;
+      if (status === "available" || status === "ended") {
         break;
       }
     }
