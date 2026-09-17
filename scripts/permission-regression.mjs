@@ -664,10 +664,12 @@ async function runClientMutationTests(api, fixtures) {
     api.delete(`/api/clients/${encodeURIComponent(client.id)}`, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   );
-  // 0.33.33.38.2.2.5.2: the browser's permission hook is unconditional - the canonical stored
-  // context publishes no grant list - so a descriptor's declared permission is enforced here or
-  // nowhere. The permission is read out of the module descriptor rather than restated, so this
-  // pair fails if the descriptor stops declaring it or if the route stops refusing it.
+  // 0.33.33.38.2.2.5.2 found the browser's permission hook unconditional - the canonical stored
+  // context publishes no grant list - and 0.33.33.39.22 retired it, so a descriptor's declared
+  // permission is enforced here or nowhere. That is the same claim this pair always made; there
+  // is now no hook left to mistake for a second line of defence. The permission is read out of
+  // the module descriptor rather than restated, so this fails if the descriptor stops declaring
+  // it or if the route stops refusing it.
   const clientProjectsDescriptor = await fs.readFile("src/modules/client-projects/module.js", "utf8");
   assert.match(
     clientProjectsDescriptor,

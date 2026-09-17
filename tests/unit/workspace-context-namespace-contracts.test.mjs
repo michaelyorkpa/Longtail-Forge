@@ -21,6 +21,8 @@ const navigation = read("public/js/navigation.js");
 const actionSecurity = read("public/js/shared/view-action-security.js");
 const moduleActions = read("public/js/shared/module-actions.js");
 const attachments = read("public/js/shared/file-attachments.js");
+const renderer = read("public/js/shared/view-renderer.js");
+const surfaceDescriptor = read("public/js/shared/view-surface-descriptor.js");
 
 const PAGES = {
   "clients-projects.js": read("public/js/clients-projects.js"),
@@ -133,42 +135,53 @@ describe("the checks that always answered the same way now say so", () => {
   });
 });
 
-describe("the view-action-security hook is honest about being unconditional", () => {
-  const body = () => slice(actionSecurity, "function actionPermissionsAllowed(action = {}) {");
+describe("view-action-security carries no permission hook, and says so", () => {
+  /**
+   * `0.33.33.39.2` decided the fate of the two hooks and `0.33.33.39.22` carried it out. The
+   * claims this block has always owned - no grant lookup survives, the module's real capabilities
+   * are declared and published, and the documentation names the server as the enforcement point
+   * without claiming to have repaired one - are preserved. What changed is that the hooks they
+   * were asked about no longer exist, so the first two are now asked of the whole module.
+   */
 
-  it("reaches for nothing through an assertion any more", () => {
-    assert.ok(!/permissionIds|permissions\b/.test(body()), "no grant lookup survives");
+  it("reaches for nothing, through an assertion or otherwise", () => {
+    assert.ok(!/permissionIds/.test(actionSecurity), "no grant lookup survives");
     assert.ok(
       !/@type \{\{ permissionIds\?: unknown/.test(actionSecurity),
       "and the assertion that made two absent members look present is gone",
     );
   });
 
-  it("answers exactly what it always answered", () => {
-    const allowed = new Function(body() + "\nreturn actionPermissionsAllowed;")();
-    assert.equal(allowed(), true);
-    assert.equal(allowed({}), true);
-    assert.equal(allowed({ requiredPermissions: [] }), true);
-    assert.equal(allowed({ requiredPermissions: ["tasks.delete"] }), true, "unchanged for the case that used to reach");
+  it("neither declares nor publishes the two retired hooks", () => {
+    for (const retired of ["actionPermissionsAllowed", "assertActionPermissions"]) {
+      assert.ok(!actionSecurity.includes("function " + retired + "("), retired + " must not be declared");
+      assert.ok(!actionSecurity.includes("\n    " + retired + ",\n"), retired + " must not be published");
+    }
+    // The renderer held a local delegate and ten filter sites; none may come back.
+    assert.doesNotMatch(renderer, /actionPermissionsAllowed|assertActionPermissions/);
   });
 
-  it("keeps the published surface, its signatures and its other capabilities", () => {
-    assert.match(actionSecurity, /namespace\.viewActionSecurity = Object\.freeze\(\{[\s\S]*assertActionPermissions,[\s\S]*interpolateRoute,/);
+  it("keeps the published surface, its signatures and its real capabilities", () => {
+    assert.match(actionSecurity, /namespace\.viewActionSecurity = Object\.freeze\(\{[\s\S]*confirmDescriptorAction,[\s\S]*interpolateRoute,[\s\S]*runRouteAction,/);
     // Declared *and* published: a rename would leave the export list naming something that no
     // longer exists, and a substring check would not notice either half.
-    for (const kept of ["assertActionPermissions", "confirmDescriptorAction",
-      "interpolateRoute", "runRouteAction"]) {
+    for (const kept of ["confirmDescriptorAction", "interpolateRoute", "runRouteAction"]) {
       assert.ok(actionSecurity.includes("function " + kept + "("), kept + " must still be declared");
       assert.ok(actionSecurity.includes("\n    " + kept + ",\n"), kept + " must still be published");
     }
   });
 
   it("records that the server is the enforcement point, and does not claim to have repaired one", () => {
-    const doc = actionSecurity.slice(actionSecurity.indexOf("Whether an action's declared permissions") - 10,
-      actionSecurity.indexOf("function actionPermissionsAllowed"));
-    assert.match(doc, /enforcement point is the server/i);
-    assert.match(doc, /never connected|has never gated/i);
-    assert.ok(!/now enforces|authorization is restored/i.test(doc), "it repaired no authorization");
+    assert.match(actionSecurity, /enforcement point is the server/i);
+    assert.match(actionSecurity, /never connected|has never gated/i);
+    assert.ok(!/now enforces|authorization is restored/i.test(actionSecurity), "it repaired no authorization");
+  });
+
+  it("leaves the permission metadata with the owners that do read it", () => {
+    assert.match(surfaceDescriptor, /requiredPermissions: stringArraySpec\(\)/,
+      "the descriptor contract still admits and validates it");
+    assert.match(actionSecurity, /requiredPermissions/,
+      "and the module records where it went rather than deleting the idea silently");
   });
 });
 

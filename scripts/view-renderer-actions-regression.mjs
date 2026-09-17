@@ -20,15 +20,20 @@ const responseRecords = readText("public/js/shared/view-response-records.js");
 const surfaceDescriptor = readText("public/js/shared/view-surface-descriptor.js");
 
 assert.match(renderer, /function registerBehavior\(id, handler\)/, "Renderer should expose behavior registration");
-// 0.33.33.35.2 moved permission checking, confirmation, and route interpolation into
-// LongtailForge.viewActionSecurity. The renderer keeps the dispatch, so what this owns now is
-// the order: confirm, then assert permissions, then run the route - never the reverse.
+// 0.33.33.35.2 moved confirmation and route interpolation into LongtailForge.viewActionSecurity.
+// The renderer keeps the dispatch, so what this owns is the order: confirm, then run the route -
+// never the reverse. 0.33.33.39.22 retired the permission step that used to sit between them; it
+// returned true unconditionally and could not throw, so no gate was removed from this sequence.
 assert.match(
   renderer,
-  /actionSecurity\.confirmDescriptorAction\(action\)[\s\S]*actionSecurity\.assertActionPermissions\(action\)[\s\S]*actionSecurity\.runRouteAction\(action, \{[\s\S]*api: requireApiClient\(\)[\s\S]*readValue: readDescriptorValue/,
-  "Renderer should confirm, then check permissions, then dispatch declarative route actions through the published security contract",
+  /actionSecurity\.confirmDescriptorAction\(action\)[\s\S]*actionSecurity\.runRouteAction\(action, \{[\s\S]*api: requireApiClient\(\)[\s\S]*readValue: readDescriptorValue/,
+  "Renderer should confirm, then dispatch declarative route actions through the published security contract",
 );
-assert.match(renderer, /requiredPermissions/, "Renderer should read action permission metadata");
+assert.doesNotMatch(renderer, /assertActionPermissions|actionPermissionsAllowed/,
+  "Renderer must not reintroduce a permission hook that enforces nothing");
+// The metadata keeps its owners; the renderer was never one of them.
+assert.match(surfaceDescriptor, /requiredPermissions: stringArraySpec\(\)/,
+  "The descriptor contract should still admit and validate action permission metadata");
 assert.match(renderer, /Missing view behavior handler/, "Missing behavior handlers should fail visibly");
 assert.match(renderer, /openDescriptorModal\(state, modalId, record\)/, "Renderer should own descriptor modal opening");
 
@@ -162,12 +167,15 @@ assert.match(surface.textContent, /Missing view behavior handler: sample\.missin
 // for a user without the permission, invoked directly with no browser in the path.
 assert.ok(hasButtonByText(surface, "Denied route"), "Declared permissions do not withhold a control, because no client-side grant source exists");
 assert.ok(hasButtonByText(surface, "Denied row"), "The same is true of row actions");
-assert.match(renderer, /requiredPermissions/, "The renderer still reads the metadata, which the server enforces");
+// 0.33.33.39.22 retired the two hooks, so the renderer no longer reads the metadata at all. The
+// claim this line owns - that the metadata survives with an owner and the server enforces it -
+// moves to the contract that actually admits and validates it.
+assert.doesNotMatch(renderer, /requiredPermissions/, "The renderer reads no permission metadata, because nothing there acts on it");
 assert.equal(context.window.LongtailForge.workspaceContext.permissionIds, undefined, "and the canonical context still publishes no grant list");
 
 const deniedBefore = behaviorCalls.length;
 await openButton.click();
-assert.equal(behaviorCalls.length, deniedBefore + 1, "the permission hook is unconditional, so dispatch proceeds");
+assert.equal(behaviorCalls.length, deniedBefore + 1, "there is no permission hook, so dispatch proceeds");
 assert.doesNotMatch(surface.textContent, /You do not have permission to run this action/, "and nothing claims a client-side refusal that did not happen");
 
 

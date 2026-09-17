@@ -81,8 +81,6 @@ function stack({ records = [{ id: "r1", title: "One" }], routeFails } = {}) {
         deleteJson: async () => ({}),
       },
       viewActionSecurity: {
-        actionPermissionsAllowed: () => true,
-        assertActionPermissions: () => { calls.push("assertActionPermissions"); },
         confirmDescriptorAction: async () => true,
         runRouteAction: async (/** @type {unknown} */ action) => {
           calls.push("runRouteAction");
@@ -260,7 +258,10 @@ describe("An operation that requires a capability establishes it before its writ
     await click(actionButton(surface, "archive"));
 
     assert.deepEqual(f.routeWrites, [], "nothing is sent when the reload that completes it cannot run");
-    assert.deepEqual(f.calls, ["assertActionPermissions"], "and permissions passed - this is not a denial");
+    // `0.33.33.39.22` retired the two permission hooks, so nothing is consulted before the write
+    // at all. The refusal is still a capability report rather than a denial - now because there
+    // is no gate left to deny, which the message below is what distinguishes it.
+    assert.deepEqual(f.calls, [], "the action security module is not consulted before the refusal");
     const error = thrown(state.actionError);
     assert.equal(error.name, "Error", "the failure travels the existing action-error path");
     assert.match(error.message, /refresh is unavailable/);

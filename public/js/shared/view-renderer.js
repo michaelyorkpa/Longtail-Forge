@@ -778,9 +778,7 @@
       return null;
     }
 
-    const primaryAction = pageHeader.primaryAction && actionPermissionsAllowed(pageHeader.primaryAction)
-      ? pageHeader.primaryAction
-      : null;
+    const primaryAction = pageHeader.primaryAction || null;
     return view.createPageHeader({
       title: pageHeader.title || pageHeader.label || "Untitled view",
       subtitle: pageHeader.description,
@@ -1664,7 +1662,6 @@
     }
 
     const rowActions = (Array.isArray(itemRows.rowActions) ? itemRows.rowActions : [])
-      .filter(actionPermissionsAllowed)
       .filter((action) => evaluateVisibleWhen(action.visibleWhen, item))
       .map((action) => normalizeAction(action, state, item));
     if (rowActions.length > 0) {
@@ -1709,13 +1706,12 @@
       title: modal.title || modal.label || "Modal",
       fields: (modal.fields || []).map((field) => renderFieldShell(field, view)),
       actions: [...(modal.footerActions || []), ...(modal.actions || [])]
-        .filter(actionPermissionsAllowed)
         .map((action) => normalizeAction(action)),
     }));
   }
 
   /**
-   * @param {readonly SecurableAction[]} actions
+   * @param {readonly BrowserViewAction[]} actions
    * @param {ViewPrimitives} view
    * @param {string} ariaLabel
    * @param {RendererState | null} [state]
@@ -1726,10 +1722,9 @@
       return null;
     }
 
-    const permittedActions = actions.filter(actionPermissionsAllowed);
     const visibleActions = recordOverride === undefined
-      ? permittedActions
-      : permittedActions.filter((action) => evaluateVisibleWhen(action.visibleWhen, recordOverride));
+      ? actions
+      : actions.filter((action) => evaluateVisibleWhen(action.visibleWhen, recordOverride));
     if (visibleActions.length === 0) {
       return null;
     }
@@ -1745,12 +1740,12 @@
     return view.createDetailActionStrip({
       ariaLabel: options.ariaLabel || "Actions",
       className: options.className,
-      actions: actions.filter(actionPermissionsAllowed),
+      actions,
     });
   }
 
   /**
-   * @param {readonly SecurableAction[]} [actions]
+   * @param {readonly BrowserViewAction[]} [actions]
    * @param {import("../../../src/types/browser-contracts.js").BrowserViewDetailActionMenuOptions} [options]
    */
   function renderDescriptorActionMenu(actions = [], options = {}) {
@@ -1760,7 +1755,7 @@
       summaryLabel: options.summaryLabel,
       title: options.title,
       className: options.className,
-      actions: actions.filter(actionPermissionsAllowed),
+      actions,
     });
   }
 
@@ -1769,7 +1764,7 @@
     return view.createInlineActionRow({
       ariaLabel: options.ariaLabel || "Actions",
       className: options.className,
-      actions: actions.filter(actionPermissionsAllowed),
+      actions,
     });
   }
 
@@ -1820,17 +1815,7 @@
    * @typedef {import("../../../src/types/browser-contracts.js").BrowserViewDataTableOptions & { columns?: readonly DescriptorColumn[] }} DescriptorTableOptions
    */
 
-  /**
-   * An action input the permission filter may also read `requiredPermissions` from.
-   *
-   * The shipped callers pass **nodes** - `files.js` sends its own close and save buttons - and
-   * the filter is applied to them all the same. It answers `true` unconditionally today, which
-   * `0.33.33.38.2.2.5.2` recorded and `0.33.33.39.2` is open about; the intersection says the
-   * filter reads that member without claiming a node carries it.
-   * @typedef {BrowserViewAction & { requiredPermissions?: unknown }} SecurableAction
-   */
-
-  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewModalFormOptions & { actions?: readonly SecurableAction[] }} DescriptorModalOptions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewModalFormOptions & { actions?: readonly unknown[] }} DescriptorModalOptions */
 
   /**
    * @typedef {import("../../../src/types/browser-contracts.js").BrowserViewDescriptorLinkedRecordsOptions & {
@@ -1895,9 +1880,8 @@
   function renderDescriptorModalForm(modal = {}, options = {}) {
     const view = requireViewPrimitives();
     const actions = options.actions
-      ? options.actions.filter(actionPermissionsAllowed)
+      ? options.actions
       : [...(modal.footerActions || []), ...(modal.actions || [])]
-        .filter(actionPermissionsAllowed)
         .map((action) => normalizeAction(action));
     return view.createModalForm({
       title: options.title || modal.title || modal.label || "Modal",
@@ -2030,7 +2014,6 @@
       if (action.confirm && !(await actionSecurity.confirmDescriptorAction(action))) {
         return;
       }
-      actionSecurity.assertActionPermissions(action);
 
       if (action.route) {
         // The capability first, then the write. A route action's normal completion includes the
@@ -2113,7 +2096,6 @@
         value: readDescriptorValue(record, field.field, field.default || ""),
       })),
       actions: [...(modal.footerActions || []), ...(modal.actions || [])]
-        .filter(actionPermissionsAllowed)
         .map((action) => normalizeAction(action, state)),
     });
     // The modal needs somewhere to append, and nothing else. The body is preferred and the
@@ -2209,18 +2191,6 @@
       }
     }
     return view;
-  }
-
-  /**
-   * Predicate form of the published permission check.
-   *
-   * Kept local because ten `actions.filter(...)` sites pass it by reference; the rule itself
-   * lives in `LongtailForge.viewActionSecurity` and this only forwards to it.
-   * @param {{ requiredPermissions?: unknown }} action
-   * @returns {boolean}
-   */
-  function actionPermissionsAllowed(action) {
-    return requireActionSecurity().actionPermissionsAllowed(action);
   }
 
   /** @returns {BrowserViewActionSecurity} */

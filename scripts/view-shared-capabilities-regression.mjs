@@ -38,7 +38,16 @@ assert.match(renderer, /function tableColumnRenderer/, "Renderer should route ta
 assert.match(renderer, /function renderItemRow/, "Renderer should render rich item rows");
 assert.match(renderer, /function evaluateVisibleWhen/, "Renderer should evaluate row-action visibility predicates");
 assert.match(viewActionSecuritySource, /function interpolateRoute/, "Action security should interpolate row-action route tokens");
-assert.match(viewActionSecuritySource, /namespace\.viewActionSecurity = Object\.freeze\(\{[\s\S]*assertActionPermissions,[\s\S]*interpolateRoute,/, "Action security should publish its capability contract");
+// 0.33.33.39.22 retired actionPermissionsAllowed and assertActionPermissions. The claim this
+// line owns - that the module publishes its capabilities as a frozen contract - is unchanged;
+// what it names are the three capabilities that do something.
+assert.match(viewActionSecuritySource, /namespace\.viewActionSecurity = Object\.freeze\(\{[\s\S]*confirmDescriptorAction,[\s\S]*interpolateRoute,[\s\S]*runRouteAction,/, "Action security should publish its capability contract");
+// Declared *and* published, both checked: the module's own docblock still names the retired pair
+// to say where it went, so a bare substring search would match that prose rather than any code.
+assert.doesNotMatch(viewActionSecuritySource, /function (actionPermissionsAllowed|assertActionPermissions)\(/,
+  "Action security must not redeclare a permission hook that enforces nothing");
+assert.doesNotMatch(viewActionSecuritySource, /\n {4}(actionPermissionsAllowed|assertActionPermissions),/,
+  "Action security must not republish one either");
 // None of the three writes to LongtailForge.view: the frozen factory namespace is untouched.
 for (const [label, source] of [["action security", viewActionSecuritySource], ["search options", viewSearchOptionsSource], ["data binding", viewDataBindingSource]]) {
   assert.doesNotMatch(source, /\.view\s*=/, `${label} must not write the frozen LongtailForge.view factory`);
