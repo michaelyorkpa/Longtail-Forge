@@ -1177,7 +1177,7 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Complete: 64 more diagnostics closed in `public/js/shared/view-renderer.js`, 225 to 161, which still needs further children.** See the archive entry.
 
-**The planned seam was abandoned on evidence, and the reason is recorded.** This child was drawn against the surface-state slot `0.33.33.39.8` left open. Measuring first showed that `notes-view-registration` executes `runBehaviorAction` with `surface: {}` - a plain object carrying none of the channels - so requiring them would refuse an input an existing contract exercises. **That is a failure-policy question, not a typing one**, and it is escalated rather than decided inside a typing checkpoint.
+**The planned seam was abandoned on evidence, and the reason is recorded.** This child was drawn against the surface-state slot `0.33.33.39.8` left open. Measuring first showed that `notes-view-registration` executes `runBehaviorAction` with `surface: {}` - a plain object carrying none of the channels - so requiring them would refuse an input an existing contract exercises. **That is a failure-policy question, not a typing one**, and it is escalated rather than decided inside a typing checkpoint. **The decision was taken and `0.33.33.39.21` implemented it**: completed surfaces keep their published channels, and each helper requires only what its own operation uses.
 
 **The alternative turned out to be the better boundary.** Each layout renderer's `state` parameter can name the shape that renderer reads without redeclaring the slot `renderSurface` builds, because the callers hand it down untyped. Ten renderers closed that way, plus the action strip they dispatch through.
 
@@ -1268,6 +1268,18 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 **Complete: 33 diagnostics closed in `public/js/shared/view-builder.js`, 34 to 1.** See the archive entry.
 
 **`view-builder.js` is not complete, and the remainder is exactly one diagnostic.** `handlePointerDown` keeps its untyped `event`, because `menu.contains` requires a `Node` while `Event.target` is an `EventTarget`; every honest route is a runtime check the handler does not make, or a cast. It belongs to a checkpoint that takes `event.target` across the estate, not to this file.
+
+#### 0.33.33.39.21 - Type the view renderer's surface-state slot and its capabilities
+
+**Complete: 20 diagnostics closed in `public/js/shared/view-renderer.js`, 104 to 84, which still needs further children.** See the archive entry. It implements the surface-state decision `0.33.33.39.9` escalated and `0.33.33.39.20` was still working around.
+
+**The slot holds a surface under construction, and now says so.** `renderSurface` creates the element, stores it in `state.surface`, renders through it, and installs `refresh`, `openModal` and `viewState` only afterwards - so for most of this file's work the slot holds an element that does not yet carry them. `SurfaceUnderConstruction` names that, and `RendererState` is now the whole shape `renderSurface` builds rather than a partial view of it.
+
+**The completed return contract did not weaken.** `renderSurface` still installs all three channels before publication and still earns the contract through `isSurfaceElement`, which is now proved by a probe that hands it an element refusing one channel.
+
+**Each operation requires only what it uses.** A behaviour needing no refresh is not refused for its absence; a modal needs somewhere to append and nothing else. **One authorized ordering change**: a route action's normal completion includes the reload, so the refresh capability is established *before* the write. A surface that cannot refresh now fails before anything is sent instead of after it, and a write that succeeds followed by a reload that fails keeps that distinction - the write is not replayed and the failure is not cleared.
+
+**Three source-text pins were retargeted, not deleted.** Two unit contracts pinned the deferral comments this checkpoint retired, and one regression contract pinned a callback's parameter spelling. Each keeps the claim it owned and now holds it to what replaced it.
 
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 

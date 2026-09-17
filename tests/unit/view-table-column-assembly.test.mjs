@@ -153,17 +153,22 @@ describe("The row-actions column", () => {
 });
 
 describe("view-renderer.js names the layout state it reads", () => {
-  it("names the state members without redeclaring the slot renderSurface builds", () => {
+  it("names the state members, and now names the slot renderSurface builds", () => {
     assert.match(source, /@typedef \{object\} RendererState/);
-    assert.match(source, /This does not redeclare the state slot/);
+    assert.match(source, /the state object\n\s+\* `renderSurface` builds is now this shape/);
     assert.match(source, /@type \{RenderedTableColumn\[\]\}/);
   });
 
-  /** Two findings this child recorded rather than repaired. */
-  it("records the uninitialised state member and the surface seam it left open", () => {
+  /**
+   * Two findings this child recorded rather than repaired. `0.33.33.39.21` repaired the second -
+   * the surface slot is declared - so only the first is still an open finding, and this case now
+   * holds each half to what it became.
+   */
+  it("keeps the uninitialised state member open and records the surface slot as closed", () => {
     assert.match(source, /`indexCollapsed` is written by `selectIndexRecord` and initialised nowhere/);
-    assert.match(source, /correcting\n\s+\* that slot is the seam recorded below as its own child/);
     assert.match(source, /state\.indexCollapsed = true;/, "and the write it names is still there");
+    assert.match(source, /@property \{SurfaceUnderConstruction \| null\} \[surface\]/);
+    assert.doesNotMatch(source, /the seam recorded below as its own child/, "the seam is closed, not restated");
   });
 
   it("coerces the two reads the runtime already coerced, and asserts nothing", () => {

@@ -48,8 +48,11 @@ assert.match(viewRenderer, /mountType: "fieldOptions"[\s\S]*optionsSource/, "Ren
 // 0.33.33.35.2 moved option hydration into LongtailForge.viewSearchOptions. The renderer
 // still builds the behavior context, so what this owns is that module behaviors are handed
 // the helpers - now resolved through the published contract.
-assert.match(viewRenderer, /setOptions: \(options, optionsConfig = \{\}\) => requireSearchOptions\(\)\s*\n?\s*\.setFieldOptions/, "Renderer should expose setOptions to module-owned option behaviors");
-assert.match(viewRenderer, /mountSearchOptions: \(options, optionsConfig = \{\}\) => requireSearchOptions\(\)\.mountSearchOptions/, "Renderer should expose search suggestion mounting to module-owned option behaviors");
+// 0.33.33.39.21 annotated the two callback parameters in place. The claim is the member, its
+// two parameters with their existing defaults, and what it forwards to; the leading `[^)]*`
+// admits an inline type on the first parameter without loosening any of that.
+assert.match(viewRenderer, /setOptions: \([^)]*options, optionsConfig = \{\}\) => requireSearchOptions\(\)\s*\n?\s*\.setFieldOptions/, "Renderer should expose setOptions to module-owned option behaviors");
+assert.match(viewRenderer, /mountSearchOptions: \([^)]*options, optionsConfig = \{\}\) => requireSearchOptions\(\)\.mountSearchOptions/, "Renderer should expose search suggestion mounting to module-owned option behaviors");
 assert.match(viewRenderer, /function renderTablePageSlideOutLayout[\s\S]*Open filters[\s\S]*renderSidebarPanels/, "Renderer should move table-page filters into the shared slide-out surface");
 assert.match(viewRenderer, /function renderHierarchyLabel[\s\S]*view-hierarchy-label/, "Renderer should expose the hierarchy-label display hook");
 assert.match(viewRenderer, /function renderChipList[\s\S]*view-table-chip-list/, "Renderer should expose the chip-list display hook");
