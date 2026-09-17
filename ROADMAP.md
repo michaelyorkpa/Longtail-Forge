@@ -1249,6 +1249,20 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **`iconOnly !== false` is preserved exactly**, which is the whole reason the flag could not be a boolean: an absent flag and an explicit `false` are different inputs, and a falsy non-false value is not a false one.
 
+#### 0.33.33.39.18 - Type the view builder's data-table surface
+
+**Complete: 47 diagnostics closed in `public/js/shared/view-builder.js`, 81 to 34.** See the archive entry.
+
+**A sixth child can finish this file, and it carries one contract question of the settled kind.** Typing the modal group and the field grid in a probe takes the file to **10**, and the residuals are the string-coercion class already resolved five times - except for one: `BrowserViewFieldGridOptions.fields` is declared `readonly unknown[]`, while `createFieldGrid` itself wraps a non-array and two callers hand it a `BrowserViewChildren`. Recorded as `0.33.33.39.19`. `createModalFooter` is not a published member and needs a local typedef rather than a published bag.
+
+#### 0.33.33.39.19 - OPEN: reconcile the field-grid contract with its writer and its callers
+
+**`BrowserViewFieldGridOptions.fields` is declared `readonly unknown[]` and is narrower than its own writer.** `createFieldGrid` reads `Array.isArray(fields) ? fields : [fields]` - it accepts a single field and wraps it. Two callers rely on that latitude: `createFilterPanel` passes `options.fields || []` and `createModalForm` passes `options.fields || options.body || []`, and both of those members are declared `BrowserViewChildren`, which is `unknown`.
+
+**This is the same shape as `0.33.33.39.13`, `.14` and `.17`**: a declaration that is not true of the implementation beneath it. The settled resolution has been to widen the declaration to describe the writer - here, `fields` to `BrowserViewChildren` - which changes no behaviour and costs no consumer, because the writer already handles both forms. The alternative, making the two callers coerce, **would change behaviour**: wrapping a non-array where the writer currently wraps it identically is the same, but forcing an array where a caller passed a single node would not be.
+
+It is recorded rather than assumed because it is a published-contract change, and because the last three were each approved explicitly.
+
 #### 0.33.33.39.2 - OPEN: decide the fate of the view-action permission hooks
 
 **Open. Not started, and deliberately not decided by `0.33.33.38.2.2.5.2`.** That checkpoint removed an unsupported type assertion and a lookup that could never answer; it did not design a replacement, and it must not be read as having settled what should exist here.

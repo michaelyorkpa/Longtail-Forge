@@ -63,7 +63,7 @@ assert.match(clientsProjectsScript, /function openAddProjectActionFromQuery\(\)[
 assert.match(clientsProjectsScript, /function openEditProjectActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("projects\.edit", \{ projectId: match\.project\.id \}/, "Project detail query opener should dispatch the registered module action");
 
 assert.match(renderer, /function tableColumns[\s\S]*table\.rowActions[\s\S]*__view_row_actions/, "Renderer should add a framework-owned table action column from descriptor rowActions");
-assert.match(builder, /Object\.hasOwn\(column, "label"\)[\s\S]*\? column\.label/, "The table builder should preserve an explicitly blank descriptor header instead of falling back to an internal column key");
+assert.match(builder, /Object\.hasOwn\(fields, "label"\)[\s\S]*\? fields\.label/, "The table builder should preserve an explicitly blank descriptor header instead of falling back to an internal column key");
 assert.match(renderer, /Object\.hasOwn\(selection, "headerLabel"\)[\s\S]*selection\.headerLabel/, "Selection columns should support a blank visible heading without changing checkbox accessible names");
 assert.match(renderer, /Object\.hasOwn\(table, "rowActionsHeaderLabel"\)[\s\S]*table\.rowActionsHeaderLabel/, "Row-action columns should support a blank visible heading without changing action accessible names");
 assert.match(css, /\.client-projects-filter-panel \.view-filter-panel-fields\s*\{[\s\S]*padding: 6px/, "Clients/Projects filter fields should leave focus-ring clearance inside the scrolling drawer");
