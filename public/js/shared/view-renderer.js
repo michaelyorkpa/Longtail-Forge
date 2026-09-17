@@ -41,6 +41,10 @@
     return () => behaviors.delete(behaviorId);
   }
 
+  /**
+   * @param {unknown} [deliveredDescriptor]
+   * @param {{ appendChild?: HTMLElement["appendChild"] } | null} [host]
+   */
   function renderSurface(deliveredDescriptor = {}, host) {
     const view = requireViewPrimitives();
     if (!host || typeof host.appendChild !== "function") {
@@ -70,6 +74,7 @@
       body: null,
       view,
     };
+    /** @type {Promise<unknown> | null} */
     let inFlightRefresh = null;
     const surface = view.createElement("section", {
       className: ["view-renderer-surface", `view-renderer-layout-${descriptor.layout || "single-column"}`],
@@ -131,7 +136,7 @@
     Object.defineProperty(surface, "openModal", {
       configurable: true,
       enumerable: false,
-      value: (modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
+      value: (/** @type {unknown} */ modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
     });
     Object.defineProperty(surface, "viewState", {
       configurable: true,
@@ -366,28 +371,96 @@
   /** @typedef {import("../../../src/types/framework-contracts.js").ViewItemRowsDescriptor} ViewItemRowsDescriptor */
   /** @typedef {import("../../../src/types/framework-contracts.js").ViewSidebarPanelDescriptor} ViewSidebarPanelDescriptor */
 
+  /**
+   * One region or field-option mount, queued while a layout renders and flushed afterwards.
+   *
+   * Two producers build these - a filter field queues a control and its selected value, a region
+   * queues a container and its record - and the flush reads every member before it tells them
+   * apart by `mountType`. So the shape is one bag of optional members rather than a union, and
+   * the container a region renders into is established where it is used instead.
+   * @typedef {object} PendingMount
+   * @property {{ behavior?: unknown, id?: unknown }} region
+   * @property {HTMLElement} [container]
+   * @property {Element} [control]
+   * @property {unknown} [field]
+   * @property {unknown} [mountType]
+   * @property {unknown} [record]
+   * @property {unknown} [selectedValue]
+   */
+
+  /**
+   * The container a region mount renders its message into.
+   *
+   * Every region producer queues one, so this reports a capability failure rather than skipping
+   * the message: a mount that cannot show why it failed must not fail silently.
+   * @param {PendingMount} mount
+   * @returns {HTMLElement}
+   */
+  function requireMountContainer(mount) {
+    const container = mount.container;
+    if (!container) {
+      throw new Error("View region mounts require a container element.");
+    }
+    return container;
+  }
+
+  /**
+   * A surface as this file holds it, which is not always a finished one.
+   *
+   * Every channel is optional because `renderSurface` installs them last, and because a helper
+   * may legitimately be handed a partial context - a behaviour that needs none of them must not
+   * be refused for their absence. The element members are optional for the same reason: a caller
+   * may supply a stand-in that answers only what its own operation reads.
+   * The three channels carry the shapes `renderSurface` installs. The element members carry the
+   * DOM's own signatures, so a real element satisfies this shape exactly and a stand-in that
+   * answers only what its operation reads satisfies it too.
+   * @typedef {object} SurfaceUnderConstruction
+   * @property {() => unknown} [refresh]
+   * @property {(modalId: unknown, record?: unknown) => unknown} [openModal]
+   * @property {unknown} [viewState]
+   * @property {HTMLElement["appendChild"]} [appendChild]
+   * @property {HTMLElement["querySelector"]} [querySelector]
+   * @property {ChildNode | null} [firstChild]
+   */
+
   /** The primitives every layout renderer is handed, derived from the checked accessor. */
   /** @typedef {ReturnType<typeof requireViewPrimitives>} ViewPrimitives */
 
   /**
-   * The surface state, as the layout renderers read it.
+   * The surface state, as `renderSurface` builds it and every renderer below reads it.
    *
-   * **This does not redeclare the state slot.** `renderSurface` builds that object and hands it
-   * down untyped; this names what each renderer reads off it, which is what lets them be typed
-   * one at a time. Every member is optional because two of these renderers are also called with
-   * `null`, and because a renderer reads only its own few.
+   * It began as a partial view - what each renderer reads, so they could be typed one at a time
+   * while the slot itself stayed untyped. `0.33.33.39.21` completed it: the state object
+   * `renderSurface` builds is now this shape, and the five helpers that take it take it as this.
+   * `descriptor` and `view` are required because `renderSurface` sets both before anything reads
+   * them; everything else stays optional, because two of these renderers are also called with
+   * `null` and because a renderer reads only its own few.
    *
    * `indexCollapsed` is written by `selectIndexRecord` and initialised nowhere - **a finding for
-   * the state slot, not something this child repairs.** `surface` is named only by the optional
-   * `refresh` the filter form probes, deliberately not by the surface element type: correcting
-   * that slot is the seam recorded below as its own child.
+   * the state slot, not something this child repairs.**
+   *
+   * `surface` is a `SurfaceUnderConstruction`, not a finished `BrowserViewSurfaceElement`, and
+   * that is the whole of `0.33.33.39.21`'s decision. `renderSurface` creates the element, stores
+   * it here, renders through it, and only then installs `refresh`, `openModal` and `viewState` -
+   * so for most of this file's work the slot holds an element that does not yet carry them. Each
+   * helper therefore establishes the one capability its own operation uses, rather than assuming
+   * the completed type. **The completed return contract is unchanged**: `renderSurface` installs
+   * all three before publication and still proves it with `isSurfaceElement`.
    * @typedef {object} RendererState
-   * @property {boolean} [indexCollapsed]
+   * @property {unknown} [actionError]
+   * @property {HTMLElement | null} [body]
+   * @property {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} descriptor
+   * @property {unknown} [error]
    * @property {Record<string, unknown>} [filterValues]
+   * @property {boolean} [indexCollapsed]
+   * @property {boolean} [loading]
+   * @property {PendingMount[]} [pendingMounts]
    * @property {readonly unknown[]} [records]
    * @property {unknown} [selectedRecord]
    * @property {unknown} [selectedRecordId]
-   * @property {{ refresh?: () => unknown }} [surface]
+   * @property {unknown} [slideOutSidebarOpen]
+   * @property {SurfaceUnderConstruction | null} [surface]
+   * @property {ViewPrimitives} view
    */
 
   /**
@@ -1406,6 +1479,27 @@
     });
   }
 
+  /**
+   * The message a failed mount shows.
+   *
+   * `catch` hands over whatever was thrown, and this answers what `error?.message ||` answered:
+   * a record's own message when it has one, and the fallback for everything else - a thrown
+   * string, a thrown number, or nothing at all.
+   *
+   * The `String` is the coercion both consumers already performed. `setFieldOptionsError` writes
+   * the message into a control's dataset and the region path hands it to `createElement`'s `text`,
+   * so a truthy non-string message reached the page as its own digits either way; declaring the
+   * return `string` only stops the published `message?: string` from being handed a number.
+   * @param {unknown} error
+   * @param {string} fallback
+   * @returns {string}
+   */
+  function mountFailureMessage(error, fallback) {
+    const message = isDescriptorRecord(error) ? error.message : undefined;
+    return message ? String(message) : fallback;
+  }
+
+  /** @param {RendererState} state */
   function flushMounts(state) {
     const pending = state.pendingMounts || [];
     state.pendingMounts = [];
@@ -1415,7 +1509,7 @@
         if (mount.mountType === "fieldOptions") {
           requireSearchOptions().setFieldOptionsError(mount.control, `Missing view behavior handler: ${mount.region.behavior}`);
         } else {
-          mount.container.appendChild(state.view.createElement("p", {
+          requireMountContainer(mount).appendChild(state.view.createElement("p", {
             className: ["view-region-error", "view-status-message"],
             text: `Missing view behavior handler: ${mount.region.behavior}`,
             attrs: { role: "alert" },
@@ -1430,15 +1524,15 @@
           container: mount.container,
           control: mount.control,
           field: mount.field,
-          openModal: (modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
+          openModal: (/** @type {unknown} */ modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
           record: mount.record,
-          refresh: state.surface.refresh,
+          refresh: state.surface?.refresh,
           region: mount.region,
-          mountSearchOptions: (options, optionsConfig = {}) => requireSearchOptions().mountSearchOptions(mount.control, options, {
+          mountSearchOptions: (/** @type {unknown[]} */ options, optionsConfig = {}) => requireSearchOptions().mountSearchOptions(mount.control, options, {
             ...optionsConfig,
             selectedValue: mount.selectedValue,
           }),
-          setOptions: (options, optionsConfig = {}) => requireSearchOptions()
+          setOptions: (/** @type {unknown[]} */ options, optionsConfig = {}) => requireSearchOptions()
             .setFieldOptions(mount.control, options, mount.selectedValue, optionsConfig),
           workspaceContext: root.workspaceContext || {},
         });
@@ -1450,15 +1544,15 @@
               }
             })
             .catch((error) => requireSearchOptions()
-              .setFieldOptionsError(mount.control, error?.message || "Options could not be loaded."));
+              .setFieldOptionsError(mount.control, mountFailureMessage(error, "Options could not be loaded.")));
         }
       } catch (error) {
         if (mount.mountType === "fieldOptions") {
-          requireSearchOptions().setFieldOptionsError(mount.control, error?.message || "Options could not be loaded.");
+          requireSearchOptions().setFieldOptionsError(mount.control, mountFailureMessage(error, "Options could not be loaded."));
         } else {
-          mount.container.appendChild(state.view.createElement("p", {
+          requireMountContainer(mount).appendChild(state.view.createElement("p", {
             className: ["view-region-error", "view-status-message"],
-            text: error?.message || "Region could not be mounted.",
+            text: mountFailureMessage(error, "Region could not be mounted."),
             attrs: { role: "alert" },
           }));
         }
@@ -1893,8 +1987,11 @@
   }
 
   /**
+   * `state` is nullable because half this file's callers have one and half do not: a modal shell
+   * and a descriptor modal-form render their actions with no state at all, and those actions come
+   * back `disabled` with no `onClick`. That is the existing behaviour, now named.
    * @param {DescriptorAction} [action]
-   * @param {unknown} [state]
+   * @param {RendererState | null} [state]
    * @param {unknown} [recordOverride]
    * @returns {BrowserViewActionButtonOptions}
    */
@@ -1917,11 +2014,12 @@
   }
 
   /**
-   * `state` is deliberately left uninferred: typing it requires the surface slot to carry the
-   * element's `refresh`, which `0.33.33.39.8` measured as transferring nullness diagnostics into
-   * two functions it had not measured. Neither parameter below is marked optional, because a
-   * required `state` sits between them.
+   * `state` was left uninferred while `0.33.33.39.8` measured the surface slot as a completed
+   * element; it is a `SurfaceUnderConstruction` instead, so the slot names what it holds and this
+   * reads through it. Neither parameter below is marked optional, because a required `state` sits
+   * between them.
    * @param {DescriptorAction} action
+   * @param {RendererState} state
    * @param {unknown} recordOverride
    */
   async function runDescriptorAction(action = {}, state, recordOverride = undefined) {
@@ -1935,13 +2033,22 @@
       actionSecurity.assertActionPermissions(action);
 
       if (action.route) {
+        // The capability first, then the write. A route action's normal completion includes the
+        // reload, so a surface that cannot refresh fails before anything is sent rather than
+        // after it. If the write succeeds and the reload then fails, that rejection travels to
+        // the catch below untouched: the write is not replayed and the failure is not cleared.
+        const surface = state.surface;
+        const refresh = surface?.refresh;
+        if (typeof refresh !== "function") {
+          throw new Error("View surface refresh is unavailable: the surface has not finished initialising.");
+        }
         await actionSecurity.runRouteAction(action, {
           api: requireApiClient(),
           readValue: readDescriptorValue,
           record,
         });
         state.actionError = null;
-        await state.surface.refresh();
+        await Reflect.apply(refresh, surface, []);
         return;
       }
 
@@ -1962,6 +2069,11 @@
     }
   }
 
+  /**
+   * @param {{ behavior?: unknown }} action
+   * @param {RendererState} state
+   * @param {unknown} [recordOverride]
+   */
   async function runBehaviorAction(action, state, recordOverride = null) {
     const handler = behaviors.get(action.behavior);
     if (!handler) {
@@ -1971,9 +2083,9 @@
     await handler({
       action,
       api: requireApiClient(),
-      openModal: (modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
+      openModal: (/** @type {unknown} */ modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
       record: recordOverride !== null ? recordOverride : state.selectedRecord,
-      refresh: state.surface.refresh,
+      refresh: state.surface?.refresh,
       workspaceContext: root.workspaceContext || {},
     });
     state.actionError = null;
@@ -1984,6 +2096,11 @@
     }
   }
 
+  /**
+   * @param {RendererState} state
+   * @param {unknown} modalId
+   * @param {unknown} [record]
+   */
   function openDescriptorModal(state, modalId, record = null) {
     const modal = (state.descriptor.modals || []).find((candidate) => candidate.id === modalId);
     if (!modal) {
@@ -1999,16 +2116,25 @@
         .filter(actionPermissionsAllowed)
         .map((action) => normalizeAction(action, state)),
     });
+    // The modal needs somewhere to append, and nothing else. The body is preferred and the
+    // surface stands in for it, exactly as before; only the failure is now described rather
+    // than left to the native one, and `Reflect.apply` keeps the original receiver.
     const parent = global.document?.body || state.surface;
-    parent.appendChild(dialog);
+    const appendChild = parent?.appendChild;
+    if (typeof appendChild !== "function") {
+      throw new Error("View surface modals require a host that can append: no document body or surface is available.");
+    }
+    Reflect.apply(appendChild, parent, [dialog]);
     state.view.showModal(dialog);
     return dialog;
   }
 
+  /** @param {RendererState} [state] */
   function surfaceOwnsRenderedData(state) {
     return Boolean(state?.descriptor?.dataSource?.route);
   }
 
+  /** @param {RendererState} state */
   function rerenderState(state) {
     const body = state.surface?.querySelector?.(".view-renderer-body") || state.surface?.firstChild;
     if (!body) {
@@ -2034,15 +2160,6 @@
   }
 
   /**
-   * The builder primitives this renderer is written against.
-   *
-   * `root.view || {}` produced a union whose empty branch answered every member read, which is
-   * the un-narrowed acquisition `0.33.33.38.1` removed from every other consumer. An absent
-   * factory failed the first member check and threw; it now fails one line earlier with the
-   * same message from the same call, which is the same observable behaviour.
-   * @returns {BrowserViewFactory}
-   */
-  /**
    * Whether the three channels `renderSurface` installs are present.
    *
    * They are attached with `Object.defineProperty`, which keeps them off the element's type the
@@ -2055,6 +2172,15 @@
     return "refresh" in element && "openModal" in element && "viewState" in element;
   }
 
+  /**
+   * The builder primitives this renderer is written against.
+   *
+   * `root.view || {}` produced a union whose empty branch answered every member read, which is
+   * the un-narrowed acquisition `0.33.33.38.1` removed from every other consumer. An absent
+   * factory failed the first member check and threw; it now fails one line earlier with the
+   * same message from the same call, which is the same observable behaviour.
+   * @returns {BrowserViewFactory}
+   */
   function requireViewPrimitives() {
     const view = root.view;
     if (!view) {

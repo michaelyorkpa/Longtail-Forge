@@ -161,10 +161,16 @@ describe("view-renderer.js names the descriptor vocabulary it reads", () => {
     assert.match(source, /recorded as findings for the descriptor contract's owner/);
   });
 
-  /** The surface-state slot is the reason one function in this region stayed open. */
-  it("records why the action dispatcher's state is left uninferred", () => {
-    assert.match(source, /`state` is deliberately left uninferred/);
-    assert.match(source, /transferring nullness diagnostics into\n\s+\* two functions it had not measured/);
+  /**
+   * The surface-state slot was the reason one function in this region stayed open, and
+   * `0.33.33.39.21` closed it. The claim this case has always carried - that the dispatcher's
+   * `state` has a recorded disposition and an unchanged signature - is preserved; what the
+   * disposition says is what moved.
+   */
+  it("records that the action dispatcher's state is typed, and why it could be", () => {
+    assert.match(source, /@param \{RendererState\} state/);
+    assert.match(source, /it is a `SurfaceUnderConstruction` instead, so the slot names what it holds/);
+    assert.doesNotMatch(source, /deliberately left uninferred/, "the deferral is retired, not restated");
     assert.match(source, /async function runDescriptorAction\(action = \{\}, state, recordOverride = undefined\) \{/,
       "and its signature is unchanged");
   });
