@@ -108,7 +108,7 @@ function assertStaticCompletionContract() {
 
   assert.match(
     saveAndComplete,
-    /taskFormChangeState\(\)\.hasChanges[\s\S]*saveTaskForm\([\s\S]*api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`/,
+    /taskFormChangeState\(\)\.hasChanges[\s\S]*saveTaskForm\([\s\S]*api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{taskId\}`\)\}\/complete`/,
     "editor completion should save only real pending form changes before the dedicated completion call",
   );
   assert.match(

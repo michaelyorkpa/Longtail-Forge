@@ -91,7 +91,7 @@ checks += 2;
 // same taskId parameter the Workbench load handles — with no second path.
 const handlerBody = extractFunctionBody(taskDialogJs, "openTaskInWorkbench");
 assert.match(handlerBody, /new global\.URL\("workbench\.html", global\.location\.href\)/, "the handoff must target workbench.html");
-assert.match(handlerBody, /url\.searchParams\.set\("taskId", currentTaskId\)/, "the handoff must use the canonical taskId deep-link parameter");
+assert.match(handlerBody, /url\.searchParams\.set\("taskId", `\$\{currentTaskId\}`\)/, "the handoff must use the canonical taskId deep-link parameter");
 assert.match(handlerBody, /if \(!currentTaskId\)/, "the handoff must no-op without a persisted task");
 assert.match(
   taskDialogJs,
