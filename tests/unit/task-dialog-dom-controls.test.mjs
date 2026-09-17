@@ -28,6 +28,60 @@ function fixture(overrides = {}) {
 }
 
 describe("Task Dialog control readiness", () => {
+  it("checks icon tags by the decorator's rule, including inherited and foreign-realm nodes", () => {
+    const f = fixture();
+    vm.runInContext(extractFunctionBlock(source, "requireTaskIconButton"), f.sandbox);
+    for (const tagName of ["BUTTON", "button", "BuTtOn"]) {
+      const node = vm.runInNewContext("Object.create({ nodeType: 1, tagName: input })", { input: tagName });
+      assert.equal(f.sandbox.requireTaskIconButton(node), node);
+    }
+    for (const node of [null, undefined, { nodeType: 1, tagName: "input" }, { nodeType: 3, tagName: "button" }])
+      assert.throws(() => f.sandbox.requireTaskIconButton(node), { name: "Error", message: "decorateButton requires a button element." });
+    const failure = new Error("tag getter");
+    assert.throws(() => f.sandbox.requireTaskIconButton({ nodeType: 1, get tagName() { throw failure; } }), (error) => error === failure);
+  });
+  it("keeps alternate controls and opaque inherited values in the outgoing form payload", () => {
+    const f = fixture();
+    for (const name of ["readTaskFormPayload", "readReminderPolicy", "readPositiveInteger"])
+      vm.runInContext(extractFunctionBlock(source, name), f.sandbox);
+    const title = { opaque: true }; const selected = { opaque: "assignee" }; const checked = { truthy: true };
+    const control = (/** @type {unknown} */ value) => Object.create({ value });
+    f.sandbox.fields = Object.fromEntries(["titleInput", "status", "priority", "estimate", "project", "dueDate", "dueTime", "nextAction", "blockedReason", "resumeNote", "description"].map((name) => [name, control(name)]));
+    f.sandbox.fields.titleInput = control(title);
+    f.sandbox.fields.estimate = control("");
+    f.sandbox.fields.assignees = Object.create({ selectedOptions: new Set([control(selected)]) });
+    f.sandbox.fields.reminderOverride = Object.create({ checked });
+    f.sandbox.usesClientScope = () => false;
+    Object.defineProperty(f.sandbox.fields, "client", { get() { throw new Error("business-only field read"); } });
+    f.sandbox.readRecurrencePayload = () => ({ enabled: false });
+    f.sandbox.readReminderPolicy = () => ({});
+    f.sandbox.readTaskTagIds = () => [];
+    const payload = f.sandbox.readTaskFormPayload();
+    assert.equal(payload.title, title); assert.equal(payload.assignee_ids[0], selected);
+    assert.equal(payload.reminderOverrideEnabled, checked); assert.equal(payload.client_id, "");
+    assert.equal(payload.estimate_minutes, null);
+    f.sandbox.fields.titleInput = null;
+    assert.throws(() => f.sandbox.readTaskFormPayload(), /Task dialog control is unavailable/);
+  });
+  it("preserves selected-label optional reads, custom trim receivers and numeric conversion", () => {
+    const f = fixture();
+    for (const name of ["selectedText", "readPositiveInteger"])
+      vm.runInContext(extractFunctionBlock(source, name), f.sandbox);
+    for (const select of [null, undefined, {}, { selectedOptions: [] }, { selectedOptions: [{ textContent: null }] }])
+      assert.equal(f.sandbox.selectedText(select), "");
+    const result = { opaque: true };
+    const text = Object.create({ trim() { assert.equal(this, text); return result; } });
+    assert.equal(f.sandbox.selectedText(Object.create({ selectedOptions: { 0: Object.create({ textContent: text }) } })), result);
+    assert.equal(f.sandbox.selectedText({ selectedOptions: [{ textContent: "  chosen  " }] }), "chosen");
+    assert.throws(() => f.sandbox.selectedText({ selectedOptions: [{ textContent: { trim: false } }] }), /not callable/);
+    const value = { [Symbol.toPrimitive](/** @type {string} */ hint) { assert.equal(hint, "string"); return "12suffix"; } };
+    assert.equal(f.sandbox.readPositiveInteger(Object.create({ value }), 2), 12);
+    assert.equal(f.sandbox.readPositiveInteger(null, 2), 2);
+    assert.equal(f.sandbox.readPositiveInteger({ value: "0" }, 3), 3);
+    assert.equal(f.sandbox.readPositiveInteger({ value: "-4" }, 3), 1);
+    assert.throws(() => f.sandbox.readPositiveInteger({ value: Symbol("invalid") }, 2), { name: "TypeError" });
+  });
+
   it("retains every queried field handle and its null or optional-absence answer", () => {
     const f = fixture();
     /** @type {Map<string, unknown>} */ const answers = new Map();
@@ -96,7 +150,7 @@ describe("Task Dialog control readiness", () => {
       f.sandbox.fields = { timerStart: missing };
       assert.throws(() => f.sandbox.decorateTaskDialogControls(), { name: "Error", message: "decorateButton requires a button element." });
     }
-    const button = {};
+    const button = { nodeType: 1, tagName: "BUTTON" };
     assert.equal(f.sandbox.requireTaskIconButton(button), button);
   });
   it("keeps inherited setters, frozen writes and undefined values on the original handle", () => {
