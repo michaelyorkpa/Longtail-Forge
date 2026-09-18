@@ -397,6 +397,7 @@
         "tests/e2e/tasks-dashboard-consumer.spec.mjs",
         "tests/e2e/user-settings-appearance.spec.mjs",
         "tests/e2e/view-action-button-native-type.spec.mjs",
+        "tests/e2e/view-floating-menu-pointer-target.spec.mjs",
         "tests/e2e/view-shell-cold-load.spec.mjs",
         "tests/e2e/workbench-mobile-chip-layout.spec.mjs",
         "tests/e2e/workbench-mobile-inspector.spec.mjs",
@@ -667,6 +668,7 @@
         "tests/unit/view-descriptor-action-shape.test.mjs",
         "tests/unit/view-detail-action-surface.test.mjs",
         "tests/unit/view-field-grid-inputs.test.mjs",
+        "tests/unit/view-floating-menu-pointer-target.test.mjs",
         "tests/unit/view-linked-context-surface.test.mjs",
         "tests/unit/view-list-index-surface.test.mjs",
         "tests/unit/view-modal-footer-contract.test.mjs",
@@ -780,7 +782,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 2670,
+      "errorCount": 2669,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1204,12 +1206,6 @@
           {
             "code": 7006,
             "count": 17
-          }
-        ],
-        "public/js/shared/view-builder.js": [
-          {
-            "code": 7006,
-            "count": 1
           }
         ],
         "public/js/shared/view-renderer.js": [
@@ -1987,8 +1983,8 @@
     }
   },
   "totals": {
-    "files": 1362,
-    "errors": 2670,
+    "files": 1364,
+    "errors": 2669,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
