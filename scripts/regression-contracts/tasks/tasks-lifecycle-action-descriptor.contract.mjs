@@ -26,7 +26,7 @@ const updateLifecycleStatus = extractFunctionSpan(tasksScript, "updateTaskLifecy
 const postTaskAction = extractFunctionSpan(tasksScript, "postTaskAction");
 
 assert.match(registerBehaviors, /taskLifecycleActionStripDescriptor\(\)\.actions\.forEach[\s\S]*registerBehavior\(action\.behavior, handler\)/, "Lifecycle behaviors should be registered through the view behavior registry");
-assert.match(behaviorHandlers, /"tasks\.lifecycle\.complete": \(\{ record, trigger \}\) => postTaskAction\(record, "complete", trigger\)/, "Complete should dispatch through the Tasks-owned complete handler with focus-return context");
+assert.match(behaviorHandlers, /"tasks\.lifecycle\.complete": \(\{ record \}\) => postTaskAction\(record, "complete"\)/, "Complete should dispatch with its two consumed arguments; focus context remains on editor handlers");
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.reopen": \(\{ record \}\) => postTaskAction\(record, "reopen"\)/, "Reopen should dispatch through the Tasks-owned reopen handler");
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.archive": \(\{ record \}\) => postTaskAction\(record, "archive"\)/, "Archive should dispatch through the Tasks-owned archive handler");
 assert.match(behaviorHandlers, /"tasks\.lifecycle\.restore": \(\{ record \}\) => postTaskAction\(record, "restore"\)/, "Restore should dispatch through the Tasks-owned restore handler");
@@ -64,9 +64,9 @@ assert.match(runLifecycleAction, /if \(action\.confirm && !await confirmTaskLife
 assert.match(runLifecycleAction, /const context = \{[\s\S]*record:\s*task[\s\S]*refresh:\s*reloadTaskList/, "Lifecycle handlers should receive the Tasks record and refresh hook");
 assert.match(runLifecycleAction, /await handler\(context\);/, "and should hand that context over unchanged");
 assert.match(confirmLifecycleAction, /modal\?\.confirm[\s\S]*danger:\s*confirmOptions\.danger === true \|\| action\.role === "destructive"/, "Destructive lifecycle confirmation should use the framework modal confirm helper");
-assert.match(updateLifecycleStatus, /api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(task\.task_id\)\}`, payload\)[\s\S]*upsertTask\(lifecycleTask\)[\s\S]*await reloadTaskList\(\)/, "Direct lifecycle status updates should use the existing Tasks update route and refresh the list");
+assert.match(updateLifecycleStatus, /api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{taskActionField\(task, "task_id"\)\}`\)\}`, payload\)[\s\S]*upsertTask\(lifecycleTask\)[\s\S]*await reloadTaskList\(\)/, "Direct lifecycle status updates should use the existing Tasks update route and refresh the list");
 assert.match(extractFunctionSpan(tasksScript, "openTaskDialogForBlock"), /focusTarget:\s*"blocked_reason"[\s\S]*status:\s*"blocked"/, "Block should open the canonical editor in blocked state focused on Blocked Reason");
-assert.match(postTaskAction, /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(task\.task_id\)\}\/\$\{action\}`, \{\}\)[\s\S]*await reloadTaskList\(\)/, "POST lifecycle actions should use the existing Tasks lifecycle routes and refresh the list");
+assert.match(postTaskAction, /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{taskActionField\(task, "task_id"\)\}`\)\}\/\$\{action\}`, \{\}\)[\s\S]*await reloadTaskList\(\)/, "POST lifecycle actions should use the existing Tasks lifecycle routes and refresh the list");
 
 assert.doesNotMatch(tasksRoutes, /tasksRoutes\.delete\("\/tasks\/:taskId"\s*,/, "Browser API should not expose a task delete route");
 assert.doesNotMatch(tasksPublicRoutes, /tasksPublicApiRoutes\.delete|\/api\/v1\/tasks\/:taskId\/delete/, "Public API should not expose a task delete route");
