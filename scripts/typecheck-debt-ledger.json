@@ -676,6 +676,7 @@
         "tests/unit/view-linked-context-surface.test.mjs",
         "tests/unit/view-list-index-surface.test.mjs",
         "tests/unit/view-modal-footer-contract.test.mjs",
+        "tests/unit/view-sidebar-index-surface.test.mjs",
         "tests/unit/view-slide-out-sidebar.test.mjs",
         "tests/unit/view-surface-state-capabilities.test.mjs",
         "tests/unit/view-table-column-assembly.test.mjs",
@@ -786,7 +787,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 2622,
+      "errorCount": 2601,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1219,7 +1220,7 @@
           },
           {
             "code": 7006,
-            "count": 44
+            "count": 23
           },
           {
             "code": 7053,
@@ -1969,8 +1970,8 @@
     }
   },
   "totals": {
-    "files": 1368,
-    "errors": 2622,
+    "files": 1369,
+    "errors": 2601,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

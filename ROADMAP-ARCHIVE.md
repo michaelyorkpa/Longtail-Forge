@@ -1,5 +1,22 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.27 - Type the view renderer's sidebar and index family
+
+**Model: Medium Effort** - seven renderers typed from existing contracts, two connected declarations corrected, and one executable line.
+
+- [x] **21 diagnostics closed in `public/js/shared/view-renderer.js`, 47 to 26.** Browser **2,622 to 2,601**; exactly one file moved, TS7006 44 to 23 and nothing else; `dom` **466** and assorted **60** unchanged; `0.33.33.39` **509 to 488**. `renderSidebarPanels`, `renderSidebarPanel`, `renderSidebarPanelFooter`, `normalizeSidebarPanelFooter`, `buildIndexItem`, `initialSelectedRecord` and `selectIndexRecord` reach zero.
+- [x] **`view-renderer.js` is NOT complete.** 26 remain: 23 untyped parameters across the layout, page-header, filter and DOM-utility helpers, and three older non-parameter diagnostics in the filter path and `requireViewPrimitives`.
+- [x] **The contracts were adopted.** `ViewSidebarPanelDescriptor` already declares every member these read - `type`, `behavior`, `collapsible`, `open`, `footer` - and `ViewIndexPanelDescriptor` declares `initialSelection` and `collapseOnSelect`. The panel functions take the published surface descriptor whole.
+- [x] **The records slot now says what it holds.** `RendererState.records` was `readonly unknown[]`; it is `readonly Record<string, unknown>[]`. Every record `loadBoundRecords` returns is a fresh object built by `bindRecord`, so its published `Promise<Record<string, unknown>[]>` is earned by construction, and `renderSurface` is the only writer: its `[]` initialiser, that result, and `[]` on failure. `buildIndexItem` reads members off a record for that reason, not through a narrowing it never made.
+- [x] **`renderIndexPanelBody`'s panel is never absent, and now says so.** It was typed `DescriptorIndexPanel | null | undefined`, but both callers refuse a missing panel before calling it - `renderIndexPanel` and the sidebar's index branch - so it is `DescriptorIndexPanel`. Annotation only; it is what lets `buildIndexItem` see a panel without adding a guard that would change what a missing one does.
+- [x] **Two annotations exposed by the typing.** `renderSurface`'s state literal inferred `selectedRecord: null` as the type `null` once `initialSelectedRecord` returned a record; it is `unknown`, like its annotated siblings and `RendererState`. `normalizeSidebarPanelFooter` takes `unknown`, which is what the options bag hands it.
+- [x] **One executable line.** `initialSelectedRecord` reads `descriptor.indexPanel?.initialSelection` where it read `(indexPanel || {}).initialSelection`. Both answer the same value for any panel, present or not, with the same reads in the same order.
+- [x] **Seven focused cases through the real stack**, since nothing named these seven in a unit test: first-record selection by default, none when the panel asks, first when there is no panel; a retained selection surviving a reload and falling back when its record is gone; an index click selecting, marking the item current and collapsing the panel; each sidebar panel kind with its footer text and every declared region mounting; and the filters-and-index fallback when no panels are declared. **Two mutations of the executable line, two kills.** Byte restoration verified at SHA-256 `7a9c74c661c6761046436f3414859a4c38b2ede0b24cb163cd9a49eba1161540`.
+- [x] **A pre-existing behaviour recorded, not changed.** A data-bound refresh renders once while loading and once when it settles, then flushes both renders' queued region mounts together. Each region behaviour therefore runs twice per refresh, once against a container the second render has already replaced - three times in all for a surface that loads once. It predates this checkpoint; the mount case asserts which regions mount, not how often, rather than pinning the count.
+- [x] **Full verification on the delivered tree.** Unit **4,332 across 222 files**, regressions **348/348**, E2E **319/319** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+Excluded and explicitly remaining: `view-renderer.js` keeps **26**. The double mount is recorded for whoever owns region mounting, not repaired here. No published contract changed. **This does not close `0.33.33.39`, `0.33.33.38`, or the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.41.20 - Close the Task Dialog diagnostic tail
 
 **Model: High Effort** - close the remaining raw writer and native conversion boundaries without rejecting supported inputs or changing timer semantics.
