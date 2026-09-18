@@ -1331,6 +1331,12 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Complete: `public/js/shared/view-renderer.js` reaches zero, 26 to 0, and leaves the ledger.** See the archive entry. It began `0.33.33.39.8` at 310. This closes the file, not `0.33.33.39`.
 
+#### 0.33.33.39.29 - Take the linked-notes panel to zero
+
+**Complete: `public/js/shared/notes-linked-panel.js` reaches zero, 58 to 0, and leaves the ledger.** See the archive entry. The published `mount(container?: unknown, options?: unknown)` is unchanged; the implementation establishes what it uses rather than narrowing that contract.
+
+**A finding recorded, not changed.** The panel reads `note.isAvailable`, which `BrowserLinkedNoteItem` does not declare and no producer sends - `shapeLinkedNotePanelItem` adds `id`, `label`, `excerpt`, `sourceUrl` and `links` and nothing else - so it always answers available.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.
