@@ -7,6 +7,56 @@
 
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserErrorContract} BrowserErrorContract */
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserMountedPanel} BrowserMountedPanel */
+
+  /** @typedef {ReturnType<typeof normalizeOptions>} PanelOptions */
+
+  /**
+   * The container, as the panel uses it.
+   *
+   * `mount` establishes `replaceChildren` before its first render, because it renders at once.
+   * `dispatchEvent` is established where it is used, by `emit`, because a container without one
+   * used to render and then fail only when the first event was emitted - and still does.
+   * @typedef {{ replaceChildren: Element["replaceChildren"], dispatchEvent?: unknown }} PanelContainer
+   */
+
+  /**
+   * @typedef {object} PanelState
+   * @property {string} error
+   * @property {boolean} isLoading
+   * @property {boolean} isLinking
+   * @property {BrowserLinkedNoteItem[]} notes
+   * @property {PanelOptions} options
+   * @property {BrowserLinkedNotePanelResponse | null} panel
+   * @property {readonly unknown[]} selectableNotes written once, read nowhere
+   * @property {string} status
+   */
+
+  /**
+   * An opaque value read for its members, the way a plain member access read it.
+   *
+   * `null` and `undefined` still fail, as the member access failed; anything else is read through
+   * `Object`, which leaves an object as itself and boxes a primitive the way a member read does.
+   * @param {unknown} value
+   * @returns {Record<string, unknown>}
+   */
+  function panelFields(value) {
+    if (value === null || value === undefined) {
+      throw new TypeError("The linked notes panel cannot read members of a missing value.");
+    }
+    /** @type {Record<string, unknown>} */
+    const fields = Object(value);
+    return fields;
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {value is PanelContainer}
+   */
+  function isPanelContainer(value) {
+    return value !== null && typeof value === "object" && typeof Reflect.get(value, "replaceChildren") === "function";
+  }
+
   /**
    * The narrowing contract for the values this file catches.
    *
@@ -39,11 +89,21 @@
     }
     return apiClient;
   }
+  /**
+   * `container` and `options` stay `unknown`, which is what `BrowserNotesLinkedPanel.mount`
+   * publishes. A missing container fails first, as before; a present one that cannot replace its
+   * children failed at the first render, a moment later, and now fails at the same call with a
+   * message, still as a `TypeError`, after `options` has been read exactly as it always was.
+   * @param {unknown} container
+   * @param {unknown} [options]
+   * @returns {BrowserMountedPanel}
+   */
   function mount(container, options = {}) {
     if (!container) {
       throw new Error("Notes linked panel container is required.");
     }
 
+    /** @type {PanelState} */
     const state = {
       error: "",
       isLoading: false,
@@ -54,6 +114,9 @@
       selectableNotes: [],
       status: "",
     };
+    if (!isPanelContainer(container)) {
+      throw new TypeError("The linked notes panel container must be able to replace its children.");
+    }
     const controller = {
       refresh: () => refresh(container, state),
       destroy: () => container.replaceChildren(),
@@ -64,6 +127,10 @@
     return controller;
   }
 
+  /**
+   * @param {PanelContainer} container
+   * @param {PanelState} state
+   */
   async function refresh(container, state) {
     const api = requireApi();
     const { options } = state;
@@ -112,6 +179,10 @@
     }
   }
 
+  /**
+   * @param {PanelContainer} container
+   * @param {PanelState} state
+   */
   function render(container, state) {
     const { options } = state;
     const root = document.createElement("section");
@@ -140,6 +211,10 @@
     container.replaceChildren(root);
   }
 
+  /**
+   * @param {PanelContainer} container
+   * @param {PanelState} state
+   */
   function noteList(container, state) {
     const list = document.createElement("div");
 
@@ -164,8 +239,7 @@
         className: "notes-linked-panel-list",
         emptyMessage: state.options.emptyMessage || "No linked notes yet.",
         items: state.notes.map((note) => linkedNoteListItem(state, note)),
-        onRemove: (/** @type {{ note: { [key: string]: unknown } }} */ item) =>
-          unlinkNote(container, state, item.note),
+        onRemove: (item) => unlinkNote(container, state, item.note),
         removeAction: "unlink-note",
         removeLabel: "Unlink note",
         readonly: isReadonly(state),
@@ -177,9 +251,9 @@
   }
 
   /**
-   * The item the linked-context list hands back to `onRemove`, so its `note` needs a type.
-   * @param {{ [key: string]: unknown }} state
-   * @param {{ [key: string]: unknown, id?: unknown, label?: unknown }} note
+   * The item the linked-context list hands back to `onRemove`, which is generic in it.
+   * @param {PanelState} state
+   * @param {BrowserLinkedNoteItem} note
    */
   function linkedNoteListItem(state, note) {
     return {
@@ -187,7 +261,10 @@
       displayLabel: note.label || "Untitled note",
       fullLabel: note.label || "Untitled note",
       hintLabel: note.excerpt || (note.security_mode === "secure" ? "Secure note body is hidden." : ""),
-      isAvailable: note.isAvailable !== false,
+      // No producer sends `isAvailable`: `shapeLinkedNotePanelItem` adds `id`, `label`, `excerpt`,
+      // `sourceUrl` and `links` to the note columns and nothing else, so this answers `true`. It is
+      // read as the undeclared member it is, not declared on a contract no producer honours.
+      isAvailable: ("isAvailable" in note ? note.isAvailable : undefined) !== false,
       moduleId: "notes",
       note,
       removable: canUnlink(state, note),
@@ -198,6 +275,7 @@
     };
   }
 
+  /** @param {BrowserLinkedNoteItem} note */
   function linkedNoteSecondaryLabel(note) {
     return [note.visibility, note.security_mode, note.status]
       .filter(Boolean)
@@ -205,6 +283,11 @@
       .join(" | ");
   }
 
+  /**
+   * @param {PanelContainer} container
+   * @param {PanelState} state
+   * @param {BrowserLinkedNoteItem} note
+   */
   function noteItem(container, state, note) {
     const item = document.createElement("article");
     const body = document.createElement("div");
@@ -237,6 +320,10 @@
     return item;
   }
 
+  /**
+   * @param {PanelContainer} container
+   * @param {PanelState} state
+   */
   function panelControls(container, state) {
     const wrapper = document.createElement("div");
     const create = document.createElement("a");
@@ -263,12 +350,17 @@
     return wrapper;
   }
 
+  /**
+   * @param {PanelContainer} container
+   * @param {PanelState} state
+   */
   function linkExistingForm(container, state) {
     const form = document.createElement("form");
     const select = document.createElement("select");
     const search = document.createElement("input");
     const submit = document.createElement("button");
-    let searchTimer = null;
+    /** @type {number | undefined} */
+    let searchTimer;
 
     form.className = "notes-linked-panel-link-form";
     search.type = "search";
@@ -292,6 +384,11 @@
     return form;
   }
 
+  /**
+   * @param {PanelState} state
+   * @param {HTMLSelectElement} select
+   * @param {string} [search]
+   */
   async function loadSelectableNotes(state, select, search = "") {
     const api = requireApi();
     select.disabled = true;
@@ -328,6 +425,11 @@
     }
   }
 
+  /**
+   * @param {PanelContainer} container
+   * @param {PanelState} state
+   * @param {string} noteId
+   */
   async function linkExistingNote(container, state, noteId) {
     const api = requireApi();
     if (!noteId) {
@@ -348,22 +450,32 @@
     }
   }
 
+  /**
+   * `note.links` is container-checked with its rows deliberately unpromised, so each row is read
+   * through `panelFields`, which answers what the member access answered and still fails on a
+   * missing row. The link id reaches the route through the template's ToString, which is the
+   * conversion `encodeURIComponent` applied.
+   * @param {PanelContainer} container
+   * @param {PanelState} state
+   * @param {BrowserLinkedNoteItem} note
+   */
   async function unlinkNote(container, state, note) {
     const api = requireApi();
     const link = (note.links || []).find((item) =>
-      (item.targetType || item.target_type) === state.options.targetType &&
-      (item.targetId || item.target_id) === state.options.targetId);
-    const noteLinkId = link?.noteLinkId || link?.note_link_id;
+      (panelFields(item).targetType || panelFields(item).target_type) === state.options.targetType &&
+      (panelFields(item).targetId || panelFields(item).target_id) === state.options.targetId);
+    const noteLinkId = link === undefined ? undefined : panelFields(link).noteLinkId || panelFields(link).note_link_id;
 
     if (!noteLinkId) {
       return;
     }
 
-    await api.postJson(`/api/notes/${encodeURIComponent(note.id)}/links/${encodeURIComponent(noteLinkId)}/remove`, {});
+    await api.postJson(`/api/notes/${encodeURIComponent(note.id)}/links/${encodeURIComponent(`${noteLinkId}`)}/remove`, {});
     emit(container, "unlink", { noteId: note.id });
     await refresh(container, state);
   }
 
+  /** @param {BrowserLinkedNoteItem} note */
   function badges(note) {
     return [note.visibility, note.security_mode, note.status]
       .filter(Boolean)
@@ -375,6 +487,7 @@
       });
   }
 
+  /** @param {PanelState} state */
   function readonlyNotice(state) {
     const notice = document.createElement("p");
 
@@ -385,14 +498,20 @@
     return notice;
   }
 
+  /**
+   * @param {PanelState} state
+   * @param {BrowserLinkedNoteItem} note
+   */
   function canUnlink(state, note) {
     return !isReadonly(state) && state.panel?.actions?.canUnlink !== false && note.status !== "archived";
   }
 
+  /** @param {PanelState} state */
   function isReadonly(state) {
     return state.options.readonly || state.panel?.actions?.readonly || state.panel?.moduleState?.enabled === false;
   }
 
+  /** @param {PanelState} state */
   function panelStatus(state) {
     if (state.error) {
       return state.error;
@@ -406,6 +525,7 @@
     return state.notes.length === 1 ? "1 linked note" : `${state.notes.length} linked notes`;
   }
 
+  /** @param {PanelOptions} options */
   function createNoteUrl(options) {
     const params = new URLSearchParams({
       targetType: options.targetType,
@@ -427,6 +547,7 @@
     return `notes.html?${params.toString()}`;
   }
 
+  /** @param {PanelOptions} options */
   function linkPayload(options) {
     return {
       moduleId: options.moduleId,
@@ -435,37 +556,60 @@
     };
   }
 
+  /**
+   * `message` is mostly a string, but `saveFirstMessage` is the caller's own option passed through
+   * unconverted, so the text goes to the node's own setter - the same conversion as before.
+   * @param {unknown} message
+   * @param {boolean} [isError]
+   */
   function emptyState(message, isError = false) {
     const empty = document.createElement("p");
 
     empty.className = isError ? "notes-linked-panel-empty is-error" : "notes-linked-panel-empty";
-    empty.textContent = message;
+    Reflect.set(empty, "textContent", message);
     return empty;
   }
 
+  /**
+   * @param {PanelContainer} container
+   * @param {string} eventName
+   * @param {unknown} [detail]
+   */
   function emit(container, eventName, detail = {}) {
-    container.dispatchEvent(new CustomEvent(`notes-linked-panel:${eventName}`, { detail }));
+    const dispatchEvent = container.dispatchEvent;
+    if (typeof dispatchEvent !== "function") {
+      throw new TypeError("The linked notes panel container must be able to dispatch events.");
+    }
+    Reflect.apply(dispatchEvent, container, [new CustomEvent(`notes-linked-panel:${eventName}`, { detail })]);
   }
 
+  /**
+   * The caller's options, published as `unknown`. `null` still fails as the member read failed;
+   * everything else is read member by member, in the order the literal always read it.
+   * @param {unknown} [options]
+   */
   function normalizeOptions(options = {}) {
+    const fields = panelFields(options);
     return {
-      clientId: normalizeText(options.clientId || options.client_id),
-      emptyMessage: normalizeText(options.emptyMessage || options.empty_message),
-      moduleId: normalizeText(options.moduleId || options.module_id),
-      projectId: normalizeText(options.projectId || options.project_id),
-      readonly: Boolean(options.readonly),
-      saveFirstMessage: options.saveFirstMessage || "",
-      sort: normalizeText(options.sort) || "updated",
-      targetId: normalizeText(options.targetId || options.target_id),
-      targetType: normalizeText(options.targetType || options.target_type),
-      title: normalizeText(options.title),
+      clientId: normalizeText(fields.clientId || fields.client_id),
+      emptyMessage: normalizeText(fields.emptyMessage || fields.empty_message),
+      moduleId: normalizeText(fields.moduleId || fields.module_id),
+      projectId: normalizeText(fields.projectId || fields.project_id),
+      readonly: Boolean(fields.readonly),
+      saveFirstMessage: fields.saveFirstMessage || "",
+      sort: normalizeText(fields.sort) || "updated",
+      targetId: normalizeText(fields.targetId || fields.target_id),
+      targetType: normalizeText(fields.targetType || fields.target_type),
+      title: normalizeText(fields.title),
     };
   }
 
+  /** @param {unknown} value */
   function normalizeText(value) {
     return String(value || "").trim();
   }
 
+  /** @param {unknown} value */
   function formatToken(value) {
     return String(value || "")
       .replace(/_/g, " ")

@@ -558,6 +558,7 @@
         "tests/unit/notes-kind-labels.test.mjs",
         "tests/unit/notes-link-editor.test.mjs",
         "tests/unit/notes-linked-context.test.mjs",
+        "tests/unit/notes-linked-panel-mount.test.mjs",
         "tests/unit/notes-list-query.test.mjs",
         "tests/unit/notes-markdown-surface.test.mjs",
         "tests/unit/notes-module-action-openers.test.mjs",
@@ -791,7 +792,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 2475,
+      "errorCount": 2417,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1124,24 +1125,6 @@
           },
           {
             "code": 7053,
-            "count": 1
-          }
-        ],
-        "public/js/shared/notes-linked-panel.js": [
-          {
-            "code": 2339,
-            "count": 16
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 40
-          },
-          {
-            "code": 7034,
             "count": 1
           }
         ],
@@ -1960,8 +1943,8 @@
     }
   },
   "totals": {
-    "files": 1373,
-    "errors": 2475,
+    "files": 1374,
+    "errors": 2417,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
