@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.23 - Narrow the floating action menu's pointer target
+
+**Model: Medium Effort** - one handler, where the risk is a guard that quietly refuses a legitimate node.
+
+- [x] **`public/js/shared/view-builder.js` reaches zero, 1 to 0.** Browser **2,670 to 2,669**, now across **37** diagnostic files; params 1,711 to 1,710; `dom` **466** and assorted **63** unchanged; `0.33.33.39` **547 to 546**. Exactly one file moved, one TS7006, nothing reclassified.
+- [x] **The target is narrowed without a cast or a non-null assertion.** `handlePointerDown` now takes an `Event` and establishes the `Node | null` that `menu.contains` requires: `if (target != null && !isNode(target)) throw`. `isNode` is the builder's existing, realm-independent test - an object with a numeric `nodeType`, read with `in` so an inherited member counts - so an element, an SVG element, a text node, the document itself, and a node created in another realm all pass through unchanged.
+- [x] **`null` keeps its outside behaviour, and so does `undefined`.** Both still reach `contains`, which reads `undefined` as `null` under its nullable parameter and answers false for both, so both still close the menu. The guard uses `!= null` precisely so `undefined` is not reclassified as malformed.
+- [x] **Malformed input stays a failure.** A target that was never a node - a plain object, a string, a number, an object with a non-numeric `nodeType` - now throws `TypeError: A floating action menu can only test a Node pointer target.` before `contains` is reached, and the menu is left as it was. It is never taken for an inside or outside click. In a real document only nodes in the document's tree reach its capture listener, so this path is a contract, not a live one.
+- [x] **Nothing else moved.** The keydown and click handlers were already typed and are untouched; the wiring, capture phase, listener lifetime and close behaviour are unchanged. The docblock that still said "three handlers keep their untyped `event`" now describes the one that needed a decision and the two that did not.
+- [x] **Six focused cases through the real builder**: inside stays open; a text node and an SVG node inside stay open; outside closes; `null` closes; `undefined` closes; four malformed targets throw the local error and leave the menu open. The DOM double gives a document no listeners and an element no `Node.contains`, so the harness records the document's listeners and gives the menu a `contains` written to the specification.
+- [x] **Two real-browser cases, desktop and mobile.** A real pointer pressed on the SVG icon inside an action button leaves the menu open and the completed click closes it through its own handler; a real click outside closes it. And a node created in a same-origin frame - **confirmed not an instance of the page's `Node`** - is inside when placed inside the menu and outside when placed outside it.
+- [x] **Five focused mutations, five kills.** A guard written as `instanceof global.Node` is killed by the cross-realm browser case; removing the guard, refusing `null`, refusing `undefined`, and inverting the containment test are each killed by the unit cases. Byte restoration verified at SHA-256 `4c2f53b98be0daafc413e58bad39efc7bd3e47c84250a6f3cd9e2c1da84f04b4`.
+- [x] **Full verification on the delivered tree.** Unit **4,300 across 218 files**, regressions **348/348**, E2E **319/319** on the managed runner at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+Excluded and explicitly remaining: `public/js/shared/view-renderer.js` keeps **84**. `0.33.33.39.25`, the action-list input mismatch, stays open. No other event code was touched. **This does not close `0.33.33.39`, `0.33.33.38`, or the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.39.24 - Reconcile the shared createOption input contract
 
 **Model: Medium Effort** - one published declaration and its three-line implementation, where the risk is moving a conversion rather than removing one.

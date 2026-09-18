@@ -1267,7 +1267,7 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Complete: 33 diagnostics closed in `public/js/shared/view-builder.js`, 34 to 1.** See the archive entry.
 
-**`view-builder.js` is not complete, and the remainder is exactly one diagnostic.** `handlePointerDown` keeps its untyped `event`, because `menu.contains` requires a `Node` while `Event.target` is an `EventTarget`; every honest route is a runtime check the handler does not make, or a cast. It belongs to a checkpoint that takes `event.target` across the estate, not to this file.
+**`view-builder.js` was left at exactly one diagnostic.** `handlePointerDown` kept its untyped `event`, because `menu.contains` requires a `Node` while `Event.target` is an `EventTarget`. It was recorded for an estate-wide `event.target` checkpoint; the local reconciliation was authorized instead, and **`0.33.33.39.23` closed it**, taking the file to zero.
 
 #### 0.33.33.39.21 - Type the view renderer's surface-state slot and its capabilities
 
@@ -1298,6 +1298,12 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 **What stayed, deliberately.** Server-side enforcement, confirmation, route interpolation, method validation and dispatch; the `requiredPermissions` metadata with its two real owners; and every permission test - `permission-regression` still reads `clients.manage` out of the client-projects descriptor and still asserts a project user's `POST /api/clients` is refused with **403**.
 
 **The behavioural claim is pass-through.** Ten sites used to rebuild their action lists through a filter; the lists now arrive whole - same entries, same order, same identities, including the DOM nodes `lists.js` and `files.js` pass. Eleven focused cases hold that, and eleven mutations were all killed.
+
+#### 0.33.33.39.23 - Narrow the floating action menu's pointer target
+
+**Complete: `public/js/shared/view-builder.js` reaches zero, 1 to 0.** See the archive entry. Browser **2,670 to 2,669**, now across 37 diagnostic files; `0.33.33.39` **547 to 546**.
+
+**A local correction, not an estate-wide campaign.** `handlePointerDown` hands `event.target` to `menu.contains`, which takes `Node | null`. It now establishes that with the builder's own `isNode` - a numeric `nodeType`, not a realm's `Node` constructor - so every node kind passes, including SVG, text and a node created in another document's realm. `null` and `undefined` still reach `contains` and still close the menu. Anything that was never a node fails with a local `TypeError` rather than being read as an inside or outside click. No other event code changed.
 
 #### 0.33.33.39.24 - Reconcile the shared createOption input contract
 

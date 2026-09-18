@@ -1299,10 +1299,10 @@
   /**
    * Wire a floating action menu's open/close behaviour.
    *
-   * The three handlers inside keep their untyped `event`, and that is deliberate. `Event.target`
-   * is an `EventTarget`, which carries neither `contains`'s `Node` nor `closest` - and every
-   * honest way to reach one is either a runtime check this code does not make today or a cast.
-   * **Three diagnostics stay here for a checkpoint that takes `event.target` across the estate.**
+   * `Event.target` is an `EventTarget`, which carries neither `contains`'s `Node` nor `closest`.
+   * The keydown handler reads only the key; the click handler names its target
+   * `Partial<Element>`, which its optional chaining already assumed. The pointer handler is the one
+   * that hands its target to a native method, so `0.33.33.39.23` narrows it there - see below.
    * @param {HTMLDetailsElement} menu
    * @param {HTMLElement} summary
    * @param {HTMLElement} list
@@ -1313,8 +1313,19 @@
     let listenersActive = false;
 
     const position = () => positionFloatingDetailActionMenu(menu, summary, list);
-    const handlePointerDown = (event) => {
-      if (!menu.contains(event.target)) {
+    // `contains` takes `Node | null`. Only nodes in this document's tree reach its capture
+    // listener, so this narrows rather than filters: a node of any kind passes through - an
+    // element, an SVG element or a text node - and so does one created in another document's
+    // realm, because `isNode` asks for a numeric `nodeType` rather than a realm's `Node`
+    // constructor. `null` and `undefined` still reach `contains`, which reads both as null and
+    // answers "outside", so they still close the menu. Anything else was never a node, and it
+    // fails here with a message rather than inside `contains` - never as an inside or outside click.
+    const handlePointerDown = (/** @type {Event} */ event) => {
+      const target = event.target;
+      if (target != null && !isNode(target)) {
+        throw new TypeError("A floating action menu can only test a Node pointer target.");
+      }
+      if (!menu.contains(target)) {
         closeFloatingDetailActionMenu(menu, list);
       }
     };
