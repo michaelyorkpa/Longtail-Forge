@@ -2,18 +2,73 @@
   const namespace = global.LongtailForge || {};
   const WORKSPACE_SCOPE_ID = "__workspace_projects__";
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").NormalizedClientOption} NormalizedClientOption */
+  /** @typedef {import("../../../src/types/browser-contracts.js").NormalizedProjectOption} NormalizedProjectOption */
+  /** @typedef {import("../../../src/types/browser-contracts.js").NormalizedBillingPeriod} NormalizedBillingPeriod */
+  /** @typedef {import("../../../src/types/browser-contracts.js").NormalizedBillingRounding} NormalizedBillingRounding */
+
+  /**
+   * A client before the ordering pass labels it: every field the writer constructs except the
+   * three `withHierarchyLabel` adds.
+   * @typedef {Omit<NormalizedClientOption, "displayName" | "hierarchyDepth" | "optionLabel">} UnlabelledClient
+   */
+
+  /**
+   * A project before the ordering pass labels it, as `UnlabelledClient` is for a client.
+   * @typedef {Omit<NormalizedProjectOption, "displayName" | "hierarchyDepth" | "optionLabel">} UnlabelledProject
+   */
+
+  /**
+   * A member of a wire record, read the way the optional chain it replaced read it: `undefined`
+   * for a missing record, and otherwise the member access itself, with the record as receiver.
+   * Each original read site makes its own call, so every member is still read where and as often
+   * as it was.
+   * @param {unknown} record
+   * @param {string} key
+   * @returns {unknown}
+   */
+  function recordMember(record, key) {
+    return record === null || record === undefined ? undefined : Reflect.get(Object(record), key, record);
+  }
+
+  /**
+   * The source the normalisers spread. Spreading `Object(record)` copies exactly what spreading
+   * the record copies - nothing for a missing record, a primitive's own enumerable members through
+   * the same kind of wrapper, and an object's own - and gives the compiler an object to spread.
+   * The members it copies stay undescribed, as the published contract leaves them.
+   * @param {unknown} record
+   * @returns {object}
+   */
+  function recordFields(record) {
+    return Object(record);
+  }
+
+  /**
+   * A wire list, or an empty one. The original read each list twice - once for `Array.isArray`
+   * and once to filter it; the body is a parsed response with no accessors, so both reads answered
+   * the same array, and this reads it once.
+   * @param {unknown} record
+   * @param {string} key
+   * @returns {readonly unknown[]}
+   */
+  function recordList(record, key) {
+    const list = recordMember(record, key);
+    return Array.isArray(list) ? list : [];
+  }
+
+  /**
+   * @param {unknown} [data]
+   * @param {{ includeInactive?: boolean }} [options]
+   * @returns {NormalizedClientOption[]}
+   */
   function normalizeClients(data, options = {}) {
     const includeInactive = Boolean(options.includeInactive);
-    const clients = Array.isArray(data?.clients)
-      ? data.clients
-          .filter((client) => includeInactive || !isInactiveRecord(client))
-          .map((client) => normalizeClient(client, { includeInactive }))
-      : [];
-    const workspaceProjects = orderProjectHierarchy(Array.isArray(data?.workspaceProjects)
-      ? data.workspaceProjects
-          .filter((project) => includeInactive || !isInactiveRecord(project))
-          .map((project) => normalizeProject(project, "yes"))
-      : []);
+    const clients = recordList(data, "clients")
+      .filter((client) => includeInactive || !isInactiveRecord(client))
+      .map((client) => normalizeClient(client, { includeInactive }));
+    const workspaceProjects = orderProjectHierarchy(recordList(data, "workspaceProjects")
+      .filter((project) => includeInactive || !isInactiveRecord(project))
+      .map((project) => normalizeProject(project, "yes")));
     const orderedClients = orderClientHierarchy(clients);
 
     if (workspaceProjects.length === 0) {
@@ -40,59 +95,78 @@
     ];
   }
 
+  /**
+   * @param {unknown} client
+   * @param {{ includeInactive?: boolean }} [options]
+   * @returns {UnlabelledClient}
+   */
   function normalizeClient(client, options = {}) {
     const includeInactive = Boolean(options.includeInactive);
-    const billable = normalizeBillable(client?.billable);
+    const billable = normalizeBillable(recordMember(client, "billable"));
 
     return {
-      ...client,
-      id: String(client?.id || "").trim(),
-      name: String(client?.name || "").trim(),
+      ...recordFields(client),
+      id: String(recordMember(client, "id") || "").trim(),
+      name: String(recordMember(client, "name") || "").trim(),
       status: isInactiveRecord(client) ? "Inactive" : "Active",
-      parent_client_id: String(client?.parent_client_id || client?.parentClientId || "").trim(),
+      parent_client_id: String(recordMember(client, "parent_client_id") || recordMember(client, "parentClientId") || "").trim(),
       billable,
-      billingRate: parseOptionalMoney(client?.billing_rate),
-      billingPeriod: normalizeOptionalBillingPeriod(client?.billing_period),
-      billingRounding: normalizeOptionalBillingRounding(client?.billing_rounding),
-      projects: orderProjectHierarchy(Array.isArray(client?.projects)
-        ? client.projects
-            .filter((project) => includeInactive || !isInactiveRecord(project))
-            .map((project) => normalizeProject(project, billable))
-        : []),
+      billingRate: parseOptionalMoney(recordMember(client, "billing_rate")),
+      billingPeriod: normalizeOptionalBillingPeriod(recordMember(client, "billing_period")),
+      billingRounding: normalizeOptionalBillingRounding(recordMember(client, "billing_rounding")),
+      projects: orderProjectHierarchy(recordList(client, "projects")
+        .filter((project) => includeInactive || !isInactiveRecord(project))
+        .map((project) => normalizeProject(project, billable))),
     };
   }
 
+  /**
+   * @param {unknown} project
+   * @param {"no" | "yes"} [fallbackBillable]
+   * @returns {UnlabelledProject}
+   */
   function normalizeProject(project, fallbackBillable = "yes") {
     return {
-      ...project,
-      id: String(project?.id || "").trim(),
-      name: String(project?.name || "").trim(),
-      client_id: String(project?.client_id || project?.clientId || "").trim(),
-      parent_project_id: String(project?.parent_project_id || project?.parentProjectId || "").trim(),
+      ...recordFields(project),
+      id: String(recordMember(project, "id") || "").trim(),
+      name: String(recordMember(project, "name") || "").trim(),
+      client_id: String(recordMember(project, "client_id") || recordMember(project, "clientId") || "").trim(),
+      parent_project_id: String(recordMember(project, "parent_project_id") || recordMember(project, "parentProjectId") || "").trim(),
       status: isInactiveRecord(project) ? "Inactive" : "Active",
-      billable: normalizeBillable(project?.billable, fallbackBillable),
-      billingRate: parseOptionalMoney(project?.billing_rate),
-      billingPeriod: normalizeOptionalBillingPeriod(project?.billing_period),
-      billingRounding: normalizeOptionalBillingRounding(project?.billing_rounding),
+      billable: normalizeBillable(recordMember(project, "billable"), fallbackBillable),
+      billingRate: parseOptionalMoney(recordMember(project, "billing_rate")),
+      billingPeriod: normalizeOptionalBillingPeriod(recordMember(project, "billing_period")),
+      billingRounding: normalizeOptionalBillingRounding(recordMember(project, "billing_rounding")),
     };
   }
 
+  /**
+   * @param {UnlabelledClient[]} clients
+   * @returns {NormalizedClientOption[]}
+   */
   function orderClientHierarchy(clients) {
     const byId = new Map(clients.filter((client) => client.id).map((client) => [client.id, client]));
+    /** @type {Map<string, UnlabelledClient[]>} */
     const childrenByParent = new Map();
 
     clients.forEach((client) => {
       const parentId = byId.has(client.parent_client_id) ? client.parent_client_id : "";
-      if (!childrenByParent.has(parentId)) {
-        childrenByParent.set(parentId, []);
+      // The first child of a parent starts its list, as the `has`/`set` pair did before the push.
+      const siblings = childrenByParent.get(parentId);
+      if (siblings) {
+        siblings.push(client);
+      } else {
+        childrenByParent.set(parentId, [client]);
       }
-      childrenByParent.get(parentId).push(client);
     });
     childrenByParent.forEach((children) => children.sort(compareByName));
 
+    /** @type {NormalizedClientOption[]} */
     const ordered = [];
+    /** @type {Set<string>} */
     const visited = new Set();
 
+    /** @param {UnlabelledClient} client @param {number} depth */
     function appendClient(client, depth) {
       if (!client?.id || visited.has(client.id)) {
         return;
@@ -112,6 +186,11 @@
     return ordered;
   }
 
+  /**
+   * @param {UnlabelledClient} client
+   * @param {number} depth
+   * @returns {NormalizedClientOption}
+   */
   function withHierarchyLabel(client, depth) {
     const prefix = depth > 0 ? `${"  ".repeat(depth)}- ` : "";
     const label = `${prefix}${client.name || "Untitled Client"}`;
@@ -124,22 +203,32 @@
     };
   }
 
+  /**
+   * @param {UnlabelledProject[]} projects
+   * @returns {NormalizedProjectOption[]}
+   */
   function orderProjectHierarchy(projects) {
     const byId = new Map(projects.filter((project) => project.id).map((project) => [project.id, project]));
+    /** @type {Map<string, UnlabelledProject[]>} */
     const childrenByParent = new Map();
 
     projects.forEach((project) => {
       const parentId = byId.has(project.parent_project_id) ? project.parent_project_id : "";
-      if (!childrenByParent.has(parentId)) {
-        childrenByParent.set(parentId, []);
+      const siblings = childrenByParent.get(parentId);
+      if (siblings) {
+        siblings.push(project);
+      } else {
+        childrenByParent.set(parentId, [project]);
       }
-      childrenByParent.get(parentId).push(project);
     });
     childrenByParent.forEach((children) => children.sort(compareByName));
 
+    /** @type {NormalizedProjectOption[]} */
     const ordered = [];
+    /** @type {Set<string>} */
     const visited = new Set();
 
+    /** @param {UnlabelledProject} project @param {number} depth */
     function appendProject(project, depth) {
       if (!project?.id || visited.has(project.id)) {
         return;
@@ -159,6 +248,11 @@
     return ordered;
   }
 
+  /**
+   * @param {UnlabelledProject} project
+   * @param {number} depth
+   * @returns {NormalizedProjectOption}
+   */
   function withProjectHierarchyLabel(project, depth) {
     const prefix = depth > 0 ? `${"  ".repeat(depth)}- ` : "";
     const label = `${prefix}${project.name || "Untitled Project"}`;
@@ -171,6 +265,7 @@
     };
   }
 
+  /** @param {{ name: string }} left @param {{ name: string }} right */
   function compareByName(left, right) {
     return String(left?.name || "").localeCompare(String(right?.name || ""), undefined, {
       sensitivity: "base",
@@ -181,6 +276,11 @@
     return namespace.getWorkspaceProjectsLabel?.() || "Projects";
   }
 
+  /**
+   * @param {unknown} value
+   * @param {string} [fallback]
+   * @returns {"no" | "yes"}
+   */
   function normalizeBillable(value, fallback = "yes") {
     if (value === false || value === "no") {
       return "no";
@@ -191,6 +291,7 @@
     return fallback === "no" ? "no" : "yes";
   }
 
+  /** @param {unknown} value @returns {number | null} */
   function parseOptionalMoney(value) {
     const text = String(value ?? "").trim();
     if (!text) {
@@ -201,13 +302,18 @@
     return Number.isFinite(amount) ? amount : null;
   }
 
+  /**
+   * @param {unknown} period
+   * @returns {NormalizedBillingPeriod | null}
+   */
   function normalizeOptionalBillingPeriod(period) {
-    if (!period || period.type === "inherit") {
+    if (!period || recordMember(period, "type") === "inherit") {
       return null;
     }
 
-    const type = period.type === "custom" ? "custom" : "calendarMonth";
-    const startDay = Math.min(28, Math.max(1, Number.parseInt(period.startDay, 10) || 1));
+    const type = recordMember(period, "type") === "custom" ? "custom" : "calendarMonth";
+    // The template performs the ToString `parseInt` performed on its argument.
+    const startDay = Math.min(28, Math.max(1, Number.parseInt(`${recordMember(period, "startDay")}`, 10) || 1));
 
     return {
       type,
@@ -215,23 +321,31 @@
     };
   }
 
+  /**
+   * @param {unknown} rounding
+   * @returns {NormalizedBillingRounding | null}
+   */
   function normalizeOptionalBillingRounding(rounding) {
-    if (!rounding || rounding.type === "inherit") {
+    if (!rounding || recordMember(rounding, "type") === "inherit") {
       return null;
     }
 
-    const increment = ["nearestHour", "nearestHalfHour", "nearestQuarterHour"].includes(rounding.increment)
-      ? rounding.increment
-      : "nearestQuarterHour";
+    // `find` with `===` matches exactly what `includes` matched, since only strings are listed;
+    // the requested increment is read once where the original read an accepted one twice.
+    const requested = recordMember(rounding, "increment");
+    /** @type {readonly NormalizedBillingRounding["increment"][]} */
+    const increments = ["nearestHour", "nearestHalfHour", "nearestQuarterHour"];
+    const increment = increments.find((candidate) => candidate === requested) || "nearestQuarterHour";
 
     return {
-      enabled: Boolean(rounding.enabled),
+      enabled: Boolean(recordMember(rounding, "enabled")),
       increment,
     };
   }
 
+  /** @param {unknown} record */
   function isInactiveRecord(record) {
-    return String(record?.status || "").trim().toLowerCase() === "inactive";
+    return String(recordMember(record, "status") || "").trim().toLowerCase() === "inactive";
   }
 
   namespace.clientProjectOptions = {
