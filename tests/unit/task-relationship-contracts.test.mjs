@@ -380,7 +380,7 @@ describe("the task dialog consumer", () => {
   });
 
   it("reads the list through the vouching reader", () => {
-    assert.match(parentRead, /const relationships = readTaskRelationships\(\n\s+await api\.getJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/relationships`/,
+    assert.match(parentRead, /const relationships = readTaskRelationships\(\n\s+await api\.getJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{taskId\}`\)\}\/relationships`/,
       "the list must be read through its reader, from the task-scoped route");
     assert.match(parentRead, /throw new Error\("The task relationship list could not be read\./,
       "and an unreadable list must be refused rather than searched");

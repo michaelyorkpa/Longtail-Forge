@@ -104,7 +104,7 @@ assert.match(
 );
 assert.match(
   extractFunctionSpan(taskDialog, "writeTaskTimerFields"),
-  /timerSurfaceAvailable[\s\S]*timerField\.hidden = !task\?\.task_id \|\| !timerSurfaceAvailable[\s\S]*if \(!timerSurfaceAvailable\)[\s\S]*return/,
+  /timerSurfaceAvailable[\s\S]*timerField\.hidden = !optionalTaskProjectionFields\(task\)\?\.task_id \|\| !timerSurfaceAvailable[\s\S]*if \(!timerSurfaceAvailable\)[\s\S]*return/,
   "the Task editor should remove its timer field when Time Tracking or Task Timers is disabled",
 );
 assert.match(

@@ -20,8 +20,8 @@ assert.match(taskDialogScript, /const needsTaskFetch = Boolean\(taskId\) && !tas
 assert.match(taskDialogScript, /function openAdd\(params = \{\}, hostContext = null\)[\s\S]*return openTaskEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/, "Legacy add opener should delegate to the canonical opener");
 assert.match(taskDialogScript, /function openEdit\(params = \{\}, hostContext = null\)[\s\S]*return openTaskEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/, "Legacy edit opener should delegate to the canonical opener");
 assert.match(taskDialogScript, /const taskDialogApi = \{[\s\S]*open,[\s\S]*openAdd,[\s\S]*openEdit,[\s\S]*openTaskEditor/, "Task dialog API should publish the canonical opener while preserving aliases");
-assert.match(taskDialogScript, /namespace\.moduleActions\?\.register\?\.\(\{[\s\S]*id: "tasks\.add"[\s\S]*open: \(params, hostContext\) => openTaskEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/, "Registered task add action should use the canonical opener");
-assert.match(taskDialogScript, /namespace\.moduleActions\?\.register\?\.\(\{[\s\S]*id: "tasks\.edit"[\s\S]*open: \(params, hostContext\) => openTaskEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/, "Registered task edit action should use the canonical opener");
+assert.match(taskDialogScript, /const addTaskAction = \{[\s\S]*id: "tasks\.add"[\s\S]*open: \(params, hostContext\) => openTaskEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)[\s\S]*namespace\.moduleActions\?\.register\?\.\(addTaskAction\)/, "Registered task add action should use the canonical opener");
+assert.match(taskDialogScript, /const editTaskAction = \{[\s\S]*id: "tasks\.edit"[\s\S]*open: \(params, hostContext\) => openTaskEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)[\s\S]*namespace\.moduleActions\?\.register\?\.\(editTaskAction\)/, "Registered task edit action should use the canonical opener");
 
 assert.match(moduleActions, /id: "tasks\.add"[\s\S]*open: \(params, hostContext\) => requireTasksDialog\(\)\.openTaskEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/, "Framework task add action should call the canonical opener");
 assert.match(moduleActions, /id: "tasks\.edit"[\s\S]*open: \(params, hostContext\) => requireTasksDialog\(\)\.openTaskEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/, "Framework task edit action should call the canonical opener");
@@ -40,6 +40,6 @@ assert.doesNotMatch(workbenchScript, /tasksDialog\.open(Add|Edit)?\(/, "Workbenc
 assert.match(taskDialogScript, /await notifyTaskEditorSaved\(result\)/, "Task save should use one callback/refresh notification helper");
 assert.match(taskDialogScript, /function notifyTaskEditorSaved\(result\)[\s\S]*configuredCallback[\s\S]*requestCallback[\s\S]*requestRefresh[\s\S]*hostRefresh/, "Task save should support configured callbacks, per-open callbacks, and caller refresh hooks");
 assert.match(taskDialogScript, /restoreTaskEditorFocus\(returnFocusTo\)/, "Task dialog should restore focus when the editor closes");
-assert.match(taskDialogScript, /function restoreTaskEditorFocus\(target\)[\s\S]*target\.isConnected[\s\S]*target\.focus\(\)/, "Focus restoration should target a live caller control");
+assert.match(taskDialogScript, /function restoreTaskEditorFocus\(target\)[\s\S]*taskProjectionFields\(target\)\.isConnected[\s\S]*typeof taskProjectionFields\(target\)\.focus === "function"[\s\S]*Reflect\.apply\(focus, target, \[\]\)/, "Focus restoration should target a live caller control");
 
 console.log("Tasks canonical editor opener regression passed.");
