@@ -22,7 +22,7 @@ assert.match(tasksScript, /const DEFAULT_TASK_VIEW = "my"/, "Tasks browser state
 assert.match(tasksScript, /const TASK_VIEW_VALUES = new Set\(\["all", \.\.\.QUICK_FILTERS\]\)/, "Tasks browser should recognize the selector values");
 assert.match(tasksScript, /taskViewSelector\?\.addEventListener\("change", handleTaskViewChange\)/, "Saved Task Views dropdown should drive Tasks-owned filter state");
 assert.match(tasksScript, /state\.quickFilter = selectedView/, "Saved Task Views dropdown should keep the selected view in Tasks-owned state");
-assert.match(tasksScript, /params\.set\("task_view", canonicalTaskViewValue\(taskView\)\)/, "Saved Task Views dropdown should use the Tasks-owned task_view query contract");
+assert.match(tasksScript, /params\.set\("task_view", `\$\{canonicalTaskViewValue\(taskView\)\}`\)/, "Saved Task Views dropdown should use the Tasks-owned task_view query contract");
 assert.match(tasksScript, /if \(Object\.hasOwn\(saved, "quickFilter"\)\)/, "Saved explicit task view state should be preserved");
 assert.match(tasksScript, /state\.quickFilter = DEFAULT_TASK_VIEW/, "Missing or invalid saved state should fall back to My Tasks");
 assert.doesNotMatch(tasksScript, /handleFilterDetailsToggle|data-task-quick-filter|task-quick-filters/, "Tasks sidebar should not keep the old quick-filter button row or clear the view when filters open");

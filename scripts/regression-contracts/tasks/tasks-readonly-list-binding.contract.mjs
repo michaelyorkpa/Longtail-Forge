@@ -48,9 +48,9 @@ const lifecycleDescriptor = extractFunctionSpan(tasksScript, "taskLifecycleActio
 assert.match(lifecycleDescriptor, /id:\s*"complete-task"[\s\S]*id:\s*"reopen-task"[\s\S]*id:\s*"block-task"[\s\S]*id:\s*"resume-task"[\s\S]*id:\s*"archive-task"[\s\S]*id:\s*"restore-task"/, "Completed, blocked, archived, and active lifecycle row actions should still appear when applicable");
 
 const buildTaskQuery = extractFunctionSpan(tasksScript, "buildTaskQuery");
-assert.match(buildTaskQuery, /params\.set\("task_view", canonicalTaskViewValue\(taskView\)\)/, "Saved task view should still affect visible task reads");
+assert.match(buildTaskQuery, /params\.set\("task_view", `\$\{canonicalTaskViewValue\(taskView\)\}`\)/, "Saved task view should still affect visible task reads");
 assert.match(buildTaskQuery, /params\.set\("status", canonicalStatusValue\(statusValue\)\)/, "Status filter should still affect visible task reads");
-assert.match(buildTaskQuery, /params\.set\("sort", canonicalSortValue/, "Sort filter should still affect visible task reads");
+assert.match(buildTaskQuery, /params\.set\("sort", `\$\{canonicalSortValue/, "Sort filter should still affect visible task reads");
 assert.match(buildTaskQuery, /params\.set\("client_id", clientValue\)/, "Client filter should still affect visible task reads where scoped");
 assert.match(buildTaskQuery, /params\.set\("project_id", projectValue\)/, "Project filter should still affect visible task reads");
 assert.match(buildTaskQuery, /params\.set\("tags", tagValue\)/, "Tag filter should still affect visible task reads");
