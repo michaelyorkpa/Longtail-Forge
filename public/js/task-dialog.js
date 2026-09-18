@@ -174,7 +174,7 @@
   let tagPicker = null;
   /** @type {{enabled: unknown, frequency: unknown, interval: number, endDate: unknown}} */
   let recurrenceDraft = defaultRecurrenceDraft();
-  /** @type {ReturnType<import("../../src/types/browser-contracts.js").BrowserTaskRecords["readTaskTimers"]>} */
+  /** @type {unknown[]} Validated list rows and opaque context/mutation writers share this slot. */
   let taskTimers = [];
   /** @type {ReturnType<typeof global.setInterval> | null} */
   let taskTimerIntervalId = null;
@@ -400,7 +400,7 @@
           instanceDate: request.instanceDate,
           templateId: request.templateId,
         });
-        request.task = materializationResult?.task || null;
+        request.task = optionalTaskProjectionFields(materializationResult)?.task || null;
         request.taskId = request.task?.task_id || "";
         request.needsStandaloneContext = true;
         request.materializationRefreshPending = true;
@@ -422,7 +422,7 @@
           // The caller may have handed us a list-row payload (checklistProgress but no
           // checklistItems). Refresh the single task detail so the editor renders items.
           const detail = await api.getJson(`/api/tasks/${encodeURIComponent(`${request.taskId}`)}`, { cache: "no-store" });
-          request.task = detail?.task || request.task;
+          request.task = optionalTaskProjectionFields(detail)?.task || request.task;
         }
       }
 
@@ -983,7 +983,7 @@
     ];
 
     if (allowFallback && selectedProjectId && !optionListHasValue(projectOptions, selectedProjectId)) {
-      const fallback = option(selectedProjectId, projectFallbackLabel(sourceTask, selectedProjectId));
+      const fallback = option(selectedProjectId, projectFallbackLabel(sourceTask));
       fallback.dataset.contextFallback = "project";
       projectOptions.push(fallback);
     }
@@ -1002,7 +1002,7 @@
       return;
     }
 
-    const fallback = option(selectedClientId, clientFallbackLabel(sourceTask, selectedClientId));
+    const fallback = option(selectedClientId, clientFallbackLabel(sourceTask));
     fallback.dataset.contextFallback = "client";
     fields.client.appendChild(fallback);
   }
@@ -1597,7 +1597,7 @@
         enabled: recurrence.enabled === true,
         endDate: recurrence.endDate || "",
         frequency: recurrence.frequency || "WEEKLY",
-        interval: Number.parseInt(recurrence.interval, 10) || 1,
+        interval: Number.parseInt(`${recurrence.interval}`, 10) || 1,
       },
       tagIds: [...(payload.tagIds || [])].sort(),
     };
@@ -1919,7 +1919,7 @@
 
     try {
       const result = await api.putJson(`/api/tasks/${encodeURIComponent(`${taskProjectionFields(task).task_id}`)}/timer`, {
-        active_task_timer_id: timer?.active_task_timer_id || "",
+        active_task_timer_id: optionalTaskProjectionFields(timer)?.active_task_timer_id || "",
         timer_status: timerStatus,
         accumulated_elapsed_seconds: elapsedSeconds,
         last_active_start_time: new Date().toISOString(),
@@ -2140,8 +2140,8 @@
     const timer = task ? currentTaskTimer(taskProjectionFields(task).task_id) : null;
 
     fields.timerField.hidden = !optionalTaskProjectionFields(task)?.task_id || !timerSurfaceAvailable;
-    writeTaskControl(fields.timerStart, "disabled", !eligible || timer?.timer_status === "running");
-    writeTaskControl(fields.timerPause, "disabled", !eligible || timer?.timer_status !== "running");
+    writeTaskControl(fields.timerStart, "disabled", !eligible || optionalTaskProjectionFields(timer)?.timer_status === "running");
+    writeTaskControl(fields.timerPause, "disabled", !eligible || optionalTaskProjectionFields(timer)?.timer_status !== "running");
     writeTaskControl(fields.timerFinalize, "disabled", !eligible || !timer);
     writeTaskControl(fields.timerReset, "disabled", !timer);
 
@@ -2155,7 +2155,7 @@
       writeTaskControl(fields.timerStatus, "textContent", "Save the task before using a task timer.");
     } else if (!eligible) {
       writeTaskControl(fields.timerStatus, "textContent", readTaskTimerIneligibleReason(task));
-    } else if (timer?.timer_status === "running") {
+    } else if (optionalTaskProjectionFields(timer)?.timer_status === "running") {
       writeTaskControl(fields.timerStatus, "textContent", "Running.");
     } else if (timer) {
       writeTaskControl(fields.timerStatus, "textContent", "Paused.");
@@ -2164,7 +2164,7 @@
     }
 
     updateTaskTimerDisplay(timer);
-    if (timer?.timer_status === "running") {
+    if (optionalTaskProjectionFields(timer)?.timer_status === "running") {
       taskTimerIntervalId = global.setInterval(() => updateTaskTimerDisplay(timer), 1000);
     }
   }
@@ -2441,14 +2441,15 @@
 
   /** @param {unknown} taskId */
   function currentTaskTimer(taskId) {
-    return taskTimers.find((timer) => timer.task_id === taskId);
+    return taskTimers.find((timer) => taskProjectionFields(timer).task_id === taskId);
   }
 
+  /** @param {unknown} timer */
   function upsertTaskTimer(timer) {
-    const existingIndex = taskTimers.findIndex((item) => item.task_id === timer.task_id);
+    const existingIndex = taskTimers.findIndex((item) => taskProjectionFields(item).task_id === taskProjectionFields(timer).task_id);
     taskTimers = taskTimers.map((item) =>
-      item.timer_status === "running" && item.task_id !== timer.task_id
-        ? { ...item, timer_status: "paused", last_active_start_time: null }
+      taskProjectionFields(item).timer_status === "running" && taskProjectionFields(item).task_id !== taskProjectionFields(timer).task_id
+        ? { ...optionalTaskProjectionFields(item), timer_status: "paused", last_active_start_time: null }
         : item,
     );
 
@@ -2462,7 +2463,7 @@
 
   /** @param {unknown} taskId */
   function removeTaskTimer(taskId) {
-    taskTimers = taskTimers.filter((timer) => timer.task_id !== taskId);
+    taskTimers = taskTimers.filter((timer) => taskProjectionFields(timer).task_id !== taskId);
     requireTaskControl(context).taskTimers = taskTimers;
   }
 
@@ -2473,21 +2474,27 @@
     }
   }
 
+  /** @param {unknown} timer */
   function updateTaskTimerDisplay(timer) {
     writeTaskControl(fields.timerDisplay, "textContent", formatDuration(readTaskTimerElapsedSeconds(timer)));
   }
 
+  /** @param {unknown} timer */
   function readTaskTimerElapsedSeconds(timer) {
     if (!timer) {
       return 0;
     }
 
-    const baseSeconds = Number.parseInt(timer.accumulated_elapsed_seconds, 10) || 0;
-    if (timer.timer_status !== "running" || !timer.last_active_start_time) {
+    const baseSeconds = Number.parseInt(`${taskProjectionFields(timer).accumulated_elapsed_seconds}`, 10) || 0;
+    if (taskProjectionFields(timer).timer_status !== "running" || !taskProjectionFields(timer).last_active_start_time) {
       return baseSeconds;
     }
 
-    const startedAt = new Date(timer.last_active_start_time).getTime();
+    /** @type {Date} */
+    const startedAtDate = Reflect.construct(Date, [
+      taskProjectionFields(timer).last_active_start_time,
+    ]);
+    const startedAt = startedAtDate.getTime();
     return baseSeconds + Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
   }
 
@@ -2908,6 +2915,7 @@
     }
   }
 
+  /** @param {unknown} value @param {unknown} label */
   function option(value, label) {
     return requirePageController().createOption(value, label);
   }
