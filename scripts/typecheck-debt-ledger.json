@@ -622,6 +622,7 @@
         "tests/unit/task-dialog-context-writers.test.mjs",
         "tests/unit/task-dialog-continuity.test.mjs",
         "tests/unit/task-dialog-dom-controls.test.mjs",
+        "tests/unit/task-dialog-final-inputs.test.mjs",
         "tests/unit/task-dialog-record-state.test.mjs",
         "tests/unit/task-dialog-save-results.test.mjs",
         "tests/unit/task-dialog-scheduling-fields.test.mjs",
@@ -785,7 +786,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 2632,
+      "errorCount": 2622,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1261,24 +1262,6 @@
           {
             "code": 2339,
             "count": 25
-          }
-        ],
-        "public/js/task-dialog.js": [
-          {
-            "code": 2339,
-            "count": 2
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 2554,
-            "count": 2
-          },
-          {
-            "code": 7006,
-            "count": 5
           }
         ],
         "public/js/tasks.js": [
@@ -1986,8 +1969,8 @@
     }
   },
   "totals": {
-    "files": 1367,
-    "errors": 2632,
+    "files": 1368,
+    "errors": 2622,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
