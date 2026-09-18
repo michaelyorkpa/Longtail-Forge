@@ -12,8 +12,8 @@ assert.match(tasksScript, /function buildTaskQuery\(cursor = ""\)/, "Tasks brows
 assert.match(tasksScript, /new URLSearchParams\(\)/, "Tasks browser filters should be sent as URL query parameters");
 assert.match(tasksScript, /api\.getJson\(query \? `\/api\/tasks\?\$\{query\}` : "\/api\/tasks"/, "Tasks browser should load filtered lists from the canonical Tasks API");
 assert.match(tasksScript, /params\.set\("status", canonicalStatusValue\(statusValue\)\)/, "Tasks browser should send status filter intent");
-assert.match(tasksScript, /params\.set\("sort", canonicalSortValue/, "Tasks browser should send sort intent");
-assert.match(tasksScript, /params\.set\("task_view", canonicalTaskViewValue\(taskView\)\)/, "Tasks browser should send saved task views as canonical task_view intent");
+assert.match(tasksScript, /params\.set\("sort", `\$\{canonicalSortValue/, "Tasks browser should send sort intent");
+assert.match(tasksScript, /params\.set\("task_view", `\$\{canonicalTaskViewValue\(taskView\)\}`\)/, "Tasks browser should send saved task views as canonical task_view intent");
 assert.match(tasksScript, /params\.set\("limit", String\(TASK_LIST_PAGE_SIZE\)\)/, "Tasks browser should request bounded list pages");
 assert.match(tasksScript, /params\.set\("cursor", cursor\)/, "Tasks browser should request additional pages with the server cursor");
 assert.match(tasksScript, /params\.set\("tags", tagValue\)/, "Tasks browser should send tag and No Tags filter intent to the Tags contract");

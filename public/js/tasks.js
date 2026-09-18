@@ -299,6 +299,7 @@
     tagOptions: [],
   };
   let hasLoadedTasks = false;
+  /** @type {import("../../src/types/browser-contracts.js").BrowserTagFilterPickerController | null} */
   let tagFilterController = null;
   const taskNestingDepths = new WeakMap();
   const recurrenceContinuityTrackers = new Map();
@@ -889,6 +890,7 @@
     });
   }
 
+  /** @param {import("../../src/types/browser-contracts.js").BrowserViewElementOptions["attrs"]} attrs @param {Array<[string, string, boolean?]>} [options] */
   function taskSelect(attrs, options = []) {
     const view = requireView();
     return view.createElement("select", {
@@ -897,6 +899,7 @@
     });
   }
 
+  /** @param {Array<[string, string, boolean?]>} [options] */
   function taskOptions(options = []) {
     const view = requireView();
     return options.map(([value, label, selected = false]) => view.createElement("option", {
@@ -908,6 +911,7 @@
     }));
   }
 
+  /** @param {unknown} label @param {import("../../src/types/browser-contracts.js").BrowserViewElementOptions["attrs"]} [attrs] */
   function taskCheckboxLine(label, attrs = {}) {
     const view = requireView();
     return view.createElement("span", {
@@ -1075,9 +1079,9 @@
     const projectValue = projectFilter?.value ?? "all";
     const tagValue = selectedTaskTagFilterValue();
 
-    params.set("task_view", canonicalTaskViewValue(taskView));
+    params.set("task_view", `${canonicalTaskViewValue(taskView)}`);
     params.set("status", canonicalStatusValue(statusValue));
-    params.set("sort", canonicalSortValue(sortInput?.value || "due_asc"));
+    params.set("sort", `${canonicalSortValue(sortInput?.value || "due_asc")}`);
     params.set("limit", String(TASK_LIST_PAGE_SIZE));
 
     if (assigneeValue === "me") {
@@ -1107,6 +1111,7 @@
     return params.toString();
   }
 
+  /** @param {string} value */
   function canonicalStatusValue(value) {
     if (value === "complete" || value === "archived" || value === "all") {
       return value;
@@ -1115,8 +1120,9 @@
     return value || "active";
   }
 
+  /** @param {string} value @returns {unknown} */
   function canonicalTaskViewValue(value) {
-    return {
+    const values = {
       all: "all",
       my: "my",
       unassigned: "unassigned",
@@ -1125,11 +1131,13 @@
       week: "week",
       complete: "completed",
       archived: "archived",
-    }[value] || value;
+    };
+    return Reflect.get(values, value) || value;
   }
 
+  /** @param {string} value @returns {unknown} */
   function canonicalSortValue(value) {
-    return {
+    const values = {
       due_asc: "due_at",
       priority_desc: "priority",
       status_asc: "status",
@@ -1137,7 +1145,8 @@
       oldest: "created_asc",
       last_worked: "last_worked",
       context: "context",
-    }[value] || "due_at";
+    };
+    return Reflect.get(values, value) || "due_at";
   }
 
   function populateFilters() {
@@ -1246,6 +1255,7 @@
     return usesClientScope() ? clientFilter?.value ?? "all" : "all";
   }
 
+  /** @param {BrowserTaskListOptions["projects"][number] | null | undefined} project @param {unknown} clientValue */
   function projectMatchesClient(project, clientValue) {
     if (clientValue === "all") {
       return true;
@@ -1253,10 +1263,12 @@
     return descendantClientScopeIdsForFilter(clientValue).includes(String(project?.client_id ?? ""));
   }
 
+  /** @param {unknown} clientValue */
   function projectOptionsForClient(clientValue) {
     return state.options.projects.filter((project) => projectMatchesClient(project, clientValue));
   }
 
+  /** @param {unknown} clientValue */
   function descendantClientScopeIdsForFilter(clientValue) {
     const normalizedClientId = String(clientValue ?? "").trim();
 
@@ -1336,6 +1348,7 @@
     return window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__";
   }
 
+  /** @param {string} value */
   function normalizeTagFilterValue(value) {
     return value === "__no_effective_tags__" ? noTagsFilterValue() : value;
   }
@@ -3214,6 +3227,7 @@
     return state.options.workspaceType === "business";
   }
 
+  /** @param {boolean} isVisible */
   function setClientScopeControlsVisible(isVisible) {
     document.querySelectorAll("[data-client-workspace-control]").forEach((element) => {
       element.hidden = !isVisible;
@@ -3242,6 +3256,7 @@
     reloadTaskList();
   }
 
+  /** @param {string} taskView */
   function resetAdvancedFilterControlsForTaskView(taskView) {
     if (sortInput) {
       sortInput.value = "due_asc";
@@ -3253,6 +3268,7 @@
     tagFilterController?.setValue?.("all");
   }
 
+  /** @param {string} taskView */
   function preserveCompatibleAdvancedFiltersForTaskView(taskView) {
     if (!isStatusFilterCompatibleWithTaskView(taskView, statusFilter?.value || "active")) {
       setStatusFilterValue(defaultStatusForTaskView(taskView));
@@ -3280,6 +3296,7 @@
     return TASK_VIEW_VALUES.has(state.quickFilter) ? state.quickFilter : DEFAULT_TASK_VIEW;
   }
 
+  /** @param {string} taskView */
   function defaultStatusForTaskView(taskView) {
     if (taskView === "complete") {
       return "complete";
@@ -3292,6 +3309,7 @@
     return "active";
   }
 
+  /** @param {string} taskView @param {string} statusValue */
   function isStatusFilterCompatibleWithTaskView(taskView, statusValue) {
     const status = canonicalStatusValue(statusValue);
 
@@ -3306,17 +3324,20 @@
     return !requireTaskLifecycleLegality().isTerminalStatus(status);
   }
 
+  /** @param {string} value */
   function setStatusFilterValue(value) {
     setSelectValue(statusFilter, value);
   }
 
+  /** @param {Element | null | undefined} select @param {string} value */
   function setSelectValue(select, value) {
     if (!select) {
       return;
     }
+    const control = requireBulkSelect(select);
 
-    if ([...select.options].some((item) => item.value === value)) {
-      select.value = value;
+    if ([...control.options].some((item) => item.value === value)) {
+      control.value = value;
     }
   }
 
@@ -3389,32 +3410,41 @@
     }));
   }
 
+  /** @param {Element | null | undefined} select @param {HTMLOptionElement[]} options */
   function replaceOptions(select, options) {
     if (!select) {
       return;
     }
+    const control = requireBulkSelect(select);
 
-    const previousValues = [...select.selectedOptions].map((item) => item.value);
-    select.replaceChildren(...options);
+    const previousValues = [...control.selectedOptions].map((item) => item.value);
+    control.replaceChildren(...options);
 
-    if (select.multiple) {
-      [...select.options].forEach((item) => {
+    if (control.multiple) {
+      [...control.options].forEach((item) => {
         item.selected = previousValues.includes(item.value);
       });
       return;
     }
 
-    if ([...select.options].some((item) => item.value === previousValues[0])) {
-      select.value = previousValues[0];
+    if ([...control.options].some((item) => item.value === previousValues[0])) {
+      control.value = previousValues[0];
     }
   }
 
+  /** @param {unknown} value @param {unknown} label */
   function option(value, label) {
     return pageController.createOption(value, label);
   }
 
+  /** @param {unknown} record @param {"optionLabel" | "display_label" | "displayName" | "name" | "title"} key @returns {unknown} */
+  function taskFilterLabelField(record, key) {
+    return record === null || record === undefined ? undefined : Reflect.get(Object(record), key, record);
+  }
+
+  /** @param {unknown} record */
   function optionLabel(record) {
-    return record?.optionLabel || record?.display_label || record?.displayName || record?.name || record?.title || "";
+    return taskFilterLabelField(record, "optionLabel") || taskFilterLabelField(record, "display_label") || taskFilterLabelField(record, "displayName") || taskFilterLabelField(record, "name") || taskFilterLabelField(record, "title") || "";
   }
 
   function displayUser(user) {

@@ -19,7 +19,7 @@ const tasksServiceSource = readText("src/modules/tasks/tasks.service.js");
 const taskListEngineSource = readText("src/modules/tasks/task-list-engine.js");
 const tasksView = readText("views/protected/tasks.html");
 
-assert.match(tasksScript, /params\.set\("task_view", canonicalTaskViewValue\(taskView\)\)/, "Tasks adapter should send selected views through task_view");
+assert.match(tasksScript, /params\.set\("task_view", `\$\{canonicalTaskViewValue\(taskView\)\}`\)/, "Tasks adapter should send selected views through task_view");
 assert.doesNotMatch(tasksScript, /params\.set\("quick_filter"/, "Tasks adapter should not use quick_filter for the saved task view contract");
 assert.match(tasksScript, /complete:\s*"completed"/, "Tasks adapter should map the Completed dropdown option to the completed task_view");
 assert.match(tasksScript, /assigneeValue === "me"[\s\S]*params\.set\("assignee", "me"\)/, "Assignee filter should combine as an advanced filter instead of replacing task_view");
