@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.26 - Type the view renderer's detail and region family
+
+**Model: Medium Effort** - ten renderers typed from contracts that already existed, one annotation corrected, and one executable line.
+
+- [x] **31 diagnostics closed in `public/js/shared/view-renderer.js`, 78 to 47.** Browser **2,663 to 2,632**; exactly one file moved, TS7006 75 to 44 and nothing else; `dom` **466** and assorted **63** unchanged; `0.33.33.39` **540 to 509**. `renderDetailShell`, `renderDetailHeader`, `renderSummaryPanels`, `renderFieldGridShell`, `renderItemCollection`, `renderRegions`, `regionsForPlacement`, `evaluateVisibleWhen`, `renderModalShells` and `renderFieldShell` all reach zero.
+- [x] **`view-renderer.js` is NOT complete.** 47 remain: 44 untyped parameters across the sidebar, index and filter renderers, and three older non-parameter diagnostics - a `querySelectorAll` on `never` and a computed index in the filter path, and the helper-name loop in `requireViewPrimitives`.
+- [x] **The framework contracts were adopted, not re-described.** `ViewDetailDescriptor`, `ViewRegionDescriptor`, `ViewSummaryPanelDescriptor`, `ViewSummaryPanelItemDescriptor`, `ViewItemFormDescriptor`, `ViewVisibleWhenDescriptor` and `ViewModalDescriptor` already existed; the published surface descriptor delivers `ViewDetailDescriptor` directly, so these take it whole rather than as `Partial` fragments. `renderFieldShell` takes `unknown` and the published `BrowserViewFieldOptions`, because it forwards both to `createField`, which takes exactly that.
+- [x] **One annotation corrected, and the history named.** `renderActions` was annotated `readonly BrowserViewAction[]` - builder actions - from `0.33.33.39.9`, and `0.33.33.39.22` carried that forward while only dropping the retired permission member. All three callers pass **descriptor** actions (`descriptor.actions`, a detail strip's actions, a table's `rowActions`), and the body reads `visibleWhen` and maps each through `normalizeAction`, which takes a `DescriptorAction`. It now takes `readonly DescriptorAction[] | undefined`; its `ariaLabel` takes the `BrowserViewTextValue` it forwards unchanged. Annotation only.
+- [x] **One state member made required, on the reasoning `0.33.33.39.21` used.** `RendererState.pendingMounts` is initialised by `renderSurface` and reset, never removed, by `flushMounts`, so the region renderer's push reads a queue that is always there.
+- [x] **One executable line.** `renderFieldGridShell` returns early on `!itemForm || !fields.length` where it tested only the empty list. An absent or null form already produced an empty list, so the two return in exactly the same cases; naming the form is what lets the `editable` read that follows see one.
+- [x] **Five focused cases through the real stack**, since no unit test named any of these ten: no field grid for an absent form, a form without fields, or an empty list; a grid with disabled controls unless the form is editable; a whole detail composing header, action strip, summary panel, field grid and region in that order with its badge; and regions placed by descriptor - `before-table` ahead of the table, default after it, an unmatched placement not rendered. **Two focused mutations of the executable line, two kills.** Byte restoration verified at SHA-256 `4e9fe151a6fcb7ffdfbe8f5706d50260193bf15f4e9eba265ccd3c3fe0aa1751`.
+- [x] **Full verification on the delivered tree.** Unit **4,319 across 220 files**, regressions **348/348**, E2E **319/319** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+Excluded and explicitly remaining: `view-renderer.js` keeps **47**. No published contract changed. **This does not close `0.33.33.39`, `0.33.33.38`, or the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.39.25 - Narrow the published action-list input to BrowserViewAction
 
 **Model: Medium Effort** - an approved published-contract narrowing, where the burden is showing that nothing at runtime moved and saying exactly what the compiler does and does not prove.

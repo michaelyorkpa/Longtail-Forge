@@ -1317,6 +1317,10 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 `view-renderer.js` **84 to 78**: aligning the two unannotated implementations with their published signatures closed their `options` reads and implicit `any[]` defaults.
 
+#### 0.33.33.39.26 - Type the view renderer's detail and region family
+
+**Complete: 31 diagnostics closed in `public/js/shared/view-renderer.js`, 78 to 47, which still needs further children.** See the archive entry. The ten detail and region renderers now take the framework's own descriptor contracts, and `renderActions` - which `0.33.33.39.9` annotated as builder actions and `0.33.33.39.22` carried forward - now names the descriptor actions all three of its callers actually pass.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.
