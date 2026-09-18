@@ -108,7 +108,10 @@ describe("the create records against their real producer", () => {
 describe("the three vocabularies", () => {
   it("keeps the wire record apart from the normalised option", () => {
     const normalizer = extractFunctionBlock(optionsSource, "normalizeClient");
-    assert.match(normalizer, /\.\.\.client,/,
+    // `0.33.33.39.31` spreads the record through `recordFields`, which copies exactly what the
+    // bare spread copied; the claim - the normaliser passes the record's own fields through - is
+    // unchanged, and `client-project-options-normalizers` executes it.
+    assert.match(normalizer, /\.\.\.recordFields\(client\),/,
       "the option normaliser spreads, so it could never have been an exact wire contract");
     for (const camel of ["billingRate", "billingPeriod", "billingRounding"]) {
       assert.match(normalizer, new RegExp(`${camel}:`), `the option record builds ${camel}`);

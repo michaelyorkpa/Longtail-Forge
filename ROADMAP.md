@@ -1343,6 +1343,10 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **One failure moved, for a host nothing ships.** A page marking a non-HTML element - an `<svg data-settings-host>` - as its host used to have HTML controls mounted into it; it now fails at load with a named `TypeError`, because the published `mount` takes an `HTMLElement`. Every shipped template marks a `<main>`.
 
+#### 0.33.33.39.31 - Take the client and project options to zero
+
+**Complete: `public/js/shared/client-project-options.js` reaches zero, 46 to 0, and leaves the ledger.** See the archive entry. The published `BrowserClientProjectOptions` is unchanged, and the writer is now checked against it field by field.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.
