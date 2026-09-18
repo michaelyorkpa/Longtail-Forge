@@ -29,6 +29,10 @@
     }
     return apiClient;
   }
+  /**
+   * @param {unknown} id
+   * @param {unknown} handler
+   */
   function registerBehavior(id, handler) {
     const behaviorId = String(id || "").trim();
     if (!behaviorId) {
@@ -42,8 +46,11 @@
   }
 
   /**
+   * `host` names the three members this reads: `appendChild` to mount the surface, and the
+   * `firstChild` and `removeChild` that `clearHost` empties it with. They carry the DOM's own
+   * signatures, so a real element satisfies the shape exactly.
    * @param {unknown} [deliveredDescriptor]
-   * @param {{ appendChild?: HTMLElement["appendChild"] } | null} [host]
+   * @param {{ appendChild?: HTMLElement["appendChild"], firstChild?: ChildNode | null, removeChild?: HTMLElement["removeChild"] } | null} [host]
    */
   function renderSurface(deliveredDescriptor = {}, host) {
     const view = requireViewPrimitives();
@@ -158,6 +165,10 @@
     return surface;
   }
 
+  /**
+   * @param {Node} parent
+   * @param {Iterable<Node>} children
+   */
   function renderInto(parent, children) {
     clearHost(parent);
     for (const child of children) {
@@ -165,6 +176,11 @@
     }
   }
 
+  /**
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} descriptor
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderLayout(descriptor, view, state) {
     const children = [
       renderPageHeader(descriptor.pageHeader, view, state),
@@ -218,7 +234,7 @@
 
     children.push(...renderRegions(regionsForPlacement(descriptor.regions, "default"), view, state, state.selectedRecord));
     children.push(...renderModalShells(descriptor.modals, view));
-    return children.filter(Boolean);
+    return children.filter(isRendered);
   }
 
   /**
@@ -784,6 +800,11 @@
       .filter((element) => !element.disabled && !element.hidden && element.getAttribute?.("aria-hidden") !== "true");
   }
 
+  /**
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor["pageHeader"]} pageHeader
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderPageHeader(pageHeader, view, state) {
     if (!pageHeader) {
       return null;
@@ -856,6 +877,11 @@
     return form;
   }
 
+  /**
+   * @param {Element} form
+   * @param {readonly DescriptorFilter[]} fields
+   * @param {RendererState} state
+   */
   function queueFieldOptionSourceMounts(form, fields, state) {
     for (const field of (Array.isArray(fields) ? fields : [])) {
       if (!field?.optionsSource) {
@@ -877,11 +903,16 @@
           id: field.id || field.field,
           behavior: field.optionsSource,
         },
-        selectedValue: state.filterValues?.[controlId] ?? field.default ?? control.value,
+        selectedValue: state.filterValues?.[controlId] ?? field.default ?? ("value" in control ? control.value : undefined),
       });
     }
   }
 
+  /**
+   * @param {Element} form
+   * @param {readonly DescriptorFilter[]} filters
+   * @param {RendererState} state
+   */
   function collectFilterValues(form, filters, state) {
     if (!state.filterValues) {
       state.filterValues = {};
@@ -898,16 +929,44 @@
     }
   }
 
+  /**
+   * An element read as a filter control.
+   *
+   * `collectFilterValues` hands over whatever element carries the input's data attribute, so no
+   * control subtype is proved. Every member is optional and read as what it is: a member the element
+   * lacks answers `undefined`, exactly as the plain property access did.
+   * @typedef {Element & {
+   *   checked?: unknown,
+   *   dataset?: DOMStringMap,
+   *   multiple?: unknown,
+   *   selectedOptions?: Iterable<{ value: unknown }>,
+   *   type?: unknown,
+   *   value?: unknown,
+   * }} FilterControl
+   */
+
+  /**
+   * @param {FilterControl} control
+   * @param {Element | null} [form]
+   * @param {string} [fieldKey]
+   */
   function filterControlValue(control, form = null, fieldKey = "") {
     if (control.type === "checkbox") {
       return Boolean(control.checked);
     }
     if (control.type === "radio") {
+      /** @type {Iterable<FilterControl>} */
       const controls = form?.querySelectorAll?.(`[data-view-input="${fieldKey}"]`) || [control];
       return [...controls].find((candidate) => candidate.checked)?.value || "";
     }
     if (control.multiple) {
-      return [...control.selectedOptions].map((option) => option.value);
+      // A `multiple` control without selected options failed here spreading `undefined`; it still
+      // fails here, as a `TypeError`, with a message.
+      const selectedOptions = control.selectedOptions;
+      if (selectedOptions === undefined) {
+        throw new TypeError("A multiple filter control must expose its selected options.");
+      }
+      return [...selectedOptions].map((option) => option.value);
     }
     if (control.dataset?.viewSearchOptions === "true") {
       const submitMode = control.dataset.viewSearchSubmitMode || "input";
@@ -924,7 +983,9 @@
     return control.value;
   }
 
+  /** @param {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} descriptor */
   function initialFilterValues(descriptor) {
+    /** @type {Record<string, unknown>} */
     const values = {};
     for (const filter of (Array.isArray(descriptor.filters) ? descriptor.filters : [])) {
       const key = filter.field || filter.id;
@@ -935,6 +996,10 @@
     return values;
   }
 
+  /**
+   * @param {RendererState} state
+   * @param {ViewPrimitives} view
+   */
   function renderDataStatus(state, view) {
     if (state.loading) {
       return view.createStatusMessage({
@@ -945,14 +1010,14 @@
 
     if (state.error) {
       return view.createStatusMessage({
-        message: state.error.message || "Records could not be loaded.",
+        message: failureMessageOf(state.error) || "Records could not be loaded.",
         tone: "danger",
       });
     }
 
     if (state.actionError) {
       return view.createStatusMessage({
-        message: state.actionError.message || "Action could not be completed.",
+        message: failureMessageOf(state.actionError) || "Action could not be completed.",
         tone: "danger",
       });
     }
@@ -1018,12 +1083,12 @@
         descriptor.indexPanel
           ? renderIndexPanel(descriptor.indexPanel, view, state) || renderPlaceholder("Index", descriptor.indexPanel?.emptyState, view)
           : null,
-      ].filter(Boolean);
+      ].filter(isRendered);
     }
 
     return descriptor.sidebarPanels
       .map((panel) => renderSidebarPanel(panel, descriptor, view, state))
-      .filter(Boolean);
+      .filter(isRendered);
   }
 
   /**
@@ -2237,12 +2302,55 @@
     flushMounts(state);
   }
 
+  /**
+   * Empty a host, reading `firstChild` and `removeChild` in the order the loop always did.
+   *
+   * A node always answers both. `renderSurface` hands this whatever host its caller gave, and a host
+   * with children but no `removeChild` failed here as a native call on `undefined`; it now fails at
+   * the same point with a message, and still as a `TypeError`. The method is applied to the host
+   * itself, so its receiver is unchanged.
+   * @param {{ readonly firstChild?: ChildNode | null, removeChild?: Node["removeChild"] }} host
+   */
   function clearHost(host) {
     while (host.firstChild) {
-      host.removeChild(host.firstChild);
+      const removeChild = host.removeChild;
+      if (typeof removeChild !== "function") {
+        throw new TypeError("A view host with children must be able to remove them.");
+      }
+      Reflect.apply(removeChild, host, [host.firstChild]);
     }
   }
 
+  /**
+   * `filter(Boolean)` with the narrowing it already performs named for the compiler.
+   *
+   * Every list this filters holds rendered elements or `null`, and an object is always truthy, so it
+   * keeps exactly what `filter(Boolean)` kept.
+   * @template {object} T
+   * @param {T | null | undefined} value
+   * @returns {value is T}
+   */
+  function isRendered(value) {
+    return Boolean(value);
+  }
+
+  /**
+   * The `message` of a recorded failure, read exactly as `error.message` read it.
+   *
+   * `Object` leaves an object or a function as itself and boxes a primitive the way a member access
+   * does, so every truthy failure answers what it answered before. Callers only reach this for a
+   * truthy failure, on which `error.message` never threw.
+   * @param {unknown} error
+   * @returns {unknown}
+   */
+  function failureMessageOf(error) {
+    return Reflect.get(Object(error), "message");
+  }
+
+  /**
+   * @param {Node | null} existingNode
+   * @param {Node} replacementNode
+   */
   function replaceNode(existingNode, replacementNode) {
     const parent = existingNode?.parentNode;
     if (!parent) {
@@ -2279,7 +2387,8 @@
     if (!view) {
       throw new Error("View surface rendering requires LongtailForge.view primitives.");
     }
-    for (const helperName of [
+    /** @type {readonly (keyof import("../../../src/types/browser-contracts.js").BrowserViewPrimitives)[]} */
+    const helperNames = [
       "createCollapsibleIndexPanel",
       "createDataTable",
       "createDetailActionStrip",
@@ -2296,7 +2405,8 @@
       "normalizeSurfaceDescriptor",
       "createPageHeader",
       "createSplitListDetail",
-    ]) {
+    ];
+    for (const helperName of helperNames) {
       if (typeof view[helperName] !== "function") {
         throw new Error("View surface rendering requires LongtailForge.view primitives.");
       }

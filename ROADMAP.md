@@ -1327,6 +1327,10 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **A pre-existing behaviour recorded, not changed.** A data-bound refresh renders twice - once while loading, once when it settles - and flushes both renders' queued region mounts together, so each region's behaviour runs twice per refresh and once against a container the second render has already replaced.
 
+#### 0.33.33.39.28 - Take the view renderer to zero
+
+**Complete: `public/js/shared/view-renderer.js` reaches zero, 26 to 0, and leaves the ledger.** See the archive entry. It began `0.33.33.39.8` at 310. This closes the file, not `0.33.33.39`.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.
