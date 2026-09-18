@@ -28,9 +28,9 @@ assert.match(bulkChrome, /view\.createBulkActionToolbar\(\{[\s\S]*label:\s*"Bulk
 assert.doesNotMatch(bulkChrome, /<details|<summary/, "Tasks should not hand-build the bulk toolbar details or summary shell");
 assert.match(bulkControls, /data-task-bulk-status-control[\s\S]*data-task-bulk-priority-control[\s\S]*data-task-bulk-due-date-control[\s\S]*data-task-bulk-due-time-control[\s\S]*data-task-bulk-assignee-control[\s\S]*data-task-bulk-tag-action-control[\s\S]*data-task-bulk-lifecycle-control/, "Tasks should keep existing bulk control fields and lifecycle control");
 assert.match(updateBulkControls, /updateBulkToolbarSummary\(selectedCount\)/, "Bulk control updates should refresh the framework summary count");
-assert.match(updateBulkControls, /if \(bulkToolbar && selectedCount > 0\) \{[\s\S]*bulkToolbar\.open = true/, "Bulk toolbar should auto-expand when tasks are selected");
+assert.match(updateBulkControls, /if \(bulkToolbar && selectedCount > 0\) \{[\s\S]*requireBulkDetails\(bulkToolbar\)\.open = true/, "Bulk toolbar should auto-expand when tasks are selected");
 assert.doesNotMatch(updateBulkControls, /reloadTaskList|renderTasks/, "Expanding or summarizing the bulk toolbar should not reload or reorder the task list");
-assert.match(tasksScript, /function updateBulkToolbarSummary\(selectedCount\)[\s\S]*bulkSelectionCount\.textContent = `\$\{selectedCount\} selected`[\s\S]*bulkSelectionCount\.hidden = selectedCount === 0/, "Tasks should display selected counts only when applicable");
+assert.match(tasksScript, /function updateBulkToolbarSummary\(selectedCount\)[\s\S]*bulkSelectionCount\.textContent = `\$\{selectedCount\} selected`[\s\S]*requireBulkElement\(bulkSelectionCount\)\.hidden = selectedCount === 0/, "Tasks should display selected counts only when applicable");
 
 const taskViewChrome = extractFunctionSpan(tasksScript, "createTaskViewSelectorChrome");
 const filterChrome = extractFunctionSpan(tasksScript, "createTaskFilterChrome");
