@@ -31,7 +31,7 @@ assert.match(taskDialogScript, /populateProjectInput\(selectedProjectId, task, \
 
 assert.match(taskDialogScript, /function ensureClientOption\(selectedClientId = "", sourceTask = currentTask\)[\s\S]*clientFallbackLabel\(sourceTask/, "Edit opens should preserve missing selected clients with safe fallback labels");
 assert.match(taskDialogScript, /function projectFallbackLabel\(sourceTask = null\)[\s\S]*return `\$\{projectName\} - \$\{clientName\}`[\s\S]*return projectName \|\| "Unavailable project"/, "Project fallback labels should prefer readable names and never the raw id");
-assert.match(taskDialogScript, /function clientFallbackLabel\(sourceTask = null\)[\s\S]*return sourceTask\?\.client_name \|\| sourceTask\?\.clientName \|\| "Unavailable client"/, "Client fallback labels should prefer readable names and never the raw id");
+assert.match(taskDialogScript, /function clientFallbackLabel\(sourceTask = null\)[\s\S]*return optionalTaskProjectionFields\(sourceTask\)\?\.client_name \|\| optionalTaskProjectionFields\(sourceTask\)\?\.clientName \|\| "Unavailable client"/, "Client fallback labels should prefer readable names and never the raw id");
 assert.doesNotMatch(taskDialogScript, /return selected(Client|Project)Id/, "Fallback context labels should not expose raw selected ids in normal UI");
 
 assert.match(stylesheet, /\.task-details-field \{[\s\S]*box-sizing: border-box;[\s\S]*min-width: 0;/, "Task Details should stay inside the modal group boundary");

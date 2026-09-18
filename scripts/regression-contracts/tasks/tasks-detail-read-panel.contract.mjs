@@ -33,7 +33,7 @@ assert.match(requireView, /createDetailBadgeRow/, "Task dialog should require th
 assert.match(metadataRibbonField, /className: \["task-metadata-ribbon", "view-detail-badges", "surface-chip-row"\][\s\S]*"data-task-metadata-ribbon": ""[\s\S]*"aria-label": "Task summary"/, "Task modal metadata placeholder should use shared detail badge classes");
 assert.match(metadataWriter, /requireTaskDialogView\(\)\.createDetailBadgeRow\(\{[\s\S]*ariaLabel:\s*"Task summary"[\s\S]*className:\s*"task-metadata-ribbon"[\s\S]*badges:\s*badges\.map\(createMetadataBadge\)/, "Task detail metadata should render through the shared detail badge row primitive");
 assert.doesNotMatch(metadataWriter, /document\.createElement\("span"\)/, "Task detail metadata should not rebuild badge DOM by hand");
-assert.match(metadataBadge, /className:\s*\["task-metadata-chip",\s*badge\.className\][\s\S]*focusable:\s*true/, "Task metadata badges should preserve compact styling and keyboard focus");
+assert.match(metadataBadge, /className:\s*\["task-metadata-chip",\s*requireTaskControl\(badge\)\.className\][\s\S]*focusable:\s*true/, "Task metadata badges should preserve compact styling and keyboard focus");
 
 for (const label of ["Status", "Priority", "Client", "Project", "Due Date", "Due Time", "TTC"]) {
   assert.match(metadataWriter, new RegExp(`label:\\s*"${label}"`), `Task metadata should still include ${label}`);
