@@ -1321,6 +1321,12 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Complete: 31 diagnostics closed in `public/js/shared/view-renderer.js`, 78 to 47, which still needs further children.** See the archive entry. The ten detail and region renderers now take the framework's own descriptor contracts, and `renderActions` - which `0.33.33.39.9` annotated as builder actions and `0.33.33.39.22` carried forward - now names the descriptor actions all three of its callers actually pass.
 
+#### 0.33.33.39.27 - Type the view renderer's sidebar and index family
+
+**Complete: 21 diagnostics closed in `public/js/shared/view-renderer.js`, 47 to 26, which still needs further children.** See the archive entry. The seven sidebar and index renderers take the framework's own contracts, and `RendererState.records` now says what `bindRecord` builds: `readonly Record<string, unknown>[]`.
+
+**A pre-existing behaviour recorded, not changed.** A data-bound refresh renders twice - once while loading, once when it settles - and flushes both renders' queued region mounts together, so each region's behaviour runs twice per refresh and once against a container the second render has already replaced.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.

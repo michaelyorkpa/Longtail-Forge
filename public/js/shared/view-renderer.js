@@ -65,6 +65,7 @@
       pendingMounts: [],
       /** @type {Record<string, unknown>[]} */
       records: [],
+      /** @type {unknown} */
       selectedRecord: null,
       selectedRecordId: "",
       slideOutSidebarOpen: false,
@@ -465,7 +466,7 @@
    * @property {boolean} [indexCollapsed]
    * @property {boolean} [loading]
    * @property {PendingMount[]} pendingMounts
-   * @property {readonly unknown[]} [records]
+   * @property {readonly Record<string, unknown>[]} [records]
    * @property {unknown} [selectedRecord]
    * @property {unknown} [selectedRecordId]
    * @property {unknown} [slideOutSidebarOpen]
@@ -981,7 +982,9 @@
   }
 
   /**
-   * @param {DescriptorIndexPanel | null | undefined} indexPanel
+   * `indexPanel` is never absent here: `renderIndexPanel` returns before calling this for a
+   * missing panel, and the sidebar's index branch does the same, so the parameter says so.
+   * @param {DescriptorIndexPanel} indexPanel
    * @param {ViewPrimitives} view
    * @param {RendererState} state
    * @param {Record<string, unknown>} [options]
@@ -1003,6 +1006,11 @@
       ];
   }
 
+  /**
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} descriptor
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderSidebarPanels(descriptor, view, state) {
     if (!Array.isArray(descriptor.sidebarPanels) || descriptor.sidebarPanels.length === 0) {
       return [
@@ -1018,6 +1026,12 @@
       .filter(Boolean);
   }
 
+  /**
+   * @param {ViewSidebarPanelDescriptor} panel
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} descriptor
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderSidebarPanel(panel, descriptor, view, state) {
     const panelType = panel.type || "navigation";
     if (!panel.id) {
@@ -1123,6 +1137,11 @@
     return details;
   }
 
+  /**
+   * @param {ViewSidebarPanelDescriptor} panel
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderSidebarPanelFooter(panel, view, state) {
     if (!panel.footer) {
       return [];
@@ -1152,6 +1171,7 @@
     return children;
   }
 
+  /** @param {unknown} footer */
   function normalizeSidebarPanelFooter(footer) {
     if (!footer || (Array.isArray(footer) && footer.length === 0)) {
       return null;
@@ -1159,6 +1179,11 @@
     return footer;
   }
 
+  /**
+   * @param {DescriptorIndexPanel} indexPanel
+   * @param {Record<string, unknown>} record
+   * @param {RendererState} state
+   */
   function buildIndexItem(indexPanel, record, state) {
     const title = readDescriptorValue(record, indexPanel.itemTitleField, record.title || record.label || record.id || "Record");
     const subtitle = readDescriptorValue(record, indexPanel.itemSubtitleField, "");
@@ -1178,10 +1203,15 @@
     };
   }
 
+  /**
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewSurfaceDescriptor} descriptor
+   * @param {RendererState} state
+   */
   function initialSelectedRecord(descriptor, state) {
     const records = state.records || [];
-    const indexPanel = descriptor.indexPanel || {};
-    if (indexPanel.initialSelection === "none") {
+    // `(indexPanel || {}).initialSelection` and `indexPanel?.initialSelection` answer the same
+    // value for every panel, present or not; only the second names the member it reads.
+    if (descriptor.indexPanel?.initialSelection === "none") {
       return null;
     }
     if (state.selectedRecordId) {
@@ -1190,6 +1220,10 @@
     return records[0] || null;
   }
 
+  /**
+   * @param {RendererState} state
+   * @param {unknown} record
+   */
   function selectIndexRecord(state, record) {
     state.selectedRecord = record || null;
     state.selectedRecordId = recordId(record);
