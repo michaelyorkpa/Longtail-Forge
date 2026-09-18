@@ -10,6 +10,47 @@
    */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFieldElement} BrowserViewFieldElement */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewFieldControl} BrowserViewFieldControl */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewClassNames} BrowserViewClassNames */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewElementOptions} BrowserViewElementOptions */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserViewActionButtonOptions} BrowserViewActionButtonOptions */
+
+  /**
+   * The options `field` reads. Every shipped caller passes literal strings for the datasets and
+   * the class names, so they are named as that rather than widened past what is ever sent.
+   * @typedef {object} SettingsFieldOptions
+   * @property {BrowserViewClassNames} [shellClassName]
+   * @property {import("../../../src/types/browser-contracts.js").BrowserViewAttributeBag} [controlAttrs]
+   * @property {unknown} [disabled]
+   * @property {Record<string, string>} [shellDataset]
+   * @property {Record<string, string>} [labelDataset]
+   * @property {boolean} [hidden]
+   * @property {string} [inputType]
+   * @property {string} [optionClassName]
+   * @property {BrowserViewClassNames} [controlsClassName]
+   */
+
+  /**
+   * @typedef {object} SettingsSectionOptions
+   * @property {readonly Node[]} [actions]
+   * @property {BrowserViewClassNames} [className]
+   * @property {import("../../../src/types/browser-contracts.js").BrowserViewAttributeBag} [dataset]
+   */
+
+  /**
+   * A member of the settings catalog body, read the way a member access read it.
+   *
+   * The catalog is a parsed `GET /api/settings/catalog` body - plain data - so this reads each
+   * member once where the optional chain it replaced read some twice; with no accessors on parsed
+   * JSON, the second read answered the same value. A missing value answers `undefined`, as the
+   * optional chain did.
+   * @param {unknown} value
+   * @param {string} key
+   * @returns {unknown}
+   */
+  function catalogMember(value, key) {
+    return value === null || value === undefined ? undefined : Reflect.get(Object(value), key, value);
+  }
+
 
   /**
    * Only an input has a writable `type`; a select reports its own and a textarea has none.
@@ -53,8 +94,14 @@
   });
   root.settingsHost = api;
 
+  // `querySelector` answers an `Element`, and the published `mount` takes an `HTMLElement`
+  // because it reads `dataset`. Every shipped template marks a `<main>`, so this never fails
+  // there; a host that is some other element now fails here, by name, rather than in `mount`.
   const host = document.querySelector("[data-settings-host]");
   if (host) {
+    if (!(host instanceof HTMLElement)) {
+      throw new TypeError("The settings host must be an HTML element.");
+    }
     mount(host);
   }
 
@@ -141,6 +188,11 @@
     return data ? { data } : null;
   }
 
+  /**
+   * @template {HTMLElement | null | undefined} T
+   * @param {T} hostElement
+   * @returns {T}
+   */
   function mount(hostElement) {
     if (!hostElement || hostElement.dataset.settingsHostMounted === "true") {
       return hostElement;
@@ -161,14 +213,23 @@
     return hostElement;
   }
 
+  /**
+   * @param {unknown} catalog
+   * @param {string} placement
+   * @param {string} [moduleId]
+   * @returns {unknown[]}
+   */
   function attachmentSections(catalog, placement, moduleId = "") {
-    const attachments = catalog?.attachments || {};
+    const attachments = catalogMember(catalog, "attachments") || {};
     if (placement === "module") {
-      return Array.isArray(attachments.module?.[moduleId]) ? attachments.module[moduleId] : [];
+      const sections = catalogMember(catalogMember(attachments, "module"), moduleId);
+      return Array.isArray(sections) ? sections : [];
     }
-    return Array.isArray(attachments[placement]) ? attachments[placement] : [];
+    const sections = catalogMember(attachments, placement);
+    return Array.isArray(sections) ? sections : [];
   }
 
+  /** @param {HTMLElement} hostElement */
   function mountWorkspaceHost(hostElement) {
     hostElement.appendChild(view.createPageHeader({
       title: "Workspace Settings",
@@ -300,6 +361,7 @@
     hostElement.append(form, settingsPageFooter(), status, workspaceUsersDialog(), workspaceDeletionDialog(), unsavedChangesDialog());
   }
 
+  /** @param {HTMLElement} hostElement */
   function mountUserHost(hostElement) {
     hostElement.appendChild(view.createPageHeader({ title: "User Settings", actions: settingsPageActions("top") }));
     const grid = element("div", { className: "user-settings-grid" });
@@ -396,6 +458,7 @@
     hostElement.append(grid, settingsPageFooter(), status, workspaceRemovalDialog(), unsavedChangesDialog());
   }
 
+  /** @param {HTMLElement} hostElement */
   function mountCalendarHost(hostElement) {
     hostElement.appendChild(view.createPageHeader({ title: "Calendar" }));
 
@@ -681,6 +744,7 @@
     ];
   }
 
+  /** @param {HTMLElement} hostElement */
   function mountModuleHost(hostElement) {
     const moduleId = String(hostElement.dataset.settingsModuleId || "").trim();
     const title = String(hostElement.dataset.settingsTitle || "Module Settings").trim();
@@ -698,12 +762,23 @@
     hostElement.append(form, settingsPageFooter(), status, unsavedChangesDialog());
   }
 
+  /**
+   * @param {string} datasetKey
+   * @param {unknown} title
+   * @param {unknown} fields
+   * @param {readonly Node[]} [actions]
+   */
   function settingsForm(datasetKey, title, fields, actions = []) {
     const form = element("form", { className: "settings-form", dataset: { [datasetKey]: "", settingsScope: "" } });
     form.appendChild(settingsSection(title, fields, { actions }));
     return form;
   }
 
+  /**
+   * @param {unknown} title
+   * @param {unknown} fields
+   * @param {SettingsSectionOptions} [options]
+   */
   function settingsSection(title, fields, options = {}) {
     const fieldset = element("fieldset", {
       className: ["view-settings-section", options.className],
@@ -727,6 +802,12 @@
     return fieldset;
   }
 
+  /**
+   * @param {unknown} title
+   * @param {BrowserViewClassNames} className
+   * @param {readonly Node[]} children
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewAttributeBag} [dataset]
+   */
   function readoutSection(title, className, children, dataset) {
     return element("fieldset", {
       className: ["view-settings-section", className],
@@ -738,6 +819,10 @@
     });
   }
 
+  /**
+   * @param {string} placement
+   * @param {{ className?: BrowserViewClassNames, moduleId?: string }} [options]
+   */
   function attachment(placement, options = {}) {
     return element("div", {
       className: ["view-settings-sections", options.className],
@@ -748,6 +833,11 @@
     });
   }
 
+  /**
+   * @param {unknown} definition
+   * @param {string} controlDatasetKey
+   * @param {SettingsFieldOptions} [options]
+   */
   function field(definition, controlDatasetKey, options = {}) {
     const fieldElement = view.createField(definition, {
       className: options.shellClassName,
@@ -764,15 +854,19 @@
     if (options.hidden) {
       fieldElement.hidden = true;
     }
-    const typedControl = options.inputType ? fieldControl(fieldElement) : null;
-    if (typedControl) {
+    // `options` is always a literal object here, so reading each member once where the original
+    // read it twice answers the same value; the control is still required only for an input type.
+    const inputType = options.inputType;
+    if (inputType) {
+      const typedControl = fieldControl(fieldElement);
       if (!isInputControl(typedControl)) {
         throw new Error("Settings host input types apply to input controls only.");
       }
-      typedControl.type = options.inputType;
+      typedControl.type = inputType;
     }
-    if (options.optionClassName) {
-      fieldElement.querySelectorAll("label").forEach((label) => label.classList.add(options.optionClassName));
+    const optionClassName = options.optionClassName;
+    if (optionClassName) {
+      fieldElement.querySelectorAll("label").forEach((label) => label.classList.add(optionClassName));
     }
     if (options.controlsClassName) {
       const optionLabels = [...fieldElement.querySelectorAll("label")];
@@ -789,6 +883,11 @@
     return fieldElement;
   }
 
+  /**
+   * @param {string} label
+   * @param {string} datasetKey
+   * @param {Pick<BrowserViewActionButtonOptions, "className" | "disabled" | "icon" | "role" | "type"> & { hidden?: unknown }} [options]
+   */
   function action(label, datasetKey, options = {}) {
     const button = view.createActionButton({
       className: options.className,
@@ -803,6 +902,7 @@
     return button;
   }
 
+  /** @param {string} position */
   function settingsPageActions(position) {
     const revert = action("Revert", "settingsPageRevert", {
       className: "settings-page-revert",
@@ -906,6 +1006,13 @@
     return dialog;
   }
 
+  /**
+   * Every caller passes a literal tag, so each keeps the element type the factory returns for it.
+   * @template {keyof HTMLElementTagNameMap} TagName
+   * @param {TagName} tagName
+   * @param {BrowserViewElementOptions} [options]
+   * @returns {HTMLElementTagNameMap[TagName]}
+   */
   function element(tagName, options = {}) {
     return view.createElement(tagName, options);
   }

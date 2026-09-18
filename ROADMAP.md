@@ -1337,6 +1337,12 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **A finding recorded, not changed.** The panel reads `note.isAvailable`, which `BrowserLinkedNoteItem` does not declare and no producer sends - `shapeLinkedNotePanelItem` adds `id`, `label`, `excerpt`, `sourceUrl` and `links` and nothing else - so it always answers available.
 
+#### 0.33.33.39.30 - Take the settings host to zero
+
+**Complete: `public/js/shared/settings-host.js` reaches zero, 49 to 0, and leaves the ledger.** See the archive entry. The published `BrowserSettingsHost` is unchanged.
+
+**One failure moved, for a host nothing ships.** A page marking a non-HTML element - an `<svg data-settings-host>` - as its host used to have HTML controls mounted into it; it now fails at load with a named `TypeError`, because the published `mount` takes an `HTMLElement`. Every shipped template marks a `<main>`.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.

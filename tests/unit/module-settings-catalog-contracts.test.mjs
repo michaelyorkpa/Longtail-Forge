@@ -325,8 +325,10 @@ describe("the module settings consumer", () => {
   });
 
   it("inspects the raw catalog before any fallback", () => {
+    // `0.33.33.39.30` reads the module sections once through `catalogMember`; the claim - an
+    // unusable catalog answers [] - is unchanged, and `settings-host-behaviour` executes it.
     assert.match(functionBody(host, "  function attachmentSections(catalog, placement, moduleId = \"\") {", "\n  }\n"),
-      /return Array\.isArray\(attachments\.module\?\.\[moduleId\]\) \? attachments\.module\[moduleId\] : \[\];/,
+      /const sections = catalogMember\(catalogMember\(attachments, "module"\), moduleId\);\n\s+return Array\.isArray\(sections\) \? sections : \[\];/,
       "the shared host answers [] for a catalog it cannot use");
     assert.match(load, /if \(!readModuleSettingsSections\(catalog, currentModuleSettingsId\(\)\)\) \{\n\s+throw new Error\("The settings catalog could not be read\./,
       "so the page must read the raw catalog itself before storing it");

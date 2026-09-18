@@ -601,6 +601,7 @@
         "tests/unit/runtime-configuration.test.mjs",
         "tests/unit/runtime-diagnostics-contracts.test.mjs",
         "tests/unit/search-filters-results-contracts.test.mjs",
+        "tests/unit/settings-host-behaviour.test.mjs",
         "tests/unit/settings-renderer-surface-contracts.test.mjs",
         "tests/unit/settings-renderer-writer-contracts.test.mjs",
         "tests/unit/shared-workspace-settings-contracts.test.mjs",
@@ -794,7 +795,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 2370,
+      "errorCount": 2321,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1154,16 +1155,6 @@
           {
             "code": 7006,
             "count": 2
-          }
-        ],
-        "public/js/shared/settings-host.js": [
-          {
-            "code": 2339,
-            "count": 25
-          },
-          {
-            "code": 7006,
-            "count": 24
           }
         ],
         "public/js/shared/settings-page-controller.js": [
@@ -1941,8 +1932,8 @@
     }
   },
   "totals": {
-    "files": 1376,
-    "errors": 2370,
+    "files": 1377,
+    "errors": 2321,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
