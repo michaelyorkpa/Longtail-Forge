@@ -278,7 +278,9 @@
     quickFilter: DEFAULT_TASK_VIEW,
     /** @type {Set<string>} */
     selectedTaskIds: new Set(),
+    /** @type {Awaited<ReturnType<typeof loadAttachmentCounts>>} */
     attachmentCounts: {},
+    /** @type {Awaited<ReturnType<typeof loadNoteCounts>>} */
     noteCounts: {},
     pagination: {
       hasMore: false,
@@ -876,6 +878,7 @@
     ];
   }
 
+  /** @param {unknown} label @param {unknown} controls @param {Pick<import("../../src/types/browser-contracts.js").BrowserViewElementOptions, "className" | "attrs" | "hidden">} [options] */
   function taskControlLabel(label, controls, options = {}) {
     const view = requireView();
     return view.createElement("label", {
@@ -1029,6 +1032,7 @@
     }
   }
 
+  /** @param {BrowserTaskListItem[] | null | undefined} existingTasks @param {BrowserTaskListItem[] | null | undefined} incomingTasks */
   function mergeTasksById(existingTasks, incomingTasks) {
     const taskById = new Map();
 
@@ -1528,12 +1532,15 @@
     return [row];
   }
 
+  /** @param {BrowserTaskListItem[]} [tasks] */
   function nestedTaskDisplayRows(tasks = []) {
+    /** @type {Map<unknown, BrowserTaskListItem>} */
     const taskById = new Map(tasks.map((task) => [task.task_id, task]));
+    /** @type {Map<unknown, BrowserTaskListItem[]>} */
     const childrenByParentId = new Map();
 
     tasks.forEach((task) => {
-      const parentTaskId = task.parentTask?.task_id || task.parent_task?.task_id || task.parent_task_id || "";
+      const parentTaskId = optionalTaskRowField(task.parentTask, "task_id") || optionalTaskRowField(taskRowField(task, "parent_task"), "task_id") || taskRowField(task, "parent_task_id") || "";
       if (!parentTaskId || !taskById.has(parentTaskId) || parentTaskId === task.task_id) {
         return;
       }
@@ -1542,8 +1549,10 @@
       childrenByParentId.set(parentTaskId, children);
     });
 
+    /** @type {Array<{task: BrowserTaskListItem, depth: number}>} */
     const nested = [];
     const appended = new Set();
+    /** @param {BrowserTaskListItem} task @param {number} depth @param {Set<string>} [path] */
     const appendBranch = (task, depth, path = new Set()) => {
       if (!task?.task_id || appended.has(task.task_id) || path.has(task.task_id)) {
         return;
@@ -1555,7 +1564,7 @@
     };
 
     tasks.forEach((task) => {
-      const parentTaskId = task.parentTask?.task_id || task.parent_task?.task_id || task.parent_task_id || "";
+      const parentTaskId = optionalTaskRowField(task.parentTask, "task_id") || optionalTaskRowField(taskRowField(task, "parent_task"), "task_id") || taskRowField(task, "parent_task_id") || "";
       if (!parentTaskId || !taskById.has(parentTaskId)) {
         appendBranch(task, 0);
       }
@@ -1720,7 +1729,7 @@
   function taskWorkflowActionButton(action, task) {
     const view = requireView();
     const disabledReason = taskWorkflowDisabledReason(action, task);
-    /** @type {TaskActionButtonOptions} */
+    /** @type {TaskActionButtonOptions & {onClick: (event: Event) => unknown}} */
     const options = {
       label: action.label,
       title: disabledReason || action.title || action.label,
@@ -1887,7 +1896,7 @@
   function taskLifecycleActionButton(action, task) {
     const view = requireView();
     const disabledReason = taskLifecycleDisabledReason(action, task);
-    /** @type {TaskActionButtonOptions} */
+    /** @type {TaskActionButtonOptions & {onClick: (event: Event) => unknown}} */
     const options = {
       label: action.label,
       title: disabledReason || action.title || action.label,
@@ -2096,6 +2105,25 @@
     return baseSeconds + Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
   }
 
+  /** @typedef {{label: string, value: string, className: string, title?: string}} TaskContextChip */
+
+  /**
+   * These projections remain opaque; preserve inherited reads and primitive receivers.
+   * @param {unknown} value
+   * @param {"task_id" | "title" | "parent_task_id" | "incomplete_blocking_child_count" | "parent_task" | "parent_task_title" | "total_count" | "completed_count" | "next_incomplete_item_label"} key
+   * @returns {unknown}
+   */
+  function taskRowField(value, key) {
+    if (value === null || value === undefined) throw new TypeError("Task row fields are unavailable.");
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /** @param {unknown} value @param {"task_id" | "title"} key @returns {unknown} */
+  function optionalTaskRowField(value, key) {
+    return value == null ? undefined : taskRowField(value, key);
+  }
+
+  /** @param {Element} container @param {BrowserTaskListItem} task */
   function appendTaskMetadata(container, task) {
     const assigneeText = task.assignees?.length
       ? task.assignees.map(displayUser).join(", ")
@@ -2117,6 +2145,7 @@
     });
   }
 
+  /** @param {Element} container @param {BrowserTaskListItem} task */
   function appendTaskContext(container, task) {
     const view = requireView();
     const chips = [];
@@ -2159,10 +2188,11 @@
     container.appendChild(summary);
   }
 
+  /** @param {Element} container @param {BrowserTaskListItem} task */
   function appendParentTaskChip(container, task) {
-    const parentTask = task.parentTask || task.parent_task || null;
-    const parentTaskId = parentTask?.task_id || task.parent_task_id || "";
-    const parentTitle = String(parentTask?.title || task.parent_task_title || "").trim();
+    const parentTask = task.parentTask || taskRowField(task, "parent_task") || null;
+    const parentTaskId = optionalTaskRowField(parentTask, "task_id") || taskRowField(task, "parent_task_id") || "";
+    const parentTitle = String(optionalTaskRowField(parentTask, "title") || taskRowField(task, "parent_task_title") || "").trim();
 
     if (!parentTaskId || !parentTitle) {
       return;
@@ -2191,6 +2221,7 @@
     };
   }
 
+  /** @param {TaskContextChip[]} chips */
   function taskContextSummaryFallback(chips) {
     const summary = document.createElement("div");
 
@@ -2205,6 +2236,7 @@
     return summary;
   }
 
+  /** @param {string} label @param {(event: Event) => unknown} handler @param {Pick<TaskActionButtonOptions, "icon" | "title">} [options] */
   function actionButton(label, handler, options = {}) {
     const button = window.LongtailForge?.icons?.createIconButton
       ? window.LongtailForge.icons.createIconButton({
@@ -2223,8 +2255,9 @@
     return button;
   }
 
+  /** @param {string} label */
   function taskActionIcon(label) {
-    return {
+    const icons = {
       Archive: "archive",
       Complete: "complete",
       "Copy Link": "copy",
@@ -2235,23 +2268,26 @@
       Reopen: "restore",
       Restore: "restore",
       Resume: "start",
-    }[label] || "more";
+    };
+    return Reflect.get(icons, label) || "more";
   }
 
+  /** @param {unknown} [progress] */
   function checklistProgressText(progress = {}) {
-    const total = Number(progress.total_count) || 0;
+    const total = Number(taskRowField(progress, "total_count")) || 0;
 
     if (total <= 0) {
       return "";
     }
 
-    const completed = Number(progress.completed_count) || 0;
-    const next = progress.next_incomplete_item_label ? `, next: ${progress.next_incomplete_item_label}` : "";
+    const completed = Number(taskRowField(progress, "completed_count")) || 0;
+    const next = taskRowField(progress, "next_incomplete_item_label") ? `, next: ${taskRowField(progress, "next_incomplete_item_label")}` : "";
     return `${completed}/${total}${next}`;
   }
 
+  /** @param {unknown} [summary] */
   function blockingSummaryText(summary = {}) {
-    const blockers = Number(summary.incomplete_blocking_child_count) || 0;
+    const blockers = Number(taskRowField(summary, "incomplete_blocking_child_count")) || 0;
 
     if (blockers <= 0) {
       return "";
@@ -2294,6 +2330,7 @@
       : null;
   }
 
+  /** @param {BrowserTaskListItem[]} tasks @returns {Promise<Record<string, number>>} */
   async function loadAttachmentCounts(tasks) {
     const api = requireApi();
     const targetIds = tasks.map((task) => task.task_id).filter(Boolean);
@@ -2335,8 +2372,10 @@
     return panel;
   }
 
+  /** @param {BrowserTaskListItem[]} tasks */
   async function loadNoteCounts(tasks) {
     const api = requireApi();
+    /** @type {Record<string, number>} */
     const counts = {};
 
     await Promise.all(tasks.map(async (task) => {
@@ -2362,6 +2401,7 @@
     return counts;
   }
 
+  /** @param {Element} target @param {BrowserTaskListItem} task */
   function appendAttachmentCount(target, task) {
     const count = Number(state.attachmentCounts[task.task_id] || 0);
 
@@ -2376,6 +2416,7 @@
     target.appendChild(chip);
   }
 
+  /** @param {Element} target @param {BrowserTaskListItem} task */
   function appendNoteCount(target, task) {
     const count = Number(state.noteCounts[task.task_id] || 0);
 
@@ -2552,6 +2593,7 @@
     return tasksDialog;
   }
 
+  /** @param {BrowserTaskListItem | null} [task] */
   function openTaskDialog(task = null, options = {}) {
     state.editingTaskId = options.duplicate === true ? "" : task?.task_id || "";
     configureTaskDialog();
@@ -2567,6 +2609,7 @@
     }, options.hostContext || null);
   }
 
+  /** @param {unknown} [returnFocusTo] */
   function openTaskDialogById(taskId, returnFocusTo = null) {
     if (!taskId) {
       return null;
@@ -2639,6 +2682,7 @@
     }
   }
 
+  /** @param {Element | null | undefined} container @param {unknown} tags */
   function appendTagChips(container, tags) {
     if (!container) {
       return;
