@@ -669,6 +669,7 @@
         "tests/unit/view-descriptor-action-list-runtime.test.mjs",
         "tests/unit/view-descriptor-action-shape.test.mjs",
         "tests/unit/view-detail-action-surface.test.mjs",
+        "tests/unit/view-detail-region-surface.test.mjs",
         "tests/unit/view-field-grid-inputs.test.mjs",
         "tests/unit/view-floating-menu-pointer-target.test.mjs",
         "tests/unit/view-linked-context-surface.test.mjs",
@@ -784,7 +785,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 2663,
+      "errorCount": 2632,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1217,7 +1218,7 @@
           },
           {
             "code": 7006,
-            "count": 75
+            "count": 44
           },
           {
             "code": 7053,
@@ -1985,8 +1986,8 @@
     }
   },
   "totals": {
-    "files": 1366,
-    "errors": 2663,
+    "files": 1367,
+    "errors": 2632,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -220,6 +220,10 @@
     return children.filter(Boolean);
   }
 
+  /**
+   * @param {readonly ViewRegionDescriptor[] | undefined} regions
+   * @param {string} placement
+   */
   function regionsForPlacement(regions, placement) {
     const regionList = Array.isArray(regions) ? regions : [];
     if (placement === "default") {
@@ -369,6 +373,12 @@
   /** @typedef {import("../../../src/types/framework-contracts.js").ViewFilterDescriptor} ViewFilterDescriptor */
   /** @typedef {import("../../../src/types/framework-contracts.js").ViewIndexPanelDescriptor} ViewIndexPanelDescriptor */
   /** @typedef {import("../../../src/types/framework-contracts.js").ViewItemRowsDescriptor} ViewItemRowsDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewDetailDescriptor} ViewDetailDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewRegionDescriptor} ViewRegionDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewSummaryPanelDescriptor} ViewSummaryPanelDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewSummaryPanelItemDescriptor} ViewSummaryPanelItemDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewItemFormDescriptor} ViewItemFormDescriptor */
+  /** @typedef {import("../../../src/types/framework-contracts.js").ViewVisibleWhenDescriptor} ViewVisibleWhenDescriptor */
   /** @typedef {import("../../../src/types/framework-contracts.js").ViewSidebarPanelDescriptor} ViewSidebarPanelDescriptor */
 
   /**
@@ -454,7 +464,7 @@
    * @property {Record<string, unknown>} [filterValues]
    * @property {boolean} [indexCollapsed]
    * @property {boolean} [loading]
-   * @property {PendingMount[]} [pendingMounts]
+   * @property {PendingMount[]} pendingMounts
    * @property {readonly unknown[]} [records]
    * @property {unknown} [selectedRecord]
    * @property {unknown} [selectedRecordId]
@@ -1426,6 +1436,11 @@
     return Math.min(Math.floor(parsed), 12);
   }
 
+  /**
+   * @param {ViewDetailDescriptor | undefined} detail
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderDetailShell(detail, view, state) {
     if (!detail) {
       return [];
@@ -1446,6 +1461,12 @@
     return children.flat().filter(Boolean);
   }
 
+  /**
+   * @param {readonly ViewRegionDescriptor[] | undefined} regions
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   * @param {unknown} record
+   */
   function renderRegions(regions, view, state, record) {
     if (!Array.isArray(regions) || regions.length === 0) {
       return [];
@@ -1558,6 +1579,11 @@
     }
   }
 
+  /**
+   * @param {ViewDetailDescriptor["header"]} header
+   * @param {ViewPrimitives} view
+   * @param {unknown} record
+   */
   function renderDetailHeader(header, view, record) {
     if (!header) {
       return null;
@@ -1577,6 +1603,11 @@
     });
   }
 
+  /**
+   * @param {readonly ViewSummaryPanelDescriptor[] | undefined} summaryPanels
+   * @param {ViewPrimitives} view
+   * @param {unknown} record
+   */
   function renderSummaryPanels(summaryPanels, view, record) {
     if (!Array.isArray(summaryPanels)) {
       return [];
@@ -1585,16 +1616,23 @@
     return summaryPanels.map((panel) => view.createInfoPanel({
       title: panel.title || panel.label,
       message: readDescriptorValue(record, panel.messageField, panel.description),
-      items: (panel.items || []).map((item) => ({
+      items: (panel.items || []).map((/** @type {ViewSummaryPanelItemDescriptor} */ item) => ({
         label: item.label || item.field || "",
         value: readDescriptorValue(record, item.field, item.value || ""),
       })),
     }));
   }
 
+  /**
+   * @param {ViewItemFormDescriptor | undefined} itemForm
+   * @param {ViewPrimitives} view
+   * @param {unknown} record
+   */
   function renderFieldGridShell(itemForm, view, record) {
     const fields = Array.isArray(itemForm?.fields) ? itemForm.fields : [];
-    if (!fields.length) {
+    // An absent form already produced an empty list; naming it here is what lets the read below
+    // see a form, and it returns in exactly the cases the empty-list check did.
+    if (!itemForm || !fields.length) {
       return null;
     }
 
@@ -1608,6 +1646,11 @@
     });
   }
 
+  /**
+   * @param {DescriptorItemRows} itemRows
+   * @param {ViewPrimitives} view
+   * @param {RendererState} state
+   */
   function renderItemCollection(itemRows, view, state) {
     const record = state.selectedRecord;
     // Read once and narrow: the value reader is contract-typed since 0.33.33.35.2, so the
@@ -1677,6 +1720,10 @@
     });
   }
 
+  /**
+   * @param {ViewVisibleWhenDescriptor | undefined} condition
+   * @param {unknown} record
+   */
   function evaluateVisibleWhen(condition, record) {
     if (!condition || typeof condition !== "object") {
       return true;
@@ -1697,6 +1744,10 @@
     return true;
   }
 
+  /**
+   * @param {readonly ViewModalDescriptor[] | undefined} modals
+   * @param {ViewPrimitives} view
+   */
   function renderModalShells(modals, view) {
     if (!Array.isArray(modals)) {
       return [];
@@ -1704,16 +1755,24 @@
 
     return modals.map((modal) => view.createModalForm({
       title: modal.title || modal.label || "Modal",
-      fields: (modal.fields || []).map((field) => renderFieldShell(field, view)),
+      fields: (modal.fields || []).map((/** @type {ViewFieldDescriptor} */ field) => renderFieldShell(field, view)),
       actions: [...(modal.footerActions || []), ...(modal.actions || [])]
         .map((action) => normalizeAction(action)),
     }));
   }
 
   /**
-   * @param {readonly BrowserViewAction[]} actions
+   * Descriptor actions, filtered by `visibleWhen` and normalized into builder actions.
+   *
+   * `actions` is what all three callers pass - a surface's, a detail strip's or a table row's
+   * `ViewActionDescriptor[]`, or nothing - and what this body reads: `visibleWhen`, then
+   * `normalizeAction`, which takes a `DescriptorAction`. It was annotated as builder actions
+   * (`BrowserViewAction`) from `0.33.33.39.9`, which `0.33.33.39.22` carried forward; that is the
+   * shape this function produces, not the one it receives. `ariaLabel` is forwarded unchanged to
+   * the strip, which takes a `BrowserViewTextValue`, so it is named as that.
+   * @param {readonly DescriptorAction[] | undefined} actions
    * @param {ViewPrimitives} view
-   * @param {string} ariaLabel
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewTextValue} ariaLabel
    * @param {RendererState | null} [state]
    * @param {unknown} [recordOverride]
    */
@@ -1948,6 +2007,12 @@
     return section;
   }
 
+  /**
+   * A field through the builder, which takes the descriptor as `unknown` and validates it itself.
+   * @param {unknown} field
+   * @param {ViewPrimitives} view
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewFieldOptions} [options]
+   */
   function renderFieldShell(field, view, options = {}) {
     return view.createField(field, options);
   }
