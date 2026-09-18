@@ -362,6 +362,7 @@
         "tests/e2e/notes-view-registration.spec.mjs",
         "tests/e2e/notes-visibility-scoping.spec.mjs",
         "tests/e2e/overflow.spec.mjs",
+        "tests/e2e/page-controller-create-option.spec.mjs",
         "tests/e2e/public-legal.spec.mjs",
         "tests/e2e/reporting-host-console.spec.mjs",
         "tests/e2e/settings-admin-navigation.spec.mjs",
@@ -1986,7 +1987,7 @@
     }
   },
   "totals": {
-    "files": 1361,
+    "files": 1362,
     "errors": 2670,
     "explicitAny": 0
   },

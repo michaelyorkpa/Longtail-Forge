@@ -1299,6 +1299,25 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **The behavioural claim is pass-through.** Ten sites used to rebuild their action lists through a filter; the lists now arrive whole - same entries, same order, same identities, including the DOM nodes `lists.js` and `files.js` pass. Eleven focused cases hold that, and eleven mutations were all killed.
 
+#### 0.33.33.39.24 - Reconcile the shared createOption input contract
+
+**Complete.** See the archive entry. **Zero diagnostics eliminated here, by design**: the correction removes a prerequisite rather than debt. It unblocks Task Dialog's two option-wrapper parameters, which `0.33.33.41.20` closes - a transient probe showed annotating them `unknown` closes both with the correction and raises TS2345 without it.
+
+`BrowserPageController.createOption` said `(string, string)` while eight page wrappers pass whatever their callers pass, and the helper never converted anything - `option.value` and `option.textContent` did. Both are now declared `unknown`, and both arguments reach those setters unchanged. Converting first was the alternative, and it would have changed behaviour: `String(null)` writes the text `"null"` where `textContent` writes nothing, and `String(symbol)` does not throw where both setters do.
+
+#### 0.33.33.39.25 - OPEN: reconcile the published action-list input with its consumer
+
+**Open, owned by the `0.33.33.39` lane, and not decided here.** Recorded by `0.33.33.39.22`, which found the retired permission filter's return type had been silently bridging the two declarations.
+
+**The mismatch.** `renderDescriptorActionStrip`, `renderDescriptorActionMenu` and `renderDescriptorInlineActions` publish `actions?: readonly unknown[]`. Their consumer does not accept `unknown`: each hands the list to a builder member typed `BrowserViewActionInput`, whose `normalizeActions` uses a `Node` as-is and sends anything else to `createActionButton`, which throws for an entry with no label or text. The published input promises entries its consumer rejects.
+
+**The producers, traced.** Every shipped caller already passes nodes. `lists.js` builds its detail and row buttons through `actionButton`, which calls `view.createActionButton`, and passes a rendered action menu as the inline row's third entry; `notes.js` builds its detail buttons through `noteWorkflowActionButton`, which also calls `view.createActionButton`. No caller passes a primitive, a record without a label, or a non-array.
+
+**The candidate resolution, measured rather than applied.** Narrowing all three published inputs to `readonly BrowserViewAction[]` - the shape each implementation's own `@param` already states - changes **no** diagnostic anywhere: a probe left the estate's 2,670 byte-identical, so no producer is cost. It is still a narrowing of a published contract, which is why it waits for a decision.
+
+- [ ] Decide whether the three published inputs narrow to `readonly BrowserViewAction[]`, or the consumer's rejection is documented as the contract instead.
+- [ ] Either way, do not widen the builder's `BrowserViewActionInput` to accept what `createActionButton` refuses.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.

@@ -916,7 +916,15 @@ export interface PageControllerRegistry {
 }
 
 export interface BrowserPageController {
-  createOption(value: string, text: string): HTMLOptionElement;
+  /**
+   * Create an `<option>`, then hand both arguments to its own setters unchanged.
+   *
+   * `value` takes the option value setter's ToString: `null` becomes `"null"` and a Symbol throws.
+   * `text` takes `textContent`'s nullable conversion: `null` and `undefined` leave no text, and
+   * anything else takes ToString, so a Symbol throws. Declared `unknown` by `0.33.33.39.24`
+   * because that is what the setters accept; it was `string`, which no implementation enforced.
+   */
+  createOption(value: unknown, text: unknown): HTMLOptionElement;
   register(pageId: string, controller: PageControllerDefinition): RegisteredPageController;
   runSmoke(pageId: string): PageSmokeResult;
   setStatus(element: HTMLElement | null | undefined, message: string, options?: { isError?: boolean }): void;
