@@ -169,6 +169,12 @@
     }
     return factory;
   }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRecord} BrowserTaskRecord */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewActionButtonOptions} TaskActionButtonOptions */
+  /** @typedef {ReturnType<typeof taskWorkflowActionMenuDescriptor>["actions"][number] & Pick<TaskActionButtonOptions, "title" | "variant">} TaskWorkflowAction */
+  /** @typedef {ReturnType<typeof taskLifecycleActionStripDescriptor>["actions"][number] & Pick<TaskActionButtonOptions, "title">} TaskLifecycleAction */
+  /** @typedef {Partial<TaskWorkflowAction> & Partial<TaskLifecycleAction>} TaskBehaviorAction */
+  /** @satisfies {Readonly<Record<string, (context: TaskBehaviorContext) => unknown>>} */
   const TASK_LIFECYCLE_BEHAVIOR_HANDLERS = Object.freeze({
     "tasks.lifecycle.complete": ({ record, trigger }) => postTaskAction(record, "complete", trigger),
     "tasks.lifecycle.reopen": ({ record }) => postTaskAction(record, "reopen"),
@@ -177,6 +183,7 @@
     "tasks.lifecycle.archive": ({ record }) => postTaskAction(record, "archive"),
     "tasks.lifecycle.restore": ({ record }) => postTaskAction(record, "restore"),
   });
+  /** @satisfies {Readonly<Record<string, (context: TaskBehaviorContext) => unknown>>} */
   const TASK_WORKFLOW_BEHAVIOR_HANDLERS = Object.freeze({
     "tasks.workflow.assign": ({ action, record, trigger }) => openTaskDialogForWorkflow(record, action, trigger),
     "tasks.workflow.due-date": ({ action, record, trigger }) => openTaskDialogForWorkflow(record, action, trigger),
@@ -193,7 +200,7 @@
    * Every handler destructures the subset it needs; the context itself is the superset, and that
    * is deliberate - a behavior may start reading `api` or `refresh` without its caller changing.
    * @typedef {{
-   *   action: unknown,
+   *   action: TaskBehaviorAction,
    *   api: unknown,
    *   record: unknown,
    *   refresh: unknown,
@@ -538,13 +545,13 @@
     requireDescriptorRenderers().registerBehavior("tasks.create", () => openTaskDialog());
     registerTaskLifecycleBehaviors();
     registerTaskWorkflowBehaviors();
-    requireDescriptorRenderers().registerBehavior("tasks.sidebar.view-selector", ({ container }) => {
+    requireDescriptorRenderers().registerBehavior("tasks.sidebar.view-selector", (/** @type {{container: Element}} */ { container }) => {
       container.replaceChildren(createTaskViewSelectorChrome());
     });
-    requireDescriptorRenderers().registerBehavior("tasks.sidebar.filters", ({ container }) => {
+    requireDescriptorRenderers().registerBehavior("tasks.sidebar.filters", (/** @type {{container: Element}} */ { container }) => {
       container.replaceChildren(createTaskFilterChrome());
     });
-    requireDescriptorRenderers().registerBehavior("tasks.main.list", ({ container }) => {
+    requireDescriptorRenderers().registerBehavior("tasks.main.list", (/** @type {{container: Element}} */ { container }) => {
       container.replaceChildren(createTaskMainListChrome());
     });
   }
@@ -1689,11 +1696,13 @@
     return legality;
   }
 
+  /** @param {TaskWorkflowAction} action @param {BrowserTaskRecord} task */
   function taskWorkflowActionVisible(action, task) {
     if (action.timerVisibility && !taskTimerSurfaceAvailable()) {
       return false;
     }
 
+    /** @type {readonly string[]} */
     const visibleStatuses = action.visibleStatuses || [];
     if (visibleStatuses.length > 0 && !visibleStatuses.includes(task.status || "open")) {
       return false;
@@ -1707,9 +1716,11 @@
     return state.options?.timeTrackingEnabled !== false && state.options?.taskTimersEnabled !== false;
   }
 
+  /** @param {TaskWorkflowAction} action @param {BrowserTaskRecord} task */
   function taskWorkflowActionButton(action, task) {
     const view = requireView();
     const disabledReason = taskWorkflowDisabledReason(action, task);
+    /** @type {TaskActionButtonOptions} */
     const options = {
       label: action.label,
       title: disabledReason || action.title || action.label,
@@ -1735,6 +1746,7 @@
     return button;
   }
 
+  /** @param {TaskWorkflowAction} action @param {BrowserTaskRecord} task */
   function taskWorkflowDisabledReason(action, task) {
     if (!task?.task_id) {
       return "Task action is unavailable.";
@@ -1745,6 +1757,7 @@
     return "";
   }
 
+  /** @param {TaskWorkflowAction} action @param {BrowserTaskRecord} task */
   function taskTimerDisabledReason(action, task) {
     const timer = taskTimerForTask(task);
     if (state.options.taskTimersEnabled === false) {
@@ -1870,9 +1883,11 @@
     return visibleStatuses.includes(task.status || "open");
   }
 
+  /** @param {TaskLifecycleAction} action @param {BrowserTaskRecord} task */
   function taskLifecycleActionButton(action, task) {
     const view = requireView();
     const disabledReason = taskLifecycleDisabledReason(action, task);
+    /** @type {TaskActionButtonOptions} */
     const options = {
       label: action.label,
       title: disabledReason || action.title || action.label,
@@ -1905,6 +1920,7 @@
     return "";
   }
 
+  /** @param {unknown} [trigger] */
   async function runTaskLifecycleAction(action, task, trigger = null) {
     const api = requireApi();
     const handler = taskLifecycleBehaviorHandler(action.behavior);
@@ -1929,6 +1945,7 @@
     await handler(context);
   }
 
+  /** @param {unknown} [trigger] */
   async function runTaskWorkflowAction(action, task, trigger = null) {
     const api = requireApi();
     const handler = taskWorkflowBehaviorHandler(action.behavior);
@@ -1950,6 +1967,7 @@
     await handler(context);
   }
 
+  /** @param {unknown} [trigger] */
   function openTaskDialogForWorkflow(task, action, trigger = null, defaults = {}) {
     if (!task?.task_id) {
       setStatus("Task action is unavailable.", { isError: true });
@@ -1964,6 +1982,7 @@
     });
   }
 
+  /** @param {unknown} [trigger] */
   function openTaskDialogForBlock(task, action = {}, trigger = null) {
     return openTaskDialogForWorkflow(task, {
       ...action,
@@ -1974,9 +1993,24 @@
     });
   }
 
+  /**
+   * Preserve the original receiver, including a primitive receiver on an inherited getter.
+   * @param {unknown} value @param {"task_id" | "message"} key @returns {unknown}
+   */
+  function taskActionField(value, key) {
+    if (value === null || value === undefined) throw new TypeError("Task action fields are unavailable.");
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /** @param {unknown} value @returns {unknown} */
+  function optionalTaskActionId(value) {
+    return value == null ? undefined : taskActionField(value, "task_id");
+  }
+
+  /** @param {unknown} task @param {string} timerStatus */
   async function saveTaskTimerAction(task, timerStatus) {
     const api = requireApi();
-    if (!task?.task_id) {
+    if (!optionalTaskActionId(task)) {
       setStatus("Task timer action is unavailable.", { isError: true });
       return;
     }
@@ -1989,7 +2023,7 @@
     setStatus(`${verb} task timer...`);
 
     try {
-      const result = await api.putJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer`, {
+      const result = await api.putJson(`/api/tasks/${encodeURIComponent(`${taskActionField(task, "task_id")}`)}/timer`, {
         active_task_timer_id: timer?.active_task_timer_id || timer?.active_timer_id || "",
         timer_status: isRunning ? "running" : "paused",
         accumulated_elapsed_seconds: elapsedSeconds,
@@ -2006,13 +2040,15 @@
       if (!isRunning) {
         void requireNamespace().taskResumeNoteCapture?.offer({
           task: timerTask || task,
+          /** @param {unknown} updatedTask */
           onSaved(updatedTask) {
             if (updatedTask) {
               upsertTask(updatedTask);
             }
           },
+          /** @param {unknown} error */
           onError(error) {
-            setStatus(error.message || "Resume note could not be saved.", { isError: true });
+            setStatus(taskActionField(error, "message") || "Resume note could not be saved.", { isError: true });
           },
         });
       }
