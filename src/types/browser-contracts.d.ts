@@ -1515,12 +1515,14 @@ export interface BrowserViewDescriptorRenderers {
   ): BrowserViewSlideOutSidebarController;
   /** Register a named behaviour; the returned function unregisters it. */
   registerBehavior(id: unknown, handler: unknown): () => void;
+  /** Nodes are used as-is; option bags go to `createActionButton`, which still requires a label at runtime. */
   renderDescriptorActionMenu(
-    actions?: readonly unknown[],
+    actions?: readonly BrowserViewAction[],
     options?: BrowserViewDetailActionMenuOptions,
   ): HTMLElement;
+  /** Nodes are used as-is; option bags go to `createActionButton`, which still requires a label at runtime. */
   renderDescriptorActionStrip(
-    actions?: readonly unknown[],
+    actions?: readonly BrowserViewAction[],
     options?: BrowserViewDetailActionStripOptions,
   ): HTMLElement;
   renderDescriptorDataTable(
@@ -1531,8 +1533,9 @@ export interface BrowserViewDescriptorRenderers {
     fieldDescriptor?: unknown,
     options?: BrowserViewDescriptorFieldGridOptions,
   ): BrowserViewFieldGridElement;
+  /** Nodes are used as-is; option bags go to `createActionButton`, which still requires a label at runtime. */
   renderDescriptorInlineActions(
-    actions?: readonly unknown[],
+    actions?: readonly BrowserViewAction[],
     options?: BrowserViewInlineActionRowOptions,
   ): HTMLElement;
   renderDescriptorLinkedRecordsPanel(

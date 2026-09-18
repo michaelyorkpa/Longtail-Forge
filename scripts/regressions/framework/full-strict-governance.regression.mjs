@@ -80,6 +80,12 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/client-project-contracts.fixture.mjs:30",
   "tests/typecheck/database-contracts.fixture.mjs:15",
   "tests/typecheck/database-contracts.fixture.mjs:8",
+  // `0.33.33.39.25` narrowed the three published action-list renderers to
+  // `readonly BrowserViewAction[]`; each of these fails the build if an unestablished
+  // `unknown[]` can again be forwarded as an action list.
+  "tests/typecheck/descriptor-action-list-contracts.fixture.mjs:66",
+  "tests/typecheck/descriptor-action-list-contracts.fixture.mjs:68",
+  "tests/typecheck/descriptor-action-list-contracts.fixture.mjs:70",
   "tests/typecheck/job-payload-contracts.fixture.mjs:24",
   "tests/typecheck/job-payload-contracts.fixture.mjs:27",
   // `0.33.33.38.2.5` proves the closed namespace root by directive: each of these fails the

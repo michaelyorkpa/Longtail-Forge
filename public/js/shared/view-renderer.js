@@ -1735,6 +1735,14 @@
     });
   }
 
+  /**
+   * The three published action-list renderers take `readonly BrowserViewAction[]` since
+   * `0.33.33.39.25`: a node, used as-is, or an option bag the builder hands to
+   * `createActionButton`. The list is forwarded unchanged; the builder still decides at runtime
+   * whether an option bag can render, including its accessible-name requirement.
+   * @param {readonly BrowserViewAction[]} [actions]
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewDetailActionStripOptions} [options]
+   */
   function renderDescriptorActionStrip(actions = [], options = {}) {
     const view = requireViewPrimitives();
     return view.createDetailActionStrip({
@@ -1759,6 +1767,10 @@
     });
   }
 
+  /**
+   * @param {readonly BrowserViewAction[]} [actions]
+   * @param {import("../../../src/types/browser-contracts.js").BrowserViewInlineActionRowOptions} [options]
+   */
   function renderDescriptorInlineActions(actions = [], options = {}) {
     const view = requireViewPrimitives();
     return view.createInlineActionRow({

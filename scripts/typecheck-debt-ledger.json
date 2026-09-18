@@ -472,6 +472,7 @@
         "tests/typecheck/browser-database-boundary.fixture.mjs",
         "tests/typecheck/client-project-contracts.fixture.mjs",
         "tests/typecheck/database-contracts.fixture.mjs",
+        "tests/typecheck/descriptor-action-list-contracts.fixture.mjs",
         "tests/typecheck/job-payload-contracts.fixture.mjs",
         "tests/typecheck/namespace-root-closure.fixture.mjs",
         "tests/typecheck/precise-service-contracts.fixture.mjs",
@@ -665,6 +666,7 @@
         "tests/unit/view-action-permission-retirement.test.mjs",
         "tests/unit/view-builder-node-and-values.test.mjs",
         "tests/unit/view-data-table-surface.test.mjs",
+        "tests/unit/view-descriptor-action-list-runtime.test.mjs",
         "tests/unit/view-descriptor-action-shape.test.mjs",
         "tests/unit/view-detail-action-surface.test.mjs",
         "tests/unit/view-field-grid-inputs.test.mjs",
@@ -782,7 +784,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 2669,
+      "errorCount": 2663,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1211,11 +1213,11 @@
         "public/js/shared/view-renderer.js": [
           {
             "code": 2339,
-            "count": 5
+            "count": 1
           },
           {
             "code": 7006,
-            "count": 77
+            "count": 75
           },
           {
             "code": 7053,
@@ -1983,8 +1985,8 @@
     }
   },
   "totals": {
-    "files": 1364,
-    "errors": 2669,
+    "files": 1366,
+    "errors": 2663,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
@@ -1994,6 +1996,9 @@
     "tests/typecheck/client-project-contracts.fixture.mjs:30",
     "tests/typecheck/database-contracts.fixture.mjs:15",
     "tests/typecheck/database-contracts.fixture.mjs:8",
+    "tests/typecheck/descriptor-action-list-contracts.fixture.mjs:66",
+    "tests/typecheck/descriptor-action-list-contracts.fixture.mjs:68",
+    "tests/typecheck/descriptor-action-list-contracts.fixture.mjs:70",
     "tests/typecheck/job-payload-contracts.fixture.mjs:24",
     "tests/typecheck/job-payload-contracts.fixture.mjs:27",
     "tests/typecheck/namespace-root-closure.fixture.mjs:36",
