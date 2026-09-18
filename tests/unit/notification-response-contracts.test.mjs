@@ -184,8 +184,10 @@ describe("the published preference surface", () => {
   // exercise the shipped normaliser against it.
   const payloadBuilders = sandbox(preferencesSource, {
     tables: ["GROUPING_MODES"],
-    functions: ["normalizeGroupingMode", "normalizeGroupingPreferences", "readGroupingPreferencesPayload",
-      "readUserPreferencesPayload", "readWorkspaceDefaultsPayload"],
+    // `0.33.33.39.32` reads each element through the two member readers, so they are lifted with
+    // the builders that call them; every assertion below is unchanged.
+    functions: ["optionalMember", "requiredMember", "normalizeGroupingMode", "normalizeGroupingPreferences",
+      "readGroupingPreferencesPayload", "readUserPreferencesPayload", "readWorkspaceDefaultsPayload"],
   });
 
   it("declares exactly the eight members the writer publishes", () => {

@@ -1,5 +1,18 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.32 - Take the notification preferences to zero
+
+**Model: Medium Effort** - one shared renderer and payload builder, typed against its own published surface, where the DOM reads had to keep the access semantics they had.
+
+- [x] **`public/js/shared/notification-preferences.js` reaches zero, 35 to 0, and leaves the ledger.** Browser **2,194 to 2,159**, now across **31** diagnostic files; params **1,330 to 1,295**; state 403, `dom` **403** and assorted **58** unchanged; `0.33.33.39` **309 to 274**. Exactly one file moved - TS7006 31 and TS2339 4, both to zero - and nothing rose.
+- [x] **The writer is checked against the published surface.** The option bags take the published option types, the three payload readers return the published payloads, and a local `NormalizedEventPreference` names the three members `normalizeEvents` builds plus the six it passes through as optional `unknown`. Five compiler probes - an unknown priority or id, a text module flag, a numeric group label, and an unnormalised grouping payload with its own annotation removed - are each rejected, the last where the module publishes `notificationPreferences`.
+- [x] **Every read keeps its access semantics.** Queried elements and handed events are read through `optionalMember` where the original chained optionally and `requiredMember` where it did not, so a missing value still fails at the same read. Opaque labels, descriptions, priorities and the placeholder reach the node's own setters through `Reflect.set`, and the heading level reaches `createElement` through a template, which is the ToString it applied. The grouping map is typed, and a module's first event now starts its group directly instead of through the `has`/`set` pair, which built the same map.
+- [x] **One narrowing, for markup nothing renders.** The workspace-default reader returned whatever the priority element's `value` answered. A `<select>` - which is what this module renders - answers a string, but an `<li>`, `<progress>` or `<meter>` carrying the attribute would answer a number, which the published `priority: string` never allowed. A non-string priority now falls back to `normal`.
+- [x] **Seven focused cases through the real module.** The render path, which only the browser suites reached: the missing container, the placeholder and a converted `emptyText`; both id and module spellings, grouping, module labels, disabled-last order and the heading level; a missing event still failing; rows built from the spread members; the workspace columns gated on both options; the grouping control; and the workspace-default reader. Six pass unchanged against the original file, and the seventh fails there on exactly the named narrowing. The existing payload suite now lifts the two member readers beside the builders that call them, with every assertion unchanged. **Seven focused mutations, seven kills.** Byte restoration verified at SHA-256 `ce0021bda30189fa0449852b28f4861f46518e663c823a7ba36a5bbddcc68460`.
+- [x] **Full verification on the delivered tree.** Unit **4,408 across 231 files**, regressions **348/348**, E2E **335/335** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+Excluded and explicitly remaining: `0.33.33.39`'s shared framework budget, **274** across 15 files, led by `navigation.js` at 115. No published contract changed. **This does not close `0.33.33.39`, `0.33.33.38`, or the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.41.24 - Tasks filter, query and control helpers
 
 **Model: High Effort** - retain filter persistence, canonical query coercion and option order while establishing the local select consumers.

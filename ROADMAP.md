@@ -1347,6 +1347,10 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Complete: `public/js/shared/client-project-options.js` reaches zero, 46 to 0, and leaves the ledger.** See the archive entry. The published `BrowserClientProjectOptions` is unchanged, and the writer is now checked against it field by field.
 
+#### 0.33.33.39.32 - Take the notification preferences to zero
+
+**Complete: `public/js/shared/notification-preferences.js` reaches zero, 35 to 0, and leaves the ledger.** See the archive entry. The published `BrowserNotificationPreferences` is unchanged, and the writer is now checked against it.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.
