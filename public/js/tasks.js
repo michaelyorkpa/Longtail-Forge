@@ -269,6 +269,7 @@
     editingTaskId: "",
     currentUserId: "",
     quickFilter: DEFAULT_TASK_VIEW,
+    /** @type {Set<string>} */
     selectedTaskIds: new Set(),
     attachmentCounts: {},
     noteCounts: {},
@@ -1160,7 +1161,7 @@
   }
 
   function populateBulkContextOptions() {
-    const selectedProjectId = bulkProjectInput?.value || "";
+    const selectedProjectId = optionalBulkSelect(bulkProjectInput)?.value || "";
 
     if (usesClientScope()) {
       bulkClientControl?.removeAttribute("hidden");
@@ -1169,8 +1170,8 @@
         option("", getWorkspaceScopeLabel()),
         ...state.options.clients.map((client) => option(client.id, optionLabel(client))),
       ]);
-      if (![...bulkClientInput.options].some((entry) => entry.value === bulkClientInput.value)) {
-        bulkClientInput.value = BULK_CLIENT_ALL_VALUE;
+      if (![...requireBulkSelect(bulkClientInput).options].some((entry) => entry.value === requireBulkSelect(bulkClientInput).value)) {
+        requireBulkSelect(bulkClientInput).value = BULK_CLIENT_ALL_VALUE;
       }
     } else {
       bulkClientControl?.remove();
@@ -1185,7 +1186,7 @@
     }
 
     const selectedClientId = usesClientScope()
-      ? bulkClientInput?.value ?? BULK_CLIENT_ALL_VALUE
+      ? optionalBulkSelect(bulkClientInput)?.value ?? BULK_CLIENT_ALL_VALUE
       : BULK_CLIENT_ALL_VALUE;
     const projects = (state.options.projects || []).filter((project) => (
       selectedClientId === BULK_CLIENT_ALL_VALUE || (project.client_id || "") === selectedClientId
@@ -1196,11 +1197,12 @@
       option("", placeholder),
       ...projects.map((project) => option(project.id, bulkProjectOptionLabel(project, selectedClientId))),
     );
-    bulkProjectInput.value = projects.some((project) => project.id === selectedProjectId)
+    requireBulkSelect(bulkProjectInput).value = projects.some((project) => project.id === selectedProjectId)
       ? selectedProjectId
       : "";
   }
 
+  /** @param {BrowserTaskListOptions["projects"][number]} project @param {string} selectedClientId */
   function bulkProjectOptionLabel(project, selectedClientId) {
     const projectLabel = optionLabel(project);
 
@@ -1220,10 +1222,10 @@
   }
 
   function handleBulkProjectChange() {
-    const project = (state.options.projects || []).find((entry) => entry.id === bulkProjectInput?.value);
+    const project = (state.options.projects || []).find((entry) => entry.id === optionalBulkSelect(bulkProjectInput)?.value);
 
     if (project && usesClientScope() && bulkClientInput) {
-      bulkClientInput.value = project.client_id || "";
+      requireBulkSelect(bulkClientInput).value = project.client_id || "";
       populateBulkProjectOptions(project.id);
     }
     updateBulkControls();
@@ -1370,8 +1372,8 @@
 
     const tags = state.tagOptions || [];
     const selectedIds = new Set(selectedBulkTagIds());
-    bulkTagActionControl.hidden = tags.length === 0;
-    bulkTagsControl.hidden = tags.length === 0;
+    requireBulkElement(bulkTagActionControl).hidden = tags.length === 0;
+    requireBulkElement(bulkTagsControl).hidden = tags.length === 0;
     bulkTagsInput.replaceChildren(...tags.map((tag) => {
       const entry = option(tag.tag_id, tag.name || tag.slug);
       entry.selected = selectedIds.has(tag.tag_id);
@@ -2618,6 +2620,63 @@
     container.appendChild(list);
   }
 
+  /** @param {Element | null | undefined} control @returns {HTMLElement} */
+  function requireBulkElement(control) {
+    if (control instanceof HTMLElement) return control;
+    const constructor = control?.ownerDocument.defaultView?.HTMLElement;
+    if (constructor && control instanceof constructor) return control;
+    throw new TypeError("Tasks bulk element control is unavailable.");
+  }
+
+  /** @param {Element | null | undefined} control @returns {HTMLDetailsElement} */
+  function requireBulkDetails(control) {
+    if (control instanceof HTMLDetailsElement) return control;
+    const constructor = control?.ownerDocument.defaultView?.HTMLDetailsElement;
+    if (constructor && control instanceof constructor) return control;
+    throw new TypeError("Tasks bulk details control is unavailable.");
+  }
+
+  /** @param {Element | null | undefined} control @returns {HTMLButtonElement} */
+  function requireBulkButton(control) {
+    if (control instanceof HTMLButtonElement) return control;
+    const constructor = control?.ownerDocument.defaultView?.HTMLButtonElement;
+    if (constructor && control instanceof constructor) return control;
+    throw new TypeError("Tasks bulk button control is unavailable.");
+  }
+
+  /** @param {Element | null | undefined} control */
+  function optionalBulkSelect(control) {
+    return control == null ? undefined : requireBulkSelect(control);
+  }
+
+  /** @param {Element | null | undefined} control */
+  function optionalBulkInput(control) {
+    return control == null ? undefined : requireBulkInput(control);
+  }
+
+  /** @param {unknown} tag @returns {unknown} */
+  function bulkTaskTagId(tag) {
+    if (tag === null || tag === undefined) throw new TypeError("Tasks bulk tag row is unavailable.");
+    return Reflect.get(Object(tag), "tag_id");
+  }
+
+  /** @param {Element | null | undefined} control @returns {HTMLInputElement} */
+  function requireBulkInput(control) {
+    if (control instanceof HTMLInputElement) return control;
+    const constructor = control?.ownerDocument.defaultView?.HTMLInputElement;
+    if (constructor && control instanceof constructor) return control;
+    throw new TypeError("Tasks bulk input control is unavailable.");
+  }
+
+  /** @param {Element | null | undefined} control @returns {HTMLSelectElement} */
+  function requireBulkSelect(control) {
+    if (control instanceof HTMLSelectElement) return control;
+    const constructor = control?.ownerDocument.defaultView?.HTMLSelectElement;
+    if (constructor && control instanceof constructor) return control;
+    throw new TypeError("Tasks bulk select control is unavailable.");
+  }
+
+  /** @param {Event} [event] */
   async function applyBulkAction(event) {
     const api = requireApi();
     if (!await captureBulkBlockedReason(event?.currentTarget || bulkApplyButton)) {
@@ -2670,8 +2729,9 @@
     }
   }
 
+  /** @param {EventTarget | null} [trigger] */
   async function captureBulkBlockedReason(trigger = null) {
-    if (bulkStatusInput?.value !== "blocked" || bulkBlockedReasonInput?.value.trim()) {
+    if (optionalBulkSelect(bulkStatusInput)?.value !== "blocked" || optionalBulkInput(bulkBlockedReasonInput)?.value.trim()) {
       return true;
     }
 
@@ -2686,7 +2746,7 @@
       return false;
     }
 
-    bulkBlockedReasonInput.value = result.value;
+    requireBulkInput(bulkBlockedReasonInput).value = result.value;
     updateBulkControls();
     return true;
   }
@@ -2698,13 +2758,13 @@
     updateBulkToolbarSummary(selectedCount);
     updateBulkLifecycleOptions(taskIds);
     const hasSelectedAction = selectedBulkActions(taskIds).length > 0;
-    const blockedStatusSelected = bulkStatusInput?.value === "blocked";
+    const blockedStatusSelected = optionalBulkSelect(bulkStatusInput)?.value === "blocked";
     bulkStatusControl?.removeAttribute("hidden");
     if (bulkBlockedReasonControl) {
-      bulkBlockedReasonControl.hidden = !blockedStatusSelected;
+      requireBulkElement(bulkBlockedReasonControl).hidden = !blockedStatusSelected;
     }
     if (bulkBlockedReasonInput) {
-      bulkBlockedReasonInput.required = false;
+      requireBulkInput(bulkBlockedReasonInput).required = false;
       bulkBlockedReasonInput.removeAttribute("aria-invalid");
     }
     bulkPriorityControl?.removeAttribute("hidden");
@@ -2719,41 +2779,48 @@
     }
 
     if (bulkApplyButton) {
-      bulkApplyButton.disabled = selectedCount === 0 || !hasSelectedAction;
+      requireBulkButton(bulkApplyButton).disabled = selectedCount === 0 || !hasSelectedAction;
       bulkApplyButton.textContent = `Apply to ${selectedCount}`;
     }
 
     if (bulkToolbar && selectedCount > 0) {
-      bulkToolbar.open = true;
+      requireBulkDetails(bulkToolbar).open = true;
     }
   }
 
+  /** @param {number} selectedCount */
   function updateBulkToolbarSummary(selectedCount) {
     if (!bulkSelectionCount) {
       return;
     }
 
     bulkSelectionCount.textContent = `${selectedCount} selected`;
-    bulkSelectionCount.hidden = selectedCount === 0;
+    requireBulkElement(bulkSelectionCount).hidden = selectedCount === 0;
   }
 
+  /**
+   * Outgoing action members are established by the bulk controls and selected task ids.
+   * @typedef {{action: string, task_ids: string[], status?: string, blocked_reason?: string, priority?: string, project_id?: string, client_id?: string, due_date?: string, due_time?: string, assignee_ids?: string[], tagIds?: string[]}} TasksBulkAction
+   */
+  /** @param {string[]} taskIds */
   function selectedBulkActions(taskIds) {
     if (taskIds.length === 0) {
       return [];
     }
 
+    /** @type {TasksBulkAction[]} */
     const actions = [];
-    const lifecycleAction = bulkLifecycleInput?.value || "";
-    const status = bulkStatusInput?.value || "";
-    const blockedReason = bulkBlockedReasonInput?.value.trim() || "";
-    const priority = bulkPriorityInput?.value || "";
-    const projectId = bulkProjectInput?.value || "";
-    const dueDate = bulkDueDateInput?.value || "";
-    const shouldClearDueDate = Boolean(bulkClearDueDateInput?.checked);
-    const dueTime = bulkDueTimeInput?.value || "";
-    const shouldClearDueTime = Boolean(bulkClearDueTimeInput?.checked);
+    const lifecycleAction = optionalBulkSelect(bulkLifecycleInput)?.value || "";
+    const status = optionalBulkSelect(bulkStatusInput)?.value || "";
+    const blockedReason = optionalBulkInput(bulkBlockedReasonInput)?.value.trim() || "";
+    const priority = optionalBulkSelect(bulkPriorityInput)?.value || "";
+    const projectId = optionalBulkSelect(bulkProjectInput)?.value || "";
+    const dueDate = optionalBulkInput(bulkDueDateInput)?.value || "";
+    const shouldClearDueDate = Boolean(optionalBulkInput(bulkClearDueDateInput)?.checked);
+    const dueTime = optionalBulkInput(bulkDueTimeInput)?.value || "";
+    const shouldClearDueTime = Boolean(optionalBulkInput(bulkClearDueTimeInput)?.checked);
     const assigneeIds = selectedBulkAssigneeIds();
-    const tagAction = bulkTagActionInput?.value || "";
+    const tagAction = optionalBulkSelect(bulkTagActionInput)?.value || "";
     const tagIds = selectedBulkTagIds();
 
     if (lifecycleAction === "restore") {
@@ -2806,6 +2873,7 @@
     return actions;
   }
 
+  /** @param {TasksBulkAction[]} actions @param {string} lifecycleAction @param {string[]} taskIds */
   function pushLifecycleBulkAction(actions, lifecycleAction, taskIds) {
     const lifecycleTaskIds = bulkLifecycleTaskIds(lifecycleAction, taskIds);
 
@@ -2814,6 +2882,7 @@
     }
   }
 
+  /** @param {string} lifecycleAction @param {string[]} taskIds */
   function bulkLifecycleTaskIds(lifecycleAction, taskIds) {
     return selectedTasksForBulk(taskIds)
       .filter((task) => lifecycleAction === "restore"
@@ -2822,11 +2891,13 @@
       .map((task) => task.task_id);
   }
 
+  /** @param {string[]} taskIds */
   function selectedTasksForBulk(taskIds) {
     const ids = new Set(taskIds);
     return state.tasks.filter((task) => ids.has(task.task_id));
   }
 
+  /** @param {string[]} taskIds */
   function updateBulkLifecycleOptions(taskIds) {
     if (!bulkLifecycleControl || !bulkLifecycleInput) {
       return;
@@ -2835,7 +2906,7 @@
     const selectedTasks = selectedTasksForBulk(taskIds);
     const canArchive = selectedTasks.some((task) => task.status !== "archived");
     const canRestore = selectedTasks.some((task) => task.status === "archived");
-    const selectedValue = bulkLifecycleInput.value;
+    const selectedValue = requireBulkSelect(bulkLifecycleInput).value;
     const options = [{ value: "", label: "-" }];
 
     if (canArchive) {
@@ -2853,10 +2924,11 @@
       return option;
     }));
 
-    bulkLifecycleInput.value = options.some((entry) => entry.value === selectedValue) ? selectedValue : "";
-    bulkLifecycleControl.hidden = selectedTasks.length === 0 || options.length <= 1;
+    requireBulkSelect(bulkLifecycleInput).value = options.some((entry) => entry.value === selectedValue) ? selectedValue : "";
+    requireBulkElement(bulkLifecycleControl).hidden = selectedTasks.length === 0 || options.length <= 1;
   }
 
+  /** @param {TasksBulkAction[]} actions @param {string[]} taskIds */
   async function confirmMixedBulkActions(actions, taskIds) {
     const modal = requireModalDialogs();
     const warnings = mixedBulkActionWarnings(actions, taskIds);
@@ -2881,6 +2953,7 @@
     });
   }
 
+  /** @param {TasksBulkAction[]} actions @param {string[]} taskIds @param {string[]} [warnings] */
   async function confirmBulkArchive(actions, taskIds, warnings = []) {
     const modal = requireModalDialogs();
     const archiveAction = actions.find((action) => action.action === "archive");
@@ -2901,6 +2974,7 @@
     });
   }
 
+  /** @param {TasksBulkAction[]} actions @param {string[]} taskIds */
   function mixedBulkActionWarnings(actions, taskIds) {
     const selectedTasks = state.tasks.filter((task) => taskIds.includes(task.task_id));
     const warnings = [];
@@ -2924,14 +2998,16 @@
     return warnings;
   }
 
+  /** @param {BrowserTaskListItem[]} tasks @param {"due_date" | "due_time" | "project_id"} fieldName */
   function hasMixedValues(tasks, fieldName) {
     return new Set(tasks.map((task) => task[fieldName] || "")).size > 1;
   }
 
+  /** @param {BrowserTaskListItem[]} tasks */
   function hasMixedTagValues(tasks) {
     const values = tasks.map((task) =>
       (task.tags || [])
-        .map((tag) => tag.tag_id)
+        .map((tag) => bulkTaskTagId(tag))
         .filter(Boolean)
         .sort()
         .join("|")
@@ -2941,74 +3017,74 @@
 
   function syncBulkDueControlStates() {
     if (bulkDueDateInput && bulkClearDueDateInput) {
-      bulkDueDateInput.disabled = bulkClearDueDateInput.checked;
+      requireBulkInput(bulkDueDateInput).disabled = requireBulkInput(bulkClearDueDateInput).checked;
     }
 
     if (bulkDueTimeInput && bulkClearDueTimeInput) {
-      bulkDueTimeInput.disabled = bulkClearDueTimeInput.checked || Boolean(bulkClearDueDateInput?.checked);
+      requireBulkInput(bulkDueTimeInput).disabled = requireBulkInput(bulkClearDueTimeInput).checked || Boolean(optionalBulkInput(bulkClearDueDateInput)?.checked);
     }
 
     if (bulkClearDueTimeInput) {
-      bulkClearDueTimeInput.disabled = Boolean(bulkClearDueDateInput?.checked);
+      requireBulkInput(bulkClearDueTimeInput).disabled = Boolean(optionalBulkInput(bulkClearDueDateInput)?.checked);
     }
   }
 
   function selectedBulkAssigneeIds() {
     return [...(bulkAssigneesControl?.querySelectorAll("input[type='checkbox']:checked") || [])]
-      .map((input) => input.value)
+      .map((input) => requireBulkInput(input).value)
       .filter(Boolean);
   }
 
   function selectedBulkTagIds() {
-    return [...(bulkTagsInput?.selectedOptions || [])]
+    return [...(optionalBulkSelect(bulkTagsInput)?.selectedOptions || [])]
       .map((option) => option.value)
       .filter(Boolean);
   }
 
   function resetBulkInputs() {
     if (bulkStatusInput) {
-      bulkStatusInput.value = "";
+      requireBulkSelect(bulkStatusInput).value = "";
     }
     if (bulkBlockedReasonInput) {
-      bulkBlockedReasonInput.value = "";
-      bulkBlockedReasonInput.required = false;
+      requireBulkInput(bulkBlockedReasonInput).value = "";
+      requireBulkInput(bulkBlockedReasonInput).required = false;
       bulkBlockedReasonInput.removeAttribute("aria-invalid");
     }
     if (bulkBlockedReasonControl) {
-      bulkBlockedReasonControl.hidden = true;
+      requireBulkElement(bulkBlockedReasonControl).hidden = true;
     }
     if (bulkPriorityInput) {
-      bulkPriorityInput.value = "";
+      requireBulkSelect(bulkPriorityInput).value = "";
     }
     if (bulkClientInput?.isConnected) {
-      bulkClientInput.value = BULK_CLIENT_ALL_VALUE;
+      requireBulkSelect(bulkClientInput).value = BULK_CLIENT_ALL_VALUE;
     }
     populateBulkProjectOptions();
     if (bulkDueDateInput) {
-      bulkDueDateInput.value = "";
+      requireBulkInput(bulkDueDateInput).value = "";
     }
     if (bulkClearDueDateInput) {
-      bulkClearDueDateInput.checked = false;
+      requireBulkInput(bulkClearDueDateInput).checked = false;
     }
     if (bulkDueTimeInput) {
-      bulkDueTimeInput.value = "";
+      requireBulkInput(bulkDueTimeInput).value = "";
     }
     if (bulkClearDueTimeInput) {
-      bulkClearDueTimeInput.checked = false;
+      requireBulkInput(bulkClearDueTimeInput).checked = false;
     }
     bulkAssigneesControl?.querySelectorAll("input[type='checkbox']").forEach((input) => {
-      input.checked = false;
+      requireBulkInput(input).checked = false;
     });
     if (bulkTagActionInput) {
-      bulkTagActionInput.value = "";
+      requireBulkSelect(bulkTagActionInput).value = "";
     }
     if (bulkTagsInput) {
-      [...bulkTagsInput.options].forEach((entry) => {
+      [...requireBulkSelect(bulkTagsInput).options].forEach((entry) => {
         entry.selected = false;
       });
     }
     if (bulkLifecycleInput) {
-      bulkLifecycleInput.value = "";
+      requireBulkSelect(bulkLifecycleInput).value = "";
     }
     syncBulkDueControlStates();
   }
@@ -3017,7 +3093,7 @@
     const tasks = state.tasks;
 
     tasks.forEach((task) => {
-      if (selectAllInput.checked) {
+      if (requireBulkInput(selectAllInput).checked) {
         state.selectedTaskIds.add(task.task_id);
       } else {
         state.selectedTaskIds.delete(task.task_id);
@@ -3026,6 +3102,7 @@
     renderTasks();
   }
 
+  /** @param {BrowserTaskListItem[]} tasks */
   function updateSelectionControls(tasks) {
     if (!selectAllInput) {
       return;
@@ -3034,10 +3111,11 @@
     const visibleIds = tasks.map((task) => task.task_id);
     const selectedVisibleCount = visibleIds.filter((taskId) => state.selectedTaskIds.has(taskId)).length;
 
-    selectAllInput.checked = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length;
-    selectAllInput.indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < visibleIds.length;
+    requireBulkInput(selectAllInput).checked = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length;
+    requireBulkInput(selectAllInput).indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < visibleIds.length;
   }
 
+  /** @param {BrowserTaskListItem[]} visibleTasks */
   function syncSelectionToTasks(visibleTasks) {
     const validIds = new Set(state.tasks.map((task) => task.task_id));
 
