@@ -16,13 +16,28 @@
   const controllers = /** @type {PageControllerRegistry} */ (namespace.controllers || {});
 
   /**
-   * @param {string} value
-   * @param {string} text
+   * An `<option>`, created before either argument is converted.
+   *
+   * Both arguments go to the element's own setters unchanged, because those setters are the
+   * conversion. `value` is a non-nullable DOMString: it takes ToString, so `null` writes `"null"`
+   * and a Symbol throws. `textContent` is a nullable DOMString: `null` and `undefined` leave the
+   * option with no text, and everything else takes ToString, so a Symbol throws there too.
+   *
+   * The published signature said `string` for both while eight page wrappers hand it whatever
+   * their callers pass. `0.33.33.39.24` declared what the setters accept instead of making the
+   * callers convert: converting first would either change the result - `String(null)` writes the
+   * text `"null"` where the setter writes nothing - or stop a Symbol from failing, because
+   * `String(symbol)` does not throw. `Reflect.set` is the assignment itself: the same inherited
+   * setter, the same receiver, and the same thrown error, without claiming the value is already a
+   * string. Neither property can refuse a write on a fresh element, so its boolean is not read.
+   * @param {unknown} value
+   * @param {unknown} text
+   * @returns {HTMLOptionElement}
    */
   function createOption(value, text) {
     const option = document.createElement("option");
-    option.value = value;
-    option.textContent = text;
+    Reflect.set(option, "value", value);
+    Reflect.set(option, "textContent", text);
     return option;
   }
 

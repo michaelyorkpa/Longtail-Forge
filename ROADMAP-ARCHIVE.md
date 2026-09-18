@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.24 - Reconcile the shared createOption input contract
+
+**Model: Medium Effort** - one published declaration and its three-line implementation, where the risk is moving a conversion rather than removing one.
+
+- [x] **The declaration now describes its two setters.** `BrowserPageController.createOption` said `(value: string, text: string)`, while eight page wrappers - `clients-projects`, `stop-watch`, `task-dialog`, `tasks`, `time-entries`, `time-entry-dialog`, `time-tracking-timer-dialog` and `workbench` - pass whatever their callers pass, and the helper never converted anything: `option.value` and `option.textContent` did. Both parameters are now `unknown`, in the declaration and the implementation alike.
+- [x] **Nothing is converted early.** Both arguments reach the element's own setters through `Reflect.set`, which is the assignment itself - the same inherited setter, the same receiver, the same thrown error - without claiming the value is already a string. Converting first would have changed the result: `String(null)` writes the text `"null"` where the nullable `textContent` writes nothing, and `String(symbol)` does not throw where both setters do. Neither property can refuse a write on a fresh element, so the returned boolean carries nothing.
+- [x] **Zero diagnostics eliminated, and zero moved.** The estate's 2,670 diagnostics are byte-identical before and after, so the wider input costs no consumer. The canonical ledger is unchanged: browser **2,670**, `0.33.33.39` **547**, `0.33.33.41` **232**, `dom` **466**.
+- [x] **It removes a real prerequisite, measured.** A transient probe in this worktree, restored byte-exact at `e1952fc0...` and never committed, annotated Task Dialog's `option(value, label)` wrapper `unknown`: with this correction both parameters close and nothing is added; without it the same annotation raises TS2345. **`0.33.33.41.20` adopts it in `task-dialog.js`**; this checkpoint did not edit that file.
+- [x] **Proved against a real `<option>`, on desktop and mobile**, because the DOM double models neither DOMString conversion nor `textContent`'s nullable one: strings, numbers and objects convert by ToString; a `null` or `undefined` value is written as its own name; `null`, `undefined` and `""` text leave the option with no child nodes; a Symbol value and a Symbol text both still throw `TypeError`; the element is created before either argument is converted, value before text; and the result is a real `HTMLOptionElement`. The probe observes creation through an own property that shadows `document.createElement` for one call and is then deleted, so the document is restored exactly.
+- [x] **Four focused mutations, four kills**, each run against the real browser: pre-stringifying the value, pre-stringifying the text, converting before creation, and swapping the two writes. Byte restoration verified at SHA-256 `aa7274ee7704094e908889f98dae5375e60aaa7887076f7c621a70906e3ac905`.
+- [x] **One open item recorded with its trace.** The action-list input mismatch `0.33.33.39.22` surfaced is now `0.33.33.39.25`, owned by this lane: the producer and consumer traces, and a probe showing the candidate narrowing costs no producer.
+- [x] **Full verification on the delivered tree.** Unit **4,294 across 217 files**, regressions **348/348**, E2E **315/315** on the managed runner at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+Excluded and explicitly remaining: `task-dialog.js` was not edited, and its two option parameters stay open until `0.33.33.41.20` adopts this. The eleven same-named local `createOption` helpers in other files are separate functions and were not touched. `0.33.33.39.25` is open. **This does not close `0.33.33.39`, `0.33.33.38`, or the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.41.19 - Type the Task Dialog tail and retain unresolved writer decisions
 
 **Model: High Effort** - preserve opaque writer values, native conversion, receivers and failure ordering while sweeping a flat controller tail.
