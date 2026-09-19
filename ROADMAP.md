@@ -1351,6 +1351,14 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Complete: `public/js/shared/notification-preferences.js` reaches zero, 35 to 0, and leaves the ledger.** See the archive entry. The published `BrowserNotificationPreferences` is unchanged, and the writer is now checked against it.
 
+#### 0.33.33.39.33 - Type the navigation shell chrome
+
+**Complete: the first of three `public/js/navigation.js` slices - the header, the navigation-intent controller, the drawer, the menu toggle, the session guard and the nav renderers.** `navigation.js` **156 to 83** raw. See the archive entry. The published navigation-intent contract is unchanged.
+
+**A finding recorded, not changed.** With an exit guard holding, a click on an SVG `<a href>` resolves `"[object SVGAnimatedString]"` as its destination, because the controller has always converted `href` with the URL constructor's ToString. The shell renders no SVG anchors.
+
+**Remaining slices.** `.39.34` the notification bell and panel; `.39.35` the bootstrap and what it drives - support view, deletion notice, search targets, workspace selector, theme, capabilities, switch and landing - with the three module-level theme and support-view `let`s whose writes live there.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.
