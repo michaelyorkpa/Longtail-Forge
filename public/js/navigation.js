@@ -36,25 +36,27 @@
     },
   ];
 
-  const siteHeader = buildSiteHeader();
+  const { header: siteHeader, parts: headerParts } = buildSiteHeader();
   document.body.prepend(siteHeader);
 
-  const navToggle = siteHeader.querySelector(".nav-toggle");
-  const navLinks = siteHeader.querySelector("#primary-menu");
-  const navDrawerOverlay = siteHeader.querySelector(".nav-drawer-overlay");
+  // The shell holds the nodes `buildSiteHeader` created rather than finding them again: each
+  // selector these replaced matched that one node and nothing else in the header.
+  const navToggle = headerParts.navToggle;
+  const navLinks = headerParts.navLinks;
+  const navDrawerOverlay = headerParts.navDrawerOverlay;
   const mobileNavQuery = typeof window.matchMedia === "function" ? window.matchMedia("(max-width: 700px)") : null;
-  const notificationBell = siteHeader.querySelector("[data-notification-bell]");
-  const notificationCount = siteHeader.querySelector("[data-notification-count]");
-  const notificationPanel = siteHeader.querySelector("[data-notification-panel]");
-  const notificationList = siteHeader.querySelector("[data-notification-list]");
-  const notificationReadAll = siteHeader.querySelector("[data-notification-read-all]");
-  const notificationDismissAll = siteHeader.querySelector("[data-notification-dismiss-all]");
-  const globalSearchShell = siteHeader.querySelector("[data-global-search-shell]");
-  const globalSearchToggle = siteHeader.querySelector("[data-global-search-toggle]");
-  const globalSearchForm = siteHeader.querySelector("[data-global-search-form]");
-  const globalSearchInput = siteHeader.querySelector("[data-global-search-input]");
-  const globalSearchTarget = siteHeader.querySelector("[data-global-search-target]");
-  const workspaceSelector = siteHeader.querySelector("[data-workspace-selector]");
+  const notificationBell = headerParts.notificationBell;
+  const notificationCount = headerParts.notificationCount;
+  const notificationPanel = headerParts.notificationPanel;
+  const notificationList = headerParts.notificationList;
+  const notificationReadAll = headerParts.notificationReadAll;
+  const notificationDismissAll = headerParts.notificationDismissAll;
+  const globalSearchShell = headerParts.globalSearchShell;
+  const globalSearchToggle = headerParts.globalSearchToggle;
+  const globalSearchForm = headerParts.globalSearchForm;
+  const globalSearchInput = headerParts.globalSearchInput;
+  const globalSearchTarget = headerParts.globalSearchTarget;
+  const workspaceSelector = headerParts.workspaceSelector;
   let systemThemeModeQuery = null;
   let systemThemeModeListenerAttached = false;
   /**
@@ -113,11 +115,79 @@
     }
     return apiClient;
   }
+
+  /**
+   * A member read as `value[key]` read it: a missing value still fails as a `TypeError` at the
+   * same read, now naming the member, and anything else is the member access itself, with the
+   * value as receiver. Navigation items arrive as wire data or from `localStorage`, which the
+   * stored context types as `unknown[]`, so the renderers read them through this.
+   * @param {unknown} value
+   * @param {string} key
+   * @returns {unknown}
+   */
+  function requiredMember(value, key) {
+    if (value === null || value === undefined) {
+      throw new TypeError(`Cannot read navigation member '${key}' of ${value}.`);
+    }
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /**
+   * `value[key](...args)`, as the call read it: the method is read through `requiredMember` and
+   * called with the value as receiver, and a member that is not callable fails as a `TypeError`.
+   * @param {unknown} value
+   * @param {string} key
+   * @param {readonly unknown[]} args
+   * @returns {unknown}
+   */
+  function requiredCall(value, key, args) {
+    const method = requiredMember(value, key);
+    if (typeof method !== "function") {
+      throw new TypeError(`Navigation member '${key}' is not a function.`);
+    }
+    return Reflect.apply(method, value, args);
+  }
+
+  /**
+   * Whether an event target is a node. `nodeType` answers that for a node of any realm.
+   * @param {EventTarget} target
+   * @returns {target is Node}
+   */
+  function isNodeTarget(target) {
+    return typeof Reflect.get(target, "nodeType") === "number";
+  }
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNavigationIntent} BrowserNavigationIntent */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNavigationIntentRequest} BrowserNavigationIntentRequest */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNavigationExitGuard} BrowserNavigationExitGuard */
+
+  /**
+   * The controller `LongtailForge.navigationIntent` publishes.
+   *
+   * Suites lift this function out and run it with only `window`, `document` and
+   * `SESSION_LOGIN_PATH` in scope, so everything it needs is declared inside it.
+   * @returns {BrowserNavigationIntent}
+   */
   function createNavigationIntentController() {
+    /** @type {BrowserNavigationExitGuard | null} */
     let exitGuard = null;
+    /** @type {Promise<unknown> | null} */
     let pendingIntent = null;
     let committingNavigation = false;
 
+    /**
+     * Whether a click target is an element: `nodeType` answers that for a node of any realm, and
+     * only an element has the `closest` the original optional call reached.
+     * @param {EventTarget | null} target
+     * @returns {target is Element}
+     */
+    function isElementTarget(target) {
+      return target !== null && Reflect.get(target, "nodeType") === 1;
+    }
+
+    /**
+     * @param {BrowserNavigationExitGuard | null} [guard]
+     * @returns {() => void}
+     */
     function registerExitGuard(guard) {
       exitGuard = guard || null;
       return () => {
@@ -125,6 +195,10 @@
       };
     }
 
+    /**
+     * @param {BrowserNavigationIntentRequest} [intent]
+     * @returns {boolean}
+     */
     function shouldHold(intent = {}) {
       if (committingNavigation || !exitGuard?.shouldHold) return false;
       if (intent.href) {
@@ -141,11 +215,19 @@
       }
     }
 
+    /** @param {BrowserNavigationIntentRequest} [intent] */
     async function holdBeforeContinue(intent = {}) {
       if (!shouldHold(intent)) return;
-      await exitGuard.beforeContinue?.(intent);
+      // `shouldHold` answered true only with a guard registered. A guard that unregistered itself
+      // while it was consulted still fails here as a `TypeError`, as the read from `null` did.
+      const guard = exitGuard;
+      if (!guard) {
+        throw new TypeError("The navigation exit guard was unregistered while it was being consulted.");
+      }
+      await guard.beforeContinue?.(intent);
     }
 
+    /** @param {BrowserNavigationIntentRequest} [intent] */
     function continueIntent(intent = {}) {
       if (typeof intent.continue === "function") return intent.continue();
       if (intent.href) {
@@ -155,6 +237,10 @@
       return undefined;
     }
 
+    /**
+     * @param {BrowserNavigationIntentRequest} [intent]
+     * @returns {Promise<unknown>}
+     */
     function request(intent = {}) {
       const normalizedIntent = {
         ...intent,
@@ -182,15 +268,22 @@
       return pendingIntent;
     }
 
+    /**
+     * @param {string} href
+     * @param {BrowserNavigationIntentRequest} [options]
+     */
     function navigate(href, options = {}) {
       return request({ ...options, href, kind: options.kind || "scripted-navigation" });
     }
 
     document.addEventListener("click", (event) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const link = event.target?.closest?.("a[href]");
-      if (!link || link.target === "_blank" || link.hasAttribute("download")) return;
-      const url = new window.URL(link.href, document.baseURI);
+      const target = event.target;
+      const link = isElementTarget(target) ? target.closest("a[href]") : null;
+      // `a[href]` matches an HTML or an SVG anchor, and both carry `target` and `href`.
+      if (!link || !("target" in link) || !("href" in link) || link.target === "_blank" || link.hasAttribute("download")) return;
+      // The template performs the ToString the URL constructor applied to `href`.
+      const url = new window.URL(`${link.href}`, document.baseURI);
       const intent = { href: url.href, kind: "link", trigger: link };
       if (url.origin !== window.location.origin || url.href === window.location.href || !shouldHold(intent)) return;
 
@@ -249,7 +342,13 @@
         return;
       }
 
-      if (navLinks.contains(event.target) || navToggle.contains(event.target)) {
+      // `contains` takes a node and threw a `TypeError` for anything else. A focus target is
+      // always a node; anything that is not still fails as that `TypeError`.
+      const target = event.target;
+      if (target !== null && !isNodeTarget(target)) {
+        throw new TypeError("The navigation drawer can only test a node focus target.");
+      }
+      if (navLinks.contains(target) || navToggle.contains(target)) {
         return;
       }
 
@@ -281,6 +380,7 @@
     return mobileNavQuery ? mobileNavQuery.matches : false;
   }
 
+  /** @param {boolean} isOpen */
   function setNavDrawerOpen(isOpen) {
     if (!navToggle || !navLinks) {
       return;
@@ -302,7 +402,9 @@
     const candidates = navLinks.querySelectorAll("a[href], button, select, input, textarea, summary");
 
     for (const candidate of candidates) {
-      if (candidate.hidden || candidate.closest("[hidden]") || candidate.offsetParent === null) {
+      // The drawer holds only the controls `createNavItem` and `createLogoutButton` build, each an
+      // `HTMLElement` of this realm, which is what reading `hidden` and `offsetParent` assumed.
+      if (!(candidate instanceof HTMLElement) || candidate.hidden || candidate.closest("[hidden]") || candidate.offsetParent === null) {
         continue;
       }
 
@@ -345,7 +447,9 @@
   siteHeader.addEventListener("toggle", (event) => {
     const openedMenu = event.target;
 
-    if (openedMenu?.tagName !== "DETAILS" || !openedMenu.open || !openedMenu.classList.contains("nav-menu")) {
+    // The header's menus are the `<details>` `createNavMenu` builds in this realm, which is what
+    // the tag check identified.
+    if (!(openedMenu instanceof HTMLDetailsElement) || !openedMenu.open || !openedMenu.classList.contains("nav-menu")) {
       return;
     }
 
@@ -354,7 +458,8 @@
         return;
       }
 
-      menu.open = false;
+      // Each open `.nav-menu` is one of those `<details>`; its own setter closes it.
+      Reflect.set(menu, "open", false);
     });
   }, true);
 
@@ -388,11 +493,13 @@
   }
 
   function installSessionAuthWarningGuard() {
-    if (typeof window.fetch !== "function" || window.fetch.__longtailSessionAuthGuard) {
+    // The brand is an expando on the function, which the function's type does not declare.
+    if (typeof window.fetch !== "function" || Reflect.get(window.fetch, "__longtailSessionAuthGuard")) {
       return;
     }
 
     const originalFetch = window.fetch.bind(window);
+    /** @param {Parameters<typeof fetch>} args */
     const guardedFetch = async (...args) => {
       const response = await originalFetch(...args);
 
@@ -409,15 +516,20 @@
     window.fetch = guardedFetch;
   }
 
+  /** @param {unknown} input */
   function isAppApiRequest(input) {
-    const requestUrl = typeof input === "string" ? input : input?.url;
+    // A `Request` carries its URL; anything else is read as the optional member access read it.
+    const requestUrl = typeof input === "string"
+      ? input
+      : input === null || input === undefined ? undefined : Reflect.get(Object(input), "url", input);
 
     if (!requestUrl) {
       return false;
     }
 
     try {
-      const url = new window.URL(requestUrl, window.location.href);
+      // The template performs the ToString the URL constructor applied.
+      const url = new window.URL(`${requestUrl}`, window.location.href);
       return url.origin === window.location.origin && url.pathname.startsWith("/api/");
     } catch {
       return false;
@@ -672,9 +784,33 @@
     nav.append(brand, headerControls, toggle);
     header.append(nav, drawerOverlay);
 
-    return header;
+    return {
+      header,
+      parts: {
+        globalSearchForm: searchForm,
+        globalSearchInput: searchInput,
+        globalSearchShell: searchShell,
+        globalSearchTarget: searchTarget,
+        globalSearchToggle: searchButton,
+        navDrawerOverlay: drawerOverlay,
+        navLinks: links,
+        navToggle: toggle,
+        notificationBell: notificationButton,
+        notificationCount: notificationBadge,
+        notificationDismissAll: notificationDismissAllButton,
+        notificationList: notificationItems,
+        notificationPanel: notificationPanelElement,
+        notificationReadAll: notificationReadAllButton,
+        workspaceSelector: workspaceSelect,
+      },
+    };
   }
 
+  /**
+   * `items` is the bootstrap's or the stored context's `navigation`, `unknown[]` by contract, so
+   * `createNavItem` reads each item member by member.
+   * @param {unknown} items
+   */
   function renderNavigation(items) {
     if (!navLinks || !Array.isArray(items) || items.length === 0) {
       return;
@@ -685,29 +821,39 @@
     navLinks.replaceChildren(...items.map((item) => createNavItem(item, currentPage)));
   }
 
+  /**
+   * @param {unknown} item
+   * @param {string} currentPage
+   */
   function createNavItem(item, currentPage) {
-    if (item.items) {
+    if (requiredMember(item, "items")) {
       return createNavMenu(item, currentPage);
     }
 
     return createNavLink(item, currentPage);
   }
 
+  /**
+   * Each member is read where and as often as the original read it, and reaches the node's own
+   * setter, which converts it as the assignment did.
+   * @param {unknown} item
+   * @param {string} currentPage
+   */
   function createNavMenu(item, currentPage) {
     const menu = document.createElement("details");
     const summary = document.createElement("summary");
     const menuLinks = document.createElement("div");
 
     menu.className = "nav-menu";
-    menu.dataset.navMenu = item.label;
-    summary.textContent = item.label;
+    Reflect.set(menu.dataset, "navMenu", requiredMember(item, "label"));
+    Reflect.set(summary, "textContent", requiredMember(item, "label"));
     menuLinks.className = "nav-menu-links";
 
-    item.items.forEach((childItem) => {
+    requiredCall(requiredMember(item, "items"), "forEach", [(/** @type {unknown} */ childItem) => {
       menuLinks.append(createNavItem(childItem, currentPage));
-    });
+    }]);
 
-    if (item.label === "Settings") {
+    if (requiredMember(item, "label") === "Settings") {
       menuLinks.append(createLogoutButton());
     }
 
@@ -715,14 +861,19 @@
     return menu;
   }
 
+  /**
+   * Read as `createNavMenu` reads, in the original order.
+   * @param {unknown} item
+   * @param {string} currentPage
+   */
   function createNavLink(item, currentPage) {
     const link = document.createElement("a");
 
-    link.href = item.href;
-    link.textContent = item.label;
-    link.dataset.navHref = item.href;
+    Reflect.set(link, "href", requiredMember(item, "href"));
+    Reflect.set(link, "textContent", requiredMember(item, "label"));
+    Reflect.set(link.dataset, "navHref", requiredMember(item, "href"));
 
-    if (item.href === currentPage) {
+    if (requiredMember(item, "href") === currentPage) {
       // Keeps current-page styling and screen reader context in sync with the URL.
       link.setAttribute("aria-current", "page");
     }
