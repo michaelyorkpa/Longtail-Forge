@@ -809,7 +809,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1966,
+      "errorCount": 1937,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1123,16 +1123,6 @@
           {
             "code": 7006,
             "count": 3
-          }
-        ],
-        "public/js/shared/task-calendar.js": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 28
           }
         ],
         "public/js/shared/timezones.js": [
@@ -1861,7 +1851,7 @@
   },
   "totals": {
     "files": 1391,
-    "errors": 1966,
+    "errors": 1937,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
