@@ -1381,6 +1381,12 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Complete: `public/js/shared/task-calendar.js` reaches zero, 29 to 0, and leaves the ledger.** Every renderer takes the row, marker, range and callback types its own published contract already declares. See the archive entry.
 
+#### 0.33.33.39.39 - Take the Notes editor to zero
+
+**Complete: `public/js/shared/notes-editor.js` reaches zero, 24 to 0, and leaves the ledger.** The published `BrowserNotesEditor` and `NotesPlainTextareaController` are unchanged.
+
+**Two behaviours changed, both stated.** `createPlainTextarea` refuses an element that is not a textarea, because the controller it publishes carries one; and a caret that is not a number is converted rather than carried into the arithmetic that positions the next one.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.

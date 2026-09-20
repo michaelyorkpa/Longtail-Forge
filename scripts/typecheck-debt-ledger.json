@@ -559,6 +559,7 @@
         "tests/unit/notes-bulk-edit.test.mjs",
         "tests/unit/notes-detail-display.test.mjs",
         "tests/unit/notes-dom-closeout.test.mjs",
+        "tests/unit/notes-editor-boundary.test.mjs",
         "tests/unit/notes-editor-defaults.test.mjs",
         "tests/unit/notes-editor-fields-links.test.mjs",
         "tests/unit/notes-editor-lifecycle.test.mjs",
@@ -811,7 +812,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1917,
+      "errorCount": 1893,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1075,20 +1076,6 @@
           {
             "code": 7031,
             "count": 3
-          }
-        ],
-        "public/js/shared/notes-editor.js": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 22
-          },
-          {
-            "code": 7053,
-            "count": 1
           }
         ],
         "public/js/shared/notification-subscriptions.js": [
@@ -1848,8 +1835,8 @@
     }
   },
   "totals": {
-    "files": 1393,
-    "errors": 1917,
+    "files": 1394,
+    "errors": 1893,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

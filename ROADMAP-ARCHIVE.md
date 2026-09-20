@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.39 - Take the Notes editor to zero
+
+**Model: Medium Effort** - a helper whose published boundary is `unknown` on purpose, and whose callers include stand-ins that are not elements, so every read had to stay a read.
+
+- [x] **`public/js/shared/notes-editor.js` reaches zero, 24 to 0, and leaves the ledger.** Browser **1,917 to 1,893**, now across **28** diagnostic files; params **1,134 to 1,111**, state **374 to 373**; `dom` **362** and assorted **47** unchanged; `0.33.33.39` **130 to 106**. Exactly one file moved - TS7006 22, TS2339 1 and TS7053 1, all to zero - and nothing rose.
+- [x] **The published surface is unchanged.** `applyCommand`, `continueListMarker`, `handleKeydown`, `createPlainTextarea` and `normalizeMarkdown` keep their `unknown` parameters, and `commands` is still the frozen table typed as the contract declares it.
+- [x] **Every read of a handed-over value stays that read.** The textarea, the event and the options bag are read through `editorMember`, which is the member access with its own receiver and the same `TypeError` for a missing value; writes go through the target's own setter, and `dispatchEvent`, `focus` and `preventDefault` are called on their own receivers. The `notes-preview-editor-regression` stand-ins are plain objects rather than elements, and they keep working because nothing here requires an element to read from.
+- [x] **The command lookup keeps its own semantics.** A name takes the same property-key conversion - so a `String` object still selects `bold` - the table is consulted for its own and inherited names exactly as the index read did, and a symbol still selects nothing. An inherited name is still answered and still fails at its missing prefix.
+- [x] **Two behaviours changed, and both are stated.** `createPlainTextarea` now refuses an element that is not a textarea, named as a `TypeError`, because the controller it publishes carries an `HTMLTextAreaElement` and the page hands over the one it rendered; the check reads `nodeType` and `tagName`, so an element of any realm answers it. And a caret that is not a number is converted, where `"2"` would previously have been concatenated into the next caret position; every falsy caret still reads as `0`, as the `|| 0` answered.
+- [x] **Twelve focused cases through the shipped module**, covering the command lookup and its conversions, the inherited name, the caret and its two edges, the input event through the element's own method, and the controller's null, refusal, normalisation, command list and options paths. Ten pass unchanged against the original file, and the two that fail there are exactly the two changes above. **Six focused mutations, five kills and one dispositioned**: converting the name with `String` answers what the property-key conversion answers for every name this table can match. One source pin moved to the new spelling of its own claim. Byte restoration verified at SHA-256 `37e32fa6f873804a710f310857f292ccd09c85a92f21eb82fe58a900403e1d82`.
+- [x] **Full verification on the delivered tree.** Unit **4,469 across 238 files**, regressions **348/348**, E2E **343/343** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+Excluded and explicitly remaining: `0.33.33.39`'s shared framework budget, **106** across 12 files, led by `browser-recovery.js` at 19. No published contract changed. **This does not close `0.33.33.39`, `0.33.33.38`, or the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.41.26 - Close Tasks owned debt with truthful collection consumers
 
 **Model: High Effort** - the mutable collection accepts validated list records and opaque callback results; its consumers must preserve identity, ordering, native conversions and failure timing.
