@@ -1,6 +1,18 @@
 (function attachIconHelpers(global) {
   const root = global.LongtailForge || {};
   const svgNamespace = "http://www.w3.org/2000/svg";
+  /**
+   * One drawn part of an icon.
+   *
+   * The attribute values are written as `string | undefined` because the parts of a single icon
+   * do not all carry the same attributes, and the registry literal therefore offers each absent
+   * one as optional. No part actually holds `undefined`, and `setAttribute` performs the same
+   * conversion on whatever it is given either way.
+   *
+   * @typedef {{ type: string, attrs: Readonly<Record<string, string | undefined>> }} IconPart
+   */
+
+  /** @type {Readonly<Record<PropertyKey, readonly IconPart[]>>} */
   const iconRegistry = Object.freeze({
     add: Object.freeze([{ type: "path", attrs: { d: "M5 12h14" } }, { type: "path", attrs: { d: "M12 5v14" } }]),
     alert: Object.freeze([
@@ -149,8 +161,13 @@
     up: Object.freeze([{ type: "path", attrs: { d: "m18 15-6-6-6 6" } }]),
   });
 
+  /**
+   * @param {unknown} name a registry name; the lookup converts it as the index did
+   * @param {import("../../../src/types/browser-contracts.js").BrowserIconOptions} [options]
+   * @returns {SVGSVGElement}
+   */
   function createIcon(name, options = {}) {
-    const iconDefinition = iconRegistry[name];
+    const iconDefinition = iconParts(name);
 
     if (!iconDefinition) {
       throw new Error(`Unknown icon '${name}'.`);
@@ -182,7 +199,9 @@
     iconDefinition.forEach((part) => {
       const element = document.createElementNS(svgNamespace, part.type);
       Object.entries(part.attrs).forEach(([attribute, value]) => {
-        element.setAttribute(attribute, value);
+        // `setAttribute` converts its value to a string itself; naming the conversion is what
+        // lets the optional half of the registry's attribute union be written at all.
+        element.setAttribute(attribute, String(value));
       });
       icon.appendChild(element);
     });
@@ -220,13 +239,20 @@
     return button;
   }
 
+  /**
+   * @param {HTMLButtonElement} button
+   * @param {import("../../../src/types/browser-contracts.js").BrowserIconButtonOptions} [options]
+   * @returns {HTMLButtonElement}
+   */
   function decorateButton(button, options = {}) {
     if (!button || button.nodeType !== 1 || String(button.tagName || "").toLowerCase() !== "button") {
       throw new Error("decorateButton requires a button element.");
     }
 
     const label = String(options.label || button.getAttribute("aria-label") || button.textContent || "").trim();
-    const text = options.text === undefined ? button.textContent.trim() : String(options.text || "").trim();
+    const text = options.text === undefined
+      ? (button.textContent || "").trim()
+      : String(options.text || "").trim();
     button.textContent = "";
     button.classList.add("action-button");
 
@@ -260,6 +286,7 @@
     }
   }
 
+  /** @param {HTMLButtonElement} button @param {string} text */
   function appendVisibleText(button, text) {
     if (!text) {
       return;
@@ -269,6 +296,22 @@
     label.className = "action-button-label";
     label.textContent = text;
     button.appendChild(label);
+  }
+
+  /**
+   * `iconRegistry[name]`, with the property-key conversion the index performed.
+   *
+   * A name is converted exactly as the member access converted it, so a `String` object
+   * still selects its icon and a symbol still selects nothing. The registry is consulted
+   * for its own and inherited names, as the index was: an inherited name is still
+   * answered here and still fails where it always failed, at the parts it does not have.
+   *
+   * @param {unknown} name
+   * @returns {readonly IconPart[] | undefined}
+   */
+  function iconParts(name) {
+    const key = Reflect.ownKeys(Object.fromEntries([[name, undefined]]))[0];
+    return key in iconRegistry ? iconRegistry[key] : undefined;
   }
 
   /** @param {HTMLButtonElement} button @param {unknown} variant */

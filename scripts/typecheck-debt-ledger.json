@@ -530,6 +530,7 @@
         "tests/unit/guarded-member-root-contracts.test.mjs",
         "tests/unit/help-article-contracts.test.mjs",
         "tests/unit/icon-creation-contract.test.mjs",
+        "tests/unit/icons-registry-boundary.test.mjs",
         "tests/unit/identifiers.test.mjs",
         "tests/unit/install-playwright-browser.test.mjs",
         "tests/unit/job-status-contracts.test.mjs",
@@ -817,7 +818,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1820,
+      "errorCount": 1802,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1034,20 +1035,6 @@
         "public/js/shared/formatters.js": [
           {
             "code": 2538,
-            "count": 1
-          }
-        ],
-        "public/js/shared/icons.js": [
-          {
-            "code": 2339,
-            "count": 12
-          },
-          {
-            "code": 7006,
-            "count": 5
-          },
-          {
-            "code": 7053,
             "count": 1
           }
         ],
@@ -1812,8 +1799,8 @@
     }
   },
   "totals": {
-    "files": 1399,
-    "errors": 1820,
+    "files": 1400,
+    "errors": 1802,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
