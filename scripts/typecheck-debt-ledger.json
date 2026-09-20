@@ -809,7 +809,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1967,
+      "errorCount": 1966,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1187,10 +1187,6 @@
           {
             "code": 2339,
             "count": 22
-          },
-          {
-            "code": 2345,
-            "count": 1
           },
           {
             "code": 7006,
@@ -1865,7 +1861,7 @@
   },
   "totals": {
     "files": 1391,
-    "errors": 1967,
+    "errors": 1966,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
@@ -1885,7 +1881,8 @@
     "tests/typecheck/namespace-root-closure.fixture.mjs:48",
     "tests/typecheck/namespace-root-closure.fixture.mjs:54",
     "tests/typecheck/namespace-root-closure.fixture.mjs:66",
-    "tests/typecheck/page-controller-status-recipients.fixture.mjs:61",
+    "tests/typecheck/page-controller-status-recipients.fixture.mjs:68",
+    "tests/typecheck/page-controller-status-recipients.fixture.mjs:70",
     "tests/typecheck/precise-service-contracts.fixture.mjs:24",
     "tests/typecheck/precise-service-contracts.fixture.mjs:27",
     "tests/typecheck/precise-service-contracts.fixture.mjs:30",

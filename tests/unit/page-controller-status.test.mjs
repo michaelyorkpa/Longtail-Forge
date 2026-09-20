@@ -24,8 +24,10 @@ const source = createProjectTextReader().readText("public/js/shared/page-control
 /** @param {unknown} value @returns {value is Bag} */
 const isBag = (value) => value !== null && typeof value === "object";
 
+// `0.33.33.39.37` gave the tone its own writer, so both are lifted together.
 const setStatus = new Function([
   extractFunctionBlock(source, "setStatus"),
+  extractFunctionBlock(source, "writeStatusTone"),
   "return setStatus;",
 ].join("\n"))();
 
@@ -106,6 +108,18 @@ describe("setStatus writes to the recipient it is given", () => {
     });
     assert.equal(thrown(() => write(failing, Symbol("message"))), "TypeError");
     assert.equal(failing.dataset.statusTone, "", "and the tone is not written past the failure");
+  });
+
+  it("writes the message, then fails where the recipient carries no dataset", () => {
+    // What an element of another namespace does in the browser: it takes the message, and the
+    // tone write is where it fails. `0.33.33.39.37` left that untouched rather than refusing the
+    // recipient up front, which would have moved the failure before the message.
+    /** @type {unknown[]} */
+    const written = [];
+    const element = {};
+    Object.defineProperty(element, "textContent", { set: (value) => { written.push(value); } });
+    assert.equal(thrown(() => write(element, "Saved", { isError: true })), "TypeError");
+    assert.deepEqual(written, ["Saved"], "the message was written before the tone failed");
   });
 
   it("treats a recipient that refuses the write exactly as the assignment did", () => {

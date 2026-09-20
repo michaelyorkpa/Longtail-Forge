@@ -45,11 +45,12 @@
   /**
    * The status line on a recipient, or nothing without one.
    *
-   * The recipient is whatever a page or a module host holds: the writer needs a node with a
-   * `textContent` and an element with a `dataset`, which `HTMLElement`, `SVGElement` and
-   * `MathMLElement` all have. `message` stays unconverted here, because the setter is the
-   * conversion - `String(message)` would stop a Symbol failing, and converting a falsy message
-   * would write a word where the `|| ""` fallback clears the line.
+   * The recipient is whatever element a page or a module host holds. The message goes to
+   * the node's own `textContent`; the tone then goes to `dataset`, which an element of another
+   * namespace may not carry - and such a recipient fails at that write, after the message was
+   * written, which is what the two assignments did. `message` stays unconverted here, because
+   * the setter is the conversion - `String(message)` would stop a Symbol failing, and converting
+   * a falsy message would write a word where the `|| ""` fallback clears the line.
    *
    * `Reflect.set` is that assignment: the same inherited setter, the same receiver, and the same
    * thrown error, so a Symbol still fails here. Unlike `createOption`'s fresh `<option>`, this
@@ -67,7 +68,28 @@
     }
 
     Reflect.set(element, "textContent", message || "");
-    element.dataset.statusTone = options.isError ? "error" : "";
+    writeStatusTone(element, options.isError ? "error" : "");
+  }
+
+  /**
+   * `element.dataset.statusTone = tone`, as that assignment read and wrote it.
+   *
+   * The dataset is read off the element first, and a recipient that has none fails here as the
+   * `TypeError` the assignment threw - after the message was written, which is the behaviour a
+   * namespaced element has today. A dataset that is not an object takes the discarded write
+   * sloppy mode gave it, through its own receiver.
+   * @param {BrowserStatusRecipient} element
+   * @param {string} tone
+   * @returns {void}
+   */
+  function writeStatusTone(element, tone) {
+    const dataset = Reflect.get(element, "dataset");
+
+    if (dataset === null || dataset === undefined) {
+      throw new TypeError("The status recipient carries no dataset to write its tone to.");
+    }
+
+    Reflect.set(Object(dataset), "statusTone", tone, dataset);
   }
 
   /**
