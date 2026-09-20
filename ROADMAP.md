@@ -1365,6 +1365,10 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Remaining slice.** `.39.35` the bootstrap and what it drives - support view, deletion notice, search targets, workspace selector, theme, capabilities, switch and landing - with the three module-level theme and support-view `let`s, which finishes the file.
 
+#### 0.33.33.39.35 - Correct the page controller's status contract
+
+**Complete: `BrowserPageController.setStatus` declares the recipient it writes to and the message it never converts.** A shared prerequisite for the Tasks lane, which holds a queried status slot and an opaque message. The writer's behaviour is unchanged, and the browser debt is unchanged at **2,017**: the diagnostics this unblocks are `0.33.33.41`'s to take.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.

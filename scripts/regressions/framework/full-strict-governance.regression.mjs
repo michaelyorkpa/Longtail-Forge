@@ -95,6 +95,9 @@ assert.deepEqual(ledger.expectedErrorDirectives, [
   "tests/typecheck/namespace-root-closure.fixture.mjs:48",
   "tests/typecheck/namespace-root-closure.fixture.mjs:54",
   "tests/typecheck/namespace-root-closure.fixture.mjs:66",
+  // `0.33.33.39.35` corrected `setStatus` to the recipient capability it writes to; this fails
+  // the build if a bare `Element`, which carries no `dataset`, is accepted as one again.
+  "tests/typecheck/page-controller-status-recipients.fixture.mjs:61",
   "tests/typecheck/precise-service-contracts.fixture.mjs:24",
   "tests/typecheck/precise-service-contracts.fixture.mjs:27",
   "tests/typecheck/precise-service-contracts.fixture.mjs:30",

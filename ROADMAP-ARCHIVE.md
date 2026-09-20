@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.35 - Correct the page controller's status contract
+
+**Model: Medium Effort** - a published declaration corrected to an implementation that was already doing more than it claimed, with the bridge that makes it compiler-checked proved equivalent rather than assumed.
+
+- [x] **The declaration now names what the writer uses.** `setStatus` took `HTMLElement | null | undefined` and a `string`. It now takes `BrowserStatusRecipient | null | undefined` - `Element & HTMLOrSVGElement`, the capability the writer needs, because it sets a node's `textContent` and writes an element's `dataset` - and an `unknown` message, because it converts nothing. The recipient is stated as the `dataset` capability rather than as `Element`, which does not carry one.
+- [x] **HTML and SVG recipients both proved in a real document.** A real `<p>` and a real SVG `<text>` each take the message and the tone; the old declaration refused the SVG one while the browser accepted it. The same browser case proves the conversions the double cannot model: `42` writes `"42"`, an object takes its `toString`, every falsy message clears the line, a Symbol throws at the setter, and the tone is not reached when it does.
+- [x] **The writer's behaviour is unchanged.** The absent-recipient no-op, the `|| ""` fallback, the unconverted value handed to the setter, that order, and the tone written afterwards all stand. The message reaches the setter through `Reflect.set`, which is that assignment - the same inherited setter, receiver and thrown error. **Its boolean is deliberately not read**: this file is a classic script in sloppy mode, where the assignment it replaces was silent for a refused write, so reading it would add a failure that never existed. Every case in the new suite passes against the original implementation too, including a refusing recipient and a throwing setter.
+- [x] **Compiler-checked, and the correction is load-bearing.** A new negative fixture keeps every recipient the browser accepts, keeps the absent one, keeps a message of any type, and fails the build if a bare `Element` is accepted again; its directive is admitted in the governance list. Reverting the recipient to `HTMLElement` breaks the fixture's SVG case, which is how the correction is proved to matter rather than merely to compile.
+- [x] **Five focused cases and one browser case; six mutations, six kills**, five on the writer and one on the declaration. Byte restoration verified at SHA-256 `ec4ea5747a53b556da7246d76cd7d6283a295f31b86544b43a3b54666f178c5c` for the writer and `2f6e70bc4b1d453e6102eabc1d2ee79b942db225174665a1889fe567af2ed353` for the declaration.
+- [x] **Two existing pins moved to the new spelling of their own claims**, in `time-entry-dialog-helper-contracts` and `user-admin-add-user-contracts`; neither claim changed.
+- [x] **No new debt anywhere.** Browser stays **2,017** across 31 files, with every family unchanged; the server/test and scripts programs stay at **0**. The `tasks.js` call this unblocks still reports its own mismatch, which is `0.33.33.41`'s to resolve by holding a recipient rather than a bare `Element`.
+- [x] **Full verification on the delivered tree.** Unit **4,436 across 235 files**, regressions **348/348**, E2E **339/339** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+Excluded and explicitly remaining: the separate `LongtailForge.status` surface, which this does not touch; `navigation.js`'s last slice; and `0.33.33.39`'s remaining **203**. **This does not close `0.33.33.39`, `0.33.33.38`, or the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.39.34 - Type the notification bell and panel
 
 **Model: Medium Effort** - one cluster of the app shell, typed against the notification the list reader already validates, with one helper that could not be typed that way because its two callers hold different shapes.
