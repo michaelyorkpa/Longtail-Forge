@@ -440,9 +440,11 @@ describe("the transient app-shell context is left alone", () => {
   it("keeps applying the transient object where a transient-only member is read", () => {
     const bootstrap = codeOnly(slice("async function loadAppShellBootstrap() {"));
     assert.match(bootstrap, /applyWorkspaceDeletionNotice\(workspaceContext\);/);
+    // `0.33.33.39.36` reads that member through `optionalMember`, which is the optional chain it
+    // replaced; the claim - the notice reads it off the transient object - is unchanged.
     assert.match(
       slice("function applyWorkspaceDeletionNotice(workspaceContext) {"),
-      /workspaceContext\?\.workspaceDeletion/,
+      /optionalMember\(workspaceContext, "workspaceDeletion"\)/,
       "and that member is one the stored record does not carry",
     );
   });
