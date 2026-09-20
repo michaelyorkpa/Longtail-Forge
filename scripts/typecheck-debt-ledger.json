@@ -336,6 +336,7 @@
         "tests/e2e/notes-bulk-edit.spec.mjs",
         "tests/e2e/notes-collections.spec.mjs",
         "tests/e2e/notes-detail-display.spec.mjs",
+        "tests/e2e/notes-dialog-bootstrap.spec.mjs",
         "tests/e2e/notes-dom-closeout.spec.mjs",
         "tests/e2e/notes-editor-defaults.spec.mjs",
         "tests/e2e/notes-editor-fields-links.spec.mjs",
@@ -561,6 +562,7 @@
         "tests/unit/note-revision-list-contracts.test.mjs",
         "tests/unit/notes-bulk-edit.test.mjs",
         "tests/unit/notes-detail-display.test.mjs",
+        "tests/unit/notes-dialog-bootstrap.test.mjs",
         "tests/unit/notes-dom-closeout.test.mjs",
         "tests/unit/notes-editor-boundary.test.mjs",
         "tests/unit/notes-editor-defaults.test.mjs",
@@ -1812,7 +1814,7 @@
     }
   },
   "totals": {
-    "files": 1399,
+    "files": 1401,
     "errors": 1820,
     "explicitAny": 0
   },

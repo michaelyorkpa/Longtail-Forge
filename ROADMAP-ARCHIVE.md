@@ -1,5 +1,18 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.40.34 - Repair synchronous Notes dialog bootstrap ordering
+
+**Model: Medium Effort** - a bounded Notes initialization-order repair restores the existing lazy module-action path without changing its synchronicity or workflow.
+
+- [x] **Pre-existing production defect, isolated from Workbench typing.** On baseline `e48cf8aa1157ba78871a23234d545cf8bd58f89a`, a non-Notes page imports notes.js through the notes.view dependency and immediately calls cacheNotesElements before the cached-handle declarations initialize. Both desktop and mobile reproduce `Cannot access 'statusMessage' before initialization`; Workbench then takes its existing navigation fallback. The unchanged baseline reproduces it independently of the pending `.42.2` edits.
+- [x] **Move declarations, preserve both branches.** Hoist the existing cached-element and editor declarations above the bootstrap. Their initializers and types are unchanged. The dialog-only branch still synchronously constructs shells, caches controls and binds events; the workspace branch still waits for workspaceContextReady. Neither branch, the loader, action registrations, failure handling nor shared contracts are rewritten.
+- [x] **Before/after proof.** A bounded whole-controller VM test fails at the original temporal-dead-zone read before the repair and passes after it, proving synchronous acquisition and publication of notes.add, notes.edit and notes.view without awaiting a microtask. Isolated desktop/mobile on port 8102 imports the real controller, creates the real dialog shells, opens a real saved note read-only and closes it through the registered action. The unchanged pending Workbench test now passes its formerly failing viewer assertion, rendered content, close and focus return; its later URL assertion incorrectly expects the deliberately consumed taskId query parameter to remain. That test is preserved unchanged for its own checkpoint, with artifacts retained; it is not part of this Notes submission.
+- [x] **No typing credit.** Recomputed ledger remains browser **1,820**, global DOM **334**, Notes **0**, Tasks **0**, Workbench **502 owned / 10 DOM**, and all other owner sums unchanged. No diagnostic file moves. The ledger only adds the new test files to its checked-file inventory; server/test and scripts stay zero.
+
+Final verification contract: canonical `npm run verify:slice`, full unit/lint coverage where focused routing omits it, isolated desktop/mobile proof and full-range `checkpoint:validate`; exact outcomes and HEAD accompany delivery. No docs change needed: this restores the documented read-first module action; durable documentation and release packaging remain deferred under the internal-checkpoint contract.
+
+**Scope and sequencing:** explicitly authorized as a separate Notes repair that lands before `.42.2`. Workbench edits and its failing browser test are retained byte-for-byte outside this branch; no Workbench typing or extraction is included. The Notes lane remains at zero diagnostics. No shared, server, CSS, package or unrelated workflow change.
+
 ## Version 0.33.33.42.1 - Type Task Focus summary record readers in place
 
 **Model: High Effort** - the first Workbench child separates published task fields from opaque candidate and decorator values while preserving the live summary's reads and native conversions.

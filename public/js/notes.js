@@ -701,38 +701,6 @@
   /** @type {import("../../src/types/browser-contracts.js").BrowserViewModalElement | null} */
   let activeNoteViewDialog = null;
 
-  const notesWorkspaceHost = document.querySelector("[data-notes-host]");
-  const isNotesWorkspaceSurface = Boolean(notesWorkspaceHost);
-
-  // 0.33.33.35.1.1: the workspace surface is built from a server-delivered descriptor, so
-  // the shell and every binding that reads the DOM it creates wait for the workspace
-  // context. Before this, the shell was built synchronously against a context hydrated
-  // from localStorage, which is empty on a cold load - the case the fallback covers.
-  //
-  // The dialog-only path reads no descriptor - buildNotesViewShell() returns early without a
-  // host - so it keeps its synchronous bootstrap. That is the path the registry uses when
-  // it lazily imports this controller for a module action, and it must stay immediate.
-  if (isNotesWorkspaceSurface) {
-    initializeNotesWorkspace();
-  } else {
-    ensureNotesDialogShells();
-    cacheNotesElements();
-    bindNotesEvents();
-  }
-
-  async function initializeNotesWorkspace() {
-    try {
-      await window.LongtailForge?.workspaceContextReady;
-    } catch {
-      // A rejected context must not strand the page; the descriptor fallback still renders,
-      // and initialize() below reports the failure through the surface it just built.
-    }
-    buildNotesViewShell();
-    cacheNotesElements();
-    bindNotesEvents();
-    await initialize();
-  }
-
   /** @type {Element | null} */
   let statusMessage = null;
   /** @type {Element | null} */
@@ -930,6 +898,38 @@
    * @type {import("../../src/types/browser-contracts.js").NotesPlainTextareaController | null | undefined}
    */
   let editor = null;
+
+  const notesWorkspaceHost = document.querySelector("[data-notes-host]");
+  const isNotesWorkspaceSurface = Boolean(notesWorkspaceHost);
+
+  // 0.33.33.35.1.1: the workspace surface is built from a server-delivered descriptor, so
+  // the shell and every binding that reads the DOM it creates wait for the workspace
+  // context. Before this, the shell was built synchronously against a context hydrated
+  // from localStorage, which is empty on a cold load - the case the fallback covers.
+  //
+  // The dialog-only path reads no descriptor - buildNotesViewShell() returns early without a
+  // host - so it keeps its synchronous bootstrap. That is the path the registry uses when
+  // it lazily imports this controller for a module action, and it must stay immediate.
+  if (isNotesWorkspaceSurface) {
+    initializeNotesWorkspace();
+  } else {
+    ensureNotesDialogShells();
+    cacheNotesElements();
+    bindNotesEvents();
+  }
+
+  async function initializeNotesWorkspace() {
+    try {
+      await window.LongtailForge?.workspaceContextReady;
+    } catch {
+      // A rejected context must not strand the page; the descriptor fallback still renders,
+      // and initialize() below reports the failure through the surface it just built.
+    }
+    buildNotesViewShell();
+    cacheNotesElements();
+    bindNotesEvents();
+    await initialize();
+  }
 
   /**
    * Notes editor and collection controls remain optional during shell caching. Check their actual DOM
