@@ -284,6 +284,7 @@
     /** @type {unknown} */
     editingTaskId: "",
     currentUserId: "",
+    /** @type {unknown} */
     quickFilter: DEFAULT_TASK_VIEW,
     /** @type {Set<unknown>} */
     selectedTaskIds: new Set(),
@@ -1087,18 +1088,47 @@
     return api.getJson(query ? `/api/tasks?${query}` : "/api/tasks", { cache: "no-store" });
   }
 
+  /** @param {Element | null | undefined} control @returns {Element} */
+  function requireTaskElement(control) {
+    if (control === null || control === undefined) throw new TypeError("Tasks required element is unavailable.");
+    return control;
+  }
+
+  /**
+   * These controls are rendered as selects locally, but reading value does not require
+   * a select subtype. Keep other host elements and inherited accessors readable too.
+   * @param {Element | null | undefined} control @returns {unknown}
+   */
+  function taskControlValue(control) {
+    return control === null || control === undefined ? undefined : Reflect.get(control, "value");
+  }
+
+  /** @param {unknown} value @param {"dataset" | "tagFilterValue" | "selectedOptions" | "0" | "textContent"} key @returns {unknown} */
+  function taskOptionalControlField(value, key) {
+    return value === null || value === undefined ? undefined : Reflect.get(Object(value), key, value);
+  }
+
+  /** @param {Element | null} control @returns {unknown} */
+  function taskWorkspaceSelectionText(control) {
+    const selected = taskOptionalControlField(control, "selectedOptions");
+    const option = taskOptionalControlField(selected, "0");
+    const text = taskOptionalControlField(option, "textContent");
+    if (text === null || text === undefined) return undefined;
+    return Reflect.apply(Reflect.get(Object(text), "trim", text), text, []);
+  }
+
   function buildTaskQuery(cursor = "") {
     const params = new URLSearchParams();
     const taskView = selectedTaskView();
-    const statusValue = statusFilter?.value || "active";
-    const assigneeValue = assigneeFilter?.value || "all";
-    const clientValue = usesClientScope() ? clientFilter?.value ?? "all" : "all";
-    const projectValue = projectFilter?.value ?? "all";
+    const statusValue = taskControlValue(statusFilter) || "active";
+    const assigneeValue = taskControlValue(assigneeFilter) || "all";
+    const clientValue = usesClientScope() ? taskControlValue(clientFilter) ?? "all" : "all";
+    const projectValue = taskControlValue(projectFilter) ?? "all";
     const tagValue = selectedTaskTagFilterValue();
 
     params.set("task_view", `${canonicalTaskViewValue(taskView)}`);
-    params.set("status", canonicalStatusValue(statusValue));
-    params.set("sort", `${canonicalSortValue(sortInput?.value || "due_asc")}`);
+    params.set("status", `${canonicalStatusValue(statusValue)}`);
+    params.set("sort", `${canonicalSortValue(taskControlValue(sortInput) || "due_asc")}`);
     params.set("limit", String(TASK_LIST_PAGE_SIZE));
 
     if (assigneeValue === "me") {
@@ -1106,19 +1136,19 @@
     } else if (assigneeValue === "unassigned") {
       params.set("assignee", "unassigned");
     } else if (assigneeValue !== "all") {
-      params.set("assignee_id", assigneeValue);
+      params.set("assignee_id", `${assigneeValue}`);
     }
 
     if (clientValue !== "all") {
-      params.set("client_id", clientValue);
+      params.set("client_id", `${clientValue}`);
     }
 
     if (projectValue !== "all") {
-      params.set("project_id", projectValue);
+      params.set("project_id", `${projectValue}`);
     }
 
     if (tagValue !== "all") {
-      params.set("tags", tagValue);
+      params.set("tags", `${tagValue}`);
     }
 
     if (cursor) {
@@ -1128,7 +1158,7 @@
     return params.toString();
   }
 
-  /** @param {string} value */
+  /** @param {unknown} value */
   function canonicalStatusValue(value) {
     if (value === "complete" || value === "archived" || value === "all") {
       return value;
@@ -1137,7 +1167,7 @@
     return value || "active";
   }
 
-  /** @param {string} value @returns {unknown} */
+  /** @param {unknown} value @returns {unknown} */
   function canonicalTaskViewValue(value) {
     const values = {
       all: "all",
@@ -1149,10 +1179,10 @@
       complete: "completed",
       archived: "archived",
     };
-    return Reflect.get(values, value) || value;
+    return Reflect.get(values, taskRowKey(value)) || value;
   }
 
-  /** @param {string} value @returns {unknown} */
+  /** @param {unknown} value @returns {unknown} */
   function canonicalSortValue(value) {
     const values = {
       due_asc: "due_at",
@@ -1163,7 +1193,7 @@
       last_worked: "last_worked",
       context: "context",
     };
-    return Reflect.get(values, value) || "due_at";
+    return Reflect.get(values, taskRowKey(value)) || "due_at";
   }
 
   function populateFilters() {
@@ -1269,7 +1299,7 @@
   }
 
   function selectedClientFilterValue() {
-    return usesClientScope() ? clientFilter?.value ?? "all" : "all";
+    return usesClientScope() ? taskControlValue(clientFilter) ?? "all" : "all";
   }
 
   /** @param {BrowserTaskListOptions["projects"][number] | null | undefined} project @param {unknown} clientValue */
@@ -1317,7 +1347,7 @@
 
   function reconcileProjectFilterForClient() {
     const clientValue = selectedClientFilterValue();
-    const currentProject = projectFilter?.value ?? "all";
+    const currentProject = taskControlValue(projectFilter) ?? "all";
     // "all" (All Projects) and "" (No project) stay valid under any client; only a specific
     // project can become incompatible with the newly chosen client.
     if (currentProject !== "all" && currentProject !== "") {
@@ -1341,7 +1371,7 @@
       return;
     }
 
-    tagFilterControl.hidden = tags.length === 0;
+    Reflect.set(tagFilterControl, "hidden", tags.length === 0);
     const nextValue = previousValue === noTagsFilterValue() || tags.some((tag) => tag.tag_id === previousValue)
       ? normalizeTagFilterValue(previousValue)
       : "all";
@@ -1365,14 +1395,14 @@
     return window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__";
   }
 
-  /** @param {string} value */
+  /** @param {unknown} value */
   function normalizeTagFilterValue(value) {
     return value === "__no_effective_tags__" ? noTagsFilterValue() : value;
   }
 
   function selectedTaskTagFilterValue() {
     return tagFilterController?.readValue?.()
-      || normalizeTagFilterValue(tagFilter?.dataset?.tagFilterValue || "all");
+      || normalizeTagFilterValue(taskOptionalControlField(taskOptionalControlField(tagFilter, "dataset"), "tagFilterValue") || "all");
   }
 
   function renderBulkAssigneeOptions() {
@@ -1429,10 +1459,10 @@
     syncSelectionToTasks(tasks);
     updateTaskViewSelectorState();
     updateBulkControls();
-    taskList.replaceChildren();
+    requireTaskElement(taskList).replaceChildren();
 
     if (tasks.length === 0) {
-      taskList.appendChild(view.createElement("tr", {
+      requireTaskElement(taskList).appendChild(view.createElement("tr", {
         children: view.createElement("td", {
           attrs: { colspan: "7" },
           text: emptyTaskMessage(),
@@ -1446,7 +1476,7 @@
     nestedTaskDisplayRows(tasks).forEach(({ task, depth }) => {
       if (!isTaskNestingKey(task)) throw new TypeError("Invalid value used as weak map key");
       taskNestingDepths.set(task, depth);
-      taskList.append(...createTaskRow(task));
+      requireTaskElement(taskList).append(...createTaskRow(task));
     });
     updateSelectionControls(tasks);
     renderTaskPagination();
@@ -1456,7 +1486,7 @@
     const hasMore = Boolean(state.pagination?.hasMore && state.pagination?.nextCursor);
 
     if (taskPagination) {
-      taskPagination.hidden = !hasMore;
+      Reflect.set(taskPagination, "hidden", !hasMore);
     }
 
     if (taskPageSummary) {
@@ -1464,8 +1494,8 @@
     }
 
     if (loadMoreTasksButton) {
-      loadMoreTasksButton.hidden = !hasMore;
-      loadMoreTasksButton.disabled = !hasMore;
+      Reflect.set(loadMoreTasksButton, "hidden", !hasMore);
+      Reflect.set(loadMoreTasksButton, "disabled", !hasMore);
     }
   }
 
@@ -2625,7 +2655,7 @@
       link.className = "button button-secondary button-compact";
       link.href = continuity.nextTask.url;
       link.textContent = `Open ${continuity.nextTask.title || "next task"}`;
-      taskStatus.append(document.createTextNode(" "), link);
+      requireTaskElement(taskStatus).append(document.createTextNode(" "), link);
     }
   }
 
@@ -3308,7 +3338,7 @@
   /** @param {boolean} isVisible */
   function setClientScopeControlsVisible(isVisible) {
     document.querySelectorAll("[data-client-workspace-control]").forEach((element) => {
-      element.hidden = !isVisible;
+      Reflect.set(element, "hidden", !isVisible);
     });
   }
 
@@ -3317,7 +3347,9 @@
       return;
     }
 
-    const selectedView = TASK_VIEW_VALUES.has(taskViewSelector.value) ? taskViewSelector.value : DEFAULT_TASK_VIEW;
+    /** @type {ReadonlySet<unknown>} */
+    const viewValues = TASK_VIEW_VALUES;
+    const selectedView = viewValues.has(taskControlValue(taskViewSelector)) ? taskControlValue(taskViewSelector) : DEFAULT_TASK_VIEW;
     state.quickFilter = selectedView;
     preserveCompatibleAdvancedFiltersForTaskView(selectedView);
     saveFilterState();
@@ -3334,10 +3366,10 @@
     reloadTaskList();
   }
 
-  /** @param {string} taskView */
+  /** @param {unknown} taskView */
   function resetAdvancedFilterControlsForTaskView(taskView) {
     if (sortInput) {
-      sortInput.value = "due_asc";
+      Reflect.set(sortInput, "value", "due_asc");
     }
     setStatusFilterValue(defaultStatusForTaskView(taskView));
     setSelectValue(assigneeFilter, "all");
@@ -3346,13 +3378,13 @@
     tagFilterController?.setValue?.("all");
   }
 
-  /** @param {string} taskView */
+  /** @param {unknown} taskView */
   function preserveCompatibleAdvancedFiltersForTaskView(taskView) {
-    if (!isStatusFilterCompatibleWithTaskView(taskView, statusFilter?.value || "active")) {
+    if (!isStatusFilterCompatibleWithTaskView(taskView, taskControlValue(statusFilter) || "active")) {
       setStatusFilterValue(defaultStatusForTaskView(taskView));
     }
 
-    if (["my", "unassigned"].includes(taskView)) {
+    if (["my", "unassigned"].some((value) => value === taskView)) {
       setSelectValue(assigneeFilter, "all");
     }
 
@@ -3367,14 +3399,18 @@
     }
 
     const selectedView = selectedTaskView();
-    taskViewSelector.value = TASK_VIEW_VALUES.has(selectedView) ? selectedView : DEFAULT_TASK_VIEW;
+    /** @type {ReadonlySet<unknown>} */
+    const viewValues = TASK_VIEW_VALUES;
+    Reflect.set(taskViewSelector, "value", viewValues.has(selectedView) ? selectedView : DEFAULT_TASK_VIEW);
   }
 
   function selectedTaskView() {
-    return TASK_VIEW_VALUES.has(state.quickFilter) ? state.quickFilter : DEFAULT_TASK_VIEW;
+    /** @type {ReadonlySet<unknown>} */
+    const viewValues = TASK_VIEW_VALUES;
+    return viewValues.has(state.quickFilter) ? state.quickFilter : DEFAULT_TASK_VIEW;
   }
 
-  /** @param {string} taskView */
+  /** @param {unknown} taskView */
   function defaultStatusForTaskView(taskView) {
     if (taskView === "complete") {
       return "complete";
@@ -3387,7 +3423,7 @@
     return "active";
   }
 
-  /** @param {string} taskView @param {string} statusValue */
+  /** @param {unknown} taskView @param {unknown} statusValue */
   function isStatusFilterCompatibleWithTaskView(taskView, statusValue) {
     const status = canonicalStatusValue(statusValue);
 
@@ -3467,7 +3503,7 @@
     try {
       const saved = JSON.parse(window.localStorage.getItem(TASK_FILTER_STORAGE_KEY) || "{}");
       if (saved.sort && sortInput) {
-        sortInput.value = saved.sort;
+        Reflect.set(sortInput, "value", saved.sort);
       }
       if (Object.hasOwn(saved, "quickFilter")) {
         state.quickFilter = saved.quickFilter === "" ? "all" : TASK_VIEW_VALUES.has(saved.quickFilter)
@@ -3485,7 +3521,7 @@
 
   function saveFilterState() {
     window.localStorage.setItem(TASK_FILTER_STORAGE_KEY, JSON.stringify({
-      sort: sortInput?.value || "due_asc",
+      sort: taskControlValue(sortInput) || "due_asc",
       quickFilter: state.quickFilter,
     }));
   }
@@ -3545,7 +3581,7 @@
     }
 
     const workspaceName = String(window.LongtailForge?.workspaceContext?.workspaceName || "").trim() ||
-      document.querySelector("[data-workspace-selector]")?.selectedOptions?.[0]?.textContent?.trim() ||
+      taskWorkspaceSelectionText(document.querySelector("[data-workspace-selector]")) ||
       document.querySelector("[data-workspace-name]")?.textContent?.trim() ||
       "Workspace";
 
@@ -3614,7 +3650,7 @@
       visibleTaskCount: state.tasks.length,
       selectedTaskCount: state.selectedTaskIds.size,
       quickFilter: state.quickFilter,
-      sort: sortInput?.value || "due_asc",
+      sort: taskControlValue(sortInput) || "due_asc",
       optionCounts: {
         clients: state.options.clients.length,
         projects: state.options.projects.length,

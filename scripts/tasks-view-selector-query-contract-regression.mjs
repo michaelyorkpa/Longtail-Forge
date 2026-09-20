@@ -25,8 +25,8 @@ assert.match(tasksScript, /complete:\s*"completed"/, "Tasks adapter should map t
 assert.match(tasksScript, /assigneeValue === "me"[\s\S]*params\.set\("assignee", "me"\)/, "Assignee filter should combine as an advanced filter instead of replacing task_view");
 assert.match(tasksScript, /data-task-reset-filters/, "Sorting and Filters should expose a reset control");
 assert.match(tasksScript, /function resetAdvancedTaskFilters\(\)[\s\S]*resetAdvancedFilterControlsForTaskView\(selectedTaskView\(\)\)/, "Resetting advanced filters should preserve the selected task view");
-assert.match(tasksScript, /function preserveCompatibleAdvancedFiltersForTaskView\(taskView\)[\s\S]*\["my", "unassigned"\]\.includes\(taskView\)[\s\S]*setSelectValue\(assigneeFilter, "all"\)/, "Changing task views should clear incompatible assignee filters");
-assert.match(tasksScript, /const clientValue = usesClientScope\(\) \? clientFilter\?\.value \?\? "all" : "all"/, "Personal and Family task queries should not include client-only UI assumptions");
+assert.match(tasksScript, /function preserveCompatibleAdvancedFiltersForTaskView\(taskView\)[\s\S]*\["my", "unassigned"\]\.some\(\(value\) => value === taskView\)[\s\S]*setSelectValue\(assigneeFilter, "all"\)/, "Changing task views should clear incompatible assignee filters");
+assert.match(tasksScript, /const clientValue = usesClientScope\(\) \? taskControlValue\(clientFilter\) \?\? "all" : "all"/, "Personal and Family task queries should not include client-only UI assumptions");
 assert.match(taskListEngineSource, /function matchesTaskView\(task, taskView, currentUserId, today, currentWeekEnd, statusOverridesActiveScope\)/, "The Tasks list engine should own task_view semantics");
 assert.match(taskListEngineSource, /taskView === "completed"[\s\S]*task\.status === "complete"/, "Completed view should be scoped intentionally");
 assert.match(taskListEngineSource, /taskView === "archived"[\s\S]*task\.status === "archived"/, "Archived view should be scoped intentionally");

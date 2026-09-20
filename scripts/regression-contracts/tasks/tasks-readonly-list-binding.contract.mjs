@@ -34,7 +34,7 @@ assert.match(mainChrome, /className:\s*\["view-table-wrap", "list-table-wrap"\]/
 assert.match(tasksScript, /function createTaskBulkToolbarChrome\(\)[\s\S]*view\.createBulkActionToolbar\([\s\S]*data-task-bulk-toolbar/, "Tasks bulk toolbar should mount through the framework bulk toolbar shell");
 
 const renderTasks = extractFunctionSpan(tasksScript, "renderTasks");
-assert.match(renderTasks, /taskList\.replaceChildren\(\)/, "Existing list rows should still render into the task list body");
+assert.match(renderTasks, /requireTaskElement\(taskList\)\.replaceChildren\(\)/, "Existing list rows should still render into the task list body");
 assert.match(renderTasks, /nestedTaskDisplayRows\(tasks\)[\s\S]*taskNestingDepths\.set\(task, depth\)[\s\S]*createTaskRow\(task\)/, "Task rows should still come from the Tasks-owned row builder in parent-before-child display order");
 
 const createTaskRow = extractFunctionSpan(tasksScript, "createTaskRow");
@@ -49,11 +49,11 @@ assert.match(lifecycleDescriptor, /id:\s*"complete-task"[\s\S]*id:\s*"reopen-tas
 
 const buildTaskQuery = extractFunctionSpan(tasksScript, "buildTaskQuery");
 assert.match(buildTaskQuery, /params\.set\("task_view", `\$\{canonicalTaskViewValue\(taskView\)\}`\)/, "Saved task view should still affect visible task reads");
-assert.match(buildTaskQuery, /params\.set\("status", canonicalStatusValue\(statusValue\)\)/, "Status filter should still affect visible task reads");
+assert.match(buildTaskQuery, /params\.set\("status", `\$\{canonicalStatusValue\(statusValue\)\}`\)/, "Status filter should still affect visible task reads");
 assert.match(buildTaskQuery, /params\.set\("sort", `\$\{canonicalSortValue/, "Sort filter should still affect visible task reads");
-assert.match(buildTaskQuery, /params\.set\("client_id", clientValue\)/, "Client filter should still affect visible task reads where scoped");
-assert.match(buildTaskQuery, /params\.set\("project_id", projectValue\)/, "Project filter should still affect visible task reads");
-assert.match(buildTaskQuery, /params\.set\("tags", tagValue\)/, "Tag filter should still affect visible task reads");
+assert.match(buildTaskQuery, /params\.set\("client_id", `\$\{clientValue\}`\)/, "Client filter should still affect visible task reads where scoped");
+assert.match(buildTaskQuery, /params\.set\("project_id", `\$\{projectValue\}`\)/, "Project filter should still affect visible task reads");
+assert.match(buildTaskQuery, /params\.set\("tags", `\$\{tagValue\}`\)/, "Tag filter should still affect visible task reads");
 assert.match(tasksScript, /\[sortInput, statusFilter, assigneeFilter, projectFilter, tagFilter\]\.forEach\(\(input\) => \{[\s\S]*await reloadTaskList\(\)/, "Existing filter controls should still reload the visible task list");
 assert.match(tasksScript, /clientFilter\?\.addEventListener\("change", async \(\) => \{[\s\S]*reconcileProjectFilterForClient\(\)[\s\S]*await reloadTaskList\(\)/, "Client filter should narrow the project dropdown and reload the visible task list");
 

@@ -397,6 +397,7 @@
         "tests/e2e/task-resume-capture.spec.mjs",
         "tests/e2e/tasks-bulk-controls.spec.mjs",
         "tests/e2e/tasks-dashboard-consumer.spec.mjs",
+        "tests/e2e/tasks-dom-close.spec.mjs",
         "tests/e2e/tasks-filter-controls.spec.mjs",
         "tests/e2e/tasks-lifecycle-dialog.spec.mjs",
         "tests/e2e/tasks-owned-tail.spec.mjs",
@@ -658,6 +659,7 @@
         "tests/unit/tasks-bulk-controls.test.mjs",
         "tests/unit/tasks-dashboard-consumer.test.mjs",
         "tests/unit/tasks-dialog-surface-contracts.test.mjs",
+        "tests/unit/tasks-dom-close.test.mjs",
         "tests/unit/tasks-filter-controls.test.mjs",
         "tests/unit/tasks-lifecycle-dialog.test.mjs",
         "tests/unit/tasks-owned-tail.test.mjs",
@@ -812,7 +814,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1893,
+      "errorCount": 1867,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1156,16 +1158,6 @@
           {
             "code": 2339,
             "count": 25
-          }
-        ],
-        "public/js/tasks.js": [
-          {
-            "code": 18047,
-            "count": 4
-          },
-          {
-            "code": 2339,
-            "count": 22
           }
         ],
         "public/js/workbench.js": [
@@ -1835,8 +1827,8 @@
     }
   },
   "totals": {
-    "files": 1394,
-    "errors": 1893,
+    "files": 1396,
+    "errors": 1867,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
