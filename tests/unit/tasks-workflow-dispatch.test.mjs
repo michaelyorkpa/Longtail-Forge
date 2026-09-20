@@ -44,7 +44,7 @@ describe("Tasks workflow dispatch boundary", () => {
     const record = { task_id: "task" }, trigger = { marker: "trigger" };
     const action = { statusPayload: { status: "custom" }, timerStatus: "custom" };
     const expected = [
-      ["postTaskAction", [record, "complete", trigger]], ["postTaskAction", [record, "reopen"]],
+      ["postTaskAction", [record, "complete"]], ["postTaskAction", [record, "reopen"]],
       ["openTaskDialogForBlock", [record, action, trigger]], ["updateTaskLifecycleStatus", [record, action.statusPayload]],
       ["postTaskAction", [record, "archive"]], ["postTaskAction", [record, "restore"]],
       ...Array.from({ length: 4 }, () => ["openTaskDialogForWorkflow", [record, action, trigger]]),

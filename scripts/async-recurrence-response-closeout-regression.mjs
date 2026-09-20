@@ -38,8 +38,8 @@ try {
   assert.doesNotMatch(tasksServiceSource, /const recurrenceResult = await taskRecurrenceService\.createNextInstance/, "task completion should not create the next recurrence instance inline");
   assert.match(publicApiSource, /recurrenceJob: publicRecurrenceJob\(result\.recurrenceJob\)/, "public API completion should expose a safe recurrence queued hint");
   assert.doesNotMatch(extractFunctionBlock(publicApiSource, "publicRecurrenceJob"), /jobId|job_id|dedupe|payload/i, "public recurrence job response should not expose job internals");
-  assert.match(tasksPageSource, /renderTaskRecurrenceContinuity\(result\.recurrenceContinuity\)/, "Tasks page should render safe recurrence continuity");
-  assert.match(tasksPageSource, /trackTaskRecurrenceContinuity\([^\n]+result\.recurrenceContinuity\)/, "Tasks page should track pending recurrence continuity without creating inline");
+  assert.match(tasksPageSource, /renderTaskRecurrenceContinuity\(taskActionField\(result, "recurrenceContinuity"\)\)/, "Tasks page should render safe recurrence continuity");
+  assert.match(tasksPageSource, /trackTaskRecurrenceContinuity\([^\n]+taskActionField\(result, "recurrenceContinuity"\)\)/, "Tasks page should track pending recurrence continuity without creating inline");
   assert.match(workbenchSource, /detail\.taskLifecycleAction === "complete"[\s\S]*setTaskCompletionStatus\(detail\)/, "Workbench modal completion should use safe lifecycle detail");
   assert.match(extractFunctionBlock(workbenchSource, "setTaskCompletionStatus"), /detail\.recurrenceContinuity[\s\S]*trackTaskRecurrenceContinuity/, "Workbench completion should render and track safe recurrence continuity");
   assert.doesNotMatch(extractFunctionBlock(workbenchSource, "setTaskCompletionStatus"), /jobId|job_id|dedupe|payload/i, "Workbench completion should not expose recurrence job internals");
