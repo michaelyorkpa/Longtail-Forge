@@ -3,6 +3,10 @@
   // messages stay here: they are Task Focus session copy, not a legality rule.
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskLifecycleLegality} BrowserTaskLifecycleLegality */
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserTaskRecord} BrowserTaskRecord */
+  /** @typedef {Partial<{[K in keyof Pick<BrowserTaskRecord, "status" | "priority" | "due_date" | "due_time" | "client_name" | "project_name">]: unknown}> & {directTags?: unknown, direct_tags?: unknown}} TaskFocusSummaryTask */
+  /** @typedef {Partial<{[K in keyof Pick<ReturnType<typeof taskFocusFromCandidate>, "status" | "priority" | "contextLabel" | "dueAt">]: unknown}>} TaskFocusSummaryFallback */
+
   const WORKBENCH_CARD_STATE_KEY = "lf_workbench_cards_v1";
   const WORKBENCH_CLIENT_FOCUS_KEY = "lf_workbench_client_focus_v1";
   const WORKBENCH_FOCUS_MODE_KEY = "lf_workbench_focus_mode_v1";
@@ -2566,6 +2570,7 @@
     });
   }
 
+  /** @param {TaskFocusSummaryTask} [task] @param {TaskFocusSummaryFallback | null} [active] */
   function taskFocusBadges(task = {}, active = state.activeTaskFocus) {
     const dueText = taskFocusDueText(task, active, { empty: "" });
     return [
@@ -2580,6 +2585,7 @@
     return safeTaskFocusText(active?.task?.title || active?.title, "Focused task");
   }
 
+  /** @param {TaskFocusSummaryTask} [task] @param {TaskFocusSummaryFallback | null} [active] */
   function taskFocusContextLabel(task = {}, active = state.activeTaskFocus) {
     const readableContext = [task.client_name, task.project_name]
       .map((value) => safeTaskFocusText(value, ""))
@@ -2589,6 +2595,7 @@
     return safeTaskFocusText(readableContext || active?.contextLabel || "", "");
   }
 
+  /** @param {TaskFocusSummaryTask} [task] @param {TaskFocusSummaryFallback | null} [active] @param {{empty?: string}} [options] */
   function taskFocusDueText(task = {}, active = state.activeTaskFocus, options = {}) {
     const fallback = options.empty === undefined ? "No due date" : options.empty;
     const dueDate = String(task.due_date || "").trim();
@@ -2615,6 +2622,7 @@
     return labels.length > 0 ? labels.join(", ") : "Unassigned";
   }
 
+  /** @param {TaskFocusSummaryTask} [task] */
   function taskFocusTagBadges(task = {}) {
     const tags = Array.isArray(task.directTags) && task.directTags.length > 0
       ? task.directTags
@@ -2623,7 +2631,10 @@
         : [];
 
     return tags
-      .map((tag) => safeTaskFocusText(tag.name || tag.slug || "", ""))
+      .map((/** @type {unknown} */ tag) => {
+        if (tag === null || tag === undefined) throw new TypeError("Task Focus tag is unavailable.");
+        return safeTaskFocusText(Reflect.get(Object(tag), "name", tag) || Reflect.get(Object(tag), "slug", tag) || "", "");
+      })
       .filter(Boolean)
       .map((label) => badge(label, "tag"));
   }
@@ -4411,13 +4422,14 @@
     return match ? match[1] : text;
   }
 
+  /** @param {unknown} label @param {unknown} [type] */
   function badge(label, type = "") {
     const element = document.createElement("span");
     element.className = "workbench-badge";
     if (type) {
-      element.dataset.badgeType = type;
+      Reflect.set(element.dataset, "badgeType", type);
     }
-    element.textContent = label;
+    Reflect.set(element, "textContent", label);
     return element;
   }
 
