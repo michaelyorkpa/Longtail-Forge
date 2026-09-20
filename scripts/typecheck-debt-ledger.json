@@ -412,6 +412,7 @@
         "tests/e2e/workbench-focus-readers.spec.mjs",
         "tests/e2e/workbench-mobile-chip-layout.spec.mjs",
         "tests/e2e/workbench-mobile-inspector.spec.mjs",
+        "tests/e2e/workbench-related-context.spec.mjs",
         "tests/e2e/workspace-isolation.spec.mjs",
         "tests/e2e/workspace-rename-shell-label.spec.mjs",
         "tests/e2e/workspace-settings-rejected-save.spec.mjs",
@@ -716,6 +717,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "tests/unit/workbench-bootstrap-contracts.test.mjs",
         "tests/unit/workbench-focus-readers.test.mjs",
+        "tests/unit/workbench-related-context.test.mjs",
         "tests/unit/workspace-backup-receipt-contracts.test.mjs",
         "tests/unit/workspace-context-boundary-contracts.test.mjs",
         "tests/unit/workspace-context-namespace-contracts.test.mjs",
@@ -819,7 +821,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1820,
+      "errorCount": 1784,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1158,7 +1160,7 @@
           },
           {
             "code": 2339,
-            "count": 210
+            "count": 177
           },
           {
             "code": 2345,
@@ -1182,7 +1184,7 @@
           },
           {
             "code": 7006,
-            "count": 159
+            "count": 156
           },
           {
             "code": 7023,
@@ -1814,8 +1816,8 @@
     }
   },
   "totals": {
-    "files": 1401,
-    "errors": 1820,
+    "files": 1403,
+    "errors": 1784,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
