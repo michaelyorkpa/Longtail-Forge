@@ -6,6 +6,7 @@
  * and nothing here indexes an arbitrary key.
  * @typedef {import("../../../src/types/browser-contracts.js").BrowserRecordFields} PageBrowserRecord
  */
+/** @typedef {import("../../../src/types/browser-contracts.js").BrowserStatusRecipient} BrowserStatusRecipient */
 /** @typedef {import("../../../src/types/browser-contracts.js").PageControllerDefinition} PageControllerDefinition */
 /** @typedef {import("../../../src/types/browser-contracts.js").PageControllerRegistry} PageControllerRegistry */
 /** @typedef {import("../../../src/types/browser-contracts.js").PageSmokeResult} PageSmokeResult */
@@ -42,8 +43,22 @@
   }
 
   /**
-   * @param {HTMLElement | null | undefined} element
-   * @param {string} message
+   * The status line on a recipient, or nothing without one.
+   *
+   * The recipient is whatever a page or a module host holds: the writer needs a node with a
+   * `textContent` and an element with a `dataset`, which `HTMLElement`, `SVGElement` and
+   * `MathMLElement` all have. `message` stays unconverted here, because the setter is the
+   * conversion - `String(message)` would stop a Symbol failing, and converting a falsy message
+   * would write a word where the `|| ""` fallback clears the line.
+   *
+   * `Reflect.set` is that assignment: the same inherited setter, the same receiver, and the same
+   * thrown error, so a Symbol still fails here. Unlike `createOption`'s fresh `<option>`, this
+   * recipient belongs to the caller and could refuse the write - and its boolean is still not
+   * read, because **this file is a classic script in sloppy mode**, where the assignment it
+   * replaces was silent in exactly those cases. Reading it would add a failure that never
+   * existed; the tone is written after either outcome, as it was.
+   * @param {BrowserStatusRecipient | null | undefined} element
+   * @param {unknown} message
    * @param {{ isError?: boolean }} [options]
    */
   function setStatus(element, message, options = {}) {
@@ -51,7 +66,7 @@
       return;
     }
 
-    element.textContent = message || "";
+    Reflect.set(element, "textContent", message || "");
     element.dataset.statusTone = options.isError ? "error" : "";
   }
 

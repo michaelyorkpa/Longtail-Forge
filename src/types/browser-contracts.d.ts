@@ -915,6 +915,18 @@ export interface PageControllerRegistry {
   [pageId: string]: RegisteredPageController;
 }
 
+/**
+ * What `pageController.setStatus` writes to.
+ *
+ * **The capability, not a tag list.** The writer touches two members: the node's own
+ * `textContent`, which every node has, and `dataset`, which `HTMLElement`, `SVGElement` and
+ * `MathMLElement` carry and a bare `Element` does not - so this states `dataset` rather than
+ * claiming every `Element` has one. The declaration previously named `HTMLElement` alone, which
+ * refused the SVG recipients the implementation and the browser both accept; `0.33.33.39.35`
+ * proves both in a real document.
+ */
+export type BrowserStatusRecipient = Element & HTMLOrSVGElement;
+
 export interface BrowserPageController {
   /**
    * Create an `<option>`, then hand both arguments to its own setters unchanged.
@@ -927,7 +939,17 @@ export interface BrowserPageController {
   createOption(value: unknown, text: unknown): HTMLOptionElement;
   register(pageId: string, controller: PageControllerDefinition): RegisteredPageController;
   runSmoke(pageId: string): PageSmokeResult;
-  setStatus(element: HTMLElement | null | undefined, message: string, options?: { isError?: boolean }): void;
+  /**
+   * Write a status line onto a recipient, or do nothing without one.
+   *
+   * **`message` is `unknown` because the writer never converts it.** A falsy message clears the
+   * line through the `|| ""` fallback, and anything else reaches the node's own `textContent`
+   * setter, which is the conversion: an object takes its `toString`, and a Symbol throws there.
+   * It was declared `string` while both callers hand over whatever their own callers passed.
+   *
+   * The tone is written on every call that reaches a recipient, `"error"` or `""`.
+   */
+  setStatus(element: BrowserStatusRecipient | null | undefined, message: unknown, options?: { isError?: boolean }): void;
   sortByName<Item extends BrowserRecordFields>(items: Item[]): Item[];
 }
 

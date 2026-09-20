@@ -75,7 +75,9 @@ describe("the shared prerequisite, widened to what the helpers actually require"
     assert.match(helpers, /matchesClient\(entry\?: BrowserRecordFields \| null, client\?: BrowserRecordFields \| null\)/);
     assert.match(helpers, /matchesProject\(entry\?: BrowserRecordFields \| null, project\?: BrowserRecordFields \| null\)/);
     assert.match(helpers, /sortByName<Item extends BrowserRecordFields>/);
-    assert.match(contracts, /setStatus\(element: HTMLElement \| null \| undefined[^\n]*\n\s+sortByName<Item extends BrowserRecordFields>/,
+    // `0.33.33.39.35` corrected the neighbouring `setStatus` recipient to the capability it
+    // writes to; the claim - `sortByName` sits in this interface, widened with them - is unchanged.
+    assert.match(contracts, /setStatus\(element: BrowserStatusRecipient \| null \| undefined[^\n]*\n\s+sortByName<Item extends BrowserRecordFields>/,
       "the page controller's sortByName is widened with them");
     // Nothing else moved. Read comment-stripped, because the new doc block names the type it
     // replaces in prose and that must not count as a surviving signature.

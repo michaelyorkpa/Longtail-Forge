@@ -172,7 +172,9 @@ describe("presence is settled where the page already dereferenced, not at acquis
       "the shared controller declares this parameter nullable, so it is handed the slot unchanged");
     assert.match(body, /requireUserAdminValue\(userAdminStatus, "status region"\)\.classList\.toggle/,
       "and only the class toggle, which the page dereferenced, is required");
-    assert.ok(contracts.includes("setStatus(element: HTMLElement | null | undefined"),
+    // `0.33.33.39.35` corrected the recipient type; the claim - the parameter is nullable, so
+    // the page hands over its slot unchanged - is what this still reads.
+    assert.ok(contracts.includes("setStatus(element: BrowserStatusRecipient | null | undefined"),
       "that nullable parameter really is what the contract declares");
   });
 });
