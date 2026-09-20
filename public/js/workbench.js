@@ -7,6 +7,16 @@
   /** @typedef {Partial<{[K in keyof Pick<BrowserTaskRecord, "status" | "priority" | "due_date" | "due_time" | "client_name" | "project_name">]: unknown}> & {directTags?: unknown, direct_tags?: unknown}} TaskFocusSummaryTask */
   /** @typedef {Partial<{[K in keyof Pick<ReturnType<typeof taskFocusFromCandidate>, "status" | "priority" | "contextLabel" | "dueAt">]: unknown}>} TaskFocusSummaryFallback */
 
+  /** @typedef {import("../../src/types/framework-contracts.js").WorkCandidate} WorkCandidate */
+  /** @typedef {{type?: string, moduleActionId?: string, params?: unknown, fallbackUrl?: string}} TaskFocusRelatedAction */
+  /**
+   * Public fields produced by workbench-task-focus-related-context.service's stripInternalItemFields.
+   * Payload and decorator members stay opaque; this is a consumer precondition, not a wire validator.
+   * @typedef {{action?: TaskFocusRelatedAction, moduleId?: string, recordType?: string, recordId?: unknown, reason?: string, title?: string, sourceLabel?: string, contextLabel?: string, reasonLabel?: string, badges?: unknown[]}} TaskFocusRelatedItem
+   */
+  /** @typedef {{id?: string, label?: string, reason?: string, count?: number | string, items?: TaskFocusRelatedItem[]}} TaskFocusRelatedGroup */
+  /** @typedef {{groups?: TaskFocusRelatedGroup[], items?: TaskFocusRelatedItem[], meta?: {selectedTaskId?: string}, task?: unknown}} TaskFocusRelatedEnvelope */
+
   const WORKBENCH_CARD_STATE_KEY = "lf_workbench_cards_v1";
   const WORKBENCH_CLIENT_FOCUS_KEY = "lf_workbench_client_focus_v1";
   const WORKBENCH_FOCUS_MODE_KEY = "lf_workbench_focus_mode_v1";
@@ -1641,9 +1651,10 @@
     return Array.isArray(context.groups) ? context.groups : [];
   }
 
+  /** @param {TaskFocusRelatedGroup} [group] */
   function createTaskFocusRelatedContextGroup(group = {}) {
     const workbenchViewHelpers = requireView();
-    const count = Number.parseInt(group.count, 10) || (group.items || []).length;
+    const count = Number.parseInt(`${group.count}`, 10) || (group.items || []).length;
     const header = workbenchViewHelpers.createElement("div", {
       className: "workbench-inspector-group-heading",
       children: [
@@ -1670,6 +1681,7 @@
     });
   }
 
+  /** @param {TaskFocusRelatedItem} [item] */
   function createTaskFocusRelatedContextItem(item = {}) {
     const workbenchViewHelpers = requireView();
     const title = relatedContextTitle(item);
@@ -2865,6 +2877,7 @@
     }
   }
 
+  /** @param {TaskFocusRelatedEnvelope} [result] @param {string} [taskId] */
   function normalizeTaskFocusRelatedContext(result = {}, taskId = "") {
     const groups = (Array.isArray(result.groups) ? result.groups : [])
       .map((group) => ({
@@ -3316,6 +3329,7 @@
     return "";
   }
 
+  /** @param {Partial<WorkCandidate>} [candidate] */
   function candidateModuleAction(candidate = {}) {
     const primaryAction = candidate.primaryAction || {};
     if (primaryAction.type === "module-action" && primaryAction.id && candidate.moduleId && candidate.recordId) {
