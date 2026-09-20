@@ -102,7 +102,7 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "taskFocusTagBadges"),
-  /task\.directTags[\s\S]*task\.direct_tags[\s\S]*tag\.name \|\| tag\.slug[\s\S]*badge\(label, "tag"\)/,
+  /task\.directTags[\s\S]*task\.direct_tags[\s\S]*Reflect\.get\(Object\(tag\), "name", tag\) \|\| Reflect\.get\(Object\(tag\), "slug", tag\)[\s\S]*badge\(label, "tag"\)/,
   "Task Focus summary tag badges should come from safe direct-tag labels, not IDs",
 );
 assert.match(
