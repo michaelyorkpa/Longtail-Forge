@@ -16,11 +16,11 @@ assert.match(tasks, /titleBand\.className = "task-density-title"/, "Dense task r
 assert.match(tasks, /metaBand\.className = "task-density-meta"/, "Dense task rows should have a metadata band");
 assert.match(tasks, /actionsBand\.className = "task-density-actions"/, "Dense task rows should have an actions band");
 assert.doesNotMatch(tasks, /actionsRow|task-actions-row/, "Task list should no longer render a separate action row");
-assert.match(tasks, /appendTagChips\(titleBand, task\.tags\)/, "Task tags should render in the title band");
+assert.match(tasks, /appendTagChips\(titleBand, taskRowField\(task, "tags"\)\)/, "Task tags should render in the title band");
 assert.match(tasks, /appendTaskMetadata\(metaBand, task\)/, "Task metadata should render in the compact metadata band");
 assert.match(tasks, /appendTaskContext\(metaBand, task\)/, "Resume context should render in the compact metadata band");
-assert.match(tasks, /checklistProgressText\(task\.checklistProgress\)/, "Checklist progress should be available as compact task context");
-assert.match(tasks, /blockingSummaryText\(task\.relationshipSummary\)/, "Blocking child context should be available as compact task context");
+assert.match(tasks, /checklistProgressText\(taskRowField\(task, "checklistProgress"\)\)/, "Checklist progress should be available as compact task context");
+assert.match(tasks, /blockingSummaryText\(taskRowField\(task, "relationshipSummary"\)\)/, "Blocking child context should be available as compact task context");
 assert.match(tasks, /icon:\s*"bell"/, "Follow Notifications should use a bell icon");
 assert.match(icons, /bell:\s*Object\.freeze/, "Shared icons should include a bell icon");
 assert.match(styles, /\.task-density-title\s*\{[\s\S]*display:\s*grid/, "Dense title band should be stable and compact");

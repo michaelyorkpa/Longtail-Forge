@@ -28,7 +28,7 @@ function fixture(overrides = {}) {
     reloadTaskList: async () => calls.push(["reload"]),
     ...overrides,
   });
-  for (const name of ["taskActionField", "optionalTaskActionId", "saveTaskTimerAction", "taskWorkflowActionVisible", "taskWorkflowDisabledReason", "taskTimerDisabledReason", "taskTimerSurfaceAvailable"])
+  for (const name of ["taskRowField", "optionalTaskLifecycleId", "taskActionField", "optionalTaskActionId", "saveTaskTimerAction", "taskWorkflowActionVisible", "taskWorkflowDisabledReason", "taskTimerDisabledReason", "taskTimerSurfaceAvailable"])
     vm.runInContext(extractFunctionBlock(source, name), s);
   return { s, calls };
 }

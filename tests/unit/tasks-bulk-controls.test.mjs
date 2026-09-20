@@ -24,7 +24,7 @@ function fixture(overrides = {}) {
     updateBulkControls: () => calls.push(["controls"]),
     ...overrides,
   });
-  for (const name of ["requireBulkElement", "requireBulkDetails", "requireBulkButton", "requireBulkInput", "requireBulkSelect", "optionalBulkInput", "optionalBulkSelect", "bulkTaskTagId", "selectedBulkActions", "pushLifecycleBulkAction", "bulkLifecycleTaskIds", "selectedTasksForBulk", "selectedBulkAssigneeIds", "selectedBulkTagIds", "hasMixedValues", "hasMixedTagValues", "mixedBulkActionWarnings", "confirmMixedBulkActions", "confirmBulkArchive", "captureBulkBlockedReason", "syncSelectionToTasks", "toggleVisibleSelection", "updateSelectionControls", "syncBulkDueControlStates", "applyBulkAction"])
+  for (const name of ["taskRowField", "callTaskRowMethod", "requireBulkElement", "requireBulkDetails", "requireBulkButton", "requireBulkInput", "requireBulkSelect", "optionalBulkInput", "optionalBulkSelect", "bulkTaskTagId", "selectedBulkActions", "pushLifecycleBulkAction", "bulkLifecycleTaskIds", "selectedTasksForBulk", "selectedBulkAssigneeIds", "selectedBulkTagIds", "hasMixedValues", "hasMixedTagValues", "mixedBulkActionWarnings", "confirmMixedBulkActions", "confirmBulkArchive", "captureBulkBlockedReason", "syncSelectionToTasks", "toggleVisibleSelection", "updateSelectionControls", "syncBulkDueControlStates", "applyBulkAction"])
     vm.runInContext(extractFunctionBlock(source, name), s);
   return { s, calls, document };
 }

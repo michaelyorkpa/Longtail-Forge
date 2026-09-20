@@ -399,6 +399,7 @@
         "tests/e2e/tasks-dashboard-consumer.spec.mjs",
         "tests/e2e/tasks-filter-controls.spec.mjs",
         "tests/e2e/tasks-lifecycle-dialog.spec.mjs",
+        "tests/e2e/tasks-owned-tail.spec.mjs",
         "tests/e2e/tasks-row-rendering.spec.mjs",
         "tests/e2e/tasks-workflow-dispatch.spec.mjs",
         "tests/e2e/user-settings-appearance.spec.mjs",
@@ -658,6 +659,7 @@
         "tests/unit/tasks-dialog-surface-contracts.test.mjs",
         "tests/unit/tasks-filter-controls.test.mjs",
         "tests/unit/tasks-lifecycle-dialog.test.mjs",
+        "tests/unit/tasks-owned-tail.test.mjs",
         "tests/unit/tasks-row-rendering.test.mjs",
         "tests/unit/tasks-workflow-dispatch.test.mjs",
         "tests/unit/test-support-harnesses.test.mjs",
@@ -809,7 +811,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1937,
+      "errorCount": 1917,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1177,10 +1179,6 @@
           {
             "code": 2339,
             "count": 22
-          },
-          {
-            "code": 7006,
-            "count": 20
           }
         ],
         "public/js/workbench.js": [
@@ -1850,8 +1848,8 @@
     }
   },
   "totals": {
-    "files": 1391,
-    "errors": 1937,
+    "files": 1393,
+    "errors": 1917,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
