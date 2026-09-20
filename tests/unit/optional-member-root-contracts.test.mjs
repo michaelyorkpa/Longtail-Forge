@@ -66,7 +66,8 @@ const FORMS = {
     [".map((continuity) => requireNamespace().tasksDialog?.recurrenceContinuityMessage?.(continuity))", 2, 1],
     ["requireNamespace().tasksDialog?.pollRecurrenceContinuity?.(taskId, {", 2, 1],
     ["requireNamespace().tasksDialog?.configure?.({", 2, 1],
-    ["return requireNamespace().timezones?.formatDateTime?.(task.due_at_utc, task.due_timezone) ||", 2, 1],
+    // .41.26 retains the root capture here; the two optional links are executed below.
+    ["const timezones = requireNamespace().timezones;", 0, 1],
   ],
   "time-entries": [
     ["const timeEntryDialog = requireNamespace().timeEntryDialog;", 0, 1],
@@ -428,4 +429,28 @@ describe("what the shipped functions do when the member is absent", () => {
       { SUPPORT_VIEW_RESTORE_FOCUS_KEY: "k" })());
     assert.deepEqual(readKeys, ["k"]);
   });
+});
+
+
+it("Tasks formatter retains a required root and both optional-member boundaries", () => {
+  const taskRowField = new Function("return (" + slice(sources.tasks, "function taskRowField(value, key) {") + ");")();
+  const run = lift("tasks", "function formatDue(task) {", ["taskRowField"]);
+  /** @param {unknown} root */
+  const format = (root) => run({ LongtailForge: root }, undefined, { taskRowField });
+  /** @type {string[]} */ const reads = [];
+  const date = {}, zone = {}, result = {};
+  const task = { due_date: "date", due_time: "time", get due_at_utc() { reads.push("date"); return date; }, get due_timezone() { reads.push("zone"); return zone; } };
+  assert.throws(() => format(undefined)(task), /Tasks requires the LongtailForge namespace/);
+  assert.deepEqual(reads, [], "required root fails before arguments");
+  for (const timezones of [undefined, null, {}, { formatDateTime: undefined }, { formatDateTime: null }]) {
+    assert.equal(format({ timezones })(task), "date time");
+    assert.deepEqual(reads, [], "absent surface or method does not read arguments");
+  }
+  const surface = { formatDateTime(/** @type {unknown} */ d, /** @type {unknown} */ z) { assert.equal(this, surface); assert.equal(d, date); assert.equal(z, zone); return result; } };
+  assert.equal(format({ timezones: surface })(task), result);
+  assert.deepEqual(reads, ["date", "zone"]);
+  reads.length = 0;
+  assert.throws(() => format({ timezones: { formatDateTime: 7 } })(task), { name: "TypeError" });
+  assert.deepEqual(reads, ["date", "zone"], "non-callable method fails after argument reads");
+  assert.equal(format(undefined)({}), "None", "early formatter fallback does not acquire the root");
 });
