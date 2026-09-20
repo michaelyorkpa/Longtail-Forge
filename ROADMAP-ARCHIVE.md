@@ -1,5 +1,17 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.38 - Take the task calendar to zero
+
+**Model: Low Effort** - a renderer whose every input was already declared by the contract it publishes, so the work was naming them and one grouping rewrite.
+
+- [x] **`public/js/shared/task-calendar.js` reaches zero, 29 to 0, and leaves the ledger.** Browser **1,966 to 1,937**, now across **29** diagnostic files; params **1,183 to 1,154**, assorted **48 to 47**; state 374 and `dom` 362 unchanged; `0.33.33.39` **159 to 130**. Exactly one file moved - TS7006 28 and TS2339 1, both to zero - and nothing rose.
+- [x] **The renderers take the types this file's own contract publishes.** The grid, the day view, the entry, the reminder indicator and the reminder row take `BrowserTaskCalendarRow`, `BrowserTaskCalendarReminderMarker`, `BrowserTaskCalendarRange`, `BrowserTaskCalendarViewId` and `BrowserTaskCalendarOpenTask`; the two day-keyed maps are named once and reused. The entry's `showMeta` option is named where the day view passes it. Nothing about the published surface changed - it is the same nine frozen members, unchanged.
+- [x] **One rewrite, and it answers what it answered.** `groupByKey` is generic in its row, and a day's first row starts its list where the `has`/`set` pair did before the push. The recurrence discriminant is untouched: `isVirtual` still decides the occurrence the click hands back, and the compiler narrows the row through it, so the projected-occurrence contract keeps its exact spelling.
+- [x] **Proof where the gap actually was.** The suites already execute this module and killed a dropped first row; they did not cover a day with more than one task, which is exactly what the rewrite touches. One focused case now renders three tasks on one day and a fourth on another, in order. **Three focused mutations, two kills and one dispositioned**: grouping rows under an empty day key is unobservable, because a row with no key is never rendered either way, and that check is unchanged. Every case, including the new one, passes against the original file. Byte restoration verified at SHA-256 `df7ebe570897e0437b26ada742b04b2c4f277e4e129792d2e1c8cc9fb851e287`.
+- [x] **Full verification on the delivered tree.** Unit **4,445 across 236 files**, regressions **348/348**, E2E **339/339** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+Excluded and explicitly remaining: `0.33.33.39`'s shared framework budget, **130** across 13 files, led by `notes-editor.js` at 24. No published contract changed. **This does not close `0.33.33.39`, `0.33.33.38`, or the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.39.37 - Reconcile the status recipient with what the writer does
 
 **Model: Medium Effort** - a correction to a correction, where the demonstrated behaviour of two namespaces decided the declaration rather than the other way round.

@@ -268,6 +268,12 @@
     return response.json();
   }
 
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserTaskCalendarOpenTask} BrowserTaskCalendarOpenTask */
+
+  /** The day-keyed groups the renderer builds once and reads per day. */
+  /** @typedef {Map<string, BrowserTaskCalendarRow[]>} TasksByDate */
+  /** @typedef {Map<string, BrowserTaskCalendarReminderMarker[]>} RemindersByDate */
+
   /**
    * @param {Element | null} target
    * @param {BrowserTaskCalendarRenderOptions} options
@@ -320,6 +326,13 @@
     });
   }
 
+  /**
+   * @param {BrowserTaskCalendarViewId} viewId
+   * @param {BrowserTaskCalendarRange} range
+   * @param {TasksByDate} tasksByDate
+   * @param {RemindersByDate} remindersByDate
+   * @param {BrowserTaskCalendarOpenTask} onOpenTask
+   */
   function createDayGrid(viewId, range, tasksByDate, remindersByDate, onOpenTask) {
     const view = requireView();
     const todayKey = dateKeyOf(new Date());
@@ -368,6 +381,8 @@
       }
 
       const visibleTasks = isMonthGrid ? dayTasks.slice(0, MONTH_TASK_LIMIT) : dayTasks;
+      // The month grid appends its own "View all tasks" link after the entries.
+      /** @type {HTMLElement[]} */
       const entryChildren = visibleTasks.map((task) => createTaskEntry(task, onOpenTask));
 
       if (isMonthGrid && dayTasks.length > MONTH_TASK_LIMIT) {
@@ -400,6 +415,12 @@
     return grid;
   }
 
+  /**
+   * @param {string} dayKey
+   * @param {TasksByDate} tasksByDate
+   * @param {RemindersByDate} remindersByDate
+   * @param {BrowserTaskCalendarOpenTask} onOpenTask
+   */
   function createDayView(dayKey, tasksByDate, remindersByDate, onOpenTask) {
     const view = requireView();
     const dayTasks = tasksByDate.get(dayKey) || [];
@@ -436,6 +457,11 @@
     });
   }
 
+  /**
+   * @param {BrowserTaskCalendarRow} task
+   * @param {BrowserTaskCalendarOpenTask} onOpenTask
+   * @param {{ showMeta?: boolean }} [options]
+   */
   function createTaskEntry(task, onOpenTask, options = {}) {
     const view = requireView();
     const isVirtual = task.virtual === true;
@@ -487,6 +513,7 @@
     return entry;
   }
 
+  /** @param {readonly BrowserTaskCalendarReminderMarker[]} reminders */
   function createReminderIndicator(reminders) {
     const view = requireView();
     const summary = reminders
@@ -514,6 +541,7 @@
     return indicator;
   }
 
+  /** @param {BrowserTaskCalendarReminderMarker} marker @param {BrowserTaskCalendarOpenTask} onOpenTask */
   function createReminderRow(marker, onOpenTask) {
     const view = requireView();
     const row = view.createElement("button", {
@@ -537,7 +565,15 @@
     return row;
   }
 
+  /**
+   * The rows of one window, grouped by the day key each carries.
+   * @template Row
+   * @param {readonly Row[]} rows
+   * @param {(row: Row) => string} readKey
+   * @returns {Map<string, Row[]>}
+   */
   function groupByKey(rows, readKey) {
+    /** @type {Map<string, Row[]>} */
     const grouped = new Map();
 
     for (const row of rows) {
@@ -547,11 +583,13 @@
         continue;
       }
 
-      if (!grouped.has(key)) {
-        grouped.set(key, []);
+      // The first row for a day starts its list, as the `has`/`set` pair did before the push.
+      const group = grouped.get(key);
+      if (group) {
+        group.push(row);
+      } else {
+        grouped.set(key, [row]);
       }
-
-      grouped.get(key).push(row);
     }
 
     return grouped;
@@ -575,6 +613,7 @@
     return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
   }
 
+  /** @param {Date} startDate @param {number} count @returns {string[]} */
   function listDayKeys(startDate, count) {
     const days = [];
 
@@ -585,10 +624,12 @@
     return days;
   }
 
+  /** @param {Date} date @returns {string} */
   function formatFullDate(date) {
     return date.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
   }
 
+  /** @param {string} dueTime @returns {string} */
   function formatDueTime(dueTime) {
     const [hours, minutes] = String(dueTime).split(":").map(Number);
     const probe = new Date();
@@ -596,6 +637,7 @@
     return probe.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   }
 
+  /** @param {string} reminderAtUtc @returns {string} */
   function formatReminderTime(reminderAtUtc) {
     const date = new Date(reminderAtUtc);
     return Number.isFinite(date.getTime())
@@ -603,6 +645,7 @@
       : "";
   }
 
+  /** @param {unknown} value @returns {string} */
   function formatToken(value) {
     const text = String(value || "").replaceAll("_", " ").trim();
     return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";

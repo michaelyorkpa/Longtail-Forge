@@ -351,6 +351,29 @@ describe("renderCalendarBody", () => {
     assert.equal(collect(target, (node) => node.dataset?.calendarEntry === "task-1").length, 1);
   });
 
+  it("keeps every task that shares a day, in the order the window sent them", () => {
+    // `0.33.33.39.38` rebuilt the day grouping: the first row of a day starts its list where the
+    // `has`/`set` pair did, and the rest are appended to it.
+    const { calendarRange, renderCalendarBody } = loadTaskCalendar();
+    const target = fakeElement();
+    const range = calendarRange("day", new Date(2026, 8, 10));
+    const data = emptyWindow({
+      tasks: [
+        persistedRow({ id: "task-1", task_id: "task-1", title: "First" }),
+        persistedRow({ id: "task-2", task_id: "task-2", title: "Second" }),
+        persistedRow({ id: "task-3", task_id: "task-3", title: "Third" }),
+        persistedRow({ id: "task-4", task_id: "task-4", due_date: "2026-09-11", title: "Another day" }),
+      ],
+    });
+
+    assert.equal(renderCalendarBody(target, { data, range, viewId: "day" }), true);
+    assert.deepEqual(
+      collect(target, (node) => Boolean(node.dataset?.calendarEntry)).map((node) => node.dataset.calendarEntry),
+      ["task-1", "task-2", "task-3"],
+      "all three of that day's tasks are drawn, in order, and the other day's is not",
+    );
+  });
+
   it("opens a persisted task with its id, the trigger, and no occurrence", () => {
     const { calendarRange, renderCalendarBody } = loadTaskCalendar();
     const target = fakeElement();
