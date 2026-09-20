@@ -16,7 +16,7 @@ function fixture(extra = {}) {
     clientFilter: { value: "all" }, projectFilter: { value: "all" }, tagFilter: null, tagFilterController: null,
     usesClientScope: () => true, window: { LongtailForge: {} }, ...extra,
   });
-  for (const name of ["requireBulkSelect", "setSelectValue", "replaceOptions", "canonicalStatusValue", "canonicalTaskViewValue", "canonicalSortValue", "normalizeTagFilterValue", "selectedTaskTagFilterValue", "noTagsFilterValue", "selectedTaskView", "buildTaskQuery", "projectMatchesClient", "projectOptionsForClient", "descendantClientScopeIdsForFilter", "taskFilterLabelField", "optionLabel", "taskOptions", "taskSelect", "taskCheckboxLine", "populateTagFilter", "defaultStatusForTaskView", "isStatusFilterCompatibleWithTaskView", "preserveCompatibleAdvancedFiltersForTaskView", "resetAdvancedFilterControlsForTaskView", "setStatusFilterValue", "saveFilterState"])
+  for (const name of ["taskControlValue", "taskOptionalControlField", "taskRowKey", "requireBulkSelect", "setSelectValue", "replaceOptions", "canonicalStatusValue", "canonicalTaskViewValue", "canonicalSortValue", "normalizeTagFilterValue", "selectedTaskTagFilterValue", "noTagsFilterValue", "selectedTaskView", "buildTaskQuery", "projectMatchesClient", "projectOptionsForClient", "descendantClientScopeIdsForFilter", "taskFilterLabelField", "optionLabel", "taskOptions", "taskSelect", "taskCheckboxLine", "populateTagFilter", "defaultStatusForTaskView", "isStatusFilterCompatibleWithTaskView", "preserveCompatibleAdvancedFiltersForTaskView", "resetAdvancedFilterControlsForTaskView", "setStatusFilterValue", "saveFilterState"])
     vm.runInContext(extractFunctionBlock(source, name), s);
   return { s, document };
 }
