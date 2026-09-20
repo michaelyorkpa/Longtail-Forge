@@ -502,6 +502,7 @@
         "tests/unit/audit-log-filter-query-contracts.test.mjs",
         "tests/unit/audit-log-rendering-contracts.test.mjs",
         "tests/unit/bounded-pagination.test.mjs",
+        "tests/unit/browser-recovery-boundary-reads.test.mjs",
         "tests/unit/bulk-action-response-contract.test.mjs",
         "tests/unit/calendar-adapter-contracts.test.mjs",
         "tests/unit/calendar-settings-scope-contracts.test.mjs",
@@ -814,7 +815,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1867,
+      "errorCount": 1846,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1019,24 +1020,6 @@
           },
           {
             "code": 7006,
-            "count": 1
-          }
-        ],
-        "public/js/shared/browser-recovery.js": [
-          {
-            "code": 2339,
-            "count": 8
-          },
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 11
-          },
-          {
-            "code": 7034,
             "count": 1
           }
         ],
@@ -1827,8 +1810,8 @@
     }
   },
   "totals": {
-    "files": 1396,
-    "errors": 1867,
+    "files": 1397,
+    "errors": 1846,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

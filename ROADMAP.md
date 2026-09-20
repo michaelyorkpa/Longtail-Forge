@@ -1387,6 +1387,12 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Two behaviours changed, both stated.** `createPlainTextarea` refuses an element that is not a textarea, because the controller it publishes carries one; and a caret that is not a number is converted rather than carried into the arithmetic that positions the next one.
 
+#### 0.33.33.39.40 - Take the recovery boundary to zero
+
+**Complete: `public/js/shared/browser-recovery.js` reaches zero, 19 owned and 2 `dom` to 0, and leaves the ledger.** The published `BrowserRecovery` is unchanged.
+
+**One behaviour changed, and it is a message rather than an outcome.** An absent `options` bag still fails with a `TypeError` at the same read; it now names the member it could not read.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.
