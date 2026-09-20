@@ -173,10 +173,18 @@
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewActionButtonOptions} TaskActionButtonOptions */
   /** @typedef {ReturnType<typeof taskWorkflowActionMenuDescriptor>["actions"][number] & Pick<TaskActionButtonOptions, "title" | "variant">} TaskWorkflowAction */
   /** @typedef {ReturnType<typeof taskLifecycleActionStripDescriptor>["actions"][number] & Pick<TaskActionButtonOptions, "title">} TaskLifecycleAction */
-  /** @typedef {Partial<TaskWorkflowAction> & Partial<TaskLifecycleAction>} TaskBehaviorAction */
+  /**
+   * Members consumed by the local dispatchers; each comes from its descriptor writer.
+   * @typedef {{
+   *   statusPayload?: TaskLifecycleAction["statusPayload"],
+   *   timerStatus?: TaskWorkflowAction["timerStatus"],
+   *   focusTarget?: TaskWorkflowAction["focusTarget"],
+   *   promptBlockedReason?: boolean,
+   * }} TaskBehaviorAction
+   */
   /** @satisfies {Readonly<Record<string, (context: TaskBehaviorContext) => unknown>>} */
   const TASK_LIFECYCLE_BEHAVIOR_HANDLERS = Object.freeze({
-    "tasks.lifecycle.complete": ({ record, trigger }) => postTaskAction(record, "complete", trigger),
+    "tasks.lifecycle.complete": ({ record }) => postTaskAction(record, "complete"),
     "tasks.lifecycle.reopen": ({ record }) => postTaskAction(record, "reopen"),
     "tasks.lifecycle.block": ({ action, record, trigger }) => openTaskDialogForBlock(record, action, trigger),
     "tasks.lifecycle.resume": ({ action, record }) => updateTaskLifecycleStatus(record, action.statusPayload || { status: "in_progress", blocked_reason: "" }),
@@ -273,6 +281,7 @@
       taskTimersEnabled: true,
       timeTrackingEnabled: true,
     },
+    /** @type {unknown} */
     editingTaskId: "",
     currentUserId: "",
     quickFilter: DEFAULT_TASK_VIEW,
@@ -1586,6 +1595,7 @@
     return nested;
   }
 
+  /** @param {BrowserTaskListItem} task */
   function createActions(task) {
     const wrap = document.createElement("div");
     const editButton = actionButton("Edit", () => openTaskDialog(task));
@@ -1601,6 +1611,7 @@
     return wrap;
   }
 
+  /** @param {BrowserTaskRecord} task */
   function createTaskWorkflowActionMenu(task) {
     const view = requireView();
     const actions = taskWorkflowActionsForTask(task).map((action) => taskWorkflowActionButton(action, task));
@@ -1626,6 +1637,7 @@
     return fallback;
   }
 
+  /** @param {BrowserTaskRecord} task */
   function taskWorkflowActionsForTask(task) {
     const actions = taskWorkflowActionMenuDescriptor().actions || [];
     return actions.filter((action) => taskWorkflowActionVisible(action, task));
@@ -1803,6 +1815,7 @@
     return "";
   }
 
+  /** @param {BrowserTaskRecord} task */
   function createTaskLifecycleActionStrip(task) {
     const view = requireView();
     const actions = taskLifecycleActionsForTask(task).map((action) => taskLifecycleActionButton(action, task));
@@ -1821,6 +1834,7 @@
     return fallback;
   }
 
+  /** @param {BrowserTaskRecord} task */
   function taskLifecycleActionsForTask(task) {
     const actions = taskLifecycleActionStripDescriptor().actions || [];
     return actions.filter((action) => taskLifecycleActionVisible(action, task));
@@ -1881,7 +1895,7 @@
             title: "Archive task",
             confirmLabel: "Archive",
             danger: true,
-            message: (taskRecord) => `Archive "${taskRecord.title}"?`,
+            message: (/** @type {BrowserTaskRecord} */ taskRecord) => `Archive "${taskRecord.title}"?`,
           },
         },
         {
@@ -1897,6 +1911,7 @@
     };
   }
 
+  /** @param {TaskLifecycleAction} action @param {BrowserTaskRecord} task */
   function taskLifecycleActionVisible(action, task) {
     const visibleStatuses = action.visibleStatuses || [];
     if (visibleStatuses.length === 0) {
@@ -1935,6 +1950,7 @@
     return button;
   }
 
+  /** @param {unknown} action @param {BrowserTaskRecord | null | undefined} task */
   function taskLifecycleDisabledReason(action, task) {
     if (!task?.task_id) {
       return "Task action is unavailable.";
@@ -1942,7 +1958,7 @@
     return "";
   }
 
-  /** @param {unknown} [trigger] */
+  /** @param {TaskLifecycleAction} action @param {BrowserTaskRecord} task @param {unknown} [trigger] */
   async function runTaskLifecycleAction(action, task, trigger = null) {
     const api = requireApi();
     const handler = taskLifecycleBehaviorHandler(action.behavior);
@@ -1967,7 +1983,7 @@
     await handler(context);
   }
 
-  /** @param {unknown} [trigger] */
+  /** @param {TaskWorkflowAction} action @param {BrowserTaskRecord} task @param {unknown} [trigger] */
   async function runTaskWorkflowAction(action, task, trigger = null) {
     const api = requireApi();
     const handler = taskWorkflowBehaviorHandler(action.behavior);
@@ -1989,9 +2005,9 @@
     await handler(context);
   }
 
-  /** @param {unknown} [trigger] */
+  /** @param {unknown} task @param {TaskBehaviorAction} action @param {{status?: string}} [defaults] @param {unknown} [trigger] */
   function openTaskDialogForWorkflow(task, action, trigger = null, defaults = {}) {
-    if (!task?.task_id) {
+    if (!optionalTaskLifecycleId(task)) {
       setStatus("Task action is unavailable.", { isError: true });
       return null;
     }
@@ -2004,7 +2020,7 @@
     });
   }
 
-  /** @param {unknown} [trigger] */
+  /** @param {unknown} task @param {TaskBehaviorAction} [action] @param {unknown} [trigger] */
   function openTaskDialogForBlock(task, action = {}, trigger = null) {
     return openTaskDialogForWorkflow(task, {
       ...action,
@@ -2015,9 +2031,14 @@
     });
   }
 
+  /** @param {unknown} task @returns {unknown} */
+  function optionalTaskLifecycleId(task) {
+    return task === null || task === undefined ? undefined : taskActionField(task, "task_id");
+  }
+
   /**
    * Preserve the original receiver, including a primitive receiver on an inherited getter.
-   * @param {unknown} value @param {"task_id" | "message"} key @returns {unknown}
+   * @param {unknown} value @param {"task_id" | "message" | "task" | "recurrenceContinuity"} key @returns {unknown}
    */
   function taskActionField(value, key) {
     if (value === null || value === undefined) throw new TypeError("Task action fields are unavailable.");
@@ -2467,8 +2488,10 @@
     }
   }
 
+  /** @param {TaskLifecycleAction} action @param {BrowserTaskRecord} task */
   async function confirmTaskLifecycleAction(action, task) {
     const modal = requireModalDialogs();
+    /** @type {Partial<NonNullable<TaskLifecycleAction["confirm"]>>} */
     const confirmOptions = typeof action.confirm === "object" ? action.confirm : {};
     const message = typeof confirmOptions.message === "function"
       ? confirmOptions.message(task)
@@ -2487,19 +2510,20 @@
     return true;
   }
 
+  /** @param {unknown} task @param {string} action */
   async function postTaskAction(task, action) {
     const api = requireApi();
     setStatus(`${formatToken(action)} task...`);
 
     try {
-      const result = await api.postJson(`/api/tasks/${encodeURIComponent(task.task_id)}/${action}`, {});
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(`${taskActionField(task, "task_id")}`)}/${action}`, {});
       const actionTask = requireTaskRecords().readTaskDetail(result);
       const actionContinuity = requireTaskRecords().readRecurrenceContinuity(result);
       upsertTask(actionTask);
       await reloadTaskList();
       if (action === "complete" && actionContinuity) {
         renderTaskRecurrenceContinuity(actionContinuity);
-        trackTaskRecurrenceContinuity(actionTask?.task_id || task.task_id, actionContinuity);
+        trackTaskRecurrenceContinuity(actionTask?.task_id || taskActionField(task, "task_id"), actionContinuity);
       } else if (action === "complete") {
         setStatus("Task completed.");
       } else {
@@ -2510,19 +2534,20 @@
     }
   }
 
+  /** @param {unknown} task @param {NonNullable<TaskLifecycleAction["statusPayload"]>} payload */
   async function updateTaskLifecycleStatus(task, payload) {
     const api = requireApi();
     setStatus(`${formatToken(payload.status)} task...`);
 
     try {
-      const result = await api.putJson(`/api/tasks/${encodeURIComponent(task.task_id)}`, payload);
+      const result = await api.putJson(`/api/tasks/${encodeURIComponent(`${taskActionField(task, "task_id")}`)}`, payload);
       const lifecycleTask = requireTaskRecords().readTaskDetail(result);
       const lifecycleContinuity = requireTaskRecords().readRecurrenceContinuity(result);
       upsertTask(lifecycleTask);
       await reloadTaskList();
       if (lifecycleContinuity) {
         renderTaskRecurrenceContinuity(lifecycleContinuity);
-        trackTaskRecurrenceContinuity(lifecycleTask?.task_id || task.task_id, lifecycleContinuity);
+        trackTaskRecurrenceContinuity(lifecycleTask?.task_id || taskActionField(task, "task_id"), lifecycleContinuity);
       } else {
         setStatus("");
       }
@@ -2584,6 +2609,7 @@
     });
   }
 
+  /** @param {BrowserTaskListItem} task */
   function duplicateTask(task) {
     openTaskDialog(task, { duplicate: true });
   }
@@ -2606,9 +2632,13 @@
     return tasksDialog;
   }
 
-  /** @param {BrowserTaskListItem | null} [task] */
+  /**
+   * Local opener values, built by row, Notes-count and workflow callers; the host channel stays opaque.
+   * @typedef {{defaults?: {status?: string}, duplicate?: boolean, focusNotes?: boolean, focusTarget?: string, promptBlockedReason?: boolean, returnFocusTo?: unknown, hostContext?: unknown}} TaskDialogOpenOptions
+   */
+  /** @param {unknown} [task] @param {TaskDialogOpenOptions} [options] */
   function openTaskDialog(task = null, options = {}) {
-    state.editingTaskId = options.duplicate === true ? "" : task?.task_id || "";
+    state.editingTaskId = options.duplicate === true ? "" : optionalTaskLifecycleId(task) || "";
     configureTaskDialog();
     return requireTasksDialog().openTaskEditor({
       defaults: options.defaults || {},
@@ -2622,7 +2652,7 @@
     }, options.hostContext || null);
   }
 
-  /** @param {unknown} [returnFocusTo] */
+  /** @param {unknown} taskId @param {unknown} [returnFocusTo] */
   function openTaskDialogById(taskId, returnFocusTo = null) {
     if (!taskId) {
       return null;
@@ -2639,15 +2669,16 @@
   function configureTaskDialog() {
     requireNamespace().tasksDialog?.configure?.({
       currentUserId: currentUserId(),
+      /** @param {unknown} result */
       onSaved: async (result) => {
-        if (result.task) {
-          upsertTask(result.task);
+        if (taskActionField(result, "task")) {
+          upsertTask(taskActionField(result, "task"));
         }
         await reloadTaskList();
-        if (result.recurrenceContinuity) {
+        if (taskActionField(result, "recurrenceContinuity")) {
           globalThis.setTimeout(() => {
-            renderTaskRecurrenceContinuity(result.recurrenceContinuity);
-            trackTaskRecurrenceContinuity(result.task?.task_id || "", result.recurrenceContinuity);
+            renderTaskRecurrenceContinuity(taskActionField(result, "recurrenceContinuity"));
+            trackTaskRecurrenceContinuity(optionalTaskLifecycleId(taskActionField(result, "task")) || "", taskActionField(result, "recurrenceContinuity"));
           }, 0);
         }
       },
