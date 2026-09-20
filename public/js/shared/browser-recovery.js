@@ -1,6 +1,7 @@
 (function initializeBrowserRecovery(global) {
   const namespace = global.LongtailForge || {};
   const STYLE_MARKER = "framework-recovery-style";
+  /** @type {{ dialog: HTMLDialogElement, promise: Promise<void> } | null} */
   let activePermissionDialog = null;
   let activeSurface = false;
 
@@ -8,8 +9,15 @@
   global.addEventListener("error", handleWindowError, true);
   global.addEventListener("unhandledrejection", handleUnhandledRejection);
 
+  /**
+   * @param {unknown} [error] whatever reached the boundary
+   * @param {unknown} [options]
+   */
   function present(error, options = {}) {
-    const status = Number.parseInt(options.status || error?.status, 10) || 0;
+    const status = Number.parseInt(
+      `${requiredMember(options, "status") || optionalMember(error, "status")}`,
+      10,
+    ) || 0;
 
     if (status === 403) {
       return showPermissionDenied();
@@ -18,10 +26,13 @@
     const kind = recoveryKind(status, error);
     return render({
       kind,
-      requestId: String(options.requestId || error?.requestId || "").trim(),
+      requestId: String(
+        requiredMember(options, "requestId") || optionalMember(error, "requestId") || "",
+      ).trim(),
     });
   }
 
+  /** @param {unknown} [options] */
   function render(options = {}) {
     if (activeSurface) {
       return Promise.resolve(null);
@@ -30,7 +41,7 @@
     activeSurface = true;
     return whenBodyReady().then(() => {
       ensureStyles();
-      const surface = surfaceCopy(options.kind);
+      const surface = surfaceCopy(requiredMember(options, "kind"));
       const main = document.createElement("main");
       const brand = document.createElement("p");
       const heading = document.createElement("h1");
@@ -55,12 +66,12 @@
       action.textContent = surface.actionLabel;
 
       main.append(brand, heading, message);
-      if (surface.kind === "unexpected" && options.requestId) {
+      if (surface.kind === "unexpected" && requiredMember(options, "requestId")) {
         const requestId = document.createElement("p");
         const code = document.createElement("code");
         requestId.className = "framework-recovery-request-id";
         requestId.append("Request ID: ", code);
-        code.textContent = options.requestId;
+        Reflect.set(code, "textContent", requiredMember(options, "requestId"));
         main.appendChild(requestId);
       }
       main.appendChild(action);
@@ -128,7 +139,7 @@
     const finish = () => {
       dialog.remove();
       activePermissionDialog = null;
-      if (trigger?.isConnected && typeof trigger.focus === "function") {
+      if (trigger?.isConnected && isFocusableTrigger(trigger)) {
         trigger.focus();
       }
       resolveDialog();
@@ -160,11 +171,12 @@
   }
 
   function installFetchGuard() {
-    if (typeof global.fetch !== "function" || global.fetch.__longtailRecoveryGuard) {
+    if (typeof global.fetch !== "function" || Reflect.get(global.fetch, "__longtailRecoveryGuard")) {
       return;
     }
 
     const originalFetch = global.fetch.bind(global);
+    /** @type {(input: URL | RequestInfo, init?: RequestInit) => Promise<Response>} */
     const guardedFetch = async (input, init = {}) => {
       const response = await originalFetch(input, init);
       if (
@@ -183,6 +195,7 @@
     global.fetch = guardedFetch;
   }
 
+  /** @param {ErrorEvent} event */
   function handleWindowError(event) {
     if (activeSurface || event?.target === global) {
       if (!activeSurface) {
@@ -196,19 +209,24 @@
     void render({ kind: "unexpected" });
   }
 
+  /** @param {PromiseRejectionEvent} event */
   function handleUnhandledRejection(event) {
     event.preventDefault?.();
     void present(event.reason);
   }
 
+  /** @param {number} status @param {unknown} error */
   function recoveryKind(status, error) {
     if (status === 401) return "login-required";
     if (status === 403 || status === 404) return "unavailable";
     if (status === 409) return "conflict";
-    if (status === 502 || status === 503 || error?.name === "TypeError") return "dependency-unavailable";
+    if (status === 502 || status === 503 || optionalMember(error, "name") === "TypeError") {
+      return "dependency-unavailable";
+    }
     return "unexpected";
   }
 
+  /** @param {unknown} kind */
   function surfaceCopy(kind) {
     if (kind === "login-required") {
       return {
@@ -315,25 +333,83 @@
     });
   }
 
+  /** @param {unknown} input */
   function isAppApiRequest(input) {
     try {
-      const raw = typeof input === "string" || input instanceof global.URL ? input : input?.url;
-      const url = new global.URL(raw, global.location.href);
+      // Read inline rather than through `optionalMember`: `framework.fetch-guard-composition`
+      // lifts this function by itself, so it may not acquire a free variable. Reading through
+      // `Object(input)` with `input` as the receiver is the optional access it replaces, and
+      // the URL constructor converts its argument to a string exactly as the template does.
+      const raw = typeof input === "string" || input instanceof global.URL
+        ? input
+        : Reflect.get(Object(input), "url", input);
+      const url = new global.URL(`${raw}`, global.location.href);
       return url.origin === global.location.origin && url.pathname.startsWith("/api/");
     } catch {
       return false;
     }
   }
 
+  /** @param {unknown} input @param {unknown} init */
   function requestMethod(input, init) {
     const inputMethod = typeof global.Request === "function" && input instanceof global.Request
       ? input.method
       : "GET";
-    return String(init?.method || inputMethod || "GET").toUpperCase();
+    // Lifted alongside `isAppApiRequest`, and helper-free for the same reason.
+    return String(Reflect.get(Object(init), "method", init) || inputMethod || "GET").toUpperCase();
   }
 
+  /** @param {string} method */
   function isMutationMethod(method) {
     return !["GET", "HEAD", "OPTIONS"].includes(method);
+  }
+
+  /**
+   * `value[key]`, read with `value` as its own receiver.
+   *
+   * `present` and `render` take `unknown` at the published boundary, so each member is
+   * read the way the property access read it - through a getter too, which still sees the
+   * value it was called on. An absent value fails as the access failed, named rather than
+   * anonymous.
+   *
+   * @param {unknown} value
+   * @param {string} key
+   * @returns {unknown}
+   */
+  function requiredMember(value, key) {
+    if (value === null || value === undefined) {
+      throw new TypeError(`The recovery boundary cannot read ${key} from ${value}.`);
+    }
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /**
+   * `value?.[key]`: the optional access, which answers `undefined` for an absent value.
+   *
+   * No absence check is needed to do that. `Object(null)` and `Object(undefined)` are each a
+   * fresh empty object, so the lookup finds nothing and answers `undefined` - which is what
+   * the optional access answered, and why this differs from `requiredMember` only in failing.
+   *
+   * @param {unknown} value
+   * @param {string} key
+   * @returns {unknown}
+   */
+  function optionalMember(value, key) {
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /**
+   * Whether the element that held focus can take it back.
+   *
+   * `document.activeElement` answers an `Element`, and focusing belongs to `HTMLElement`
+   * and `SVGElement` rather than to every element. This reads the member exactly as
+   * `typeof trigger.focus === "function"` read it, and claims only what that proves.
+   *
+   * @param {unknown} value
+   * @returns {value is Element & { focus: () => unknown }}
+   */
+  function isFocusableTrigger(value) {
+    return typeof Reflect.get(Object(value), "focus", value) === "function";
   }
 
   function safeCurrentPath() {
