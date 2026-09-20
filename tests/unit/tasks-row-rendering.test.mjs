@@ -11,7 +11,7 @@ const plain = (value) => JSON.parse(JSON.stringify(value));
 function fixture(extra = {}) {
   const document = new FakeDocument();
   const s = vm.createContext({ document, URLSearchParams, ...extra });
-  for (const name of ["taskRowField", "optionalTaskRowField", "mergeTasksById", "nestedTaskDisplayRows", "appendParentTaskChip", "truncateTaskName", "checklistProgressText", "blockingSummaryText", "taskActionIcon", "readAttachmentCounts", "loadAttachmentCounts", "loadNoteCounts", "appendTaskContext", "taskContextSummaryFallback", "taskContextBadge", "appendAttachmentCount", "appendNoteCount"])
+  for (const name of ["taskActionField", "optionalTaskLifecycleId", "taskRowKey", "taskRowField", "optionalTaskRowField", "mergeTasksById", "nestedTaskDisplayRows", "appendParentTaskChip", "truncateTaskName", "checklistProgressText", "blockingSummaryText", "taskActionIcon", "readAttachmentCounts", "loadAttachmentCounts", "loadNoteCounts", "appendTaskContext", "taskContextSummaryFallback", "taskContextBadge", "appendAttachmentCount", "appendNoteCount"])
     vm.runInContext(extractFunctionBlock(source, name), s);
   return { s, document };
 }

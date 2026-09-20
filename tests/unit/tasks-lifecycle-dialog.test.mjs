@@ -30,7 +30,7 @@ function fixture(overrides = {}) {
     formatToken: (/** @type {string} */ value) => value,
     ...overrides,
   });
-  for (const name of ["taskActionField", "optionalTaskLifecycleId", "configureTaskDialog", "openTaskDialog", "openTaskDialogById", "openTaskDialogForWorkflow", "openTaskDialogForBlock", "postTaskAction", "updateTaskLifecycleStatus", "runTaskLifecycleAction", "runTaskWorkflowAction", "confirmTaskLifecycleAction", "taskLifecycleActionStripDescriptor"])
+  for (const name of ["taskRowField", "taskActionField", "optionalTaskLifecycleId", "configureTaskDialog", "openTaskDialog", "openTaskDialogById", "openTaskDialogForWorkflow", "openTaskDialogForBlock", "postTaskAction", "updateTaskLifecycleStatus", "runTaskLifecycleAction", "runTaskWorkflowAction", "confirmTaskLifecycleAction", "taskLifecycleActionStripDescriptor"])
     vm.runInContext(extractFunctionBlock(source, name), s);
   return { s, calls };
 }

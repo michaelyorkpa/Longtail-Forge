@@ -259,7 +259,7 @@
 
   let activeTasksViewDescriptor = null;
   let state = {
-    /** @type {BrowserTaskListItem[]} */
+    /** @type {unknown[]} */
     tasks: [],
     /**
      * The stand-in catalog the page holds until the first load answers.
@@ -285,7 +285,7 @@
     editingTaskId: "",
     currentUserId: "",
     quickFilter: DEFAULT_TASK_VIEW,
-    /** @type {Set<string>} */
+    /** @type {Set<unknown>} */
     selectedTaskIds: new Set(),
     /** @type {Awaited<ReturnType<typeof loadAttachmentCounts>>} */
     attachmentCounts: {},
@@ -600,10 +600,18 @@
     ) || null;
   }
 
+  /** @param {Element} element @param {"addTask" | "tasksMainPanel"} key */
+  function writeTaskSurfaceData(element, key) {
+    const dataset = taskRowField(element, "dataset");
+    if (dataset === null || dataset === undefined) throw new TypeError("Task surface dataset is unavailable.");
+    Reflect.set(Object(dataset), key, "", dataset);
+  }
+
+  /** @param {ReturnType<import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers["renderSurface"]>} surface */
   function decorateTasksDeclarativeSurface(surface) {
     const createAction = surface.querySelector('[data-surface-action="tasks.create"], [data-surface-action="create-task"]');
     if (createAction) {
-      createAction.dataset.addTask = "";
+      writeTaskSurfaceData(createAction, "addTask");
     }
 
     const main = surface.querySelector(".view-slideout-sidebar-main")
@@ -611,7 +619,7 @@
       || surface.querySelector(".view-stacked-detail");
     if (main) {
       main.classList.add("tasks-main-list-panel");
-      main.dataset.tasksMainPanel = "";
+      writeTaskSurfaceData(main, "tasksMainPanel");
     }
   }
 
@@ -1045,13 +1053,13 @@
     }
   }
 
-  /** @param {BrowserTaskListItem[] | null | undefined} existingTasks @param {BrowserTaskListItem[] | null | undefined} incomingTasks */
+  /** @param {unknown[] | null | undefined} existingTasks @param {BrowserTaskListItem[] | null | undefined} incomingTasks */
   function mergeTasksById(existingTasks, incomingTasks) {
     const taskById = new Map();
 
     [...(existingTasks || []), ...(incomingTasks || [])].forEach((task) => {
-      if (task?.task_id) {
-        taskById.set(task.task_id, task);
+      if (optionalTaskLifecycleId(task)) {
+        taskById.set(taskRowField(task, "task_id"), task);
       }
     });
 
@@ -1436,6 +1444,7 @@
     }
 
     nestedTaskDisplayRows(tasks).forEach(({ task, depth }) => {
+      if (!isTaskNestingKey(task)) throw new TypeError("Invalid value used as weak map key");
       taskNestingDepths.set(task, depth);
       taskList.append(...createTaskRow(task));
     });
@@ -1492,8 +1501,14 @@
     return "No tasks match the current filters.";
   }
 
+  /** @param {unknown} value @returns {value is WeakKey} */
+  function isTaskNestingKey(value) {
+    return Object(value) === value || typeof value === "symbol";
+  }
+
+  /** @param {unknown} task */
   function createTaskRow(task) {
-    const nestingDepth = taskNestingDepths.get(task) || 0;
+    const nestingDepth = (isTaskNestingKey(task) ? taskNestingDepths.get(task) : undefined) || 0;
     const row = document.createElement("tr");
     const selectCell = document.createElement("td");
     const contentCell = document.createElement("td");
@@ -1504,23 +1519,23 @@
     const metaBand = document.createElement("div");
     const actionsBand = document.createElement("div");
 
-    row.dataset.taskStatus = task.status || "open";
+    Reflect.set(row.dataset, "taskStatus", taskRowField(task, "status") || "open");
     row.dataset.taskNestingDepth = String(nestingDepth);
     row.classList.add("task-density-row");
     row.classList.toggle("is-task-child", nestingDepth > 0);
     row.style.setProperty("--task-nesting-depth", String(Math.min(nestingDepth, 6)));
-    row.classList.toggle("is-task-complete", task.status === "complete");
-    row.classList.toggle("is-task-archived", task.status === "archived");
+    row.classList.toggle("is-task-complete", taskRowField(task, "status") === "complete");
+    row.classList.toggle("is-task-archived", taskRowField(task, "status") === "archived");
 
     checkbox.type = "checkbox";
-    checkbox.value = task.task_id;
-    checkbox.checked = state.selectedTaskIds.has(task.task_id);
-    checkbox.setAttribute("aria-label", `Select ${task.title}`);
+    Reflect.set(checkbox, "value", taskRowField(task, "task_id"));
+    checkbox.checked = state.selectedTaskIds.has(taskRowField(task, "task_id"));
+    checkbox.setAttribute("aria-label", `Select ${taskRowField(task, "title")}`);
     checkbox.addEventListener("change", () => {
       if (checkbox.checked) {
-        state.selectedTaskIds.add(task.task_id);
+        state.selectedTaskIds.add(taskRowField(task, "task_id"));
       } else {
-        state.selectedTaskIds.delete(task.task_id);
+        state.selectedTaskIds.delete(taskRowField(task, "task_id"));
       }
       updateBulkControls();
       updateSelectionControls(state.tasks);
@@ -1529,7 +1544,7 @@
 
     titleButton.type = "button";
     titleButton.className = "link-button";
-    titleButton.textContent = task.title;
+    Reflect.set(titleButton, "textContent", taskRowField(task, "title"));
     titleButton.addEventListener("click", () => openTaskDialog(task));
     titleWrap.className = "task-title-wrap";
     titleWrap.appendChild(titleButton);
@@ -1538,7 +1553,7 @@
 
     titleBand.className = "task-density-title";
     titleBand.appendChild(titleWrap);
-    appendTagChips(titleBand, task.tags);
+    appendTagChips(titleBand, taskRowField(task, "tags"));
 
     metaBand.className = "task-density-meta";
     appendTaskMetadata(metaBand, task);
@@ -1554,16 +1569,16 @@
     return [row];
   }
 
-  /** @param {BrowserTaskListItem[]} [tasks] */
+  /** @param {unknown[]} [tasks] */
   function nestedTaskDisplayRows(tasks = []) {
-    /** @type {Map<unknown, BrowserTaskListItem>} */
-    const taskById = new Map(tasks.map((task) => [task.task_id, task]));
-    /** @type {Map<unknown, BrowserTaskListItem[]>} */
+    /** @type {Map<unknown, unknown>} */
+    const taskById = new Map(tasks.map((task) => [taskRowField(task, "task_id"), task]));
+    /** @type {Map<unknown, unknown[]>} */
     const childrenByParentId = new Map();
 
     tasks.forEach((task) => {
-      const parentTaskId = optionalTaskRowField(task.parentTask, "task_id") || optionalTaskRowField(taskRowField(task, "parent_task"), "task_id") || taskRowField(task, "parent_task_id") || "";
-      if (!parentTaskId || !taskById.has(parentTaskId) || parentTaskId === task.task_id) {
+      const parentTaskId = optionalTaskRowField(taskRowField(task, "parentTask"), "task_id") || optionalTaskRowField(taskRowField(task, "parent_task"), "task_id") || taskRowField(task, "parent_task_id") || "";
+      if (!parentTaskId || !taskById.has(parentTaskId) || parentTaskId === taskRowField(task, "task_id")) {
         return;
       }
       const children = childrenByParentId.get(parentTaskId) || [];
@@ -1571,22 +1586,22 @@
       childrenByParentId.set(parentTaskId, children);
     });
 
-    /** @type {Array<{task: BrowserTaskListItem, depth: number}>} */
+    /** @type {Array<{task: unknown, depth: number}>} */
     const nested = [];
     const appended = new Set();
-    /** @param {BrowserTaskListItem} task @param {number} depth @param {Set<string>} [path] */
+    /** @param {unknown} task @param {number} depth @param {Set<unknown>} [path] */
     const appendBranch = (task, depth, path = new Set()) => {
-      if (!task?.task_id || appended.has(task.task_id) || path.has(task.task_id)) {
+      if (!optionalTaskLifecycleId(task) || appended.has(taskRowField(task, "task_id")) || path.has(taskRowField(task, "task_id"))) {
         return;
       }
-      appended.add(task.task_id);
+      appended.add(taskRowField(task, "task_id"));
       nested.push({ task, depth });
-      const nextPath = new Set(path).add(task.task_id);
-      (childrenByParentId.get(task.task_id) || []).forEach((child) => appendBranch(child, depth + 1, nextPath));
+      const nextPath = new Set(path).add(taskRowField(task, "task_id"));
+      (childrenByParentId.get(taskRowField(task, "task_id")) || []).forEach((child) => appendBranch(child, depth + 1, nextPath));
     };
 
     tasks.forEach((task) => {
-      const parentTaskId = optionalTaskRowField(task.parentTask, "task_id") || optionalTaskRowField(taskRowField(task, "parent_task"), "task_id") || taskRowField(task, "parent_task_id") || "";
+      const parentTaskId = optionalTaskRowField(taskRowField(task, "parentTask"), "task_id") || optionalTaskRowField(taskRowField(task, "parent_task"), "task_id") || taskRowField(task, "parent_task_id") || "";
       if (!parentTaskId || !taskById.has(parentTaskId)) {
         appendBranch(task, 0);
       }
@@ -1595,7 +1610,7 @@
     return nested;
   }
 
-  /** @param {BrowserTaskListItem} task */
+  /** @param {unknown} task */
   function createActions(task) {
     const wrap = document.createElement("div");
     const editButton = actionButton("Edit", () => openTaskDialog(task));
@@ -1611,7 +1626,7 @@
     return wrap;
   }
 
-  /** @param {BrowserTaskRecord} task */
+  /** @param {unknown} task */
   function createTaskWorkflowActionMenu(task) {
     const view = requireView();
     const actions = taskWorkflowActionsForTask(task).map((action) => taskWorkflowActionButton(action, task));
@@ -1637,7 +1652,7 @@
     return fallback;
   }
 
-  /** @param {BrowserTaskRecord} task */
+  /** @param {unknown} task */
   function taskWorkflowActionsForTask(task) {
     const actions = taskWorkflowActionMenuDescriptor().actions || [];
     return actions.filter((action) => taskWorkflowActionVisible(action, task));
@@ -1730,15 +1745,15 @@
     return legality;
   }
 
-  /** @param {TaskWorkflowAction} action @param {BrowserTaskRecord} task */
+  /** @param {TaskWorkflowAction} action @param {unknown} task */
   function taskWorkflowActionVisible(action, task) {
     if (action.timerVisibility && !taskTimerSurfaceAvailable()) {
       return false;
     }
 
-    /** @type {readonly string[]} */
+    /** @type {readonly unknown[]} */
     const visibleStatuses = action.visibleStatuses || [];
-    if (visibleStatuses.length > 0 && !visibleStatuses.includes(task.status || "open")) {
+    if (visibleStatuses.length > 0 && !visibleStatuses.includes(taskRowField(task, "status") || "open")) {
       return false;
     }
 
@@ -1750,7 +1765,7 @@
     return state.options?.timeTrackingEnabled !== false && state.options?.taskTimersEnabled !== false;
   }
 
-  /** @param {TaskWorkflowAction} action @param {BrowserTaskRecord} task */
+  /** @param {TaskWorkflowAction} action @param {unknown} task */
   function taskWorkflowActionButton(action, task) {
     const view = requireView();
     const disabledReason = taskWorkflowDisabledReason(action, task);
@@ -1773,16 +1788,16 @@
 
     button.dataset.taskWorkflowAction = action.id;
     button.dataset.taskWorkflowBehavior = action.behavior || "";
-    button.dataset.taskId = task.task_id || "";
+    Reflect.set(button.dataset, "taskId", taskRowField(task, "task_id") || "");
     if (disabledReason) {
       button.disabled = true;
     }
     return button;
   }
 
-  /** @param {TaskWorkflowAction} action @param {BrowserTaskRecord} task */
+  /** @param {TaskWorkflowAction} action @param {unknown} task */
   function taskWorkflowDisabledReason(action, task) {
-    if (!task?.task_id) {
+    if (!optionalTaskLifecycleId(task)) {
       return "Task action is unavailable.";
     }
     if (action.timerStatus) {
@@ -1791,7 +1806,7 @@
     return "";
   }
 
-  /** @param {TaskWorkflowAction} action @param {BrowserTaskRecord} task */
+  /** @param {TaskWorkflowAction} action @param {unknown} task */
   function taskTimerDisabledReason(action, task) {
     const timer = taskTimerForTask(task);
     if (state.options.taskTimersEnabled === false) {
@@ -1800,10 +1815,10 @@
     if (state.options.timeTrackingEnabled === false) {
       return "Time Tracking is disabled.";
     }
-    if (!task.project_id) {
+    if (!taskRowField(task, "project_id")) {
       return "Task timers require a project-linked task.";
     }
-    if (task.status === "complete" || task.status === "archived") {
+    if (taskRowField(task, "status") === "complete" || taskRowField(task, "status") === "archived") {
       return "Completed and archived tasks cannot use task timers.";
     }
     if (action.timerVisibility === "running" && timer?.timer_status !== "running") {
@@ -1815,7 +1830,7 @@
     return "";
   }
 
-  /** @param {BrowserTaskRecord} task */
+  /** @param {unknown} task */
   function createTaskLifecycleActionStrip(task) {
     const view = requireView();
     const actions = taskLifecycleActionsForTask(task).map((action) => taskLifecycleActionButton(action, task));
@@ -1834,7 +1849,7 @@
     return fallback;
   }
 
-  /** @param {BrowserTaskRecord} task */
+  /** @param {unknown} task */
   function taskLifecycleActionsForTask(task) {
     const actions = taskLifecycleActionStripDescriptor().actions || [];
     return actions.filter((action) => taskLifecycleActionVisible(action, task));
@@ -1895,7 +1910,7 @@
             title: "Archive task",
             confirmLabel: "Archive",
             danger: true,
-            message: (/** @type {BrowserTaskRecord} */ taskRecord) => `Archive "${taskRecord.title}"?`,
+            message: (/** @type {unknown} */ taskRecord) => `Archive "${taskRowField(taskRecord, "title")}"?`,
           },
         },
         {
@@ -1911,16 +1926,17 @@
     };
   }
 
-  /** @param {TaskLifecycleAction} action @param {BrowserTaskRecord} task */
+  /** @param {TaskLifecycleAction} action @param {unknown} task */
   function taskLifecycleActionVisible(action, task) {
+    /** @type {readonly unknown[]} */
     const visibleStatuses = action.visibleStatuses || [];
     if (visibleStatuses.length === 0) {
       return true;
     }
-    return visibleStatuses.includes(task.status || "open");
+    return visibleStatuses.includes(taskRowField(task, "status") || "open");
   }
 
-  /** @param {TaskLifecycleAction} action @param {BrowserTaskRecord} task */
+  /** @param {TaskLifecycleAction} action @param {unknown} task */
   function taskLifecycleActionButton(action, task) {
     const view = requireView();
     const disabledReason = taskLifecycleDisabledReason(action, task);
@@ -1943,22 +1959,22 @@
 
     button.dataset.taskLifecycleAction = action.id;
     button.dataset.taskLifecycleBehavior = action.behavior || "";
-    button.dataset.taskId = task.task_id || "";
+    Reflect.set(button.dataset, "taskId", taskRowField(task, "task_id") || "");
     if (disabledReason) {
       button.disabled = true;
     }
     return button;
   }
 
-  /** @param {unknown} action @param {BrowserTaskRecord | null | undefined} task */
+  /** @param {unknown} action @param {unknown} task */
   function taskLifecycleDisabledReason(action, task) {
-    if (!task?.task_id) {
+    if (!optionalTaskLifecycleId(task)) {
       return "Task action is unavailable.";
     }
     return "";
   }
 
-  /** @param {TaskLifecycleAction} action @param {BrowserTaskRecord} task @param {unknown} [trigger] */
+  /** @param {TaskLifecycleAction} action @param {unknown} task @param {unknown} [trigger] */
   async function runTaskLifecycleAction(action, task, trigger = null) {
     const api = requireApi();
     const handler = taskLifecycleBehaviorHandler(action.behavior);
@@ -1983,7 +1999,7 @@
     await handler(context);
   }
 
-  /** @param {TaskWorkflowAction} action @param {BrowserTaskRecord} task @param {unknown} [trigger] */
+  /** @param {TaskWorkflowAction} action @param {unknown} task @param {unknown} [trigger] */
   async function runTaskWorkflowAction(action, task, trigger = null) {
     const api = requireApi();
     const handler = taskWorkflowBehaviorHandler(action.behavior);
@@ -2102,10 +2118,12 @@
     }
   }
 
+  /** @param {unknown} task */
   function taskTimerForTask(task) {
-    return state.taskTimers.find((timer) => timer.task_id === task?.task_id);
+    return state.taskTimers.find((timer) => timer.task_id === optionalTaskLifecycleId(task));
   }
 
+  /** @param {BrowserTaskTimerRecord} timer */
   function upsertTaskTimerState(timer) {
     const existingIndex = state.taskTimers.findIndex((item) => item.task_id === timer.task_id);
     state.taskTimers = state.taskTimers.map((item) =>
@@ -2121,12 +2139,13 @@
     }
   }
 
+  /** @param {BrowserTaskTimerRecord | null | undefined} timer */
   function readTaskTimerElapsedSeconds(timer) {
     if (!timer) {
       return 0;
     }
 
-    const baseSeconds = Number.parseInt(timer.accumulated_elapsed_seconds, 10) || 0;
+    const baseSeconds = Number.parseInt(`${timer.accumulated_elapsed_seconds}`, 10) || 0;
     if (timer.timer_status !== "running" || !timer.last_active_start_time) {
       return baseSeconds;
     }
@@ -2139,12 +2158,12 @@
     return baseSeconds + Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
   }
 
-  /** @typedef {{label: string, value: string, className: string, title?: string}} TaskContextChip */
+  /** @typedef {{label: string, value: unknown, className: string, title?: unknown}} TaskContextChip */
 
   /**
    * These projections remain opaque; preserve inherited reads and primitive receivers.
    * @param {unknown} value
-   * @param {"task_id" | "title" | "parent_task_id" | "incomplete_blocking_child_count" | "parent_task" | "parent_task_title" | "total_count" | "completed_count" | "next_incomplete_item_label"} key
+   * @param {"task_id" | "title" | "parent_task_id" | "incomplete_blocking_child_count" | "parent_task" | "parent_task_title" | "total_count" | "completed_count" | "next_incomplete_item_label" | "status" | "dataset" | "tags" | "parentTask" | "project_id" | "assignees" | "priority" | "next_action" | "blocked_reason" | "checklistProgress" | "relationshipSummary" | "resume_note" | "project_name" | "client_name" | "due_date" | "due_time" | "due_at_utc" | "due_timezone" | "length" | "displayName" | "display_name" | "username" | "user_id" | "email"} key
    * @returns {unknown}
    */
   function taskRowField(value, key) {
@@ -2152,21 +2171,43 @@
     return Reflect.get(Object(value), key, value);
   }
 
+  /**
+   * Native ToPropertyKey, including a symbol returned by an opaque conversion hook.
+   * The one-entry object is temporary; the original tally access remains at its original site.
+   * @param {unknown} value @returns {string | symbol}
+   */
+  function taskRowKey(value) {
+    return Reflect.ownKeys(Object.fromEntries([[value, undefined]]))[0];
+  }
+
+  /**
+   * Invoke the collection member at the original use, retaining opaque results and receivers.
+   * @param {unknown} value @param {"map" | "filter" | "sort" | "join"} key @param {unknown[]} args
+   * @returns {unknown}
+   */
+  function callTaskRowMethod(value, key, args) {
+    if (value === null || value === undefined) throw new TypeError("Task row collection is unavailable.");
+    const method = Reflect.get(Object(value), key, value);
+    if (typeof method !== "function") throw new TypeError("Task row collection member is not callable.");
+    return Reflect.apply(method, value, args);
+  }
+
   /** @param {unknown} value @param {"task_id" | "title"} key @returns {unknown} */
   function optionalTaskRowField(value, key) {
     return value == null ? undefined : taskRowField(value, key);
   }
 
-  /** @param {Element} container @param {BrowserTaskListItem} task */
+  /** @param {Element} container @param {unknown} task */
   function appendTaskMetadata(container, task) {
-    const assigneeText = task.assignees?.length
-      ? task.assignees.map(displayUser).join(", ")
+    const assignees = taskRowField(task, "assignees");
+    const assigneeText = (assignees === null || assignees === undefined ? undefined : taskRowField(assignees, "length"))
+      ? callTaskRowMethod(callTaskRowMethod(taskRowField(task, "assignees"), "map", [displayUser]), "join", [", "])
       : "Unassigned";
     const items = [
       { label: "Scope", value: formatScope(task), className: "task-scope-cell" },
       { label: "Assignees", value: assigneeText, className: "task-assignee-cell" },
-      { label: "Status", value: formatToken(task.status) },
-      { label: "Priority", value: formatToken(task.priority) },
+      { label: "Status", value: formatToken(taskRowField(task, "status")) },
+      { label: "Priority", value: formatToken(taskRowField(task, "priority")) },
       { label: "Due", value: formatDue(task) },
     ];
 
@@ -2179,33 +2220,33 @@
     });
   }
 
-  /** @param {Element} container @param {BrowserTaskListItem} task */
+  /** @param {Element} container @param {unknown} task */
   function appendTaskContext(container, task) {
     const view = requireView();
     const chips = [];
 
     appendParentTaskChip(container, task);
 
-    if (task.next_action) {
-      chips.push({ label: "Next", value: task.next_action, className: "is-next" });
+    if (taskRowField(task, "next_action")) {
+      chips.push({ label: "Next", value: taskRowField(task, "next_action"), className: "is-next" });
     }
 
-    if (task.status === "blocked" && task.blocked_reason) {
-      chips.push({ label: "Blocked", value: task.blocked_reason, className: "is-blocked" });
+    if (taskRowField(task, "status") === "blocked" && taskRowField(task, "blocked_reason")) {
+      chips.push({ label: "Blocked", value: taskRowField(task, "blocked_reason"), className: "is-blocked" });
     }
 
-    const checklistText = checklistProgressText(task.checklistProgress);
+    const checklistText = checklistProgressText(taskRowField(task, "checklistProgress"));
     if (checklistText) {
       chips.push({ label: "Checklist", value: checklistText, className: "is-progress" });
     }
 
-    const blockingText = blockingSummaryText(task.relationshipSummary);
+    const blockingText = blockingSummaryText(taskRowField(task, "relationshipSummary"));
     if (blockingText) {
       chips.push({ label: "Blocking", value: blockingText, className: "is-blocked" });
     }
 
-    if (task.resume_note) {
-      chips.push({ label: "Resume", value: "Note saved", title: task.resume_note, className: "is-resume" });
+    if (taskRowField(task, "resume_note")) {
+      chips.push({ label: "Resume", value: "Note saved", title: taskRowField(task, "resume_note"), className: "is-resume" });
     }
 
     if (chips.length === 0) {
@@ -2222,9 +2263,9 @@
     container.appendChild(summary);
   }
 
-  /** @param {Element} container @param {BrowserTaskListItem} task */
+  /** @param {Element} container @param {unknown} task */
   function appendParentTaskChip(container, task) {
-    const parentTask = task.parentTask || taskRowField(task, "parent_task") || null;
+    const parentTask = taskRowField(task, "parentTask") || taskRowField(task, "parent_task") || null;
     const parentTaskId = optionalTaskRowField(parentTask, "task_id") || taskRowField(task, "parent_task_id") || "";
     const parentTitle = String(optionalTaskRowField(parentTask, "title") || taskRowField(task, "parent_task_title") || "").trim();
 
@@ -2241,11 +2282,13 @@
     container.appendChild(button);
   }
 
+  /** @param {unknown} value */
   function truncateTaskName(value, maxLength = 42) {
     const text = String(value || "").trim();
     return text.length > maxLength ? `${text.slice(0, maxLength - 1).trimEnd()}…` : text;
   }
 
+  /** @param {TaskContextChip} chip */
   function taskContextBadge(chip) {
     return {
       className: ["task-context-chip", chip.className],
@@ -2264,7 +2307,7 @@
       const node = document.createElement("span");
       node.className = ["task-context-chip", chip.className].filter(Boolean).join(" ");
       node.textContent = `${chip.label}: ${chip.value}`;
-      node.title = chip.title || `${chip.label}: ${chip.value}`;
+      Reflect.set(node, "title", chip.title || `${chip.label}: ${chip.value}`);
       summary.appendChild(node);
     });
     return summary;
@@ -2364,10 +2407,10 @@
       : null;
   }
 
-  /** @param {BrowserTaskListItem[]} tasks @returns {Promise<Record<string, number>>} */
+  /** @param {unknown[]} tasks @returns {Promise<Record<string, number>>} */
   async function loadAttachmentCounts(tasks) {
     const api = requireApi();
-    const targetIds = tasks.map((task) => task.task_id).filter(Boolean);
+    const targetIds = tasks.map((task) => taskRowField(task, "task_id")).filter(Boolean);
 
     if (targetIds.length === 0) {
       return {};
@@ -2406,38 +2449,38 @@
     return panel;
   }
 
-  /** @param {BrowserTaskListItem[]} tasks */
+  /** @param {unknown[]} tasks */
   async function loadNoteCounts(tasks) {
     const api = requireApi();
-    /** @type {Record<string, number>} */
+    /** @type {Record<PropertyKey, number>} */
     const counts = {};
 
     await Promise.all(tasks.map(async (task) => {
-      if (!task.task_id) {
+      if (!taskRowField(task, "task_id")) {
         return;
       }
       try {
         const result = await api.getJson(`/api/notes/for-target?${new URLSearchParams({
           moduleId: "tasks",
           targetType: "task",
-          targetId: task.task_id,
+          targetId: `${taskRowField(task, "task_id")}`,
         }).toString()}`, { cache: "no-store" });
         const panel = requireNotesLinkedPanel().readForTarget(result);
         if (!panel) {
           throw new Error("Linked note count could not be read.");
         }
-        counts[task.task_id] = panel.count;
+        counts[taskRowKey(taskRowField(task, "task_id"))] = panel.count;
       } catch {
-        counts[task.task_id] = 0;
+        counts[taskRowKey(taskRowField(task, "task_id"))] = 0;
       }
     }));
 
     return counts;
   }
 
-  /** @param {Element} target @param {BrowserTaskListItem} task */
+  /** @param {Element} target @param {unknown} task */
   function appendAttachmentCount(target, task) {
-    const count = Number(state.attachmentCounts[task.task_id] || 0);
+    const count = Number(Reflect.get(state.attachmentCounts, taskRowKey(taskRowField(task, "task_id"))) || 0);
 
     if (count <= 0) {
       return;
@@ -2450,9 +2493,9 @@
     target.appendChild(chip);
   }
 
-  /** @param {Element} target @param {BrowserTaskListItem} task */
+  /** @param {Element} target @param {unknown} task */
   function appendNoteCount(target, task) {
-    const count = Number(state.noteCounts[task.task_id] || 0);
+    const count = Number(Reflect.get(state.noteCounts, taskRowKey(taskRowField(task, "task_id"))) || 0);
 
     if (count <= 0) {
       return;
@@ -2468,6 +2511,7 @@
     target.appendChild(chip);
   }
 
+  /** @param {unknown} task */
   async function followTaskNotifications(task) {
     const subscriptions = requireNamespace().notificationSubscriptions;
 
@@ -2479,16 +2523,17 @@
     setStatus("Following task notifications...");
 
     try {
-      await subscriptions.follow(
-        subscriptions.taskTarget(task.task_id),
-      );
+      const follow = subscriptions.follow;
+      /** @type {unknown} */
+      const target = Reflect.apply(subscriptions.taskTarget, subscriptions, [taskRowField(task, "task_id")]);
+      await Reflect.apply(follow, subscriptions, [target]);
       setStatus("Task notifications followed.");
     } catch (error) {
       setStatus(requireErrors().caughtMessage(error, "Task notifications were not followed."), { isError: true });
     }
   }
 
-  /** @param {TaskLifecycleAction} action @param {BrowserTaskRecord} task */
+  /** @param {TaskLifecycleAction} action @param {unknown} task */
   async function confirmTaskLifecycleAction(action, task) {
     const modal = requireModalDialogs();
     /** @type {Partial<NonNullable<TaskLifecycleAction["confirm"]>>} */
@@ -2556,6 +2601,7 @@
     }
   }
 
+  /** @param {unknown} continuity */
   function renderTaskRecurrenceContinuity(continuity) {
     const tasksDialog = requireNamespace().tasksDialog;
     const message = tasksDialog?.recurrenceContinuityMessage?.(continuity) || "Task completed.";
@@ -2563,6 +2609,7 @@
     tasksDialog?.renderRecurrenceContinuity?.(taskStatus, continuity);
   }
 
+  /** @param {import("../../src/types/browser-contracts.js").BrowserTaskBulkRecurrenceContinuity[]} continuities */
   function renderBulkRecurrenceContinuity(continuities = []) {
     const messages = continuities
       .map((continuity) => requireNamespace().tasksDialog?.recurrenceContinuityMessage?.(continuity))
@@ -2582,20 +2629,22 @@
     }
   }
 
+  /** @param {unknown} taskId @param {unknown} initialContinuity */
   function trackTaskRecurrenceContinuity(taskId, initialContinuity) {
-    if (!taskId || initialContinuity?.status !== "pending") {
+    if (!taskId || (initialContinuity === null || initialContinuity === undefined ? undefined : taskRowField(initialContinuity, "status")) !== "pending") {
       return;
     }
 
-    const tracker = Symbol(taskId);
+    const tracker = Symbol(`${taskId}`);
     recurrenceContinuityTrackers.set(taskId, tracker);
     requireNamespace().tasksDialog?.pollRecurrenceContinuity?.(taskId, {
       initialContinuity,
+      /** @param {unknown} continuity */
       onUpdate: async (continuity) => {
         if (recurrenceContinuityTrackers.get(taskId) !== tracker) {
           return;
         }
-        if (continuity?.status === "available") {
+        if ((continuity === null || continuity === undefined ? undefined : taskRowField(continuity, "status")) === "available") {
           await reloadTaskList();
         }
         renderTaskRecurrenceContinuity(continuity);
@@ -2609,7 +2658,7 @@
     });
   }
 
-  /** @param {BrowserTaskListItem} task */
+  /** @param {unknown} task */
   function duplicateTask(task) {
     openTaskDialog(task, { duplicate: true });
   }
@@ -2924,9 +2973,9 @@
 
   /**
    * Outgoing action members are established by the bulk controls and selected task ids.
-   * @typedef {{action: string, task_ids: string[], status?: string, blocked_reason?: string, priority?: string, project_id?: string, client_id?: string, due_date?: string, due_time?: string, assignee_ids?: string[], tagIds?: string[]}} TasksBulkAction
+   * @typedef {{action: string, task_ids: unknown[], status?: string, blocked_reason?: string, priority?: string, project_id?: string, client_id?: string, due_date?: string, due_time?: string, assignee_ids?: string[], tagIds?: string[]}} TasksBulkAction
    */
-  /** @param {string[]} taskIds */
+  /** @param {unknown[]} taskIds */
   function selectedBulkActions(taskIds) {
     if (taskIds.length === 0) {
       return [];
@@ -2997,7 +3046,7 @@
     return actions;
   }
 
-  /** @param {TasksBulkAction[]} actions @param {string} lifecycleAction @param {string[]} taskIds */
+  /** @param {TasksBulkAction[]} actions @param {string} lifecycleAction @param {unknown[]} taskIds */
   function pushLifecycleBulkAction(actions, lifecycleAction, taskIds) {
     const lifecycleTaskIds = bulkLifecycleTaskIds(lifecycleAction, taskIds);
 
@@ -3006,30 +3055,30 @@
     }
   }
 
-  /** @param {string} lifecycleAction @param {string[]} taskIds */
+  /** @param {string} lifecycleAction @param {unknown[]} taskIds */
   function bulkLifecycleTaskIds(lifecycleAction, taskIds) {
     return selectedTasksForBulk(taskIds)
       .filter((task) => lifecycleAction === "restore"
-        ? task.status === "archived"
-        : task.status !== "archived")
-      .map((task) => task.task_id);
+        ? taskRowField(task, "status") === "archived"
+        : taskRowField(task, "status") !== "archived")
+      .map((task) => taskRowField(task, "task_id"));
   }
 
-  /** @param {string[]} taskIds */
+  /** @param {unknown[]} taskIds */
   function selectedTasksForBulk(taskIds) {
     const ids = new Set(taskIds);
-    return state.tasks.filter((task) => ids.has(task.task_id));
+    return state.tasks.filter((task) => ids.has(taskRowField(task, "task_id")));
   }
 
-  /** @param {string[]} taskIds */
+  /** @param {unknown[]} taskIds */
   function updateBulkLifecycleOptions(taskIds) {
     if (!bulkLifecycleControl || !bulkLifecycleInput) {
       return;
     }
 
     const selectedTasks = selectedTasksForBulk(taskIds);
-    const canArchive = selectedTasks.some((task) => task.status !== "archived");
-    const canRestore = selectedTasks.some((task) => task.status === "archived");
+    const canArchive = selectedTasks.some((task) => taskRowField(task, "status") !== "archived");
+    const canRestore = selectedTasks.some((task) => taskRowField(task, "status") === "archived");
     const selectedValue = requireBulkSelect(bulkLifecycleInput).value;
     const options = [{ value: "", label: "-" }];
 
@@ -3052,7 +3101,7 @@
     requireBulkElement(bulkLifecycleControl).hidden = selectedTasks.length === 0 || options.length <= 1;
   }
 
-  /** @param {TasksBulkAction[]} actions @param {string[]} taskIds */
+  /** @param {TasksBulkAction[]} actions @param {unknown[]} taskIds */
   async function confirmMixedBulkActions(actions, taskIds) {
     const modal = requireModalDialogs();
     const warnings = mixedBulkActionWarnings(actions, taskIds);
@@ -3077,7 +3126,7 @@
     });
   }
 
-  /** @param {TasksBulkAction[]} actions @param {string[]} taskIds @param {string[]} [warnings] */
+  /** @param {TasksBulkAction[]} actions @param {unknown[]} taskIds @param {string[]} [warnings] */
   async function confirmBulkArchive(actions, taskIds, warnings = []) {
     const modal = requireModalDialogs();
     const archiveAction = actions.find((action) => action.action === "archive");
@@ -3098,9 +3147,9 @@
     });
   }
 
-  /** @param {TasksBulkAction[]} actions @param {string[]} taskIds */
+  /** @param {TasksBulkAction[]} actions @param {unknown[]} taskIds */
   function mixedBulkActionWarnings(actions, taskIds) {
-    const selectedTasks = state.tasks.filter((task) => taskIds.includes(task.task_id));
+    const selectedTasks = state.tasks.filter((task) => taskIds.includes(taskRowField(task, "task_id")));
     const warnings = [];
 
     if (actions.some((action) => action.action === "due_date") && hasMixedValues(selectedTasks, "due_date")) {
@@ -3122,19 +3171,17 @@
     return warnings;
   }
 
-  /** @param {BrowserTaskListItem[]} tasks @param {"due_date" | "due_time" | "project_id"} fieldName */
+  /** @param {unknown[]} tasks @param {"due_date" | "due_time" | "project_id"} fieldName */
   function hasMixedValues(tasks, fieldName) {
-    return new Set(tasks.map((task) => task[fieldName] || "")).size > 1;
+    return new Set(tasks.map((task) => taskRowField(task, fieldName) || "")).size > 1;
   }
 
-  /** @param {BrowserTaskListItem[]} tasks */
+  /** @param {unknown[]} tasks */
   function hasMixedTagValues(tasks) {
     const values = tasks.map((task) =>
-      (task.tags || [])
-        .map((tag) => bulkTaskTagId(tag))
-        .filter(Boolean)
-        .sort()
-        .join("|")
+      callTaskRowMethod(callTaskRowMethod(callTaskRowMethod(callTaskRowMethod(
+        taskRowField(task, "tags") || [], "map", [(/** @type {unknown} */ tag) => bulkTaskTagId(tag)],
+      ), "filter", [Boolean]), "sort", []), "join", ["|"])
     );
     return new Set(values).size > 1;
   }
@@ -3218,30 +3265,30 @@
 
     tasks.forEach((task) => {
       if (requireBulkInput(selectAllInput).checked) {
-        state.selectedTaskIds.add(task.task_id);
+        state.selectedTaskIds.add(taskRowField(task, "task_id"));
       } else {
-        state.selectedTaskIds.delete(task.task_id);
+        state.selectedTaskIds.delete(taskRowField(task, "task_id"));
       }
     });
     renderTasks();
   }
 
-  /** @param {BrowserTaskListItem[]} tasks */
+  /** @param {unknown[]} tasks */
   function updateSelectionControls(tasks) {
     if (!selectAllInput) {
       return;
     }
 
-    const visibleIds = tasks.map((task) => task.task_id);
+    const visibleIds = tasks.map((task) => taskRowField(task, "task_id"));
     const selectedVisibleCount = visibleIds.filter((taskId) => state.selectedTaskIds.has(taskId)).length;
 
     requireBulkInput(selectAllInput).checked = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length;
     requireBulkInput(selectAllInput).indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < visibleIds.length;
   }
 
-  /** @param {BrowserTaskListItem[]} visibleTasks */
+  /** @param {unknown[]} visibleTasks */
   function syncSelectionToTasks(visibleTasks) {
-    const validIds = new Set(state.tasks.map((task) => task.task_id));
+    const validIds = new Set(state.tasks.map((task) => taskRowField(task, "task_id")));
 
     [...state.selectedTaskIds].forEach((taskId) => {
       if (!validIds.has(taskId)) {
@@ -3372,8 +3419,9 @@
     }
   }
 
+  /** @param {unknown} task */
   function upsertTask(task) {
-    const existingIndex = state.tasks.findIndex((item) => item.task_id === task.task_id);
+    const existingIndex = state.tasks.findIndex((item) => taskRowField(item, "task_id") === taskRowField(task, "task_id"));
 
     if (existingIndex >= 0) {
       state.tasks.splice(existingIndex, 1, task);
@@ -3396,15 +3444,16 @@
       return;
     }
 
-    const task = state.tasks.find((item) => item.task_id === taskId);
+    const task = state.tasks.find((item) => taskRowField(item, "task_id") === taskId);
     if (task) {
       openTaskDialog(task);
     }
   }
 
+  /** @param {unknown} task */
   async function copyTaskLink(task) {
     const url = new window.URL(window.location.href);
-    url.searchParams.set("task", task.task_id);
+    url.searchParams.set("task", `${taskRowField(task, "task_id")}`);
 
     try {
       await navigator.clipboard.writeText(url.toString());
@@ -3478,15 +3527,16 @@
     return taskFilterLabelField(record, "optionLabel") || taskFilterLabelField(record, "display_label") || taskFilterLabelField(record, "displayName") || taskFilterLabelField(record, "name") || taskFilterLabelField(record, "title") || "";
   }
 
+  /** @param {unknown} user */
   function displayUser(user) {
-    const displayName = String(user.displayName || user.display_name || user.username || user.user_id || "").trim();
-    const email = String(user.username || user.email || "").trim();
+    const displayName = String(taskRowField(user, "displayName") || taskRowField(user, "display_name") || taskRowField(user, "username") || taskRowField(user, "user_id") || "").trim();
+    const email = String(taskRowField(user, "username") || taskRowField(user, "email") || "").trim();
 
     if (displayName && email && displayName !== email) {
       return `${displayName} (${email})`;
     }
 
-    return displayName || email || user.user_id;
+    return displayName || email || taskRowField(user, "user_id");
   }
 
   function getWorkspaceScopeLabel() {
@@ -3502,35 +3552,44 @@
     return `${workspaceName} Projects`;
   }
 
+  /** @param {unknown} task */
   function formatScope(task) {
-    if (task.project_name && task.client_name) {
-      return `${task.client_name} / ${task.project_name}`;
+    if (taskRowField(task, "project_name") && taskRowField(task, "client_name")) {
+      return `${taskRowField(task, "client_name")} / ${taskRowField(task, "project_name")}`;
     }
 
-    if (task.project_name) {
-      return task.project_name;
+    if (taskRowField(task, "project_name")) {
+      return taskRowField(task, "project_name");
     }
 
-    if (task.client_name) {
-      return task.client_name;
+    if (taskRowField(task, "client_name")) {
+      return taskRowField(task, "client_name");
     }
 
     return getWorkspaceScopeLabel();
   }
 
+  /** @param {unknown} task */
   function formatDue(task) {
-    if (!task.due_date) {
+    if (!taskRowField(task, "due_date")) {
       return "None";
     }
 
-    if (!task.due_time) {
-      return task.due_date;
+    if (!taskRowField(task, "due_time")) {
+      return taskRowField(task, "due_date");
     }
 
-    return requireNamespace().timezones?.formatDateTime?.(task.due_at_utc, task.due_timezone) ||
-      `${task.due_date} ${task.due_time}`;
+    const timezones = requireNamespace().timezones;
+    const formatDateTime = timezones?.formatDateTime;
+    /** @type {unknown} */
+    const formatted = formatDateTime === null || formatDateTime === undefined
+      ? undefined
+      : Reflect.apply(formatDateTime, timezones, [taskRowField(task, "due_at_utc"), taskRowField(task, "due_timezone")]);
+    return formatted ||
+      `${taskRowField(task, "due_date")} ${taskRowField(task, "due_time")}`;
   }
 
+  /** @param {unknown} value */
   function formatToken(value) {
     return String(value || "")
       .split("_")
@@ -3544,6 +3603,7 @@
       "";
   }
 
+  /** @param {unknown} message @param {{isError?: boolean}} [options] */
   function setStatus(message, options = {}) {
     pageController.setStatus(taskStatus, message, options);
   }

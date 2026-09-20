@@ -55,7 +55,7 @@ assert.match(viewBuilder, /createLinkedContextList,/, "LongtailForge.view should
 assert.match(appendContext, /view\.createDetailBadgeRow\(\{[\s\S]*ariaLabel:\s*"Task context"[\s\S]*className:\s*"task-context-summary"[\s\S]*badges:\s*chips\.map\(taskContextBadge\)/, "Task row context and relationship chips should use the framework badge-row primitive");
 assert.match(contextBadge, /className:\s*\["task-context-chip", chip\.className\][\s\S]*label:\s*chip\.label[\s\S]*value:\s*chip\.value/, "Tasks should own the labels and values for task relationship/context chips");
 assert.match(contextFallback, /document\.createElement\("div"\)[\s\S]*task-context-summary[\s\S]*document\.createElement\("span"\)/, "Task row context should keep a narrow fallback without moving relationship rules into the framework");
-assert.match(appendContext, /blockingSummaryText\(task\.relationshipSummary\)/, "Task rows should still read blocking display from Tasks relationshipSummary payloads");
+assert.match(appendContext, /blockingSummaryText\(taskRowField\(task, "relationshipSummary"\)\)/, "Task rows should still read blocking display from Tasks relationshipSummary payloads");
 assert.match(blockingText, /incomplete_blocking_child_count[\s\S]*child\$\{blockers === 1 \? "" : "ren"\}/, "Blocking summary text should still be derived from incomplete blocking child count");
 
 assert.match(writeParentFields, /readCurrentParentTaskId\(taskProjectionFields\(task\)\.task_id\)[\s\S]*parentTaskOptions\(optionalTaskProjectionFields\(task\)\?\.task_id \|\| ""\)\.map\(\(candidate\) => option\(candidate\.task_id, candidate\.optionLabel \|\| candidate\.title\)\)/, "Parent task field should keep readable hierarchy labels as option labels");
