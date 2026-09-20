@@ -105,7 +105,10 @@ async function assertStaticBrowserContract() {
   assert.doesNotMatch(notesJs, /function markdownPreviewNodes/);
   assert.doesNotMatch(notesJs, /paragraph\.startsWith\("# "\)/);
   assert.match(notesEditorJs, /continueListMarker/);
-  assert.match(notesEditorJs, /event\.key === "Enter"/);
+  // `0.33.33.39.39` reads the key through `editorMember`, which is the member access it replaced;
+  // the claim - Enter is the key that continues a list marker - is unchanged, and the cases below
+  // execute it.
+  assert.match(notesEditorJs, /editorMember\(event, "key"\) === "Enter"/);
   assertToolbarToggleDoesNotMoveMarkup(notesJs);
   assert.match(css, /\.notes-markdown-editor\s*\{[\s\S]*display:\s*grid;[\s\S]*width:\s*100%;[\s\S]*\}/, "Markdown editor shell should keep toolbar and body in a stable full-width stack");
   assert.match(css, /\.notes-markdown-editor-body\s*\{[\s\S]*display:\s*grid;[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*width:\s*100%;[\s\S]*\}/, "Markdown editor body should default to a one-column full-width editor when preview is off");
