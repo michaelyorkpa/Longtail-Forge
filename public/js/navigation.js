@@ -1284,10 +1284,17 @@
     return option;
   }
 
+  /**
+   * The bell badge, from either summary its callers hold: the validated
+   * `BrowserNotificationBellSummary` the reader answers, or the bootstrap's `notificationSummary`,
+   * which the adapter proves only to be a record. Neither is assignable to the other, so each
+   * member is read as the member access read it.
+   * @param {unknown} [summary]
+   */
   function applyNotificationSummary(summary = {}) {
-    const unreadCount = Number(summary.unreadCount || summary.count || 0);
-    const priority = summary.hasUrgentPriority ? "urgent" : summary.hasHighPriority ? "high" : "";
-    const hasPriorityAlert = summary.hasPriorityAlert === true || Boolean(priority);
+    const unreadCount = Number(requiredMember(summary, "unreadCount") || requiredMember(summary, "count") || 0);
+    const priority = requiredMember(summary, "hasUrgentPriority") ? "urgent" : requiredMember(summary, "hasHighPriority") ? "high" : "";
+    const hasPriorityAlert = requiredMember(summary, "hasPriorityAlert") === true || Boolean(priority);
 
     if (!notificationCount) {
       return;
@@ -1487,6 +1494,9 @@
     }
   }
 
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserNotification} BrowserNotification */
+
+  /** @param {readonly BrowserNotification[]} notifications */
   function renderNotificationPanel(notifications) {
     const sortedNotifications = sortNotificationPanelItems(notifications);
     const priorityItems = sortedNotifications
@@ -1494,12 +1504,14 @@
       .map(createNotificationPanelItem);
     const groupedItems = ["normal", "low"]
       .map((priority) => createNotificationPanelGroup(priority, sortedNotifications.filter((notification) => notificationPriority(notification) === priority)))
-      .filter(Boolean);
+      // The group builder answers an element or `null`, which is what `Boolean` kept here.
+      .filter((group) => group !== null);
     const rows = [...priorityItems, ...groupedItems];
 
     notificationList.replaceChildren(...(rows.length > 0 ? rows : [createNotificationPanelEmpty("No notifications")]));
   }
 
+  /** @param {readonly BrowserNotification[]} notifications */
   function sortNotificationPanelItems(notifications) {
     const priorityOrder = new Map([
       ["urgent", 0],
@@ -1515,6 +1527,7 @@
     ));
   }
 
+  /** @param {string} priority @param {readonly BrowserNotification[]} notifications */
   function createNotificationPanelGroup(priority, notifications) {
     if (notifications.length === 0) {
       return null;
@@ -1534,6 +1547,7 @@
     return group;
   }
 
+  /** @param {BrowserNotification} notification */
   function createNotificationPanelItem(notification) {
     const item = document.createElement("article");
     const title = notification.url ? document.createElement("a") : document.createElement("span");
@@ -1554,7 +1568,8 @@
     if (contextTitle) {
       title.title = contextTitle;
     }
-    if (notification.url) {
+    if (title instanceof HTMLAnchorElement) {
+      // The title is the anchor this function created for a notification carrying a URL.
       title.href = notification.url;
     }
 
@@ -1574,6 +1589,7 @@
     return item;
   }
 
+  /** @param {string} label @param {string} icon @param {{ danger?: boolean }} [options] */
   function createNotificationPanelActionButton(label, icon, options = {}) {
     try {
       if (window.LongtailForge?.icons?.createIconButton) {
@@ -1597,21 +1613,26 @@
     return button;
   }
 
+  /** @param {BrowserNotification} notification */
   function notificationPriority(notification) {
     const priority = String(notification?.priority || "normal").trim().toLowerCase();
     return ["low", "normal", "high", "urgent"].includes(priority) ? priority : "normal";
   }
 
+  /** @param {BrowserNotification} notification */
   function notificationDisplayTitle(notification) {
     return notification.displayTitle || notification.target?.label || notification.title || "Notification";
   }
 
+  /** @param {BrowserNotification} notification */
   function notificationContextTitle(notification) {
     if (notification.target?.recordType !== "task") {
       return "";
     }
 
-    const context = notification.target?.context || {};
+    // A target either carries both context names as strings, which the list reader checks, or
+    // carries no context at all; the fallback answers what reading them off `{}` answered.
+    const context = notification.target?.context || { clientName: "", projectName: "" };
     const workspaceType = window.LongtailForge?.workspaceContext?.workspaceType || "business";
     const projectName = String(context.projectName || "").trim();
     const clientName = String(context.clientName || "").trim();
@@ -1623,6 +1644,7 @@
     return projectName;
   }
 
+  /** @param {BrowserNotification} notification */
   function notificationMetaParts(notification) {
     const date = formatNotificationDate(notification.created_at);
 
@@ -1633,10 +1655,12 @@
     return [notification.event_type, date].filter(Boolean);
   }
 
+  /** @param {BrowserNotification} notification */
   function notificationUpdateTypeLabel(notification) {
     return notification.updateTypeLabel || notification.displayType || notification.event_type || "Notification";
   }
 
+  /** @param {string} text */
   function createNotificationPanelEmpty(text) {
     const empty = document.createElement("p");
     empty.className = "notification-panel-empty";
@@ -1644,6 +1668,7 @@
     return empty;
   }
 
+  /** @param {string} notificationId @param {string} action @param {Element | null} [item] */
   async function mutateNotification(notificationId, action, item = null) {
     setNotificationPanelStatus("");
 
@@ -1673,6 +1698,7 @@
     }
   }
 
+  /** @param {string} action */
   async function mutateAllNotifications(action) {
     setNotificationPanelStatus("");
     setNotificationPanelBulkDisabled(true);
@@ -1693,6 +1719,7 @@
     }
   }
 
+  /** @param {boolean} disabled */
   function setNotificationPanelBulkDisabled(disabled) {
     notificationReadAll?.toggleAttribute("disabled", disabled);
     notificationDismissAll?.toggleAttribute("disabled", disabled);
@@ -1783,6 +1810,7 @@
     }
   }
 
+  /** @param {string} message @param {boolean} [isError] */
   function setNotificationPanelStatus(message, isError = false) {
     if (!notificationList) {
       return;
@@ -1795,17 +1823,20 @@
     }
 
     if (!status) {
-      status = document.createElement("p");
-      status.className = "notification-panel-status";
-      status.dataset.notificationPanelStatus = "";
-      status.setAttribute("role", "status");
-      notificationList.prepend(status);
+      // Built and written in the order it was, then held as the queried element is.
+      const created = document.createElement("p");
+      created.className = "notification-panel-status";
+      created.dataset.notificationPanelStatus = "";
+      created.setAttribute("role", "status");
+      notificationList.prepend(created);
+      status = created;
     }
 
     status.textContent = message;
     status.classList.toggle("is-error", isError);
   }
 
+  /** @param {string} value */
   function formatNotificationDate(value) {
     if (!value) {
       return "";

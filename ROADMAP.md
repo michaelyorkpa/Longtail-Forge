@@ -1359,6 +1359,12 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Remaining slices.** `.39.34` the notification bell and panel; `.39.35` the bootstrap and what it drives - support view, deletion notice, search targets, workspace selector, theme, capabilities, switch and landing - with the three module-level theme and support-view `let`s whose writes live there.
 
+#### 0.33.33.39.34 - Type the notification bell and panel
+
+**Complete: the second of three `public/js/navigation.js` slices.** `navigation.js` **83 to 50** raw; its owned debt **75 to 44** and its DOM debt **8 to 6**. See the archive entry. No published contract changed.
+
+**Remaining slice.** `.39.35` the bootstrap and what it drives - support view, deletion notice, search targets, workspace selector, theme, capabilities, switch and landing - with the three module-level theme and support-view `let`s, which finishes the file.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.

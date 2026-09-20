@@ -286,12 +286,15 @@ describe("a malformed summary is not a summary of zero", () => {
       "the reader itself never manufactures a zero summary");
   });
 
-  it("leaves applyNotificationSummary alone for its other caller", () => {
+  it("keeps applyNotificationSummary's alias order for its other caller", () => {
     assert.match(nav, /applyNotificationSummary\(shell\.notificationSummary\);/,
       "the bootstrap caller passes an already-trusted internal summary");
     const apply = functionBody(nav, "  function applyNotificationSummary(summary = {}) {", "\n  }\n");
-    assert.match(apply, /const unreadCount = Number\(summary\.unreadCount \|\| summary\.count \|\| 0\);/,
-      "and the helper is unchanged, because narrowing one caller is this child's whole scope");
+    // `0.33.33.39.34` reads each member through `requiredMember`, which is the member access the
+    // helper performed; the claim - both aliases, in that order, falling back to zero - is
+    // unchanged, and `navigation-notification-panel` executes it for both callers' shapes.
+    assert.match(apply, /const unreadCount = Number\(requiredMember\(summary, "unreadCount"\) \|\| requiredMember\(summary, "count"\) \|\| 0\);/,
+      "and the helper still reads both aliases in that order for the caller it was never narrowed for");
     assert.equal((nav.match(/applyNotificationSummary\(/g) || []).length, 4,
       "one declaration and three call sites, exactly as before");
   });

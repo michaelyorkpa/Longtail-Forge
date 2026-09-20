@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.34 - Type the notification bell and panel
+
+**Model: Medium Effort** - one cluster of the app shell, typed against the notification the list reader already validates, with one helper that could not be typed that way because its two callers hold different shapes.
+
+- [x] **The bell and panel reach zero, 33 diagnostics - 31 owned and 2 DOM.** Browser **2,050 to 2,017** across **31** files; params **1,238 to 1,212**, state **390 to 388**, `dom` **370 to 368**, assorted **52 to 49**; `0.33.33.39` **234 to 203**. `navigation.js` **83 to 50** raw, owned **75 to 44** and DOM **8 to 6**. Exactly one file moved and nothing rose.
+- [x] **The renderers take what the reader validated.** Every panel function takes `BrowserNotification`, which `readNotificationList` already proves element by element, so the sort, the groups, the item, its labels and its meta parts are typed from the producer rather than re-described.
+- [x] **The summary helper keeps reading members, because its two callers disagree.** `refreshNotificationCount` hands it the validated `BrowserNotificationBellSummary`; the app-shell bootstrap hands it `notificationSummary`, which its adapter proves only to be a record. Neither type is assignable to the other, so the parameter stays `unknown` and each member is read where and as it was read, `unreadCount` before `count`. A missing summary still fails as a `TypeError`.
+- [x] **Three reads rewritten, each answering what it answered.** The group list is filtered against `null` rather than `Boolean`, which is what the builder can answer; the title's `href` is written on the anchor the function built for a notification carrying a URL; and the status line holds the paragraph it creates, built and written in the order it was. A target's context is read from the pair the reader requires, or from empty strings where it carries none - which is what reading them off `{}` answered.
+- [x] **Nine focused cases through the shipped functions, all passing unchanged against the original file**: both summary shapes and the alias order, the zero badge, the absent summary and the missing one; priority promotion, date-then-id order and the two groups; the empty placeholder; a linked item with its labels, meta and action states; an unlinked item falling back through its labels; the workspace-typed context title; the status line created, reused and removed; and the date formatter. **Seven focused mutations, seven kills.** Byte restoration verified at SHA-256 `001324f27f7e89ed5382855035b14f5b352ad1885d429fd7153303cb2232142c`.
+- [x] **The bell-summary pin moved to the new spelling of its own claim**: the helper still reads both aliases in that order for the caller it was never narrowed for.
+- [x] **Full verification on the delivered tree.** Unit **4,431 across 234 files**, regressions **348/348**, E2E **337/337** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+Excluded and explicitly remaining: `navigation.js` **44 owned and 6 DOM**, in `.39.35`; `0.33.33.39` **203** across 15 files. No published contract changed. **This does not close `0.33.33.39`, `0.33.33.38`, or the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.41.25 - Tasks lifecycle, workflow and dialog opening
 
 **Model: High Effort** - preserve opaque dispatch and save-callback values while typing local action descriptors and dialog requests.
