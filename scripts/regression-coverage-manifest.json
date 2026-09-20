@@ -85,7 +85,7 @@
     }
   ],
   "assertionInventory": {
-    "activeAssertionCount": 19083,
+    "activeAssertionCount": 19084,
     "creditedAssertionReduction": 496,
     "directOwnerAssertionCount": 74,
     "directOwners": [
@@ -106,7 +106,7 @@
         "assertionCount": 54
       }
     ],
-    "effectiveAssertionCount": 19897,
+    "effectiveAssertionCount": 19898,
     "retiredAssertionCredit": 143,
     "vitest": [
       {
@@ -6979,8 +6979,8 @@
     },
     {
       "area": "tasks",
-      "assertionCount": 774,
-      "contractAssertionCount": 773,
+      "assertionCount": 775,
+      "contractAssertionCount": 774,
       "contractModules": [
         {
           "path": "scripts/regression-contracts/tasks/task-checklist-editor-display.contract.mjs",
@@ -7056,7 +7056,7 @@
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-readonly-list-binding.contract.mjs",
-          "assertionCount": 35
+          "assertionCount": 36
         },
         {
           "path": "scripts/regression-contracts/tasks/tasks-recurrence-reminder-escape-hatch.contract.mjs",
