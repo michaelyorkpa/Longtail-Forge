@@ -16,7 +16,7 @@ assert.match(tasksModule, /sidebarPanels:\s*\[[\s\S]*id:\s*"tasks-view-selector"
 
 assert.match(tasksScript, /registerBehavior\("tasks\.main\.list"[\s\S]*container\.replaceChildren\(createTaskMainListChrome\(\)\)/, "Tasks adapter should mount the current list chrome through the descriptor region");
 assert.doesNotMatch(tasksScript, /main\.replaceChildren\(createTaskMainListChrome\(\)\)/, "Tasks adapter should not replace the framework-owned main panel");
-assert.match(tasksScript, /main\.classList\.add\("tasks-main-list-panel"\)[\s\S]*main\.dataset\.tasksMainPanel = ""/, "Tasks adapter may keep compatibility hooks on the framework main panel");
+assert.match(tasksScript, /main\.classList\.add\("tasks-main-list-panel"\)[\s\S]*writeTaskSurfaceData\(main, "tasksMainPanel"\)/, "Tasks adapter may keep compatibility hooks on the framework main panel");
 
 const registerBehaviors = extractFunctionSpan(tasksScript, "registerTasksViewBehaviors");
 assert.match(registerBehaviors, /tasks\.sidebar\.view-selector[\s\S]*createTaskViewSelectorChrome/, "Saved Task Views should mount in the sidebar");
@@ -64,3 +64,5 @@ assert.match(styles, /\.view-slideout-sidebar-main > \.tasks-main-list-region\s*
 assert.match(styles, /\.view-list-shell\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*0/, "Framework list shell should own no-gap list placement");
 
 console.log("Tasks read-only list binding regression passed.");
+
+assert.match(tasksScript, /Reflect\.set\(Object\(dataset\), key, "", dataset\)/, "The compatibility hook writer must retain the dataset receiver and empty marker value");

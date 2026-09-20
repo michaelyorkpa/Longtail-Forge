@@ -35,7 +35,7 @@ assert.match(tasksScript, /bulkLifecycleInput\?\.addEventListener\("change", upd
 assert.match(updateBulkControls, /updateBulkLifecycleOptions\(taskIds\)[\s\S]*selectedBulkActions\(taskIds\)/, "Lifecycle options should be refreshed before apply state is calculated");
 assert.match(selectedBulkActions, /lifecycleAction === "restore"[\s\S]*pushLifecycleBulkAction\(actions, lifecycleAction, taskIds\)/, "Restore should dispatch as a Tasks-owned bulk action");
 assert.match(selectedBulkActions, /lifecycleAction === "archive"[\s\S]*pushLifecycleBulkAction\(actions, lifecycleAction, taskIds\)/, "Archive should dispatch as a Tasks-owned bulk action");
-assert.match(lifecycleTaskIds, /lifecycleAction === "restore"[\s\S]*task\.status === "archived"[\s\S]*task\.status !== "archived"/, "Lifecycle target ids should be filtered by supported selected task status");
+assert.match(lifecycleTaskIds, /lifecycleAction === "restore"[\s\S]*taskRowField\(task, "status"\) === "archived"[\s\S]*taskRowField\(task, "status"\) !== "archived"/, "Lifecycle target ids should be filtered by supported selected task status");
 assert.match(lifecycleOptions, /value: "archive", label: "Archive selected"/, "Archive option should appear only when selectable tasks support it");
 assert.match(lifecycleOptions, /value: "restore", label: "Restore selected"/, "Restore option should appear only when selectable tasks support it");
 assert.match(archiveConfirmation, /title:\s*"Archive selected tasks\?"/, "Bulk archive should preserve an explicit archive confirmation prompt");

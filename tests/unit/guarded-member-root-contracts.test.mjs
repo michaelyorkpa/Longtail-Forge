@@ -219,6 +219,7 @@ describe("two uses behind one guard keep their receiver", () => {
       },
     };
     const run = lift("tasks", "async function followTaskNotifications(task) {", {
+      taskRowField: new Function("return (" + slice(sources.tasks, "function taskRowField(value, key) {") + ");")(),
       setStatus: (/** @type {string} */ message) => statuses.push(message),
       requireErrors: () => ({ caughtMessage: (/** @type {unknown} */ _e, /** @type {string} */ f) => f }),
     });
@@ -235,6 +236,7 @@ describe("two uses behind one guard keep their receiver", () => {
     /** @type {string[]} */
     const statuses = [];
     const run = lift("tasks", "async function followTaskNotifications(task) {", {
+      taskRowField: new Function("return (" + slice(sources.tasks, "function taskRowField(value, key) {") + ");")(),
       setStatus: (/** @type {string} */ message) => statuses.push(message),
       requireErrors: () => ({ caughtMessage: (/** @type {unknown} */ _e, /** @type {string} */ f) => f }),
     });
