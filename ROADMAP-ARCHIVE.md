@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.37 - Reconcile the status recipient with what the writer does
+
+**Model: Medium Effort** - a correction to a correction, where the demonstrated behaviour of two namespaces decided the declaration rather than the other way round.
+
+- [x] **The recipient is the element.** `0.33.33.39.35` declared `Element & HTMLOrSVGElement`, which demanded `autofocus`, `nonce`, `tabIndex`, `blur` and `focus` - five members the writer never touches - and refused an element of another namespace that carries a real `dataset` and writes correctly today. It is now `Element`, and the `dataset` requirement is stated where the writer imposes it: on the tone write.
+- [x] **Both halves of the demonstrated behaviour are preserved, and now proved here.** In a real document, an HTML, an SVG and a **MathML** recipient each take the message and the tone; an element of a namespace the platform gives no `dataset` takes the message and then fails at the tone with a `TypeError`. Refusing such a recipient up front would have moved that failure before the message, so the declaration does not.
+- [x] **The tone write says what it needs.** `writeStatusTone` reads the element's own `dataset`, fails as the assignment failed where there is none, and otherwise writes through the map's own receiver - which is the discarded write sloppy mode gave a non-object. The message path, the `|| ""` fallback, the order and the unread `Reflect.set` result are unchanged from `0.33.33.39.35`.
+- [x] **One connected elimination, in another lane's file.** `public/js/tasks.js` called this member with the `Element | null` its page holds; that call now compiles untouched. Browser **1,967 to 1,966**, `0.33.33.41` **21 to 20** - counted once, here - and every family else unchanged. The server/test and scripts programs stay at **0**.
+- [x] **The fixture keeps the boundary that remains.** Every element the writer accepts, the absent recipient and a message of any type are positive cases; the two `@ts-expect-error` directives fail the build if a text node, or an object carrying both members, is accepted as a recipient. Both are admitted in the governance list.
+- [x] **Six focused cases and one browser case; five mutations, five kills**, four on the writer and one on the declaration - narrowing the recipient back to `HTMLElement` breaks the fixture's plain-`Element` case. Byte restoration verified at SHA-256 `b8639ea28579b0a98b8c3c9d0e4cce6355b67d1753c2a2ba3d3cdee0fc73f81a` for the writer and `bea2f08b366f456c0a486f532450ca89f94a3d77e227e713a8ac0f4b2a6bb894` for the declaration.
+- [x] **Full verification on the delivered tree.** Unit **4,444 across 236 files**, regressions **348/348**, E2E **339/339** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+Excluded and explicitly remaining: the separate `LongtailForge.status` surface, untouched; `0.33.33.41`'s remaining **20**, which is the Tasks lane's; and `0.33.33.39`'s **159**. **This does not close `0.33.33.39`, `0.33.33.38`, or the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.39.36 - Take the app shell to zero
 
 **Model: High Effort** - the last slice of the file every page loads, where the two context shapes it reads are deliberately different and neither names what this code reads from them.

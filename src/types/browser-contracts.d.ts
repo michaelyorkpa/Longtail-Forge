@@ -916,16 +916,21 @@ export interface PageControllerRegistry {
 }
 
 /**
- * What `pageController.setStatus` writes to.
+ * What `pageController.setStatus` writes to: an element a page or a module host holds.
  *
- * **The capability, not a tag list.** The writer touches two members: the node's own
- * `textContent`, which every node has, and `dataset`, which `HTMLElement`, `SVGElement` and
- * `MathMLElement` carry and a bare `Element` does not - so this states `dataset` rather than
- * claiming every `Element` has one. The declaration previously named `HTMLElement` alone, which
- * refused the SVG recipients the implementation and the browser both accept; `0.33.33.39.35`
- * proves both in a real document.
+ * **Stated as the element, with the `dataset` requirement where the writer imposes it.** The
+ * message is written to the node's own `textContent`, which every element has; the tone is then
+ * written to `dataset`, which `HTMLElement`, `SVGElement` and `MathMLElement` carry and an
+ * element of another namespace does not. An element without one is **not** refused here: it
+ * takes the message and then fails at the tone, exactly as it always has, and `0.33.33.39.37`
+ * proves both halves in a real document.
+ *
+ * `0.33.33.39.35` said `Element & HTMLOrSVGElement`, which demanded five members the writer
+ * never touches - `autofocus`, `nonce`, `tabIndex`, `blur` and `focus` - and refused a
+ * namespaced element that carries a real `dataset` and writes correctly today. So this does not
+ * claim every `Element` has a `dataset`; it says which write needs one.
  */
-export type BrowserStatusRecipient = Element & HTMLOrSVGElement;
+export type BrowserStatusRecipient = Element;
 
 export interface BrowserPageController {
   /**
@@ -947,7 +952,9 @@ export interface BrowserPageController {
    * setter, which is the conversion: an object takes its `toString`, and a Symbol throws there.
    * It was declared `string` while both callers hand over whatever their own callers passed.
    *
-   * The tone is written on every call that reaches a recipient, `"error"` or `""`.
+   * The tone is written on every call that reaches a recipient, `"error"` or `""`, and that
+   * write is the one that requires a `dataset`: a recipient without one fails there, after the
+   * message has been written.
    */
   setStatus(element: BrowserStatusRecipient | null | undefined, message: unknown, options?: { isError?: boolean }): void;
   sortByName<Item extends BrowserRecordFields>(items: Item[]): Item[];
