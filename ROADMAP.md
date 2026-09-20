@@ -1369,6 +1369,10 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **Complete: `BrowserPageController.setStatus` declares the recipient it writes to and the message it never converts.** A shared prerequisite for the Tasks lane, which holds a queried status slot and an opaque message. The writer's behaviour is unchanged, and the browser debt is unchanged at **2,017**: the diagnostics this unblocks are `0.33.33.41`'s to take.
 
+#### 0.33.33.39.36 - Take the app shell to zero
+
+**Complete: `public/js/navigation.js` reaches zero, 156 to 0 across three slices, and leaves the ledger.** This slice took the last 50 - the bootstrap and what it drives. See the archive entry. No published contract changed.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.

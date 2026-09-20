@@ -57,6 +57,7 @@
   const globalSearchInput = headerParts.globalSearchInput;
   const globalSearchTarget = headerParts.globalSearchTarget;
   const workspaceSelector = headerParts.workspaceSelector;
+  /** @type {MediaQueryList | null} */
   let systemThemeModeQuery = null;
   let systemThemeModeListenerAttached = false;
   /**
@@ -66,7 +67,9 @@
    * @type {Promise<void> | null}
    */
   let sessionAuthWarningPromise = null;
+  /** @type {number | null} */
   let supportViewCountdownId = null;
+  /** @type {MutationObserver | null} */
   let supportViewMutationObserver = null;
   let supportViewExitPending = false;
 
@@ -130,6 +133,17 @@
       throw new TypeError(`Cannot read navigation member '${key}' of ${value}.`);
     }
     return Reflect.get(Object(value), key, value);
+  }
+
+  /**
+   * A member read as `value?.[key]` read it: `undefined` for a missing value, and otherwise the
+   * member access itself, with the value as receiver.
+   * @param {unknown} value
+   * @param {string} key
+   * @returns {unknown}
+   */
+  function optionalMember(value, key) {
+    return value === null || value === undefined ? undefined : Reflect.get(Object(value), key, value);
   }
 
   /**
@@ -955,13 +969,15 @@
       renderNavigation(shell.navigation);
       applyNotificationSummary(shell.notificationSummary);
       applySearchTargets(shell.searchTargets || []);
-      applyWorkspaceName(workspaceContext.workspaceName);
+      // The two members the spread carried through: read off the object this built, which an
+      // object spread does not keep an index signature for.
+      applyWorkspaceName(requiredMember(workspaceContext, "workspaceName"));
       applyWorkspaceCapabilities(workspaceContext);
       applyWorkspaceDeletionNotice(workspaceContext);
       if (shell.themeMode) {
         applyThemeMode(shell.themeMode, shell.themeAutoSource);
       }
-      populateWorkspaceSelector(shell.workspaces || [], shell.activeWorkspaceId || workspaceContext.workspaceId);
+      populateWorkspaceSelector(shell.workspaces || [], shell.activeWorkspaceId || requiredMember(workspaceContext, "workspaceId"));
       window.dispatchEvent(new window.CustomEvent("longtailforge:workspace-context-updated", {
         detail: workspaceContext,
       }));
@@ -983,7 +999,8 @@
    * @param {Record<string, unknown> | null} supportView
    */
   function applySupportViewState(supportView) {
-    window.clearInterval(supportViewCountdownId);
+    // `clearInterval` takes the handle or nothing; `null` and `undefined` are the same no-op to it.
+    window.clearInterval(supportViewCountdownId ?? undefined);
     supportViewCountdownId = null;
     document.querySelector("[data-support-view-banner]")?.remove();
     supportViewMutationObserver?.disconnect();
@@ -1039,8 +1056,20 @@
     installSupportViewBrowserPolicy();
   }
 
+  /**
+   * The countdown line, from the support-view record's own `expiresAt`.
+   *
+   * The record is the boundary the adapter proves, so the expiry is `unknown`. A string reaches
+   * the `Date` constructor unchanged, which is what the session route sends; anything else
+   * reaches it as its number, which is the value the constructor read from a `Date`, a `null` or
+   * a missing expiry.
+   * @param {unknown} expiresAt
+   * @param {HTMLElement} element
+   * @param {HTMLButtonElement} exitButton
+   */
   function updateSupportViewRemaining(expiresAt, element, exitButton) {
-    const remainingSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000));
+    const expiry = new Date(typeof expiresAt === "string" ? expiresAt : Number(expiresAt));
+    const remainingSeconds = Math.max(0, Math.ceil((expiry.getTime() - Date.now()) / 1000));
     const minutes = Math.floor(remainingSeconds / 60);
     const seconds = remainingSeconds % 60;
     element.textContent = remainingSeconds > 0
@@ -1051,6 +1080,7 @@
     }
   }
 
+  /** @param {HTMLButtonElement} exitButton */
   async function exitSupportView(exitButton) {
     if (supportViewExitPending) {
       return;
@@ -1077,6 +1107,7 @@
     }
   }
 
+  /** @param {unknown} value */
   function normalizeSupportViewReturnPath(value) {
     try {
       const url = new URL(String(value || "/dashboard.html"), window.location.origin);
@@ -1095,8 +1126,10 @@
       return;
     }
     const focusHeading = () => {
+      // The page's own heading, which is an HTML element wherever this restores focus; reading
+      // `focus` off anything else would have failed here.
       const heading = document.querySelector("main h1");
-      if (!heading) {
+      if (!(heading instanceof HTMLElement)) {
         return false;
       }
       heading.setAttribute("tabindex", "-1");
@@ -1123,7 +1156,8 @@
     supportViewMutationObserver = new window.MutationObserver((records) => {
       records.forEach((record) => {
         record.addedNodes.forEach((node) => {
-          if (node.nodeType === window.Node.ELEMENT_NODE) {
+          // An added node of this document, which is where this observer is installed.
+          if (node.nodeType === window.Node.ELEMENT_NODE && node instanceof Element) {
             applySupportViewBrowserPolicy(node);
           }
         });
@@ -1132,13 +1166,19 @@
     supportViewMutationObserver.observe(document.body, { childList: true, subtree: true });
   }
 
+  /** @param {Element} root */
   function applySupportViewBrowserPolicy(root) {
+    /** @type {Element[]} */
     const controls = [];
     if (root.matches?.("button, input[type='button'], input[type='submit'], input[type='file']")) {
       controls.push(root);
     }
     controls.push(...(root.querySelectorAll?.("button, input[type='button'], input[type='submit'], input[type='file']") || []));
     controls.forEach((control) => {
+      // The selector matches `button` and three `input` types, each an HTML control of this realm.
+      if (!(control instanceof HTMLButtonElement) && !(control instanceof HTMLInputElement)) {
+        return;
+      }
       if (control.disabled || isSupportViewReadControl(control)) {
         return;
       }
@@ -1149,6 +1189,7 @@
     });
   }
 
+  /** @param {HTMLButtonElement | HTMLInputElement} control */
   function isSupportViewReadControl(control) {
     if (control.closest("[data-support-view-banner], .site-header") || control.hasAttribute("data-support-view-read-control")) {
       return true;
@@ -1165,21 +1206,29 @@
     return safeWords.some((word) => text === word || text.startsWith(`${word} `) || dataNames.includes(word));
   }
 
+  /**
+   * The pending-deletion notice, from the context the bootstrap built or the one the store kept.
+   * Neither names `workspaceDeletion`, so it is read as the optional chain read it.
+   * @param {unknown} workspaceContext
+   */
   function applyWorkspaceDeletionNotice(workspaceContext) {
     let notice = document.querySelector("[data-workspace-deletion-notice]");
-    const deletion = workspaceContext?.workspaceDeletion;
+    const deletion = optionalMember(workspaceContext, "workspaceDeletion");
     if (!deletion) {
       notice?.remove();
       return;
     }
     if (!notice) {
-      notice = document.createElement("aside");
-      notice.className = "workspace-deletion-notice";
-      notice.dataset.workspaceDeletionNotice = "";
-      notice.setAttribute("role", "status");
-      siteHeader.insertAdjacentElement("afterend", notice);
+      // Built and written in the order it was, then held as the queried element is.
+      const created = document.createElement("aside");
+      created.className = "workspace-deletion-notice";
+      created.dataset.workspaceDeletionNotice = "";
+      created.setAttribute("role", "status");
+      siteHeader.insertAdjacentElement("afterend", created);
+      notice = created;
     }
-    const deadline = new Date(deletion.purgeAfter);
+    const purgeAfter = requiredMember(deletion, "purgeAfter");
+    const deadline = new Date(typeof purgeAfter === "string" ? purgeAfter : Number(purgeAfter));
     const deadlineLabel = Number.isNaN(deadline.getTime()) ? "the displayed deadline" : deadline.toLocaleString();
     notice.replaceChildren();
     const message = document.createElement("span");
@@ -1190,6 +1239,7 @@
     notice.append(message, link);
   }
 
+  /** @param {Event} event */
   function submitGlobalSearch(event) {
     event.preventDefault();
 
@@ -1216,6 +1266,7 @@
     });
   }
 
+  /** @param {boolean} isOpen */
   function setGlobalSearchOpen(isOpen) {
     if (!globalSearchToggle || !globalSearchForm) {
       return;
@@ -1225,6 +1276,7 @@
     globalSearchForm.hidden = !isOpen;
   }
 
+  /** @param {unknown} [targets] */
   function applySearchTargets(targets = []) {
     if (!globalSearchShell || !globalSearchForm || !globalSearchTarget) {
       return;
@@ -1242,16 +1294,29 @@
     );
   }
 
-  function normalizeSearchTargets(targets = []) {
-    const seen = new Set();
+  /**
+   * One search target as this shell renders it. The bootstrap's targets carry all five members,
+   * and the stored context's are `unknown[]`, so each is read member by member.
+   * @typedef {{ id: string, label: string, moduleId: string, recordType: string, sourceLabel: string }} SearchTarget
+   */
 
-    return (Array.isArray(targets) ? targets : [])
+  /**
+   * @param {unknown} [targets]
+   * @returns {SearchTarget[]}
+   */
+  function normalizeSearchTargets(targets = []) {
+    /** @type {Set<string>} */
+    const seen = new Set();
+    /** @type {readonly unknown[]} */
+    const list = Array.isArray(targets) ? targets : [];
+
+    return list
       .map((target) => ({
-        id: String(target.id || `${target.moduleId || ""}:${target.recordType || ""}`).trim(),
-        label: String(target.label || target.sourceLabel || target.recordType || "").trim(),
-        moduleId: String(target.moduleId || "").trim(),
-        recordType: String(target.recordType || "").trim(),
-        sourceLabel: String(target.sourceLabel || "").trim(),
+        id: String(requiredMember(target, "id") || `${requiredMember(target, "moduleId") || ""}:${requiredMember(target, "recordType") || ""}`).trim(),
+        label: String(requiredMember(target, "label") || requiredMember(target, "sourceLabel") || requiredMember(target, "recordType") || "").trim(),
+        moduleId: String(requiredMember(target, "moduleId") || "").trim(),
+        recordType: String(requiredMember(target, "recordType") || "").trim(),
+        sourceLabel: String(requiredMember(target, "sourceLabel") || "").trim(),
       }))
       .filter((target) => (target.moduleId || target.sourceLabel) && target.recordType && target.label)
       .filter((target) => {
@@ -1265,6 +1330,7 @@
       .sort((left, right) => left.label.localeCompare(right.label));
   }
 
+  /** @param {string} value @param {string} label @param {SearchTarget | null} [target] */
   function createSearchTargetOption(value, label, target = null) {
     const option = document.createElement("option");
 
@@ -1908,19 +1974,29 @@
     }
   }
 
+  /**
+   * The workspace list is the bootstrap's `workspaces`, which the adapter leaves `unknown[]`, or
+   * the session route's own list, so each row is read member by member and the active id reaches
+   * the select's own setter, which converts it as the assignment did.
+   * @param {unknown} workspaces
+   * @param {unknown} activeWorkspaceId
+   */
   function populateWorkspaceSelector(workspaces, activeWorkspaceId) {
     if (!workspaceSelector || !Array.isArray(workspaces) || workspaces.length === 0) {
       return;
     }
 
-    workspaceSelector.replaceChildren(...workspaces.map((workspace) =>
-      createWorkspaceOption(workspace.workspaceName || workspace.workspace_id, workspace.workspace_id),
+    /** @type {readonly unknown[]} */
+    const list = workspaces;
+    workspaceSelector.replaceChildren(...list.map((workspace) =>
+      createWorkspaceOption(requiredMember(workspace, "workspaceName") || requiredMember(workspace, "workspace_id"), requiredMember(workspace, "workspace_id")),
     ));
-    workspaceSelector.value = activeWorkspaceId || workspaces[0].workspace_id;
-    workspaceSelector.disabled = workspaces.length < 2;
+    Reflect.set(workspaceSelector, "value", activeWorkspaceId || requiredMember(list[0], "workspace_id"));
+    workspaceSelector.disabled = list.length < 2;
     applyActiveWorkspaceLabel();
   }
 
+  /** @param {unknown} themeMode @param {unknown} [themeAutoSource] */
   function applyThemeMode(themeMode, themeAutoSource = "system") {
     const normalizedThemeMode = normalizeThemeMode(themeMode);
     const normalizedThemeAutoSource = normalizeThemeAutoSource(themeAutoSource);
@@ -1935,14 +2011,25 @@
     ensureSystemThemeModeWatcher();
   }
 
+  /** @typedef {"light" | "auto" | "dark"} ThemeMode */
+
+  /**
+   * `find` with `===` matches exactly what `includes` matched, since only these three are listed.
+   * @param {unknown} value
+   * @returns {ThemeMode}
+   */
   function normalizeThemeMode(value) {
-    return ["light", "auto", "dark"].includes(value) ? value : "light";
+    /** @type {readonly ThemeMode[]} */
+    const modes = ["light", "auto", "dark"];
+    return modes.find((mode) => mode === value) || "light";
   }
 
+  /** @param {unknown} value @returns {"system"} */
   function normalizeThemeAutoSource(value) {
     return value === "system" ? "system" : "system";
   }
 
+  /** @param {unknown} themeMode @param {unknown} [themeAutoSource] @returns {ThemeMode} */
   function resolveThemeMode(themeMode, themeAutoSource = "system") {
     const normalizedThemeMode = normalizeThemeMode(themeMode);
 
@@ -1953,6 +2040,7 @@
     return resolveAutoThemeMode(themeAutoSource);
   }
 
+  /** @param {unknown} [themeAutoSource] @returns {ThemeMode} */
   function resolveAutoThemeMode(themeAutoSource = "system") {
     if (normalizeThemeAutoSource(themeAutoSource) === "system" && typeof window.matchMedia === "function") {
       return getSystemThemeModeQuery().matches ? "dark" : "light";
@@ -1961,6 +2049,7 @@
     return "light";
   }
 
+  /** @returns {MediaQueryList | { matches: boolean }} */
   function getSystemThemeModeQuery() {
     if (!systemThemeModeQuery && typeof window.matchMedia === "function") {
       systemThemeModeQuery = window.matchMedia(SYSTEM_THEME_QUERY);
@@ -1986,19 +2075,26 @@
       }
     };
 
-    if (typeof query.addEventListener === "function") {
+    // The fallback answers only `matches`, so each subscription is asked for before it is read,
+    // which is what reading an absent one for `typeof` did.
+    if ("addEventListener" in query && typeof query.addEventListener === "function") {
       query.addEventListener("change", listener);
-    } else if (typeof query.addListener === "function") {
+    } else if ("addListener" in query && typeof query.addListener === "function") {
       query.addListener(listener);
     }
 
     systemThemeModeListenerAttached = true;
   }
 
+  /**
+   * Both arguments reach the option's own setters, which convert them as the assignments did.
+   * @param {unknown} label
+   * @param {unknown} [value]
+   */
   function createWorkspaceOption(label, value = label) {
     const option = document.createElement("option");
-    option.value = value;
-    option.textContent = label;
+    Reflect.set(option, "value", value);
+    Reflect.set(option, "textContent", label);
     return option;
   }
 
@@ -2017,6 +2113,10 @@
     });
 
     document.querySelectorAll("[data-workspace-selector]").forEach((select) => {
+      // The shell builds this control, and it is the `<select>` whose options this reads.
+      if (!(select instanceof HTMLSelectElement)) {
+        return;
+      }
       if (select.options.length <= 1) {
         select.replaceChildren(createWorkspaceOption(workspaceName));
         select.value = workspaceName;
@@ -2063,13 +2163,20 @@
     return labelSource;
   }
 
+  /**
+   * The capability writes, from the context the bootstrap built or the one the store kept. The
+   * stored record names neither the capabilities nor the module list, so both are read as the
+   * member accesses read them, and each word reaches the dataset's own setter.
+   * @param {unknown} settings
+   */
   function applyWorkspaceCapabilities(settings) {
-    const capabilities = settings.workspaceCapabilities || {};
-    const workspaceType = settings.workspaceType || capabilities.workspaceType || "business";
-    const availableTools = new Set(Array.isArray(capabilities.availableTools) ? capabilities.availableTools : []);
+    const capabilities = requiredMember(settings, "workspaceCapabilities") || {};
+    const workspaceType = requiredMember(settings, "workspaceType") || requiredMember(capabilities, "workspaceType") || "business";
+    const toolList = requiredMember(capabilities, "availableTools");
+    const availableTools = new Set(Array.isArray(toolList) ? toolList : []);
 
-    siteHeader.dataset.workspaceType = workspaceType;
-    document.body.dataset.workspaceType = workspaceType;
+    Reflect.set(siteHeader.dataset, "workspaceType", workspaceType);
+    Reflect.set(document.body.dataset, "workspaceType", workspaceType);
     document.body.dataset.workspaceClientTools = availableTools.has("clients_projects") ? "enabled" : "disabled";
     document.body.dataset.timeTrackingModule = moduleIsEnabled(settings, "time-tracking") ? "enabled" : "disabled";
     document.body.dataset.tasksModule = moduleIsEnabled(settings, "tasks") ? "enabled" : "disabled";
@@ -2079,20 +2186,32 @@
     setNavLinkVisible("user-admin.html", availableTools.has("team_members"));
 
     document.querySelectorAll(".nav-menu").forEach((menu) => {
+      // Each menu is the `<details>` `createNavMenu` builds in this realm.
+      if (!(menu instanceof HTMLElement)) {
+        return;
+      }
       const visibleLinks = [...menu.querySelectorAll("a")].filter((link) => !link.hidden);
       menu.hidden = visibleLinks.length === 0;
     });
   }
 
+  /**
+   * @param {unknown} settings
+   * @param {string} moduleId
+   */
   function moduleIsEnabled(settings, moduleId) {
-    const moduleDefinition = (Array.isArray(settings.modules) ? settings.modules : [])
-      .find((candidate) => candidate.id === moduleId || candidate.moduleId === moduleId);
+    const modules = requiredMember(settings, "modules");
+    /** @type {readonly unknown[]} */
+    const moduleList = Array.isArray(modules) ? modules : [];
+    const moduleDefinition = moduleList
+      .find((candidate) => requiredMember(candidate, "id") === moduleId || requiredMember(candidate, "moduleId") === moduleId);
 
     if (moduleDefinition) {
-      return moduleDefinition.status === "enabled";
+      return requiredMember(moduleDefinition, "status") === "enabled";
     }
 
-    const enabledModules = new Set(Array.isArray(settings.enabledModules) ? settings.enabledModules : []);
+    const enabled = requiredMember(settings, "enabledModules");
+    const enabledModules = new Set(Array.isArray(enabled) ? enabled : []);
     return enabledModules.has(moduleId);
   }
 
@@ -2306,9 +2425,13 @@
     return context;
   }
 
+  /** @param {string} href @param {boolean} isVisible */
   function setNavLinkVisible(href, isVisible) {
     document.querySelectorAll(`[data-nav-href="${href}"]`).forEach((link) => {
-      link.hidden = !isVisible;
+      // Each link is the anchor `createNavLink` builds in this realm.
+      if (link instanceof HTMLElement) {
+        link.hidden = !isVisible;
+      }
     });
   }
 
@@ -2329,6 +2452,7 @@
     });
   }
 
+  /** @param {string} workspaceId */
   async function switchWorkspace(workspaceId) {
     workspaceSelector.disabled = true;
 
@@ -2354,14 +2478,21 @@
     }
   }
 
+  /**
+   * `find` with `===` matches exactly what `includes` matched, since only these five are listed.
+   * @param {unknown} value
+   * @returns {string}
+   */
   function normalizeLandingPath(value) {
-    return [
+    /** @type {readonly string[]} */
+    const landings = [
       "/dashboard.html",
       "/workbench.html",
       "/tasks.html",
       "/notes.html",
       "/lists.html",
-    ].includes(value) ? value : "/dashboard.html";
+    ];
+    return landings.find((landing) => landing === value) || "/dashboard.html";
   }
 
   function logOut() {

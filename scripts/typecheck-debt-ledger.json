@@ -546,6 +546,7 @@
         "tests/unit/module-settings-snapshot.test.mjs",
         "tests/unit/mutation-runner-contracts.test.mjs",
         "tests/unit/namespace-root-closure-contracts.test.mjs",
+        "tests/unit/navigation-bootstrap-consumers.test.mjs",
         "tests/unit/navigation-notification-panel.test.mjs",
         "tests/unit/navigation-shell-chrome.test.mjs",
         "tests/unit/normalized-list-record-contracts.test.mjs",
@@ -808,7 +809,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 2017,
+      "errorCount": 1967,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -998,28 +999,6 @@
           {
             "code": 2339,
             "count": 1
-          }
-        ],
-        "public/js/navigation.js": [
-          {
-            "code": 2339,
-            "count": 13
-          },
-          {
-            "code": 2345,
-            "count": 1
-          },
-          {
-            "code": 7005,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 29
-          },
-          {
-            "code": 7034,
-            "count": 3
           }
         ],
         "public/js/notifications.js": [
@@ -1885,8 +1864,8 @@
     }
   },
   "totals": {
-    "files": 1390,
-    "errors": 2017,
+    "files": 1391,
+    "errors": 1967,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
