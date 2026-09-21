@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.42.12 - Annotate Workbench related-item labels and action affordances
+
+**Model: Medium Effort** - six local parameter annotations reuse an established producer vocabulary without changing executable code.
+
+- [x] **Measure before choosing.** Baseline a49a3ae7 reproduces Workbench 232 raw / 222 owned / 10 DOM, comprising 203 params, 12 state and 7 assorted. Largest functions: navigationContainsHref, createTaskFocusTimerButton and createTaskDetailField four each; renderRegisteredWorkbenchCards four including two DOM; loadWorkbenchSourceData, loadTimerCardData, offerTaskResumeNoteBeforeExit, recommendedCandidateResumeNote, createTaskFocusTimerControls and createTaskFocusChecklistBody three each. There is no dominant cluster. Choose the related-item label/action-affordance vocabulary; badge records, timer controls and recursive navigation are distinct input boundaries and remain counted.
+- [x] **Reuse the actual producer shape.** relatedContextTitle, relatedContextSourceLabel, relatedContextContextLabel, relatedContextCanOpen and relatedContextActionLabel take the existing TaskFocusRelatedItem. That local model already traces stripInternalItemFields: module shapers supply titles/source labels and actions, addRelatedItem adds the group reason label, and the strip function retains those public members. No contract, producer, reader or incoming payload is changed. safeRelatedContextText takes unknown, matching its existing String conversion and raw-ID refusal.
+- [x] **Annotation-only proof.** The entire implementation is six JSDoc lines. Removing those exact lines reproduces baseline workbench.js byte-for-byte. Final source SHA-256: a117112ddf5c13497c3ac3c873ac7344186df202d623ced531cbe22adfdc820c. No runtime helper, validation, coercion, fallback, getter count, action ID, status, label or failure changes. Existing source owners and lifts inspected across scripts/ and tests/; no expression was replaced and no pin requires retargeting. No new suite or mutation campaign: compiler proof plus existing behavioral coverage is proportionate for an unchanged executable surface.
+- [x] **Account once.** relatedContextTitle three to zero; relatedContextSourceLabel three to zero; relatedContextContextLabel two to zero; relatedContextCanOpen one to zero; relatedContextActionLabel two to zero; safeRelatedContextText one to zero. Twelve parameter eliminations and zero reclassification. Workbench 232 to 220 raw, 222 to 210 owned (203 to 191 params; 12 state and 7 assorted unchanged), 10 DOM unchanged. Browser 1380 to 1368 and global DOM 261 unchanged; exactly one diagnostic file moves and every other owner is unchanged. Server/tests and scripts remain zero.
+- [x] **Proof and verification.** Existing related-context and opener lifted suites pass 15 cases. Run isolated desktop/mobile real linked-Notes display and read-only opening on port 8102, full units/lint, canonical verify:slice and checkpoint validation. Exact results and submitted SHA accompany delivery. No failure artifact is overwritten.
+
+No docs change needed: annotations reuse an established local model and leave documented behavior byte-identical. Internal checkpoint bookkeeping remains in this entry and the branch-local ledger.
+
+**Remaining:** Workbench 210 owned plus 10 DOM; no file/lane closeout. Extraction, Lists DOM, other controllers, shared code/contracts, server, CSS and packages remain untouched. Recurring-task status, assignee_ids and detached-trigger findings stay recorded and uncorrected.
+
 ## Version 0.33.33.42.11 - Type Workbench focus envelopes and candidate readers
 
 **Model: High Effort** - opaque response members and candidate identifiers must preserve read order, receivers, record identity and handled refresh failures.
