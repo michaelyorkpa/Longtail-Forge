@@ -2051,6 +2051,7 @@
     taskFocusBody.append(...sections);
   }
 
+  /** @param {ActiveTaskFocus | null | undefined} active */
   function createTaskFocusActionStrip(active) {
     const workbenchViewHelpers = requireView();
     const isBlocked = String(active?.task?.status || "").trim() === "blocked";
@@ -2098,6 +2099,10 @@
     });
   }
 
+  /**
+   * The strip supplies identity and availability; shared button options own presentation and events.
+   * @param {Pick<import("../../src/types/browser-contracts.js").BrowserViewActionButtonOptions, "icon" | "label" | "onClick"> & {active?: Pick<ActiveTaskFocus, "taskId"> | null, disabledReason?: string, id: string}} options
+   */
   function createTaskFocusActionButton({ active, disabledReason = "", icon, id, label, onClick }) {
     const workbenchViewHelpers = requireView();
     const taskId = active?.taskId || "";
@@ -2132,6 +2137,7 @@
     return legality;
   }
 
+  /** @param {string} action */
   function taskFocusLifecycleDisabledReason(action, active = state.activeTaskFocus) {
     const task = active?.task || null;
     const status = String(task?.status || "").trim();

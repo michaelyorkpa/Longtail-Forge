@@ -409,6 +409,7 @@
         "tests/e2e/view-floating-menu-pointer-target.spec.mjs",
         "tests/e2e/view-renderer-sparse-surface.spec.mjs",
         "tests/e2e/view-shell-cold-load.spec.mjs",
+        "tests/e2e/workbench-action-strip.spec.mjs",
         "tests/e2e/workbench-focus-handles.spec.mjs",
         "tests/e2e/workbench-focus-readers.spec.mjs",
         "tests/e2e/workbench-focus-state.spec.mjs",
@@ -833,7 +834,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1523,
+      "errorCount": 1516,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1146,7 +1147,7 @@
           },
           {
             "code": 7006,
-            "count": 145
+            "count": 143
           },
           {
             "code": 7023,
@@ -1158,7 +1159,7 @@
           },
           {
             "code": 7031,
-            "count": 9
+            "count": 4
           },
           {
             "code": 7034,
@@ -1778,8 +1779,8 @@
     }
   },
   "totals": {
-    "files": 1415,
-    "errors": 1523,
+    "files": 1416,
+    "errors": 1516,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
