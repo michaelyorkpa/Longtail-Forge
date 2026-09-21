@@ -3222,7 +3222,12 @@
     focusModeList?.querySelector("button")?.focus?.();
   }
 
-  /** @param {EventTarget | null} [trigger] */
+  /**
+   * @param {Partial<Pick<WorkCandidate, "candidateId">>} candidate
+   * @param {string} taskId
+   * @param {EventTarget | null} [trigger]
+   * @param {{defaults?: unknown, focusTarget?: string, promptBlockedReason?: boolean}} [editorOptions]
+   */
   async function openTaskCandidate(candidate, taskId, trigger = null, editorOptions = {}) {
     if (!moduleEnabled("tasks")) {
       setStatus("Tasks are not available in this workspace.", { isError: true });
@@ -3247,7 +3252,7 @@
       }, { refresh: loadWorkbench, setStatus });
       if (result.completed) {
         const detail = result.detail || {};
-        if (detail.taskLifecycleAction === "complete") {
+        if (Reflect.get(Object(detail), "taskLifecycleAction", detail) === "complete") {
           resetTaskFocusState();
           await refreshFocusCandidates();
           renderWorkbench();

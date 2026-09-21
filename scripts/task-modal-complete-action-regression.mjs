@@ -83,7 +83,10 @@ function assertStaticContract() {
     "Complete action should pass safe lifecycle detail to host surfaces");
   assert.match(taskDialogScript, /taskCompletionHostDetail\(result\)[\s\S]*recurrenceQueued: optionalTaskProjectionFields\(taskProjectionFields\(result\)\.recurrenceJob\)\?\.queued === true/,
     "Complete action should pass safe recurrence detail to host surfaces");
-  assert.match(workbenchScript, /detail\.taskLifecycleAction === "complete"[\s\S]*setTaskCompletionStatus\(detail\)/,
+  // `0.33.33.42.6` reads the lifecycle action through the detail's own receiver, because the
+  // modal's result is opaque to this consumer. The claim - the Workbench routes a completion
+  // detail to its completion-specific status - is unchanged, and the opener suites execute it.
+  assert.match(workbenchScript, /Reflect\.get\(Object\(detail\), "taskLifecycleAction", detail\) === "complete"[\s\S]*setTaskCompletionStatus\(detail\)/,
     "Workbench should preserve completion-specific status messages from the modal");
   assert.match(tasksRoutesSource, /tasksRoutes\.post\("\/tasks\/:taskId\/complete"[\s\S]*tasksService\.complete\(request\.params\.taskId, readTaskSession\(request\)\)/,
     "Protected completion should remain route-backed through tasksService.complete and the checked session boundary");
