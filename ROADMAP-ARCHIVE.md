@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.48 - Take the notification subscriptions to zero
+
+**Model: Small Effort** - the published contract already explained why its target is `unknown`, so the work was reading each member the way the property access read it.
+
+- [x] **`public/js/shared/notification-subscriptions.js` reaches zero, 4 to 0, and leaves the ledger.** Browser **1,492 to 1,488**, now across **18** diagnostic files; params **934 to 930**; state **195**, `dom` **331** and assorted **32** unchanged; `0.33.33.39` **7 to 3**. Exactly one file moved - all four `TS7006` - and nothing rose or was reclassified. `0.33.33.42` stays **257** and `0.33.33.43` stays **897**.
+- [x] **The contract had already answered the hard question.** `BrowserNotificationSubscriptions` declares `target` as `unknown` and says why: the writer genuinely accepts either spelling, reading `moduleId` or `module_id` from whatever it is given. So the two request builders keep that width and read each member through the target's own receiver, while `taskTarget` and `noteTarget` take the `string` the contract declares and answer the camelCase `BrowserNotificationTargetRequest` it names.
+- [x] **Each pair keeps its short circuit and its conversion point.** The second spelling is still read only when the first answered nothing, which a getter-counting case proves. The event type is still decided by the **value** and converted at the **write**, so a value that is truthy but reads as the empty string is still sent rather than skipped - converting before the test would have dropped it, and that mutation is one of the five this suite kills.
+- [x] **One behaviour is stated, and it is a message rather than an outcome.** An absent target still fails before any request is built, as a `TypeError`, now naming the member it could not read. **All fourteen cases pass unchanged against the original file**, the absent-target case included: both throw the same kind and neither reaches the network.
+- [x] **Nothing had exercised the request builders.** Three unit owners, two browser specs and a mutation fixture cover this file, but all of them hold the *response* narrowing or the published target helpers; `targetParams` and `normalizeTargetPayload` - the two functions this checkpoint changed - were reached only incidentally. Fourteen cases now drive them through the published surface: both spellings, camelCase winning when both are present, the short circuit, the receiver, the absent member, the absent target, the event type in either spelling and its omission, and what each of the three network calls actually sends. **Six focused mutations, five kills and one dispositioned**; the receiver argument is indistinguishable wherever `Object(value)` is the value. Byte restoration verified at SHA-256 `9ab05e2d7c1c3bf9903aef82bcd0d00131275d1683d353f37331ef6734452a95`.
+- [x] **The lift was checked before the helper was added.** `notification-response-contracts` extracts this file's whole IIFE rather than one function, so the new member reader travels with it; that suite and the other two owners pass unchanged.
+- [x] **Full verification on the delivered tree.** Unit **4,656 across 255 files**, regressions **348/348**, E2E **363/363** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+Excluded and explicitly remaining: `0.33.33.39`'s shared framework budget, **3** - one each in `asset-version.js`, `formatters.js` and `view-surface-descriptor.js`. No published contract changed. **This does not close `0.33.33.39`, `0.33.33.38`, or the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.42.8 - Type Workbench focus-mode state and rendering
 
 **Model: High Effort** - a producer-backed state declaration connects live/cache assignments and rendering, while the copy lookup must retain native key conversion and accessor semantics.

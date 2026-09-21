@@ -606,6 +606,7 @@
         "tests/unit/notification-preference-json-boundary.test.mjs",
         "tests/unit/notification-preferences-render.test.mjs",
         "tests/unit/notification-response-contracts.test.mjs",
+        "tests/unit/notification-subscription-requests.test.mjs",
         "tests/unit/notifications-page-contracts.test.mjs",
         "tests/unit/optional-member-root-contracts.test.mjs",
         "tests/unit/overlay-host-writer-contracts.test.mjs",
@@ -837,7 +838,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1492,
+      "errorCount": 1488,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1049,12 +1050,6 @@
           {
             "code": 2538,
             "count": 1
-          }
-        ],
-        "public/js/shared/notification-subscriptions.js": [
-          {
-            "code": 7006,
-            "count": 4
           }
         ],
         "public/js/shared/view-surface-descriptor.js": [
@@ -1758,8 +1753,8 @@
     }
   },
   "totals": {
-    "files": 1419,
-    "errors": 1492,
+    "files": 1420,
+    "errors": 1488,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

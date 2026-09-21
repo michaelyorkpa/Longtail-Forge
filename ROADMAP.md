@@ -1435,6 +1435,12 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **The first `dom` this lane has moved**, 334 to 331, and the confirm and alert dialogs gained the first coverage that has ever executed them.
 
+#### 0.33.33.39.48 - Take the notification subscriptions to zero
+
+**Complete: `public/js/shared/notification-subscriptions.js` reaches zero, 4 to 0, and leaves the ledger.** The published `BrowserNotificationSubscriptions` is unchanged.
+
+**The request builders had never been exercised**, and now are. `0.33.33.39` is **3**, across three files holding one diagnostic each.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.
