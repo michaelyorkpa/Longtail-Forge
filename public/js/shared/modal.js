@@ -2,6 +2,25 @@
   const namespace = window.LongtailForge || {};
   let modalCounter = 0;
 
+  /**
+   * One button the dialog offers, and the value closing through it resolves with.
+   * @typedef {{ label: string, value: boolean, autofocus?: boolean, danger?: boolean }} DialogAction
+   */
+
+  /**
+   * Whether an element can take focus.
+   *
+   * `document.activeElement` and a query both answer an `Element`, and focusing belongs to
+   * `HTMLElement` and `SVGElement` rather than to every element. This reads the member the
+   * way `typeof element.focus === "function"` read it and claims only what that proves.
+   *
+   * @param {unknown} value
+   * @returns {value is Element & { focus: () => unknown }}
+   */
+  function isFocusable(value) {
+    return typeof Reflect.get(Object(value), "focus", value) === "function";
+  }
+
   function confirmDialog({
     title = "Confirm action",
     message = "Continue?",
@@ -31,6 +50,7 @@
     });
   }
 
+  /** @param {{ title: string, message: string, actions: DialogAction[] }} options */
   function openDialog({ title, message, actions }) {
     const trigger = document.activeElement;
     const dialog = document.createElement("dialog");
@@ -65,6 +85,7 @@
     return new Promise((resolve) => {
       let resolvedValue = false;
 
+      /** @param {boolean} value */
       function closeWith(value) {
         resolvedValue = value;
         dialog.close(String(value));
@@ -102,7 +123,7 @@
         () => {
           dialog.remove();
 
-          if (trigger && typeof trigger.focus === "function") {
+          if (trigger && isFocusable(trigger)) {
             trigger.focus();
           }
 
@@ -122,6 +143,9 @@
         dialog.querySelector("button");
 
       if (focusTarget) {
+        if (!isFocusable(focusTarget)) {
+          throw new TypeError("The dialog's focus target cannot take focus.");
+        }
         focusTarget.focus();
       }
     });

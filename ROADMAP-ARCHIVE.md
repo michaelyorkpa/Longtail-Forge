@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.47 - Take the modal dialogs to zero
+
+**Model: Medium Effort** - two elements are focused here and they were never guarded alike, so the same capability check could not be applied to both without deciding what each one already did.
+
+- [x] **`public/js/shared/modal.js` reaches zero, 8 to 0, and leaves the ledger.** Browser **1,510 to 1,502**, now across **19** diagnostic files; params **941 to 936** and **`dom` 334 to 331**; state **201** and assorted **34** unchanged; `0.33.33.39` **12 to 7**. Exactly one file moved - owned TS7031 3 and TS7006 2, plus the three `dom` TS2339 on `Element.focus` - and nothing rose or was reclassified. `0.33.33.42` stays **267** and `0.33.33.43` stays **897**.
+- [x] **This is the first `dom` `0.33.33.39` has eliminated.** The family is credited where the elimination happened, and the owner budget is unchanged by it: 5 owned and 3 `dom` are counted separately and once each.
+- [x] **The two focused elements were treated differently, because they already were.** The trigger carried its own `typeof trigger.focus === "function"` check, so narrowing it with a predicate that reads the member the same way changes nothing at all. The dialog's own focus target carried no check: it was focused outright, so an element that could not take focus rejected the dialog's promise there. It still does. **Applying one capability check to both would have silently skipped the second**, and that is the behaviour difference this checkpoint declined to introduce.
+- [x] **The guard added at that second site is behaviour-inert, and the mutation campaign is what shows it.** Dropping it restores the direct call, which throws its own `TypeError` for the same input - so the two answer the same rejection, and the mutation is dispositioned as equivalent rather than counted as a gap. The guard exists because `Element` does not declare `focus`; it changes the message and nothing else. **All thirteen cases pass unchanged against the original file**, including the one that drives that rejection.
+- [x] **Nothing had executed this file, and now thirteen cases do.** Both owners read it as source text. The cases hold the button order and default labels, the value each action resolves, cancel and Escape and the platform's own cancel, the key that is *not* Escape, the destructive styling landing on one action only, the autofocus marker and the focus that follows it, modal opening and the attribute fallback where `showModal` is absent, the dialog removing itself, focus returning to the trigger, and a trigger that cannot take focus back - absent or present-but-uncallable. **Eight focused mutations, seven kills and one dispositioned.** Byte restoration verified at SHA-256 `8d390d0a5a28c39787347a7b7921f3fc23dd534b18e258888698bfa322609c7d`.
+- [x] **No source owner needed retargeting.** Both owners that read this file pin markup and integration text, neither of which this checkpoint moved.
+- [x] **Full verification on the delivered tree.** Unit **4,637 across 253 files**, regressions **348/348**, E2E **363/363** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+Excluded and explicitly remaining: `0.33.33.39`'s shared framework budget, **7** across 4 files - `notification-subscriptions.js` 4, and one each in `asset-version.js`, `formatters.js` and `view-surface-descriptor.js`. No published contract changed. **This does not close `0.33.33.39`, `0.33.33.38`, or the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.42.7 - Type Task Focus action-strip construction
 
 **Model: Medium Effort** - a local producer and its button consumer reuse established state and published presentation/event types; executable source stays identical.

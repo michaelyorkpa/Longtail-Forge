@@ -553,6 +553,7 @@
         "tests/unit/lookup-response-contracts.test.mjs",
         "tests/unit/managed-session-contracts.test.mjs",
         "tests/unit/markdown-preview-contracts.test.mjs",
+        "tests/unit/modal-dialog-behaviour.test.mjs",
         "tests/unit/module-actions-registry.test.mjs",
         "tests/unit/module-settings-catalog-contracts.test.mjs",
         "tests/unit/module-settings-snapshot.test.mjs",
@@ -835,7 +836,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1510,
+      "errorCount": 1502,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1047,20 +1048,6 @@
           {
             "code": 2538,
             "count": 1
-          }
-        ],
-        "public/js/shared/modal.js": [
-          {
-            "code": 2339,
-            "count": 3
-          },
-          {
-            "code": 7006,
-            "count": 2
-          },
-          {
-            "code": 7031,
-            "count": 3
           }
         ],
         "public/js/shared/notification-subscriptions.js": [
@@ -1770,8 +1757,8 @@
     }
   },
   "totals": {
-    "files": 1417,
-    "errors": 1510,
+    "files": 1418,
+    "errors": 1502,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

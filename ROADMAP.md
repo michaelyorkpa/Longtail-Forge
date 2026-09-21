@@ -1429,6 +1429,12 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **One executable line changed and is equivalent**, and the listener it lives in gained the first coverage it has ever had.
 
+#### 0.33.33.39.47 - Take the modal dialogs to zero
+
+**Complete: `public/js/shared/modal.js` reaches zero, 5 owned and 3 `dom` to 0, and leaves the ledger.** The published `BrowserModal` is unchanged.
+
+**The first `dom` this lane has moved**, 334 to 331, and the confirm and alert dialogs gained the first coverage that has ever executed them.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.
