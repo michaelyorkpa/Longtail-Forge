@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.3.6 - The API keys page's checked lookups
+
+**Model: Medium Effort** - nine module-scope bindings, and one read whose elements this page renders itself.
+
+- [x] **29 diagnostics to 0, and `public/js/api-keys.js` leaves the ledger.** Browser **1,338 to 1,309**, now across **11** diagnostic files; **`dom` 231 to 202**. **Params 897, state 180 and assorted 30 did not move.** `0.33.33.42` stays **210** and `0.33.33.43` stays **897**.
+- [x] **The markup was read first, and it settled which bindings needed a subtype at all.** Four do - the creation `form`, the name and secret `input`s, and the create `button`. Five do not: the scope grid, the copy button, the status line and the table body are read only through members every element carries, so narrowing them would have claimed more than the page uses.
+- [x] **Checked at the use, not at the lookup.** `loadApiKeys()` runs before the first dereference and **reaches the network**, so refusing at capture would suppress a request that happens today - the same reason `0.33.33.38.3.4` gave, and the suite asserts no binding is refused at its own `querySelector`.
+- [x] **One honest tightening, named.** `readSelectedScopes` maps `value` off whatever matched `[data-api-key-scope]:checked`. A matching node that is not an input is now dropped rather than contributing `undefined` to the scope list a key is created with. **`:checked` cannot match a non-checkable element and this page renders those checkboxes itself**, so nothing that can occur is removed - but it is a behaviour difference and is stated rather than folded into the narrowing.
+- [x] **Checked lookups, not assertions.** `findApiKeyForm`, `findApiKeyInput`, `findApiKeyButton` and `findApiKeyPanel` narrow with `instanceof`, in the selector form this estate's other page cohorts use. No cast, no `@type` assertion, no non-null assertion; `requireApiKeyControl` is generic only to carry its argument's type through a real null check.
+- [x] **The lifts were checked before the helpers were written.** `api-key-scope-rendering` lifts eight pure helpers and `api-key-contracts` two readers; none touches a module-scope binding, so none could acquire a free variable. Both suites pass unchanged, and the existing break campaign stays **24 of 24 refused**.
+- [x] **The markup-versus-narrowing pin was carried forward.** Each of the four narrowed bindings is asserted twice - that the source narrows it, and that `api-keys.html` renders the element that narrowing requires - which is the check `0.33.33.38.3.4` paid for.
+- [x] **Full verification on the delivered tree.** Unit **4,688 across 258 files**, regressions **348/348**, E2E **363/363** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero. `task-reminder-notification-delivery` failed once in the parallel regression run and **passes standalone**; it reads none of this page and is recorded as the isolated-database flake it is rather than counted here.
+
+Excluded and explicitly remaining: six files and **44** `dom` in this cohort, led by `tags.js` at 25 - which is a different shape, all `TS2339` with no nullability at all. **This closes neither `0.33.33.38.3`, `0.33.33.38`, nor the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.42.12 - Annotate Workbench related-item labels and action affordances
 
 **Model: Medium Effort** - six local parameter annotations reuse an established producer vocabulary without changing executable code.

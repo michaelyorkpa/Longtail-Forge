@@ -203,6 +203,54 @@ describe("the collection reader", () => {
   });
 });
 
+describe("the page's controls", () => {
+  /**
+   * `0.33.33.38.3.6` took this page's DOM lookups to zero.
+   *
+   * **Each narrowing is checked against the element the view renders, not against the binding's
+   * name.** `0.33.33.38.3.4` mistook a `textarea` for an `input` on another page by trusting a
+   * name; this is where that cannot repeat here.
+   */
+  it("narrows every control it reads a subtype member from", () => {
+    const markup = readText("views/protected/api-keys.html");
+    assert.match(page, /function findApiKeyForm\(selector\) \{[\s\S]*element instanceof HTMLFormElement \? element : null;/);
+    assert.match(page, /function findApiKeyInput\(selector\) \{[\s\S]*element instanceof HTMLInputElement \? element : null;/);
+    assert.match(page, /function findApiKeyButton\(selector\) \{[\s\S]*element instanceof HTMLButtonElement \? element : null;/);
+
+    for (const [selector, binding, finder, tag] of [
+      ["api-key-form", "apiKeyForm", "findApiKeyForm", "<form"],
+      ["api-key-name", "apiKeyNameInput", "findApiKeyInput", "<input"],
+      ["api-key-secret", "apiKeySecretInput", "findApiKeyInput", "<input"],
+      ["create-api-key", "createApiKeyButton", "findApiKeyButton", "<button"],
+    ]) {
+      assert.match(page, new RegExp(`const ${binding} = ${finder}\\("\\[data-${selector}\\]"\\)`),
+        `${binding} is narrowed by ${finder}`);
+      assert.match(markup, new RegExp(`${tag}[^>]*data-${selector}`),
+        `the view renders data-${selector} as ${tag}>, which is what ${finder} requires`);
+    }
+  });
+
+  /** Checked at the use, because loadApiKeys() reaches the network before the first read. */
+  it("refuses an absent control at its use rather than at its lookup", () => {
+    assert.match(page, /function requireApiKeyControl\(control, name\) \{\s*if \(!control\) \{\s*throw new TypeError\(`The API keys page requires its \$\{name\}\.`\)/);
+    assert.ok((page.match(/requireApiKeyControl\(/g) || []).length >= 16,
+      "every required use goes through the check");
+    assert.doesNotMatch(page, /const \w+ = requireApiKeyControl\(document\.querySelector/,
+      "no control is refused at its lookup, which would move the failure ahead of loadApiKeys()");
+    assert.doesNotMatch(page, /apiKeyList\?\.|apiKeyScopes\?\.|apiKeyStatus\?\.|apiKeyForm\?\./,
+      "nor read through an optional chain, which would make a required write a no-op");
+  });
+
+  /**
+   * The scope grid renders checkboxes, and `value` is an input's. A matching node that is not
+   * one is dropped rather than contributing `undefined` to the scopes a key is created with -
+   * `:checked` cannot match a non-checkable element, so this removes nothing that can occur.
+   */
+  it("reads selected scopes only from the inputs it rendered", () => {
+    assert.match(page, /\.filter\(\(checkbox\) => checkbox instanceof HTMLInputElement\)\s*\.map\(\(checkbox\) => checkbox\.value\);/);
+  });
+});
+
 describe("the consumers", () => {
   it("narrow every owned read through the readers", () => {
     const consumers = ["readApiKeyCollection", "readApiKeySecret"]
