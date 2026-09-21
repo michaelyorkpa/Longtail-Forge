@@ -1405,6 +1405,12 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **No executable line changed**, and the file gained the first coverage that ever ran it.
 
+#### 0.33.33.39.43 - Take the settings page controller to zero
+
+**Complete: `public/js/shared/settings-page-controller.js` reaches zero, 15 to 0, and leaves the ledger.** The published `BrowserSettingsPageController` keeps every declared type.
+
+**One behaviour changed, and one contract comment was corrected** because it said the controller only queries and listens to its host, which is not what the writer does.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.
