@@ -107,7 +107,7 @@ it("preserves primitive ID receivers, nullish failures and tick stopping order",
   for (const missing of [null, undefined]) {
     s.calls.length = 0; s.state.timers = [7, missing, {}];
     s.startTicking();
-    assert.throws(() => s.tick(), { name: "TypeError", message: `Cannot read properties of ${missing} (reading 'active_timer_id')` });
+    assert.throws(() => s.tick(), { name: "TypeError", message: "The Workbench timer list carries an entry it cannot read." });
     assert.deepEqual(Array.from(s.calls), [7, '[data-workbench-duration="number"]']);
     s.tickIntervalId = null;
   }

@@ -403,7 +403,9 @@
     /** @type {import("../../src/types/browser-contracts.js").NormalizedClientOption[]} */
     clients: [],
     currentUserId: "",
+    /** @type {unknown[]} */
     focusCandidates: [],
+    /** @type {unknown} */
     focusContext: null,
     focusModeId: DEFAULT_FOCUS_MODE_ID,
     /** @type {import("../../src/types/framework-contracts.js").FocusModeDefinition[]} */
@@ -985,6 +987,21 @@
     });
   }
 
+  /**
+   * A lazy view of the opaque focus response, preserving repeated reads and accessor receivers.
+   * @param {unknown} value
+   */
+  function workbenchFocusEnvelope(value) {
+    return {
+      /** @returns {unknown} */
+      get modes() { return value == null ? undefined : Reflect.get(Object(value), "modes", value); },
+      /** @returns {unknown} */
+      get items() { return value == null ? undefined : Reflect.get(Object(value), "items", value); },
+      /** @returns {unknown} */
+      get focusContext() { return value == null ? undefined : Reflect.get(Object(value), "focusContext", value); },
+    };
+  }
+
   async function loadWorkbench() {
     const api = requireApi();
     setStatus("Loading Workbench...");
@@ -1019,7 +1036,7 @@
 
       const clients = normalizeClientProjectOptions(clientProjectData);
       const workspaceType = currentWorkspaceType();
-      const focusModes = curateFocusModes(focusModeData?.modes || []);
+      const focusModes = curateFocusModes(workbenchFocusEnvelope(focusModeData).modes || []);
       const restoredSelection = {
         clientId: state.selectedClientId,
         modeId: state.focusModeId,
@@ -1050,7 +1067,7 @@
       const selectionInvalidated = focusModeId !== restoredSelection.modeId
         || selectedClientId !== restoredSelection.clientId
         || selectedProjectId !== restoredSelection.projectId;
-      const focusData = selectionInvalidated ? await loadFocusCandidatesForState() : restoredFocusData;
+      const focusData = workbenchFocusEnvelope(selectionInvalidated ? await loadFocusCandidatesForState() : restoredFocusData);
       state = {
         ...state,
         focusCandidates: Array.isArray(focusData?.items) ? focusData.items : [],
@@ -3238,7 +3255,7 @@
 
   /**
    * @param {Partial<Pick<WorkCandidate, "candidateId">>} candidate
-   * @param {string} taskId
+   * @param {unknown} taskId
    * @param {EventTarget | null} [trigger]
    * @param {{defaults?: unknown, focusTarget?: string, promptBlockedReason?: boolean}} [editorOptions]
    */
@@ -3414,9 +3431,18 @@
     window.location.href = href;
   }
 
+  /** @param {unknown} value @param {string} key @returns {unknown} */
+  function workbenchCandidateField(value, key) {
+    if (value === null || value === undefined) {
+      throw new TypeError("The Workbench candidate cannot be read.");
+    }
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /** @param {unknown} [candidate] */
   function candidateTaskId(candidate = {}) {
-    if (candidate.moduleId === "tasks" && candidate.recordType === "task" && candidate.recordId) {
-      return candidate.recordId;
+    if (workbenchCandidateField(candidate, "moduleId") === "tasks" && workbenchCandidateField(candidate, "recordType") === "task" && workbenchCandidateField(candidate, "recordId")) {
+      return workbenchCandidateField(candidate, "recordId");
     }
 
     return "";
@@ -3497,12 +3523,13 @@
       || candidate.primaryAction?.href);
   }
 
+  /** @param {unknown} [candidate] */
   function inspectorCandidateKey(candidate = {}) {
     return [
-      candidate.moduleId || "",
-      candidate.recordType || "",
-      candidate.recordId || "",
-      candidate.candidateId || "",
+      workbenchCandidateField(candidate, "moduleId") || "",
+      workbenchCandidateField(candidate, "recordType") || "",
+      workbenchCandidateField(candidate, "recordId") || "",
+      workbenchCandidateField(candidate, "candidateId") || "",
     ].join(":");
   }
 
@@ -3676,7 +3703,7 @@
   async function refreshFocusCandidates() {
     setStatus("Loading focus...");
     try {
-      const focusData = await loadFocusCandidatesForState();
+      const focusData = workbenchFocusEnvelope(await loadFocusCandidatesForState());
       state.focusCandidates = Array.isArray(focusData?.items) ? focusData.items : [];
       state.focusContext = focusData?.focusContext || null;
       state.recommendedCandidateIndex = 0;
@@ -4324,7 +4351,7 @@
     tickIntervalId = window.setInterval(() => {
       state.timers.forEach((timer) => {
         if (timer === null || timer === undefined) {
-          throw new TypeError(`Cannot read properties of ${timer} (reading 'active_timer_id')`);
+          throw new TypeError("The Workbench timer list carries an entry it cannot read.");
         }
         const element = document.querySelector(`[data-workbench-duration="${Reflect.get(Object(timer), "active_timer_id", timer)}"]`);
         if (element) {
@@ -4348,6 +4375,7 @@
     return baseSeconds + Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
   }
 
+  /** @param {unknown} [modes] */
   function curateFocusModes(modes = []) {
     const modesById = new Map((Array.isArray(modes) ? modes : []).map((mode) => [mode.id, mode]));
 
