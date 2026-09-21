@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.3.4 - The Support View entry page's checked lookups
+
+**Model: Medium Effort** - ten captured bindings, every use unguarded, and a page whose own markup had to settle four of the subtypes.
+
+- [x] **42 diagnostics to 0, and `public/js/support-view.js` leaves the ledger.** Browser **1,443 to 1,401**, now across **13** diagnostic files; **`dom` 303 to 261**. **Params 918, state 191 and assorted 31 did not move.** `0.33.33.42` stays **243** and `0.33.33.43` stays **897**.
+- [x] **Ten bindings, one cohort.** Twenty-two are `TS18047` nullability on module-scope captures; twenty are `TS2339` the null diagnostic was **masking** - `value`, `checked`, `disabled`, `options`, `hidden`, `reportValidity` and `focus`. Three of the ten need no subtype at all: `textContent` is every element's.
+- [x] **Checked at the use, not at the lookup, and the reason is specific.** `initialize()` runs before the first dereference and **reaches the network**. Refusing at capture would have suppressed a request that happens today, so `required(control, name)` is called at each use instead - capture lifetime and failure timing preserved, not improved, which is the rule `0.33.33.38.3.1` set.
+- [x] **A wrong narrowing reached the browser spec, and the spec is what caught it.** `reasonInput` is named for an input and is a **`textarea`**; narrowing it with `asInput` refused a real control, so starting a Support View failed silently and the page never left `support-view.html`. `0.33.33.38.3.2` had already said each subtype should be **traced to the host that builds it** - this inferred one from a binding's name instead. Corrected with `asTextArea`, and the suite now asserts **each narrowing against the element the view actually renders**, which is the check that would have caught it before the spec did.
+- [x] **Checked lookups, not assertions.** `asInput`, `asSelect`, `asButton`, `asForm` and `asTextArea` narrow with `instanceof`. No cast, no `@type` assertion, no non-null assertion, and no type parameter standing in for validation - `required` is generic only to carry its argument's type through a real null check.
+- [x] **Three source owners were retargeted with their claims intact**: the administrator line keeping both fallbacks, the start request still reading the chosen target, workspace and read-only confirmation, and the enforcement regression's own copy of that last one. A whole-tree sweep confirms no owner still pins the previous spelling.
+- [x] **The helpers stay file-local, and the extraction trigger is recorded rather than taken.** This is the **second real consumer** of the shape, which is the trigger `0.33.33.38.3` named. Extraction is not done here because a shared module has to be **delivered to every page that would use it**, and that is a question this cohort should not answer in passing. The evidence now stands at three shapes: `0.33.33.38.3.1`'s `findX(selector)`, and the `asX(node)` form both this page and `login.js` need because their lookups are scoped.
+- [x] **Full verification on the delivered tree.** Unit **4,677 across 257 files**, regressions **348/348**, E2E **363/363** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+Excluded and explicitly remaining: eight files and **103** `dom` in this cohort, led by `support-view-audit.js` 30, `api-keys.js` 29 and `tags.js` 25. **This closes neither `0.33.33.38.3`, `0.33.33.38`, nor the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.42.10 - Type the Workbench source accumulator and connected consumers
 
 **Model: High Effort** - opaque source values must retain identity, completion order, getter receivers and existing failures through the accumulator and timer/options consumers.

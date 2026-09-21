@@ -588,6 +588,12 @@ These are **starting** boundaries. Each lane draws its own next child from the t
 
 **Deliberately excluded**, and asserted as still untouched: the deletion dialog, the users dialog, backup/job/runtime readouts, and the contributed settings renderer's internals. Four `Property 'value'` diagnostics remain in this file and all four are the deletion dialog's.
 
+#### 0.33.33.38.3.4 - The Support View entry page's checked lookups
+
+**Complete: 42 diagnostics, ten bindings, one page.** See the archive entry. The `dom` family fell **303 to 261** and **params, state and assorted did not move** - the third consecutive pure-DOM cohort.
+
+**A wrong narrowing reached the browser spec and was caught there.** The reason field is a `textarea`, and taking it for an `input` refused a real control; the failure, the correction and the pin that now holds every narrowing against the rendered markup are all recorded.
+
 #### 0.33.33.38.3.3 - The login page's checked lookups
 
 **Complete: 27 diagnostics, one page, and the first child of Claude's newly assigned `0.33.33.38.3` cohort.** See the archive entry. The `dom` family fell **330 to 303** and **params, state and assorted did not move at all** - the same pure-DOM signature `0.33.33.38.3.1` recorded, which is the cleanest evidence the cohort was drawn at a real seam.

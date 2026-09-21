@@ -1,13 +1,13 @@
 (function attachSupportViewPage() {
-  const entryForm = document.querySelector("[data-support-view-entry-form]");
+  const entryForm = asForm(document.querySelector("[data-support-view-entry-form]"));
   const actorText = document.querySelector("[data-support-view-actor]");
-  const targetSelect = document.querySelector("[data-support-view-target]");
-  const workspaceSelect = document.querySelector("[data-support-view-workspace]");
-  const passwordInput = document.querySelector("[data-support-view-password]");
-  const reasonInput = document.querySelector("[data-support-view-reason]");
-  const confirmationInput = document.querySelector("[data-support-view-confirm]");
+  const targetSelect = asSelect(document.querySelector("[data-support-view-target]"));
+  const workspaceSelect = asSelect(document.querySelector("[data-support-view-workspace]"));
+  const passwordInput = asInput(document.querySelector("[data-support-view-password]"));
+  const reasonInput = asTextArea(document.querySelector("[data-support-view-reason]"));
+  const confirmationInput = asInput(document.querySelector("[data-support-view-confirm]"));
   const expiryText = document.querySelector("[data-support-view-expiry]");
-  const startButton = document.querySelector("[data-support-view-start]");
+  const startButton = asButton(document.querySelector("[data-support-view-start]"));
   const statusText = document.querySelector("[data-support-view-status]");
   const RETURN_PATH_KEY = "lf_support_view_return_path";
   const RESTORE_FOCUS_KEY = "lf_support_view_restore_focus";
@@ -25,8 +25,73 @@
 
   initialize();
 
-  entryForm.addEventListener("submit", startSupportView);
-  targetSelect.addEventListener("change", renderWorkspaceOptions);
+  required(entryForm, "entry form").addEventListener("submit", startSupportView);
+  required(targetSelect, "target list").addEventListener("change", renderWorkspaceOptions);
+
+  /**
+   * The narrowings this page's controls need.
+   *
+   * `querySelector` answers an `Element`, and `value`, `checked`, `disabled`, `options`,
+   * `hidden`, `reportValidity` and `focus` belong to the subtypes the Support View entry form
+   * renders. Each is narrowed with `instanceof`, which is what the DOM guarantees - not a cast,
+   * an assertion, or a type parameter standing in for validation. The three text nodes need no
+   * subtype: `textContent` is every element's.
+   *
+   * These are file-local, as `0.33.33.38.3.1`'s were. This page is the second real consumer of
+   * the shape, which is the trigger that shared helpers were to be extracted on; extraction is
+   * proposed separately rather than taken here, because a shared module has to be delivered to
+   * every page that would use it and that is not this cohort's question.
+   *
+   * @param {Element | null | undefined} node
+   * @returns {HTMLInputElement | null}
+   */
+  function asInput(node) {
+    return node instanceof HTMLInputElement ? node : null;
+  }
+
+  /**
+   * The reason field is a `textarea`, not an `input`. Traced to the markup rather than taken
+   * from the binding's name, which is where this first went wrong.
+   * @param {Element | null | undefined} node
+   * @returns {HTMLTextAreaElement | null}
+   */
+  function asTextArea(node) {
+    return node instanceof HTMLTextAreaElement ? node : null;
+  }
+
+  /** @param {Element | null | undefined} node @returns {HTMLSelectElement | null} */
+  function asSelect(node) {
+    return node instanceof HTMLSelectElement ? node : null;
+  }
+
+  /** @param {Element | null | undefined} node @returns {HTMLButtonElement | null} */
+  function asButton(node) {
+    return node instanceof HTMLButtonElement ? node : null;
+  }
+
+  /** @param {Element | null | undefined} node @returns {HTMLFormElement | null} */
+  function asForm(node) {
+    return node instanceof HTMLFormElement ? node : null;
+  }
+
+  /**
+   * One control this page cannot work without, checked where it is used.
+   *
+   * Checked at the use rather than at the lookup on purpose: `initialize()` runs before the
+   * first dereference and reaches the network, so refusing at capture would suppress a request
+   * that happens today. The capture lifetime and the failure timing are what they were.
+   *
+   * @template {Element} T
+   * @param {T | null} control
+   * @param {string} name
+   * @returns {T}
+   */
+  function required(control, name) {
+    if (!control) {
+      throw new TypeError(`The Support View page requires its ${name}.`);
+    }
+    return control;
+  }
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserApi} BrowserApi */
 
@@ -156,71 +221,71 @@
       );
       targets = available.targets;
       expiresInSeconds = available.expiresInSeconds;
-      actorText.textContent = `Administrator: ${available.actor?.label || available.actor?.username || "Current administrator"}`;
-      expiryText.textContent = expiresInSeconds > 0
+      required(actorText, "administrator label").textContent = `Administrator: ${available.actor?.label || available.actor?.username || "Current administrator"}`;
+      required(expiryText, "expiry note").textContent = expiresInSeconds > 0
         ? `The view expires after ${formatDuration(expiresInSeconds)}. The active banner shows the exact remaining time.`
         : "The active banner shows the exact remaining time.";
       renderTargetOptions();
       setStatus(targets.length ? "" : "No active users with an available workspace can be viewed.", !targets.length);
     } catch (error) {
       setStatus(requireErrors().caughtMessage(error, "Support View targets could not be loaded."), true);
-      entryForm.hidden = true;
+      required(entryForm, "entry form").hidden = true;
     }
   }
 
   function renderTargetOptions() {
-    targetSelect.replaceChildren();
+    required(targetSelect, "target list").replaceChildren();
     targets.forEach((target) => {
       const option = document.createElement("option");
       option.value = target.userId;
       option.textContent = target.label;
-      targetSelect.appendChild(option);
+      required(targetSelect, "target list").appendChild(option);
     });
-    targetSelect.disabled = targets.length === 0;
+    required(targetSelect, "target list").disabled = targets.length === 0;
     renderWorkspaceOptions();
   }
 
   function renderWorkspaceOptions() {
-    const target = targets.find((item) => item.userId === targetSelect.value);
-    workspaceSelect.replaceChildren();
+    const target = targets.find((item) => item.userId === required(targetSelect, "target list").value);
+    required(workspaceSelect, "workspace list").replaceChildren();
     (target?.workspaces || []).forEach((workspace) => {
       const option = document.createElement("option");
       option.value = workspace.workspaceId;
       option.textContent = workspace.label || workspace.workspaceName;
-      workspaceSelect.appendChild(option);
+      required(workspaceSelect, "workspace list").appendChild(option);
     });
-    workspaceSelect.disabled = workspaceSelect.options.length === 0;
+    required(workspaceSelect, "workspace list").disabled = required(workspaceSelect, "workspace list").options.length === 0;
   }
 
   /** @param {Event} event */
   async function startSupportView(event) {
     event.preventDefault();
-    if (!entryForm.reportValidity()) {
+    if (!required(entryForm, "entry form").reportValidity()) {
       return;
     }
 
-    startButton.disabled = true;
+    required(startButton, "start button").disabled = true;
     setStatus("Starting the read-only view...");
     const returnPath = readSafeReturnPath();
 
     try {
       await requireApi().postJson("/api/support-view/start", {
-        currentPassword: passwordInput.value,
-        confirmedReadOnly: confirmationInput.checked,
-        effectiveUserId: targetSelect.value,
-        reasonReference: reasonInput.value.trim(),
-        workspaceId: workspaceSelect.value,
+        currentPassword: required(passwordInput, "password field").value,
+        confirmedReadOnly: required(confirmationInput, "read-only confirmation").checked,
+        effectiveUserId: required(targetSelect, "target list").value,
+        reasonReference: required(reasonInput, "reason field").value.trim(),
+        workspaceId: required(workspaceSelect, "workspace list").value,
       });
-      passwordInput.value = "";
+      required(passwordInput, "password field").value = "";
       window.sessionStorage.setItem(RETURN_PATH_KEY, returnPath);
       window.sessionStorage.setItem(RESTORE_FOCUS_KEY, "true");
       window.location.replace("/dashboard.html");
     } catch (error) {
-      passwordInput.value = "";
-      passwordInput.focus();
+      required(passwordInput, "password field").value = "";
+      required(passwordInput, "password field").focus();
       setStatus(requireErrors().caughtMessage(error, "Support View could not be started."), true);
     } finally {
-      startButton.disabled = false;
+      required(startButton, "start button").disabled = false;
     }
   }
 
@@ -245,7 +310,7 @@
 
   /** @param {string} message @param {boolean} [isError] */
   function setStatus(message, isError = false) {
-    statusText.textContent = message;
-    statusText.classList.toggle("error-text", isError);
+    required(statusText, "status line").textContent = message;
+    required(statusText, "status line").classList.toggle("error-text", isError);
   }
 })();
