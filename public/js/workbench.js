@@ -420,7 +420,9 @@
     recommendedCandidateIndex: 0,
     selectedClientId: "",
     selectedProjectId: "",
+    /** @type {unknown} */
     taskOptions: { projects: [] },
+    /** @type {unknown[]} */
     timers: [],
     viewState: WORKBENCH_VIEW_STATE_FOCUS_SELECTION,
     /** @type {unknown[]} */
@@ -1176,6 +1178,7 @@
   }
 
   async function loadWorkbenchSourceData(registry) {
+    /** @type {{taskOptions: unknown, timers: unknown[]}} */
     const sourceData = {
       taskOptions: null,
       timers: [],
@@ -1249,6 +1252,10 @@
     return api.getJson(`/api/workbench/focus-candidates?${params.toString()}`, { cache: "no-store" });
   }
 
+  /**
+   * @param {{taskOptions: unknown, timers: unknown[]}} target
+   * @param {{taskOptions?: unknown, timers?: unknown}} [data]
+   */
   function mergeWorkbenchSourceData(target, data = {}) {
     if (Array.isArray(data.timers)) {
       target.timers.push(...data.timers);
@@ -2436,7 +2443,6 @@
   function taskFocusTimerEligibility(active = state.activeTaskFocus) {
     const task = active?.task || null;
     const status = String(task?.status || "").trim();
-    /** @type {Record<string, unknown>} */
     const options = state.taskOptions || {};
 
     if (!active?.taskId) {
@@ -2451,10 +2457,10 @@
     if (!moduleEnabled("tasks")) {
       return { eligible: false, reason: "Tasks are not available in this workspace." };
     }
-    if (!moduleEnabled("time-tracking") || options.timeTrackingEnabled === false) {
+    if (!moduleEnabled("time-tracking") || Reflect.get(Object(options), "timeTrackingEnabled", options) === false) {
       return { eligible: false, reason: "Time Tracking is disabled." };
     }
-    if (options.taskTimersEnabled === false) {
+    if (Reflect.get(Object(options), "taskTimersEnabled", options) === false) {
       return { eligible: false, reason: "Task timers are disabled." };
     }
     if (!task.project_id) {
@@ -4158,8 +4164,8 @@
     const options = state.taskOptions || {};
     return moduleEnabled("tasks") &&
       moduleEnabled("time-tracking") &&
-      options.timeTrackingEnabled !== false &&
-      options.taskTimersEnabled !== false;
+      Reflect.get(Object(options), "timeTrackingEnabled", options) !== false &&
+      Reflect.get(Object(options), "taskTimersEnabled", options) !== false;
   }
 
   function currentTaskFocusId() {
@@ -4317,7 +4323,10 @@
 
     tickIntervalId = window.setInterval(() => {
       state.timers.forEach((timer) => {
-        const element = document.querySelector(`[data-workbench-duration="${timer.active_timer_id}"]`);
+        if (timer === null || timer === undefined) {
+          throw new TypeError(`Cannot read properties of ${timer} (reading 'active_timer_id')`);
+        }
+        const element = document.querySelector(`[data-workbench-duration="${Reflect.get(Object(timer), "active_timer_id", timer)}"]`);
         if (element) {
           element.textContent = formatDuration(readElapsedSeconds(timer));
         }

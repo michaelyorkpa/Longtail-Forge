@@ -103,7 +103,7 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "startTicking"),
-  /document\.querySelector\(`\[data-workbench-duration="\$\{timer\.active_timer_id\}"\]`\)[\s\S]*element\.textContent = formatDuration\(readElapsedSeconds\(timer\)\);/,
+  /document\.querySelector\(`\[data-workbench-duration="\$\{Reflect\.get\(Object\(timer\), "active_timer_id", timer\)\}"\]`\)[\s\S]*element\.textContent = formatDuration\(readElapsedSeconds\(timer\)\);/,
   "The focused Task Timer counter should update through the shared live duration tick while running",
 );
 assert.doesNotMatch(
@@ -134,7 +134,7 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "taskFocusTimerEligibility"),
-  /options\.taskTimersEnabled === false[\s\S]*Task timers are disabled\.[\s\S]*!task\.project_id[\s\S]*Task timers require a project-linked task\.[\s\S]*Completed and archived tasks cannot use task timers\./,
+  /Reflect\.get\(Object\(options\), "taskTimersEnabled", options\) === false[\s\S]*Task timers are disabled\.[\s\S]*!task\.project_id[\s\S]*Task timers require a project-linked task\.[\s\S]*Completed and archived tasks cannot use task timers\./,
   "Task Focus timer controls should preserve the Task modal eligibility rules",
 );
 assert.match(

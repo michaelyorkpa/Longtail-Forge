@@ -735,6 +735,7 @@
         "tests/unit/workbench-focus-state.test.mjs",
         "tests/unit/workbench-inspector-handles.test.mjs",
         "tests/unit/workbench-related-context.test.mjs",
+        "tests/unit/workbench-source-data.test.mjs",
         "tests/unit/workbench-task-opener.test.mjs",
         "tests/unit/workspace-backup-receipt-contracts.test.mjs",
         "tests/unit/workspace-context-boundary-contracts.test.mjs",
@@ -839,7 +840,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1478,
+      "errorCount": 1470,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1076,7 +1077,7 @@
           },
           {
             "code": 2339,
-            "count": 95
+            "count": 88
           },
           {
             "code": 2345,
@@ -1100,7 +1101,7 @@
           },
           {
             "code": 7006,
-            "count": 141
+            "count": 140
           },
           {
             "code": 7023,
@@ -1732,8 +1733,8 @@
     }
   },
   "totals": {
-    "files": 1421,
-    "errors": 1478,
+    "files": 1422,
+    "errors": 1470,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
