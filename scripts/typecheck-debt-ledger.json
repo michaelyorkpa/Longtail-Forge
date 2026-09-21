@@ -375,6 +375,7 @@
         "tests/e2e/support/isolated-workspace.mjs",
         "tests/e2e/support/start-e2e-server.mjs",
         "tests/e2e/support/surfaces.mjs",
+        "tests/e2e/tag-management-controls.spec.mjs",
         "tests/e2e/tag-picker-workflows.spec.mjs",
         "tests/e2e/task-blocked-recovery.spec.mjs",
         "tests/e2e/task-bulk-project-assignment.spec.mjs",
@@ -646,6 +647,7 @@
         "tests/unit/support-view-target-contracts.test.mjs",
         "tests/unit/tag-bulk-assignment-contracts.test.mjs",
         "tests/unit/tag-catalogue-contracts.test.mjs",
+        "tests/unit/tag-page-control-narrowing.test.mjs",
         "tests/unit/tag-page-rendering.test.mjs",
         "tests/unit/tag-picker-chips.test.mjs",
         "tests/unit/tag-surface-declaration.test.mjs",
@@ -842,7 +844,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1271,
+      "errorCount": 1246,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1020,12 +1022,6 @@
           {
             "code": 2339,
             "count": 4
-          }
-        ],
-        "public/js/tags.js": [
-          {
-            "code": 2339,
-            "count": 25
           }
         ],
         "public/js/workbench.js": [
@@ -1687,8 +1683,8 @@
     }
   },
   "totals": {
-    "files": 1424,
-    "errors": 1271,
+    "files": 1426,
+    "errors": 1246,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
