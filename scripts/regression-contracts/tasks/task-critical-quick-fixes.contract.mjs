@@ -119,7 +119,7 @@ assert.match(
 );
 assert.match(
   extractFunctionSpan(workbench, "taskTimerSurfaceAvailable"),
-  /moduleEnabled\("tasks"\)[\s\S]*moduleEnabled\("time-tracking"\)[\s\S]*taskTimersEnabled !== false/,
+  /moduleEnabled\("tasks"\)[\s\S]*moduleEnabled\("time-tracking"\)[\s\S]*Reflect\.get\(Object\(options\), "taskTimersEnabled", options\) !== false/,
   "Workbench task-timer surfaces should share the module and Task Timers eligibility contract",
 );
 
