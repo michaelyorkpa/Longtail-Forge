@@ -95,7 +95,7 @@ assert.doesNotMatch(
 
 assert.match(
   functionBody(workbenchScript, "candidateTaskId"),
-  /candidate\.moduleId === "tasks" && candidate\.recordType === "task" && candidate\.recordId[\s\S]*return candidate\.recordId;/,
+  /workbenchCandidateField\(candidate, "moduleId"\) === "tasks" && workbenchCandidateField\(candidate, "recordType"\) === "task" && workbenchCandidateField\(candidate, "recordId"\)[\s\S]*return workbenchCandidateField\(candidate, "recordId"\);/,
   "Workbench should only treat normalized task records as in-place Task editor candidates",
 );
 assert.match(
