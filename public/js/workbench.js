@@ -17,6 +17,13 @@
   /** @typedef {{id?: string, label?: string, reason?: string, count?: number | string, items?: TaskFocusRelatedItem[]}} TaskFocusRelatedGroup */
   /** @typedef {{groups?: TaskFocusRelatedGroup[], items?: TaskFocusRelatedItem[], meta?: {selectedTaskId?: string}, task?: unknown}} TaskFocusRelatedEnvelope */
 
+  /** @typedef {Omit<ReturnType<typeof normalizeTaskFocusRelatedContext>, "meta" | "task"> & Partial<Pick<ReturnType<typeof normalizeTaskFocusRelatedContext>, "meta" | "task">>} TaskFocusRelatedState */
+  /**
+   * Seed vocabulary comes from its constructor; mutation patches spread the nullable slot.
+   * Task members remain opaque after the native shallow copy, including resume-consumer results.
+   * @typedef {Partial<Omit<ReturnType<typeof taskFocusFromCandidate>, "task" | "relatedContext" | "dueAt" | "priority" | "status"> & {task: ReturnType<typeof preserveTaskFocusChecklistData> | null, relatedContext: TaskFocusRelatedState, dueAt: unknown, priority: unknown, status: unknown}>} ActiveTaskFocus
+   */
+
   const WORKBENCH_CARD_STATE_KEY = "lf_workbench_cards_v1";
   const WORKBENCH_CLIENT_FOCUS_KEY = "lf_workbench_client_focus_v1";
   const WORKBENCH_FOCUS_MODE_KEY = "lf_workbench_focus_mode_v1";
@@ -407,6 +414,7 @@
       timerSources: [],
       workItemSources: [],
     },
+    /** @type {ActiveTaskFocus | null} */
     activeTaskFocus: null,
     recommendedCandidateIndex: 0,
     selectedClientId: "",
@@ -2420,6 +2428,7 @@
   function taskFocusTimerEligibility(active = state.activeTaskFocus) {
     const task = active?.task || null;
     const status = String(task?.status || "").trim();
+    /** @type {Record<string, unknown>} */
     const options = state.taskOptions || {};
 
     if (!active?.taskId) {
@@ -2642,6 +2651,7 @@
     ].filter(Boolean);
   }
 
+  /** @param {ActiveTaskFocus | null} [active] */
   function taskFocusTitle(active = state.activeTaskFocus) {
     return safeTaskFocusText(active?.task?.title || active?.title, "Focused task");
   }
@@ -2791,6 +2801,7 @@
     }
   }
 
+  /** @param {Partial<WorkCandidate>} candidate @param {string} taskId */
   function taskFocusFromCandidate(candidate, taskId) {
     return {
       candidateId: candidate.candidateId || "",
@@ -2860,6 +2871,7 @@
     }
   }
 
+  /** @param {unknown} task @param {string} taskId */
   async function consumeTaskFocusResumeNote(task, taskId) {
     const consumer = requireNamespace().taskResumeNoteCapture?.consume;
     if (typeof consumer !== "function") {
@@ -2945,6 +2957,7 @@
     };
   }
 
+  /** @param {unknown} task */
   function applyActiveTaskFocusTask(task) {
     if (!state.activeTaskFocus) {
       return;
@@ -2989,8 +3002,11 @@
   // enriched `checklistItems`/`checklistProgress` that the task detail endpoint provides. Those
   // mutations never touch the checklist, so carry the existing checklist data forward instead of
   // letting the focused checklist section collapse until the next full refresh.
+  /** @param {unknown} nextTask @param {Record<string, unknown> | null} [existingTask] */
   function preserveTaskFocusChecklistData(nextTask, existingTask = {}) {
-    const merged = { ...nextTask };
+    /** @type {Record<string, unknown>} */
+    // Native boxing preserves spread over primitive inputs without claiming task members.
+    const merged = { ...Object(nextTask) };
     if (!Array.isArray(merged.checklistItems) && Array.isArray(existingTask?.checklistItems)) {
       merged.checklistItems = existingTask.checklistItems;
     }
@@ -3158,6 +3174,7 @@
   }
 
   function activeTaskFocusCandidate() {
+    /** @type {ActiveTaskFocus} */
     const active = state.activeTaskFocus || {};
     const task = active.task || {};
     return {
