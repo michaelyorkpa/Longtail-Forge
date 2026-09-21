@@ -1968,6 +1968,7 @@
     return card;
   }
 
+  /** @param {Partial<WorkCandidate>} [candidate] */
   function recommendedCandidateResumeNote(candidate = {}) {
     const workbenchViewHelpers = requireView();
     const resumeNote = safeCandidateText(
@@ -1983,6 +1984,7 @@
       : null;
   }
 
+  /** @param {Partial<WorkCandidate>} [candidate] */
   function recommendedCandidateMeta(candidate = {}) {
     // Prefer real client/project context so identically-titled work is
     // distinguishable; never surface copy carrying a raw identifier.
@@ -1991,6 +1993,7 @@
       || safeCandidateText(candidate.reason, "");
   }
 
+  /** @param {Partial<WorkCandidate>} [candidate] */
   function candidateClientProjectLabel(candidate = {}) {
     const parts = [];
     const clientId = String(candidate.clientId || "").trim();
@@ -2745,6 +2748,7 @@
     return safeCandidateText(value, fallback);
   }
 
+  /** @param {Partial<WorkCandidate>} candidate */
   function candidateBadges(candidate) {
     return [
       candidate.moduleId ? badge(formatToken(candidate.moduleId), candidate.moduleId) : null,
@@ -2754,6 +2758,7 @@
     ].filter(Boolean);
   }
 
+  /** @param {Partial<WorkCandidate>} candidate */
   function candidateActionLabel(candidate) {
     if (candidateTaskId(candidate)) {
       return "Focus task";
@@ -3533,6 +3538,7 @@
     ].join(":");
   }
 
+  /** @param {Partial<WorkCandidate>} [candidate] */
   function inspectorCandidateTitle(candidate = {}) {
     const title = String(candidate.title || "").trim();
 
@@ -3544,6 +3550,7 @@
     return label ? `${label} context` : "Work context";
   }
 
+  /** @param {Partial<WorkCandidate>} [candidate] */
   function inspectorCandidateContext(candidate = {}) {
     const context = String(candidate.contextLabel || "").trim();
 
@@ -3627,6 +3634,7 @@
     return text && !looksLikeRawId(text) ? text : fallback;
   }
 
+  /** @param {unknown} value @param {string} [fallback] */
   function safeCandidateText(value, fallback = "") {
     const text = String(value || "").trim();
 
@@ -4563,6 +4571,7 @@
     return "Manual";
   }
 
+  /** @param {unknown} value */
   function formatCandidateDate(value) {
     const text = String(value || "").trim();
     const match = text.match(/^(\d{4}-\d{2}-\d{2})/);
