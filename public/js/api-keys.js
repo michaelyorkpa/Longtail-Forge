@@ -1,10 +1,66 @@
 (function attachApiKeysPage() {
-  const apiKeyForm = document.querySelector("[data-api-key-form]");
-  const apiKeyNameInput = document.querySelector("[data-api-key-name]");
+  /**
+   * The narrowings this page's controls need, traced to what `api-keys.html` renders: the
+   * creation shell is a `form`, the name and secret fields are `input`s, and the create button
+   * is a `button`. The scope grid, the copy button, the status line and the table body need no
+   * subtype - `querySelectorAll`, `replaceChildren`, `appendChild`, `textContent`, `classList`
+   * and `addEventListener` are every element's.
+   *
+   * @param {string} selector
+   * @returns {HTMLFormElement | null}
+   */
+  function findApiKeyForm(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLFormElement ? element : null;
+  }
+
+  /** @param {string} selector @returns {HTMLInputElement | null} */
+  function findApiKeyInput(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLInputElement ? element : null;
+  }
+
+  /** @param {string} selector @returns {HTMLButtonElement | null} */
+  function findApiKeyButton(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLButtonElement ? element : null;
+  }
+
+  /**
+   * The secret panel, which is a `section` this page hides and reveals.
+   * @param {string} selector
+   * @returns {HTMLElement | null}
+   */
+  function findApiKeyPanel(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLElement ? element : null;
+  }
+
+  /**
+   * One control this page cannot work without, checked where it is used.
+   *
+   * Checked at the use rather than at the lookup: `loadApiKeys()` runs before the first
+   * dereference and reaches the network, so refusing at capture would suppress a request that
+   * happens today. Capture lifetime and failure timing are what they were.
+   *
+   * @template {Element} T
+   * @param {T | null} control
+   * @param {string} name
+   * @returns {T}
+   */
+  function requireApiKeyControl(control, name) {
+    if (!control) {
+      throw new TypeError(`The API keys page requires its ${name}.`);
+    }
+    return control;
+  }
+
+  const apiKeyForm = findApiKeyForm("[data-api-key-form]");
+  const apiKeyNameInput = findApiKeyInput("[data-api-key-name]");
   const apiKeyScopes = document.querySelector("[data-api-key-scopes]");
-  const createApiKeyButton = document.querySelector("[data-create-api-key]");
-  const apiKeySecretPanel = document.querySelector("[data-api-key-secret-panel]");
-  const apiKeySecretInput = document.querySelector("[data-api-key-secret]");
+  const createApiKeyButton = findApiKeyButton("[data-create-api-key]");
+  const apiKeySecretPanel = findApiKeyPanel("[data-api-key-secret-panel]");
+  const apiKeySecretInput = findApiKeyInput("[data-api-key-secret]");
   const copyApiKeyButton = document.querySelector("[data-copy-api-key]");
   const apiKeyStatus = document.querySelector("[data-api-key-status]");
   const apiKeyList = document.querySelector("[data-api-key-list]");
@@ -14,20 +70,20 @@
 
   loadApiKeys();
 
-  apiKeyForm.addEventListener("submit", async (event) => {
+  requireApiKeyControl(apiKeyForm, "creation form").addEventListener("submit", async (event) => {
     event.preventDefault();
     await createApiKey();
   });
 
-  copyApiKeyButton.addEventListener("click", async () => {
-    if (!apiKeySecretInput.value) {
+  requireApiKeyControl(copyApiKeyButton, "copy button").addEventListener("click", async () => {
+    if (!requireApiKeyControl(apiKeySecretInput, "new-key field").value) {
       return;
     }
 
     try {
-      await navigator.clipboard.writeText(apiKeySecretInput.value);
+      await navigator.clipboard.writeText(requireApiKeyControl(apiKeySecretInput, "new-key field").value);
     } catch {
-      apiKeySecretInput.select();
+      requireApiKeyControl(apiKeySecretInput, "new-key field").select();
       document.execCommand("copy");
     }
   });
@@ -248,7 +304,7 @@
   }
 
   async function createApiKey() {
-    const name = apiKeyNameInput.value.trim();
+    const name = requireApiKeyControl(apiKeyNameInput, "name field").value.trim();
     const scopes = readSelectedScopes();
 
     if (!name) {
@@ -261,14 +317,14 @@
       return;
     }
 
-    createApiKeyButton.disabled = true;
+    requireApiKeyControl(createApiKeyButton, "create button").disabled = true;
     setApiKeyStatus("Creating API key...");
 
     try {
       const body = await requireApi().postJson("/api/api-keys", { name, scopes });
       const issued = readApiKeySecret(body);
 
-      apiKeyForm.reset();
+      requireApiKeyControl(apiKeyForm, "creation form").reset();
       showRawKey(issued?.rawKey || "");
       renderApiKeys(readApiKeyCollection(body).apiKeys);
       setApiKeyStatus(`Created ${issued?.apiKey.name || name}.`);
@@ -280,12 +336,12 @@
 
       setApiKeyStatus(requireErrors().caughtMessage(error, "API key was not created."), true);
     } finally {
-      createApiKeyButton.disabled = false;
+      requireApiKeyControl(createApiKeyButton, "create button").disabled = false;
     }
   }
 
   function renderScopeControls() {
-    apiKeyScopes.replaceChildren();
+    requireApiKeyControl(apiKeyScopes, "scope grid").replaceChildren();
 
     groupScopesByOwner(availableScopes).forEach((group) => {
       const fieldset = document.createElement("fieldset");
@@ -295,7 +351,7 @@
       legend.textContent = group.label;
       fieldset.appendChild(legend);
       group.scopes.forEach((scope) => fieldset.appendChild(createScopeOption(scope)));
-      apiKeyScopes.appendChild(fieldset);
+      requireApiKeyControl(apiKeyScopes, "scope grid").appendChild(fieldset);
     });
   }
 
@@ -389,7 +445,7 @@
 
   /** @param {BrowserApiKeyListEntry[]} apiKeys */
   function renderApiKeys(apiKeys) {
-    apiKeyList.replaceChildren();
+    requireApiKeyControl(apiKeyList, "key table").replaceChildren();
 
     if (apiKeys.length === 0) {
       const row = document.createElement("tr");
@@ -398,7 +454,7 @@
       cell.colSpan = 7;
       cell.textContent = "No API keys yet.";
       row.appendChild(cell);
-      apiKeyList.appendChild(row);
+      requireApiKeyControl(apiKeyList, "key table").appendChild(row);
       return;
     }
 
@@ -414,7 +470,7 @@
         createCell(formatDate(apiKey.last_used_at)),
         createActionCell(apiKey),
       );
-      apiKeyList.appendChild(row);
+      requireApiKeyControl(apiKeyList, "key table").appendChild(row);
     });
   }
 
@@ -467,7 +523,8 @@
   }
 
   function readSelectedScopes() {
-    return Array.from(apiKeyScopes.querySelectorAll("[data-api-key-scope]:checked"))
+    return Array.from(requireApiKeyControl(apiKeyScopes, "scope grid").querySelectorAll("[data-api-key-scope]:checked"))
+      .filter((checkbox) => checkbox instanceof HTMLInputElement)
       .map((checkbox) => checkbox.value);
   }
 
@@ -499,8 +556,8 @@
 
   /** @param {string} rawKey */
   function showRawKey(rawKey) {
-    apiKeySecretInput.value = rawKey;
-    apiKeySecretPanel.hidden = !rawKey;
+    requireApiKeyControl(apiKeySecretInput, "new-key field").value = rawKey;
+    requireApiKeyControl(apiKeySecretPanel, "new-key panel").hidden = !rawKey;
   }
 
   /** @param {string} value */
@@ -526,7 +583,7 @@
 
   /** @param {string} message @param {boolean} [isError] */
   function setApiKeyStatus(message, isError = false) {
-    apiKeyStatus.textContent = message;
-    apiKeyStatus.classList.toggle("is-error", isError);
+    requireApiKeyControl(apiKeyStatus, "status line").textContent = message;
+    requireApiKeyControl(apiKeyStatus, "status line").classList.toggle("is-error", isError);
   }
 })();
