@@ -202,6 +202,53 @@ describe("login.js shapes this page states rather than invents", () => {
     assert.doesNotMatch(source, /if \(!loginForm\) \{\n\s*return;\n\s*\}\n\s*loginForm\./);
   });
 
+  /**
+   * `0.33.33.38.3.3` extended that one narrowing to the rest of the page's lookups.
+   *
+   * `querySelector` answers an `Element`; `value`, `checked`, `disabled`, `reset` and `focus`
+   * belong to the subtypes the login view renders. Each narrowing is `instanceof`, which is
+   * what the DOM actually guarantees - not a cast, an assertion or a type parameter treated as
+   * validation - and each takes a node rather than a selector, because half of this page's
+   * lookups are scoped to a form.
+   */
+  it("narrows every control it reads a subtype member from", () => {
+    assert.match(source, /function asInput\(node\) \{\s*\n\s*return node instanceof HTMLInputElement \? node : null;/);
+    assert.match(source, /function asButton\(node\) \{\s*\n\s*return node instanceof HTMLButtonElement \? node : null;/);
+    assert.match(source, /function asForm\(node\) \{\s*\n\s*return node instanceof HTMLFormElement \? node : null;/);
+    assert.doesNotMatch(source, /@type \{HTMLInputElement\}|\/\*\* @type \{HTML[A-Za-z]+Element\} \*\/ \(/,
+      "no lookup is asserted into its subtype");
+
+    for (const [binding, narrower] of [
+      ["requiredPasswordForm", "asForm"],
+      ["requiredCurrentPasswordInput", "asInput"],
+      ["requiredNewPasswordInput", "asInput"],
+      ["requiredConfirmPasswordInput", "asInput"],
+      ["rememberMeInput", "asInput"],
+    ]) {
+      assert.match(source, new RegExp(`const ${binding} = ${narrower}\\(`), `${binding} is narrowed`);
+    }
+  });
+
+  /**
+   * **A required control is refused by name at its use, not skipped.** Turning any of these
+   * into an optional no-op would leave the password-change form wired to nothing and report
+   * success, which is the failure this cohort exists to prevent.
+   */
+  it("refuses an absent required control rather than skipping the write", () => {
+    assert.match(source, /function requireSubmitButton\(button\) \{[\s\S]*throw new TypeError\("The login page requires its submit button\."\)/);
+    assert.match(source, /function requirePasswordInput\(input\) \{[\s\S]*throw new TypeError\("The login page requires its password-change controls\."\)/);
+    assert.match(source, /function requireRequiredPasswordForm\(\) \{[\s\S]*throw new TypeError\("The login page requires its password-change form\."\)/);
+    // Counted rather than matched once: both handlers disable and re-enable their button, so a
+    // single `assert.match` would still pass with one of the four sites weakened.
+    assert.equal((source.match(/requireSubmitButton\(submitButton\)\.disabled/g) || []).length, 4,
+      "both handlers disable and re-enable through the checked button");
+    assert.match(source, /requireRequiredPasswordForm\(\)\.hidden = false;/);
+    assert.doesNotMatch(source, /submitButton\?\.disabled|requiredPasswordForm\?\.hidden|requiredCurrentPasswordInput\?\.value/,
+      "no required control is read through an optional chain");
+    assert.doesNotMatch(source, /if \(submitButton\)|if \(requiredPasswordForm\)|if \(requiredCurrentPasswordInput\)/,
+      "nor through a guard that turns a required write into a no-op");
+  });
+
   /** `filter(Boolean)` does not tell the compiler the refused entries are gone. */
   it("collects surviving accounts through flatMap", () => {
     assert.match(source, /const accounts = value\.flatMap\(\(account\) => \{/);

@@ -26,12 +26,12 @@
   const loginFormElement = document.querySelector("[data-login-form]");
   const loginForm = loginFormElement instanceof HTMLFormElement ? loginFormElement : null;
   const loginStatus = document.querySelector("[data-login-status]");
-  const requiredPasswordForm = document.querySelector("[data-required-password-form]");
-  const requiredCurrentPasswordInput = document.querySelector("[data-required-current-password]");
-  const requiredNewPasswordInput = document.querySelector("[data-required-new-password]");
-  const requiredConfirmPasswordInput = document.querySelector("[data-required-confirm-password]");
+  const requiredPasswordForm = asForm(document.querySelector("[data-required-password-form]"));
+  const requiredCurrentPasswordInput = asInput(document.querySelector("[data-required-current-password]"));
+  const requiredNewPasswordInput = asInput(document.querySelector("[data-required-new-password]"));
+  const requiredConfirmPasswordInput = asInput(document.querySelector("[data-required-confirm-password]"));
   const requiredPasswordStatus = document.querySelector("[data-required-password-status]");
-  const rememberMeInput = loginForm?.querySelector('[name="rememberMe"]');
+  const rememberMeInput = asInput(loginForm?.querySelector('[name="rememberMe"]'));
   let pendingLoginLandingPath = "/dashboard.html";
 
   if (loginForm) {
@@ -39,13 +39,13 @@
       event.preventDefault();
       setLoginStatus("");
 
-      const submitButton = loginForm.querySelector('button[type="submit"]');
+      const submitButton = asButton(loginForm.querySelector('button[type="submit"]'));
       const formData = new FormData(loginForm);
       const username = String(formData.get("username") || "").trim();
       const password = String(formData.get("password") || "");
       const rememberMe = Boolean(rememberMeInput?.checked);
 
-      submitButton.disabled = true;
+      requireSubmitButton(submitButton).disabled = true;
 
       try {
         const response = await fetch("/api/login", {
@@ -79,24 +79,24 @@
       } catch (error) {
         setLoginStatus(requireErrors().caughtMessage(error, "Login failed."));
       } finally {
-        submitButton.disabled = false;
+        requireSubmitButton(submitButton).disabled = false;
       }
     });
   }
 
   requiredPasswordForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const currentPassword = requiredCurrentPasswordInput.value;
-    const newPassword = requiredNewPasswordInput.value;
-    const confirmPassword = requiredConfirmPasswordInput.value;
-    const submitButton = requiredPasswordForm.querySelector('button[type="submit"]');
+    const currentPassword = requirePasswordInput(requiredCurrentPasswordInput).value;
+    const newPassword = requirePasswordInput(requiredNewPasswordInput).value;
+    const confirmPassword = requirePasswordInput(requiredConfirmPasswordInput).value;
+    const submitButton = asButton(requireRequiredPasswordForm().querySelector('button[type="submit"]'));
 
     if (newPassword !== confirmPassword) {
       setRequiredPasswordStatus("New passwords do not match.");
       return;
     }
 
-    submitButton.disabled = true;
+    requireSubmitButton(submitButton).disabled = true;
     setRequiredPasswordStatus("Changing password...");
 
     try {
@@ -113,12 +113,12 @@
         throw apiError(body, "Password was not changed.", response.status);
       }
 
-      requiredPasswordForm.reset();
+      requireRequiredPasswordForm().reset();
       window.location.replace(pendingLoginLandingPath);
     } catch (error) {
       setRequiredPasswordStatus(requireErrors().caughtMessage(error, "Password was not changed."));
     } finally {
-      submitButton.disabled = false;
+      requireSubmitButton(submitButton).disabled = false;
     }
   });
 
@@ -177,6 +177,70 @@
    * the same statement the property read already failed at, naming what is missing.
    * @returns {HTMLFormElement}
    */
+  /**
+   * The narrowings this page's lookups need.
+   *
+   * `querySelector` answers an `Element`, and `value`, `checked`, `disabled`, `reset` and
+   * `focus` belong to the subtypes the login view renders. Each element is narrowed where it is
+   * acquired - the way `loginForm` above already is - so a matching node of the wrong subtype
+   * behaves as absence rather than reaching a member it does not carry.
+   *
+   * These take a node rather than a selector, because half of this page's lookups are scoped to
+   * a form rather than to the document.
+   *
+   * @param {Element | null | undefined} node
+   * @returns {HTMLInputElement | null}
+   */
+  function asInput(node) {
+    return node instanceof HTMLInputElement ? node : null;
+  }
+
+  /** @param {Element | null | undefined} node @returns {HTMLButtonElement | null} */
+  function asButton(node) {
+    return node instanceof HTMLButtonElement ? node : null;
+  }
+
+  /** @param {Element | null | undefined} node @returns {HTMLFormElement | null} */
+  function asForm(node) {
+    return node instanceof HTMLFormElement ? node : null;
+  }
+
+  /**
+   * The submit button a handler is already mid-way through using.
+   *
+   * Checked at its use rather than at its lookup, so the capture stays exactly as long as it
+   * did and the failure lands inside the handler that already caught the null dereference.
+   *
+   * @param {HTMLButtonElement | null} button
+   * @returns {HTMLButtonElement}
+   */
+  function requireSubmitButton(button) {
+    if (!button) {
+      throw new TypeError("The login page requires its submit button.");
+    }
+    return button;
+  }
+
+  /**
+   * One of the password-change controls, checked at its use for the same reason.
+   * @param {HTMLInputElement | null} input
+   * @returns {HTMLInputElement}
+   */
+  function requirePasswordInput(input) {
+    if (!input) {
+      throw new TypeError("The login page requires its password-change controls.");
+    }
+    return input;
+  }
+
+  /** @returns {HTMLFormElement} */
+  function requireRequiredPasswordForm() {
+    if (!requiredPasswordForm) {
+      throw new TypeError("The login page requires its password-change form.");
+    }
+    return requiredPasswordForm;
+  }
+
   function requireLoginForm() {
     if (!loginForm) {
       throw new TypeError("The login page requires its login form.");
@@ -188,10 +252,10 @@
   function showRequiredPasswordChange(currentPassword = "") {
     const form = requireLoginForm();
     form.hidden = true;
-    requiredPasswordForm.hidden = false;
-    requiredCurrentPasswordInput.value = currentPassword;
+    requireRequiredPasswordForm().hidden = false;
+    requirePasswordInput(requiredCurrentPasswordInput).value = currentPassword;
     form.reset();
-    (currentPassword ? requiredNewPasswordInput : requiredCurrentPasswordInput).focus();
+    requirePasswordInput(currentPassword ? requiredNewPasswordInput : requiredCurrentPasswordInput).focus();
   }
 
   /** @param {string} message */
@@ -285,9 +349,9 @@
     // Its only caller has already refused an absent form, so this restates that rather than
     // discovering it; the four control checks below keep their own early return.
     const form = requireLoginForm();
-    const usernameInput = form.querySelector('[name="username"]');
-    const passwordInput = form.querySelector('[name="password"]');
-    const submitButton = form.querySelector('button[type="submit"]');
+    const usernameInput = asInput(form.querySelector('[name="username"]'));
+    const passwordInput = asInput(form.querySelector('[name="password"]'));
+    const submitButton = asButton(form.querySelector('button[type="submit"]'));
     const heading = form.querySelector("h1");
     if (!usernameInput || !passwordInput || !submitButton || !heading) {
       return;
