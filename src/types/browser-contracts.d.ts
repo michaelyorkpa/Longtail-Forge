@@ -1698,7 +1698,9 @@ export interface BrowserSettingsPageController {
 export interface BrowserSettingsPageControllerOptions {
   /**
    * Falls back to the page's `[data-settings-host]` element. `Element` rather than
-   * `HTMLElement` because the controller only ever queries it and listens on it.
+   * `HTMLElement` because a caller supplies whatever it rendered, and the controller queries
+   * it, listens on it, and records the dirty state on its `dataset`. That last one is not
+   * every element's: a host carrying no `dataset` fails at that write, as it always has.
    */
   root?: Element | null;
   onDirtyChange?: (dirty: boolean) => unknown;

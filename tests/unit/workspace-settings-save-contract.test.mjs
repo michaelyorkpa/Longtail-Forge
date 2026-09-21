@@ -63,8 +63,11 @@ describe("the controller contract this page must satisfy", () => {
 
   it("gates Save and Revert on that same dirty flag", () => {
     // This is why a wrongly-cleaned form is user-visible: both actions disappear.
-    assert.match(controller, /saveButtons\.forEach\(\(button\) => \{ button\.disabled = !dirty \|\| saving; \}\);/);
-    assert.match(controller, /revertButtons\.forEach\(\(button\) => \{ button\.disabled = !dirty \|\| saving; \}\);/);
+    // `0.33.33.39.43` writes `disabled` through the button's own setter, because the buttons
+    // are collected by attribute and are `Element`s by selector. The claim - both actions are
+    // gated on the same `!dirty || saving` - is unchanged, and the cases below execute it.
+    assert.match(controller, /saveButtons\.forEach\(\(button\) => \{ setMember\(button, "disabled", !dirty \|\| saving\); \}\);/);
+    assert.match(controller, /revertButtons\.forEach\(\(button\) => \{ setMember\(button, "disabled", !dirty \|\| saving\); \}\);/);
   });
 });
 
