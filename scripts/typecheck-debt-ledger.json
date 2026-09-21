@@ -613,6 +613,7 @@
         "tests/unit/public-demo-enforcement.test.mjs",
         "tests/unit/public-demo-ingress-carry-through.test.mjs",
         "tests/unit/publication-root-access-contracts.test.mjs",
+        "tests/unit/quick-action-refresh-listener.test.mjs",
         "tests/unit/quiet-tail-surface-contracts.test.mjs",
         "tests/unit/readiness-root-access-contracts.test.mjs",
         "tests/unit/ready-dialog-adapter-contracts.test.mjs",
@@ -833,7 +834,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1523,
+      "errorCount": 1517,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1065,16 +1066,6 @@
           {
             "code": 7006,
             "count": 4
-          }
-        ],
-        "public/js/shared/quick-action-refresh.js": [
-          {
-            "code": 2339,
-            "count": 4
-          },
-          {
-            "code": 7006,
-            "count": 2
           }
         ],
         "public/js/shared/view-surface-descriptor.js": [
@@ -1778,8 +1769,8 @@
     }
   },
   "totals": {
-    "files": 1415,
-    "errors": 1523,
+    "files": 1416,
+    "errors": 1517,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -1423,6 +1423,12 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **No executable line changed**, and the two status recipients in this codebase were checked against each other rather than reconciled: they differ because they require different members, and both declarations were already true.
 
+#### 0.33.33.39.46 - Take the quick-action refresh to zero
+
+**Complete: `public/js/shared/quick-action-refresh.js` reaches zero, 6 to 0, and leaves the ledger.** The published `BrowserQuickActionRefresh` is unchanged.
+
+**One executable line changed and is equivalent**, and the listener it lives in gained the first coverage it has ever had.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.
