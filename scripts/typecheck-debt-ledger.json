@@ -632,6 +632,7 @@
         "tests/unit/slice-verification-plan.test.mjs",
         "tests/unit/sqlite-health-formatter.test.mjs",
         "tests/unit/static-regression-execution.test.mjs",
+        "tests/unit/status-message-timer.test.mjs",
         "tests/unit/stopwatch-timer-contracts.test.mjs",
         "tests/unit/stored-context-acquisition-contracts.test.mjs",
         "tests/unit/support-view-audit-contracts.test.mjs",
@@ -830,7 +831,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1537,
+      "errorCount": 1529,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1072,16 +1073,6 @@
           {
             "code": 7006,
             "count": 2
-          }
-        ],
-        "public/js/shared/status.js": [
-          {
-            "code": 2339,
-            "count": 5
-          },
-          {
-            "code": 7006,
-            "count": 3
           }
         ],
         "public/js/shared/view-surface-descriptor.js": [
@@ -1785,8 +1776,8 @@
     }
   },
   "totals": {
-    "files": 1412,
-    "errors": 1537,
+    "files": 1413,
+    "errors": 1529,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
