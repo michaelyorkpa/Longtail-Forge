@@ -1,8 +1,14 @@
 (() => {
   const namespace = window.LongtailForge = window.LongtailForge || {};
-  const value = String(document.querySelector?.("meta[data-asset-version]")?.content || "").trim();
+  // The versioned meta is queried as an `Element`, and `content` belongs to
+  // `HTMLMetaElement` rather than to every element, so it is read the way the optional
+  // access read it: a page without that meta, and a stand-in that is not an element,
+  // both still answer the empty string.
+  const versionMeta = document.querySelector?.("meta[data-asset-version]");
+  const value = String(Reflect.get(Object(versionMeta), "content", versionMeta) || "").trim();
   const externalUrlPrefix = /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i;
 
+  /** @param {string} assetUrl @returns {string} */
   function url(assetUrl) {
     const source = String(assetUrl || "").trim();
     if (!source || !value || externalUrlPrefix.test(source)) {
