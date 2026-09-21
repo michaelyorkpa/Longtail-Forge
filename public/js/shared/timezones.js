@@ -1,5 +1,17 @@
 (function () {
   const namespace = window.LongtailForge || {};
+  /**
+   * A wall-clock reading, already resolved to one zone.
+   *
+   * `parseDateTimeParts` builds it from a date and time string and `getZonedParts` from an
+   * instant, and `Date.UTC` reads the same seven members from either.
+   *
+   * @typedef {{
+   *   year: number, month: number, day: number,
+   *   hour: number, minute: number, second: number, millisecond: number,
+   * }} ZonedParts
+   */
+
   const TIMEZONE_STORAGE_KEY = "lf_timezone";
   const DEFAULT_TIMEZONE = "America/New_York";
   let userTimezone = normalizeTimezone(
@@ -25,6 +37,7 @@
     return userTimezone;
   }
 
+  /** @param {unknown} timezone @returns {string} */
   function setUserTimezone(timezone) {
     userTimezone = normalizeTimezone(timezone);
     window.localStorage.setItem(TIMEZONE_STORAGE_KEY, userTimezone);
@@ -35,6 +48,7 @@
     return userTimezone;
   }
 
+  /** @param {Date} [date] the instant each offset is reported at */
   function listSupportedTimezones(date = new Date()) {
     const supported = typeof Intl.supportedValuesOf === "function"
       ? Intl.supportedValuesOf("timeZone")
@@ -49,6 +63,7 @@
       }));
   }
 
+  /** @param {Date} date @param {string} timezone @returns {string} */
   function formatUtcOffset(date, timezone) {
     const totalMinutes = Math.round(getTimezoneOffsetMilliseconds(date, timezone) / 60000);
     const sign = totalMinutes < 0 ? "-" : "+";
@@ -59,6 +74,8 @@
     return `UTC ${sign}${hours}:${minutes}`;
   }
 
+  /** @param {unknown} timezone anything; a zone this runtime accepts comes back
+   * @returns {string} */
   function normalizeTimezone(timezone) {
     const candidate = String(timezone || "").trim() || DEFAULT_TIMEZONE;
 
@@ -70,6 +87,7 @@
     }
   }
 
+  /** @param {string} dateValue @param {string} timeValue @param {string} [timezone] */
   function zonedDateTimeToUtcIso(dateValue, timeValue, timezone = userTimezone) {
     const parts = parseDateTimeParts(dateValue, timeValue);
 
@@ -80,6 +98,7 @@
     return zonedPartsToUtcDate(parts, normalizeTimezone(timezone)).toISOString();
   }
 
+  /** @param {string} dateValue @param {string} [timeValue] @returns {ZonedParts | null} */
   function parseDateTimeParts(dateValue, timeValue = "00:00:00") {
     if (!dateValue || !timeValue) {
       return null;
@@ -95,6 +114,7 @@
     return { year, month, day, hour, minute, second, millisecond: 0 };
   }
 
+  /** @param {ZonedParts} parts @param {string} timezone @returns {Date} */
   function zonedPartsToUtcDate(parts, timezone) {
     const utcGuess = Date.UTC(
       parts.year,
@@ -112,6 +132,7 @@
     return secondOffset === offset ? firstPass : new Date(utcGuess - secondOffset);
   }
 
+  /** @param {Date} date @param {string} timezone @returns {number} */
   function getTimezoneOffsetMilliseconds(date, timezone) {
     const parts = getZonedParts(date, timezone);
     const zonedAsUtc = Date.UTC(
@@ -127,6 +148,7 @@
     return zonedAsUtc - date.getTime();
   }
 
+  /** @param {Date} date @param {string} [timezone] @returns {ZonedParts} */
   function getZonedParts(date, timezone = userTimezone) {
     const formatter = new Intl.DateTimeFormat("en-US", {
       timeZone: normalizeTimezone(timezone),
@@ -151,6 +173,7 @@
     };
   }
 
+  /** @param {Date} date @param {string} [timezone] @returns {string} */
   function formatDateInput(date, timezone = userTimezone) {
     const parts = getZonedParts(date, timezone);
 
@@ -161,6 +184,7 @@
     ].join("-");
   }
 
+  /** @param {Date} date @param {string} [timezone] @returns {string} */
   function formatTimeInput(date, timezone = userTimezone) {
     const parts = getZonedParts(date, timezone);
 
@@ -171,10 +195,12 @@
     ].join(":");
   }
 
+  /** @param {Date} date @param {string} [timezone] @returns {string} */
   function formatDate(date, timezone = userTimezone) {
     return new Intl.DateTimeFormat("en-US", { timeZone: normalizeTimezone(timezone) }).format(date);
   }
 
+  /** @param {Date | string | number} value @param {string} [timezone] @returns {string} */
   function formatDateTime(value, timezone = userTimezone) {
     const date = value instanceof Date ? value : new Date(value);
 
@@ -189,6 +215,7 @@
     }).format(date);
   }
 
+  /** @param {string} dateValue @param {string} [timezone] */
   function localDateRangeToUtc(dateValue, timezone = userTimezone) {
     return {
       start: new Date(zonedDateTimeToUtcIso(dateValue, "00:00:00", timezone)),
