@@ -33,12 +33,16 @@
 
   /** @param {unknown} status */
   function entryStatus(status) {
-    return {
+    // The index converted its name to a property key and consulted the table's own and
+    // inherited names. This reads it the same way, so a `String` object still selects its
+    // label, a symbol still selects nothing, and an inherited name still answers what it
+    // always answered.
+    return Reflect.get({
       unbilled: "Unbilled",
       billed: "Billed",
       paid: "Paid",
       na: "N/A",
-    }[status] || "Unbilled";
+    }, Reflect.ownKeys(Object.fromEntries([[status, undefined]]))[0]) || "Unbilled";
   }
 
   /**

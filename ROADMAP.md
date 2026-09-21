@@ -1441,6 +1441,12 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **The request builders had never been exercised**, and now are. `0.33.33.39` is **3**, across three files holding one diagnostic each.
 
+#### 0.33.33.39.49 - Close the shared framework's remainder
+
+**Complete: `0.33.33.39` reaches zero, owned and `dom`.** `asset-version.js`, `formatters.js` and `view-surface-descriptor.js` each reach zero and leave the ledger, and no `public/js/shared/` file carries a browser diagnostic.
+
+**A closing sweep, not a behaviour boundary**, and it is described per file because the three share nothing but being the remainder. **This closes `0.33.33.39` only** - `0.33.33.38` and the version-wide browser-zero closeout are not closed by it.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.

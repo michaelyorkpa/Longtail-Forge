@@ -534,6 +534,7 @@
         "tests/unit/final-publication-contracts.test.mjs",
         "tests/unit/focus-mode-resolution.test.mjs",
         "tests/unit/footer-quick-action-contracts.test.mjs",
+        "tests/unit/formatters-entry-status.test.mjs",
         "tests/unit/guarded-member-root-contracts.test.mjs",
         "tests/unit/help-article-contracts.test.mjs",
         "tests/unit/icon-creation-contract.test.mjs",
@@ -838,7 +839,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1482,
+      "errorCount": 1478,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1034,28 +1035,6 @@
           {
             "code": 2339,
             "count": 9
-          }
-        ],
-        "public/js/shared/asset-version.js": [
-          {
-            "code": 2339,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 1
-          }
-        ],
-        "public/js/shared/formatters.js": [
-          {
-            "code": 2538,
-            "count": 1
-          }
-        ],
-        "public/js/shared/view-surface-descriptor.js": [
-          {
-            "code": 7053,
-            "count": 1
           }
         ],
         "public/js/splash.js": [
@@ -1753,8 +1732,8 @@
     }
   },
   "totals": {
-    "files": 1420,
-    "errors": 1482,
+    "files": 1421,
+    "errors": 1478,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -349,6 +349,7 @@
     }
     if (spec.kind === "string-map") {
       const record = requireRecord(value, path);
+      /** @type {Record<string, string>} */
       const projected = {};
       for (const [key, entry] of Object.entries(record)) {
         if (typeof entry !== "string" || (spec.nonEmpty && entry.trim() === "")) {

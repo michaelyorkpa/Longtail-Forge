@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.49 - Close the shared framework's remainder
+
+**Model: Small Effort** - three single diagnostics in three unrelated files, each reusing an idiom this owner had already reviewed.
+
+- [x] **`0.33.33.39` reaches zero: 3 owned and 1 `dom` to 0.** Browser **1,482 to 1,478**, now across **15** diagnostic files - three left at once. Params **924 to 923**, state **195 to 194**, assorted **32 to 31** and **`dom` 331 to 330**; `0.33.33.42` stays **251** and `0.33.33.43` stays **897**. Nothing rose or was reclassified. **The canonical governance output now reads `0.33.33.39 shared browser framework: 0 params, 0 state, 0 assorted - 0`**, and no file under `public/js/shared/` appears in the browser ledger or the `dom` listing.
+- [x] **The boundary was checked rather than assumed, and it is a closing sweep.** These three files share no behaviour or dependency; what they share is being the owner's remainder, one diagnostic each, each fix self-contained. That is recorded as what it is instead of being presented as a behaviour boundary, and the commitment held: none of the three cascaded, so none needed splitting out.
+- [x] **`asset-version.js`, 1 owned and 1 `dom`.** The versioned `meta` is queried as an `Element`, and `content` belongs to `HTMLMetaElement` rather than to every element, so it is read the way the optional access read it - a page without that meta, and the plain-object stand-in `framework.asset-cache-version` drives the module with, both still answer the empty string. That regression **executes** this file, and it passes unchanged. `url` takes the `string` its published contract already declared.
+- [x] **`formatters.js`, 1 assorted.** `entryStatus` indexed its four-entry table with an `unknown`. The lookup now takes the same property-key conversion and consults the table's own **and inherited** names exactly as the index did: a `String` object still selects its label, a symbol still selects nothing, and `toString` still answers the inherited method rather than the fallback - **recorded as what this has always done, not changed**.
+- [x] **`view-surface-descriptor.js`, 1 state.** One annotation on the record the `string-map` projection builds. No executable line changed, and none of its five source owners pins it.
+- [x] **The one file whose behaviour is executable and uncovered gained coverage.** `entryStatus` is **stubbed** by its only unit owner rather than run, so nothing had executed the real lookup. Seven cases now do, including the inherited name and the symbol, and **all seven pass unchanged against the original file**. Byte restoration verified at SHA-256 `d1a5c77bf976f6811e258db54e261f8feeb4f8375b968529d9edc3c2fd39b9d0`.
+- [x] **No source owner needed retargeting.** The six owners across the three files pin publication text, markup and integration order, none of which this sweep moved.
+- [x] **Full verification on the delivered tree.** Unit **4,667 across 256 files**, regressions **348/348**, E2E **363/363** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+**What this closes, and what it does not.** `0.33.33.39` is the second owner lane to reach zero, after `0.33.33.41`. **It does not close `0.33.33.38`**, whose delegated `dom` work is still outstanding elsewhere, and **it does not close the version-wide browser-zero closeout**: **1,478** browser diagnostics remain - `0.33.33.43` **897**, `0.33.33.42` **251**, and **330** ownerless `dom` across ten page controllers.
+
 ## Version 0.33.33.42.9 - Guard the Workbench related-action opener
 
 **Model: High Effort** - a narrowly authorized readiness policy changes failure handling before dependency loading while preserving registry ownership and fallback navigation.
