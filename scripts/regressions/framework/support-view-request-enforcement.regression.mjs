@@ -369,7 +369,9 @@ async function assertReadRouteDeclarations() {
   assert.match(entryHtml, /autocomplete="current-password"/);
   assert.match(entryHtml, /maxlength="500"/);
   assert.match(entryHtml, /fully attributed, read-only view/);
-  assert.match(entryScriptSource, /confirmedReadOnly: confirmationInput\.checked/);
+  // `0.33.33.38.3.4` reads the confirmation through the page's own required-use check; the
+  // claim - the read-only confirmation is what the request carries - is unchanged.
+  assert.match(entryScriptSource, /confirmedReadOnly: required\(confirmationInput, "read-only confirmation"\)\.checked/);
   assert.match(supportRoutesSource, /payload\.confirmedReadOnly !== true/);
   assert.match(auditHtml, /data-support-view-audit-actor/);
   assert.match(auditHtml, /data-support-view-audit-target/);

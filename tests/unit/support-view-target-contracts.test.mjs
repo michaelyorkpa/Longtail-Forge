@@ -26,6 +26,7 @@ const repositorySource = readText("src/repositories/support-sessions.repo.js");
 const configSource = readText("src/config.js");
 const declarationSource = readText("src/types/browser-contracts.d.ts");
 const page = readText("public/js/support-view.js");
+const entryMarkup = readText("views/protected/support-view.html");
 
 const parser = sandbox(page,
   ["isResponseRecord", "isTargetWorkspace", "isSupportViewTarget", "isSupportViewActor", "readSupportViewTargets"],
@@ -253,16 +254,69 @@ describe("the consumer", () => {
       assert.ok(!consumers.includes(raw), `support-view.js must no longer read ${raw} off an unknown body`);
     }
     assert.match(page, /const available = readSupportViewTargets\(\s*await requireApi\(\)\.getJson\("\/api\/support-view\/targets", \{ cache: "no-store" \}\),\s*\);/);
-    assert.match(page, /actorText\.textContent = `Administrator: \$\{available\.actor\?\.label \|\| available\.actor\?\.username \|\| "Current administrator"\}`;/,
+    // `0.33.33.38.3.4` reads each required control through the page's own check; the claim -
+    // the administrator line keeps both of its fallbacks - is unchanged.
+    assert.match(page, /required\(actorText, "administrator label"\)\.textContent = `Administrator: \$\{available\.actor\?\.label \|\| available\.actor\?\.username \|\| "Current administrator"\}`;/,
       "and the administrator line keeps both fallbacks it already had");
     assert.match(page, /@type \{BrowserSupportViewTarget\[\]\}/, "the one direct handoff is annotated");
     assert.match(declarationSource, /getJson\([^)]*\): Promise<unknown>;/, "BrowserApi keeps returning a promise of unknown");
   });
 
+  /**
+   * `0.33.33.38.3.4` took this page's DOM lookups to zero.
+   *
+   * `querySelector` answers an `Element`; `value`, `checked`, `disabled`, `options`, `hidden`
+   * and `reportValidity` belong to the subtypes this form renders. Each narrowing is
+   * `instanceof`, which is what the DOM guarantees - not a cast, an assertion, or a type
+   * parameter standing in for validation.
+   */
+  it("narrows every control it reads a subtype member from", () => {
+    assert.match(page, /function asInput\(node\) \{\s*\n\s*return node instanceof HTMLInputElement \? node : null;/);
+    assert.match(page, /function asSelect\(node\) \{\s*\n\s*return node instanceof HTMLSelectElement \? node : null;/);
+    assert.match(page, /function asButton\(node\) \{\s*\n\s*return node instanceof HTMLButtonElement \? node : null;/);
+    assert.match(page, /function asForm\(node\) \{\s*\n\s*return node instanceof HTMLFormElement \? node : null;/);
+    assert.match(page, /function asTextArea\(node\) \{\s*\n\s*return node instanceof HTMLTextAreaElement \? node : null;/);
+
+    // Each narrowing is checked against the element the view actually renders, not against the
+    // binding's name. `reasonInput` is a `textarea`, and taking it for an `input` refused a real
+    // control - the browser spec caught it, and this is where that is now held.
+    for (const [selector, binding, narrower, tag] of [
+      ["entry-form", "entryForm", "asForm", "<form"],
+      ["target", "targetSelect", "asSelect", "<select"],
+      ["workspace", "workspaceSelect", "asSelect", "<select"],
+      ["password", "passwordInput", "asInput", "<input"],
+      ["reason", "reasonInput", "asTextArea", "<textarea"],
+      ["confirm", "confirmationInput", "asInput", "<input"],
+      ["start", "startButton", "asButton", "<button"],
+    ]) {
+      assert.match(page, new RegExp(`const ${binding} = ${narrower}\\(document\\.querySelector\\("\\[data-support-view-${selector}\\]"\\)\\)`),
+        `${binding} is narrowed by ${narrower}`);
+      assert.match(entryMarkup, new RegExp(`${tag}[^>]*data-support-view-${selector}`),
+        `the view renders data-support-view-${selector} as ${tag}>, which is what ${narrower} requires`);
+    }
+  });
+
+  /**
+   * **Checked at the use, not at the lookup.** `initialize()` runs before the first dereference
+   * and reaches the network, so refusing at capture would suppress a request that happens
+   * today. Counted rather than matched once, because a single site could otherwise be weakened
+   * while the others still satisfied the pin.
+   */
+  it("refuses an absent control at its use rather than at its lookup", () => {
+    assert.match(page, /function required\(control, name\) \{[\s\S]*throw new TypeError\(`The Support View page requires its \$\{name\}\.`\)/);
+    assert.ok((page.match(/required\(/g) || []).length >= 20, "every required use goes through the check");
+    assert.doesNotMatch(page, /const \w+ = required\(document\.querySelector/,
+      "no control is refused at its lookup, which would move the failure before initialize()");
+    assert.doesNotMatch(page, /targetSelect\?\.|workspaceSelect\?\.|passwordInput\?\.|startButton\?\.|entryForm\?\./,
+      "nor read through an optional chain, which would make a required write a no-op");
+  });
+
   it("keeps the start request reading the narrowed choices", () => {
-    assert.match(page, /effectiveUserId: targetSelect\.value,/, "the chosen target is still sent by identifier");
-    assert.match(page, /workspaceId: workspaceSelect\.value,/, "with the chosen workspace");
-    assert.match(page, /confirmedReadOnly: confirmationInput\.checked,/, "and the read-only confirmation is unchanged");
+    // Each control is now read through the page's own required-use check. What is sent, and
+    // from which control, is unchanged.
+    assert.match(page, /effectiveUserId: required\(targetSelect, "target list"\)\.value,/, "the chosen target is still sent by identifier");
+    assert.match(page, /workspaceId: required\(workspaceSelect, "workspace list"\)\.value,/, "with the chosen workspace");
+    assert.match(page, /confirmedReadOnly: required\(confirmationInput, "read-only confirmation"\)\.checked,/, "and the read-only confirmation is unchanged");
   });
 });
 
