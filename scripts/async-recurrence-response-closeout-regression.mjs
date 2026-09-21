@@ -40,7 +40,9 @@ try {
   assert.doesNotMatch(extractFunctionBlock(publicApiSource, "publicRecurrenceJob"), /jobId|job_id|dedupe|payload/i, "public recurrence job response should not expose job internals");
   assert.match(tasksPageSource, /renderTaskRecurrenceContinuity\(taskActionField\(result, "recurrenceContinuity"\)\)/, "Tasks page should render safe recurrence continuity");
   assert.match(tasksPageSource, /trackTaskRecurrenceContinuity\([^\n]+taskActionField\(result, "recurrenceContinuity"\)\)/, "Tasks page should track pending recurrence continuity without creating inline");
-  assert.match(workbenchSource, /detail\.taskLifecycleAction === "complete"[\s\S]*setTaskCompletionStatus\(detail\)/, "Workbench modal completion should use safe lifecycle detail");
+  // `0.33.33.42.6` reads the lifecycle action through the detail's own receiver; the claim that
+  // the Workbench routes a safe lifecycle detail to completion is unchanged.
+  assert.match(workbenchSource, /Reflect\.get\(Object\(detail\), "taskLifecycleAction", detail\) === "complete"[\s\S]*setTaskCompletionStatus\(detail\)/, "Workbench modal completion should use safe lifecycle detail");
   assert.match(extractFunctionBlock(workbenchSource, "setTaskCompletionStatus"), /detail\.recurrenceContinuity[\s\S]*trackTaskRecurrenceContinuity/, "Workbench completion should render and track safe recurrence continuity");
   assert.doesNotMatch(extractFunctionBlock(workbenchSource, "setTaskCompletionStatus"), /jobId|job_id|dedupe|payload/i, "Workbench completion should not expose recurrence job internals");
   assert.match(tasksDocs, /As of 0\.33\.9\.6[\s\S]*does not create the next instance inline[\s\S]*recurrenceContinuity[\s\S]*queue\/failure booleans/, "Tasks docs should describe the async recurrence continuity contract");
