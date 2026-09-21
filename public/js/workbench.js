@@ -3559,14 +3559,17 @@
     return "Ready to review.";
   }
 
+  /** @param {TaskFocusRelatedItem} [item] */
   function relatedContextTitle(item = {}) {
     return safeRelatedContextText(item.title, `${formatToken(item.recordType || item.moduleId || "Related")} context`);
   }
 
+  /** @param {TaskFocusRelatedItem} [item] */
   function relatedContextSourceLabel(item = {}) {
     return safeRelatedContextText(item.sourceLabel, formatToken(item.moduleId || item.recordType || "Related"));
   }
 
+  /** @param {TaskFocusRelatedItem} [item] */
   function relatedContextContextLabel(item = {}) {
     const parts = [
       relatedContextSourceLabel(item),
@@ -3591,11 +3594,13 @@
       .slice(0, 4);
   }
 
+  /** @param {TaskFocusRelatedItem} [item] */
   function relatedContextCanOpen(item = {}) {
     const action = item.action || {};
     return Boolean((action.type === "module-action" && action.moduleActionId) || action.fallbackUrl);
   }
 
+  /** @param {TaskFocusRelatedItem} [item] */
   function relatedContextActionLabel(item = {}) {
     const actionId = item.action?.moduleActionId || "";
     if (actionId === "files.preview") {
@@ -3616,6 +3621,7 @@
     return item.action?.fallbackUrl ? "Open related context" : "Review related context";
   }
 
+  /** @param {unknown} value @param {string} [fallback] */
   function safeRelatedContextText(value, fallback = "") {
     const text = String(value || "").trim();
     return text && !looksLikeRawId(text) ? text : fallback;
