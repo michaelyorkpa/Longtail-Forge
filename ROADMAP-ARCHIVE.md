@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.44 - Take the capture prompt to zero
+
+**Model: Small Effort** - the published options bag already named every member, including the two the writer forwards rather than reads, so the cascade this checkpoint was warned about never arrived.
+
+- [x] **`public/js/shared/capture-prompt.js` reaches zero, 11 to 0, and leaves the ledger.** Browser **1,638 to 1,627**, now across **22** diagnostic files; params **992 to 981**; state **267**, `dom` **334** and assorted **45** unchanged; `0.33.33.39` **37 to 26**. Exactly one file moved - all eleven `TS2339` on the options bag - and nothing rose or was reclassified. `0.33.33.42` stays **370** and `0.33.33.43` stays **897**.
+- [x] **No executable line changed.** The delivered file differs from its predecessor by a single JSDoc block; with comments stripped, the executable text of the two files is identical. There is no behaviour claim to make, and none is made.
+- [x] **The `Element` cascade this checkpoint was drawn to expect did not happen, because the contract had already answered it.** `0.33.33.39.43` found that typing a host at its published `Element` surfaced eleven further diagnostics. Here `BrowserCapturePromptOptions` declares `parent` and `trigger` as `unknown` - "forwarded verbatim to `view.showModal`" - so the two element-valued members are passed through rather than dereferenced, and nothing downstream acquired a type it had to satisfy. Every other member was already `string`, `number` or `boolean`.
+- [x] **The annotations were proved load-bearing by diagnostic delta.** Six breaks were compiled against both files. **Five are caught by the delivered file and invisible to its predecessor**, whose options bag was `{}`: four misspelled members and a row count padded as if it were text. **The sixth was an invalid probe and is recorded as one rather than counted as a miss** - passing the row count as the dialog title is not an error, because `BrowserViewTextValue` is `unknown` by design and the view layer coerces it.
+- [x] **No new suite was written, and that is the proportionate choice.** Unlike `0.33.33.39.42`'s file, this one is already executed: `task-resume-capture` runs it, `task-resume-context-regression` runs it, and `task-blocked-recovery` and `task-editor-operation-handles` drive it in a real browser. All of them pass on the delivered tree. Adding cases to a comment-only change would have been bookkeeping, not evidence. Byte restoration verified at SHA-256 `97519a1f90cfb305bd65bad7dfd5af8988f7dc24fb4959556505fa5b093e9b85`.
+- [x] **No source owner needed retargeting.** Both owners that read this file pin markup and selector text, neither of which a JSDoc block moves.
+- [x] **Full verification on the delivered tree.** Unit **4,587 across 248 files**, regressions **348/348**, E2E **357/357** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+Excluded and explicitly remaining: `0.33.33.39`'s shared framework budget, **26** across 7 files, led by `status.js` at 8. No published contract changed. **This does not close `0.33.33.39`, `0.33.33.38`, or the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.42.4 - Establish the remaining Workbench element handles
 
 **Model: High Effort** - a single cached-handle cohort spans focus selectors, recommendations and timers, requiring producer-derived subtypes and exact required-use failure ordering.

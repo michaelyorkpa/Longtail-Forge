@@ -828,7 +828,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1638,
+      "errorCount": 1627,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1034,12 +1034,6 @@
           {
             "code": 7006,
             "count": 1
-          }
-        ],
-        "public/js/shared/capture-prompt.js": [
-          {
-            "code": 2339,
-            "count": 11
           }
         ],
         "public/js/shared/formatters.js": [
@@ -1794,7 +1788,7 @@
   },
   "totals": {
     "files": 1410,
-    "errors": 1638,
+    "errors": 1627,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

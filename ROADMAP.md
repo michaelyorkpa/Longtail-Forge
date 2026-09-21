@@ -1411,6 +1411,12 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **One behaviour changed, and one contract comment was corrected** because it said the controller only queries and listens to its host, which is not what the writer does.
 
+#### 0.33.33.39.44 - Take the capture prompt to zero
+
+**Complete: `public/js/shared/capture-prompt.js` reaches zero, 11 to 0, and leaves the ledger.** The published `BrowserCapturePrompt` is unchanged.
+
+**No executable line changed**, and no new suite was written: this file is already executed by a unit suite, a regression and two browser specs.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.
