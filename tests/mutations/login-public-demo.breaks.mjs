@@ -75,6 +75,32 @@ const cases = [
   ["an absent form is skipped instead of refused",
     '    if (!loginForm) {\n      throw new TypeError("The login page requires its login form.");\n    }\n    return loginForm;',
     "    return loginForm;"],
+
+  // --- `0.33.33.38.3.3`: the rest of the page's lookups, and their refusals ---------------------
+  // Each of these turns a checked lookup back into an unchecked one, or a required control into
+  // an optional no-op. The second shape is the one that matters: it leaves the password-change
+  // form wired to nothing and reports success.
+  ["a control stops being narrowed to an input element",
+    "    return node instanceof HTMLInputElement ? node : null;",
+    "    return node;"],
+  ["a control stops being narrowed to a button element",
+    "    return node instanceof HTMLButtonElement ? node : null;",
+    "    return node;"],
+  ["the password-change form stops being narrowed",
+    '  const requiredPasswordForm = asForm(document.querySelector("[data-required-password-form]"));',
+    '  const requiredPasswordForm = document.querySelector("[data-required-password-form]");'],
+  ["an absent submit button is skipped instead of refused",
+    '    if (!button) {\n      throw new TypeError("The login page requires its submit button.");\n    }\n    return button;',
+    "    return button;"],
+  ["an absent password control is skipped instead of refused",
+    '    if (!input) {\n      throw new TypeError("The login page requires its password-change controls.");\n    }\n    return input;',
+    "    return input;"],
+  ["the submit button is disabled through an optional chain",
+    "      requireSubmitButton(submitButton).disabled = true;",
+    "      if (submitButton) submitButton.disabled = true;"],
+  ["the password-change form is revealed through an optional chain",
+    "    requireRequiredPasswordForm().hidden = false;",
+    "    if (requiredPasswordForm) requiredPasswordForm.hidden = false;"],
 ];
 
 runMutationCampaign({

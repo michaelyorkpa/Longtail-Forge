@@ -108,6 +108,8 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 **`0.33.33.38.3` DOM work inside those twelve files is delegated to Codex**, to be taken alongside the `.40`-`.43` controller work rather than as a separate lane. The retained controllers may combine their own DOM and controller typing the same way. **Family accounting is unchanged**: a DOM elimination is credited to the `dom` family wherever it happens, an owned elimination to its `.39`-`.44` owner, and each elimination is credited exactly once. Owner sum must continue to equal `params + state + assorted`.
 
+**Claude owns the `0.33.33.38.3` DOM work in the ten page controllers that are not Codex's**, assigned when `0.33.33.39` reached zero and recorded here before any edit. Under `public/js/`: `support-view.js`, `support-view-audit.js`, `api-keys.js`, `login.js`, `tags.js`, `notifications.js`, `splash.js`, `account-recovery.js`, `dashboard.entry.js`, `module-settings.js`. **That is 172 of the 330 `dom` diagnostics; the other 158 sit inside Codex's twelve files and stay delegated to Codex** - `lists.js` 118, `clients-projects.js` 27, `workbench.js` 10, `files.js` 3. The two sets are disjoint, so the lanes do not collide. This assignment carries no owned-family budget: these files' `params`, `state` and `assorted` diagnostics are `0.33.33.44`'s and are **not** in scope. Claude's children run in the `0.33.33.38.3.N` series on the pattern `0.33.33.38.3.1` established - checked lookups rather than assertions, helpers file-local until a second real consumer justifies extraction, and any extraction into `public/js/shared/` is Claude's.
+
 **Integration is single-headed.** Claude alone merges protected pull requests and synchronizes `nightly` and `agent/0.33.33-lean-core`. Codex pushes feature branches and may open draft pull requests. Each lane prepares only the checkpoint bookkeeping its own branch needs; shared `ROADMAP.md`, archive and generated-file changes are reconciled at integration. **A branch-local typecheck ledger is evidence for that branch only** — the canonical ledger is recomputed from the integrated tree, never summed from branch deltas and never resolved with `ours`/`theirs`.
 
 **Shared prerequisites remain Claude's and land first.** Measured at `b86bd32d`, **none is currently outstanding**: all 64 namespace members are declared, the namespace family is `0`, and every surface the twelve files acquire — `view`, `icons`, `moduleActions`, `tags`, `taskRecords`, `modal`, `notificationSubscriptions`, `api`, `errors`, `pageController`, `workspaceContext` — is already typed. Prerequisites are drawn on demand when a Codex child is actually blocked, not pre-sliced.
@@ -585,6 +587,12 @@ These are **starting** boundaries. Each lane draws its own next child from the t
 **One honest tightening.** A node present under the right selector but of the wrong subtype now behaves as absence. For the three required controls that means a named markup-contract error where the page previously read `undefined` and reported "Workspace name is required." For the optional select the behaviour is identical. Named rather than described as unchanged.
 
 **Deliberately excluded**, and asserted as still untouched: the deletion dialog, the users dialog, backup/job/runtime readouts, and the contributed settings renderer's internals. Four `Property 'value'` diagnostics remain in this file and all four are the deletion dialog's.
+
+#### 0.33.33.38.3.3 - The login page's checked lookups
+
+**Complete: 27 diagnostics, one page, and the first child of Claude's newly assigned `0.33.33.38.3` cohort.** See the archive entry. The `dom` family fell **330 to 303** and **params, state and assorted did not move at all** - the same pure-DOM signature `0.33.33.38.3.1` recorded, which is the cleanest evidence the cohort was drawn at a real seam.
+
+**The break set is what defends it**: 24 of 24 mutations refused, including every way of turning a required control into an optional no-op.
 
 #### 0.33.33.38.3.2 - The Workspace Settings deletion dialog
 
