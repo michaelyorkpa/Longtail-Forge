@@ -55,7 +55,7 @@ assert.doesNotMatch(
 
 assert.match(
   extractFunctionBody(workbenchScript, "handleTaskFocusChecklistChange"),
-  /const action = checked \? "check" : "uncheck";[\s\S]*api\.postJson\(\s*`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/checklist\/\$\{encodeURIComponent\(itemId\)\}\/\$\{action\}`[\s\S]*applyTaskFocusChecklistResult\(result\)[\s\S]*renderWorkbench\(\);/,
+  /const action = checked \? "check" : "uncheck";[\s\S]*api\.postJson\(\s*`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/checklist\/\$\{encodeURIComponent\(`\$\{itemId\}`\)\}\/\$\{action\}`[\s\S]*applyTaskFocusChecklistResult\(result\)[\s\S]*renderWorkbench\(\);/,
   "Checklist check/uncheck should dispatch through the existing Tasks-owned checklist mutation route",
 );
 assert.match(
@@ -70,7 +70,7 @@ assert.doesNotMatch(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "applyTaskFocusChecklistResult"),
-  /result\.task \|\| \{[\s\S]*checklistItems: result\.items \|\| existingTask\.checklistItems \|\| \[\][\s\S]*checklistProgress: result\.checklistProgress \|\| existingTask\.checklistProgress[\s\S]*applyActiveTaskFocusTask\(nextTask\)/,
+  /resultFields\.task \|\| \{[\s\S]*checklistItems: resultFields\.items \|\| existingTask\.checklistItems \|\| \[\][\s\S]*checklistProgress: resultFields\.checklistProgress \|\| existingTask\.checklistProgress[\s\S]*applyActiveTaskFocusTask\(nextTask\)/,
   "Checklist mutation results should refresh the focused task from the Tasks response shape",
 );
 assert.match(
