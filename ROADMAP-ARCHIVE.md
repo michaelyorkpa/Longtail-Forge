@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.42.13 - Annotate Workbench candidate display readers
+
+**Model: Medium Effort** - the candidate display vocabulary is already published and the implementation consists only of parameter annotations.
+
+- [x] **Measure before selecting.** Baseline e6df1ef0 reproduces Workbench 220 raw / 210 owned / 10 DOM, with 191 params, 12 state and 7 assorted. Top ten: navigationContainsHref, createTaskFocusTimerButton, createTaskDetailField and renderRegisteredWorkbenchCards four each (the last includes two DOM); loadWorkbenchSourceData, loadTimerCardData, offerTaskResumeNoteBeforeExit, recommendedCandidateResumeNote, createTaskFocusTimerControls and createTaskFocusChecklistBody three each. No dominant cluster. Choose candidate display text and labels as one shared-contract reader boundary; leave dispatch, timer controls, recursive navigation and DOM acquisition outside it.
+- [x] **Reuse the producer vocabulary.** WorkCandidate is published in framework-contracts.d.ts and normalizeWorkCandidate in work-candidate.service.js establishes its text, identity, metadata and action members. Seven candidate readers reuse Partial<WorkCandidate>, retaining their existing empty/default handling. safeCandidateText and formatCandidateDate take unknown because their existing String conversions accept opaque inputs. No local response shape or shared-contract change is introduced.
+- [x] **Exact annotation-only proof.** Nine JSDoc lines are the entire executable-source diff. Removing precisely those lines reproduces baseline workbench.js byte-for-byte. Final SHA-256: 77cf27d6f64b4344c73ba25cdc4a9d775847aff7d60ddbc7fdb29d3ea88acd3e. Raw-ID label protection, client/project resolution order, resume-note precedence, badges, action labels, fallback text, coercion, getters and failures remain unchanged. Existing scripts/ and tests/ owners/lifts were searched across the whole trees; no spelling changed and no pin needed retargeting. No new suite or mutation campaign for unchanged executable code.
+- [x] **Account once.** recommendedCandidateResumeNote three to zero, recommendedCandidateMeta two to zero, candidateClientProjectLabel two to zero, inspectorCandidateTitle three to zero, inspectorCandidateContext three to zero, candidateBadges one to zero, candidateActionLabel one to zero, safeCandidateText one to zero and formatCandidateDate one to zero. Seventeen parameter eliminations, zero reclassification. Workbench 220 to 203 raw / 210 to 193 owned (191 to 174 params; 12 state and 7 assorted unchanged), DOM 10 unchanged. Browser 1338 to 1321; global DOM 231 unchanged. Exactly one diagnostic file moves; every other owner is unchanged; server/tests and scripts remain zero.
+- [x] **Proportionate proof.** Existing lifted focus-reader/state/envelope suites pass 20 cases. Isolated desktop/mobile focus-selection, recommendation cycling and real task-opening workflows run on port 8102. Full units/lint, canonical verify:slice and full-range checkpoint validation complete the delivery contract; exact results and HEAD accompany the readiness report.
+
+No docs change needed: annotations reuse the published producer contract and leave behavior byte-identical. Bookkeeping is limited to this archive entry and the branch-local ledger.
+
+**Remaining:** Workbench 193 owned plus 10 DOM. No file/lane closeout. Lists and its delegated DOM backlog, extraction, shared code/contracts, server, CSS, packages and other lanes remain untouched. Recurring-task status, assignee_ids and detached-trigger findings stay recorded and uncorrected.
+
 ## Version 0.33.33.42.12 - Annotate Workbench related-item labels and action affordances
 
 **Model: Medium Effort** - six local parameter annotations reuse an established producer vocabulary without changing executable code.
