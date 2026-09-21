@@ -57,7 +57,7 @@ assert.match(
 );
 assert.match(
   openTaskCandidateBody,
-  /if \(result\.completed\) \{[\s\S]*detail\.taskLifecycleAction === "complete"[\s\S]*setTaskCompletionStatus\(detail\)[\s\S]*setStatus\("Task updated\."\)/,
+  /if \(result\.completed\) \{[\s\S]*Reflect\.get\(Object\(detail\), "taskLifecycleAction", detail\) === "complete"[\s\S]*setTaskCompletionStatus\(detail\)[\s\S]*setStatus\("Task updated\."\)/,
   "Workbench should preserve task completion messaging and normal update messaging after the in-place editor closes",
 );
 assert.doesNotMatch(
