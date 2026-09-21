@@ -31,19 +31,65 @@
     return select;
   }
 
-  const filtersForm = document.querySelector("[data-support-view-audit-filters]");
-  const fromInput = document.querySelector("[data-support-view-audit-from]");
-  const toInput = document.querySelector("[data-support-view-audit-to]");
+  /**
+   * The narrowings the rest of this page's controls need, in the shape `findAuditSelect`
+   * established above and against the elements `support-view-audit.html` actually renders: the
+   * filter shell is a `form`, the two date filters are `input`s, and the four pager and action
+   * controls are `button`s.
+   *
+   * @param {string} selector
+   * @returns {HTMLFormElement | null}
+   */
+  function findAuditForm(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLFormElement ? element : null;
+  }
+
+  /** @param {string} selector @returns {HTMLInputElement | null} */
+  function findAuditInput(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLInputElement ? element : null;
+  }
+
+  /** @param {string} selector @returns {HTMLButtonElement | null} */
+  function findAuditButton(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLButtonElement ? element : null;
+  }
+
+  /**
+   * One control this page cannot work without, checked where it is used.
+   *
+   * The same refusal `requireAuditSelect` makes, for the controls that are not selects. It is a
+   * second function rather than the one they both delegate to because `requireAuditSelect` is
+   * lifted by `support-view-audit-filters` and may acquire no free variable; the duplication is
+   * that constraint, not a preference.
+   *
+   * @template {Element} T
+   * @param {T | null} control
+   * @param {string} name
+   * @returns {T}
+   */
+  function requireAuditControl(control, name) {
+    if (!control) {
+      throw new TypeError(`The Support View audit page requires its ${name}.`);
+    }
+    return control;
+  }
+
+  const filtersForm = findAuditForm("[data-support-view-audit-filters]");
+  const fromInput = findAuditInput("[data-support-view-audit-from]");
+  const toInput = findAuditInput("[data-support-view-audit-to]");
   const actorSelect = findAuditSelect("[data-support-view-audit-actor]");
   const targetSelect = findAuditSelect("[data-support-view-audit-target]");
   const workspaceSelect = findAuditSelect("[data-support-view-audit-workspace]");
   const eventSelect = findAuditSelect("[data-support-view-audit-event]");
   const outcomeSelect = findAuditSelect("[data-support-view-audit-outcome]");
-  const resetButton = document.querySelector("[data-support-view-audit-reset]");
-  const exportButton = document.querySelector("[data-support-view-audit-export]");
-  const pageSizeSelect = document.querySelector("[data-support-view-audit-page-size]");
-  const previousButton = document.querySelector("[data-support-view-audit-previous]");
-  const nextButton = document.querySelector("[data-support-view-audit-next]");
+  const resetButton = findAuditButton("[data-support-view-audit-reset]");
+  const exportButton = findAuditButton("[data-support-view-audit-export]");
+  const pageSizeSelect = findAuditSelect("[data-support-view-audit-page-size]");
+  const previousButton = findAuditButton("[data-support-view-audit-previous]");
+  const nextButton = findAuditButton("[data-support-view-audit-next]");
   const pageSummary = document.querySelector("[data-support-view-audit-page-summary]");
   const policyText = document.querySelector("[data-support-view-audit-policy]");
   const statusText = document.querySelector("[data-support-view-audit-status]");
@@ -55,30 +101,30 @@
 
   initialize();
 
-  filtersForm.addEventListener("submit", (event) => {
+  requireAuditControl(filtersForm, "filter form").addEventListener("submit", (event) => {
     event.preventDefault();
     currentPage = 1;
     void loadAudit();
   });
-  resetButton.addEventListener("click", () => {
-    filtersForm.reset();
+  requireAuditControl(resetButton, "reset button").addEventListener("click", () => {
+    requireAuditControl(filtersForm, "filter form").reset();
     currentPage = 1;
     void loadAudit();
   });
-  exportButton.addEventListener("click", () => {
+  requireAuditControl(exportButton, "export button").addEventListener("click", () => {
     window.location.href = `/api/support-view/audit/export.csv?${buildFilterParams().toString()}`;
   });
-  pageSizeSelect.addEventListener("change", () => {
+  requireAuditSelect(pageSizeSelect).addEventListener("change", () => {
     currentPage = 1;
     void loadAudit();
   });
-  previousButton.addEventListener("click", () => {
+  requireAuditControl(previousButton, "previous-page button").addEventListener("click", () => {
     if (currentPage > 1) {
       currentPage -= 1;
       void loadAudit();
     }
   });
-  nextButton.addEventListener("click", () => {
+  requireAuditControl(nextButton, "next-page button").addEventListener("click", () => {
     if (currentPage < totalPages()) {
       currentPage += 1;
       void loadAudit();
@@ -328,12 +374,12 @@
       returnedEvents = events.length;
       currentPage = Math.min(Math.max(1, currentPage), totalPages());
       populateFilters(audit.filterOptions);
-      policyText.textContent = `Support View audit records are retained for ${audit.retentionDays} days. Each CSV export is limited to ${audit.exportLimit} newest matching rows.`;
+      requireAuditControl(policyText, "retention note").textContent = `Support View audit records are retained for ${audit.retentionDays} days. Each CSV export is limited to ${audit.exportLimit} newest matching rows.`;
       renderRows(events);
       updatePagination();
       updateStatus();
     } catch (error) {
-      tableBody.replaceChildren();
+      requireAuditControl(tableBody, "results table").replaceChildren();
       setStatus(requireErrors().caughtMessage(error, "Support View audit events could not be loaded."), true);
     }
   }
@@ -342,8 +388,8 @@
     const params = new URLSearchParams();
     const values = {
       actorUserId: requireAuditSelect(actorSelect).value,
-      dateFrom: fromInput.value,
-      dateTo: toInput.value,
+      dateFrom: requireAuditControl(fromInput, "date filters").value,
+      dateTo: requireAuditControl(toInput, "date filters").value,
       effectiveUserId: requireAuditSelect(targetSelect).value,
       eventType: requireAuditSelect(eventSelect).value,
       outcome: requireAuditSelect(outcomeSelect).value,
@@ -359,7 +405,7 @@
 
   function buildPageParams() {
     const params = buildFilterParams();
-    const pageSize = Number.parseInt(pageSizeSelect.value, 10) || 50;
+    const pageSize = Number.parseInt(requireAuditSelect(pageSizeSelect).value, 10) || 50;
     params.set("limit", String(pageSize));
     params.set("offset", String((currentPage - 1) * pageSize));
     return params;
@@ -418,14 +464,14 @@
 
   /** @param {readonly BrowserSupportViewAuditEvent[]} events */
   function renderRows(events) {
-    tableBody.replaceChildren();
+    requireAuditControl(tableBody, "results table").replaceChildren();
     if (events.length === 0) {
       const row = document.createElement("tr");
       const cell = document.createElement("td");
       cell.colSpan = 7;
       cell.textContent = "No Support View events match these filters.";
       row.appendChild(cell);
-      tableBody.appendChild(row);
+      requireAuditControl(tableBody, "results table").appendChild(row);
       return;
     }
 
@@ -440,7 +486,7 @@
         cell(formatEnum(event.outcome)),
         cell(event.reasonReference),
       );
-      tableBody.appendChild(row);
+      requireAuditControl(tableBody, "results table").appendChild(row);
     });
   }
 
@@ -469,14 +515,14 @@
   }
 
   function totalPages() {
-    const pageSize = Number.parseInt(pageSizeSelect.value, 10) || 50;
+    const pageSize = Number.parseInt(requireAuditSelect(pageSizeSelect).value, 10) || 50;
     return Math.max(1, Math.ceil(totalEvents / pageSize));
   }
 
   function updatePagination() {
-    previousButton.disabled = currentPage <= 1;
-    nextButton.disabled = currentPage >= totalPages();
-    pageSummary.textContent = `Page ${currentPage} of ${totalPages()}`;
+    requireAuditControl(previousButton, "previous-page button").disabled = currentPage <= 1;
+    requireAuditControl(nextButton, "next-page button").disabled = currentPage >= totalPages();
+    requireAuditControl(pageSummary, "page summary").textContent = `Page ${currentPage} of ${totalPages()}`;
   }
 
   function updateStatus() {
@@ -484,7 +530,7 @@
       setStatus("");
       return;
     }
-    const pageSize = Number.parseInt(pageSizeSelect.value, 10) || 50;
+    const pageSize = Number.parseInt(requireAuditSelect(pageSizeSelect).value, 10) || 50;
     const start = (currentPage - 1) * pageSize + 1;
     const end = Math.min(start + returnedEvents - 1, totalEvents);
     setStatus(`Showing ${start}-${end} of ${totalEvents} Support View events.`);
@@ -492,7 +538,7 @@
 
   /** @param {string} message @param {boolean} [isError] */
   function setStatus(message, isError = false) {
-    statusText.textContent = message;
-    statusText.classList.toggle("error-text", isError);
+    requireAuditControl(statusText, "status line").textContent = message;
+    requireAuditControl(statusText, "status line").classList.toggle("error-text", isError);
   }
 })();

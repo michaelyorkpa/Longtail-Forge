@@ -588,6 +588,12 @@ These are **starting** boundaries. Each lane draws its own next child from the t
 
 **Deliberately excluded**, and asserted as still untouched: the deletion dialog, the users dialog, backup/job/runtime readouts, and the contributed settings renderer's internals. Four `Property 'value'` diagnostics remain in this file and all four are the deletion dialog's.
 
+#### 0.33.33.38.3.5 - The Support View audit page's remaining lookups
+
+**Complete: 30 diagnostics, thirteen bindings, one page.** See the archive entry. The `dom` family fell **261 to 231** and **params, state and assorted did not move** - the fourth consecutive pure-DOM cohort.
+
+**The subtypes were traced to the markup before a narrowing was chosen**, which is the lesson `0.33.33.38.3.4` paid for. The break set is 20 of 20 refused.
+
 #### 0.33.33.38.3.4 - The Support View entry page's checked lookups
 
 **Complete: 42 diagnostics, ten bindings, one page.** See the archive entry. The `dom` family fell **303 to 261** and **params, state and assorted did not move** - the third consecutive pure-DOM cohort.

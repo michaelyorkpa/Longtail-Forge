@@ -232,4 +232,49 @@ describe("support-view-audit.js shapes this page states rather than invents", ()
     assert.doesNotMatch(source, /@ts-(expect-error|ignore|nocheck)/);
     assert.doesNotMatch(source, /\/\*\* @type \{[^}]*\} \*\/ \(/);
   });
+
+  /**
+   * `0.33.33.38.3.5` extended the same shape to the rest of the page.
+   *
+   * **Each narrowing is checked against the element the view renders, not against the
+   * binding's name.** `0.33.33.38.3.4` mistook a `textarea` for an `input` on the sibling page
+   * and refused a real control; this is where that cannot repeat here.
+   */
+  it("narrows every remaining control to what the view actually renders", () => {
+    const markup = createProjectTextReader().readText("views/protected/support-view-audit.html");
+    assert.match(source, /function findAuditForm\(selector\) \{[\s\S]*element instanceof HTMLFormElement \? element : null;/);
+    assert.match(source, /function findAuditInput\(selector\) \{[\s\S]*element instanceof HTMLInputElement \? element : null;/);
+    assert.match(source, /function findAuditButton\(selector\) \{[\s\S]*element instanceof HTMLButtonElement \? element : null;/);
+
+    for (const [selector, binding, finder, tag] of [
+      ["filters", "filtersForm", "findAuditForm", "<form"],
+      ["from", "fromInput", "findAuditInput", "<input"],
+      ["to", "toInput", "findAuditInput", "<input"],
+      ["reset", "resetButton", "findAuditButton", "<button"],
+      ["export", "exportButton", "findAuditButton", "<button"],
+      ["page-size", "pageSizeSelect", "findAuditSelect", "<select"],
+      ["previous", "previousButton", "findAuditButton", "<button"],
+      ["next", "nextButton", "findAuditButton", "<button"],
+    ]) {
+      assert.match(source, new RegExp(`const ${binding} = ${finder}\\("\\[data-support-view-audit-${selector}\\]"\\)`),
+        `${binding} is narrowed by ${finder}`);
+      assert.match(markup, new RegExp(`${tag}[^>]*data-support-view-audit-${selector}`),
+        `the view renders data-support-view-audit-${selector} as ${tag}>, which is what ${finder} requires`);
+    }
+  });
+
+  /**
+   * **A second refusal, not a shared one.** `requireAuditSelect` is lifted by this suite and may
+   * acquire no free variable, so the controls that are not selects get their own check rather
+   * than both delegating to one.
+   */
+  it("refuses every remaining absent control at its use", () => {
+    assert.match(source, /function requireAuditControl\(control, name\) \{\n\s*if \(!control\) \{\n\s*throw new TypeError\(`The Support View audit page requires its \$\{name\}\.`\)/);
+    assert.ok((source.match(/requireAuditControl\(/g) || []).length >= 18,
+      "every remaining required use goes through the check");
+    assert.doesNotMatch(source, /const \w+ = requireAudit\w*\(document\.querySelector/,
+      "no control is refused at its lookup, which would move the failure ahead of initialize()");
+    assert.doesNotMatch(source, /tableBody\?\.|previousButton\?\.|nextButton\?\.|filtersForm\?\.|statusText\?\./,
+      "nor read through an optional chain, which would make a required write a no-op");
+  });
 });

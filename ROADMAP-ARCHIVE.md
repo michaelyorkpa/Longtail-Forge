@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.38.3.5 - The Support View audit page's remaining lookups
+
+**Model: Medium Effort** - a page that had already narrowed five of its controls, so this extended an established shape rather than introducing one.
+
+- [x] **30 diagnostics to 0, and `public/js/support-view-audit.js` leaves the ledger.** Browser **1,380 to 1,350**, now across **12** diagnostic files; **`dom` 261 to 231**. **Params 909, state 180 and assorted 30 did not move.** `0.33.33.42` stays **222** and `0.33.33.43` stays **897**.
+- [x] **The markup was read before any narrowing was chosen.** `0.33.33.38.3.4` mistook a `textarea` for an `input` by trusting a binding's name; here the view was traced first, which is how `pageSizeSelect` turned out to be a **`select` the earlier checkpoint had left unnarrowed** while five of its siblings were narrowed. It now uses the same `findAuditSelect` they do.
+- [x] **The existing shape was extended, not replaced.** `findAuditSelect` and `requireAuditSelect` are unchanged; `findAuditForm`, `findAuditInput` and `findAuditButton` follow their selector form, because these lookups are document-scoped like theirs.
+- [x] **Two refusals rather than one, and the reason is a constraint rather than a preference.** `requireAuditSelect` is **lifted** by `support-view-audit-filters`, so it may acquire no free variable - having it delegate to the generic `requireAuditControl` would have broken that lift. The duplication is recorded at the helper, and the lift was checked **before** the helper was written rather than discovered by a failing suite.
+- [x] **Checked at the use, not the lookup.** Every required control is checked where it is read, so capture lifetime and failure timing are what they were; no binding is refused at its own `querySelector`, which the suite asserts directly.
+- [x] **The markup-versus-narrowing pin from `0.33.33.38.3.4` was carried rather than re-derived.** Each of the eight bindings is asserted twice: that the source narrows it with a named helper, and that `support-view-audit.html` really renders that element. **Five break cases were added** to the existing campaign - each narrowing turned back into an unchecked lookup, the refusal turned into a silent return, and a required write turned into an optional chain. **20 of 20 refused, 0 survivors**, and the five lifted functions still execute standalone.
+- [x] **Full verification on the delivered tree.** Unit **4,685 across 258 files**, regressions **348/348**, E2E **363/363** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+Excluded and explicitly remaining: seven files and **73** `dom` in this cohort, led by `api-keys.js` 29 and `tags.js` 25. **This closes neither `0.33.33.38.3`, `0.33.33.38`, nor the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.42.11 - Type Workbench focus envelopes and candidate readers
 
 **Model: High Effort** - opaque response members and candidate identifiers must preserve read order, receivers, record identity and handled refresh failures.
