@@ -293,6 +293,19 @@
     }
     return factory;
   }
+  /**
+   * Required only at a use that already dereferenced the cached handle.
+   * The view factory establishes its element type; this checks presence, not subtype.
+   * @param {HTMLElement | null | undefined} element
+   * @returns {HTMLElement}
+   */
+  function requireWorkbenchElement(element) {
+    if (element === null || element === undefined) {
+      throw new TypeError("Workbench required element is unavailable.");
+    }
+    return element;
+  }
+
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserModalDialogs} BrowserModalDialogs */
 
   /**
@@ -329,17 +342,29 @@
   let taskFocusBody = null;
   let taskFocusPanelElement = null;
   let changeFocusButton = null;
+  /** @type {HTMLElement | null} */
   let workbenchInspectorBackdrop = null;
+  /** @type {HTMLButtonElement | null} */
   let workbenchInspectorCollapseButton = null;
+  /** @type {ReturnType<import("../../src/types/browser-contracts.js").BrowserViewDescriptorRenderers["createSlideOutSidebarController"]> | null} */
   let workbenchInspectorController = null;
+  /** @type {HTMLElement | null} */
   let workbenchInspectorCountText = null;
+  /** @type {HTMLButtonElement | null} */
   let workbenchInspectorCloseButton = null;
+  /** @type {HTMLElement | null} */
   let workbenchInspectorElement = null;
+  /** @type {HTMLElement | null} */
   let workbenchInspectorHeadingText = null;
+  /** @type {HTMLElement | null} */
   let workbenchInspectorHelperText = null;
+  /** @type {HTMLElement | null} */
   let workbenchInspectorList = null;
+  /** @type {ReturnType<typeof window.matchMedia> | null} */
   let workbenchInspectorMobileQuery = null;
+  /** @type {HTMLButtonElement | null} */
   let workbenchInspectorOpenButton = null;
+  /** @type {ReturnType<typeof window.matchMedia> | null} */
   let workbenchInspectorWideQuery = null;
   let taskFocusInspectorCollapsed = false;
   let timerSectionElement = null;
@@ -602,7 +627,7 @@
     const isWide = workbenchInspectorWideQuery?.matches === true;
     workbenchInspectorController.close({ focus: false });
     workbenchInspectorOpenButton.hidden = !isMobile;
-    workbenchInspectorCloseButton.hidden = !isMobile;
+    requireWorkbenchElement(workbenchInspectorCloseButton).hidden = !isMobile;
     workbenchInspectorElement.classList.toggle("view-slideout-sidebar-drawer", isMobile);
     workbenchInspectorElement.classList.toggle("surface-drawer", isMobile);
     workbenchInspectorElement.classList.toggle("workbench-inspector-mobile-drawer", isMobile);
@@ -1550,7 +1575,7 @@
     }
 
     candidates.forEach((candidate) => {
-      workbenchInspectorList.appendChild(createWorkbenchInspectorItem(candidate));
+      requireWorkbenchElement(workbenchInspectorList).appendChild(createWorkbenchInspectorItem(candidate));
     });
   }
 
@@ -1560,36 +1585,36 @@
     const context = taskFocusRelatedContextState();
     const groups = taskFocusRelatedContextGroups(context);
     const items = groups.flatMap((group) => group.items || []);
-    workbenchInspectorCountText.textContent = String(items.length);
-    workbenchInspectorList.replaceChildren();
+    requireWorkbenchElement(workbenchInspectorCountText).textContent = String(items.length);
+    requireWorkbenchElement(workbenchInspectorList).replaceChildren();
 
     if (taskFocusInspectorCollapsed) {
       return;
     }
 
     if (state.activeTaskFocus?.error) {
-      workbenchInspectorList.appendChild(emptyState("Task context is unavailable while task details cannot be loaded."));
+      requireWorkbenchElement(workbenchInspectorList).appendChild(emptyState("Task context is unavailable while task details cannot be loaded."));
       return;
     }
 
     if (context.isLoading) {
-      workbenchInspectorList.appendChild(emptyState("Loading related task context..."));
+      requireWorkbenchElement(workbenchInspectorList).appendChild(emptyState("Loading related task context..."));
       return;
     }
 
     if (context.error) {
-      workbenchInspectorList.appendChild(emptyState(context.error));
+      requireWorkbenchElement(workbenchInspectorList).appendChild(emptyState(context.error));
       return;
     }
 
     if (items.length === 0) {
-      workbenchInspectorList.appendChild(emptyState("No related task context is available yet."));
+      requireWorkbenchElement(workbenchInspectorList).appendChild(emptyState("No related task context is available yet."));
       return;
     }
 
     groups.forEach((group) => {
       if ((group.items || []).length > 0) {
-        workbenchInspectorList.appendChild(createTaskFocusRelatedContextGroup(group));
+        requireWorkbenchElement(workbenchInspectorList).appendChild(createTaskFocusRelatedContextGroup(group));
       }
     });
   }
