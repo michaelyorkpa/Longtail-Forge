@@ -409,6 +409,7 @@
         "tests/e2e/view-floating-menu-pointer-target.spec.mjs",
         "tests/e2e/view-renderer-sparse-surface.spec.mjs",
         "tests/e2e/view-shell-cold-load.spec.mjs",
+        "tests/e2e/workbench-focus-handles.spec.mjs",
         "tests/e2e/workbench-focus-readers.spec.mjs",
         "tests/e2e/workbench-inspector-handles.spec.mjs",
         "tests/e2e/workbench-mobile-chip-layout.spec.mjs",
@@ -719,6 +720,7 @@
         "tests/unit/work-candidate-query-edge.test.mjs",
         "tests/unit/work-candidate-ranking.test.mjs",
         "tests/unit/workbench-bootstrap-contracts.test.mjs",
+        "tests/unit/workbench-focus-handles.test.mjs",
         "tests/unit/workbench-focus-readers.test.mjs",
         "tests/unit/workbench-inspector-handles.test.mjs",
         "tests/unit/workbench-related-context.test.mjs",
@@ -825,7 +827,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1712,
+      "errorCount": 1653,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1164,7 +1166,7 @@
           },
           {
             "code": 7005,
-            "count": 45
+            "count": 5
           },
           {
             "code": 7006,
@@ -1184,7 +1186,7 @@
           },
           {
             "code": 7034,
-            "count": 22
+            "count": 3
           },
           {
             "code": 7053,
@@ -1800,8 +1802,8 @@
     }
   },
   "totals": {
-    "files": 1407,
-    "errors": 1712,
+    "files": 1409,
+    "errors": 1653,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

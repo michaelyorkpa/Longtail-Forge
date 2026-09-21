@@ -296,8 +296,9 @@
   /**
    * Required only at a use that already dereferenced the cached handle.
    * The view factory establishes its element type; this checks presence, not subtype.
-   * @param {HTMLElement | null | undefined} element
-   * @returns {HTMLElement}
+   * @template {HTMLElement} T
+   * @param {T | null | undefined} element
+   * @returns {T}
    */
   function requireWorkbenchElement(element) {
     if (element === null || element === undefined) {
@@ -323,24 +324,40 @@
   }
   const workbenchHost = document.querySelector("[data-workbench-host]");
 
+  /** @type {HTMLElement | null} */
   let focusModeList = null;
+  /** @type {HTMLElement | null} */
   let clientFocusControl = null;
+  /** @type {HTMLSelectElement | null} */
   let clientFocusInput = null;
   let projectFocusControl = null;
+  /** @type {HTMLSelectElement | null} */
   let projectFocusInput = null;
+  /** @type {HTMLElement | null} */
   let focusPanelElement = null;
+  /** @type {HTMLElement | null} */
   let calendarWeekLinkElement = null;
+  /** @type {HTMLElement | null} */
   let recommendedActionBody = null;
+  /** @type {HTMLElement | null} */
   let recommendedCycleControls = null;
+  /** @type {HTMLButtonElement | null} */
   let recommendedCycleNextButton = null;
+  /** @type {HTMLButtonElement | null} */
   let recommendedCyclePreviousButton = null;
+  /** @type {HTMLElement | null} */
   let recommendedActionPanelElement = null;
+  /** @type {HTMLElement | null} */
   let secondaryWorkbenchPanelElement = null;
   /** @type {HTMLElement | null} */
   let statusText = null;
+  /** @type {HTMLElement | null} */
   let taskFocusActionMount = null;
+  /** @type {HTMLElement | null} */
   let taskFocusBody = null;
+  /** @type {HTMLElement | null} */
   let taskFocusPanelElement = null;
+  /** @type {HTMLButtonElement | null} */
   let changeFocusButton = null;
   /** @type {HTMLElement | null} */
   let workbenchInspectorBackdrop = null;
@@ -367,9 +384,12 @@
   /** @type {ReturnType<typeof window.matchMedia> | null} */
   let workbenchInspectorWideQuery = null;
   let taskFocusInspectorCollapsed = false;
+  /** @type {HTMLDetailsElement | null} */
   let timerSectionElement = null;
   let timerSectionUserToggled = false;
+  /** @type {HTMLElement | null} */
   let timerCountText = null;
+  /** @type {HTMLElement | null} */
   let timerList = null;
 
   let state = {
@@ -1457,11 +1477,11 @@
 
   function renderFocusModes() {
     const workbenchViewHelpers = requireView();
-    focusModeList.replaceChildren();
+    requireWorkbenchElement(focusModeList).replaceChildren();
     populateFocusScopeOptions();
 
     if (state.focusModes.length === 0) {
-      focusModeList.appendChild(workbenchViewHelpers.createEmptyState({
+      requireWorkbenchElement(focusModeList).appendChild(workbenchViewHelpers.createEmptyState({
         message: "Focus choices are temporarily unavailable. You can still use the work lists below.",
         title: "No focus choices",
       }));
@@ -1492,7 +1512,7 @@
           }),
         ],
       });
-      focusModeList.appendChild(button);
+      requireWorkbenchElement(focusModeList).appendChild(button);
     });
 
   }
@@ -1522,14 +1542,18 @@
       option("", projects.length ? "All projects" : "No projects available"),
       ...projects.map((project) => option(project.id, project.label)),
     ]);
-    projectFocusInput.disabled = projects.length === 0;
-    projectFocusInput.value = projects.some((project) => project.id === state.selectedProjectId)
+    const disabledProjectInput = projectFocusInput;
+    const projectInputDisabled = projects.length === 0;
+    requireWorkbenchElement(disabledProjectInput).disabled = projectInputDisabled;
+    const selectedProjectInput = projectFocusInput;
+    const projectInputValue = projects.some((project) => project.id === state.selectedProjectId)
       ? state.selectedProjectId
       : "";
+    requireWorkbenchElement(selectedProjectInput).value = projectInputValue;
   }
 
   function renderRecommendedAction() {
-    recommendedActionBody.replaceChildren();
+    requireWorkbenchElement(recommendedActionBody).replaceChildren();
 
     const candidates = recommendedCandidateWindow();
     state.recommendedCandidateIndex = clampRecommendedCandidateIndex(state.recommendedCandidateIndex, candidates.length);
@@ -1537,11 +1561,11 @@
 
     const candidate = candidates[state.recommendedCandidateIndex] || null;
     if (!candidate) {
-      recommendedActionBody.appendChild(recommendedEmptyState());
+      requireWorkbenchElement(recommendedActionBody).appendChild(recommendedEmptyState());
       return;
     }
 
-    recommendedActionBody.appendChild(createRecommendedCandidateCard(candidate, state.recommendedCandidateIndex));
+    requireWorkbenchElement(recommendedActionBody).appendChild(createRecommendedCandidateCard(candidate, state.recommendedCandidateIndex));
   }
 
   function renderWorkbenchInspector() {
@@ -3570,7 +3594,7 @@
 
   async function handleClientFocusChange() {
     resetTaskFocusState();
-    state.selectedClientId = resolveClientSelection(clientFocusInput.value || "", state.clients, state.workspaceType);
+    state.selectedClientId = resolveClientSelection(requireWorkbenchElement(clientFocusInput).value || "", state.clients, state.workspaceType);
     state.selectedProjectId = resolveProjectSelection(state.selectedProjectId, state.clients, state.selectedClientId);
     window.localStorage.setItem(WORKBENCH_CLIENT_FOCUS_KEY, state.selectedClientId);
     window.localStorage.setItem(WORKBENCH_PROJECT_FOCUS_KEY, state.selectedProjectId);
@@ -3580,7 +3604,7 @@
 
   async function handleProjectFocusChange() {
     resetTaskFocusState();
-    state.selectedProjectId = resolveProjectSelection(projectFocusInput.value || "", state.clients, state.selectedClientId);
+    state.selectedProjectId = resolveProjectSelection(requireWorkbenchElement(projectFocusInput).value || "", state.clients, state.selectedClientId);
     window.localStorage.setItem(WORKBENCH_PROJECT_FOCUS_KEY, state.selectedProjectId);
     await refreshFocusCandidates();
   }
@@ -3642,16 +3666,18 @@
     const emptyMessage = timerPanelEmptyStateText();
 
     updateTimerSectionTitle();
-    timerCountText.textContent = String(timers.length);
-    timerList.replaceChildren();
+    const countText = timerCountText;
+    const countLabel = String(timers.length);
+    requireWorkbenchElement(countText).textContent = countLabel;
+    requireWorkbenchElement(timerList).replaceChildren();
     syncTimerSectionOpenState();
 
     if (timers.length === 0) {
-      timerList.appendChild(emptyState(emptyMessage));
+      requireWorkbenchElement(timerList).appendChild(emptyState(emptyMessage));
       return;
     }
 
-    timers.forEach((timer) => timerList.appendChild(createTimerCard(timer)));
+    timers.forEach((timer) => requireWorkbenchElement(timerList).appendChild(createTimerCard(timer)));
     flashActivatedTimer(timers);
   }
 
@@ -4039,7 +4065,7 @@
       return;
     }
 
-    const card = timerList.querySelector(`[data-workbench-timer-key="${cssEscape(timerKey(activatedTimer))}"]`);
+    const card = requireWorkbenchElement(timerList).querySelector(`[data-workbench-timer-key="${cssEscape(timerKey(activatedTimer))}"]`);
     if (card) {
       flashElement(card, "is-newly-active");
     }
