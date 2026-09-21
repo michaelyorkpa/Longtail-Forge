@@ -62,6 +62,23 @@ const cases = [
   ["the audit vocabulary stops splitting on its separators",
     "      .split(/[._:-]/)",
     "      .split(/[.]/)"],
+
+  // --- `0.33.33.38.3.5`: the rest of the page's controls --------------------------------------
+  ["a control stops being narrowed to a button",
+    "    return element instanceof HTMLButtonElement ? element : null;",
+    "    return element;"],
+  ["a control stops being narrowed to an input",
+    "    return element instanceof HTMLInputElement ? element : null;",
+    "    return element;"],
+  ["the page-size control stops being narrowed",
+    'const pageSizeSelect = findAuditSelect("[data-support-view-audit-page-size]");',
+    'const pageSizeSelect = document.querySelector("[data-support-view-audit-page-size]");'],
+  ["an absent control is skipped instead of refused",
+    "    if (!control) {\n      throw new TypeError(`The Support View audit page requires its ${name}.`);\n    }\n    return control;",
+    "    return control;"],
+  ["the results table is emptied through an optional chain",
+    '    requireAuditControl(tableBody, "results table").replaceChildren();\n    if (events.length === 0) {',
+    "    tableBody?.replaceChildren();\n    if (events.length === 0) {"],
 ];
 
 runMutationCampaign({
