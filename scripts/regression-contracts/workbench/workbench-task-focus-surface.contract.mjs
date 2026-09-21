@@ -138,7 +138,7 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "renderTaskFocusInspector"),
-  /setWorkbenchInspectorCopy\("Task context", "Related work for the focused task\."\)[\s\S]*taskFocusRelatedContextState\(\)[\s\S]*taskFocusRelatedContextGroups\(context\)[\s\S]*workbenchInspectorCountText\.textContent = String\(items\.length\);/,
+  /setWorkbenchInspectorCopy\("Task context", "Related work for the focused task\."\)[\s\S]*taskFocusRelatedContextState\(\)[\s\S]*taskFocusRelatedContextGroups\(context\)[\s\S]*requireWorkbenchElement\(workbenchInspectorCountText\)\.textContent = String\(items\.length\);/,
   "Task Focus Inspector should switch from More-in-this-focus candidate overflow to selected-task related context",
 );
 
