@@ -406,6 +406,7 @@
     focusCandidates: [],
     focusContext: null,
     focusModeId: DEFAULT_FOCUS_MODE_ID,
+    /** @type {import("../../src/types/framework-contracts.js").FocusModeDefinition[]} */
     focusModes: [],
     modules: {},
     /** @type {BrowserWorkbenchRegistry} */
@@ -1497,7 +1498,8 @@
     }
 
     state.focusModes.forEach((mode) => {
-      const copy = FOCUS_QUESTION_COPY[mode.id] || {};
+      /** @type {unknown} */
+      const copy = Reflect.get(FOCUS_QUESTION_COPY, mode.id) || {};
       const active = mode.id === state.focusModeId;
       const button = workbenchViewHelpers.createElement("button", {
         className: "workbench-focus-question",
@@ -1512,11 +1514,11 @@
         children: [
           workbenchViewHelpers.createElement("span", {
             className: "workbench-focus-question-label",
-            text: copy.label || mode.label,
+            text: Reflect.get(Object(copy), "label", copy) || mode.label,
           }),
           workbenchViewHelpers.createElement("span", {
             className: "workbench-focus-question-description",
-            text: copy.description || mode.description || "",
+            text: Reflect.get(Object(copy), "description", copy) || mode.description || "",
           }),
         ],
       });
@@ -4337,6 +4339,7 @@
       .filter(Boolean);
   }
 
+  /** @param {string} modeId @param {import("../../src/types/framework-contracts.js").FocusModeDefinition[]} [modes] */
   function resolveFocusModeSelection(modeId, modes = []) {
     const available = new Set(modes.map((mode) => mode.id));
 
