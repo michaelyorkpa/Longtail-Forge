@@ -40,6 +40,11 @@ test("Task Focus state carries checklist data through real timer mutations and r
   await expect(capture).toBeVisible(); await capture.getByRole("button", { name: "No", exact: true }).click();
   await expect(timer.locator("[data-workbench-task-focus-timer-status]")).toContainText("Paused");
   await expect(checkbox).toBeChecked();
+  const unchecked = page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith(`/checklist/${itemId}/uncheck`));
+  await checkbox.uncheck(); expect((await unchecked).status()).toBe(200);
+  await expect(checkbox).not.toBeChecked(); await expect(checkbox).toBeEnabled();
+  await expect(checklist.locator("summary")).toContainText("0 / 1 complete. Next: Keep this checklist");
+  await expect(checklist.locator("[data-workbench-task-focus-checklist-summary]")).toHaveAttribute("title", "0 / 1 complete. Next: Keep this checklist row");
   if (testInfo.project.name === "mobile") await page.getByRole("button", { name: "Open Inspector", exact: true }).click();
   const inspector = page.locator("[data-workbench-inspector]");
   await expect(inspector).toBeVisible(); await expect(inspector.locator("h2")).toHaveText("Task context");
