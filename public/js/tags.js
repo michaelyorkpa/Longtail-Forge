@@ -1,17 +1,59 @@
 (function attachTagsPage() {
+  /**
+   * The narrowings this page's reads need, traced to what `views/protected/tags.html` renders:
+   * the editor shell is a `form`, and the six fields the page reads or writes a `value` on are
+   * all `input`s - including `[data-tag-description]`, which is an `input type="text"` and not
+   * the textarea its binding name suggests, and `[data-tag-color]`, which is an `input
+   * type="color"`. The conflict line is a `p` the page hides and reveals.
+   *
+   * **Narrowing only, with no refusal anywhere.** Unlike the six pages before it, this one
+   * already tolerates an absent control at every single site: `renderTags`,
+   * `renderTagConflictMessage` and `setStatus` each return early, and every other read goes
+   * through `?.` or an `if`. There is not one unguarded dereference, so a `require` helper would
+   * introduce a failure the page does not have today. The honest consequence of narrowing
+   * instead: a control of the **wrong** subtype now takes the absent path this page already
+   * has - it is skipped silently rather than throwing at the member read. That is reachable
+   * only from malformed markup.
+   *
+   * `[data-tag-list]`, `[data-tag-status]` and the two plain buttons are deliberately left
+   * unnarrowed: every member this file reads on them - `replaceChildren`, `textContent`,
+   * `className`, `addEventListener` - is already `Element`'s, so narrowing them would tighten
+   * behaviour with nothing to justify it.
+   *
+   * @param {string} selector
+   * @returns {HTMLInputElement | null}
+   */
+  function findTagInput(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLInputElement ? element : null;
+  }
+
+  /** @param {string} selector @returns {HTMLFormElement | null} */
+  function findTagForm(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLFormElement ? element : null;
+  }
+
+  /** @param {string} selector @returns {HTMLElement | null} */
+  function findTagMessage(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLElement ? element : null;
+  }
+
   const tagList = document.querySelector("[data-tag-list]");
   const tagStatus = document.querySelector("[data-tag-status]");
-  const tagForm = document.querySelector("[data-tag-form]");
-  const tagIdInput = document.querySelector("[data-tag-id]");
-  const tagNameInput = document.querySelector("[data-tag-name]");
-  const tagSlugInput = document.querySelector("[data-tag-slug]");
-  const tagColorInput = document.querySelector("[data-tag-color]");
-  const tagDescriptionInput = document.querySelector("[data-tag-description]");
-  const tagConflictMessage = document.querySelector("[data-tag-conflict]");
-  const tagSearchInput = document.querySelector("[data-tag-search]");
+  const tagForm = findTagForm("[data-tag-form]");
+  const tagIdInput = findTagInput("[data-tag-id]");
+  const tagNameInput = findTagInput("[data-tag-name]");
+  const tagSlugInput = findTagInput("[data-tag-slug]");
+  const tagColorInput = findTagInput("[data-tag-color]");
+  const tagDescriptionInput = findTagInput("[data-tag-description]");
+  const tagConflictMessage = findTagMessage("[data-tag-conflict]");
+  const tagSearchInput = findTagInput("[data-tag-search]");
   const tagRefreshButton = document.querySelector("[data-tag-refresh]");
   const tagResetButton = document.querySelector("[data-tag-reset]");
-  const statusButtons = [...document.querySelectorAll("[data-tag-status-filter]")];
+  const statusButtons = [...document.querySelectorAll("[data-tag-status-filter]")]
+    .filter((button) => button instanceof HTMLElement);
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserTagCatalogRecord} BrowserTagCatalogRecord */
 

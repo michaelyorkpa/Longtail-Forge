@@ -80,11 +80,55 @@ const cases = [
   ["the icon button is labelled with its icon name",
     "        label,\n        title: label,",
     "        label: icon,\n        title: label,"],
+
+  // --- `0.33.33.38.3.7`: the control narrowings ---------------------------------------------------
+  //
+  // These are aimed at `tag-page-control-narrowing.test.mjs`, not at the rendering suite above.
+  // The narrowings are runtime-inert for correct markup - `instanceof` only changes what happens
+  // when the view renders the wrong element - so the cases attack the two things that can actually
+  // go wrong: a finder that stops checking, and a binding pointed at a subtype the view does not
+  // supply. The last three attack the absence handling that is the reason this page gets no
+  // refusal helper at all.
+  ["a finder asserts the subtype instead of checking it",
+    "    return element instanceof HTMLInputElement ? element : null;",
+    "    return /** @type {HTMLInputElement | null} */ (element);"],
+  ["the input finder demands a textarea, which the view never renders",
+    "    return element instanceof HTMLInputElement ? element : null;",
+    "    return element instanceof HTMLTextAreaElement ? element : null;"],
+  ["the form finder stops checking",
+    "    return element instanceof HTMLFormElement ? element : null;",
+    "    return element;"],
+  ["the conflict line's finder demands an input",
+    "    return element instanceof HTMLElement ? element : null;",
+    "    return element instanceof HTMLInputElement ? element : null;"],
+  ["the description field stops being narrowed at all",
+    'const tagDescriptionInput = findTagInput("[data-tag-description]");',
+    'const tagDescriptionInput = document.querySelector("[data-tag-description]");'],
+  ["a field is captured through the wrong finder",
+    'const tagNameInput = findTagInput("[data-tag-name]");',
+    'const tagNameInput = findTagMessage("[data-tag-name]");'],
+  ["the status filter list stops being filtered to elements that carry a dataset",
+    '  const statusButtons = [...document.querySelectorAll("[data-tag-status-filter]")]\n'
+      + "    .filter((button) => button instanceof HTMLElement);",
+    '  const statusButtons = [...document.querySelectorAll("[data-tag-status-filter]")];'],
+  ["a control this page needs no subtype for is narrowed anyway",
+    'const tagList = document.querySelector("[data-tag-list]");',
+    'const tagList = findTagMessage("[data-tag-list]");'],
+  ["the list render stops tolerating an absent list",
+    "    if (!tagList) {\n      return;\n    }",
+    "    if (false) {\n      return;\n    }"],
+  ["the form reset stops tolerating an absent form",
+    "    tagForm?.reset();",
+    "    tagForm.reset();"],
+  ["an absent control starts being refused rather than skipped",
+    "  function findTagInput(selector) {\n    const element = document.querySelector(selector);",
+    "  function findTagInput(selector) {\n    const element = document.querySelector(selector);\n"
+      + "    if (!element) {\n      throw new TypeError(`The tags page requires its ${selector}.`);\n    }"],
 ];
 
 runMutationCampaign({
   sourcePath: "public/js/tags.js",
-  suites: ["tests/unit/tag-page-rendering.test.mjs"],
+  suites: ["tests/unit/tag-page-rendering.test.mjs", "tests/unit/tag-page-control-narrowing.test.mjs"],
   cases: cases.map(([name, find, replace]) => ({ name, find, replace })),
   suiteTimeoutMs: 60000,
 });
