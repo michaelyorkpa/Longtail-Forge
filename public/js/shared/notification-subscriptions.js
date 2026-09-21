@@ -22,6 +22,7 @@
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserNotificationSubscription} BrowserNotificationSubscription */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserNotificationSubscriptionResult} BrowserNotificationSubscriptionResult */
   /** @typedef {import("../../../src/types/browser-contracts.js").BrowserNotificationTarget} BrowserNotificationTarget */
+  /** @typedef {import("../../../src/types/browser-contracts.js").BrowserNotificationTargetRequest} BrowserNotificationTargetRequest */
 
   /**
    * The ten members `subscriptionRowToAppValue` constructs for every subscription row.
@@ -148,6 +149,25 @@
     };
   }
 
+  /**
+   * `value[key]`, read with `value` as its own receiver.
+   *
+   * The published `target` is `unknown` because either spelling is genuinely accepted, so
+   * each member is read the way the property access read it. An absent target still fails
+   * here, before any request is built, as it always did.
+   *
+   * @param {unknown} value
+   * @param {string} key
+   * @returns {unknown}
+   */
+  function targetMember(value, key) {
+    if (value === null || value === undefined) {
+      throw new TypeError(`A notification target carries no ${key} to read.`);
+    }
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /** @param {string} taskId @returns {BrowserNotificationTargetRequest} */
   function taskTarget(taskId) {
     return {
       moduleId: "tasks",
@@ -156,6 +176,7 @@
     };
   }
 
+  /** @param {string} noteId @returns {BrowserNotificationTargetRequest} */
   function noteTarget(noteId) {
     return {
       moduleId: "notes",
@@ -164,16 +185,17 @@
     };
   }
 
+  /** @param {unknown} target */
   function targetParams(target) {
     const params = new URLSearchParams({
-      moduleId: target.moduleId || target.module_id || "",
-      targetType: target.targetType || target.target_type || "",
-      targetId: target.targetId || target.target_id || "",
+      moduleId: `${targetMember(target, "moduleId") || targetMember(target, "module_id") || ""}`,
+      targetType: `${targetMember(target, "targetType") || targetMember(target, "target_type") || ""}`,
+      targetId: `${targetMember(target, "targetId") || targetMember(target, "target_id") || ""}`,
     });
-    const eventType = target.eventType || target.event_type || "";
+    const eventType = targetMember(target, "eventType") || targetMember(target, "event_type") || "";
 
     if (eventType) {
-      params.set("eventType", eventType);
+      params.set("eventType", `${eventType}`);
     }
 
     return params;
@@ -212,12 +234,13 @@
     );
   }
 
+  /** @param {unknown} target */
   function normalizeTargetPayload(target) {
     return {
-      eventType: target.eventType || target.event_type || "",
-      moduleId: target.moduleId || target.module_id || "",
-      targetId: target.targetId || target.target_id || "",
-      targetType: target.targetType || target.target_type || "",
+      eventType: targetMember(target, "eventType") || targetMember(target, "event_type") || "",
+      moduleId: targetMember(target, "moduleId") || targetMember(target, "module_id") || "",
+      targetId: targetMember(target, "targetId") || targetMember(target, "target_id") || "",
+      targetType: targetMember(target, "targetType") || targetMember(target, "target_type") || "",
     };
   }
 
