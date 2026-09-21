@@ -21,7 +21,7 @@
   /**
    * Seed vocabulary comes from its constructor; mutation patches spread the nullable slot.
    * Task members remain opaque after the native shallow copy, including resume-consumer results.
-   * @typedef {Partial<Omit<ReturnType<typeof taskFocusFromCandidate>, "task" | "relatedContext" | "dueAt" | "priority" | "status"> & {task: ReturnType<typeof preserveTaskFocusChecklistData> | null, relatedContext: TaskFocusRelatedState, dueAt: unknown, priority: unknown, status: unknown}>} ActiveTaskFocus
+   * @typedef {Partial<Omit<ReturnType<typeof taskFocusFromCandidate>, "task" | "relatedContext" | "dueAt" | "priority" | "status" | "checklistMutationItemId"> & {checklistMutationItemId: unknown, task: ReturnType<typeof preserveTaskFocusChecklistData> | null, relatedContext: TaskFocusRelatedState, dueAt: unknown, priority: unknown, status: unknown}>} ActiveTaskFocus
    */
 
   const WORKBENCH_CARD_STATE_KEY = "lf_workbench_cards_v1";
@@ -2283,6 +2283,42 @@
     return details;
   }
 
+  /**
+   * Tasks' checklistRowToAppValue produces id/label/check state and taskChecklistProgress
+   * produces counts and the next label. The shared detail reader leaves both opaque.
+   * These local projections prove no wire schema: optional reads box primitives and
+   * preserve inherited members, getters and their receiver. Required reads retain the
+   * existing non-null precondition, without validating unused response members.
+   * @param {unknown} value @param {string} key @returns {unknown}
+   */
+  function taskFocusChecklistField(value, key) {
+    return value == null ? undefined : Reflect.get(Object(value), key, value);
+  }
+
+  /** @param {unknown} value @param {string} key @returns {unknown} */
+  function taskFocusChecklistRequiredField(value, key) {
+    if (value == null) throw new TypeError("The Workbench checklist value cannot be read.");
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /** @typedef {{readonly task: unknown, readonly items: unknown, readonly checklistProgress: unknown}} TaskFocusChecklistResultFields */
+  /** @param {unknown} value @returns {TaskFocusChecklistResultFields} */
+  function taskFocusChecklistResultFields(value) {
+    return {
+      get task() { return taskFocusChecklistRequiredField(value, "task"); },
+      get items() { return taskFocusChecklistRequiredField(value, "items"); },
+      get checklistProgress() { return taskFocusChecklistRequiredField(value, "checklistProgress"); },
+    };
+  }
+
+  /** @param {unknown} value @param {string} selector @returns {unknown} */
+  function taskFocusChecklistClosest(value, selector) {
+    const closest = taskFocusChecklistRequiredField(value, "closest");
+    if (typeof closest !== "function") throw new TypeError("The Workbench checklist target requires closest.");
+    return Reflect.apply(closest, value, [selector]);
+  }
+
+  /** @param {ActiveTaskFocus | null} active */
   function createTaskFocusChecklistSection(active) {
     const workbenchViewHelpers = requireView();
     const task = active?.task || {};
@@ -2522,6 +2558,7 @@
     return "Ready";
   }
 
+  /** @param {ActiveTaskFocus | null} active @param {unknown[]} items */
   function createTaskFocusChecklistBody(active, items) {
     const workbenchViewHelpers = requireView();
     if (active?.isLoading) {
@@ -2559,10 +2596,11 @@
     return children;
   }
 
+  /** @param {unknown} item @param {ActiveTaskFocus | null} active */
   function createTaskFocusChecklistItem(item, active) {
     const workbenchViewHelpers = requireView();
-    const itemId = String(item?.task_checklist_item_id || "");
-    const labelText = safeTaskFocusText(item?.label, "Checklist item");
+    const itemId = String(taskFocusChecklistField(item, "task_checklist_item_id") || "");
+    const labelText = safeTaskFocusText(taskFocusChecklistField(item, "label"), "Checklist item");
     const checkbox = workbenchViewHelpers.createElement("input", {
       attrs: {
         "aria-label": `Mark ${labelText} complete`,
@@ -2570,11 +2608,11 @@
       },
       dataset: { workbenchTaskFocusChecklistToggle: "" },
     });
-    checkbox.checked = Boolean(item?.is_checked);
+    checkbox.checked = Boolean(taskFocusChecklistField(item, "is_checked"));
     checkbox.disabled = Boolean(active?.checklistMutationItemId);
 
     return workbenchViewHelpers.createElement("label", {
-      className: ["workbench-task-checklist-item", item?.is_checked ? "is-checked" : ""],
+      className: ["workbench-task-checklist-item", taskFocusChecklistField(item, "is_checked") ? "is-checked" : ""],
       dataset: {
         taskChecklistItem: itemId,
         workbenchTaskFocusChecklistItem: itemId,
@@ -2589,31 +2627,34 @@
     });
   }
 
+  /** @param {{checklistItems?: unknown} | null} [task] @returns {unknown[]} */
   function taskFocusChecklistItems(task = {}) {
     return Array.isArray(task?.checklistItems) ? task.checklistItems : [];
   }
 
+  /** @param {{checklistProgress?: unknown, checklistItems?: unknown} | null} [task] @param {unknown[]} [items] */
   function taskFocusChecklistProgress(task = {}, items = taskFocusChecklistItems(task)) {
     const provided = task?.checklistProgress;
     if (provided) {
       return provided;
     }
 
-    const completed = items.filter((item) => item?.is_checked).length;
-    const next = items.find((item) => !item?.is_checked);
+    const completed = items.filter((item) => taskFocusChecklistField(item, "is_checked")).length;
+    const next = items.find((item) => !taskFocusChecklistField(item, "is_checked"));
     return {
       completed_count: completed,
-      next_incomplete_item_label: next?.label || "",
+      next_incomplete_item_label: taskFocusChecklistField(next, "label") || "",
       total_count: items.length,
     };
   }
 
   const TASK_FOCUS_CHECKLIST_NEXT_LABEL_MAX = 20;
 
+  /** @param {unknown} [progress] */
   function formatTaskFocusChecklistProgress(progress = {}, { truncate = true } = {}) {
-    const total = Number(progress?.total_count) || 0;
-    const completed = Number(progress?.completed_count) || 0;
-    const rawNextLabel = safeTaskFocusText(progress?.next_incomplete_item_label, "");
+    const total = Number(taskFocusChecklistField(progress, "total_count")) || 0;
+    const completed = Number(taskFocusChecklistField(progress, "completed_count")) || 0;
+    const rawNextLabel = safeTaskFocusText(taskFocusChecklistField(progress, "next_incomplete_item_label"), "");
     const base = `${completed} / ${total} complete`;
     if (!rawNextLabel) {
       return base;
@@ -2624,6 +2665,7 @@
     return `${base}. Next: ${nextLabel}`;
   }
 
+  /** @param {unknown} text @param {number} max */
   function truncateTaskFocusChecklistLabel(text, max) {
     const value = String(text || "");
     return value.length > max ? `${value.slice(0, max)}…` : value;
@@ -3052,16 +3094,18 @@
     return merged;
   }
 
+  /** @param {unknown} [result] */
   function applyTaskFocusChecklistResult(result = {}) {
     if (!state.activeTaskFocus) {
       return;
     }
 
     const existingTask = state.activeTaskFocus.task || {};
-    const nextTask = result.task || {
+    const resultFields = taskFocusChecklistResultFields(result);
+    const nextTask = resultFields.task || {
       ...existingTask,
-      checklistItems: result.items || existingTask.checklistItems || [],
-      checklistProgress: result.checklistProgress || existingTask.checklistProgress,
+      checklistItems: resultFields.items || existingTask.checklistItems || [],
+      checklistProgress: resultFields.checklistProgress || existingTask.checklistProgress,
     };
     applyActiveTaskFocusTask(nextTask);
     state.activeTaskFocus = {
@@ -3164,17 +3208,19 @@
     }
   }
 
+  /** @param {Event} event */
   async function handleTaskFocusChecklistChange(event) {
     const api = requireApi();
-    const checkbox = event.target.closest("[data-workbench-task-focus-checklist-toggle]");
+    const checkbox = taskFocusChecklistClosest(event.target, "[data-workbench-task-focus-checklist-toggle]");
     const taskId = state.activeTaskFocus?.taskId || "";
-    const itemId = checkbox?.closest("[data-workbench-task-focus-checklist-item]")?.dataset.taskChecklistItem || "";
+    const row = checkbox == null ? undefined : taskFocusChecklistClosest(checkbox, "[data-workbench-task-focus-checklist-item]");
+    const itemId = row == null ? "" : taskFocusChecklistRequiredField(taskFocusChecklistRequiredField(row, "dataset"), "taskChecklistItem") || "";
 
     if (!checkbox || !taskId || !itemId) {
       return;
     }
 
-    const checked = checkbox.checked;
+    const checked = taskFocusChecklistRequiredField(checkbox, "checked");
     state.activeTaskFocus = {
       ...state.activeTaskFocus,
       checklistError: "",
@@ -3186,7 +3232,7 @@
     try {
       const action = checked ? "check" : "uncheck";
       const result = await api.postJson(
-        `/api/tasks/${encodeURIComponent(taskId)}/checklist/${encodeURIComponent(itemId)}/${action}`,
+        `/api/tasks/${encodeURIComponent(taskId)}/checklist/${encodeURIComponent(`${itemId}`)}/${action}`,
         {},
       );
       if (state.activeTaskFocus?.taskId !== taskId) {
