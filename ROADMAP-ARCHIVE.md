@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.39.45 - Take the status message helper to zero
+
+**Model: Small Effort** - the published contract already named every shape, and the shared-contract question this checkpoint was drawn to escalate turned out to need no escalation.
+
+- [x] **`public/js/shared/status.js` reaches zero, 8 to 0, and leaves the ledger.** Browser **1,537 to 1,529**, now across **21** diagnostic files; params **968 to 960**; state **201**, `dom` **334** and assorted **34** unchanged; `0.33.33.39` **26 to 18**. Exactly one file moved - TS7006 3 and TS2339 5 - and nothing rose or was reclassified. `0.33.33.42` stays **280** and `0.33.33.43` stays **897**.
+- [x] **No executable line changed.** The delivered file differs from its predecessor by JSDoc only; with comments stripped, the executable text of the two files is identical.
+- [x] **The two status recipients were compared, and there is nothing to reconcile.** This checkpoint was drawn expecting a shared-contract question, because `pageController.setStatus` takes `BrowserStatusRecipient`, which `0.33.33.39.37` settled as `Element`. `BrowserStatusMessage` takes an `HTMLElement`, and the difference is not an inconsistency: the page controller's write needs `dataset`, which a namespaced element can carry, while this writer sets `hidden`, which belongs to `HTMLElement`. Each declaration already names what its own writer requires, and `calendar-settings.js` had already recorded the same reasoning at its call site. **No contract changed and nothing was escalated, because nothing disagreed.**
+- [x] **The annotations were proved load-bearing by diagnostic delta.** Six breaks were compiled against both files. **Four are caught by the delivered file and invisible to its predecessor**: two misspelled option members, the clear delay used as a tone, and a member the element does not carry. **Two were invalid probes and are recorded as such rather than counted** - both exercise `message`, which its `= ""` default already inferred as a string in the predecessor, so neither is evidence for this checkpoint.
+- [x] **The timer semantics had no focused coverage anywhere, and now have twelve cases.** The consuming page is driven by a browser spec, but nothing held these on their own: the delay is forwarded rather than defaulted, an empty message schedules nothing, a second write to the same element cancels the pending clear, a hand clear cancels it too, and because the timers live in a `WeakMap` keyed by element, clearing one element leaves another's pending clear untouched. The tone cases cover both spellings of error, the replacement of one tone by another, and the open vocabulary that renders any other value neutral. **All twelve pass unchanged against the predecessor**, as a comment-only change requires. Byte restoration verified at SHA-256 `35024c1426046f890f0ee570730f09acd5fe019ca30cd9ff50e96102bc0c3c41`.
+- [x] **No source owner needed retargeting.** The single owner that reads this file pins neither a signature nor a line a JSDoc block moves.
+- [x] **Full verification on the delivered tree.** Unit **4,607 across 250 files**, regressions **348/348**, E2E **359/359** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero.
+
+Excluded and explicitly remaining: `0.33.33.39`'s shared framework budget, **18** across 6 files, led by `quick-action-refresh.js` at 6. No published contract changed. **This does not close `0.33.33.39`, `0.33.33.38`, or the version-wide browser-zero closeout.**
+
 ## Version 0.33.33.42.5 - Establish the mutable Task Focus state from its writers
 
 **Model: High Effort** - one mutable state slot joins candidate seeds, validated detail reads, opaque resume/mutation payloads and asynchronous refreshes; preserving that distinction matters more than the annotation count.

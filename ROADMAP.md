@@ -1417,6 +1417,12 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **No executable line changed**, and no new suite was written: this file is already executed by a unit suite, a regression and two browser specs.
 
+#### 0.33.33.39.45 - Take the status message helper to zero
+
+**Complete: `public/js/shared/status.js` reaches zero, 8 to 0, and leaves the ledger.** The published `BrowserStatusMessage` is unchanged.
+
+**No executable line changed**, and the two status recipients in this codebase were checked against each other rather than reconciled: they differ because they require different members, and both declarations were already true.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.
