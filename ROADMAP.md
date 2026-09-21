@@ -1399,6 +1399,12 @@ Today's measurement: the already-isolated shared cohort is **47 files, 21,550 li
 
 **No behaviour changed, and that is proved rather than asserted:** every one of the nineteen cases passes unchanged against the original file.
 
+#### 0.33.33.39.42 - Take the timezone helpers to zero
+
+**Complete: `public/js/shared/timezones.js` reaches zero, 17 to 0, and leaves the ledger.** The published `BrowserTimezones` is unchanged.
+
+**No executable line changed**, and the file gained the first coverage that ever ran it.
+
 ### 0.33.33.40 - Type the Notes browser controller
 
 **Model: High Effort** - Notes is the largest browser controller and includes secure content, revisions, links, collections, attachments, and Markdown.

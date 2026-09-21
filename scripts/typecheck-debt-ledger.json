@@ -685,6 +685,7 @@
         "tests/unit/time-tracking-dashboard-panel-contracts.test.mjs",
         "tests/unit/time-tracking-reporting-contracts.test.mjs",
         "tests/unit/timer-dialog-options-contracts.test.mjs",
+        "tests/unit/timezone-conversion-boundary.test.mjs",
         "tests/unit/user-admin-add-user-contracts.test.mjs",
         "tests/unit/user-admin-bootstrap-contracts.test.mjs",
         "tests/unit/user-admin-edit-user-contracts.test.mjs",
@@ -822,7 +823,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1766,
+      "errorCount": 1749,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1090,12 +1091,6 @@
           {
             "code": 7006,
             "count": 3
-          }
-        ],
-        "public/js/shared/timezones.js": [
-          {
-            "code": 7006,
-            "count": 17
           }
         ],
         "public/js/shared/view-surface-descriptor.js": [
@@ -1803,8 +1798,8 @@
     }
   },
   "totals": {
-    "files": 1404,
-    "errors": 1766,
+    "files": 1405,
+    "errors": 1749,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
