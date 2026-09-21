@@ -3340,11 +3340,15 @@
     setStatus("This related item does not have a safe opener yet.", { isError: true });
   }
 
-  /** @param {EventTarget | null} [trigger] */
+  /**
+   * @param {TaskFocusRelatedItem} [item]
+   * @param {TaskFocusRelatedAction} [action]
+   * @param {EventTarget | null} [trigger]
+   */
   async function openRelatedContextModuleAction(item = {}, action = {}, trigger = null) {
     const sourceLabel = relatedContextSourceLabel(item);
     const params = {
-      ...(action.params || {}),
+      ...Object(action.params || {}),
       context: {
         source: "workbench",
         sourceTaskId: state.activeTaskFocus?.taskId || "",
@@ -3356,8 +3360,12 @@
 
     setStatus(`Opening ${sourceLabel.toLowerCase()}...`);
     try {
-      const moduleActions = await ensureWorkbenchModuleAction(action.moduleActionId);
-      const result = await moduleActions.open(action.moduleActionId, params, {
+      const moduleActionId = action.moduleActionId;
+      if (typeof moduleActionId !== "string" || !moduleActionId) {
+        throw new Error(`${sourceLabel} could not be opened.`);
+      }
+      const moduleActions = await ensureWorkbenchModuleAction(moduleActionId);
+      const result = await moduleActions.open(moduleActionId, params, {
         refresh: loadWorkbench,
         setStatus,
       });
