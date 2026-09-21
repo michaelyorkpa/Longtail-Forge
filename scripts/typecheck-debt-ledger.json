@@ -727,6 +727,7 @@
         "tests/unit/work-candidate-ranking.test.mjs",
         "tests/unit/workbench-bootstrap-contracts.test.mjs",
         "tests/unit/workbench-focus-handles.test.mjs",
+        "tests/unit/workbench-focus-mode-rendering.test.mjs",
         "tests/unit/workbench-focus-readers.test.mjs",
         "tests/unit/workbench-focus-state.test.mjs",
         "tests/unit/workbench-inspector-handles.test.mjs",
@@ -835,7 +836,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1510,
+      "errorCount": 1500,
       "diagnostics": {
         "public/js/account-recovery.js": [
           {
@@ -1110,11 +1111,11 @@
         "public/js/workbench.js": [
           {
             "code": 2322,
-            "count": 3
+            "count": 1
           },
           {
             "code": 2339,
-            "count": 106
+            "count": 101
           },
           {
             "code": 2345,
@@ -1138,7 +1139,7 @@
           },
           {
             "code": 7006,
-            "count": 143
+            "count": 141
           },
           {
             "code": 7023,
@@ -1158,7 +1159,7 @@
           },
           {
             "code": 7053,
-            "count": 6
+            "count": 5
           }
         ]
       }
@@ -1770,8 +1771,8 @@
     }
   },
   "totals": {
-    "files": 1417,
-    "errors": 1510,
+    "files": 1418,
+    "errors": 1500,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
