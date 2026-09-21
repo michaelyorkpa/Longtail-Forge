@@ -47,7 +47,7 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "renderTimers"),
-  /const timers = sortedTimers\(visibleTimerPanelTimers\(\)\);[\s\S]*const emptyMessage = timerPanelEmptyStateText\(\);[\s\S]*updateTimerSectionTitle\(\);[\s\S]*timerList\.appendChild\(emptyState\(emptyMessage\)\)/,
+  /const timers = sortedTimers\(visibleTimerPanelTimers\(\)\);[\s\S]*const emptyMessage = timerPanelEmptyStateText\(\);[\s\S]*updateTimerSectionTitle\(\);[\s\S]*requireWorkbenchElement\(timerList\)\.appendChild\(emptyState\(emptyMessage\)\)/,
   "Timer rendering should use the state-aware visible timer list, title, and empty state",
 );
 assert.match(
