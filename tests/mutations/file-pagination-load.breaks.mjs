@@ -75,8 +75,10 @@ const cases = [
   ["the attachment list is redeclared locally instead of reused",
     '   * @param {import("../../src/types/browser-contracts.js").BrowserFileAttachment[]} attachments',
     "   * @param {{ fileId?: string }[]} attachments"],
+  // Retargeted by `0.33.33.43.15`, which aliased this expression as `FileRowRecord` and used the
+  // alias here. Same line, same break: the row type stops being the builder's own return.
   ["the row type is restated rather than taken from its builder",
-    "   * @param {ReturnType<typeof fileRow>[]} rows",
+    "   * @param {FileRowRecord[]} rows",
     "   * @param {{ fileName?: string }[]} rows"],
   ["the nullability correction loses its reason",
     "   * **The two timestamps admit `null`, corrected by `0.33.33.43.14`.** This shape originally",

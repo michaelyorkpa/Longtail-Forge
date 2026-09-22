@@ -170,7 +170,12 @@ describe("What the declarations claim, and what they decline to claim", () => {
   });
 
   it("takes the row type from the builder rather than restating it", () => {
-    assert.match(source, /@param \{ReturnType<typeof fileRow>\[\]\} rows/);
+    // `0.33.33.43.15` introduced `FileRowRecord` as an alias for this very expression and used it
+    // here too, so a dozen readers share one name. The claim is unchanged - the row type is the
+    // builder's own return and cannot drift from it - so the pin now checks the use *and* the
+    // definition, rather than a spelling that has moved.
+    assert.match(source, /@param \{FileRowRecord\[\]\} rows/);
+    assert.match(source, /@typedef \{ReturnType<typeof fileRow>\} FileRowRecord/);
   });
 
   it("records the nullability correction where the next reader meets it", () => {

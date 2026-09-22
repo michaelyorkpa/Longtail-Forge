@@ -122,7 +122,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.41.2` | `task-dialog.js` 850, `tasks.js` 311, `tasks-dashboard.js` 52, `task-resume-note-capture.js` 20, `task-calendar.js` 0 | 1,233 |
 | Codex | `0.33.33.42.1` | `workbench.js` — this owner's first child | 538 |
 | Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `lists-settings.js` 0 | 787 |
-| Claude | `0.33.33.43.14` | `files.js` — the **Files** module family, with `files-settings.js` complete | 32 |
+| Claude | `0.33.33.43.15` | `files.js` — the **Files** module family, with `files-settings.js` complete | 21 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
 These are **starting** boundaries. Each lane draws its own next child from the tree it actually has; neither pre-slices its remaining controllers.
@@ -1544,6 +1544,18 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.15 - The file row's cells and actions
+
+**Complete: 11 diagnostics closed, and one row vocabulary for a dozen readers.** See the archive entry. The four cell builders, the six action builders they hand a row to, and the review chip.
+
+**`FileRowRecord` is an alias, not a restatement.** `ReturnType<typeof fileRow>` names the thirty-four members that builder constructs, so the alias cannot drift from them. `0.33.33.43.14` used the same expression inline for the table's parameter; this checkpoint gave it a name and used it there too, so the page has one word for a row rather than two spellings.
+
+**A declaration that named the wrong shape, corrected but not oversold.** `createQuarantineAction` was annotated `FileEditorRow` - the *editor dialog's* row - while every caller reaches it through `createFileActions`, which is handed a table row. It compiled only because that caller was implicitly `any`. The correction **closes no diagnostic**: the table row is structurally assignable to that shape, so it was a naming error rather than a defect, and it is recorded as such.
+
+**Three survivors exposed fixtures that agreed with themselves.** The row used extension `"pdf"` and label `"PDF"`, which slug to the same token, so the icon's precedence was untested; the review chip's first argument surfaces only in a `dataset` marker nothing asserted; and with `statusLabelText` defaulting to `""`, the chip's two refusal conditions agree, so dropping one changed nothing. Each fixture now uses values that distinguish the branch, with the reason beside it.
+
+**This checkpoint broke `0.33.33.43.14` twice and both are repaired.** The alias changed a line that checkpoint had pinned in a test *and* anchored a mutation on. The campaign sweep caught the anchor; the test pin had been red since the change, found only by looking after. The full unit suite was the check that would have caught it at once.
 
 #### 0.33.33.43.14 - The pagination and list-load path
 

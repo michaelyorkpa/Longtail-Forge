@@ -949,7 +949,7 @@
    *
    * The row type is `fileRow`'s own return rather than a restatement of it: that builder
    * constructs every member, so its inferred shape is the truth and cannot drift from it.
-   * @param {ReturnType<typeof fileRow>[]} rows
+   * @param {FileRowRecord[]} rows
    */
   function renderFilesTable(rows) {
     if (fileTableMount) {
@@ -1183,6 +1183,17 @@
     return columns;
   }
 
+  /**
+   * One row of the attachment table, as `fileRow` builds it.
+   *
+   * An **alias, not a restatement**: `fileRow` constructs every one of its thirty members, so its
+   * inferred shape is the truth and this cannot drift from it. `0.33.33.43.14` used the same
+   * expression inline for the table's own parameter; naming it here keeps a dozen cell and action
+   * builders honest without repeating it, and leaves one place to look when the row changes.
+   * @typedef {ReturnType<typeof fileRow>} FileRowRecord
+   */
+
+  /** @param {FileRowRecord} row */
   function createFileCell(row) {
     return createFilesElement("span", {
       className: "files-file-cell",
@@ -1193,6 +1204,7 @@
     });
   }
 
+  /** @param {FileRowRecord} row */
   function createFileTypeIcon(row) {
     return createFilesElement("span", {
       className: "files-file-type-icon",
@@ -1295,6 +1307,7 @@
     activeFilesTooltip.style.top = `${top}px`;
   }
 
+  /** @param {FileRowRecord} row */
   function createFileStatusCell(row) {
     const reviewLabel = reviewStateLabel(row.status, row.scanStatus);
     const chips = [
@@ -1326,6 +1339,13 @@
     });
   }
 
+  /**
+   * The review chip, shown only when it says something the status chip did not.
+   *
+   * `scanStatus` is `unknown` because it is only handed to `scanStatusLabel`, which takes `unknown`
+   * and converts what it needs. The other two carry defaults and are already strings.
+   * @param {unknown} scanStatus @param {string} [label] @param {string} [statusLabelText]
+   */
   function createFileScanStatusChip(scanStatus, label = scanStatusLabel(scanStatus), statusLabelText = "") {
     const text = String(label || "").trim();
 
@@ -1344,6 +1364,7 @@
     });
   }
 
+  /** @param {FileRowRecord} row */
   function createFileActions(row) {
     const view = requireView();
     requireFilesViewHelper("createDetailActionStrip");
@@ -1380,6 +1401,7 @@
     return actions;
   }
 
+  /** @param {FileRowRecord} row */
   function createPreviewAction(row) {
     const view = requireView();
     const button = view.createActionButton({
@@ -1400,6 +1422,7 @@
     return button;
   }
 
+  /** @param {FileRowRecord} row */
   function createDownloadOnlyMarker(row) {
     const label = requireFilePreview().previewUnavailableLabel(row);
     const icon = window.LongtailForge?.icons?.createIcon?.("eye", { decorative: true });
@@ -1424,6 +1447,7 @@
     return marker;
   }
 
+  /** @param {FileRowRecord} row */
   function createDownloadAction(row) {
     const label = `Download ${row.fileName}`;
     const icon = window.LongtailForge?.icons?.createIcon?.("download", { decorative: true });
@@ -1450,6 +1474,7 @@
     return link;
   }
 
+  /** @param {FileRowRecord} row */
   function createReportAction(row) {
     const view = requireView();
     const button = view.createActionButton({
@@ -1471,7 +1496,13 @@
     return button;
   }
 
-  /** @param {FileEditorRow} row */
+  /**
+   * **Corrected by `0.33.33.43.15`.** This named `FileEditorRow` - the *editor dialog's* row from
+   * `0.33.33.43.6` - but every caller reaches it through `createFileActions`, which is handed a
+   * table row. It compiled only because that caller was implicitly `any`; typing the caller is what
+   * exposed the mismatch. The two shapes overlap on `fileName`, which is why nothing caught it.
+   * @param {FileRowRecord} row
+   */
   function createQuarantineAction(row) {
     const view = requireView();
     const button = view.createActionButton({
@@ -1494,6 +1525,7 @@
     return button;
   }
 
+  /** @param {FileRowRecord} row */
   function createDeleteAction(row) {
     const view = requireView();
     const button = view.createActionButton({
@@ -1515,6 +1547,7 @@
     return button;
   }
 
+  /** @param {FileRowRecord} row */
   function createRestoreAction(row) {
     const view = requireView();
     const button = view.createActionButton({

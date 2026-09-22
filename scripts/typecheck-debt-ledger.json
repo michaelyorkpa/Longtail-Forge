@@ -445,6 +445,7 @@
         "tests/mutations/file-pagination-load.breaks.mjs",
         "tests/mutations/file-project-options.breaks.mjs",
         "tests/mutations/file-row-actions.breaks.mjs",
+        "tests/mutations/file-row-cells.breaks.mjs",
         "tests/mutations/file-row-mapping.breaks.mjs",
         "tests/mutations/files-element-handles.breaks.mjs",
         "tests/mutations/files-settings-collectors.breaks.mjs",
@@ -555,6 +556,7 @@
         "tests/unit/file-preview-row.test.mjs",
         "tests/unit/file-project-option-contracts.test.mjs",
         "tests/unit/file-row-action-contracts.test.mjs",
+        "tests/unit/file-row-cell-contracts.test.mjs",
         "tests/unit/file-row-mapping-contracts.test.mjs",
         "tests/unit/files-element-handle-contracts.test.mjs",
         "tests/unit/files-preview.service.test.mjs",
@@ -881,7 +883,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 903,
+      "errorCount": 892,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -952,7 +954,7 @@
           },
           {
             "code": 7006,
-            "count": 26
+            "count": 15
           },
           {
             "code": 7019,
@@ -1644,8 +1646,8 @@
     }
   },
   "totals": {
-    "files": 1463,
-    "errors": 903,
+    "files": 1465,
+    "errors": 892,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
