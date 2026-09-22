@@ -2358,6 +2358,16 @@
     return details;
   }
 
+  /**
+   * Display members reuse BrowserTaskTimerRecord, not the slot-only active-timer contract.
+   * The shipped /api/active-timers/all producer carries these through activeTimerRowToAppValue
+   * and shapeTimerPayload. Workbench's loader does not run readTaskTimers/readTaskTimer:
+   * this is a display caller precondition, not a claim of wire validation. Optional members
+   * retain the display's existing empty/sparse timer handling.
+   * @typedef {Partial<Pick<import("../../src/types/browser-contracts.js").BrowserTaskTimerRecord, "active_timer_id" | "timer_status" | "accumulated_elapsed_seconds" | "last_active_start_time">>} TaskFocusDisplayTimer
+   */
+
+  /** @param {ActiveTaskFocus | null} active */
   function createTaskFocusTimerSection(active) {
     const workbenchViewHelpers = requireView();
     const timer = currentTaskFocusTimer(active);
@@ -2393,6 +2403,7 @@
     return details;
   }
 
+  /** @param {ActiveTaskFocus | null} active @param {TaskFocusDisplayTimer | null} timer */
   function createTaskFocusTimerBody(active, timer) {
     if (active?.isLoading) {
       return [emptyState("Task timer is loading.")];
@@ -2408,6 +2419,7 @@
     ];
   }
 
+  /** @param {ActiveTaskFocus | null} active @param {TaskFocusDisplayTimer | null} timer @param {ReturnType<typeof taskFocusTimerEligibility>} eligibility */
   function createTaskFocusTimerControls(active, timer, eligibility) {
     const workbenchViewHelpers = requireView();
     const duration = workbenchViewHelpers.createElement("strong", {
@@ -2470,6 +2482,9 @@
     });
   }
 
+  /** The four control literals supply these fields; actionButton installs the listener unchanged.
+   * @param {{action: string, danger?: boolean, disabled?: boolean, label: string, onClick: EventListener, taskId: string}} options
+   */
   function createTaskFocusTimerButton({ action, danger = false, disabled = false, label, onClick, taskId }) {
     const button = actionButton(label, onClick, { danger });
     button.disabled = Boolean(disabled);
@@ -2529,6 +2544,7 @@
     return { eligible: true, reason: "" };
   }
 
+  /** @param {ActiveTaskFocus | null} active @param {TaskFocusDisplayTimer | null} timer @param {ReturnType<typeof taskFocusTimerEligibility>} [eligibility] */
   function taskFocusTimerStatusText(active, timer, eligibility = taskFocusTimerEligibility(active)) {
     if (!eligibility.eligible) {
       return eligibility.reason;
@@ -2542,6 +2558,7 @@
     return "No active timer.";
   }
 
+  /** @param {ActiveTaskFocus | null} active @param {TaskFocusDisplayTimer | null} timer */
   function taskFocusTimerSummaryText(active, timer) {
     if (active?.isLoading) {
       return "Loading";
