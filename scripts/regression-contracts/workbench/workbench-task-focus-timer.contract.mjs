@@ -139,7 +139,7 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "refreshWorkbenchAfterTaskFocusTimerMutation"),
-  /applyActiveTaskFocusTask\(result\.task\)[\s\S]*await loadWorkbench\(\)[\s\S]*renderTaskFocusSurface\(\)/,
+  /applyActiveTaskFocusTask\(taskFocusTimerResultTask\(result\)\)[\s\S]*await loadWorkbench\(\)[\s\S]*renderTaskFocusSurface\(\)/,
   "Task Focus timer mutations should refresh both timer state and the focused task read model",
 );
 assert.match(
