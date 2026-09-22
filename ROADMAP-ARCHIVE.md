@@ -1,5 +1,20 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.42.17 - Type Workbench timer mutations and lifecycle
+
+**Model: High Effort** - a bounded action surface must retain raw mutation envelopes, async ordering and timer routing.
+
+- [x] **Measure the assigned theme.** Baseline a822f555: Workbench 156 raw / 151 owned / five DOM. Eighteen diagnostics across the eleven assigned functions: saveTaskTimer and pauseExistingTimer three each; refreshWorkbenchAfterTaskFocusTimerMutation, updateTimerStatus and flashActivatedTimer two each; startExistingTimer, saveFocusedTaskTimer, finalizeFocusedTaskTimer, finalizeTimer, finalizeSourceTaskTimer and discardTimer one each. All finish at zero.
+- [x] **Reuse vocabulary, distinguish guarantees.** WorkbenchTimerActionRecord projects the consumed BrowserTaskTimerRecord fields and reuses BrowserActiveTimerSlotRecord's required slot. The active-timer row producer establishes the slot and scalar timer fields; unified source_id can be null. Optional projected fields preserve sparse caller handling, and source_enabled remains an opaque provider decoration tested by truthiness. These are action caller preconditions, not a claim that the array-only Workbench loader invoked readTaskTimers/readTaskTimer. No shared contract or response reader changes.
+- [x] **Preserve opaque mutation results.** A local optional task-field reader preserves boxing, inherited accessors, raw task identity, each repeated getter read and thrown accessors. pauseExistingTimer and the before/after-load focus refresh keep their existing ordering and stale-selection checks; no raw value is rerouted through a validated reader. Native encodeURIComponent string conversion is made explicit with templates for nullable source ids, retaining null/undefined text, Symbol failure and the existing catch path. No new validation, fallback, status wording or failure policy. The connected offerTaskResumeNote trigger gets only an EventTarget/null annotation so the existing focus target continues through unchanged.
+- [x] **Risk-based proof and source owners.** Five lifted cases exercise raw identity, four getter reads around reload, changing getters, stale selection, inherited/primitive envelopes, thrown getters, nullable URL conversion, write failure handling, payload values, resume-note forwarding and task/manual routing. Existing Task Focus desktop/mobile proof on isolated port 8102 exercises real Start/Pause and retained checklist/context. Search all scripts/ and tests/ for affected owners and spellings; retarget the existing refresh pin to the same before/after-load claim. No broad mutation campaign for the annotation-dominated remainder.
+- [x] **Accounting.** Eighteen parameter eliminations, zero reclassification. Workbench 156 to 138 raw / 151 to 133 owned (118 params, 10 state, five assorted); DOM five unchanged, global DOM 153 unchanged. Browser 1144 to 1126. Exactly one diagnostic file moves; other owners unchanged; server/tests and scripts zero. The intermediate 140-raw probe exposed the trigger and nullable-id consequences; both are resolved rather than banked.
+- [x] **Final verification.** Focused cases, full units/lint, canonical verify:slice, isolated desktop/mobile and full-range checkpoint validation; exact results and HEAD accompany the readiness report.
+
+No docs change needed: timer workflow and runtime semantics are preserved; internal checkpoint documentation remains deferred.
+
+**Remaining:** Workbench 133 owned plus five DOM; no file/lane closeout. loadTimerCardData, isManualTimerCandidate, taskTimerMatches, createTimerCard and refreshWorkbenchTimers are byte-identical to baseline and remain out of scope. Extraction, Lists, shared contracts/helpers, server, CSS, packages and other lanes remain untouched. Recurring-task status, assignee_ids and detached-trigger findings remain recorded and uncorrected.
+
 ## Version 0.33.33.42.16 - Type Workbench card registration and persisted state
 
 **Model: High Effort** - one persistence boundary includes opaque stored values, DOM reads and exact property-access ordering.
