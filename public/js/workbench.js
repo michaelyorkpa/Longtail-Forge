@@ -1133,6 +1133,7 @@
     window.LongtailForge?.cachedFetch?.writeCached(workbenchCacheKey("registry"), registry || {});
   }
 
+  /** @param {Partial<BrowserWorkbenchRegistry> | null} cachedRegistry @param {Partial<BrowserWorkbenchRegistry> | null} freshRegistry */
   function workbenchRegistryCardsChanged(cachedRegistry, freshRegistry) {
     return JSON.stringify(cachedRegistry?.workbenchCards || []) !== JSON.stringify(freshRegistry?.workbenchCards || []);
   }
@@ -3794,17 +3795,20 @@
   }
 
   function renderRegisteredWorkbenchCards() {
-    const activeCards = new Map((state.registry.workbenchCards || []).map((card) => [card.renderer, card]));
+    /** @type {Map<unknown, BrowserWorkbenchContribution>} */
+    const activeCards = new Map((state.registry.workbenchCards || []).map((card) => [workbenchCardField(card, "renderer"), card]));
 
     document.querySelectorAll("[data-workbench-card]").forEach((card) => {
-      const rendererId = card.dataset.workbenchRenderer || "";
+      const rendererId = workbenchCardField(workbenchCardField(card, "dataset"), "workbenchRenderer") || "";
       const contribution = activeCards.get(rendererId);
-      const renderer = workbenchCardRenderers[rendererId];
+      /** @type {unknown} */
+      const renderer = Reflect.get(workbenchCardRenderers, workbenchCardPropertyKey(rendererId));
 
-      card.hidden = !contribution || !renderer;
+      Reflect.set(card, "hidden", !contribution || !renderer);
 
       if (contribution && renderer) {
-        renderer(contribution);
+        if (typeof renderer !== "function") throw new TypeError("The Workbench card renderer must be callable.");
+        Reflect.apply(renderer, undefined, [contribution]);
       }
     });
   }
@@ -4320,6 +4324,7 @@
     updateDisclosureExpandedState(event.currentTarget);
   }
 
+  /** @param {Event} event */
   function handleWorkbenchCardToggle(event) {
     const card = event.currentTarget;
 
@@ -4380,39 +4385,66 @@
     return isTaskFocusView() || hasActiveOrPausedTimers();
   }
 
+  /**
+   * Page-built details write boolean open values under string dataset keys. Stored JSON
+   * is not validated as that shape: arrays and opaque member values remain accepted.
+   * Alternate matching elements can write other open values, so the local writer's
+   * dictionary keeps values unknown rather than promising a boolean precondition.
+   * @typedef {Record<PropertyKey, unknown>} StoredWorkbenchCardState
+   */
+  /** @param {unknown} value @param {string} key @returns {unknown} */
+  function workbenchCardField(value, key) {
+    if (value == null) throw new TypeError("The Workbench card value cannot be read.");
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /** Native computed-key conversion preserves symbols and string-hint conversion hooks.
+   * @param {unknown} value @returns {string | symbol}
+   */
+  function workbenchCardPropertyKey(value) {
+    return Reflect.ownKeys(Object.fromEntries([[value, null]]))[0];
+  }
+
+  /** @param {unknown} card */
   function isTimerWorkbenchCard(card) {
-    return card?.dataset?.workbenchCard === "active-work-timers";
+    const dataset = card == null ? undefined : workbenchCardField(card, "dataset");
+    return (dataset == null ? undefined : workbenchCardField(dataset, "workbenchCard")) === "active-work-timers";
   }
 
   function restoreCardState() {
     const savedState = readCardState();
 
     document.querySelectorAll("[data-workbench-card]").forEach((card) => {
-      const cardId = card.dataset.workbenchCard;
+      const cardId = workbenchCardField(workbenchCardField(card, "dataset"), "workbenchCard");
       if (isTimerWorkbenchCard(card)) {
         return;
       }
-      if (Object.hasOwn(savedState, cardId)) {
-        setWorkbenchDisclosureOpen(card, savedState[cardId]);
+      if (Object.hasOwn(savedState, workbenchCardPropertyKey(cardId))) {
+        setWorkbenchDisclosureOpen(card, Reflect.get(savedState, workbenchCardPropertyKey(cardId)));
       }
     });
     syncTimerSectionOpenState();
   }
 
   function persistCardState() {
+    /** @type {StoredWorkbenchCardState} */
     const stateByCard = {};
 
     document.querySelectorAll("[data-workbench-card]").forEach((card) => {
       if (isTimerWorkbenchCard(card)) {
         return;
       }
-      stateByCard[card.dataset.workbenchCard] = card.open;
+      const cardId = workbenchCardField(workbenchCardField(card, "dataset"), "workbenchCard");
+      const open = workbenchCardField(card, "open");
+      Reflect.set(stateByCard, workbenchCardPropertyKey(cardId), open);
     });
     window.localStorage.setItem(WORKBENCH_CARD_STATE_KEY, JSON.stringify(stateByCard));
   }
 
+  /** @returns {object} */
   function readCardState() {
     try {
+      /** @type {unknown} */
       const value = JSON.parse(window.localStorage.getItem(WORKBENCH_CARD_STATE_KEY) || "{}");
       return value && typeof value === "object" ? value : {};
     } catch {
