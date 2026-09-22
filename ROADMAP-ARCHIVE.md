@@ -1,5 +1,19 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.42.15 - Annotate Task Focus timer display
+
+**Model: Medium Effort** - a bounded display-only annotation pass reuses the published timer vocabulary without changing executable behavior.
+
+- [x] **Measure the assigned boundary.** Baseline 99449799 reproduces Workbench 182 raw / 172 owned / 10 DOM. createTaskFocusTimerButton has four diagnostics, createTaskFocusTimerControls three, createTaskFocusTimerBody two, createTaskFocusTimerSection one, taskFocusTimerStatusText two and taskFocusTimerSummaryText two. All six reach zero; the other timer functions remain out of scope.
+- [x] **Trace producer versus precondition.** Reuse Partial<Pick<BrowserTaskTimerRecord, active_timer_id | timer_status | accumulated_elapsed_seconds | last_active_start_time>> for the display's four consumed members. The shipped active-work-timers contribution points to /api/active-timers/all; activeTimerRowToAppValue establishes string identity, running/paused status, numeric elapsed seconds and nullable start text, and shapeTimerPayload carries those members through. Workbench's array-only loader does not invoke readTaskTimers/readTaskTimer, so the annotation is an explicitly documented display caller precondition, not a claim of validated input. BrowserActiveTimerSlotRecord promises only timer_slot, which this display does not read; no unsupported full-record claim or shared contract edit. Eligibility derives from ReturnType<typeof taskFocusTimerEligibility>, active state reuses ActiveTaskFocus, and the four local button literals establish their descriptor and unchanged EventListener callback.
+- [x] **Exact annotation-only proof.** Seventeen added lines are the entire source diff. Reversing the six exact added hunks reproduces baseline workbench.js byte-for-byte; no expressions, guards, coercions, optional paths, failure messages, receivers, event handlers or timer arithmetic changed. Final source SHA-256 e39614e868101834ee0aff0f5b3bc04d9fa3f137753aab2687a5177d78e1b7c5. Existing lifts and pins searched throughout scripts/ and tests/; no replaced spelling and no retarget needed. No new mutation campaign or mirrored annotation tests for unchanged executable code.
+- [x] **Account once.** Fourteen parameter eliminations, zero reclassification. Workbench 182 to 168 raw / 172 to 158 owned (140 params, 12 state, six assorted), DOM 10 unchanged. Browser 1246 to 1232; global DOM 177 unchanged. Exactly one diagnostic file moves; every other owner unchanged; server/tests and scripts zero. Ledger recomputed from this branch's final tree.
+- [x] **Verify the finished tree.** Full units/lint, canonical verify:slice and full-range checkpoint validation. Existing isolated desktop/mobile proof on port 8102 passes real Start/Pause transitions and rendered timer status alongside checklist/context preservation. Exact gate results and pushed HEAD accompany the readiness report.
+
+No docs change needed: annotations preserve executable behavior and reuse existing producer vocabulary. Durable documentation remains deferred under the internal checkpoint rule.
+
+**Remaining:** Workbench 158 owned plus 10 DOM; no file/lane closeout. Timer mutations/lifecycle, every finalize path, saveTaskTimer, pauseExistingTimer, startExistingTimer, discardTimer, flashActivatedTimer, refreshWorkbenchTimers and loadTimerCardData remain untouched. Extraction, Lists, shared code/contracts, server, CSS, packages and other lanes remain excluded. Recurring-task status, assignee_ids and detached-trigger findings stay recorded and uncorrected.
+
 ## Version 0.33.33.42.14 - Type Task Focus checklist readers
 
 **Model: High Effort** - checklist wire members remain opaque while their consumers must preserve row, getter and mutation behavior.
