@@ -122,7 +122,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.41.2` | `task-dialog.js` 850, `tasks.js` 311, `tasks-dashboard.js` 52, `task-resume-note-capture.js` 20, `task-calendar.js` 0 | 1,233 |
 | Codex | `0.33.33.42.1` | `workbench.js` — this owner's first child | 538 |
 | Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `lists-settings.js` 0 | 787 |
-| Claude | `0.33.33.43.12` | `files.js` — the **Files** module family, with `files-settings.js` complete | 54 |
+| Claude | `0.33.33.43.13` | `files.js` — the **Files** module family, with `files-settings.js` complete | 44 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
 These are **starting** boundaries. Each lane draws its own next child from the tree it actually has; neither pre-slices its remaining controllers.
@@ -1544,6 +1544,18 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.13 - The label and token formatters
+
+**Complete: 10 diagnostics closed, and every conversion in range was already there.** See the archive entry. The seven pure formatters that turn raw values into the words and tokens the Files page shows.
+
+**Six convert through `String`, one through `Number`, and the difference matters.** `String(x)` answers `"Symbol(x)"` for a symbol; `Number(x)` **throws**. Both behaviours predate this checkpoint, and a case asserts all four side by side so that a later change swapping one conversion for the other is refused. Nothing was added, moved across a `||`, or removed.
+
+**The boundary measured 9 and delivered 10.** The ninth and tenth are not scope creep: typing `pagination` as `{ hasMore?: unknown }` also cleared a `TS2339` at the `pagination.hasMore` read **inside** `visibleFileCountLabel`, which the signature-line count had missed because it counted only parameters. The `hasMore` diagnostic in `normalizeFilesPagination` is a different function and remains.
+
+**`metadataText`'s fallback stayed a `string` on purpose.** It is returned directly, so widening it with the value would make the **result** `unknown` and push this function's debt onto every reader of it.
+
+**A finding, recorded rather than acted on.** `scanStatusLabel`'s last line guards with `scanStatus ? formatToken(scanStatus) : ""`, but `formatToken` opens with `String(value || "")`, which already maps every falsy value to `""` - verified across all eight, with no difference. **That ternary is dead code.** Removing it is a behaviour-preserving simplification, but it belongs to whoever next owns these formatters, most naturally alongside `formatToken` itself - still implicitly `any`, and deliberately left outside this boundary rather than quietly widening it.
 
 #### 0.33.33.43.12 - The page's own element builders
 
