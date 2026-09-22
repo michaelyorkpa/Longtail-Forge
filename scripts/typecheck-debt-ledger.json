@@ -421,6 +421,7 @@
         "tests/e2e/workbench-inspector-handles.spec.mjs",
         "tests/e2e/workbench-mobile-chip-layout.spec.mjs",
         "tests/e2e/workbench-mobile-inspector.spec.mjs",
+        "tests/e2e/workbench-navigation-disclosure.spec.mjs",
         "tests/e2e/workbench-related-context.spec.mjs",
         "tests/e2e/workbench-task-opener.spec.mjs",
         "tests/e2e/workspace-isolation.spec.mjs",
@@ -765,6 +766,7 @@
         "tests/unit/workbench-focus-readers.test.mjs",
         "tests/unit/workbench-focus-state.test.mjs",
         "tests/unit/workbench-inspector-handles.test.mjs",
+        "tests/unit/workbench-navigation-disclosure.test.mjs",
         "tests/unit/workbench-related-context.test.mjs",
         "tests/unit/workbench-source-data.test.mjs",
         "tests/unit/workbench-task-opener.test.mjs",
@@ -872,7 +874,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 951,
+      "errorCount": 939,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -999,7 +1001,7 @@
         "public/js/workbench.js": [
           {
             "code": 2339,
-            "count": 12
+            "count": 11
           },
           {
             "code": 2345,
@@ -1019,15 +1021,7 @@
           },
           {
             "code": 7006,
-            "count": 73
-          },
-          {
-            "code": 7023,
-            "count": 1
-          },
-          {
-            "code": 7024,
-            "count": 1
+            "count": 64
           },
           {
             "code": 7034,
@@ -1647,8 +1641,8 @@
     }
   },
   "totals": {
-    "files": 1454,
-    "errors": 951,
+    "files": 1456,
+    "errors": 939,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

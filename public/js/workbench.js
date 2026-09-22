@@ -818,9 +818,12 @@
     calendarWeekLinkElement.hidden = !navigationContainsHref(navigation, "calendar.html");
   }
 
+  /** Navigation elements remain opaque under BrowserStoredWorkspaceContext.
+   * @param {unknown} items @param {unknown} href @returns {boolean}
+   */
   function navigationContainsHref(items, href) {
-    return (Array.isArray(items) ? items : []).some((item) => (
-      item?.href === href || navigationContainsHref(item?.items, href)
+    return (Array.isArray(items) ? items : []).some((/** @type {unknown} */ item) => (
+      workbenchSourceField(item, "href", true) === href || navigationContainsHref(workbenchSourceField(item, "items", true), href)
     ));
   }
 
@@ -1504,6 +1507,7 @@
     }
   }
 
+  /** @param {HTMLElement | null} element @param {unknown} hidden */
   function toggleWorkbenchStatePanel(element, hidden) {
     if (!element) {
       return;
@@ -1709,6 +1713,7 @@
     });
   }
 
+  /** @param {string} heading @param {string} helper */
   function setWorkbenchInspectorCopy(heading, helper) {
     if (workbenchInspectorHeadingText) {
       workbenchInspectorHeadingText.textContent = heading;
@@ -1718,6 +1723,7 @@
     }
   }
 
+  /** @param {boolean} collapsed @param {{enableCollapse?: unknown}} [options] */
   function syncTaskFocusInspectorCollapseState(collapsed, options = {}) {
     const enableCollapse = Boolean(options.enableCollapse);
 
@@ -4458,11 +4464,14 @@
     }
   }
 
+  /** Page-built details and alternate matching elements both receive the Boolean write.
+   * @param {Element | null} details @param {unknown} open
+   */
   function setWorkbenchDisclosureOpen(details, open) {
     if (!details) {
       return;
     }
-    details.open = Boolean(open);
+    Reflect.set(details, "open", Boolean(open));
     updateDisclosureExpandedState(details);
   }
 
