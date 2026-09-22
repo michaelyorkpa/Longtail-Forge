@@ -122,7 +122,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.41.2` | `task-dialog.js` 850, `tasks.js` 311, `tasks-dashboard.js` 52, `task-resume-note-capture.js` 20, `task-calendar.js` 0 | 1,233 |
 | Codex | `0.33.33.42.1` | `workbench.js` — this owner's first child | 538 |
 | Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `lists-settings.js` 0 | 787 |
-| Claude | `0.33.33.43.10` | `files.js` — the **Files** module family, with `files-settings.js` complete | 72 |
+| Claude | `0.33.33.43.11` | `files.js` — the **Files** module family, with `files-settings.js` complete | 68 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
 These are **starting** boundaries. Each lane draws its own next child from the tree it actually has; neither pre-slices its remaining controllers.
@@ -1544,6 +1544,18 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.11 - The option list's honest shape
+
+**Complete: 4 diagnostics closed, and a deferral discharged rather than inherited.** See the archive entry. `safeOptionList`, `createOption` and `hydrateContextSelect` - the boundary `0.33.33.43.10` named and declined.
+
+**The filter declares what it establishes, not what either consumer wants.** It tests only that an entry carries a truthy `value` **or** a truthy `targetId`, so `value` is now `unknown`. The project picker puts a plain id string there; the attachable-targets response puts a nested id record. Naming either would claim of one caller's list what only the other's guarantees. The two shapes genuinely cannot share a richer declaration - so rather than split the filter or make one consumer over-claim, the declaration was loosened to what the filter proves, and the five reads of that value were written out honestly.
+
+**Both consumers take what the view builder itself takes.** `createOption` is `(unknown, unknown)`, which is not a local invention: the shared sibling it mirrors, `BrowserPageController.createOption`, was widened to exactly that by `0.33.33.39.24`, and the builder's own attribute bag is `Record<string, unknown>` with a text value of `unknown`. Nothing is converted here; `option.value` and `option.textContent` do the converting they always did.
+
+**One executable change, and it is a transcription.** The five optional reads of the now-`unknown` value go through `fileOptionValueField`, which is `Reflect.get(Object(value), key, value)` - exactly `value?.[key]`. `Object` absorbs nullish where the optional chain short-circuits, boxes a primitive as a member read already did, and the third argument keeps a getter seeing the receiver it saw before. One discarded `|| {}` is covered by that same absorption. The suite **runs** the helper against the optional chain it claims to equal, across every kind of value, rather than only reading it.
+
+**The project control now uses the checked lookup its siblings already had.** `findFileContextSelect`, published by `0.33.33.43.6` and already used for the client and target controls, narrows with `instanceof`; the project lookup was simply the one left raw. This page builds that control itself with `createFilesElement("select", ...)`, so the narrowing rejects nothing that can occur - it is not a new refusal.
 
 #### 0.33.33.43.10 - The client and project option plumbing
 

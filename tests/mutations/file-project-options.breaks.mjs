@@ -54,9 +54,13 @@ const cases = [
   ["the page state stops carrying the flattened option",
     "    /** @type {FileProjectOption[]} */\n    projects: [],",
     "    projects: [],"],
-  ["the reason the two consumers are untyped disappears",
-    "  // Deliberately left untyped by `0.33.33.43.10`. Both this and `hydrateContextSelect` read a",
-    "  // Both this and `hydrateContextSelect` read a"],
+  // Retargeted by `0.33.33.43.11`, which discharged that deferral by re-typing the filter and both
+  // consumers. The suite now asserts the spent reason is **gone**, so the mutation worth making is
+  // writing it back in - a stale excuse the next reader would act on.
+  ["the discharged deferral is written back into the source",
+    "  /**\n   * One choice, taking whatever the option list carried.",
+    "  // Deliberately left untyped by `0.33.33.43.10`. Both this and `hydrateContextSelect` read a\n"
+      + "  /**\n   * One choice, taking whatever the option list carried."],
 ];
 
 runMutationCampaign({
