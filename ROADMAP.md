@@ -122,7 +122,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.41.2` | `task-dialog.js` 850, `tasks.js` 311, `tasks-dashboard.js` 52, `task-resume-note-capture.js` 20, `task-calendar.js` 0 | 1,233 |
 | Codex | `0.33.33.42.1` | `workbench.js` — this owner's first child | 538 |
 | Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `lists-settings.js` 0 | 787 |
-| Claude | `0.33.33.43.8` | `files.js` — the **Files** module family, with `files-settings.js` complete | 105 |
+| Claude | `0.33.33.43.9` | `files.js` — the **Files** module family, with `files-settings.js` complete | 88 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
 These are **starting** boundaries. Each lane draws its own next child from the tree it actually has; neither pre-slices its remaining controllers.
@@ -1544,6 +1544,16 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.9 - The attachment record and the row it becomes
+
+**Complete: 17 diagnostics closed, and the record is declared where the estate declines to publish it.** See the archive entry. `fileRow` and the small readers it feeds, plus the row focus lookup.
+
+**The estate refuses to name this shape for consumers**, typing it `attachment?: unknown` on every published surface that carries one, so it is declared locally inside the only mapper that reads it - both spellings, every member optional, and nothing proved.
+
+**One executable line changed.** `fileRow` now defaults `fileId` like every sibling id it builds; that was the only id left un-defaulted, and the inconsistency is why the row could not describe its own id.
+
+**The `fileId` deferral from `0.33.33.43.8` was attacked and survives, for a reason now recorded in the source.** Defaulting at the producer is real, but `FileEditorRow` describes rows generally and `normalizeFileEditorRow` may hand back a caller's own object without passing it through `fileRow` at all. Declaring the member required makes that branch and the published carrier unassignable - two new diagnostics in place of four. The row cannot promise what only one of its two producers guarantees.
 
 #### 0.33.33.43.8 - The file row's actions
 

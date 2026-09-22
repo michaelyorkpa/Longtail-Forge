@@ -864,10 +864,49 @@
     fileList.replaceChildren(...Array.from(nextList?.children || []));
   }
 
+  /**
+   * One attachment record as `/api/files/attachments` sends it, and the file it carries.
+   *
+   * **Declared locally because the estate deliberately does not publish it.** Every published
+   * surface that carries one - `BrowserFileAttachmentOptions` and its event listeners - types it
+   * `attachment?: unknown`, which is a refusal to name the shape *for consumers*. Naming it here,
+   * inside the only mapper that reads it, is the permitted route.
+   *
+   * **Nothing is proved.** This page reads the response through no checker, so every member is
+   * optional and each is named in both spellings the producer has used. `fileRow` is what turns
+   * this into something the page can rely on, and it does that by defaulting every member it
+   * keeps - which is why the row below can promise strings while this cannot.
+   * @typedef {{
+   *   canReport?: unknown, can_report?: unknown, canQuarantine?: unknown, can_quarantine?: unknown,
+   *   createdAt?: string, created_at?: string, displayName?: string, originalFilename?: string,
+   *   extension?: string, fileSizeBytes?: unknown, file_size_bytes?: unknown,
+   *   mimeTypeDetected?: string, mime_type_detected?: string, scanStatus?: string,
+   *   scan_status?: string, status?: string, uploadedByLabel?: string, uploaded_by_label?: string
+   * }} FileRecord
+   */
+
+  /**
+   * @typedef {{
+   *   file?: FileRecord, fileId?: string, file_id?: string,
+   *   fileAttachmentId?: string, file_attachment_id?: string,
+   *   moduleId?: string, module_id?: string,
+   *   targetId?: string, target_id?: string, targetType?: string, target_type?: string,
+   *   targetLabel?: string, target_label?: string, target?: { label?: string },
+   *   clientId?: string, client_id?: string, clientLabel?: string, client_label?: string,
+   *   projectId?: string, project_id?: string, projectLabel?: string, project_label?: string,
+   *   createdAt?: string, created_at?: string,
+   *   canReport?: unknown, can_report?: unknown, canQuarantine?: unknown, can_quarantine?: unknown
+   * }} FileAttachmentRecord
+   */
+
+  /** @param {FileAttachmentRecord} attachment */
   function fileRow(attachment) {
     const file = attachment.file || {};
     const attachmentId = attachment.fileAttachmentId || attachment.file_attachment_id || "";
-    const fileId = attachment.fileId || attachment.file_id;
+    // Defaulted like every sibling id above and below it - this was the one that was not, and
+    // that inconsistency is why the row could not promise a string. Unreachable at the four
+    // action call sites, which are all gated on a truthy `fileId` before the button exists.
+    const fileId = attachment.fileId || attachment.file_id || "";
     const targetLabel = attachment.targetLabel || attachment.target_label || attachment.target?.label || "";
     const targetType = attachment.targetType || attachment.target_type || "";
     const clientLabel = attachment.clientLabel || attachment.client_label || "";
@@ -1141,6 +1180,7 @@
     return status;
   }
 
+  /** @param {string} status @param {string} label */
   function createFileStatusChip(status, label) {
     const chipLabel = label || statusLabel(status, "");
     return createFilesElement("span", {
@@ -1759,6 +1799,7 @@
    * @typedef {{ attachmentId?: string, clientId?: string, projectId?: string, clientLabel?: string,
    *   targetLabel?: string, fileName?: string, previewable?: unknown, reviewable?: unknown,
    *   fileId?: string, status?: string, scanStatus?: string, canManageReview?: unknown,
+   *   attachment?: unknown,
    *   file?: unknown }} FileEditorRow
    */
 
@@ -2261,11 +2302,17 @@
     }
   }
 
+  /** @param {string} [attachmentId] */
   function focusFileRowByAttachmentId(attachmentId) {
+    // Filtered to elements that carry a dataset, which is what the marker is read through.
+    // `wireFileTableRow` sets `data-file-editor-row` on an `HTMLElement`, so nothing that can
+    // occur is dropped - and a row that somehow were not one simply is not found, which is the
+    // path an absent row already took.
     const row = Array.from(document.querySelectorAll("[data-file-editor-row]"))
+      .filter((element) => element instanceof HTMLElement)
       .find((element) => element.dataset.fileAttachmentId === attachmentId);
 
-    row?.focus?.();
+    row?.focus();
   }
 
   /** @param {Element} dialog @param {string} message @param {boolean} [isError] */
@@ -2390,7 +2437,15 @@
   }
 
   /**
-   * The three row mutations leave `fileId` **unannotated**, which keeps one diagnostic each.
+   * The four row mutations leave `fileId` **unannotated**, which keeps one diagnostic each.
+   *
+   * **`0.33.33.43.9` tried to settle this at the producer and could not.** `fileRow` now
+   * defaults `fileId` like every sibling id, so the row it builds really does carry a string -
+   * but `FileEditorRow` describes rows generally, and `normalizeFileEditorRow` may hand back a
+   * caller's own object without passing it through `fileRow` at all. Declaring the member
+   * required makes that pass-through branch and the published carrier unassignable, which is
+   * two new diagnostics in place of four. The row cannot promise what only one of its two
+   * producers guarantees.
    *
    * **A deliberate trade, stated rather than hidden.** Typing it `unknown` makes
    * `encodeURIComponent(fileId)` a type error, and the two ways out are both worse. Writing the
@@ -2492,6 +2547,7 @@
     }
   }
 
+  /** @param {string} status @param {string} scanStatus */
   function statusLabel(status, scanStatus) {
     if (status === "deleted") {
       return "Unavailable";
@@ -2544,16 +2600,19 @@
     return pagination.hasMore ? `${label}. More available.` : label;
   }
 
+  /** @param {FileRecord} [file] */
   function readableFileName(file = {}) {
     return String(file.displayName || file.originalFilename || "File").trim() || "File";
   }
 
+  /** @param {string} filename */
   function extensionFromFilename(filename) {
     const match = String(filename || "").match(/\.([A-Za-z0-9]+)$/);
 
     return match ? match[1].toLowerCase() : "";
   }
 
+  /** @param {string} extension @param {string} [mimeType] */
   function fileTypeDisplay(extension, mimeType) {
     const normalizedExtension = String(extension || "").replace(/^\./, "").toUpperCase();
     const normalizedMimeType = String(mimeType || "").trim();
@@ -2585,6 +2644,7 @@
       .replace(/^-+|-+$/g, "") || "unknown";
   }
 
+  /** @param {string} targetType @param {string} targetLabel */
   function formatTargetDisplay(targetType, targetLabel) {
     if (targetLabel) {
       return targetType ? `${formatToken(targetType)}: ${targetLabel}` : targetLabel;
@@ -2599,6 +2659,13 @@
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
+  /**
+   * A timestamp as the producer sends it - an ISO string - or nothing.
+   *
+   * **Precondition, not proved:** nothing validates the value; the `Number.isNaN` branch below
+   * is what already answered for anything unparseable, and it still does.
+   * @param {string} [value]
+   */
   function formatDate(value) {
     if (!value) {
       return "";
@@ -2608,6 +2675,7 @@
     return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
   }
 
+  /** @param {unknown} value */
   function formatBytes(value) {
     const bytes = Number(value || 0);
 
