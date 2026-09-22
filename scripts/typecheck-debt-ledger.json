@@ -848,7 +848,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1227,
+      "errorCount": 1213,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -1025,7 +1025,7 @@
           },
           {
             "code": 7006,
-            "count": 123
+            "count": 113
           },
           {
             "code": 7023,
@@ -1034,10 +1034,6 @@
           {
             "code": 7024,
             "count": 1
-          },
-          {
-            "code": 7031,
-            "count": 4
           },
           {
             "code": 7034,
@@ -1658,7 +1654,7 @@
   },
   "totals": {
     "files": 1430,
-    "errors": 1227,
+    "errors": 1213,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
