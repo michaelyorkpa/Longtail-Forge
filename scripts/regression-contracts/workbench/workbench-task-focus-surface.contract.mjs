@@ -40,7 +40,7 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "refreshActiveTaskFocus"),
-  /api\.getJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}`,[\s\S]*cache: "no-store"[\s\S]*consumeTaskFocusResumeNote\(requireTaskRecords\(\)\.readTaskDetail\(result\), taskId\)[\s\S]*applyActiveTaskFocusTask\(task\)/,
+  /api\.getJson\(`\/api\/tasks\/\$\{Reflect\.apply\(encodeURIComponent, undefined, \[taskId\]\)\}`,[\s\S]*cache: "no-store"[\s\S]*consumeTaskFocusResumeNote\(requireTaskRecords\(\)\.readTaskDetail\(result\), taskId\)[\s\S]*applyActiveTaskFocusTask\(task\)/,
   "Task Focus should load focused task details through the existing Tasks read route, consume any resume note, and apply the resulting task",
 );
 
@@ -66,7 +66,7 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "completeFocusedTask"),
-  /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}\/complete`, \{\}\)[\s\S]*resetTaskFocusState\(\);[\s\S]*await refreshFocusCandidates\(\);[\s\S]*renderWorkbench\(\);[\s\S]*const completionDetail = \{[\s\S]*\.\.\.result,[\s\S]*recordId: requireTaskRecords\(\)\.readTaskDetail\(result\)\?\.task_id \|\| taskId[\s\S]*setTaskCompletionStatus\(completionDetail\)[\s\S]*focusActiveFocusQuestion\(\)/,
+  /api\.postJson\(`\/api\/tasks\/\$\{Reflect\.apply\(encodeURIComponent, undefined, \[taskId\]\)\}\/complete`, \{\}\)[\s\S]*resetTaskFocusState\(\);[\s\S]*await refreshFocusCandidates\(\);[\s\S]*renderWorkbench\(\);[\s\S]*const completionDetail = \{[\s\S]*\.\.\.result,[\s\S]*recordId: requireTaskRecords\(\)\.readTaskDetail\(result\)\?\.task_id \|\| taskId[\s\S]*setTaskCompletionStatus\(completionDetail\)[\s\S]*focusActiveFocusQuestion\(\)/,
   "Task Focus Complete should call the existing route, return directly to Focus Selection, and retain completion continuity",
 );
 assert.doesNotMatch(
@@ -81,7 +81,7 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "resumeFocusedTask"),
-  /api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(taskId\)\}`, \{[\s\S]*blocked_reason: ""[\s\S]*status: "in_progress"[\s\S]*applyActiveTaskFocusTask[\s\S]*refreshFocusCandidates\(\)[\s\S]*Task resumed\./,
+  /api\.putJson\(`\/api\/tasks\/\$\{Reflect\.apply\(encodeURIComponent, undefined, \[taskId\]\)\}`, \{[\s\S]*blocked_reason: ""[\s\S]*status: "in_progress"[\s\S]*applyActiveTaskFocusTask[\s\S]*refreshFocusCandidates\(\)[\s\S]*Task resumed\./,
   "Task Focus Play/Resume should use the canonical Tasks update route, clear Blocked Reason, save In Progress, and refresh the focused surface",
 );
 
