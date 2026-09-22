@@ -164,22 +164,54 @@
   let activeFilesViewDescriptor = null;
   let filesBehaviorRegistered = false;
   let filesEventsBound = false;
+  /**
+   * The page's element handles, declared unset and filled by `cacheFilesElements` once the shell
+   * this file builds is mounted.
+   *
+   * **There is no markup to trace: this page builds its own chrome.** Each handle is typed from
+   * the builder above it - `createFilesFilterChrome` makes the `form`, `createInput` the text and
+   * search `input`s, `createClientSelect`/`createProjectSelect`/`createStatusSelect` the three
+   * `select`s, `createFilesPaginationChrome` the `div` and its `button`, `createFilesTable` the
+   * `tbody`, and the framework's `createListShell` the status line.
+   *
+   * **Six of the seventeen are left at `Element`, because that is all this page reads them
+   * through.** `addEventListener`, `replaceChildren`, `querySelector`, `textContent`, `classList`
+   * and `isConnected` are every element's. Naming a subtype for them would claim more than the
+   * page uses, and would refuse a builder that legitimately returned something else.
+   * @type {Element | null}
+   */
   let filterForm = null;
+  /** @type {HTMLInputElement | null} */
   let moduleFilter = null;
+  /** @type {HTMLInputElement | null} */
   let targetTypeFilter = null;
+  /** @type {HTMLInputElement | null} */
   let targetIdFilter = null;
+  /** @type {HTMLSelectElement | null} */
   let clientFilter = null;
+  /** @type {HTMLSelectElement | null} */
   let projectFilter = null;
+  /** @type {HTMLInputElement | null} */
   let advancedProjectFilter = null;
+  /** @type {HTMLInputElement | null} */
   let filenameFilter = null;
+  /** @type {HTMLSelectElement | null} */
   let statusFilter = null;
+  /** @type {Element | null} */
   let fileStatus = null;
+  /** @type {Element | null} */
   let fileList = null;
+  /** The pagination shell, which this page hides and reveals. @type {HTMLElement | null} */
   let filePagination = null;
+  /** @type {Element | null} */
   let fileTableMount = null;
+  /** @type {HTMLButtonElement | null} */
   let loadMoreFilesButton = null;
+  /** Built by `createFilesElement`, whose published return is `HTMLElement`. @type {HTMLElement | null} */
   let activeFilesTooltip = null;
+  /** @type {Element | null} */
   let activeFilesTooltipTarget = null;
+  /** @type {Element | null} */
   let activeFileEditorDialog = null;
   let fileEditorOptionRequestId = 0;
 
@@ -290,21 +322,56 @@
     ) || null;
   }
 
+  /**
+   * The checked lookups the typed handles need, in the selector form this estate's other page
+   * cohorts use. Each answers `null` for a control that is not the subtype its builder makes.
+   *
+   * **Narrowing only, with no refusal.** Every handle is already read behind a null check or an
+   * optional chain, so a control of the wrong subtype takes the absent path this page has today
+   * rather than throwing at the member read. The four lookups whose handles stay `Element` keep
+   * `document.querySelector` directly, because they need no subtype at all.
+   *
+   * @param {string} selector
+   * @returns {HTMLInputElement | null}
+   */
+  function findFilesInput(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLInputElement ? element : null;
+  }
+
+  /** @param {string} selector @returns {HTMLSelectElement | null} */
+  function findFilesSelect(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLSelectElement ? element : null;
+  }
+
+  /** @param {string} selector @returns {HTMLButtonElement | null} */
+  function findFilesButton(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLButtonElement ? element : null;
+  }
+
+  /** @param {string} selector @returns {HTMLElement | null} */
+  function findFilesHtmlElement(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLElement ? element : null;
+  }
+
   function cacheFilesElements() {
     filterForm = document.querySelector("[data-file-filters]");
-    moduleFilter = document.querySelector("[data-file-filter-module]");
-    targetTypeFilter = document.querySelector("[data-file-filter-target-type]");
-    targetIdFilter = document.querySelector("[data-file-filter-target-id]");
-    clientFilter = document.querySelector("[data-file-filter-client]");
-    projectFilter = document.querySelector("[data-file-filter-project]");
-    advancedProjectFilter = document.querySelector("[data-file-filter-project-id]");
-    filenameFilter = document.querySelector("[data-file-filter-filename]");
-    statusFilter = document.querySelector("[data-file-filter-status]");
+    moduleFilter = findFilesInput("[data-file-filter-module]");
+    targetTypeFilter = findFilesInput("[data-file-filter-target-type]");
+    targetIdFilter = findFilesInput("[data-file-filter-target-id]");
+    clientFilter = findFilesSelect("[data-file-filter-client]");
+    projectFilter = findFilesSelect("[data-file-filter-project]");
+    advancedProjectFilter = findFilesInput("[data-file-filter-project-id]");
+    filenameFilter = findFilesInput("[data-file-filter-filename]");
+    statusFilter = findFilesSelect("[data-file-filter-status]");
     fileStatus = document.querySelector("[data-file-status]");
     fileList = document.querySelector("[data-file-list]");
-    filePagination = document.querySelector("[data-file-pagination]");
+    filePagination = findFilesHtmlElement("[data-file-pagination]");
     fileTableMount = document.querySelector("[data-file-table-mount]");
-    loadMoreFilesButton = document.querySelector("[data-file-load-more]");
+    loadMoreFilesButton = findFilesButton("[data-file-load-more]");
   }
 
   function createFilesFilterChrome() {
@@ -992,15 +1059,20 @@
   function showFilesTooltip(target, text) {
     hideFilesTooltip();
 
-    activeFilesTooltip = createFilesElement("div", {
+    // Built into a local first, so the element is read through a binding the compiler can see is
+    // never null. The module handle is still assigned before anything observes it, and the order
+    // of the writes below is unchanged.
+    const tooltip = createFilesElement("div", {
       className: "files-floating-tooltip",
       attrs: { role: "tooltip" },
       text,
     });
-    activeFilesTooltip.id = `files-floating-tooltip-${Date.now()}`;
+
+    tooltip.id = `files-floating-tooltip-${Date.now()}`;
+    activeFilesTooltip = tooltip;
     activeFilesTooltipTarget = target;
-    target.setAttribute("aria-describedby", activeFilesTooltip.id);
-    document.body.appendChild(activeFilesTooltip);
+    target.setAttribute("aria-describedby", tooltip.id);
+    document.body.appendChild(tooltip);
     positionFilesTooltip();
     window.addEventListener("scroll", positionFilesTooltip, true);
     window.addEventListener("resize", positionFilesTooltip);

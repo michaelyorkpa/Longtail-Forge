@@ -329,6 +329,7 @@
         "tests/e2e/client-projects-restricted-descriptor.spec.mjs",
         "tests/e2e/console.spec.mjs",
         "tests/e2e/dashboard-bootstrap-sequencing.spec.mjs",
+        "tests/e2e/files-filter-handles.spec.mjs",
         "tests/e2e/hidden-label-controls.spec.mjs",
         "tests/e2e/login.spec.mjs",
         "tests/e2e/mobile-nav.spec.mjs",
@@ -432,6 +433,7 @@
         "tests/mutations/calendar-settings-scope.breaks.mjs",
         "tests/mutations/dashboard-entry-bridge.breaks.mjs",
         "tests/mutations/dashboard-panel.breaks.mjs",
+        "tests/mutations/files-element-handles.breaks.mjs",
         "tests/mutations/files-settings-collectors.breaks.mjs",
         "tests/mutations/footer-quick-action.breaks.mjs",
         "tests/mutations/help-article.breaks.mjs",
@@ -532,6 +534,7 @@
         "tests/unit/file-attachment-list-contracts.test.mjs",
         "tests/unit/file-preview-contracts.test.mjs",
         "tests/unit/file-preview-row.test.mjs",
+        "tests/unit/files-element-handle-contracts.test.mjs",
         "tests/unit/files-preview.service.test.mjs",
         "tests/unit/files-scanner-job.service.test.mjs",
         "tests/unit/files-settings-accounting-contracts.test.mjs",
@@ -850,7 +853,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1207,
+      "errorCount": 1156,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -929,11 +932,11 @@
           },
           {
             "code": 7005,
-            "count": 38
+            "count": 5
           },
           {
             "code": 7006,
-            "count": 138
+            "count": 137
           },
           {
             "code": 7019,
@@ -945,7 +948,7 @@
           },
           {
             "code": 7034,
-            "count": 19
+            "count": 2
           },
           {
             "code": 7053,
@@ -1641,8 +1644,8 @@
     }
   },
   "totals": {
-    "files": 1432,
-    "errors": 1207,
+    "files": 1435,
+    "errors": 1156,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

@@ -121,8 +121,8 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 772 |
 | Codex | `0.33.33.41.2` | `task-dialog.js` 850, `tasks.js` 311, `tasks-dashboard.js` 52, `task-resume-note-capture.js` 20, `task-calendar.js` 0 | 1,233 |
 | Codex | `0.33.33.42.1` | `workbench.js` — this owner's first child | 538 |
-| Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `files.js` 252, `lists-settings.js` 0 | 1,039 |
-| Claude | `0.33.33.43.4` | `files-settings.js` — **complete**, see below | 6 |
+| Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `lists-settings.js` 0 | 787 |
+| Claude | `0.33.33.43.5` | `files.js` — the **Files** module family, with `files-settings.js` complete | 201 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
 These are **starting** boundaries. Each lane draws its own next child from the tree it actually has; neither pre-slices its remaining controllers.
@@ -1544,6 +1544,16 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.5 - The Files page's element handles
+
+**Complete: 51 diagnostics closed, and `0.33.33.43` is now split by module family.** See the archive entry. Seventeen module-scope handles, their declarations and every read connected to them - the boundary the standing state-typing rule permits, and the shape `0.33.33.42.3`/`.42.4` already established for Workbench.
+
+**The split this settles.** `files.js` plus the complete `files-settings.js` make the **Files** family Claude's; `lists.js` and `clients-projects.js` stay Codex's. That is a boundary along module lines rather than an arbitrary one, and the starting-boundaries table above is corrected to match. Neither lane pre-slices the other's controllers.
+
+**This page has no markup to trace, because it builds its own chrome and then re-queries it.** Each handle is typed from the builder above it in the same file, and the suite holds the two together: a builder that starts making a different element, or a declaration that drifts from its builder, fails there rather than at runtime. That pairing is the `0.33.33.38.3.4` lesson applied to a page whose producer is JavaScript.
+
+**Six of the seventeen are deliberately left at `Element`.** `addEventListener`, `replaceChildren`, `querySelector`, `textContent`, `classList` and `isConnected` are every element's, so naming a subtype for those handles would claim more than the page uses. A break case proves a gratuitous narrowing is refused.
 
 #### 0.33.33.43.4 - The Files settings collectors
 
