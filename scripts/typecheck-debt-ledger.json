@@ -434,6 +434,7 @@
         "tests/mutations/calendar-settings-scope.breaks.mjs",
         "tests/mutations/dashboard-entry-bridge.breaks.mjs",
         "tests/mutations/dashboard-panel.breaks.mjs",
+        "tests/mutations/file-editor-context.breaks.mjs",
         "tests/mutations/files-element-handles.breaks.mjs",
         "tests/mutations/files-settings-collectors.breaks.mjs",
         "tests/mutations/footer-quick-action.breaks.mjs",
@@ -533,6 +534,7 @@
         "tests/unit/developer-example-contracts.test.mjs",
         "tests/unit/fallback-object-acquisition-contracts.test.mjs",
         "tests/unit/file-attachment-list-contracts.test.mjs",
+        "tests/unit/file-editor-context-contracts.test.mjs",
         "tests/unit/file-preview-contracts.test.mjs",
         "tests/unit/file-preview-row.test.mjs",
         "tests/unit/files-element-handle-contracts.test.mjs",
@@ -855,7 +857,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1144,
+      "errorCount": 1120,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -926,7 +928,7 @@
           },
           {
             "code": 2339,
-            "count": 51
+            "count": 42
           },
           {
             "code": 2353,
@@ -938,7 +940,7 @@
           },
           {
             "code": 7006,
-            "count": 137
+            "count": 122
           },
           {
             "code": 7019,
@@ -1646,8 +1648,8 @@
     }
   },
   "totals": {
-    "files": 1437,
-    "errors": 1144,
+    "files": 1439,
+    "errors": 1120,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
