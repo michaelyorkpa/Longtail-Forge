@@ -53,8 +53,11 @@ const cases = [
   ["the project label is never shown",
     "    if (option.projectLabel && (!context.projectId || context.projectId !== optionProjectId)) {",
     "    if (false) {"],
+  // Re-anchored by `0.33.33.43.11`, which re-typed `option.value` to the `unknown` its filter
+  // actually establishes and transcribed this optional read into the member-read idiom. Same read,
+  // same break: the nested id stops being consulted.
   ["nested option ids stop being read",
-    "    const optionClientId = option.clientId || option.value?.clientId || \"\";",
+    '    const optionClientId = option.clientId || fileOptionValueField(option.value, "clientId") || "";',
     '    const optionClientId = option.clientId || "";'],
   ["the parts stop being joined with a separator",
     '      return contextParts.join(" / ");',

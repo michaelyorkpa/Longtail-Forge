@@ -629,12 +629,17 @@
     projectFilter.value = projects.some((project) => project.id === previousValue) ? previousValue : "";
   }
 
-  // Deliberately left untyped by `0.33.33.43.10`. Both this and `hydrateContextSelect` read a
-  // list from `safeOptionList`, which serves **two different option shapes**: a target option,
-  // whose `value` is the nested id record `fileEditorTargetOptionValue` serialises, and a project
-  // option, whose `value` is a plain id string. Typing either consumer means re-typing that
-  // filter to describe what it actually admits, which is its own boundary rather than a detail
-  // of this one.
+  /**
+   * One choice, taking whatever the option list carried.
+   *
+   * Both parameters are `unknown` because that is what the view builder itself accepts - its
+   * attribute bag is `Record<string, unknown>` and its text value is `unknown` - and because
+   * `safeOptionList` admits two option shapes whose `value` differs. The shared sibling this
+   * mirrors, `BrowserPageController.createOption`, was widened to the same `(unknown, unknown)` by
+   * `0.33.33.39.24` for the same reason. Nothing is converted here; the builder does whatever it
+   * already did, and `option.value`/`option.textContent` do the converting they always did.
+   * @param {unknown} value @param {unknown} label
+   */
   function createOption(value, label) {
     return createFilesElement("option", {
       attrs: { value },
@@ -1856,8 +1861,7 @@
    * @typedef {{ clientId?: string, projectId?: string, clientLabel?: string, projectLabel?: string,
    *   contextLabel?: string, label?: string, moduleLabel?: string, targetTypeLabel?: string,
    *   moduleId?: string, targetId?: string,
-   *   targetType?: string, value?: { clientId?: string, projectId?: string, moduleId?: string,
-   *   targetId?: string, targetType?: string } }} FileEditorTargetOption
+   *   targetType?: string, value?: unknown }} FileEditorTargetOption
    */
 
   /**
@@ -1995,7 +1999,7 @@
 
   /** @param {Element} dialog @param {FileEditorRow} row */
   function hydrateFileEditorProjectControl(dialog, row) {
-    const projectSelect = dialog.querySelector("[data-file-context-project]");
+    const projectSelect = findFileContextSelect(dialog, "[data-file-context-project]");
 
     if (!projectSelect) {
       return;
@@ -2033,6 +2037,11 @@
     }));
   }
 
+  /**
+   * @param {HTMLSelectElement} select
+   * @param {{ selectedValue?: string, placeholder?: string, options?: unknown,
+   *   currentValue?: unknown, currentLabel?: unknown }} config
+   */
   function hydrateContextSelect(select, config) {
     const selectedValue = String(config.selectedValue || "").trim();
     const optionNodes = [
@@ -2072,15 +2081,29 @@
     select.dataset.fileContextLoaded = "true";
   }
 
+  /**
+   * One member of an option's `value`, which the filter that admitted it never described.
+   *
+   * `Reflect.get(Object(value), key, value)` is exactly `value?.[key]`. `Object` absorbs `null` and
+   * `undefined` into an empty object, answering `undefined` where the optional chain short-circuits,
+   * and boxes a primitive the way a member read on one already does; passing `value` back as the
+   * receiver leaves any getter seeing the receiver it saw before. Nothing is converted or defaulted
+   * here - each caller keeps its own `||` fallback.
+   * @param {unknown} value @param {string} key
+   */
+  function fileOptionValueField(value, key) {
+    return Reflect.get(Object(value), key, value);
+  }
+
   /** @param {FileEditorTargetOption} option @param {{ clientId?: string, projectId?: string }} [context] */
   function createFileEditorTargetOption(option, context = {}) {
     const optionNode = createOption(fileEditorTargetOptionValue(option), fileEditorTargetOptionLabel(option, context));
 
-    optionNode.dataset.moduleId = option.moduleId || option.value?.moduleId || "";
-    optionNode.dataset.targetId = option.targetId || option.value?.targetId || "";
-    optionNode.dataset.targetType = option.targetType || option.value?.targetType || "";
-    optionNode.dataset.clientId = option.clientId || option.value?.clientId || "";
-    optionNode.dataset.projectId = option.projectId || option.value?.projectId || "";
+    optionNode.dataset.moduleId = option.moduleId || fileOptionValueField(option.value, "moduleId") || "";
+    optionNode.dataset.targetId = option.targetId || fileOptionValueField(option.value, "targetId") || "";
+    optionNode.dataset.targetType = option.targetType || fileOptionValueField(option.value, "targetType") || "";
+    optionNode.dataset.clientId = option.clientId || fileOptionValueField(option.value, "clientId") || "";
+    optionNode.dataset.projectId = option.projectId || fileOptionValueField(option.value, "projectId") || "";
     return optionNode;
   }
 
@@ -2110,14 +2133,14 @@
 
   /** @param {FileEditorTargetOption} option */
   function fileEditorTargetOptionValue(option) {
-    const value = option.value || {};
+    const value = option.value;
 
     return JSON.stringify({
-      clientId: value.clientId || option.clientId || "",
-      moduleId: value.moduleId || option.moduleId || "",
-      projectId: value.projectId || option.projectId || "",
-      targetId: value.targetId || option.targetId || "",
-      targetType: value.targetType || option.targetType || "",
+      clientId: fileOptionValueField(value, "clientId") || option.clientId || "",
+      moduleId: fileOptionValueField(value, "moduleId") || option.moduleId || "",
+      projectId: fileOptionValueField(value, "projectId") || option.projectId || "",
+      targetId: fileOptionValueField(value, "targetId") || option.targetId || "",
+      targetType: fileOptionValueField(value, "targetType") || option.targetType || "",
     });
   }
 
@@ -2134,8 +2157,8 @@
   /** @param {FileEditorTargetOption} option @param {{ clientId?: string, projectId?: string }} [context] */
   function fileEditorTargetContextLabel(option, context = {}) {
     const contextParts = [];
-    const optionClientId = option.clientId || option.value?.clientId || "";
-    const optionProjectId = option.projectId || option.value?.projectId || "";
+    const optionClientId = option.clientId || fileOptionValueField(option.value, "clientId") || "";
+    const optionProjectId = option.projectId || fileOptionValueField(option.value, "projectId") || "";
 
     if (option.clientLabel && (!context.clientId || context.clientId !== optionClientId)) {
       contextParts.push(option.clientLabel);
@@ -2153,12 +2176,19 @@
   }
 
   /**
-   * The choices worth offering, from a body this page reads through no checker.
+   * The choices worth offering, described as what this filter actually establishes.
    *
-   * **Precondition, not proved:** the filter only establishes that an entry carries a `value`
-   * or a `targetId`; every other member named by `FileEditorTargetOption` is what the producer
-   * is expected to send, and each reader tests it before use.
-   * @param {unknown} options @returns {FileEditorTargetOption[]}
+   * **It admits two different option shapes, and promises neither.** The project picker sends
+   * `{ label, value }` where `value` is a plain id string; the attachable-targets response sends a
+   * record whose `value` is the nested id pair `fileEditorTargetOptionValue` serialises. The filter
+   * tests only that an entry carries a truthy `value` **or** a truthy `targetId`, so `value` is
+   * `unknown` here - naming it either way would claim of one caller's list what only the other's
+   * guarantees.
+   *
+   * **Proved:** each entry carries one of those two members. **Assumed:** everything else is what
+   * the respective producer is expected to send, and each reader tests it before use.
+   * @param {unknown} options
+   * @returns {FileEditorTargetOption[]}
    */
   function safeOptionList(options) {
     return Array.isArray(options) ? options.filter((option) => option?.value || option?.targetId) : [];

@@ -140,24 +140,27 @@ describe("The published vocabulary is reused rather than redeclared", () => {
   });
 });
 
-describe("The two consumers left untyped are recorded with their reason", () => {
+describe("The two consumers this checkpoint deferred were since typed", () => {
   /**
-   * `safeOptionList` serves a target option, whose `value` is a nested id record, and a project
-   * option, whose `value` is a plain id string. Typing either consumer means re-typing that filter
-   * to describe what it actually admits - a boundary of its own, not a detail of this one.
+   * `0.33.33.43.10` left `createOption` and `hydrateContextSelect` untyped and said why: the filter
+   * that feeds them serves a target option, whose `value` is a nested id record, and a project
+   * option, whose `value` is a plain id string, so typing either consumer meant re-typing that
+   * filter first. `0.33.33.43.11` did exactly that, so the deferral is **discharged** - and a spent
+   * reason must not be left lying in the source, where the next reader would act on a stale excuse.
    */
-  it("says why createOption and hydrateContextSelect stay untyped", () => {
-    assert.match(
+  it("no longer carries the deferral, because 0.33.33.43.11 discharged it", () => {
+    assert.doesNotMatch(
       source,
-      /Deliberately left untyped by `0\.33\.33\.43\.10`\. Both this and `hydrateContextSelect` read a/,
+      /Deliberately left untyped by `0\.33\.33\.43\.10`/,
+      "the reason is spent; both consumers now carry their own annotations",
     );
-    assert.match(source, /serves \*\*two different option shapes\*\*/);
+    assert.doesNotMatch(source, /serves \*\*two different option shapes\*\*/);
   });
 
-  it("and the two shapes it names are both really there", () => {
+  it("and the two shapes that forced the deferral are both still really there", () => {
     assert.match(
       source,
-      /return JSON\.stringify\(\{\s*\n\s*clientId: value\.clientId \|\| option\.clientId \|\| "",/,
+      /return JSON\.stringify\(\{\s*\n\s*clientId: fileOptionValueField\(value, "clientId"\) \|\| option\.clientId \|\| "",/,
       "the target option's value is the nested id record this serialises",
     );
     assert.match(

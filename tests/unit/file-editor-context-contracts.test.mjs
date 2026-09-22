@@ -20,7 +20,15 @@ import { createProjectTextReader, extractFunctionBlock } from "../../scripts/tes
 
 const source = createProjectTextReader().readText("public/js/files.js");
 
-const LIFTED = ["fileEditorTargetContextLabel", "findFileContextSelect", "fileEditorSelectedValue"];
+// `fileOptionValueField` joined this list with `0.33.33.43.11`, which re-typed the option `value`
+// to the `unknown` its filter actually establishes and transcribed the optional reads of it through
+// that helper. A lifted function may gain no free variable, so the helper has to be lifted beside
+// the label builder that now calls it - it is a dependency of the code under test, not a new
+// subject, and the suite still asserts only what the label builder answers.
+const LIFTED = [
+  "fileEditorTargetContextLabel", "findFileContextSelect", "fileEditorSelectedValue",
+  "fileOptionValueField",
+];
 
 /**
  * A sandbox whose `HTMLSelectElement` is a real constructor, so `instanceof` means something across

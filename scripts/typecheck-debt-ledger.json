@@ -437,6 +437,7 @@
         "tests/mutations/dashboard-panel.breaks.mjs",
         "tests/mutations/file-editor-context.breaks.mjs",
         "tests/mutations/file-editor-dialog.breaks.mjs",
+        "tests/mutations/file-option-list-shape.breaks.mjs",
         "tests/mutations/file-project-options.breaks.mjs",
         "tests/mutations/file-row-actions.breaks.mjs",
         "tests/mutations/file-row-mapping.breaks.mjs",
@@ -541,6 +542,7 @@
         "tests/unit/file-attachment-list-contracts.test.mjs",
         "tests/unit/file-editor-context-contracts.test.mjs",
         "tests/unit/file-editor-dialog-contracts.test.mjs",
+        "tests/unit/file-option-list-shape-contracts.test.mjs",
         "tests/unit/file-preview-contracts.test.mjs",
         "tests/unit/file-preview-row.test.mjs",
         "tests/unit/file-project-option-contracts.test.mjs",
@@ -870,7 +872,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 962,
+      "errorCount": 958,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -945,7 +947,7 @@
           },
           {
             "code": 7006,
-            "count": 57
+            "count": 53
           },
           {
             "code": 7019,
@@ -1645,8 +1647,8 @@
     }
   },
   "totals": {
-    "files": 1452,
-    "errors": 962,
+    "files": 1454,
+    "errors": 958,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
