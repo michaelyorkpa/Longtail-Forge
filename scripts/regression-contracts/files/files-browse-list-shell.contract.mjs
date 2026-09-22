@@ -79,8 +79,13 @@ assert.match(truncatedText, /span\.dataset\.fullText = text[\s\S]*span\.tabIndex
 assert.match(truncatedText, /pointerenter[\s\S]*showFilesTooltip\(span, text\)[\s\S]*pointerleave[\s\S]*hideFilesTooltip[\s\S]*focus[\s\S]*showFilesTooltip\(span, text\)[\s\S]*blur[\s\S]*hideFilesTooltip/, "Truncated text should reveal through the custom floating tooltip on hover and focus");
 
 const showFilesTooltip = extractFunctionSpan(filesScript, "showFilesTooltip");
-assert.match(showFilesTooltip, /document\.body\.appendChild\(activeFilesTooltip\)/, "Files tooltip should be appended to the body so it can float above table overflow");
-assert.match(showFilesTooltip, /target\.setAttribute\("aria-describedby", activeFilesTooltip\.id\)/, "Files tooltip should wire focus users through aria-describedby");
+// Retargeted by 0.33.33.43.5, which builds the tooltip into a local `tooltip` before publishing it
+// to the module handle, so that the handle can be typed `HTMLElement | null` without its own reads
+// needing a null check the original did not have. Both assertions still require the behaviour they
+// always required - the element reaches the body, and the target is described by its id - and are
+// spelled to accept either binding rather than to accept anything.
+assert.match(showFilesTooltip, /document\.body\.appendChild\((?:activeFilesTooltip|tooltip)\)/, "Files tooltip should be appended to the body so it can float above table overflow");
+assert.match(showFilesTooltip, /target\.setAttribute\("aria-describedby", (?:activeFilesTooltip|tooltip)\.id\)/, "Files tooltip should wire focus users through aria-describedby");
 
 const positionFilesTooltip = extractFunctionSpan(filesScript, "positionFilesTooltip");
 assert.match(positionFilesTooltip, /getBoundingClientRect\(\)[\s\S]*window\.innerWidth[\s\S]*window\.innerHeight/, "Files tooltip should position against the viewport");
