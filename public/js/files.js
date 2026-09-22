@@ -427,12 +427,28 @@
     });
   }
 
+  /**
+   * A filter's label and the control it names.
+   *
+   * Both are `unknown` because both are handed straight to the view factory's `children`, which
+   * `BrowserViewChildren` declares `unknown` - "a node, a string, an array of either, or
+   * null/undefined". The contract states the rule in as many words: option members are `unknown`
+   * where the implementation coerces. Nothing is converted here.
+   * @param {unknown} labelText @param {unknown} control
+   */
   function createFilterLabel(labelText, control) {
     return createFilesElement("label", {
       children: [labelText, control],
     });
   }
 
+  /**
+   * The same label, marked as business-scope so the page can hide it.
+   *
+   * Both parameters pass through to `createFilterLabel` untouched, so they carry its types rather
+   * than acquiring narrower ones on the way past.
+   * @param {unknown} labelText @param {unknown} control
+   */
   function createBusinessFilterLabel(labelText, control) {
     const label = createFilterLabel(labelText, control);
 
@@ -440,6 +456,17 @@
     return label;
   }
 
+  /**
+   * One filter input, marked with the dataset key the page finds it by.
+   *
+   * **`dataKey` is the one parameter here that is genuinely a string**, and not by preference: it
+   * is a computed key in the `dataset` bag, which `BrowserViewAttributeBag` declares
+   * `Record<string, unknown>`. `type` sits in the `attrs` bag as a value, where that same record
+   * asks nothing of it, so it stays `unknown` - declaring it `string` would claim of the factory
+   * what only this page's callers happen to satisfy.
+   * @param {unknown} type @param {string} dataKey
+   * @param {import("../../src/types/browser-contracts.js").BrowserViewAttributeBag} [attributes]
+   */
   function createInput(type, dataKey, attributes = {}) {
     return createFilesElement("input", {
       attrs: { type, ...attributes },
@@ -1117,6 +1144,14 @@
     });
   }
 
+  /**
+   * Text that may be clipped, carrying its full form for the tooltip.
+   *
+   * `value` is `unknown` because `String(value || "")` already converted it - that ToString is the
+   * page's own, not something this annotation introduces. `className` is joined into a string
+   * before it reaches the factory, and `Array.prototype.join` converts whatever it is given.
+   * @param {unknown} value @param {unknown} [className]
+   */
   function createTruncatedText(value, className = "") {
     const text = String(value || "").trim();
     const span = createFilesElement("span", {
@@ -1733,6 +1768,15 @@
     });
   }
 
+  /**
+   * One metadata pair the file editor shows but does not let you change.
+   *
+   * All three are `unknown`. `label` and the already-normalised `value` become `text`, which
+   * `BrowserViewTextValue` declares `unknown` and the factory reads through `String(...)`; `key`
+   * is a **literal** member of the `dataset` bag rather than a computed name, so it is a value
+   * that record accepts as `unknown`, not a key that must be a string.
+   * @param {unknown} label @param {unknown} value @param {unknown} key
+   */
   function createReadOnlyMetadataRow(label, value, key) {
     const view = requireView();
     return view.createElement("div", {
@@ -1777,6 +1821,13 @@
     });
   }
 
+  /**
+   * A labelled control in the file editor's own field layout.
+   *
+   * `label` becomes `text` and `control` becomes a child, both declared `unknown` by the view
+   * contract for the same stated reason - the factory coerces them itself.
+   * @param {unknown} label @param {unknown} control
+   */
   function createFileContextField(label, control) {
     const view = requireView();
     return view.createElement("label", {
@@ -1788,6 +1839,13 @@
     });
   }
 
+  /**
+   * One of the file editor's three context pickers.
+   *
+   * `datasetKey` is a computed key in the `dataset` bag, so it is a `string` for the same reason
+   * `createInput`'s is. `name` is a value in the `attrs` bag, which asks nothing of it.
+   * @param {string} datasetKey @param {unknown} name
+   */
   function createFileContextSelect(datasetKey, name) {
     return createFilesElement("select", {
       attrs: { name },

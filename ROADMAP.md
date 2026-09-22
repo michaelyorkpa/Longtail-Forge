@@ -122,7 +122,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.41.2` | `task-dialog.js` 850, `tasks.js` 311, `tasks-dashboard.js` 52, `task-resume-note-capture.js` 20, `task-calendar.js` 0 | 1,233 |
 | Codex | `0.33.33.42.1` | `workbench.js` — this owner's first child | 538 |
 | Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `lists-settings.js` 0 | 787 |
-| Claude | `0.33.33.43.11` | `files.js` — the **Files** module family, with `files-settings.js` complete | 68 |
+| Claude | `0.33.33.43.12` | `files.js` — the **Files** module family, with `files-settings.js` complete | 54 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
 These are **starting** boundaries. Each lane draws its own next child from the tree it actually has; neither pre-slices its remaining controllers.
@@ -1544,6 +1544,18 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.12 - The page's own element builders
+
+**Complete: 14 diagnostics closed, and the published vocabulary answered every one of them.** See the archive entry. The seven small builders the Files page wraps the shared view factory in.
+
+**The contract stated the rule, so this page did not have to decide it.** `BrowserViewFactory` says in as many words that option members are `unknown` where the implementation coerces, and names them: `children`, `text` and `className` are `unknown`; `attrs` and `dataset` are `Record<string, unknown>`. Twelve of the fourteen parameters are therefore `unknown` - not a permissive choice but the accurate one, and the reason no conversion was added anywhere.
+
+**Two parameters are genuinely strings, for a reason worth writing down.** `createInput`'s `dataKey` and `createFileContextSelect`'s `datasetKey` are **computed keys** in a `Record<string, unknown>`, so a string is what that record requires. The neighbouring `name` and `type` sit in the same bag as **values**, where it requires nothing - declaring those `string` would have claimed of the factory what only this page's callers happen to satisfy. A case pins the asymmetry and the sentence explaining it.
+
+**The count was 14, not the 15 this checkpoint was drawn for.** `createTruncatedText`'s `className` carries a default, so it was inferred rather than implicitly `any` and was never in the ledger. The boundary is unchanged; only the arithmetic was.
+
+**No executable line changed, so the proof is about conversion.** A recording factory stands in for the real one and each case asserts that a symbol, an object or a number handed to a builder **arrives unconverted, by identity**. The single conversion in range, `createTruncatedText`'s `String(value || "")`, is pinned as pre-existing - including that it answers `"Symbol(x)"` where a template form would have thrown.
 
 #### 0.33.33.43.11 - The option list's honest shape
 
