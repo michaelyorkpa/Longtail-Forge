@@ -674,6 +674,14 @@
     });
   }
 
+  /**
+   * One page of attachments, appended to the list or replacing it.
+   *
+   * `cursor` is a `string` because `URLSearchParams.set` requires one, and the sole caller passes
+   * `state.pagination.nextCursor`, which the normaliser below has already made a string. `append`
+   * is the boolean the same caller sends.
+   * @param {{ append?: boolean, cursor?: string }} [options]
+   */
   async function loadFiles(options = {}) {
     const api = requireApi();
     setStatus("Loading file attachments...");
@@ -862,6 +870,18 @@
     return { attachments, pagination, sort: sortMode };
   }
 
+  /**
+   * The two pagination members this page actually uses, from whichever spelling carries them.
+   *
+   * **A total normaliser, deliberately.** Its caller hands it a proved `BrowserBoundedPagination`
+   * - `isAttachmentPagination` checks all seven members - but this reader also accepts a
+   * `next_cursor` spelling that the published contract does not carry, and the contract's own note
+   * says this normaliser is left exactly as it was. Naming the published type here would therefore
+   * claim more than the reader wants and would make the snake_case read an error, so the shape is
+   * local and every member is optional and `unknown`: **none of them is proved by this function.**
+   * @param {{ hasMore?: unknown, nextCursor?: unknown, next_cursor?: unknown }} [pagination]
+   * @returns {{ hasMore: boolean, nextCursor: string }}
+   */
   function normalizeFilesPagination(pagination = {}) {
     const nextCursor = String(pagination.nextCursor || pagination.next_cursor || "").trim();
 
@@ -871,6 +891,13 @@
     };
   }
 
+  /**
+   * Whether the load-more control is offered, and whether it is busy.
+   *
+   * `loading` is `unknown` because the only thing done with it is `=== true`, which asks nothing
+   * of its type - declaring it `boolean` would claim of the caller what this reader never tests.
+   * @param {{ loading?: unknown }} [options]
+   */
   function updateFilesPagination(options = {}) {
     if (!filePagination || !loadMoreFilesButton) {
       return;
@@ -903,12 +930,27 @@
     return params;
   }
 
+  /**
+   * The list as rows, from the attachments the reader proved.
+   *
+   * `BrowserFileAttachment[]` is what `state.attachments` already declares and what
+   * `readFileAttachmentList` established element by element, so this is the published vocabulary
+   * reused rather than a parallel shape.
+   * @param {import("../../src/types/browser-contracts.js").BrowserFileAttachment[]} attachments
+   */
   function renderFiles(attachments) {
     const rows = attachments.map((attachment) => fileRow(attachment));
 
     renderFilesTable(rows);
   }
 
+  /**
+   * The table, rebuilt from rows this page constructed itself.
+   *
+   * The row type is `fileRow`'s own return rather than a restatement of it: that builder
+   * constructs every member, so its inferred shape is the truth and cannot drift from it.
+   * @param {ReturnType<typeof fileRow>[]} rows
+   */
   function renderFilesTable(rows) {
     if (fileTableMount) {
       fileTableMount.replaceChildren(createFilesTable(rows));
@@ -937,9 +979,16 @@
    * optional and each is named in both spellings the producer has used. `fileRow` is what turns
    * this into something the page can rely on, and it does that by defaulting every member it
    * keeps - which is why the row below can promise strings while this cannot.
+   *
+   * **The two timestamps admit `null`, corrected by `0.33.33.43.14`.** This shape originally
+   * wrote them `string`, which contradicted `BrowserFileAttachmentFile` - the published
+   * contract declares both `string | null` and says why: `null` until the row records a
+   * creation time. Nothing caught it until a caller of `fileRow` was typed. The reads are
+   * unaffected, because `file.createdAt || file.created_at` already fell through a `null`.
    * @typedef {{
    *   canReport?: unknown, can_report?: unknown, canQuarantine?: unknown, can_quarantine?: unknown,
-   *   createdAt?: string, created_at?: string, displayName?: string, originalFilename?: string,
+   *   createdAt?: string | null, created_at?: string | null,
+   *   displayName?: string, originalFilename?: string,
    *   extension?: string, fileSizeBytes?: unknown, file_size_bytes?: unknown,
    *   mimeTypeDetected?: string, mime_type_detected?: string, scanStatus?: string,
    *   scan_status?: string, status?: string, uploadedByLabel?: string, uploaded_by_label?: string
@@ -952,7 +1001,7 @@
    *   fileAttachmentId?: string, file_attachment_id?: string,
    *   moduleId?: string, module_id?: string,
    *   targetId?: string, target_id?: string, targetType?: string, target_type?: string,
-   *   targetLabel?: string, target_label?: string, target?: { label?: string },
+   *   targetLabel?: string, target_label?: string, target?: { label?: string } | null,
    *   clientId?: string, client_id?: string, clientLabel?: string, client_label?: string,
    *   projectId?: string, project_id?: string, projectLabel?: string, project_label?: string,
    *   createdAt?: string, created_at?: string,
@@ -1100,7 +1149,21 @@
       && Boolean(event.target.closest("[data-file-action], a, button, input, select, textarea"));
   }
 
+  /**
+   * One column of the attachment table.
+   *
+   * Declared here because the published `BrowserViewDataTableOptions` types `columns` as
+   * `readonly unknown[]` - it refuses to name a column shape **for consumers**, which leaves this
+   * page free to name the one it builds. **Every member is proved**, because the literals below
+   * construct all of them; `header` and `align` are optional only in the sense that most columns
+   * omit them.
+   * @typedef {{ key: string, label: string, header?: boolean, align?: string,
+   *   render?: (row: ReturnType<typeof fileRow>) => unknown }} FilesTableColumn
+   */
+
+  /** @returns {FilesTableColumn[]} */
   function filesTableColumns() {
+    /** @type {FilesTableColumn[]} */
     const columns = [
       { key: "fileName", label: "File", header: true, render: createFileCell },
       { key: "moduleLabel", label: "Module" },
@@ -2836,7 +2899,10 @@
    *
    * **Precondition, not proved:** nothing validates the value; the `Number.isNaN` branch below
    * is what already answered for anything unparseable, and it still does.
-   * @param {string} [value]
+   *
+   * `null` is admitted because that is what the producer sends: `BrowserFileAttachmentFile`
+   * declares both timestamps `string | null`. The falsy branch already answered for it.
+   * @param {string | null} [value]
    */
   function formatDate(value) {
     if (!value) {
