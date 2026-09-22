@@ -2839,7 +2839,9 @@
     return candidate.primaryAction?.label || "Review";
   }
 
-  /** @param {EventTarget | null} [trigger] */
+  // Candidate fields use the published producer vocabulary as caller preconditions, not validation.
+  // Opaque focus identity and its connected state consumers remain a separate boundary.
+  /** @param {Partial<WorkCandidate>} candidate @param {EventTarget | null} [trigger] @param {{mode?: string}} [options] */
   async function openCandidate(candidate, trigger = null, options = {}) {
     const mode = options.mode || "candidate-primary";
     const taskId = candidateTaskId(candidate);
@@ -2860,7 +2862,13 @@
       }
 
       openNonTaskFocusFallback(candidate);
-      trigger?.focus?.();
+      if (trigger != null) {
+        const focus = Reflect.get(trigger, "focus", trigger);
+        if (focus != null) {
+          if (typeof focus !== "function") throw new TypeError("The Workbench return-focus target must provide a callable focus member.");
+          Reflect.apply(focus, trigger, []);
+        }
+      }
       return;
     }
 
@@ -3369,6 +3377,7 @@
     }
   }
 
+  /** @param {Partial<WorkCandidate>} candidate */
   function openNonTaskFocusFallback(candidate) {
     const href = candidatePageFallback(candidate);
 
@@ -3383,7 +3392,7 @@
     setStatus("Task Focus is currently available for task candidates only. This work type needs an explicit page fallback.", { isError: true });
   }
 
-  /** @param {EventTarget | null} [trigger] */
+  /** @param {Partial<WorkCandidate>} candidate @param {NonNullable<ReturnType<typeof candidateModuleAction>>} action @param {EventTarget | null} [trigger] */
   async function openModuleActionCandidate(candidate, action, trigger = null) {
     if (action.moduleId && !moduleEnabled(action.moduleId)) {
       setStatus(`${action.moduleLabel} is not available in this workspace.`, { isError: true });
@@ -3414,7 +3423,7 @@
     }
   }
 
-  /** @param {EventTarget | null} [trigger] */
+  /** @param {TaskFocusRelatedItem} [item] @param {EventTarget | null} [trigger] */
   async function openTaskFocusRelatedContextItem(item = {}, trigger = null) {
     const action = item.action || {};
 
@@ -3476,6 +3485,7 @@
     }
   }
 
+  /** @param {Partial<WorkCandidate>} candidate */
   function openCandidateNavigationFallback(candidate) {
     const href = candidatePageFallback(candidate);
 
@@ -3490,6 +3500,7 @@
     setStatus("This recommendation does not have an in-place editor or page fallback yet.", { isError: true });
   }
 
+  /** @param {string} href */
   function navigateFromWorkbench(href, kind = "workbench-navigation") {
     const intent = requireNamespace().navigationIntent;
 
@@ -3576,6 +3587,7 @@
       && (candidate.metadata?.source_type || "manual") === "manual";
   }
 
+  /** @param {Partial<WorkCandidate>} [candidate] */
   function candidatePageFallback(candidate = {}) {
     if (isManualTimerCandidate(candidate)) {
       return "time-tracker.html";
@@ -3584,6 +3596,7 @@
     return candidate.primaryAction?.href || candidate.sourceUrl || "";
   }
 
+  /** @param {Partial<WorkCandidate>} [candidate] */
   function candidateCanOpen(candidate = {}) {
     return Boolean(candidateTaskId(candidate)
       || candidateModuleAction(candidate)
@@ -3720,6 +3733,7 @@
   // Returns the registry it just proved present. The four callers all opened the action
   // by re-reading the global, which asks the reader - and the compiler - to trust a check
   // made in another function. The throw, its message, and its timing are unchanged.
+  /** @param {string} actionId */
   async function ensureWorkbenchModuleAction(actionId) {
     const moduleActions = window.LongtailForge?.moduleActions;
 
@@ -4081,11 +4095,21 @@
     }
   }
 
+  /** @param {unknown} value @param {string} key @param {boolean} [optional] @returns {unknown} */
+  function taskCompletionField(value, key, optional = false) {
+    if (value == null) {
+      if (optional) return undefined;
+      throw new TypeError("The Workbench task completion detail cannot be read.");
+    }
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /** @param {unknown} [detail] */
   function setTaskCompletionStatus(detail = {}) {
-    const continuity = detail.recurrenceContinuity || null;
+    const continuity = taskCompletionField(detail, "recurrenceContinuity") || null;
     if (continuity) {
       renderTaskRecurrenceContinuity(continuity);
-      trackTaskRecurrenceContinuity(detail.recordId || detail.task?.task_id || "", continuity);
+      trackTaskRecurrenceContinuity(taskCompletionField(detail, "recordId") || taskCompletionField(taskCompletionField(detail, "task"), "task_id", true) || "", continuity);
       return;
     }
     setStatus("Task completed.");

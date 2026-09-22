@@ -743,6 +743,7 @@
         "tests/unit/work-candidate-query-edge.test.mjs",
         "tests/unit/work-candidate-ranking.test.mjs",
         "tests/unit/workbench-bootstrap-contracts.test.mjs",
+        "tests/unit/workbench-candidate-dispatch.test.mjs",
         "tests/unit/workbench-card-state.test.mjs",
         "tests/unit/workbench-checklist-readers.test.mjs",
         "tests/unit/workbench-focus-envelope.test.mjs",
@@ -858,7 +859,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1102,
+      "errorCount": 1085,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -997,7 +998,7 @@
         "public/js/workbench.js": [
           {
             "code": 2339,
-            "count": 32
+            "count": 22
           },
           {
             "code": 2345,
@@ -1021,7 +1022,7 @@
           },
           {
             "code": 7006,
-            "count": 93
+            "count": 86
           },
           {
             "code": 7023,
@@ -1649,8 +1650,8 @@
     }
   },
   "totals": {
-    "files": 1440,
-    "errors": 1102,
+    "files": 1441,
+    "errors": 1085,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
