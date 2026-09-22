@@ -4,12 +4,13 @@ import { it } from "vitest";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 const source = createProjectTextReader().readText("public/js/workbench.js");
 const names = ["workbenchCardField", "workbenchCardPropertyKey", "renderRegisteredWorkbenchCards", "workbenchRegistryCardsChanged", "readCardState", "restoreCardState", "persistCardState", "handleWorkbenchCardToggle", "isTimerWorkbenchCard"];
-class DetailsFixture {}
+class HtmlFixture {}
+class DetailsFixture extends HtmlFixture {}
 function fixture() {
   /** @type {unknown[]} */ const cards = [];
   /** @type {unknown[][]} */ const calls = [];
   let stored = "{}";
-  const scope = vm.createContext({ HTMLDetailsElement: DetailsFixture, state: { registry: { workbenchCards: [] } }, workbenchCardRenderers: {}, WORKBENCH_CARD_STATE_KEY: "lf_workbench_cards_v1", timerSectionUserToggled: false,
+  const scope = vm.createContext({ HTMLDetailsElement: DetailsFixture, HTMLElement: HtmlFixture, state: { registry: { workbenchCards: [] } }, workbenchCardRenderers: {}, WORKBENCH_CARD_STATE_KEY: "lf_workbench_cards_v1", timerSectionUserToggled: false,
     document: { querySelectorAll: () => cards },
     window: { localStorage: { getItem: () => stored, setItem: (/** @type {string} */ key, /** @type {string} */ value) => { calls.push(["store", key, value]); stored = value; } } },
     updateDisclosureExpandedState: (/** @type {unknown} */ card) => calls.push(["expanded", card]),
@@ -66,8 +67,8 @@ it("retains symbols, inherited datasets, and required-read failure timing", () =
 });
 it("keeps registration identity, visibility-before-dispatch, receiver and inherited lookup", () => {
   const f = fixture(), contribution = { renderer: "registered" };
-  const card = { dataset: { workbenchRenderer: "registered" }, hidden: true };
-  f.cards.push(card, { dataset: { workbenchRenderer: "absent" }, hidden: false });
+  const card = Object.assign(new HtmlFixture(), { dataset: { workbenchRenderer: "registered" }, hidden: true });
+  f.cards.push(card, Object.assign(new HtmlFixture(), { dataset: { workbenchRenderer: "absent" }, hidden: false }));
   f.scope.state.registry.workbenchCards = [contribution];
   f.scope.workbenchCardRenderers = Object.create({ registered: function (/** @type {unknown} */ value) { assert.equal(this, undefined); assert.equal(value, contribution); assert.equal(card.hidden, false); } });
   f.scope.renderRegisteredWorkbenchCards();

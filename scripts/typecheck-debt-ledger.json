@@ -422,6 +422,7 @@
         "tests/e2e/workbench-mobile-chip-layout.spec.mjs",
         "tests/e2e/workbench-mobile-inspector.spec.mjs",
         "tests/e2e/workbench-navigation-disclosure.spec.mjs",
+        "tests/e2e/workbench-reflective-audit.spec.mjs",
         "tests/e2e/workbench-related-context.spec.mjs",
         "tests/e2e/workbench-task-opener.spec.mjs",
         "tests/e2e/workspace-isolation.spec.mjs",
@@ -1645,7 +1646,7 @@
     }
   },
   "totals": {
-    "files": 1460,
+    "files": 1461,
     "errors": 915,
     "explicitAny": 0
   },

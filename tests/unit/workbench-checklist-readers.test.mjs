@@ -88,6 +88,8 @@ it("keeps required reads failing at consumption, and closest's receiver and resu
   assert.throws(() => projection.task, /checklist value cannot be read/);
   const result = {};
   const host = { closest(/** @type {string} */ selector) { assert.equal(this, host); assert.equal(selector, "selector"); return result; } };
+  Object.defineProperty(host.closest, "call", { value: 7 });
+  Object.defineProperty(host.closest, "apply", { value: 7 });
   assert.equal(s.taskFocusChecklistClosest(host, "selector"), result);
   assert.throws(() => s.taskFocusChecklistClosest({ closest: 1 }, "x"), /requires closest/);
 });
