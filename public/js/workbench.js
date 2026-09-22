@@ -3884,6 +3884,22 @@
     return details;
   }
 
+  /**
+   * Action callers carry the all-timers producer's slot plus these task-timer vocabulary
+   * members. Optional fields retain sparse caller handling; the array-only Workbench loader
+   * does not establish readTaskTimers/readTaskTimer guarantees. The unified producer permits
+   * a null source_id, and source_enabled is a provider decoration consumed by truthiness.
+   * @typedef {Partial<Pick<import("../../src/types/browser-contracts.js").BrowserTaskTimerRecord, "active_timer_id" | "timer_status" | "accumulated_elapsed_seconds" | "last_active_start_time" | "source_type" | "client_id" | "client_name" | "project_id" | "project_name" | "description" | "source_label" | "billable">> & import("../../src/types/browser-contracts.js").BrowserActiveTimerSlotRecord & {source_id?: string | null, source_enabled?: unknown}} WorkbenchTimerActionRecord
+   */
+
+  /** Optional task envelope access preserves raw task identity and each getter read.
+   * @param {unknown} result @returns {unknown}
+   */
+  function taskFocusTimerResultTask(result) {
+    return result == null ? undefined : Reflect.get(Object(result), "task", result);
+  }
+
+  /** @param {WorkbenchTimerActionRecord} timer */
   async function startExistingTimer(timer) {
     pendingActivatedTimerKey = timerKey(timer);
     if (timer.source_type === "task" && timer.source_enabled) {
@@ -3894,11 +3910,12 @@
     await updateTimerStatus(timer, "running");
   }
 
+  /** @param {WorkbenchTimerActionRecord} timer */
   async function pauseExistingTimer(timer) {
     if (timer.source_type === "task" && timer.source_enabled) {
       const result = await saveTaskTimer(timer.source_id, "paused", readElapsedSeconds(timer), timer.active_timer_id);
-      if (result?.task) {
-        offerTaskResumeNote(result.task);
+      if (taskFocusTimerResultTask(result)) {
+        offerTaskResumeNote(taskFocusTimerResultTask(result));
       }
       return;
     }
@@ -3906,6 +3923,7 @@
     await updateTimerStatus(timer, "paused");
   }
 
+  /** @param {WorkbenchTimerActionRecord} timer @param {string} timerStatus */
   async function updateTimerStatus(timer, timerStatus) {
     const api = requireApi();
     setStatus(timerStatus === "running" ? "Starting timer..." : "Pausing timer...");
@@ -3921,11 +3939,12 @@
     }
   }
 
+  /** @param {string | null | undefined} taskId @param {string} timerStatus @param {number} elapsedSeconds @param {string} [activeTimerId] */
   async function saveTaskTimer(taskId, timerStatus, elapsedSeconds, activeTimerId = "") {
     const api = requireApi();
     setStatus(timerStatus === "running" ? "Starting task timer..." : "Pausing task timer...");
     try {
-      const result = await api.putJson(`/api/tasks/${encodeURIComponent(taskId)}/timer`, {
+      const result = await api.putJson(`/api/tasks/${encodeURIComponent(`${taskId}`)}/timer`, {
         active_task_timer_id: activeTimerId,
         timer_status: timerStatus,
         accumulated_elapsed_seconds: elapsedSeconds,
@@ -3939,6 +3958,7 @@
     }
   }
 
+  /** @param {string} timerStatus */
   async function saveFocusedTaskTimer(timerStatus) {
     const api = requireApi();
     const taskId = state.activeTaskFocus?.taskId || "";
@@ -3971,6 +3991,7 @@
     }
   }
 
+  /** @param {Event | null} [event] */
   async function finalizeFocusedTaskTimer(event) {
     const api = requireApi();
     const taskId = state.activeTaskFocus?.taskId || "";
@@ -4027,15 +4048,16 @@
     }
   }
 
+  /** @param {unknown} result @param {string} taskId */
   async function refreshWorkbenchAfterTaskFocusTimerMutation(result, taskId) {
-    if (result?.task && state.activeTaskFocus?.taskId === taskId) {
-      applyActiveTaskFocusTask(result.task);
+    if (taskFocusTimerResultTask(result) && state.activeTaskFocus?.taskId === taskId) {
+      applyActiveTaskFocusTask(taskFocusTimerResultTask(result));
     }
 
     await loadWorkbench();
 
-    if (result?.task && state.activeTaskFocus?.taskId === taskId) {
-      applyActiveTaskFocusTask(result.task);
+    if (taskFocusTimerResultTask(result) && state.activeTaskFocus?.taskId === taskId) {
+      applyActiveTaskFocusTask(taskFocusTimerResultTask(result));
       renderTaskFocusSurface();
       renderWorkbenchInspector();
       renderWorkbenchViewState();
@@ -4103,6 +4125,7 @@
     });
   }
 
+  /** @param {WorkbenchTimerActionRecord} timer */
   async function finalizeTimer(timer) {
     const api = requireApi();
     if (timer.source_type === "task" && timer.source_enabled && timer.source_id) {
@@ -4136,13 +4159,14 @@
     }
   }
 
+  /** @param {WorkbenchTimerActionRecord} timer */
   async function finalizeSourceTaskTimer(timer) {
     const api = requireApi();
     const durationSeconds = Math.max(1, readElapsedSeconds(timer));
 
     setStatus("Saving task timer...");
     try {
-      const result = await api.postJson(`/api/tasks/${encodeURIComponent(timer.source_id)}/timer/finalize`, {
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(`${timer.source_id}`)}/timer/finalize`, {
         duration_seconds: durationSeconds,
         end_time: new Date().toISOString(),
       });
@@ -4154,6 +4178,7 @@
     }
   }
 
+  /** @param {EventTarget | null} [trigger] */
   function offerTaskResumeNote(task, trigger = null) {
     void requireNamespace().taskResumeNoteCapture?.offer({
       task,
@@ -4175,6 +4200,7 @@
     });
   }
 
+  /** @param {WorkbenchTimerActionRecord} timer */
   async function discardTimer(timer) {
     const modal = requireModalDialogs();
     const api = requireApi();
@@ -4203,6 +4229,7 @@
     }
   }
 
+  /** @param {WorkbenchTimerActionRecord[]} timers */
   function flashActivatedTimer(timers) {
     if (!pendingActivatedTimerKey) {
       return;
