@@ -122,7 +122,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.41.2` | `task-dialog.js` 850, `tasks.js` 311, `tasks-dashboard.js` 52, `task-resume-note-capture.js` 20, `task-calendar.js` 0 | 1,233 |
 | Codex | `0.33.33.42.1` | `workbench.js` — this owner's first child | 538 |
 | Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `lists-settings.js` 0 | 787 |
-| Claude | `0.33.33.43.6` | `files.js` — the **Files** module family, with `files-settings.js` complete | 177 |
+| Claude | `0.33.33.43.7` | `files.js` — the **Files** module family, with `files-settings.js` complete | 142 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
 These are **starting** boundaries. Each lane draws its own next child from the tree it actually has; neither pre-slices its remaining controllers.
@@ -1544,6 +1544,14 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.7 - The Files editor's dialog
+
+**Complete: 35 diagnostics closed, and the file editor is typed end to end.** See the archive entry. The eleven readers that open, build, wire and enable the dialog, joining the target-context half `0.33.33.43.6` took.
+
+**The existing shapes were grown rather than duplicated.** `FileEditorRow` gained the five members this half reads instead of a second row shape beside it, and `parseFileEditorTargetValue` and `safeOptionList` answer `Partial<FileEditorContextPayload>` and `FileEditorTargetOption[]` - the typedefs `0.33.33.43.6` already declared. The dialog itself is typed from its producer, `renderDescriptorModalForm`, whose published return is `BrowserViewModalFormElement`.
+
+**Thirteen diagnostics were introduced and resolved rather than netted off**, the same `Element`-versus-subtype pressure the context half hit. Two implicit conversions were written out, and in both the plausible explicit form is a *different* conversion: `JSON.parse` converts with `ToString`, so the template is right and `String()` is not, and the `disabled` setter converts with `ToBoolean`, which is what `Boolean(...)` restates.
 
 #### 0.33.33.43.6 - The Files editor's target context
 

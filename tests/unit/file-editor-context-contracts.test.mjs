@@ -207,10 +207,23 @@ describe("The narrowing matches the builder", () => {
     );
   });
 
-  it("the target select is found through the same checked lookup", () => {
-    assert.ok(
-      source.includes('const targetSelect = findFileContextSelect(dialog, "[data-file-context-target]");'),
-      "the payload builder reads selectedOptions, which only a select has",
+  /**
+   * Counted rather than merely present. `0.33.33.43.7` added two more sites that look the target
+   * select up, and an `includes` check passes while any one of them survives - so mutating a single
+   * site went undetected. Every lookup of this control must go through the checked finder.
+   */
+  it("every target-select lookup that reads a subtype member goes through the checked finder", () => {
+    const checked = source.match(/findFileContextSelect\(dialog, "\[data-file-context-target\]"\)/g) || [];
+    const raw = source.match(/dialog\.querySelector\("\[data-file-context-target\]"\)(\?\.addEventListener)?/g) || [];
+
+    assert.ok(checked.length >= 3, `expected every subtype read to be checked, found ${checked.length}`);
+    // One raw lookup is correct and must stay raw: it only registers a listener, which is every
+    // element's. Narrowing it would claim more than that site uses. Any *other* raw lookup would
+    // be reading a select member off an Element.
+    assert.deepEqual(
+      raw,
+      ['dialog.querySelector("[data-file-context-target]")?.addEventListener'],
+      "a raw lookup is only correct where nothing but Element members are read through it",
     );
   });
 });

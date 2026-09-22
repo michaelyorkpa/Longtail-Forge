@@ -64,7 +64,11 @@ assert.match(buildBlock, /saveFileEditorContext\(dialog,\s*row,\s*options\)/, "F
 assert.match(controlBlock, /hydrateFileEditorProjectControl\(dialog,\s*row\)[\s\S]*loadFileEditorTargetOptions\(dialog,\s*row\)/, "Client changes should refresh the stable Project list before reloading target choices");
 assert.doesNotMatch(controlBlock, /applyFileEditorSelectedTargetContext|setSelectValueIfPresent/, "Target changes should not rewrite Client/Project dropdown values");
 assert.match(controlBlock, /syncFileEditorSaveState\(dialog/, "Target and loading states should keep Save disabled until an available target exists");
-assert.match(controlBlock, /saveButton\.disabled = forceDisabled \|\| !targetSelect\?\.value \|\| selectedTarget\?\.disabled/, "Save should be disabled while loading, blank, or on unavailable fallback targets");
+// Retargeted by 0.33.33.43.7, which wraps the same expression in `Boolean(...)` - the conversion
+// the `disabled` setter already performed, written out because the last operand is `undefined`
+// whenever no option is selected. The three conditions and their order are still required; only
+// the surrounding conversion is now optional in the pattern.
+assert.match(controlBlock, /saveButton\.disabled = (?:Boolean\()?forceDisabled \|\| !targetSelect\?\.value \|\| selectedTarget\?\.disabled/, "Save should be disabled while loading, blank, or on unavailable fallback targets");
 
 assert.match(saveBlock, /api\.patchJson\(`\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/context`,\s*payload\)/, "File Context Save should call the attachment-context PATCH route");
 assert.match(saveBlock, /view\.closeModal\(dialog,\s*"saved"\)/, "Successful save should close the modal");
