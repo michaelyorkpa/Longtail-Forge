@@ -432,6 +432,7 @@
         "tests/mutations/calendar-settings-scope.breaks.mjs",
         "tests/mutations/dashboard-entry-bridge.breaks.mjs",
         "tests/mutations/dashboard-panel.breaks.mjs",
+        "tests/mutations/files-settings-collectors.breaks.mjs",
         "tests/mutations/footer-quick-action.breaks.mjs",
         "tests/mutations/help-article.breaks.mjs",
         "tests/mutations/hidden-label-safeguard.breaks.mjs",
@@ -534,6 +535,7 @@
         "tests/unit/files-preview.service.test.mjs",
         "tests/unit/files-scanner-job.service.test.mjs",
         "tests/unit/files-settings-accounting-contracts.test.mjs",
+        "tests/unit/files-settings-collectors.test.mjs",
         "tests/unit/files-storage-accounting.service.test.mjs",
         "tests/unit/final-publication-contracts.test.mjs",
         "tests/unit/focus-mode-resolution.test.mjs",
@@ -848,7 +850,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1213,
+      "errorCount": 1207,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -910,20 +912,6 @@
           {
             "code": 7053,
             "count": 5
-          }
-        ],
-        "public/js/files-settings.js": [
-          {
-            "code": 7005,
-            "count": 1
-          },
-          {
-            "code": 7006,
-            "count": 4
-          },
-          {
-            "code": 7034,
-            "count": 1
           }
         ],
         "public/js/files.js": [
@@ -1653,8 +1641,8 @@
     }
   },
   "totals": {
-    "files": 1430,
-    "errors": 1213,
+    "files": 1432,
+    "errors": 1207,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

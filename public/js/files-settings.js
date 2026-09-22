@@ -4,6 +4,19 @@
   const filesSettingsAuxiliary = document.querySelector("[data-module-settings-legacy='files']");
   const filesSettingsStatus = asStatusElement(document.querySelector("[data-module-settings-status]"));
 
+  /**
+   * The settings catalogue, exactly as the server sent it and no further.
+   *
+   * **`unknown` is the accurate type here, not a retreat from one.** Both writes assign an
+   * `api.getJson` result, which the API contract declares `Promise<unknown>`, and this page never
+   * reads a member of it - it stores the body and hands it straight to
+   * `settingsHost.attachmentSections`, whose own published parameter is `unknown`. Naming a
+   * catalogue shape would claim a validation that nothing here performs: no reader checks this
+   * body, and the module that understands it is the one being handed it.
+   *
+   * `null` remains the pre-load value, which the renderer already tolerates.
+   * @type {unknown}
+   */
   let settingsCatalog = null;
   /**
    * The storage readout, or `null` when the server has not given one this browser can vouch for.
@@ -334,18 +347,32 @@
     })));
   }
 
+  /**
+   * The three collectors read a field value straight out of `collectPayload`, whose published
+   * type is `Record<string, Record<string, unknown>>` - a module owns what its own settings mean,
+   * so the renderer hands them over unread. `unknown` is what arrives, and each of these already
+   * coerces whatever it is given.
+   * @param {unknown} value
+   */
   function parseExtensions(value) {
     return String(value || "").split(/[\s,]+/).map((item) => item.trim()).filter(Boolean);
   }
 
+  /** @param {unknown} value */
   function nullableInteger(value) {
     if (value === "" || value === null || value === undefined) {
       return null;
     }
-    const parsed = Number.parseInt(value, 10);
+    // The template is the conversion `parseInt` already performs on its first argument, written
+    // where the compiler can see it. **Not `String(value)`**, which is a different conversion: a
+    // symbol makes `parseInt` throw and makes `String` return `"Symbol(x)"`, so `String` would
+    // quietly turn a throw into `null`. `${value}` throws exactly where the raw call threw, and
+    // agrees with it on every other value.
+    const parsed = Number.parseInt(`${value}`, 10);
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
   }
 
+  /** @param {unknown} value */
   function formatBytes(value) {
     const bytes = Number(value || 0);
     if (!bytes) return "0 B";
@@ -354,6 +381,7 @@
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   }
 
+  /** @param {string} message @param {boolean} [isError] */
   function setStatus(message, isError = false) {
     requireStatusMessage().set(filesSettingsStatus, message, isError ? { type: "error" } : {});
   }
