@@ -71,6 +71,7 @@ it("the requested boxed focus lookup accepts inherited primitive focus and keeps
   const scope = vm.createContext({ candidateTaskId: () => "", candidateModuleAction: () => null, openNonTaskFocusFallback: () => {} });
   vm.runInContext(extractFunctionBlock(source, "openCandidate"), scope);
   vm.runInContext('Number.prototype.focus = function () { "use strict"; globalThis.focusReceiver = this; };', scope);
+  vm.runInContext("Number.prototype.focus.call = 7; Number.prototype.focus.apply = 7;", scope);
   await scope.openCandidate({}, 7);
   assert.equal(scope.focusReceiver, 7);
 });

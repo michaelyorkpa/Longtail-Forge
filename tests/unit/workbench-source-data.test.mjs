@@ -192,3 +192,10 @@ it("records the unresolved route boundary against the real registry reader and A
   assert.deepEqual(requested, [7]);
   assert.deepEqual(JSON.parse(JSON.stringify(result.taskOptions)), { projects: [] });
 });
+
+it("keeps sloppy loader receivers global rather than binding them to the card", async () => {
+  const s = fixture();
+  vm.runInContext('globalThis.workbenchCardDataLoaders = { plain: function(card) { if (this !== globalThis) throw new Error("changed receiver"); return { timers: [card] }; } };', s);
+  const card = { renderer: "plain", listRoute: "/source" };
+  assert.equal((await s.loadWorkbenchSourceData({ workbenchCards: [card] })).timers[0], card);
+});
