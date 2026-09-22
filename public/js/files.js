@@ -155,6 +155,7 @@
       hasMore: false,
       nextCursor: "",
     },
+    /** @type {FileProjectOption[]} */
     projects: [],
   };
   const FILE_REPORT_REASON = "security";
@@ -541,7 +542,29 @@
     }
   }
 
+  /**
+   * One project as this page flattens it for a picker.
+   *
+   * **Every member is proved**, because this page constructs all four: the id comes from a project
+   * the normaliser already kept, and the two labels fall through to `"Untitled Project"`. That is
+   * the output-normalized half of the split `BrowserClientProjectOptions` describes - its input is
+   * `unknown` because it is a wire body, and its output is named strongly because the writer builds
+   * every field.
+   *
+   * **The option records themselves are deliberately not named here.**
+   * `BrowserClientProjectOptionsBody` types its collections `unknown[]` and records naming their
+   * elements as the work of whoever owns that shared surface. This page reads them through
+   * `normalizeClients`, whose published output is `NormalizedClientOption[]`, so it reuses that
+   * rather than settling another owner's debt from the consumer that needs least of it.
+   * @typedef {{ id: string, clientId: string, label: string, projectLabel: string }} FileProjectOption
+   */
+
+  /**
+   * @param {import("../../src/types/browser-contracts.js").NormalizedClientOption[]} clients
+   * @returns {FileProjectOption[]}
+   */
   function flattenProjectOptions(clients) {
+    /** @type {FileProjectOption[]} */
     const projects = [];
 
     clients.forEach((client) => {
@@ -606,6 +629,12 @@
     projectFilter.value = projects.some((project) => project.id === previousValue) ? previousValue : "";
   }
 
+  // Deliberately left untyped by `0.33.33.43.10`. Both this and `hydrateContextSelect` read a
+  // list from `safeOptionList`, which serves **two different option shapes**: a target option,
+  // whose `value` is the nested id record `fileEditorTargetOptionValue` serialises, and a project
+  // option, whose `value` is a plain id string. Typing either consumer means re-typing that
+  // filter to describe what it actually admits, which is its own boundary rather than a detail
+  // of this one.
   function createOption(value, label) {
     return createFilesElement("option", {
       attrs: { value },
@@ -1799,6 +1828,8 @@
    * @typedef {{ attachmentId?: string, clientId?: string, projectId?: string, clientLabel?: string,
    *   targetLabel?: string, fileName?: string, previewable?: unknown, reviewable?: unknown,
    *   fileId?: string, status?: string, scanStatus?: string, canManageReview?: unknown,
+   *   moduleId?: string, moduleLabel?: string, projectLabel?: string, targetType?: string,
+   *   targetId?: string,
    *   attachment?: unknown,
    *   file?: unknown }} FileEditorRow
    */
@@ -1823,7 +1854,8 @@
    * is the nested id pair the option may carry instead of flat ids. **Not validated**: this page
    * reads the response through no checker, so this names what it reads, not what it proved.
    * @typedef {{ clientId?: string, projectId?: string, clientLabel?: string, projectLabel?: string,
-   *   contextLabel?: string, label?: string, moduleId?: string, targetId?: string,
+   *   contextLabel?: string, label?: string, moduleLabel?: string, targetTypeLabel?: string,
+   *   moduleId?: string, targetId?: string,
    *   targetType?: string, value?: { clientId?: string, projectId?: string, moduleId?: string,
    *   targetId?: string, targetType?: string } }} FileEditorTargetOption
    */
@@ -1961,6 +1993,7 @@
     hydrateFileEditorProjectControl(dialog, row);
   }
 
+  /** @param {Element} dialog @param {FileEditorRow} row */
   function hydrateFileEditorProjectControl(dialog, row) {
     const projectSelect = dialog.querySelector("[data-file-context-project]");
 
@@ -1988,6 +2021,7 @@
     }));
   }
 
+  /** @param {string} [clientId] @returns {{ label: string, value: string }[]} */
   function fileEditorProjectOptions(clientId = "") {
     const projects = clientId
       ? state.projects.filter((project) => project.clientId === clientId)
@@ -2038,6 +2072,7 @@
     select.dataset.fileContextLoaded = "true";
   }
 
+  /** @param {FileEditorTargetOption} option @param {{ clientId?: string, projectId?: string }} [context] */
   function createFileEditorTargetOption(option, context = {}) {
     const optionNode = createOption(fileEditorTargetOptionValue(option), fileEditorTargetOptionLabel(option, context));
 
@@ -2049,6 +2084,7 @@
     return optionNode;
   }
 
+  /** @param {FileEditorRow} row @returns {FileEditorTargetOption} */
   function fileEditorCurrentTargetOption(row) {
     return {
       clientId: row.clientId,
@@ -2072,6 +2108,7 @@
     };
   }
 
+  /** @param {FileEditorTargetOption} option */
   function fileEditorTargetOptionValue(option) {
     const value = option.value || {};
 
@@ -2084,6 +2121,7 @@
     });
   }
 
+  /** @param {FileEditorTargetOption} option @param {{ clientId?: string, projectId?: string }} [context] */
   function fileEditorTargetOptionLabel(option, context = {}) {
     const targetLabel = metadataText(option.label, "Untitled target");
     const typeLabel = [option.moduleLabel, option.targetTypeLabel].filter(Boolean).join(": ");

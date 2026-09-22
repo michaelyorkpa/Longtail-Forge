@@ -122,7 +122,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.41.2` | `task-dialog.js` 850, `tasks.js` 311, `tasks-dashboard.js` 52, `task-resume-note-capture.js` 20, `task-calendar.js` 0 | 1,233 |
 | Codex | `0.33.33.42.1` | `workbench.js` — this owner's first child | 538 |
 | Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `lists-settings.js` 0 | 787 |
-| Claude | `0.33.33.43.9` | `files.js` — the **Files** module family, with `files-settings.js` complete | 88 |
+| Claude | `0.33.33.43.10` | `files.js` — the **Files** module family, with `files-settings.js` complete | 72 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
 These are **starting** boundaries. Each lane draws its own next child from the tree it actually has; neither pre-slices its remaining controllers.
@@ -1544,6 +1544,16 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.10 - The client and project option plumbing
+
+**Complete: 16 diagnostics closed, and a published vocabulary reused rather than redeclared.** See the archive entry. The flattener, the page state it fills, and the target-option readers around it.
+
+**The shared surface's debt was left where it belongs.** `BrowserClientProjectOptionsBody` types its collections `unknown[]` and records naming their elements as the work of whoever owns that surface. This page reads them through `normalizeClients`, whose published output is `NormalizedClientOption[]`, so it reuses that rather than settling another owner's debt from the consumer that needs least of it.
+
+**No executable line changed.** The whole checkpoint is annotation plus two local `@type` declarations, one of which finally settles the `state.projects` `never[]` inference that adjacent work had surfaced twice without owning.
+
+**Two consumers were left untyped on purpose.** `createOption` and `hydrateContextSelect` both read a list from `safeOptionList`, which serves two different option shapes - a target option whose `value` is a nested id record, and a project option whose `value` is a plain id string. Typing either means re-typing that filter to describe what it actually admits, which is its own boundary.
 
 #### 0.33.33.43.9 - The attachment record and the row it becomes
 

@@ -22,8 +22,11 @@ const LIFTED = [
 
 /** @param {boolean} [mayManage] whether the workspace grants files.manage_quarantine */
 function actions(mayManage = false) {
-  const sandbox = vm.createContext({ Reflect });
-  vm.runInContext(`function workspaceHasPermission() { return ${Boolean(mayManage)}; }`, sandbox);
+  // The permission crosses as data rather than being interpolated into the helper's source, for
+  // the same reason as `file-project-option-contracts`: a code string that depends on a value is
+  // code construction, even when the value is provably a boolean.
+  const sandbox = vm.createContext({ Reflect, workspaceMayManage: Boolean(mayManage) });
+  vm.runInContext("function workspaceHasPermission() { return workspaceMayManage; }", sandbox);
   for (const name of LIFTED) vm.runInContext(extractFunctionBlock(source, name), sandbox);
 
   return vm.runInContext(`({ ${LIFTED.join(", ")} })`, sandbox);
