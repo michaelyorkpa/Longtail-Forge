@@ -131,7 +131,14 @@ describe("The published vocabulary is reused rather than redeclared", () => {
       source,
       /@typedef \{\{ id: string, clientId: string, label: string, projectLabel: string \}\} FileProjectOption/,
     );
-    assert.match(source, /\*\*Every member is proved\*\*/, "because the builder constructs all four");
+    // Anchored on its own sentence, not the phrase alone. `0.33.33.43.14` added a second
+    // "**Every member is proved**" for the table-column typedef, which made a bare phrase match
+    // pass even when *this* claim was mutated away - the pin stopped biting without failing.
+    assert.match(
+      source,
+      /\*\*Every member is proved\*\*, because this page constructs all four/,
+      "because the builder constructs all four",
+    );
   });
 
   it("carries that option through the page state rather than re-deriving it", () => {
