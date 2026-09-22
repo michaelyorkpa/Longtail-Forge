@@ -40,7 +40,7 @@ assert.match(
 );
 const loadTaskOptionsData = extractFunctionBody(workbenchScript, "loadTaskOptionsData");
 assert.match(loadTaskOptionsData, /api\.getJson\(card\.listRoute/, "Task options should still load from the contributed list route");
-assert.match(loadTaskOptionsData, /taskOptions: data\?\.options \|\| \{ projects: \[\] \}/, "Task options should remain normalized");
+assert.match(loadTaskOptionsData, /taskOptions: workbenchSourceFields\(data\)\.options \|\| \{ projects: \[\] \}/, "Task options should remain normalized");
 assert.doesNotMatch(loadTaskOptionsData, /items|taskItems/, "Task options loading must not consume task-list items");
 
 assert.match(

@@ -20,6 +20,8 @@ test("Task Focus state carries checklist data through real timer mutations and r
   await expect(page.locator("[data-workbench-task-focus-summary]")).toContainText("State preservation");
   const checklist = page.locator('[data-workbench-task-focus-checklist]');
   const checkbox = page.getByRole("checkbox", { name: "Mark Keep this checklist row complete" });
+  // The title exists during loading; wait for the row before deciding whether to toggle.
+  await expect(checkbox).toBeAttached();
   // Use the module's own disclosure, rather than removing hidden/open state in the test.
   if (!await checkbox.isVisible()) await checklist.locator("summary").click();
   const checked = page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith(`/checklist/${itemId}/check`));

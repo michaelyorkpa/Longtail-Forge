@@ -7,7 +7,7 @@ const source = createProjectTextReader().readText("public/js/workbench.js");
 
 function fixture() {
   const scope = vm.createContext({ state: { taskOptions: {}, timers: [], activeTaskFocus: { taskId: "task", task: { status: "open", project_id: "project" } } }, moduleEnabled: () => true });
-  for (const name of ["mergeWorkbenchSourceData", "loadWorkbenchSourceData", "taskFocusTimerEligibility", "taskTimerSurfaceAvailable", "startTicking", "readElapsedSeconds"])
+  for (const name of ["workbenchSourceField", "workbenchSourceFields", "workbenchCardField", "workbenchCardPropertyKey", "loadTimerCardData", "loadTaskOptionsData", "mergeWorkbenchSourceData", "loadWorkbenchSourceData", "taskFocusTimerEligibility", "taskTimerSurfaceAvailable", "startTicking", "readElapsedSeconds"])
     vm.runInContext(extractFunctionBlock(source, name), scope);
   return scope;
 }
@@ -111,4 +111,84 @@ it("preserves primitive ID receivers, nullish failures and tick stopping order",
     assert.deepEqual(Array.from(s.calls), [7, '[data-workbench-duration="number"]']);
     s.tickIntervalId = null;
   }
+});
+
+it("keeps loader body members opaque and observes changing getters without validation", async () => {
+  const s = fixture(), timers = [null, 7, { sparse: true }], options = Symbol("options");
+  /** @type {unknown[]} */ const calls = [];
+  let reads = 0;
+  const body = Object.create({ get timers() { assert.equal(this, body); calls.push("timers"); return ++reads === 1 ? [] : timers; } });
+  s.requireApi = () => ({ getJson: async (/** @type {unknown} */ route, /** @type {unknown} */ settings) => { calls.push(route, settings); return body; } });
+  const route = { toString() { throw new Error("must remain opaque"); } };
+  assert.equal((await s.loadTimerCardData({ listRoute: route })).timers, timers);
+  assert.equal(calls[0], route);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[1])), { cache: "no-store" });
+  assert.deepEqual(calls.slice(2), ["timers", "timers"]);
+  s.requireApi = () => ({ getJson: async () => ({ options }) });
+  assert.equal((await s.loadTaskOptionsData({ listRoute: "/options" })).taskOptions, options);
+  for (const value of [null, undefined, 0, "", false]) {
+    s.requireApi = () => ({ getJson: async () => value });
+    assert.deepEqual(Array.from((await s.loadTimerCardData({})).timers), []);
+    assert.deepEqual(JSON.parse(JSON.stringify((await s.loadTaskOptionsData({})).taskOptions)), { projects: [] });
+  }
+});
+
+it("preserves native iteration of the second timer read, including failure after the array probe", () => {
+  const s = fixture();
+  for (const next of [new Set([7, null]), "ab", null, 7]) {
+    let reads = 0;
+    const data = { get timers() { return ++reads === 1 ? [] : next; } };
+    const target = { timers: [], taskOptions: null };
+    if (next === null || next === 7) assert.throws(() => s.mergeWorkbenchSourceData(target, data), { name: "TypeError" });
+    else { s.mergeWorkbenchSourceData(target, data); assert.deepEqual(target.timers, typeof next === "string" ? ["a", "b"] : [7, null]); }
+    assert.equal(reads, 2);
+  }
+});
+
+it("dispatches inherited loaders with native key conversion, original card identity and no receiver", async () => {
+  const s = fixture();
+  vm.runInContext(`
+    globalThis.calls = [];
+    const renderer = { [Symbol.toPrimitive](hint) { calls.push(hint); return "inherited"; } };
+    globalThis.card = { renderer, get listRoute() { calls.push("route"); return 7; } };
+    globalThis.workbenchCardDataLoaders = Object.create({ inherited: function(value) { "use strict"; calls.push(this, value); return { timers: [value] }; } });
+  `, s);
+  const result = await s.loadWorkbenchSourceData({ workbenchCards: [s.card] });
+  assert.deepEqual(Array.from(s.calls), ["string", "route", undefined, s.card]);
+  assert.equal(result.timers[0], s.card);
+  s.workbenchCardDataLoaders = { absent: 0, bad: 7 };
+  const skipped = { renderer: "absent", get listRoute() { throw new Error("short-circuited"); } };
+  await s.loadWorkbenchSourceData({ workbenchCards: [skipped, { renderer: "bad", listRoute: "" }] });
+  await assert.rejects(s.loadWorkbenchSourceData({ workbenchCards: [{ renderer: "bad", listRoute: "/route" }] }), { name: "TypeError", message: "The Workbench card data loader must be callable." });
+});
+
+it("retains primitive body getter receivers and rejects required null merges at first consumption", async () => {
+  const s = fixture();
+  vm.runInContext(`
+    globalThis.calls = [];
+    Object.defineProperty(Number.prototype, "timers", { get() { "use strict"; calls.push(this); return [7]; } });
+    Object.defineProperty(Number.prototype, "options", { get() { "use strict"; calls.push(this); return 9; } });
+    globalThis.requireApi = () => ({ getJson: async () => 7 });
+  `, s);
+  assert.deepEqual(Array.from((await s.loadTimerCardData({})).timers), [7]);
+  assert.equal((await s.loadTaskOptionsData({})).taskOptions, 9);
+  assert.deepEqual(Array.from(s.calls), [7, 7, 7]);
+  const fields = s.workbenchSourceFields(null, false);
+  assert.throws(() => fields.timers, { name: "TypeError", message: "The Workbench source data cannot be read." });
+});
+
+it("records the unresolved route boundary against the real registry reader and API forwarding", async () => {
+  const s = fixture();
+  for (const name of ["isBootstrapRecord", "isWorkbenchContribution", "readWorkbenchRegistry"])
+    vm.runInContext(extractFunctionBlock(source, name), s);
+  /** @type {unknown[]} */ const requested = [];
+  s.window = { LongtailForge: { errors: { createError: () => new Error("unexpected HTTP error") } } };
+  s.fetch = async (/** @type {unknown} */ url) => { requested.push(url); return { ok: true, status: 200, text: async () => '{"options":{"projects":[]}}' }; };
+  vm.runInContext(createProjectTextReader().readText("public/js/shared/api-client.js"), s);
+  s.requireApi = () => s.window.LongtailForge.api;
+  vm.runInContext(source.match(/const workbenchCardDataLoaders = \{[^}]+\};/)?.[0] || "throw new Error('loader literal missing')", s);
+  const registry = s.readWorkbenchRegistry({ workbenchCards: [{ moduleId: "tasks", renderer: "task-workbench-items", listRoute: 7 }] });
+  const result = await s.loadWorkbenchSourceData(registry);
+  assert.deepEqual(requested, [7]);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.taskOptions)), { projects: [] });
 });

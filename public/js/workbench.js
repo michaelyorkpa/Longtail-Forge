@@ -1196,6 +1196,7 @@
     return true;
   }
 
+  /** @param {Partial<BrowserWorkbenchRegistry> | null} registry */
   async function loadWorkbenchSourceData(registry) {
     /** @type {{taskOptions: unknown, timers: unknown[]}} */
     const sourceData = {
@@ -1205,24 +1206,29 @@
     const cards = Array.isArray(registry?.workbenchCards) ? registry.workbenchCards : [];
 
     await Promise.all(cards.map(async (card) => {
-      const loader = workbenchCardDataLoaders[card.renderer];
+      /** @type {unknown} */
+      const loader = Reflect.get(workbenchCardDataLoaders, workbenchCardPropertyKey(workbenchCardField(card, "renderer")));
 
-      if (!loader || !card.listRoute) {
+      if (!loader || !workbenchCardField(card, "listRoute")) {
         return;
       }
 
-      mergeWorkbenchSourceData(sourceData, await loader(card));
+      if (typeof loader !== "function") throw new TypeError("The Workbench card data loader must be callable.");
+      mergeWorkbenchSourceData(sourceData, await Reflect.apply(loader, undefined, [card]));
     }));
 
     return sourceData;
   }
 
+  // Deferred route boundary: the registry guarantees moduleId only. Both loaders retain
+  // raw listRoute forwarding; a real registry/API probe observes numeric 7 reaching fetch.
+  // Discharge requires an approved route contract or input policy, not a consumer assertion.
   async function loadTimerCardData(card) {
     const api = requireApi();
-    const data = await api.getJson(card.listRoute, { cache: "no-store" });
+    const data = workbenchSourceFields(await api.getJson(card.listRoute, { cache: "no-store" }));
 
     return {
-      timers: Array.isArray(data?.timers) ? data.timers : [],
+      timers: Array.isArray(data.timers) ? data.timers : [],
     };
   }
 
@@ -1231,7 +1237,7 @@
     const data = await api.getJson(card.listRoute, { cache: "no-store" });
 
     return {
-      taskOptions: data?.options || { projects: [] },
+      taskOptions: workbenchSourceFields(data).options || { projects: [] },
     };
   }
 
@@ -1273,15 +1279,38 @@
 
   /**
    * @param {{taskOptions: unknown, timers: unknown[]}} target
-   * @param {{taskOptions?: unknown, timers?: unknown}} [data]
+   * @param {unknown} [data]
    */
   function mergeWorkbenchSourceData(target, data = {}) {
-    if (Array.isArray(data.timers)) {
-      target.timers.push(...data.timers);
+    const fields = workbenchSourceFields(data, false);
+    if (Array.isArray(fields.timers)) {
+      target.timers.push(...fields.timers);
     }
-    if (data.taskOptions) {
-      target.taskOptions = data.taskOptions;
+    if (fields.taskOptions) {
+      target.taskOptions = fields.taskOptions;
     }
+  }
+
+  /** Lazy access preserves repeated reads; every source member remains opaque.
+   * @param {unknown} value @param {boolean} [optional]
+   */
+  function workbenchSourceFields(value, optional = true) {
+    return {
+      get timers() { return workbenchSourceField(value, "timers", optional); },
+      get taskOptions() { return workbenchSourceField(value, "taskOptions", optional); },
+      get options() { return workbenchSourceField(value, "options", optional); },
+    };
+  }
+
+  /** Opaque source members retain inherited getters and primitive receivers.
+   * @param {unknown} value @param {string} key @param {boolean} [optional] @returns {unknown}
+   */
+  function workbenchSourceField(value, key, optional = false) {
+    if (value == null) {
+      if (optional) return undefined;
+      throw new TypeError("The Workbench source data cannot be read.");
+    }
+    return Reflect.get(Object(value), key, value);
   }
 
   async function loadClientProjectData() {
@@ -3586,7 +3615,7 @@
   }
 
   async function refreshWorkbenchTimers() {
-    const card = (state.registry.workbenchCards || []).find((entry) => entry.renderer === "active-work-timers");
+    const card = (state.registry.workbenchCards || []).find((entry) => workbenchCardField(entry, "renderer") === "active-work-timers");
 
     if (!card) {
       return;
