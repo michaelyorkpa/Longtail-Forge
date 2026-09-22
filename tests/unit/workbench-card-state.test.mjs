@@ -4,11 +4,12 @@ import { it } from "vitest";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 const source = createProjectTextReader().readText("public/js/workbench.js");
 const names = ["workbenchCardField", "workbenchCardPropertyKey", "renderRegisteredWorkbenchCards", "workbenchRegistryCardsChanged", "readCardState", "restoreCardState", "persistCardState", "handleWorkbenchCardToggle", "isTimerWorkbenchCard"];
+class DetailsFixture {}
 function fixture() {
   /** @type {unknown[]} */ const cards = [];
   /** @type {unknown[][]} */ const calls = [];
   let stored = "{}";
-  const scope = vm.createContext({ state: { registry: { workbenchCards: [] } }, workbenchCardRenderers: {}, WORKBENCH_CARD_STATE_KEY: "lf_workbench_cards_v1", timerSectionUserToggled: false,
+  const scope = vm.createContext({ HTMLDetailsElement: DetailsFixture, state: { registry: { workbenchCards: [] } }, workbenchCardRenderers: {}, WORKBENCH_CARD_STATE_KEY: "lf_workbench_cards_v1", timerSectionUserToggled: false,
     document: { querySelectorAll: () => cards },
     window: { localStorage: { getItem: () => stored, setItem: (/** @type {string} */ key, /** @type {string} */ value) => { calls.push(["store", key, value]); stored = value; } } },
     updateDisclosureExpandedState: (/** @type {unknown} */ card) => calls.push(["expanded", card]),
@@ -44,7 +45,7 @@ it("persists non-timer values in DOM order with the original open-read before ke
 it("restores own keys only, preserves two coercions and the timer policy sync", () => {
   const f = fixture(); let reads = 0;
   const key = { [Symbol.toPrimitive]() { reads++; return "card"; } };
-  const card = { dataset: { workbenchCard: key } };
+  const card = Object.assign(new DetailsFixture(), { dataset: { workbenchCard: key } });
   f.cards.push(card, { dataset: { workbenchCard: "toString" } }, { dataset: { workbenchCard: "active-work-timers" } });
   f.setStored('{"card":{"opaque":true},"active-work-timers":true}');
   f.scope.restoreCardState();
@@ -102,4 +103,12 @@ it("matches the original assignment's getter and coercion trace", () => {
   f.cards.push(card); f.scope.persistCardState();
   // isTimerWorkbenchCard performs one dataset read before the unchanged writer expression.
   assert.deepEqual(trace, ["dataset", ...original]);
+});
+
+it("skips a non-details restoration recipient without reading its saved value and still syncs timers", () => {
+  const f = fixture(), card = { dataset: { workbenchCard: "other" } };
+  f.cards.push(card);
+  f.scope.readCardState = () => ({ get other() { throw new Error("must not read skipped value"); } });
+  f.scope.restoreCardState();
+  assert.deepEqual(f.calls, [["sync"]]);
 });
