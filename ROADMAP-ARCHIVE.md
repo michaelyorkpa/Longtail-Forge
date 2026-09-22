@@ -1,5 +1,21 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.43.10 - The client and project option plumbing
+
+**Model: Medium Effort** - a published vocabulary reused, a shared surface's debt left where it belongs, and two consumers deliberately skipped.
+
+- [x] **16 diagnostics closed in `public/js/files.js`, 88 to 72.** Browser **994 to 978**; `0.33.33.43` **729 to 713**. Params 701 to 692, state 115 to 109 and assorted 28 to 27; **`dom` 150 did not move**, and no family gained.
+- [x] **The published vocabulary is reused rather than redeclared.** `flattenProjectOptions` is called with `normalizeClients`' output, whose published type is `NormalizedClientOption[]`, and that is now its declared input. A case refuses any local `@typedef` for `NormalizedClientOption`, `NormalizedProjectOption` or a `ClientOption` of this page's own.
+- [x] **The shared surface's debt was left where the contract puts it.** `BrowserClientProjectOptionsBody` types its collections `unknown[]` and says that naming their elements "is the work of whoever owns that surface… recorded as later-owner debt rather than settled here". Eleven pages read those records. **Naming them from the Files page would have settled that debt from the consumer that needs least of it**, which is exactly what the sibling `BrowserUserAdminProjectScope` comment warns against. A case pins that sentence in the contract, because if it goes, the reason this page defers goes with it.
+- [x] **What this page does declare, it builds.** `FileProjectOption` names the flattened `{ id, clientId, label, projectLabel }`, and **every member is proved** - the builder constructs all four, falling through to `"Untitled Project"` and dropping the client id for the synthetic workspace-scope entry. That is the output-normalized half of the split the shared contract describes.
+- [x] **No executable line changed.** The whole checkpoint is annotation plus two local `@type` declarations - and one of those finally settles the `state.projects` `never[]` inference that adjacent work had surfaced twice without ever owning it.
+- [x] **Two consumers were left untyped on purpose, with the reason in the source.** `createOption` and `hydrateContextSelect` both read a list from `safeOptionList`, which serves **two different option shapes**: a target option whose `value` is the nested id record `fileEditorTargetOptionValue` serialises, and a project option whose `value` is a plain id string. Typing either consumer means re-typing that filter to describe what it actually admits - a boundary of its own, not a detail of this one. Cases assert both shapes really are there, so the claim cannot rot.
+- [x] **The campaign found a real gap in my own test.** A project carrying **both** `optionLabel` and `name` was missing, and either alone answers the same under a swapped precedence - so the label ordering could have been inverted undetected. One mutation was also reframed from a crashing form to a wrong-value form, because the runner reports a crash as `INCIDENTAL-ERROR` and does not count it as caught.
+- [x] **Proof sized to the change.** `file-project-option-contracts.test.mjs` lifts the flattener with the shared label helper supplied, and adds **15 cases**. The campaign runs **13 cases, 13 caught, 0 survivors**.
+- [x] **Full verification on the delivered tree.** Unit **4,905 across 272 files**, regressions **348/348**, E2E **371/371** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero. Server/tests and scripts remain at zero.
+
+**Remaining:** `files.js` 72 - a flat tail with `safeOptionList`'s two-shape problem, the four documented `fileId` parameters, and the render and chrome helpers. `0.33.33.43` 713, `0.33.33.42` 115 plus 4 `dom`, 150 `dom` overall. This closes neither the Files family, `0.33.33.43`, `0.33.33.38`, nor the version-wide browser-zero closeout.
+
 ## Version 0.33.33.42.19 - Preserve opaque candidate identity through Task Focus
 
 **Model: High Effort** - a constructor-derived state boundary must retain identity across asynchronous consumers and native conversion points.
