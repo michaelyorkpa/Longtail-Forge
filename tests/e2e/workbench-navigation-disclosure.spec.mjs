@@ -8,9 +8,9 @@ test("restoration establishes page-built details and skips unrelated matching el
   const bodies = ["setWorkbenchDisclosureOpen", "updateDisclosureExpandedState", "restoreCardState", "workbenchCardField", "workbenchCardPropertyKey", "isTimerWorkbenchCard", "readCardState"].map(name => extractFunctionBlock(source, name));
   const result = await page.evaluate(bodies => {
     const produced = globalThis.document.querySelector('[data-workbench-card="active-work-timers"]');
-    if (!(produced instanceof HTMLDetailsElement)) throw new Error("page-built details required");
+    if (!(produced instanceof globalThis.HTMLDetailsElement)) throw new Error("page-built details required");
     const card = produced.cloneNode(true);
-    if (!(card instanceof HTMLDetailsElement)) throw new Error("details clone required");
+    if (!(card instanceof globalThis.HTMLDetailsElement)) throw new Error("details clone required");
     card.dataset.workbenchCard = "restoration-proof";
     const unrelated = globalThis.document.createElement("div");
     unrelated.dataset.workbenchCard = "unrelated-proof";
