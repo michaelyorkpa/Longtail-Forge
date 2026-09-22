@@ -1,5 +1,20 @@
 (function attachModuleSettingsPage() {
-  const moduleSettingsForm = document.querySelector("[data-module-settings-form]");
+  /**
+   * The settings form, narrowed only as far as this page reads it.
+   *
+   * There is no markup to trace: `shared/settings-host.js` builds this element at runtime, as a
+   * `form` carrying `dataset.moduleSettingsForm`. It is narrowed to `HTMLElement` rather than
+   * `HTMLFormElement` because `dataset` is the only member beyond `Element` that this page reads
+   * - the submit listener and the renderer walk it as an element - so demanding a form would
+   * claim more than the page uses and would refuse a host that legitimately built something else.
+   *
+   * Narrowing only, with no refusal: the listener registers through `?.`, the id read is `?.`,
+   * and `requireModuleSettingsForm` already throws by name where the renderer needs it.
+   */
+  const moduleSettingsFormElement = document.querySelector("[data-module-settings-form]");
+  const moduleSettingsForm = moduleSettingsFormElement instanceof HTMLElement
+    ? moduleSettingsFormElement
+    : null;
   const moduleSettingsStatus = asStatusElement(document.querySelector("[data-module-settings-status]"));
   const moduleSettingsFields = document.querySelector('[data-settings-attachment="module"]');
 

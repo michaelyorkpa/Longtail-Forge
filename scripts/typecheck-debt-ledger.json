@@ -362,6 +362,7 @@
         "tests/e2e/notes-value-readers.spec.mjs",
         "tests/e2e/notes-view-registration.spec.mjs",
         "tests/e2e/notes-visibility-scoping.spec.mjs",
+        "tests/e2e/notification-page-controls.spec.mjs",
         "tests/e2e/overflow.spec.mjs",
         "tests/e2e/page-controller-create-option.spec.mjs",
         "tests/e2e/page-controller-status-recipients.spec.mjs",
@@ -423,6 +424,7 @@
         "tests/e2e/workspace-rename-shell-label.spec.mjs",
         "tests/e2e/workspace-settings-rejected-save.spec.mjs",
         "tests/e2e/workspace-switch-landing.spec.mjs",
+        "tests/mutations/account-recovery-controls.breaks.mjs",
         "tests/mutations/api-key-scope-rendering.breaks.mjs",
         "tests/mutations/audit-log-filter-query.breaks.mjs",
         "tests/mutations/audit-log-rendering.breaks.mjs",
@@ -461,6 +463,7 @@
         "tests/mutations/reporting-filter.breaks.mjs",
         "tests/mutations/role-assignments-target.breaks.mjs",
         "tests/mutations/search-filters-results.breaks.mjs",
+        "tests/mutations/splash-page-controls.breaks.mjs",
         "tests/mutations/stopwatch-timer.breaks.mjs",
         "tests/mutations/support-view-audit-filters.breaks.mjs",
         "tests/mutations/tag-page-rendering.breaks.mjs",
@@ -623,6 +626,7 @@
         "tests/unit/readiness-root-access-contracts.test.mjs",
         "tests/unit/ready-dialog-adapter-contracts.test.mjs",
         "tests/unit/regression-source-measure.test.mjs",
+        "tests/unit/remaining-page-control-narrowing.test.mjs",
         "tests/unit/reporting-filter-contracts.test.mjs",
         "tests/unit/required-member-acquisition-contracts.test.mjs",
         "tests/unit/resume-producer-payload.test.mjs",
@@ -844,14 +848,8 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1246,
+      "errorCount": 1227,
       "diagnostics": {
-        "public/js/account-recovery.js": [
-          {
-            "code": 2339,
-            "count": 3
-          }
-        ],
         "public/js/clients-projects.js": [
           {
             "code": 18047,
@@ -912,12 +910,6 @@
           {
             "code": 7053,
             "count": 5
-          }
-        ],
-        "public/js/dashboard.entry.js": [
-          {
-            "code": 2339,
-            "count": 2
           }
         ],
         "public/js/files-settings.js": [
@@ -1004,24 +996,6 @@
           {
             "code": 7053,
             "count": 14
-          }
-        ],
-        "public/js/module-settings.js": [
-          {
-            "code": 2339,
-            "count": 1
-          }
-        ],
-        "public/js/notifications.js": [
-          {
-            "code": 2339,
-            "count": 9
-          }
-        ],
-        "public/js/splash.js": [
-          {
-            "code": 2339,
-            "count": 4
           }
         ],
         "public/js/workbench.js": [
@@ -1683,8 +1657,8 @@
     }
   },
   "totals": {
-    "files": 1426,
-    "errors": 1246,
+    "files": 1430,
+    "errors": 1227,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

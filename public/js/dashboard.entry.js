@@ -67,9 +67,14 @@ function versionedAssetUrl(assetPath) {
     throw new Error(`Dashboard refused non-local browser asset: ${url.href}`);
   }
 
+  // The asset-version meta is a real `meta` element - `src/core/asset-version.js` injects
+  // `<meta data-asset-version content="…">` into every served page - but this function is lifted
+  // and executed by `dashboard-entry-bridge`, so it may acquire no free variable and cannot name
+  // `HTMLMetaElement`. The member read below is the narrowing instead: `Object()` absorbs the
+  // absent element exactly as `?.` did, and the receiver is preserved for the real getter.
   const version = String(
     namespace.assetVersion?.value ||
-    document.querySelector("meta[data-asset-version]")?.content ||
+    Reflect.get(Object(document.querySelector("meta[data-asset-version]")), "content") ||
     "",
   ).trim();
 
@@ -326,9 +331,12 @@ function dashboardDateKey(date) {
 }
 
 function dashboardAssetVersion() {
+  // Read exactly as `versionedAssetUrl` reads it. This function is **not** lifted and could name
+  // `HTMLMetaElement`, but the two are the same read of the same element, and letting them drift
+  // into two different idioms would suggest a difference that does not exist.
   return String(
     namespace.assetVersion?.value ||
-    document.querySelector("meta[data-asset-version]")?.content ||
+    Reflect.get(Object(document.querySelector("meta[data-asset-version]")), "content") ||
     "",
   ).trim() || "current";
 }
