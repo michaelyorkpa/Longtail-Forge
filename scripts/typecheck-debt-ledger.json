@@ -413,6 +413,7 @@
         "tests/e2e/view-renderer-sparse-surface.spec.mjs",
         "tests/e2e/view-shell-cold-load.spec.mjs",
         "tests/e2e/workbench-action-strip.spec.mjs",
+        "tests/e2e/workbench-card-state.spec.mjs",
         "tests/e2e/workbench-focus-handles.spec.mjs",
         "tests/e2e/workbench-focus-readers.spec.mjs",
         "tests/e2e/workbench-focus-state.spec.mjs",
@@ -740,6 +741,7 @@
         "tests/unit/work-candidate-query-edge.test.mjs",
         "tests/unit/work-candidate-ranking.test.mjs",
         "tests/unit/workbench-bootstrap-contracts.test.mjs",
+        "tests/unit/workbench-card-state.test.mjs",
         "tests/unit/workbench-checklist-readers.test.mjs",
         "tests/unit/workbench-focus-envelope.test.mjs",
         "tests/unit/workbench-focus-handles.test.mjs",
@@ -853,7 +855,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1156,
+      "errorCount": 1144,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -992,7 +994,7 @@
         "public/js/workbench.js": [
           {
             "code": 2339,
-            "count": 40
+            "count": 34
           },
           {
             "code": 2345,
@@ -1016,7 +1018,7 @@
           },
           {
             "code": 7006,
-            "count": 113
+            "count": 109
           },
           {
             "code": 7023,
@@ -1032,7 +1034,7 @@
           },
           {
             "code": 7053,
-            "count": 5
+            "count": 3
           }
         ]
       }
@@ -1644,8 +1646,8 @@
     }
   },
   "totals": {
-    "files": 1435,
-    "errors": 1156,
+    "files": 1437,
+    "errors": 1144,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
