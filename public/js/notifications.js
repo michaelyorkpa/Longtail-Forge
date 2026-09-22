@@ -21,11 +21,21 @@
 
 const notificationList = document.querySelector("[data-notification-page-list]");
 const notificationStatus = document.querySelector("[data-notification-status]");
-const moduleFilter = document.querySelector("[data-notification-module-filter]");
+/**
+ * The module filter, narrowed to what `views/protected/notifications.html` renders: a `select`.
+ *
+ * Narrowing only, with no refusal. Every read is already guarded - `moduleFilter?.value` at the
+ * request and the display filter, and `renderModuleFilterOptions` returns early - so a control of
+ * the wrong subtype takes the absent path this page already has.
+ */
+const moduleFilterElement = document.querySelector("[data-notification-module-filter]");
+const moduleFilter = moduleFilterElement instanceof HTMLSelectElement ? moduleFilterElement : null;
 const markAllReadButton = document.querySelector("[data-mark-all-notifications-read]");
 const preferenceForm = document.querySelector("[data-notification-preferences-form]");
 const preferenceList = document.querySelector("[data-notification-preference-list]");
-const filterButtons = [...document.querySelectorAll("[data-notification-filter]")];
+// The four status filters are `button`s, and this page reads `dataset` on each of them.
+const filterButtons = [...document.querySelectorAll("[data-notification-filter]")]
+  .filter((button) => button instanceof HTMLElement);
 
 const state = {
   filter: "active",
@@ -484,7 +494,12 @@ function createNotificationRow(notification) {
   if (contextTitle) {
     title.title = contextTitle;
   }
-  if (notification.url) {
+  // `title` is the anchor exactly when `notification.url` is truthy, because that is the condition
+  // that built it as one - but the compiler cannot correlate the two conditions, so it reports
+  // `href` missing on the `span` arm of the union. Narrowing at the write states the correlation
+  // the constructor above already guarantees; it is true whenever the old condition was, so the
+  // anchor is still given its href and the span is still never given one.
+  if (title instanceof HTMLAnchorElement) {
     title.href = notification.url;
   }
 

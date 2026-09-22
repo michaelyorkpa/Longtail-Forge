@@ -61,11 +61,30 @@ const cases = [
   ["module entries stop being read as records",
     "      .map(moduleSettingsRecord)\n      .find((module) => module.id === moduleId) || null;",
     "      .map(moduleSettingsRecord)\n      .find(() => true) || null;"],
+
+  // --- `0.33.33.38.3.8`: the settings form narrowing ----------------------------------------------
+  //
+  // This element has no markup: `shared/settings-host.js` builds it at runtime. The cases hold the
+  // narrowing to `HTMLElement` - the minimum `dataset` needs - and hold the builder to producing
+  // something that narrowing accepts.
+  ["the settings form stops being narrowed",
+    "  const moduleSettingsForm = moduleSettingsFormElement instanceof HTMLElement\n"
+      + "    ? moduleSettingsFormElement\n    : null;",
+    "  const moduleSettingsForm = moduleSettingsFormElement;"],
+  ["the settings form demands a subtype the page never uses",
+    "moduleSettingsFormElement instanceof HTMLElement",
+    "moduleSettingsFormElement instanceof HTMLTableElement"],
+  ["the module id stops tolerating an absent form",
+    '    return moduleSettingsForm?.dataset.moduleSettingsForm || "";',
+    '    return moduleSettingsForm.dataset.moduleSettingsForm || "";'],
 ];
 
 runMutationCampaign({
   sourcePath: "public/js/module-settings.js",
-  suites: ["tests/unit/module-settings-snapshot.test.mjs"],
+  suites: [
+    "tests/unit/module-settings-snapshot.test.mjs",
+    "tests/unit/remaining-page-control-narrowing.test.mjs",
+  ],
   cases: cases.map(([name, find, replace]) => ({ name, find, replace })),
   suiteTimeoutMs: 60000,
 });

@@ -80,11 +80,32 @@ const cases = [
   ["an empty route reaches the API",
     '  if (!route) {\n    return Promise.resolve({});\n  }',
     "  if (false) {\n    return Promise.resolve({});\n  }"],
+
+  // --- `0.33.33.38.3.8`: the asset-version member read --------------------------------------------
+  //
+  // The two reads are narrowed by member read rather than `instanceof`, because `versionedAssetUrl`
+  // is lifted into a bare `vm` context and may name no free variable. The first case is the one
+  // that matters: it proves the constraint is real rather than asserted, by making the read name a
+  // DOM constructor the sandbox does not define.
+  ["the lifted reader names a DOM constructor the sandbox cannot supply",
+    'Reflect.get(Object(document.querySelector("meta[data-asset-version]")), "content") ||\n    "",\n  ).trim();',
+    '(document.querySelector("meta[data-asset-version]") instanceof HTMLMetaElement\n'
+      + '      ? document.querySelector("meta[data-asset-version]").content\n'
+      + '      : "") ||\n    "",\n  ).trim();'],
+  ["the absent meta element stops being absorbed",
+    'Reflect.get(Object(document.querySelector("meta[data-asset-version]")), "content") ||\n    "",\n  ).trim();',
+    'Reflect.get(document.querySelector("meta[data-asset-version]"), "content") ||\n    "",\n  ).trim();'],
+  ["the asset version stops being read from the meta element at all",
+    'Reflect.get(Object(document.querySelector("meta[data-asset-version]")), "content") ||\n    "",\n  ).trim();',
+    '"",\n  ).trim();'],
 ];
 
 runMutationCampaign({
   sourcePath: "public/js/dashboard.entry.js",
-  suites: ["tests/unit/dashboard-entry-bridge.test.mjs"],
+  suites: [
+    "tests/unit/dashboard-entry-bridge.test.mjs",
+    "tests/unit/remaining-page-control-narrowing.test.mjs",
+  ],
   cases: cases.map(([name, find, replace]) => ({ name, find, replace })),
   suiteTimeoutMs: 60000,
 });

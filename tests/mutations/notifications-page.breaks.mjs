@@ -65,11 +65,40 @@ const cases = [
   ["an unreadable date is rendered rather than dropped",
     '  return Number.isNaN(date.getTime()) ? "" : date.toLocaleString();',
     "  return date.toLocaleString();"],
+
+  // --- `0.33.33.38.3.8`: the control narrowings ---------------------------------------------------
+  //
+  // Aimed at `remaining-page-control-narrowing.test.mjs`. These are runtime-inert for correct
+  // markup, so the cases attack what can actually go wrong: a finder that stops checking, one that
+  // demands a subtype the view never renders, and the anchor correlation coming apart.
+  ["the module filter stops being narrowed",
+    "const moduleFilter = moduleFilterElement instanceof HTMLSelectElement ? moduleFilterElement : null;",
+    "const moduleFilter = moduleFilterElement;"],
+  ["the module filter demands an input, which the view does not render",
+    "moduleFilterElement instanceof HTMLSelectElement",
+    "moduleFilterElement instanceof HTMLInputElement"],
+  ["the status filter list stops being filtered to elements that carry a dataset",
+    'const filterButtons = [...document.querySelectorAll("[data-notification-filter]")]\n'
+      + "  .filter((button) => button instanceof HTMLElement);",
+    'const filterButtons = [...document.querySelectorAll("[data-notification-filter]")];'],
+  ["the href is written to whichever element was built",
+    "  if (title instanceof HTMLAnchorElement) {\n    title.href = notification.url;\n  }",
+    "  if (notification.url) {\n    title.href = notification.url;\n  }"],
+  ["the title stops being an anchor when there is a url",
+    'const title = notification.url ? document.createElement("a") : document.createElement("span");',
+    'const title = document.createElement("span");'],
+  ["a second, unguarded href write reaches the span arm",
+    "  if (title instanceof HTMLAnchorElement) {\n    title.href = notification.url;\n  }",
+    "  if (title instanceof HTMLAnchorElement) {\n    title.href = notification.url;\n  }\n"
+      + "  title.href = notification.url;"],
 ];
 
 runMutationCampaign({
   sourcePath: "public/js/notifications.js",
-  suites: ["tests/unit/notifications-page-contracts.test.mjs"],
+  suites: [
+    "tests/unit/notifications-page-contracts.test.mjs",
+    "tests/unit/remaining-page-control-narrowing.test.mjs",
+  ],
   cases: cases.map(([name, find, replace]) => ({ name, find, replace })),
   suiteTimeoutMs: 60000,
 });

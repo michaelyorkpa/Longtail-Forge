@@ -1,6 +1,22 @@
 (function attachAccountRecoveryPage() {
-  const downloadButton = document.querySelector("[data-download-account-export]");
-  const logoutButton = document.querySelector("[data-account-recovery-logout]");
+  /**
+   * The two controls this page disables while its request is in flight, narrowed to what
+   * `views/protected/account-recovery.html` renders: both are `button type="button"`.
+   *
+   * Narrowing only, with no refusal: both listeners are registered through `?.`, so a control of
+   * the wrong subtype is simply never wired - the absent path this page already has - rather than
+   * throwing. The status line needs no subtype; `textContent` is every element's.
+   *
+   * @param {string} selector
+   * @returns {HTMLButtonElement | null}
+   */
+  function findRecoveryButton(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLButtonElement ? element : null;
+  }
+
+  const downloadButton = findRecoveryButton("[data-download-account-export]");
+  const logoutButton = findRecoveryButton("[data-account-recovery-logout]");
   const status = document.querySelector("[data-account-recovery-status]");
 
   downloadButton?.addEventListener("click", async () => {
