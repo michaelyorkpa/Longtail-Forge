@@ -121,7 +121,8 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 772 |
 | Codex | `0.33.33.41.2` | `task-dialog.js` 850, `tasks.js` 311, `tasks-dashboard.js` 52, `task-resume-note-capture.js` 20, `task-calendar.js` 0 | 1,233 |
 | Codex | `0.33.33.42.1` | `workbench.js` — this owner's first child | 538 |
-| Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `files.js` 252, `files-settings.js` 6, `lists-settings.js` 0 | 1,045 |
+| Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `files.js` 252, `lists-settings.js` 0 | 1,039 |
+| Claude | `0.33.33.43.4` | `files-settings.js` — **complete**, see below | 6 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
 These are **starting** boundaries. Each lane draws its own next child from the tree it actually has; neither pre-slices its remaining controllers.
@@ -1543,6 +1544,16 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.4 - The Files settings collectors
+
+**Complete: 6 diagnostics closed, `files-settings.js` leaves the ledger, and `0.33.33.43` opens to Claude.** See the archive entry.
+
+**This is the first file in this owner Claude has taken, and the split is recorded rather than assumed.** The starting-boundaries table above listed `files-settings.js` under Codex's `0.33.33.43.3`; that table is explicitly a set of *starting* boundaries and says neither lane pre-slices its remaining controllers. The operator approved the split, so the row is corrected in the same checkpoint: Codex keeps `lists.js`, `clients-projects.js` and `files.js`; this file is Claude's. **`0.33.33.43.1` and `0.33.33.43.2` are complete**, so this child takes the next free identifier rather than reusing one.
+
+**`unknown` is the accurate type for the settings catalogue, not a retreat from one.** Both writes assign an `api.getJson` result, which the API contract declares `Promise<unknown>`, and this page never reads a member of it - it stores the body and hands it to `settingsHost.attachmentSections`, whose own published parameter is `unknown`. Naming a catalogue shape would have claimed a validation nothing here performs.
+
+**One executable line changed, and the obvious spelling for it would have been a silent behaviour change.** `Number.parseInt(value, 10)` became ``Number.parseInt(`${value}`, 10)``. `String(value)` is a *different* conversion: a symbol makes `parseInt` throw and makes `String` answer `"Symbol(x)"`, so `String` would have turned that throw into a quiet `null` that reads as "unset" and gets saved. The template is `ToString`, so it throws exactly where the raw call threw and agrees with it on every other value. Both halves are pinned.
 
 #### 0.33.33.43.2 - The normalized Lists record handoff
 
