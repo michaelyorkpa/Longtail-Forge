@@ -2694,6 +2694,14 @@
     return formatToken(status);
   }
 
+  /**
+   * What the page calls a file's scan state.
+   *
+   * `unknown` costs nothing here: the four branches compare with `===` against string literals,
+   * which any value may be compared to, and the fallback tests truthiness before handing the value
+   * to `formatToken` - which converts it, as it already did. **No conversion is added.**
+   * @param {unknown} scanStatus @returns {string}
+   */
   function scanStatusLabel(scanStatus) {
     if (scanStatus === "not_required") {
       return "No review needed";
@@ -2711,6 +2719,13 @@
     return scanStatus ? formatToken(scanStatus) : "";
   }
 
+  /**
+   * A file in review says so; anything else is described by its scan state.
+   *
+   * Both are `unknown` for the same reason: `status` is only ever compared with `===`, and
+   * `scanStatus` is passed through untouched to the reader above.
+   * @param {unknown} status @param {unknown} scanStatus @returns {string}
+   */
   function reviewStateLabel(status, scanStatus) {
     if (status === "quarantined") {
       return "In review";
@@ -2719,6 +2734,15 @@
     return scanStatusLabel(scanStatus);
   }
 
+  /**
+   * How many attachments the list is showing, and whether more exist.
+   *
+   * `count` is `unknown` because `Number(count || 0)` already converted it. That conversion is the
+   * page's own and is **left exactly as it was** - including that `Number` *throws* on a symbol,
+   * where the `String` conversions elsewhere in this group answer `"Symbol(x)"` instead. The
+   * template that follows reads `safeCount`, which is a number by then, not the argument.
+   * @param {unknown} count @param {{ hasMore?: unknown }} [pagination] @returns {string}
+   */
   function visibleFileCountLabel(count, pagination = {}) {
     const safeCount = Number(count || 0);
     const label = `${safeCount} file attachment${safeCount === 1 ? "" : "s"} visible`;
@@ -2749,6 +2773,15 @@
     return normalizedMimeType || "File";
   }
 
+  /**
+   * The short badge a row shows for a file's type.
+   *
+   * Both parameters are `unknown` because `String(... || "")` already converted each one. The `||`
+   * means a falsy argument never reaches `String` at all, so `0` has always produced `""` rather
+   * than `"0"` - a detail worth stating, because it is the kind of thing an annotation looks like
+   * it changed.
+   * @param {unknown} extension @param {unknown} fallback @returns {string}
+   */
   function fileTypeBadgeText(extension, fallback) {
     const normalizedExtension = String(extension || "").replace(/^\./, "").trim().toUpperCase();
     const normalizedFallback = String(fallback || "").split(/[\s/.-]+/).find(Boolean) || "File";
@@ -2756,6 +2789,13 @@
     return (normalizedExtension || normalizedFallback).slice(0, 4).toUpperCase();
   }
 
+  /**
+   * A file type reduced to something safe to put in a class name.
+   *
+   * `String(value || "file")` already converted it, and the empty-result fallback after the
+   * replacements is what has always answered for a value that reduces to nothing.
+   * @param {unknown} value @returns {string}
+   */
   function safeFileTypeToken(value) {
     return String(value || "file")
       .toLowerCase()
@@ -2763,6 +2803,12 @@
       .replace(/^-+|-+$/g, "") || "file";
   }
 
+  /**
+   * A file state reduced to something safe to put in a class name.
+   *
+   * The same shape as its type-token sibling, with its own two defaults.
+   * @param {unknown} value @returns {string}
+   */
   function safeFileStateToken(value) {
     return String(value || "unknown")
       .toLowerCase()
@@ -2818,6 +2864,14 @@
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   }
 
+  /**
+   * One metadata value as the editor shows it, or a stand-in when there is nothing to show.
+   *
+   * `value` is `unknown` because `String(value || "").trim()` already converted it. `fallback`
+   * stays a `string`: it is returned directly, so widening it would make the **result** unknown
+   * and push this function's debt onto every reader of it.
+   * @param {unknown} value @param {string} [fallback] @returns {string}
+   */
   function metadataText(value, fallback = "Not recorded") {
     const text = String(value || "").trim();
 
