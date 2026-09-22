@@ -4464,14 +4464,15 @@
     }
   }
 
-  /** Page-built details and alternate matching elements both receive the Boolean write.
-   * @param {Element | null} details @param {unknown} open
+  /** createWorkbenchCardSection builds cards with view.createElement("details");
+   * restoreCardState proves that subtype again at its generic query boundary.
+   * @param {HTMLDetailsElement | null} details @param {unknown} open
    */
   function setWorkbenchDisclosureOpen(details, open) {
     if (!details) {
       return;
     }
-    Reflect.set(details, "open", Boolean(open));
+    details.open = Boolean(open);
     updateDisclosureExpandedState(details);
   }
 
@@ -4529,7 +4530,7 @@
       if (isTimerWorkbenchCard(card)) {
         return;
       }
-      if (Object.hasOwn(savedState, workbenchCardPropertyKey(cardId))) {
+      if (Object.hasOwn(savedState, workbenchCardPropertyKey(cardId)) && card instanceof HTMLDetailsElement) {
         setWorkbenchDisclosureOpen(card, Reflect.get(savedState, workbenchCardPropertyKey(cardId)));
       }
     });
