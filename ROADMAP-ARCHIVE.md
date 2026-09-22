@@ -15,6 +15,8 @@
 - [x] **Proof sized to the change.** `file-project-option-contracts.test.mjs` lifts the flattener with the shared label helper supplied, and adds **15 cases**. The campaign runs **13 cases, 13 caught, 0 survivors**.
 - [x] **Full verification on the delivered tree.** Unit **4,905 across 272 files**, regressions **348/348**, E2E **371/371** at `LTF_E2E_PORT=8101`, lint clean, declaration probe clean, explicit-any zero. Server/tests and scripts remain at zero.
 
+**`tag-picker-workflows` `[mobile]` failed once more and is now named.** It failed in one full run here and the re-run was clean at 373/373 - the same spec, and the same test id, as the transient during the `0.33.33.42.20` integration, where I overwrote the artifacts before capturing it. `0.33.33.43.9` disproved the tag-accumulation explanation (the e2e database is fresh per run; the spec passes 13 of 13 stressed in isolation), so this remains cross-worker contention under full-suite load. Still not fixed, still not attributed to a mechanism that has not been shown.
+
 **Remaining:** `files.js` 72 - a flat tail with `safeOptionList`'s two-shape problem, the four documented `fileId` parameters, and the render and chrome helpers. `0.33.33.43` 713, `0.33.33.42` 115 plus 4 `dom`, 150 `dom` overall. This closes neither the Files family, `0.33.33.43`, `0.33.33.38`, nor the version-wide browser-zero closeout.
 
 ## Version 0.33.33.42.20 - Type Task Focus detail and related-context rendering
