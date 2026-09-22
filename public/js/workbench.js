@@ -1386,6 +1386,7 @@
     };
   }
 
+  /** @param {import("../../src/types/browser-contracts.js").BrowserNavigationIntentRequest} [intent] */
   async function offerTaskResumeNoteBeforeExit(intent = {}) {
     const snapshot = taskFocusExitSnapshot();
     if (!snapshot) {
@@ -1395,13 +1396,13 @@
       task: snapshot.task,
       taskId: snapshot.taskId,
       trigger: intent.trigger || null,
-      onSaved(updatedTask) {
-        if (updatedTask?.task_id === state.activeTaskFocus?.taskId) {
+      onSaved(/** @type {unknown} */ updatedTask) {
+        if (workbenchDetailField(updatedTask, "task_id", true) === state.activeTaskFocus?.taskId) {
           applyActiveTaskFocusTask(updatedTask);
         }
       },
-      onError(error) {
-        setStatus(error.message || "Resume note could not be saved. Continuing navigation.", { isError: true });
+      onError(/** @type {unknown} */ error) {
+        setStatus(workbenchDetailField(error, "message") || "Resume note could not be saved. Continuing navigation.", { isError: true });
       },
     });
     clearPendingTaskFocusDrift();
@@ -2152,7 +2153,7 @@
 
     button.dataset.workbenchTaskFocusAction = id;
     button.dataset.workbenchTaskFocusIconOnly = "true";
-    Reflect.set(button.dataset, "taskId", taskId);
+    button.dataset.taskId = `${taskId}`;
     if (disabledReason) {
       button.dataset.workbenchTaskFocusDisabledReason = disabledReason;
     }
@@ -2490,7 +2491,7 @@
   function createTaskFocusTimerButton({ action, danger = false, disabled = false, label, onClick, taskId }) {
     const button = actionButton(label, onClick, { danger });
     button.disabled = Boolean(disabled);
-    Reflect.set(button.dataset, "taskId", taskId || "");
+    button.dataset.taskId = `${taskId || ""}`;
     button.dataset.workbenchTaskFocusTimerAction = action;
     return button;
   }
@@ -2690,6 +2691,7 @@
     return value.length > max ? `${value.slice(0, max)}…` : value;
   }
 
+  /** @param {ActiveTaskFocus | null} active */
   function createTaskDetailFields(active) {
     const workbenchViewHelpers = requireView();
     const task = active?.task || {};
@@ -2713,7 +2715,7 @@
         ? ["Blocked reason", safeTaskFocusText(task.blocked_reason, "No blocked reason recorded."), "blocked-reason"]
         : null,
       ["Description", safeTaskFocusText(task.description, "No description."), "description", true],
-    ].filter(Boolean);
+    ].filter((field) => field !== null);
 
     return [
       workbenchViewHelpers.createElement("div", {
@@ -2723,6 +2725,7 @@
     ];
   }
 
+  /** @param {unknown} label @param {unknown} value @param {unknown} key @param {{multiline?: unknown}} [options] */
   function createTaskDetailField(label, value, key, options = {}) {
     const workbenchViewHelpers = requireView();
     return workbenchViewHelpers.createElement("article", {
@@ -2779,10 +2782,24 @@
     return fallback;
   }
 
+  /** Required property access keeps boxing and inherited readers; the optional form matches optional chaining.
+   * @param {unknown} value @param {string} key @param {boolean} [optional] @returns {unknown}
+   */
+  function workbenchDetailField(value, key, optional = false) {
+    if (value == null) {
+      if (optional) return undefined;
+      throw new TypeError("The Workbench detail value cannot be read.");
+    }
+    return Reflect.get(Object(value), key, value);
+  }
+
+  /** The member name comes from BrowserTaskRecord; focus patches do not establish its value.
+   * @param {Partial<{[K in keyof Pick<BrowserTaskRecord, "assignees">]: unknown}>} [task]
+   */
   function taskFocusAssigneesText(task = {}) {
     const assignees = Array.isArray(task.assignees) ? task.assignees : [];
     const labels = assignees
-      .map((assignee) => safeTaskFocusText(assignee.displayName || assignee.username || "", ""))
+      .map((/** @type {unknown} */ assignee) => safeTaskFocusText(workbenchDetailField(assignee, "displayName") || workbenchDetailField(assignee, "username") || "", ""))
       .filter(Boolean);
 
     return labels.length > 0 ? labels.join(", ") : "Unassigned";
@@ -2805,6 +2822,7 @@
       .map((label) => badge(label, "tag"));
   }
 
+  /** @param {unknown} value @param {string} [fallback] */
   function safeTaskFocusText(value, fallback = "") {
     return safeCandidateText(value, fallback);
   }
@@ -2948,8 +2966,8 @@
     renderWorkbenchInspector();
 
     try {
-      // Invoke the same native encoder on the opaque identity; do not pre-convert or replace the stored value.
-      const result = await api.getJson(`/api/tasks/${Reflect.apply(encodeURIComponent, undefined, [taskId])}`, { cache: "no-store" });
+      // Make the encoder's existing ToString explicit here; keep stored identity unchanged.
+      const result = await api.getJson(`/api/tasks/${encodeURIComponent(`${taskId}`)}`, { cache: "no-store" });
       if (state.activeTaskFocus?.taskId !== taskId) {
         return;
       }
@@ -3015,7 +3033,7 @@
 
     try {
       const result = await api.getJson(
-        `/api/workbench/task-focus/${Reflect.apply(encodeURIComponent, undefined, [taskId])}/related-context`,
+        `/api/workbench/task-focus/${encodeURIComponent(`${taskId}`)}/related-context`,
         { cache: "no-store" },
       );
       if (!state.activeTaskFocus || state.activeTaskFocus.taskId !== taskId) {
@@ -3168,7 +3186,7 @@
 
     setStatus("Completing task...");
     try {
-      const result = await api.postJson(`/api/tasks/${Reflect.apply(encodeURIComponent, undefined, [taskId])}/complete`, {});
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(`${taskId}`)}/complete`, {});
       resetTaskFocusState();
       await refreshFocusCandidates();
       renderWorkbench();
@@ -3215,7 +3233,7 @@
 
     setStatus("Resuming task...");
     try {
-      const result = await api.putJson(`/api/tasks/${Reflect.apply(encodeURIComponent, undefined, [taskId])}`, {
+      const result = await api.putJson(`/api/tasks/${encodeURIComponent(`${taskId}`)}`, {
         blocked_reason: "",
         status: "in_progress",
       });
@@ -3260,7 +3278,7 @@
     try {
       const action = checked ? "check" : "uncheck";
       const result = await api.postJson(
-        `/api/tasks/${Reflect.apply(encodeURIComponent, undefined, [taskId])}/checklist/${encodeURIComponent(`${itemId}`)}/${action}`,
+        `/api/tasks/${encodeURIComponent(`${taskId}`)}/checklist/${encodeURIComponent(`${itemId}`)}/${action}`,
         {},
       );
       if (state.activeTaskFocus?.taskId !== taskId) {
@@ -3667,14 +3685,15 @@
     return uniqueParts.join(" - ") || "Related context";
   }
 
+  /** @param {TaskFocusRelatedItem} [item] */
   function relatedContextBadges(item = {}) {
     return (Array.isArray(item.badges) ? item.badges : [])
       .map((itemBadge) => {
-        const label = safeRelatedContextText(itemBadge.label, "");
+        const label = safeRelatedContextText(workbenchDetailField(itemBadge, "label"), "");
         if (!label) {
           return null;
         }
-        return badge(label, itemBadge.type || itemBadge.slug || "related");
+        return badge(label, workbenchDetailField(itemBadge, "type") || workbenchDetailField(itemBadge, "slug") || "related");
       })
       .filter(Boolean)
       .slice(0, 4);
@@ -3991,7 +4010,7 @@
     setStatus(timerStatus === "running" ? "Starting task timer..." : "Pausing task timer...");
 
     try {
-      const result = await api.putJson(`/api/tasks/${Reflect.apply(encodeURIComponent, undefined, [taskId])}/timer`, {
+      const result = await api.putJson(`/api/tasks/${encodeURIComponent(`${taskId}`)}/timer`, {
         active_task_timer_id: timer?.active_task_timer_id || timer?.active_timer_id || "",
         timer_status: timerStatus,
         accumulated_elapsed_seconds: readElapsedSeconds(timer),
@@ -4020,7 +4039,7 @@
 
     setStatus("Saving task timer...");
     try {
-      const result = await api.postJson(`/api/tasks/${Reflect.apply(encodeURIComponent, undefined, [taskId])}/timer/finalize`, {
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(`${taskId}`)}/timer/finalize`, {
         duration_seconds: Math.max(1, readElapsedSeconds(timer)),
         end_time: new Date().toISOString(),
       });
@@ -4056,7 +4075,7 @@
 
     setStatus("Resetting task timer...");
     try {
-      const result = await api.deleteJson(`/api/tasks/${Reflect.apply(encodeURIComponent, undefined, [taskId])}/timer`);
+      const result = await api.deleteJson(`/api/tasks/${encodeURIComponent(`${taskId}`)}/timer`);
       await refreshWorkbenchAfterTaskFocusTimerMutation(result, taskId);
       setStatus("Task timer reset.");
     } catch (error) {
