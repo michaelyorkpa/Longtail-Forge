@@ -1436,6 +1436,7 @@
     return dialog;
   }
 
+  /** @param {{ attachment?: unknown, fileName?: unknown } & FileEditorRow} [attachmentOrRow] @returns {FileEditorRow} */
   function normalizeFileEditorRow(attachmentOrRow = {}) {
     if (attachmentOrRow?.attachment && attachmentOrRow.fileName) {
       return attachmentOrRow;
@@ -1661,6 +1662,45 @@
     });
   }
 
+  /**
+   * The editor row these readers consume, named for the three members they actually read.
+   *
+   * **Declared locally because no browser contract publishes it**: `fileRow` builds it from an
+   * attachment record, and it is this page's presentation shape rather than anything the server
+   * sends. **Nothing here is proved** - `fileRow`'s own input is untyped, so these are the members
+   * this page writes, carried as preconditions. Every read below tolerates their absence:
+   * `attachmentId` is checked before the save, and the two ids are only ever used as fallbacks
+   * that collapse to `""`.
+   * @typedef {{ attachmentId?: string, clientId?: string, projectId?: string }} FileEditorRow
+   */
+
+  /**
+   * One attachable-target choice, as `/api/files/attachable-targets` returns it.
+   *
+   * Every member is optional because the label builder tests each one before using it, and `value`
+   * is the nested id pair the option may carry instead of flat ids. **Not validated**: this page
+   * reads the response through no checker, so this names what it reads, not what it proved.
+   * @typedef {{ clientId?: string, projectId?: string, clientLabel?: string, projectLabel?: string,
+   *   contextLabel?: string, value?: { clientId?: string, projectId?: string } }} FileEditorTargetOption
+   */
+
+  /**
+   * The context payload this page sends to `PATCH /api/files/attachments/:id/context`.
+   *
+   * **Declared locally because no browser contract publishes it.** The route's accepted shape is
+   * `UpdateFileContextSchema` in `src/core/files/files.contracts.js`, which admits a camelCase and
+   * a snake_case spelling of each member and requires the module, target type and target id in one
+   * of the two spellings. This page sends only the camelCase half, so this names that half.
+   *
+   * **Proved here:** `moduleId`, `targetType` and `targetId` are non-empty strings - the builder
+   * throws before returning when any is missing. **Precondition, not proved:** the two optional
+   * ids are whatever the chosen option's dataset or the dialog's own controls carried; nothing on
+   * this page validates them, and the server is what refuses a bad one.
+   * @typedef {{ moduleId: string, targetType: string, targetId: string, clientId?: string,
+   *   projectId?: string }} FileEditorContextPayload
+   */
+
+  /** @param {Element} dialog @param {FileEditorRow} row */
   async function loadFileEditorTargetOptions(dialog, row) {
     const api = requireApi();
     const requestId = ++fileEditorOptionRequestId;
@@ -1688,6 +1728,7 @@
     }
   }
 
+  /** @param {Element} dialog @param {FileEditorRow} row */
   function fileEditorTargetOptionQuery(dialog, row) {
     const params = new URLSearchParams();
     const clientId = usesBusinessScope()
@@ -1708,8 +1749,24 @@
     return params;
   }
 
-  function fileEditorSelectedValue(dialog, selector, fallbackValue = "") {
+  /**
+   * One of the editor's context controls, narrowed to what builds it.
+   *
+   * All three - target, client and project - come from `createFileContextSelect`, which makes a
+   * `select`. Narrowing only: both callers already tolerate an absent control, so one of the wrong
+   * subtype takes the path an absent one takes rather than throwing at the member read.
+   * @param {Element} dialog
+   * @param {string} selector
+   * @returns {HTMLSelectElement | null}
+   */
+  function findFileContextSelect(dialog, selector) {
     const control = dialog.querySelector(selector);
+    return control instanceof HTMLSelectElement ? control : null;
+  }
+
+  /** @param {Element} dialog @param {string} selector @param {string} [fallbackValue] */
+  function fileEditorSelectedValue(dialog, selector, fallbackValue = "") {
+    const control = findFileContextSelect(dialog, selector);
 
     if (!control || control.dataset.fileContextLoaded !== "true") {
       return fallbackValue || "";
@@ -1717,6 +1774,7 @@
     return control.value || "";
   }
 
+  /** @param {Element} dialog @param {FileEditorRow} row */
   function fileEditorSelectedContext(dialog, row) {
     return {
       clientId: usesBusinessScope() ? fileEditorSelectedValue(dialog, "[data-file-context-client]", row.clientId) : "",
@@ -1724,6 +1782,7 @@
     };
   }
 
+  /** @param {Element} dialog @param {FileEditorRow} row @param {{ workspaceType?: string, options?: FileEditorTargetOption[] }} response */
   function hydrateFileEditorOptionControls(dialog, row, response) {
     const business = (response.workspaceType || state.workspaceType) === "business";
     const targetSelect = dialog.querySelector("[data-file-context-target]");
@@ -1884,6 +1943,7 @@
     return contextLabel ? `${baseLabel} (${contextLabel})` : baseLabel;
   }
 
+  /** @param {FileEditorTargetOption} option @param {{ clientId?: string, projectId?: string }} [context] */
   function fileEditorTargetContextLabel(option, context = {}) {
     const contextParts = [];
     const optionClientId = option.clientId || option.value?.clientId || "";
@@ -1930,6 +1990,10 @@
     saveButton.disabled = forceDisabled || !targetSelect?.value || selectedTarget?.disabled;
   }
 
+  /**
+   * @param {Element} dialog @param {FileEditorRow} row
+   * @param {{ onSaved?: (result: { attachmentId?: string, payload: FileEditorContextPayload }) => void }} [options]
+   */
   async function saveFileEditorContext(dialog, row, options = {}) {
     const api = requireApi();
     const view = requireView();
@@ -2010,8 +2074,9 @@
     }
   }
 
+  /** @param {Element} dialog @returns {FileEditorContextPayload} */
   function fileEditorContextPayload(dialog) {
-    const targetSelect = dialog.querySelector("[data-file-context-target]");
+    const targetSelect = findFileContextSelect(dialog, "[data-file-context-target]");
     const selectedTarget = targetSelect?.selectedOptions?.[0] || null;
     const targetValue = parseFileEditorTargetValue(targetSelect?.value || "");
     const payload = {

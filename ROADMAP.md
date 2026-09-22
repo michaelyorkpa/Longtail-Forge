@@ -122,7 +122,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.41.2` | `task-dialog.js` 850, `tasks.js` 311, `tasks-dashboard.js` 52, `task-resume-note-capture.js` 20, `task-calendar.js` 0 | 1,233 |
 | Codex | `0.33.33.42.1` | `workbench.js` — this owner's first child | 538 |
 | Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `lists-settings.js` 0 | 787 |
-| Claude | `0.33.33.43.5` | `files.js` — the **Files** module family, with `files-settings.js` complete | 201 |
+| Claude | `0.33.33.43.6` | `files.js` — the **Files** module family, with `files-settings.js` complete | 177 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
 These are **starting** boundaries. Each lane draws its own next child from the tree it actually has; neither pre-slices its remaining controllers.
@@ -1544,6 +1544,14 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.6 - The Files editor's target context
+
+**Complete: 24 diagnostics closed, all of them parameters.** See the archive entry. Nine readers covering how the file editor reads a target's context and builds the payload it saves.
+
+**The payload is declared locally, because no browser contract publishes one.** The route accepts `UpdateFileContextSchema` in `src/core/files/files.contracts.js`, which admits a camelCase and a snake_case spelling of each member; this page has only ever sent camelCase, so the typedef names that half and a case pins that it stays that way. Three members are **proved** - the builder throws unless module, target type and target id are all non-empty - and the two optional ids are named as **preconditions**, because nothing on this page validates them and the server is what refuses a bad one.
+
+**Typing the dialog introduced four diagnostics, which were resolved rather than netted off.** `dialog.querySelector` answers `Element`, and the payload builder reads `selectedOptions` while the value reader reads `dataset` and `value`. All three controls come from `createFileContextSelect`, which builds a `select`, so `findFileContextSelect` narrows them with `instanceof` and a case holds that lookup to the builder.
 
 #### 0.33.33.43.5 - The Files page's element handles
 
