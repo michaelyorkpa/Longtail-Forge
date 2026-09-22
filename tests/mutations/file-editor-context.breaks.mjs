@@ -23,9 +23,14 @@ const cases = [
   ["the context controls stop being built as selects",
     '  function createFileContextSelect(datasetKey, name) {\n    return createFilesElement("select", {',
     '  function createFileContextSelect(datasetKey, name) {\n    return createFilesElement("input", {'],
+  // Anchored on the following line as well, because `0.33.33.43.7` added two more call sites that
+  // look up the target select exactly the same way. The runner requires a unique anchor, so the
+  // bare lookup line no longer identifies this one.
   ["the target select stops going through the checked lookup",
-    'const targetSelect = findFileContextSelect(dialog, "[data-file-context-target]");',
-    'const targetSelect = dialog.querySelector("[data-file-context-target]");'],
+    'const targetSelect = findFileContextSelect(dialog, "[data-file-context-target]");\n'
+      + "    const selectedTarget = targetSelect?.selectedOptions?.[0] || null;",
+    'const targetSelect = dialog.querySelector("[data-file-context-target]");\n'
+      + "    const selectedTarget = targetSelect?.selectedOptions?.[0] || null;"],
 
   // --- the loaded-control gate and its fallback -----------------------------------------------------
   ["a control is read before it reports itself loaded",
@@ -57,9 +62,12 @@ const cases = [
   ["the context label is used even when a real label exists",
     "    if (!option.clientLabel && !option.projectLabel && option.contextLabel) {",
     "    if (option.contextLabel) {"],
+  // Re-anchored inside the function itself. The original reached forward to `safeOptionList`'s
+  // opening line to stay unique, which `0.33.33.43.7` broke by documenting that function; an
+  // anchor that depends on a *neighbour* is hostage to edits that have nothing to do with it.
   ["an option with nothing to say returns undefined rather than empty",
-    '    return "";\n  }\n\n  function safeOptionList(options) {',
-    "    return undefined;\n  }\n\n  function safeOptionList(options) {"],
+    '      return option.contextLabel;\n    }\n    return "";',
+    "      return option.contextLabel;\n    }\n    return undefined;"],
 
   // --- the three members the payload typedef calls proved -------------------------------------------
   ["an incomplete payload is sent rather than refused",

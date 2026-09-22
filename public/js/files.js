@@ -1355,6 +1355,36 @@
     event?.stopPropagation?.();
   }
 
+  /**
+   * How a caller asks for the editor, and where focus goes when it closes.
+   *
+   * `trigger` is only ever used when it can take focus - the opener tests `typeof
+   * trigger.focus === "function"` before preferring it over `document.activeElement` - so it is
+   * declared as what that test admits rather than as a specific element.
+   * @typedef {{ trigger?: FileEditorFocusTarget, parent?: unknown,
+   *   onSaved?: (detail: { attachmentId?: string, payload: FileEditorContextPayload }) => unknown }} FileEditorDialogOptions
+   */
+
+  /**
+   * The module-action host the editor reports back to, when it is opened as `files.edit`.
+   *
+   * Every member is optional and every call site is guarded - `refresh` by a `typeof` test, the
+   * other three by `?.` - because a host may implement only the part of the protocol it needs.
+   * **Not proved:** this page never validates the host it is handed; the guards are what make an
+   * absent or partial host safe.
+   * @typedef {{ trigger?: FileEditorFocusTarget, result?: unknown, refresh?: unknown,
+   *   complete?: (summary: { actionId: string, recordId?: string, title?: string }) => unknown,
+   *   cancel?: (summary: { actionId: string, recordId?: string }) => unknown }} FileEditorActionHost
+   */
+
+  /**
+   * Somewhere focus can return to. The opener tests `typeof trigger.focus === "function"`
+   * before preferring it over `document.activeElement`, so this names exactly what that test
+   * admits rather than a specific element type.
+   * @typedef {{ focus?: unknown } | null | undefined} FileEditorFocusTarget
+   */
+
+  /** @param {{ returnFocusTo?: FileEditorFocusTarget, trigger?: FileEditorFocusTarget }} [params] @param {FileEditorActionHost | null} [hostContext] */
   function openFileEditorAction(params = {}, hostContext = null) {
     const attachmentOrRow = normalizeFileActionRecord(params);
     if (!fileActionAttachmentId(attachmentOrRow)) {
@@ -1404,6 +1434,7 @@
     return requireFilePreview().fileActionAttachmentId(attachmentOrRow);
   }
 
+  /** @param {{ attachment?: unknown } & FileEditorRow} [attachmentOrRow] @param {FileEditorDialogOptions} [options] */
   function openFileEditor(attachmentOrRow = {}, options = {}) {
     const view = requireView();
     requireFilesViewHelper("renderDescriptorModalForm");
@@ -1444,8 +1475,17 @@
     return fileRow(attachmentOrRow?.attachment || attachmentOrRow || {});
   }
 
+  /** @param {FileEditorRow} row @param {FileEditorDialogOptions} [options] */
   function buildFileEditorDialog(row, options = {}) {
     const view = requireView();
+    /**
+     * The dialog this builder returns, declared unset because its own footer actions close over
+     * it before it exists.
+     *
+     * Typed from its producer rather than locally: it is assigned the result of
+     * `renderDescriptorModalForm`, whose published return is `BrowserViewModalFormElement`.
+     * @type {import("../../src/types/browser-contracts.js").BrowserViewModalFormElement | null}
+     */
     let dialog = null;
     const previewButton = view.createActionButton({
       action: "files.preview",
@@ -1649,6 +1689,7 @@
     });
   }
 
+  /** @param {Element} dialog @param {FileEditorRow} row */
   function bindFileEditorControlEvents(dialog, row) {
     dialog.querySelector("[data-file-context-target]")?.addEventListener("change", () => {
       syncFileEditorSaveState(dialog);
@@ -1663,15 +1704,19 @@
   }
 
   /**
-   * The editor row these readers consume, named for the three members they actually read.
+   * The editor row these readers consume, named for the members they actually read.
    *
    * **Declared locally because no browser contract publishes it**: `fileRow` builds it from an
    * attachment record, and it is this page's presentation shape rather than anything the server
    * sends. **Nothing here is proved** - `fileRow`'s own input is untyped, so these are the members
-   * this page writes, carried as preconditions. Every read below tolerates their absence:
-   * `attachmentId` is checked before the save, and the two ids are only ever used as fallbacks
-   * that collapse to `""`.
-   * @typedef {{ attachmentId?: string, clientId?: string, projectId?: string }} FileEditorRow
+   * this page writes, carried as preconditions. Every read tolerates their absence: `attachmentId`
+   * is checked before the save, the ids are only ever used as fallbacks that collapse to `""`, and
+   * the labels and flags are read through `||` or a truthiness test.
+   *
+   * `0.33.33.43.7` grew this by the five members the dialog half reads, rather than declaring a
+   * second row shape beside it: one editor, one row.
+   * @typedef {{ attachmentId?: string, clientId?: string, projectId?: string, clientLabel?: string,
+   *   targetLabel?: string, fileName?: string, previewable?: unknown, reviewable?: unknown }} FileEditorRow
    */
 
   /**
@@ -1681,7 +1726,9 @@
    * is the nested id pair the option may carry instead of flat ids. **Not validated**: this page
    * reads the response through no checker, so this names what it reads, not what it proved.
    * @typedef {{ clientId?: string, projectId?: string, clientLabel?: string, projectLabel?: string,
-   *   contextLabel?: string, value?: { clientId?: string, projectId?: string } }} FileEditorTargetOption
+   *   contextLabel?: string, label?: string, moduleId?: string, targetId?: string,
+   *   targetType?: string, value?: { clientId?: string, projectId?: string, moduleId?: string,
+   *   targetId?: string, targetType?: string } }} FileEditorTargetOption
    */
 
   /**
@@ -1785,7 +1832,7 @@
   /** @param {Element} dialog @param {FileEditorRow} row @param {{ workspaceType?: string, options?: FileEditorTargetOption[] }} response */
   function hydrateFileEditorOptionControls(dialog, row, response) {
     const business = (response.workspaceType || state.workspaceType) === "business";
-    const targetSelect = dialog.querySelector("[data-file-context-target]");
+    const targetSelect = findFileContextSelect(dialog, "[data-file-context-target]");
 
     hydrateFileEditorContextControls(dialog, row, business);
     if (targetSelect) {
@@ -1794,9 +1841,11 @@
     setFileEditorControlsDisabled(dialog, false, business);
   }
 
+  /** @param {Element} dialog @param {FileEditorRow} row @param {boolean} [business] */
   function hydrateFileEditorContextControls(dialog, row, business = usesBusinessScope()) {
-    const clientSelect = dialog.querySelector("[data-file-context-client]");
-    const clientField = dialog.querySelector("[data-file-context-business-control]");
+    const clientSelect = findFileContextSelect(dialog, "[data-file-context-client]");
+    const clientFieldElement = dialog.querySelector("[data-file-context-business-control]");
+    const clientField = clientFieldElement instanceof HTMLElement ? clientFieldElement : null;
 
     if (clientField) {
       clientField.hidden = !business;
@@ -1869,6 +1918,10 @@
     select.dataset.fileContextLoaded = "true";
   }
 
+  /**
+   * @param {HTMLSelectElement} select @param {FileEditorRow} row @param {unknown} options
+   * @param {{ clientId?: string, projectId?: string }} [context]
+   */
   function hydrateTargetSelect(select, row, options, context = {}) {
     const currentValue = fileEditorTargetOptionValue(fileEditorCurrentTargetOption(row));
     const selectedValue = select.dataset.fileContextLoaded === "true" ? select.value : currentValue;
@@ -1964,30 +2017,52 @@
     return "";
   }
 
+  /**
+   * The choices worth offering, from a body this page reads through no checker.
+   *
+   * **Precondition, not proved:** the filter only establishes that an entry carries a `value`
+   * or a `targetId`; every other member named by `FileEditorTargetOption` is what the producer
+   * is expected to send, and each reader tests it before use.
+   * @param {unknown} options @returns {FileEditorTargetOption[]}
+   */
   function safeOptionList(options) {
     return Array.isArray(options) ? options.filter((option) => option?.value || option?.targetId) : [];
   }
 
+  /** @param {Element} dialog @param {boolean} disabled @param {boolean} [business] */
   function setFileEditorControlsDisabled(dialog, disabled, business = usesBusinessScope()) {
+    // The three context controls are all `select`s from `createFileContextSelect`, so the sweeps
+    // below narrow rather than assert. A control of the wrong subtype is skipped instead of
+    // being disabled - the same tightening the rest of this page makes, and unreachable while
+    // the builder keeps building selects.
     dialog.querySelectorAll("[data-file-context-target], [data-file-context-project]").forEach((control) => {
-      control.disabled = disabled;
+      if (control instanceof HTMLSelectElement) {
+        control.disabled = disabled;
+      }
     });
     dialog.querySelectorAll("[data-file-context-client]").forEach((control) => {
-      control.disabled = disabled || !business;
+      if (control instanceof HTMLSelectElement) {
+        control.disabled = disabled || !business;
+      }
     });
     syncFileEditorSaveState(dialog, disabled);
   }
 
+  /** @param {Element} dialog @param {boolean} [forceDisabled] */
   function syncFileEditorSaveState(dialog, forceDisabled = false) {
-    const saveButton = dialog.querySelector("[data-file-context-save]");
-    const targetSelect = dialog.querySelector("[data-file-context-target]");
+    const saveButtonElement = dialog.querySelector("[data-file-context-save]");
+    const saveButton = saveButtonElement instanceof HTMLButtonElement ? saveButtonElement : null;
+    const targetSelect = findFileContextSelect(dialog, "[data-file-context-target]");
     const selectedTarget = targetSelect?.selectedOptions?.[0];
 
     if (!saveButton) {
       return;
     }
 
-    saveButton.disabled = forceDisabled || !targetSelect?.value || selectedTarget?.disabled;
+    // `Boolean(...)` is the conversion the `disabled` setter already performs on assignment: the
+    // last operand is `undefined` whenever no option is selected, and the DOM has always stored
+    // that as `false`. Written out so the compiler can see it; the stored value is unchanged.
+    saveButton.disabled = Boolean(forceDisabled || !targetSelect?.value || selectedTarget?.disabled);
   }
 
   /**
@@ -2079,6 +2154,7 @@
     const targetSelect = findFileContextSelect(dialog, "[data-file-context-target]");
     const selectedTarget = targetSelect?.selectedOptions?.[0] || null;
     const targetValue = parseFileEditorTargetValue(targetSelect?.value || "");
+    /** @type {FileEditorContextPayload} */
     const payload = {
       moduleId: selectedTarget?.dataset.moduleId || targetValue.moduleId || "",
       targetId: selectedTarget?.dataset.targetId || targetValue.targetId || "",
@@ -2102,13 +2178,24 @@
     return payload;
   }
 
+  /**
+   * The ids an option carries, parsed back out of its serialized value.
+   *
+   * Answers `{}` for anything unusable - absent, unparseable, or not an object - so every
+   * caller reads through `||`. **Nothing is proved**: the members are whatever the option was
+   * built with, which is why the payload builder still refuses an incomplete result.
+   * @param {unknown} value @returns {Partial<FileEditorContextPayload>}
+   */
   function parseFileEditorTargetValue(value) {
     if (!value) {
       return {};
     }
 
     try {
-      const parsed = JSON.parse(value);
+      // `JSON.parse` converts its argument with ToString, which is what the template does -
+      // and unlike `String()` it throws on a symbol exactly as the raw call did, into the
+      // same `catch` that already answers `{}`.
+      const parsed = JSON.parse(`${value}`);
 
       return parsed && typeof parsed === "object" ? parsed : {};
     } catch {
@@ -2123,6 +2210,7 @@
     row?.focus?.();
   }
 
+  /** @param {Element} dialog @param {string} message @param {boolean} [isError] */
   function setFileEditorStatus(dialog, message, isError = false) {
     const status = dialog.querySelector("[data-file-context-status]");
 

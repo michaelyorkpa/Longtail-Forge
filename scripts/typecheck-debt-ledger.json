@@ -435,6 +435,7 @@
         "tests/mutations/dashboard-entry-bridge.breaks.mjs",
         "tests/mutations/dashboard-panel.breaks.mjs",
         "tests/mutations/file-editor-context.breaks.mjs",
+        "tests/mutations/file-editor-dialog.breaks.mjs",
         "tests/mutations/files-element-handles.breaks.mjs",
         "tests/mutations/files-settings-collectors.breaks.mjs",
         "tests/mutations/footer-quick-action.breaks.mjs",
@@ -535,6 +536,7 @@
         "tests/unit/fallback-object-acquisition-contracts.test.mjs",
         "tests/unit/file-attachment-list-contracts.test.mjs",
         "tests/unit/file-editor-context-contracts.test.mjs",
+        "tests/unit/file-editor-dialog-contracts.test.mjs",
         "tests/unit/file-preview-contracts.test.mjs",
         "tests/unit/file-preview-row.test.mjs",
         "tests/unit/files-element-handle-contracts.test.mjs",
@@ -858,7 +860,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1102,
+      "errorCount": 1067,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -929,7 +931,7 @@
           },
           {
             "code": 2339,
-            "count": 42
+            "count": 28
           },
           {
             "code": 2353,
@@ -937,11 +939,11 @@
           },
           {
             "code": 7005,
-            "count": 5
+            "count": 3
           },
           {
             "code": 7006,
-            "count": 122
+            "count": 104
           },
           {
             "code": 7019,
@@ -953,7 +955,7 @@
           },
           {
             "code": 7034,
-            "count": 2
+            "count": 1
           },
           {
             "code": 7053,
@@ -1649,8 +1651,8 @@
     }
   },
   "totals": {
-    "files": 1440,
-    "errors": 1102,
+    "files": 1442,
+    "errors": 1067,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
