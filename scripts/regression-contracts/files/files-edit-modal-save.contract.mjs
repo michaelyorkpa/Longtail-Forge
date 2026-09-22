@@ -53,7 +53,11 @@ assert.match(filesStyles, /\.files-table tbody tr\[data-file-editor-row\]:focus-
 
 assert.match(buildBlock, /const previewButton = view\.createActionButton\(\{[\s\S]*icon:\s*"eye"[\s\S]*iconOnly:\s*true[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*requireFilePreview\(\)\.openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/, "File Context modal should expose the same standalone icon-only Preview action as the Files list");
 assert.doesNotMatch(buildBlock, /requireFilePreview\(\)\.openFilePreview\(row,\s*\{\s*parent:\s*dialog/, "File Context Preview should not bind the Preview modal to the edit modal");
-assert.match(buildBlock, /const markReviewedButton = view\.createActionButton\(\{[\s\S]*action:\s*"files\.restore"[\s\S]*icon:\s*"complete"[\s\S]*label:\s*`Mark \$\{row\.fileName\} reviewed`[\s\S]*markFileReviewedFromContext\(dialog,\s*row,\s*options\)/, "File Context should expose a modal-only Mark Reviewed action for in-review files");
+// Retargeted by 0.33.33.43.8. The footer action closes over the `dialog` local before the builder
+// assigns it, so the call now passes it through `requireFileEditorDialog`, which throws by name
+// where reading `querySelector` off `null` already threw. The action, icon, label and the handler
+// it dispatches to are all still required; only the dialog argument's spelling is now optional.
+assert.match(buildBlock, /const markReviewedButton = view\.createActionButton\(\{[\s\S]*action:\s*"files\.restore"[\s\S]*icon:\s*"complete"[\s\S]*label:\s*`Mark \$\{row\.fileName\} reviewed`[\s\S]*markFileReviewedFromContext\((?:requireFileEditorDialog\()?dialog\)?,\s*row,\s*options\)/, "File Context should expose a modal-only Mark Reviewed action for in-review files");
 assert.match(buildBlock, /const saveButton = view\.createActionButton\(\{[\s\S]*icon:\s*"save"[\s\S]*iconOnly:\s*true[\s\S]*type:\s*"submit"/, "File Context modal should expose an icon-only Save footer action");
 assert.match(buildBlock, /utilityActions:\s*\[previewButton,\s*markReviewedButton\][\s\S]*actions:\s*\[closeButton,\s*saveButton\]/, "File Context footer should keep Preview and Mark Reviewed as utilities to the left of Close and Save");
 assert.match(buildBlock, /previewButton\.dataset\.fileContextPreview = ""/, "File Context Preview should use a stable marker for footer control");
@@ -75,7 +79,7 @@ assert.match(saveBlock, /view\.closeModal\(dialog,\s*"saved"\)/, "Successful sav
 assert.match(saveBlock, /await loadFiles\(\)/, "Successful save should refresh the browse list");
 assert.match(saveBlock, /focusFileRowByAttachmentId\(row\.attachmentId\)/, "Successful save should return focus to the refreshed attachment row when present");
 assert.match(saveBlock, /catch \(error\) \{[\s\S]*setFileEditorControlsDisabled\(dialog,\s*false\)[\s\S]*setFileEditorStatus\(dialog,\s*requireErrors\(\)\.caughtMessage\(error, "File context was not saved\."\),\s*true\)/, "Failed save should keep the modal open and report an inline error");
-assert.match(markReviewedBlock, /title:\s*"Mark file reviewed\?"[\s\S]*confirmLabel:\s*"Mark Reviewed"[\s\S]*api\.postJson\(`\/api\/files\/\$\{encodeURIComponent\(row\.fileId\)\}\/restore`,\s*\{\}\)/, "Mark Reviewed should confirm and use the Files restore route");
+assert.match(markReviewedBlock, /title:\s*"Mark file reviewed\?"[\s\S]*confirmLabel:\s*"Mark Reviewed"[\s\S]*api\.postJson\(`\/api\/files\/\$\{encodeURIComponent\((?:`\$\{)?row\.fileId(?:\}`)?\)\}\/restore`,\s*\{\}\)/, "Mark Reviewed should confirm and use the Files restore route");
 assert.match(markReviewedBlock, /view\.closeModal\(dialog,\s*"reviewed"\)[\s\S]*await loadFiles\(\)[\s\S]*focusFileRowByAttachmentId\(row\.attachmentId\)/, "Mark Reviewed should close, refresh, and restore focus like other File Context saves");
 
 assert.match(payloadBlock, /moduleId:[\s\S]*targetId:[\s\S]*targetType:/, "Save payload should include only the target identity required by the route");
