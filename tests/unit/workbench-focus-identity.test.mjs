@@ -3,7 +3,7 @@ import vm from "node:vm";
 import { it } from "vitest";
 import { createProjectTextReader, extractFunctionBlock } from "../../scripts/test-support/source-scan.mjs";
 const source = createProjectTextReader().readText("public/js/workbench.js");
-const nativeCall = "Reflect.apply(encodeURIComponent, undefined, [taskId])";
+const nativeCall = "encodeURIComponent(`${taskId}`)";
 const urlConsumers = ["refreshActiveTaskFocus", "refreshTaskFocusRelatedContext", "completeFocusedTask", "resumeFocusedTask", "handleTaskFocusChecklistChange", "saveFocusedTaskTimer", "finalizeFocusedTaskTimer", "resetFocusedTaskTimer"];
 /** @param {unknown} id @param {string} name @param {boolean} original */
 function fixture(id, name, original) {
@@ -66,18 +66,7 @@ it("resume capture and timer refresh forward identity and distinguish equal-look
   await scope.refreshWorkbenchAfterTaskFocusTimerMutation({ task }, id);
   assert.deepEqual(seen, [id, task]);
 });
-it("dataset writes retain raw setter values, receiver and ordering", () => {
-  for (const name of ["createTaskFocusActionButton", "createTaskFocusTimerButton"]) {
-    /** @type {unknown[][]} */ const calls = [];
-    const id = { toString() { throw new Error("must reach the setter without conversion"); } };
-    const dataset = { set taskId(/** @type {unknown} */ value) { calls.push([this, value]); } };
-    const button = { dataset, disabled: false };
-    const scope = vm.createContext({ requireView: () => ({ createActionButton: () => button }), actionButton: () => button });
-    vm.runInContext(extractFunctionBlock(source, name), scope);
-    scope[name]({ active: { taskId: id }, taskId: id, label: "Action", id: "action", action: "start" });
-    assert.deepEqual(calls, [[dataset, id]]);
-  }
-});
+// Native dataset conversion and ordering are covered with real browser buttons in workbench-detail-context.spec.mjs.
 it("the requested boxed focus lookup accepts inherited primitive focus and keeps its receiver", async () => {
   const scope = vm.createContext({ candidateTaskId: () => "", candidateModuleAction: () => null, openNonTaskFocusFallback: () => {} });
   vm.runInContext(extractFunctionBlock(source, "openCandidate"), scope);

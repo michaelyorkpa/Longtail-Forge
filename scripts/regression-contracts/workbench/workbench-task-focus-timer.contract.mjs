@@ -119,17 +119,17 @@ assert.match(
 
 assert.match(
   extractFunctionBody(workbenchScript, "saveFocusedTaskTimer"),
-  /api\.putJson\(`\/api\/tasks\/\$\{Reflect\.apply\(encodeURIComponent, undefined, \[taskId\]\)\}\/timer`[\s\S]*active_task_timer_id:[\s\S]*timer_status: timerStatus[\s\S]*accumulated_elapsed_seconds: readElapsedSeconds\(timer\)/,
+  /api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{taskId\}`\)\}\/timer`[\s\S]*active_task_timer_id:[\s\S]*timer_status: timerStatus[\s\S]*accumulated_elapsed_seconds: readElapsedSeconds\(timer\)/,
   "Task Focus Start/Pause should reuse the Tasks-owned task timer save route",
 );
 assert.match(
   extractFunctionBody(workbenchScript, "finalizeFocusedTaskTimer"),
-  /api\.postJson\(`\/api\/tasks\/\$\{Reflect\.apply\(encodeURIComponent, undefined, \[taskId\]\)\}\/timer\/finalize`[\s\S]*duration_seconds: Math\.max\(1, readElapsedSeconds\(timer\)\)[\s\S]*end_time: new Date\(\)\.toISOString\(\)/,
+  /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{taskId\}`\)\}\/timer\/finalize`[\s\S]*duration_seconds: Math\.max\(1, readElapsedSeconds\(timer\)\)[\s\S]*end_time: new Date\(\)\.toISOString\(\)/,
   "Task Focus Save Time should reuse the Tasks-owned task timer finalize route",
 );
 assert.match(
   extractFunctionBody(workbenchScript, "resetFocusedTaskTimer"),
-  /modal\.confirm\(\{[\s\S]*title: "Reset task timer"[\s\S]*api\.deleteJson\(`\/api\/tasks\/\$\{Reflect\.apply\(encodeURIComponent, undefined, \[taskId\]\)\}\/timer`\)/,
+  /modal\.confirm\(\{[\s\S]*title: "Reset task timer"[\s\S]*api\.deleteJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{taskId\}`\)\}\/timer`\)/,
   "Task Focus Reset should confirm and reuse the Tasks-owned task timer delete route",
 );
 assert.match(
