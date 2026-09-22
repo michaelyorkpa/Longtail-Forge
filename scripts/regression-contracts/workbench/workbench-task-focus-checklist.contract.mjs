@@ -55,7 +55,7 @@ assert.doesNotMatch(
 
 assert.match(
   extractFunctionBody(workbenchScript, "handleTaskFocusChecklistChange"),
-  /const action = checked \? "check" : "uncheck";[\s\S]*api\.postJson\(\s*`\/api\/tasks\/\$\{Reflect\.apply\(encodeURIComponent, undefined, \[taskId\]\)\}\/checklist\/\$\{encodeURIComponent\(`\$\{itemId\}`\)\}\/\$\{action\}`[\s\S]*applyTaskFocusChecklistResult\(result\)[\s\S]*renderWorkbench\(\);/,
+  /const action = checked \? "check" : "uncheck";[\s\S]*api\.postJson\(\s*`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{taskId\}`\)\}\/checklist\/\$\{encodeURIComponent\(`\$\{itemId\}`\)\}\/\$\{action\}`[\s\S]*applyTaskFocusChecklistResult\(result\)[\s\S]*renderWorkbench\(\);/,
   "Checklist check/uncheck should dispatch through the existing Tasks-owned checklist mutation route",
 );
 assert.match(

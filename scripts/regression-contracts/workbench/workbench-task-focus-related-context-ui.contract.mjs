@@ -18,12 +18,12 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "refreshTaskFocusRelatedContext"),
-  /\/api\/workbench\/task-focus\/\$\{Reflect\.apply\(encodeURIComponent, undefined, \[taskId\]\)\}\/related-context[\s\S]*cache: "no-store"[\s\S]*normalizeTaskFocusRelatedContext\(result, taskId\)/,
+  /\/api\/workbench\/task-focus\/\$\{encodeURIComponent\(`\$\{taskId\}`\)\}\/related-context[\s\S]*cache: "no-store"[\s\S]*normalizeTaskFocusRelatedContext\(result, taskId\)/,
   "Task Focus Inspector should load selected-task related context from the e-1 route",
 );
 assert.match(
   extractFunctionBody(workbenchScript, "refreshActiveTaskFocus"),
-  /api\.getJson\(`\/api\/tasks\/\$\{Reflect\.apply\(encodeURIComponent, undefined, \[taskId\]\)\}`[\s\S]*await refreshTaskFocusRelatedContext\(taskId\)/,
+  /api\.getJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{taskId\}`\)\}`[\s\S]*await refreshTaskFocusRelatedContext\(taskId\)/,
   "Selected task details should load before related context is fetched",
 );
 assert.match(
