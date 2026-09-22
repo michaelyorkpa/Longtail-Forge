@@ -70,10 +70,12 @@ const cases = [
   ["the focus target is declared as a specific element rather than what the test admits",
     "@typedef {{ focus?: unknown } | null | undefined} FileEditorFocusTarget",
     "@typedef {HTMLElement | null | undefined} FileEditorFocusTarget"],
+  // Re-anchored by 0.33.33.43.8, which grew the row again. Anchored on the closing line alone so
+  // that adding members does not silently break this case - only removing the single-declaration
+  // property it is actually asserting will.
   ["the editor grows a second row shape beside the first",
-    "   *   targetLabel?: string, fileName?: string, previewable?: unknown, reviewable?: unknown }} FileEditorRow",
-    "   *   targetLabel?: string, fileName?: string, previewable?: unknown, reviewable?: unknown }} FileEditorRow\n"
-      + "   * @typedef {{ fileName?: string }} FileEditorRow"],
+    "   *   file?: unknown }} FileEditorRow",
+    "   *   file?: unknown }} FileEditorRow\n   * @typedef {{ fileName?: string }} FileEditorRow"],
   ["the host's refresh is called without its type test",
     '        if (typeof hostContext?.refresh === "function") {',
     "        if (hostContext?.refresh) {"],

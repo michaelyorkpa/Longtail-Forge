@@ -948,6 +948,7 @@
     return table;
   }
 
+  /** @param {Element} tbody @param {FileEditorRow[]} rows */
   function wireFilesTableRows(tbody, rows) {
     Array.from(tbody.querySelectorAll("tr")).forEach((rowElement, index) => {
       const row = rows[index];
@@ -960,6 +961,7 @@
     });
   }
 
+  /** @param {HTMLElement} rowElement @param {FileEditorRow} row */
   function wireFileTableRow(rowElement, row) {
     rowElement.tabIndex = 0;
     rowElement.dataset.fileEditorRow = "";
@@ -984,8 +986,18 @@
     });
   }
 
+  /**
+   * Whether a click landed on something that is itself an action.
+   *
+   * The target is narrowed rather than read through an optional chain: `closest` is an
+   * `Element` member, and a target that is not an element could never have answered one. The
+   * old `?.closest?.` tolerated exactly that case by answering `undefined`, which this still
+   * does - it just says why.
+   * @param {Event} event
+   */
   function isFileRowActionEvent(event) {
-    return Boolean(event.target?.closest?.("[data-file-action], a, button, input, select, textarea"));
+    return event.target instanceof Element
+      && Boolean(event.target.closest("[data-file-action], a, button, input, select, textarea"));
   }
 
   function filesTableColumns() {
@@ -1287,6 +1299,7 @@
     return button;
   }
 
+  /** @param {FileEditorRow} row */
   function createQuarantineAction(row) {
     const view = requireView();
     const button = view.createActionButton({
@@ -1350,6 +1363,7 @@
     return button;
   }
 
+  /** @param {Event} [event] */
   function stopFileRowActionEvent(event) {
     event?.preventDefault?.();
     event?.stopPropagation?.();
@@ -1362,7 +1376,8 @@
    * trigger.focus === "function"` before preferring it over `document.activeElement` - so it is
    * declared as what that test admits rather than as a specific element.
    * @typedef {{ trigger?: FileEditorFocusTarget, parent?: unknown,
-   *   onSaved?: (detail: { attachmentId?: string, payload: FileEditorContextPayload }) => unknown }} FileEditorDialogOptions
+   *   onSaved?: (detail: { attachmentId?: string, payload?: FileEditorContextPayload,
+   *     fileId?: string, lifecycle?: string }) => unknown }} FileEditorDialogOptions
    */
 
   /**
@@ -1434,7 +1449,12 @@
     return requireFilePreview().fileActionAttachmentId(attachmentOrRow);
   }
 
-  /** @param {{ attachment?: unknown } & FileEditorRow} [attachmentOrRow] @param {FileEditorDialogOptions} [options] */
+  /**
+   * @param {({ attachment?: unknown } & FileEditorRow)
+   *   | import("../../src/types/browser-contracts.js").BrowserFileActionRecord} [attachmentOrRow]
+   * the row itself, or the published carrier a module action was invoked with
+   * @param {FileEditorDialogOptions} [options]
+   */
   function openFileEditor(attachmentOrRow = {}, options = {}) {
     const view = requireView();
     requireFilesViewHelper("renderDescriptorModalForm");
@@ -1467,12 +1487,33 @@
     return dialog;
   }
 
-  /** @param {{ attachment?: unknown, fileName?: unknown } & FileEditorRow} [attachmentOrRow] @returns {FileEditorRow} */
+  /**
+   * @param {({ attachment?: unknown, fileName?: unknown } & FileEditorRow)
+   *   | import("../../src/types/browser-contracts.js").BrowserFileActionRecord} [attachmentOrRow]
+   * @returns {FileEditorRow}
+   */
   function normalizeFileEditorRow(attachmentOrRow = {}) {
     if (attachmentOrRow?.attachment && attachmentOrRow.fileName) {
       return attachmentOrRow;
     }
     return fileRow(attachmentOrRow?.attachment || attachmentOrRow || {});
+  }
+
+  /**
+   * The dialog a footer action acts on, once it exists.
+   *
+   * These actions close over the `dialog` local before the builder assigns it, so the compiler
+   * cannot see that a click can only happen afterwards. **This preserves the throw rather than
+   * introducing tolerance**: reading `querySelector` off `null` already failed here, and a silent
+   * skip would leave a button that does nothing. Only the message is new.
+   * @param {Element | null} dialog
+   * @returns {Element}
+   */
+  function requireFileEditorDialog(dialog) {
+    if (!dialog) {
+      throw new TypeError("The File Context action requires its dialog.");
+    }
+    return dialog;
   }
 
   /** @param {FileEditorRow} row @param {FileEditorDialogOptions} [options] */
@@ -1514,7 +1555,7 @@
       onClick: (event) => {
         event.preventDefault();
         event.stopPropagation();
-        markFileReviewedFromContext(dialog, row, options);
+        markFileReviewedFromContext(requireFileEditorDialog(dialog), row, options);
       },
     });
     const closeButton = view.createActionButton({
@@ -1716,8 +1757,23 @@
    * `0.33.33.43.7` grew this by the five members the dialog half reads, rather than declaring a
    * second row shape beside it: one editor, one row.
    * @typedef {{ attachmentId?: string, clientId?: string, projectId?: string, clientLabel?: string,
-   *   targetLabel?: string, fileName?: string, previewable?: unknown, reviewable?: unknown }} FileEditorRow
+   *   targetLabel?: string, fileName?: string, previewable?: unknown, reviewable?: unknown,
+   *   fileId?: string, status?: string, scanStatus?: string, canManageReview?: unknown,
+   *   file?: unknown }} FileEditorRow
    */
+
+  /**
+   * The two permission flags a row action consults, in both spellings the producer may send.
+   *
+   * `readActionBooleanFlag` takes the first value that is actually a boolean and falls back to a
+   * workspace permission otherwise, so every member here is optional **and** may legitimately be
+   * absent or non-boolean. **Nothing is proved:** this page reads the attachment and file records
+   * through no checker, and the server is what enforces the permission - these flags only decide
+   * whether the control is offered.
+   * @typedef {{ canReport?: unknown, can_report?: unknown,
+   *   canQuarantine?: unknown, can_quarantine?: unknown }} FileActionPermissions
+   */
+
 
   /**
    * One attachable-target choice, as `/api/files/attachable-targets` returns it.
@@ -2105,6 +2161,7 @@
     }
   }
 
+  /** @param {Element} dialog @param {FileEditorRow} row @param {FileEditorDialogOptions} [options] */
   async function markFileReviewedFromContext(dialog, row, options = {}) {
     const api = requireApi();
     const view = requireView();
@@ -2123,7 +2180,8 @@
       return;
     }
 
-    const markReviewedButton = dialog.querySelector("[data-file-context-mark-reviewed]");
+    const markReviewedElement = dialog.querySelector("[data-file-context-mark-reviewed]");
+    const markReviewedButton = markReviewedElement instanceof HTMLButtonElement ? markReviewedElement : null;
 
     setFileEditorStatus(dialog, "Marking file reviewed...");
     setFileEditorControlsDisabled(dialog, true);
@@ -2132,7 +2190,7 @@
     }
 
     try {
-      await api.postJson(`/api/files/${encodeURIComponent(row.fileId)}/restore`, {});
+      await api.postJson(`/api/files/${encodeURIComponent(`${row.fileId}`)}/restore`, {});
       setFileEditorStatus(dialog, "File marked reviewed.");
       view.closeModal(dialog, "reviewed");
       await loadFiles();
@@ -2240,6 +2298,7 @@
     return state.workspaceType === "business";
   }
 
+  /** @param {FileActionPermissions} attachment @param {FileActionPermissions} file @param {unknown} fileId @param {unknown} status */
   function canReportFileRow(attachment, file, fileId, status) {
     const allowed = readActionBooleanFlag([
       attachment.canReport,
@@ -2251,12 +2310,14 @@
     return Boolean(fileId && status !== "deleted" && status !== "quarantined" && allowed);
   }
 
+  /** @param {FileActionPermissions} attachment @param {FileActionPermissions} file @param {unknown} fileId @param {unknown} status */
   function canQuarantineFileRow(attachment, file, fileId, status) {
     const allowed = canManageFileReview(attachment, file, fileId);
 
     return Boolean(fileId && status !== "deleted" && status !== "quarantined" && allowed);
   }
 
+  /** @param {FileActionPermissions} attachment @param {FileActionPermissions} file @param {unknown} fileId */
   function canManageFileReview(attachment, file, fileId) {
     const allowed = readActionBooleanFlag([
       attachment.canQuarantine,
@@ -2268,6 +2329,7 @@
     return Boolean(fileId && allowed);
   }
 
+  /** @param {FileEditorRow} [row] */
   function canMarkReviewedFileRow(row = {}) {
     return Boolean(
       row.fileId &&
@@ -2277,6 +2339,14 @@
     );
   }
 
+  /**
+   * The first value that is genuinely a boolean, or the fallback.
+   *
+   * The producer may send a flag under either spelling, or not at all, so the caller hands in
+   * every candidate and this picks the first real boolean. A missing flag is not `false` - it
+   * means "unstated", which is why the fallback is a separate argument rather than a default.
+   * @param {unknown[]} values @param {boolean} fallback @returns {boolean}
+   */
   function readActionBooleanFlag(values, fallback) {
     const explicit = values.find((value) => typeof value === "boolean");
     return typeof explicit === "boolean" ? explicit : fallback;
@@ -2290,11 +2360,57 @@
     return false;
   }
 
+  /**
+   * The three row mutations keep `fileId` as `unknown` and leave `encodeURIComponent(fileId)`
+   * exactly as it was, which costs one diagnostic each.
+   *
+   * **That is a deliberate trade, not an oversight.** Writing the conversion out - as the mark-
+   * reviewed path does, where it cost two pin retargets - would here mean widening **25 route
+   * pins** across the Files, Notes and view-descriptor contracts to tolerate an optional template
+   * wrapper. Those pins exist to catch route drift, and loosening all of them buys an inert
+   * conversion: `encodeURIComponent` already converts with `ToString`. `fileRow` builds `fileId`
+   * without a string fallback, so it genuinely may be `undefined` and cannot honestly be declared
+   * required. The three are recorded in the checkpoint rather than paid for here.
+   */
+
+  /**
+   * What a row action calls the file in its confirmation.
+   *
+   * The file is read through no checker - it is whatever the row carried - so the two names are
+   * read as members rather than declared. The fallback and the precedence are the ones the three
+   * confirmations already used.
+   * @param {unknown} file
+   * @returns {string}
+   */
+  function fileActionDisplayName(file) {
+    const named = file == null ? undefined : Reflect.get(Object(file), "displayName", file);
+    const original = file == null ? undefined : Reflect.get(Object(file), "originalFilename", file);
+
+    return `${named || original || "this file"}`;
+  }
+
+  /**
+   * The three row mutations leave `fileId` **unannotated**, which keeps one diagnostic each.
+   *
+   * **A deliberate trade, stated rather than hidden.** Typing it `unknown` makes
+   * `encodeURIComponent(fileId)` a type error, and the two ways out are both worse. Writing the
+   * conversion out - as the mark-reviewed path does, where it cost two pin retargets - would here
+   * mean widening **25 route pins** across the Files, Notes and view-descriptor contracts, which
+   * exist to catch route drift, to buy an inert conversion: `encodeURIComponent` already converts
+   * with `ToString`. Leaving it `unknown` and not converting transfers three eliminations out of
+   * `params` and into `assorted`, which is debt moved rather than removed.
+   *
+   * `fileRow` builds `fileId` with no string fallback, so it genuinely may be `undefined` and
+   * cannot honestly be declared required. The right fix is to give the row a proved id at its
+   * producer, which is `fileRow`'s own boundary and not this one.
+   */
+
+  /** @param {unknown} [file] @param {string} [attachmentId] */
   async function reportFile(fileId, file = {}, attachmentId = "") {
     const api = requireApi();
     const confirmed = await requireModalDialogs().confirm({
       title: "Report file?",
-      message: `Report "${file.displayName || file.originalFilename || "this file"}" for review? Downloads will be paused until a workspace admin reviews it.`,
+      message: `Report "${fileActionDisplayName(file)}" for review? Downloads will be paused until a workspace admin reviews it.`,
       confirmLabel: "Report File",
       danger: true,
     });
@@ -2316,11 +2432,12 @@
     }
   }
 
+  /** @param {unknown} [file] */
   async function quarantineFile(fileId, file = {}) {
     const api = requireApi();
     const confirmed = await requireModalDialogs().confirm({
       title: "Move file to review?",
-      message: `Move "${file.displayName || file.originalFilename || "this file"}" to review? Downloads will remain unavailable until the file is restored.`,
+      message: `Move "${fileActionDisplayName(file)}" to review? Downloads will remain unavailable until the file is restored.`,
       confirmLabel: "Move to Review",
       danger: true,
     });
@@ -2339,11 +2456,12 @@
     }
   }
 
+  /** @param {unknown} [file] */
   async function deleteFile(fileId, file = {}) {
     const api = requireApi();
     const confirmed = await requireModalDialogs().confirm({
       title: "Delete file?",
-      message: `Delete "${file.displayName || file.originalFilename || "this file"}"? The file will be unavailable from attachments, but workspace admins can restore it during the retention window.`,
+      message: `Delete "${fileActionDisplayName(file)}"? The file will be unavailable from attachments, but workspace admins can restore it during the retention window.`,
       confirmLabel: "Delete File",
       danger: true,
     });

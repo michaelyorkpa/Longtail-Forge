@@ -436,6 +436,7 @@
         "tests/mutations/dashboard-panel.breaks.mjs",
         "tests/mutations/file-editor-context.breaks.mjs",
         "tests/mutations/file-editor-dialog.breaks.mjs",
+        "tests/mutations/file-row-actions.breaks.mjs",
         "tests/mutations/files-element-handles.breaks.mjs",
         "tests/mutations/files-settings-collectors.breaks.mjs",
         "tests/mutations/footer-quick-action.breaks.mjs",
@@ -539,6 +540,7 @@
         "tests/unit/file-editor-dialog-contracts.test.mjs",
         "tests/unit/file-preview-contracts.test.mjs",
         "tests/unit/file-preview-row.test.mjs",
+        "tests/unit/file-row-action-contracts.test.mjs",
         "tests/unit/files-element-handle-contracts.test.mjs",
         "tests/unit/files-preview.service.test.mjs",
         "tests/unit/files-scanner-job.service.test.mjs",
@@ -860,7 +862,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 1067,
+      "errorCount": 1030,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -931,7 +933,7 @@
           },
           {
             "code": 2339,
-            "count": 28
+            "count": 16
           },
           {
             "code": 2353,
@@ -943,7 +945,7 @@
           },
           {
             "code": 7006,
-            "count": 104
+            "count": 79
           },
           {
             "code": 7019,
@@ -1651,8 +1653,8 @@
     }
   },
   "totals": {
-    "files": 1442,
-    "errors": 1067,
+    "files": 1444,
+    "errors": 1030,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
