@@ -66,15 +66,15 @@ it("preserves inherited tag getters, short-circuit reads, primitive receivers an
   for (const value of [null, undefined]) assert.throws(() => f.taskFocusTagBadges({ directTags: [value] }), { name: "TypeError", message: "Task Focus tag is unavailable." });
 });
 
-it("forwards opaque badge values to their own setters in order, with the original truthy guard", () => {
+it("preserves native badge setter outputs and order, with the original truthy guard", () => {
   const f = fixture(), raw = {};
   /** @type {unknown[]} */ const writes = [];
-  const dataset = { set badgeType(/** @type {unknown} */ value) { writes.push([this === dataset, value]); } };
-  const element = { className: "", dataset, set textContent(/** @type {unknown} */ value) { writes.push([this === element, value]); } };
+  const dataset = { set badgeType(/** @type {unknown} */ value) { writes.push([this === dataset, `${value}`]); } };
+  const element = { className: "", dataset, set textContent(/** @type {unknown} */ value) { writes.push([this === element, value == null ? "" : `${value}`]); } };
   f.document.createElement = () => element;
   assert.equal(f.badge(raw, raw), element);
-  assert.deepEqual([...writes], [[true, raw], [true, raw]]);
-  writes.length = 0; f.badge(raw, false); assert.deepEqual([...writes], [[true, raw]]);
+  assert.deepEqual([...writes], [[true, "[object Object]"], [true, "[object Object]"]]);
+  writes.length = 0; f.badge(raw, false); assert.deepEqual([...writes], [[true, "[object Object]"]]);
   const failure = new Error("dataset setter");
   Object.defineProperty(dataset, "badgeType", { set() { throw failure; } });
   writes.length = 0; assert.throws(() => f.badge(raw, raw), error => error === failure);

@@ -1217,7 +1217,7 @@
       }
 
       if (typeof loader !== "function") throw new TypeError("The Workbench card data loader must be callable.");
-      mergeWorkbenchSourceData(sourceData, await Reflect.apply(loader, undefined, [card]));
+      mergeWorkbenchSourceData(sourceData, await loader(card));
     }));
 
     return sourceData;
@@ -3874,11 +3874,12 @@
       /** @type {unknown} */
       const renderer = Reflect.get(workbenchCardRenderers, workbenchCardPropertyKey(rendererId));
 
-      Reflect.set(card, "hidden", !contribution || !renderer);
+      // createWorkbenchCardSection builds HTML details; prove the HTML interface at this query.
+      if (card instanceof HTMLElement) card.hidden = !contribution || !renderer;
 
       if (contribution && renderer) {
         if (typeof renderer !== "function") throw new TypeError("The Workbench card renderer must be callable.");
-        Reflect.apply(renderer, undefined, [contribution]);
+        renderer(contribution);
       }
     });
   }
@@ -4547,7 +4548,7 @@
       }
       const cardId = workbenchCardField(workbenchCardField(card, "dataset"), "workbenchCard");
       const open = workbenchCardField(card, "open");
-      Reflect.set(stateByCard, workbenchCardPropertyKey(cardId), open);
+      stateByCard[workbenchCardPropertyKey(cardId)] = open;
     });
     window.localStorage.setItem(WORKBENCH_CARD_STATE_KEY, JSON.stringify(stateByCard));
   }
@@ -4789,9 +4790,9 @@
     const element = document.createElement("span");
     element.className = "workbench-badge";
     if (type) {
-      Reflect.set(element.dataset, "badgeType", type);
+      element.dataset.badgeType = `${type}`;
     }
-    Reflect.set(element, "textContent", label);
+    element.textContent = label === null || label === undefined ? "" : `${label}`;
     return element;
   }
 
