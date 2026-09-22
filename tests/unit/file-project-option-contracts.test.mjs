@@ -21,9 +21,13 @@ const contracts = createProjectTextReader().readText("src/types/browser-contract
 
 /** @param {string} [label] what the shared optionLabel helper answers for a client */
 function flatten(label = "") {
-  const sandbox = vm.createContext({ Array, String });
+  // The label crosses into the sandbox as **data**, not as interpolated source. Building the
+  // helper by embedding a value would make the code string depend on that value, which CodeQL
+  // rightly reads as code construction from an unsanitized input - `JSON.stringify` sanitizes
+  // data, not code. Passing it as a global keeps the source a constant.
+  const sandbox = vm.createContext({ Array, String, clientOptionLabel: label });
   vm.runInContext(
-    `function requireNamespace() { return { clientProjectOptions: { optionLabel: () => ${JSON.stringify(label)} } }; }`,
+    "function requireNamespace() { return { clientProjectOptions: { optionLabel: () => clientOptionLabel } }; }",
     sandbox,
   );
   vm.runInContext(extractFunctionBlock(source, "flattenProjectOptions"), sandbox);
