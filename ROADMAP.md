@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.31` | `workbench.js` — then `clients-projects.js` | 30 owned, then 391 |
-| Claude | `0.33.33.43.24` | `lists.js` — **reassigned to Claude**, with its directly associated tests | 239 |
+| Claude | `0.33.33.43.25` | `lists.js` — **reassigned to Claude**, with its directly associated tests | 179 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -135,7 +135,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | `0.33.33.42` closeout | Codex | `workbench.js` at zero. The Inspector's opaque-candidate reconciliation is **an open decision**, not scheduled work. |
 | `0.33.33.38.5` — server task lifecycle status vocabulary | Unassigned | **Open decision, four unchecked criteria.** Needs a predicate where a persisted row becomes a lifecycle status; explicitly forbids narrowing `TaskRecord.status` as a shortcut. |
 | Task Focus extraction | Codex lane, unscheduled | **Open decision.** "Measure before slicing" — the post-`0.33.33.38` remeasurement was to decide whether extraction and typing are one child or two. Still undecided. |
-| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder is `lists.js` 239, `clients-projects.js` 391, `workbench.js` 34 — and the `dom` family at 149. `.44` proves the whole program at zero and is therefore last. |
+| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder is `lists.js` 179, `clients-projects.js` 391, `workbench.js` 30 — and the `dom` family at 92. `.44` proves the whole program at zero and is therefore last. |
 | `0.33.33.45`–`.47` | Both | Sequenced in real dependency order **after** the two browser lanes converge. No prerequisite is satisfiable before that. |
 | `0.33.33.48` | Both | Runs only when its prerequisites are actually satisfied. Unchanged. |
 
@@ -145,7 +145,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - **`lists.js` progress bag has no checker** — recorded by `0.33.33.43.19`, **resolved by `0.33.33.43.21`**. `readListProgressBag` now vouches for the bag with the response readers, so `BrowserListSummary.progress` stays `unknown` and the record normaliser's `list` is typed. It also closed a latent crash: `isListSummary` never looked inside the bag, so a server sending `progress: null` threw on a bare member read. Carried no longer.
 - **`BrowserListItem.sort_order` is `unknown` by deliberate contract** — the comparator does arithmetic on it. Declaring it numeric would be false; converting would be new coercion. Discharged by the producer coercing the column, or the contract proving it. Pinned.
 - **`notes-primary-context` compiler case is marginal against its 5s bound** — recorded by `0.33.33.43.21`. It spawns `tsc` several times on a temp project and ran 5.8-6.7s when it failed, passing 8 of 10 attempts on this workstation. **It cannot see a Lists change**: its temp `tsconfig` declares `files: ["probe.js"]`, and the only project source it reads is `notes.js`. Not reproduced on clean-Linux CI. Discharged by an explicit per-case timeout or a cheaper probe, decided by the Notes owner; **not** by weakening what it asserts.
-- **The `dom` family is a Lists boundary, and it now gates owned work** — recorded by `0.33.33.43.24`. `lists.js` holds **118 of the global 149**, and those are not incidental: the module handles are declared by `document.querySelector`, which answers `Element`, so `option`, `replaceOptions`, `populateProjectOptions`, `decorateFilterControl` and `decorateListEditorField` cannot be typed from above at all. Two checkpoints have now deferred annotations for this one reason. **`0.33.33.44` cannot close without it**, and it should be scheduled as its own boundary — narrowing the handles where they are declared — rather than met piecemeal from each consumer. Owner: Claude, with `lists.js`.
+- **The `dom` family is a Lists boundary** — recorded by `0.33.33.43.24`, **largely resolved by `0.33.33.43.25`**, which narrowed 25 module handles and took the global family **149 to 92**. What remains in `lists.js` is nullability rather than subtype: 55 `possibly null` reads that are unguarded assignments, so closing them is a behaviour decision about what an absent control should do, not a typing one. The lookups are now duplicated across six modules (sixteen near-identical helpers); whether they belong in the shared view layer is an open framework-ownership decision. Superseded detail below. `lists.js` holds **118 of the global 149**, and those are not incidental: the module handles are declared by `document.querySelector`, which answers `Element`, so `option`, `replaceOptions`, `populateProjectOptions`, `decorateFilterControl` and `decorateListEditorField` cannot be typed from above at all. Two checkpoints have now deferred annotations for this one reason. **`0.33.33.44` cannot close without it**, and it should be scheduled as its own boundary — narrowing the handles where they are declared — rather than met piecemeal from each consumer. Owner: Claude, with `lists.js`.
 - **`tag-picker-workflows` `[mobile]` intermittent** — investigated in the browser lane; tag accumulation was **disproved** as the cause (fresh database, 13/13 under stress). The remaining hypothesis is cross-worker contention. No fix shipped and none scheduled; it is a retry-dependent observation, not a product defect, and must not be closed by weakening the spec.
 
 **`0.33.33.38` and `0.33.33.44` may not be closed while delegated work is outstanding**, regardless of which lane holds it. The `.44` closeout proves the whole browser program at zero, so it is the last thing either lane does. `0.33.33.45`-`.47` are coordinated in real dependency order after the two browser lanes converge, and `0.33.33.48` runs only when its prerequisites are actually satisfied.
@@ -1565,6 +1565,18 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.25 - The Lists element handles
+
+**Complete: 60 diagnostics closed, zero introduced, and the `dom` family moves for the first time in this campaign.** See the archive entry. `lists.js` 239 to 179, browser **660 to 600**, **`dom` 149 to 92** - 57 of the 60.
+
+**The shape is `files.js`'s, and the union names the member rather than the tag.** `findListsFormControl` accepts the four elements carrying `value` and `disabled`, which proved load-bearing: the filters are a genuine mixture of input and select, so a lookup per tag would have silently nulled one.
+
+**The safety claim is about the real DOM, and is settled against it.** `tests/e2e/lists-element-handles.spec.mjs` checks all 25 handles on the rendered page, desktop and mobile, and was proved by making it fail.
+
+**It discharged `0.33.33.43.24`'s deferral.** `replaceOptions` takes a select because it reads `.options`. Two deferrals survive and both moved to a different reason - nullability and the unvalidated users payload - neither of which is a `dom` question any more.
+
+**Reported, not decided:** these lookups now exist in six modules, sixteen near-identical helpers. Whether they belong in the shared view layer is a framework-ownership decision this checkpoint did not make.
 
 #### 0.33.33.43.24 - The Lists option and suggestion surface
 

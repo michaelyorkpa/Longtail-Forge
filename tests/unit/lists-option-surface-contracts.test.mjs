@@ -133,22 +133,27 @@ describe("What the option surface declares, and what gates the rest", () => {
       "and the reader's own cast says the same, rather than claiming more than it checked");
   });
 
-  it("leaves the select-filling primitives untyped, gated on the dom family", () => {
-    // Discharged by narrowing the module handles where they are declared - `dom`-family work and a
-    // boundary of its own - and for `option` additionally by a reader vouching for the users payload.
-    for (const name of ["replaceOptions", "option", "populateProjectOptions", "decorateFilterControl"]) {
+  it("had its dom gate discharged by 0.33.33.43.25, leaving two primitives on other reasons", () => {
+    // This case originally pinned four primitives as gated on the `dom` family. `0.33.33.43.25`
+    // narrowed the module handles, which is exactly what that deferral named as its discharge, so
+    // the gate is gone and the pin now records what actually remains.
+    assert.match(source, /clientFilter = findListsSelect\(/,
+      "the handles are narrowed at their declaration, so the dom gate is discharged");
+
+    const refillAt = source.indexOf("function replaceOptions(");
+    assert.match(source.slice(source.lastIndexOf("/**", refillAt), refillAt), /@param \{HTMLSelectElement \| null\} \[select\]/,
+      "and the refill is typed, because it reads `.options`");
+
+    // Two remain, each on a reason that is no longer about element subtypes.
+    for (const name of ["option", "populateProjectOptions", "decorateFilterControl"]) {
       const at = source.indexOf(`function ${name}(`);
       assert.notEqual(at, -1, `${name} still exists`);
       const block = source.slice(source.lastIndexOf("/**", at), at);
       assert.doesNotMatch(block, /@param \{[^}]*\} (select|value|surface)/,
-        `${name} is annotated; this deferral is discharged and the pin should go with it`);
+        `${name} is annotated; that deferral is discharged and this pin should go with it`);
     }
-
-    // The gate itself: the handles these reach are declared by a query that answers `Element`.
-    assert.match(source, /listClientInput = document\.querySelector\(/,
-      "the module handles still come from a query rather than a narrowed accessor");
     assert.match(source, /element\.value = value;/,
-      "and the option builder still writes a member that requires text");
+      "the option builder still writes a member that requires text, and its caller's rows are unproved");
   });
 
   it("leaves the provider options untyped, because the two branches genuinely disagree", () => {

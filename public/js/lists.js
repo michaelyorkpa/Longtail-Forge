@@ -463,29 +463,29 @@
 
   /** @type {Element | null} */
   let pageTitle = null;
-  /** @type {Element | null} */
+  /** @type {HTMLElement | null} */
   let createButton = null;
   /** @type {Element | null} */
   let statusMessage = null;
   /** @type {Element | null} */
   let filtersForm = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
   let statusFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
   let typeFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
   let reusableFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let clientFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let projectFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let assigneeFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
   let neededFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
   let archiveFilter = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
   let sortSelect = null;
   /** @type {Element | null} */
   let indexPanel = null;
@@ -495,43 +495,43 @@
   let listMount = null;
   /** @type {Element | null} */
   let detailPanel = null;
-  /** @type {Element | null} */
+  /** @type {HTMLDialogElement | null} */
   let listDialog = null;
-  /** @type {Element | null} */
+  /** @type {HTMLFormElement | null} */
   let listForm = null;
   /** @type {Element | null} */
   let listDialogTitle = null;
   /** @type {Element | null} */
   let listDialogClose = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
   let listTitleInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
   let listTypeInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let listClientInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLSelectElement | null} */
   let listProjectInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
   let listDescriptionInput = null;
   /** @type {Element | null} */
   let listLinkPicker = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
   let listLinkTargetTypeInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
   let listLinkSearchInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
   let listLinkResultsInput = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
   let listLinkApplyButton = null;
   /** @type {Element | null} */
   let listFormStatus = null;
   /** @type {Element | null} */
   let listCancelButton = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
   let listSaveButton = null;
-  /** @type {Element | null} */
+  /** @type {HTMLDialogElement | null} */
   let itemDialog = null;
-  /** @type {Element | null} */
+  /** @type {HTMLFormElement | null} */
   let itemDialogForm = null;
   /** @type {Element | null} */
   let itemDialogTitle = null;
@@ -539,52 +539,108 @@
   let itemDialogClose = null;
   /** @type {Element | null} */
   let itemDialogCancel = null;
-  /** @type {Element | null} */
+  /** @type {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null} */
   let itemDialogSave = null;
   /** @type {Element | null} */
   let itemDialogFormStatus = null;
 
+  /**
+   * The checked lookups the typed handles need, in the selector form this estate's other page
+   * cohorts use. `public/js/files.js` established this shape on its way to zero.
+   *
+   * **Narrowing only, with no refusal.** Each answers `null` for a control that is not the subtype
+   * its builder makes, and every handle narrowed here is one whose reads **already assume** that
+   * subtype: a `.value` read on a plain `Element` is `undefined` today, so a mismatch is a defect
+   * this page would already be showing rather than a case these lookups newly reject.
+   *
+   * **The union is the member, not the tag.** `findListsFormControl` names the four elements that
+   * carry `value` and `disabled`, so no handle has to guess whether its builder emits an input, a
+   * select, a textarea or a button. The handles whose only diagnostic is nullability keep
+   * `document.querySelector` and stay `Element | null`: narrowing them would close nothing, and
+   * their reads are unguarded assignments that a guard would change the behaviour of.
+   *
+   * @param {string} selector
+   * @returns {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement | null}
+   */
+  function findListsFormControl(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLInputElement
+      || element instanceof HTMLSelectElement
+      || element instanceof HTMLTextAreaElement
+      || element instanceof HTMLButtonElement
+      ? element
+      : null;
+  }
+
+  /**
+   * The select-only lookup, for the five handles `replaceOptions` refills: it reads `.options`,
+   * which no other control carries, so those reads already assume a select.
+   * @param {string} selector @returns {HTMLSelectElement | null}
+   */
+  function findListsSelect(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLSelectElement ? element : null;
+  }
+
+  /** @param {string} selector @returns {HTMLFormElement | null} */
+  function findListsForm(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLFormElement ? element : null;
+  }
+
+  /** @param {string} selector @returns {HTMLDialogElement | null} */
+  function findListsDialog(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLDialogElement ? element : null;
+  }
+
+  /** @param {string} selector @returns {HTMLElement | null} */
+  function findListsHtmlElement(selector) {
+    const element = document.querySelector(selector);
+    return element instanceof HTMLElement ? element : null;
+  }
+
   function cacheListsElements() {
     pageTitle = document.querySelector("[data-lists-title]");
-    createButton = document.querySelector("[data-list-create]");
+    createButton = findListsHtmlElement("[data-list-create]");
     statusMessage = document.querySelector("[data-lists-status]");
     filtersForm = document.querySelector("[data-lists-filters]");
-    statusFilter = document.querySelector("[data-list-filter-status]");
-    typeFilter = document.querySelector("[data-list-filter-type]");
-    reusableFilter = document.querySelector("[data-list-filter-reusable]");
-    clientFilter = document.querySelector("[data-list-filter-client]");
-    projectFilter = document.querySelector("[data-list-filter-project]");
-    assigneeFilter = document.querySelector("[data-list-filter-assignee]");
-    neededFilter = document.querySelector("[data-list-filter-needed]");
-    archiveFilter = document.querySelector("[data-list-filter-archive]");
-    sortSelect = document.querySelector("[data-list-sort]");
+    statusFilter = findListsFormControl("[data-list-filter-status]");
+    typeFilter = findListsFormControl("[data-list-filter-type]");
+    reusableFilter = findListsFormControl("[data-list-filter-reusable]");
+    clientFilter = findListsSelect("[data-list-filter-client]");
+    projectFilter = findListsSelect("[data-list-filter-project]");
+    assigneeFilter = findListsSelect("[data-list-filter-assignee]");
+    neededFilter = findListsFormControl("[data-list-filter-needed]");
+    archiveFilter = findListsFormControl("[data-list-filter-archive]");
+    sortSelect = findListsFormControl("[data-list-sort]");
     indexPanel = document.querySelector("[data-lists-index-panel]");
     countLabel = document.querySelector("[data-lists-count]");
     listMount = document.querySelector("[data-lists-list]");
     detailPanel = document.querySelector("[data-list-detail]");
-    listDialog = document.querySelector("[data-list-dialog]");
-    listForm = document.querySelector("[data-list-form]");
+    listDialog = findListsDialog("[data-list-dialog]");
+    listForm = findListsForm("[data-list-form]");
     listDialogTitle = document.querySelector("[data-list-dialog-title]");
     listDialogClose = document.querySelector("[data-list-dialog-close]");
-    listTitleInput = document.querySelector("[data-list-title]");
-    listTypeInput = document.querySelector("[data-list-type]");
-    listClientInput = document.querySelector("[data-list-client]");
-    listProjectInput = document.querySelector("[data-list-project]");
-    listDescriptionInput = document.querySelector("[data-list-description]");
+    listTitleInput = findListsFormControl("[data-list-title]");
+    listTypeInput = findListsFormControl("[data-list-type]");
+    listClientInput = findListsSelect("[data-list-client]");
+    listProjectInput = findListsSelect("[data-list-project]");
+    listDescriptionInput = findListsFormControl("[data-list-description]");
     listLinkPicker = document.querySelector("[data-list-link-picker]");
-    listLinkTargetTypeInput = document.querySelector("[data-list-link-target-type]");
-    listLinkSearchInput = document.querySelector("[data-list-link-search]");
-    listLinkResultsInput = document.querySelector("[data-list-link-results]");
-    listLinkApplyButton = document.querySelector("[data-list-link-apply]");
+    listLinkTargetTypeInput = findListsFormControl("[data-list-link-target-type]");
+    listLinkSearchInput = findListsFormControl("[data-list-link-search]");
+    listLinkResultsInput = findListsFormControl("[data-list-link-results]");
+    listLinkApplyButton = findListsFormControl("[data-list-link-apply]");
     listFormStatus = document.querySelector("[data-list-form-status]");
     listCancelButton = document.querySelector("[data-list-cancel]");
-    listSaveButton = document.querySelector("[data-list-save]");
-    itemDialog = document.querySelector("[data-list-item-dialog]");
-    itemDialogForm = document.querySelector("[data-list-item-form]");
+    listSaveButton = findListsFormControl("[data-list-save]");
+    itemDialog = findListsDialog("[data-list-item-dialog]");
+    itemDialogForm = findListsForm("[data-list-item-form]");
     itemDialogTitle = document.querySelector("[data-list-item-dialog-title]");
     itemDialogClose = document.querySelector("[data-list-item-dialog-close]");
     itemDialogCancel = document.querySelector("[data-list-item-cancel]");
-    itemDialogSave = document.querySelector("[data-list-item-save]");
+    itemDialogSave = findListsFormControl("[data-list-item-save]");
     itemDialogFormStatus = document.querySelector("[data-list-item-form-status]");
   }
 
@@ -1945,7 +2001,13 @@
   }
 
   function populateItemAssigneeOptions(selectedUserId = "") {
-    const select = itemDialogForm?.elements.assigned_user_id;
+    // `elements.assigned_user_id` and `elements.namedItem("assigned_user_id")` are the same
+    // lookup: the named-property getter on a form's controls collection is specified to behave as
+    // `namedItem`. This spelling is the one the collection publishes.
+    // The same narrowing the handle lookups use, for the same reason: the descriptor builds this
+    // control as a select, and the existing early return is already the path an absent one takes.
+    const control = itemDialogForm?.elements.namedItem("assigned_user_id");
+    const select = control instanceof HTMLSelectElement ? control : null;
     if (!select) {
       return;
     }
@@ -3274,6 +3336,15 @@
     listClientInput.value = selectedClientId || "";
   }
 
+  /**
+   * **Still deferred, and on nullability rather than on the subtype.** `0.33.33.43.25` narrowed the
+   * handles, so the select is no longer the obstacle; what remains is that this writes
+   * `select.value` unguarded at the end. Declaring the parameter nullable opens that read, and
+   * declaring it non-null refuses the caller that hands it a handle which really can be absent.
+   * A guard would turn today's throw into a silent skip, which is a behaviour change this slice
+   * does not authorise. **Discharged by** deciding what an absent project control should do -
+   * a product question, not a typing one. Pinned by `lists-element-handle-contracts`.
+   */
   function populateProjectOptions(select, selectedClientId = "all", selectedProjectId = "") {
     const projects = allProjects().filter((project) => {
       if (!usesBusinessScope()) {
@@ -3882,25 +3953,18 @@
   }
 
   /**
-   * **The select-filling primitives are gated on the `dom` family, and that is one finding rather
-   * than four deferrals.**
+   * Refill a select, keeping the current choice when it is still offered.
    *
-   * This, `option`, `populateProjectOptions` and `decorateFilterControl` all reach a module handle
-   * declared by `document.querySelector`, which answers `Element`. `Element` carries no `value`, no
-   * `options` and no `dataset`, so typing any of these parameters either refuses the callers that
-   * hand them those handles or moves the diagnostic into `dom` - the family this file holds 118 of,
-   * and the one `0.33.33.44` cannot close without.
+   * **`0.33.33.43.24` deferred this, and `0.33.33.43.25` discharged it by doing what that deferral
+   * named**: narrowing the handles where they are declared. The parameter is a select because this
+   * reads `.options`, which no other control carries.
    *
-   * `option` has a second gate of its own: it writes `element.value`, which requires text, while
-   * one caller hands it `state.users`' `user_id` - `unknown`, because nothing validates the options
-   * payload those rows come from.
-   *
-   * **Discharged by** narrowing the module handles where they are declared, which is `dom`-family
-   * work and a boundary of its own, and for `option` additionally by a reader that vouches for the
-   * users payload. `decorateFilterControl` is the twin of `decorateListEditorField`, deferred by
-   * `0.33.33.43.20` for exactly this reason. Pinned by `lists-option-surface-contracts`.
+   * `option` alone still stands deferred, on its own second gate: it writes `element.value`, which
+   * requires text, while one caller hands it `state.users`' `user_id` - `unknown`, because nothing
+   * validates the options payload those rows come from.
+   * @param {HTMLSelectElement | null} [select] @param {HTMLOptionElement[]} [options]
    */
-  function replaceOptions(select, options) {
+  function replaceOptions(select, options = []) {
     if (!select) {
       return;
     }
