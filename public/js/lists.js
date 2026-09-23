@@ -418,6 +418,16 @@
      */
     lists: [],
     selectedListId: new URLSearchParams(window.location.search).get("list") || "",
+    /**
+     * The workspace's users, as the options payload supplied them.
+     *
+     * `loadOptions` reads them out of a body it types `{ users?: unknown[] }` and nothing
+     * validates the rows, so the one member this page reads stays `unknown` - it is only ever
+     * handed to the option builder and the display helper, neither of which requires more. The
+     * empty initialiser would otherwise infer `never[]`, which refuses both the assignment and
+     * every read.
+     * @type {{ user_id?: unknown }[]}
+     */
     users: [],
     workspaceType: "business",
   };
@@ -1425,7 +1435,7 @@
     ]);
 
     state.clients = requireClientProjectOptions().normalizeClients(clientProjects);
-    const usersPayload = /** @type {{ users?: unknown[] }} */ (users);
+    const usersPayload = /** @type {{ users?: { user_id?: unknown }[] }} */ (users);
     state.users = usersPayload.users || [];
   }
 
@@ -2527,6 +2537,7 @@
     return /** @type {BrowserListItemSuggestion[]} */ (body.suggestions.filter(isItemSuggestion));
   }
 
+  /** @param {BrowserNormalizedListRecord | null} [list] */
   async function loadItemSuggestions(list) {
     const api = requireApi();
     if (!list?.list_id) {
@@ -2552,6 +2563,10 @@
     }
   }
 
+  /**
+   * Refill the item-name datalist for one list's cached suggestions.
+   * @param {Element} container @param {BrowserNormalizedListRecord | null} [list]
+   */
   function updateSuggestionDatalist(container, list) {
     const dataList = container.querySelector("[data-list-item-suggestions]");
     if (!dataList) {
@@ -2599,6 +2614,7 @@
     setFormValue(form, "notes", suggestion.notes || "");
   }
 
+  /** @param {BrowserNormalizedListRecord | null} [list] */
   function itemSuggestionsForList(list) {
     return state.itemSuggestions.get(list?.list_id) || [];
   }
@@ -2623,6 +2639,16 @@
     return listLinkPicker?.viewParts || {};
   }
 
+  /**
+   * **Deliberately untyped, and the fallback is why.** Declaring `providers` as the vouched-for
+   * contract exposes this reader's own fallback branch, which builds `{ label, moduleId,
+   * targetType }` literals carrying none of `id`, `provider` or `providerId` - and the map lookup
+   * that follows answers `| undefined` for a type the order names but the providers omit. That is
+   * eleven diagnostics for one, and it is a real mismatch between the two branches rather than a
+   * typing artefact. **Discharged by** the fallback building the same shape the contract declares,
+   * which is a change to what this page offers and not a typing decision. Pinned by
+   * `lists-option-surface-contracts`.
+   */
   function listLinkProviderOptions(providers = []) {
     const source = providers.length > 0
       ? providers
@@ -3855,6 +3881,25 @@
     }
   }
 
+  /**
+   * **The select-filling primitives are gated on the `dom` family, and that is one finding rather
+   * than four deferrals.**
+   *
+   * This, `option`, `populateProjectOptions` and `decorateFilterControl` all reach a module handle
+   * declared by `document.querySelector`, which answers `Element`. `Element` carries no `value`, no
+   * `options` and no `dataset`, so typing any of these parameters either refuses the callers that
+   * hand them those handles or moves the diagnostic into `dom` - the family this file holds 118 of,
+   * and the one `0.33.33.44` cannot close without.
+   *
+   * `option` has a second gate of its own: it writes `element.value`, which requires text, while
+   * one caller hands it `state.users`' `user_id` - `unknown`, because nothing validates the options
+   * payload those rows come from.
+   *
+   * **Discharged by** narrowing the module handles where they are declared, which is `dom`-family
+   * work and a boundary of its own, and for `option` additionally by a reader that vouches for the
+   * users payload. `decorateFilterControl` is the twin of `decorateListEditorField`, deferred by
+   * `0.33.33.43.20` for exactly this reason. Pinned by `lists-option-surface-contracts`.
+   */
   function replaceOptions(select, options) {
     if (!select) {
       return;
