@@ -2547,12 +2547,13 @@
     return activeOrPausedTimers(state.timers).find((timer) => taskTimerMatches(timer, taskId)) || null;
   }
 
+  /** @param {unknown} timer @param {unknown} taskId */
   function taskTimerMatches(timer, taskId) {
-    const sourceId = String(timer?.task_id || timer?.source_id || "");
+    const sourceId = String(workbenchSourceField(timer, "task_id", true) || workbenchSourceField(timer, "source_id", true) || "");
     return Boolean(
       taskId &&
       sourceId === taskId &&
-      (timer?.source_type === "task" || timer?.source_module_id === "tasks" || timer?.active_task_timer_id),
+      (workbenchSourceField(timer, "source_type", true) === "task" || workbenchSourceField(timer, "source_module_id", true) === "tasks" || workbenchSourceField(timer, "active_task_timer_id", true)),
     );
   }
 
@@ -3648,6 +3649,7 @@
     }
   }
 
+  /** @param {Partial<WorkCandidate>} [candidate] */
   function isManualTimerCandidate(candidate = {}) {
     return candidate.moduleId === "time-tracking"
       && candidate.recordType === "active_work_timer"
@@ -4358,15 +4360,17 @@
     }, 0);
   }
 
+  /** @template T @param {Iterable<T>} timers @returns {T[]} */
   function sortedTimers(timers) {
     return [...timers].sort((first, second) => {
-      if (first.timer_status !== second.timer_status) {
-        return first.timer_status === "running" ? -1 : 1;
+      if (workbenchSourceField(first, "timer_status") !== workbenchSourceField(second, "timer_status")) {
+        return workbenchSourceField(first, "timer_status") === "running" ? -1 : 1;
       }
-      return String(second.updated_at || "").localeCompare(String(first.updated_at || ""));
+      return String(workbenchSourceField(second, "updated_at") || "").localeCompare(String(workbenchSourceField(first, "updated_at") || ""));
     });
   }
 
+  /** @param {unknown} [timers] */
   function activeOrPausedTimers(timers = []) {
     return (Array.isArray(timers) ? timers : []).filter((timer) => ["running", "paused"].includes(timer?.timer_status));
   }
@@ -4384,9 +4388,10 @@
     return timers.filter((timer) => !taskTimerMatches(timer, focusedTaskId));
   }
 
+  /** @param {unknown} timer */
   function isTaskTimer(timer) {
     return Boolean(
-      timer?.source_type === "task" || timer?.source_module_id === "tasks" || timer?.active_task_timer_id,
+      workbenchSourceField(timer, "source_type", true) === "task" || workbenchSourceField(timer, "source_module_id", true) === "tasks" || workbenchSourceField(timer, "active_task_timer_id", true),
     );
   }
 
@@ -4422,16 +4427,17 @@
     return resolvedWorkbenchViewState() === WORKBENCH_VIEW_STATE_TASK_FOCUS;
   }
 
+  /** @param {unknown} timer */
   function timerKey(timer) {
-    if (timer.source_type === "task" && timer.source_id) {
-      return `task:${timer.source_id}`;
+    if (workbenchSourceField(timer, "source_type") === "task" && workbenchSourceField(timer, "source_id")) {
+      return `task:${workbenchSourceField(timer, "source_id")}`;
     }
 
-    if (timer.source_type === "manual") {
-      return `manual-slot:${timer.timer_slot}`;
+    if (workbenchSourceField(timer, "source_type") === "manual") {
+      return `manual-slot:${workbenchSourceField(timer, "timer_slot")}`;
     }
 
-    return `timer:${timer.active_timer_id || timer.timer_slot || ""}`;
+    return `timer:${workbenchSourceField(timer, "active_timer_id") || workbenchSourceField(timer, "timer_slot") || ""}`;
   }
 
   function cssEscape(value) {
