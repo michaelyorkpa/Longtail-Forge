@@ -1574,6 +1574,8 @@ Today's measurement, taken independently per module rather than as a group: `cli
 
 **One executable change, proved equivalent by a case.** `moduleIdForListLinkTarget` gains an empty-string default; the map has neither an `undefined` nor a `""` key, so both lookups were already absent and both already fell to `""`.
 
+**A pin from an earlier checkpoint was narrowed by one line** - it reached down into a neighbouring slot, so annotating the debounce handle failed a claim about the Map; the upward anchor it exists for is kept and was proved by making it fail.
+
 **Three deferrals recorded with discharge conditions, and one pre-existing finding pinned rather than repaired:** the module lookup is a plain object literal, so a target type spelled like an `Object.prototype` member finds the inherited one. `target_type` reaches it from the wire. Hardening it is a behaviour change this slice does not authorise.
 
 #### 0.33.33.43.19 - The Lists record normalizers
