@@ -170,11 +170,17 @@ describe("What the declarations claim, and what they decline to claim", () => {
   });
 
   it("takes the row type from the builder rather than restating it", () => {
-    // `0.33.33.43.15` introduced `FileRowRecord` as an alias for this very expression and used it
-    // here too, so a dozen readers share one name. The claim is unchanged - the row type is the
-    // builder's own return and cannot drift from it - so the pin now checks the use *and* the
-    // definition, rather than a spelling that has moved.
-    assert.match(source, /@param \{FileRowRecord\[\]\} rows/);
+    // `0.33.33.43.15` introduced `FileRowRecord` as an alias for this expression, so the claim is
+    // unchanged: the row type is the builder's own return and cannot drift from it.
+    //
+    // Tied to `renderFilesTable` itself rather than the bare spelling. `0.33.33.43.17` gave
+    // `createFilesTable` the same annotation, and with two matches in the file a bare
+    // `assert.match` kept passing while *this* one was mutated away - the third time a duplicate
+    // spelling has quietly disarmed a pin. A pin belongs to the declaration it is about.
+    assert.ok(
+      source.includes("@param {FileRowRecord[]} rows\n   */\n  function renderFilesTable(rows) {"),
+      "renderFilesTable's own parameter must carry the alias",
+    );
     assert.match(source, /@typedef \{ReturnType<typeof fileRow>\} FileRowRecord/);
   });
 
