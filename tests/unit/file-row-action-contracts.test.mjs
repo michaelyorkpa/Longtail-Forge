@@ -179,13 +179,23 @@ describe("The shapes this checkpoint declared, and the one it declined to", () =
     assert.doesNotMatch(source, /\}\} FileActionSubject\b/, "that near-collision was withdrawn rather than renamed around");
   });
 
-  it("records why three row mutations keep an untyped file id", () => {
-    assert.match(
+  /**
+   * `0.33.33.43.16` discharged this deferral. Typing the **parameters** `string` cost nothing once
+   * `0.33.33.43.9` gave `fileRow` a string fallback and `0.33.33.43.15` typed the action builders
+   * as `FileRowRecord` - so the trade this checkpoint measured no longer has to be made, and the
+   * route pins it was protecting are untouched.
+   */
+  it("no longer trades an untyped file id, and the routes it protected are unmoved", () => {
+    assert.doesNotMatch(
       source,
       /\*\*A deliberate trade, stated rather than hidden\.\*\*/,
-      "the deferral must carry its reason where the next reader meets it",
+      "the reason is spent; the parameters are declared",
     );
-    assert.match(source, /widening \*\*25 route pins\*\*/, "and the measured cost that justifies it");
+    assert.doesNotMatch(source, /widening \*\*25 route pins\*\*/);
+    assert.match(
+      source,
+      /The four row mutations take a \*\*proved\*\* `fileId`, discharged by `0\.33\.33\.43\.16`\./,
+    );
     for (const route of ["report", "quarantine", "delete"]) {
       assert.match(
         source,

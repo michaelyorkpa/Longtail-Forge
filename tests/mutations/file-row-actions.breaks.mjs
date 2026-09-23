@@ -80,9 +80,11 @@ const cases = [
   ["a footer action tolerates a missing dialog instead of refusing",
     "    if (!dialog) {\n      throw new TypeError(\"The File Context action requires its dialog.\");\n    }\n    return dialog;",
     "    return dialog;"],
-  ["the deferral loses the reason that justifies it",
-    "   * **A deliberate trade, stated rather than hidden.** Typing it `unknown` makes",
-    "   * Typing it `unknown` makes"],
+  // Retargeted by `0.33.33.43.16`, which discharged that deferral. The suite now asserts the spent
+  // reason is gone, so the mutation worth making is writing it back in.
+  ["the discharged deferral is written back into the source",
+    "   * The four row mutations take a **proved** `fileId`, discharged by `0.33.33.43.16`.",
+    "   * **A deliberate trade, stated rather than hidden.** Typing it `unknown` makes"],
 ];
 
 runMutationCampaign({
