@@ -16,6 +16,11 @@
     deleted: "Deleted",
     finalized: "Finalized",
   };
+  /**
+   * Read by an item's purchase status, which is a plain column value rather than one of the six
+   * keys, so an unlisted status falls through to the raw value.
+   * @type {Record<string, string>}
+   */
   const PURCHASE_STATUS_LABELS = {
     cancelled: "Cancelled",
     needed: "Needed",
@@ -52,6 +57,8 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserListSummary} BrowserListSummary */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserListItem} BrowserListItem */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewActionButtonOptions} BrowserViewActionButtonOptions */
+  /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewTextValue} BrowserViewTextValue */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserListLink} BrowserListLink */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserListDetail} BrowserListDetail */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserNormalizedListRecord} BrowserNormalizedListRecord */
@@ -1684,6 +1691,7 @@
     detailPanel.replaceChildren(article);
   }
 
+  /** @param {BrowserNormalizedListRecord} list @param {boolean} locked */
   function createListDetailHeader(list, locked) {
     const view = requireView();
     // Mirrors the Notes detail header: a title row (title + badges on the left, a 3-dot action menu on
@@ -1703,6 +1711,7 @@
     return view.createElement("header", { className: "lists-detail-header", children: [titleRow, rule, meta] });
   }
 
+  /** @param {BrowserNormalizedListRecord} list @param {boolean} locked */
   function createListActionStrip(list, locked) {
     const label = listsActionStripSurfaceDescriptor().label || "List actions";
     return requireDescriptorRenderers().renderDescriptorActionMenu(detailActionButtons(list, locked), {
@@ -1712,6 +1721,7 @@
     });
   }
 
+  /** @param {BrowserNormalizedListRecord} list */
   function createListDetailsPanel(list) {
     const view = requireView();
     const panel = view.createInfoPanel({
@@ -1786,6 +1796,7 @@
     });
   }
 
+  /** @param {BrowserNormalizedListRecord} list @param {boolean} locked */
   function createItemsHeader(list, locked) {
     const view = requireView();
     // The item form now lives in a modal; the detail just carries an "Items" heading and an Add Item button
@@ -1955,6 +1966,18 @@
     return listsItemFormSurfaceDescriptor().fields?.find((field) => field.field === fieldName) || { field: fieldName, type: "text", label: fieldName };
   }
 
+  /**
+   * One item-form field node.
+   *
+   * `field` is `ReturnType<typeof itemFormField>` - the descriptor entry when the surface
+   * contributed one, and that reader's own fallback when it did not. Derived rather than restated,
+   * so a contributed field shape cannot drift from what this builds out of it.
+   *
+   * The intersection is the width: a contributed `BrowserListsFieldDescriptor` declares `width`
+   * optional, while several of the reader's own fallback shapes declare none at all. Saying "may
+   * carry one" describes both without claiming either sends it.
+   * @param {ReturnType<typeof itemFormField> & { width?: string }} field
+   */
   function createItemFieldFromDescriptor(field) {
     const node = buildItemFieldNode(field);
     if (field.width && node && node.dataset) {
@@ -2010,6 +2033,7 @@
     });
   }
 
+  /** @param {Partial<ReturnType<typeof itemFormField>>} [field] */
   function createItemNameField(field = {}) {
     const label = document.createElement("label");
     const input = document.createElement("input");
@@ -2031,6 +2055,15 @@
     return label;
   }
 
+  /**
+   * One labelled checkbox.
+   *
+   * The three text parameters are text because the DOM requires it: two are assigned to `name` and
+   * `value`, and the third is appended as a label child. `checked` stays `unknown` - it is only
+   * ever tested for truthiness.
+   * @param {string} labelText @param {string} name @param {string} value
+   * @param {{ checked?: unknown }} [options]
+   */
   function checkboxField(labelText, name, value, options = {}) {
     const label = document.createElement("label");
     const input = document.createElement("input");
@@ -2048,6 +2081,7 @@
     return label;
   }
 
+  /** @param {BrowserNormalizedListRecord} list @param {boolean} locked */
   function createItemsTable(list, locked) {
     const items = visibleItems(list);
     const descriptor = listsItemRowsSurfaceDescriptor();
@@ -2110,6 +2144,14 @@
     return typeLabel ? `Unavailable ${typeLabel.toLowerCase()}` : "Unavailable linked record";
   }
 
+  /**
+   * One item row.
+   *
+   * `item` is `ReturnType<typeof visibleItems>[number]` rather than the published item contract
+   * spelled again: the row renders what that projection produced, so it cannot drift from it.
+   * @param {BrowserNormalizedListRecord} list @param {ReturnType<typeof visibleItems>[number]} item
+   * @param {number} index @param {number} total @param {boolean} locked
+   */
   function createItemRow(list, item, index, total, locked) {
     const row = document.createElement("tr");
     const doneCell = document.createElement("td");
@@ -2147,9 +2189,15 @@
     return row;
   }
 
+  /**
+   * The reorder, edit and delete controls for one row.
+   * @param {BrowserNormalizedListRecord} list @param {ReturnType<typeof visibleItems>[number]} item
+   * @param {number} index @param {number} total @param {boolean} locked
+   */
   function createItemRowActions(list, item, index, total, locked) {
     // The reorder controls stay inline (up/down icons); edit and delete fold into a "..." overflow menu.
     const actionById = new Map(listsItemRowsSurfaceDescriptor().actions.map((action) => [action.id, action]));
+    /** @param {string} id @param {{ menu?: boolean }} [options] */
     const rowActionButton = (id, options) => itemRowActionButton(actionById.get(id), list, item, index, total, locked, options);
     const ariaLabel = `${item.item_name || "Item"} actions`;
     const menu = requireDescriptorRenderers().renderDescriptorActionMenu(
@@ -2181,6 +2229,11 @@
     }
   }
 
+  /**
+   * Read by a contributed action's id, which is plain text rather than one of the four keys, so an
+   * action this page does not know falls through to no icon.
+   * @type {Record<string, string>}
+   */
   const ITEM_ROW_ACTION_ICONS = {
     "edit-item": "edit",
     "move-item-up": "up",
@@ -3311,6 +3364,7 @@
     };
   }
 
+  /** @param {BrowserViewTextValue} message */
   function renderListPlaceholder(message) {
     const view = requireView();
     const placeholder = view.createElement("p", {
@@ -3345,6 +3399,24 @@
     detailPanel.replaceChildren(prompt);
   }
 
+  /**
+   * One list or item action button.
+   *
+   * `icon` and `disabled` are derived from the factory descriptor this forwards them to, so they
+   * cannot drift from it. `behavior` and `itemId` are Lists' own and are text because each is
+   * written to `dataset`.
+   * @typedef {{
+   *   behavior?: string,
+   *   disabled?: BrowserViewActionButtonOptions["disabled"],
+   *   icon?: BrowserViewActionButtonOptions["icon"],
+   *   itemId?: string
+   * }} ListActionButtonOptions
+   *
+   * `action` is `string | undefined` because a contributed descriptor's `id` is, and one caller
+   * forwards it straight through. `dataset` is where it lands, and that map already admits both.
+   * @param {BrowserViewActionButtonOptions["label"]} label @param {string | undefined} action
+   * @param {string} listId @param {string} [variant] @param {ListActionButtonOptions} [options]
+   */
   function actionButton(label, action, listId, variant = "", options = {}) {
     const view = requireView();
     const button = view.createActionButton({
@@ -3723,6 +3795,13 @@
     return panel.title || panel.label || "List Selector";
   }
 
+  /**
+   * The items a list shows, which is every item it holds minus the deleted ones.
+   *
+   * Typed here rather than in each row builder, so those derive their element type from this
+   * projection instead of restating the published item contract five times.
+   * @param {{ items?: BrowserListItem[] }} list
+   */
   function visibleItems(list) {
     return (list.items || []).filter((item) => !item.deleted_at);
   }
