@@ -66,7 +66,7 @@ assert.match(
 );
 assert.match(
   extractFunctionBody(workbenchScript, "completeFocusedTask"),
-  /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{taskId\}`\)\}\/complete`, \{\}\)[\s\S]*resetTaskFocusState\(\);[\s\S]*await refreshFocusCandidates\(\);[\s\S]*renderWorkbench\(\);[\s\S]*const completionDetail = \{[\s\S]*\.\.\.result,[\s\S]*recordId: requireTaskRecords\(\)\.readTaskDetail\(result\)\?\.task_id \|\| taskId[\s\S]*setTaskCompletionStatus\(completionDetail\)[\s\S]*focusActiveFocusQuestion\(\)/,
+  /api\.postJson\(`\/api\/tasks\/\$\{encodeURIComponent\(`\$\{taskId\}`\)\}\/complete`, \{\}\)[\s\S]*resetTaskFocusState\(\);[\s\S]*await refreshFocusCandidates\(\);[\s\S]*renderWorkbench\(\);[\s\S]*const completionDetail = \{[\s\S]*\.\.\.Object\(result\),[\s\S]*recordId: requireTaskRecords\(\)\.readTaskDetail\(result\)\?\.task_id \|\| taskId[\s\S]*setTaskCompletionStatus\(completionDetail\)[\s\S]*focusActiveFocusQuestion\(\)/,
   "Task Focus Complete should call the existing route, return directly to Focus Selection, and retain completion continuity",
 );
 assert.doesNotMatch(
