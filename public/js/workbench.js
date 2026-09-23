@@ -1967,6 +1967,7 @@
     renderWorkbenchInspector();
   }
 
+  /** @param {Partial<WorkCandidate>} candidate */
   function createRecommendedCandidateCard(candidate, candidateIndex = 0) {
     const workbenchViewHelpers = requireView();
     const actionButtonElement = workbenchViewHelpers.createActionButton({
@@ -2232,6 +2233,7 @@
     return "";
   }
 
+  /** @param {ActiveTaskFocus} active */
   function createTaskFocusSummary(active) {
     const workbenchViewHelpers = requireView();
     const task = active?.task || {};
@@ -2281,6 +2283,7 @@
     });
   }
 
+  /** @param {ReturnType<typeof preserveTaskFocusChecklistData>} task @param {ActiveTaskFocus} _active */
   function taskFocusLeadText(task, _active) {
     const workbenchViewHelpers = requireView();
     const text = safeTaskFocusText(
@@ -2294,6 +2297,7 @@
     });
   }
 
+  /** @param {ActiveTaskFocus} active */
   function createTaskDetailsSection(active) {
     const workbenchViewHelpers = requireView();
     const details = workbenchViewHelpers.createElement("details", {
