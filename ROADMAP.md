@@ -122,7 +122,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.41.2` | `task-dialog.js` 850, `tasks.js` 311, `tasks-dashboard.js` 52, `task-resume-note-capture.js` 20, `task-calendar.js` 0 | 1,233 |
 | Codex | `0.33.33.42.1` | `workbench.js` — this owner's first child | 538 |
 | Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `lists-settings.js` 0 | 787 |
-| Claude | `0.33.33.43.15` | `files.js` — the **Files** module family, with `files-settings.js` complete | 21 |
+| Claude | `0.33.33.43.16` | `files.js` — the **Files** module family, with `files-settings.js` complete | 17 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
 These are **starting** boundaries. Each lane draws its own next child from the tree it actually has; neither pre-slices its remaining controllers.
@@ -1544,6 +1544,18 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.16 - The file mutation handlers, and a deferral discharged
+
+**Complete: 4 diagnostics closed, and `0.33.33.43.8`'s recorded trade no longer has to be made.** See the archive entry. The four row mutations' `fileId` parameters.
+
+**The deferral was discharged by two later checkpoints that did not notice.** `0.33.33.43.8` declined these four, recording that typing `fileId` `unknown` would break `encodeURIComponent(fileId)` and that writing the conversion out would widen **25 route pins** to buy an inert `ToString`. Since then `0.33.33.43.9` gave `fileRow`'s `fileId` a string fallback, and `0.33.33.43.15` typed the action builders that call these handlers as `FileRowRecord`, whose `fileId` is that proved string. Declaring the **parameters** `string` therefore costs nothing: four eliminations, no conversion written, and every route line byte-identical, so all of those pins stand untouched.
+
+**The blocker that remains is a different declaration.** `0.33.33.43.9` recorded that `FileEditorRow`'s member cannot be required, because `normalizeFileEditorRow` may hand back a caller's own object without passing it through `fileRow`. That is still true, still pinned, and still open - it never blocked these parameters.
+
+**A reason no case guarded had been false for six checkpoints.** The deferral also claimed `fileRow` builds `fileId` with no string fallback, which `0.33.33.43.9` had already made untrue **in the same comment block**. Nothing pinned that sentence, so nothing caught it.
+
+**No new suite, because the precondition is compiler-enforced.** Removing `fileRow`'s `|| ""` raises five diagnostics, one at each of these call sites. A case asserting the fallback would repeat what the compiler already refuses at every consumer.
 
 #### 0.33.33.43.15 - The file row's cells and actions
 

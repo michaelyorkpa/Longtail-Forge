@@ -2659,7 +2659,7 @@
   }
 
   /**
-   * The four row mutations leave `fileId` **unannotated**, which keeps one diagnostic each.
+   * The four row mutations take a **proved** `fileId`, discharged by `0.33.33.43.16`.
    *
    * **`0.33.33.43.9` tried to settle this at the producer and could not.** `fileRow` now
    * defaults `fileId` like every sibling id, so the row it builds really does carry a string -
@@ -2669,20 +2669,30 @@
    * two new diagnostics in place of four. The row cannot promise what only one of its two
    * producers guarantees.
    *
-   * **A deliberate trade, stated rather than hidden.** Typing it `unknown` makes
-   * `encodeURIComponent(fileId)` a type error, and the two ways out are both worse. Writing the
-   * conversion out - as the mark-reviewed path does, where it cost two pin retargets - would here
-   * mean widening **25 route pins** across the Files, Notes and view-descriptor contracts, which
-   * exist to catch route drift, to buy an inert conversion: `encodeURIComponent` already converts
-   * with `ToString`. Leaving it `unknown` and not converting transfers three eliminations out of
-   * `params` and into `assorted`, which is debt moved rather than removed.
+   * **That blocker was about the member, and never about these parameters.** `0.33.33.43.8`
+   * recorded a deliberate trade here: typing `fileId` `unknown` would have made
+   * `encodeURIComponent(fileId)` an error, and writing the conversion out would have widened
+   * twenty-five route pins to buy an inert `ToString`. Two later checkpoints removed the need for
+   * either. `0.33.33.43.9` gave `fileRow`'s `fileId` a string fallback, and `0.33.33.43.15` typed
+   * the action builders that call these handlers as `FileRowRecord`, whose `fileId` is that proved
+   * string. Declaring the **parameters** `string` therefore costs nothing: four eliminations, no
+   * conversion written, and **every route line byte-identical**, so all of those pins stand.
    *
-   * `fileRow` builds `fileId` with no string fallback, so it genuinely may be `undefined` and
-   * cannot honestly be declared required. The right fix is to give the row a proved id at its
-   * producer, which is `fileRow`'s own boundary and not this one.
+   * **The precondition is compiler-enforced, so no case guards it.** Take `|| ""` off `fileRow`'s
+   * `fileId` and five diagnostics appear - one at each of these four call sites, reading
+   * `Argument of type 'string | undefined' is not assignable to parameter of type 'string'`. A
+   * suite asserting the fallback is still there would be repeating what the compiler already
+   * refuses, at every consumer, which is why this checkpoint adds no case for it.
+   *
+   * That deferral also carried a sentence saying `fileRow` had no string fallback, which
+   * `0.33.33.43.9` had already made false and nothing pinned. A reason no case guards is a reason
+   * that can rot in place; this one did, for six checkpoints.
+   *
+   * The `FileEditorRow` member above remains undeclared for its own stated reason. That is a
+   * different boundary and it is still open.
    */
 
-  /** @param {unknown} [file] @param {string} [attachmentId] */
+  /** @param {string} fileId @param {unknown} [file] @param {string} [attachmentId] */
   async function reportFile(fileId, file = {}, attachmentId = "") {
     const api = requireApi();
     const confirmed = await requireModalDialogs().confirm({
@@ -2709,7 +2719,7 @@
     }
   }
 
-  /** @param {unknown} [file] */
+  /** @param {string} fileId @param {unknown} [file] */
   async function quarantineFile(fileId, file = {}) {
     const api = requireApi();
     const confirmed = await requireModalDialogs().confirm({
@@ -2733,7 +2743,7 @@
     }
   }
 
-  /** @param {unknown} [file] */
+  /** @param {string} fileId @param {unknown} [file] */
   async function deleteFile(fileId, file = {}) {
     const api = requireApi();
     const confirmed = await requireModalDialogs().confirm({
@@ -2757,6 +2767,7 @@
     }
   }
 
+  /** @param {string} fileId */
   async function restoreFile(fileId) {
     const api = requireApi();
     setStatus("Restoring file...");
