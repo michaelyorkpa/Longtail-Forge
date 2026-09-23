@@ -3024,15 +3024,26 @@
    * `is_reusable` among them - numeric on the wire, boolean here - so the result cannot extend
    * `BrowserListSummary`. The `{}` default is the draft case and is genuinely reachable:
    * `readListDetail` answers `list: undefined` for a body it cannot read.
-   * **Its inputs are deliberately left as they were.** Annotating them reaches into
-   * `normalizeListProgress`'s twenty `unknown` reads and two snake_case aliases the shaper does
-   * not emit - a separate page-model boundary, not this record's.
+   * **`0.33.33.43.2` left its inputs alone, naming the cost as "twenty `unknown` reads and two
+   * snake_case aliases the shaper does not emit". Both halves were still true**, and
+   * `0.33.33.43.19` paid the first: the progress reader below now declares those twenty. The two
+   * aliases are `resume_context` and `source_context`, which appear on no List contract.
+   *
+   * **`list` stays untyped, and the note above this function says why.** `items` and `links` do
+   * not: `readListDetail` filters them through `isListItem` and `isListLink`, so the published
+   * element contracts hold, and the only addition is the `id` this normaliser writes on its way
+   * past.
+   * @param {ListItemInput[]} [items] @param {(BrowserListLink & { id?: unknown })[]} [links]
    * @returns {BrowserNormalizedListRecord}
    */
   function normalizeListRecord(list = {}, items = [], links = []) {
     const normalizedItems = items.map((item) => ({ ...item, id: item.list_item_id || item.id }));
     const progress = normalizeListProgress(list.progress, normalizedItems);
     const normalizedLinks = links.map((link) => ({ ...link, id: link.list_link_id || link.id }));
+    // The shape belongs to this local rather than to the parameter: narrowing the published
+    // `resumeContext` member makes `BrowserListSummary` - which `readListDetail` validates and
+    // hands over - unassignable at both callers, and the validated handoff is worth more.
+    /** @type {ListResumeContextInput} */
     const resumeContext = list.resumeContext || list.resume_context || {};
 
     return {
@@ -3053,7 +3064,88 @@
     };
   }
 
-  /** @returns {BrowserListProgressSummary} */
+  /**
+   * The progress bag as a producer may send it, which is **not** the summary this builds.
+   *
+   * Ten members, each in the two spellings the reader accepts, and every one `unknown`: the
+   * normaliser itself converts. `checkedItemCount` and its four siblings pass through `Number(...)`,
+   * and the remaining five fall through `||` to a computed default, so declaring any of them
+   * `number` or `string` here would claim of the producer what only the **return** establishes.
+   *
+   * **Nothing is proved.** `BrowserListSummary` types `progress` as `unknown`, so this shape
+   * describes what the reader tolerates, not what arrived.
+   *
+   * **`normalizeListRecord`'s `list` is deliberately not typed against this.** Doing so forces the
+   * published `progress` member through this narrower door; narrowing the member itself instead
+   * makes `BrowserListSummary` - which `readListDetail` validates and hands over - unassignable at
+   * both callers. Either way the shrink-only ledger refuses the result, and the validated handoff
+   * is the thing worth keeping.
+   * @typedef {{
+   *   assignedUserIds?: unknown, assigned_user_ids?: unknown,
+   *   checkedItemCount?: unknown, checked_item_count?: unknown,
+   *   completedItemCount?: unknown, completed_item_count?: unknown,
+   *   earliestNeededByDate?: unknown, earliest_needed_by_date?: unknown,
+   *   incompleteItemCount?: unknown, incomplete_item_count?: unknown,
+   *   lastActivityAt?: unknown, last_activity_at?: unknown,
+   *   neededByDates?: unknown, needed_by_dates?: unknown,
+   *   nextUncheckedItemLabel?: unknown, next_unchecked_item_label?: unknown,
+   *   totalItemCount?: unknown, total_item_count?: unknown,
+   *   unassignedItemCount?: unknown, unassigned_item_count?: unknown
+   * }} ListProgressInput
+   */
+
+  /**
+   * One item as this normaliser receives it.
+   *
+   * `readListDetail` filters through `isListItem`, so the published guarantees hold in full - this
+   * is `BrowserListItem`, not a partial of it. The one addition is `id`, which the record
+   * normaliser writes on its way past and which a producer may also send; it stays `unknown`
+   * because nothing here proves it.
+   * @typedef {BrowserListItem & { id?: unknown }} ListItemInput
+   */
+
+  /**
+   * The resume context as a producer may send it.
+   *
+   * `BrowserListSummary` types `resumeContext` `unknown`, so this is what the reader tolerates and
+   * not what arrived: a bag carrying its own progress and either spelling of the source URL, each
+   * `unknown` because the reader only tests them for truthiness before falling through.
+   * @typedef {{ progress?: unknown, sourceUrl?: unknown, source_url?: unknown }} ListResumeContextInput
+   */
+
+  /**
+   * **Two parameters here are deliberately left untyped, and the gate is why.**
+   *
+   * The shrink-only ledger refuses an increase **per diagnostic code per file**, not merely on the
+   * file's total - so a boundary that closes thirty and opens three is refused, correctly. Two
+   * annotations that read as obvious each open one:
+   *
+   * 1. Typing `normalizeListRecord`'s `list` forces `list.progress` - published `unknown` - through
+   *    this reader's narrower door. Narrowing the published member instead was tried and is worse:
+   *    it makes `BrowserListSummary`, which `readListDetail` validates and hands over, unassignable
+   *    at both callers. **Discharged by** a checker for the progress bag at the response reader's
+   *    boundary, which is not this one's.
+   * 2. Typing this reader's `items` puts `BrowserListItem.sort_order` - `unknown` **by deliberate
+   *    contract**, because the column is numeric but nothing coerces it - into the comparator's
+   *    arithmetic. Declaring it numeric here would be false; wrapping the comparator would be new
+   *    coercion in a path required to preserve its ordering. **Discharged by** the producer coercing
+   *    that column, or the contract proving it.
+   *
+   * Both conditions are pinned by `lists-record-normalizer-contracts`, so a reason that stops being
+   * true fails a case rather than sitting here - the failure `0.33.33.43.8`'s deferral had for six
+   * checkpoints because nothing guarded it.
+   */
+
+  /**
+   * The progress summary the page holds, from whichever spellings arrived.
+   *
+   * Every count falls back to one derived from the items, so the return is total: the five numeric
+   * members are `Number(...)` of the first spelling present, and the five opaque ones fall through
+   * `||`. Deleted items are filtered first, and the next-unchecked label is taken in `sort_order`
+   * order with `?? 0` for an absent one.
+   * @param {ListProgressInput} [progress]
+   * @returns {BrowserListProgressSummary}
+   */
   function normalizeListProgress(progress = {}, items = []) {
     const visible = items.filter((item) => !item.deleted_at);
     const checkedCount = visible.filter((item) => item.checked_at).length;

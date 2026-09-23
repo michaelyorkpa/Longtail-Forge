@@ -118,14 +118,33 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 
 | Lane | Next ID | Boundary | Live count |
 | --- | --- | --- | --- |
-| Codex | `0.33.33.40.3` | `notes.js` | 772 |
-| Codex | `0.33.33.41.2` | `task-dialog.js` 850, `tasks.js` 311, `tasks-dashboard.js` 52, `task-resume-note-capture.js` 20, `task-calendar.js` 0 | 1,233 |
-| Codex | `0.33.33.42.1` | `workbench.js` — this owner's first child | 538 |
-| Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `lists-settings.js` 0 | 787 |
+| Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
+| Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
+| Codex | `0.33.33.42.29` | `workbench.js` — then `clients-projects.js` | 54 owned, then 391 |
+| Claude | `0.33.33.43.19` | `lists.js` — **reassigned to Claude**, with its directly associated tests | 374 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
-These are **starting** boundaries. Each lane draws its own next child from the tree it actually has; neither pre-slices its remaining controllers.
+**File ownership for the remainder of this conversion.** `lists.js` and its directly associated tests are **Claude's**; `workbench.js` and then `clients-projects.js` are **Codex's**. Claude retains shared prerequisites and sole protected integration ownership. These are **starting** boundaries: each lane draws its own next child from the tree it actually has, and neither pre-slices its remaining controllers.
+
+**Remaining release obligations, their owner, and what each genuinely waits on:**
+
+| Obligation | Owner | Genuine prerequisite or unresolved decision |
+| --- | --- | --- |
+| `0.33.33.43` closeout | Claude (`lists.js`), Codex (`clients-projects.js`) | Both files at zero. Neither is blocked today. |
+| `0.33.33.42` closeout | Codex | `workbench.js` at zero. The Inspector's opaque-candidate reconciliation is **an open decision**, not scheduled work. |
+| `0.33.33.38.5` — server task lifecycle status vocabulary | Unassigned | **Open decision, four unchecked criteria.** Needs a predicate where a persisted row becomes a lifecycle status; explicitly forbids narrowing `TaskRecord.status` as a shortcut. |
+| Task Focus extraction | Codex lane, unscheduled | **Open decision.** "Measure before slicing" — the post-`0.33.33.38` remeasurement was to decide whether extraction and typing are one child or two. Still undecided. |
+| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder is `lists.js` 374, `clients-projects.js` 391, `workbench.js` 54 — and the `dom` family at 149. `.44` proves the whole program at zero and is therefore last. |
+| `0.33.33.45`–`.47` | Both | Sequenced in real dependency order **after** the two browser lanes converge. No prerequisite is satisfiable before that. |
+| `0.33.33.48` | Both | Runs only when its prerequisites are actually satisfied. Unchanged. |
+
+**Unresolved findings carried forward, each checked against the current tree rather than rescheduled by habit:**
+
+- **`FileEditorRow`'s member cannot be declared required** — recorded by `0.33.33.43.9`, **still live**: `normalizeFileEditorRow` may return a caller's own object without passing it through `fileRow`, so the row cannot promise what only one of its two producers guarantees. `0.33.33.43.16` and `.43.18` both confirmed it and left it standing. Owner: Claude, with `files.js`; it does **not** block that file's zero, which is already reached.
+- **`lists.js` progress bag has no checker** — recorded by `0.33.33.43.19`. `BrowserListSummary.progress` is `unknown` and `isListSummary` does not look inside it. Discharged by a checker at the response reader's boundary, which is not the normaliser's. Pinned.
+- **`BrowserListItem.sort_order` is `unknown` by deliberate contract** — the comparator does arithmetic on it. Declaring it numeric would be false; converting would be new coercion. Discharged by the producer coercing the column, or the contract proving it. Pinned.
+- **`tag-picker-workflows` `[mobile]` intermittent** — investigated in the browser lane; tag accumulation was **disproved** as the cause (fresh database, 13/13 under stress). The remaining hypothesis is cross-worker contention. No fix shipped and none scheduled; it is a retry-dependent observation, not a product defect, and must not be closed by weakening the spec.
 
 **`0.33.33.38` and `0.33.33.44` may not be closed while delegated work is outstanding**, regardless of which lane holds it. The `.44` closeout proves the whole browser program at zero, so it is the last thing either lane does. `0.33.33.45`-`.47` are coordinated in real dependency order after the two browser lanes converge, and `0.33.33.48` runs only when its prerequisites are actually satisfied.
 
@@ -1544,6 +1563,18 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.19 - The Lists record normalizers
+
+**Complete: 22 diagnostics closed and none introduced.** See the archive entry. `lists.js` 396 to 374, browser **845 to 823**, `0.33.33.43` 642 to 620. All 22 are `params`, 569 to 547; `state` 103, `dom` 149 and `assorted` 24 are unchanged. `0.33.33.42` 54 plus `0.33.33.43` 620 plus `dom` 149 is 823.
+
+**The shrink-only ledger refuses an increase per diagnostic code per file, not on the file's total.** Measured here for the first time, and it decided the boundary: a version closing 38 and opening 3 was refused outright, naming `2345` 1 to 2, `2362` 0 to 1 and `2363` 0 to 1. The three were real, so the gate is right.
+
+**Two annotations were dropped and each recorded with a discharge condition.** Typing `normalizeListRecord`'s `list` forces the published-`unknown` `progress` through a narrower door, and narrowing that member instead makes `BrowserListSummary` unassignable at both callers - the validated handoff is worth more. Typing `normalizeListProgress`'s `items` puts `BrowserListItem.sort_order`, `unknown` by deliberate contract, into the comparator's arithmetic. Both conditions are pinned by `lists-record-normalizer-contracts`.
+
+**The inputs claim nothing the producer has not given; the returns stay precise.** All twenty `ListProgressInput` members are `unknown` because this normaliser is what converts them, while `BrowserListProgressSummary` and `BrowserNormalizedListRecord` remain exact because the returns genuinely establish them.
+
+**`0.33.33.43.2`'s deferral is half discharged and rewritten rather than left beside a contradiction.** It named "twenty `unknown` reads and two snake_case aliases the shaper does not emit"; this paid the first, and the tolerated resume-context shape now sits on the local.
 
 #### 0.33.33.43.18 - Files closeout: the last ten
 
