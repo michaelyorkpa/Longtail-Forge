@@ -1,4 +1,4 @@
-/* global document */
+/* global document, HTMLElement, HTMLInputElement, HTMLSelectElement, HTMLTextAreaElement, HTMLButtonElement, HTMLFormElement, HTMLDialogElement */
 // The page.evaluate callback below runs in the browser, not Node.
 
 // Runtime proof for 0.33.33.43.25.
