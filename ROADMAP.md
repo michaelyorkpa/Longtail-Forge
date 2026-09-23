@@ -122,7 +122,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.41.2` | `task-dialog.js` 850, `tasks.js` 311, `tasks-dashboard.js` 52, `task-resume-note-capture.js` 20, `task-calendar.js` 0 | 1,233 |
 | Codex | `0.33.33.42.1` | `workbench.js` — this owner's first child | 538 |
 | Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `lists-settings.js` 0 | 787 |
-| Claude | `0.33.33.43.17` | `files.js` — the **Files** module family, with `files-settings.js` complete | 10 |
+| Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
 These are **starting** boundaries. Each lane draws its own next child from the tree it actually has; neither pre-slices its remaining controllers.
@@ -1544,6 +1544,18 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.18 - Files closeout: the last ten
+
+**Complete: 10 diagnostics closed and `public/js/files.js` reaches zero.** See the archive entry. Eighty-eight to nought across eighteen checkpoints, with `files-settings.js` already complete.
+
+**Nine owned eliminations and one `dom`.** The `element.hidden` narrowing is a `dom`-family diagnostic, so `0.33.33.43` falls 651 to 642 while the **global `dom` family moves for the first time in this campaign, 150 to 149**. The arithmetic closes exactly: `0.33.33.42` 58 plus `0.33.33.43` 642 plus `dom` 149 is 849.
+
+**Typing the metadata builders found six members `FileEditorRow` did not declare.** Ten eliminations introduced seven diagnostics, all real: the metadata list reads `fileTypeLabel`, `fileSizeLabel`, `statusLabel`, `uploadedAtLabel`, `attachedAtLabel` and `uploadedByLabel`, and that shape carried none of them. The fix was not invented - the typedef's own doc records the precedent from `0.33.33.43.7`: grow the one editor row rather than declare a second beside it.
+
+**Optional is the honest declaration, and `0.33.33.43.9` had already said why.** `normalizeFileEditorRow` returns a caller's own object when it already carries an attachment and a file name, and otherwise builds one through `fileRow`. Only the second guarantees these labels, so the row cannot promise them - and every reader passes them through `metadataText`, which takes `unknown` and supplies its own stand-in.
+
+**Two derivations rather than restatements.** The `openFilePreview` forwarder takes `Parameters<...>` of the helper it forwards to, and the workspace context is `Partial<BrowserStoredWorkspaceContext>` - the published shape, with `Partial` earned by the `|| {}` that admits an empty bag.
 
 #### 0.33.33.43.17 - The view-helper access layer
 

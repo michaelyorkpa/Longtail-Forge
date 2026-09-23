@@ -229,6 +229,11 @@
   namespace.filesDialog = Object.freeze({
     openFileEditor,
     openFileEditorAction,
+    // The type sits above the property rather than inside the parameter list, because
+    // `notes/current-static-contracts` pins this forwarder's exact one-line spelling to catch
+    // drift in the shared preview surface. A pure forwarder simply *is* the type it forwards
+    // to - parameters and return together - so it cannot drift from the published helper.
+    /** @type {ReturnType<typeof requireFilePreview>["openFilePreview"]} */
     openFilePreview: (...args) => requireFilePreview().openFilePreview(...args),
     openFilePreviewAction,
   });
@@ -1254,6 +1259,13 @@
     return span;
   }
 
+  /**
+   * The floating tooltip for one truncated cell.
+   *
+   * `target` is an `Element` because that is all this asks of it - one `setAttribute` - and `text`
+   * is `unknown` because it goes to the view factory's `text`, which converts.
+   * @param {Element} target @param {unknown} text
+   */
   function showFilesTooltip(target, text) {
     hideFilesTooltip();
 
@@ -1832,6 +1844,7 @@
     };
   }
 
+  /** @param {FileEditorRow} row */
   function createFileEditorMetadataSection(row) {
     const view = requireView();
     return view.createElement("section", {
@@ -1845,6 +1858,7 @@
     });
   }
 
+  /** @param {FileEditorRow} row */
   function createFileEditorMetadataList(row) {
     const view = requireView();
     const metadataRows = [
@@ -1986,12 +2000,21 @@
    * the labels and flags are read through `||` or a truthiness test.
    *
    * `0.33.33.43.7` grew this by the five members the dialog half reads, rather than declaring a
-   * second row shape beside it: one editor, one row.
+   * second row shape beside it: one editor, one row. `0.33.33.43.18` grew it again, by the six
+   * the metadata list reads, on the same principle.
+   *
+   * **Every member is optional because only one of the two producers builds them.**
+   * `normalizeFileEditorRow` returns a caller's own object when it already carries an attachment
+   * and a file name, and otherwise builds one through `fileRow`. Only the second guarantees these
+   * labels, so the row cannot promise them - and each reader passes them through `metadataText`,
+   * which takes `unknown` and supplies its own stand-in.
    * @typedef {{ attachmentId?: string, clientId?: string, projectId?: string, clientLabel?: string,
    *   targetLabel?: string, fileName?: string, previewable?: unknown, reviewable?: unknown,
    *   fileId?: string, status?: string, scanStatus?: string, canManageReview?: unknown,
    *   moduleId?: string, moduleLabel?: string, projectLabel?: string, targetType?: string,
    *   targetId?: string,
+   *   fileTypeLabel?: string, fileSizeLabel?: string, statusLabel?: string,
+   *   uploadedAtLabel?: string, attachedAtLabel?: string, uploadedByLabel?: string,
    *   attachment?: unknown,
    *   file?: unknown }} FileEditorRow
    */
@@ -2553,10 +2576,22 @@
   }
 
   function applyWorkspaceContext() {
+    /**
+     * `Partial` because the `|| {}` admits an empty bag when the shell has not stored one yet.
+     * The members themselves are the published ones - `workspaceType` is declared on
+     * `BrowserStoredWorkspaceContext` - so this names the shared shape rather than a local copy.
+     * @type {Partial<import("../../src/types/browser-contracts.js").BrowserStoredWorkspaceContext>}
+     */
     const context = window.LongtailForge?.workspaceContext || {};
     state.workspaceType = context.workspaceType || "business";
+    // `hidden` is an `HTMLElement` member and `querySelectorAll` answers `Element`. Every element
+    // carrying this marker is built by `createBusinessFilterLabel`, which is a `"label"` from the
+    // shared factory, so the narrowing refuses nothing that can occur - it proves the subtype at
+    // the one generic boundary where it was lost.
     document.querySelectorAll("[data-file-business-control]").forEach((element) => {
-      element.hidden = !usesBusinessScope();
+      if (element instanceof HTMLElement) {
+        element.hidden = !usesBusinessScope();
+      }
     });
     if (clientFilter) {
       clientFilter.disabled = !usesBusinessScope();
@@ -2624,6 +2659,13 @@
     return typeof explicit === "boolean" ? explicit : fallback;
   }
 
+  /**
+   * Whether the workspace grants one permission this page cares about.
+   *
+   * `unknown`, because the only thing done with it is `===` against a literal - declaring it
+   * `string` would claim of the caller what this reader never tests.
+   * @param {unknown} permissionId
+   */
   function workspaceHasPermission(permissionId) {
     if (permissionId === "files.manage_quarantine") {
       return window.LongtailForge?.workspaceContext?.permissionHints?.filesManageQuarantine === true;
@@ -2922,6 +2964,10 @@
     return targetType ? formatToken(targetType) : "";
   }
 
+  /**
+   * A raw token as words. `String(value || "")` already converted it; nothing is added here.
+   * @param {unknown} value @returns {string}
+   */
   function formatToken(value) {
     return String(value || "")
       .replace(/[_-]+/g, " ")
@@ -2978,6 +3024,11 @@
     return text || fallback;
   }
 
+  /**
+   * The page's status line. `message` is `string | null` because `textContent` is exactly that -
+   * a real typed setter, unlike the view factory's `text`, which coerces.
+   * @param {string | null} message @param {boolean} [isError]
+   */
   function setStatus(message, isError = false) {
     if (!fileStatus) {
       return;
