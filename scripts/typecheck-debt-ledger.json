@@ -505,6 +505,7 @@
         "tests/mutations/user-admin-permission-matrix.breaks.mjs",
         "tests/mutations/user-admin-role-assignments.breaks.mjs",
         "tests/mutations/user-settings-preferences.breaks.mjs",
+        "tests/mutations/workbench-recommendation-cycle.breaks.mjs",
         "tests/mutations/workspace-settings-diagnostics.breaks.mjs",
         "tests/time-tracking/time-tracking-billing.test.mjs",
         "tests/typecheck/browser-database-boundary.fixture.mjs",
@@ -776,6 +777,7 @@
         "tests/unit/workbench-focus-state.test.mjs",
         "tests/unit/workbench-inspector-handles.test.mjs",
         "tests/unit/workbench-navigation-disclosure.test.mjs",
+        "tests/unit/workbench-recommendation-cycle.test.mjs",
         "tests/unit/workbench-related-context.test.mjs",
         "tests/unit/workbench-source-data.test.mjs",
         "tests/unit/workbench-task-opener.test.mjs",
@@ -883,7 +885,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 859,
+      "errorCount": 855,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -1018,7 +1020,7 @@
           },
           {
             "code": 7006,
-            "count": 45
+            "count": 41
           },
           {
             "code": 7034,
@@ -1638,8 +1640,8 @@
     }
   },
   "totals": {
-    "files": 1465,
-    "errors": 859,
+    "files": 1467,
+    "errors": 855,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

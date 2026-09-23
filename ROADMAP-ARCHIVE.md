@@ -1,5 +1,15 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.42.28 - Workbench recommendation cycling
+
+**Model: Medium Effort** - a bounded index conversion and numeric control inputs with focused equivalence evidence.
+
+- [x] **Measured before editing.** Integrated baseline aa0a06f3: Workbench 62 raw / 58 owned (50 params, five state, three assorted) / four DOM. clampRecommendedCandidateIndex carries two parameters, updateRecommendedCycleControls and cycleRecommendedCandidate one each: four diagnostics, all closed. No Inspector or adjacent reader reconciliation.
+- [x] **Preserve the existing index domain.** index stays unknown; count comes from the candidate array length and direction from the existing previous/next literals. Number.parseInt now receives an explicit template string, matching its existing native ToString operation without adding a default, rejection, clamp, rounding rule or earlier conversion. The candidateCount <= 0 branch still runs first. Render ordering, modulo wrapping and optional control handling remain unchanged.
+- [x] **Focused proof proportional to the change.** Three new lifted cases compare old/new index parsing across numeric, string, bigint, nullish, symbol and conversion-hook inputs; verify one string-hint conversion and thrown-value identity; verify the empty-list no-read path and wrap/render ordering. Existing handle tests cover optional controls. A four-case bounded shared-runner campaign catches parsing, short-circuit, upper-bound and direction breaks with retained backup and SHA-256 restoration. First run's short-circuit break was an incidental test error, not detection credit; an explicit doesNotThrow assertion repairs that gap and the entire campaign reruns 4/4 caught, zero survivors/unusable/infrastructure. Restoring the original parseInt spelling is runtime-equivalent and explicitly excluded from credited breaks. Scripts/tests spelling search finds no old-expression pin needing retargeting.
+- [x] **Branch-local accounting against aa0a06f3.** Four parameter eliminations, zero introduced or reclassified. Workbench 62 to 58 raw / 58 to 54 owned (46 params, five state, three assorted); Workbench DOM four and global DOM 150 unchanged. Browser 859 to 855; exactly one diagnostic file moves, all other owners unchanged, server/tests/scripts zero. These are branch-local totals, not independently mergeable canonical integration figures.
+- [x] **Verification and exclusions.** Existing isolated desktop/mobile recommendation cycling and filter/Focus transitions on port 8102, recomputed ledger, full check, canonical verify:slice and checkpoint validation accompany readiness. .42.22, deferred route arguments, Inspector opaque-candidate reconciliation, related-opener policy and Task Focus extraction remain untouched. No file closeout claim.
+
 ## Version 0.33.33.42.27 - Workbench client and project focus-selection readers
 
 **Model: Medium Effort** - annotations reuse the shared normalized options and the local projection writer without changing execution.
