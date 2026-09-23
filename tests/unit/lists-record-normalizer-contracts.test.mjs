@@ -28,11 +28,19 @@ function plain(value) {
 function normalisers() {
   const sandbox = vm.createContext({});
   vm.runInContext("globalThis.nextNeededDateFromItems = () => '';", sandbox);
-  for (const name of ["normalizeListProgress", "normalizeListRecord"]) {
+  // `0.33.33.43.21` gave the record normaliser a checked progress bag, so the checker and the
+  // record test it rests on are lifted too rather than stubbed: the point of these cases is what
+  // the real reader does with a malformed bag.
+  for (const name of [
+    "isResponseRecord",
+    "readListProgressBag",
+    "normalizeListProgress",
+    "normalizeListRecord",
+  ]) {
     vm.runInContext(extractFunctionBlock(source, name), sandbox);
   }
 
-  return vm.runInContext("({ normalizeListProgress, normalizeListRecord })", sandbox);
+  return vm.runInContext("({ normalizeListProgress, normalizeListRecord, readListProgressBag })", sandbox);
 }
 
 /** One item carrying only what these readers touch. */
@@ -250,6 +258,66 @@ describe("The record normaliser rebuilds nine members and passes the rest throug
   });
 });
 
+describe("The progress-bag checker 0.33.33.43.19 asked for", () => {
+  it("hands a plain record straight through", () => {
+    const { readListProgressBag } = normalisers();
+    const bag = { checkedItemCount: 3 };
+
+    assert.equal(readListProgressBag(bag), bag);
+    assert.deepEqual(plain(readListProgressBag({})), {});
+  });
+
+  it("answers undefined for everything that is not one", () => {
+    const { readListProgressBag } = normalisers();
+
+    for (const value of [null, undefined, "x", 42, true, [], [1, 2]]) {
+      assert.equal(readListProgressBag(value), undefined, `${JSON.stringify(value)} is not a bag`);
+    }
+  });
+
+  it("changes the summary for exactly one input, and null is it", () => {
+    const { normalizeListProgress, readListProgressBag } = normalisers();
+
+    // Every non-record already produced the computed default, because reading a member off a
+    // primitive or an array answers `undefined` and each fallback then fired. `null` alone threw.
+    for (const value of [undefined, "x", 42, true, [], [1, 2], {}, { checkedItemCount: 3 }]) {
+      assert.deepEqual(
+        plain(normalizeListProgress(readListProgressBag(value), [])),
+        plain(normalizeListProgress(value, [])),
+        `${JSON.stringify(value)} reads the same through the checker as it did without it`,
+      );
+    }
+
+    // Matched by its text rather than by constructor: the reader is lifted into its own realm, so
+    // the error it throws is not an instance of this realm's `TypeError`. Reading `.name` off the
+    // caught value would be a member read on `unknown`, which the test program does not carry.
+    assert.throws(() => normalizeListProgress(null, []), (error) => String(error).startsWith("TypeError"),
+      "without the checker a null bag threw, which is the defect this closes");
+    assert.equal(normalizeListProgress(readListProgressBag(null), []).totalItemCount, 0);
+  });
+
+  it("keeps the list when its progress bag is unusable", () => {
+    const { normalizeListRecord } = normalisers();
+    const items = [item({ list_item_id: "i-1" }), item({ list_item_id: "i-2", checked_at: "2026-01-01" })];
+    const record = normalizeListRecord({ list_id: "l-1", progress: null }, items, []);
+
+    // Rejecting the summary would drop a real list over one member. The counts come from the
+    // items instead, which is what an absent bag already did.
+    assert.equal(record.list_id, "l-1");
+    assert.equal(record.items.length, 2);
+    assert.equal(record.progress.totalItemCount, 2);
+    assert.equal(record.progress.checkedItemCount, 1);
+  });
+
+  it("still prefers what a usable bag carried over the counts derived from items", () => {
+    const { normalizeListRecord } = normalisers();
+    const items = [item({ list_item_id: "i-1" })];
+    const record = normalizeListRecord({ list_id: "l-1", progress: { totalItemCount: 99 } }, items, []);
+
+    assert.equal(record.progress.totalItemCount, 99);
+  });
+});
+
 describe("What this boundary declares, and the two conditions that would discharge its deferrals", () => {
   it("reuses the published item, summary and normalized-record contracts", () => {
     assert.ok(source.includes("* @param {ListProgressInput} [progress]"));
@@ -273,9 +341,16 @@ describe("What this boundary declares, and the two conditions that would dischar
   });
 
   /** Pinned so the reason fails a case when it stops being true, rather than rotting in place. */
-  it("holds the first deferral's condition: nothing validates the progress bag", () => {
-    assert.match(contracts, /export interface BrowserListSummary extends BrowserListColumns \{[\s\S]*?\n {2}progress: unknown;/);
-    assert.ok(source.includes("**Discharged by** a checker for the progress bag at the response reader's"));
+  it("discharged the first deferral by checking the bag, not by narrowing the contract", () => {
+    // `0.33.33.43.21` wrote the checker this deferral named. The half that must NOT have changed
+    // is the published member: narrowing it was tried in `0.33.33.43.19` and made
+    // `BrowserListSummary` unassignable at both callers.
+    assert.match(contracts, /export interface BrowserListSummary extends BrowserListColumns \{[\s\S]*?\n {2}progress: unknown;/,
+      "the published member stayed unknown; if it did not, the validated handoff is what to re-check");
+    assert.match(source, /function readListProgressBag\(value\) \{\n\s+return isResponseRecord\(value\) \? value : undefined;/,
+      "the checker vouches for a plain record and for nothing else");
+    assert.match(source, /normalizeListProgress\(readListProgressBag\(list\.progress\), normalizedItems\)/,
+      "and the record normaliser consumes it rather than reading the bag directly");
   });
 
   it("holds the second deferral's condition: sort_order is unknown by contract", () => {
@@ -284,14 +359,21 @@ describe("What this boundary declares, and the two conditions that would dischar
     assert.ok(source.includes("**Discharged by** the producer coercing"));
   });
 
-  it("does not type the record reader's list against the progress shape", () => {
-    assert.ok(
-      source.includes("**`normalizeListRecord`'s `list` is deliberately not typed against this.**"),
-      "the reason that narrowing was reverted must stay where the next reader meets it",
-    );
+  it("types the record reader's list without claiming what the wire did not send", () => {
     // Tied to this declaration rather than the bare spelling: other readers in this file take a
     // `list` parameter of their own, and a pin that matches any of them guards none of them.
     const block = source.slice(source.lastIndexOf("/**", source.indexOf("function normalizeListRecord")), source.indexOf("function normalizeListRecord"));
-    assert.doesNotMatch(block, /@param \{[^}]*\} \[?list\]?/, "this reader's own list parameter stays undeclared");
+    assert.match(block, /@param \{ListRecordInput\} \[list\]/,
+      "the record reader's own list parameter is declared");
+    assert.match(source, /\}\} ListRecordInput/, "and the shape it is declared against is named here");
+
+    // `Partial`, because `readListDetail` answers `list: undefined` for a body it cannot read and
+    // the `{}` default then applies - so no member of the summary is guaranteed to have arrived.
+    assert.match(source, /@typedef \{Partial<BrowserListSummary> & \{/,
+      "every summary member stays optional; a required one would claim what the draft case disproves");
+    // The two aliases appear on no List contract, so they stay `unknown` rather than borrowing a
+    // shape from the members the normaliser happens to build out of them.
+    assert.match(source, /resume_context\?: unknown, source_context\?: unknown/,
+      "the two undeclared aliases are described as tolerated, not as published");
   });
 });
