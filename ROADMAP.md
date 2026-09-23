@@ -120,8 +120,8 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | --- | --- | --- | --- |
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
-| Codex | `0.33.33.42.30` | `workbench.js` — then `clients-projects.js` | 39 owned, then 391 |
-| Claude | `0.33.33.43.21` | `lists.js` — **reassigned to Claude**, with its directly associated tests | 312 |
+| Codex | `0.33.33.42.31` | `workbench.js` — then `clients-projects.js` | 30 owned, then 391 |
+| Claude | `0.33.33.43.22` | `lists.js` — **reassigned to Claude**, with its directly associated tests | 260 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -135,7 +135,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | `0.33.33.42` closeout | Codex | `workbench.js` at zero. The Inspector's opaque-candidate reconciliation is **an open decision**, not scheduled work. |
 | `0.33.33.38.5` — server task lifecycle status vocabulary | Unassigned | **Open decision, four unchecked criteria.** Needs a predicate where a persisted row becomes a lifecycle status; explicitly forbids narrowing `TaskRecord.status` as a shortcut. |
 | Task Focus extraction | Codex lane, unscheduled | **Open decision.** "Measure before slicing" — the post-`0.33.33.38` remeasurement was to decide whether extraction and typing are one child or two. Still undecided. |
-| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder is `lists.js` 312, `clients-projects.js` 391, `workbench.js` 43 — and the `dom` family at 149. `.44` proves the whole program at zero and is therefore last. |
+| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder is `lists.js` 260, `clients-projects.js` 391, `workbench.js` 34 — and the `dom` family at 149. `.44` proves the whole program at zero and is therefore last. |
 | `0.33.33.45`–`.47` | Both | Sequenced in real dependency order **after** the two browser lanes converge. No prerequisite is satisfiable before that. |
 | `0.33.33.48` | Both | Runs only when its prerequisites are actually satisfied. Unchanged. |
 
@@ -1564,6 +1564,18 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.22 - The Lists row and detail builders
+
+**Complete: 52 diagnostics closed, zero introduced, and no executable line changed.** See the archive entry. `lists.js` 312 to 260, browser **737 to 685**, `0.33.33.43` 558 to 506. `params` 470 to 420, `state` 96 to 94, **`dom` unchanged at 149**. The diff is 79 additions and 0 deletions, all JSDoc.
+
+**Typed by derivation rather than restatement.** The row item is `ReturnType<typeof visibleItems>[number]`, the field is `ReturnType<typeof itemFormField>`, and the action button's `label`, `icon` and `disabled` come from the factory descriptor it forwards them to. A restated copy would compile and still be wrong the day the producer narrows.
+
+**One declaration was corrected rather than defended:** `action` is `string | undefined`, because a contributed descriptor's `id` is and one caller forwards it straight through.
+
+**The two introduced diagnostics were resolved, not netted off** - deriving the field descriptor exposed a `width` its fallback shapes do not declare, so the parameter was intersected with `{ width?: string }` rather than letting the file's total absorb it.
+
+**The derivation pins were proved by making one fail**, and every suite touching the changed declarations was found by grep before the gate ran.
 
 #### 0.33.33.43.21 - The list-summary progress checker
 
