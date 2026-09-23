@@ -3918,6 +3918,7 @@
     flashActivatedTimer(timers);
   }
 
+  /** @param {WorkbenchTimerActionRecord} timer */
   function createTimerCard(timer) {
     const details = document.createElement("details");
     const summary = document.createElement("summary");
@@ -4440,6 +4441,7 @@
     return `timer:${workbenchSourceField(timer, "active_timer_id") || workbenchSourceField(timer, "timer_slot") || ""}`;
   }
 
+  /** @param {string} value */
   function cssEscape(value) {
     if (window.CSS?.escape) {
       return window.CSS.escape(value);
@@ -4796,6 +4798,7 @@
       .map(([moduleId]) => moduleId);
   }
 
+  /** @param {Pick<WorkbenchTimerActionRecord, "source_type">} timer */
   function sourceLabel(timer) {
     if (timer.source_type === "task") {
       return "Task";
@@ -4858,8 +4861,9 @@
     return requirePageController().createOption(value, label);
   }
 
+  /** @param {unknown} totalSeconds */
   function formatDuration(totalSeconds) {
-    const seconds = Math.max(0, Number.parseInt(totalSeconds, 10) || 0);
+    const seconds = Math.max(0, Number.parseInt(`${totalSeconds}`, 10) || 0);
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const remainder = seconds % 60;
