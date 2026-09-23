@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.31` | `workbench.js` — then `clients-projects.js` | 30 owned, then 391 |
-| Claude | `0.33.33.43.22` | `lists.js` — **reassigned to Claude**, with its directly associated tests | 260 |
+| Claude | `0.33.33.43.23` | `lists.js` — **reassigned to Claude**, with its directly associated tests | 246 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -135,7 +135,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | `0.33.33.42` closeout | Codex | `workbench.js` at zero. The Inspector's opaque-candidate reconciliation is **an open decision**, not scheduled work. |
 | `0.33.33.38.5` — server task lifecycle status vocabulary | Unassigned | **Open decision, four unchecked criteria.** Needs a predicate where a persisted row becomes a lifecycle status; explicitly forbids narrowing `TaskRecord.status` as a shortcut. |
 | Task Focus extraction | Codex lane, unscheduled | **Open decision.** "Measure before slicing" — the post-`0.33.33.38` remeasurement was to decide whether extraction and typing are one child or two. Still undecided. |
-| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder is `lists.js` 260, `clients-projects.js` 391, `workbench.js` 34 — and the `dom` family at 149. `.44` proves the whole program at zero and is therefore last. |
+| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder is `lists.js` 246, `clients-projects.js` 391, `workbench.js` 34 — and the `dom` family at 149. `.44` proves the whole program at zero and is therefore last. |
 | `0.33.33.45`–`.47` | Both | Sequenced in real dependency order **after** the two browser lanes converge. No prerequisite is satisfiable before that. |
 | `0.33.33.48` | Both | Runs only when its prerequisites are actually satisfied. Unchanged. |
 
@@ -1564,6 +1564,18 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.23 - The Lists dialog and save paths
+
+**Complete: 14 diagnostics closed, zero introduced, and no executable line changed.** See the archive entry. `lists.js` 260 to 246, browser **685 to 671**, `0.33.33.43` 506 to 492. The diff is 88 additions and 1 deletion, and the one edited line differs only by an inserted comment.
+
+**The item payload is declared as what it holds when it is sent**, not as what `FormData` answers: the two lines after it write a number and a boolean, which closed the file's only two `TS2322`.
+
+**Four annotations were refused by their consumers, each recorded with a discharge condition.** The submit handlers' `event` cannot be narrowed at the registration nor widened without turning every read into a `dom` diagnostic; the reorder's `list` builds a route from an identifier the published record declares optional.
+
+**The dialog's option bag is refused for the root `0.33.33.43.20` recorded**, and both directions were measured: naming `defaults` turns one diagnostic into five, omitting it refuses the caller's own literal.
+
+**An intermediate result closing 19 was not banked** - it opened three `TS2345`, every one real. The annotations were dropped rather than the diagnostics netted off.
 
 #### 0.33.33.43.22 - The Lists row and detail builders
 

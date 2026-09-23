@@ -57,6 +57,19 @@
 
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserListSummary} BrowserListSummary */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserListItem} BrowserListItem */
+  /**
+   * The context a module action hands the list dialog, as this page uses it.
+   *
+   * It is the host's object, not this page's: nothing here validates it, and both members are
+   * reached through `?.` exactly because a host may supply either, both or neither.
+   * @typedef {{
+   *   cancel?: (detail?: unknown) => unknown,
+   *   complete?: (detail?: unknown) => unknown,
+   *   refresh?: (detail?: unknown) => unknown,
+   *   result?: unknown,
+   *   trigger?: unknown
+   * }} ListDialogHostContext
+   */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewActionButtonOptions} BrowserViewActionButtonOptions */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserViewTextValue} BrowserViewTextValue */
   /** @typedef {import("../../src/types/browser-contracts.js").BrowserListLink} BrowserListLink */
@@ -388,6 +401,15 @@
      * @type {BrowserListLinkTarget[]}
      */
     linkTargets: [],
+    /**
+     * The module action's context while its dialog is open, or `null` when nothing opened it
+     * through one.
+     *
+     * Both members are optional and both are called through `?.`: a host may report completion,
+     * refresh its own surface, both, or neither. The empty initialiser would otherwise infer
+     * `never`, which refuses every read.
+     * @type {ListDialogHostContext | null}
+     */
     listDialogHostContext: null,
     listDialogHostContextSettled: false,
     /**
@@ -1929,12 +1951,32 @@
     itemDialog?.removeAttribute("open");
   }
 
+  /**
+   * **`event` is deliberately untyped, and the binding is why.** This is registered with
+   * `itemDialogForm.addEventListener("submit", saveItem)`, so the listener's contextual type is
+   * `SubmitEvent`, whose `target` the DOM declares `EventTarget | null`. Typing this parameter
+   * narrower - a bag whose `target` is a form - is refused at that registration; typing it as the
+   * event makes every read below a `dom` diagnostic, because `EventTarget` carries no `dataset`,
+   * no `elements`, and is not a `FormData` source. The trade is three parameter diagnostics for
+   * more `dom` ones. **Discharged by** a checked form accessor at the handler's head, which refuses
+   * nothing that can occur but is an executable guard this slice does not authorise, or by the
+   * shared view layer handing submit handlers a form. `saveList` carries the same deferral.
+   * Pinned by `lists-write-path-contracts`.
+   */
   async function saveItem(event) {
     const api = requireApi();
     event.preventDefault();
     const form = event.target;
     const listId = form.dataset.listId;
     const editingItemId = form.dataset.editingItemId || "";
+    /**
+     * Form entries, plus the two members the next two lines rewrite.
+     *
+     * `FormData` answers only strings and files; a missing quantity becomes the number `1` and the
+     * catalog flag becomes a real boolean, both before this is sent as JSON. The wider declaration
+     * is what the bag actually holds by the time it leaves, not a loosening.
+     * @type {Record<string, FormDataEntryValue | boolean | number>}
+     */
     const payload = Object.fromEntries(new FormData(form).entries());
 
     payload.quantity = payload.quantity || 1;
@@ -2342,6 +2384,20 @@
     return "";
   }
 
+  /**
+   * Move one item one place up or down, and persist the whole order.
+   *
+   * `direction` is the signed step the caller applies to the item's index, so it is a number
+   * rather than a named direction; the reorder is refused at either end.
+   *
+   * **`list` is deliberately untyped.** The published record's `list_id` is `string | undefined` -
+   * a draft has none - and this builds a route out of it through `encodeURIComponent`, which
+   * requires a value. The rows this reorders only ever render for a saved list, but nothing on
+   * this path proves that. **Discharged by** taking the identifier from `state.editingListId`,
+   * which is text, or by a caller that vouches for the record as saved. Pinned by
+   * `lists-write-path-contracts`.
+   * @param {string} itemId @param {number} direction
+   */
   async function moveItem(list, itemId, direction) {
     const api = requireApi();
     const items = visibleItems(list);
@@ -2509,8 +2565,24 @@
     }));
   }
 
+  /**
+   * One catalog suggestion, as the page holds it.
+   *
+   * Nothing here proves any of it: the suggestions come from a cache this reader does not own, and
+   * every member is passed straight to `setFormValue`, which tolerates whatever arrives. `item_name`
+   * is the exception and is text-or-absent, because the match lowercases it.
+   * @typedef {{
+   *   catalog_item_id?: unknown, estimated_cost?: unknown, item_name?: string,
+   *   notes?: unknown, quantity?: unknown, unit?: unknown, url?: unknown, vendor_name?: unknown
+   * }} ListItemSuggestion
+   *
+   * `form` is nullable because the caller reads it off an input, and the DOM types that member
+   * `HTMLFormElement | null` for an input that is not inside a form.
+   * @param {HTMLFormElement | null} form @param {BrowserNormalizedListRecord | null} list
+   * @param {unknown} value
+   */
   function applySuggestionSelection(form, list, value) {
-    const suggestion = itemSuggestionsForList(list).find((entry) => (
+    const suggestion = itemSuggestionsForList(list).find((/** @type {ListItemSuggestion} */ entry) => (
       (entry.item_name || "").toLowerCase() === String(value || "").trim().toLowerCase()
     ));
 
@@ -3015,6 +3087,15 @@
   /**
    * `null` opens the editor on an unsaved draft, which is a real entry point rather than an
    * absence to guard against.
+   * **`options` is deliberately untyped, and the root is the one `0.33.33.43.20` recorded.** Its
+   * seeded `defaults` come from `normalizeListEditorDefaults`, whose members are each
+   * `unknown || unknown || ""` and therefore `{}`, because the module-action params bag it reads is
+   * published as `unknown`. Every way of declaring this bag costs more than it closes: naming
+   * `defaults` turns one diagnostic into five, because the local's reads then reach
+   * `populateClientOptions` and `populateProjectOptions`, which require text and would need a
+   * coercion or a false claim; omitting it refuses the caller's own literal outright. **Discharged
+   * by** the same condition as `readListEditorId` - a reader that vouches for the bag, or the
+   * published `params` type naming it. Pinned by `lists-write-path-contracts`.
    * @param {BrowserNormalizedListRecord | null} [list]
    */
   function openListDialog(list = null, options = {}) {
@@ -3043,6 +3124,11 @@
     return closeResult;
   }
 
+  /**
+   * `cancelHost` reports the cancellation to a module action that opened this; `returnValue` is
+   * what the dialog's close promise resolves with.
+   * @param {{ cancelHost?: unknown, returnValue?: string }} [options]
+   */
   function closeListDialog(options = {}) {
     const view = requireView();
     if (options.cancelHost) {
@@ -3085,6 +3171,7 @@
     state.listDialogHostContext = null;
   }
 
+  /** Same deferral as `saveItem`: see the note there for why the submit event stays untyped. */
   async function saveList(event) {
     const api = requireApi();
     event.preventDefault();
