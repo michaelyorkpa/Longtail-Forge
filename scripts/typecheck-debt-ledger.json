@@ -586,6 +586,7 @@
         "tests/unit/list-summary-response-contracts.test.mjs",
         "tests/unit/lists-editor-surface-contracts.test.mjs",
         "tests/unit/lists-item-suggestion-contracts.test.mjs",
+        "tests/unit/lists-option-surface-contracts.test.mjs",
         "tests/unit/lists-record-normalizer-contracts.test.mjs",
         "tests/unit/lists-row-builder-contracts.test.mjs",
         "tests/unit/lists-view-descriptor-boundary.test.mjs",
@@ -893,7 +894,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 671,
+      "errorCount": 664,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -964,11 +965,11 @@
           },
           {
             "code": 2322,
-            "count": 2
+            "count": 1
           },
           {
             "code": 2339,
-            "count": 79
+            "count": 77
           },
           {
             "code": 2345,
@@ -980,7 +981,7 @@
           },
           {
             "code": 7006,
-            "count": 98
+            "count": 94
           },
           {
             "code": 7031,
@@ -1630,8 +1631,8 @@
     }
   },
   "totals": {
-    "files": 1475,
-    "errors": 671,
+    "files": 1476,
+    "errors": 664,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
