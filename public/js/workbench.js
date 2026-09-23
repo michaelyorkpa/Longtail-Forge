@@ -4629,6 +4629,7 @@
     state.selectedProjectId = window.localStorage.getItem(WORKBENCH_PROJECT_FOCUS_KEY) || "";
   }
 
+  /** @param {unknown} clientId @param {ReturnType<typeof normalizeClientProjectOptions>} [clients] */
   function resolveClientSelection(clientId, clients = [], workspaceType = state.workspaceType) {
     const value = String(clientId || "").trim();
 
@@ -4639,6 +4640,7 @@
     return clients.some((client) => client.id === value) ? value : "";
   }
 
+  /** @param {unknown} projectId @param {ReturnType<typeof normalizeClientProjectOptions>} [clients] */
   function resolveProjectSelection(projectId, clients = [], clientId = state.selectedClientId) {
     const value = String(projectId || "").trim();
     const projects = projectFocusOptions(clients, clientId);
@@ -4655,6 +4657,7 @@
   }
 
   function projectFocusOptions(clients = state.clients, clientId = state.selectedClientId) {
+    /** @type {Array<{id: import("../../src/types/browser-contracts.js").NormalizedProjectOption["id"], label: string}>} */
     const projects = [];
     const seen = new Set();
     const selectedClientId = String(clientId || "").trim();
@@ -4725,10 +4728,12 @@
     return clientProjectOptions;
   }
 
+  /** @param {unknown} data */
   function normalizeClientProjectOptions(data) {
     return requireClientProjectOptions().normalizeClients(data);
   }
 
+  /** @param {Parameters<ReturnType<typeof requireClientProjectOptions>["optionLabel"]>[0]} client */
   function clientOptionLabel(client) {
     return requireClientProjectOptions().optionLabel(client);
   }
@@ -4755,6 +4760,7 @@
     );
   }
 
+  /** @param {unknown} value */
   function normalizeWorkspaceType(value) {
     const text = String(value || "").trim().toLowerCase();
     return ["business", "personal", "family"].includes(text) ? text : "business";
