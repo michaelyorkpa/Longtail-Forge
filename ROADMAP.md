@@ -122,7 +122,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.41.2` | `task-dialog.js` 850, `tasks.js` 311, `tasks-dashboard.js` 52, `task-resume-note-capture.js` 20, `task-calendar.js` 0 | 1,233 |
 | Codex | `0.33.33.42.1` | `workbench.js` — this owner's first child | 538 |
 | Codex | `0.33.33.43.3` | `lists.js` 396, `clients-projects.js` 391, `lists-settings.js` 0 | 787 |
-| Claude | `0.33.33.43.16` | `files.js` — the **Files** module family, with `files-settings.js` complete | 17 |
+| Claude | `0.33.33.43.17` | `files.js` — the **Files** module family, with `files-settings.js` complete | 10 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
 These are **starting** boundaries. Each lane draws its own next child from the tree it actually has; neither pre-slices its remaining controllers.
@@ -1544,6 +1544,16 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.17 - The view-helper access layer
+
+**Complete: 7 diagnostics closed, and a stale deferral `0.33.33.43.16` left standing removed.** See the archive entry. Every route by which this page reaches the shared view factory.
+
+**The generic was the load-bearing choice.** `createFilesElement`'s `tagName` could have been `string`, which compiles - and would have picked the published `createElement`'s flat `HTMLElement` overload, quietly costing all twenty-five call sites their element subtype. Declaring it `@template {keyof HTMLElementTagNameMap}` keeps the factory's own mapping, and propagating real DOM types through those call sites **resolved a seventh diagnostic on its own**: a handler parameter inside `createTruncatedText` that `addEventListener` could finally type once its element was an `HTMLSpanElement`.
+
+**`keyof BrowserViewFactory` is what the index needs, not what the callers happen to send.** `requireFilesViewHelper` reads `requireView()[name]`, and that contract has no string index signature - so a plain `string` would leave the read an implicit `any` rather than fixing it. It is also provable: nine call sites, nine literal member names, every one a real member.
+
+**`0.33.33.43.16` rewrote one copy of its deferral and left a near-duplicate standing.** The orphan still claimed the row mutations keep `fileId` as `unknown` and that `fileRow` has no string fallback - both false. That checkpoint searched for the text it was replacing instead of sweeping the source for every statement of the same claim, which is the exact failure it was written about.
 
 #### 0.33.33.43.16 - The file mutation handlers, and a deferral discharged
 

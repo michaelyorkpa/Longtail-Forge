@@ -301,10 +301,12 @@
     }
 
     filesBehaviorRegistered = true;
-    requireDescriptorRenderers().registerBehavior("files.browse.filters", ({ container }) => {
+    // `registerBehavior` declares its handler `unknown`, so the renderer's surface is named here
+    // rather than imported. `container` is only ever asked to replace its children.
+    requireDescriptorRenderers().registerBehavior("files.browse.filters", (/** @type {{ container: Element }} */ { container }) => {
       container.replaceChildren(createFilesFilterChrome());
     });
-    requireDescriptorRenderers().registerBehavior("files.browse.results", ({ container }) => {
+    requireDescriptorRenderers().registerBehavior("files.browse.results", (/** @type {{ container: Element }} */ { container }) => {
       container.replaceChildren(createFilesResultsChrome());
     });
   }
@@ -1078,6 +1080,7 @@
     };
   }
 
+  /** @param {FileRowRecord[]} rows */
   function createFilesTable(rows) {
     const view = requireView();
     requireFilesViewHelper("createDataTable");
@@ -2630,19 +2633,6 @@
   }
 
   /**
-   * The three row mutations keep `fileId` as `unknown` and leave `encodeURIComponent(fileId)`
-   * exactly as it was, which costs one diagnostic each.
-   *
-   * **That is a deliberate trade, not an oversight.** Writing the conversion out - as the mark-
-   * reviewed path does, where it cost two pin retargets - would here mean widening **25 route
-   * pins** across the Files, Notes and view-descriptor contracts to tolerate an optional template
-   * wrapper. Those pins exist to catch route drift, and loosening all of them buys an inert
-   * conversion: `encodeURIComponent` already converts with `ToString`. `fileRow` builds `fileId`
-   * without a string fallback, so it genuinely may be `undefined` and cannot honestly be declared
-   * required. The three are recorded in the checkpoint rather than paid for here.
-   */
-
-  /**
    * What a row action calls the file in its confirmation.
    *
    * The file is read through no checker - it is whatever the row carried - so the two names are
@@ -2997,12 +2987,33 @@
     fileStatus.classList.toggle("error-text", isError);
   }
 
+  /**
+   * One element from the shared factory, after proving the factory can build one.
+   *
+   * **Generic rather than `string`.** The published `createElement` has a tag-keyed overload, so
+   * declaring `tagName` a plain `string` would pick the flat `HTMLElement` overload and quietly
+   * cost all twenty-five call sites their subtype - `createFilesElement("select", ...)` would stop
+   * being an `HTMLSelectElement`. The type parameter keeps the factory's own mapping.
+   * @template {keyof HTMLElementTagNameMap} TagName
+   * @param {TagName} tagName
+   * @param {import("../../src/types/browser-contracts.js").BrowserViewElementOptions} [options]
+   * @returns {HTMLElementTagNameMap[TagName]}
+   */
   function createFilesElement(tagName, options = {}) {
     const view = requireView();
     requireFilesViewHelper("createElement");
     return view.createElement(tagName, options);
   }
 
+  /**
+   * One shared view helper, refused by name when the factory does not provide it.
+   *
+   * `name` is `keyof BrowserViewFactory` because that is what the index on the next line needs -
+   * `BrowserViewFactory` has no string index signature, so a plain `string` leaves the read an
+   * implicit `any` rather than fixing it. It is also what every caller passes: nine literal
+   * member names, each one a real member of that contract.
+   * @param {keyof import("../../src/types/browser-contracts.js").BrowserViewFactory} name
+   */
   function requireFilesViewHelper(name) {
     const helper = requireView()[name];
 
