@@ -331,6 +331,7 @@
         "tests/e2e/dashboard-bootstrap-sequencing.spec.mjs",
         "tests/e2e/files-filter-handles.spec.mjs",
         "tests/e2e/hidden-label-controls.spec.mjs",
+        "tests/e2e/lists-element-handles.spec.mjs",
         "tests/e2e/login.spec.mjs",
         "tests/e2e/mobile-nav.spec.mjs",
         "tests/e2e/modal.spec.mjs",
@@ -585,6 +586,7 @@
         "tests/unit/list-response-contracts.test.mjs",
         "tests/unit/list-summary-response-contracts.test.mjs",
         "tests/unit/lists-editor-surface-contracts.test.mjs",
+        "tests/unit/lists-element-handle-contracts.test.mjs",
         "tests/unit/lists-item-suggestion-contracts.test.mjs",
         "tests/unit/lists-option-surface-contracts.test.mjs",
         "tests/unit/lists-record-normalizer-contracts.test.mjs",
@@ -895,7 +897,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 660,
+      "errorCount": 600,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -970,19 +972,15 @@
           },
           {
             "code": 2339,
-            "count": 77
+            "count": 20
           },
           {
             "code": 2345,
             "count": 1
           },
           {
-            "code": 2551,
-            "count": 1
-          },
-          {
             "code": 7006,
-            "count": 94
+            "count": 92
           },
           {
             "code": 7031,
@@ -1632,8 +1630,8 @@
     }
   },
   "totals": {
-    "files": 1477,
-    "errors": 660,
+    "files": 1479,
+    "errors": 600,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
