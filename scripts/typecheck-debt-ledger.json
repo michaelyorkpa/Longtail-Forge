@@ -790,6 +790,7 @@
         "tests/unit/workbench-source-data.test.mjs",
         "tests/unit/workbench-task-opener.test.mjs",
         "tests/unit/workbench-timer-actions.test.mjs",
+        "tests/unit/workbench-timer-card.test.mjs",
         "tests/unit/workbench-timer-readers.test.mjs",
         "tests/unit/workspace-backup-receipt-contracts.test.mjs",
         "tests/unit/workspace-context-boundary-contracts.test.mjs",
@@ -894,7 +895,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 664,
+      "errorCount": 660,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -1011,7 +1012,7 @@
           },
           {
             "code": 7006,
-            "count": 22
+            "count": 18
           },
           {
             "code": 7034,
@@ -1631,8 +1632,8 @@
     }
   },
   "totals": {
-    "files": 1476,
-    "errors": 664,
+    "files": 1477,
+    "errors": 660,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},

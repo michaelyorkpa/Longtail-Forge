@@ -25,12 +25,14 @@ test("Workbench sorts task timers and excludes only the focused task from the lo
   await expect(cards.nth(0)).toContainText("Running reading task");
   await expect(cards.nth(1)).toHaveAttribute("data-workbench-timer-key", `task:${ids[0]}`);
   await expect(cards.nth(1)).toContainText("Paused reading task");
+  await expect(cards.nth(1).locator(".workbench-duration")).toHaveText("00:00:12");
   await page.goto(`/workbench.html?taskId=${ids[1]}`);
   await expect(page.locator("[data-workbench-task-focus-summary]")).toContainText("Running reading task");
   await expect(page.locator("[data-workbench-task-focus-timer-status]")).toContainText("Running");
   await expect(cards).toHaveCount(1);
   await expect(cards).toHaveAttribute("data-workbench-timer-key", `task:${ids[0]}`);
   await expect(cards).toContainText("Paused reading task");
+  await expect(cards.locator(".workbench-duration")).toHaveText("00:00:12");
   expect(errors).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("timer-selection.png"), fullPage: true });
 });
