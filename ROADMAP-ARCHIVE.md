@@ -1,5 +1,15 @@
 # Longtail Forge Roadmap Archive
 
+## Version 0.33.33.42.26 - Workbench local control builders
+
+**Model: Medium Effort** - four local builders reuse native and published factory contracts with no executable change.
+
+- [x] **Measured boundary before editing.** Integrated baseline 289c4ab1: Workbench 79 raw / 75 owned (65 params, seven state, three assorted) / four DOM; browser 887, global DOM 150. Take actionButton (three), emptyState (one), replaceOptions (two), option (two): exactly eight parameter diagnostics, all closed. The initial fetched nightly lacked accepted .42.25; work remained unmodified until its integrated baseline arrived, then the clean feature branch fast-forwarded without rewriting history.
+- [x] **Existing producer and consumer contracts.** Button labels/listeners come from the existing action literals and the already-typed createTaskFocusTimerButton; danger stays unknown until the existing Boolean conversion. Text setters retain string/null inputs. createGuidedFocusPanel constructs both filter handles with view.createElement("select"); replaceOptions retains its null no-op and receives option arrays built by the published pageController.createOption factory. The option wrapper preserves unknown/unknown inputs and delegates without conversion. No shared declaration or runtime guard changes.
+- [x] **Annotation-only evidence.** Exactly four added JSDoc lines, no deleted lines. Reverse-applying the actual patch in a temporary copy with core.autocrlf=false reproduces the baseline bytes exactly; no matching-line deletion heuristic. No new runtime claim, helper, validation rule, test suite or mutation target is introduced, so no campaign. Existing lifts and source contracts remain unchanged. Desktop/mobile isolated proof on port 8102 exercises filter replacement, recommendation transitions and Task Focus checklist/timer workflows.
+- [x] **Accounting and verification.** Eight parameter eliminations, zero introduced and zero reclassified. Workbench 79 to 71 raw / 75 to 67 owned (57 params, seven state, three assorted); Workbench DOM four and global DOM 150 unchanged. Browser **883 to 875** on the integrated tree - the branch measured 887 to 879 against a baseline that predates `0.33.33.43.16`, and the eight eliminations hold unchanged either way; exactly one diagnostic file moves and every other owner remains unchanged. Server/tests and scripts stay zero. Recomputed ledger, full check, canonical verify:slice and checkpoint validation accompany readiness.
+- [x] **Excluded boundaries.** Inspector opaque-candidate reconciliation remains open and untouched. .42.22 is reserved; deferred route arguments, their discharge condition and observed numeric tolerance remain unchanged. No Task Focus extraction, shared-code work, timer arithmetic change or file closeout claim.
+
 ## Version 0.33.33.43.16 - The file mutation handlers, and a deferral discharged
 
 **Model: Medium Effort** - a recorded trade that two later checkpoints had already made unnecessary, and a stated reason that had quietly gone false.
