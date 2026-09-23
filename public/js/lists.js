@@ -187,6 +187,30 @@
   }
 
   /**
+   * The progress bag a list response carried, or `undefined` when it carried none this reader can
+   * use.
+   *
+   * **`BrowserListSummary.progress` is `unknown` and `isListSummary` does not look inside it.**
+   * `0.33.33.43.19` recorded that as the reason it could not type the record normaliser's `list`,
+   * and named this checker as the discharge - here, with the readers, rather than inside the
+   * normaliser that consumes it.
+   *
+   * It vouches for the bag being a plain record and for nothing else. Every member stays `unknown`,
+   * because the normaliser is still what converts them; this only establishes that there is
+   * something to read them from.
+   *
+   * **A malformed bag does not cost the list.** Rejecting the whole summary would drop a real list
+   * over one member, so an unusable bag answers `undefined` and the normaliser's existing default
+   * computes the summary from the items - which is exactly what it already did for a list that
+   * carried no progress at all.
+   * @param {unknown} value
+   * @returns {ListProgressInput | undefined}
+   */
+  function readListProgressBag(value) {
+    return isResponseRecord(value) ? value : undefined;
+  }
+
+  /**
    * The identifier a save or duplicate response reports for the list it wrote.
    *
    * **One identifier vocabulary, not two.** The server sends `list_id` as the column and `id` as
@@ -3137,16 +3161,25 @@
    * `0.33.33.43.19` paid the first: the progress reader below now declares those twenty. The two
    * aliases are `resume_context` and `source_context`, which appear on no List contract.
    *
-   * **`list` stays untyped, and the note above this function says why.** `items` and `links` do
-   * not: `readListDetail` filters them through `isListItem` and `isListLink`, so the published
-   * element contracts hold, and the only addition is the `id` this normaliser writes on its way
-   * past.
+   * **`0.33.33.43.21` typed `list`, which `0.33.33.43.19` could not.** That checkpoint's blocker
+   * was `list.progress`: published `unknown`, and pushing it straight through the progress reader's
+   * narrower door opened a diagnostic the shrink-only gate refuses. `readListProgressBag` now
+   * vouches for it at the readers, so the published member stays `unknown` and this reader still
+   * gets something it can name.
+   *
+   * `items` and `links` were already typed: `readListDetail` filters them through `isListItem` and
+   * `isListLink`, so the published element contracts hold, and the only addition is the `id` this
+   * normaliser writes on its way past.
+   * @typedef {Partial<BrowserListSummary> & {
+   *   resume_context?: unknown, source_context?: unknown
+   * }} ListRecordInput
+   * @param {ListRecordInput} [list]
    * @param {ListItemInput[]} [items] @param {(BrowserListLink & { id?: unknown })[]} [links]
    * @returns {BrowserNormalizedListRecord}
    */
   function normalizeListRecord(list = {}, items = [], links = []) {
     const normalizedItems = items.map((item) => ({ ...item, id: item.list_item_id || item.id }));
-    const progress = normalizeListProgress(list.progress, normalizedItems);
+    const progress = normalizeListProgress(readListProgressBag(list.progress), normalizedItems);
     const normalizedLinks = links.map((link) => ({ ...link, id: link.list_link_id || link.id }));
     // The shape belongs to this local rather than to the parameter: narrowing the published
     // `resumeContext` member makes `BrowserListSummary` - which `readListDetail` validates and
@@ -3222,24 +3255,25 @@
    */
 
   /**
-   * **Two parameters here are deliberately left untyped, and the gate is why.**
+   * **One parameter here is still deliberately untyped, and the gate is why.**
    *
    * The shrink-only ledger refuses an increase **per diagnostic code per file**, not merely on the
-   * file's total - so a boundary that closes thirty and opens three is refused, correctly. Two
-   * annotations that read as obvious each open one:
+   * file's total, so a boundary that closes thirty and opens three is refused - correctly, because
+   * the three are real. `0.33.33.43.19` recorded two annotations that each opened one.
    *
-   * 1. Typing `normalizeListRecord`'s `list` forces `list.progress` - published `unknown` - through
-   *    this reader's narrower door. Narrowing the published member instead was tried and is worse:
-   *    it makes `BrowserListSummary`, which `readListDetail` validates and hands over, unassignable
-   *    at both callers. **Discharged by** a checker for the progress bag at the response reader's
-   *    boundary, which is not this one's.
-   * 2. Typing this reader's `items` puts `BrowserListItem.sort_order` - `unknown` **by deliberate
-   *    contract**, because the column is numeric but nothing coerces it - into the comparator's
-   *    arithmetic. Declaring it numeric here would be false; wrapping the comparator would be new
-   *    coercion in a path required to preserve its ordering. **Discharged by** the producer coercing
-   *    that column, or the contract proving it.
+   * **The first is discharged.** Typing `normalizeListRecord`'s `list` forced `list.progress`,
+   * published `unknown`, through this reader's narrower door; narrowing the published member
+   * instead was tried and was worse, because it made `BrowserListSummary` unassignable at both
+   * callers. `0.33.33.43.21` wrote `readListProgressBag` at the readers, which vouches for the bag
+   * without touching the contract, and `list` is now typed.
    *
-   * Both conditions are pinned by `lists-record-normalizer-contracts`, so a reason that stops being
+   * **The second stands.** Typing this reader's `items` puts `BrowserListItem.sort_order` -
+   * `unknown` **by deliberate contract**, because the column is numeric but nothing coerces it -
+   * into the comparator's arithmetic below. Declaring it numeric here would be false; wrapping
+   * the comparator would be new coercion in a path required to preserve its ordering.
+   * **Discharged by** the producer coercing that column, or the contract proving it.
+   *
+   * That condition is pinned by `lists-record-normalizer-contracts`, so a reason that stops being
    * true fails a case rather than sitting here - the failure `0.33.33.43.8`'s deferral had for six
    * checkpoints because nothing guarded it.
    */

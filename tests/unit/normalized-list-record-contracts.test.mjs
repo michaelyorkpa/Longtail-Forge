@@ -37,6 +37,10 @@ function liftNormalizer() {
     slice(listsSource, "function normalizeListRecord(list = {}, items = [], links = []) {"),
     slice(listsSource, "function normalizeListProgress(progress = {}, items = []) {"),
     slice(listsSource, "function nextNeededDateFromItems(items = []) {"),
+    // `0.33.33.43.21` routed the progress bag through a checker, so the normaliser reaches for
+    // these two as well. Lifted rather than stubbed: what they answer is part of what it does.
+    slice(listsSource, "function readListProgressBag(value) {"),
+    slice(listsSource, "function isResponseRecord(value) {"),
     "  return normalizeListRecord;",
   ].join("\n"));
   return built(globalThis.encodeURIComponent);

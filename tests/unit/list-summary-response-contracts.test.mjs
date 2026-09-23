@@ -107,6 +107,9 @@ function liftLoadListDetail(respond) {
   const built = new Function("requireApi", "encodeURIComponent", [
     ...PREDICATE_PARTS,
     slice(listsSource, "function readListDetail(body) {"),
+    // `0.33.33.43.21` routed the progress bag through this checker before the normaliser sees it.
+    // `PREDICATE_PARTS` already carries the record test it rests on.
+    slice(listsSource, "function readListProgressBag(value) {"),
     slice(listsSource, "function normalizeListRecord(list = {}, items = [], links = []) {"),
     slice(listsSource, "function normalizeListProgress(progress = {}, items = []) {"),
     slice(listsSource, "function nextNeededDateFromItems(items = []) {"),
