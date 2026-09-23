@@ -24,6 +24,11 @@
     planned: "Planned",
     received: "Received",
   };
+  /**
+   * Read by target type, which is text rather than one of the four keys: the wire link's
+   * `target_type` is a plain string, so an unlisted type falls through to `formatToken`.
+   * @type {Record<string, string>}
+   */
   const LIST_LINK_TYPE_LABELS = {
     client: "Client",
     note: "Note",
@@ -339,6 +344,10 @@
      */
     itemDialogList: null,
     itemSuggestions: new Map(),
+    /**
+     * The pending picker-search debounce, or `null` when none is scheduled.
+     * @type {number | null}
+     */
     linkTargetSearchTimer: null,
     /**
      * The link targets the picker is currently offering.
@@ -662,6 +671,15 @@
     await refreshLists(selectedId || list.list_id || state.selectedListId);
   }
 
+  /**
+   * The host context a module action supplies, or `null` when the editor is opened directly.
+   *
+   * Two members, both `unknown`: `trigger` is forwarded to the dialog's own focus-return slot and
+   * `result` is handed back to the caller untouched, so this reader inspects neither.
+   * @typedef {{ result?: unknown, trigger?: unknown }} ListEditorHostContext
+   */
+
+  /** @param {ListEditorHostContext | null} [hostContext] */
   async function openListEditor(params = {}, hostContext = null) {
     await prepareListDialogData();
 
@@ -701,16 +719,42 @@
     return state.dialogDataReady;
   }
 
+  /**
+   * The module-action parameter bag, as a host may send it.
+   *
+   * `openListEditor` is published as `params?: unknown`, so nothing here is proved: this is what
+   * the three readers below tolerate. Every member is `unknown` because each reader is what
+   * converts it - `String(...)` for the mode, `||` to `""` for the identifiers and defaults - so
+   * declaring one `string` would claim of the host what only the reader's own return establishes.
+   * @typedef {{
+   *   actionMode?: unknown, client_id?: unknown, clientId?: unknown, context?: unknown,
+   *   description?: unknown, id?: unknown, listId?: unknown, list_id?: unknown,
+   *   listType?: unknown, list_type?: unknown, mode?: unknown,
+   *   projectId?: unknown, project_id?: unknown, recordId?: unknown, title?: unknown
+   * }} ListEditorParamsInput
+   */
+
+  /** @param {ListEditorParamsInput} [params] */
   function normalizeListEditorMode(params = {}) {
     const mode = String(params.mode || params.actionMode || "").toLowerCase();
     return mode === "edit" ? "edit" : "add";
   }
 
+  /**
+   * **Deliberately untyped, and the consumer is why.** Reading the four spellings honestly - each
+   * `unknown`, because nothing converts them - makes this return `{}` rather than `any`, and the
+   * identifier then cannot reach `loadListDetail`, which requires text. Coercing it here or at the
+   * caller would be new coercion on a path that currently forwards whatever arrived.
+   * **Discharged by** a reader that vouches for the identifier as text, or by the published
+   * `params` type naming it. Pinned by `lists-editor-surface-contracts`.
+   */
   function readListEditorId(params = {}) {
     return params.listId || params.list_id || params.recordId || params.id || "";
   }
 
+  /** @param {ListEditorParamsInput} [params] */
   function normalizeListEditorDefaults(params = {}) {
+    /** @type {{ clientId?: unknown, projectId?: unknown }} */
     const context = params.context || {};
     return {
       client_id: params.client_id || params.clientId || context.clientId || "",
@@ -2003,6 +2047,18 @@
       || listsItemRowsDescriptor();
   }
 
+  /**
+   * The linked-context rows for one list.
+   *
+   * **The nested `target` appears on no List contract.** `BrowserListLink` declares the pair
+   * `target_type`/`target_id` and stops there; the wire link carries this bag beside them and the
+   * shaper does not declare it, so it is described here as tolerated. Every member of it is
+   * `unknown`, because each is only tested for truthiness before falling through `||`.
+   * @param {{ links?: (BrowserListLink & { target?: {
+   *   id?: unknown, label?: unknown, moduleId?: unknown,
+   *   module_id?: unknown, target_id?: unknown, url?: unknown
+   * } })[] }} list
+   */
   function linkedContextItems(list) {
     return (list.links || []).map((link) => {
       const target = link.target || {};
@@ -2441,13 +2497,19 @@
       }));
   }
 
-  function moduleIdForListLinkTarget(targetType) {
-    return {
+  /**
+   * The module a linked target belongs to, or `""` for a type with no module.
+   * @param {string} [targetType]
+   */
+  function moduleIdForListLinkTarget(targetType = "") {
+    /** @type {Record<string, string>} */
+    const modulesByTargetType = {
       client: "client-projects",
       note: "notes",
       project: "client-projects",
       task: "tasks",
-    }[targetType] || "";
+    };
+    return modulesByTargetType[targetType] || "";
   }
 
   function queueListEditorLinkTargetSearch() {
@@ -2712,6 +2774,15 @@
     }
   }
 
+  /**
+   * One linked-context row, as the shared picker hands it back.
+   *
+   * A saved row carries `link`, the wire link it was built from; a staged row carries `target`,
+   * the target still waiting on a list that does not exist yet. Exactly one is present, and the
+   * two branches below are how this reader tells them apart.
+   * @typedef {Partial<BrowserListLink> & { id?: string }} ListSavedLink
+   * @param {{ link?: ListSavedLink, target?: ListLinkComparable }} [item]
+   */
   function handleListEditorLinkedContextRemove(item = {}) {
     if (item.link) {
       void removeListEditorLink(item.link);
@@ -2723,6 +2794,16 @@
     }
   }
 
+  /**
+   * The saved link to remove, in either identifier spelling.
+   *
+   * `list_link_id` is what the wire link carries and `id` is what `normalizeListRecord` writes on
+   * its way past, so both reach this. **Both are text rather than `unknown`, and the contract is
+   * why**: `BrowserListLink.list_link_id` is a required string, the `id` beside it is copied from
+   * it, and the identifier goes straight into `encodeURIComponent`. `Partial` is earned by the
+   * `{}` default, not by any doubt about the members.
+   * @param {ListSavedLink} [link]
+   */
   async function removeListEditorLink(link = {}) {
     const api = requireApi();
     const linkId = link.list_link_id || link.id || "";
@@ -2740,6 +2821,23 @@
     }
   }
 
+  /**
+   * A link as either side of the identity test may hold it.
+   *
+   * Both published shapes reach this: a saved `BrowserListLink`, which spells the pair
+   * `target_type`/`target_id`, and a staged `BrowserListLinkTarget`, which spells it
+   * `targetType`/`targetId`. The nested `target` is the third case and appears on **no** List
+   * contract - the wire link carries it, the shaper does not declare it - so it is described here
+   * as tolerated rather than claimed. Every member is `unknown`: the comparison falls each one
+   * through `||` to `""` before testing it, and converts nothing.
+   * @typedef {{
+   *   targetId?: unknown, target_id?: unknown,
+   *   targetType?: unknown, target_type?: unknown,
+   *   target?: { target_id?: unknown, target_type?: unknown } | null
+   * }} ListLinkComparable
+   */
+
+  /** @param {ListLinkComparable} [target] */
   function listEditorHasLinkTarget(target = {}) {
     return [
       ...(state.editorList?.links || []),
@@ -2747,6 +2845,7 @@
     ].some((entry) => sameListLinkTarget(entry, target));
   }
 
+  /** @param {ListLinkComparable} [left] @param {ListLinkComparable} [right] */
   function sameListLinkTarget(left = {}, right = {}) {
     const leftType = left.targetType || left.target_type || left.target?.target_type || "";
     const rightType = right.targetType || right.target_type || right.target?.target_type || "";
@@ -2755,6 +2854,14 @@
     return leftType === rightType && leftId === rightId;
   }
 
+  /**
+   * The link-creation payload for one picker target.
+   *
+   * `Partial` is earned by the `{}` default rather than by the callers: both hand this a
+   * `BrowserListLinkTarget` - one from the guarded picker selection, one from the staged list -
+   * so every member is present in practice and none is claimed to be.
+   * @param {Partial<BrowserListLinkTarget>} [target]
+   */
   function listLinkPayload(target = {}) {
     return {
       moduleId: target.moduleId || moduleIdForListLinkTarget(target.targetType),
@@ -2780,6 +2887,7 @@
     parts.setLinkedItems?.([...savedItems, ...stagedItems]);
   }
 
+  /** @param {string} listId */
   async function refreshListEditor(listId) {
     const list = await loadListDetail(listId);
     if (!list) {
