@@ -1,0 +1,58 @@
+import { test, expect } from "./support/isolated-workspace.mjs";
+
+test("Task Focus saves a resume note and completes the intended task once", async ({ isolatedWorkspace }, testInfo) => {
+  const { page, api } = isolatedWorkspace;
+  const client = await api.post("/api/clients", { data: { name: "Completion client" } });
+  expect(client.status(), await client.text()).toBe(201);
+  const clientId = (await client.json()).client.id;
+  const project = await api.post(`/api/clients/${clientId}/projects`, { data: { name: "Completion project" } });
+  expect(project.status(), await project.text()).toBe(201);
+  const projectId = (await project.json()).project.id;
+  const created = await api.post("/api/tasks", { data: { title: "Resume and complete", client_id: clientId, project_id: projectId } });
+  expect(created.status(), await created.text()).toBe(201);
+  const taskId = (await created.json()).task.task_id;
+  /** @type {string[]} */ const errors = [];
+  /** @type {string[]} */ const writes = [];
+  page.on("pageerror", error => errors.push(error.message));
+  page.on("request", request => {
+    if (request.method() === "POST" && request.url().endsWith(`/api/tasks/${taskId}/complete`)) writes.push("complete");
+    if (request.method() === "PUT" && request.url().endsWith(`/api/tasks/${taskId}`)) writes.push("note");
+  });
+  await page.goto(`/workbench.html?taskId=${taskId}`);
+  await expect(page.locator("[data-workbench-task-focus-summary]")).toContainText("Resume and complete");
+  const timer = page.locator("[data-workbench-task-focus-timer]");
+  const started = page.waitForResponse(response => response.request().method() === "PUT" && response.url().endsWith(`/api/tasks/${taskId}/timer`));
+  await timer.getByRole("button", { name: "Start", exact: true }).click();
+  expect((await started).status()).toBe(200);
+  await expect(timer.locator("[data-workbench-task-focus-timer-status]")).toContainText("Running");
+  await timer.getByRole("button", { name: "Pause", exact: true }).click();
+  const capture = page.getByRole("dialog", { name: "Add resume note?" });
+  await expect(capture).toBeVisible();
+  await capture.getByLabel("Resume note", { exact: true }).fill("Continue with the final review");
+  const saved = page.waitForResponse(response => response.request().method() === "PUT" && response.url().endsWith(`/api/tasks/${taskId}`));
+  await capture.getByRole("button", { name: "Yes", exact: true }).click();
+  expect((await saved).status()).toBe(200);
+  await expect(capture).not.toBeVisible();
+  await expect(timer.locator("[data-workbench-task-focus-timer-status]")).toContainText("Paused");
+  const detail = await api.get(`/api/tasks/${taskId}`);
+  expect(detail.status()).toBe(200);
+  expect((await detail.json()).task.resume_note).toBe("Continue with the final review");
+  const finalized = page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith(`/api/tasks/${taskId}/timer/finalize`));
+  await timer.getByRole("button", { name: "Save Time", exact: true }).click();
+  const finalizedResponse = await finalized;
+  expect(finalizedResponse.status(), await finalizedResponse.text()).toBe(201);
+  // The saved note suppresses another capture offer in the real shared producer.
+  await expect(page.locator(".workbench-header-status")).toContainText("Task time saved.");
+  await expect(capture).not.toBeVisible();
+  await expect(timer.locator("[data-workbench-task-focus-timer-status]")).toContainText("No active timer");
+  const completed = page.waitForResponse(response => response.request().method() === "POST" && response.url().endsWith(`/api/tasks/${taskId}/complete`));
+  await page.locator('[data-workbench-task-focus-action="complete"]').click();
+  const completedResponse = await completed;
+  expect(completedResponse.status(), await completedResponse.text()).toBe(200);
+  await expect(page.locator(".workbench-header-status")).toContainText("Task completed.");
+  const final = await api.get(`/api/tasks/${taskId}`);
+  expect((await final.json()).task.status).toBe("complete");
+  expect(writes).toEqual(["note", "complete"]);
+  expect(errors).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath("resume-complete.png"), fullPage: true });
+});
