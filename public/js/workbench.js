@@ -4800,6 +4800,7 @@
     return element;
   }
 
+  /** @param {string | null} label @param {EventListener} handler @param {{danger?: unknown}} [options] */
   function actionButton(label, handler, options = {}) {
     const button = document.createElement("button");
     button.type = "button";
@@ -4809,6 +4810,7 @@
     return button;
   }
 
+  /** @param {string | null} message */
   function emptyState(message) {
     const element = document.createElement("div");
     element.className = "workbench-empty-state";
@@ -4816,6 +4818,7 @@
     return element;
   }
 
+  /** @param {HTMLSelectElement | null} select @param {HTMLOptionElement[]} options */
   function replaceOptions(select, options) {
     if (!select) {
       return;
@@ -4828,6 +4831,7 @@
     }
   }
 
+  /** @param {unknown} value @param {unknown} label */
   function option(value, label) {
     return requirePageController().createOption(value, label);
   }
