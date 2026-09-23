@@ -3147,14 +3147,15 @@
     };
   }
 
+  /** @param {unknown} task */
   function syncTaskCandidateResumeNote(task) {
-    const taskId = String(task?.task_id || "").trim();
+    const taskId = String(workbenchSourceField(task, "task_id", true) || "").trim();
     if (!taskId) {
       return;
     }
 
-    const resumeNote = String(task.resume_note || "").trim();
-    const syncCandidates = (candidates) => (Array.isArray(candidates) ? candidates.map((candidate) => (
+    const resumeNote = String(workbenchSourceField(task, "resume_note") || "").trim();
+    const syncCandidates = (/** @type {unknown} */ candidates) => (Array.isArray(candidates) ? candidates.map((candidate) => (
       candidateTaskId(candidate) === taskId
         ? { ...candidate, handoffNote: resumeNote }
         : candidate
@@ -3203,6 +3204,7 @@
     };
   }
 
+  /** @param {Event | null | undefined} event */
   async function openFocusedTaskEditor(event) {
     const taskId = state.activeTaskFocus?.taskId || "";
 
@@ -3232,8 +3234,9 @@
       resetTaskFocusState();
       await refreshFocusCandidates();
       renderWorkbench();
+      /** @type {Record<string, unknown>} */
       const completionDetail = {
-        ...result,
+        ...Object(result),
         recordId: requireTaskRecords().readTaskDetail(result)?.task_id || taskId,
       };
       setTaskCompletionStatus(completionDetail);
@@ -3246,6 +3249,7 @@
     }
   }
 
+  /** @param {Event | null | undefined} event */
   async function blockFocusedTask(event) {
     const taskId = state.activeTaskFocus?.taskId || "";
 
@@ -3357,6 +3361,7 @@
     };
   }
 
+  /** @param {Event | null | undefined} event */
   async function changeFocus(event) {
     if (resolvedWorkbenchViewState() !== WORKBENCH_VIEW_STATE_TASK_FOCUS) {
       return;
@@ -4179,6 +4184,7 @@
     setStatus("Task completed.");
   }
 
+  /** @param {unknown} continuity */
   function renderTaskRecurrenceContinuity(continuity) {
     const tasksDialog = requireNamespace().tasksDialog;
     const message = tasksDialog?.recurrenceContinuityMessage?.(continuity) || "Task completed.";
@@ -4186,20 +4192,21 @@
     tasksDialog?.renderRecurrenceContinuity?.(statusText, continuity);
   }
 
+  /** @param {unknown} taskId @param {unknown} initialContinuity */
   function trackTaskRecurrenceContinuity(taskId, initialContinuity) {
-    if (!taskId || initialContinuity?.status !== "pending") {
+    if (!taskId || workbenchSourceField(initialContinuity, "status", true) !== "pending") {
       return;
     }
 
-    const tracker = Symbol(taskId);
+    const tracker = Symbol(`${taskId}`);
     recurrenceContinuityTrackers.set(taskId, tracker);
     requireNamespace().tasksDialog?.pollRecurrenceContinuity?.(taskId, {
       initialContinuity,
-      onUpdate: async (continuity) => {
+      onUpdate: async (/** @type {unknown} */ continuity) => {
         if (recurrenceContinuityTrackers.get(taskId) !== tracker) {
           return;
         }
-        if (continuity?.status === "available") {
+        if (workbenchSourceField(continuity, "status", true) === "available") {
           await refreshFocusCandidates();
         }
         renderTaskRecurrenceContinuity(continuity);
@@ -4266,24 +4273,24 @@
     }
   }
 
-  /** @param {EventTarget | null} [trigger] */
+  /** @param {unknown} task @param {EventTarget | null} [trigger] */
   function offerTaskResumeNote(task, trigger = null) {
     void requireNamespace().taskResumeNoteCapture?.offer({
       task,
       trigger,
-      onSaved(updatedTask) {
+      onSaved(/** @type {unknown} */ updatedTask) {
         syncTaskCandidateResumeNote(updatedTask);
         if (resolvedWorkbenchViewState() === WORKBENCH_VIEW_STATE_FOCUS_SELECTION) {
           renderRecommendedAction();
           renderWorkbenchInspector();
         }
-        if (updatedTask?.task_id === state.activeTaskFocus?.taskId) {
+        if (workbenchSourceField(updatedTask, "task_id", true) === state.activeTaskFocus?.taskId) {
           applyActiveTaskFocusTask(updatedTask);
           renderTaskFocusSurface();
         }
       },
-      onError(error) {
-        setStatus(error.message || "Resume note could not be saved.", { isError: true });
+      onError(/** @type {unknown} */ error) {
+        setStatus(workbenchSourceField(error, "message") || "Resume note could not be saved.", { isError: true });
       },
     });
   }
@@ -4862,6 +4869,7 @@
       .join(" ");
   }
 
+  /** @param {unknown} message @param {{isError?: unknown}} [options] */
   function setStatus(message, options = {}) {
     if (!statusText) {
       return;
