@@ -1926,12 +1926,13 @@
     return state.focusCandidates.slice(recommendedCandidateWindow().length);
   }
 
+  /** @param {unknown} index @param {number} candidateCount */
   function clampRecommendedCandidateIndex(index, candidateCount) {
     if (candidateCount <= 0) {
       return 0;
     }
 
-    const parsedIndex = Number.parseInt(index, 10);
+    const parsedIndex = Number.parseInt(`${index}`, 10);
     if (!Number.isFinite(parsedIndex) || parsedIndex < 0) {
       return 0;
     }
@@ -1939,6 +1940,7 @@
     return Math.min(parsedIndex, candidateCount - 1);
   }
 
+  /** @param {number} candidateCount */
   function updateRecommendedCycleControls(candidateCount) {
     const canCycle = candidateCount > 1;
 
@@ -1955,6 +1957,7 @@
     }
   }
 
+  /** @param {number} direction */
   function cycleRecommendedCandidate(direction) {
     const candidates = recommendedCandidateWindow();
 
