@@ -414,6 +414,7 @@
         "tests/e2e/view-renderer-sparse-surface.spec.mjs",
         "tests/e2e/view-shell-cold-load.spec.mjs",
         "tests/e2e/workbench-action-strip.spec.mjs",
+        "tests/e2e/workbench-cache-readers.spec.mjs",
         "tests/e2e/workbench-card-state.spec.mjs",
         "tests/e2e/workbench-completion-resume.spec.mjs",
         "tests/e2e/workbench-detail-context.spec.mjs",
@@ -776,6 +777,7 @@
         "tests/unit/work-candidate-query-edge.test.mjs",
         "tests/unit/work-candidate-ranking.test.mjs",
         "tests/unit/workbench-bootstrap-contracts.test.mjs",
+        "tests/unit/workbench-cache-readers.test.mjs",
         "tests/unit/workbench-candidate-dispatch.test.mjs",
         "tests/unit/workbench-card-state.test.mjs",
         "tests/unit/workbench-checklist-readers.test.mjs",
@@ -899,7 +901,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 562,
+      "errorCount": 559,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -996,7 +998,7 @@
         "public/js/workbench.js": [
           {
             "code": 2339,
-            "count": 4
+            "count": 3
           },
           {
             "code": 2345,
@@ -1012,7 +1014,7 @@
           },
           {
             "code": 7006,
-            "count": 15
+            "count": 13
           },
           {
             "code": 7034,
@@ -1632,8 +1634,8 @@
     }
   },
   "totals": {
-    "files": 1481,
-    "errors": 562,
+    "files": 1483,
+    "errors": 559,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
