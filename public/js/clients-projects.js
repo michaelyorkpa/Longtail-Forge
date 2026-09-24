@@ -8,18 +8,15 @@
   /**
    * Everything the page holds about clients and their projects.
    *
-   * **Deliberately undeclared, and `0.33.33.43.32` measured why.** Deriving this from
-   * `normalizeData` closes forty-five member reads, and typing that normaliser's own input closes
-   * thirty-seven in total - but both stop at the same place, because **this file builds two
-   * different client shapes**. The mapped branch produces `parent_client_id`, `canCreateChild` and
-   * `canManage`; the synthetic workspace-projects entry `unshift`ed beside it produces none of
-   * those and adds `isWorkspaceScope` instead. One array, two shapes.
+   * **`0.33.33.43.32` measured the obstacle and `0.33.33.43.33` discharged it.** The two branches
+   * of `clients` were never one shape, and the decision taken was that they should not become one:
+   * a real client and the workspace-projects grouping are **different records that share an array**.
+   * `NormalizedClientEntry` is their union, discriminated by `isWorkspaceScope`, and each side is
+   * derived from the literal that builds it rather than restated.
    *
-   * Reconciling them is a **contract decision, not a typing one**: it settles whether the
-   * workspace-projects pseudo-client is manageable, can create children, and has a parent - three
-   * questions the code currently answers only by omission. **Discharged by** declaring one client
-   * record both branches satisfy, with those three answers made explicit. Pinned by
-   * `clients-projects-state-contracts`.
+   * Derived rather than declared for the same reason: this slot only ever holds what
+   * `normalizeData` produced.
+   * @type {ReturnType<typeof normalizeData>}
    */
   let clientProjectData = {
     capabilities: {
@@ -1612,7 +1609,7 @@
   }
 
   function getRealClients() {
-    return clientProjectData.clients.filter((client) => !client.isWorkspaceScope);
+    return clientProjectData.clients.filter(isRealClient);
   }
 
   function getActiveRealClients() {
@@ -1755,6 +1752,20 @@
     return [...descendants];
   }
 
+  /**
+   * The workspace grouping the list holds, or a stand-in built from the settings already loaded.
+   *
+   * The stand-in is the same grouping shape built from normalised capabilities rather than the
+   * wire's, which is why it is a second literal and not a call to the builder.
+   *
+   * **The return is deliberately left underclared.** Declaring it `WorkspaceProjectsGrouping`
+   * compiles here, and what it then reports is one caller further on: `openAddProjectForm` pushes
+   * its draft payload straight into `targetClient.projects` before the server has answered, and
+   * that draft carries no `id`, `canManage`, `taskDefaults`, `taskReminderPolicy` or `tags`. That
+   * optimistic insert is long-standing behaviour and its own boundary; declaring this return only
+   * changes how the compiler spells the same complaint, so the declaration waits for the
+   * checkpoint that settles the draft shape.
+   */
   function getWorkspaceProjectClient() {
     const simplifiedBilling = usesProjectRoundingOnly();
 
@@ -2838,7 +2849,11 @@
         type: "Client",
         label: getProjectClientLabel(targetClient),
         actions: [
-          project.client_id && targetClient.canManage ? {
+          // `isRealClient` is added for narrowing and changes no outcome: the grouping carries no
+          // `canManage`, so this read answered `undefined` - falsy - in exactly the case the guard
+          // now answers `false`. A workspace project's `client_id` is `""`, so it short-circuits
+          // before either test as it always did.
+          project.client_id && isRealClient(targetClient) && targetClient.canManage ? {
             label: "Edit",
             role: "utility",
             action: "edit-client",
@@ -3487,52 +3502,112 @@
     }
   }
 
+  /**
+   * One real client, as this page holds it.
+   *
+   * **A real client and the workspace grouping are different records, and this file has always
+   * built them as such.** This one carries `parent_client_id`, `canCreateChild`, `canManage` and
+   * `tags`; the grouping below carries none of those, and carries `isWorkspaceScope` instead. Each
+   * branch is extracted so that **its own literal names its type** - neither shape is restated, so
+   * neither can drift from what is actually built.
+   *
+   * The parameter stays as the wire delivered it: the normalisers below are what convert each
+   * member, and declaring it here would claim of the response what only they establish.
+   */
+  function normalizeClientRecord(client) {
+    const clientBillable = normalizeBillableFlag(client.billable);
+
+    return {
+      id: client.id,
+      name: client.name,
+      parent_client_id: client.parent_client_id || "",
+      status: clientStatuses.includes(client.status) ? client.status : "Active",
+      billable: clientBillable,
+      billing_rate: normalizeBillingRate(client.billing_rate),
+      billing_period: normalizeOptionalBillingPeriod(client.billing_period),
+      billing_rounding: normalizeOptionalBillingRounding(client.billing_rounding),
+      billing_contact: normalizeBillingContact(client.billing_contact),
+      canCreateChild: client.can_create_child === true,
+      canCreateProject: client.can_create_project === true,
+      canManage: client.can_manage === true,
+      canManageProjects: client.can_manage_projects === true,
+      taskReminderPolicy: normalizeTaskReminderPolicy(client.taskReminderPolicy),
+      tags: normalizeTags(client.tags),
+      projects: normalizeProjects(client.projects || [], clientBillable, client.id),
+    };
+  }
+
+  /**
+   * The workspace-projects grouping: projects belonging directly to the workspace, gathered under
+   * one entry so the projects surface can list them beside real clients.
+   *
+   * **It is a grouping, not a client.** It is deliberately not editable as a client, creates no
+   * child clients and takes no part in the parent-client hierarchy, which is why it carries no
+   * `parent_client_id`, no `canCreateChild`, no `canManage` and no `tags` - **absent because it has
+   * none of those, not defaulted to `false`**. Every consumer that needs a real client already
+   * reaches it through `getRealClients()`, which filters this entry out by `isWorkspaceScope`.
+   *
+   * Project permissions are untouched: `canCreateProject` and `canManageProjects` come from the
+   * workspace capabilities exactly as before, so creating and managing projects inside the grouping
+   * works as it always did.
+   * @param {ReturnType<typeof normalizeProjects>} workspaceProjects
+   * @param {Record<string, unknown> | null} [capabilities]
+   */
+  function buildWorkspaceProjectsGrouping(workspaceProjects, capabilities) {
+    const simplifiedBilling = usesProjectRoundingOnly();
+
+    return {
+      id: "__workspace_projects__",
+      name: workspaceProjectsLabel(),
+      status: "Active",
+      billable: simplifiedBilling ? "no" : "yes",
+      billing_rate: simplifiedBilling ? null : normalizeBillingRate(workspaceSettings.defaultBillingRate),
+      billing_period: simplifiedBilling ? null : normalizeOptionalBillingPeriod(workspaceSettings.billingPeriod),
+      billing_rounding: normalizeOptionalBillingRounding(workspaceSettings.billingRounding),
+      billing_contact: normalizeBillingContact({}),
+      canCreateProject: capabilities?.can_create_workspace_project === true,
+      canManageProjects: capabilities?.can_manage_workspace_projects === true,
+      taskReminderPolicy: normalizeTaskReminderPolicy({ inherited: true }),
+      isWorkspaceScope: /** @type {const} */ (true),
+      projects: workspaceProjects,
+    };
+  }
+
+  /**
+   * One entry of the page's client list: either a real client or the workspace grouping.
+   *
+   * Discriminated by `isWorkspaceScope`, which only the grouping carries.
+   * The real record carries `isWorkspaceScope?: false` so the discriminant can be read on either
+   * arm. That is a statement about the type, not a change to the value: the literal still writes
+   * nothing, and a real client reads `undefined` there exactly as it always did.
+   * @typedef {ReturnType<typeof normalizeClientRecord> & { isWorkspaceScope?: false }} NormalizedClientRecord
+   * @typedef {ReturnType<typeof buildWorkspaceProjectsGrouping>} WorkspaceProjectsGrouping
+   * @typedef {NormalizedClientRecord | WorkspaceProjectsGrouping} NormalizedClientEntry
+   */
+
+  /**
+   * Whether one entry of the client list is a real client rather than the workspace grouping.
+   *
+   * The same test `getRealClients` has always applied, given a name so it narrows: an entry that
+   * passes is a client, and the members only a client carries can be read on it.
+   * The parameter is "anything carrying the discriminant" rather than the entry union, because
+   * `getWorkspaceProjectClient` answers a stand-in grouping built from already-normalised
+   * capabilities when the list holds none - a fourth literal this test must also accept.
+   * @param {{ isWorkspaceScope?: unknown }} entry
+   * @returns {entry is NormalizedClientRecord}
+   */
+  function isRealClient(entry) {
+    return !entry.isWorkspaceScope;
+  }
+
   function normalizeData(data) {
     // Normalize immediately after every load/save so render code can trust field shapes.
     const workspaceProjects = normalizeProjects(data.workspaceProjects || [], "yes", "");
-    const clients = Array.isArray(data.clients)
-      ? data.clients.map((client) => {
-          const clientBillable = normalizeBillableFlag(client.billable);
-
-          return {
-            id: client.id,
-            name: client.name,
-            parent_client_id: client.parent_client_id || "",
-            status: clientStatuses.includes(client.status) ? client.status : "Active",
-            billable: clientBillable,
-            billing_rate: normalizeBillingRate(client.billing_rate),
-            billing_period: normalizeOptionalBillingPeriod(client.billing_period),
-            billing_rounding: normalizeOptionalBillingRounding(client.billing_rounding),
-            billing_contact: normalizeBillingContact(client.billing_contact),
-            canCreateChild: client.can_create_child === true,
-            canCreateProject: client.can_create_project === true,
-            canManage: client.can_manage === true,
-            canManageProjects: client.can_manage_projects === true,
-            taskReminderPolicy: normalizeTaskReminderPolicy(client.taskReminderPolicy),
-            tags: normalizeTags(client.tags),
-            projects: normalizeProjects(client.projects || [], clientBillable, client.id),
-          };
-        })
-      : [];
+    /** @type {NormalizedClientEntry[]} */
+    const clients = Array.isArray(data.clients) ? data.clients.map(normalizeClientRecord) : [];
 
     if (isProjectsPage && (workspaceProjects.length > 0 || clients.length === 0)) {
-      const simplifiedBilling = usesProjectRoundingOnly();
-
-      clients.unshift({
-        id: "__workspace_projects__",
-        name: workspaceProjectsLabel(),
-        status: "Active",
-        billable: simplifiedBilling ? "no" : "yes",
-        billing_rate: simplifiedBilling ? null : normalizeBillingRate(workspaceSettings.defaultBillingRate),
-        billing_period: simplifiedBilling ? null : normalizeOptionalBillingPeriod(workspaceSettings.billingPeriod),
-        billing_rounding: normalizeOptionalBillingRounding(workspaceSettings.billingRounding),
-        billing_contact: normalizeBillingContact({}),
-        canCreateProject: data.capabilities?.can_create_workspace_project === true,
-        canManageProjects: data.capabilities?.can_manage_workspace_projects === true,
-        taskReminderPolicy: normalizeTaskReminderPolicy({ inherited: true }),
-        isWorkspaceScope: true,
-        projects: workspaceProjects,
-      });
+      clients.unshift(buildWorkspaceProjectsGrouping(workspaceProjects, data.capabilities));
     }
 
     return {
@@ -3552,7 +3627,9 @@
   function canCreateChildClient(clientId) {
     return clientProjectData.clients.some((client) => (
       client.id === clientId &&
-      client.canCreateChild === true
+      // Same narrowing, same outcome: the grouping carries no `canCreateChild`, so `=== true` was
+      // already false for it.
+      isRealClient(client) && client.canCreateChild === true
     ));
   }
 
@@ -4318,7 +4395,17 @@
       clientCount: clientProjectData.clients.length,
       mode: pageMode,
       openClientId,
-      workspaceProjectCount: clientProjectData.workspaceProjects?.length || 0,
+      // **Corrected by `0.33.33.43.33`, as an explicit bug fix rather than an annotation.** This
+      // read `clientProjectData.workspaceProjects`, which the normaliser never writes: it folds the
+      // wire's workspace projects into the workspace grouping's own `projects` and returns only
+      // `{ capabilities, clients }`, so `?.length || 0` answered 0 every time.
+      //
+      // Counted from the normalised data the current user actually holds, which is already
+      // permission- and status-filtered by the server and the normaliser. Client-associated
+      // projects are excluded because they live on their own client's `projects`, and no second
+      // collection is kept for counting - the grouping is the collection.
+      workspaceProjectCount: clientProjectData.clients
+        .find((client) => client.isWorkspaceScope)?.projects.length || 0,
       workspaceType: workspaceSettings.workspaceType,
     }),
     runSmoke: () => {
