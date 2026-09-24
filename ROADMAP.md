@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.35` | `workbench.js` — then `clients-projects.js` | 18 owned, then 391 |
-| Claude | `0.33.33.43.31` | `clients-projects.js` — **opened**; `lists.js` at its deferral floor | 354 |
+| Claude | `0.33.33.43.32` | `clients-projects.js` — **needs a client-record decision**; `lists.js` at its deferral floor | 350 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -135,7 +135,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | `0.33.33.42` closeout | Codex | `workbench.js` at zero. The Inspector's opaque-candidate reconciliation is **an open decision**, not scheduled work. |
 | `0.33.33.38.5` — server task lifecycle status vocabulary | Unassigned | **Open decision, four unchecked criteria.** Needs a predicate where a persisted row becomes a lifecycle status; explicitly forbids narrowing `TaskRecord.status` as a shortcut. |
 | Task Focus extraction | Codex lane, unscheduled | **Open decision.** "Measure before slicing" — the post-`0.33.33.38` remeasurement was to decide whether extraction and typing are one child or two. Still undecided. |
-| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder is `lists.js` 91, `clients-projects.js` 354, `workbench.js` 17 — and the `dom` family at 90. `.44` proves the whole program at zero and is therefore last. |
+| `0.33.33.38` / `0.33.33.44` browser-zero acceptance | Both | **Neither may close while delegated work is outstanding.** With `notes.js`, the Tasks family and `files.js` at zero, the remainder is `lists.js` 91, `clients-projects.js` 350, `workbench.js` 15 — and the `dom` family at 90. `.44` proves the whole program at zero and is therefore last. |
 | `0.33.33.45`–`.47` | Both | Sequenced in real dependency order **after** the two browser lanes converge. No prerequisite is satisfiable before that. |
 | `0.33.33.48` | Both | Runs only when its prerequisites are actually satisfied. Unchanged. |
 
@@ -146,6 +146,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 - **`BrowserListItem.sort_order` is `unknown` by deliberate contract** — the comparator does arithmetic on it. Declaring it numeric would be false; converting would be new coercion. Discharged by the producer coercing the column, or the contract proving it. Pinned.
 - **`notes-primary-context` compiler case is marginal against its 5s bound** — recorded by `0.33.33.43.21`. It spawns `tsc` several times on a temp project and ran 5.8-6.7s when it failed, passing 8 of 10 attempts on this workstation. **It cannot see a Lists change**: its temp `tsconfig` declares `files: ["probe.js"]`, and the only project source it reads is `notes.js`. Not reproduced on clean-Linux CI. Discharged by an explicit per-case timeout or a cheaper probe, decided by the Notes owner; **not** by weakening what it asserts.
 - **The `dom` family is a Lists boundary** — recorded by `0.33.33.43.24`, **largely resolved by `0.33.33.43.25`**, which narrowed 25 module handles and took the global family **149 to 92**. What remains in `lists.js` is nullability rather than subtype: 55 `possibly null` reads that are unguarded assignments, so closing them is a behaviour decision about what an absent control should do, not a typing one. The lookups are now duplicated across six modules (sixteen near-identical helpers); whether they belong in the shared view layer is an open framework-ownership decision. Superseded detail below. `lists.js` holds **118 of the global 149**, and those are not incidental: the module handles are declared by `document.querySelector`, which answers `Element`, so `option`, `replaceOptions`, `populateProjectOptions`, `decorateFilterControl` and `decorateListEditorField` cannot be typed from above at all. Two checkpoints have now deferred annotations for this one reason. **`0.33.33.44` cannot close without it**, and it should be scheduled as its own boundary — narrowing the handles where they are declared — rather than met piecemeal from each consumer. Owner: Claude, with `lists.js`.
+- **Clients/Projects builds two client shapes, and reads a member it never writes** — recorded by `0.33.33.43.32`, **both open**. The mapped client carries `parent_client_id`, `canCreateChild` and `canManage`; the synthetic workspace-projects entry in the same array carries none of them and adds `isWorkspaceScope`. Declaring the page state forces a reconciliation that settles whether that pseudo-client is manageable, can create children, and has a parent — **a product decision, not a typing one**, worth 37-45 diagnostics. Separately, `workspaceProjectCount` in the page-controller snapshot is **always zero**, because the normaliser folds the wire's workspace projects into the synthetic client and never returns them on the object the snapshot reads. Both pinned by `clients-projects-state-contracts`. Owner: needs an explicit decision before the next Clients/Projects state checkpoint.
 - **`tag-picker-workflows` `[mobile]` intermittent** — investigated in the browser lane; tag accumulation was **disproved** as the cause (fresh database, 13/13 under stress). The remaining hypothesis is cross-worker contention. No fix shipped and none scheduled; it is a retry-dependent observation, not a product defect, and must not be closed by weakening the spec.
 
 **`0.33.33.38` and `0.33.33.44` may not be closed while delegated work is outstanding**, regardless of which lane holds it. The `.44` closeout proves the whole browser program at zero, so it is the last thing either lane does. `0.33.33.45`-`.47` are coordinated in real dependency order after the two browser lanes converge, and `0.33.33.48` runs only when its prerequisites are actually satisfied.
@@ -1565,6 +1566,16 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.32 - The Clients/Projects state slots, and what stopped them
+
+**Complete: 4 diagnostics closed, zero introduced - and the measurement is the checkpoint.** See the archive entry. `clients-projects.js` 354 to 350, browser **460 to 456**. `dom` unchanged at 90.
+
+**The boundary was 36 owned and it did not land.** Deriving the page state closes 45 member reads and typing its normaliser's input closes 37 in total, but both stop at the same place: **this file builds two different client shapes into one array**, and reconciling them settles whether the workspace-projects pseudo-client is manageable, can create children, and has a parent - questions the code answers only by omission. That is a contract decision, reported rather than smuggled into an annotation.
+
+**A second finding, and this one is a live defect:** `clientProjectData.workspaceProjects` is read by the page-controller snapshot and never written by the normaliser, so **`workspaceProjectCount` is always zero**. Pinned, not repaired.
+
+**The two findings are different in kind**, and `0.33.33.43.31` is why that was checked: its cascade surfaced `canManage`, which proved to be built. This one surfaced a member that is genuinely absent.
 
 #### 0.33.33.43.31 - Opening Clients/Projects on its readers
 
