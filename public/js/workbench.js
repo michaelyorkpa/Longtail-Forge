@@ -1103,7 +1103,7 @@
     const cachedFocusModes = cachedFetch?.readCached(workbenchCacheKey("focus-modes")) || null;
     const cachedRegistry = readCachedWorkbenchRegistry();
     const clients = cachedClientProjects ? normalizeClientProjectOptions(cachedClientProjects) : state.clients;
-    const focusModes = cachedFocusModes ? curateFocusModes(cachedFocusModes.modes || []) : state.focusModes;
+    const focusModes = cachedFocusModes ? curateFocusModes(workbenchFocusEnvelope(cachedFocusModes).modes || []) : state.focusModes;
     const workspaceType = currentWorkspaceType();
     const selectedClientId = cachedClientProjects
       ? resolveClientSelection(state.selectedClientId, clients, workspaceType)
@@ -1125,6 +1125,7 @@
     renderWorkbench();
   }
 
+  /** @param {string} name */
   function workbenchCacheKey(name) {
     const workspaceId = String(window.LongtailForge?.workspaceContext?.workspaceId || "");
     return `${workspaceId}:workbench:${name}`;
@@ -1134,6 +1135,7 @@
     return window.LongtailForge?.cachedFetch?.readCached(workbenchCacheKey("registry")) || null;
   }
 
+  /** @param {unknown} registry */
   function writeCachedWorkbenchRegistry(registry) {
     window.LongtailForge?.cachedFetch?.writeCached(workbenchCacheKey("registry"), registry || {});
   }
