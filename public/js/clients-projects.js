@@ -3538,6 +3538,10 @@
     return getRealClients().some((client) => client.id === clientId && client.canManageProjects === true);
   }
 
+  /**
+   * The client a new project should belong to, or `null` for a workspace-level one.
+   * @param {string} [requestedClientId]
+   */
   function resolveProjectCreateTarget(requestedClientId = "") {
     const normalizedClientId = requestedClientId === "__workspace_projects__" ? "" : requestedClientId;
 
@@ -3583,6 +3587,7 @@
       : [];
   }
 
+  /** @param {unknown} tags */
   function normalizeTags(tags) {
     return Array.isArray(tags)
       ? tags.map((tag) => ({
@@ -3610,27 +3615,71 @@
     };
   }
 
+  /**
+   * One module setting's stored value, or the caller's fallback when it has none.
+   *
+   * **`Object.hasOwn` rather than truthiness**: a setting explicitly stored as `0`, `""` or `false`
+   * is a real value, and only a setting that was never written falls back.
+   * The module list and each module's settings are described only as far as this reader walks
+   * them: a module is matched by `moduleId` and a setting by `id`, and both stay `unknown` because
+   * nothing here vouches for either.
+   * @param {{ moduleSettings?: { moduleId?: unknown, settings?: { id?: unknown, value?: unknown }[] }[] } | null} settings
+   * @param {string} moduleId @param {string} settingId @param {unknown} fallback
+   */
   function readModuleSettingValue(settings, moduleId, settingId, fallback) {
     const moduleDefinition = (settings?.moduleSettings || []).find((item) => item.moduleId === moduleId);
     const setting = (moduleDefinition?.settings || []).find((item) => item.id === settingId);
     return setting && Object.hasOwn(setting, "value") ? setting.value : fallback;
   }
 
+  /**
+   * Whether one of this page's own closed vocabularies contains a value it was handed.
+   *
+   * **The same answer `includes` gave, and it narrows.** `includes` is already `false` for every
+   * non-string, because no string equals one; testing `typeof` first therefore changes no answer -
+   * measured across fifteen values - while telling the compiler that a value which passed is text.
+   * That is what lets the vocabularies stay `string[]` instead of being widened to carry an
+   * unproved needle.
+   * @param {readonly string[]} vocabulary @param {unknown} value
+   * @returns {value is string}
+   */
+  function vocabularyHas(vocabulary, value) {
+    return typeof value === "string" && vocabulary.includes(value);
+  }
+
+  /**
+   * The task defaults a project carries, in the page's own vocabulary.
+   *
+   * Nine members, three of them in two or three spellings each, and every one `unknown`: this
+   * reader is what tests them against the closed vocabularies and falls back when they do not
+   * match. Nothing upstream vouches for any of them.
+   * @param {{
+   *   defaultAssigneeMode?: unknown, default_assignee_mode?: unknown, priority?: unknown,
+   *   sortOrder?: unknown, status?: unknown, task_default_assignee_mode?: unknown,
+   *   task_default_priority?: unknown, task_default_sort_order_json?: unknown,
+   *   task_default_status?: unknown
+   * }} [defaults]
+   */
   function normalizeProjectTaskDefaults(defaults = {}) {
+    const priority = defaults.priority || defaults.task_default_priority;
+    const status = defaults.status || defaults.task_default_status;
+    const assigneeMode = defaults.defaultAssigneeMode || defaults.default_assignee_mode || defaults.task_default_assignee_mode;
+
     return {
-      priority: taskDefaultPriorities.includes(defaults.priority || defaults.task_default_priority)
-        ? defaults.priority || defaults.task_default_priority
-        : "normal",
-      status: taskDefaultStatuses.includes(defaults.status || defaults.task_default_status)
-        ? defaults.status || defaults.task_default_status
-        : "open",
+      priority: vocabularyHas(taskDefaultPriorities, priority) ? priority : "normal",
+      status: vocabularyHas(taskDefaultStatuses, status) ? status : "open",
       sortOrder: normalizeProjectTaskSortOrder(defaults.sortOrder || defaults.task_default_sort_order_json),
-      defaultAssigneeMode: taskDefaultAssigneeModes.includes(defaults.defaultAssigneeMode || defaults.default_assignee_mode || defaults.task_default_assignee_mode)
-        ? defaults.defaultAssigneeMode || defaults.default_assignee_mode || defaults.task_default_assignee_mode
-        : "creator",
+      defaultAssigneeMode: vocabularyHas(taskDefaultAssigneeModes, assigneeMode) ? assigneeMode : "creator",
     };
   }
 
+  /**
+   * The task sort order, as the full vocabulary in the caller's preferred sequence.
+   *
+   * Entries the page does not know are dropped and the ones it knows are appended, so the result
+   * is always the whole set - a stored order can reorder it but cannot shorten or extend it.
+   * @param {unknown} value
+   */
   function normalizeProjectTaskSortOrder(value) {
     const rawItems = Array.isArray(value) ? value : parseJsonArray(value);
     const ordered = rawItems.filter((item) => defaultProjectTaskSortOrder.includes(item));
@@ -3644,6 +3693,10 @@
     return ordered.slice(0, defaultProjectTaskSortOrder.length);
   }
 
+  /**
+   * One stored JSON array as trimmed text entries, or `[]` for anything unreadable.
+   * @param {unknown} value
+   */
   function parseJsonArray(value) {
     try {
       const parsed = JSON.parse(String(value || "[]"));
@@ -3653,6 +3706,16 @@
     }
   }
 
+  /**
+   * The task reminder policy, in the page's own shape.
+   *
+   * `inherited` is `!== false` rather than truthy, so a policy that says nothing about inheritance
+   * inherits; the two offset lists accept a nested `offsets` bag and both flat spellings.
+   * @param {{
+   *   dateOnly?: unknown, dateTime?: unknown, date_only?: unknown, date_time?: unknown,
+   *   inherited?: unknown, offsets?: { dateOnly?: unknown, dateTime?: unknown } | null
+   * } | null} [policy]
+   */
   function normalizeTaskReminderPolicy(policy) {
     return {
       inherited: policy?.inherited !== false,
@@ -3661,9 +3724,16 @@
     };
   }
 
+  /**
+   * Up to two reminder offsets, in minutes, or the caller's defaults when none survive.
+   *
+   * The template makes explicit the conversion `parseInt` already performed; entries that are not
+   * finite positive numbers are dropped exactly as they were.
+   * @param {unknown} values @param {number[]} fallback
+   */
   function normalizeReminderOffsetList(values, fallback) {
     const offsets = (Array.isArray(values) ? values : [])
-      .map((value) => Number.parseInt(value, 10))
+      .map((value) => Number.parseInt(`${value}`, 10))
       .filter((value) => Number.isFinite(value) && value > 0)
       .slice(0, 2);
 
@@ -3674,6 +3744,7 @@
     return workspaceSettings.workspaceType === "business";
   }
 
+  /** @param {unknown} status */
   function isActiveStatus(status) {
     return String(status || "").trim().toLowerCase() === "active";
   }
@@ -3682,11 +3753,24 @@
     return !clientsEnabledForWorkspace();
   }
 
+  /**
+   * One billing rate as text, or `null` when there is none.
+   *
+   * `?? ""` rather than `|| ""`, so a rate of `0` survives as `"0"` instead of becoming absent.
+   * @param {unknown} value
+   */
   function normalizeBillingRate(value) {
     const text = String(value ?? "").trim();
     return text || null;
   }
 
+  /**
+   * The billable flag as the page's own `"yes"`/`"no"` vocabulary.
+   *
+   * Both the boolean and the text spelling are accepted on each side, because the wire sends one
+   * and the form sends the other; anything else falls to the caller's default.
+   * @param {unknown} value @param {string} [fallback]
+   */
   function normalizeBillableFlag(value, fallback = "yes") {
     if (value === false || value === "no") {
       return "no";
@@ -3699,9 +3783,16 @@
     return fallback === "no" ? "no" : "yes";
   }
 
+  /**
+   * One billing period, clamped to a day this page can render.
+   *
+   * The template makes explicit the conversion `parseInt` already performed on its own argument,
+   * so a numeric or textual start day reads identically and an unusable one still falls to 1.
+   * @param {{ startDay?: unknown, type?: unknown } | null} [period]
+   */
   function normalizeBillingPeriod(period) {
     const type = period?.type === "custom" ? "custom" : "calendarMonth";
-    const startDay = Math.min(28, Math.max(1, Number.parseInt(period?.startDay, 10) || 1));
+    const startDay = Math.min(28, Math.max(1, Number.parseInt(`${period?.startDay}`, 10) || 1));
 
     return {
       type,
@@ -3709,6 +3800,10 @@
     };
   }
 
+  /**
+   * One billing period, or `null` when the record inherits it.
+   * @param {{ startDay?: unknown, type?: unknown } | null} [period]
+   */
   function normalizeOptionalBillingPeriod(period) {
     if (!period || period.type === "inherit") {
       return null;
@@ -3717,9 +3812,21 @@
     return normalizeBillingPeriod(period);
   }
 
+  /**
+   * One rounding rule, in the page's own increment vocabulary.
+   *
+   * **Deliberately untyped, and the cascade is why.** Declaring the parameter makes this reader's
+   * return concrete, which flows through `normalizeData` into the client and project records and
+   * meets two consumers that the current inference hides: an editor slot that infers `null` from
+   * its initialiser, and a collection that infers `never[]` from an empty one. Neither is a
+   * dropped member - `canManage` *is* built by the normaliser - so this is an **inference cascade,
+   * not a defect**, and it belongs to the state-slot boundary rather than to this reader.
+   * **Discharged by** annotating those slots, which is the next boundary in this file. Pinned by
+   * `clients-projects-normalizer-contracts`.
+   */
   function normalizeBillingRounding(rounding) {
     const increments = ["nearestHour", "nearestHalfHour", "nearestQuarterHour"];
-    const increment = increments.includes(rounding?.increment)
+    const increment = vocabularyHas(increments, rounding?.increment)
       ? rounding.increment
       : "nearestQuarterHour";
 
@@ -3729,6 +3836,7 @@
     };
   }
 
+  /** @param {{ enabled?: unknown, increment?: unknown, type?: unknown } | null} [rounding] */
   function normalizeOptionalBillingRounding(rounding) {
     if (!rounding || rounding.type === "inherit") {
       return null;
@@ -3796,8 +3904,12 @@
     return { label, input };
   }
 
+  /**
+   * One control's value as a positive integer, or the caller's fallback.
+   * @param {{ value?: unknown } | null} input @param {number} fallback
+   */
   function readPositiveInteger(input, fallback) {
-    return Math.max(1, Number.parseInt(input?.value, 10) || fallback);
+    return Math.max(1, Number.parseInt(`${input?.value}`, 10) || fallback);
   }
 
   function createBillingPeriodEditor({ legend, inheritLabel, value, inheritedPeriod }) {
@@ -4072,6 +4184,10 @@
     return `${day}${suffix}`;
   }
 
+  /**
+   * The billing contact, with every field the page names present as text.
+   * @param {Record<string, unknown> | null} [contact]
+   */
   function normalizeBillingContact(contact) {
     return billingContactFields.reduce((billingContact, [fieldName]) => {
       billingContact[fieldName] = contact?.[fieldName] || "";

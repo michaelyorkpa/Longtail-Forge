@@ -546,6 +546,7 @@
         "tests/unit/client-project-options-normalizers.test.mjs",
         "tests/unit/client-project-options.test.mjs",
         "tests/unit/client-project-record-contracts.test.mjs",
+        "tests/unit/clients-projects-normalizer-contracts.test.mjs",
         "tests/unit/create-user-response-contracts.test.mjs",
         "tests/unit/dashboard-entry-bridge.test.mjs",
         "tests/unit/dashboard-panel-contracts.test.mjs",
@@ -907,7 +908,7 @@
         "public/js/workbench.js",
         "public/js/workspace-settings.js"
       ],
-      "errorCount": 499,
+      "errorCount": 462,
       "diagnostics": {
         "public/js/clients-projects.js": [
           {
@@ -920,7 +921,7 @@
           },
           {
             "code": 2339,
-            "count": 142
+            "count": 126
           },
           {
             "code": 2345,
@@ -952,7 +953,7 @@
           },
           {
             "code": 7006,
-            "count": 182
+            "count": 161
           },
           {
             "code": 7023,
@@ -1620,8 +1621,8 @@
     }
   },
   "totals": {
-    "files": 1489,
-    "errors": 499,
+    "files": 1490,
+    "errors": 462,
     "explicitAny": 0
   },
   "explicitAnyByFile": {},
