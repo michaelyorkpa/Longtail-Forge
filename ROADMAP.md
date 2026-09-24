@@ -121,7 +121,7 @@ The three multi-writer surfaces, as corrected by `0.33.33.33.8`:
 | Codex | `0.33.33.40.3` | `notes.js` | 0 — complete |
 | Codex | `0.33.33.41.2` | Tasks family | 0 — complete |
 | Codex | `0.33.33.42.39` | `workbench.js` — 4 owned, every one a recorded deferral | 4 owned |
-| Claude | `0.33.33.43.38` | `clients-projects.js` — dialog openers typed; `lists.js` at its deferral floor | 226 |
+| Claude | `0.33.33.43.39` | `clients-projects.js` — bulk update typed (first feature slice); `lists.js` at its deferral floor | 206 |
 | Claude | `0.33.33.43.18` | `files.js` — the **Files** module family, **complete at zero** | 0 |
 | Claude | `0.33.33.44.1` | Workspace Settings operator readouts — this owner's first child | 16 |
 
@@ -1566,6 +1566,16 @@ Today's measurement, taken independently per module rather than as a group: `cli
 - [ ] Reduce this browser ledger cohort to zero with focused module and Playwright coverage.
 
 **Resliced as a planning rollup, and the first child is drawn smaller than a module family.** The entry above deferred its slicing to "the post-`0.33.33.38` remeasurement". That remeasurement has happened, and what it drew first is not one of the three module families: it is the Lists **declarative-view descriptor boundary**, isolated because `0.33.33.38.2.2.5.2` could not land without it. Declaring `LongtailForge.workspaceContext` scatters roughly twenty deep descriptor reads across `lists.js`, and **that debt is this checkpoint's, not the namespace checkpoint's** - a namespace declaration should narrow a surface, not acquire a module's descriptor debt on the way past. The remaining module-family children stay undrawn until they are measured.
+
+#### 0.33.33.43.39 - Bulk update and selection, the first feature slice
+
+**Complete: 20 diagnostics closed, zero introduced, no message rose on the first pass.** See the archive entry. `clients-projects.js` 226 to 206, browser **323 to 303**, `0.33.33.43` 229 to 209. **Annotation only: no executable line changed.**
+
+**The function clusters were exhausted, so this is the first slice grouped by feature.** Bulk update and selection was the most coherent large group: 30 diagnostics across 11 functions doing one job. Twenty were in scope. The other ten were measured out before anything was touched: three `dom` reads in the toolbar sync, two in the selection binder that typing would have multiplied, and five that belong to the read-surface slot `0.33.33.43.32` deferred with a pin.
+
+**The proof aims at what a bulk write touches, because that is where a wrong assumption costs most.** Which records a selection names, and what each record receives. The sharpest case is moving projects between clients: `""` is itself a destination (the workspace), so it cannot also mean "leave the client alone". `shouldChangeClient` is what tells the two apart. **Dropping that check fails three cases**, and without it an empty client id silently moves every selected project to the workspace.
+
+**One assertion was wrong, and measuring caught it.** A first draft expected a no-clients workspace to keep each project's own billable value. The chosen value is replaced by `"no"`, and `"no"` is truthy, so the `||` never falls back: every selected project is written as unbillable. That is pre-existing behaviour, consistent with a workspace that has no client billing, and it is now pinned as measured. A second latent path is recorded rather than treated as a defect: in that workspace the "choose a change first" guard does not apply, so an empty change would still write to every selected project. **No toolbar control can send one**, because each change handler returns early on an empty value.
 
 #### 0.33.33.43.38 - The Clients/Projects dialog openers
 
